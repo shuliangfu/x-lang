@@ -35,13 +35,13 @@ struct ast_ForLoop { int32_t init_ref; int32_t cond_ref; int32_t step_ref; int32
 struct ast_IfStmt { int32_t cond_ref; int32_t then_body_ref; };
 struct ast_StmtOrderItem { uint8_t kind; int32_t idx; };
 struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; uint8_t goto_target[32]; int32_t goto_target_len; int32_t return_expr_ref; };
-struct ast_Block { struct ast_ConstDecl const_decls[128]; int32_t num_consts; struct ast_LetDecl let_decls[128]; int32_t num_lets; int32_t num_early_lets; struct ast_WhileLoop loops[8]; int32_t num_loops; struct ast_ForLoop for_loops[8]; int32_t num_for_loops; struct ast_IfStmt if_stmts[16]; int32_t num_if_stmts; int32_t defer_block_refs[8]; int32_t num_defers; struct ast_LabeledStmt labeled_stmts[8]; int32_t num_labeled_stmts; int32_t expr_stmt_refs[32]; int32_t num_expr_stmts; int32_t final_expr_ref; struct ast_StmtOrderItem stmt_order[96]; int32_t num_stmt_order; };
+struct ast_Block { struct ast_ConstDecl const_decls[256]; int32_t num_consts; struct ast_LetDecl let_decls[256]; int32_t num_lets; int32_t num_early_lets; struct ast_WhileLoop loops[8]; int32_t num_loops; struct ast_ForLoop for_loops[8]; int32_t num_for_loops; struct ast_IfStmt if_stmts[16]; int32_t num_if_stmts; int32_t defer_block_refs[8]; int32_t num_defers; struct ast_LabeledStmt labeled_stmts[8]; int32_t num_labeled_stmts; int32_t expr_stmt_refs[32]; int32_t num_expr_stmts; int32_t final_expr_ref; struct ast_StmtOrderItem stmt_order[96]; int32_t num_stmt_order; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; struct ast_Param params[16]; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t num_fields; uint8_t field_names[8][64]; int32_t field_lens[8]; int32_t field_offsets[8]; int32_t field_type_refs[8]; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t num_fields; uint8_t field_names[64][64]; int32_t field_lens[64]; int32_t field_offsets[64]; int32_t field_type_refs[64]; };
 struct ast_Module { struct ast_Func funcs[256]; int32_t func_refs[256]; int32_t num_funcs; int32_t main_func_index; uint8_t import_path_data[2048]; int32_t import_path_lens[32]; int32_t num_imports; int32_t import_kinds[32]; uint8_t import_binding_name[32][64]; int32_t import_binding_name_len[32]; int32_t import_select_count[32]; uint8_t import_select_names[32][8][64]; int32_t import_select_name_lens[32][8]; int32_t num_top_level_lets; uint8_t top_level_let_names[32][64]; int32_t top_level_let_name_lens[32]; int32_t top_level_let_type_refs[32]; int32_t top_level_let_init_refs[32]; int32_t top_level_let_is_const[32]; struct ast_StructLayout struct_layouts[32]; int32_t num_struct_layouts; };
-struct ast_ASTArena { struct ast_Type types[512]; int32_t num_types; struct ast_Expr exprs[4096]; int32_t num_exprs; struct ast_Block blocks[512]; int32_t num_blocks; struct ast_Func funcs[256]; int32_t num_funcs; };
-struct ast_PipelineDepCtx { struct ast_Module * dep_modules[32]; struct ast_ASTArena * dep_arenas[32]; int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t lib_root_bufs[8][256]; int32_t lib_root_lens[8]; uint8_t path_buf[512]; uint8_t loaded_buf[262144]; ptrdiff_t loaded_len; uint8_t preprocess_buf[262144]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t current_func_index; uint8_t * dep_paths[32]; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_func_empty_param_indices[16]; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; };
+struct ast_ASTArena { struct ast_Type types[512]; int32_t num_types; struct ast_Expr exprs[8192]; int32_t num_exprs; struct ast_Block blocks[512]; int32_t num_blocks; struct ast_Func funcs[256]; int32_t num_funcs; };
+struct ast_PipelineDepCtx { struct ast_Module * dep_modules[32]; struct ast_ASTArena * dep_arenas[32]; int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t lib_root_bufs[16][256]; int32_t lib_root_lens[16]; uint8_t path_buf[512]; uint8_t loaded_buf[262144]; ptrdiff_t loaded_len; uint8_t preprocess_buf[262144]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t current_func_index; uint8_t dep_logical_path_mirror[32][64]; uint8_t * dep_paths[32]; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_func_empty_param_indices[16]; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; };
 enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Result_Err, std_io_driver_IO_Result_Timeout, std_io_driver_IO_Result_Cancelled };
 struct std_io_driver_Buffer { uint8_t * ptr; size_t len; size_t handle; };
 struct std_io_driver_Completion { int32_t tag; };
@@ -51,30 +51,31 @@ struct std_io_ReadOnlySlice { struct shulang_slice_uint8_t data; };
 struct std_io_WriteOnlySlice { struct shulang_slice_uint8_t data; };
 struct std_fs_FsIovecBuf { uint8_t * ptr; size_t len; size_t handle; };
 extern void lexer_lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * data);
+extern struct lexer_Lexer lexer_lexer_init();
 extern int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena * arena);
 extern struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena * arena, int32_t ref);
 extern void ast_ast_arena_expr_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Expr e);
 extern int32_t ast_ast_arena_type_alloc(struct ast_ASTArena * arena);
 extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena * arena, int32_t ref);
 extern void ast_ast_arena_type_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Type t);
-extern int ast_ref_is_null(int32_t ref);
 extern struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena * arena, int32_t ref);
 extern void ast_ast_arena_block_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Block b);
 extern int32_t ast_ast_arena_block_alloc(struct ast_ASTArena * arena);
-extern struct lexer_Lexer lexer_lexer_init();
 extern struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 extern void ast_ast_arena_init(struct ast_ASTArena * arena);
 extern int32_t ast_ast_arena_func_alloc(struct ast_ASTArena * arena);
 extern struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena * arena, int32_t ref);
 extern void ast_ast_arena_func_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Func f);
+extern int ast_ref_is_null(int32_t ref);
+extern void lexer_lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 extern int32_t std_fs_fs_open_read(uint8_t * path);
 extern ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t * buf, size_t count);
 extern int32_t std_fs_fs_close(int32_t fd);
+struct parser_OneFuncResult { int ok; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; int32_t num_params; uint8_t param_names[16][32]; int32_t param_name_lens[16]; int32_t param_type_refs[16]; int32_t num_consts; uint8_t const_names[256][64]; int32_t const_name_lens[256]; int32_t const_init_vals[256]; int32_t num_lets; uint8_t let_names[256][64]; int32_t let_name_lens[256]; int32_t let_init_vals[256]; int32_t let_init_refs[256]; int32_t let_type_refs[256]; int has_if_expr; int if_cond_true; int32_t if_then_val; int32_t if_else_val; int32_t if_cond_expr_ref; int has_mul; int32_t mul_right_val; int has_binop; int32_t binop_right_val; int32_t binop_left_param_idx; int32_t binop_right_param_idx; int has_unary_neg; int32_t return_val; int has_call_expr; uint8_t call_callee_name[64]; int32_t call_callee_len; uint8_t return_var_name[64]; int32_t return_var_name_len; int32_t return_expr_ref; int32_t call_num_args; int32_t call_arg_vals[16]; int32_t num_loops; int32_t loop_cond_refs[8]; int32_t loop_body_refs[8]; int32_t num_for_loops; int32_t for_init_refs[8]; int32_t for_cond_refs[8]; int32_t for_step_refs[8]; int32_t for_body_refs[8]; int32_t num_if_stmts; int32_t if_cond_refs[16]; int32_t if_then_body_refs[16]; int32_t num_src_stmt_order; uint8_t src_stmt_kind[96]; int32_t src_stmt_idx[96]; int32_t num_src_body_expr_stmts; int32_t src_body_expr_stmt_refs[32]; int32_t func_return_type_ref; };
 struct parser_ParseResult { int ok; int32_t return_val; };
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
 struct parser_TopLevelLetResult { int ok; struct lexer_Lexer next_lex; };
 struct parser_CollectImportsResult { struct lexer_Lexer lex; };
-struct parser_OneFuncResult { int ok; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; int32_t num_params; uint8_t param_names[16][32]; int32_t param_name_lens[16]; int32_t param_type_refs[16]; int32_t num_consts; uint8_t const_names[64][64]; int32_t const_name_lens[64]; int32_t const_init_vals[64]; int32_t num_lets; uint8_t let_names[128][64]; int32_t let_name_lens[128]; int32_t let_init_vals[128]; int32_t let_init_refs[128]; int32_t let_type_refs[128]; int has_if_expr; int if_cond_true; int32_t if_then_val; int32_t if_else_val; int32_t if_cond_expr_ref; int has_mul; int32_t mul_right_val; int has_binop; int32_t binop_right_val; int32_t binop_left_param_idx; int32_t binop_right_param_idx; int has_unary_neg; int32_t return_val; int has_call_expr; uint8_t call_callee_name[64]; int32_t call_callee_len; uint8_t return_var_name[64]; int32_t return_var_name_len; int32_t return_expr_ref; int32_t call_num_args; int32_t call_arg_vals[16]; int32_t num_loops; int32_t loop_cond_refs[8]; int32_t loop_body_refs[8]; int32_t num_for_loops; int32_t for_init_refs[8]; int32_t for_cond_refs[8]; int32_t for_step_refs[8]; int32_t for_body_refs[8]; int32_t num_if_stmts; int32_t if_cond_refs[16]; int32_t if_then_body_refs[16]; int32_t num_src_stmt_order; uint8_t src_stmt_kind[96]; int32_t src_stmt_idx[96]; int32_t num_src_body_expr_stmts; int32_t src_body_expr_stmt_refs[32]; int implicit_tail_return; int32_t func_return_type_ref; };
 struct parser_ParseExprResult { int ok; int32_t expr_ref; struct lexer_Lexer next_lex; };
 struct parser_ParseBlockResult { int ok; int32_t block_ref; struct lexer_Lexer next_lex; };
 struct parser_ExternParseResult { struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; int32_t return_ty_ref; int32_t num_params; uint8_t param_names[16][32]; int32_t param_name_lens[16]; int32_t param_type_refs[16]; };
@@ -82,6 +83,14 @@ struct parser_TrySkipAllowResult { struct lexer_Lexer lex; int32_t skipped; uint
 struct parser_LibraryParseResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; uint8_t _pad_tail[4]; };
 struct parser_LibraryParseScanResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; uint8_t param_name[32]; int32_t param_name_len; uint8_t param_type_name[64]; int32_t param_type_len; uint8_t field_name[64]; int32_t field_len; uint8_t _pad_tail[4]; uint8_t _pad_tail2[4]; };
 extern struct shulang_slice_uint8_t parser_slice_from_buf(uint8_t * restrict data, int32_t len);
+extern void pipeline_module_struct_layout_reset_slot(struct ast_Module * restrict module, int32_t idx);
+extern void pipeline_module_struct_layout_set_name(struct ast_Module * restrict module, int32_t idx, uint8_t * restrict bytes, int32_t len);
+extern void pipeline_module_struct_layout_set_field(struct ast_Module * restrict module, int32_t layout_idx, int32_t j, uint8_t * restrict fname, int32_t fname_len, int32_t ftype_ref, int32_t foff);
+extern void pipeline_module_func_param_write(struct ast_Module * restrict module, int32_t func_index, int32_t param_index, uint8_t * restrict name_bytes, int32_t name_len, int32_t type_ref);
+extern void pipeline_arena_func_param_write(struct ast_ASTArena * restrict arena, int32_t func_ref, int32_t param_index, uint8_t * restrict name_bytes, int32_t name_len, int32_t type_ref);
+extern void pipeline_module_reset_parse_counters(struct ast_Module * restrict module);
+extern enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(enum token_TokenKind kind);
+extern int pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena * restrict arena, int32_t expr_ref);
 void parser_copy_lex_from_import_into(struct lexer_Lexer * restrict out, struct parser_CollectImportsResult * restrict res);
 void parser_lex_from_next_into(struct lexer_Lexer * restrict out, struct lexer_LexerResult r);
 void parser_lex_from_result_ptr_into(struct lexer_Lexer * restrict out_lex, struct lexer_LexerResult * restrict r);
@@ -92,7 +101,14 @@ size_t parser_lexer_pos_before_run(size_t end_pos, int32_t run_len);
 struct lexer_Lexer parser_lex_at_token_from_result(struct lexer_LexerResult r);
 int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source);
 int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source);
+void parser_onefunc_result_layout_prime();
 void parser_set_onefunc_fail(struct parser_OneFuncResult * restrict out, struct lexer_Lexer next_lex);
+void parser_onefunc_result_layout_prime_b();
+void parser_onefunc_result_layout_prime_c();
+void parser_onefunc_result_layout_prime_d();
+void parser_onefunc_result_layout_prime_d_b();
+void parser_onefunc_result_layout_prime_e();
+void parser_onefunc_result_layout_prime_f();
 void parser_copy_onefunc_into(struct parser_OneFuncResult * restrict dst, struct parser_OneFuncResult * restrict src);
 void parser_onefunc_push_src_stmt(struct parser_OneFuncResult * restrict out, uint8_t kind, int32_t idx);
 void parser_expr_set_common_zeros(struct ast_Expr * restrict e);
@@ -187,6 +203,9 @@ void parser_lex_from_library_into(struct lexer_Lexer * restrict out, struct pars
 struct lexer_Lexer parser_lex_from_try_skip(struct parser_TrySkipAllowResult t);
 struct lexer_Lexer parser_lex_from_library(struct parser_LibraryParseResult lib);
 int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shulang_slice_uint8_t * source, struct parser_LibraryParseScanResult * restrict result);
+int parser_struct_layout_name_exists_arr(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen);
+int32_t parser_struct_layout_first_name_match_idx(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen);
+int32_t parser_struct_layout_placeholder_idx(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen);
 struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source);
 struct parser_LibraryParseResult parser_parse_one_function_library_buf(struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow(struct lexer_Lexer lex, struct lexer_LexerResult r, struct shulang_slice_uint8_t * source);
@@ -196,9 +215,8 @@ struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_buf(struct
 void parser_skip_one_struct_into_buf(struct lexer_Lexer * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct lexer_Lexer parser_skip_one_struct_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 int parser_is_pointee_type_token(enum token_TokenKind kind);
-int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * restrict arena, struct shulang_slice_uint8_t * source, struct lexer_LexerResult r);
+int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * restrict arena, struct shulang_slice_uint8_t * source, struct lexer_LexerResult * restrict r);
 int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * restrict arena, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source, struct lexer_Lexer * restrict out_lex);
-int parser_struct_layout_name_exists_arr(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen);
 int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source, struct lexer_Lexer * restrict out_lex);
 void parser_parse_one_function_buf_into(struct parser_OneFuncResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 void parser_parse_one_function_library_into(struct parser_LibraryParseResult * restrict out, struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source);
@@ -272,9 +290,64 @@ int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * restrict
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
+void parser_onefunc_result_layout_prime() {
+  uint8_t z64[64] = { 0 };
+  uint8_t z32[32] = { 0 };
+  uint8_t zp[16][32] = { 0 };
+  int32_t zpl[16] = { 0 };
+  int32_t zpt[16] = { 0 };
+  struct parser_OneFuncResult _prime = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lexer_lexer_init(); _t.name_len = 0; _t.num_params = 0; memcpy(_t.name, z64, sizeof(_t.name)); memcpy(_t.param_names, zp, sizeof(_t.param_names)); memcpy(_t.param_name_lens, zpl, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, zpt, sizeof(_t.param_type_refs)); _t; });
+  (void)(((_prime).name_len = 0));
+}
 void parser_set_onefunc_fail(struct parser_OneFuncResult * restrict out, struct lexer_Lexer next_lex) {
   (void)(((out)->ok = 0));
   (void)(((out)->next_lex = next_lex));
+}
+void parser_onefunc_result_layout_prime_b() {
+  uint8_t dc[256][64] = { 0 };
+  int32_t dcl[256] = { 0 };
+  int32_t dcv[256] = { 0 };
+  uint8_t dl[256][64] = { 0 };
+  int32_t dll[256] = { 0 };
+  int32_t dlv[256] = { 0 };
+  int32_t dir[256] = { 0 };
+  struct parser_OneFuncResult _q2 = ({ struct parser_OneFuncResult _t = { 0 }; _t.num_consts = 0; _t.num_lets = 0; memcpy(_t.const_names, dc, sizeof(_t.const_names)); memcpy(_t.const_name_lens, dcl, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, dcv, sizeof(_t.const_init_vals)); memcpy(_t.let_names, dl, sizeof(_t.let_names)); memcpy(_t.let_name_lens, dll, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, dlv, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, dir, sizeof(_t.let_init_refs)); _t; });
+  (void)(((_q2).num_consts = 0));
+}
+void parser_onefunc_result_layout_prime_c() {
+  int32_t dlt[256] = { 0 };
+  struct parser_OneFuncResult _q3 = ({ struct parser_OneFuncResult _t = { 0 }; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; memcpy(_t.let_type_refs, dlt, sizeof(_t.let_type_refs)); _t; });
+  (void)(((_q3).if_cond_expr_ref = 0));
+}
+void parser_onefunc_result_layout_prime_d() {
+  uint8_t ccn[64] = { 0 };
+  struct parser_OneFuncResult _q4 = ({ struct parser_OneFuncResult _t = { 0 }; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; memcpy(_t.call_callee_name, ccn, sizeof(_t.call_callee_name)); _t; });
+  (void)(((_q4).binop_left_param_idx = (-1)));
+}
+void parser_onefunc_result_layout_prime_d_b() {
+  uint8_t rvn[64] = { 0 };
+  int32_t cargs[16] = { 0 };
+  int32_t lc[8] = { 0 };
+  struct parser_OneFuncResult _q4b = ({ struct parser_OneFuncResult _t = { 0 }; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; memcpy(_t.return_var_name, rvn, sizeof(_t.return_var_name)); memcpy(_t.call_arg_vals, cargs, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, lc, sizeof(_t.loop_cond_refs)); _t; });
+  (void)(((_q4b).call_num_args = 0));
+}
+void parser_onefunc_result_layout_prime_e() {
+  int32_t lb[8] = { 0 };
+  int32_t fi[8] = { 0 };
+  int32_t fc[8] = { 0 };
+  int32_t fs[8] = { 0 };
+  int32_t fb[8] = { 0 };
+  int32_t ic[16] = { 0 };
+  struct parser_OneFuncResult _q5 = ({ struct parser_OneFuncResult _t = { 0 }; _t.num_for_loops = 0; _t.num_if_stmts = 0; memcpy(_t.loop_body_refs, lb, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, fi, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, fc, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, fs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, fb, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, ic, sizeof(_t.if_cond_refs)); _t; });
+  (void)(((_q5).num_if_stmts = 0));
+}
+void parser_onefunc_result_layout_prime_f() {
+  int32_t it[16] = { 0 };
+  uint8_t sk[96] = { 0 };
+  int32_t si[96] = { 0 };
+  int32_t sr[32] = { 0 };
+  struct parser_OneFuncResult _q6 = ({ struct parser_OneFuncResult _t = { 0 }; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.if_then_body_refs, it, sizeof(_t.if_then_body_refs)); memcpy(_t.src_stmt_kind, sk, sizeof(_t.src_stmt_kind)); memcpy(_t.src_stmt_idx, si, sizeof(_t.src_stmt_idx)); memcpy(_t.src_body_expr_stmt_refs, sr, sizeof(_t.src_body_expr_stmt_refs)); _t; });
+  (void)(((_q6).func_return_type_ref = 0));
 }
 void parser_copy_onefunc_into(struct parser_OneFuncResult * restrict dst, struct parser_OneFuncResult * restrict src) {
   int32_t preserved_func_ret_ty = (dst)->func_return_type_ref;
@@ -309,52 +382,52 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * restrict dst, struct
   }
   (void)(((dst)->num_consts = (src)->num_consts));
   int32_t ci = 0;
-  while (ci < 64) {
+  while (ci < 256) {
     int32_t cj = 0;
     while (cj < 64) {
-      (void)(((cj < 0 || (cj) >= 64 ? (shulang_panic_(1, 0), 0) : (((ci < 0 || (ci) >= 64 ? (shulang_panic_(1, 0), ((dst)->const_names)[0]) : ((dst)->const_names)[ci]))[cj] = (cj < 0 || (cj) >= 64 ? (shulang_panic_(1, 0), ((ci < 0 || (ci) >= 64 ? (shulang_panic_(1, 0), ((src)->const_names)[0]) : ((src)->const_names)[ci]))[0]) : ((ci < 0 || (ci) >= 64 ? (shulang_panic_(1, 0), ((src)->const_names)[0]) : ((src)->const_names)[ci]))[cj]), 0))));
+      (void)(((cj < 0 || (cj) >= 64 ? (shulang_panic_(1, 0), 0) : (((ci < 0 || (ci) >= 256 ? (shulang_panic_(1, 0), ((dst)->const_names)[0]) : ((dst)->const_names)[ci]))[cj] = (cj < 0 || (cj) >= 64 ? (shulang_panic_(1, 0), ((ci < 0 || (ci) >= 256 ? (shulang_panic_(1, 0), ((src)->const_names)[0]) : ((src)->const_names)[ci]))[0]) : ((ci < 0 || (ci) >= 256 ? (shulang_panic_(1, 0), ((src)->const_names)[0]) : ((src)->const_names)[ci]))[cj]), 0))));
       (void)((cj = cj + 1));
     }
     (void)((ci = ci + 1));
   }
   int32_t cli = 0;
-  while (cli < 64) {
-    (void)(((cli < 0 || (cli) >= 64 ? (shulang_panic_(1, 0), 0) : (((dst)->const_name_lens)[cli] = (cli < 0 || (cli) >= 64 ? (shulang_panic_(1, 0), ((src)->const_name_lens)[0]) : ((src)->const_name_lens)[cli]), 0))));
+  while (cli < 256) {
+    (void)(((cli < 0 || (cli) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->const_name_lens)[cli] = (cli < 0 || (cli) >= 256 ? (shulang_panic_(1, 0), ((src)->const_name_lens)[0]) : ((src)->const_name_lens)[cli]), 0))));
     (void)((cli = cli + 1));
   }
   int32_t cvi = 0;
-  while (cvi < 64) {
-    (void)(((cvi < 0 || (cvi) >= 64 ? (shulang_panic_(1, 0), 0) : (((dst)->const_init_vals)[cvi] = (cvi < 0 || (cvi) >= 64 ? (shulang_panic_(1, 0), ((src)->const_init_vals)[0]) : ((src)->const_init_vals)[cvi]), 0))));
+  while (cvi < 256) {
+    (void)(((cvi < 0 || (cvi) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->const_init_vals)[cvi] = (cvi < 0 || (cvi) >= 256 ? (shulang_panic_(1, 0), ((src)->const_init_vals)[0]) : ((src)->const_init_vals)[cvi]), 0))));
     (void)((cvi = cvi + 1));
   }
   (void)(((dst)->num_lets = (src)->num_lets));
   int32_t li = 0;
-  while (li < 64) {
+  while (li < 256) {
     int32_t lj = 0;
     while (lj < 64) {
-      (void)(((lj < 0 || (lj) >= 64 ? (shulang_panic_(1, 0), 0) : (((li < 0 || (li) >= 128 ? (shulang_panic_(1, 0), ((dst)->let_names)[0]) : ((dst)->let_names)[li]))[lj] = (lj < 0 || (lj) >= 64 ? (shulang_panic_(1, 0), ((li < 0 || (li) >= 128 ? (shulang_panic_(1, 0), ((src)->let_names)[0]) : ((src)->let_names)[li]))[0]) : ((li < 0 || (li) >= 128 ? (shulang_panic_(1, 0), ((src)->let_names)[0]) : ((src)->let_names)[li]))[lj]), 0))));
+      (void)(((lj < 0 || (lj) >= 64 ? (shulang_panic_(1, 0), 0) : (((li < 0 || (li) >= 256 ? (shulang_panic_(1, 0), ((dst)->let_names)[0]) : ((dst)->let_names)[li]))[lj] = (lj < 0 || (lj) >= 64 ? (shulang_panic_(1, 0), ((li < 0 || (li) >= 256 ? (shulang_panic_(1, 0), ((src)->let_names)[0]) : ((src)->let_names)[li]))[0]) : ((li < 0 || (li) >= 256 ? (shulang_panic_(1, 0), ((src)->let_names)[0]) : ((src)->let_names)[li]))[lj]), 0))));
       (void)((lj = lj + 1));
     }
     (void)((li = li + 1));
   }
   int32_t lli = 0;
-  while (lli < 128) {
-    (void)(((lli < 0 || (lli) >= 128 ? (shulang_panic_(1, 0), 0) : (((dst)->let_name_lens)[lli] = (lli < 0 || (lli) >= 128 ? (shulang_panic_(1, 0), ((src)->let_name_lens)[0]) : ((src)->let_name_lens)[lli]), 0))));
+  while (lli < 256) {
+    (void)(((lli < 0 || (lli) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->let_name_lens)[lli] = (lli < 0 || (lli) >= 256 ? (shulang_panic_(1, 0), ((src)->let_name_lens)[0]) : ((src)->let_name_lens)[lli]), 0))));
     (void)((lli = lli + 1));
   }
   int32_t lvi = 0;
-  while (lvi < 128) {
-    (void)(((lvi < 0 || (lvi) >= 128 ? (shulang_panic_(1, 0), 0) : (((dst)->let_init_vals)[lvi] = (lvi < 0 || (lvi) >= 128 ? (shulang_panic_(1, 0), ((src)->let_init_vals)[0]) : ((src)->let_init_vals)[lvi]), 0))));
+  while (lvi < 256) {
+    (void)(((lvi < 0 || (lvi) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->let_init_vals)[lvi] = (lvi < 0 || (lvi) >= 256 ? (shulang_panic_(1, 0), ((src)->let_init_vals)[0]) : ((src)->let_init_vals)[lvi]), 0))));
     (void)((lvi = lvi + 1));
   }
   int32_t lri = 0;
-  while (lri < 128) {
-    (void)(((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), 0) : (((dst)->let_init_refs)[lri] = (lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((src)->let_init_refs)[0]) : ((src)->let_init_refs)[lri]), 0))));
+  while (lri < 256) {
+    (void)(((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->let_init_refs)[lri] = (lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((src)->let_init_refs)[0]) : ((src)->let_init_refs)[lri]), 0))));
     (void)((lri = lri + 1));
   }
   int32_t lti = 0;
-  while (lti < 128) {
-    (void)(((lti < 0 || (lti) >= 128 ? (shulang_panic_(1, 0), 0) : (((dst)->let_type_refs)[lti] = (lti < 0 || (lti) >= 128 ? (shulang_panic_(1, 0), ((src)->let_type_refs)[0]) : ((src)->let_type_refs)[lti]), 0))));
+  while (lti < 256) {
+    (void)(((lti < 0 || (lti) >= 256 ? (shulang_panic_(1, 0), 0) : (((dst)->let_type_refs)[lti] = (lti < 0 || (lti) >= 256 ? (shulang_panic_(1, 0), ((src)->let_type_refs)[0]) : ((src)->let_type_refs)[lti]), 0))));
     (void)((lti = lti + 1));
   }
   (void)(((dst)->has_if_expr = (src)->has_if_expr));
@@ -413,7 +486,6 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * restrict dst, struct
     (void)(((ifi < 0 || (ifi) >= 16 ? (shulang_panic_(1, 0), 0) : (((dst)->if_then_body_refs)[ifi] = (ifi < 0 || (ifi) >= 16 ? (shulang_panic_(1, 0), ((src)->if_then_body_refs)[0]) : ((src)->if_then_body_refs)[ifi]), 0))));
     (void)((ifi = ifi + 1));
   }
-  (void)(((dst)->implicit_tail_return = (src)->implicit_tail_return));
   (void)(({ int32_t __tmp = 0; if ((src)->func_return_type_ref != 0) {   (void)(((dst)->func_return_type_ref = (src)->func_return_type_ref));
  } else {   (void)(((dst)->func_return_type_ref = preserved_func_ret_ty));
  } ; __tmp; }));
@@ -519,7 +591,7 @@ void parser_parse_primary_into(struct ast_ASTArena * restrict arena, struct lexe
   (void)(((e).var_name_len = ((r).tok).ident_len));
   (void)(({ int32_t __tmp = 0; if ((e).var_name_len > 63) {   (void)(((e).var_name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
-  size_t start = ((r).next_lex).pos - ((r).tok).ident_len;
+  size_t start = (r).token_start;
   int32_t i = 0;
   while (i < (e).var_name_len && start + i < (source)->length) {
     (void)(((i < 0 || (i) >= 64 ? (shulang_panic_(1, 0), 0) : (((e).var_name)[i] = (start + i < 0 || (size_t)(start + i) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start + i]), 0))));
@@ -556,11 +628,10 @@ void parser_parse_primary_into(struct ast_ASTArena * restrict arena, struct lexe
   (void)(((fe).field_access_field_len = ((r).tok).ident_len));
   (void)(({ int32_t __tmp = 0; if ((fe).field_access_field_len > 63) {   (void)(((fe).field_access_field_len = 63));
  } else (__tmp = 0) ; __tmp; }));
-  struct lexer_Lexer fstart_lex = (r).next_lex;
-  size_t fstart = (fstart_lex).pos - ((r).tok).ident_len;
+  size_t fstart = (r).token_start;
   int32_t fi = 0;
-  while (fi < (fe).field_access_field_len && fstart + fi < (source)->length) {
-    (void)(((fi < 0 || (fi) >= 64 ? (shulang_panic_(1, 0), 0) : (((fe).field_access_field_name)[fi] = (fstart + fi < 0 || (size_t)(fstart + fi) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[fstart + fi]), 0))));
+  while (fi < (fe).field_access_field_len && fstart + ((size_t)(fi)) < (source)->length) {
+    (void)(((fi < 0 || (fi) >= 64 ? (shulang_panic_(1, 0), 0) : (((fe).field_access_field_name)[fi] = (fstart + ((size_t)(fi)) < 0 || (size_t)(fstart + ((size_t)(fi))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[fstart + ((size_t)(fi))]), 0))));
     (void)((fi = fi + 1));
   }
   while (fi < 64) {
@@ -679,7 +750,7 @@ void parser_parse_as_suffix_into(struct ast_ASTArena * restrict arena, struct sh
     int32_t type_ref = 0;
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STAR) {   (void)(parser_lex_from_result_ptr_into((&(lex_cur)), (&(r))));
   (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
-  int32_t elem_ref = parser_alloc_pointee_type_ref_from_tok(arena, source, r);
+  int32_t elem_ref = parser_alloc_pointee_type_ref_from_tok(arena, source, (&(r)));
   (void)(({ int32_t __tmp = 0; if (elem_ref == 0) {   (void)(((out)->ok = 0));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -709,9 +780,8 @@ void parser_parse_as_suffix_into(struct ast_ASTArena * restrict arena, struct sh
   (void)(({ int32_t __tmp = 0; if ((t).name_len > 63) {   (void)(((t).name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
   int32_t si2 = 0;
-  size_t start2 = ((r).next_lex).pos - ((r).tok).ident_len;
-  while (si2 < (t).name_len && start2 + si2 < (source)->length) {
-    (void)(((si2 < 0 || (si2) >= 64 ? (shulang_panic_(1, 0), 0) : (((t).name)[si2] = (start2 + si2 < 0 || (size_t)(start2 + si2) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start2 + si2]), 0))));
+  while (si2 < (t).name_len && (r).token_start + ((size_t)(si2)) < (source)->length) {
+    (void)(((si2 < 0 || (si2) >= 64 ? (shulang_panic_(1, 0), 0) : (((t).name)[si2] = ((r).token_start + ((size_t)(si2)) < 0 || (size_t)((r).token_start + ((size_t)(si2))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(si2))]), 0))));
     (void)((si2 = si2 + 1));
   }
  } ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
@@ -974,37 +1044,10 @@ int parser_is_compound_assign_token(enum token_TokenKind kind) {
   return kind == token_TokenKind_TOKEN_PLUS_EQ || kind == token_TokenKind_TOKEN_MINUS_EQ || kind == token_TokenKind_TOKEN_STAR_EQ || kind == token_TokenKind_TOKEN_SLASH_EQ || kind == token_TokenKind_TOKEN_PERCENT_EQ || kind == token_TokenKind_TOKEN_AMP_EQ || kind == token_TokenKind_TOKEN_PIPE_EQ || kind == token_TokenKind_TOKEN_CARET_EQ || kind == token_TokenKind_TOKEN_LSHIFT_EQ || kind == token_TokenKind_TOKEN_RSHIFT_EQ;
 }
 enum ast_ExprKind parser_compound_assign_token_to_expr_kind(enum token_TokenKind kind) {
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_PLUS_EQ) {   return ast_ExprKind_EXPR_ADD_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_MINUS_EQ) {   return ast_ExprKind_EXPR_SUB_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_STAR_EQ) {   return ast_ExprKind_EXPR_MUL_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_SLASH_EQ) {   return ast_ExprKind_EXPR_DIV_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_PERCENT_EQ) {   return ast_ExprKind_EXPR_MOD_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_AMP_EQ) {   return ast_ExprKind_EXPR_BITAND_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_PIPE_EQ) {   return ast_ExprKind_EXPR_BITOR_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_CARET_EQ) {   return ast_ExprKind_EXPR_BITXOR_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_LSHIFT_EQ) {   return ast_ExprKind_EXPR_SHL_ASSIGN;
- } else (__tmp = 0) ; __tmp; }));
-  return ast_ExprKind_EXPR_SHR_ASSIGN;
+  return compound_assign_token_to_expr_kind_from_glue(kind);
 }
 int parser_expr_ref_is_assign_lvalue(struct ast_ASTArena * restrict arena, int32_t expr_ref) {
-  (void)(({ int __tmp = 0; if (ast_ref_is_null(expr_ref) || expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
-  (void)(({ int __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_VAR) {   return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_INDEX) {   return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_FIELD_ACCESS) {   return (e).field_access_is_enum_variant == 0;
- } else (__tmp = 0) ; __tmp; }));
-  return 0;
+  return pipeline_expr_ref_is_assign_lvalue(arena, expr_ref);
 }
 void parser_parse_assign_into(struct ast_ASTArena * restrict arena, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source, struct parser_ParseExprResult * restrict out) {
   (void)(parser_parse_logor_into(arena, lex, source, out));
@@ -1071,7 +1114,7 @@ int parser_fill_block_const_let_from_res(struct ast_ASTArena * restrict arena, i
   (void)(((b).num_consts = (res)->num_consts));
   (void)(((b).num_lets = (res)->num_lets));
   int32_t const_i = 0;
-  while (const_i < (res)->num_consts && const_i < 64) {
+  while (const_i < (res)->num_consts && const_i < 256) {
     int32_t cinit_ref = ast_ast_arena_expr_alloc(arena);
     (void)(({ int __tmp = 0; if (cinit_ref == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -1080,14 +1123,14 @@ int parser_fill_block_const_let_from_res(struct ast_ASTArena * restrict arena, i
     (void)(((ce).resolved_type_ref = type_ref));
     (void)(((ce).line = 0));
     (void)(((ce).col = 0));
-    (void)(((ce).int_val = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res)->const_init_vals)[0]) : ((res)->const_init_vals)[const_i])));
+    (void)(((ce).int_val = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res)->const_init_vals)[0]) : ((res)->const_init_vals)[const_i])));
     (void)(parser_expr_set_common_zeros((&(ce))));
     (void)(ast_ast_arena_expr_set(arena, cinit_ref, ce));
-    struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
+    struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
     int32_t ck = 0;
-    while (ck < (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res)->const_name_lens)[0]) : ((res)->const_name_lens)[const_i]) && ck < 64) {
+    while (ck < (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res)->const_name_lens)[0]) : ((res)->const_name_lens)[const_i]) && ck < 64) {
       uint8_t const_row[64] ;
-      memcpy(const_row, ((const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res)->const_names)[0]) : ((res)->const_names)[const_i])), sizeof(const_row));
+      memcpy(const_row, ((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res)->const_names)[0]) : ((res)->const_names)[const_i])), sizeof(const_row));
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = (ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), (const_row)[0]) : (const_row)[ck]), 0))));
       (void)((ck = ck + 1));
     }
@@ -1096,19 +1139,19 @@ int parser_fill_block_const_let_from_res(struct ast_ASTArena * restrict arena, i
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = zero_const, 0))));
       (void)((ck = ck + 1));
     }
-    (void)(((cd).name_len = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res)->const_name_lens)[0]) : ((res)->const_name_lens)[const_i])));
+    (void)(((cd).name_len = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res)->const_name_lens)[0]) : ((res)->const_name_lens)[const_i])));
     (void)(((cd).type_ref = type_ref));
     (void)(((cd).init_ref = cinit_ref));
-    (void)(((const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
+    (void)(((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
     (void)((const_i = const_i + 1));
   }
   int32_t let_i = 0;
-  while (let_i < (res)->num_lets && let_i < 128) {
+  while (let_i < (res)->num_lets && let_i < 256) {
     int32_t let_decl_ty = type_ref;
-    (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_type_refs)[0]) : ((res)->let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_type_refs)[0]) : ((res)->let_type_refs)[let_i])));
+    (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_type_refs)[0]) : ((res)->let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_type_refs)[0]) : ((res)->let_type_refs)[let_i])));
  } else (__tmp = 0) ; __tmp; }));
     int32_t init_ref = 0;
-    (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_init_refs)[0]) : ((res)->let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_init_refs)[0]) : ((res)->let_init_refs)[let_i])));
+    (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_init_refs)[0]) : ((res)->let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_init_refs)[0]) : ((res)->let_init_refs)[let_i])));
  } else {   (void)((init_ref = ast_ast_arena_expr_alloc(arena)));
   (void)(({ int __tmp = 0; if (init_ref == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -1117,16 +1160,16 @@ int parser_fill_block_const_let_from_res(struct ast_ASTArena * restrict arena, i
   (void)(((le).resolved_type_ref = let_decl_ty));
   (void)(((le).line = 0));
   (void)(((le).col = 0));
-  (void)(((le).int_val = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_init_vals)[0]) : ((res)->let_init_vals)[let_i])));
+  (void)(((le).int_val = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_init_vals)[0]) : ((res)->let_init_vals)[let_i])));
   (void)(parser_expr_set_common_zeros((&(le))));
   (void)(ast_ast_arena_expr_set(arena, init_ref, le));
  } ; __tmp; }));
-    struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
+    struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
     int32_t lk = 0;
-    while (lk < (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_name_lens)[0]) : ((res)->let_name_lens)[let_i]) && lk < 128) {
-      uint8_t let_row[128] ;
-      memcpy(let_row, ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_names)[0]) : ((res)->let_names)[let_i])), sizeof(let_row));
-      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 128 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
+    while (lk < (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_name_lens)[0]) : ((res)->let_name_lens)[let_i]) && lk < 64) {
+      uint8_t let_row[64] ;
+      memcpy(let_row, ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_names)[0]) : ((res)->let_names)[let_i])), sizeof(let_row));
+      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
       (void)((lk = lk + 1));
     }
     uint8_t zero_let = 0;
@@ -1134,10 +1177,10 @@ int parser_fill_block_const_let_from_res(struct ast_ASTArena * restrict arena, i
       (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = zero_let, 0))));
       (void)((lk = lk + 1));
     }
-    (void)(((ld).name_len = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res)->let_name_lens)[0]) : ((res)->let_name_lens)[let_i])));
+    (void)(((ld).name_len = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res)->let_name_lens)[0]) : ((res)->let_name_lens)[let_i])));
     (void)(((ld).type_ref = let_decl_ty));
     (void)(((ld).init_ref = init_ref));
-    (void)(((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
+    (void)(((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
     (void)((let_i = let_i + 1));
   }
   (void)(ast_ast_arena_block_set(arena, block_ref, b));
@@ -1149,19 +1192,19 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
   uint8_t blk_dummy_p[16][32] = { 0 };
   int32_t blk_dummy_plens[16] = { 0 };
   int32_t blk_dummy_ptrefs[16] = { 0 };
-  uint8_t blk_dummy_c[64][64] = { 0 };
-  int32_t blk_dummy_clens[64] = { 0 };
-  int32_t blk_dummy_cvals[64] = { 0 };
-  uint8_t blk_dummy_ln[64][64] = { 0 };
-  int32_t blk_dummy_llens[128] = { 0 };
-  int32_t blk_dummy_lvals[128] = { 0 };
-  int32_t blk_dummy_let_refs[128] = { 0 };
-  int32_t blk_dummy_ltrefs[128] = { 0 };
+  uint8_t blk_dummy_c[256][64] = { 0 };
+  int32_t blk_dummy_clens[256] = { 0 };
+  int32_t blk_dummy_cvals[256] = { 0 };
+  uint8_t blk_dummy_ln[256][64] = { 0 };
+  int32_t blk_dummy_llens[256] = { 0 };
+  int32_t blk_dummy_lvals[256] = { 0 };
+  int32_t blk_dummy_let_refs[256] = { 0 };
+  int32_t blk_dummy_ltrefs[256] = { 0 };
   int32_t blk_dummy_loop_refs[8] = { 0 };
   int32_t blk_dummy_for_refs[8] = { 0 };
   int32_t blk_dummy_if_refs[16] = { 0 };
   int32_t blk_dummy_call_arg_vals[16] = { 0 };
-  struct parser_OneFuncResult temp = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex_after_lbrace; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; memcpy(_t.name, blk_empty64, sizeof(_t.name)); memcpy(_t.param_names, blk_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, blk_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, blk_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, blk_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, blk_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, blk_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, blk_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, blk_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, blk_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, blk_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, blk_dummy_ltrefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, blk_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, blk_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, blk_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, blk_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, blk_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, blk_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, blk_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, blk_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, blk_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, blk_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult temp = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex_after_lbrace; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, blk_empty64, sizeof(_t.name)); memcpy(_t.param_names, blk_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, blk_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, blk_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, blk_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, blk_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, blk_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, blk_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, blk_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, blk_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, blk_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, blk_dummy_ltrefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, blk_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, blk_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, blk_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, blk_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, blk_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, blk_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, blk_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, blk_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, blk_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, blk_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
   struct lexer_Lexer lex_cur = lex_after_lbrace;
   (void)(parser_parse_body_lets_into(arena, lex_after_lbrace, source, (&(temp)), (&(lex_cur))));
   int32_t block_ref = ast_ast_arena_block_alloc(arena);
@@ -1200,9 +1243,6 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
   struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
   struct lexer_Lexer lex_final_expr_start = lex_cur;
   (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RETURN && ((r).tok).kind != token_TokenKind_TOKEN_WHILE && ((r).tok).kind != token_TokenKind_TOKEN_FOR && ((r).tok).kind != token_TokenKind_TOKEN_IF) {   (void)((lex_cur = (r).next_lex));
-  (void)((lex_final_expr_start = lex_cur));
- } else (__tmp = 0) ; __tmp; }));
   while (((r).tok).kind == token_TokenKind_TOKEN_WHILE && (b).num_loops < 8) {
     (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_LPAREN) {   (void)(((out)->ok = 0));
@@ -1249,11 +1289,13 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
     (void)((lex_cur = (r).next_lex));
     int32_t init_ref = 0;
     (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
-  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res).ok) {   (void)((init_ref = (expr_res).expr_ref));
-  (void)((lex_cur = (expr_res).next_lex));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
+  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res_fi))));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fi).ok)) {   (void)(((out)->ok = 0));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((init_ref = (expr_res_fi).expr_ref));
+  (void)((lex_cur = (expr_res_fi).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   (void)(((out)->ok = 0));
@@ -1262,11 +1304,13 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
     (void)((lex_cur = (r).next_lex));
     int32_t cond_ref = 0;
     (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
-  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res).ok) {   (void)((cond_ref = (expr_res).expr_ref));
-  (void)((lex_cur = (expr_res).next_lex));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
+  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res_fc))));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fc).ok)) {   (void)(((out)->ok = 0));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((cond_ref = (expr_res_fc).expr_ref));
+  (void)((lex_cur = (expr_res_fc).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   (void)(((out)->ok = 0));
@@ -1275,11 +1319,13 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
     (void)((lex_cur = (r).next_lex));
     int32_t step_ref = 0;
     (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   struct parser_ParseExprResult expr_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
-  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res).ok) {   (void)((step_ref = (expr_res).expr_ref));
-  (void)((lex_cur = (expr_res).next_lex));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   struct parser_ParseExprResult expr_res_fs = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
+  (void)(parser_parse_expr_into(arena, lex_cur, source, (&(expr_res_fs))));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fs).ok)) {   (void)(((out)->ok = 0));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((step_ref = (expr_res_fs).expr_ref));
+  (void)((lex_cur = (expr_res_fs).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex_cur, source));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   (void)(((out)->ok = 0));
@@ -1570,7 +1616,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   while (((r).tok).kind == token_TokenKind_TOKEN_LET || ((r).tok).kind == token_TokenKind_TOKEN_CONST) {
-    (void)(({ int32_t __tmp = 0; if ((out)->num_lets >= 128) {   (void)(((lex_out)->pos = (lex).pos));
+    (void)(({ int32_t __tmp = 0; if ((out)->num_lets >= 256) {   (void)(((lex_out)->pos = (lex).pos));
   (void)(((lex_out)->line = (lex).line));
   (void)(((lex_out)->col = (lex).col));
   return;
@@ -1589,11 +1635,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((lex_out)->col = (lex).col));
   return;
  } else (__tmp = 0) ; __tmp; }));
-    size_t nlen_us = ((size_t)(name_len));
-    size_t name_start = (lex).pos;
-    (void)(({ size_t __tmp = 0; if ((r).token_start != 0) {   (void)((name_start = (r).token_start));
- } else (__tmp = ({ size_t __tmp = 0; if (((r).next_lex).pos >= nlen_us) {   (void)((name_start = ((r).next_lex).pos - nlen_us));
- } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
+    size_t name_start = (r).token_start;
     uint8_t name_row[64] = { 0 };
     int32_t ni = 0;
     while (ni < name_len && ni < 64) {
@@ -1608,10 +1650,10 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
     }
     (void)(({ int32_t __tmp = 0; if (is_let) {   int32_t copy_k = 0;
   while (copy_k < 64) {
-    (void)(((copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), 0) : ((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[(out)->num_lets]))[copy_k] = (copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), (name_row)[0]) : (name_row)[copy_k]), 0))));
+    (void)(((copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), 0) : ((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[(out)->num_lets]))[copy_k] = (copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), (name_row)[0]) : (name_row)[copy_k]), 0))));
     (void)((copy_k = copy_k + 1));
   }
-  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_name_lens)[(out)->num_lets] = name_len, 0))));
+  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_name_lens)[(out)->num_lets] = name_len, 0))));
  } else (__tmp = 0) ; __tmp; }));
     (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
     (void)(lexer_lexer_next_into((&(r)), lex, source));
@@ -1627,7 +1669,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((lex_out)->col = (lex).col));
   return;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_type_refs)[(out)->num_lets] = let_ty_ref, 0))));
+    (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_type_refs)[(out)->num_lets] = let_ty_ref, 0))));
  } else (__tmp = 0) ; __tmp; }));
     (void)(lexer_lexer_next_into((&(r)), lex, source));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_ASSIGN) {   (void)(((lex_out)->pos = (lex).pos));
@@ -1637,8 +1679,8 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
  } else (__tmp = 0) ; __tmp; }));
     (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
     (void)(lexer_lexer_next_into((&(r)), lex, source));
-    (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = 0, 0))));
-  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_vals)[(out)->num_lets] = 0, 0))));
+    (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = 0, 0))));
+  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_vals)[(out)->num_lets] = 0, 0))));
  } else (__tmp = 0) ; __tmp; }));
     int cast_init_semi_done = 0;
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_LBRACKET) {   (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
@@ -1727,7 +1769,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((ae).const_folded_valid = 0));
   (void)(((ae).index_proven_in_bounds = 0));
   (void)(ast_ast_arena_expr_set(arena, arr_ref, ae));
-  __tmp = ({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = arr_ref, 0))));
+  __tmp = ({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = arr_ref, 0))));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
@@ -1744,7 +1786,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((lex_out)->col = (lex).col));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = (expr_res).expr_ref, 0))));
+  (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = (expr_res).expr_ref, 0))));
  } else (__tmp = 0) ; __tmp; }));
   (void)((lex = (expr_res).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
@@ -1781,7 +1823,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((be).const_folded_valid = 0));
   (void)(((be).index_proven_in_bounds = 0));
   (void)(ast_ast_arena_expr_set(arena, bool_ref, be));
-  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = bool_ref, 0))));
+  (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = bool_ref, 0))));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
@@ -1800,7 +1842,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
   (void)(((lex_out)->col = (lex).col));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = (expr_res).expr_ref, 0))));
+  (void)(({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_refs)[(out)->num_lets] = (expr_res).expr_ref, 0))));
  } else (__tmp = 0) ; __tmp; }));
   (void)((lex = (expr_res).next_lex));
   (void)(({ int32_t __tmp = 0; if (parser_advance_past_stmt_semicolon_into((&(r)), lex, source) == 0) {   (void)(((lex_out)->pos = (lex).pos));
@@ -1810,7 +1852,7 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
   (void)((cast_init_semi_done = 1));
- } else (__tmp = ({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 128 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_vals)[(out)->num_lets] = int_val_saved, 0))));
+ } else (__tmp = ({ int32_t __tmp = 0; if (is_let) {   (void)((((out)->num_lets < 0 || ((out)->num_lets) >= 256 ? (shulang_panic_(1, 0), 0) : (((out)->let_init_vals)[(out)->num_lets] = int_val_saved, 0))));
  } else (__tmp = 0) ; __tmp; })) ; __tmp; });
  } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if ((!cast_init_semi_done)) {   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   (void)(((lex_out)->pos = (lex).pos));
@@ -2422,15 +2464,14 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   int32_t param_name_lens[16] ;
   memcpy(param_name_lens, dummy_plens, sizeof(param_name_lens));
   int32_t param_type_refs[16] = { 0 };
-  uint8_t empty64[64] = { 0 };
-  uint8_t dummy_const_names[64][64] = { 0 };
-  int32_t dummy_const_lens[64] = { 0 };
-  int32_t dummy_const_vals[64] = { 0 };
-  uint8_t dummy_let_names[128][64] = { 0 };
-  int32_t dummy_let_lens[128] = { 0 };
-  int32_t dummy_let_vals[128] = { 0 };
-  int32_t dummy_let_refs[128] = { 0 };
-  int32_t dummy_let_type_refs[128] = { 0 };
+  uint8_t dummy_const_names[256][64] = { 0 };
+  int32_t dummy_const_lens[256] = { 0 };
+  int32_t dummy_const_vals[256] = { 0 };
+  uint8_t dummy_let_names[256][64] = { 0 };
+  int32_t dummy_let_lens[256] = { 0 };
+  int32_t dummy_let_vals[256] = { 0 };
+  int32_t dummy_let_refs[256] = { 0 };
+  int32_t dummy_let_type_refs[256] = { 0 };
   int32_t dummy_loop_refs[8] = { 0 };
   int32_t num_loops = 0;
   int32_t loop_cond_refs[8] ;
@@ -2451,25 +2492,24 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   int32_t if_cond_refs[16] = { 0 };
   int32_t if_then_body_refs[16] = { 0 };
   int32_t num_consts = 0;
-  uint8_t const_names[64][64] ;
+  uint8_t const_names[256][64] ;
   memcpy(const_names, dummy_const_names, sizeof(const_names));
-  int32_t const_name_lens[64] ;
+  int32_t const_name_lens[256] ;
   memcpy(const_name_lens, dummy_const_lens, sizeof(const_name_lens));
-  int32_t const_init_vals[64] ;
+  int32_t const_init_vals[256] ;
   memcpy(const_init_vals, dummy_const_vals, sizeof(const_init_vals));
   int32_t num_lets = 0;
-  uint8_t let_names[128][64] ;
+  uint8_t let_names[256][64] ;
   memcpy(let_names, dummy_let_names, sizeof(let_names));
-  int32_t let_name_lens[128] ;
+  int32_t let_name_lens[256] ;
   memcpy(let_name_lens, dummy_let_lens, sizeof(let_name_lens));
-  int32_t let_init_vals[128] ;
+  int32_t let_init_vals[256] ;
   memcpy(let_init_vals, dummy_let_vals, sizeof(let_init_vals));
-  int32_t let_init_refs[128] ;
+  int32_t let_init_refs[256] ;
   memcpy(let_init_refs, dummy_let_refs, sizeof(let_init_refs));
-  int32_t let_type_refs[128] ;
+  int32_t let_type_refs[256] ;
   memcpy(let_type_refs, dummy_let_type_refs, sizeof(let_type_refs));
   int has_if_expr = 0;
-  int implicit_tail_return = 0;
   int32_t if_cond_expr_ref = 0;
   int if_cond_true = 0;
   int32_t if_then_val = 0;
@@ -2530,13 +2570,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
     (void)(({ int32_t __tmp = 0; if (plen <= 0 || plen > 31) {   (void)(parser_set_onefunc_fail(out_ref, lex));
   return;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((r).token_start != 0) {   (void)(parser_copy_slice_to_param32(source, (r).token_start, plen, (num_params < 0 || (num_params) >= 16 ? (shulang_panic_(1, 0), (param_names)[0]) : (param_names)[num_params])));
- } else {   size_t param_end = 0;
-  (void)(({ size_t __tmp = 0; if (((r).next_lex).pos >= ((size_t)(plen))) {   (void)((param_end = ((r).next_lex).pos));
- } else {   (void)((param_end = (lex).pos + ((size_t)(plen))));
- } ; __tmp; }));
-  (void)(parser_copy_slice_to_param32_at_end(source, param_end, plen, (num_params < 0 || (num_params) >= 16 ? (shulang_panic_(1, 0), (param_names)[0]) : (param_names)[num_params])));
- } ; __tmp; }));
+    (void)(parser_copy_slice_to_param32(source, (r).token_start, plen, (num_params < 0 || (num_params) >= 16 ? (shulang_panic_(1, 0), (param_names)[0]) : (param_names)[num_params])));
     (void)(((num_params < 0 || (num_params) >= 16 ? (shulang_panic_(1, 0), 0) : ((param_name_lens)[num_params] = plen, 0))));
     (void)((num_params = num_params + 1));
     (void)(parser_lex_from_next_into((&(lex)), r));
@@ -2589,14 +2623,14 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)((num_lets = (out)->num_lets));
   int32_t lri = 0;
-  while (lri < 128) {
-    (void)(((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_init_refs)[lri] = (lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_init_refs)[0]) : ((out)->let_init_refs)[lri]), 0))));
-    (void)(((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_type_refs)[lri] = (lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_type_refs)[0]) : ((out)->let_type_refs)[lri]), 0))));
-    (void)(((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_init_vals)[lri] = (lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_init_vals)[0]) : ((out)->let_init_vals)[lri]), 0))));
-    (void)(((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_name_lens)[lri] = (lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_name_lens)[0]) : ((out)->let_name_lens)[lri]), 0))));
+  while (lri < 256) {
+    (void)(((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_init_refs)[lri] = (lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_init_refs)[0]) : ((out)->let_init_refs)[lri]), 0))));
+    (void)(((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_type_refs)[lri] = (lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_type_refs)[0]) : ((out)->let_type_refs)[lri]), 0))));
+    (void)(((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_init_vals)[lri] = (lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_init_vals)[0]) : ((out)->let_init_vals)[lri]), 0))));
+    (void)(((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_name_lens)[lri] = (lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_name_lens)[0]) : ((out)->let_name_lens)[lri]), 0))));
     int32_t copy_k = 0;
     while (copy_k < 64) {
-      (void)(((copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), 0) : (((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), (let_names)[0]) : (let_names)[lri]))[copy_k] = (copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), ((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[lri]))[0]) : ((lri < 0 || (lri) >= 128 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[lri]))[copy_k]), 0))));
+      (void)(((copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), 0) : (((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), (let_names)[0]) : (let_names)[lri]))[copy_k] = (copy_k < 0 || (copy_k) >= 64 ? (shulang_panic_(1, 0), ((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[lri]))[0]) : ((lri < 0 || (lri) >= 256 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[lri]))[copy_k]), 0))));
       (void)((copy_k = copy_k + 1));
     }
     (void)((lri = lri + 1));
@@ -2622,14 +2656,14 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   }
   (void)((num_lets = (out)->num_lets));
   int32_t syn_i = 0;
-  while (syn_i < 128) {
-    (void)(((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_init_refs)[syn_i] = (syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_init_refs)[0]) : ((out)->let_init_refs)[syn_i]), 0))));
-    (void)(((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_type_refs)[syn_i] = (syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_type_refs)[0]) : ((out)->let_type_refs)[syn_i]), 0))));
-    (void)(((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_init_vals)[syn_i] = (syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_init_vals)[0]) : ((out)->let_init_vals)[syn_i]), 0))));
-    (void)(((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), 0) : ((let_name_lens)[syn_i] = (syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_name_lens)[0]) : ((out)->let_name_lens)[syn_i]), 0))));
+  while (syn_i < 256) {
+    (void)(((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_init_refs)[syn_i] = (syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_init_refs)[0]) : ((out)->let_init_refs)[syn_i]), 0))));
+    (void)(((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_type_refs)[syn_i] = (syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_type_refs)[0]) : ((out)->let_type_refs)[syn_i]), 0))));
+    (void)(((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_init_vals)[syn_i] = (syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_init_vals)[0]) : ((out)->let_init_vals)[syn_i]), 0))));
+    (void)(((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), 0) : ((let_name_lens)[syn_i] = (syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_name_lens)[0]) : ((out)->let_name_lens)[syn_i]), 0))));
     int32_t copy_km = 0;
     while (copy_km < 64) {
-      (void)(((copy_km < 0 || (copy_km) >= 64 ? (shulang_panic_(1, 0), 0) : (((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), (let_names)[0]) : (let_names)[syn_i]))[copy_km] = (copy_km < 0 || (copy_km) >= 64 ? (shulang_panic_(1, 0), ((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[syn_i]))[0]) : ((syn_i < 0 || (syn_i) >= 128 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[syn_i]))[copy_km]), 0))));
+      (void)(((copy_km < 0 || (copy_km) >= 64 ? (shulang_panic_(1, 0), 0) : (((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), (let_names)[0]) : (let_names)[syn_i]))[copy_km] = (copy_km < 0 || (copy_km) >= 64 ? (shulang_panic_(1, 0), ((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[syn_i]))[0]) : ((syn_i < 0 || (syn_i) >= 256 ? (shulang_panic_(1, 0), ((out)->let_names)[0]) : ((out)->let_names)[syn_i]))[copy_km]), 0))));
       (void)((copy_km = copy_km + 1));
     }
     (void)((syn_i = syn_i + 1));
@@ -2681,9 +2715,11 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
   (void)(parser_parse_expr_into(arena, lex, source, (&(expr_res_fi))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res_fi).ok) {   (void)((init_ref = (expr_res_fi).expr_ref));
-  (void)((lex = (expr_res_fi).next_lex));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fi).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((init_ref = (expr_res_fi).expr_ref));
+  (void)((lex = (expr_res_fi).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   (void)(parser_set_onefunc_fail(out, lex));
@@ -2694,9 +2730,11 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   struct parser_ParseExprResult expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
   (void)(parser_parse_expr_into(arena, lex, source, (&(expr_res_fc))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res_fc).ok) {   (void)((for_cond_ref = (expr_res_fc).expr_ref));
-  (void)((lex = (expr_res_fc).next_lex));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fc).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((for_cond_ref = (expr_res_fc).expr_ref));
+  (void)((lex = (expr_res_fc).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   (void)(parser_set_onefunc_fail(out, lex));
@@ -2707,9 +2745,11 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   struct parser_ParseExprResult expr_res_fs = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
   (void)(parser_parse_expr_into(arena, lex, source, (&(expr_res_fs))));
-  (void)(({ int32_t __tmp = 0; if ((expr_res_fs).ok) {   (void)((step_ref = (expr_res_fs).expr_ref));
-  (void)((lex = (expr_res_fs).next_lex));
+  (void)(({ int32_t __tmp = 0; if ((!(expr_res_fs).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
  } else (__tmp = 0) ; __tmp; }));
+  (void)((step_ref = (expr_res_fs).expr_ref));
+  (void)((lex = (expr_res_fs).next_lex));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   (void)(parser_set_onefunc_fail(out, lex));
@@ -2808,22 +2848,11 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   return;
  } ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   (void)(parser_lex_from_next_into((&(lex)), r));
-  struct parser_OneFuncResult tmp_brace_end = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_brace_end = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_brace_end))));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_INT) {   (void)((ret_val = ((r).tok).int_val));
-  (void)(parser_lex_from_next_into((&(lex)), r));
-  (void)(lexer_lexer_next_into((&(r)), lex, source));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {   (void)(parser_set_onefunc_fail(out, lex));
-  return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&(lex)), r));
-  (void)((implicit_tail_return = 1));
-  struct parser_OneFuncResult tmp_ok_int_tail = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
-  (void)(parser_copy_onefunc_into(out, (&(tmp_ok_int_tail))));
-  return;
- } else (__tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RETURN) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RETURN) {   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (return_type_is_bool && ((r).tok).kind != token_TokenKind_TOKEN_IF) {   struct lexer_Lexer rex_lex = parser_lex_at_token_from_result(r);
   struct parser_ParseExprResult rex_out = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = rex_lex };
@@ -2841,7 +2870,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_next_into((&(lex)), r));
-  struct parser_OneFuncResult tmp_bool_ret_expr = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_bool_ret_expr = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_bool_ret_expr))));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -2900,7 +2929,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
  } else (__tmp = 0) ; __tmp; }));
-  struct parser_OneFuncResult tmp_if_ok = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_if_ok = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_if_ok))));
   return;
  } else (__tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_MINUS) {   (void)(parser_lex_from_next_into((&(lex)), r));
@@ -2937,7 +2966,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
  } else {   (void)(parser_set_onefunc_fail(out, lex));
   return;
  } ; __tmp; })) ; __tmp; }));
-  struct parser_OneFuncResult tmp_ret_as = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ret_as = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ret_as))));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -2981,10 +3010,30 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
  } else {   (void)(parser_set_onefunc_fail(out, lex));
   return;
  } ; __tmp; })) ; __tmp; }));
-  struct parser_OneFuncResult tmp_success = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_success = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_success))));
   return;
- } else {   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_IDENT) {   int32_t clen = ((r).tok).ident_len;
+ } else {   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT) {   struct lexer_Lexer rex_lex_ni = parser_lex_at_token_from_result(r);
+  struct parser_ParseExprResult rex_out_ni = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = rex_lex_ni };
+  (void)(parser_parse_expr_into(arena, rex_lex_ni, source, (&(rex_out_ni))));
+  (void)(({ int32_t __tmp = 0; if ((!(rex_out_ni).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)((return_expr_ref_storage = (rex_out_ni).expr_ref));
+  (void)((lex = (rex_out_ni).next_lex));
+  (void)(lexer_lexer_next_into((&(r)), lex, source));
+  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_SEMICOLON) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(lexer_lexer_next_into((&(r)), lex, source));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  struct parser_OneFuncResult tmp_ok_retexpr_non_ident = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  (void)(parser_copy_onefunc_into(out, (&(tmp_ok_retexpr_non_ident))));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_IDENT) {   int32_t clen = ((r).tok).ident_len;
   __tmp = ({ int32_t __tmp = 0; if (clen > 0 && clen <= 63) {   size_t cstart = ((r).next_lex).pos - clen;
   (void)(parser_copy_slice_to_name64(source, cstart, clen, call_callee_name));
   (void)((call_callee_len = clen));
@@ -3010,7 +3059,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   __tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_SEMICOLON) {   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   __tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   (void)(parser_lex_from_next_into((&(lex)), r));
-  struct parser_OneFuncResult tmp_binop = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_binop = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_binop))));
   return;
  } else (__tmp = 0) ; __tmp; });
@@ -3031,7 +3080,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
  } ; __tmp; }));
-  struct parser_OneFuncResult tmp_retvar = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = clen; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.return_var_name, call_callee_name, sizeof(_t.return_var_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_retvar = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = clen; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.return_var_name, call_callee_name, sizeof(_t.return_var_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_retvar))));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -3054,7 +3103,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_next_into((&(lex)), r));
-  struct parser_OneFuncResult tmp_ok_retexpr = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ok_retexpr = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ok_retexpr))));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -3077,7 +3126,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_next_into((&(lex)), r));
-  struct parser_OneFuncResult tmp_ok_retexpr_member = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ok_retexpr_member = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = return_expr_ref_storage; _t.call_num_args = 0; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ok_retexpr_member))));
   return;
  } else (__tmp = 0) ; __tmp; });
@@ -3096,7 +3145,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
  } else {   (void)(parser_set_onefunc_fail(out, lex));
   return;
  } ; __tmp; }));
-  struct parser_OneFuncResult tmp_ok = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ok = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ok))));
   return;
  } ; __tmp; })) ; __tmp; })) ; __tmp; }));
@@ -3110,21 +3159,25 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
  } else {   (void)(parser_set_onefunc_fail(out, lex));
   return;
  } ; __tmp; })) ; __tmp; }));
-  struct parser_OneFuncResult tmp_ok_after_return_kw = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = implicit_tail_return; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ok_after_return_kw = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = has_if_expr; _t.if_cond_true = if_cond_true; _t.if_then_val = if_then_val; _t.if_else_val = if_else_val; _t.if_cond_expr_ref = if_cond_expr_ref; _t.has_mul = has_mul; _t.mul_right_val = mul_right_val; _t.has_binop = has_binop; _t.binop_right_val = binop_right_val; _t.binop_left_param_idx = binop_left_param_idx; _t.binop_right_param_idx = binop_right_param_idx; _t.has_unary_neg = has_unary_neg; _t.return_val = ret_val; _t.has_call_expr = has_call_expr; _t.call_callee_len = call_callee_len; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = call_num_args; _t.num_loops = num_loops; _t.num_for_loops = num_for_loops; _t.num_if_stmts = num_if_stmts; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, call_callee_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ok_after_return_kw))));
   return;
  } else {   (void)((lex = parser_skip_balanced_braces(lex, source)));
-  struct parser_OneFuncResult tmp_ok0 = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, dummy_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult tmp_ok0 = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 1; _t.next_lex = lex; _t.name_len = (func_name_len_storage)[0]; _t.num_params = num_params; _t.num_consts = num_consts; _t.num_lets = num_lets; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, name, sizeof(_t.name)); memcpy(_t.param_names, param_names, sizeof(_t.param_names)); memcpy(_t.param_name_lens, param_name_lens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, param_type_refs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, const_names, sizeof(_t.const_names)); memcpy(_t.const_name_lens, const_name_lens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, const_init_vals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, let_names, sizeof(_t.let_names)); memcpy(_t.let_name_lens, let_name_lens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, let_init_vals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, let_init_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, let_type_refs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, dummy_name, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, loop_cond_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, loop_body_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, for_init_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, for_cond_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, for_step_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, for_body_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, if_cond_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, if_then_body_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_copy_onefunc_into(out, (&(tmp_ok0))));
   return;
- } ; __tmp; })) ; __tmp; }));
+ } ; __tmp; }));
 }
 void parser_parse_into_init(struct ast_Module * restrict module, struct ast_ASTArena * restrict arena) {
   (void)(ast_ast_arena_init(arena));
-  (void)(((module)->num_funcs = 0));
-  (void)(((module)->main_func_index = (-1)));
-  (void)(((module)->num_imports = 0));
-  (void)(((module)->num_top_level_lets = 0));
+  (void)(parser_onefunc_result_layout_prime());
+  (void)(parser_onefunc_result_layout_prime_b());
+  (void)(parser_onefunc_result_layout_prime_c());
+  (void)(parser_onefunc_result_layout_prime_d());
+  (void)(parser_onefunc_result_layout_prime_d_b());
+  (void)(parser_onefunc_result_layout_prime_e());
+  (void)(parser_onefunc_result_layout_prime_f());
+  (void)(pipeline_module_reset_parse_counters(module));
 }
 struct lexer_Lexer parser_skip_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t * source) {
   while (1) {
@@ -3157,7 +3210,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
   (void)(lexer_lexer_next_into((&(r2)), (r).next_lex, source));
   (void)(({ int32_t __tmp = 0; if (((r2).tok).kind == token_TokenKind_TOKEN_IDENT && ((r2).tok).ident_len > 0 && ((r2).tok).ident_len <= 63) {   struct lexer_LexerResult r3 = (struct lexer_LexerResult){ .next_lex = (r2).next_lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
   (void)(lexer_lexer_next_into((&(r3)), (r2).next_lex, source));
-  __tmp = ({ int32_t __tmp = 0; if (((r3).tok).kind == token_TokenKind_TOKEN_ASSIGN) {   size_t bind_start = ((r2).next_lex).pos - ((r2).tok).ident_len;
+  __tmp = ({ int32_t __tmp = 0; if (((r3).tok).kind == token_TokenKind_TOKEN_ASSIGN) {   size_t bind_start = (r2).token_start;
   int32_t n = (module)->num_imports;
   (void)(({ int32_t __tmp = 0; if (n >= 32) {   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -3179,7 +3232,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
   (void)(lexer_lexer_next_into((&(r)), (out)->lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  size_t ident_start = ((r).next_lex).pos - ((r).tok).ident_len;
+  size_t ident_start = (r).token_start;
   (void)(parser_copy_slice_to_name64(source, ident_start, ((r).tok).ident_len, path_buf));
   (void)((path_len = ((r).tok).ident_len));
   (void)(parser_lex_from_next_into((&((out)->lex)), r));
@@ -3196,7 +3249,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
  } else (__tmp = 0) ; __tmp; }));
     int32_t i = 0;
     while (i < ((r).tok).ident_len) {
-      (void)(({ uint8_t __tmp = 0; if (((out)->lex).pos + i < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (((out)->lex).pos + i < 0 || (size_t)(((out)->lex).pos + i) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[((out)->lex).pos + i]), 0))));
+      (void)(({ uint8_t __tmp = 0; if ((r).token_start + ((size_t)(i)) < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = ((r).token_start + ((size_t)(i)) < 0 || (size_t)((r).token_start + ((size_t)(i))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(i))]), 0))));
  } else (__tmp = 0) ; __tmp; }));
       (void)((i = i + 1));
     }
@@ -3231,7 +3284,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
   (void)(parser_lex_from_next_into((&((out)->lex)), r));
   (void)(lexer_lexer_next_into((&(r)), (out)->lex, source));
   while (((r).tok).kind == token_TokenKind_TOKEN_IDENT && nsel < 8) {
-    size_t sel_start = ((r).next_lex).pos - ((r).tok).ident_len;
+    size_t sel_start = (r).token_start;
     (void)(({ int32_t __tmp = 0; if (((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
  } else (__tmp = 0) ; __tmp; }));
     int32_t si = 0;
@@ -3266,7 +3319,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
   (void)(lexer_lexer_next_into((&(r)), (out)->lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  size_t ident_start = ((r).next_lex).pos - ((r).tok).ident_len;
+  size_t ident_start = (r).token_start;
   (void)(parser_copy_slice_to_name64(source, ident_start, ((r).tok).ident_len, path_buf));
   (void)((path_len = ((r).tok).ident_len));
   (void)(parser_lex_from_next_into((&((out)->lex)), r));
@@ -3283,7 +3336,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
  } else (__tmp = 0) ; __tmp; }));
     int32_t i = 0;
     while (i < ((r).tok).ident_len) {
-      (void)(({ uint8_t __tmp = 0; if (((out)->lex).pos + i < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (((out)->lex).pos + i < 0 || (size_t)(((out)->lex).pos + i) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[((out)->lex).pos + i]), 0))));
+      (void)(({ uint8_t __tmp = 0; if ((r).token_start + ((size_t)(i)) < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = ((r).token_start + ((size_t)(i)) < 0 || (size_t)((r).token_start + ((size_t)(i))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(i))]), 0))));
  } else (__tmp = 0) ; __tmp; }));
       (void)((i = i + 1));
     }
@@ -3319,7 +3372,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
  } else (__tmp = 0) ; __tmp; }));
-    size_t ident_start = ((r).next_lex).pos - ((r).tok).ident_len;
+    size_t ident_start = (r).token_start;
     (void)(parser_copy_slice_to_name64(source, ident_start, ((r).tok).ident_len, path_buf));
     (void)((path_len = ((r).tok).ident_len));
     (void)(parser_lex_from_next_into((&((out)->lex)), r));
@@ -3338,7 +3391,7 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
  } else (__tmp = 0) ; __tmp; }));
       int32_t i = 0;
       while (i < ((r).tok).ident_len) {
-      (void)(({ uint8_t __tmp = 0; if (((out)->lex).pos + i < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (((out)->lex).pos + i < 0 || (size_t)(((out)->lex).pos + i) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[((out)->lex).pos + i]), 0))));
+      (void)(({ uint8_t __tmp = 0; if ((r).token_start + ((size_t)(i)) < (source)->length) {   (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = ((r).token_start + ((size_t)(i)) < 0 || (size_t)((r).token_start + ((size_t)(i))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(i))]), 0))));
  } else (__tmp = 0) ; __tmp; }));
       (void)((i = i + 1));
       }
@@ -3360,206 +3413,14 @@ void parser_collect_imports(struct lexer_Lexer lex, struct shulang_slice_uint8_t
       (void)((j = j + 1));
     }
     (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_lens)[(module)->num_imports] = path_len, 0))));
+    (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_kinds)[(module)->num_imports] = ast_ImportKind_IMPORT_WHOLE, 0))));
     (void)(((module)->num_imports = (module)->num_imports + 1));
     (void)(parser_lex_from_next_into((&((out)->lex)), r));
   }
 }
 void parser_collect_imports_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len, struct ast_Module * restrict module, struct parser_CollectImportsResult * restrict out) {
-  uint8_t path_buf[64] = { 0 };
-  int32_t path_len = 0;
-  (void)(((out)->lex = lex));
-  while (1) {
-    struct lexer_LexerResult r = lexer_lexer_next_buf((out)->lex, data, len);
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_CONST) {   struct lexer_LexerResult r2 = lexer_lexer_next_buf((r).next_lex, data, len);
-  (void)(({ int32_t __tmp = 0; if (((r2).tok).kind == token_TokenKind_TOKEN_IDENT && ((r2).tok).ident_len > 0 && ((r2).tok).ident_len <= 63) {   struct lexer_LexerResult r3 = lexer_lexer_next_buf((r2).next_lex, data, len);
-  __tmp = ({ int32_t __tmp = 0; if (((r3).tok).kind == token_TokenKind_TOKEN_ASSIGN) {   int32_t n = (module)->num_imports;
-  (void)(({ int32_t __tmp = 0; if (n >= 32) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_copy_slice_to_name64_at_end_buf(data, len, ((r2).next_lex).pos, ((r2).tok).ident_len, (n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->import_binding_name)[0]) : ((module)->import_binding_name)[n])));
-  (void)(((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_binding_name_len)[n] = ((r2).tok).ident_len, 0))));
-  (void)(((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_select_count)[n] = 0, 0))));
-  (void)(((out)->lex = (r3).next_lex));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IMPORT) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((path_len = 0));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_copy_slice_to_name64_at_end_buf(data, len, ((r).next_lex).pos, ((r).tok).ident_len, path_buf));
-  (void)((path_len = ((r).tok).ident_len));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  while (((r).tok).kind == token_TokenKind_TOKEN_DOT) {
-    (void)(({ int32_t __tmp = 0; if (path_len >= 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    uint8_t dot_u8 = 46;
-    (void)(((path_len < 0 || (path_len) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len] = dot_u8, 0))));
-    (void)((path_len = path_len + 1));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || path_len + ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    int32_t i = 0;
-    while (i < ((r).tok).ident_len) {
-      (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (data)[((out)->lex).pos + i], 0))));
-      (void)((i = i + 1));
-    }
-    (void)((path_len = path_len + ((r).tok).ident_len));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  }
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  int32_t base = (module)->num_imports * 64;
-  int32_t j = 0;
-  while (j < 64) {
-    (void)(({ uint8_t __tmp = 0; if (j < path_len) {   (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (path_buf)[0]) : (path_buf)[j]), 0))));
- } else {   (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = 0, 0))));
- } ; __tmp; }));
-    (void)((j = j + 1));
-  }
-  (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_lens)[(module)->num_imports] = path_len, 0))));
-  (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_kinds)[(module)->num_imports] = 1, 0))));
-  (void)(((module)->num_imports = (module)->num_imports + 1));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  continue;
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (((r2).tok).kind == token_TokenKind_TOKEN_LBRACE) {   int32_t n = (module)->num_imports;
-  (void)(({ int32_t __tmp = 0; if (n >= 32) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_binding_name_len)[n] = 0, 0))));
-  (void)(((out)->lex = (r2).next_lex));
-  int32_t nsel = 0;
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  while (((r).tok).kind == token_TokenKind_TOKEN_IDENT && nsel < 8) {
-    (void)(({ int32_t __tmp = 0; if (((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(parser_copy_slice_to_name64_at_end_buf(data, len, ((r).next_lex).pos, ((r).tok).ident_len, (nsel < 0 || (nsel) >= 8 ? (shulang_panic_(1, 0), ((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->import_select_names)[0]) : ((module)->import_select_names)[n]))[0]) : ((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->import_select_names)[0]) : ((module)->import_select_names)[n]))[nsel])));
-    (void)(((nsel < 0 || (nsel) >= 8 ? (shulang_panic_(1, 0), 0) : (((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->import_select_name_lens)[0]) : ((module)->import_select_name_lens)[n]))[nsel] = ((r).tok).ident_len, 0))));
-    (void)((nsel = nsel + 1));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_COMMA) {   (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
- } else (__tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   break;
- } else {   return;
- } ; __tmp; })) ; __tmp; }));
-  }
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_ASSIGN) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IMPORT) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((path_len = 0));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_copy_slice_to_name64_at_end_buf(data, len, ((r).next_lex).pos, ((r).tok).ident_len, path_buf));
-  (void)((path_len = ((r).tok).ident_len));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  while (((r).tok).kind == token_TokenKind_TOKEN_DOT) {
-    (void)(({ int32_t __tmp = 0; if (path_len >= 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    uint8_t dot_u8 = 46;
-    (void)(((path_len < 0 || (path_len) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len] = dot_u8, 0))));
-    (void)((path_len = path_len + 1));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || path_len + ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    int32_t i = 0;
-    while (i < ((r).tok).ident_len) {
-      (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (data)[((out)->lex).pos + i], 0))));
-      (void)((i = i + 1));
-    }
-    (void)((path_len = path_len + ((r).tok).ident_len));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-  }
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   return;
- } else (__tmp = 0) ; __tmp; }));
-  int32_t base = (module)->num_imports * 64;
-  int32_t j = 0;
-  while (j < 64) {
-    (void)(({ uint8_t __tmp = 0; if (j < path_len) {   (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (path_buf)[0]) : (path_buf)[j]), 0))));
- } else {   (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = 0, 0))));
- } ; __tmp; }));
-    (void)((j = j + 1));
-  }
-  (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_lens)[(module)->num_imports] = path_len, 0))));
-  (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_select_count)[(module)->num_imports] = nsel, 0))));
-  (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_kinds)[(module)->num_imports] = 2, 0))));
-  (void)(((module)->num_imports = (module)->num_imports + 1));
-  (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  continue;
- } else (__tmp = 0) ; __tmp; }));
-  return;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IMPORT) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((path_len = 0));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    size_t ident_start = ((r).next_lex).pos - ((r).tok).ident_len;
-    (void)(parser_copy_slice_to_name64_buf(data, len, ident_start, ((r).tok).ident_len, path_buf));
-    (void)((path_len = ((r).tok).ident_len));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-    (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    while (((r).tok).kind == token_TokenKind_TOKEN_DOT) {
-      (void)(({ int32_t __tmp = 0; if (path_len >= 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-      uint8_t dot_u8 = 46;
-      (void)(((path_len < 0 || (path_len) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len] = dot_u8, 0))));
-      (void)((path_len = path_len + 1));
-      (void)(parser_lex_from_next_into((&((out)->lex)), r));
-      (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-      (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT) {   return;
- } else (__tmp = 0) ; __tmp; }));
-      (void)(({ int32_t __tmp = 0; if (path_len + ((r).tok).ident_len > 63) {   return;
- } else (__tmp = 0) ; __tmp; }));
-      int32_t i = 0;
-      while (i < ((r).tok).ident_len) {
-      (void)(((path_len + i < 0 || (path_len + i) >= 64 ? (shulang_panic_(1, 0), 0) : ((path_buf)[path_len + i] = (data)[((out)->lex).pos + i], 0))));
-      (void)((i = i + 1));
-      }
-      (void)((path_len = path_len + ((r).tok).ident_len));
-      (void)(parser_lex_from_next_into((&((out)->lex)), r));
-      (void)((r = lexer_lexer_next_buf((out)->lex, data, len)));
-    }
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((module)->num_imports >= 32) {   return;
- } else (__tmp = 0) ; __tmp; }));
-    int32_t base = (module)->num_imports * 64;
-    int32_t j = 0;
-    while (j < 64) {
-      (void)(({ uint8_t __tmp = 0; if (j < path_len) {   (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (path_buf)[0]) : (path_buf)[j]), 0))));
- } else {   uint8_t z = 0;
-  (void)(((base + j < 0 || (base + j) >= 2048 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_data)[base + j] = z, 0))));
- } ; __tmp; }));
-      (void)((j = j + 1));
-    }
-    (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_path_lens)[(module)->num_imports] = path_len, 0))));
-    (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_kinds)[(module)->num_imports] = 0, 0))));
-    (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_binding_name_len)[(module)->num_imports] = 0, 0))));
-    (void)((((module)->num_imports < 0 || ((module)->num_imports) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->import_select_count)[(module)->num_imports] = 0, 0))));
-    (void)(((module)->num_imports = (module)->num_imports + 1));
-    (void)(parser_lex_from_next_into((&((out)->lex)), r));
-  }
+  struct shulang_slice_uint8_t source = parser_slice_from_buf(data, len);
+  (void)(parser_collect_imports(lex, &(source), module, out));
 }
 void parser_skip_one_struct_into(struct lexer_Lexer * restrict out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source) {
   struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
@@ -4011,13 +3872,7 @@ struct parser_ExternParseResult parser_parse_one_extern_skip(struct ast_ASTArena
     int32_t plen_ex = ((r).tok).ident_len;
     (void)(({ struct parser_ExternParseResult __tmp = (struct parser_ExternParseResult){0}; if (plen_ex <= 0 || plen_ex > 31) {   return fail_res;
  } else (__tmp = (struct parser_ExternParseResult){0}) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((r).token_start != 0) {   (void)(parser_copy_slice_to_param32(source, (r).token_start, plen_ex, (n_ex < 0 || (n_ex) >= 16 ? (shulang_panic_(1, 0), (pn_ex)[0]) : (pn_ex)[n_ex])));
- } else {   size_t param_end_ex = 0;
-  (void)(({ size_t __tmp = 0; if (((r).next_lex).pos >= ((size_t)(plen_ex))) {   (void)((param_end_ex = ((r).next_lex).pos));
- } else {   (void)((param_end_ex = (lex).pos + ((size_t)(plen_ex))));
- } ; __tmp; }));
-  (void)(parser_copy_slice_to_param32_at_end(source, param_end_ex, plen_ex, (n_ex < 0 || (n_ex) >= 16 ? (shulang_panic_(1, 0), (pn_ex)[0]) : (pn_ex)[n_ex])));
- } ; __tmp; }));
+    (void)(parser_copy_slice_to_param32(source, (r).token_start, plen_ex, (n_ex < 0 || (n_ex) >= 16 ? (shulang_panic_(1, 0), (pn_ex)[0]) : (pn_ex)[n_ex])));
     (void)(((n_ex < 0 || (n_ex) >= 16 ? (shulang_panic_(1, 0), 0) : ((pl_ex)[n_ex] = plen_ex, 0))));
     (void)((n_ex = n_ex + 1));
     (void)(parser_lex_from_next_into((&(lex)), r));
@@ -4341,13 +4196,7 @@ int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shulan
   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t pnlen = (result)->param_name_len;
-  (void)(({ int32_t __tmp = 0; if ((r).token_start != 0) {   (void)(parser_copy_slice_to_param32(source, (r).token_start, pnlen, (result)->param_name));
- } else {   size_t param_name_end = 0;
-  (void)(({ size_t __tmp = 0; if (((r).next_lex).pos >= ((size_t)(pnlen))) {   (void)((param_name_end = ((r).next_lex).pos));
- } else {   (void)((param_name_end = (lex).pos + ((size_t)(pnlen))));
- } ; __tmp; }));
-  (void)(parser_copy_slice_to_param32_at_end(source, param_name_end, pnlen, (result)->param_name));
- } ; __tmp; }));
+  (void)(parser_copy_slice_to_param32(source, (r).token_start, pnlen, (result)->param_name));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_COLON) {   (void)(((result)->ok = 0));
@@ -4366,13 +4215,7 @@ int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shulan
   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t ptlen = (result)->param_type_len;
-  (void)(({ int32_t __tmp = 0; if ((r).token_start != 0) {   (void)(parser_copy_slice_to_name64(source, (r).token_start, ptlen, (result)->param_type_name));
- } else {   size_t param_type_end = 0;
-  (void)(({ size_t __tmp = 0; if (((r).next_lex).pos >= ((size_t)(ptlen))) {   (void)((param_type_end = ((r).next_lex).pos));
- } else {   (void)((param_type_end = (lex).pos + ((size_t)(ptlen))));
- } ; __tmp; }));
-  (void)(parser_copy_slice_to_name64_at_end(source, param_type_end, ptlen, (result)->param_type_name));
- } ; __tmp; }));
+  (void)(parser_copy_slice_to_name64(source, (r).token_start, ptlen, (result)->param_type_name));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RPAREN) {   (void)(((result)->ok = 0));
@@ -4486,6 +4329,62 @@ int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shulan
   (void)(((result)->ok = 1));
   (void)(parser_lex_from_next_into((&((result)->next_lex)), r));
   return 1;
+}
+int parser_struct_layout_name_exists_arr(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen) {
+  int32_t k = 0;
+  while (k < (module)->num_struct_layouts && k < 32) {
+    (void)(({ int __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name_len == nlen && nlen > 0) {   int32_t ii = 0;
+  int same = 1;
+  while (ii < nlen && ii < 64) {
+    (void)(({ int __tmp = 0; if ((ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[0]) : (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[ii]) != (ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (nm)[0]) : (nm)[ii])) {   (void)((same = 0));
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((ii = ii + 1));
+  }
+  __tmp = ({ int __tmp = 0; if (same) {   return 1;
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((k = k + 1));
+  }
+  return 0;
+}
+int32_t parser_struct_layout_first_name_match_idx(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen) {
+  int32_t k = 0;
+  while (k < (module)->num_struct_layouts && k < 32) {
+    (void)(({ int32_t __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name_len == nlen && nlen > 0) {   int32_t ii = 0;
+  int same = 1;
+  while (ii < nlen && ii < 64) {
+    (void)(({ int __tmp = 0; if ((ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[0]) : (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[ii]) != (ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (nm)[0]) : (nm)[ii])) {   (void)((same = 0));
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((ii = ii + 1));
+  }
+  __tmp = ({ int32_t __tmp = 0; if (same) {   return k;
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((k = k + 1));
+  }
+  return (-1);
+}
+int32_t parser_struct_layout_placeholder_idx(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen) {
+  int32_t k = 0;
+  while (k < (module)->num_struct_layouts && k < 32) {
+    (void)(({ int32_t __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name_len == nlen && nlen > 0) {   int32_t ii = 0;
+  int same = 1;
+  while (ii < nlen && ii < 64) {
+    (void)(({ int __tmp = 0; if ((ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[0]) : (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).name)[ii]) != (ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (nm)[0]) : (nm)[ii])) {   (void)((same = 0));
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((ii = ii + 1));
+  }
+  __tmp = ({ int32_t __tmp = 0; if (same) {   (void)(({ int32_t __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).num_fields == 0) {   return k;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).num_fields == 1 && (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).field_lens)[0] == 0) {   return k;
+ } else (__tmp = 0) ; __tmp; }));
+  __tmp = ({ int32_t __tmp = 0; if (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).num_fields == 1 && (((k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k])).field_type_refs)[0] == 0) {   return k;
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((k = k + 1));
+  }
+  return (-1);
 }
 struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source) {
   uint8_t empty64[64] = { 0 };
@@ -4611,7 +4510,7 @@ struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_AS
   (void)(((b).final_expr_ref = 0));
   (void)(((b).num_stmt_order = 0));
   (void)(ast_ast_arena_block_set(arena, block_ref, b));
-  (void)(({ int32_t __tmp = 0; if ((module)->num_struct_layouts < 32) {   int32_t idx = (module)->num_struct_layouts;
+  (void)(({ int32_t __tmp = 0; if ((scan).field_len > 0 && (!parser_struct_layout_name_exists_arr(module, (scan).param_type_name, (scan).param_type_len)) && (module)->num_struct_layouts < 32) {   int32_t idx = (module)->num_struct_layouts;
   (void)(((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->struct_layouts)[idx].name_len = (scan).param_type_len, 0))));
   int32_t si = 0;
   while (si < 64) {
@@ -4682,16 +4581,14 @@ struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct(struct lex
   (void)(({ struct parser_TrySkipAllowResult __tmp = (struct parser_TrySkipAllowResult){0}; if (((r).tok).kind != token_TokenKind_TOKEN_LPAREN) {   return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = lex; _t.skipped = 0; _t; });
  } else (__tmp = (struct parser_TrySkipAllowResult){0}) ; __tmp; }));
   (void)((lex = parser_skip_balanced_parens((r).next_lex, source)));
-  struct lexer_Lexer after = parser_skip_one_struct(lex, source);
-  return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = after; _t.skipped = 1; _t; });
+  return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = lex; _t.skipped = 1; _t; });
 }
 struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
   struct lexer_LexerResult r = lexer_lexer_next_buf(lex, data, len);
   (void)(({ struct parser_TrySkipAllowResult __tmp = (struct parser_TrySkipAllowResult){0}; if (((r).tok).kind != token_TokenKind_TOKEN_LPAREN) {   return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = lex; _t.skipped = 0; _t; });
  } else (__tmp = (struct parser_TrySkipAllowResult){0}) ; __tmp; }));
   (void)((lex = parser_skip_balanced_parens_buf((r).next_lex, data, len)));
-  struct lexer_Lexer after = parser_skip_one_struct_buf(lex, data, len);
-  return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = after; _t.skipped = 1; _t; });
+  return ({ struct parser_TrySkipAllowResult _t = { 0 }; _t.lex = lex; _t.skipped = 1; _t; });
 }
 void parser_skip_one_struct_into_buf(struct lexer_Lexer * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
   struct lexer_LexerResult r = lexer_lexer_next_buf(lex, data, len);
@@ -4742,8 +4639,8 @@ int parser_is_pointee_type_token(enum token_TokenKind kind) {
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
-int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * restrict arena, struct shulang_slice_uint8_t * source, struct lexer_LexerResult r) {
-  (void)(({ int32_t __tmp = 0; if ((!parser_is_pointee_type_token(((r).tok).kind))) {   return 0;
+int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * restrict arena, struct shulang_slice_uint8_t * source, struct lexer_LexerResult * restrict r) {
+  (void)(({ int32_t __tmp = 0; if ((!parser_is_pointee_type_token(((r)->tok).kind))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t elem_ref = ast_ast_arena_type_alloc(arena);
   (void)(({ int32_t __tmp = 0; if (elem_ref == 0) {   return 0;
@@ -4752,24 +4649,19 @@ int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * restrict ar
   (void)(((te).elem_type_ref = 0));
   (void)(((te).array_size = 0));
   (void)(((te).name_len = 0));
-  (void)(({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_IDENT) {   (void)(((te).kind = ast_TypeKind_TYPE_NAMED));
-  (void)(((te).name_len = ((r).tok).ident_len));
+  (void)(({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_IDENT) {   (void)(((te).kind = ast_TypeKind_TYPE_NAMED));
+  (void)(((te).name_len = ((r)->tok).ident_len));
   (void)(({ int32_t __tmp = 0; if ((te).name_len > 63) {   (void)(((te).name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
-  int32_t si = 0;
-  size_t start = ((r).next_lex).pos - ((r).tok).ident_len;
-  while (si < (te).name_len && start + si < (source)->length) {
-    (void)(((si < 0 || (si) >= 64 ? (shulang_panic_(1, 0), 0) : (((te).name)[si] = (start + si < 0 || (size_t)(start + si) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start + si]), 0))));
-    (void)((si = si + 1));
-  }
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_I32) {   (void)(((te).kind = ast_TypeKind_TYPE_I32));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_I64) {   (void)(((te).kind = ast_TypeKind_TYPE_I64));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_BOOL) {   (void)(((te).kind = ast_TypeKind_TYPE_BOOL));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_U8) {   (void)(((te).kind = ast_TypeKind_TYPE_U8));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_U32) {   (void)(((te).kind = ast_TypeKind_TYPE_U32));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_U64) {   (void)(((te).kind = ast_TypeKind_TYPE_U64));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_USIZE) {   (void)(((te).kind = ast_TypeKind_TYPE_USIZE));
- } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ISIZE) {   (void)(((te).kind = ast_TypeKind_TYPE_ISIZE));
+  (void)(parser_copy_slice_to_name64_at_end(source, ((r)->next_lex).pos, (te).name_len, (te).name));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_I32) {   (void)(((te).kind = ast_TypeKind_TYPE_I32));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_I64) {   (void)(((te).kind = ast_TypeKind_TYPE_I64));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_BOOL) {   (void)(((te).kind = ast_TypeKind_TYPE_BOOL));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_U8) {   (void)(((te).kind = ast_TypeKind_TYPE_U8));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_U32) {   (void)(((te).kind = ast_TypeKind_TYPE_U32));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_U64) {   (void)(((te).kind = ast_TypeKind_TYPE_U64));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_USIZE) {   (void)(((te).kind = ast_TypeKind_TYPE_USIZE));
+ } else (__tmp = ({ enum ast_TypeKind __tmp = 0; if (((r)->tok).kind == token_TokenKind_TOKEN_ISIZE) {   (void)(((te).kind = ast_TypeKind_TYPE_ISIZE));
  } else {   (void)(((te).kind = ast_TypeKind_TYPE_VOID));
  } ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
   (void)(ast_ast_arena_type_set(arena, elem_ref, te));
@@ -4780,7 +4672,7 @@ int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * restrict aren
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STAR) {   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
-  int32_t elem_ref = parser_alloc_pointee_type_ref_from_tok(arena, source, r);
+  int32_t elem_ref = parser_alloc_pointee_type_ref_from_tok(arena, source, (&(r)));
   (void)(({ int32_t __tmp = 0; if (elem_ref == 0) {   (void)(((out_lex)->pos = (lex).pos));
   (void)(((out_lex)->line = (lex).line));
   (void)(((out_lex)->col = (lex).col));
@@ -4921,12 +4813,7 @@ int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * restrict aren
   (void)(((t).name_len = ((r).tok).ident_len));
   (void)(({ int32_t __tmp = 0; if ((t).name_len > 63) {   (void)(((t).name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
-  int32_t si = 0;
-  size_t start = ((r).next_lex).pos - ((r).tok).ident_len;
-  while (si < (t).name_len && start + si < (source)->length) {
-    (void)(((si < 0 || (si) >= 64 ? (shulang_panic_(1, 0), 0) : (((t).name)[si] = (start + si < 0 || (size_t)(start + si) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start + si]), 0))));
-    (void)((si = si + 1));
-  }
+  (void)(parser_copy_slice_to_name64_at_end(source, ((r).next_lex).pos, (t).name_len, (t).name));
   (void)(((t).elem_type_ref = 0));
   (void)(((t).array_size = 0));
   (void)(ast_ast_arena_type_set(arena, type_ref_param, t));
@@ -4942,59 +4829,43 @@ int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * restrict aren
   (void)(((out_lex)->col = (lex).col));
   return 0;
 }
-int parser_struct_layout_name_exists_arr(struct ast_Module * restrict module, uint8_t nm[64], int32_t nlen) {
-  int32_t k = 0;
-  while (k < (module)->num_struct_layouts && k < 32) {
-    struct ast_StructLayout sl = (k < 0 || (k) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[k]);
-    (void)(({ int __tmp = 0; if ((sl).name_len == nlen && nlen > 0) {   int32_t ii = 0;
-  int same = 1;
-  while (ii < nlen && ii < 64) {
-    (void)(({ int __tmp = 0; if ((ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), ((sl).name)[0]) : ((sl).name)[ii]) != (ii < 0 || (ii) >= 64 ? (shulang_panic_(1, 0), (nm)[0]) : (nm)[ii])) {   (void)((same = 0));
- } else (__tmp = 0) ; __tmp; }));
-    (void)((ii = ii + 1));
-  }
-  __tmp = ({ int __tmp = 0; if (same) {   return 1;
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
-  }
-  return 0;
-}
 int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * restrict arena, struct ast_Module * restrict module, struct lexer_Lexer lex, struct shulang_slice_uint8_t * source, struct lexer_Lexer * restrict out_lex) {
   struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t sname_len = ((r).tok).ident_len;
-  size_t sname_start = ((r).next_lex).pos - ((r).tok).ident_len;
   uint8_t sname_buf[64] = { 0 };
-  int32_t sni = 0;
-  while (sni < sname_len && sni < 64) {
-    (void)(({ uint8_t __tmp = 0; if (sname_start + ((size_t)(sni)) < (source)->length) {   (void)(((sni < 0 || (sni) >= 64 ? (shulang_panic_(1, 0), 0) : ((sname_buf)[sni] = (sname_start + ((size_t)(sni)) < 0 || (size_t)(sname_start + ((size_t)(sni))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[sname_start + ((size_t)(sni))]), 0))));
- } else (__tmp = 0) ; __tmp; }));
-    (void)((sni = sni + 1));
-  }
+  (void)(parser_copy_slice_to_name64_at_end(source, ((r).next_lex).pos, sname_len, sname_buf));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_LBRACE) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)((lex = (r).next_lex));
   int dup = parser_struct_layout_name_exists_arr(module, sname_buf, sname_len);
-  (void)(({ int32_t __tmp = 0; if (dup) {   (void)((lex = parser_skip_balanced_braces(lex, source)));
+  int32_t weak_idx = parser_struct_layout_placeholder_idx(module, sname_buf, sname_len);
+  int32_t replace_idx = (-1);
+  (void)(({ int32_t __tmp = 0; if (dup) {   __tmp = ({ int32_t __tmp = 0; if (weak_idx < 0) {   int32_t dup_idx = parser_struct_layout_first_name_match_idx(module, sname_buf, sname_len);
+  __tmp = ({ int32_t __tmp = 0; if (dup_idx >= 0) {   (void)((replace_idx = dup_idx));
+ } else {   (void)((lex = parser_skip_balanced_braces(lex, source)));
   (void)(((out_lex)->pos = (lex).pos));
   (void)(((out_lex)->line = (lex).line));
   (void)(((out_lex)->col = (lex).col));
   return 0;
+ } ; __tmp; });
+ } else {   (void)((replace_idx = weak_idx));
+ } ; __tmp; });
+ } else {   (void)((replace_idx = (-1)));
+ } ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (replace_idx < 0 && (module)->num_struct_layouts >= 32) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((module)->num_struct_layouts >= 32) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  uint8_t fnames[8][64] = { 0 };
-  int32_t flens[8] = { 0 };
-  int32_t ftys[8] = { 0 };
+  uint8_t fnames[64][64] = { 0 };
+  int32_t flens[64] = { 0 };
+  int32_t ftys[64] = { 0 };
   int32_t zi = 0;
-  while (zi < 8) {
-    (void)(((zi < 0 || (zi) >= 8 ? (shulang_panic_(1, 0), 0) : ((flens)[zi] = 0, 0))));
-    (void)(((zi < 0 || (zi) >= 8 ? (shulang_panic_(1, 0), 0) : ((ftys)[zi] = 0, 0))));
+  while (zi < 64) {
+    (void)(((zi < 0 || (zi) >= 64 ? (shulang_panic_(1, 0), 0) : ((flens)[zi] = 0, 0))));
+    (void)(((zi < 0 || (zi) >= 64 ? (shulang_panic_(1, 0), 0) : ((ftys)[zi] = 0, 0))));
     (void)((zi = zi + 1));
   }
   int32_t nf = 0;
@@ -5003,19 +4874,13 @@ int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * restrict ar
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   (void)(parser_lex_from_next_into((&(lex)), r));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (nf >= 8) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (nf >= 64) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT || ((r).tok).ident_len <= 0 || ((r).tok).ident_len > 63) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    size_t fn_start = ((r).next_lex).pos - ((r).tok).ident_len;
     int32_t fn_len = ((r).tok).ident_len;
-    (void)(((nf < 0 || (nf) >= 8 ? (shulang_panic_(1, 0), 0) : ((flens)[nf] = fn_len, 0))));
-    int32_t fj = 0;
-    while (fj < fn_len && fj < 64) {
-      (void)(({ uint8_t __tmp = 0; if (fn_start + ((size_t)(fj)) < (source)->length) {   (void)(((fj < 0 || (fj) >= 64 ? (shulang_panic_(1, 0), 0) : (((nf < 0 || (nf) >= 8 ? (shulang_panic_(1, 0), (fnames)[0]) : (fnames)[nf]))[fj] = (fn_start + ((size_t)(fj)) < 0 || (size_t)(fn_start + ((size_t)(fj))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[fn_start + ((size_t)(fj))]), 0))));
- } else (__tmp = 0) ; __tmp; }));
-      (void)((fj = fj + 1));
-    }
+    (void)(((nf < 0 || (nf) >= 64 ? (shulang_panic_(1, 0), 0) : ((flens)[nf] = fn_len, 0))));
+    (void)(parser_copy_slice_to_name64_at_end(source, ((r).next_lex).pos, fn_len, (nf < 0 || (nf) >= 64 ? (shulang_panic_(1, 0), (fnames)[0]) : (fnames)[nf])));
     (void)(parser_lex_from_next_into((&(lex)), r));
     (void)(lexer_lexer_next_into((&(r)), lex, source));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_COLON) {   return (-1);
@@ -5024,48 +4889,29 @@ int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * restrict ar
     int32_t tr = parser_parse_type_ref_for_arena_into(arena, lex, source, (&(lex)));
     (void)(({ int32_t __tmp = 0; if (tr == 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((nf < 0 || (nf) >= 8 ? (shulang_panic_(1, 0), 0) : ((ftys)[nf] = tr, 0))));
+    (void)(((nf < 0 || (nf) >= 64 ? (shulang_panic_(1, 0), 0) : ((ftys)[nf] = tr, 0))));
     (void)(lexer_lexer_next_into((&(r)), lex, source));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_SEMICOLON) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-    (void)(parser_lex_from_next_into((&(lex)), r));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_SEMICOLON) {   (void)(parser_lex_from_next_into((&(lex)), r));
+ } else (__tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)((nf = nf + 1));
+  break;
+ } else {   return (-1);
+ } ; __tmp; })) ; __tmp; }));
     (void)((nf = nf + 1));
   }
-  int32_t idx = (module)->num_struct_layouts;
+  int32_t idx = 0;
+  (void)(({ int32_t __tmp = 0; if (replace_idx >= 0) {   (void)((idx = replace_idx));
+ } else {   (void)((idx = (module)->num_struct_layouts));
   (void)(((module)->num_struct_layouts = (module)->num_struct_layouts + 1));
-  int32_t ti = 0;
-  while (ti < 64) {
-    (void)(({ uint8_t __tmp = 0; if (ti < sname_len) {   (void)(((ti < 0 || (ti) >= 64 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).name)[ti] = (ti < 0 || (ti) >= 64 ? (shulang_panic_(1, 0), (sname_buf)[0]) : (sname_buf)[ti]), 0))));
- } else {   (void)(((ti < 0 || (ti) >= 64 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).name)[ti] = 0, 0))));
  } ; __tmp; }));
-    (void)((ti = ti + 1));
-  }
-  (void)(((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->struct_layouts)[idx].name_len = sname_len, 0))));
+  (void)(pipeline_module_struct_layout_reset_slot(module, idx));
+  (void)(pipeline_module_struct_layout_set_name(module, idx, (&((sname_buf)[0])), sname_len));
   (void)(((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->struct_layouts)[idx].num_fields = nf, 0))));
   int32_t off = 0;
   int32_t j = 0;
-  while (j < 8) {
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_type_refs)[j] = 0, 0))));
-    int32_t fk = 0;
-    while (fk < 64) {
-      (void)(((fk < 0 || (fk) >= 64 ? (shulang_panic_(1, 0), 0) : (((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_names)[0]) : (((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_names)[j]))[fk] = 0, 0))));
-      (void)((fk = fk + 1));
-    }
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_lens)[j] = 0, 0))));
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_offsets)[j] = 0, 0))));
-    (void)((j = j + 1));
-  }
-  (void)((j = 0));
-  while (j < nf && j < 8) {
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_lens)[j] = (j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (flens)[0]) : (flens)[j]), 0))));
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_type_refs)[j] = (j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (ftys)[0]) : (ftys)[j]), 0))));
-    (void)(((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), 0) : ((((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_offsets)[j] = off, 0))));
+  while (j < nf && j < 64) {
+    (void)(pipeline_module_struct_layout_set_field(module, idx, j, (&(((j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (fnames)[0]) : (fnames)[j]))[0])), (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (flens)[0]) : (flens)[j]), (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (ftys)[0]) : (ftys)[j]), off));
     (void)((off = off + 8));
-    int32_t fk2 = 0;
-    while (fk2 < 64) {
-      (void)(((fk2 < 0 || (fk2) >= 64 ? (shulang_panic_(1, 0), 0) : (((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_names)[0]) : (((idx < 0 || (idx) >= 32 ? (shulang_panic_(1, 0), ((module)->struct_layouts)[0]) : ((module)->struct_layouts)[idx])).field_names)[j]))[fk2] = (fk2 < 0 || (fk2) >= 64 ? (shulang_panic_(1, 0), ((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (fnames)[0]) : (fnames)[j]))[0]) : ((j < 0 || (j) >= 8 ? (shulang_panic_(1, 0), (fnames)[0]) : (fnames)[j]))[fk2]), 0))));
-      (void)((fk2 = fk2 + 1));
-    }
     (void)((j = j + 1));
   }
   (void)(((out_lex)->pos = (lex).pos));
@@ -5075,7 +4921,6 @@ int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * restrict ar
 }
 void parser_parse_one_function_buf_into(struct parser_OneFuncResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
   uint8_t empty32[32] = { 0 };
-  uint8_t empty64[64] = { 0 };
   uint8_t dummy_name[64] = { 0 };
   struct lexer_LexerResult r = lexer_lexer_next_buf(lex, data, len);
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_FUNCTION) {   (void)(parser_set_onefunc_fail(out, lex));
@@ -5121,26 +4966,6 @@ void parser_parse_one_function_buf_into(struct parser_OneFuncResult * restrict o
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)((r = parser_body_skip_let_const_then_if_buf(lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_INT) {   int32_t ret_val = ((r).tok).int_val;
-  (void)(parser_lex_from_next_into((&(lex)), r));
-  (void)((r = lexer_lexer_next_buf(lex, data, len)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {   (void)(parser_set_onefunc_fail(out, lex));
-  return;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(parser_lex_from_next_into((&(lex)), r));
-  (void)(((out)->ok = 1));
-  (void)(((out)->next_lex = lex));
-  (void)(((out)->name_len = name_len));
-  int32_t ni = 0;
-  while (ni < 64) {
-    (void)(({ uint8_t __tmp = 0; if (ni < name_len) {   (void)(((ni < 0 || (ni) >= 64 ? (shulang_panic_(1, 0), 0) : (((out)->name)[ni] = (ni < 0 || (ni) >= 64 ? (shulang_panic_(1, 0), (name)[0]) : (name)[ni]), 0))));
- } else (__tmp = 0) ; __tmp; }));
-    (void)((ni = ni + 1));
-  }
-  (void)(((out)->return_val = ret_val));
-  (void)(((out)->implicit_tail_return = 1));
-  return;
- } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RETURN) {   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)((r = lexer_lexer_next_buf(lex, data, len)));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_INT) {   (void)(parser_set_onefunc_fail(out, lex));
@@ -5169,7 +4994,6 @@ void parser_parse_one_function_buf_into(struct parser_OneFuncResult * restrict o
     (void)((ni = ni + 1));
   }
   (void)(((out)->return_val = ret_val));
-  (void)(((out)->implicit_tail_return = 0));
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_set_onefunc_fail(out, lex));
@@ -5218,7 +5042,7 @@ void parser_parse_into_try_skip_allow_into_buf(struct parser_TrySkipAllowResult 
   (void)(((3 < 0 || (3) >= 4 ? (shulang_panic_(1, 0), 0) : (((out)->_pad)[3] = (3 < 0 || (3) >= 4 ? (shulang_panic_(1, 0), ((res)._pad)[0]) : ((res)._pad)[3]), 0))));
 }
 struct parser_OneFuncResult parser_parse_one_function_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
-  struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; _t; });
+  struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; _t; });
   (void)(parser_parse_one_function_buf_into((&(res)), lex, data, len));
   return res;
 }
@@ -5290,19 +5114,19 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     uint8_t parse_into_dummy_p[16][32] = { 0 };
     int32_t parse_into_dummy_plens[16] = { 0 };
     int32_t parse_into_dummy_ptrefs[16] = { 0 };
-    uint8_t parse_into_dummy_c[64][64] = { 0 };
-    int32_t parse_into_dummy_clens[64] = { 0 };
-    int32_t parse_into_dummy_cvals[64] = { 0 };
-    uint8_t parse_into_dummy_ln[64][64] = { 0 };
-    int32_t parse_into_dummy_llens[64] = { 0 };
-    int32_t parse_into_dummy_lvals[64] = { 0 };
-    int32_t parse_into_dummy_let_refs[128] = { 0 };
-    int32_t parse_into_dummy_let_trefs[128] = { 0 };
+    uint8_t parse_into_dummy_c[256][64] = { 0 };
+    int32_t parse_into_dummy_clens[256] = { 0 };
+    int32_t parse_into_dummy_cvals[256] = { 0 };
+    uint8_t parse_into_dummy_ln[256][64] = { 0 };
+    int32_t parse_into_dummy_llens[256] = { 0 };
+    int32_t parse_into_dummy_lvals[256] = { 0 };
+    int32_t parse_into_dummy_let_refs[256] = { 0 };
+    int32_t parse_into_dummy_let_trefs[256] = { 0 };
     int32_t parse_into_dummy_loop_refs[8] = { 0 };
     int32_t parse_into_dummy_for_refs[8] = { 0 };
     int32_t parse_into_dummy_if_refs[16] = { 0 };
     int32_t parse_into_dummy_call_arg_vals[16] = { 0 };
-    struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; memcpy(_t.name, parse_into_empty64, sizeof(_t.name)); memcpy(_t.param_names, parse_into_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, parse_into_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, parse_into_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, parse_into_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, parse_into_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, parse_into_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, parse_into_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, parse_into_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, parse_into_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, parse_into_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, parse_into_dummy_let_trefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, parse_into_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, parse_into_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, parse_into_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, parse_into_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, parse_into_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, parse_into_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, parse_into_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, parse_into_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, parse_into_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, parse_into_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
+    struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, parse_into_empty64, sizeof(_t.name)); memcpy(_t.param_names, parse_into_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, parse_into_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, parse_into_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, parse_into_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, parse_into_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, parse_into_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, parse_into_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, parse_into_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, parse_into_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, parse_into_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, parse_into_dummy_let_trefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, parse_into_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, parse_into_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, parse_into_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, parse_into_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, parse_into_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, parse_into_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, parse_into_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, parse_into_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, parse_into_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, parse_into_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
     uint8_t empty64_lib_first[64] = { 0 };
     struct parser_LibraryParseResult lib_first = ({ struct parser_LibraryParseResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex_at_function; _t.name_len = 0; memcpy(_t.name, empty64_lib_first, sizeof(_t.name)); _t; });
     (void)(parser_parse_one_function_library_into((&(lib_first)), arena, module, lex_at_function, source));
@@ -6102,8 +5926,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     (void)(((b).num_defers = 0));
     (void)(((b).num_labeled_stmts = 0));
     (void)(((b).num_expr_stmts = 0));
-    (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return)) {   int32_t return_wrap = ast_ast_arena_expr_alloc(arena);
-  __tmp = ({ int32_t __tmp = 0; if (return_wrap != 0) {   struct ast_Expr rwe = ast_ast_arena_expr_get(arena, return_wrap);
+    int32_t return_wrap = ast_ast_arena_expr_alloc(arena);
+    (void)(({ int32_t __tmp = 0; if (return_wrap != 0) {   struct ast_Expr rwe = ast_ast_arena_expr_get(arena, return_wrap);
   (void)(((rwe).kind = ast_ExprKind_EXPR_RETURN));
   (void)(((rwe).resolved_type_ref = type_ref));
   (void)(((rwe).line = 0));
@@ -6136,12 +5960,11 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
   (void)(((rwe).index_proven_in_bounds = 0));
   (void)(ast_ast_arena_expr_set(arena, return_wrap, rwe));
   (void)((final_expr_ref = return_wrap));
- } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     (void)(((b).final_expr_ref = final_expr_ref));
     (void)(((b).num_stmt_order = 0));
     int32_t const_i = 0;
-    while (const_i < (res).num_consts && const_i < 64) {
+    while (const_i < (res).num_consts && const_i < 256) {
       int32_t cinit_ref = ast_ast_arena_expr_alloc(arena);
       (void)(({ struct parser_ParseIntoResult __tmp = (struct parser_ParseIntoResult){0}; if (cinit_ref == 0) {   return (struct parser_ParseIntoResult){ .ok = (-1), .main_idx = (-1) };
  } else (__tmp = (struct parser_ParseIntoResult){0}) ; __tmp; }));
@@ -6150,7 +5973,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
       (void)(((ce).resolved_type_ref = type_ref));
       (void)(((ce).line = 0));
       (void)(((ce).col = 0));
-      (void)(((ce).int_val = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_init_vals)[0]) : ((res).const_init_vals)[const_i])));
+      (void)(((ce).int_val = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_init_vals)[0]) : ((res).const_init_vals)[const_i])));
       (void)(((ce).binop_left_ref = 0));
       (void)(((ce).binop_right_ref = 0));
       (void)(((ce).unary_operand_ref = 0));
@@ -6177,11 +6000,11 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
       (void)(((ce).const_folded_valid = 0));
       (void)(((ce).index_proven_in_bounds = 0));
       (void)(ast_ast_arena_expr_set(arena, cinit_ref, ce));
-      struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
+      struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
       int32_t ck = 0;
-      while (ck < (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i]) && ck < 64) {
+      while (ck < (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i]) && ck < 64) {
       uint8_t const_row[64] ;
-      memcpy(const_row, ((const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_names)[0]) : ((res).const_names)[const_i])), sizeof(const_row));
+      memcpy(const_row, ((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_names)[0]) : ((res).const_names)[const_i])), sizeof(const_row));
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = (ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), (const_row)[0]) : (const_row)[ck]), 0))));
       (void)((ck = ck + 1));
       }
@@ -6190,19 +6013,19 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = zero_const, 0))));
       (void)((ck = ck + 1));
       }
-      (void)(((cd).name_len = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i])));
+      (void)(((cd).name_len = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i])));
       (void)(((cd).type_ref = type_ref));
       (void)(((cd).init_ref = cinit_ref));
-      (void)(((const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
+      (void)(((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
       (void)((const_i = const_i + 1));
     }
     int32_t let_i = 0;
-    while (let_i < (res).num_lets && let_i < 128) {
+    while (let_i < (res).num_lets && let_i < 256) {
       int32_t let_decl_ty = type_ref;
-      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i])));
+      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i])));
  } else (__tmp = 0) ; __tmp; }));
       int32_t init_ref = 0;
-      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i])));
+      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i])));
  } else {   (void)((init_ref = ast_ast_arena_expr_alloc(arena)));
   (void)(({ struct parser_ParseIntoResult __tmp = (struct parser_ParseIntoResult){0}; if (init_ref == 0) {   return (struct parser_ParseIntoResult){ .ok = (-1), .main_idx = (-1) };
  } else (__tmp = (struct parser_ParseIntoResult){0}) ; __tmp; }));
@@ -6211,7 +6034,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
   (void)(((le).resolved_type_ref = let_decl_ty));
   (void)(((le).line = 0));
   (void)(((le).col = 0));
-  (void)(((le).int_val = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_vals)[0]) : ((res).let_init_vals)[let_i])));
+  (void)(((le).int_val = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_vals)[0]) : ((res).let_init_vals)[let_i])));
   (void)(((le).binop_left_ref = 0));
   (void)(((le).binop_right_ref = 0));
   (void)(((le).unary_operand_ref = 0));
@@ -6239,12 +6062,12 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
   (void)(((le).index_proven_in_bounds = 0));
   (void)(ast_ast_arena_expr_set(arena, init_ref, le));
  } ; __tmp; }));
-      struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
+      struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
       int32_t lk = 0;
-      while (lk < (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i]) && lk < 128) {
-      uint8_t let_row[128] ;
-      memcpy(let_row, ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_names)[0]) : ((res).let_names)[let_i])), sizeof(let_row));
-      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 128 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
+      while (lk < (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i]) && lk < 64) {
+      uint8_t let_row[64] ;
+      memcpy(let_row, ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_names)[0]) : ((res).let_names)[let_i])), sizeof(let_row));
+      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
       (void)((lk = lk + 1));
       }
       uint8_t zero_let = 0;
@@ -6252,10 +6075,10 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
       (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = zero_let, 0))));
       (void)((lk = lk + 1));
       }
-      (void)(((ld).name_len = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i])));
+      (void)(((ld).name_len = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i])));
       (void)(((ld).type_ref = let_decl_ty));
       (void)(((ld).init_ref = init_ref));
-      (void)(((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
+      (void)(((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
       (void)((let_i = let_i + 1));
     }
     int32_t loop_fill_i = 0;
@@ -6327,7 +6150,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     (void)((so = so + 1));
     (void)((if_oi = if_oi + 1));
   }
-  (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return) && (!ast_ref_is_null((b).final_expr_ref)) && (b).num_expr_stmts == 0 && so < 96) {   (void)((((b).expr_stmt_refs)[0] = (b).final_expr_ref));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref)) && (b).num_expr_stmts == 0 && so < 96) {   (void)((((b).expr_stmt_refs)[0] = (b).final_expr_ref));
   (void)(((b).num_expr_stmts = 1));
   (void)(((b).final_expr_ref = 0));
   (void)(((so < 0 || (so) >= 96 ? (shulang_panic_(1, 0), 0) : (((b).stmt_order)[so].kind = 2, 0))));
@@ -6336,46 +6159,31 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
  } else (__tmp = 0) ; __tmp; }));
   (void)(((b).num_stmt_order = so));
  } ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return) && (b).num_expr_stmts > 0) {   (void)(((b).final_expr_ref = 0));
+    (void)(({ int32_t __tmp = 0; if ((b).num_expr_stmts > 0) {   (void)(((b).final_expr_ref = 0));
  } else (__tmp = 0) ; __tmp; }));
     (void)(ast_ast_arena_block_set(arena, block_ref, b));
-    struct ast_Func f = ((module)->num_funcs < 0 || ((module)->num_funcs) >= 256 ? (shulang_panic_(1, 0), ((module)->funcs)[0]) : ((module)->funcs)[(module)->num_funcs]);
-    (void)(((f).is_extern = 0));
+    int32_t fi = (module)->num_funcs;
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].is_extern = 0, 0))));
     int32_t k = 0;
     while (k < (res).name_len && k < 64) {
-      (void)(((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), 0) : (((f).name)[k] = (k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((res).name)[0]) : ((res).name)[k]), 0))));
+      (void)(((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), 0) : ((((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), ((module)->funcs)[0]) : ((module)->funcs)[fi])).name)[k] = (k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((res).name)[0]) : ((res).name)[k]), 0))));
       (void)((k = k + 1));
     }
     uint8_t zero_u8 = 0;
     while (k < 64) {
-      (void)(((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), 0) : (((f).name)[k] = zero_u8, 0))));
+      (void)(((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), 0) : ((((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), ((module)->funcs)[0]) : ((module)->funcs)[fi])).name)[k] = zero_u8, 0))));
       (void)((k = k + 1));
     }
-    (void)(((f).name_len = (res).name_len));
-    (void)(((f).num_params = (res).num_params));
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].name_len = (res).name_len, 0))));
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].num_params = (res).num_params, 0))));
     int32_t p = 0;
     while (p < (res).num_params && p < 16) {
-      struct ast_Param param = (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((f).params)[0]) : ((f).params)[p]);
-      int32_t pk = 0;
-      while (pk < (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p]) && pk < 32) {
-      uint8_t row[32] ;
-      memcpy(row, ((p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_names)[0]) : ((res).param_names)[p])), sizeof(row));
-      (void)(((pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), 0) : (((param).name)[pk] = (pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), (row)[0]) : (row)[pk]), 0))));
-      (void)((pk = pk + 1));
-      }
-      while (pk < 32) {
-      (void)(((pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), 0) : (((param).name)[pk] = zero_u8, 0))));
-      (void)((pk = pk + 1));
-      }
-      (void)(((param).name_len = (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p])));
-      (void)(((param).type_ref = (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_type_refs)[0]) : ((res).param_type_refs)[p])));
-      (void)(((p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), 0) : (((f).params)[p] = param, 0))));
+      (void)(pipeline_module_func_param_write(module, fi, p, (&(((p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_names)[0]) : ((res).param_names)[p]))[0])), (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p]), (p < 0 || (p) >= 16 ? (shulang_panic_(1, 0), ((res).param_type_refs)[0]) : ((res).param_type_refs)[p])));
       (void)((p = p + 1));
     }
-    (void)(((f).return_type_ref = type_ref));
-    (void)(((f).body_ref = block_ref));
-    (void)(((f).is_extern = 0));
-    (void)((((module)->num_funcs < 0 || ((module)->num_funcs) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[(module)->num_funcs] = f, 0))));
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].return_type_ref = type_ref, 0))));
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].body_ref = block_ref, 0))));
+    (void)(((fi < 0 || (fi) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi].is_extern = 0, 0))));
     (void)(({ int32_t __tmp = 0; if ((is_main_storage)[0] != 0) {   (void)((main_idx = (module)->num_funcs));
  } else (__tmp = 0) ; __tmp; }));
     (void)(((module)->num_funcs = (module)->num_funcs + 1));
@@ -6397,12 +6205,11 @@ void parser_parse_one_top_level_let_into(struct ast_ASTArena * restrict arena, s
   (void)(({ int32_t __tmp = 0; if (name_len <= 0 || name_len > 63) {   (void)(((out)->ok = 0));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  size_t name_start = ((r).next_lex).pos - ((size_t)(name_len));
   (void)(({ int32_t __tmp = 0; if ((module)->num_top_level_lets >= 32) {   (void)(((out)->ok = 0));
   return;
  } else (__tmp = 0) ; __tmp; }));
   int32_t n = (module)->num_top_level_lets;
-  (void)(parser_copy_slice_to_name64(source, name_start, name_len, (n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->top_level_let_names)[0]) : ((module)->top_level_let_names)[n])));
+  (void)(parser_copy_slice_to_name64(source, (r).token_start, name_len, (n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), ((module)->top_level_let_names)[0]) : ((module)->top_level_let_names)[n])));
   (void)(((n < 0 || (n) >= 32 ? (shulang_panic_(1, 0), 0) : (((module)->top_level_let_name_lens)[n] = name_len, 0))));
   (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
   (void)(lexer_lexer_next_into((&(r)), lex, source));
@@ -6427,9 +6234,9 @@ void parser_parse_one_top_level_let_into(struct ast_ASTArena * restrict arena, s
   (void)(({ int32_t __tmp = 0; if ((te).name_len > 63) {   (void)(((te).name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
   int32_t si = 0;
-  size_t start = ((r).next_lex).pos - ((r).tok).ident_len;
-  while (si < (te).name_len && start + si < (source)->length) {
-    (void)(((si < 0 || (si) >= 64 ? (shulang_panic_(1, 0), 0) : (((te).name)[si] = (start + si < 0 || (size_t)(start + si) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start + si]), 0))));
+  while (si < (te).name_len && si < 64) {
+    (void)(({ uint8_t __tmp = 0; if ((r).token_start + ((size_t)(si)) < (source)->length) {   (void)(((si < 0 || (si) >= 64 ? (shulang_panic_(1, 0), 0) : (((te).name)[si] = ((r).token_start + ((size_t)(si)) < 0 || (size_t)((r).token_start + ((size_t)(si))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(si))]), 0))));
+ } else (__tmp = 0) ; __tmp; }));
     (void)((si = si + 1));
   }
   (void)(((te).elem_type_ref = 0));
@@ -6460,11 +6267,11 @@ void parser_parse_one_top_level_let_into(struct ast_ASTArena * restrict arena, s
   (void)(((t).name_len = ((r).tok).ident_len));
   (void)(({ int32_t __tmp = 0; if ((t).name_len > 63) {   (void)(((t).name_len = 63));
  } else (__tmp = 0) ; __tmp; }));
-  int32_t si = 0;
-  size_t start = ((r).next_lex).pos - ((r).tok).ident_len;
-  while (si < (t).name_len && start + si < (source)->length) {
-    (void)(((si < 0 || (si) >= 64 ? (shulang_panic_(1, 0), 0) : (((t).name)[si] = (start + si < 0 || (size_t)(start + si) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[start + si]), 0))));
-    (void)((si = si + 1));
+  int32_t si2 = 0;
+  while (si2 < (t).name_len && si2 < 64) {
+    (void)(({ uint8_t __tmp = 0; if ((r).token_start + ((size_t)(si2)) < (source)->length) {   (void)(((si2 < 0 || (si2) >= 64 ? (shulang_panic_(1, 0), 0) : (((t).name)[si2] = ((r).token_start + ((size_t)(si2)) < 0 || (size_t)((r).token_start + ((size_t)(si2))) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[(r).token_start + ((size_t)(si2))]), 0))));
+ } else (__tmp = 0) ; __tmp; }));
+    (void)((si2 = si2 + 1));
   }
  } ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
   (void)(((t).elem_type_ref = 0));
@@ -6511,7 +6318,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
  } else (__tmp = (struct parser_ParseIntoResult){0}) ; __tmp; }));
     (void)((loop_count_buf = loop_count_buf + 1));
     struct lexer_Lexer iter_start_buf = lex;
-    struct lexer_LexerResult r = lexer_lexer_next_buf(lex, data, len);
+    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    (void)(lexer_lexer_next_buf_into((&(r)), lex, data, len));
     (void)(parser_lex_from_next_into((&(lex)), r));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STRUCT) {   struct shulang_slice_uint8_t slice_st = parser_slice_from_buf(data, len);
   struct lexer_Lexer lex_kw = iter_start_buf;
@@ -6574,15 +6382,19 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     uint8_t empty64_buf[64] = { 0 };
     uint8_t empty32_buf[32] = { 0 };
     uint8_t dummy_pnames_buf[16][32] = { 0 };
-    uint8_t dummy_const_names_buf[64][64] = { 0 };
-    uint8_t dummy_let_names_buf[64][64] = { 0 };
-    int32_t dummy_refs_buf[128] = { 0 };
-    int32_t dummy_ltrefs_buf[128] = { 0 };
+    uint8_t dummy_const_names_buf[256][64] = { 0 };
+    int32_t dummy_const_lens_buf[256] = { 0 };
+    int32_t dummy_const_vals_buf[256] = { 0 };
+    uint8_t dummy_let_names_buf[256][64] = { 0 };
+    int32_t dummy_let_lens_buf[256] = { 0 };
+    int32_t dummy_let_vals_buf[256] = { 0 };
+    int32_t dummy_refs_buf[256] = { 0 };
+    int32_t dummy_ltrefs_buf[256] = { 0 };
     int32_t dummy_loop_refs_buf[8] = { 0 };
     int32_t dummy_for_refs_buf[8] = { 0 };
     int32_t dummy_if_refs_buf[16] = { 0 };
     int32_t dummy_call_arg_vals_buf[16] = { 0 };
-    struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; memcpy(_t.name, empty64_buf, sizeof(_t.name)); memcpy(_t.param_names, dummy_pnames_buf, sizeof(_t.param_names)); memcpy(_t.const_names, dummy_const_names_buf, sizeof(_t.const_names)); memcpy(_t.let_names, dummy_let_names_buf, sizeof(_t.let_names)); memcpy(_t.let_init_refs, dummy_refs_buf, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, dummy_ltrefs_buf, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, empty64_buf, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, dummy_call_arg_vals_buf, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, dummy_loop_refs_buf, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, dummy_loop_refs_buf, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, dummy_for_refs_buf, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, dummy_for_refs_buf, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, dummy_for_refs_buf, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, dummy_for_refs_buf, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, dummy_if_refs_buf, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, dummy_if_refs_buf, sizeof(_t.if_then_body_refs)); _t; });
+    struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, empty64_buf, sizeof(_t.name)); memcpy(_t.param_names, dummy_pnames_buf, sizeof(_t.param_names)); memcpy(_t.const_names, dummy_const_names_buf, sizeof(_t.const_names)); memcpy(_t.const_name_lens, dummy_const_lens_buf, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, dummy_const_vals_buf, sizeof(_t.const_init_vals)); memcpy(_t.let_names, dummy_let_names_buf, sizeof(_t.let_names)); memcpy(_t.let_name_lens, dummy_let_lens_buf, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, dummy_let_vals_buf, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, dummy_refs_buf, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, dummy_ltrefs_buf, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, empty64_buf, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, dummy_call_arg_vals_buf, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, dummy_loop_refs_buf, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, dummy_loop_refs_buf, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, dummy_for_refs_buf, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, dummy_for_refs_buf, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, dummy_for_refs_buf, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, dummy_for_refs_buf, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, dummy_if_refs_buf, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, dummy_if_refs_buf, sizeof(_t.if_then_body_refs)); _t; });
     struct shulang_slice_uint8_t slice_for_impl = parser_slice_from_buf(data, len);
     struct parser_LibraryParseResult lib_buf_first = parser_parse_one_function_library_buf(arena, module, lex_at_function_buf, data, len);
     (void)(({ int32_t __tmp = 0; if ((lib_buf_first).ok) {   (void)(parser_lex_from_library_into((&(lex)), lib_buf_first));
@@ -7121,8 +6933,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     (void)(((b).num_defers = 0));
     (void)(((b).num_labeled_stmts = 0));
     (void)(((b).num_expr_stmts = 0));
-    (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return)) {   int32_t return_wrap = ast_ast_arena_expr_alloc(arena);
-  __tmp = ({ int32_t __tmp = 0; if (return_wrap != 0) {   struct ast_Expr rwe = ast_ast_arena_expr_get(arena, return_wrap);
+    int32_t return_wrap = ast_ast_arena_expr_alloc(arena);
+    (void)(({ int32_t __tmp = 0; if (return_wrap != 0) {   struct ast_Expr rwe = ast_ast_arena_expr_get(arena, return_wrap);
   (void)(((rwe).kind = ast_ExprKind_EXPR_RETURN));
   (void)(((rwe).resolved_type_ref = type_ref));
   (void)(((rwe).line = 0));
@@ -7155,12 +6967,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
   (void)(((rwe).index_proven_in_bounds = 0));
   (void)(ast_ast_arena_expr_set(arena, return_wrap, rwe));
   (void)((final_expr_ref = return_wrap));
- } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     (void)(((b).final_expr_ref = final_expr_ref));
     (void)(((b).num_stmt_order = 0));
     int32_t const_i = 0;
-    while (const_i < (res).num_consts && const_i < 64) {
+    while (const_i < (res).num_consts && const_i < 256) {
       int32_t cinit_ref = ast_ast_arena_expr_alloc(arena);
       (void)(({ struct parser_ParseIntoResult __tmp = (struct parser_ParseIntoResult){0}; if (cinit_ref == 0) {   return (struct parser_ParseIntoResult){ .ok = (-1), .main_idx = (-1) };
  } else (__tmp = (struct parser_ParseIntoResult){0}) ; __tmp; }));
@@ -7169,14 +6980,14 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
       (void)(((ce).resolved_type_ref = type_ref));
       (void)(((ce).line = 0));
       (void)(((ce).col = 0));
-      (void)(((ce).int_val = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_init_vals)[0]) : ((res).const_init_vals)[const_i])));
+      (void)(((ce).int_val = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_init_vals)[0]) : ((res).const_init_vals)[const_i])));
       (void)(parser_expr_set_common_zeros((&(ce))));
       (void)(ast_ast_arena_expr_set(arena, cinit_ref, ce));
-      struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
+      struct ast_ConstDecl cd = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((b).const_decls)[0]) : ((b).const_decls)[const_i]);
       int32_t ck = 0;
-      while (ck < (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i]) && ck < 64) {
+      while (ck < (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i]) && ck < 64) {
       uint8_t const_row[64] ;
-      memcpy(const_row, ((const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_names)[0]) : ((res).const_names)[const_i])), sizeof(const_row));
+      memcpy(const_row, ((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_names)[0]) : ((res).const_names)[const_i])), sizeof(const_row));
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = (ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), (const_row)[0]) : (const_row)[ck]), 0))));
       (void)((ck = ck + 1));
       }
@@ -7184,19 +6995,19 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
       (void)(((ck < 0 || (ck) >= 64 ? (shulang_panic_(1, 0), 0) : (((cd).name)[ck] = 0, 0))));
       (void)((ck = ck + 1));
       }
-      (void)(((cd).name_len = (const_i < 0 || (const_i) >= 64 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i])));
+      (void)(((cd).name_len = (const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), ((res).const_name_lens)[0]) : ((res).const_name_lens)[const_i])));
       (void)(((cd).type_ref = type_ref));
       (void)(((cd).init_ref = cinit_ref));
-      (void)(((const_i < 0 || (const_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
+      (void)(((const_i < 0 || (const_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).const_decls)[const_i] = cd, 0))));
       (void)((const_i = const_i + 1));
     }
     int32_t let_i = 0;
-    while (let_i < (res).num_lets && let_i < 128) {
+    while (let_i < (res).num_lets && let_i < 256) {
       int32_t let_decl_ty = type_ref;
-      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i])));
+      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i]) != 0) {   (void)((let_decl_ty = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_type_refs)[0]) : ((res).let_type_refs)[let_i])));
  } else (__tmp = 0) ; __tmp; }));
       int32_t init_ref = 0;
-      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i])));
+      (void)(({ int32_t __tmp = 0; if ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i]) != 0) {   (void)((init_ref = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_refs)[0]) : ((res).let_init_refs)[let_i])));
  } else {   (void)((init_ref = ast_ast_arena_expr_alloc(arena)));
   (void)(({ struct parser_ParseIntoResult __tmp = (struct parser_ParseIntoResult){0}; if (init_ref == 0) {   return (struct parser_ParseIntoResult){ .ok = (-1), .main_idx = (-1) };
  } else (__tmp = (struct parser_ParseIntoResult){0}) ; __tmp; }));
@@ -7205,26 +7016,26 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
   (void)(((le).resolved_type_ref = let_decl_ty));
   (void)(((le).line = 0));
   (void)(((le).col = 0));
-  (void)(((le).int_val = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_init_vals)[0]) : ((res).let_init_vals)[let_i])));
+  (void)(((le).int_val = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_init_vals)[0]) : ((res).let_init_vals)[let_i])));
   (void)(parser_expr_set_common_zeros((&(le))));
   (void)(ast_ast_arena_expr_set(arena, init_ref, le));
  } ; __tmp; }));
-      struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
+      struct ast_LetDecl ld = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((b).let_decls)[0]) : ((b).let_decls)[let_i]);
       int32_t lk = 0;
-      while (lk < (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i]) && lk < 128) {
-      uint8_t let_row[128] ;
-      memcpy(let_row, ((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_names)[0]) : ((res).let_names)[let_i])), sizeof(let_row));
-      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 128 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
+      while (lk < (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i]) && lk < 64) {
+      uint8_t let_row[64] ;
+      memcpy(let_row, ((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_names)[0]) : ((res).let_names)[let_i])), sizeof(let_row));
+      (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = (lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), (let_row)[0]) : (let_row)[lk]), 0))));
       (void)((lk = lk + 1));
       }
       while (lk < 64) {
       (void)(((lk < 0 || (lk) >= 64 ? (shulang_panic_(1, 0), 0) : (((ld).name)[lk] = 0, 0))));
       (void)((lk = lk + 1));
       }
-      (void)(((ld).name_len = (let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i])));
+      (void)(((ld).name_len = (let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), ((res).let_name_lens)[0]) : ((res).let_name_lens)[let_i])));
       (void)(((ld).type_ref = let_decl_ty));
       (void)(((ld).init_ref = init_ref));
-      (void)(((let_i < 0 || (let_i) >= 128 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
+      (void)(((let_i < 0 || (let_i) >= 256 ? (shulang_panic_(1, 0), 0) : (((b).let_decls)[let_i] = ld, 0))));
       (void)((let_i = let_i + 1));
     }
     int32_t loop_fill_i = 0;
@@ -7296,7 +7107,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     (void)((so = so + 1));
     (void)((if_oi = if_oi + 1));
   }
-  (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return) && (!ast_ref_is_null((b).final_expr_ref)) && (b).num_expr_stmts == 0 && so < 96) {   (void)((((b).expr_stmt_refs)[0] = (b).final_expr_ref));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref)) && (b).num_expr_stmts == 0 && so < 96) {   (void)((((b).expr_stmt_refs)[0] = (b).final_expr_ref));
   (void)(((b).num_expr_stmts = 1));
   (void)(((b).final_expr_ref = 0));
   (void)(((so < 0 || (so) >= 96 ? (shulang_panic_(1, 0), 0) : (((b).stmt_order)[so].kind = 2, 0))));
@@ -7305,7 +7116,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
  } else (__tmp = 0) ; __tmp; }));
   (void)(((b).num_stmt_order = so));
  } ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((!(res).implicit_tail_return) && (b).num_expr_stmts > 0) {   (void)(((b).final_expr_ref = 0));
+    (void)(({ int32_t __tmp = 0; if ((b).num_expr_stmts > 0) {   (void)(((b).final_expr_ref = 0));
  } else (__tmp = 0) ; __tmp; }));
     (void)(ast_ast_arena_block_set(arena, block_ref, b));
     int32_t func_ref = ast_ast_arena_func_alloc(arena);
@@ -7328,30 +7139,17 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     (void)(((f).body_ref = block_ref));
     (void)(((f).body_expr_ref = 0));
     (void)(((f).num_params = (res).num_params));
+    (void)(ast_ast_arena_func_set(arena, func_ref, f));
+    int32_t fi_mod = (module)->num_funcs;
+    (void)(((fi_mod < 0 || (fi_mod) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[fi_mod] = f, 0))));
+    (void)(((fi_mod < 0 || (fi_mod) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->func_refs)[fi_mod] = func_ref, 0))));
     int32_t p_copy = 0;
     while (p_copy < (res).num_params && p_copy < 16) {
-      struct ast_Param pr = (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((f).params)[0]) : ((f).params)[p_copy]);
-      int32_t pk = 0;
-      while (pk < (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p_copy]) && pk < 32) {
-      uint8_t row[32] ;
-      memcpy(row, ((p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_names)[0]) : ((res).param_names)[p_copy])), sizeof(row));
-      (void)(((pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), 0) : (((pr).name)[pk] = (pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), (row)[0]) : (row)[pk]), 0))));
-      (void)((pk = pk + 1));
-      }
-      uint8_t z = 0;
-      while (pk < 32) {
-      (void)(((pk < 0 || (pk) >= 32 ? (shulang_panic_(1, 0), 0) : (((pr).name)[pk] = z, 0))));
-      (void)((pk = pk + 1));
-      }
-      (void)(((pr).name_len = (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p_copy])));
-      (void)(((pr).type_ref = (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_type_refs)[0]) : ((res).param_type_refs)[p_copy])));
-      (void)(((p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), 0) : (((f).params)[p_copy] = pr, 0))));
+      (void)(pipeline_arena_func_param_write(arena, func_ref, p_copy, (&(((p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_names)[0]) : ((res).param_names)[p_copy]))[0])), (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p_copy]), (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_type_refs)[0]) : ((res).param_type_refs)[p_copy])));
+      (void)(pipeline_module_func_param_write(module, fi_mod, p_copy, (&(((p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_names)[0]) : ((res).param_names)[p_copy]))[0])), (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_name_lens)[0]) : ((res).param_name_lens)[p_copy]), (p_copy < 0 || (p_copy) >= 16 ? (shulang_panic_(1, 0), ((res).param_type_refs)[0]) : ((res).param_type_refs)[p_copy])));
       (void)((p_copy = p_copy + 1));
     }
-    (void)(ast_ast_arena_func_set(arena, func_ref, f));
-    (void)((((module)->num_funcs < 0 || ((module)->num_funcs) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->funcs)[(module)->num_funcs] = f, 0))));
-    (void)((((module)->num_funcs < 0 || ((module)->num_funcs) >= 256 ? (shulang_panic_(1, 0), 0) : (((module)->func_refs)[(module)->num_funcs] = func_ref, 0))));
-    (void)(({ int32_t __tmp = 0; if ((is_main_storage)[0] != 0) {   (void)((main_idx = (module)->num_funcs));
+    (void)(({ int32_t __tmp = 0; if ((is_main_storage)[0] != 0) {   (void)((main_idx = fi_mod));
  } else (__tmp = 0) ; __tmp; }));
     (void)(((module)->num_funcs = (module)->num_funcs + 1));
     size_t parse_into_guard_pos = (lex).pos;
@@ -7386,19 +7184,19 @@ int32_t parser_diag_parse_one_after_collect_imports(struct shulang_slice_uint8_t
   uint8_t diag_dummy_p[16][32] = { 0 };
   int32_t diag_dummy_plens[16] = { 0 };
   int32_t diag_dummy_ptrefs[16] = { 0 };
-  uint8_t diag_dummy_c[24][64] = { 0 };
-  int32_t diag_dummy_clens[24] = { 0 };
-  int32_t diag_dummy_cvals[24] = { 0 };
-  uint8_t diag_dummy_ln[24][64] = { 0 };
-  int32_t diag_dummy_llens[24] = { 0 };
-  int32_t diag_dummy_lvals[24] = { 0 };
-  int32_t diag_dummy_let_refs[24] = { 0 };
-  int32_t diag_dummy_let_typerefs[128] = { 0 };
+  uint8_t diag_dummy_c[256][64] = { 0 };
+  int32_t diag_dummy_clens[256] = { 0 };
+  int32_t diag_dummy_cvals[256] = { 0 };
+  uint8_t diag_dummy_ln[256][64] = { 0 };
+  int32_t diag_dummy_llens[256] = { 0 };
+  int32_t diag_dummy_lvals[256] = { 0 };
+  int32_t diag_dummy_let_refs[256] = { 0 };
+  int32_t diag_dummy_let_typerefs[256] = { 0 };
   int32_t diag_dummy_loop_refs[8] = { 0 };
   int32_t diag_dummy_for_refs[8] = { 0 };
   int32_t diag_dummy_if_refs[16] = { 0 };
   int32_t diag_dummy_call_arg_vals[16] = { 0 };
-  struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.implicit_tail_return = 0; _t.func_return_type_ref = 0; memcpy(_t.name, diag_empty64, sizeof(_t.name)); memcpy(_t.param_names, diag_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, diag_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, diag_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, diag_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, diag_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, diag_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, diag_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, diag_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, diag_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, diag_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, diag_dummy_let_typerefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, diag_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, diag_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, diag_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, diag_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, diag_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, diag_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, diag_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, diag_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, diag_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, diag_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
+  struct parser_OneFuncResult res = ({ struct parser_OneFuncResult _t = { 0 }; _t.ok = 0; _t.next_lex = lex; _t.name_len = 0; _t.num_params = 0; _t.num_consts = 0; _t.num_lets = 0; _t.has_if_expr = 0; _t.if_cond_true = 0; _t.if_then_val = 0; _t.if_else_val = 0; _t.if_cond_expr_ref = 0; _t.has_mul = 0; _t.mul_right_val = 0; _t.has_binop = 0; _t.binop_right_val = 0; _t.binop_left_param_idx = (-1); _t.binop_right_param_idx = (-1); _t.has_unary_neg = 0; _t.return_val = 0; _t.has_call_expr = 0; _t.call_callee_len = 0; _t.return_var_name_len = 0; _t.return_expr_ref = 0; _t.call_num_args = 0; _t.num_loops = 0; _t.num_for_loops = 0; _t.num_if_stmts = 0; _t.num_src_stmt_order = 0; _t.num_src_body_expr_stmts = 0; _t.func_return_type_ref = 0; memcpy(_t.name, diag_empty64, sizeof(_t.name)); memcpy(_t.param_names, diag_dummy_p, sizeof(_t.param_names)); memcpy(_t.param_name_lens, diag_dummy_plens, sizeof(_t.param_name_lens)); memcpy(_t.param_type_refs, diag_dummy_ptrefs, sizeof(_t.param_type_refs)); memcpy(_t.const_names, diag_dummy_c, sizeof(_t.const_names)); memcpy(_t.const_name_lens, diag_dummy_clens, sizeof(_t.const_name_lens)); memcpy(_t.const_init_vals, diag_dummy_cvals, sizeof(_t.const_init_vals)); memcpy(_t.let_names, diag_dummy_ln, sizeof(_t.let_names)); memcpy(_t.let_name_lens, diag_dummy_llens, sizeof(_t.let_name_lens)); memcpy(_t.let_init_vals, diag_dummy_lvals, sizeof(_t.let_init_vals)); memcpy(_t.let_init_refs, diag_dummy_let_refs, sizeof(_t.let_init_refs)); memcpy(_t.let_type_refs, diag_dummy_let_typerefs, sizeof(_t.let_type_refs)); memcpy(_t.call_callee_name, diag_empty64, sizeof(_t.call_callee_name)); memcpy(_t.call_arg_vals, diag_dummy_call_arg_vals, sizeof(_t.call_arg_vals)); memcpy(_t.loop_cond_refs, diag_dummy_loop_refs, sizeof(_t.loop_cond_refs)); memcpy(_t.loop_body_refs, diag_dummy_loop_refs, sizeof(_t.loop_body_refs)); memcpy(_t.for_init_refs, diag_dummy_for_refs, sizeof(_t.for_init_refs)); memcpy(_t.for_cond_refs, diag_dummy_for_refs, sizeof(_t.for_cond_refs)); memcpy(_t.for_step_refs, diag_dummy_for_refs, sizeof(_t.for_step_refs)); memcpy(_t.for_body_refs, diag_dummy_for_refs, sizeof(_t.for_body_refs)); memcpy(_t.if_cond_refs, diag_dummy_if_refs, sizeof(_t.if_cond_refs)); memcpy(_t.if_then_body_refs, diag_dummy_if_refs, sizeof(_t.if_then_body_refs)); _t; });
   (void)(parser_parse_one_function_impl((&(res)), arena, lex, source));
   return ((res).ok ? 1 : 0);
 }

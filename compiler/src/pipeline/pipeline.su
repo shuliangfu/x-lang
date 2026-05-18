@@ -31,7 +31,7 @@ extern function asm_asm_codegen_ast(module: *Module, arena: *ASTArena, out_buf: 
 /** 阶段 6.1 完全自举：resolve、read、preprocess、parse 全在 .su；pipeline_parse_into_buf 调 parser.parse_into_buf，不再依赖 C。 */
 
 /** 将 (buf, buf_len) 传入 parser.parse_into_buf，返回 0 成功 -1 失败。调用前由 C 或调用方保证 arena/module 可用；此处先 parse_into_init 再解析。 */
-function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: [262144]u8, buf_len: i32): i32 {
+function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: [524288]u8, buf_len: i32): i32 {
   parser.parse_into_init(module, arena);
   let res: ParseIntoResult = parser.parse_into_buf(arena, module, &buf[0], buf_len);
   if (res.ok != 0) {
@@ -79,7 +79,7 @@ function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: [6
 /** 6.1：按 lib_roots 与 entry_dir 解析 import 路径，将结果写入 ctx.path_buf（含结尾 0），返回 0 成功 -1 失败。使用 std.fs open 探测存在。 */
 function resolve_path_su(ctx: *PipelineDepCtx, import_path: [64]u8, path_len: i32): i32 {
   let r: i32 = 0;
-  while (r < ctx.num_lib_roots && r < 8) {
+  while (r < ctx.num_lib_roots && r < 16) {
     let off: i32 = 0;
     if (ctx.lib_root_lens[r] > 0) {
       off = path_append_from_buf_256(ctx, 0, ctx.lib_root_bufs[r], ctx.lib_root_lens[r]);
@@ -205,8 +205,9 @@ function read_file_su(ctx: *PipelineDepCtx): i32 {
   if (fd < 0) {
     return -1;
   }
-  let cap: usize = 262144;
-  let n: isize = fs_read(fd, ctx.loaded_buf, cap);
+  let cap: usize = 524288;
+  /* 通过指针取成员时 [524288]u8 不保证与局部数组一样隐式转为 *u8，显式首元素地址供 fs_read ABI。 */
+  let n: isize = fs_read(fd, &ctx.loaded_buf[0], cap);
   fs_close(fd);
   if (n < 0) {
     return -1;
@@ -238,7 +239,7 @@ function parse_one_function_ok(source: []u8, arena: *ASTArena): i32 {
   let dummy_let_names: [24][64]u8 = [empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64];
   let dummy_let_lens: [24]i32 = [];
   let dummy_let_vals: [24]i32 = [];
-  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: empty64, name_len: 0, num_params: 0, param_names: dummy_pnames, param_name_lens: dummy_plens, param_type_refs: dummy_ptrefs, num_consts: 0, const_names: dummy_const_names, const_name_lens: dummy_const_lens, const_init_vals: dummy_const_vals, num_lets: 0, let_names: dummy_let_names, let_name_lens: dummy_let_lens, let_init_vals: dummy_let_vals, let_init_refs: dummy_let_refs, let_type_refs: dummy_let_typerefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: empty64, call_callee_len: 0, return_var_name: empty64, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: dummy_call_arg_vals, num_loops: 0, loop_cond_refs: dummy_loop_refs, loop_body_refs: dummy_loop_refs, num_for_loops: 0, for_init_refs: dummy_for_refs, for_cond_refs: dummy_for_refs, for_step_refs: dummy_for_refs, for_body_refs: dummy_for_refs, num_if_stmts: 0, if_cond_refs: dummy_if_refs, if_then_body_refs: dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0,   src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: empty64, name_len: 0, num_params: 0, param_names: dummy_pnames, param_name_lens: dummy_plens, param_type_refs: dummy_ptrefs, num_consts: 0, const_names: dummy_const_names, const_name_lens: dummy_const_lens, const_init_vals: dummy_const_vals, num_lets: 0, let_names: dummy_let_names, let_name_lens: dummy_let_lens, let_init_vals: dummy_let_vals, let_init_refs: dummy_let_refs, let_type_refs: dummy_let_typerefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: empty64, call_callee_len: 0, return_var_name: empty64, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: dummy_call_arg_vals, num_loops: 0, loop_cond_refs: dummy_loop_refs, loop_body_refs: dummy_loop_refs, num_for_loops: 0, for_init_refs: dummy_for_refs, for_cond_refs: dummy_for_refs, for_step_refs: dummy_for_refs, for_body_refs: dummy_for_refs, num_if_stmts: 0, if_cond_refs: dummy_if_refs, if_then_body_refs: dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0,   src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
   parser.parse_one_function_impl(&res, arena, lex, source);
   if (res.ok) {
     return 1;
@@ -358,7 +359,7 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
         if (read_file_su(ctx) != 0) {
           return -8;
         }
-        let out_len: i32 = preprocess_su_buf(ctx.loaded_buf, ctx.loaded_len, ctx.preprocess_buf, 262144);
+        let out_len: i32 = preprocess_su_buf(ctx.loaded_buf, ctx.loaded_len, ctx.preprocess_buf, 524288);
         if (out_len < 0) {
           return -9;
         }
@@ -376,6 +377,19 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
     ctx.ndep = n_imports;
   }
   }
+  /**
+   * asm -o：C 在入口 pipeline_run_su_pipeline 前常已设 ctx.ndep>0 并预跑各 dep，导致上方「ctx.ndep==0 才装载」分支不执行。
+   * 若此时 ctx.dep_modules / dep_arenas 与 driver_dep_*_buf 槽位脱节，typeck 对整包限定调用解析不到返回值（CALL resolved_type_ref 仍为 0）。
+   * 在类型检查之前与 driver 槽位对齐一遍，与同索引下 C 预填的指针一致，避免裂口。
+   */
+  let dep_sync_i: i32 = 0;
+  while (dep_sync_i < ctx.ndep && dep_sync_i < 32) {
+    ctx.dep_modules[dep_sync_i] = (driver_dep_module_buf(dep_sync_i)) as *Module;
+    ctx.dep_arenas[dep_sync_i] = (driver_dep_arena_buf(dep_sync_i)) as *ASTArena;
+    dep_sync_i = dep_sync_i + 1;
+  }
+  /** import dep 的 struct_layout（如 ast 中 Expr）拷入入口 module，FIELD_ACCESS 才能在入口 arena 解析字段类型。 */
+  typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
   /* 失败时传播具体码：-5 库 typeck，-6 代码生成，便于诊断。
    * 库模块（main_func_index<0）：仍须走下文的 deps + codegen（-backend asm -o xxx.o 否则 .o __text 恒为空）。
    * 仅在 typecheck 失败时返回；通过后与带 main 的模块共用 codegen 路径。 */
@@ -408,10 +422,10 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
       get_module_import_path(module, j, path_buf);
       let k: i32 = 0;
       while (k < 64) {
-        ctx.path_buf[k] = path_buf[k];
+        ctx.dep_logical_path_mirror[j][k] = path_buf[k];
         k = k + 1;
       }
-      ctx.dep_paths[j] = &ctx.path_buf[0];
+      ctx.dep_paths[j] = &ctx.dep_logical_path_mirror[j][0];
     }
     /* 仅对含函数的 dep 做代码生成，num_funcs==0 的库模块（如仅 extern/struct 的 std.io.core）跳过避免 codegen 返回 -1；设置当前 dep 路径供 codegen 加 C 符号前缀。 */
     let dep_mod: *Module = ctx.dep_modules[j];

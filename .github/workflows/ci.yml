@@ -52,6 +52,9 @@ jobs:
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         timeout-minutes: 12
+      - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
+        timeout-minutes: 3
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
@@ -124,6 +127,9 @@ jobs:
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         timeout-minutes: 12
+      - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
+        timeout-minutes: 3
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
@@ -175,6 +181,9 @@ jobs:
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         timeout-minutes: 12
+      - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
+        timeout-minutes: 3
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
@@ -236,6 +245,12 @@ jobs:
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         shell: msys2 {0}
         timeout-minutes: 12
+        env:
+          CI: "1"
+      - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
+        shell: msys2 {0}
+        timeout-minutes: 3
         env:
           CI: "1"
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)

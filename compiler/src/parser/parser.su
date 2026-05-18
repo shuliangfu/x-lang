@@ -7,6 +7,8 @@ import lexer;
 import token;
 import ast;
 import std.fs;
+/** 极简 parse(return <expr>) 非字面量时用堆上 ASTArena，`pipeline_sizeof_arena()` 与 driver 静态缓冲同口径。 */
+import std.heap;
 
 /** 从 (data, len) 构造 []u8 slice，供 parse_into_buf 内调 parse_one_function_impl 时使用；实现由 pipeline_glue.c 提供。 */
 extern function parser_slice_from_buf(data: *u8, len: i32): []u8;
@@ -15,6 +17,94 @@ extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i
 extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
 extern function pipeline_module_struct_layout_set_field(module: *Module, layout_idx: i32, j: i32, fname: *u8, fname_len: i32,
   ftype_ref: i32, foff: i32): void;
+/** 将单个形参写入 module.funcs[fi].params[pi]，避免 Param 按值拷贝导致 asm 下 type_ref 丢失。 */
+extern function pipeline_module_func_param_write(module: *Module, func_index: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
+/** 将形参写入 ASTArena 的 func 池槽位（func_ref 1-based），供 parse_into_buf 路径。 */
+extern function pipeline_arena_func_param_write(arena: *ASTArena, func_ref: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
+/** 清零 Module 顶层解析计数（实现 pipeline_glue.c）；多 import 合并时避免对 module.num_* 的 SU 赋值 LHS 类型为 ?。 */
+extern function pipeline_module_reset_parse_counters(module: *Module): void;
+/** 与 C `pipeline_sizeof_arena` 一致：`sizeof(ast_ASTArena)`；堆/静态 arena 缓冲须 ≥此值。 */
+extern function pipeline_sizeof_arena(): usize;
+
+/** 单函数解析结果：须在任意 `function ... OneFuncResult` 之前定义，使 parse_struct 先写入 struct_layouts，避免前向引用导致 FIELD_ACCESS 无类型。 */
+allow(padding) struct OneFuncResult {
+  ok: bool;
+  next_lex: Lexer;
+  name: [64]u8;
+  name_len: i32;
+  num_params: i32;
+  param_names: [16][32]u8;
+  param_name_lens: [16]i32;
+  /** 每参类型在 arena 的 type 池 ref，0 表示未解析；供 parse_into_buf expr-only 路径写入 f.params，避免 codegen 将指针形参误为 int32_t。 */
+  param_type_refs: [16]i32;
+  num_consts: i32;
+  const_names: [256][64]u8;
+  const_name_lens: [256]i32;
+  const_init_vals: [256]i32;
+  num_lets: i32;
+  let_names: [256][64]u8;
+  let_name_lens: [256]i32;
+  let_init_vals: [256]i32;
+  /** 非 0 时表示该 let 的初值为 arena 中的 expr ref（如 EXPR_ARRAY_LIT、EXPR_CALL），block 构建时优先用此而非 let_init_vals。 */
+  let_init_refs: [256]i32;
+  /** 解析 `let name: Ty = ...` 中 Ty 的 arena type ref；非 0 时 fill_block / parse_into 写 LetDecl.type_ref（避免一律用占位 i32 导致 INDEX 赋值 typeck 失败）。 */
+  let_type_refs: [256]i32;
+  has_if_expr: bool;
+  if_cond_true: bool;
+  if_then_val: i32;
+  if_else_val: i32;
+  /** return if (cond) 且 cond 非 true/false 字面量时：arena 内条件表达式 ref；0 表示由 if_cond_true 造 EXPR_BOOL_LIT。 */
+  if_cond_expr_ref: i32;
+  has_mul: bool;
+  mul_right_val: i32;
+  has_binop: bool;
+  binop_right_val: i32;
+  /** return ident + ident 且两 ident 为形参时，左/右操作数对应的形参下标（0/1）；-1 表示非形参（用 return_val/binop_right_val） */
+  binop_left_param_idx: i32;
+  binop_right_param_idx: i32;
+  has_unary_neg: bool;
+  return_val: i32;
+  /** 阶段 5 多文件：return ident(); 无参/有参调用时为 true，call_callee_name/len 为被调名 */
+  has_call_expr: bool;
+  call_callee_name: [64]u8;
+  call_callee_len: i32;
+  /** return ident; 时记录变量名（非整数字面量）；return_var_name_len>0 时 parse_into 生成 EXPR_VAR */
+  return_var_name: [64]u8;
+  return_var_name_len: i32;
+  /** 非 0：return 子表达式已在 arena（如 return foo(buffers[0].ptr,1)）；parse_into 用其作 final，勿再走 has_call_expr。 */
+  return_expr_ref: i32;
+  /** 有参调用时解析得到的实参个数（如 return add(1,2) 为 2）；0 表示无参或沿用当前函数形参个数 */
+  call_num_args: i32;
+  /** 有参调用且实参为整数字面量时的值，供 parse_into 构建 EXPR_LIT 实参；最多 16 个（与 Expr.int_val 一致用 i32） */
+  call_arg_vals: [16]i32;
+  /** 块内 while 循环数（最多 8）；cond/body 池下标，0 表示占位（未解析） */
+  num_loops: i32;
+  loop_cond_refs: [8]i32;
+  loop_body_refs: [8]i32;
+  /** 块内 for 循环数（最多 8）；init/cond/step/body 池下标，0 表示占位（未解析） */
+  num_for_loops: i32;
+  for_init_refs: [8]i32;
+  for_cond_refs: [8]i32;
+  for_step_refs: [8]i32;
+  for_body_refs: [8]i32;
+  /** parse_one_function_impl 与 parse_into 块体：if(cond){ block } 链（最多 16），池下标 */
+  num_if_stmts: i32;
+  if_cond_refs: [16]i32;
+  if_then_body_refs: [16]i32;
+  /**
+   * parse_one_function_impl 按源码顺序累计的 stmt_order（与 C 侧 push_stmt_order 一致：
+   * 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=if）。>0 时 parse_into 直接写入 Block，避免仅按批
+   * 次 const/let/loop 重建顺序导致与 C 解析器/codegen 不一致。
+   */
+  num_src_stmt_order: i32;
+  src_stmt_kind: [96]u8;
+  src_stmt_idx: [96]i32;
+  /** kind=2 时 idx 为本数组下标；最多 32 条，与 Block.expr_stmt_refs 一致 */
+  num_src_body_expr_stmts: i32;
+  src_body_expr_stmt_refs: [32]i32;
+  /** parse_one_function_impl 在 `): Ty` 处解析得到的返回类型 arena ref；parse_intoBuf 必须用其写入 Func.return_type_ref，勿一律造 TYPE_I32（否则 deps 如 std.time 的 i64 API 在 Caller 中被误为 i64，let/跨模块调用 typeck 失败）。为 0 时 parse_into 回退分配 TYPE_I32。 */
+  func_return_type_ref: i32;
+}
 
 /** 最小解析结果：ok 表示整句解析成功，return_val 为 return 后的整数字面量值。 */
 struct ParseResult {
@@ -57,19 +147,11 @@ function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void {
   out_lex.line = r.next_lex.line;
   out_lex.col = r.next_lex.col;
 }
-/** 兼容：返回 Lexer（部分调用处仍用赋值，优先用 lex_from_next_into）。 */
-function lex_from_next(r: LexerResult): Lexer {
-  return Lexer { pos: r.next_lex.pos, line: r.next_lex.line, col: r.next_lex.col };
-}
-/** 从 OneFuncResult 取 next_lex 写入 out，同上。 */
-function lex_from_onefunc_next_into(out: *Lexer, res: OneFuncResult): void {
+/** 从 *OneFuncResult 取 next_lex 写入 out，避免整颗 OneFuncResult 按值传入（ARM64 大结构体 ABI）。 */
+function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): void {
   out.pos = res.next_lex.pos;
   out.line = res.next_lex.line;
   out.col = res.next_lex.col;
-}
-/** 兼容：返回 Lexer。 */
-function lex_from_onefunc_next(res: OneFuncResult): Lexer {
-  return Lexer { pos: res.next_lex.pos, line: res.next_lex.line, col: res.next_lex.col };
 }
 
 /** 由 token 结束位置与长度反推起点（避免在 if 条件内写 (nlen as usize) 触发 C 解析歧义）。 */
@@ -130,92 +212,161 @@ function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, source: 
   return 0;
 }
 
-/** 单函数解析结果：供 parse_into 多函数循环使用；含函数名、参数列表、块内 const/let 列表（仅支持 i32 与整数字面量初值）、return 值及消费后的 next_lex。allow(padding) 与 Lexer 对齐要求一致。 */
-allow(padding) struct OneFuncResult {
-  ok: bool;
-  next_lex: Lexer;
-  name: [64]u8;
-  name_len: i32;
-  num_params: i32;
-  param_names: [16][32]u8;
-  param_name_lens: [16]i32;
-  /** 每参类型在 arena 的 type 池 ref，0 表示未解析；供 parse_into_buf expr-only 路径写入 f.params，避免 codegen 将指针形参误为 int32_t。 */
-  param_type_refs: [16]i32;
-  num_consts: i32;
-  const_names: [64][64]u8;
-  const_name_lens: [64]i32;
-  const_init_vals: [64]i32;
-  num_lets: i32;
-  let_names: [128][64]u8;
-  let_name_lens: [128]i32;
-  let_init_vals: [128]i32;
-  /** 非 0 时表示该 let 的初值为 arena 中的 expr ref（如 EXPR_ARRAY_LIT、EXPR_CALL），block 构建时优先用此而非 let_init_vals。 */
-  let_init_refs: [128]i32;
-  /** 解析 `let name: Ty = ...` 中 Ty 的 arena type ref；非 0 时 fill_block / parse_into 写 LetDecl.type_ref（避免一律用占位 i32 导致 INDEX 赋值 typeck 失败）。 */
-  let_type_refs: [128]i32;
-  has_if_expr: bool;
-  if_cond_true: bool;
-  if_then_val: i32;
-  if_else_val: i32;
-  /** return if (cond) 且 cond 非 true/false 字面量时：arena 内条件表达式 ref；0 表示由 if_cond_true 造 EXPR_BOOL_LIT。 */
-  if_cond_expr_ref: i32;
-  has_mul: bool;
-  mul_right_val: i32;
-  has_binop: bool;
-  binop_right_val: i32;
-  /** return ident + ident 且两 ident 为形参时，左/右操作数对应的形参下标（0/1）；-1 表示非形参（用 return_val/binop_right_val） */
-  binop_left_param_idx: i32;
-  binop_right_param_idx: i32;
-  has_unary_neg: bool;
-  return_val: i32;
-  /** 阶段 5 多文件：return ident(); 无参/有参调用时为 true，call_callee_name/len 为被调名 */
-  has_call_expr: bool;
-  call_callee_name: [64]u8;
-  call_callee_len: i32;
-  /** return ident; 时记录变量名（非整数字面量）；return_var_name_len>0 时 parse_into 生成 EXPR_VAR */
-  return_var_name: [64]u8;
-  return_var_name_len: i32;
-  /** 非 0：return 子表达式已在 arena（如 return foo(buffers[0].ptr,1)）；parse_into 用其作 final，勿再走 has_call_expr。 */
-  return_expr_ref: i32;
-  /** 有参调用时解析得到的实参个数（如 return add(1,2) 为 2）；0 表示无参或沿用当前函数形参个数 */
-  call_num_args: i32;
-  /** 有参调用且实参为整数字面量时的值，供 parse_into 构建 EXPR_LIT 实参；最多 16 个（与 Expr.int_val 一致用 i32） */
-  call_arg_vals: [16]i32;
-  /** 块内 while 循环数（最多 8）；cond/body 池下标，0 表示占位（未解析） */
-  num_loops: i32;
-  loop_cond_refs: [8]i32;
-  loop_body_refs: [8]i32;
-  /** 块内 for 循环数（最多 8）；init/cond/step/body 池下标，0 表示占位（未解析） */
-  num_for_loops: i32;
-  for_init_refs: [8]i32;
-  for_cond_refs: [8]i32;
-  for_step_refs: [8]i32;
-  for_body_refs: [8]i32;
-  /** parse_one_function_impl 与 parse_into 块体：if(cond){ block } 链（最多 16），池下标 */
-  num_if_stmts: i32;
-  if_cond_refs: [16]i32;
-  if_then_body_refs: [16]i32;
-  /**
-   * parse_one_function_impl 按源码顺序累计的 stmt_order（与 C 侧 push_stmt_order 一致：
-   * 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=if）。>0 时 parse_into 直接写入 Block，避免仅按批
-   * 次 const/let/loop 重建顺序导致与 C 解析器/codegen 不一致。
+/**
+ * 在 `out.ok` / `copy_onefunc_into` 等之前执行：注册 OneFuncResult 首段 STRUCT_LIT（≤8 字段）并触发 typeck 填充 field_type_refs；
+ * 后续同名字面量由 ensure_struct_layout_from_struct_lit **合并**补全余下字段名（AST 单字面量上限 8）。
+ */
+function onefunc_result_layout_prime(): void {
+  let z64: [64]u8 = [];
+  let z32: [32]u8 = [];
+  let zp: [16][32]u8 = [z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32, z32];
+  let zpl: [16]i32 = [];
+  let zpt: [16]i32 = [];
+  /** 仅 8 个字段：AST 单结构字面量上限 8；num_consts 起由 prime_b 合并 */
+  let _prime: OneFuncResult = OneFuncResult {
+    ok: false,
+    next_lex: lexer_init(),
+    name: z64,
+    name_len: 0,
+    num_params: 0,
+    param_names: zp,
+    param_name_lens: zpl,
+    param_type_refs: zpt
+  };
+  /*
+   * 勿整结构自赋值：.su typeck 展开后易触发「一侧 ?」。用常量写回一字段即可拴住字面量并过检。
    */
-  num_src_stmt_order: i32;
-  src_stmt_kind: [96]u8;
-  src_stmt_idx: [96]i32;
-  /** kind=2 时 idx 为本数组下标；最多 32 条，与 Block.expr_stmt_refs 一致 */
-  num_src_body_expr_stmts: i32;
-  src_body_expr_stmt_refs: [32]i32;
-  /** 块尾为裸整型表达式（无 return）时为真；parse_into 不包 EXPR_RETURN，供 typeck 与 C 一致要求显式 return */
-  implicit_tail_return: bool;
-  /** parse_one_function_impl 在 `): Ty` 处解析得到的返回类型 arena ref；parse_intoBuf 必须用其写入 Func.return_type_ref，勿一律造 TYPE_I32（否则 deps 如 std.time 的 i64 API 在Caller 中被误为 i64，let/跨模块调用 typeck 失败）。为 0 时 parse_into 回退分配 TYPE_I32。 */
-  func_return_type_ref: i32;
+  _prime.name_len = 0;
 }
 
 /** 写失败结果到 out，避免 ABI 下 OneFuncResult 按值返回/赋值错误；调用方仅用 out.ok 与 out.next_lex。 */
 function set_onefunc_fail(out: *OneFuncResult, next_lex: Lexer): void {
   out.ok = false;
   out.next_lex = next_lex;
+}
+
+/**
+ * 合并第二段字段进 struct_layouts（num_consts…let_init_refs），供 copy_onefunc_into 中 FIELD_ACCESS 类型解析。
+ */
+function onefunc_result_layout_prime_b(): void {
+  let dc: [256][64]u8 = [];
+  let dcl: [256]i32 = [];
+  let dcv: [256]i32 = [];
+  let dl: [256][64]u8 = [];
+  let dll: [256]i32 = [];
+  let dlv: [256]i32 = [];
+  let dir: [256]i32 = [];
+  let _q2: OneFuncResult = OneFuncResult {
+    num_consts: 0,
+    const_names: dc,
+    const_name_lens: dcl,
+    const_init_vals: dcv,
+    num_lets: 0,
+    let_names: dl,
+    let_name_lens: dll,
+    let_init_vals: dlv,
+    let_init_refs: dir
+  };
+  _q2.num_consts = 0;
+}
+
+/**
+ * 合并第三段（let_type_refs…if_cond_expr_ref）。
+ */
+function onefunc_result_layout_prime_c(): void {
+  let dlt: [256]i32 = [];
+  let _q3: OneFuncResult = OneFuncResult {
+    let_type_refs: dlt,
+    has_if_expr: false,
+    if_cond_true: false,
+    if_then_val: 0,
+    if_else_val: 0,
+    if_cond_expr_ref: 0,
+    has_mul: false,
+    mul_right_val: 0
+  };
+  _q3.if_cond_expr_ref = 0;
+}
+
+/**
+ * 合并第四段（has_binop…call_callee_name）。
+ */
+function onefunc_result_layout_prime_d(): void {
+  let ccn: [64]u8 = [];
+  let _q4: OneFuncResult = OneFuncResult {
+    has_binop: false,
+    binop_right_val: 0,
+    binop_left_param_idx: -1,
+    binop_right_param_idx: -1,
+    has_unary_neg: false,
+    return_val: 0,
+    has_call_expr: false,
+    call_callee_name: ccn
+  };
+  _q4.binop_left_param_idx = -1;
+}
+
+/**
+ * 合并第五段（call_callee_len…loop_cond_refs）。
+ */
+function onefunc_result_layout_prime_d_b(): void {
+  let rvn: [64]u8 = [];
+  let cargs: [16]i32 = [];
+  let lc: [8]i32 = [];
+  let _q4b: OneFuncResult = OneFuncResult {
+    call_callee_len: 0,
+    return_var_name: rvn,
+    return_var_name_len: 0,
+    return_expr_ref: 0,
+    call_num_args: 0,
+    call_arg_vals: cargs,
+    num_loops: 0,
+    loop_cond_refs: lc
+  };
+  _q4b.call_num_args = 0;
+}
+
+/**
+ * 合并第六段（loop_body_refs…if_cond_refs）。
+ */
+function onefunc_result_layout_prime_e(): void {
+  let lb: [8]i32 = [];
+  let fi: [8]i32 = [];
+  let fc: [8]i32 = [];
+  let fs: [8]i32 = [];
+  let fb: [8]i32 = [];
+  let ic: [16]i32 = [];
+  let _q5: OneFuncResult = OneFuncResult {
+    loop_body_refs: lb,
+    num_for_loops: 0,
+    for_init_refs: fi,
+    for_cond_refs: fc,
+    for_step_refs: fs,
+    for_body_refs: fb,
+    num_if_stmts: 0,
+    if_cond_refs: ic
+  };
+  _q5.num_if_stmts = 0;
+}
+
+/**
+ * 合并第七段（if_then_body_refs…func_return_type_ref）。
+ */
+function onefunc_result_layout_prime_f(): void {
+  let it: [16]i32 = [];
+  let sk: [96]u8 = [];
+  let si: [96]i32 = [];
+  let sr: [32]i32 = [];
+  let _q6: OneFuncResult = OneFuncResult {
+    if_then_body_refs: it,
+    num_src_stmt_order: 0,
+    src_stmt_kind: sk,
+    src_stmt_idx: si,
+    num_src_body_expr_stmts: 0,
+    src_body_expr_stmt_refs: sr,
+    func_return_type_ref: 0
+  };
+  _q6.func_return_type_ref = 0;
 }
 
 /** 将 src 逐字段拷到 dst，避免 *dst = src 在部分解析器下被误解析；用于 parse_one_function_impl 成功路径写回。 */
@@ -243,30 +394,30 @@ function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): void {
   while (ptri < 16) { dst.param_type_refs[ptri] = src.param_type_refs[ptri]; ptri = ptri + 1; }
   dst.num_consts = src.num_consts;
   let ci: i32 = 0;
-  while (ci < 64) {
+  while (ci < 256) {
     let cj: i32 = 0;
     while (cj < 64) { dst.const_names[ci][cj] = src.const_names[ci][cj]; cj = cj + 1; }
     ci = ci + 1;
   }
   let cli: i32 = 0;
-  while (cli < 64) { dst.const_name_lens[cli] = src.const_name_lens[cli]; cli = cli + 1; }
+  while (cli < 256) { dst.const_name_lens[cli] = src.const_name_lens[cli]; cli = cli + 1; }
   let cvi: i32 = 0;
-  while (cvi < 64) { dst.const_init_vals[cvi] = src.const_init_vals[cvi]; cvi = cvi + 1; }
+  while (cvi < 256) { dst.const_init_vals[cvi] = src.const_init_vals[cvi]; cvi = cvi + 1; }
   dst.num_lets = src.num_lets;
   let li: i32 = 0;
-  while (li < 64) {
+  while (li < 256) {
     let lj: i32 = 0;
     while (lj < 64) { dst.let_names[li][lj] = src.let_names[li][lj]; lj = lj + 1; }
     li = li + 1;
   }
   let lli: i32 = 0;
-  while (lli < 128) { dst.let_name_lens[lli] = src.let_name_lens[lli]; lli = lli + 1; }
+  while (lli < 256) { dst.let_name_lens[lli] = src.let_name_lens[lli]; lli = lli + 1; }
   let lvi: i32 = 0;
-  while (lvi < 128) { dst.let_init_vals[lvi] = src.let_init_vals[lvi]; lvi = lvi + 1; }
+  while (lvi < 256) { dst.let_init_vals[lvi] = src.let_init_vals[lvi]; lvi = lvi + 1; }
   let lri: i32 = 0;
-  while (lri < 128) { dst.let_init_refs[lri] = src.let_init_refs[lri]; lri = lri + 1; }
+  while (lri < 256) { dst.let_init_refs[lri] = src.let_init_refs[lri]; lri = lri + 1; }
   let lti: i32 = 0;
-  while (lti < 128) { dst.let_type_refs[lti] = src.let_type_refs[lti]; lti = lti + 1; }
+  while (lti < 256) { dst.let_type_refs[lti] = src.let_type_refs[lti]; lti = lti + 1; }
   dst.has_if_expr = src.has_if_expr;
   dst.if_cond_true = src.if_cond_true;
   dst.if_then_val = src.if_then_val;
@@ -308,7 +459,6 @@ function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): void {
     dst.if_then_body_refs[ifi] = src.if_then_body_refs[ifi];
     ifi = ifi + 1;
   }
-  dst.implicit_tail_return = src.implicit_tail_return;
   if (src.func_return_type_ref != 0) {
     dst.func_return_type_ref = src.func_return_type_ref;
   } else {
@@ -1010,39 +1160,23 @@ function is_compound_assign_token(kind: TokenKind): bool {
     || kind == TokenKind.TOKEN_RSHIFT_EQ;
 }
 
+/** 映射实现见 pipeline_glue.c（C 内比对 TokenKind），避免 .su typeck 对 `return ExprKind.*` 失败。 */
+extern function compound_assign_token_to_expr_kind_from_glue(kind: TokenKind): ExprKind;
+
 /** 复合赋值 token 映射到 ExprKind；仅当 kind 为复合赋值 token 时调用（不含单 =）。 */
 function compound_assign_token_to_expr_kind(kind: TokenKind): ExprKind {
-  if (kind == TokenKind.TOKEN_PLUS_EQ) { return ExprKind.EXPR_ADD_ASSIGN; }
-  if (kind == TokenKind.TOKEN_MINUS_EQ) { return ExprKind.EXPR_SUB_ASSIGN; }
-  if (kind == TokenKind.TOKEN_STAR_EQ) { return ExprKind.EXPR_MUL_ASSIGN; }
-  if (kind == TokenKind.TOKEN_SLASH_EQ) { return ExprKind.EXPR_DIV_ASSIGN; }
-  if (kind == TokenKind.TOKEN_PERCENT_EQ) { return ExprKind.EXPR_MOD_ASSIGN; }
-  if (kind == TokenKind.TOKEN_AMP_EQ) { return ExprKind.EXPR_BITAND_ASSIGN; }
-  if (kind == TokenKind.TOKEN_PIPE_EQ) { return ExprKind.EXPR_BITOR_ASSIGN; }
-  if (kind == TokenKind.TOKEN_CARET_EQ) { return ExprKind.EXPR_BITXOR_ASSIGN; }
-  if (kind == TokenKind.TOKEN_LSHIFT_EQ) { return ExprKind.EXPR_SHL_ASSIGN; }
-  return ExprKind.EXPR_SHR_ASSIGN;
+  return compound_assign_token_to_expr_kind_from_glue(kind);
 }
 
+/** 左值判定由 pipeline_glue.c 直读池中 kind/is_enum_variant，与 shu-c 生成 struct 访问一致；勿在 SU 内 `let e: Expr = get` 后比较 e.kind（.su typeck 会失败）。 */
+extern function pipeline_expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool;
+
 /**
- * 表达式 ref 是否为可赋值左值（VAR / INDEX / 非枚举变体的 FIELD_ACCESS），与 C 端 expr_is_lvalue 对齐。
+ * 表达式 ref 是否为可赋值左值（VAR / INDEX / 非枚举变体的 FIELD_ACCESS），与 C 端 expr_is_lvalue 一致。
  * 非左值时遇到 = 不消费赋值符，由上层继续解析（与 parse_assign 一致）。
  */
 function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool {
-  if (ref_is_null(expr_ref) || expr_ref <= 0 || expr_ref > arena.num_exprs) {
-    return false;
-  }
-  let e: Expr = ast_arena_expr_get(arena, expr_ref);
-  if (e.kind == ExprKind.EXPR_VAR) {
-    return true;
-  }
-  if (e.kind == ExprKind.EXPR_INDEX) {
-    return true;
-  }
-  if (e.kind == ExprKind.EXPR_FIELD_ACCESS) {
-    return e.field_access_is_enum_variant == 0;
-  }
-  return false;
+  return pipeline_expr_ref_is_assign_lvalue(arena, expr_ref);
 }
 
 /**
@@ -1144,7 +1278,7 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
   b.num_consts = res.num_consts;
   b.num_lets = res.num_lets;
   let const_i: i32 = 0;
-  while (const_i < res.num_consts && const_i < 64) {
+  while (const_i < res.num_consts && const_i < 256) {
     let cinit_ref: i32 = ast_arena_expr_alloc(arena);
     if (cinit_ref == 0) {
       return false;
@@ -1176,7 +1310,7 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
     const_i = const_i + 1;
   }
   let let_i: i32 = 0;
-  while (let_i < res.num_lets && let_i < 128) {
+  while (let_i < res.num_lets && let_i < 256) {
     /* 优先使用 parse_body_lets_into 记录的 let 源码类型（如 [4]u8），否则回退占位 type_ref（函数返回类型的 i32）。 */
     let let_decl_ty: i32 = type_ref;
     if (res.let_type_refs[let_i] != 0) {
@@ -1201,8 +1335,8 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
     }
     let ld: LetDecl = b.let_decls[let_i];
     let lk: i32 = 0;
-    while (lk < res.let_name_lens[let_i] && lk < 128) {
-      let let_row: [128]u8 = res.let_names[let_i];
+    while (lk < res.let_name_lens[let_i] && lk < 64) {
+      let let_row: [64]u8 = res.let_names[let_i];
       ld.name[lk] = let_row[lk];
       lk = lk + 1;
     }
@@ -1231,20 +1365,20 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: []u
   let blk_dummy_p: [16][32]u8 = [blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32, blk_empty32];
   let blk_dummy_plens: [16]i32 = [];
   let blk_dummy_ptrefs: [16]i32 = [];
-  let blk_dummy_c: [64][64]u8 = [blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64];
-  let blk_dummy_clens: [64]i32 = [];
-  let blk_dummy_cvals: [64]i32 = [];
-  let blk_dummy_ln: [64][64]u8 = [blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64, blk_empty64];
-  let blk_dummy_llens: [128]i32 = [];
-  let blk_dummy_lvals: [128]i32 = [];
-  let blk_dummy_let_refs: [128]i32 = [];
+  let blk_dummy_c: [256][64]u8 = [];
+  let blk_dummy_clens: [256]i32 = [];
+  let blk_dummy_cvals: [256]i32 = [];
+  let blk_dummy_ln: [256][64]u8 = [];
+  let blk_dummy_llens: [256]i32 = [];
+  let blk_dummy_lvals: [256]i32 = [];
+  let blk_dummy_let_refs: [256]i32 = [];
   /* 与 blk_dummy_let_refs 分列，parse_block_into 临时 OneFuncResult 两字段互不别名。 */
-  let blk_dummy_ltrefs: [128]i32 = [];
+  let blk_dummy_ltrefs: [256]i32 = [];
   let blk_dummy_loop_refs: [8]i32 = [];
   let blk_dummy_for_refs: [8]i32 = [];
   let blk_dummy_if_refs: [16]i32 = [];
   let blk_dummy_call_arg_vals: [16]i32 = [];
-  let temp: OneFuncResult = OneFuncResult { ok: true, next_lex: lex_after_lbrace, name: blk_empty64, name_len: 0, num_params: 0, param_names: blk_dummy_p, param_name_lens: blk_dummy_plens, param_type_refs: blk_dummy_ptrefs, num_consts: 0, const_names: blk_dummy_c, const_name_lens: blk_dummy_clens, const_init_vals: blk_dummy_cvals, num_lets: 0, let_names: blk_dummy_ln, let_name_lens: blk_dummy_llens, let_init_vals: blk_dummy_lvals, let_init_refs: blk_dummy_let_refs, let_type_refs: blk_dummy_ltrefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: blk_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: blk_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: blk_dummy_loop_refs, loop_body_refs: blk_dummy_loop_refs, num_for_loops: 0, for_init_refs: blk_dummy_for_refs, for_cond_refs: blk_dummy_for_refs, for_step_refs: blk_dummy_for_refs, for_body_refs: blk_dummy_for_refs, num_if_stmts: 0, if_cond_refs: blk_dummy_if_refs, if_then_body_refs: blk_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+  let temp: OneFuncResult = OneFuncResult { ok: true, next_lex: lex_after_lbrace, name: blk_empty64, name_len: 0, num_params: 0, param_names: blk_dummy_p, param_name_lens: blk_dummy_plens, param_type_refs: blk_dummy_ptrefs, num_consts: 0, const_names: blk_dummy_c, const_name_lens: blk_dummy_clens, const_init_vals: blk_dummy_cvals, num_lets: 0, let_names: blk_dummy_ln, let_name_lens: blk_dummy_llens, let_init_vals: blk_dummy_lvals, let_init_refs: blk_dummy_let_refs, let_type_refs: blk_dummy_ltrefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: blk_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: blk_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: blk_dummy_loop_refs, loop_body_refs: blk_dummy_loop_refs, num_for_loops: 0, for_init_refs: blk_dummy_for_refs, for_cond_refs: blk_dummy_for_refs, for_step_refs: blk_dummy_for_refs, for_body_refs: blk_dummy_for_refs, num_if_stmts: 0, if_cond_refs: blk_dummy_if_refs, if_then_body_refs: blk_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
   let lex_cur: Lexer = lex_after_lbrace;
   parse_body_lets_into(arena, lex_after_lbrace, source, &temp, &lex_cur);
   let block_ref: i32 = ast_arena_block_alloc(arena);
@@ -1542,12 +1676,13 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: []u
 }
 
 /**
- * 解析最小程序：function main(): i32 { return <int>; }（返回类型用 :）
- * 按顺序期望：TOKEN_FUNCTION, TOKEN_IDENT, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_COLON, TOKEN_I32,
- *            TOKEN_LBRACE, TOKEN_RETURN, TOKEN_INT, TOKEN_SEMICOLON, TOKEN_RBRACE, TOKEN_EOF。
- * 若任一 token 不匹配则返回 ok=false；成功则 ok=true 且 return_val 为 return 后的整数值。
+ * 解析最小程序：function main(): i32 { return <expr>; }（返回类型用 :）
+ * return 后：`TOKEN_INT` 走快路径；否则在**堆上**分配一块与 `runtime.c driver_arena_static` 同量级的缓冲区，
+ * 经 `parse_expr_into` 解析（bootstrap-parse-file 第二段可与宿主 shu 同写 `return (1+2)*3+-1`）。
+ * `return_val` 在解析器常量折叠命中时填入，否则成功仍可为 0（联调只看 ok）。
  */
 function parse(source: []u8): ParseResult {
+  let arena_heap_bytes: usize = pipeline_sizeof_arena();
   let lex: Lexer = lexer_init();
   let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer_next_into(&r, lex, source);
@@ -1590,12 +1725,32 @@ function parse(source: []u8): ParseResult {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
+  let lex_at_expr_start: Lexer = lex;
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_INT) {
-    return ParseResult { ok: false, return_val: 0 }
+  let ret_val: i32 = 0;
+  if (r.tok.kind == TokenKind.TOKEN_INT) {
+    ret_val = r.tok.int_val;
+    lex_from_next_into(&lex, r);
+  } else {
+    let raw_arena: *u8 = alloc_zeroed(arena_heap_bytes);
+    if (raw_arena == 0 as *u8) {
+      return ParseResult { ok: false, return_val: 0 }
+    }
+    let heap_arena: *ASTArena = raw_arena as *ASTArena;
+    ast_arena_init(heap_arena);
+    let expr_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+    parse_expr_into(heap_arena, lex_at_expr_start, source, &expr_out);
+    if (!expr_out.ok || expr_out.expr_ref <= 0) {
+      free(raw_arena);
+      return ParseResult { ok: false, return_val: 0 }
+    }
+    let e_read: Expr = ast_arena_expr_get(heap_arena, expr_out.expr_ref);
+    if (e_read.const_folded_valid != 0) {
+      ret_val = e_read.const_folded_val;
+    }
+    lex = expr_out.next_lex;
+    free(raw_arena);
   }
-  let ret_val: i32 = r.tok.int_val;
-  lex_from_next_into(&lex, r);
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
     return ParseResult { ok: false, return_val: 0 }
@@ -1767,7 +1922,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: []u8, out: *
   let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer_next_into(&r, lex, source);
   while (r.tok.kind == TokenKind.TOKEN_LET || r.tok.kind == TokenKind.TOKEN_CONST) {
-    if (out.num_lets >= 128) {
+    if (out.num_lets >= 256) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return;
     }
     let is_let: bool = r.tok.kind == TokenKind.TOKEN_LET;
@@ -2740,14 +2895,14 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
   let param_name_lens: [16]i32 = dummy_plens;
   let param_type_refs: [16]i32 = [];
   let empty64: [64]u8 = [];
-  let dummy_const_names: [64][64]u8 = [empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64];
-  let dummy_const_lens: [64]i32 = [];
-  let dummy_const_vals: [64]i32 = [];
-  let dummy_let_names: [128][64]u8 = [empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64];
-  let dummy_let_lens: [128]i32 = [];
-  let dummy_let_vals: [128]i32 = [];
-  let dummy_let_refs: [128]i32 = [];
-  let dummy_let_type_refs: [128]i32 = [];
+  let dummy_const_names: [256][64]u8 = [];
+  let dummy_const_lens: [256]i32 = [];
+  let dummy_const_vals: [256]i32 = [];
+  let dummy_let_names: [256][64]u8 = [];
+  let dummy_let_lens: [256]i32 = [];
+  let dummy_let_vals: [256]i32 = [];
+  let dummy_let_refs: [256]i32 = [];
+  let dummy_let_type_refs: [256]i32 = [];
   let dummy_loop_refs: [8]i32 = [];
   let dummy_call_arg_vals: [16]i32 = [];
   let num_loops: i32 = 0;
@@ -2764,17 +2919,16 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
   let if_cond_refs: [16]i32 = [];
   let if_then_body_refs: [16]i32 = [];
   let num_consts: i32 = 0;
-  let const_names: [64][64]u8 = dummy_const_names;
-  let const_name_lens: [64]i32 = dummy_const_lens;
-  let const_init_vals: [64]i32 = dummy_const_vals;
+  let const_names: [256][64]u8 = dummy_const_names;
+  let const_name_lens: [256]i32 = dummy_const_lens;
+  let const_init_vals: [256]i32 = dummy_const_vals;
   let num_lets: i32 = 0;
-  let let_names: [128][64]u8 = dummy_let_names;
-  let let_name_lens: [128]i32 = dummy_let_lens;
-  let let_init_vals: [128]i32 = dummy_let_vals;
-  let let_init_refs: [128]i32 = dummy_let_refs;
-  let let_type_refs: [128]i32 = dummy_let_type_refs;
+  let let_names: [256][64]u8 = dummy_let_names;
+  let let_name_lens: [256]i32 = dummy_let_lens;
+  let let_init_vals: [256]i32 = dummy_let_vals;
+  let let_init_refs: [256]i32 = dummy_let_refs;
+  let let_type_refs: [256]i32 = dummy_let_type_refs;
   let has_if_expr: bool = false;
-  let implicit_tail_return: bool = false;
   let if_cond_expr_ref: i32 = 0;
   let if_cond_true: bool = false;
   let if_then_val: i32 = 0;
@@ -2911,7 +3065,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     /* 将 out 中由 parse_body_lets_into 填写的 let 相关字段同步到局部变量，以便后续 tmp_success/copy_onefunc_into 写回时保留 */
     num_lets = out.num_lets;
     let lri: i32 = 0;
-    while (lri < 128) {
+    while (lri < 256) {
       let_init_refs[lri] = out.let_init_refs[lri];
       let_type_refs[lri] = out.let_type_refs[lri];
       let_init_vals[lri] = out.let_init_vals[lri];
@@ -2952,7 +3106,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
         }
         num_lets = out.num_lets;
         let syn_i: i32 = 0;
-        while (syn_i < 128) {
+        while (syn_i < 256) {
           let_init_refs[syn_i] = out.let_init_refs[syn_i];
           let_type_refs[syn_i] = out.let_type_refs[syn_i];
           let_init_vals[syn_i] = out.let_init_vals[syn_i];
@@ -3139,6 +3293,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
         set_onefunc_fail(out, lex); return;
       }
       lex = expr_stmt_res.next_lex;
+      /* 非 void 函数的返回值一律须 `return expr;`，块尾不作为返回值（`;`/`}` 规则见 advance_past_stmt_semicolon_into） */
       if (advance_past_stmt_semicolon_into(&r, lex, source) == 0) {
         set_onefunc_fail(out, lex); return;
       }
@@ -3158,25 +3313,11 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
   if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
     /* if/while/for 等语句后已到函数体闭合 }：保留 loop/if；src_stmt_order 已在 out 上，copy_onefunc 不覆盖。 */
     lex_from_next_into(&lex, r);
-    let tmp_brace_end: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+    let tmp_brace_end: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_brace_end);
     return;
   }
-  if (r.tok.kind == TokenKind.TOKEN_INT) {
-    /* 块末表达式：仅整数字面量，无 return、无分号，直接 } */
-    ret_val = r.tok.int_val;
-    lex_from_next_into(&lex, r);
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
-      set_onefunc_fail(out, lex); return;
-    }
-    lex_from_next_into(&lex, r);
-    implicit_tail_return = true;
-    /* 块尾 int 后立即写回 — 勿落在 if / else if (return) 链外，否则 -E 生成 C 会出现 tmp_ok 作用域错误 */
-    let tmp_ok_int_tail: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
-    copy_onefunc_into(out, &tmp_ok_int_tail);
-    return;
-  } else if (r.tok.kind == TokenKind.TOKEN_RETURN) {
+  if (r.tok.kind == TokenKind.TOKEN_RETURN) {
   lex_from_next_into(&lex, r);
   lexer_next_into(&r, lex, source);
   /* bool 返回值：return 后为任意 parse_expr_into 可解析表达式（如 t.kind == TokenKind.x、true/false）；return if (...) 仍以 if 为首 token，走下方专有分支 */
@@ -3198,7 +3339,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
-    let tmp_bool_ret_expr: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+    let tmp_bool_ret_expr: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_bool_ret_expr);
     return;
   }
@@ -3270,7 +3411,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
       lexer_next_into(&r, lex, source);
     }
     /* return if (cond) { int } else { int } 解析成功，写回 out 并返回，避免落入下方要求 SEMICOLON 的分支导致失败 */
-    let tmp_if_ok: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+    let tmp_if_ok: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_if_ok);
     return;
   } else if (r.tok.kind == TokenKind.TOKEN_MINUS) {
@@ -3313,7 +3454,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
       } else {
         set_onefunc_fail(out, lex); return;
       }
-      let tmp_ret_as: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+      let tmp_ret_as: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
       copy_onefunc_into(out, &tmp_ret_as);
       return;
     }
@@ -3363,10 +3504,36 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     } else {
       set_onefunc_fail(out, lex); return;
     }
-    let tmp_success: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+    let tmp_success: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_success);
     return;
   } else {
+    /*
+     * i32 等标量返回：表达式以 (、true、字符串等非 IDENT 开头时须走 parse_expr_into 建 AST，
+     * 与 bool 返回分支及 C 解析器一致；避免落入下方仅扫到分号、return_expr_ref 仍为 0 的死路径。
+     */
+    if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+      let rex_lex_ni: Lexer = lex_at_token_from_result(r);
+      let rex_out_ni: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex_ni };
+      parse_expr_into(arena, rex_lex_ni, source, &rex_out_ni);
+      if (!rex_out_ni.ok) {
+        set_onefunc_fail(out, lex); return;
+      }
+      return_expr_ref_storage = rex_out_ni.expr_ref;
+      lex = rex_out_ni.next_lex;
+      lexer_next_into(&r, lex, source);
+      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        lex_from_next_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+      }
+      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+        set_onefunc_fail(out, lex); return;
+      }
+      lex_from_next_into(&lex, r);
+      let tmp_ok_retexpr_non_ident: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
+      copy_onefunc_into(out, &tmp_ok_retexpr_non_ident);
+      return;
+    }
     /* 阶段 5：return ident(); 无参调用，供多文件 main 中 return bar(); */
     if (r.tok.kind == TokenKind.TOKEN_IDENT) {
       let clen: i32 = r.tok.ident_len;
@@ -3403,7 +3570,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
                 lexer_next_into(&r, lex, source);
                 if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
                   lex_from_next_into(&lex, r);
-                  let tmp_binop: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+                  let tmp_binop: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_binop);
     return;
                 }
@@ -3428,7 +3595,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
             lex_from_next_into(&lex, r);
             lexer_next_into(&r, lex, source);
           }
-          let tmp_retvar: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: call_callee_name, return_var_name_len: clen, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+          let tmp_retvar: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: call_callee_name, return_var_name_len: clen, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
           copy_onefunc_into(out, &tmp_retvar);
           return;
         }
@@ -3454,7 +3621,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
             set_onefunc_fail(out, lex); return;
           }
           lex_from_next_into(&lex, r);
-          let tmp_ok_retexpr: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+          let tmp_ok_retexpr: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
           copy_onefunc_into(out, &tmp_ok_retexpr);
           return;
         }
@@ -3482,7 +3649,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
-        let tmp_ok_retexpr_member: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+        let tmp_ok_retexpr_member: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: false, call_callee_name: call_callee_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: return_expr_ref_storage, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
         copy_onefunc_into(out, &tmp_ok_retexpr_member);
         return;
       }
@@ -3503,7 +3670,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     } else {
       set_onefunc_fail(out, lex); return;
     }
-    let tmp_ok: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+    let tmp_ok: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_ok);
     return;
   }
@@ -3520,14 +3687,14 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
   } else {
     set_onefunc_fail(out, lex); return;
   }
-  let tmp_ok_after_return_kw: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: implicit_tail_return, func_return_type_ref: 0 };
+  let tmp_ok_after_return_kw: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: has_if_expr, if_cond_true: if_cond_true, if_then_val: if_then_val, if_else_val: if_else_val, if_cond_expr_ref: if_cond_expr_ref, has_mul: has_mul, mul_right_val: mul_right_val, has_binop: has_binop, binop_right_val: binop_right_val, binop_left_param_idx: binop_left_param_idx, binop_right_param_idx: binop_right_param_idx, has_unary_neg: has_unary_neg, return_val: ret_val, has_call_expr: has_call_expr, call_callee_name: call_callee_name, call_callee_len: call_callee_len, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: call_num_args, call_arg_vals: call_arg_vals, num_loops: num_loops, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: num_for_loops, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: num_if_stmts, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
   copy_onefunc_into(out, &tmp_ok_after_return_kw);
   return;
   } else {
     /* body 以非 INT/return 开头（如赋值、if 等）：跳过整块 { ... }，仍视为解析成功以便继续下一函数（bootstrap codegen.su） */
     lex = skip_balanced_braces(lex, source);
     /* 使用 loop/for/if/call 的局部数组而非 dummy_*：-E 生成 C 时可能与 call_arg_vals 等合并导致 dummy 符号缺失 */
-    let tmp_ok0: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: dummy_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: 0, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: 0, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: 0, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+    let tmp_ok0: OneFuncResult = OneFuncResult { ok: true, next_lex: lex, name: name, name_len: func_name_len_storage[0], num_params: num_params, param_names: param_names, param_name_lens: param_name_lens, param_type_refs: param_type_refs, num_consts: num_consts, const_names: const_names, const_name_lens: const_name_lens, const_init_vals: const_init_vals, num_lets: num_lets, let_names: let_names, let_name_lens: let_name_lens, let_init_vals: let_init_vals, let_init_refs: let_init_refs, let_type_refs: let_type_refs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: dummy_name, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: call_arg_vals, num_loops: 0, loop_cond_refs: loop_cond_refs, loop_body_refs: loop_body_refs, num_for_loops: 0, for_init_refs: for_init_refs, for_cond_refs: for_cond_refs, for_step_refs: for_step_refs, for_body_refs: for_body_refs, num_if_stmts: 0, if_cond_refs: if_cond_refs, if_then_body_refs: if_then_body_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     copy_onefunc_into(out, &tmp_ok0);
     return;
   }
@@ -3536,15 +3703,19 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
 /**
  * 初始化 arena 与 module 的计数/主函数下标；单独成函数以避免 codegen 将初始化语句移到 parse_into 循环之后。
  * 形参顺序为 (module, arena)，调用方传 (module, arena)，使某些 ABI 下第二实参（arena）正确收到初始化。
+ * Module 顶层计数由 pipeline_module_reset_parse_counters（C，见 pipeline_glue.c）写入，对齐 pipeline_gen 并避免多 import 合并 typeck 时 Module 字段赋值 LHS 为 ?。
  */
 function parse_into_init(module: *Module, arena: *ASTArena): void {
   ast_arena_init(arena);
-  module.num_funcs = 0;
-  module.main_func_index = -1;
-  module.num_imports = 0;
-  module.num_top_level_lets = 0;
-  /** 必须由本函数清零：Module 常为栈分配；num_struct_layouts 若为垃圾且 ≥32 则 parse_struct 恒失败，FIELD_ACCESS 无布局、赋值 LHS 类型丢失。 */
-  module.num_struct_layouts = 0;
+  /** 首轮解析前合并 OneFuncResult 各段字面量到 struct_layouts，供 FIELD_ACCESS / set_onefunc_fail 前 typeck */
+  onefunc_result_layout_prime();
+  onefunc_result_layout_prime_b();
+  onefunc_result_layout_prime_c();
+  onefunc_result_layout_prime_d();
+  onefunc_result_layout_prime_d_b();
+  onefunc_result_layout_prime_e();
+  onefunc_result_layout_prime_f();
+  pipeline_module_reset_parse_counters(module);
 }
 
 /**
@@ -3842,6 +4013,8 @@ function collect_imports(lex: Lexer, source: []u8, module: *Module, out: *Collec
       j = j + 1;
     }
     module.import_path_lens[module.num_imports] = path_len;
+    /** import path; — 显式设为 IMPORT_WHOLE（整包）；与 C parser AST_IMPORT_KIND_WHOLE 一致。 */
+    module.import_kinds[module.num_imports] = ImportKind.IMPORT_WHOLE;
     module.num_imports = module.num_imports + 1;
     lex_from_next_into(&out.lex, r);
   }
@@ -4829,6 +5002,28 @@ function struct_layout_name_exists_arr(module: *Module, nm: [64]u8, nlen: i32): 
   return false;
 }
 
+/** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
+function struct_layout_first_name_match_idx(module: *Module, nm: [64]u8, nlen: i32): i32 {
+  let k: i32 = 0;
+  while (k < module.num_struct_layouts && k < 32) {
+    if (module.struct_layouts[k].name_len == nlen && nlen > 0) {
+      let ii: i32 = 0;
+      let same: bool = true;
+      while (ii < nlen && ii < 64) {
+        if (module.struct_layouts[k].name[ii] != nm[ii]) {
+          same = false;
+        }
+        ii = ii + 1;
+      }
+      if (same) {
+        return k;
+      }
+    }
+    k = k + 1;
+  }
+  return -1;
+}
+
 /**
  * 是否存在与 nm 同名的「占位」layout：parse_one_function_library 可能先注册 num_fields=1 且 field_lens[0]==0 的条目，
  * 后续顶层 struct 应按真实成员覆盖该槽位，否则 typeck 只能通过下一槽位兜底。
@@ -5109,8 +5304,8 @@ function try_skip_allow_padding_struct(lex: Lexer, source: []u8): TrySkipAllowRe
     return TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
   }
   lex = skip_balanced_parens(r.next_lex, source);
-  let after: Lexer = skip_one_struct(lex, source);
-  return TrySkipAllowResult { lex: after, skipped: 1, _pad: [] };
+  /** 勿 skip_one_struct：须把 lex 留在随后的 struct 关键字，让主循环走 parse_struct_record_layout_into；否则 allow(padding) 前缀会把整块 struct 吞掉且无 layout（FIELD_ACCESS 左侧为 ?）。 */
+  return TrySkipAllowResult { lex: lex, skipped: 1, _pad: [] };
 }
 
 function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
@@ -5119,8 +5314,8 @@ function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): Try
     return TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
   }
   lex = skip_balanced_parens_buf(r.next_lex, data, len);
-  let after: Lexer = skip_one_struct_buf(lex, data, len);
-  return TrySkipAllowResult { lex: after, skipped: 1, _pad: [] };
+  /** 与 try_skip_allow_padding_struct 一致：保留 struct 给 parse_struct_record_layout_into。 */
+  return TrySkipAllowResult { lex: lex, skipped: 1, _pad: [] };
 }
 
 /** 与 skip_one_struct 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
@@ -5421,25 +5616,34 @@ function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex:
   lex = r.next_lex;
   let dup: bool = struct_layout_name_exists_arr(module, sname_buf, sname_len);
   let weak_idx: i32 = struct_layout_placeholder_idx(module, sname_buf, sname_len);
-  /** 重名且非占位：跳过整个 struct 体；重名且为 library 占位槽：解析并覆盖 weak_idx。 */
+  /** 重名且非占位：跳过整个 struct 体；重名且为 library 占位槽：解析并覆盖 weak_idx。
+   * onefunc_result_layout_prime 预注册的「多字段」布局 dup 为真但 weak_idx<0；须按同名槽覆盖，否则源码 struct 被跳过、FIELD_ACCESS 左侧类型永远 ?。 */
   let replace_idx: i32 = -1;
   if (dup) {
     if (weak_idx < 0) {
-      lex = skip_balanced_braces(lex, source);
-      out_lex.pos = lex.pos; out_lex.line = lex.line; out_lex.col = lex.col;
-      return 0;
+      let dup_idx: i32 = struct_layout_first_name_match_idx(module, sname_buf, sname_len);
+      if (dup_idx >= 0) {
+        replace_idx = dup_idx;
+      } else {
+        lex = skip_balanced_braces(lex, source);
+        out_lex.pos = lex.pos; out_lex.line = lex.line; out_lex.col = lex.col;
+        return 0;
+      }
+    } else {
+      replace_idx = weak_idx;
     }
-    replace_idx = weak_idx;
+  } else {
+    replace_idx = -1;
   }
   if (replace_idx < 0 && module.num_struct_layouts >= 32) {
     return -1;
   }
-  /** 单 struct 记录布局上限，须与 ast.StructLayout 中 field_* 数组长度一致（如 ELF 等平台结构体字段 >8）。 */
-  let fnames: [24][64]u8 = [];
-  let flens: [24]i32 = [];
-  let ftys: [24]i32 = [];
+  /** 单 struct 记录布局上限，须与 ast.StructLayout 中 field_* 数组长度一致（OneFuncResult 五十余字段）。 */
+  let fnames: [64][64]u8 = [];
+  let flens: [64]i32 = [];
+  let ftys: [64]i32 = [];
   let zi: i32 = 0;
-  while (zi < 24) {
+  while (zi < 64) {
     flens[zi] = 0;
     ftys[zi] = 0;
     zi = zi + 1;
@@ -5451,7 +5655,7 @@ function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex:
       lex_from_next_into(&lex, r);
       break;
     }
-    if (nf >= 24) {
+    if (nf >= 64) {
       return -1;
     }
     if (r.tok.kind != TokenKind.TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63) {
@@ -5497,7 +5701,7 @@ function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex:
   module.struct_layouts[idx].num_fields = nf;
   let off: i32 = 0;
   let j: i32 = 0;
-  while (j < nf && j < 24) {
+  while (j < nf && j < 64) {
     pipeline_module_struct_layout_set_field(module, idx, j, &fnames[j][0], flens[j], ftys[j], off);
     off = off + 8;
     j = j + 1;
@@ -5507,8 +5711,9 @@ function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex:
 }
 
 /**
- * 与 parse_one_function 等价，接受 (data: *u8, len) 供 buf 路径使用；当前为精简实现，仅支持 function <ident>(): i32 { return <int>; } 及无参、无 let/const/if 的形态。
- * 完整形态（参数、let/const、if、乘除等）与 parse_one_function 一致，由同一定义处的 _buf 替换得到，见上方 parse_one_function。
+ * 与 parse_one_function 等价，接受 (data: *u8, len) 供 buf 路径使用；精简实现：
+ * function <ident>(): <标量或 void?> { … }，体须显式 `return <int>;`（分号可省仅当其后直接为 `}` 时与主解析一致），
+ * 不支持块末裸字面量当返回值。
  */
 /** parse_one_function_buf 的 _into 变体：避免 ARM64 下 OneFuncResult 按值返回导致 ABI 错误。 */
 function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8, len: i32): void {
@@ -5518,13 +5723,13 @@ function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8,
   let dummy_ptrefs: [16]i32 = [];
   let empty64: [64]u8 = [];
   let dummy_name: [64]u8 = [];
-  let dummy_const_names: [64][64]u8 = [empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64];
-  let dummy_const_lens: [64]i32 = [];
-  let dummy_const_vals: [64]i32 = [];
-  let dummy_let_names: [128][64]u8 = [empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64, empty64];
-  let dummy_let_lens: [128]i32 = [];
-  let dummy_let_vals: [128]i32 = [];
-  let dummy_let_refs: [128]i32 = [];
+  let dummy_const_names: [256][64]u8 = [];
+  let dummy_const_lens: [256]i32 = [];
+  let dummy_const_vals: [256]i32 = [];
+  let dummy_let_names: [256][64]u8 = [];
+  let dummy_let_lens: [256]i32 = [];
+  let dummy_let_vals: [256]i32 = [];
+  let dummy_let_refs: [256]i32 = [];
   let dummy_loop_refs: [8]i32 = [];
   let dummy_for_refs: [8]i32 = [];
   let dummy_call_arg_vals: [16]i32 = [];
@@ -5571,20 +5776,7 @@ function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8,
   }
   lex_from_next_into(&lex, r);
   r = body_skip_let_const_then_if_buf(lex, data, len);
-  if (r.tok.kind == TokenKind.TOKEN_INT) {
-    let ret_val: i32 = r.tok.int_val;
-    lex_from_next_into(&lex, r);
-    r = lexer_next_buf(lex, data, len);
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
-      set_onefunc_fail(out, lex); return;
-    }
-    lex_from_next_into(&lex, r);
-    out.ok = true; out.next_lex = lex; out.name_len = name_len;
-    let ni: i32 = 0; while (ni < 64) { if (ni < name_len) { out.name[ni] = name[ni]; } ni = ni + 1; }
-    out.return_val = ret_val;
-    out.implicit_tail_return = true;
-    return;
-  }
+  /* 非 void 返回值须 `return` 语句，不得 `{ 42 }` 块末隐式返回（与 parse_one_function_impl 一致）。 */
   if (r.tok.kind == TokenKind.TOKEN_RETURN) {
     lex_from_next_into(&lex, r);
     r = lexer_next_buf(lex, data, len);
@@ -5608,7 +5800,6 @@ function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8,
     out.ok = true; out.next_lex = lex; out.name_len = name_len;
     let ni: i32 = 0; while (ni < 64) { if (ni < name_len) { out.name[ni] = name[ni]; } ni = ni + 1; }
     out.return_val = ret_val;
-    out.implicit_tail_return = false;
     return;
   }
   set_onefunc_fail(out, lex);
@@ -5662,7 +5853,7 @@ function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer
 
 /** 兼容包装：保留旧按值返回签名，供未迁移调用方使用。 */
 function parse_one_function_buf(lex: Lexer, data: *u8, len: i32): OneFuncResult {
-  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: [], name_len: 0, num_params: 0, param_names: [], param_name_lens: [], param_type_refs: [], num_consts: 0, const_names: [], const_name_lens: [], const_init_vals: [], num_lets: 0, let_names: [], let_name_lens: [], let_init_vals: [], let_init_refs: [], let_type_refs: [], has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: [], call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: [], num_loops: 0, loop_cond_refs: [], loop_body_refs: [], num_for_loops: 0, for_init_refs: [], for_cond_refs: [], for_step_refs: [], for_body_refs: [], num_if_stmts: 0, if_cond_refs: [], if_then_body_refs: [], num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: [], name_len: 0, num_params: 0, param_names: [], param_name_lens: [], param_type_refs: [], num_consts: 0, const_names: [], const_name_lens: [], const_init_vals: [], num_lets: 0, let_names: [], let_name_lens: [], let_init_vals: [], let_init_refs: [], let_type_refs: [], has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: [], call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: [], num_loops: 0, loop_cond_refs: [], loop_body_refs: [], num_for_loops: 0, for_init_refs: [], for_cond_refs: [], for_step_refs: [], for_body_refs: [], num_if_stmts: 0, if_cond_refs: [], if_then_body_refs: [], num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
   parse_one_function_buf_into(&res, lex, data, len);
   return res;
 }
@@ -5766,19 +5957,19 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
     let parse_into_dummy_p: [16][32]u8 = [parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32, parse_into_empty32];
     let parse_into_dummy_plens: [16]i32 = [];
     let parse_into_dummy_ptrefs: [16]i32 = [];
-    let parse_into_dummy_c: [64][64]u8 = [parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64];
-    let parse_into_dummy_clens: [64]i32 = [];
-    let parse_into_dummy_cvals: [64]i32 = [];
-    let parse_into_dummy_ln: [64][64]u8 = [parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64, parse_into_empty64];
-    let parse_into_dummy_llens: [64]i32 = [];
-    let parse_into_dummy_lvals: [64]i32 = [];
-    let parse_into_dummy_let_refs: [128]i32 = [];
-    let parse_into_dummy_let_trefs: [128]i32 = [];
+    let parse_into_dummy_c: [256][64]u8 = [];
+    let parse_into_dummy_clens: [256]i32 = [];
+    let parse_into_dummy_cvals: [256]i32 = [];
+    let parse_into_dummy_ln: [256][64]u8 = [];
+    let parse_into_dummy_llens: [256]i32 = [];
+    let parse_into_dummy_lvals: [256]i32 = [];
+    let parse_into_dummy_let_refs: [256]i32 = [];
+    let parse_into_dummy_let_trefs: [256]i32 = [];
     let parse_into_dummy_loop_refs: [8]i32 = [];
     let parse_into_dummy_for_refs: [8]i32 = [];
     let parse_into_dummy_if_refs: [16]i32 = [];
     let parse_into_dummy_call_arg_vals: [16]i32 = [];
-    let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: parse_into_empty64, name_len: 0, num_params: 0, param_names: parse_into_dummy_p, param_name_lens: parse_into_dummy_plens, param_type_refs: parse_into_dummy_ptrefs, num_consts: 0, const_names: parse_into_dummy_c, const_name_lens: parse_into_dummy_clens, const_init_vals: parse_into_dummy_cvals, num_lets: 0, let_names: parse_into_dummy_ln, let_name_lens: parse_into_dummy_llens, let_init_vals: parse_into_dummy_lvals, let_init_refs: parse_into_dummy_let_refs, let_type_refs: parse_into_dummy_let_trefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: parse_into_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: parse_into_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: parse_into_dummy_loop_refs, loop_body_refs: parse_into_dummy_loop_refs, num_for_loops: 0, for_init_refs: parse_into_dummy_for_refs, for_cond_refs: parse_into_dummy_for_refs, for_step_refs: parse_into_dummy_for_refs, for_body_refs: parse_into_dummy_for_refs, num_if_stmts: 0, if_cond_refs: parse_into_dummy_if_refs, if_then_body_refs: parse_into_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+    let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: parse_into_empty64, name_len: 0, num_params: 0, param_names: parse_into_dummy_p, param_name_lens: parse_into_dummy_plens, param_type_refs: parse_into_dummy_ptrefs, num_consts: 0, const_names: parse_into_dummy_c, const_name_lens: parse_into_dummy_clens, const_init_vals: parse_into_dummy_cvals, num_lets: 0, let_names: parse_into_dummy_ln, let_name_lens: parse_into_dummy_llens, let_init_vals: parse_into_dummy_lvals, let_init_refs: parse_into_dummy_let_refs, let_type_refs: parse_into_dummy_let_trefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: parse_into_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: parse_into_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: parse_into_dummy_loop_refs, loop_body_refs: parse_into_dummy_loop_refs, num_for_loops: 0, for_init_refs: parse_into_dummy_for_refs, for_cond_refs: parse_into_dummy_for_refs, for_step_refs: parse_into_dummy_for_refs, for_body_refs: parse_into_dummy_for_refs, num_if_stmts: 0, if_cond_refs: parse_into_dummy_if_refs, if_then_body_refs: parse_into_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     /* 优先 library：形态「单参 bool return x.y == Enum.V」须走专用 AST（EXPR_ENUM_VARIANT）；若先跑 impl 则会 parse_expr_into 成功却得不到 SU typeck/asm 路径期望的节点 */
     let empty64_lib_first: [64]u8 = [];
     let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
@@ -6626,49 +6817,47 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
     b.num_defers = 0;
     b.num_labeled_stmts = 0;
     b.num_expr_stmts = 0;
-    /* 将 return 路径上的表达式统一包装为 EXPR_RETURN，供 codegen；块尾裸字面量（implicit_tail_return）不包装，由 typeck 要求显式 return。 */
-    if (!res.implicit_tail_return) {
-      let return_wrap: i32 = ast_arena_expr_alloc(arena);
-      if (return_wrap != 0) {
-        let rwe: Expr = ast_arena_expr_get(arena, return_wrap);
-        rwe.kind = ExprKind.EXPR_RETURN;
-        rwe.resolved_type_ref = type_ref;
-        rwe.line = 0;
-        rwe.col = 0;
-        rwe.int_val = 0;
-        rwe.binop_left_ref = 0;
-        rwe.binop_right_ref = 0;
-        rwe.unary_operand_ref = final_expr_ref;
-        rwe.if_cond_ref = 0;
-        rwe.if_then_ref = 0;
-        rwe.if_else_ref = 0;
-        rwe.block_ref = 0;
-        rwe.match_matched_ref = 0;
-        rwe.match_num_arms = 0;
-        ast.expr_init_match_enum(&rwe);
-        rwe.field_access_base_ref = 0;
-        rwe.field_access_field_len = 0;
-        rwe.field_access_is_enum_variant = 0;
-        rwe.field_access_offset = 0;
-        rwe.index_base_ref = 0;
-        rwe.index_index_ref = 0;
-        rwe.index_base_is_slice = 0;
-        rwe.call_callee_ref = 0;
-        rwe.call_num_args = 0;
-        rwe.method_call_base_ref = 0;
-        rwe.method_call_name_len = 0;
-        rwe.method_call_num_args = 0;
-        rwe.const_folded_val = 0;
-        rwe.const_folded_valid = 0;
-        rwe.index_proven_in_bounds = 0;
-        ast_arena_expr_set(arena, return_wrap, rwe);
-        final_expr_ref = return_wrap;
-      }
+    /* 将解析得到的返回值表达式包装为 EXPR_RETURN，供给 codegen（解析阶段已强制显式 return）。 */
+    let return_wrap: i32 = ast_arena_expr_alloc(arena);
+    if (return_wrap != 0) {
+      let rwe: Expr = ast_arena_expr_get(arena, return_wrap);
+      rwe.kind = ExprKind.EXPR_RETURN;
+      rwe.resolved_type_ref = type_ref;
+      rwe.line = 0;
+      rwe.col = 0;
+      rwe.int_val = 0;
+      rwe.binop_left_ref = 0;
+      rwe.binop_right_ref = 0;
+      rwe.unary_operand_ref = final_expr_ref;
+      rwe.if_cond_ref = 0;
+      rwe.if_then_ref = 0;
+      rwe.if_else_ref = 0;
+      rwe.block_ref = 0;
+      rwe.match_matched_ref = 0;
+      rwe.match_num_arms = 0;
+      ast.expr_init_match_enum(&rwe);
+      rwe.field_access_base_ref = 0;
+      rwe.field_access_field_len = 0;
+      rwe.field_access_is_enum_variant = 0;
+      rwe.field_access_offset = 0;
+      rwe.index_base_ref = 0;
+      rwe.index_index_ref = 0;
+      rwe.index_base_is_slice = 0;
+      rwe.call_callee_ref = 0;
+      rwe.call_num_args = 0;
+      rwe.method_call_base_ref = 0;
+      rwe.method_call_name_len = 0;
+      rwe.method_call_num_args = 0;
+      rwe.const_folded_val = 0;
+      rwe.const_folded_valid = 0;
+      rwe.index_proven_in_bounds = 0;
+      ast_arena_expr_set(arena, return_wrap, rwe);
+      final_expr_ref = return_wrap;
     }
     b.final_expr_ref = final_expr_ref;
     b.num_stmt_order = 0;
     let const_i: i32 = 0;
-    while (const_i < res.num_consts && const_i < 64) {
+    while (const_i < res.num_consts && const_i < 256) {
       let cinit_ref: i32 = ast_arena_expr_alloc(arena);
       if (cinit_ref == 0) {
         return ParseIntoResult { ok: -1, main_idx: -1 }
@@ -6724,7 +6913,7 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
       const_i = const_i + 1;
     }
     let let_i: i32 = 0;
-    while (let_i < res.num_lets && let_i < 128) {
+    while (let_i < res.num_lets && let_i < 256) {
       let let_decl_ty: i32 = type_ref;
       if (res.let_type_refs[let_i] != 0) {
         let_decl_ty = res.let_type_refs[let_i];
@@ -6772,8 +6961,8 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
       }
       let ld: LetDecl = b.let_decls[let_i];
       let lk: i32 = 0;
-      while (lk < res.let_name_lens[let_i] && lk < 128) {
-        let let_row: [128]u8 = res.let_names[let_i];
+      while (lk < res.let_name_lens[let_i] && lk < 64) {
+        let let_row: [64]u8 = res.let_names[let_i];
         ld.name[lk] = let_row[lk];
         lk = lk + 1;
       }
@@ -6860,9 +7049,8 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
       so = so + 1;
       if_oi = if_oi + 1;
     }
-    /* 仅有 final_expr（如单条 print_str(...) 无 return）时，当作一条 expr_stmt 填入 stmt_order，供 codegen emit_block 输出；清空 final_expr_ref 以便 codegen 补 return 0。
-     * 块尾裸字面量（implicit_tail_return）须保留 final_expr_ref，供 typeck 检测隐式返回并报错。 */
-    if (!res.implicit_tail_return && !ref_is_null(b.final_expr_ref) && b.num_expr_stmts == 0 && so < 96) {
+    /* 仅有 final_expr（如单条 print_str(...) 等非 return 收尾）时，当作一条 expr_stmt 填入 stmt_order，供 codegen emit_block 输出；随后清空 final_expr_ref 以便补默认 return。 */
+    if (!ref_is_null(b.final_expr_ref) && b.num_expr_stmts == 0 && so < 96) {
       b.expr_stmt_refs[0] = b.final_expr_ref;
       b.num_expr_stmts = 1;
       b.final_expr_ref = 0;
@@ -6872,53 +7060,44 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
     }
     b.num_stmt_order = so;
     }
-    /* 已有 expr_stmt_refs（含尾部的 expr;）时，final_expr_ref 仅为解析副产品且可能被包成 RETURN；清空以免 typeck 与 codegen 二次处理同一尾语句（void 赋值尾尤为典型）。块尾裸表达式保留 implicit_tail_return 时不清理。 */
-    if (!res.implicit_tail_return && b.num_expr_stmts > 0) {
+    /* 已有 expr_stmt_refs 时，final_expr_ref 常为解析副产品；清空以免与 stmt_order 中尾语句重复经过 typeck/codegen（void 赋值尾尤为典型）。 */
+    if (b.num_expr_stmts > 0) {
       b.final_expr_ref = 0;
     }
     ast_arena_block_set(arena, block_ref, b);
 
-    let f: Func = module.funcs[module.num_funcs];
-    f.is_extern = 0;
+    /*
+     * 勿 let f: Func = module.funcs[i]：Func 体量较大时按值读/写在当前 codegen 路径上可能丢字段，
+     * 会直接抹掉刚写入的 return_type_ref（typeck dep 上出现 return_type_ref==0）。
+     */
+    let fi: i32 = module.num_funcs;
+    module.funcs[fi].is_extern = 0;
     let k: i32 = 0;
     while (k < res.name_len && k < 64) {
-      f.name[k] = res.name[k];
+      module.funcs[fi].name[k] = res.name[k];
       k = k + 1;
     }
     let zero_u8: u8 = 0;
     while (k < 64) {
-      f.name[k] = zero_u8;
+      module.funcs[fi].name[k] = zero_u8;
       k = k + 1;
     }
-    f.name_len = res.name_len;
-    f.num_params = res.num_params;
+    module.funcs[fi].name_len = res.name_len;
+    module.funcs[fi].num_params = res.num_params;
+    /** 形参表：须 pipeline_module_func_param_write 写槽；勿 Param 按值读写给 module（asm 下会丢 type_ref）。 */
     let p: i32 = 0;
     while (p < res.num_params && p < 16) {
-      let param: Param = f.params[p];
-      let pk: i32 = 0;
-      while (pk < res.param_name_lens[p] && pk < 32) {
-        let row: [32]u8 = res.param_names[p];
-        param.name[pk] = row[pk];
-        pk = pk + 1;
-      }
-      while (pk < 32) {
-        param.name[pk] = zero_u8;
-        pk = pk + 1;
-      }
-      param.name_len = res.param_name_lens[p];
-      param.type_ref = res.param_type_refs[p];
-      f.params[p] = param;
+      pipeline_module_func_param_write(module, fi, p, &res.param_names[p][0], res.param_name_lens[p], res.param_type_refs[p]);
       p = p + 1;
     }
-    f.return_type_ref = type_ref;
-    f.body_ref = block_ref;
-    f.is_extern = 0;
-    module.funcs[module.num_funcs] = f;
+    module.funcs[fi].return_type_ref = type_ref;
+    module.funcs[fi].body_ref = block_ref;
+    module.funcs[fi].is_extern = 0;
     if (is_main_storage[0] != 0) {
       main_idx = module.num_funcs;
     }
     module.num_funcs = module.num_funcs + 1;
-    lex_from_onefunc_next_into(&lex, res);
+    lex_from_onefunc_next_into(&lex, &res);
   }
   /* 库模块（仅 enum/struct/extern，无 function）：返回 ok 0、main_idx -1，供 pipeline 走 typeck_su_ast_library；-backend asm -o xxx.o 编单模块依赖此路径。 */
   if (module.num_funcs == 0) {
@@ -7182,15 +7361,19 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     let empty64_buf: [64]u8 = [];
     let empty32_buf: [32]u8 = [];
     let dummy_pnames_buf: [16][32]u8 = [empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf, empty32_buf];
-    let dummy_const_names_buf: [64][64]u8 = [empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf];
-    let dummy_let_names_buf: [64][64]u8 = [empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf, empty64_buf];
-    let dummy_refs_buf: [128]i32 = [];
-    let dummy_ltrefs_buf: [128]i32 = [];
+    let dummy_const_names_buf: [256][64]u8 = [];
+    let dummy_const_lens_buf: [256]i32 = [];
+    let dummy_const_vals_buf: [256]i32 = [];
+    let dummy_let_names_buf: [256][64]u8 = [];
+    let dummy_let_lens_buf: [256]i32 = [];
+    let dummy_let_vals_buf: [256]i32 = [];
+    let dummy_refs_buf: [256]i32 = [];
+    let dummy_ltrefs_buf: [256]i32 = [];
     let dummy_loop_refs_buf: [8]i32 = [];
     let dummy_for_refs_buf: [8]i32 = [];
     let dummy_if_refs_buf: [16]i32 = [];
     let dummy_call_arg_vals_buf: [16]i32 = [];
-    let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: empty64_buf, name_len: 0, num_params: 0, param_names: dummy_pnames_buf, param_name_lens: [], param_type_refs: [], num_consts: 0, const_names: dummy_const_names_buf, const_name_lens: [], const_init_vals: [], num_lets: 0, let_names: dummy_let_names_buf, let_name_lens: [], let_init_vals: [], let_init_refs: dummy_refs_buf, let_type_refs: dummy_ltrefs_buf, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: empty64_buf, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: dummy_call_arg_vals_buf, num_loops: 0, loop_cond_refs: dummy_loop_refs_buf, loop_body_refs: dummy_loop_refs_buf, num_for_loops: 0, for_init_refs: dummy_for_refs_buf, for_cond_refs: dummy_for_refs_buf, for_step_refs: dummy_for_refs_buf, for_body_refs: dummy_for_refs_buf, num_if_stmts: 0, if_cond_refs: dummy_if_refs_buf, if_then_body_refs: dummy_if_refs_buf, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+    let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: empty64_buf, name_len: 0, num_params: 0, param_names: dummy_pnames_buf, param_name_lens: [], param_type_refs: [], num_consts: 0, const_names: dummy_const_names_buf, const_name_lens: dummy_const_lens_buf, const_init_vals: dummy_const_vals_buf, num_lets: 0, let_names: dummy_let_names_buf, let_name_lens: dummy_let_lens_buf, let_init_vals: dummy_let_vals_buf, let_init_refs: dummy_refs_buf, let_type_refs: dummy_ltrefs_buf, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: empty64_buf, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: dummy_call_arg_vals_buf, num_loops: 0, loop_cond_refs: dummy_loop_refs_buf, loop_body_refs: dummy_loop_refs_buf, num_for_loops: 0, for_init_refs: dummy_for_refs_buf, for_cond_refs: dummy_for_refs_buf, for_step_refs: dummy_for_refs_buf, for_body_refs: dummy_for_refs_buf, num_if_stmts: 0, if_cond_refs: dummy_if_refs_buf, if_then_body_refs: dummy_if_refs_buf, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
     let slice_for_impl: []u8 = parser_slice_from_buf(data, len);
     /* 与 parse_into（slice）一致：library 优先，避免 impl 抢走 token_is_eof 类形态 */
     let lib_buf_first: LibraryParseResult = parse_one_function_library_buf(arena, module, lex_at_function_buf, data, len);
@@ -7769,49 +7952,47 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     b.num_defers = 0;
     b.num_labeled_stmts = 0;
     b.num_expr_stmts = 0;
-    /* 与 parse_into 一致：implicit_tail_return 时不包 EXPR_RETURN。 */
-    if (!res.implicit_tail_return) {
-      let return_wrap: i32 = ast_arena_expr_alloc(arena);
-      if (return_wrap != 0) {
-        let rwe: Expr = ast_arena_expr_get(arena, return_wrap);
-        rwe.kind = ExprKind.EXPR_RETURN;
-        rwe.resolved_type_ref = type_ref;
-        rwe.line = 0;
-        rwe.col = 0;
-        rwe.int_val = 0;
-        rwe.binop_left_ref = 0;
-        rwe.binop_right_ref = 0;
-        rwe.unary_operand_ref = final_expr_ref;
-        rwe.if_cond_ref = 0;
-        rwe.if_then_ref = 0;
-        rwe.if_else_ref = 0;
-        rwe.block_ref = 0;
-        rwe.match_matched_ref = 0;
-        rwe.match_num_arms = 0;
-        ast.expr_init_match_enum(&rwe);
-        rwe.field_access_base_ref = 0;
-        rwe.field_access_field_len = 0;
-        rwe.field_access_is_enum_variant = 0;
-        rwe.field_access_offset = 0;
-        rwe.index_base_ref = 0;
-        rwe.index_index_ref = 0;
-        rwe.index_base_is_slice = 0;
-        rwe.call_callee_ref = 0;
-        rwe.call_num_args = 0;
-        rwe.method_call_base_ref = 0;
-        rwe.method_call_name_len = 0;
-        rwe.method_call_num_args = 0;
-        rwe.const_folded_val = 0;
-        rwe.const_folded_valid = 0;
-        rwe.index_proven_in_bounds = 0;
-        ast_arena_expr_set(arena, return_wrap, rwe);
-        final_expr_ref = return_wrap;
-      }
+    /* 与 parse_into 主路径一致：将返回值表达式包装为 EXPR_RETURN（解析层已不允许块尾裸返回）。 */
+    let return_wrap: i32 = ast_arena_expr_alloc(arena);
+    if (return_wrap != 0) {
+      let rwe: Expr = ast_arena_expr_get(arena, return_wrap);
+      rwe.kind = ExprKind.EXPR_RETURN;
+      rwe.resolved_type_ref = type_ref;
+      rwe.line = 0;
+      rwe.col = 0;
+      rwe.int_val = 0;
+      rwe.binop_left_ref = 0;
+      rwe.binop_right_ref = 0;
+      rwe.unary_operand_ref = final_expr_ref;
+      rwe.if_cond_ref = 0;
+      rwe.if_then_ref = 0;
+      rwe.if_else_ref = 0;
+      rwe.block_ref = 0;
+      rwe.match_matched_ref = 0;
+      rwe.match_num_arms = 0;
+      ast.expr_init_match_enum(&rwe);
+      rwe.field_access_base_ref = 0;
+      rwe.field_access_field_len = 0;
+      rwe.field_access_is_enum_variant = 0;
+      rwe.field_access_offset = 0;
+      rwe.index_base_ref = 0;
+      rwe.index_index_ref = 0;
+      rwe.index_base_is_slice = 0;
+      rwe.call_callee_ref = 0;
+      rwe.call_num_args = 0;
+      rwe.method_call_base_ref = 0;
+      rwe.method_call_name_len = 0;
+      rwe.method_call_num_args = 0;
+      rwe.const_folded_val = 0;
+      rwe.const_folded_valid = 0;
+      rwe.index_proven_in_bounds = 0;
+      ast_arena_expr_set(arena, return_wrap, rwe);
+      final_expr_ref = return_wrap;
     }
     b.final_expr_ref = final_expr_ref;
     b.num_stmt_order = 0;
     let const_i: i32 = 0;
-    while (const_i < res.num_consts && const_i < 64) {
+    while (const_i < res.num_consts && const_i < 256) {
       let cinit_ref: i32 = ast_arena_expr_alloc(arena);
       if (cinit_ref == 0) {
         return ParseIntoResult { ok: -1, main_idx: -1 }
@@ -7842,7 +8023,7 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       const_i = const_i + 1;
     }
     let let_i: i32 = 0;
-    while (let_i < res.num_lets && let_i < 128) {
+    while (let_i < res.num_lets && let_i < 256) {
       let let_decl_ty: i32 = type_ref;
       if (res.let_type_refs[let_i] != 0) {
         let_decl_ty = res.let_type_refs[let_i];
@@ -7866,8 +8047,8 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       }
       let ld: LetDecl = b.let_decls[let_i];
       let lk: i32 = 0;
-      while (lk < res.let_name_lens[let_i] && lk < 128) {
-        let let_row: [128]u8 = res.let_names[let_i];
+      while (lk < res.let_name_lens[let_i] && lk < 64) {
+        let let_row: [64]u8 = res.let_names[let_i];
         ld.name[lk] = let_row[lk];
         lk = lk + 1;
       }
@@ -7953,8 +8134,8 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       so = so + 1;
       if_oi = if_oi + 1;
     }
-    /* 与 parse_into 一致：implicit_tail_return 时保留 final_expr 供 typeck。 */
-    if (!res.implicit_tail_return && !ref_is_null(b.final_expr_ref) && b.num_expr_stmts == 0 && so < 96) {
+    /* 与 parse_into 主路径一致：单条 final_expr 且尚无 expr_stmt 槽时，升格为一条 expr_stmt。 */
+    if (!ref_is_null(b.final_expr_ref) && b.num_expr_stmts == 0 && so < 96) {
       b.expr_stmt_refs[0] = b.final_expr_ref;
       b.num_expr_stmts = 1;
       b.final_expr_ref = 0;
@@ -7965,7 +8146,7 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     b.num_stmt_order = so;
     }
     /* 与 parse_into 主路径一致：多条 expr_stmt 时清空残留的 final_expr_ref（含误包的 RETURN）。 */
-    if (!res.implicit_tail_return && b.num_expr_stmts > 0) {
+    if (b.num_expr_stmts > 0) {
       b.final_expr_ref = 0;
     }
     ast_arena_block_set(arena, block_ref, b);
@@ -7992,35 +8173,23 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     f.body_ref = block_ref;
     f.body_expr_ref = 0;
     f.num_params = res.num_params;
+    /** 先落盘非形参字段，再用胶水写形参槽；勿 f.params 按值拼进 f 后整体写入，否则 asm 下 type_ref 丢失。 */
+    ast_arena_func_set(arena, func_ref, f);
+    let fi_mod: i32 = module.num_funcs;
+    module.funcs[fi_mod] = f;
+    module.func_refs[fi_mod] = func_ref;
     let p_copy: i32 = 0;
     while (p_copy < res.num_params && p_copy < 16) {
-      let pr: Param = f.params[p_copy];
-      let pk: i32 = 0;
-      while (pk < res.param_name_lens[p_copy] && pk < 32) {
-        let row: [32]u8 = res.param_names[p_copy];
-        pr.name[pk] = row[pk];
-        pk = pk + 1;
-      }
-      let z: u8 = 0;
-      while (pk < 32) {
-        pr.name[pk] = z;
-        pk = pk + 1;
-      }
-      pr.name_len = res.param_name_lens[p_copy];
-      pr.type_ref = res.param_type_refs[p_copy];
-      f.params[p_copy] = pr;
+      pipeline_arena_func_param_write(arena, func_ref, p_copy, &res.param_names[p_copy][0], res.param_name_lens[p_copy], res.param_type_refs[p_copy]);
+      pipeline_module_func_param_write(module, fi_mod, p_copy, &res.param_names[p_copy][0], res.param_name_lens[p_copy], res.param_type_refs[p_copy]);
       p_copy = p_copy + 1;
     }
-    ast_arena_func_set(arena, func_ref, f);
-    /* codegen/asm 后端均从 module.funcs[i] 读取，expr-only 路径也需同步写入，否则 -su -E 多文件 dep 产出为空 */
-    module.funcs[module.num_funcs] = f;
-    module.func_refs[module.num_funcs] = func_ref;
     if (is_main_storage[0] != 0) {
-      main_idx = module.num_funcs;
+      main_idx = fi_mod;
     }
     module.num_funcs = module.num_funcs + 1;
     let parse_into_guard_pos: usize = lex.pos;
-    lex_from_onefunc_next_into(&lex, res);
+    lex_from_onefunc_next_into(&lex, &res);
     /* 兜底：若 OneFuncResult.next_lex 未正确写回导致 lex 未前进，强制前进 1 字符避免死循环 */
     if (lex.pos == parse_into_guard_pos) {
       lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
@@ -8065,19 +8234,20 @@ function diag_parse_one_after_collect_imports(source: []u8, module: *Module, are
   let diag_dummy_p: [16][32]u8 = [diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32, diag_empty32];
   let diag_dummy_plens: [16]i32 = [];
   let diag_dummy_ptrefs: [16]i32 = [];
-  let diag_dummy_c: [24][64]u8 = [diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64];
-  let diag_dummy_clens: [24]i32 = [];
-  let diag_dummy_cvals: [24]i32 = [];
-  let diag_dummy_ln: [24][64]u8 = [diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64, diag_empty64];
-  let diag_dummy_llens: [24]i32 = [];
-  let diag_dummy_lvals: [24]i32 = [];
-  let diag_dummy_let_refs: [24]i32 = [];
-  let diag_dummy_let_typerefs: [128]i32 = [];
+  /** 与 OneFuncResult 中 const/let 槽位数一致（256），避免 parse_one_function_impl 写入越界。 */
+  let diag_dummy_c: [256][64]u8 = [];
+  let diag_dummy_clens: [256]i32 = [];
+  let diag_dummy_cvals: [256]i32 = [];
+  let diag_dummy_ln: [256][64]u8 = [];
+  let diag_dummy_llens: [256]i32 = [];
+  let diag_dummy_lvals: [256]i32 = [];
+  let diag_dummy_let_refs: [256]i32 = [];
+  let diag_dummy_let_typerefs: [256]i32 = [];
   let diag_dummy_loop_refs: [8]i32 = [];
   let diag_dummy_for_refs: [8]i32 = [];
   let diag_dummy_if_refs: [16]i32 = [];
   let diag_dummy_call_arg_vals: [16]i32 = [];
-  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: diag_empty64, name_len: 0, num_params: 0, param_names: diag_dummy_p, param_name_lens: diag_dummy_plens, param_type_refs: diag_dummy_ptrefs, num_consts: 0, const_names: diag_dummy_c, const_name_lens: diag_dummy_clens, const_init_vals: diag_dummy_cvals, num_lets: 0, let_names: diag_dummy_ln, let_name_lens: diag_dummy_llens, let_init_vals: diag_dummy_lvals, let_init_refs: diag_dummy_let_refs, let_type_refs: diag_dummy_let_typerefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: diag_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: diag_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: diag_dummy_loop_refs, loop_body_refs: diag_dummy_loop_refs, num_for_loops: 0, for_init_refs: diag_dummy_for_refs, for_cond_refs: diag_dummy_for_refs, for_step_refs: diag_dummy_for_refs, for_body_refs: diag_dummy_for_refs, num_if_stmts: 0, if_cond_refs: diag_dummy_if_refs, if_then_body_refs: diag_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], implicit_tail_return: false, func_return_type_ref: 0 };
+  let res: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: diag_empty64, name_len: 0, num_params: 0, param_names: diag_dummy_p, param_name_lens: diag_dummy_plens, param_type_refs: diag_dummy_ptrefs, num_consts: 0, const_names: diag_dummy_c, const_name_lens: diag_dummy_clens, const_init_vals: diag_dummy_cvals, num_lets: 0, let_names: diag_dummy_ln, let_name_lens: diag_dummy_llens, let_init_vals: diag_dummy_lvals, let_init_refs: diag_dummy_let_refs, let_type_refs: diag_dummy_let_typerefs, has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0, has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: diag_empty64, call_callee_len: 0, return_var_name: [], return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, call_arg_vals: diag_dummy_call_arg_vals, num_loops: 0, loop_cond_refs: diag_dummy_loop_refs, loop_body_refs: diag_dummy_loop_refs, num_for_loops: 0, for_init_refs: diag_dummy_for_refs, for_cond_refs: diag_dummy_for_refs, for_step_refs: diag_dummy_for_refs, for_body_refs: diag_dummy_for_refs, num_if_stmts: 0, if_cond_refs: diag_dummy_if_refs, if_then_body_refs: diag_dummy_if_refs, num_src_stmt_order: 0, src_stmt_kind: [], src_stmt_idx: [], num_src_body_expr_stmts: 0, src_body_expr_stmt_refs: [], func_return_type_ref: 0 };
   parse_one_function_impl(&res, arena, lex, source);
   return res.ok ? 1 : 0;
 }
@@ -8113,7 +8283,7 @@ function get_module_import_path(module: *Module, i: i32, out: [64]u8): void {
   }
 }
 
-/** 联调 9.1：若存在 /tmp/shu_parse_test.su 则读入前 64 字节并解析，否则用固定源码；便于测试脚本与 C 版「parse OK」对比。 */
+/** 联调 9.1：若存在 /tmp/shu_parse_test.su 则读入前 128 字节并以 parse() 校验（return 字面量或简单表达式，`parse()` 内部非字面量时用堆 Arena）。 */
 function main(): i32 {
   let path: [32]u8 = [
     47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
@@ -8121,11 +8291,12 @@ function main(): i32 {
   ];
   let fd: i32 = fs_open_read(path);
   if (fd >= 0) {
-    let buf: [64]u8 = [];
-    let n: isize = fs_read(fd, buf, 64);
+    let buf: [128]u8 = [];
+    let n: isize = fs_read(fd, buf, 128);
     fs_close(fd);
     if (n > 0) {
-      let sl: []u8 = buf;
+      /** fs_read 后 buf 仅前 n 字节有效；整条 slice 会带上尾后垃圾导致第二段表达式 parse 失败。 */
+      let sl: []u8 = parser_slice_from_buf(&buf[0], (n as i32));
       let res: ParseResult = parse(sl);
       if (res.ok) {
         return 0;

@@ -125,9 +125,9 @@ make test
 
 | 项 | 说明 |
 |------|------|
-| **FFI（extern function）** | 存在 `tests/ffi/putchar.su`，但**无** `run-ffi.sh`，未纳入 run-all.sh；若需回归 extern 调用可新增 run-ffi.sh 并加入 run-all。 |
-| **return 类型与声明一致** | `return_type_mismatch.su` 已保留，当前 typeck 未检查 return 表达式类型与函数声明是否一致，对应断言在 run-return-expr.sh 中已注释，待 typeck 补全后启用。 |
-| **memory-contract / packed** | `memory-contract/packed_struct.su` 仅被 abi/layout_abi.c 文档引用；run-abi-layout.sh 只跑 C 程序，不编译 .su；若需 packed 结构体行为回归可单独加脚本。 |
+| **FFI（extern function）** | `tests/run-ffi.sh` 已纳入 **run-all**（`tests/ffi/main.su`：cstr_len / cstring_new / cstring_free）。扩展覆盖时在 `tests/ffi/` 增例并加长脚本即可。 |
+| **return 操作数 vs 函数返回类型** | **`compiler/shu_su`** 或 **`shu-su`**：**`-su`** 跑 `tests/typeck/return_operand_type_mismatch.su` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.su`。宿主 **shu-c** 仍可能与 C typeck 宽松行为不完全一致。 |
+| **memory-contract / packed** | `memory-contract/packed_struct.su` 仍多由 abi 文档引用；**run-struct.sh** 已含 padding 负例；深测可单独加脚本。 |
 | **体积/性能基线** | run-size-baseline.sh、run-perf-baseline.sh 有意不纳入 run-all，需时单独执行。 |
 
 ### 5.3 结论

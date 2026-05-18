@@ -1330,20 +1330,67 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 TYPECK_ERR(e, "unknown struct type '%s'", e->value.struct_lit.struct_name ? e->value.struct_lit.struct_name : "");
                 return -1;
             }
-            if (e->value.struct_lit.num_fields != sd->num_fields) {
-                TYPECK_ERR(e, "struct literal field count mismatch for '%s'", sd->name);
-                return -1;
-            }
-            for (int i = 0; i < sd->num_fields; i++) {
-                if (!e->value.struct_lit.field_names[i] || !sd->fields[i].name ||
-                    strcmp(e->value.struct_lit.field_names[i], sd->fields[i].name) != 0) {
-                    TYPECK_ERR(e, "struct literal field name mismatch at %d", i);
+            {
+                int nf = (int)e->value.struct_lit.num_fields;
+                /* 零字段结构体：`struct S {}` 的空字面量 `S {}` 合法；有字段但未写初值仍为错误（保持原报错）。 */
+                if (nf <= 0) {
+                    if (sd->num_fields > 0) {
+                        TYPECK_ERR(e, "struct literal has no fields for '%s'", sd->name);
+                        return -1;
+                    }
+                    if (sd->name) {
+                        int ci;
+                        for (ci = 0; ci < struct_lit_type_n; ci++)
+                            if (struct_lit_type_names[ci] && strcmp(struct_lit_type_names[ci], sd->name) == 0) break;
+                        if (ci >= struct_lit_type_n && struct_lit_type_n < MAX_STRUCT_LIT_TYPES) {
+                            ci = struct_lit_type_n++;
+                            struct_lit_type_cache[ci].kind = AST_TYPE_NAMED;
+                            struct_lit_type_cache[ci].name = sd->name;
+                            struct_lit_type_cache[ci].elem_type = NULL;
+                            struct_lit_type_cache[ci].array_size = 0;
+                            struct_lit_type_names[ci] = sd->name;
+                        }
+                        if (ci < struct_lit_type_n)
+                            ((struct ASTExpr *)e)->resolved_type = &struct_lit_type_cache[ci];
+                    }
+                    return 0;
+                }
+                if (nf > sd->num_fields) {
+                    TYPECK_ERR(e, "struct literal field count mismatch for '%s'", sd->name);
                     return -1;
                 }
-                if (typeck_expr_sym(e->value.struct_lit.inits[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
-                /* 将字段初值的 resolved_type 设为字段类型，供 codegen 生成正确类型（如 [8]i32 的 data 用 int32_t 而非 uint8_t） */
-                if (sd->fields[i].type)
-                    ((struct ASTExpr *)e->value.struct_lit.inits[i])->resolved_type = sd->fields[i].type;
+                /* 允许指定初值子集（与 codegen 的 designated initializer 一致）；按字段名在 sd 中查找，不要求写满、不要求声明顺序 */
+                for (int ii = 0; ii < nf; ii++) {
+                    for (int kk = ii + 1; kk < nf; kk++) {
+                        if (e->value.struct_lit.field_names[ii] && e->value.struct_lit.field_names[kk] &&
+                            strcmp(e->value.struct_lit.field_names[ii], e->value.struct_lit.field_names[kk]) == 0) {
+                            TYPECK_ERR(e, "duplicate field in struct literal: '%s'", e->value.struct_lit.field_names[ii]);
+                            return -1;
+                        }
+                    }
+                }
+                for (int i = 0; i < nf; i++) {
+                    const char *lit_fn = e->value.struct_lit.field_names[i];
+                    if (!lit_fn) {
+                        TYPECK_ERR(e, "struct literal missing field name at %d", i);
+                        return -1;
+                    }
+                    int fj = -1;
+                    for (int j = 0; j < sd->num_fields; j++) {
+                        if (sd->fields[j].name && strcmp(lit_fn, sd->fields[j].name) == 0) {
+                            fj = j;
+                            break;
+                        }
+                    }
+                    if (fj < 0) {
+                        TYPECK_ERR(e, "struct '%s' has no field '%s'", sd->name, lit_fn);
+                        return -1;
+                    }
+                    if (typeck_expr_sym(e->value.struct_lit.inits[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                        return -1;
+                    if (sd->fields[fj].type)
+                        ((struct ASTExpr *)e->value.struct_lit.inits[i])->resolved_type = sd->fields[fj].type;
+                }
             }
             /* 为结构体字面量本身设 resolved_type（AST_TYPE_NAMED），供 if-expr/嵌套 else 推断 __tmp 类型，从源头消除 int __tmp 却赋 (struct X){0} 的补丁 */
             if (sd->name) {

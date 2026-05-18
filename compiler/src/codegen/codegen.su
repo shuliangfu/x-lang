@@ -10,13 +10,8 @@
 
 import ast;
 
-/** C 侧：base 为指针或 slice 时返回 1（仅 pointer-based AST 时有效）；ref-based 路径用 field_access_base_is_pointer_ref 从 arena 取类型。 */
-extern function codegen_su_field_access_base_is_pointer(expr: *u8): i32;
-
 /** C 侧：将当前 dep 路径转为 C 前缀写入 buf（如 "std.io.driver" -> "std_io_driver_"），供库模块函数名加前缀避免与 C 关键字冲突。 */
 extern function driver_get_current_dep_prefix_for_codegen(buf: *u8, len: i32): void;
-/** 当前 dep 路径是否为 std.io.core（与 ctx.dep_paths 互补，确保 core 不加前缀）。 */
-extern function driver_current_dep_path_is_std_io_core(): i32;
 /** 仅按名跳过：submit_read_batch_buf/submit_write_batch_buf 任何 dep 都跳过，由 preamble 提供 extern。 */
 extern function driver_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32;
 /** 调用处补第 4 参：若为 submit_*_batch_buf 且 3 参调用，需补 ", 0" 作为 timeout_ms。 */
@@ -42,13 +37,6 @@ extern function driver_std_io_fixed_fd_emit_impl(prefix: *u8, prefix_len: i32, n
 
 /** 对已知 0 参函数强制只发射 0 个实参，避免 (0, 0)。返回应发射的实参个数。 */
 extern function driver_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
-/** 是否对此次 core 调用使用 _buf 包装名（1 参 register / 2 参 submit_read|submit_write）。 */
-extern function codegen_su_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32): i32;
-/** C 侧：将任意 import 路径转为 C 前缀写入 buf，供生成跨 dep 调用时加前缀。 */
-extern function codegen_su_import_path_to_c_prefix(path: *u8, buf: *u8, len: i32): void;
-/** C 侧：path 为 "std.io.core" 时返回 1，此时不为其函数加前缀，生成 shu_io_register 等以匹配 #define std_io_core_*。 */
-extern function codegen_su_path_is_std_io_core(path: *u8): i32;
-
 /** glue：按池 ref 安全读类型 kind / elem_ref / array_size，避免 SU 对大 Type 按值返回撕裂（与 typeck 同源）。 */
 extern function pipeline_type_named_name_into(arena: *ASTArena, ref: i32, out64: *u8): i32;
 extern function pipeline_type_kind_ord_at(arena: *ASTArena, ref: i32): i32;
@@ -61,6 +49,98 @@ extern function pipeline_module_struct_layout_num_fields(module: *Module, idx: i
 extern function pipeline_module_struct_layout_field_type_ref(module: *Module, layout_idx: i32, field_idx: i32): i32;
 extern function pipeline_module_struct_layout_field_name_len(module: *Module, layout_idx: i32, field_idx: i32): i32;
 extern function pipeline_module_struct_layout_field_name_into(module: *Module, layout_idx: i32, field_idx: i32, out64: *u8): void;
+
+/**
+ * path 指向的 NUL 结尾字节是否与 "std.io.core" 完全一致（ codegen.c 同名逻辑迁入 .su，减少一处 extern）。
+ */
+function codegen_path_is_std_io_core_bytes(path: *u8): i32 {
+  let expect: [12]u8 = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101, 0];
+  let i: i32 = 0;
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  while (i < 12) {
+    let pi: u8 = path[i];
+    let ei: u8 = expect[i];
+    if (pi != ei) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * 将 import 路径转为 C 符号前缀（ASCII：`.`→`_`，末尾再补 `_`），与 codegen.c import_path_to_c_prefix 对齐。
+ * path 为空指针视作空路径；buf_cap≤0 时不写入；缓冲区内保证写入结尾 NUL。
+ */
+function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
+  if (buf == 0 as *u8 || buf_cap <= 0) {
+    return;
+  }
+  let off: i32 = 0;
+  let pi: i32 = 0;
+  while (path != 0 as *u8) {
+    let ch: u8 = path[pi];
+    if (ch == 0 as u8) {
+      break;
+    }
+    if (off + 2 >= buf_cap) {
+      break;
+    }
+    if (ch == 46 as u8) {
+      buf[off] = 95 as u8;
+    } else {
+      buf[off] = ch;
+    }
+    off = off + 1;
+    pi = pi + 1;
+  }
+  if (off + 1 < buf_cap) {
+    buf[off] = 95 as u8;
+    off = off + 1;
+  }
+  buf[off] = 0 as u8;
+}
+
+/**
+ * 判断 name 的前 exp_len 字节是否与 expect 所指前缀逐字节相等；空指针或 name_len 不足时返回 0。
+ */
+function codegen_name_bytes_prefix_eq(name: *u8, name_len: i32, expect: *u8, exp_len: i32): i32 {
+  if (name == 0 as *u8 || expect == 0 as *u8 || name_len < exp_len) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < exp_len) {
+    if (name[i] != expect[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * std.io.core：对 shu_io_register（1 实参）或 shu_io_submit_read / shu_io_submit_write（2 实参）在发射调用名时追加 `_buf`，与 runtime 侧宏一致；与 codegen.c 中 codegen_su_use_buf_wrapper 语义对齐。
+ */
+function codegen_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32): i32 {
+  let reg15: [15]u8 = [115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114];
+  let rd18: [18]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
+  let wr19: [19]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  if (num_args == 1 && name_len == 15 && codegen_name_bytes_prefix_eq(name, name_len, &reg15[0], 15) != 0) {
+    return 1;
+  }
+  if (num_args == 2 && name_len == 18 && codegen_name_bytes_prefix_eq(name, name_len, &rd18[0], 18) != 0) {
+    return 1;
+  }
+  if (num_args == 2 && name_len == 19 && codegen_name_bytes_prefix_eq(name, name_len, &wr19[0], 19) != 0) {
+    return 1;
+  }
+  return 0;
+}
 
 /** 从 arena 判断 base 表达式（base_ref）类型是否为指针或 slice，用于字段访问输出 ->（ref-based AST 时 resolved_type_ref 有效，source/out_buf 等形参由 typeck 已填）。 */
 function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 {
@@ -1006,7 +1086,7 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
       return -1;
     }
     let j: i32 = 0;
-    while (j < nf && j < 24) {
+    while (j < nf && j < 64) {
       let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
       let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
       if (flen <= 0) {
@@ -1342,7 +1422,7 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
               }
               if (eq) {
                 let pre_buf: [128]u8 = [];
-                codegen_su_import_path_to_c_prefix(ctx.dep_paths[j], &pre_buf[0], 128);
+                codegen_import_path_to_c_prefix_into(ctx.dep_paths[j], &pre_buf[0], 128);
                 let pre_len: i32 = 0;
                 while (pre_len < 128 && pre_buf[pre_len] != 0) {
                   pre_len = pre_len + 1;
@@ -1403,7 +1483,7 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                 }
                 if (eq) {
                   let pre_buf: [128]u8 = [];
-                  codegen_su_import_path_to_c_prefix(ctx.dep_paths[j], &pre_buf[0], 128);
+                  codegen_import_path_to_c_prefix_into(ctx.dep_paths[j], &pre_buf[0], 128);
                   let pre_len: i32 = 0;
                   while (pre_len < 128 && pre_buf[pre_len] != 0) {
                     pre_len = pre_len + 1;
@@ -1471,7 +1551,7 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                 }
                 if (eq && ctx.dep_paths[j] != 0 as *u8) {
                   let pre_buf: [128]u8 = [];
-                  codegen_su_import_path_to_c_prefix(ctx.dep_paths[j], &pre_buf[0], 128);
+                  codegen_import_path_to_c_prefix_into(ctx.dep_paths[j], &pre_buf[0], 128);
                   let pre_len: i32 = 0;
                   while (pre_len < 128 && pre_buf[pre_len] != 0) {
                     pre_len = pre_len + 1;
@@ -1482,7 +1562,7 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                   if (emit_bytes_64(out, callee.var_name, callee.var_name_len) != 0) {
                     return -1;
                   }
-                  if (codegen_su_path_is_std_io_core(ctx.dep_paths[j]) != 0 && codegen_su_use_buf_wrapper(&callee.var_name[0], callee.var_name_len, e.call_num_args) != 0) {
+                  if (codegen_path_is_std_io_core_bytes(ctx.dep_paths[j]) != 0 && codegen_use_buf_wrapper(&callee.var_name[0], callee.var_name_len, e.call_num_args) != 0) {
                     let suf_buf: [8]u8 = [95, 98, 117, 102, 0, 0, 0, 0];
                     if (emit_bytes_from_ptr(out, &suf_buf[0], 4) != 0) {
                       return -1;
@@ -3310,15 +3390,19 @@ function codegen_su_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, 
   let prefix_len: i32 = 0;
   if (dep_index >= 0 && dep_index < 32 && ctx != 0 as *PipelineDepCtx && ctx.dep_paths[dep_index] != 0 as *u8) {
     /* std.io.core 不加前缀，生成 shu_io_register 等符号，与 prepend 的 #define std_io_core_* 一致。 */
-    if (codegen_su_path_is_std_io_core(ctx.dep_paths[dep_index]) == 0) {
-      codegen_su_import_path_to_c_prefix(ctx.dep_paths[dep_index], &prefix_buf[0], 128);
+    if (codegen_path_is_std_io_core_bytes(ctx.dep_paths[dep_index]) == 0) {
+      codegen_import_path_to_c_prefix_into(ctx.dep_paths[dep_index], &prefix_buf[0], 128);
       while (prefix_len < 128 && prefix_buf[prefix_len] != 0) {
         prefix_len = prefix_len + 1;
       }
     }
   }
-  /* std.io.core 已在上方保持 prefix_len=0；若 ctx.dep_paths 不可靠则用 driver 当前路径再判一次，避免 fallback 覆盖。 */
-  if (prefix_len == 0 && (dep_index < 0 || (codegen_su_path_is_std_io_core(ctx != 0 as *PipelineDepCtx && dep_index >= 0 && dep_index < 32 ? ctx.dep_paths[dep_index] : 0 as *u8) == 0 && driver_current_dep_path_is_std_io_core() == 0))) {
+  /* std.io.core 已在上方保持 prefix_len=0；路径指针缺失或需 driver 侧推断前缀时走 driver_get_current_dep_prefix（入口 dep_index < 0 时必走兜底）。 */
+  let dep_path_for_prefix: *u8 = 0 as *u8;
+  if (ctx != 0 as *PipelineDepCtx && dep_index >= 0 && dep_index < 32) {
+    dep_path_for_prefix = ctx.dep_paths[dep_index];
+  }
+  if (prefix_len == 0 && (dep_index < 0 || codegen_path_is_std_io_core_bytes(dep_path_for_prefix) == 0)) {
     driver_get_current_dep_prefix_for_codegen(&prefix_buf[0], 128);
     while (prefix_len < 128 && prefix_buf[prefix_len] != 0) {
       prefix_len = prefix_len + 1;

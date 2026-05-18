@@ -10,33 +10,36 @@ struct ParseDirectiveResult {
   sym_len: i32;
 }
 
-/** 解析一行是否为指令；line_buf 为行内容，line_len 为长度；sym 仅 #if/#elseif 时写入符号。 */
-function parse_directive(line_buf: [512]u8, line_len: i32, sym: [64]u8): ParseDirectiveResult {
-  let zero: ParseDirectiveResult = ParseDirectiveResult { kind: 0, sym_len: 0 }
+/**
+ * 解析一行是否为指令；结果写入 `out`，避免返回 `ParseDirectiveResult` 触发 .su/asm 对有结构返回值函数的 codegen 空壳。
+ */
+function parse_directive_into(out: *ParseDirectiveResult, line_buf: [512]u8, line_len: i32, sym: [64]u8): void {
   let pos: i32 = 0;
+  out.kind = 0;
+  out.sym_len = 0;
   while (pos < line_len && (line_buf[pos] == 32 || line_buf[pos] == 9)) {
     pos = pos + 1;
   }
   if (pos >= line_len || line_buf[pos] != 35) {
-    return zero;
+    return;
   }
   pos = pos + 1;
   while (pos < line_len && (line_buf[pos] == 32 || line_buf[pos] == 9)) {
     pos = pos + 1;
   }
   if (pos >= line_len) {
-    return zero;
+    return;
   }
   if (pos + 2 <= line_len && line_buf[pos] == 105 && line_buf[pos + 1] == 102) {
     pos = pos + 2;
     if (pos < line_len && line_buf[pos] != 32 && line_buf[pos] != 9 && line_buf[pos] != 10 && line_buf[pos] != 13 && line_buf[pos] != 0) {
-      return zero;
+      return;
     }
     while (pos < line_len && (line_buf[pos] == 32 || line_buf[pos] == 9)) {
       pos = pos + 1;
     }
     if (pos >= line_len) {
-      return zero;
+      return;
     }
     let s: i32 = 0;
     while (pos < line_len && s < 63) {
@@ -50,20 +53,22 @@ function parse_directive(line_buf: [512]u8, line_len: i32, sym: [64]u8): ParseDi
       }
     }
     if (s == 0) {
-      return zero;
+      return;
     }
-    return ParseDirectiveResult { kind: 1, sym_len: s }
+    out.kind = 1;
+    out.sym_len = s;
+    return;
   }
   if (pos + 6 <= line_len && line_buf[pos] == 101 && line_buf[pos + 1] == 108 && line_buf[pos + 2] == 115 && line_buf[pos + 3] == 101 && line_buf[pos + 4] == 105 && line_buf[pos + 5] == 102) {
     pos = pos + 6;
     if (pos < line_len && line_buf[pos] != 32 && line_buf[pos] != 9 && line_buf[pos] != 10 && line_buf[pos] != 13 && line_buf[pos] != 0) {
-      return zero;
+      return;
     }
     while (pos < line_len && (line_buf[pos] == 32 || line_buf[pos] == 9)) {
       pos = pos + 1;
     }
     if (pos >= line_len) {
-      return zero;
+      return;
     }
     let s: i32 = 0;
     while (pos < line_len && s < 63) {
@@ -77,25 +82,31 @@ function parse_directive(line_buf: [512]u8, line_len: i32, sym: [64]u8): ParseDi
       }
     }
     if (s == 0) {
-      return zero;
+      return;
     }
-    return ParseDirectiveResult { kind: 4, sym_len: s }
+    out.kind = 4;
+    out.sym_len = s;
+    return;
   }
   if (pos + 4 <= line_len && line_buf[pos] == 101 && line_buf[pos + 1] == 108 && line_buf[pos + 2] == 115 && line_buf[pos + 3] == 101) {
     pos = pos + 4;
     if (pos >= line_len || line_buf[pos] == 32 || line_buf[pos] == 9 || line_buf[pos] == 10 || line_buf[pos] == 13 || line_buf[pos] == 0) {
-      return ParseDirectiveResult { kind: 2, sym_len: 0 }
+      out.kind = 2;
+      out.sym_len = 0;
+      return;
     }
-    return zero;
+    return;
   }
   if (pos + 5 <= line_len && line_buf[pos] == 101 && line_buf[pos + 1] == 110 && line_buf[pos + 2] == 100 && line_buf[pos + 3] == 105 && line_buf[pos + 4] == 102) {
     pos = pos + 5;
     if (pos >= line_len || line_buf[pos] == 32 || line_buf[pos] == 9 || line_buf[pos] == 10 || line_buf[pos] == 13 || line_buf[pos] == 0) {
-      return ParseDirectiveResult { kind: 3, sym_len: 0 }
+      out.kind = 3;
+      out.sym_len = 0;
+      return;
     }
-    return zero;
+    return;
   }
-  return zero;
+  return;
 }
 
 /** 主入口：对 source 做条件编译，结果写入 out_buf，返回输出长度，失败返回 -1。全部读写用 slice 在 .su 内完成，无 C 调用。暂不支持 defines（所有 #if SYMBOL 视为假）。 */
@@ -114,7 +125,8 @@ function preprocess_su(source: []u8, out_buf: []u8): i32 {
     if (ch == 10) {
       if (line_len > 0 || true) {
         let sym: [64]u8 = [];
-        let res: ParseDirectiveResult = parse_directive(line_buf, line_len, sym);
+        let res: ParseDirectiveResult = ParseDirectiveResult { kind: 0, sym_len: 0 };
+        parse_directive_into(&res, line_buf, line_len, sym);
         let kind: i32 = res.kind;
         if (kind != 0) {
           if (kind == 1) {
@@ -198,8 +210,8 @@ function preprocess_su(source: []u8, out_buf: []u8): i32 {
   return out_len;
 }
 
-/** 6.1 完全自举：用固定数组+长度调用预处理逻辑，不依赖 slice 构造；供 pipeline.su 在 read_file_su 后调用。 */
-function preprocess_su_buf(source_buf: [262144]u8, source_len: isize, out_buf: [262144]u8, out_cap: i32): i32 {
+/** 6.1 完全自举：用固定数组+长度调用预处理逻辑，不依赖 slice 构造；供 pipeline.su 在 read_file_su 后调用。与 runtime PIPELINE_CTX_BUF_SIZE 一致（512KiB）。 */
+function preprocess_su_buf(source_buf: [524288]u8, source_len: isize, out_buf: [524288]u8, out_cap: i32): i32 {
   if (out_cap <= 0) {
     return -1;
   }
@@ -209,12 +221,13 @@ function preprocess_su_buf(source_buf: [262144]u8, source_len: isize, out_buf: [
   let line_len: i32 = 0;
   let line_buf: [512]u8 = [];
   let pos: i32 = 0;
-  while (pos < source_len && pos < 262144) {
+  while (pos < source_len && pos < 524288) {
     let ch: u8 = source_buf[pos];
     if (ch == 10) {
       if (line_len > 0 || true) {
         let sym: [64]u8 = [];
-        let res: ParseDirectiveResult = parse_directive(line_buf, line_len, sym);
+        let res: ParseDirectiveResult = ParseDirectiveResult { kind: 0, sym_len: 0 };
+        parse_directive_into(&res, line_buf, line_len, sym);
         let kind: i32 = res.kind;
         if (kind != 0) {
           if (kind == 1) {

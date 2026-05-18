@@ -246,6 +246,46 @@ static const char *get_repo_root(const char *argv0) {
     return buf;
 }
 
+/**
+ * parser.su 聚合成单文件 .c 写在 /tmp 时，#include "pipeline_glue.c" 会先搜含入文件目录（/tmp），
+ * find 不到编译器目录下的 glue；此处写出 #include "\"<绝对路径>/pipeline_glue.c\""。
+ * argv0 一般为 shu 路径（如 ./shu）；与 pipeline_glue.c 同位于 compiler/ 目录即可解析。
+ */
+static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
+    char rel[PATH_MAX];
+    static char canon[PATH_MAX];
+    rel[0] = '\0';
+    canon[0] = '\0';
+    if (!out)
+        return;
+    /* 缩减版：无 pipeline.su 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
+    fprintf(out, "\n#define SHU_PARSER_EXE_PIPELINE_GLUE 1\n");
+    if (!argv0 || !argv0[0]) {
+        if (realpath("pipeline_glue.c", canon) != NULL)
+            fprintf(out, "\n#include \"%s\"\n", canon);
+        return;
+    }
+    {
+        const char *slash = strrchr(argv0, '/');
+        if (slash) {
+            int n = (int)(slash - argv0);
+            if (n >= 0 && (size_t)n + (size_t)21 < sizeof(rel)) {
+                (void)snprintf(rel, sizeof(rel), "%.*s/pipeline_glue.c", n, argv0);
+            }
+        } else if (realpath("pipeline_glue.c", rel) == NULL) {
+            rel[0] = '\0';
+        }
+    }
+    if (rel[0] != '\0') {
+        if (realpath(rel, canon) != NULL)
+            fprintf(out, "\n#include \"%s\"\n", canon);
+        else
+            fprintf(out, "\n#include \"%s\"\n", rel);
+    } else if (realpath("pipeline_glue.c", canon) != NULL) {
+        fprintf(out, "\n#include \"%s\"\n", canon);
+    }
+}
+
 /** std.fs 高性能 .o 路径（mmap/munmap）；优先 cwd 以兼容多工作区，产出 std/fs/fs.o。 */
 static const char *get_std_fs_o_path(const char *argv0) {
     static char buf[512];
@@ -822,7 +862,8 @@ static const char *get_runtime_panic_o_path(const char *argv0) {
 /* 9.1：纯 .su 流水线；由 pipeline_gen.c 提供；6.1 dep 通过 ctx 传入，.su 不再 extern get_dep_*。 */
 struct shulang_slice_uint8_t { uint8_t *data; size_t length; };
 /* 与 ast.su PipelineDepCtx 布局一致；6.1 完全自举：loaded/preprocess 为固定数组，全部在 .su 内完成 */
-#define PIPELINE_CTX_BUF_SIZE 262144
+/* parser.su 等入口已超旧 256KiB：与 preprocess_su_buf / PIPELINE_* 宿主路径统一 */
+#define PIPELINE_CTX_BUF_SIZE 524288
 struct ast_PipelineDepCtx {
     void *dep_modules[32];
     void *dep_arenas[32];
@@ -830,21 +871,22 @@ struct ast_PipelineDepCtx {
     uint8_t entry_dir_buf[512];
     int32_t entry_dir_len;
     int32_t num_lib_roots;
-    uint8_t lib_root_bufs[8][256];
-    int32_t lib_root_lens[8];
+    uint8_t lib_root_bufs[16][256];
+    int32_t lib_root_lens[16];
     uint8_t path_buf[512];
     uint8_t loaded_buf[PIPELINE_CTX_BUF_SIZE];
     int64_t loaded_len;  /* isize */
     uint8_t preprocess_buf[PIPELINE_CTX_BUF_SIZE];
     int32_t preprocess_len;
-    int32_t use_asm_backend;  /* 非 0 时 pipeline 出汇编，由 -backend asm 设置 */
-    int32_t target_arch;      /* 0=x86_64，1=arm64，2=riscv64；按 -target 设置，asm 后端分派用 */
-    int32_t use_macho_o;      /* 非 0 时出 .o 写 Mach-O（macOS）；由 -o xxx.o 且 __APPLE__ 时设置 */
-    int32_t use_coff_o;       /* 非 0 时出 .o 写 COFF/PE .obj（Windows 目标）；由 -target *-windows-* 且 -o 时设置 */
-    int32_t current_block_ref; /* typeck 用：当前检查的块 ref，供 EXPR_VAR 查 const/let 填 resolved_type_ref；0 表示未在块内 */
-    int32_t current_func_index; /* typeck 用：当前检查的函数下标，供 EXPR_VAR 查形参；-1 表示未在函数内 */
-    const char *dep_paths[32];  /* 每个 dep 的 import 路径，供 codegen 时设置 C 符号前缀，与 dep_modules 一一对应 */
-    int32_t skip_codegen_dep_0; /* 非 0 时跳过 dep 0 的 codegen，-o 时设 1，driver 由 io.o 提供 */
+    int32_t use_asm_backend;
+    int32_t target_arch;
+    int32_t use_macho_o;
+    int32_t use_coff_o;
+    int32_t current_block_ref;
+    int32_t current_func_index;
+    uint8_t dep_logical_path_mirror[32][64];
+    uint8_t *dep_paths[32];
+    int32_t skip_codegen_dep_0;
     int32_t entry_already_parsed; /* 非 0 时 entry 已由 C 侧解析，pipeline 跳过 parse 直接 typeck+codegen */
     int32_t current_func_single_empty_param_index; /* codegen：当前函数唯一无名形参下标，无名 EXPR_VAR 输出 _pN；无或多个为 -1 */
     int32_t current_func_empty_param_count;        /* codegen：当前函数无名形参个数，≥2 时按出现顺序用 indices 中下标输出 _pN */
@@ -856,6 +898,49 @@ struct ast_PipelineDepCtx {
 };
 /* 形参顺序与 pipeline.su 一致：第一为 module，第二为 arena，避免 entry 被错位导致 main 空体。 */
 extern int pipeline_run_su_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf, void *ctx);
+/** preprocess.su 生成；与 preprocess_su.o 中 typeck_* 名同源实现，pipeline_gen.c 导出此符号（shu_su 仅链 pipeline_su.o 时须调此名）。 */
+extern int32_t preprocess_preprocess_su_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+    int32_t out_cap);
+/** 与 pipeline 内入口解析同源；shu_su 须在首段就用 buf 路径，避免 slice 路径与 parse_into_buf 分叉。 */
+extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
+
+/**
+ * 对原始 .su 做 preprocess.su 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
+ *
+ * 【返回】0 成功；否则写 stderr（过大或预处理失败）、不分配 *out。
+ */
+static int su_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
+    const char *path_diag) {
+    if (raw_len > (size_t)PIPELINE_CTX_BUF_SIZE) {
+        fprintf(stderr,
+            "shu: entry file too large for .su preprocessor (%zu > %d): '%s'\n",
+            raw_len,
+            PIPELINE_CTX_BUF_SIZE,
+            path_diag ? path_diag : "?");
+        return -1;
+    }
+    uint8_t *scratch = (uint8_t *)malloc((size_t)PIPELINE_CTX_BUF_SIZE);
+    if (!scratch)
+        return -1;
+    int32_t n = preprocess_preprocess_su_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)PIPELINE_CTX_BUF_SIZE);
+    if (n < 0) {
+        free(scratch);
+        fprintf(stderr, "shu: .su preprocess failed for '%s'\n", path_diag ? path_diag : "?");
+        return -1;
+    }
+    char *dup = (char *)malloc((size_t)n + 1);
+    if (!dup) {
+        free(scratch);
+        return -1;
+    }
+    memcpy(dup, scratch, (size_t)n);
+    dup[n] = '\0';
+    free(scratch);
+    *out_src = dup;
+    *out_src_len = (size_t)n;
+    return 0;
+}
+
 /** 诊断：返回 module 的 num_funcs（pipeline_glue.c 提供，与 ast_Module 同 TU）。 */
 extern int driver_get_module_num_funcs(void *m);
 extern int driver_get_module_main_func_index(void *m);
@@ -872,7 +957,7 @@ static void pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const
         ctx->entry_dir_buf[el] = '\0';
         ctx->entry_dir_len = (int32_t)el;
     }
-    ctx->num_lib_roots = n_lib_roots <= 8 ? n_lib_roots : 8;
+    ctx->num_lib_roots = n_lib_roots <= 16 ? n_lib_roots : 16;
     for (int i = 0; i < ctx->num_lib_roots && lib_roots && lib_roots[i]; i++) {
         size_t ll = strlen(lib_roots[i]);
         if (ll >= 256) ll = 255;
@@ -1185,7 +1270,7 @@ char *preprocess(const char *source, size_t source_len, const char **defines, in
 #endif
 
 /* 阶段 5.3 / 6.2：.su 内写编排逻辑，C 只提供最小 I/O 原语。 */
-#define PIPELINE_IMPORT_BUF_CAP 262144
+#define PIPELINE_IMPORT_BUF_CAP 524288
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
@@ -2131,7 +2216,7 @@ static int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_na
  * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("SHULANG_LIB")；多文件时可能多次解析同一 import 的 .su。
  */
 #define MAX_DEFINES 64
-#define MAX_LIB_ROOTS 8
+#define MAX_LIB_ROOTS 16
 /**
  * 编译器 pipeline 实现（原 main 逻辑）；供 C main 直接调用，或由 .su driver 入口转调（6.3）。
  * SHU_USE_SU_DRIVER 时 run_compiler_c_impl 由 main.su 提供（桩），C 不定义以免重复符号。
@@ -2294,11 +2379,23 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 1;
     }
     size_t src_len = 0;
-    char *src = preprocess(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
-    free(raw_src);
-    if (!src) {
-        fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
-        return 1;
+    char *src = NULL;
+#ifdef SHU_USE_SU_PIPELINE
+    if (use_su_pipeline) {
+        if (su_preprocess_raw_to_malloc((const unsigned char *)raw_src, raw_src_len, &src, &src_len, input_path) != 0) {
+            free(raw_src);
+            return 1;
+        }
+        free(raw_src);
+    } else
+#endif
+    {
+        src = preprocess(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
+        free(raw_src);
+        if (!src) {
+            fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+            return 1;
+        }
     }
 
 #ifdef SHU_USE_SU_PIPELINE
@@ -2317,8 +2414,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         struct shulang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+        if (src_len > (size_t)INT32_MAX) {
+            fprintf(stderr, "shu: -su pipeline: source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
         parser_parse_into_init(module, arena);
-        struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &src_slice);
+        struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
             fprintf(stderr, "shu: -su pipeline failed (parse_into)\n");
             free(arena);
@@ -2362,17 +2466,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     free(src);
                     return 1;
                 }
+                char *prep = NULL;
                 size_t prep_len = 0;
-                char *prep = preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
-                free(raw);
-                if (!prep) {
-                    fprintf(stderr, "shu: preprocess failed for import '%s'\n", path_c);
+                if (su_preprocess_raw_to_malloc((const unsigned char *)raw, raw_len, &prep, &prep_len, resolved) !=
+                    0) {
+                    free(raw);
                     while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                     free(arena);
                     free(module);
                     free(src);
                     return 1;
                 }
+                free(raw);
                 dep_sources[n_deps] = prep;
                 dep_lens[n_deps] = prep_len;
                 dep_paths[n_deps] = strdup(path_c);
@@ -2613,7 +2718,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 if (diag_arena && diag_module) {
                     memset(diag_arena, 0, arena_sz);
                     memset(diag_module, 0, module_sz);
-                    struct parser_ParseIntoResult pr = parser_parse_into(diag_arena, diag_module, &src_slice);
+                    struct parser_ParseIntoResult pr =
+                        parser_parse_into_buf(diag_arena, diag_module, (uint8_t *)src_slice.data, (int32_t)src_slice.length);
                     if (pr.ok == 0) {
                         struct ast_PipelineDepCtx diag_ctx;
                         memset(&diag_ctx, 0, sizeof(diag_ctx));
@@ -2858,14 +2964,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "struct std_io_driver_Buffer;\n");
             fprintf(cf, "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
             fprintf(cf, "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
-            fprintf(cf, "static int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
-            fprintf(cf, "  ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);\n");
-            fprintf(cf, "  return (r < 0) ? -1 : (int32_t)r;\n");
-            fprintf(cf, "}\n");
-            fprintf(cf, "static int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
-            fprintf(cf, "  ptrdiff_t r = io_write_batch_buf((int)handle, bufs, n, timeout_ms);\n");
-            fprintf(cf, "  return (r < 0) ? -1 : (int32_t)r;\n");
-            fprintf(cf, "}\n");
+            /* parser.su 路径将 #include pipeline_glue.c，其中已有 std_io_driver_submit_*_batch_buf；再输出 static 版会重复定义。 */
+            if (!input_path || strstr(input_path, "parser.su") == NULL) {
+                fprintf(cf, "static int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
+                fprintf(cf, "  ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);\n");
+                fprintf(cf, "  return (r < 0) ? -1 : (int32_t)r;\n");
+                fprintf(cf, "}\n");
+                fprintf(cf, "static int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
+                fprintf(cf, "  ptrdiff_t r = io_write_batch_buf((int)handle, bufs, n, timeout_ms);\n");
+                fprintf(cf, "  return (r < 0) ? -1 : (int32_t)r;\n");
+                fprintf(cf, "}\n");
+            }
             fprintf(cf, "#define std_io_submit_read_batch_buf std_io_driver_submit_read_batch_buf\n");
             fprintf(cf, "#define std_io_submit_write_batch_buf std_io_driver_submit_write_batch_buf\n");
             /* driver 的 read_ptr/read_ptr_len 由 core/io.o 提供，与 pipeline 内联 ABI 一致 */
@@ -2882,9 +2991,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
             fprintf(cf, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
-            /* 自举：入口为 parser.su 时需 parser_slice_from_buf；前向声明使调用处可编译，定义在文件末尾追加 */
-            if (input_path && strstr(input_path, "parser.su") != NULL)
-                fprintf(cf, "static struct shulang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
             for (int i = 0; i < n_all; i++) {
                 ASTModule *lib_deps[32];
                 const char *lib_dep_paths[32];
@@ -2910,6 +3016,25 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
             }
+            /* parser 入口随后在单文件内生成，会调用 glue 导出符号；完整定义在文末 #include pipeline_glue.c。依赖模块已写出后 token/ExprKind 等才完整，故前向声明放在 for 之后、入口 codegen 之前。 */
+            if (input_path && strstr(input_path, "parser.su") != NULL) {
+                fprintf(cf, "struct shulang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
+                fprintf(cf, "void pipeline_module_reset_parse_counters(struct ast_Module *m);\n");
+                fprintf(cf, "enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(enum token_TokenKind kind);\n");
+                fprintf(cf, "int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref);\n");
+                fprintf(cf, "void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx);\n");
+                fprintf(cf, "void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);\n");
+                fprintf(cf,
+                        "void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,\n"
+                        "    int32_t fname_len, int32_t ftype_ref, int32_t foff);\n");
+                fprintf(cf,
+                        "void pipeline_module_func_param_write(struct ast_Module *m, int32_t func_index, int32_t param_index,\n"
+                        "    uint8_t *name_bytes, int32_t name_len, int32_t type_ref);\n");
+                fprintf(cf,
+                        "void pipeline_arena_func_param_write(struct ast_ASTArena *arena, int32_t func_ref, int32_t param_index,\n"
+                        "    uint8_t *name_bytes, int32_t name_len, int32_t type_ref);\n");
+                fprintf(cf, "size_t pipeline_sizeof_arena(void);\n");
+            }
         }
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
         if (codegen_codegen_entry_module_to_c(mod, cf, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL, n_all > 0 ? max_emitted : 0) != 0) {
@@ -2923,11 +3048,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
             free(src);
             return 1;
         }
-        /* 自举：parser.su 单独编可执行文件时提供 parser_slice_from_buf 桩实现（与 pipeline_glue.c 中一致） */
-        if (input_path && strstr(input_path, "parser.su") != NULL) {
-            fprintf(cf, "\nstatic struct shulang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {\n");
-            fprintf(cf, "  struct shulang_slice_uint8_t s;\n  s.data = data;\n  s.length = (size_t)(len >= 0 ? len : 0);\n  return s;\n}\n");
-        }
+        /* 与 pipeline_gen.c 末尾含 glue 同序：先有完整类型定义再 #include pipeline_glue.c（见 pipeline_glue.c 头注释）。 */
+        if (input_path && strstr(input_path, "parser.su") != NULL)
+            codegen_emit_include_pipeline_glue_c(cf, argv[0]);
         fclose(cf);
         snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
         if (rename(tmp, tmp_c) != 0) {
@@ -3398,9 +3521,9 @@ uint8_t *driver_dep_arena_buf(int32_t i) {
         size_t sz = pipeline_sizeof_arena();
         driver_dep_arena_ptrs[i] = malloc(sz);
         if (!driver_dep_arena_ptrs[i]) return NULL;
+        /* 仅在首分配时清零；若每次 getter 调用都对已分配槽 memset，pipeline dep_sync 会在 import 解析后再次取 buf 时抹掉 ast 等 dep，导致预跑 dep 时 typeck 失败（expr_type_ref 等）。 */
+        memset(driver_dep_arena_ptrs[i], 0, sz);
     }
-    if (!driver_dep_seeded[i])
-        memset(driver_dep_arena_ptrs[i], 0, pipeline_sizeof_arena());
     return (uint8_t *)driver_dep_arena_ptrs[i];
 }
 
@@ -3410,9 +3533,8 @@ uint8_t *driver_dep_module_buf(int32_t i) {
         size_t sz = pipeline_sizeof_module();
         driver_dep_module_ptrs[i] = malloc(sz);
         if (!driver_dep_module_ptrs[i]) return NULL;
+        memset(driver_dep_module_ptrs[i], 0, sz);
     }
-    if (!driver_dep_seeded[i])
-        memset(driver_dep_module_ptrs[i], 0, pipeline_sizeof_module());
     return (uint8_t *)driver_dep_module_ptrs[i];
 }
 
@@ -3941,8 +4063,10 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
     return (int)j;
 }
 
-/** 6.2 静态 arena/module 缓冲，供 driver_run_su_emit_su 避免栈上超大数组（ast_ASTArena 约 9MB+）。 */
-#define DRIVER_ARENA_STATIC_SIZE (20 * 1024 * 1024)
+/** 6.2 静态 arena/module 缓冲，供 driver_run_su_emit_su 避免栈上超大数组。
+ * arena 对应 .su codegen 之 `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
+ * aarch64Clang 实测约 23.5MiB（Block/Expr 池较大），固定 20MiB 时会静默越界。 */
+#define DRIVER_ARENA_STATIC_SIZE (32 * 1024 * 1024)
 #define DRIVER_MODULE_STATIC_SIZE (512 * 1024)
 static uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE];
 static uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE];
@@ -4031,11 +4155,6 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
 }
 
 #if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
-/* preprocess.su → preprocess_gen.c；与 pipeline 内 preprocess_su_buf 同源，仅本 #if 块内 driver_run_compiler_full 入口调用。 */
-extern int32_t typeck_preprocess_su_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
-/* parser_gen（经 pipeline 链接）：仅用 buf+len，与流水线内入口解析完全一致；先于 pipeline 调 parser_parse_into(slice) 曾与 parse_into_buf 行为分叉并导致流水线内解析空 module。 */
-extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
-
 /**
  * 传递加载 dep：从 main 的 import 出发，解析每个 dep 的 import 并加入加载列表，直至无新 dep。
  * 填满 dep_sources/dep_lens/dep_paths，*n_deps 为个数。返回 0 成功，1 失败（调用方负责释放已分配）。
@@ -4795,7 +4914,7 @@ int driver_run_compiler_full(int argc, char **argv) {
     /*
      * pipeline 入口用 parse_into_buf 解析源码；其子模块 import 走 preprocess_gen 的 preprocess_su_buf。
      * 若入口仍用 preprocess.o 的 C 预处理，与 preprocess.su 对 #if/#else 的行处理偶有差异，会得到「C 侧 parse_into 可见 import，
-     * 流水线内解析却得到空 module、codegen 空缓冲且 ec=0」。故在跑 parser_parse_into（及后续 collect_deps）前，对入口改用与流水线一致的 typeck_preprocess_su_buf。
+     * 流水线内解析却得到空 module、codegen 空缓冲且 ec=0」。故在跑 parser_parse_into（及后续 collect_deps）前，对入口改用与流水线一致的 preprocess_preprocess_su_buf。
      */
     {
         size_t raw_su_len = 0;
@@ -4805,34 +4924,18 @@ int driver_run_compiler_full(int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (raw_su_len > (size_t)262144) {
-            fprintf(stderr, "shu: entry file too large for .su preprocessor (%zu > 262144): '%s'\n", raw_su_len,
-                input_path);
+        char *src_su = NULL;
+        size_t src_su_len = 0;
+        if (su_preprocess_raw_to_malloc((const unsigned char *)raw_su, raw_su_len, &src_su, &src_su_len, input_path) !=
+            0) {
             free(raw_su);
             free(src);
             return 1;
         }
-        uint8_t su_prep_out[262144];
-        int32_t su_prep_len =
-            typeck_preprocess_su_buf((const uint8_t *)raw_su, (ptrdiff_t)raw_su_len, su_prep_out, (int32_t)sizeof(su_prep_out));
         free(raw_su);
-        if (su_prep_len < 0) {
-            fprintf(stderr, "shu: .su preprocess failed for '%s'\n", input_path);
-            free(src);
-            return 1;
-        }
-        {
-            char *src_su = (char *)malloc((size_t)su_prep_len + 1);
-            if (!src_su) {
-                free(src);
-                return 1;
-            }
-            memcpy(src_su, su_prep_out, (size_t)su_prep_len);
-            src_su[su_prep_len] = '\0';
-            free(src);
-            src = src_su;
-            src_len = (size_t)su_prep_len;
-        }
+        free(src);
+        src = src_su;
+        src_len = src_su_len;
         /* 调试：SHU_DUMP_PREP=1 时把入口预处理后缓冲区写入 /tmp/shu_prep_entry.bin，便于与 emit 路径逐字节比对 */
         if (getenv("SHU_DUMP_PREP")) {
             FILE *df = fopen("/tmp/shu_prep_entry.bin", "wb");

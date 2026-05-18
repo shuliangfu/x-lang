@@ -2,7 +2,7 @@
 # 阶段 3 类型检查测试：正例含 typeck OK；负例（边界）须报 typeck error 且退出码非 0
 # 当 SHU 已设置（test_su/run-all-su）时仅用 compiler/shu（shu_su），不构建 shu-c，并跳过依赖「typeck OK」输出的正例。
 #
-# shu_su 默认须加 -su 才走 .su 流水线；当前仅 return_implicit 在 .su typeck 与 C 对齐，故对 shu_su 仅对该文件自动加 -su。
+# shu_su 默认须加 -su 才走 .su 流水线；return_implicit.su 在 .su typeck 与 C 对齐时，对 shu_su 自动加 -su。
 # 若将来 .su typeck 覆盖全部负例，可设 TYPECK_SU=all 使所有负例均带 -su（未覆盖前部分用例可能误通过）。
 
 set -e
@@ -35,10 +35,15 @@ if [ -n "$SHU" ]; then
   esac
   # SU 宿主（shu_su / shu-su）：赋值 for-step 负例须在本地 -su 流水线上报与 shu-c 同源的行（grep 短语）；其余负例仍由 TYPECK_SHU 兜底
   case "${SHU##*/}" in
-    shu_su|shu-su)
+    shu-su|shu_su)
       err_assign_su=$("$SHU" -su tests/typeck/type_mismatch_assign.su 2>&1) || true
       echo "$err_assign_su" | grep -q "assignment type mismatch: expected i32, found bool" || {
         echo "expected SU 'assignment type mismatch: expected i32, found bool' in type_mismatch_assign.su; got: $err_assign_su"
+        exit 1
+      }
+      err_ret_su=$("$SHU" -su tests/typeck/return_operand_type_mismatch.su -o /tmp/shu_typeck_ret_fail.o 2>&1) || true
+      echo "$err_ret_su" | grep -q "typeck error" || {
+        echo "expected $SHU -su pipeline typeck error on return_operand_type_mismatch.su (bool vs i32 return); got: $err_ret_su"
         exit 1
       }
       ;;
@@ -65,5 +70,12 @@ else
   expect_typeck_error tests/typeck/return_implicit.su "explicit return statement" "$TYPECK_SHU"
   expect_typeck_error tests/typeck/ternary_condition_not_bool.su "ternary condition must be bool" "$TYPECK_SHU"
   expect_typeck_error tests/typeck/ternary_branches_mismatch.su "ternary branches must have the same type" "$TYPECK_SHU"
+  if [ -x ./compiler/shu-su ]; then
+    err_ret_su=$(./compiler/shu-su -su tests/typeck/return_operand_type_mismatch.su -o /tmp/shu_typeck_ret_fail_defaults.o 2>&1) || true
+    echo "$err_ret_su" | grep -q "typeck error" || {
+      echo "expected ./compiler/shu-su -su return_operand_type_mismatch typeck error; got: $err_ret_su"
+      exit 1
+    }
+  fi
 fi
 echo "typeck test OK"

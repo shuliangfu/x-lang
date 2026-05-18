@@ -318,22 +318,27 @@ test: test_c test_su
 	@echo "Test all OK"
 
 # 自举 9.1：用 shu 编译 token 模块（库）+ token_standalone.su（入口），验证 .su 前端数据定义可由宿主编译
-bootstrap-token: $(TARGET)
+# 依赖 $(STD_AND_PANIC_O)：-o 链 std/io 等 .o，clean 后仅 make $(TARGET) 会缺这些文件导致 cc 失败。
+bootstrap-token: $(TARGET) $(STD_AND_PANIC_O)
 	./$(TARGET) -L src/lexer src/lexer/token_standalone.su -o /tmp/shu_token_test && /tmp/shu_token_test && echo "bootstrap-token OK"
 
 # 自举 9.1：用 shu 编译 lexer.su（入口，import token），验证多文件 + 跨模块 enum 可编译链接
-bootstrap-lexer: $(TARGET)
+bootstrap-lexer: $(TARGET) $(STD_AND_PANIC_O)
 	./$(TARGET) -L src/lexer src/lexer/lexer.su -o /tmp/shu_lexer_test && /tmp/shu_lexer_test && echo "bootstrap-lexer OK"
 
 # 自举 9.1：用 shu 编译 parser.su（import lexer + token + ast + std.fs），解析 function main(): i32 { return 0; } 并验证；-L .. 供 std.fs，-L src/lexer 供 token，-L src/ast 供 ast
-bootstrap-parser: $(TARGET)
+bootstrap-parser: $(TARGET) $(STD_AND_PANIC_O)
 	rm -f /tmp/shu_parse_test.su && ./$(TARGET) -L .. -L src/lexer -L src/ast src/parser/parser.su -o /tmp/shu_parser_test && /tmp/shu_parser_test && echo "bootstrap-parser OK"
 
-# 9.1 联调：.su 前端能处理示例 .su 并与 C 版结果一致；写示例（NUL 结尾）到 /tmp/shu_parse_test.su，跑 .su 解析器与 shu 对比，二者均 parse OK 则通过
-bootstrap-parse-file: $(TARGET) bootstrap-parser
+# 9.1 联调：.su `parse()` 支持 return 字面量或 `parse_expr_into`（堆上大块 Arena，栈安全）；宿主 shu 走完整流水线。
+# 第二段：`return (1 + 2) * 3 + -1`，.su standalone 走 parse()→堆上 Arena→parse_expr_into；宿主 shu 走完整流水线。
+bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
 	@printf 'function main(): i32 { return 0; }\0' > /tmp/shu_parse_test.su && \
-	/tmp/shu_parser_test && echo "su parser: parse OK" && \
-	(out=$$(./$(TARGET) -L .. /tmp/shu_parse_test.su 2>&1); echo "$$out" | grep -q "parse OK") && echo "C parser: parse OK" && \
+	/tmp/shu_parser_test && echo "su parser: parse OK (minimal)" && \
+	(out=$$(./$(TARGET) -L .. /tmp/shu_parse_test.su 2>&1); echo "$$out" | grep -q "parse OK") && echo "C parser: parse OK (minimal)" && \
+	printf 'function main(): i32 { return (1 + 2) * 3 + -1; }\0' > /tmp/shu_parse_test.su && \
+	/tmp/shu_parser_test && echo "su parser: parse OK (expr-chain)" && \
+	(out=$$(./$(TARGET) -L .. /tmp/shu_parse_test.su 2>&1); echo "$$out" | grep -q "parse OK") && echo "C parser: parse OK (expr-chain)" && \
 	echo "bootstrap-parse-file OK"
 
 # 迁移到 .su：由 parser.su 生成 parser_gen.c 并编出 parser_su.o，供后续「仅链 .su 版 parser/typeck/codegen」使用（pipeline_gen.c 已内联 parser，bootstrap-driver-seed 不链 parser_su.o）。

@@ -21,13 +21,13 @@ struct ast_ForLoop { int32_t init_ref; int32_t cond_ref; int32_t step_ref; int32
 struct ast_IfStmt { int32_t cond_ref; int32_t then_body_ref; };
 struct ast_StmtOrderItem { uint8_t kind; int32_t idx; };
 struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; uint8_t goto_target[32]; int32_t goto_target_len; int32_t return_expr_ref; };
-struct ast_Block { struct ast_ConstDecl const_decls[128]; int32_t num_consts; struct ast_LetDecl let_decls[128]; int32_t num_lets; int32_t num_early_lets; struct ast_WhileLoop loops[8]; int32_t num_loops; struct ast_ForLoop for_loops[8]; int32_t num_for_loops; struct ast_IfStmt if_stmts[16]; int32_t num_if_stmts; int32_t defer_block_refs[8]; int32_t num_defers; struct ast_LabeledStmt labeled_stmts[8]; int32_t num_labeled_stmts; int32_t expr_stmt_refs[32]; int32_t num_expr_stmts; int32_t final_expr_ref; struct ast_StmtOrderItem stmt_order[96]; int32_t num_stmt_order; };
+struct ast_Block { struct ast_ConstDecl const_decls[256]; int32_t num_consts; struct ast_LetDecl let_decls[256]; int32_t num_lets; int32_t num_early_lets; struct ast_WhileLoop loops[8]; int32_t num_loops; struct ast_ForLoop for_loops[8]; int32_t num_for_loops; struct ast_IfStmt if_stmts[16]; int32_t num_if_stmts; int32_t defer_block_refs[8]; int32_t num_defers; struct ast_LabeledStmt labeled_stmts[8]; int32_t num_labeled_stmts; int32_t expr_stmt_refs[32]; int32_t num_expr_stmts; int32_t final_expr_ref; struct ast_StmtOrderItem stmt_order[96]; int32_t num_stmt_order; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; struct ast_Param params[16]; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t num_fields; uint8_t field_names[8][64]; int32_t field_lens[8]; int32_t field_offsets[8]; int32_t field_type_refs[8]; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t num_fields; uint8_t field_names[64][64]; int32_t field_lens[64]; int32_t field_offsets[64]; int32_t field_type_refs[64]; };
 struct ast_Module { struct ast_Func funcs[256]; int32_t func_refs[256]; int32_t num_funcs; int32_t main_func_index; uint8_t import_path_data[2048]; int32_t import_path_lens[32]; int32_t num_imports; int32_t import_kinds[32]; uint8_t import_binding_name[32][64]; int32_t import_binding_name_len[32]; int32_t import_select_count[32]; uint8_t import_select_names[32][8][64]; int32_t import_select_name_lens[32][8]; int32_t num_top_level_lets; uint8_t top_level_let_names[32][64]; int32_t top_level_let_name_lens[32]; int32_t top_level_let_type_refs[32]; int32_t top_level_let_init_refs[32]; int32_t top_level_let_is_const[32]; struct ast_StructLayout struct_layouts[32]; int32_t num_struct_layouts; };
-struct ast_ASTArena { struct ast_Type types[512]; int32_t num_types; struct ast_Expr exprs[4096]; int32_t num_exprs; struct ast_Block blocks[512]; int32_t num_blocks; struct ast_Func funcs[256]; int32_t num_funcs; };
-struct ast_PipelineDepCtx { struct ast_Module * dep_modules[32]; struct ast_ASTArena * dep_arenas[32]; int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t lib_root_bufs[8][256]; int32_t lib_root_lens[8]; uint8_t path_buf[512]; uint8_t loaded_buf[262144]; ptrdiff_t loaded_len; uint8_t preprocess_buf[262144]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t current_func_index; uint8_t * dep_paths[32]; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_func_empty_param_indices[16]; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; };
+struct ast_ASTArena { struct ast_Type types[512]; int32_t num_types; struct ast_Expr exprs[8192]; int32_t num_exprs; struct ast_Block blocks[512]; int32_t num_blocks; struct ast_Func funcs[256]; int32_t num_funcs; };
+struct ast_PipelineDepCtx { struct ast_Module * dep_modules[32]; struct ast_ASTArena * dep_arenas[32]; int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t lib_root_bufs[16][256]; int32_t lib_root_lens[16]; uint8_t path_buf[512]; uint8_t loaded_buf[262144]; ptrdiff_t loaded_len; uint8_t preprocess_buf[262144]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t current_func_index; uint8_t dep_logical_path_mirror[32][64]; uint8_t * dep_paths[32]; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_func_empty_param_indices[16]; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; };
 struct codegen_CodegenOutBuf { uint8_t data[1048576]; int32_t len; };
 struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
 enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Result_Err, std_io_driver_IO_Result_Timeout, std_io_driver_IO_Result_Cancelled };
@@ -42,14 +42,14 @@ extern ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t * buf, size_t count);
 extern int32_t preprocess_preprocess_su_buf(uint8_t source_buf[262144], ptrdiff_t source_len, uint8_t out_buf[262144], int32_t out_cap);
 extern int32_t std_fs_fs_close(int32_t fd);
 extern ptrdiff_t std_fs_fs_write(int32_t fd, uint8_t * buf, size_t count);
-struct main_DriverSuEmitState { uint8_t path_buf[512]; int32_t path_len; int32_t n_lib_roots; uint8_t lib_root_bufs[8][256]; int32_t lib_root_lens[8]; int32_t emit_extern_imports; int32_t use_asm_backend; int32_t target_arch; uint8_t out_path_buf[512]; int32_t out_path_len; };
+struct main_DriverSuEmitState { uint8_t path_buf[512]; int32_t path_len; int32_t n_lib_roots; uint8_t lib_root_bufs[16][256]; int32_t lib_root_lens[16]; int32_t emit_extern_imports; int32_t use_asm_backend; int32_t target_arch; uint8_t out_path_buf[512]; int32_t out_path_len; };
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);
 extern int32_t driver_fs_open_read_path(uint8_t * path, int32_t path_len);
 extern uint8_t * driver_arena_buf();
 extern uint8_t * driver_module_buf();
 extern int32_t driver_fs_open_write(uint8_t * path, int32_t path_len);
 extern void driver_pipeline_fail_code(int32_t rc, uint8_t * path);
-extern void driver_print_parse_typeck_ok();
+extern void driver_print_su_smoke_summary(uint8_t * module, size_t codegen_len);
 extern int32_t driver_run_su_emit_c_set_path(uint8_t * path, int32_t path_len);
 extern int32_t driver_run_su_emit_c_set_lib(int32_t i, uint8_t * buf, int32_t len);
 extern int32_t driver_run_su_emit_c_set_n_lib_roots(int32_t n);
@@ -197,8 +197,8 @@ int32_t main_driver_argv_parse_su_path(int32_t argc, uint8_t * argv, struct main
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (main_eq_minus_L(arg_buf, len) != 0) {   (void)(({ int32_t __tmp = 0; if (i + 1 >= argc) {   return 2;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((state)->n_lib_roots < 8) {   int32_t llen = driver_get_argv_i(argc, argv, i + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
-  __tmp = ({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
+  (void)(({ int32_t __tmp = 0; if ((state)->n_lib_roots < 16) {   int32_t llen = driver_get_argv_i(argc, argv, i + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
+  __tmp = ({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
   (void)(((state)->n_lib_roots = (state)->n_lib_roots + 1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -263,8 +263,8 @@ int32_t main_driver_argv_parse_su(int32_t argc, uint8_t * argv, struct main_Driv
     (void)(({ int32_t __tmp = 0; if (len < 0) {   (void)((i = i + 1));
   continue;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (main_eq_minus_L(arg_buf, len) != 0 && i + 1 < argc && (state)->n_lib_roots < 8) {   int32_t llen = driver_get_argv_i(argc, argv, i + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
-  (void)(({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
+    (void)(({ int32_t __tmp = 0; if (main_eq_minus_L(arg_buf, len) != 0 && i + 1 < argc && (state)->n_lib_roots < 16) {   int32_t llen = driver_get_argv_i(argc, argv, i + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
+  (void)(({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
   (void)(((state)->n_lib_roots = (state)->n_lib_roots + 1));
  } else (__tmp = 0) ; __tmp; }));
   (void)((i = i + 2));
@@ -288,8 +288,8 @@ int32_t main_driver_argv_parse_su(int32_t argc, uint8_t * argv, struct main_Driv
   (void)(({ int32_t __tmp = 0; if (main_eq_minus_E(arg_buf, elen) != 0) {   int32_t pi = i + 2;
   while (pi < argc) {
     int32_t plen_temp = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
-    (void)(({ int32_t __tmp = 0; if (plen_temp > 0 && main_eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {   (void)(({ int32_t __tmp = 0; if ((state)->n_lib_roots < 8) {   int32_t llen = driver_get_argv_i(argc, argv, pi + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
-  __tmp = ({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 8 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
+    (void)(({ int32_t __tmp = 0; if (plen_temp > 0 && main_eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {   (void)(({ int32_t __tmp = 0; if ((state)->n_lib_roots < 16) {   int32_t llen = driver_get_argv_i(argc, argv, pi + 1, ((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[(state)->n_lib_roots]), 256);
+  __tmp = ({ int32_t __tmp = 0; if (llen >= 0) {   (void)((((state)->n_lib_roots < 0 || ((state)->n_lib_roots) >= 16 ? (shulang_panic_(1, 0), 0) : (((state)->lib_root_lens)[(state)->n_lib_roots] = llen, 0))));
   (void)(((state)->n_lib_roots = (state)->n_lib_roots + 1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -354,13 +354,13 @@ int32_t main_driver_run_su_emit_su(struct main_DriverSuEmitState * state) {
  } ; __tmp; }));
   (void)(((ctx).num_lib_roots = (state)->n_lib_roots));
   (void)((k = 0));
-  while (k < (state)->n_lib_roots && k < 8) {
+  while (k < (state)->n_lib_roots && k < 16) {
     int32_t r = 0;
-    while (r < (k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_lens)[0]) : ((state)->lib_root_lens)[k]) && r < 256) {
-      (void)(((r < 0 || (r) >= 256 ? (shulang_panic_(1, 0), 0) : (((k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((ctx).lib_root_bufs)[0]) : ((ctx).lib_root_bufs)[k]))[r] = (r < 0 || (r) >= 256 ? (shulang_panic_(1, 0), ((k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[k]))[0]) : ((k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[k]))[r]), 0))));
+    while (r < (k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_lens)[0]) : ((state)->lib_root_lens)[k]) && r < 256) {
+      (void)(((r < 0 || (r) >= 256 ? (shulang_panic_(1, 0), 0) : (((k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((ctx).lib_root_bufs)[0]) : ((ctx).lib_root_bufs)[k]))[r] = (r < 0 || (r) >= 256 ? (shulang_panic_(1, 0), ((k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[k]))[0]) : ((k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_bufs)[0]) : ((state)->lib_root_bufs)[k]))[r]), 0))));
       (void)((r = r + 1));
     }
-    (void)(((k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), 0) : (((ctx).lib_root_lens)[k] = (k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state)->lib_root_lens)[0]) : ((state)->lib_root_lens)[k]), 0))));
+    (void)(((k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), 0) : (((ctx).lib_root_lens)[k] = (k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state)->lib_root_lens)[0]) : ((state)->lib_root_lens)[k]), 0))));
     (void)((k = k + 1));
   }
   struct codegen_CodegenOutBuf out = ({ struct codegen_CodegenOutBuf _t = { 0 }; _t.len = 0; _t; });
@@ -369,9 +369,9 @@ int32_t main_driver_run_su_emit_su(struct main_DriverSuEmitState * state) {
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(driver_pipeline_fail_code(rc, (&(((ctx).path_buf)[0]))));
   return 1;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((state)->out_path_len == 0) {   (void)(driver_print_parse_typeck_ok());
- } else (__tmp = 0) ; __tmp; }));
   size_t len = (out).len;
+  (void)(({ int32_t __tmp = 0; if ((state)->out_path_len == 0) {   (void)(driver_print_su_smoke_summary(module_buf, len));
+ } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((state)->out_path_len > 0) {   int32_t fd = driver_fs_open_write((state)->out_path_buf, (state)->out_path_len);
   (void)(({ int32_t __tmp = 0; if (fd < 0) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
@@ -420,8 +420,8 @@ int32_t main_entry(int32_t argc, uint8_t * argv) {
   (void)(({ int32_t __tmp = 0; if (main_driver_argv_parse_su(argc, argv, (&(state))) != 0) {   (void)(driver_run_su_emit_c_set_emit_extern((state).emit_extern_imports));
   (void)(driver_run_su_emit_c_set_path((state).path_buf, (state).path_len));
   int32_t k = 0;
-  while (k < (state).n_lib_roots && k < 8) {
-    (void)(driver_run_su_emit_c_set_lib(k, (k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state).lib_root_bufs)[0]) : ((state).lib_root_bufs)[k]), (k < 0 || (k) >= 8 ? (shulang_panic_(1, 0), ((state).lib_root_lens)[0]) : ((state).lib_root_lens)[k])));
+  while (k < (state).n_lib_roots && k < 16) {
+    (void)(driver_run_su_emit_c_set_lib(k, (k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state).lib_root_bufs)[0]) : ((state).lib_root_bufs)[k]), (k < 0 || (k) >= 16 ? (shulang_panic_(1, 0), ((state).lib_root_lens)[0]) : ((state).lib_root_lens)[k])));
     (void)((k = k + 1));
   }
   (void)(driver_run_su_emit_c_set_n_lib_roots((state).n_lib_roots));

@@ -33,7 +33,7 @@ LIBROOT=""
 if [ -f "$BUILD_LIST_SU" ]; then
   LIBROOT=$(grep '^// LIBROOT:' "$BUILD_LIST_SU" | sed "s|^// LIBROOT:${TAB}||")
 fi
-[ -z "$LIBROOT" ] && LIBROOT="-L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline"
+[ -z "$LIBROOT" ] && LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 echo "build_shu_asm: using SHU=$SHU (list from $BUILD_LIST_SU)"
 

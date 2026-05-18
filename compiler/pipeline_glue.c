@@ -4,9 +4,13 @@
  * 用法：pipeline_gen.c 末尾有 #include "pipeline_glue.c"（由 runtime.c -E 或 build_patch 追加），
  * 编译 pipeline_gen.c 时由 cc 在同一 TU 内包含本文件，故可直接使用上方已定义的 ast_* / codegen_* 等类型。
  * 不单独编译；无补丁、无 sed，所有逻辑在此源文件内从根源提供。
+ *
+ * parser.su 聚合 -o 可执行时，runtime 在含入前 #define SHU_PARSER_EXE_PIPELINE_GLUE：省略依赖
+ * platform_elf_ElfCodegenCtx 完整定义与 codegen.o 转发符号的片段，避免单文件 TU 编译失败。
  */
 
 /* struct shulang_slice_uint8_t 已由 -E 产出的 pipeline_gen.c 上方定义，不在此重复。 */
+#include <stddef.h>
 #include <string.h>
 
 /** 从 (data, len) 构造 slice，供 parser.su 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
@@ -30,17 +34,38 @@ struct shulang_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
   return parser_slice_from_buf(data, len);
 }
 
+/**
+ * parse_into_init：清零 Module 顶层计数（与 pipeline_gen.c 中 `(module)->num_funcs = 0` 等一致）。
+ * 多 import 合并 typeck 时，对 *Module 字段逐条 SU 赋值可能 FIELD_ACCESS 左侧类型暂为 ?，报 expected ?, found i32。
+ */
+void pipeline_module_reset_parse_counters(struct ast_Module *m) {
+  if (!m)
+    return;
+  m->num_funcs = 0;
+  m->main_func_index = -1;
+  m->num_imports = 0;
+  m->num_top_level_lets = 0;
+  m->num_struct_layouts = 0;
+}
+
+#ifndef SHU_PARSER_EXE_PIPELINE_GLUE
 /* C 包装：以 (data, len) 形式调用 pipeline，impl 内用 parse_into_with_init_buf 解析，无需组 slice。 */
 extern int32_t pipeline_run_su_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
 
 int32_t pipeline_run_su_pipeline(struct ast_Module *module, struct ast_ASTArena *arena, const uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
   return pipeline_run_su_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
 }
+#endif /* !SHU_PARSER_EXE_PIPELINE_GLUE */
 
 size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
 size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
 size_t pipeline_arena_offset_num_types(void) { return offsetof(struct ast_ASTArena, num_types); }
+#ifndef SHU_PARSER_EXE_PIPELINE_GLUE
 size_t pipeline_sizeof_elf_ctx(void) { return sizeof(struct platform_elf_ElfCodegenCtx); }
+#else
+/** parser 聚合 exe TU 不含 ElfCodegenCtx 定义：占位返回 0（该路径不调 asm 全流程 sizeof）。 */
+size_t pipeline_sizeof_elf_ctx(void) { return (size_t)0; }
+#endif /* SHU_PARSER_EXE_PIPELINE_GLUE */
 
 #include <stdio.h>
 void pipeline_debug_module_funcs(void *m) {
@@ -121,6 +146,48 @@ static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int
 }
 
 /**
+ * parser.su expr_ref_is_assign_lvalue：与 shu-c 生成码对 struct 直读一致。
+ * SU 中对「let e: Expr = ast_arena_expr_get(...)」再写 e.kind == … 会在 .su typeck 路径失败（见 ast.su 注释）；由 C 从池读 kind / is_enum_variant。
+ * 返回 1 表示可作为赋值左值，0 表示否。
+ */
+int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref) {
+  enum ast_ExprKind kd;
+  int32_t ix;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs) {
+    return 0;
+  }
+  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
+  if (kd == ast_ExprKind_EXPR_VAR || kd == ast_ExprKind_EXPR_INDEX) {
+    return 1;
+  }
+  if (kd != ast_ExprKind_EXPR_FIELD_ACCESS) {
+    return 0;
+  }
+  ix = expr_ref - 1;
+  if (ix < 0 || ix >= 8192) {
+    return 0;
+  }
+  return a->exprs[ix].field_access_is_enum_variant == 0 ? 1 : 0;
+}
+
+/**
+ * parser.su compound_assign_token_to_expr_kind：在 C 内完成 TokenKind→ExprKind 映射，
+ * 避免 .su 中 `return ExprKind.*` 与枚举比较在 typeck 下失败；符号名供 parser extern 原样链接。
+ */
+enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(enum token_TokenKind kind) {
+  if (kind == token_TokenKind_TOKEN_PLUS_EQ) return ast_ExprKind_EXPR_ADD_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_MINUS_EQ) return ast_ExprKind_EXPR_SUB_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_STAR_EQ) return ast_ExprKind_EXPR_MUL_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_SLASH_EQ) return ast_ExprKind_EXPR_DIV_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_PERCENT_EQ) return ast_ExprKind_EXPR_MOD_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_AMP_EQ) return ast_ExprKind_EXPR_BITAND_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_PIPE_EQ) return ast_ExprKind_EXPR_BITOR_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_CARET_EQ) return ast_ExprKind_EXPR_BITXOR_ASSIGN;
+  if (kind == token_TokenKind_TOKEN_LSHIFT_EQ) return ast_ExprKind_EXPR_SHL_ASSIGN;
+  return ast_ExprKind_EXPR_SHR_ASSIGN;
+}
+
+/**
  * ast.su extern：块末若为 RETURN/PANIC/BREAK/CONTINUE，返回 1（禁止隐式尾）；非法 ref 视为 1。
  * 符号名 deliberately 无前缀，供 SU「extern function」原样映射，避免与其它 ast_ast_* extern 串联重复前缀。
  */
@@ -133,19 +200,6 @@ int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_r
       kd == ast_ExprKind_EXPR_BREAK || kd == ast_ExprKind_EXPR_CONTINUE)
     return 1;
   return 0;
-}
-
-/**
- * backend.su 经 import codegen，extern 编成 codegen_codegen_* / codegen_driver_*。
- * pipeline_gen.c 已声明 codegen_su_import_path_to_c_prefix、driver_call_num_args_override，
- * 实现在 codegen.o + runtime.c（runtime_driver.o）；此处只做一层转发。
- */
-void codegen_codegen_su_import_path_to_c_prefix(uint8_t *path, uint8_t *buf, int32_t len) {
-  codegen_su_import_path_to_c_prefix(path, buf, len);
-}
-
-int32_t codegen_driver_call_num_args_override(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len, int32_t num_args) {
-  return driver_call_num_args_override(prefix, prefix_len, name, name_len, num_args);
 }
 
 /**
@@ -208,6 +262,85 @@ int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref) {
   return arena->types[idx].array_size;
 }
 
+/**
+ * 按函数下标与形参变量名查找 Param.type_ref（有效时非 0）。
+ * typeck.su 不得在 SU/asm 中直接读 module.funcs[fi].params[pi]：Func 与嵌套 Param 体积大，
+ * 部分后端对嵌套数组下标的寻址或按值路径不完整，会导致形参类型错、*T 上 FIELD_ACCESS 的 LHS 落成未解析类型。
+ */
+int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32_t func_index,
+                                                     uint8_t *var_name, int32_t var_name_len) {
+  struct ast_Func *f;
+  int32_t n, i;
+  if (!m || !var_name || func_index < 0 || func_index >= 256)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  if (var_name_len <= 0 || var_name_len > 31)
+    return 0;
+  f = &m->funcs[func_index];
+  n = (int32_t)f->num_params;
+  if (n < 0)
+    return 0;
+  if (n > 16)
+    n = 16;
+  for (i = 0; i < n; i++) {
+    struct ast_Param *p = &f->params[i];
+    int32_t plen = (int32_t)p->name_len;
+    int32_t tr = (int32_t)p->type_ref;
+    if (tr == 0)
+      continue;
+    if (plen != var_name_len)
+      continue;
+    if (plen <= 0 || plen > 31)
+      continue;
+    if (memcmp(p->name, var_name, (size_t)var_name_len) != 0)
+      continue;
+    return tr;
+  }
+  return 0;
+}
+
+/**
+ * 将单个形参写入 module->funcs[func_index].params[param_index]（memcpy 名字 + 写 name_len/type_ref）。
+ * parser.su 中禁止 let p = module.funcs[fi].params[pi] 再写回：Param 在部分 asm 寻址下按值拷贝会丢 type_ref，导致形参 *T 上 FIELD_ACCESS 无法 typeck。
+ */
+void pipeline_module_func_param_write(struct ast_Module *m, int32_t func_index, int32_t param_index,
+                                      uint8_t *name_bytes, int32_t name_len, int32_t type_ref) {
+  struct ast_Param *p;
+  if (!m || !name_bytes || func_index < 0 || func_index >= 256 || param_index < 0 || param_index >= 16)
+    return;
+  if (name_len < 0 || name_len > 31)
+    return;
+  p = &m->funcs[func_index].params[param_index];
+  p->name_len = name_len;
+  p->type_ref = type_ref;
+  memset(p->name, 0, sizeof(p->name));
+  if (name_len > 0)
+    memcpy(p->name, name_bytes, (size_t)name_len);
+}
+
+/**
+ * 同上，目标为 arena 内 func 池：arena->funcs[func_ref - 1].params[param_index]，供 parse_into_buf(expr-only) 路径。
+ */
+void pipeline_arena_func_param_write(struct ast_ASTArena *arena, int32_t func_ref, int32_t param_index,
+                                     uint8_t *name_bytes, int32_t name_len, int32_t type_ref) {
+  struct ast_Param *p;
+  int32_t idx;
+  if (!arena || !name_bytes || func_ref <= 0 || func_ref > 256 || param_index < 0 || param_index >= 16)
+    return;
+  if (name_len < 0 || name_len > 31)
+    return;
+  idx = func_ref - 1;
+  if (idx < 0 || idx >= 256)
+    return;
+  p = &arena->funcs[idx].params[param_index];
+  p->name_len = name_len;
+  p->type_ref = type_ref;
+  memset(p->name, 0, sizeof(p->name));
+  if (name_len > 0)
+    memcpy(p->name, name_bytes, (size_t)name_len);
+}
+
 /** struct_layout 槽有效下标：返回名称字节长度（与 StructLayout.name_len 一致）。 */
 int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx) {
   int32_t len;
@@ -232,14 +365,14 @@ int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t i
   if (!m || idx < 0 || idx >= 32)
     return 0;
   nf = (int32_t)m->struct_layouts[idx].num_fields;
-  if (nf < 0 || nf > 24)
+  if (nf < 0 || nf > 64)
     return 0;
   return nf;
 }
 
 /** 第 j 个字段的类型池 ref；无效返回 0。 */
 int32_t pipeline_module_struct_layout_field_type_ref(struct ast_Module *m, int32_t li, int32_t j) {
-  if (!m || li < 0 || li >= 32 || j < 0 || j >= 24)
+  if (!m || li < 0 || li >= 32 || j < 0 || j >= 64)
     return 0;
   return m->struct_layouts[li].field_type_refs[j];
 }
@@ -247,7 +380,7 @@ int32_t pipeline_module_struct_layout_field_type_ref(struct ast_Module *m, int32
 /** 字段名长度；无效返回 0。 */
 int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32_t li, int32_t j) {
   int32_t fl;
-  if (!m || li < 0 || li >= 32 || j < 0 || j >= 24)
+  if (!m || li < 0 || li >= 32 || j < 0 || j >= 64)
     return 0;
   fl = (int32_t)m->struct_layouts[li].field_lens[j];
   if (fl <= 0 || fl > 63)
@@ -257,7 +390,7 @@ int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32
 
 /** 拷贝字段名到 out64。 */
 void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64) {
-  if (!m || li < 0 || li >= 32 || j < 0 || j >= 24 || !out64)
+  if (!m || li < 0 || li >= 32 || j < 0 || j >= 64 || !out64)
     return;
   memcpy(out64, m->struct_layouts[li].field_names[j], sizeof(m->struct_layouts[li].field_names[j]));
 }
@@ -289,7 +422,7 @@ void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, u
 void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,
                                               int32_t fname_len, int32_t ftype_ref, int32_t foff) {
   struct ast_StructLayout *sl;
-  if (!m || li < 0 || li >= 32 || j < 0 || j >= 24)
+  if (!m || li < 0 || li >= 32 || j < 0 || j >= 64)
     return;
   if (fname_len <= 0 || fname_len > 63)
     return;

@@ -14,6 +14,7 @@ struct token_Token { enum token_TokenKind kind; int32_t line; int32_t col; int32
 struct shulang_slice_uint8_t { uint8_t *data; size_t length; };
 struct lexer_Lexer { size_t pos; int32_t line; int32_t col; };
 struct lexer_LexerResult { struct lexer_Lexer next_lex; struct token_Token tok; size_t token_start; };
+extern struct shulang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * restrict data, int32_t len);
 struct lexer_Lexer lexer_lexer_init();
 struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c);
 int lexer_is_alpha(uint8_t c);
@@ -31,6 +32,7 @@ void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct l
 void lexer_write_tok_into(struct lexer_LexerResult * restrict out, struct token_Token t);
 void lexer_lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * data);
 void lexer_lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * data);
+void lexer_lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct lexer_LexerResult lexer_lexer_next_body(struct lexer_Lexer l, struct shulang_slice_uint8_t * data);
 struct lexer_LexerResult lexer_lexer_next_body_buf(struct lexer_Lexer l, uint8_t * restrict data, int32_t len);
@@ -666,15 +668,20 @@ void lexer_lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer
 void lexer_lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shulang_slice_uint8_t * data) {
   (void)(lexer_lexer_next_impl(out, lex, data));
 }
+void lexer_lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
+  struct shulang_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
+  (void)(lexer_lexer_next_into(out, lex, &(source)));
+}
 struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
   struct lexer_Lexer l = lexer_skip_whitespace_and_comments_buf(lex, data, len);
   size_t len_u = ((size_t)(len));
-  return ({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((l).pos >= len_u) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
-  __tmp = (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
- } else (__tmp = ({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((data)[(l).pos] == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
-  __tmp = (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
- } else {   __tmp = lexer_lexer_next_body_buf(l, data, len);
- } ; __tmp; })) ; __tmp; });
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((l).pos >= len_u) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((data)[(l).pos] == 0) {   struct token_Token t2 = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = t2, .token_start = ((size_t)(0)) };
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  return lexer_lexer_next_body_buf(l, data, len);
 }
 struct lexer_LexerResult lexer_lexer_next_body(struct lexer_Lexer l, struct shulang_slice_uint8_t * data) {
   uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shulang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
@@ -687,7 +694,7 @@ struct lexer_LexerResult lexer_lexer_next_body(struct lexer_Lexer l, struct shul
   }
   size_t len = (l).pos - start;
   struct token_Token tok = lexer_try_keyword(data, start, len, line0, col0);
-  return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = ((size_t)(0)) };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
   (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_is_digit(c)) {   size_t start = (l).pos;
   int32_t line0 = (l).line;
@@ -889,7 +896,7 @@ struct lexer_LexerResult lexer_lexer_next_body_buf(struct lexer_Lexer l, uint8_t
   }
   size_t seg_len = (l).pos - start;
   struct token_Token tok = lexer_try_keyword_buf(data, len, start, seg_len, line0, col0);
-  return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = ((size_t)(0)) };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
   (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_is_digit(c)) {   size_t start = (l).pos;
   int32_t line0 = (l).line;

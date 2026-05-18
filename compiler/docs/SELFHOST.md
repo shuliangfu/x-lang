@@ -68,6 +68,7 @@
 - 跑完 `scripts/build_shu_asm.sh` 或单独 `scripts/check_asm_o_quality.sh` 后查看：
   - `compiler/build_asm/.asm_text_quality`：`1` = 全非空，`0` = 存在缺失或空段。
   - `compiler/build_asm/.asm_empty_text_list`：**一行一条**，形如 `MISSING foo.o`、`EMPTY foo.o`。按文件名对应 `asm_build_list.su` 的 `// BUILD:` 源 `.su`，在 **解析/类型/asm 后端**侧消除「仅占位无代码」的编译结果。
+  - **质检脚本**对 **Mach-O** 读段名 `__text`，对 **ELF（Linux）** 读 `.text`；若仅在 Linux 上曾出现「24 条全 EMPTY」而 macOS 仅少数条，多半是段名误判而非 asm 未落码——以 `check_asm_o_quality.sh` 实现为准。
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.su` 中 `let_type_refs`）。
 
 ---

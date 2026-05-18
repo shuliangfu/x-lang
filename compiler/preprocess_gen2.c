@@ -21,31 +21,32 @@ extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
 struct shulang_slice_uint8_t { uint8_t *data; size_t length; };
 struct typeck_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
-struct typeck_ParseDirectiveResult typeck_parse_directive(uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]);
+void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]);
 int32_t typeck_preprocess_su(struct shulang_slice_uint8_t * source, struct shulang_slice_uint8_t * out_buf);
 int32_t typeck_preprocess_su_buf(uint8_t source_buf[262144], ptrdiff_t source_len, uint8_t out_buf[262144], int32_t out_cap);
-struct typeck_ParseDirectiveResult typeck_parse_directive(uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]) {
-  struct typeck_ParseDirectiveResult zero = (struct typeck_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]) {
   int32_t pos = 0;
+  (void)(((out)->kind = 0));
+  (void)(((out)->sym_len = 0));
   while (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9) {
     (void)((pos = pos + 1));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 35) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 35) {   return;
+ } else (__tmp = 0) ; __tmp; }));
   (void)((pos = pos + 1));
   while (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9) {
     (void)((pos = pos + 1));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos + 2 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 105 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 102) {   (void)((pos = pos + 2));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 2 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 105 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 102) {   (void)((pos = pos + 2));
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
   while (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9) {
     (void)((pos = pos + 1));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
   int32_t s = 0;
   while (pos < line_len && s < 63) {
     uint8_t ch = (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
@@ -55,18 +56,20 @@ struct typeck_ParseDirectiveResult typeck_parse_directive(uint8_t line_buf[512],
  } else {   break;
  } ; __tmp; }));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (s == 0) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  return (struct typeck_ParseDirectiveResult){ .kind = 1, .sym_len = s };
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   (void)((pos = pos + 6));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (s == 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(((out)->kind = 1));
+  (void)(((out)->sym_len = s));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   (void)((pos = pos + 6));
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
   while (pos < line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9) {
     (void)((pos = pos + 1));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
   int32_t s = 0;
   while (pos < line_len && s < 63) {
     uint8_t ch = (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
@@ -76,21 +79,27 @@ struct typeck_ParseDirectiveResult typeck_parse_directive(uint8_t line_buf[512],
  } else {   break;
  } ; __tmp; }));
   }
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (s == 0) {   return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  return (struct typeck_ParseDirectiveResult){ .kind = 4, .sym_len = s };
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   (void)((pos = pos + 4));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   return (struct typeck_ParseDirectiveResult){ .kind = 2, .sym_len = 0 };
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos + 5 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 110 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 100 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 105 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 102) {   (void)((pos = pos + 5));
-  (void)(({ struct typeck_ParseDirectiveResult __tmp = (struct typeck_ParseDirectiveResult){0}; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   return (struct typeck_ParseDirectiveResult){ .kind = 3, .sym_len = 0 };
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  return zero;
- } else (__tmp = (struct typeck_ParseDirectiveResult){0}) ; __tmp; }));
-  return zero;
+  (void)(({ int32_t __tmp = 0; if (s == 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(((out)->kind = 4));
+  (void)(((out)->sym_len = s));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   (void)((pos = pos + 4));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   (void)(((out)->kind = 2));
+  (void)(((out)->sym_len = 0));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 5 <= line_len && (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 110 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 100 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 105 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 102) {   (void)((pos = pos + 5));
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shulang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   (void)(((out)->kind = 3));
+  (void)(((out)->sym_len = 0));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
 }
 int32_t typeck_preprocess_su(struct shulang_slice_uint8_t * source, struct shulang_slice_uint8_t * out_buf) {
   (void)(({ int32_t __tmp = 0; if ((out_buf)->length <= 0) {   return (-1);
@@ -104,7 +113,8 @@ int32_t typeck_preprocess_su(struct shulang_slice_uint8_t * source, struct shula
   while (pos < (source)->length) {
     uint8_t ch = (pos < 0 || (size_t)(pos) >= (source)->length ? (shulang_panic_(1, 0), (source)->data[0]) : (source)->data[pos]);
     (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t sym[64] = { 0 };
-  struct typeck_ParseDirectiveResult res = typeck_parse_directive(line_buf, line_len, sym);
+  struct typeck_ParseDirectiveResult res = (struct typeck_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(typeck_parse_directive_into((&(res)), line_buf, line_len, sym));
   int32_t kind = (res).kind;
   __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   (void)(({ int32_t __tmp = 0; if (kind == 1) {   (void)(({ int32_t __tmp = 0; if (depth >= 32) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -175,7 +185,8 @@ int32_t typeck_preprocess_su_buf(uint8_t source_buf[262144], ptrdiff_t source_le
   while (pos < source_len && pos < 262144) {
     uint8_t ch = (pos < 0 || (pos) >= 262144 ? (shulang_panic_(1, 0), (source_buf)[0]) : (source_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t sym[64] = { 0 };
-  struct typeck_ParseDirectiveResult res = typeck_parse_directive(line_buf, line_len, sym);
+  struct typeck_ParseDirectiveResult res = (struct typeck_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(typeck_parse_directive_into((&(res)), line_buf, line_len, sym));
   int32_t kind = (res).kind;
   __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   (void)(({ int32_t __tmp = 0; if (kind == 1) {   (void)(({ int32_t __tmp = 0; if (depth >= 32) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));

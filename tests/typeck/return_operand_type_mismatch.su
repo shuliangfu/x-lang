@@ -1,0 +1,6 @@
+// 负例：非 void 函数 return 表达式类型须与签名一致。.su typeck（check_expr_impl EXPR_RETURN）拒绝 bool→i32；shu-c 路径仍可能宽松。
+// 回归：run-typeck.sh 在 shu-su / shu_su 上对此文件带 -su 断言报错。
+function main(): i32 {
+  let x: bool = true;
+  return x;
+}

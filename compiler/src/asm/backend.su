@@ -17,7 +17,7 @@ import arch.riscv64_enc;
 
 /** 诊断：asm 不支持的 ExprKind 时由 runtime.c 打印，便于定位 rc=-6。 */
 extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
-/** 诊断：return -1 前调用，loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue。 */
+/** 诊断：return -1 前调用，loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_label。 */
 extern function driver_diagnostic_asm_fail_at(loc: i32): void;
 /** 诊断：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 extern function driver_diagnostic_asm_set_last_expr_kind(k: i32): void;
@@ -25,8 +25,9 @@ extern function driver_diagnostic_asm_set_last_expr_kind(k: i32): void;
 extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
 /** 诊断：每函数 codegen 前设置当前函数名，供 var_not_found 打印。 */
 extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
-/** 与 codegen：import 路径转 C ABI 符号前缀。 */
-extern function codegen_su_import_path_to_c_prefix(path: *u8, buf: *u8, buf_cap: i32): void;
+/** 与 codegen：import 路径转 C ABI 符号前缀（实现在 codegen.su：codegen_import_path_to_c_prefix_into）。 */
+/** parser_gen / C ABI：将 cur_mod 第 i 条 import 的逻辑路径写入 out_buf（至多 64 字节，含 NUL）。 */
+extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: [64]u8): void;
 /** 驱动：部分 std/c shim 调用在 AST 中与真实 C 原型实参个数不一致，由 C 侧校正。 */
 extern function driver_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
 
@@ -351,8 +352,9 @@ struct LocalSlot {
   offset: i32;
 }
 
-/** 当前函数上下文：栈帧大小、局部变量表、标签计数器；循环时填入 break/continue 目标标签。 */
-struct AsmFuncCtx {
+/** 当前函数上下文：栈帧大小、局部变量表、标签计数器；循环时填入 break/continue 目标标签；
+ * 新增字段后与 C/driver 对齐时允许编译器尾随 padding（typeck padding 门禁）。 */
+allow(padding) struct AsmFuncCtx {
   frame_size: i32;
   next_offset: i32;
   locals: [24]LocalSlot;
@@ -368,6 +370,9 @@ struct AsmFuncCtx {
   continue_len: i32;
   /** Pipeline 依赖（dep_paths / ndep）；供绑定 import 调用 `mod.fn` 时与 codegen 一致地拼符号名。 */
   dep_pipe: *PipelineDepCtx;
+  /** 函数尾汇合标签（emit_next_label 生成）：`return;`（无操作数）发 jmp 至此，再与尾 return 表达式、epilogue 衔接。 */
+  tail_join_label: [64]u8;
+  tail_join_label_len: i32;
 }
 
 /** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1，与 codegen_c_prefix_redundant_with_name 对齐。 */
@@ -415,6 +420,190 @@ function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *
     return -1;
   }
   return pos;
+}
+
+/** import 路径缓冲区中 '.' 分段数（与 typeck_import_path_segment_count 一致）。 */
+function asm_import_path_segment_count_local(path: *u8, path_len: i32): i32 {
+  if (path_len <= 0 || path == 0 as *u8) {
+    return 0;
+  }
+  let n: i32 = 1;
+  let ii: i32 = 0;
+  while (ii < path_len) {
+    if (path[ii] == 46) {
+      n = n + 1;
+    }
+    ii = ii + 1;
+  }
+  return n;
+}
+
+/** module.import_path_data[imp_ix*64 ..] 内第 want_seg 段起点偏移与长度。 */
+function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_seg: i32,
+  ostr: *i32, olen: *i32): bool {
+  if (module == 0 as *Module || imp_ix < 0 || imp_ix >= 32) {
+    return false;
+  }
+  let pb: i32 = imp_ix * 64;
+  let pl: i32 = module.import_path_lens[imp_ix];
+  if (pl <= 0 || pl > 63) {
+    return false;
+  }
+  let ci: i32 = 0;
+  let ss: i32 = 0;
+  let k: i32 = 0;
+  while (k <= pl) {
+    let at_end_p: bool = k == pl;
+    let dot_p: bool = false;
+    if (!at_end_p && k < pl) {
+      dot_p = module.import_path_data[pb + k] == 46;
+    }
+    if (at_end_p || dot_p) {
+      let seg_len_here: i32 = k - ss;
+      if (seg_len_here <= 0) {
+        return false;
+      }
+      if (ci == want_seg) {
+        ostr[0] = ss;
+        olen[0] = seg_len_here;
+        return true;
+      }
+      if (dot_p) {
+        ss = k + 1;
+      }
+      ci = ci + 1;
+    }
+    k = k + 1;
+  }
+  return false;
+}
+
+/** 将正在 codegen 的 module 在第 imp_ix 槽的 import 逻辑路径转成 C ABI 前缀写入 pre_buf；成功返回前缀长度（字节），路径空或前缀空返回 -1。 */
+function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre_buf: *u8): i32 {
+  let path_bytes: [64]u8 = [];
+  parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
+  if (path_bytes[0] == 0) {
+    return -1;
+  }
+  codegen_import_path_to_c_prefix_into(&path_bytes[0], pre_buf, 128);
+  let pre_len: i32 = 0;
+  while (pre_len < 128 && pre_buf[pre_len] != 0) {
+    pre_len = pre_len + 1;
+  }
+  if (pre_len <= 0) {
+    return -1;
+  }
+  return pre_len;
+}
+
+/** 若为 `import a.b…` + `a.b….method(args)` 形式，拼装与 codegen 一致的 C ABI 符号并写入 sym_flat，返回字节长度；-1 未匹配。
+ * 成功时同时将对应 module import 槽下标写入 *out_match_imp_j。
+ * pipe 仅保留参数兼容：前缀一律从 cur_mod 的 import 槽取路径（codegen dep 模块时 PipelineDepCtx.ndep 常为入口 direct 依赖数，
+ * 与 cur_mod.num_imports 不一致，不可用 dep_j &lt; pipe.ndep 截断查找）。未匹配不写 *out。 */
+function asm_resolve_whole_import_qualified_symbol(
+  arena: *ASTArena, cur_mod: *Module, pipe: *PipelineDepCtx, callee_expr_ref: i32, sym_flat: *u8,
+  out_match_imp_j: *i32): i32 {
+  if (arena == 0 as *ASTArena || cur_mod == 0 as *Module
+      || sym_flat == 0 as *u8 || callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let callee0: Expr = ast_arena_expr_get(arena, callee_expr_ref);
+  if (callee0.kind != ExprKind.EXPR_FIELD_ACCESS) {
+    return -1;
+  }
+  let layer_bytes: [16][64]u8 = [];
+  let layer_lens: [16]i32 = [];
+  let nstack: i32 = 0;
+  let cur_ref: i32 = callee_expr_ref;
+  while (true) {
+    if (cur_ref <= 0 || cur_ref > arena.num_exprs) {
+      return -1;
+    }
+    let exx: Expr = ast_arena_expr_get(arena, cur_ref);
+    if (exx.kind != ExprKind.EXPR_FIELD_ACCESS || exx.field_access_field_len <= 0 || exx.field_access_field_len > 63) {
+      break;
+    }
+    if (nstack >= 16) {
+      return -1;
+    }
+    let lix: i32 = 0;
+    while (lix < exx.field_access_field_len && lix < 64) {
+      layer_bytes[nstack][lix] = exx.field_access_field_name[lix];
+      lix = lix + 1;
+    }
+    layer_lens[nstack] = exx.field_access_field_len;
+    nstack = nstack + 1;
+    cur_ref = exx.field_access_base_ref;
+  }
+  if (cur_ref <= 0 || cur_ref > arena.num_exprs) {
+    return -1;
+  }
+  let base_var_ex: Expr = ast_arena_expr_get(arena, cur_ref);
+  if (base_var_ex.kind != ExprKind.EXPR_VAR || base_var_ex.var_name_len <= 0 || base_var_ex.var_name_len > 63) {
+    return -1;
+  }
+  let dep_j: i32 = 0;
+  while (dep_j < cur_mod.num_imports && dep_j < 32) {
+    if (cur_mod.import_kinds[dep_j] != ImportKind.IMPORT_WHOLE) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let pb: i32 = dep_j * 64;
+    let plen: i32 = cur_mod.import_path_lens[dep_j];
+    if (plen <= 0 || plen > 63) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let Pseg: i32 = asm_import_path_segment_count_local(&cur_mod.import_path_data[pb], plen);
+    if (Pseg <= 0 || nstack != Pseg) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let s0_rel: i32 = 0;
+    let s0_ln: i32 = 0;
+    if (!asm_import_segment_at_local(cur_mod, dep_j, 0, &s0_rel, &s0_ln)) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    if (!asm_names_equal(&cur_mod.import_path_data[pb + s0_rel], s0_ln, base_var_ex.var_name, base_var_ex.var_name_len)) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let bad_mid: bool = false;
+    let sm: i32 = 1;
+    while (sm <= Pseg - 1) {
+      let srv: i32 = 0;
+      let slv: i32 = 0;
+      if (!asm_import_segment_at_local(cur_mod, dep_j, sm, &srv, &slv)) {
+        bad_mid = true;
+      } else {
+        let lay_ix: i32 = Pseg - sm;
+        if (!asm_names_equal(&cur_mod.import_path_data[pb + srv], slv, &layer_bytes[lay_ix][0], layer_lens[lay_ix])) {
+          bad_mid = true;
+        }
+      }
+      if (bad_mid) {
+        break;
+      }
+      sm = sm + 1;
+    }
+    if (bad_mid) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let pre_buf: [128]u8 = [];
+    let pre_len: i32 = asm_fill_c_prefix_from_module_import(cur_mod, dep_j, &pre_buf[0]);
+    if (pre_len <= 0) {
+      dep_j = dep_j + 1;
+      continue;
+    }
+    let blt: i32 = asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &layer_bytes[0][0], layer_lens[0], sym_flat);
+    if (out_match_imp_j != 0 as *i32) {
+      out_match_imp_j[0] = dep_j;
+    }
+    return blt;
+  }
+  return -1;
 }
 
 /** 文本 asm：为 call 准备至多 6 个实参（与历史 emit_expr_call 体一致）。 */
@@ -540,6 +729,7 @@ function ctx_reset(ctx: *AsmFuncCtx, mod: *Module): void {
   ctx.break_len = 0;
   ctx.continue_len = 0;
   ctx.dep_pipe = 0 as *PipelineDepCtx;
+  ctx.tail_join_label_len = 0;
 }
 
 /** 按形参 + 块中 const + let 数量计算栈帧大小（每槽 8 字节，向上取整到 16），并预留 64 字节 temp 区供 STRUCT_LIT/ARRAY_LIT。
@@ -910,17 +1100,17 @@ function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 {
 /** 单独处理 EXPR_CALL：支持绑定 import 的 FIELD_ACCESS callee（对齐 codegen）；否则要求 EXPR_VAR。 */
 function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, e: Expr, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   let callee: Expr = ast_arena_expr_get(arena, e.call_callee_ref);
-  /** `const m = import path; m.fn(args)`：callee 为 FIELD_ACCESS。 */
+  /** `const m = import path; m.fn(args)`：callee 为 FIELD_ACCESS。前缀从 cur_mod 的 import 槽取，不能与 PipelineDepCtx.ndep 对齐时仍正确。 */
   let pipe: *PipelineDepCtx = ctx.dep_pipe;
-  if (pipe != 0 as *PipelineDepCtx && ctx.module_ref != 0 as *Module && pipe.ndep > 0
+  if (ctx.module_ref != 0 as *Module
       && callee.kind == ExprKind.EXPR_FIELD_ACCESS
       && callee.field_access_base_ref > 0 && callee.field_access_base_ref <= arena.num_exprs) {
     let base: Expr = ast_arena_expr_get(arena, callee.field_access_base_ref);
     if (base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0 && base.var_name_len <= 63) {
       let cur_mod: *Module = ctx.module_ref;
       let j: i32 = 0;
-      while (j < cur_mod.num_imports && j < pipe.ndep && j < 32) {
-        if (cur_mod.import_kinds[j] == 1 && cur_mod.import_binding_name_len[j] == base.var_name_len && pipe.dep_paths[j] != 0 as *u8) {
+      while (j < cur_mod.num_imports && j < 32) {
+        if (cur_mod.import_kinds[j] == ImportKind.IMPORT_BINDING && cur_mod.import_binding_name_len[j] == base.var_name_len) {
           let eq: bool = true;
           let kk: i32 = 0;
           while (kk < base.var_name_len && kk < 64) {
@@ -932,10 +1122,10 @@ function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, e: Expr, ctx: *As
           }
           if (eq) {
             let pre_buf: [128]u8 = [];
-            codegen_su_import_path_to_c_prefix(pipe.dep_paths[j], &pre_buf[0], 128);
-            let pre_len: i32 = 0;
-            while (pre_len < 128 && pre_buf[pre_len] != 0) {
-              pre_len = pre_len + 1;
+            let pre_len: i32 = asm_fill_c_prefix_from_module_import(cur_mod, j, &pre_buf[0]);
+            if (pre_len <= 0) {
+              driver_diagnostic_asm_fail_at(71);
+              return -1;
             }
             let sym_flat: [64]u8 = [];
             let sym_len: i32 = asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &callee.field_access_field_name[0], callee.field_access_field_len, &sym_flat[0]);
@@ -951,6 +1141,25 @@ function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, e: Expr, ctx: *As
         }
         j = j + 1;
       }
+    }
+  }
+  /** import platform.elf; + platform.elf.fn(...) */
+  if (ctx.module_ref != 0 as *Module && pipe != 0 as *PipelineDepCtx
+      && callee.kind == ExprKind.EXPR_FIELD_ACCESS) {
+    let imp_slot: i32 = 0;
+    let sym_wh: [64]u8 = [];
+    let wlen: i32 = asm_resolve_whole_import_qualified_symbol(arena, ctx.module_ref, pipe, e.call_callee_ref, &sym_wh[0], &imp_slot);
+    if (wlen > 0 && imp_slot >= 0 && imp_slot < 32) {
+      let pre_wb: [128]u8 = [];
+      let pre_wl: i32 = asm_fill_c_prefix_from_module_import(ctx.module_ref, imp_slot, &pre_wb[0]);
+      if (pre_wl <= 0) {
+        driver_diagnostic_asm_fail_at(71);
+        return -1;
+      }
+      let n_who: i32 = driver_call_num_args_override(&pre_wb[0], pre_wl, &callee.field_access_field_name[0], callee.field_access_field_len, e.call_num_args);
+      if (asm_emit_call_args_text(arena, out, e, ctx, target_arch, n_who) != 0) { return -1; }
+      if (arch_emit_call(out, sym_wh, wlen, target_arch) != 0) { return -1; }
+      return 0;
     }
   }
   if (callee.kind != ExprKind.EXPR_VAR) { driver_diagnostic_asm_fail_at(71); return -1; }
@@ -1034,15 +1243,15 @@ function emit_expr_elf_method_call(arena: *ASTArena, elf_ctx: *platform.elf.ElfC
 function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenCtx, e: Expr, ctx: *AsmFuncCtx, ta: i32): i32 {
   let callee: Expr = ast_arena_expr_get(arena, e.call_callee_ref);
   let pipe: *PipelineDepCtx = ctx.dep_pipe;
-  if (pipe != 0 as *PipelineDepCtx && ctx.module_ref != 0 as *Module && pipe.ndep > 0
+  if (ctx.module_ref != 0 as *Module
       && callee.kind == ExprKind.EXPR_FIELD_ACCESS
       && callee.field_access_base_ref > 0 && callee.field_access_base_ref <= arena.num_exprs) {
     let base: Expr = ast_arena_expr_get(arena, callee.field_access_base_ref);
     if (base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0 && base.var_name_len <= 63) {
       let cur_mod: *Module = ctx.module_ref;
       let j: i32 = 0;
-      while (j < cur_mod.num_imports && j < pipe.ndep && j < 32) {
-        if (cur_mod.import_kinds[j] == 1 && cur_mod.import_binding_name_len[j] == base.var_name_len && pipe.dep_paths[j] != 0 as *u8) {
+      while (j < cur_mod.num_imports && j < 32) {
+        if (cur_mod.import_kinds[j] == ImportKind.IMPORT_BINDING && cur_mod.import_binding_name_len[j] == base.var_name_len) {
           let eq: bool = true;
           let kk: i32 = 0;
           while (kk < base.var_name_len && kk < 64) {
@@ -1054,11 +1263,8 @@ function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenC
           }
           if (eq) {
             let pre_buf: [128]u8 = [];
-            codegen_su_import_path_to_c_prefix(pipe.dep_paths[j], &pre_buf[0], 128);
-            let pre_len: i32 = 0;
-            while (pre_len < 128 && pre_buf[pre_len] != 0) {
-              pre_len = pre_len + 1;
-            }
+            let pre_len: i32 = asm_fill_c_prefix_from_module_import(cur_mod, j, &pre_buf[0]);
+            if (pre_len <= 0) { return -1; }
             let sym_flat: [64]u8 = [];
             let sym_len: i32 = asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &callee.field_access_field_name[0], callee.field_access_field_len, &sym_flat[0]);
             if (sym_len <= 0) { return -1; }
@@ -1069,6 +1275,21 @@ function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenC
         }
         j = j + 1;
       }
+    }
+  }
+  /** import platform.elf; + platform.elf.fn(...) */
+  if (ctx.module_ref != 0 as *Module && pipe != 0 as *PipelineDepCtx
+      && callee.kind == ExprKind.EXPR_FIELD_ACCESS) {
+    let imp_elt: i32 = 0;
+    let sym_eh: [64]u8 = [];
+    let elen: i32 = asm_resolve_whole_import_qualified_symbol(arena, ctx.module_ref, pipe, e.call_callee_ref, &sym_eh[0], &imp_elt);
+    if (elen > 0 && imp_elt >= 0 && imp_elt < 32) {
+      let pre_eb: [128]u8 = [];
+      let pre_el: i32 = asm_fill_c_prefix_from_module_import(ctx.module_ref, imp_elt, &pre_eb[0]);
+      if (pre_el <= 0) { return -1; }
+      let n_wo_elf: i32 = driver_call_num_args_override(&pre_eb[0], pre_el, &callee.field_access_field_name[0], callee.field_access_field_len, e.call_num_args);
+      if (asm_emit_call_args_elf(arena, elf_ctx, e, ctx, ta, n_wo_elf) != 0) { return -1; }
+      return enc_call_arch(elf_ctx, sym_eh, elen, ta);
     }
   }
   if (callee.kind != ExprKind.EXPR_VAR) { return -1; }
@@ -1260,6 +1481,35 @@ function emit_index_eff_addr_text(arena: *ASTArena, out: *CodegenOutBuf, ix: Exp
 }
 
 /**
+ * 赋值左值的**地址**装入 rax/x0：`out`、`out.tok.kind`、`*ptr` 开头的链式 FIELD_ACCESS，或顶层 INDEX。
+ * 解决单层 FIELD_ACCESS 仅接受 VAR 基底导致 `write_tok_into` 内嵌套字段赋值的 asm codegen 失败（fail_at 52）。
+ */
+function emit_lvalue_eff_addr_text(arena: *ASTArena, ob: *CodegenOutBuf, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
+  if (lval_ref <= 0) {
+    return -1;
+  }
+  let cur: Expr = ast_arena_expr_get(arena, lval_ref);
+  if (cur.kind == ExprKind.EXPR_VAR) {
+    let off_lv: i32 = local_offset(ctx, cur.var_name, cur.var_name_len);
+    if (off_lv < 0) {
+      return -1;
+    }
+    return arch_emit_local_slot_ptr_or_addr(arena, ob, cur, off_lv, ta);
+  }
+  if (cur.kind == ExprKind.EXPR_FIELD_ACCESS && cur.field_access_is_enum_variant == 0 && cur.field_access_base_ref != 0) {
+    if (emit_lvalue_eff_addr_text(arena, ob, cur.field_access_base_ref, ctx, ta) != 0) {
+      return -1;
+    }
+    return arch_emit_add_imm_to_rax(ob, cur.field_access_offset, ta);
+  }
+  if (cur.kind == ExprKind.EXPR_INDEX && cur.index_base_ref != 0 && cur.index_index_ref != 0) {
+    let esz_ix: i32 = asm_index_elem_byte_sz(arena, lval_ref);
+    return emit_index_eff_addr_text(arena, ob, cur, ctx, ta, esz_ix);
+  }
+  return -1;
+}
+
+/**
  * 将表达式编译为汇编，结果留在 %rax（x86）或 w0（arm64）。
  * target_arch：0=x86_64，1=arm64；据此分派 arch.x86_64 / arch.arm64。
  * 返回 0 成功，-1 失败。
@@ -1285,6 +1535,13 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *A
   /* EXPR_RETURN：作为（最终）表达式时，发射返回值子表达式到 rax。 */
   if (e.kind == ExprKind.EXPR_RETURN && e.unary_operand_ref != 0) {
     return emit_expr(arena, out, e.unary_operand_ref, ctx, target_arch);
+  }
+  /** `return;`（void）：块内 expr_stmt，跳转到函数尾汇合标签，与尾表达式+epilogue 衔接。 */
+  if (e.kind == ExprKind.EXPR_RETURN && e.unary_operand_ref == 0) {
+    if (ctx.tail_join_label_len <= 0) {
+      return -1;
+    }
+    return arch_emit_jmp(out, ctx.tail_join_label, ctx.tail_join_label_len, target_arch);
   }
   /* EXPR_PANIC：call shulang_panic_（自实现符号，freestanding 时由 runtime_panic.o 提供 syscall exit，否则可链 libc 桩调 abort）。 */
   if (e.kind == ExprKind.EXPR_PANIC) {
@@ -1441,6 +1698,16 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *A
               kk_tk = kk_tk + 1;
             }
             if (match_tyk != 0) { use_tag_fa = 1; }
+          } else if (beq_ty.kind == ExprKind.EXPR_VAR && beq_ty.var_name_len == 9) {
+            /* "TokenKind"：parser.su `kind == TokenKind.TOKEN_*`；与 TypeKind 同理走 tag，避免基底名无栈槽导致 FIELD_ACCESS emit 失败（fail_at 52）。 */
+            let nm_tok_b: [9]u8 = [84, 111, 107, 101, 110, 75, 105, 110, 100];
+            let kk2: i32 = 0;
+            let match_tok: i32 = 1;
+            while (kk2 < 9) {
+              if (beq_ty.var_name[kk2] != nm_tok_b[kk2]) { match_tok = 0; }
+              kk2 = kk2 + 1;
+            }
+            if (match_tok != 0) { use_tag_fa = 1; }
           }
         }
         if (use_tag_fa != 0) {
@@ -1549,17 +1816,12 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *A
     if (arch_emit_mov_rbx_to_ecx(out, target_arch) != 0) { return -1; }
     return arch_emit_shr_cl_eax(out, target_arch);
   }
-  /* 赋值：左值可为 FIELD_ACCESS(VAR)/INDEX[*]/局部 VAR；赋值表达式结果留在 rax。 */
+  /* 赋值：左值可为 FIELD_ACCESS（含链式）、INDEX[*]、局部 VAR；赋值表达式结果留在 rax。 */
   if (e.kind == ExprKind.EXPR_ASSIGN && e.binop_left_ref != 0 && e.binop_right_ref != 0) {
     let left: Expr = ast_arena_expr_get(arena, e.binop_left_ref);
-    /* FIELD_ACCESS 左值（如 e.enum_variant_tag = 0）：lea 栈对象 + offset，间接 store。 */
+    /* FIELD_ACCESS 左值（含 `ptr_param.inner.field`，如 lexer write_tok_into）：递归求地址后间接 store。 */
     if (left.kind == ExprKind.EXPR_FIELD_ACCESS && left.field_access_base_ref != 0 && left.field_access_is_enum_variant == 0) {
-      let fb: Expr = ast_arena_expr_get(arena, left.field_access_base_ref);
-      if (fb.kind != ExprKind.EXPR_VAR) { return -1; }
-      let off_fa: i32 = local_offset(ctx, fb.var_name, fb.var_name_len);
-      if (off_fa < 0) { return -1; }
-      if (arch_emit_local_slot_ptr_or_addr(arena, out, fb, off_fa, target_arch) != 0) { return -1; }
-      if (arch_emit_add_imm_to_rax(out, left.field_access_offset, target_arch) != 0) { return -1; }
+      if (emit_lvalue_eff_addr_text(arena, out, e.binop_left_ref, ctx, target_arch) != 0) { return -1; }
       if (arch_emit_push_rax(out, target_arch) != 0) { return -1; }
       if (emit_expr(arena, out, e.binop_right_ref, ctx, target_arch) != 0) { return -1; }
       let fw: i32 = asm_field_access_load_byte_sz(arena, e.binop_left_ref, ctx.module_ref);
@@ -1849,6 +2111,12 @@ function emit_expr_elf(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenCtx, e
   if (e.kind == ExprKind.EXPR_RETURN && e.unary_operand_ref != 0) {
     return emit_expr_elf(arena, elf_ctx, e.unary_operand_ref, ctx, ta);
   }
+  if (e.kind == ExprKind.EXPR_RETURN && e.unary_operand_ref == 0) {
+    if (ctx.tail_join_label_len <= 0) {
+      return -1;
+    }
+    return enc_jmp_arch(elf_ctx, ctx.tail_join_label, ctx.tail_join_label_len, ta);
+  }
   if (e.kind == ExprKind.EXPR_PANIC) {
     let panic_name: [64]u8 = [115, 104, 117, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     return enc_call_arch(elf_ctx, panic_name, 15, ta);
@@ -1996,6 +2264,15 @@ function emit_expr_elf(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenCtx, e
               kk_tk_elf = kk_tk_elf + 1;
             }
             if (match_tyk_elf != 0) { use_tag_fa_elf = 1; }
+          } else if (beq_ty_elf.kind == ExprKind.EXPR_VAR && beq_ty_elf.var_name_len == 9) {
+            let nm_tok_elf: [9]u8 = [84, 111, 107, 101, 110, 75, 105, 110, 100];
+            let kke: i32 = 0;
+            let match_tok_elf: i32 = 1;
+            while (kke < 9) {
+              if (beq_ty_elf.var_name[kke] != nm_tok_elf[kke]) { match_tok_elf = 0; }
+              kke = kke + 1;
+            }
+            if (match_tok_elf != 0) { use_tag_fa_elf = 1; }
           }
         }
         if (use_tag_fa_elf != 0) {
@@ -2157,12 +2434,7 @@ function emit_expr_elf(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenCtx, e
   if (e.kind == ExprKind.EXPR_ASSIGN && e.binop_left_ref != 0 && e.binop_right_ref != 0) {
     let left: Expr = ast_arena_expr_get(arena, e.binop_left_ref);
     if (left.kind == ExprKind.EXPR_FIELD_ACCESS && left.field_access_base_ref != 0 && left.field_access_is_enum_variant == 0) {
-      let fb: Expr = ast_arena_expr_get(arena, left.field_access_base_ref);
-      if (fb.kind != ExprKind.EXPR_VAR) { return -1; }
-      let off_fae: i32 = local_offset(ctx, fb.var_name, fb.var_name_len);
-      if (off_fae < 0) { return -1; }
-      if (enc_local_slot_ptr_or_addr_arch(arena, elf_ctx, fb, off_fae, ta) != 0) { return -1; }
-      if (enc_add_imm_to_rax_arch(elf_ctx, left.field_access_offset, ta) != 0) { return -1; }
+      if (emit_lvalue_eff_addr_elf(arena, elf_ctx, e.binop_left_ref, ctx, ta) != 0) { return -1; }
       if (enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
       if (emit_expr_elf(arena, elf_ctx, e.binop_right_ref, ctx, ta) != 0) { return -1; }
       let fw_e: i32 = asm_field_access_load_byte_sz(arena, e.binop_left_ref, ctx.module_ref);
@@ -2411,6 +2683,32 @@ function emit_index_eff_addr_elf(arena: *ASTArena, elf_ctx: *platform.elf.ElfCod
   if (elem_sz == 1) { return enc_rax_plus_rbx_scale1_arch(elf_ctx, elf_ta); }
   if (elem_sz == 8) { return enc_rax_plus_rbx_scale8_arch(elf_ctx, elf_ta); }
   return enc_rax_plus_rbx_scale4_arch(elf_ctx, elf_ta);
+}
+
+/** ELF：与 emit_lvalue_eff_addr_text 对称（链式字段左值赋值）。 */
+function emit_lvalue_eff_addr_elf(arena: *ASTArena, elf_ctx: *platform.elf.ElfCodegenCtx, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
+  if (lval_ref <= 0) {
+    return -1;
+  }
+  let cur: Expr = ast_arena_expr_get(arena, lval_ref);
+  if (cur.kind == ExprKind.EXPR_VAR) {
+    let off_e: i32 = local_offset(ctx, cur.var_name, cur.var_name_len);
+    if (off_e < 0) {
+      return -1;
+    }
+    return enc_local_slot_ptr_or_addr_arch(arena, elf_ctx, cur, off_e, ta);
+  }
+  if (cur.kind == ExprKind.EXPR_FIELD_ACCESS && cur.field_access_is_enum_variant == 0 && cur.field_access_base_ref != 0) {
+    if (emit_lvalue_eff_addr_elf(arena, elf_ctx, cur.field_access_base_ref, ctx, ta) != 0) {
+      return -1;
+    }
+    return enc_add_imm_to_rax_arch(elf_ctx, cur.field_access_offset, ta);
+  }
+  if (cur.kind == ExprKind.EXPR_INDEX && cur.index_base_ref != 0 && cur.index_index_ref != 0) {
+    let esz_ef: i32 = asm_index_elem_byte_sz(arena, lval_ref);
+    return emit_index_eff_addr_elf(arena, elf_ctx, cur, ctx, ta, esz_ef);
+  }
+  return -1;
 }
 
 /** ELF 路径：块的 const/let 初始化；slot_base 同 emit_block_inits。ta 0=x86_64，1=arm64。 */
@@ -2781,7 +3079,7 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
   let ta: i32 = pipeline_ctx.target_arch;
   let z: LocalSlot = LocalSlot { name: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], name_len: 0, offset: 0 };
   let lbl: [64]u8 = [];
-  let ctx: AsmFuncCtx = AsmFuncCtx { frame_size: 0, next_offset: 0, locals: [z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z], num_locals: 0, label_counter: 0, module_ref: 0 as *Module, break_label: lbl, break_len: 0, continue_label: lbl, continue_len: 0, dep_pipe: 0 as *PipelineDepCtx };
+  let ctx: AsmFuncCtx = AsmFuncCtx { frame_size: 0, next_offset: 0, locals: [z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z], num_locals: 0, label_counter: 0, module_ref: 0 as *Module, break_label: lbl, break_len: 0, continue_label: lbl, continue_len: 0, dep_pipe: 0 as *PipelineDepCtx, tail_join_label: lbl, tail_join_label_len: 0 };
   let i: i32 = 0;
   while (i < module.num_funcs && i < 256) {
     if (i == 0) {
@@ -2820,6 +3118,7 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
     }
     if (f.body_ref != 0) {
       let blk: Block = ast_arena_block_get(arena, f.body_ref);
+      ctx.tail_join_label_len = emit_next_label(&ctx, &ctx.tail_join_label[0], 64);
       if (blk.num_stmt_order > 0) {
         if (emit_block_body(arena, out, &blk, &ctx, ta) != 0) {
           driver_diagnostic_asm_fail_at(5);
@@ -2832,6 +3131,10 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
           driver_diagnostic_asm_fail_at(6);
           return -1;
         }
+      }
+      if (arch_emit_label(out, ctx.tail_join_label, ctx.tail_join_label_len, ta) != 0) {
+        driver_diagnostic_asm_fail_at(9);
+        return -1;
       }
     }
     let result_ref: i32 = get_return_expr_ref(arena, &f);
@@ -2868,7 +3171,7 @@ function asm_codegen_ast_to_elf(module: *Module, arena: *ASTArena, elf_ctx: *pla
   }
   let z: LocalSlot = LocalSlot { name: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], name_len: 0, offset: 0 };
   let lbl: [64]u8 = [];
-  let ctx: AsmFuncCtx = AsmFuncCtx { frame_size: 0, next_offset: 0, locals: [z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z], num_locals: 0, label_counter: 0, module_ref: 0 as *Module, break_label: lbl, break_len: 0, continue_label: lbl, continue_len: 0, dep_pipe: 0 as *PipelineDepCtx };
+  let ctx: AsmFuncCtx = AsmFuncCtx { frame_size: 0, next_offset: 0, locals: [z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z], num_locals: 0, label_counter: 0, module_ref: 0 as *Module, break_label: lbl, break_len: 0, continue_label: lbl, continue_len: 0, dep_pipe: 0 as *PipelineDepCtx, tail_join_label: lbl, tail_join_label_len: 0 };
   let i: i32 = 0;
   while (i < module.num_funcs && i < 256) {
     let f: Func = module.funcs[i];
@@ -2890,6 +3193,7 @@ function asm_codegen_ast_to_elf(module: *Module, arena: *ASTArena, elf_ctx: *pla
     if (enc_prologue_arch(elf_ctx, frame_sz, ta) != 0) { return -1; }
     if (f.body_ref != 0) {
       let blk: Block = ast_arena_block_get(arena, f.body_ref);
+      ctx.tail_join_label_len = emit_next_label(&ctx, &ctx.tail_join_label[0], 64);
       if (blk.num_stmt_order > 0) {
         if (emit_block_body_elf(arena, elf_ctx, &blk, &ctx, ta) != 0) { return -1; }
       } else {
@@ -2897,6 +3201,7 @@ function asm_codegen_ast_to_elf(module: *Module, arena: *ASTArena, elf_ctx: *pla
         if (slot_base < 0) { return -1; }
         if (emit_block_inits_elf(arena, elf_ctx, &blk, &ctx, ta, slot_base) != 0) { return -1; }
       }
+      if (enc_label_arch(elf_ctx, ctx.tail_join_label, ctx.tail_join_label_len, 0, ta) != 0) { return -1; }
     }
     let result_ref: i32 = get_return_expr_ref(arena, &f);
     if (result_ref != 0) {

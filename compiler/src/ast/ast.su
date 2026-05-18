@@ -210,11 +210,12 @@ struct LabeledStmt {
   return_expr_ref: i32;
 }
 
-/** 块：const/let 声明 + while/for/if + defer 块 + 标签语句 + 表达式语句 + 最终表达式 + stmt_order */
+/** 块：const/let 声明 + while/for/if + defer 块 + 标签语句 + 表达式语句 + 最终表达式 + stmt_order；
+ * const/let 槽容量与 parser.c 中 MAX_CONST_DECLS / MAX_LET_DECLS（均为 256）对齐。 */
 struct Block {
-  const_decls: [128]ConstDecl;
+  const_decls: [256]ConstDecl;
   num_consts: i32;
-  let_decls: [128]LetDecl;
+  let_decls: [256]LetDecl;
   num_lets: i32;
   num_early_lets: i32;
   loops: [8]WhileLoop;
@@ -260,10 +261,11 @@ struct StructLayout {
   name: [64]u8;
   name_len: i32;
   num_fields: i32;
-  field_names: [24][64]u8;
-  field_lens: [24]i32;
-  field_offsets: [24]i32;
-  field_type_refs: [24]i32;
+  /** OneFuncResult 等大块结果体：须 ≥ parser OneFuncResult 字段数；与 parse_struct_record_layout_into、pipeline_glue 上界一致 */
+  field_names: [64][64]u8;
+  field_lens: [64]i32;
+  field_offsets: [64]i32;
+  field_type_refs: [64]i32;
 }
 
 /** import 种类：与 C 的 AST_IMPORT_KIND_* 一致，供 parser/codegen 使用 */
@@ -324,14 +326,15 @@ allow(padding) struct PipelineDepCtx {
   entry_dir_buf: [512]u8;
   entry_dir_len: i32;
   num_lib_roots: i32;
-  lib_root_bufs: [8][256]u8;
-  lib_root_lens: [8]i32;
+  /** -L 库根上限：build_shu_asm 的 LIBROOT 常含 10+ 条，旧 8 槽会截断 src/asm 等导致 arch.* import 无法 resolve（rc=-7）。 */
+  lib_root_bufs: [16][256]u8;
+  lib_root_lens: [16]i32;
   /** 解析出的文件路径（含结尾 0，供 open 使用） */
   path_buf: [512]u8;
   /** 6.1 完全自举：读入与预处理用固定数组，全部在 .su 内完成，不依赖 C 缓冲指针 */
-  loaded_buf: [262144]u8;
+  loaded_buf: [524288]u8;
   loaded_len: isize;
-  preprocess_buf: [262144]u8;
+  preprocess_buf: [524288]u8;
   preprocess_len: i32;
   /** 非 0 时 pipeline 使用 asm 后端（出汇编）而非 codegen（出 C）；由 driver 解析 -backend asm 设置。 */
   use_asm_backend: i32;
@@ -345,7 +348,9 @@ allow(padding) struct PipelineDepCtx {
   current_block_ref: i32;
   /** typeck 用：当前检查的函数在 module.funcs 中的下标，供 EXPR_VAR 查形参填 resolved_type_ref。-1 表示未在函数内。 */
   current_func_index: i32;
-  /** 每个 dep 的 import 路径（如 "std.io.driver"），供 codegen 时设置 C 符号前缀，与 dep_modules 一一对应。 */
+  /** 每个 dep 的逻辑 import 路径副本（ASCII+NUL）；dep_paths[j] 须指向本行首字节，禁止与 path_buf 共用（codegen 环内 path_buf 会被反复覆盖）。 */
+  dep_logical_path_mirror: [32][64]u8;
+  /** 每个 dep 的 import 路径（如 "std.io.driver"），供 codegen/asm 生成 C ABI 前缀，与 dep_modules 一一对应。 */
   dep_paths: [32]*u8;
   /** 非 0 时跳过 dep 0 的 codegen（-o 时设，driver 由 io.o 提供，避免重复符号） */
   skip_codegen_dep_0: i32;
@@ -575,7 +580,7 @@ function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
 }
 
 function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  if (br <= 0 || br > a.num_blocks || ci < 0 || ci >= 128) {
+  if (br <= 0 || br > a.num_blocks || ci < 0 || ci >= 256) {
     return 0;
   }
   let blk: Block = ast_arena_block_get(a, br);
@@ -586,7 +591,7 @@ function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
 }
 
 function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  if (br <= 0 || br > a.num_blocks || ci < 0 || ci >= 128) {
+  if (br <= 0 || br > a.num_blocks || ci < 0 || ci >= 256) {
     return 0;
   }
   let blk: Block = ast_arena_block_get(a, br);
@@ -597,7 +602,7 @@ function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
 }
 
 function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  if (br <= 0 || br > a.num_blocks || li < 0 || li >= 128) {
+  if (br <= 0 || br > a.num_blocks || li < 0 || li >= 256) {
     return 0;
   }
   let blk: Block = ast_arena_block_get(a, br);
@@ -608,7 +613,7 @@ function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
 }
 
 function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  if (br <= 0 || br > a.num_blocks || li < 0 || li >= 128) {
+  if (br <= 0 || br > a.num_blocks || li < 0 || li >= 256) {
     return 0;
   }
   let blk: Block = ast_arena_block_get(a, br);
@@ -726,7 +731,7 @@ function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: 
   }
   let blk: Block = ast_arena_block_get(a, block_ref);
   let i: i32 = 0;
-  while (i < blk.num_consts && i < 64) {
+  while (i < blk.num_consts && i < 256) {
     let cd: ConstDecl = blk.const_decls[i];
     if (!ref_is_null(cd.type_ref) && ast_name_bytes_equal(&cd.name[0], cd.name_len, vname, vlen)) {
       return cd.type_ref;
@@ -734,7 +739,7 @@ function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: 
     i = i + 1;
   }
   i = 0;
-  while (i < blk.num_lets && i < 64) {
+  while (i < blk.num_lets && i < 256) {
     let ld: LetDecl = blk.let_decls[i];
     if (!ref_is_null(ld.type_ref) && ast_name_bytes_equal(&ld.name[0], ld.name_len, vname, vlen)) {
       return ld.type_ref;

@@ -598,12 +598,12 @@ int codegen_su_path_is_std_io_core(const char *path) {
     return (path && strcmp(path, "std.io.core") == 0) ? 1 : 0;
 }
 
-/** .su 用：当调用 std.io.core 的 register/submit_read/submit_write 且实参为 1 或 2 个（parser 用形参名占位）时返回 1，codegen 生成 xxx_buf 包装调用。 */
+/** .su 用：判定是否对 std.io.core 的 shu_io_register / submit_* 追加 _buf 后缀；name_len 为 15/18/19 与 C mangled 名一致；与 codegen.su 中 codegen_use_buf_wrapper 对齐。 */
 int codegen_su_use_buf_wrapper(const uint8_t *name, int32_t name_len, int32_t num_args) {
     if (!name || name_len <= 0) return 0;
-    if (num_args == 1 && name_len == 17 && memcmp(name, "shu_io_register", 17) == 0) return 1;
-    if (num_args == 2 && name_len == 19 && memcmp(name, "shu_io_submit_read", 19) == 0) return 1;
-    if (num_args == 2 && name_len == 20 && memcmp(name, "shu_io_submit_write", 20) == 0) return 1;
+    if (num_args == 1 && name_len == 15 && memcmp(name, "shu_io_register", 15) == 0) return 1;
+    if (num_args == 2 && name_len == 18 && memcmp(name, "shu_io_submit_read", 18) == 0) return 1;
+    if (num_args == 2 && name_len == 19 && memcmp(name, "shu_io_submit_write", 19) == 0) return 1;
     return 0;
 }
 
