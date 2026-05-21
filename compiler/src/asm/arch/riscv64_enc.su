@@ -253,7 +253,43 @@ function enc_load_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   return enc_u32_le(ctx, 3 | (10 << 7) | (3 << 12) | (8 << 15) | (imm << 20));
 }
 
-/** addi a0, s0, -offset。 */
+/** li a2, imm32（memset 第三参）；与 enc_mov_imm32_to_rbx 同算法，目标 a2。 */
+function enc_li_a2_imm32(ctx: *ElfCodegenCtx, imm32: i32): i32 {
+  let imm12: i32 = imm32 & 4095;
+  if (imm32 >= 0 && imm32 < 4096) {
+    return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (0 << 15) | (imm12 << 20));
+  }
+  let hi20: i32 = (imm32 >> 12) & 1048575;
+  if ((imm32 & 2048) != 0) {
+    hi20 = hi20 + 1;
+  }
+  if (enc_u32_le(ctx, 55 | (12 << 7) | (hi20 << 12)) != 0) {
+    return -1;
+  }
+  imm12 = imm32 & 4095;
+  return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (12 << 15) | (imm12 << 20));
+}
+
+/**
+ * 将 [s0-rbp_off, ..) 共 nbytes 置零：a0 首址，a1=0，a2=n，call memset。
+ */
+function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  if (enc_lea_rbp_to_rax(ctx, rbp_off) != 0) {
+    return -1;
+  }
+  if (enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (0 << 15) | (0 << 20)) != 0) {
+    return -1;
+  }
+  if (enc_li_a2_imm32(ctx, nbytes) != 0) {
+    return -1;
+  }
+  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  return enc_call(ctx, memset_nm, 6);
+}
+
 function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm12: i32 = 0 - offset;
   imm12 = imm12 & 4095;
@@ -349,18 +385,30 @@ function enc_jmp(ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32): i32 {
   return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 21);
 }
 
-/** mv a(k), a0。k=0 no-op；k=1..5 发 addi a(k), a0, 0（a0=10, a1=11, …）。 */
+/** mv a(k), a0。k=0 no-op；k=1..7 发 addi a(k), a0, 0（a0-a7 = x10-x17）。 */
 function enc_mov_rax_to_arg_reg(ctx: *ElfCodegenCtx, k: i32): i32 {
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
+  if (idx > 7) { idx = 7; }
   if (idx == 0) { return 0; }
   let rd: i32 = 10 + idx;
   return enc_u32_le(ctx, 19 | (rd << 7) | (0 << 12) | (10 << 15) | (0 << 20));
 }
 
+/** addi sp, sp, imm（imm 低 12 位；call 后回收栈实参）。 */
+function enc_add_sp_imm12(ctx: *ElfCodegenCtx, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  let imm12: i32 = nbytes & 4095;
+  return enc_u32_le(ctx, 19 | (2 << 7) | (0 << 12) | (2 << 15) | (imm12 << 20));
+}
+
 /** jal ra, name。JAL 占位，仅 reloc（不写 patch）；外部符号无同 .o label，patch 会在 elf_resolve_patches 失败，与 x86_64_enc.enc_call 一致。 */
 function enc_call(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
+  if (name_len <= 0) {
+    return -1;
+  }
   if (enc_u32_le(ctx, 111 | (1 << 7)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
   return platform.elf.elf_add_reloc(ctx, at, name, name_len);
