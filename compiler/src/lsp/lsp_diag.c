@@ -21,6 +21,15 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+/** LSP import 图：由 runtime.c 提供，供跨模块 typeck 与跳转 URI。 */
+extern int shu_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
+                                          const char *entry_dir, struct ASTModule **dep_mods, int *ndep_out,
+                                          struct ASTModule **all_dep_mods, char **all_dep_paths,
+                                          char all_dep_fs[][512], int *n_all_out, int max_deps);
+extern void shu_lsp_free_loaded_imports(struct ASTModule **all_dep_mods, char **all_dep_paths, int n_all);
+
+extern void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
+
 extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
@@ -43,6 +52,7 @@ static struct ASTFunc *get_function_at_line(const struct ASTModule *mod, int lin
 static int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col);
 static int find_def_in_block(const struct ASTModule *mod, const struct ASTBlock *b, int line_1, int col_1, int *out_line, int *out_col);
 static int find_def_in_module(const struct ASTModule *mod, int line_1, int col_1, int *out_line, int *out_col);
+int lsp_extract_uri_from_params(const uint8_t *body, int len, uint8_t *uri_buf, int uri_cap);
 /* References：按位置确定目标函数，并收集所有引用位置。 */
 static struct ASTFunc *find_target_function_at(const struct ASTModule *mod, int line_1, int col_1);
 static int collect_refs_to_func(const struct ASTModule *mod, const struct ASTFunc *func, int *out_lines, int *out_cols, int max_refs);
@@ -78,6 +88,26 @@ static ASTModule *s_cached_mod = NULL;
 static int s_cached_source_len = -1;
 static unsigned s_cached_source_hash = 0;
 static int s_typeck_full = 0;  /* 1=缓存模块已全量 typeck，0=仅懒 typeck 过单函数 */
+
+#define LSP_MAX_IMPORTS 32
+/** 当前文档 file URI 与本地路径（didOpen 时更新）。 */
+static char s_doc_uri[512];
+static char s_entry_fs_path[512];
+static char s_entry_dir[512];
+/** libRoots：默认与 VS Code shulang.compiler.libRoots 对齐，可由 SHULANG_LSP_LIB_ROOTS 覆盖（`:` 分隔）。 */
+static const char *s_lib_roots[8];
+static char s_lib_roots_storage[8][256];
+static int s_n_lib_roots;
+static int s_lib_roots_inited;
+/** 已加载 import 模块（不含 entry）；与 s_all_dep_paths / s_all_dep_fs 同下标。 */
+static ASTModule *s_all_dep_mods[LSP_MAX_IMPORTS];
+static char *s_all_dep_paths[LSP_MAX_IMPORTS];
+static char s_all_dep_fs[LSP_MAX_IMPORTS][512];
+static int s_n_all_deps;
+static ASTModule *s_direct_deps[LSP_MAX_IMPORTS];
+static int s_ndirect_deps;
+/** 最近一次 definition 解析到的目标函数（用于跨文件 URI）。 */
+static struct ASTFunc *s_def_target_func;
 #define LSP_LINE_INDEX_MAX 1024
 #define LSP_REFS_PER_FUNC_MAX 256
 static struct {
@@ -91,6 +121,133 @@ static int s_refs_lines[LSP_LINE_INDEX_MAX][LSP_REFS_PER_FUNC_MAX];
 static int s_refs_cols[LSP_LINE_INDEX_MAX][LSP_REFS_PER_FUNC_MAX];
 static int s_refs_count[LSP_LINE_INDEX_MAX];
 
+/** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
+static void lsp_free_import_cache(void) {
+    shu_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
+    s_n_all_deps = 0;
+    s_ndirect_deps = 0;
+    memset(s_all_dep_mods, 0, sizeof(s_all_dep_mods));
+    memset(s_all_dep_paths, 0, sizeof(s_all_dep_paths));
+    memset(s_all_dep_fs, 0, sizeof(s_all_dep_fs));
+}
+
+/** 从 file URI 提取本地路径写入 out（简单 file:// 解码，足够 macOS/Linux 开发）。 */
+static void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
+    size_t k = 0;
+    if (!uri || !out || cap == 0) return;
+    out[0] = '\0';
+    if (strncmp(uri, "file://", 7) != 0) return;
+    const char *p = uri + 7;
+    while (*p && k + 1 < cap) {
+        if (p[0] == '%' && p[1] && p[2]) {
+            int hi = p[1], lo = p[2];
+            int v = 0;
+            if (hi >= '0' && hi <= '9') v = (hi - '0') << 4;
+            else if (hi >= 'a' && hi <= 'f') v = (hi - 'a' + 10) << 4;
+            else if (hi >= 'A' && hi <= 'F') v = (hi - 'A' + 10) << 4;
+            if (lo >= '0' && lo <= '9') v |= (lo - '0');
+            else if (lo >= 'a' && lo <= 'f') v |= (lo - 'a' + 10);
+            else if (lo >= 'A' && lo <= 'F') v |= (lo - 'A' + 10);
+            out[k++] = (char)v;
+            p += 3;
+            continue;
+        }
+        out[k++] = *p++;
+    }
+    out[k] = '\0';
+}
+
+/** 本地路径 → file URI（空格转 %20）。 */
+static void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
+    size_t k = 0;
+    if (!path || !uri || cap < 8) return;
+    uri[k++] = 'f'; uri[k++] = 'i'; uri[k++] = 'l'; uri[k++] = 'e';
+    uri[k++] = ':'; uri[k++] = '/'; uri[k++] = '/';
+    for (const char *p = path; *p && k + 4 < cap; p++) {
+        if (*p == ' ') { uri[k++] = '%'; uri[k++] = '2'; uri[k++] = '0'; }
+        else uri[k++] = *p;
+    }
+    uri[k] = '\0';
+}
+
+/** 根据 entry 文件路径更新 import 解析用的 entry_dir。 */
+static void lsp_update_entry_dir(const char *fs_path) {
+    if (!fs_path || !fs_path[0]) {
+        s_entry_dir[0] = '.';
+        s_entry_dir[1] = '\0';
+        return;
+    }
+    (void)snprintf(s_entry_fs_path, sizeof(s_entry_fs_path), "%s", fs_path);
+    const char *slash = strrchr(fs_path, '/');
+    if (slash) {
+        size_t n = (size_t)(slash - fs_path);
+        if (n >= sizeof(s_entry_dir)) n = sizeof(s_entry_dir) - 1;
+        memcpy(s_entry_dir, fs_path, n);
+        s_entry_dir[n] = '\0';
+    } else {
+        s_entry_dir[0] = '.';
+        s_entry_dir[1] = '\0';
+    }
+}
+
+/** 初始化 libRoots（环境变量 SHULANG_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
+static void lsp_init_lib_roots_once(void) {
+    int i;
+    if (s_lib_roots_inited) return;
+    s_lib_roots_inited = 1;
+    const char *env = getenv("SHULANG_LSP_LIB_ROOTS");
+    if (env && env[0]) {
+        char buf[1024];
+        (void)snprintf(buf, sizeof(buf), "%s", env);
+        char *p = buf;
+        while (p && s_n_lib_roots < 8) {
+            char *col = strchr(p, ':');
+            if (col) *col = '\0';
+            if (p[0]) {
+                int idx = s_n_lib_roots;
+                (void)snprintf(s_lib_roots_storage[idx], sizeof(s_lib_roots_storage[0]), "%s", p);
+                s_lib_roots[idx] = s_lib_roots_storage[idx];
+                s_n_lib_roots++;
+            }
+            p = col ? col + 1 : NULL;
+        }
+    }
+    if (s_n_lib_roots == 0) {
+        const char *defs[] = { ".", "compiler/src", "core", "std" };
+        for (i = 0; i < 4; i++) {
+            (void)snprintf(s_lib_roots_storage[i], sizeof(s_lib_roots_storage[0]), "%s", defs[i]);
+            s_lib_roots[i] = s_lib_roots_storage[i];
+        }
+        s_n_lib_roots = 4;
+    }
+}
+
+/** 查找函数 f 所属模块的 .su 文件路径；entry 模块用 s_entry_fs_path。 */
+static const char *lsp_fs_path_for_func(struct ASTFunc *f, ASTModule *entry) {
+    int i, j;
+    if (!f) return NULL;
+    if (entry && entry->funcs) {
+        for (i = 0; i < entry->num_funcs; i++)
+            if (entry->funcs[i] == f)
+                return s_entry_fs_path[0] ? s_entry_fs_path : NULL;
+    }
+    for (j = 0; j < s_n_all_deps; j++) {
+        ASTModule *m = s_all_dep_mods[j];
+        if (!m || !m->funcs) continue;
+        for (i = 0; i < m->num_funcs; i++)
+            if (m->funcs[i] == f)
+                return s_all_dep_fs[j][0] ? s_all_dep_fs[j] : NULL;
+    }
+    return NULL;
+}
+
+/** 为 .su pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
+void lsp_diag_prepare_pipeline_ctx(void *ctx_void) {
+    if (!ctx_void) return;
+    lsp_init_lib_roots_once();
+    lsp_diag_pipeline_ctx_fill_paths(ctx_void, s_entry_dir[0] ? s_entry_dir : NULL, s_lib_roots, s_n_lib_roots);
+}
+
 int lsp_diag_enabled = 0;
 
 void lsp_diag_clear(void) {
@@ -99,6 +256,7 @@ void lsp_diag_clear(void) {
 
 /** 文档变更时调用，使模块与诊断缓存失效；避免旧 AST 指向已释放的文档缓冲（与 lsp_io 配合）。 */
 void lsp_diag_invalidate_cache(void) {
+    lsp_free_import_cache();
     if (s_cached_mod) {
         ast_module_free(s_cached_mod);
         s_cached_mod = NULL;
@@ -231,6 +389,24 @@ static unsigned lsp_hash_source(const uint8_t *src, int len) {
     return (unsigned)(h ^ (h >> 32));
 }
 
+/** 加载 import 依赖并对 entry 模块做 typeck（含跨模块符号解析）。 */
+static void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
+    lsp_init_lib_roots_once();
+    lsp_free_import_cache();
+    s_ndirect_deps = 0;
+    s_n_all_deps = 0;
+    if (mod && mod->num_imports > 0) {
+        (void)shu_lsp_resolve_and_load_imports(mod, s_lib_roots, s_n_lib_roots, s_entry_dir,
+                                             s_direct_deps, &s_ndirect_deps,
+                                             s_all_dep_mods, s_all_dep_paths, s_all_dep_fs,
+                                             &s_n_all_deps, LSP_MAX_IMPORTS);
+    }
+    if (only_func_index >= 0)
+        (void)typeck_one_function(mod, s_direct_deps, s_ndirect_deps, s_all_dep_mods, s_n_all_deps, only_func_index);
+    else
+        (void)typeck_module(mod, s_direct_deps, s_ndirect_deps, s_all_dep_mods, s_n_all_deps);
+}
+
 /**
  * 返回当前文档对应的已解析+类型检查模块；文档未变则直接返回缓存，否则重新 parse+typeck 并更新缓存与诊断 JSON。
  * cursor_line_1 < 0 表示需要全量 typeck（diagnostics/references）；>= 0 时仅 typeck 该行所在函数（definition/hover 懒 typeck）。
@@ -243,7 +419,7 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
         unsigned h = lsp_hash_source(source, source_len);
         if (h == s_cached_source_hash && s_cached_mod != NULL) {
             if (cursor_line_1 < 0 && !s_typeck_full) {
-                (void)typeck_module(s_cached_mod, NULL, 0, NULL, 0);
+                lsp_typeck_entry_module(s_cached_mod, -1);
                 s_typeck_full = 1;
             }
             return s_cached_mod;
@@ -341,13 +517,10 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
             for (int i = 0; i < mod->num_funcs; i++)
                 if (mod->funcs[i] == at_line) { only_func_index = i; break; }
         }
-        if (only_func_index >= 0)
-            (void)typeck_one_function(mod, NULL, 0, NULL, 0, only_func_index);
-        else
-            (void)typeck_module(mod, NULL, 0, NULL, 0);
+        lsp_typeck_entry_module(mod, only_func_index);
         s_typeck_full = (only_func_index < 0) ? 1 : 0;
     } else {
-        (void)typeck_module(mod, NULL, 0, NULL, 0);
+        lsp_typeck_entry_module(mod, -1);
         s_typeck_full = 1;
     }
     s_cached_mod = mod;
@@ -410,12 +583,23 @@ static int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
     return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
 }
 
-/** 在模块内按名称查找函数（含 extern 声明）。 */
+/** 在 entry 与已加载 import 模块中按名称查找函数（含 extern 声明）。 */
 static struct ASTFunc *find_func_in_module_by_name(const struct ASTModule *mod, const char *name) {
-    if (!mod || !name) return NULL;
-    for (int i = 0; i < mod->num_funcs; i++) {
-        struct ASTFunc *f = mod->funcs[i];
-        if (f && f->name && strcmp(f->name, name) == 0) return f;
+    int i, j;
+    if (!name) return NULL;
+    if (mod) {
+        for (i = 0; i < mod->num_funcs; i++) {
+            struct ASTFunc *f = mod->funcs[i];
+            if (f && f->name && strcmp(f->name, name) == 0) return f;
+        }
+    }
+    for (j = 0; j < s_n_all_deps; j++) {
+        ASTModule *m = s_all_dep_mods[j];
+        if (!m) continue;
+        for (i = 0; i < m->num_funcs; i++) {
+            struct ASTFunc *f = m->funcs[i];
+            if (f && f->name && strcmp(f->name, name) == 0) return f;
+        }
     }
     return NULL;
 }
@@ -689,6 +873,7 @@ static int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e
                 if (e->value.call.args[i] && find_def_in_expr(mod, e->value.call.args[i], line_1, col_1, out_line, out_col)) return 1;
             if ((expr_at(e, line_1, col_1) || (callee && expr_at(callee, line_1, col_1))) && e->value.call.resolved_callee_func) {
                 struct ASTFunc *f = e->value.call.resolved_callee_func;
+                s_def_target_func = f;
                 *out_line = f->line;
                 *out_col = f->col;
                 return 1;
@@ -701,6 +886,7 @@ static int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e
                 if (e->value.method_call.args[i] && find_def_in_expr(mod, e->value.method_call.args[i], line_1, col_1, out_line, out_col)) return 1;
             if (expr_at(e, line_1, col_1) && e->value.method_call.resolved_impl_func) {
                 struct ASTFunc *f = e->value.method_call.resolved_impl_func;
+                s_def_target_func = f;
                 *out_line = f->line;
                 *out_col = f->col;
                 return 1;
@@ -765,6 +951,7 @@ static int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e
             if (!expr_at(e, line_1, col_1)) return 0;
             struct ASTFunc *f = find_func_in_module_by_name(mod, e->value.var.name);
             if (f) {
+                s_def_target_func = f;
                 *out_line = f->line;
                 *out_col = f->col;
                 return 1;
@@ -811,6 +998,7 @@ static int find_def_in_module(const struct ASTModule *mod, int line_1, int col_1
     for (int i = 0; i < mod->num_funcs; i++) {
         struct ASTFunc *f = mod->funcs[i];
         if (func_name_covers(f, line_1, col_1)) {
+            s_def_target_func = f;
             *out_line = f->line;
             *out_col = f->col;
             return 1;
@@ -1258,6 +1446,7 @@ extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32
  */
 int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
     if (!source || !out_line || !out_col || source_len < 0) return 0;
+    s_def_target_func = NULL;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
     if (!mod) return 0;
     int line_1 = line_0 + 1;
@@ -1357,6 +1546,18 @@ static int try_apply_content_changes(const uint8_t *body, int body_len) {
 /** 从 didOpen/didChange 的 body 中提取文档内容，存入内部缓冲（替换旧文档）。若有 contentChanges 且当前有文档则做增量 range 替换，否则整份替换。先使 LSP 模块缓存失效，再释放旧缓冲，避免旧 AST 指向已释放内存。 */
 void lsp_set_document_from_body(const uint8_t *body, int body_len) {
     if (!body || body_len <= 0) return;
+    /* didOpen/didChange 携带 textDocument.uri 时更新 entry 路径，供 import 解析与跨文件跳转。 */
+    {
+        uint8_t uri_buf[512];
+        int uri_len = lsp_extract_uri_from_params(body, body_len, uri_buf, (int)sizeof(uri_buf));
+        if (uri_len > 0) {
+            uri_buf[uri_len] = '\0';
+            (void)snprintf(s_doc_uri, sizeof(s_doc_uri), "%s", (const char *)uri_buf);
+            char fs_path[512];
+            lsp_uri_to_fs_path((const char *)uri_buf, fs_path, sizeof(fs_path));
+            lsp_update_entry_dir(fs_path);
+        }
+    }
     if (s_doc_ptr && try_apply_content_changes(body, body_len)) {
         lsp_diag_invalidate_cache();
         return;
@@ -1521,7 +1722,7 @@ static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, i
 }
 
 /**
- * 构建 InitializeResult JSON，含 capabilities（textDocumentSync、definitionProvider、referencesProvider、hoverProvider）与 serverInfo。
+ * 构建 InitializeResult JSON，含 capabilities（同步、定义、引用、悬停、格式化、补全、文档符号、签名帮助）与 serverInfo。
  * 写入 out_buf，返回写入长度，失败返回 -1。
  */
 int lsp_build_initialize_result(uint8_t *out_buf, int out_cap) {
@@ -1531,7 +1732,13 @@ int lsp_build_initialize_result(uint8_t *out_buf, int out_cap) {
         "\"definitionProvider\":true,"
         "\"referencesProvider\":true,"
         "\"hoverProvider\":true,"
-        "\"documentFormattingProvider\":true"
+        "\"documentFormattingProvider\":true,"
+        "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\",\"(\"]},"
+        "\"documentSymbolProvider\":true,"
+        "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"deprecated\",\"abstract\",\"async\",\"modification\",\"documentation\",\"defaultLibrary\"]},\"full\":true,\"range\":false},"
+        "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},\""
+        "\"renameProvider\":true,"
+        "\"diagnosticProvider\":{\"identifier\":\"shulang\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
         "},"
         "\"serverInfo\":{\"name\":\"shulang\",\"version\":\"0.1.0\"}"
         "}}";
@@ -1660,13 +1867,23 @@ int lsp_build_definition_response(int id_val, const uint8_t *body, int body_len,
     int uri_len = lsp_extract_uri_from_params(body, body_len, uri_buf, (int)sizeof(uri_buf));
     if (uri_len < 0) uri_len = 0;
     uri_buf[uri_len] = '\0';
-    /* LSP Location: {"uri":"...","range":{"start":{"line":L,"character":C},"end":{...}}}；行列 0-based。 */
+    const char *def_uri = (const char *)uri_buf;
+    char def_uri_buf[512];
+    if (s_def_target_func && s_cached_mod) {
+        const char *fs = lsp_fs_path_for_func(s_def_target_func, s_cached_mod);
+        if (fs && fs[0]) {
+            lsp_fs_path_to_uri(fs, def_uri_buf, sizeof(def_uri_buf));
+            def_uri = def_uri_buf;
+            uri_len = (int)strlen(def_uri);
+        }
+    }
+    /* LSP Location: {"uri":"...","range":{...}}；行列 0-based。跨 import 模块时使用目标 .su 的 file URI。 */
     int line0_def = def_line > 0 ? def_line - 1 : 0;
     int col0_def = def_col > 0 ? def_col - 1 : 0;
     char result_buf[LSP_DEFINITION_RESULT_MAX];
     int r = snprintf(result_buf, sizeof(result_buf),
         "{\"uri\":\"%.*s\",\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}}}",
-        uri_len, (const char *)uri_buf, line0_def, col0_def, line0_def, col0_def + 1);
+        uri_len, def_uri, line0_def, col0_def, line0_def, col0_def + 1);
     if (r <= 0 || r >= (int)sizeof(result_buf)) return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
     return lsp_build_response_with_result(id_val, (const uint8_t *)result_buf, r, out_buf, out_cap);
 }
@@ -1739,6 +1956,228 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
     if (r <= 0 || r >= (int)sizeof(result_buf))
         return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
     return lsp_build_response_with_result(id_val, (const uint8_t *)result_buf, r, out_buf, out_cap);
+}
+
+/** completion / documentSymbol 共用：与格式化响应同量级缓冲上限。 */
+#define LSP_SEMANTIC_RESULT_MAX 262144
+
+/**
+ * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
+ */
+static int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
+    int e = 0;
+    if (!s || !esc || esc_cap < 4)
+        return 0;
+    for (int i = 0; s[i] != '\0' && e < esc_cap - 3; i++) {
+        if (s[i] == '"' || s[i] == '\\') {
+            esc[e++] = '\\';
+            if (e >= esc_cap - 1)
+                break;
+        }
+        esc[e++] = s[i];
+    }
+    esc[e] = '\0';
+    return e;
+}
+
+/**
+ * 构建 textDocument/completion：解析 position，确保模块缓存后收集顶层符号、import、struct/enum、关键字与内建类型，result 为 CompletionItem[]。
+ */
+int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
+                                  const uint8_t *doc_buf, int doc_len,
+                                  uint8_t *out_buf, int out_cap) {
+    if (!out_buf || out_cap <= 0)
+        return -1;
+    int line0 = 0, char0 = 0;
+    if (lsp_extract_position_from_params(body, body_len, &line0, &char0) != 0) {
+        line0 = 0;
+        char0 = 0;
+    }
+    struct ASTModule *mod = lsp_ensure_module(doc_buf, doc_len, line0 + 1);
+    if (!mod)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"[]", 2, out_buf, out_cap);
+
+    static const char *const KW[] = {
+        "function", "let", "const", "struct", "enum", "trait", "impl", "extern", "import",
+        "if", "else", "while", "for", "loop", "match", "return", "break", "continue", "defer",
+        "goto", "panic", "as"
+    };
+    static const int n_kw = (int)(sizeof(KW) / sizeof(KW[0]));
+    static const char *const TYS[] = {
+        "i32", "i64", "u8", "u32", "u64", "usize", "isize", "f32", "f64", "bool", "void"
+    };
+    static const int n_ty = (int)(sizeof(TYS) / sizeof(TYS[0]));
+
+    char result[LSP_SEMANTIC_RESULT_MAX];
+    int k = 0;
+    if (k < (int)sizeof(result))
+        result[k++] = '[';
+    int need_comma = 0;
+    char esc[320];
+
+    for (int i = 0; i < mod->num_funcs; i++) {
+        if (!mod->funcs[i] || !mod->funcs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->funcs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":3}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < mod->num_imports; i++) {
+        if (!mod->import_paths || !mod->import_paths[i])
+            continue;
+        if (lsp_json_escape_ident(mod->import_paths[i], esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":9}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < mod->num_structs; i++) {
+        if (!mod->struct_defs || !mod->struct_defs[i] || !mod->struct_defs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->struct_defs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":7}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < mod->num_enums; i++) {
+        if (!mod->enum_defs || !mod->enum_defs[i] || !mod->enum_defs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->enum_defs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":13}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < n_kw; i++) {
+        if (lsp_json_escape_ident(KW[i], esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":14}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < n_ty; i++) {
+        if (lsp_json_escape_ident(TYS[i], esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 64)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"label\":\"%s\",\"kind\":25}", need_comma ? "," : "", esc);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    if (k + 2 > (int)sizeof(result))
+        return -1;
+    result[k++] = ']';
+    result[k] = '\0';
+    return lsp_build_response_with_result(id_val, (const uint8_t *)result, k, out_buf, out_cap);
+}
+
+/** 文档符号 JSON 片段：占位 range/selectionRange（全 0）。 */
+static const char *const LSP_DOC_SYM_RANGE_TAIL =
+    ",\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":0}},"
+    "\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":0}}}";
+
+/**
+ * 构建 textDocument/documentSymbol：列出顶层函数、struct、enum；无模块时 result 为 []。
+ */
+int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body_len,
+                                    const uint8_t *doc_buf, int doc_len,
+                                    uint8_t *out_buf, int out_cap) {
+    (void)body;
+    (void)body_len;
+    if (!out_buf || out_cap <= 0)
+        return -1;
+    struct ASTModule *mod = lsp_ensure_module(doc_buf, doc_len, -1);
+    if (!mod)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"[]", 2, out_buf, out_cap);
+
+    char result[LSP_SEMANTIC_RESULT_MAX];
+    int k = 0;
+    if (k < (int)sizeof(result))
+        result[k++] = '[';
+    int need_comma = 0;
+    char esc[320];
+
+    for (int i = 0; i < mod->num_funcs; i++) {
+        if (!mod->funcs[i] || !mod->funcs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->funcs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 128)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":12%s",
+                         need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < mod->num_structs; i++) {
+        if (!mod->struct_defs || !mod->struct_defs[i] || !mod->struct_defs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->struct_defs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 128)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":23%s",
+                         need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    for (int i = 0; i < mod->num_enums; i++) {
+        if (!mod->enum_defs || !mod->enum_defs[i] || !mod->enum_defs[i]->name)
+            continue;
+        if (lsp_json_escape_ident(mod->enum_defs[i]->name, esc, (int)sizeof(esc)) <= 0)
+            continue;
+        int room = (int)sizeof(result) - k;
+        if (room < 128)
+            return -1;
+        int n = snprintf(result + k, (size_t)room, "%s{\"name\":\"%s\",\"kind\":13%s",
+                         need_comma ? "," : "", esc, LSP_DOC_SYM_RANGE_TAIL);
+        if (n <= 0 || n >= room)
+            return -1;
+        k += n;
+        need_comma = 1;
+    }
+    if (k + 2 > (int)sizeof(result))
+        return -1;
+    result[k++] = ']';
+    result[k] = '\0';
+    return lsp_build_response_with_result(id_val, (const uint8_t *)result, k, out_buf, out_cap);
 }
 
 /* ---------- textDocument/formatting ---------- */
@@ -1956,4 +2395,127 @@ int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len,
     if (r <= 0 || r >= (int)sizeof(result_buf))
         return lsp_build_response_with_result(id_val, (const uint8_t *)"[]", 2, out_buf, out_cap);
     return lsp_build_response_with_result(id_val, result_buf, r, out_buf, out_cap);
+}
+
+/* ---------- textDocument/rename ---------- */
+
+static int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
+    char search[128];
+    int sl = snprintf(search, sizeof(search), "\"%s\":\"", key);
+    if (sl <= 0 || sl >= (int)sizeof(search)) return -1;
+    int pos = lsp_find_key_after(body, len, 0, search);
+    if (pos < 0) return -1;
+    int out_len = 0;
+    while (pos < len && out_len < out_cap - 1) {
+        uint8_t c = body[pos];
+        if (c == '"' && (pos == 0 || body[pos - 1] != '\\')) break;
+        if (c == '\\' && pos + 1 < len) { pos++; }
+        out_buf[out_len++] = (char)body[pos];
+        pos++;
+    }
+    out_buf[out_len] = '\0';
+    return out_len;
+}
+
+/**
+ * 构建 textDocument/rename 的 JSON-RPC 响应。
+ * 从 body 解析 position 和 newName，在文档中找到对应标识符并替换，
+ * 返回 WorkspaceEdit 格式的文本编辑。
+ */
+int lsp_build_rename_response(int id_val, const uint8_t *body, int body_len,
+                               const uint8_t *doc_buf, int doc_len,
+                               uint8_t *out_buf, int out_cap) {
+    if (!body || !out_buf || out_cap <= 0) return -1;
+    int line0 = 0, char0 = 0;
+    if (lsp_extract_position_from_params(body, body_len, &line0, &char0) != 0)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
+
+    char new_name[256] = {0};
+    int nn = lsp_extract_string_value(body, body_len, "newName", new_name, (int)sizeof(new_name));
+    if (nn <= 0)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
+
+    /* 根据 (line0, char0) 在文档中找到标识符 */
+    if (!doc_buf || doc_len <= 0) return -1;
+    int line_cnt = 0, col = 0;
+    int ident_start = -1, ident_end = -1;
+    for (int i = 0; i < doc_len; i++) {
+        if (doc_buf[i] == '\n') { line_cnt++; col = 0; continue; }
+        if (line_cnt == line0 && col == char0) {
+            /* 找到目标的标识符起始 */
+            int j = i;
+            while (j < doc_len && ((doc_buf[j] >= 'a' && doc_buf[j] <= 'z') ||
+                   (doc_buf[j] >= 'A' && doc_buf[j] <= 'Z') ||
+                   (doc_buf[j] >= '0' && doc_buf[j] <= '9') || doc_buf[j] == '_')) {
+                j++;
+            }
+            ident_start = i;
+            ident_end = j;
+            break;
+        }
+        col++;
+    }
+    if (ident_start < 0 || ident_end <= ident_start)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
+
+    /* 收集文档中所有同名标识符的位置，全部替换 */
+    int old_len = ident_end - ident_start;
+    int hits = 0;
+    int hit_pos[1024];
+    line_cnt = 0; col = 0;
+    for (int i = 0; i < doc_len; i++) {
+        if (doc_buf[i] == '\n') { line_cnt++; col = 0; continue; }
+        /* 找到标识符起始 */
+        if ((doc_buf[i] >= 'a' && doc_buf[i] <= 'z') ||
+            (doc_buf[i] >= 'A' && doc_buf[i] <= 'Z') ||
+            (doc_buf[i] >= '0' && doc_buf[i] <= '9') || doc_buf[i] == '_') {
+            int j = i;
+            while (j < doc_len && ((doc_buf[j] >= 'a' && doc_buf[j] <= 'z') ||
+                   (doc_buf[j] >= 'A' && doc_buf[j] <= 'Z') ||
+                   (doc_buf[j] >= '0' && doc_buf[j] <= '9') || doc_buf[j] == '_')) {
+                j++;
+            }
+            if (j - i == old_len) {
+                int match = 1;
+                for (int k = 0; k < old_len; k++)
+                    if (doc_buf[i + k] != doc_buf[ident_start + k]) { match = 0; break; }
+                if (match && hits < 1024) {
+                    hit_pos[hits++] = i;
+                }
+            }
+            i = j;
+        }
+        col++;
+    }
+
+    if (hits == 0)
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
+
+    /* 获取文档 URI */
+    uint8_t uri_buf[512];
+    int uri_len = lsp_extract_uri_from_params(body, body_len, uri_buf, (int)sizeof(uri_buf));
+    if (uri_len < 0) uri_len = 0;
+    uri_buf[uri_len] = '\0';
+
+    /* 构建 WorkspaceEdit: {\"changes\":{\"<uri>\":[TextEdit...]}} */
+    char result[65536];
+    int k = snprintf(result, sizeof(result),
+        "{\"changes\":{\"%.*s\":[", uri_len, (const char *)uri_buf);
+    for (int i = 0; i < hits && k < (int)sizeof(result) - 256; i++) {
+        int pos = hit_pos[i];
+        /* 反向计算行列 */
+        int rl = 0, rc = 0;
+        for (int p = 0; p < pos; p++) {
+            if (doc_buf[p] == '\n') { rl++; rc = 0; }
+            else rc++;
+        }
+        if (i > 0) result[k++] = ',';
+        k += snprintf(result + k, sizeof(result) - k,
+            "{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"newText\":\"%s\"}",
+            rl, rc, rl, rc + old_len, new_name);
+    }
+    if (k + 4 >= (int)sizeof(result))
+        return lsp_build_response_with_result(id_val, (const uint8_t *)"null", 4, out_buf, out_cap);
+    k += snprintf(result + k, sizeof(result) - k, "]}}");
+    return lsp_build_response_with_result(id_val, (const uint8_t *)result, k, out_buf, out_cap);
 }
