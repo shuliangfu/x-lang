@@ -4,9 +4,13 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { readLibRootsSetting } from './configSettings';
 
-/** 默认库根（相对工作区根） */
-const DEFAULT_LIB_ROOT_REL = ['.', 'compiler/src', 'core', 'std'];
+/** 读取 shulang.compiler.libRoots，转为 SHULANG_LSP_LIB_ROOTS（`:` 分隔，与 runtime/LSP C 侧一致）。 */
+export function getLibRootsEnvColon(): string {
+  const config = vscode.workspace.getConfiguration('shulang');
+  return readLibRootsSetting(config).join(':');
+}
 
 export type ImportResolveResult = {
   uri?: vscode.Uri;
@@ -14,21 +18,11 @@ export type ImportResolveResult = {
 };
 
 /**
- * 读取 shulang.compiler.libRoots 配置（JSON 字符串数组）。
+ * 读取 shulang.compiler.libRoots 配置（字符串数组）。
  */
 export function getLibRootUris(workspaceRoot: vscode.Uri): vscode.Uri[] {
   const config = vscode.workspace.getConfiguration('shulang');
-  const raw = config.get<string>('compiler.libRoots', JSON.stringify(DEFAULT_LIB_ROOT_REL));
-  let rels: string[] = DEFAULT_LIB_ROOT_REL;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
-      rels = parsed as string[];
-    }
-  } catch {
-    // 默认
-  }
-
+  const rels = readLibRootsSetting(config);
   return rels.map((rel) =>
     rel === '.' || rel === ''
       ? workspaceRoot
