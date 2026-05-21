@@ -16,7 +16,7 @@ enum TargetArch {
 /** 向 CodegenOutBuf 追加一行汇编（ptr[0..len-1] + 换行）。与 pipeline 共用同一 out，便于 -backend asm 时写汇编到 out。返回 0 成功，缓冲区满返回 -1。 */
 function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   let i: i32 = 0;
-  while (i < len && out.len < 1048576) {
+  while (i < len && out.len < 8388608) {
     out.data[out.len] = ptr[i];
     out.len = out.len + 1;
     i = i + 1;
@@ -24,7 +24,7 @@ function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   if (i < len) {
     return -1;
   }
-  if (out.len < 1048576) {
+  if (out.len < 8388608) {
     let nl: [1]u8 = [10];
     out.data[out.len] = nl[0];
     out.len = out.len + 1;
@@ -59,7 +59,7 @@ function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
     if (num_digits > max) {
       return -1;
     }
-    if (off + num_digits >= 1048576) {
+    if (off + num_digits >= 8388608) {
       return -1;
     }
     let idx: i32 = 0;
