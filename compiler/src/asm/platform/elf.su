@@ -23,10 +23,12 @@ struct ElfPatchEntry {
   patch_imm_bits: i32;
 }
 
-/** 对外符号重定位：call 目标等，需写入 .rela.text。 */
+/**
+ * 对外符号重定位：call 目标等，需写入 .rela.text。
+ * 符号名字节放在 ElfCodegenCtx.reloc_sym_names[同下标]，避免经 -E 后 &relocs[i].name[0] 变成对「?:」临时 struct 取址（悬空）。
+ */
 struct ElfRelocEntry {
   offset: i32;
-  name: [64]u8;
   name_len: i32;
 }
 
@@ -38,28 +40,42 @@ struct ElfSymEntry {
 }
 
 /**
- * ELF 代码生成上下文：大块 code_data 置于末尾，便于自举 typeck 在 *ElfCodegenCtx 上解析前几项标量字段；
- * 行为与旧嵌套 ElfCodeBuf 等价（code_len + code_data[0..len-1]）。
+ * ELF 代码生成上下文：大块 code_data、sym_name_data 置于末尾，便于自举 typeck 在 *ElfCodegenCtx 上解析前几项标量字段；
+ * 行为与旧嵌套 ElfCodeBuf 等价（code_len + code_data[0..len-1]）；符号名见 sym_name_data + elf_sym_name_ptr。
  */
 struct ElfCodegenCtx {
   code_len: i32;
-  /** 多函数 + 分支/循环内部标签；旧 64 条易溢出致 elf_add_label 失败。 */
-  labels: [512]ElfLabelEntry;
+  /**
+   * 多函数 + 分支/循环标签；asm_codegen_elf_o 将各 dep 与入口编入同一 .text，累计标签/补丁/重定位易超过旧上限 512。
+   * 与下行 patches/relocs/syms/reloc_sym_names 行数保持一致。
+   */
+  labels: [2048]ElfLabelEntry;
   num_labels: i32;
-  patches: [512]ElfPatchEntry;
+  patches: [2048]ElfPatchEntry;
   num_patches: i32;
-  relocs: [512]ElfRelocEntry;
+  relocs: [2048]ElfRelocEntry;
+  /** 与 relocs[i] 一一对应的外部符号名；从 ElfRelocEntry 拆出以避免 Mach-O strtab 写串时对 &.name[0] 取到悬空指针。 */
+  reloc_sym_names: [2048][64]u8;
   num_relocs: i32;
-  syms: [512]ElfSymEntry;
+  syms: [2048]ElfSymEntry;
   num_syms: i32;
+  /** sym_name_data 中已写入的符号名字节总数；与 num_syms 一起在 elf_ctx_reset 中清零。 */
+  sym_name_len: i32;
   /** ELF e_machine：62=EM_X86_64，183=EM_AARCH64；write_elf_o_to_buf 写入 ehdr[18..19]。 */
   e_machine: i32;
   /** .rela.text 中 PC 相对重定位类型：2=R_X86_64_PC32，283=R_AARCH64_CALL26；由 backend 按架构设置。 */
   reloc_type_r_pc32: i32;
   /** arm64 用：enc_prologue 写入，enc_epilogue 读出以发射 add sp, sp, #current_frame_size。 */
   current_frame_size: i32;
-  /** 已编码机器码字节；容量 1MiB，与 CodegenOutBuf 一致。 */
-  code_data: [1048576]u8;
+  /**
+   * Mach-O（Darwin）：导出符号与 call 重定位使用 leading `_`，与 ld64 / libc 符号一致；
+   * ELF/COFF 路径保持 0。由 asm_codegen_elf_o 在 use_macho_o 时置 1，elf_ctx_reset 清零。
+   */
+  macho_leading_underscore: i32;
+  /** 已编码机器码字节；容量 8MiB，与 CodegenOutBuf 上限一致（文本与 .o 输出共享同一输出缓冲语义）。 */
+  code_data: [8388608]u8;
+  /** 导出符号名字节扁平池；与 syms[i] 顺序一致，第 i 个符号名起始于 elf_sym_name_ptr(ctx, i)。 */
+  sym_name_data: [32768]u8;
 }
 
 /** 将 i32 截断为 u8（低 8 位；与同义写法 val & 255 一致）。
@@ -70,6 +86,30 @@ function elf_to_u8(val: i32): u8 {
   return val as u8;
 }
 
+/**
+ * 将 ptr 指向的 64 字节置 0。
+ * 用于 Mach-O strtab 前对 reloc 槽名缓冲清零；用 ptr[i] 写，避免嵌套 struct 成员数组下标经 -E 到 C 时错误更新。
+ */
+function elf_clear_u8_64(ptr: *u8): void {
+  let i: i32 = 0;
+  while (i < 64) {
+    ptr[i] = 0;
+    i = i + 1;
+  }
+}
+
+/**
+ * 将 src 前 n 字节拷入 dst（两侧各最多 64 字节）。
+ * 专用 *u8 + 下标赋值，避免形如 ctx.relocs[r].name[k] = name[k] 展开后在 C 后端写成错误槽，导致 Darwin .o 中 UND 符号名为空串。
+ */
+function elf_copy_u8_n(dst: *u8, src: *u8, n: i32): void {
+  let i: i32 = 0;
+  while (i < n && i < 64) {
+    dst[i] = src[i];
+    i = i + 1;
+  }
+}
+
 /** 重置 elf_ctx，用于新一轮编码前。e_machine 不在此清零，由 backend 在编码前设置。 */
 function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
   ctx.code_len = 0;
@@ -77,11 +117,13 @@ function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
   ctx.num_patches = 0;
   ctx.num_relocs = 0;
   ctx.num_syms = 0;
+  ctx.sym_name_len = 0;
+  ctx.macho_leading_underscore = 0;
 }
 
-/** 向 ctx.code_data 追加 n 字节 ptr[0..n-1]。返回 0 成功，缓冲区满或 n 会导致越界时返回 -1。上界与 code_data 长度一致（1MiB）。 */
+/** 向 ctx.code_data 追加 n 字节 ptr[0..n-1]。返回 0 成功，缓冲区满或 n 会导致越界时返回 -1。上界与 code_data 长度一致（8MiB）。 */
 function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
-  if (n < 0 || ctx.code_len + n > 1048576) {
+  if (n < 0 || ctx.code_len + n > 8388608) {
     return -1;
   }
   let i: i32 = 0;
@@ -95,16 +137,14 @@ function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
 
 /** 记录标签：名称为 name[0..name_len-1]，当前 code_len 即其偏移。 */
 function elf_add_label(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
-  if (ctx.num_labels >= 512) {
+  if (ctx.num_labels >= 2048) {
     return -1;
   }
-  let k: i32 = 0;
-  while (k < name_len && k < 64) {
-    ctx.labels[ctx.num_labels].name[k] = name[k];
-    k = k + 1;
-  }
-  ctx.labels[ctx.num_labels].name_len = name_len;
-  ctx.labels[ctx.num_labels].offset = ctx.code_len;
+  /** 局部下标避免 &labels[num_labels].name[0] 经 -E 变成「?: 的临时 struct」取址（Clang 报 dangling，reloc 名全丢）。 */
+  let li: i32 = ctx.num_labels;
+  elf_copy_u8_n(&ctx.labels[li].name[0], &name[0], name_len);
+  ctx.labels[li].name_len = name_len;
+  ctx.labels[li].offset = ctx.code_len;
   ctx.num_labels = ctx.num_labels + 1;
   return 0;
 }
@@ -116,48 +156,80 @@ function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: [64]u8, nam
 
 /** 记录待补丁（arm64 用）：imm_bits 26=B/BL，19=CBZ/CBNZ/B.cond。 */
 function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: [64]u8, name_len: i32, imm_bits: i32): i32 {
-  if (ctx.num_patches >= 512) {
+  if (ctx.num_patches >= 2048) {
     return -1;
   }
-  ctx.patches[ctx.num_patches].rel32_offset = rel32_offset;
-  let k: i32 = 0;
-  while (k < name_len && k < 64) {
-    ctx.patches[ctx.num_patches].name[k] = name[k];
-    k = k + 1;
-  }
-  ctx.patches[ctx.num_patches].name_len = name_len;
-  ctx.patches[ctx.num_patches].patch_imm_bits = imm_bits;
+  let pi: i32 = ctx.num_patches;
+  ctx.patches[pi].rel32_offset = rel32_offset;
+  elf_copy_u8_n(&ctx.patches[pi].name[0], &name[0], name_len);
+  ctx.patches[pi].name_len = name_len;
+  ctx.patches[pi].patch_imm_bits = imm_bits;
   ctx.num_patches = ctx.num_patches + 1;
   return 0;
 }
 
 /** 记录重定位：offset 为 .text 内 rel32 位置，name 为符号名。 */
 function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: [64]u8, name_len: i32): i32 {
-  if (ctx.num_relocs >= 512) {
+  /** Mach-O/ELF 写出均要求非空符号名；name_len≤0 曾在 Darwin .o 中产生无名字重定位。 */
+  if (name_len <= 0) {
     return -1;
   }
-  ctx.relocs[ctx.num_relocs].offset = offset;
-  let k: i32 = 0;
-  while (k < name_len && k < 64) {
-    ctx.relocs[ctx.num_relocs].name[k] = name[k];
-    k = k + 1;
+  /** 首字节为 0 表示未填充标识符（曾导致 strtab 中仅含 NUL 的「假名」）。 */
+  if (name[0] == 0) {
+    return -1;
   }
-  ctx.relocs[ctx.num_relocs].name_len = name_len;
+  if (ctx.num_relocs >= 2048) {
+    return -1;
+  }
+  /** ri 与 relocs、reloc_sym_names 同槽；名字只写入 reloc_sym_names[ri]（见 ElfRelocEntry 注释）。 */
+  let ri: i32 = ctx.num_relocs;
+  ctx.relocs[ri].offset = offset;
+  elf_clear_u8_64(&ctx.reloc_sym_names[ri][0]);
+  elf_copy_u8_n(&ctx.reloc_sym_names[ri][0], &name[0], name_len);
+  ctx.relocs[ri].name_len = name_len;
   ctx.num_relocs = ctx.num_relocs + 1;
   return 0;
 }
 
-/** 记录导出符号（函数）：名称与在 .text 中的偏移。 */
+/**
+ * 返回第 sym_idx 个导出符号名称在 sym_name_data 中的起始指针（按顺序拼接，长度见 syms[sym_idx].name_len）。
+ * 要求 0 <= sym_idx < ctx.num_syms。
+ */
+function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
+  let off: i32 = 0;
+  let i: i32 = 0;
+  while (i < sym_idx) {
+    off = off + ctx.syms[i].name_len;
+    i = i + 1;
+  }
+  return &ctx.sym_name_data[off];
+}
+
+/**
+ * 记录导出符号（函数）：名将写入 sym_name_data，syms[].name 不填充；.text 偏移写入 offset。
+ * name_len 与历史行为一致，实际最多拷贝 64 字节入池。
+ */
 function elf_add_sym(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32, offset: i32): i32 {
-  if (ctx.num_syms >= 512) {
+  if (ctx.num_syms >= 2048) {
+    return -1;
+  }
+  let copy_len: i32 = name_len;
+  if (copy_len > 64) {
+    copy_len = 64;
+  }
+  if (copy_len < 0) {
+    copy_len = 0;
+  }
+  if (ctx.sym_name_len + copy_len > 32768) {
     return -1;
   }
   let k: i32 = 0;
-  while (k < name_len && k < 64) {
-    ctx.syms[ctx.num_syms].name[k] = name[k];
+  while (k < copy_len) {
+    ctx.sym_name_data[ctx.sym_name_len] = name[k];
+    ctx.sym_name_len = ctx.sym_name_len + 1;
     k = k + 1;
   }
-  ctx.syms[ctx.num_syms].name_len = name_len;
+  ctx.syms[ctx.num_syms].name_len = copy_len;
   ctx.syms[ctx.num_syms].offset = offset;
   ctx.num_syms = ctx.num_syms + 1;
   return 0;
@@ -171,6 +243,24 @@ function elf_name_eq(a: [64]u8, a_len: i32, b: [64]u8, b_len: i32): i32 {
   let i: i32 = 0;
   while (i < a_len) {
     if (a[i] != b[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * 比较 [64]u8 名字与 sym_name_data 池中的一段（pool[0..pool_len-1]）是否相同。
+ * 用于 relocs 与扁平符号名匹配。
+ */
+function elf_name_eq_arr_to_pool(name: [64]u8, name_len: i32, pool: *u8, pool_len: i32): i32 {
+  if (name_len != pool_len) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < name_len) {
+    if (name[i] != pool[i]) {
       return 0;
     }
     i = i + 1;
@@ -251,7 +341,7 @@ function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
 function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  while (i < n && out.len < 1048576) {
+  while (i < n && out.len < 8388608) {
     out.data[out.len] = ptr[i];
     out.len = out.len + 1;
     i = i + 1;
@@ -323,7 +413,7 @@ function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   }
   s = 0;
   while (s < ctx.num_syms) {
-    if (elf_append(out, ctx.syms[s].name, ctx.syms[s].name_len) != 0) {
+    if (elf_append(out, elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) {
       return -1;
     }
     if (elf_append(out, strtab_first, 1) != 0) {
@@ -369,7 +459,7 @@ function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     let sym_idx: i32 = 0;
     let m: i32 = 0;
     while (m < ctx.num_syms) {
-      if (elf_name_eq(ctx.relocs[r].name, ctx.relocs[r].name_len, ctx.syms[m].name, ctx.syms[m].name_len) != 0) {
+      if (elf_name_eq_arr_to_pool(ctx.reloc_sym_names[r], ctx.relocs[r].name_len, elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = m + 1;
         break;
       }
