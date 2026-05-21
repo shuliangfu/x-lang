@@ -7,14 +7,7 @@
   "publisher": "shulang",
   "icon": "icon.png",
   "main": "./out/extension.js",
-  "activationEvents": [
-    "onLanguage:su",
-    "onCommand:shulang.openSettings",
-    "onCommand:shulang.restartServer",
-    "onCommand:shulang.showServerOutput",
-    "onCommand:shulang.runFile",
-    "onCommand:shulang.refreshCodeLens"
-  ],
+  "activationEvents": [],
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -156,7 +149,13 @@
         "shulang.features.codeLens": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用行内 CodeLens（▶ Run、字段数、变体数等）。",
+          "markdownDescription": "启用行内 CodeLens（▶ Run、struct/enum 字段数等）。",
+          "scope": "resource"
+        },
+        "shulang.features.codeLensFunctionLabels": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "在 `function` / `extern function` 定义行上方显示 `fn` / `extern fn` 标签。默认关闭；不影响 ▶ Run 与 struct/enum 提示。",
           "scope": "resource"
         },
         "shulang.features.signatureHelp": {
@@ -220,9 +219,12 @@
           "scope": "resource"
         },
         "shulang.compiler.extraArgs": {
-          "type": "string",
-          "default": "[]",
-          "markdownDescription": "传递给 `shu --lsp` 的额外命令行参数，JSON 数组字符串，如 `[\"--verbose\"]`。请在 settings.json 中编辑。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "传递给 `shu --lsp` 的额外命令行参数，如 `[\"--verbose\"]`。",
           "scope": "resource"
         },
         "shulang.compiler.targetDir": {
@@ -232,16 +234,19 @@
           "scope": "resource"
         },
         "shulang.compiler.libRoots": {
-          "type": "string",
-          "default": "[\".\", \"compiler/src\", \"core\", \"std\"]",
-          "markdownDescription": "import 路径解析库根目录列表（JSON 数组字符串），与 shu -L 布局一致。用于 import 跳转与跨模块符号索引。",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [".", "compiler/src", "core", "std"],
+          "markdownDescription": "import 路径解析库根目录列表，与 shu -L 布局一致。用于 import 跳转与跨模块符号索引。",
           "scope": "resource"
         },
         "shulang.compiler.envJson": {
-          "type": "string",
-          "default": "{}",
-          "markdownDescription": "传递给 `shu` 进程的环境变量，JSON 对象字符串，例如 `{\"SHULANG_PATH\":\"/opt/shu\"}`。请在 settings.json 中编辑。",
-          "scope": "machine"
+          "type": "object",
+          "default": {},
+          "markdownDescription": "传递给 `shu` 进程的环境变量，例如 `{ \"SHULANG_PATH\": \"/opt/shu\" }`。",
+          "scope": "resource"
         }
       }
     },
@@ -268,7 +273,7 @@
       },
       {
         "command": "shulang.openSettings",
-        "title": "打开 Shulang 设置（工作区 settings.json）",
+        "title": "打开设置（工作区 settings.json）",
         "category": "Shulang"
       },
       {
