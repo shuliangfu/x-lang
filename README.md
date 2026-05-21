@@ -19,6 +19,24 @@
 - 仅需 shu 跑测试时可直接 `make -C compiler`（默认产出 **shu** 与 **shu-c**）；首次建议 `make -C compiler build-tool` 以便日后用 `./build_tool ./shu`。CI 与本地回归均可用 `make -C compiler test` 或 `./tests/run-all.sh`。
 - 详见 `analysis/完全脱离C与Makefile路线图.md` 阶段 5；无 C/无 Makefile 时用 build.su 作唯一入口见 `analysis/完全自举-无C无Makefile.md`。
 
+## shu 编译器用法
+
+默认走 **ASM 后端**直出机器码。常用命令如下：
+
+| 命令 | 说明 |
+|------|------|
+| `shu file.su` | 编译并运行（等同 `shu run file.su`） |
+| `shu build` | 读取当前目录 `build.su`，编译并运行 `build_runner`（项目构建） |
+| `shu build file.su` | 仅编译，默认产物 `a.out` |
+| `shu build file.su -o exe` | 编译到指定可执行文件 |
+| `shu run file.su` | 编译并运行 |
+| `shu -E file.su` | 输出 C 源码（调试用） |
+| `shu -backend asm file.su` | ASM 后端（默认已是，可显式写出） |
+| `shu -backend c file.su` | 强制走 C 路径 |
+| `shu fmt` | 占位（开发中） |
+| `shu check` | 占位（开发中） |
+| `shu test` | 占位（开发中） |
+
 ---
 
 ## 当前进度小结（便于快速对照）
