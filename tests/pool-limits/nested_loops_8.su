@@ -1,0 +1,21 @@
+// backend 循环标签栈上限边界：8 层嵌套 while（P-B05 新硬顶）；最内层 return 8。
+function main(): i32 {
+  while (true) {
+    while (true) {
+      while (true) {
+        while (true) {
+          while (true) {
+            while (true) {
+              while (true) {
+                while (true) {
+                  return 8;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
