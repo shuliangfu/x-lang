@@ -1,7 +1,0 @@
-struct Inner {
-    z: i32;
-}
-
-function g(a: [2]Inner): i32 {
-    return a[1].z;
-}
