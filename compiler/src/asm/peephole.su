@@ -81,7 +81,7 @@ function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   let src: i32 = 0;
   let dst: i32 = 0;
   let prev_was_nl: i32 = 0;
-  while (src < out.len && dst < 1048576) {
+  while (src < out.len && dst < 8388608) {
     let ch: u8 = out.data[src];
     if (ch == 10) {
       if (prev_was_nl != 0) {
