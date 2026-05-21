@@ -17,6 +17,8 @@
 #ifndef SHU_AST_H
 #define SHU_AST_H
 
+#include <stdint.h>
+
 /** 类型节点种类：内建整数/布尔、用户自定义名、指针等；与 analysis/变量类型与类型系统设计.md §2–§5、§六 一致 */
 typedef enum ASTTypeKind {
     AST_TYPE_I32,    /**< 内建 i32 整数 */
@@ -316,7 +318,10 @@ typedef struct ASTBlock {
 } ASTBlock;
 
 /** 函数形参：名称与类型（与 analysis/自举前路线分析.md 多函数 一致）；is_restrict 供 noalias 传递生成 C restrict。 */
-#define AST_FUNC_MAX_PARAMS 16
+/** C parser 形参/实参数组初始容量；无固定个数上限，按需 realloc grow（与 SU grow 池对齐）。 */
+#define AST_FUNC_PARAMS_INIT 16
+/** @deprecated 旧名；仅表示初始容量，非硬顶。 */
+#define AST_FUNC_MAX_PARAMS AST_FUNC_PARAMS_INIT
 typedef struct ASTParam {
     const char *name;       /**< 参数名（strdup），由 ast_module_free 释放 */
     struct ASTType *type;   /**< 参数类型，不可为 NULL */
@@ -367,8 +372,10 @@ typedef struct ASTImplBlock {
     int num_funcs;
 } ASTImplBlock;
 
-/** 顶层最大函数数（多函数支持，自举前路线分析 §5.1）；自举时 typeck/codegen.su 含大量 extern，故放宽至 256。 */
-#define AST_MODULE_MAX_FUNCS 256
+/** C parser 模块函数指针数组初始容量；无固定个数上限，按需 realloc grow。 */
+#define AST_MODULE_FUNCS_INIT 256
+/** @deprecated 旧名；仅表示初容量，非硬顶。 */
+#define AST_MODULE_MAX_FUNCS AST_MODULE_FUNCS_INIT
 
 /** 单态化实例：泛型函数 + 类型实参，由 typeck 登记、codegen 按实例生成 C（阶段 7.1）。type_args 与数组由 ast_module_free 释放。 */
 typedef struct ASTMonoInstance {
@@ -485,4 +492,9 @@ void ast_expr_init_match_enum(ASTExpr *e);
  */
 void ast_type_free(ASTType *t);
 
+/* -------------------------------------------------------------------------- */
+/* Pipeline / .su AST 竞技场 ABI（struct ast_*）：与 pipeline_gen.c 自举单文件一致。
+ * ast_ast_arena_{type,expr,block}_get 由 SU 编译产物按值返回大结构体，在 ARM64 macOS 上
+ * 与其它 TU 交错调用时 ABI 不可靠；下列 *_into 由宿主 C 编译器编译，写入调用方缓冲区。
+ * 完整定义见 pipeline_gen.c；此处仅为 ast.c 实现的调用约定前置声明。 */
 #endif /* SHU_AST_H */
