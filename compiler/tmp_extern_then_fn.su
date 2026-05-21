@@ -1,6 +1,0 @@
-// tmp: reproduce extern block then library function
-extern function foo(): i32;
-/** block comment with 中文 */
-function bar(x: i32): i32 {
-  return x;
-}
