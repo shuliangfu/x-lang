@@ -165,6 +165,25 @@ function emit_push_rax(out: *CodegenOutBuf): i32 {
   return append_asm_line(out, line, 10);
 }
 
+/** call 后回收栈传参：addq $nbytes, %rsp（SysV 溢出实参；nbytes 须为 8 的倍数且 ≤127 用 imm8）。 */
+function emit_add_rsp_imm(out: *CodegenOutBuf, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  let buf: [36]u8 = [97, 100, 100, 113, 32, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = format_i32_to_buf(buf, 6, 12, nbytes);
+  if (n < 0) {
+    return -1;
+  }
+  buf[6 + n] = 44;
+  buf[7 + n] = 32;
+  buf[8 + n] = 37;
+  buf[9 + n] = 114;
+  buf[10 + n] = 115;
+  buf[11 + n] = 112;
+  return append_asm_line(out, buf, 12 + n);
+}
+
 /** popq %rbx：恢复左值到 rbx（与 emit_push_rax 配对，用于 add 等）。 */
 function emit_pop_rbx(out: *CodegenOutBuf): i32 {
   let line: [16]u8 = [112, 111, 112, 113, 32, 37, 114, 98, 120, 0, 0, 0, 0, 0, 0, 0];
@@ -522,21 +541,70 @@ function emit_jmp(out: *CodegenOutBuf, label: [64]u8, label_len: i32): i32 {
 /** 标签：name:（函数入口或分支目标）；name 与 AST 名或 backend 标签 buf 一致为 [64]u8。 */
 function emit_label(out: *CodegenOutBuf, name: [64]u8, name_len: i32): i32 {
   let i: i32 = 0;
-  while (i < name_len && out.len < 1048576) {
+  while (i < name_len && out.len < 8388608) {
     out.data[out.len] = name[i];
     out.len = out.len + 1;
     i = i + 1;
   }
-  if (out.len < 1048576) {
+  if (out.len < 8388608) {
     let colon: [1]u8 = [58];
     out.data[out.len] = colon[0];
     out.len = out.len + 1;
   }
-  if (out.len < 1048576) {
+  if (out.len < 8388608) {
     let nl: [1]u8 = [10];
     out.data[out.len] = nl[0];
     out.len = out.len + 1;
     return 0;
   }
   return -1;
+}
+
+/**
+ * 将栈上 [rbp-rbp_off ..) 共 nbytes 字节置零：leaq 到 %rdi 后调用 memset（空数组字面量 / 大块 let 初值）。
+ */
+function emit_memset_rbp_zero(out: *CodegenOutBuf, rbp_off: i32, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  let lea: [48]u8 = [108, 101, 97, 113, 32, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n0: i32 = format_i32_to_buf(lea, 6, 12, rbp_off);
+  if (n0 < 0) {
+    return -1;
+  }
+  lea[6 + n0] = 40;
+  lea[7 + n0] = 37;
+  lea[8 + n0] = 114;
+  lea[9 + n0] = 98;
+  lea[10 + n0] = 112;
+  lea[11 + n0] = 41;
+  lea[12 + n0] = 44;
+  lea[13 + n0] = 32;
+  lea[14 + n0] = 37;
+  lea[15 + n0] = 114;
+  lea[16 + n0] = 100;
+  lea[17 + n0] = 105;
+  if (append_asm_line(out, lea, 18 + n0) != 0) {
+    return -1;
+  }
+  let xr: [20]u8 = [120, 111, 114, 108, 32, 37, 101, 115, 105, 44, 32, 37, 101, 115, 105, 0, 0, 0, 0, 0];
+  if (append_asm_line(out, xr, 15) != 0) {
+    return -1;
+  }
+  let mv: [32]u8 = [109, 111, 118, 108, 32, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n1: i32 = format_i32_to_buf(mv, 6, 10, nbytes);
+  if (n1 < 0) {
+    return -1;
+  }
+  mv[6 + n1] = 44;
+  mv[7 + n1] = 32;
+  mv[8 + n1] = 37;
+  mv[9 + n1] = 101;
+  mv[10 + n1] = 100;
+  mv[11 + n1] = 120;
+  if (append_asm_line(out, mv, 12 + n1) != 0) {
+    return -1;
+  }
+  let cl: [16]u8 = [99, 97, 108, 108, 32, 109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0];
+  return append_asm_line(out, cl, 11);
 }
