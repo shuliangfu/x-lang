@@ -1,6 +1,0 @@
-import ast;
-extern function helper(): i32;
-/** block comment before impl */
-function tiny(): i32 {
-  return 0;
-}
