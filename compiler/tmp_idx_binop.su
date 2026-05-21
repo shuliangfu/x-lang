@@ -1,8 +1,0 @@
-struct Inner {
-    z: i32;
-}
-
-function foo(xs: [2]Inner): Inner {
-    let t: Inner = xs[0 + 1];
-    return t;
-}
