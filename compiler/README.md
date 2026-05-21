@@ -18,3 +18,19 @@
 Makefile 仅作从零构建/首次；`make all` 默认同时产出 **shu** 与 **shu-c**。日常推荐仅用 `./build_tool ./shu`。生成 C（pipeline_gen.c / driver_gen.c）后无补丁，由 runtime/codegen 从根源产出。验收：仓库根执行 `./tests/run-all.sh`。
 
 详见项目根目录下 `analysis/architecture.md` 第三章「编译器架构」。
+
+## shu 可执行文件用法（默认 ASM 后端）
+
+产出 `shu` 后，在 PATH 或本目录下直接调用。默认 **ASM 后端**直出机器码；可选 **C 后端**。
+
+| 命令 | 说明 |
+|------|------|
+| `shu file.su` | 编译并运行（等同 `shu run file.su`） |
+| `shu build` | 读取当前目录 `build.su`，编译并运行 `build_runner` |
+| `shu build file.su` | 仅编译，默认产物 `a.out` |
+| `shu build file.su -o exe` | 编译到指定可执行文件 |
+| `shu run file.su` | 编译并运行 |
+| `shu -E file.su` | 输出 C 源码（调试用） |
+| `shu -backend c file.su` | 强制走 C 路径 |
+
+更全的子命令表（含 `-backend asm`、`shu fmt` / `check` / `test` 占位）见仓库根目录 `README.md` 中的「shu 编译器用法」一节。
