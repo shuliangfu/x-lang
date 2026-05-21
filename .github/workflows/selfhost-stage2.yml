@@ -1,0 +1,23 @@
+# 可选：更严自举对比（shu-su -su -E 生成 _gen2.c 链 shu-su2）。
+# 默认不阻塞 PR；手动 workflow_dispatch 或每周 schedule 触发。
+
+name: Selfhost Stage2
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 0'
+
+jobs:
+  stage2:
+    name: verify-selfhost-stage2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libbrotli-dev
+      - name: Build shu and shu-c
+        run: make -C compiler OPT=1 all
+      - name: Run verify-selfhost-stage2.sh
+        run: cd compiler && sh ./verify-selfhost-stage2.sh
+        timeout-minutes: 45
