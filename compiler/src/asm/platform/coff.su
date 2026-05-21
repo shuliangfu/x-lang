@@ -2,7 +2,7 @@
 //
 // 职责：将 backend 已填充且 elf_resolve_patches 后的 ElfCodegenCtx 写出为 PE/COFF .obj，
 //      供 -target *-windows-* 且 -backend asm -o xxx.obj 使用。仅支持 x86_64 (e_machine 62)。
-// 依赖：codegen（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_to_u8、elf_name_eq）。
+// 依赖：codegen（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_eq_arr_to_pool）。
 //
 
 import codegen;
@@ -11,7 +11,7 @@ import platform.elf;
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
 function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  while (i < n && out.len < 1048576) {
+  while (i < n && out.len < 8388608) {
     out.data[out.len] = ptr[i];
     out.len = out.len + 1;
     i = i + 1;
@@ -125,7 +125,8 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     let sym_idx: i32 = 0;
     let m: i32 = 0;
     while (m < num_syms) {
-      if (platform.elf.elf_name_eq(ctx.relocs[r].name, ctx.relocs[r].name_len, ctx.syms[m].name, ctx.syms[m].name_len) != 0) {
+      /** COFF 符号索引解析须用 reloc_sym_names（与 elf_add_reloc 写入一致）。 */
+      if (platform.elf.elf_name_eq_arr_to_pool(ctx.reloc_sym_names[r], ctx.relocs[r].name_len, platform.elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = 2 + m;
         break;
       }
@@ -197,7 +198,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   if (coff_append(out, str_size, 4) != 0) { return -1; }
   s = 0;
   while (s < num_syms) {
-    if (coff_append(out, ctx.syms[s].name, ctx.syms[s].name_len) != 0) { return -1; }
+    if (coff_append(out, platform.elf.elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) { return -1; }
     if (coff_append(out, zero, 1) != 0) { return -1; }
     s = s + 1;
   }
