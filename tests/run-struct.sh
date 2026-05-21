@@ -20,4 +20,9 @@ else
   exit 1
 fi
 
+# packed 结构体（memory-contract）：无隐式 padding
+$SHU tests/memory-contract/packed_struct.su -o /tmp/shu_struct_packed 2>&1
+exitcode=0; /tmp/shu_struct_packed >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "expected 0 (packed struct), got $exitcode"; exit 1; }
+
 echo "struct test OK"
