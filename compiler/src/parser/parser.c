@@ -14,6 +14,57 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * 模块级 ASTFunc* 数组按需扩容；cap 为当前容量（入参出参），need 为所需下标+1。
+ */
+static ASTFunc **parser_grow_func_ptrs(ASTFunc **list, int *cap, int need) {
+    if (need <= *cap)
+        return list;
+    int nc = *cap > 0 ? *cap : AST_MODULE_FUNCS_INIT;
+    while (nc < need)
+        nc *= 2;
+    ASTFunc **p = (ASTFunc **)realloc(list, (size_t)nc * sizeof(ASTFunc *));
+    if (!p)
+        return NULL;
+    *cap = nc;
+    return p;
+}
+
+/**
+ * 形参数组按需扩容；cap 为当前容量（入参出参），need 为所需下标+1。
+ * 返回新指针，失败返回 NULL。
+ */
+static ASTParam *parser_grow_params(ASTParam *params, int *cap, int need) {
+    if (need <= *cap)
+        return params;
+    int nc = *cap > 0 ? *cap : AST_FUNC_PARAMS_INIT;
+    while (nc < need)
+        nc *= 2;
+    ASTParam *p = (ASTParam *)realloc(params, (size_t)nc * sizeof(ASTParam));
+    if (!p)
+        return NULL;
+    for (int i = *cap; i < nc; i++)
+        (void)memset(&p[i], 0, sizeof(ASTParam));
+    *cap = nc;
+    return p;
+}
+
+/**
+ * 调用实参数组按需扩容；cap 为当前容量，need 为所需下标+1。
+ */
+static ASTExpr **parser_grow_call_args(ASTExpr **args, int *cap, int need) {
+    if (need <= *cap)
+        return args;
+    int nc = *cap > 0 ? *cap : AST_FUNC_PARAMS_INIT;
+    while (nc < need)
+        nc *= 2;
+    ASTExpr **a = (ASTExpr **)realloc(args, (size_t)nc * sizeof(ASTExpr *));
+    if (!a)
+        return NULL;
+    *cap = nc;
+    return a;
+}
+
 /** 解析器内部状态：Lexer 引用 + 当前 lookahead Token + 下一/再下一 Token（用于 label: 与 < 歧义消解） */
 typedef struct {
     Lexer *lex;
@@ -1084,7 +1135,8 @@ static ASTExpr *parse_postfix(Parser *p) {
             /* base . method ( args ) → 方法调用（阶段 7.2）；否则为字段访问 */
             if (peek(p)->kind == TOKEN_LPAREN) {
                 advance(p);  /* consume '(' */
-                ASTExpr **args = (ASTExpr **)malloc((size_t)AST_FUNC_MAX_PARAMS * sizeof(ASTExpr *));
+                int args_cap = AST_FUNC_PARAMS_INIT;
+                ASTExpr **args = (ASTExpr **)malloc((size_t)args_cap * sizeof(ASTExpr *));
                 if (!args) {
                     ast_expr_free(left);
                     free(field_name);
@@ -1093,14 +1145,16 @@ static ASTExpr *parse_postfix(Parser *p) {
                 }
                 int num_args = 0;
                 while (peek(p)->kind != TOKEN_RPAREN) {
-                    if (num_args >= AST_FUNC_MAX_PARAMS) {
+                    ASTExpr **na = parser_grow_call_args(args, &args_cap, num_args + 1);
+                    if (!na) {
                         ast_expr_free(left);
                         free(field_name);
                         for (int i = 0; i < num_args; i++) ast_expr_free(args[i]);
                         free(args);
-                        fail(p, "too many arguments in method call");
+                        fprintf(stderr, "parse: out of memory\n");
                         return NULL;
                     }
+                    args = na;
                     ASTExpr *arg = parse_expr(p);
                     if (!arg) {
                         ast_expr_free(left);
@@ -2103,21 +2157,24 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
     advance(p);
     ASTType *self_type = parse_type_name(p);
     if (!self_type) { free(meth_name); return NULL; }
-    ASTParam *params = (ASTParam *)malloc((size_t)AST_FUNC_MAX_PARAMS * sizeof(ASTParam));
+    int params_cap = AST_FUNC_PARAMS_INIT;
+    ASTParam *params = (ASTParam *)malloc((size_t)params_cap * sizeof(ASTParam));
     if (!params) { free(meth_name); ast_type_free(self_type); fprintf(stderr, "parse: out of memory\n"); return NULL; }
-    (void)memset(params, 0, (size_t)AST_FUNC_MAX_PARAMS * sizeof(ASTParam));
+    (void)memset(params, 0, (size_t)params_cap * sizeof(ASTParam));
     params[0].name = strdup("self");
     params[0].type = self_type;
     int num_params = 1;
     while (peek(p)->kind == TOKEN_COMMA) {
         advance(p);
-        if (num_params >= AST_FUNC_MAX_PARAMS) {
+        ASTParam *np = parser_grow_params(params, &params_cap, num_params + 1);
+        if (!np) {
             free(meth_name);
             for (int j = 0; j < num_params; j++) { free((void *)params[j].name); ast_type_free(params[j].type); }
             free(params);
-            fail(p, "too many params");
+            fprintf(stderr, "parse: out of memory\n");
             return NULL;
         }
+        params = np;
         if (peek(p)->kind != TOKEN_IDENT) {
             free(meth_name);
             for (int j = 0; j < num_params; j++) { free((void *)params[j].name); ast_type_free(params[j].type); }
@@ -2227,7 +2284,8 @@ static ASTImplBlock *parse_one_impl(Parser *p) {
     advance(p); /* consume the type token */
     if (peek(p)->kind != TOKEN_LBRACE) { free(trait_name); free(type_name); fail(p, "expected '{' after impl for type"); return NULL; }
     advance(p);
-    ASTFunc **funcs = (ASTFunc **)malloc((size_t)AST_MODULE_MAX_FUNCS * sizeof(ASTFunc *));
+    ASTFunc **funcs = (ASTFunc **)malloc((size_t)AST_MODULE_FUNCS_INIT * sizeof(ASTFunc *));
+    int funcs_cap = AST_MODULE_FUNCS_INIT;
     if (!funcs) { free(trait_name); free(type_name); fprintf(stderr, "parse: out of memory\n"); return NULL; }
     int nfuncs = 0;
     while (peek(p)->kind != TOKEN_RBRACE) {
@@ -2259,21 +2317,25 @@ static ASTImplBlock *parse_one_impl(Parser *p) {
             free(funcs);
             return NULL;
         }
-        if (nfuncs >= AST_MODULE_MAX_FUNCS) {
-            free((void *)meth->name); if (meth->params) { for (int j = 0; j < meth->num_params; j++) { free((void *)meth->params[j].name); ast_type_free(meth->params[j].type); } free(meth->params); }
-            ast_type_free(meth->return_type); ast_block_free(meth->body); free(meth);
-            free(trait_name); free(type_name);
-            for (int i = 0; i < nfuncs; i++) {
-                ASTFunc *f = funcs[i];
-                if (f->name) free((void *)f->name);
-                if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
-                if (f->return_type) ast_type_free(f->return_type);
-                if (f->body) ast_block_free(f->body);
-                free(f);
+        if (nfuncs >= funcs_cap) {
+            ASTFunc **nf = parser_grow_func_ptrs(funcs, &funcs_cap, nfuncs + 1);
+            if (!nf) {
+                free((void *)meth->name); if (meth->params) { for (int j = 0; j < meth->num_params; j++) { free((void *)meth->params[j].name); ast_type_free(meth->params[j].type); } free(meth->params); }
+                ast_type_free(meth->return_type); ast_block_free(meth->body); free(meth);
+                free(trait_name); free(type_name);
+                for (int i = 0; i < nfuncs; i++) {
+                    ASTFunc *f = funcs[i];
+                    if (f->name) free((void *)f->name);
+                    if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
+                    if (f->return_type) ast_type_free(f->return_type);
+                    if (f->body) ast_block_free(f->body);
+                    free(f);
+                }
+                free(funcs);
+                fail(p, "out of memory growing impl method list");
+                return NULL;
             }
-            free(funcs);
-            fail(p, "too many methods in impl block");
-            return NULL;
+            funcs = nf;
         }
         funcs[nfuncs++] = meth;
     }
@@ -2976,17 +3038,19 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern) {
         return NULL;
     }
     advance(p);
-    ASTParam *params = (ASTParam *)malloc((size_t)AST_FUNC_MAX_PARAMS * sizeof(ASTParam));
+    int params_cap = AST_FUNC_PARAMS_INIT;
+    ASTParam *params = (ASTParam *)malloc((size_t)params_cap * sizeof(ASTParam));
     if (!params) {
         free(name);
         if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
         fprintf(stderr, "parse: out of memory\n");
         return NULL;
     }
-    (void)memset(params, 0, (size_t)AST_FUNC_MAX_PARAMS * sizeof(ASTParam));
+    (void)memset(params, 0, (size_t)params_cap * sizeof(ASTParam));
     int num_params = 0;
     while (peek(p)->kind != TOKEN_RPAREN) {
-        if (num_params >= AST_FUNC_MAX_PARAMS) {
+        ASTParam *np = parser_grow_params(params, &params_cap, num_params + 1);
+        if (!np) {
             free(name);
             if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
             for (int i = 0; i < num_params; i++) {
@@ -2994,9 +3058,10 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern) {
                 if (params[i].type) ast_type_free(params[i].type);
             }
             free(params);
-            fail(p, "too many function parameters");
+            fprintf(stderr, "parse: out of memory\n");
             return NULL;
         }
+        params = np;
         if (peek(p)->kind != TOKEN_IDENT) {
             free(name);
             if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
@@ -3637,7 +3702,18 @@ int parse(Lexer *lex, ASTModule **out) {
     }
 
     /* [ extern? function | allow(padding)? struct | enum | let ]*；允许 struct/enum/function 与顶层 let 任意交错。 */
-    ASTFunc *func_list[AST_MODULE_MAX_FUNCS];
+    int func_cap = AST_MODULE_FUNCS_INIT;
+    ASTFunc **func_list = (ASTFunc **)malloc((size_t)func_cap * sizeof(ASTFunc *));
+    if (!func_list) {
+        fprintf(stderr, "parse: out of memory\n");
+        while (nimports--) free(import_list[nimports]);
+        while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
+        while (nenums--) ast_enum_def_free(enum_list[nenums]);
+        while (ntraits--) ast_trait_def_free(trait_list[ntraits]);
+        while (nimpls--) ast_impl_block_free(impl_list[nimpls]);
+        free(mod);
+        return -1;
+    }
     int nfuncs = 0;
     while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
@@ -3834,6 +3910,7 @@ cleanup_funcs_fail:
                 if (f->body) ast_block_free(f->body);
                 free(f);
             }
+            free(func_list);
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
             while (nenums--) ast_enum_def_free(enum_list[nenums]);
@@ -3842,48 +3919,28 @@ cleanup_funcs_fail:
             free(mod);
             return -1;
         }
-        if (nfuncs >= AST_MODULE_MAX_FUNCS) {
-            if (func->name) free((void *)func->name);
-            if (func->generic_param_names) {
-                for (int j = 0; j < func->num_generic_params; j++)
-                    if (func->generic_param_names[j]) free((void *)func->generic_param_names[j]);
-                free(func->generic_param_names);
-            }
-            if (func->params) {
-                for (int j = 0; j < func->num_params; j++) {
-                    if (func->params[j].name) free((void *)func->params[j].name);
-                    if (func->params[j].type) ast_type_free(func->params[j].type);
+        if (nfuncs >= func_cap) {
+            ASTFunc **nf = parser_grow_func_ptrs(func_list, &func_cap, nfuncs + 1);
+            if (!nf) {
+                if (func->name) free((void *)func->name);
+                if (func->generic_param_names) {
+                    for (int j = 0; j < func->num_generic_params; j++)
+                        if (func->generic_param_names[j]) free((void *)func->generic_param_names[j]);
+                    free(func->generic_param_names);
                 }
-                free(func->params);
-            }
-            if (func->return_type) ast_type_free(func->return_type);
-            if (func->body) ast_block_free(func->body);
-            free(func);
-            while (nfuncs--) {
-                ASTFunc *f = func_list[nfuncs];
-                if (f->name) free((void *)f->name);
-                if (f->generic_param_names) {
-                    for (int j = 0; j < f->num_generic_params; j++)
-                        if (f->generic_param_names[j]) free((void *)f->generic_param_names[j]);
-                    free(f->generic_param_names);
-                }
-                if (f->params) {
-                    for (int j = 0; j < f->num_params; j++) {
-                        if (f->params[j].name) free((void *)f->params[j].name);
-                        if (f->params[j].type) ast_type_free(f->params[j].type);
+                if (func->params) {
+                    for (int j = 0; j < func->num_params; j++) {
+                        if (func->params[j].name) free((void *)func->params[j].name);
+                        if (func->params[j].type) ast_type_free(func->params[j].type);
                     }
-                    free(f->params);
+                    free(func->params);
                 }
-                if (f->return_type) ast_type_free(f->return_type);
-                if (f->body) ast_block_free(f->body);
-                free(f);
+                if (func->return_type) ast_type_free(func->return_type);
+                if (func->body) ast_block_free(func->body);
+                free(func);
+                goto cleanup_funcs_fail;
             }
-            while (nimports--) free(import_list[nimports]);
-            while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
-            while (nenums--) ast_enum_def_free(enum_list[nenums]);
-            free(mod);
-            fail(&prs, "too many functions");
-            return -1;
+            func_list = nf;
         }
         func_list[nfuncs] = func;
         if (strcmp(func->name, "main") == 0)
@@ -3910,6 +3967,7 @@ cleanup_funcs_fail:
                 if (f->body) ast_block_free(f->body);
                 free(f);
             }
+            free(func_list);
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
             while (nenums--) ast_enum_def_free(enum_list[nenums]);
@@ -3943,6 +4001,7 @@ cleanup_funcs_fail:
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
             while (nenums--) ast_enum_def_free(enum_list[nenums]);
+            free(func_list);
             free(mod);
             fprintf(stderr, "parse: out of memory\n");
             return -1;
@@ -3950,6 +4009,9 @@ cleanup_funcs_fail:
         for (int i = 0; i < nfuncs; i++)
             mod->funcs[i] = func_list[i];
         mod->num_funcs = nfuncs;
+        free(func_list);
+    } else {
+        free(func_list);
     }
     /* 库模块（被 import 的 .su）可不含 main；入口模块由 driver 在 -o/-E 时校验须有 main（阶段 7.3）。 */
 
