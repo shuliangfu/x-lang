@@ -1,6 +1,0 @@
-// tmp_extern_fn.su — 最小复现：extern 块后须有可 asm 的 function 实现
-import ast;
-extern function helper(): i32;
-function bar(): i32 {
-  return 0;
-}
