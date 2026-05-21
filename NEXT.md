@@ -32,7 +32,7 @@
 | ✅ | 放宽单函数 let 上限（避免 parser.su 做 while/for 时「too many let」） | 与 `MAX_LET_DECLS`/`OneFuncResult` 对齐到 256；`make bootstrap-parser` 通过 |
 | ✅ | 修 bootstrap-parser / codegen（OneFuncResult、数组初始化等） | `make bootstrap-parser`、`make bootstrap-parse-file` 通过 |
 | ✅ | parser.su：**回归与文档**与通用 `parse_expr_into` 对齐；新语法按需扩 | **while/for** 见时序表 2.6/2.7 ✅。**`parse_expr_into`** 已承载 2.8～2.10 主路径；验收：`make bootstrap-parse-file`（见上「进展备忘」）与 `run-binary-expr.sh`、**`-su` return 负例**（`tests/typeck/return_operand_type_mismatch.su`，`run-typeck.sh`） |
-| ⬜ | 更多 typeck/codegen 逻辑迁入 .su（10.4.2） | 自举仍过；**codegen.su** 已有 `codegen_path_is_std_io_core_bytes` 等纯路径判断；继续将 `driver_*`/glue 收窄为 ctx 字段或 .su 内规则（如 `codegen_su_import_path_to_c_prefix`） |
+| ⬜ | 更多 typeck/codegen 逻辑迁入 .su（10.4.2） | 自举仍过；**codegen.su** 已有 `codegen_import_path_to_c_prefix_into`、`codegen_path_is_std_io_*`、`codegen_use_buf_wrapper`（与 C 对齐）；待收窄 `pipeline_glue.c` / `runtime.c` 中 `-E` 补丁 |
 
 ---
 
@@ -49,6 +49,6 @@
 ## 使用说明
 
 - **顺序**：建议先做「一」再做「二」，三、四可按需穿插。
-- **性能**：无 benchmark/业务瓶颈报告前，不单开长周期性能专项；需要时再榨 std.net（如 multishot）或编译器 IR/阶段 8（参见 `analysis/接下来做什么-性能压榨与新std.md`）。
+- **性能**：无 benchmark/业务瓶颈报告前，不单开长周期性能专项；需要时再榨 std.net（如 multishot）或编译器 IR/阶段 8（参见 `analysis/接下来做什么-性能压榨与新std.md`）。**触发条件**：`tests/run-perf-baseline.sh` 建立基线 + 明确热点后再立项。
 - **打勾**：完成一项后，把该项的 `⬜` 改成 `✅` 并保存本文件。
 - **更新**：若某条验收标准变更，直接改表中「验收」列即可。
