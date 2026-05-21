@@ -1,8 +1,0 @@
-struct Buffer { ptr: *u8; len: usize; handle: usize; }
-
-function batch(buffers: [4]Buffer, n: i32): i32 {
-  let h: usize = buffers[0].handle;
-  return 0;
-}
-
-function m(): i32 { return 0; }
