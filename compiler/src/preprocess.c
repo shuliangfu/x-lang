@@ -2,7 +2,7 @@
  * preprocess.c — .su 条件编译预处理实现（#if / #else / #endif）
  *
  * 文件职责：按行扫描源码，识别 #if SYMBOL、#else、#endif；根据 defines 决定保留或跳过块；被跳过行输出换行以保持行号。
- * 约定：一行内 # 后紧跟 if/elseif/else/endif，允许空白；#if 与 #elseif 后跟单标识符 SYMBOL；支持嵌套，栈深度上限 PREPROCESS_STACK_MAX。
+ * 约定：一行内 # 后紧跟 if/elseif/else/endif，允许空白；#if 与 #elseif 后跟单标识符 SYMBOL；嵌套深度可 grow（C 本地栈）。
  */
 
 #include "preprocess.h"
@@ -10,14 +10,60 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdint.h>
 
-#define PREPROCESS_STACK_MAX 32
 #define PREPROCESS_LINE_MAX  4096
 #define PREPROCESS_OUT_GROW  65536
+#define PREPROCESS_IF_INIT   32
 
-/** 栈项：0=当前块在跳过（可进 #else），1=then 分支保留，2=else 分支保留，3=已选过分支（then 或 elseif），后续跳过 */
-static int stack[PREPROCESS_STACK_MAX];
-static int depth;
+/** C 路径 #if 嵌套栈（grow；SU 路径用 ast_pool preprocess_if_stack_*）。 */
+static int32_t *pp_if_stack;
+static int pp_if_cap;
+static int pp_if_len;
+
+/** 清空 #if 嵌套栈。 */
+static void pp_if_reset(void) {
+    pp_if_len = 0;
+}
+
+/** 当前嵌套深度。 */
+static int pp_if_len_get(void) {
+    return pp_if_len;
+}
+
+/** 追加一层；失败返回 -1。 */
+static int pp_if_push(int32_t v) {
+    if (pp_if_len >= pp_if_cap) {
+        int nc = pp_if_cap ? pp_if_cap * 2 : PREPROCESS_IF_INIT;
+        int32_t *n = (int32_t *)realloc(pp_if_stack, (size_t)nc * sizeof(int32_t));
+        if (!n)
+            return -1;
+        pp_if_stack = n;
+        pp_if_cap = nc;
+    }
+    pp_if_stack[pp_if_len++] = v;
+    return 0;
+}
+
+/** 弹出一层（#endif）。 */
+static void pp_if_pop(void) {
+    if (pp_if_len > 0)
+        pp_if_len--;
+}
+
+/** 读 stack[i]；越界返回 0。 */
+static int32_t pp_if_at(int i) {
+    if (i < 0 || i >= pp_if_len)
+        return 0;
+    return pp_if_stack[i];
+}
+
+/** 写 stack[i]。 */
+static void pp_if_set_at(int i, int32_t v) {
+    if (i < 0 || i >= pp_if_len)
+        return;
+    pp_if_stack[i] = v;
+}
 
 /** 判断符号是否在 defines 中 */
 static int is_defined(const char *sym, const char **defines, int ndefines) {
@@ -89,7 +135,10 @@ static int parse_directive(const char *line, int *out_kind, char *out_sym, size_
 
 /** 当前是否处于「保留」状态（应输出本行内容）；depth==0 表示不在任何 #if 内，全部保留；3 表示已选过分支需跳过 */
 static int is_keeping(void) {
-    return depth == 0 || (stack[depth - 1] == 1 || stack[depth - 1] == 2);
+    int depth = pp_if_len_get();
+    if (depth == 0) return 1;
+    int top = pp_if_at(depth - 1);
+    return top == 1 || top == 2;
 }
 
 char *preprocess_c_fallback(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
@@ -99,7 +148,7 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
     if (source_len == 0)
         source_len = strlen(source);
     /* 无 defines 时仍执行分支逻辑，所有 #if SYMBOL 视为未定义，走 #else 或整块跳过 */
-    depth = 0;
+    pp_if_reset();
     size_t out_cap = PREPROCESS_OUT_GROW;
     size_t out_len = 0;
     char *out = (char *)malloc(out_cap);
@@ -119,27 +168,30 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
                 char sym[64] = {0};
                 int is_dir = parse_directive(line_buf, &kind, sym, sizeof(sym));
                 if (is_dir) {
+                    int depth = pp_if_len_get();
                     if (kind == 1) {
-                        if (depth >= PREPROCESS_STACK_MAX) {
+                        int v;
+                        if (depth > 0 && pp_if_at(depth - 1) == 0)
+                            v = 0;
+                        else
+                            v = is_defined(sym, defines, ndefines) ? 1 : 0;
+                        if (pp_if_push(v) < 0) {
                             fprintf(stderr, "preprocess: #if nesting too deep\n");
                             free(out);
                             return NULL;
                         }
-                        if (depth > 0 && stack[depth - 1] == 0)
-                            stack[depth++] = 0;
-                        else
-                            stack[depth++] = is_defined(sym, defines, ndefines) ? 1 : 0;
                     } else if (kind == 2) {
                         if (depth == 0) {
                             fprintf(stderr, "preprocess: #else without #if\n");
                             free(out);
                             return NULL;
                         }
-                        if (stack[depth - 1] == 1) {
-                            stack[depth - 1] = 0;
-                        } else if (stack[depth - 1] == 0) {
-                            stack[depth - 1] = 2;
-                        } else if (stack[depth - 1] == 3) {
+                        int top = pp_if_at(depth - 1);
+                        if (top == 1) {
+                            pp_if_set_at(depth - 1, 0);
+                        } else if (top == 0) {
+                            pp_if_set_at(depth - 1, 2);
+                        } else if (top == 3) {
                             /* 已选过 then/elseif，保留跳过 */
                             ;
                         } else {
@@ -154,17 +206,18 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
                             free(out);
                             return NULL;
                         }
-                        if (stack[depth - 1] == 2) {
+                        int top = pp_if_at(depth - 1);
+                        if (top == 2) {
                             fprintf(stderr, "preprocess: #elseif after #else\n");
                             free(out);
                             return NULL;
                         }
-                        if (stack[depth - 1] == 1) {
-                            stack[depth - 1] = 3;
-                        } else if (stack[depth - 1] == 0) {
-                            stack[depth - 1] = is_defined(sym, defines, ndefines) ? 1 : 0;
+                        if (top == 1) {
+                            pp_if_set_at(depth - 1, 3);
+                        } else if (top == 0) {
+                            pp_if_set_at(depth - 1, is_defined(sym, defines, ndefines) ? 1 : 0);
                         } else {
-                            stack[depth - 1] = 3;
+                            pp_if_set_at(depth - 1, 3);
                         }
                     } else {
                         if (depth == 0) {
@@ -172,7 +225,7 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
                             free(out);
                             return NULL;
                         }
-                        depth--;
+                        pp_if_pop();
                     }
                     /* 指令行也输出换行以保持与源文件行号一致 */
                     if (out_len + 2 > out_cap) {
@@ -209,7 +262,7 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
             line_buf[line_buf_len++] = (char)ch;
         p++;
     }
-    if (depth != 0) {
+    if (pp_if_len_get() != 0) {
         fprintf(stderr, "preprocess: unclosed #if\n");
         free(out);
         return NULL;
