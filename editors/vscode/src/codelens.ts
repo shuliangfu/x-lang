@@ -1,12 +1,20 @@
 /**
  * Shulang CodeLensProvider — 行内代码提示
  *
- * 在函数定义上方插入 CodeLens：
- * - "▶ Run" — 在 main 函数上方提供运行入口
- * - "0 references" — 占位引用计数（LSP 未连接时的回退提示）
+ * 在定义行上方插入 CodeLens：
+ * - "▶ Run" — main 函数运行入口
+ * - "fn" / "extern fn" — 可选（shulang.features.codeLensFunctionLabels，默认关）
+ * - struct / enum 字段与变体计数
  */
 
 import * as vscode from 'vscode';
+
+/** 是否显示 function / extern function 上方的 fn 标签。 */
+function showFunctionLabels(): boolean {
+  return vscode.workspace
+    .getConfiguration('shulang')
+    .get<boolean>('features.codeLensFunctionLabels', false);
+}
 
 export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
@@ -19,6 +27,7 @@ export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
     const lenses: vscode.CodeLens[] = [];
     const text = document.getText();
     const lines = text.split('\n');
+    const fnLabels = showFunctionLabels();
 
     // 函数定义正则（捕获函数名）
     const mainRegex = /^\s*function\s+main\s*\(/;
@@ -46,9 +55,9 @@ export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // 普通函数定义
+      // 普通函数定义（fn 标签默认关，见 shulang.features.codeLensFunctionLabels）
       const fm = funcRegex.exec(line);
-      if (fm) {
+      if (fm && fnLabels) {
         const range = new vscode.Range(i, 0, i, 0);
         // 引用计数（本地估算：无法精确，提示用户）
         const lens = new vscode.CodeLens(range, {
@@ -61,8 +70,8 @@ export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // extern function
-      if (externRegex.test(line)) {
+      // extern function（extern fn 标签默认关）
+      if (externRegex.test(line) && fnLabels) {
         const range = new vscode.Range(i, 0, i, 0);
         const lens = new vscode.CodeLens(range, {
           title: 'extern fn',
