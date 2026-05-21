@@ -1,9 +1,0 @@
-// 最小用例：bool 返回值 + enum 形参 == 枚举变体（用于排查 token.su typeck）
-enum E {
-  EA,
-  EB,
-}
-
-function f(k: E): bool {
-  return k == E.EA;
-}
