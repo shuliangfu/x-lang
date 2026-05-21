@@ -12,6 +12,11 @@ import platform.elf;
 import platform.macho;
 import platform.coff;
 
+/** 与 pipeline 对齐：若非 0 则跳过 dep 0 的机器码编码（宿主已提供等价 .o）。 */
+extern function driver_skip_codegen_dep_0_get(): i32;
+/** CALL 前缀：当前正在为第 j 个 dep 编码时须指向 dep 池 import 路径；入口模块前须置 NULL。 */
+extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
+
 /** 汇编后端入口：将 AST 生成汇编文本写入 out（与 codegen 共用 CodegenOutBuf）；ctx.target_arch 决定 x86_64 或 arm64；产出后可选做窥孔优化。 */
 function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
   if (backend.asm_codegen_ast(module, arena, out, ctx) != 0) {
@@ -23,9 +28,60 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
   return 0;
 }
 
-/** 将 AST 生成机器码并写出 .o 到 out（ELF / Mach-O / COFF 由 ctx.use_macho_o、use_coff_o 决定）；elf_ctx 由调用方提供并在此处重置。返回 0 成功。 */
+/**
+ * 将 AST 生成机器码并写出 .o 到 out（ELF / Mach-O / COFF 由 ctx.use_macho_o、use_coff_o 决定）；elf_ctx 由调用方提供并在此处重置。返回 0 成功。
+ * 遍历顺序须与 pipeline 文本汇编一致：先各 dep（含 runtime 合并后的传递依赖，如 std.io.driver/core），再入口 module。
+ */
 function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   platform.elf.elf_ctx_reset(elf_ctx);
+  /** Darwin .o：符号与 bl/call 重定位须带 `_`，见 ElfCodegenCtx.macho_leading_underscore。 */
+  if (ctx.use_macho_o != 0) {
+    elf_ctx.macho_leading_underscore = 1;
+  }
+  /** 与 pipeline 一致：单模块 .o 模式仅编入口，dep 符号由其它 build_asm/*.o 提供。 */
+  if (ctx.asm_entry_module_only == 0) {
+    let jdep: i32 = 0;
+    let ndep_elf: i32 = pipeline_dep_ctx_ndep(ctx);
+    while (jdep < ndep_elf) {
+      if (jdep == 0 && driver_skip_codegen_dep_0_get() != 0) {
+        jdep = jdep + 1;
+        continue;
+      }
+      let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, jdep);
+      /* 如果 dep_mod 就是 entry 或之前已编过的相同模块，跳过避免重复符号 */
+      if (dep_mod == module) {
+        jdep = jdep + 1;
+        continue;
+      }
+      /* 检查是否与之前某个 dep 是同一个模块指针 */
+      let dup: i32 = 0;
+      let pk: i32 = 0;
+      while (pk < jdep) {
+        if (pipeline_dep_ctx_module_at(ctx, pk) == dep_mod) {
+          dup = 1;
+          break;
+        }
+        pk = pk + 1;
+      }
+      if (dup != 0) {
+        jdep = jdep + 1;
+        continue;
+      }
+      let dep_path_buf: [64]u8 = [];
+      pipeline_dep_ctx_import_path_copy64(ctx, jdep, &dep_path_buf[0]);
+      driver_set_current_dep_path_for_codegen(&dep_path_buf[0]);
+      /* driver 槽位未就绪时 dep_mod 可能为空；勿解引用空指针。 */
+      if (dep_mod != (0 as *Module) && dep_mod.num_funcs > 0) {
+        if (backend.asm_codegen_ast_to_elf(dep_mod, pipeline_dep_ctx_arena_at(ctx, jdep), elf_ctx, ctx) != 0) {
+          driver_set_current_dep_path_for_codegen(0 as *u8);
+          return -1;
+        }
+      }
+      driver_set_current_dep_path_for_codegen(0 as *u8);
+      jdep = jdep + 1;
+    }
+  }
+  driver_set_current_dep_path_for_codegen(0 as *u8);
   if (backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx) != 0) {
     return -1;
   }
