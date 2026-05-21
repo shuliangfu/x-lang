@@ -160,6 +160,7 @@ function print_str(ptr: *u8, len: usize): i32 {
 }
 
 // ——— 固定 buffer 池（多块）：注册最多 4 块 (p0,l0)..(p3,l3)，nr 为实际数量 1..4。返回 1 成功，0 失败。———
+// 与 std.io.driver 中曾重复的同名实现已移到仅保留在 mod；asm 合并 dep 时仍依赖 runtime merge 对同 import 路径去重。
 function register_fixed_buffers(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
   return shu_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
 }
