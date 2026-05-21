@@ -1,0 +1,37 @@
+{
+  // Shulang 工作区默认配置（与 editors/vscode/package.json 默认值对齐，可按需覆盖）
+  "shulang.serverPath": "compiler/shu",
+  "shulang.server.trace": "off",
+  "shulang.server.restartOnCrash": true,
+  "shulang.format.enabled": true,
+  "shulang.format.tabSize": 2,
+  "shulang.format.insertSpaces": true,
+  "shulang.format.maxLineLength": 100,
+  "shulang.format.insertFinalNewline": true,
+  "shulang.format.trimTrailingWhitespace": true,
+  "shulang.format.trimFinalNewlines": true,
+  "shulang.features.symbols": true,
+  "shulang.features.folding": true,
+  "shulang.features.hover": true,
+  "shulang.features.codeLens": true,
+  "shulang.features.signatureHelp": true,
+  "shulang.features.completion": true,
+  "shulang.features.formatOnType": true,
+  "shulang.features.documentLinks": true,
+  "shulang.features.statusBar": true,
+  "shulang.features.selectionRange": true,
+  "shulang.features.formatOnBlur": false,
+  "shulang.compiler.diagnosticLevel": "warning",
+  "shulang.compiler.extraArgs": "[]",
+  "shulang.compiler.targetDir": "",
+  "shulang.compiler.libRoots": "[\".\", \"compiler/src\", \"core\", \"std\"]",
+  "shulang.compiler.envJson": "{}",
+  "editor.codeLens": true,
+  "[su]": {
+    "editor.defaultFormatter": "shulang.vscode-shulang",
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  }
+}
