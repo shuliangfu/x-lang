@@ -1912,25 +1912,96 @@ int32_t io_read_ptr_len(void) {
     return g_io_read_ptr_len;
 }
 
+/* duplicate symbol with asm backend：user .o 与 io.o 同时含同名 Shulang 符号时，
+ * Darwin ld 报错；弱化 io.o 里这些可被 core.su/driver.su 机器码替代的入口，若有强符号则由其覆盖。 */
+#if defined(__APPLE__) || defined(__ELF__)
+#ifdef __GNUC__
+#define SHU_IO_BACKEND_WEAK __attribute__((weak))
+#else
+#define SHU_IO_BACKEND_WEAK
+#endif
+#else
+#define SHU_IO_BACKEND_WEAK
+#endif
 /** std.io.core / pipeline 所用符号：与内联 ABI 声明一致，供自举链接 io.o 时解析；pipeline 若未生成 core 的 register/submit 体则由 io.o 提供。 */
-int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle) {
+SHU_IO_BACKEND_WEAK int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle) {
     (void)handle;
     return (int32_t)io_register_buffer(ptr, len);
 }
-int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+SHU_IO_BACKEND_WEAK int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
     ptrdiff_t r = io_read((int)handle, ptr, len, timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
-int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+SHU_IO_BACKEND_WEAK int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
     ptrdiff_t r = io_write((int)handle, ptr, len, timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
-uint8_t *shu_io_read_ptr(size_t handle, unsigned timeout_ms) {
+SHU_IO_BACKEND_WEAK uint8_t *shu_io_read_ptr(size_t handle, unsigned timeout_ms) {
     return io_read_ptr(handle, timeout_ms);
 }
 /** C 流水线（非 driver）时由 io.o 提供；driver 流水线若生成 core 则 codegen 跳过此符号以免重复。 */
-int32_t shu_io_read_ptr_len(void) {
+SHU_IO_BACKEND_WEAK int32_t shu_io_read_ptr_len(void) {
     return io_read_ptr_len();
+}
+
+/**
+ * ASM 后端链 io.o（见 compiler asm_ld_append_std_objs）但不把 std.io core/driver 的 .su 再编成 .o 时，
+ * CALL 仍会引用下面这些与 core.su / mod.su / driver.su 导出名一致的符号；在此用 C 实现对齐语义。
+ */
+
+/** std.io(mod)：fd 视作 usize handle，占位参数忽略。 */
+size_t handle_from_fd(int32_t fd, int32_t unused) {
+    (void)unused;
+    /* 约定：stdin/stdout/stderr 与各 fd 为非负或与 core 一致的 (handle as i32) 语义。 */
+    return (size_t)(unsigned)fd;
+}
+
+int32_t shu_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+    int fd = (int)handle;
+    ptrdiff_t r = io_read_fixed(fd, buf_index, offset, len, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+int32_t shu_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+    int fd = (int)handle;
+    ptrdiff_t r = io_write_fixed(fd, buf_index, offset, len, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+int32_t shu_io_submit_read_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
+    size_t handle, int32_t n, uint32_t timeout_ms) {
+    /* 与 core.su：仅 handle==0 或 handle>=2 走读路径。 */
+    if (!(handle == (size_t)0 || handle >= (size_t)2))
+        return -1;
+    ptrdiff_t r = io_read_batch((int)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+int32_t shu_io_submit_write_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
+    size_t handle, int32_t n, uint32_t timeout_ms) {
+    /* 与 core.su：handle>=1 可写（含 stdout）。 */
+    if (handle < (size_t)1)
+        return -1;
+    ptrdiff_t r = io_write_batch((int)handle, (const uint8_t *)p0, l0, (const uint8_t *)p1, l1,
+        (const uint8_t *)p2, l2, (const uint8_t *)p3, l3, n, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+/** driver.su：切片式批量读（Buffer 数组同 shu_batch_buf_t）。 */
+int32_t submit_read_batch_buf(size_t handle, shu_batch_buf_t *bufs, int32_t n, uint32_t timeout_ms) {
+    ptrdiff_t r = io_read_batch_buf((int)handle, (const shu_batch_buf_t *)bufs, (int)n, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+int32_t submit_write_batch_buf(size_t handle, shu_batch_buf_t *bufs, int32_t n, uint32_t timeout_ms) {
+    ptrdiff_t r = io_write_batch_buf((int)handle, (const shu_batch_buf_t *)bufs, (int)n, (unsigned)timeout_ms);
+    return (r < 0) ? -1 : (int32_t)r;
+}
+
+/** driver.su：`io_register_buffers_buf` 在历史上用 intptr 传指针，此处对齐该 ABI。 */
+int32_t submit_register_fixed_buffers_buf(shu_batch_buf_t *bufs, uint32_t nr) {
+    int ok = io_register_buffers_buf((int32_t)(uintptr_t)bufs, (int)nr);
+    return ok ? (int32_t)ok : (int32_t)0;
 }
 
 #ifdef __cplusplus
