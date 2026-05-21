@@ -40,7 +40,7 @@ $GEN -su -E -L src/lexer -E-extern src/preprocess/preprocess.su > preprocess_gen
 echo "  pipeline..."
 $GEN -su -E -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E-extern src/pipeline/pipeline.su > pipeline_gen2.c
 echo "  driver (main.su)..."
-$GEN -su -E -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E-extern src/main.su > driver_gen2.c
+$GEN -su -E -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E-extern src/main.su > driver_gen2.c
 
 # ── Step 2: 去重结构体 ──
 echo ""
@@ -48,6 +48,11 @@ echo "── Step 2: 修复 pipeline_gen2.c / 去重 slice 结构体 ──"
 for f in parser_gen2.c typeck_gen2.c codegen_gen2.c pipeline_gen2.c driver_gen2.c preprocess_gen2.c; do
   perl -i -ne 'print unless /^struct shulang_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
 done
+for f in ast_gen2.c parser_gen2.c typeck_gen2.c codegen_gen2.c pipeline_gen2.c driver_gen2.c; do
+  perl scripts/fix_slim_arena_gen_c.pl "$f" 2>/dev/null || true
+done
+perl scripts/hoist_pipeline_prototypes.pl pipeline_gen2.c 2>/dev/null || true
+perl scripts/fix_slim_arena_gen_c.pl pipeline_gen2.c 2>/dev/null || true
 perl -i -ne 'print unless /^extern.*parser_parse_into_buf/' pipeline_gen2.c 2>/dev/null || true
 perl -i -pe 's/^(static inline void shulang_panic_.*__attribute__)/extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *, struct ast_Module *, uint8_t *, int32_t);\n\n$1/' pipeline_gen2.c
 
@@ -75,21 +80,9 @@ cc $CFLAGS -c src/codegen/codegen.c -o codegen_c2.o
 cc $CFLAGS -c src/lsp/lsp_diag.c -o lsp_diag_c2.o
 cc $CFLAGS -c src/std_fs_shim.c -o std_fs_shim_c2.o
 
-# 桩文件
-cat > _su_stubs2.c << 'STUBEOF'
-#include <stdint.h>
-#include <stddef.h>
-int asm_asm_codegen_ast(void *a, void *b, void *c, void *d) { return -1; }
-int asm_asm_codegen_elf_o(void *a, void *b, void *c, void *d, void *e) { return -1; }
-int io_read_batch_buf(void) { return -1; }
-int io_write_batch_buf(void) { return -1; }
-int typeck_lsp_main(void) { return -1; }
-extern int32_t typeck_preprocess_su_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
-int32_t preprocess_preprocess_su_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
-    return typeck_preprocess_su_buf(src, src_len, out_buf, out_cap);
-}
-STUBEOF
+# 桩文件（asm_driver_*、std_heap、driver 子命令桩；lsp sizeof 见 lsp_diag_pipeline_sizes2.o）
 cc $CFLAGS -c _su_stubs2.c -o _su_stubs2.o
+cc $CFLAGS -c src/lsp/lsp_diag_pipeline_sizes.c -o lsp_diag_pipeline_sizes2.o
 
 # runtime_driver
 cc $CFLAGS -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_FRONTEND -DSHU_USE_SU_PREPROCESS -c src/runtime.c -o runtime_driver2.o
@@ -103,7 +96,7 @@ cc -fno-stack-protector -o shu-su2 \
   main2.o runtime_driver2.o preprocess_fallback2.o \
   lexer_c2.o ast_c2.o parser_c2.o typeck_c2.o codegen_c2.o lsp_diag_c2.o std_fs_shim_c2.o \
   token_su2.o ast_su2.o lexer_su2.o parser_su2.o typeck_su2.o codegen_su2.o preprocess_su2.o pipeline_su2.o driver_su2.o \
-  _su_stubs2.o
+  lsp_diag_pipeline_sizes2.o _su_stubs2.o
 
 echo "shu-su2 linked: $(ls -lh shu-su2 | awk '{print $5}')"
 
