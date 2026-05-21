@@ -1,3 +1,0 @@
-struct Tiny {
-  a: i32;
-}
