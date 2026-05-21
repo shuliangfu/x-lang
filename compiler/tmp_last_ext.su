@@ -1,7 +1,0 @@
-import ast;
-extern function codegen_su_path_is_std_io_core(path: *u8): i32;
-
-/** comment */
-function bar(): i32 {
-  return 0;
-}
