@@ -258,6 +258,36 @@ function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   return platform.elf.append_elf_bytes(ctx, buf, 7);
 }
 
+/**
+ * 将 [rbp-rbp_off, rbp) 共 nbytes 字节清零：lea 到 rdi，xor esi，edx=nbytes，call memset（SysV）。
+ */
+function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  if (enc_lea_rbp_to_rax(ctx, rbp_off) != 0) {
+    return -1;
+  }
+  if (enc_mov_rax_to_arg_reg(ctx, 0) != 0) {
+    return -1;
+  }
+  let xor_esi: [2]u8 = [49, 246];
+  if (platform.elf.append_elf_bytes(ctx, xor_esi, 2) != 0) {
+    return -1;
+  }
+  if (enc_mov_imm32_to_rbx(ctx, nbytes) != 0) {
+    return -1;
+  }
+  if (enc_mov_rbx_to_rax(ctx) != 0) {
+    return -1;
+  }
+  if (enc_mov_rax_to_arg_reg(ctx, 2) != 0) {
+    return -1;
+  }
+  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  return enc_call(ctx, memset_nm, 6);
+}
+
 /** leaq (%rax,%rbx,1), %rax — 元素宽 1 字节时下标缩放。魔数取自 x86 ISA（REX.W + modrm）。 */
 function enc_rax_plus_rbx_scale1(ctx: *ElfCodegenCtx): i32 {
   let buf: [4]u8 = [72, 141, 4, 24];
@@ -373,11 +403,40 @@ function enc_mov_rax_to_arg_reg(ctx: *ElfCodegenCtx, k: i32): i32 {
   return platform.elf.append_elf_bytes(ctx, ins[idx], 3);
 }
 
+/** call 后回收栈传参：REX.W add rsp, imm8（nbytes≤127）。 */
+function enc_add_rsp_imm(ctx: *ElfCodegenCtx, nbytes: i32): i32 {
+  if (nbytes <= 0) {
+    return 0;
+  }
+  if (nbytes > 127) {
+    return -1;
+  }
+  if (enc_u8(ctx, 72) != 0) { return -1; }
+  if (enc_u8(ctx, 131) != 0) { return -1; }
+  if (enc_u8(ctx, 196) != 0) { return -1; }
+  return enc_u8(ctx, nbytes);
+}
+
 /** call rel32：发 E8 00 00 00 00，并记 reloc（由链接器解析）。 */
 function enc_call(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
+  /** 无符号名的 call 无法写入重定位。 */
+  if (name_len <= 0) {
+    return -1;
+  }
   if (enc_u8(ctx, 232) != 0) { return -1; }
   if (enc_u32_le(ctx, 0) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
+  /** Mach-O x86_64：符号名须有 Darwin leading `_`；name_len≤63 时前缀与名称同入 [64]u8。 */
+  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+    let rn: [64]u8 = [];
+    rn[0] = 95;
+    let k: i32 = 0;
+    while (k < name_len && k < 63) {
+      rn[k + 1] = name[k];
+      k = k + 1;
+    }
+    return elf_add_reloc(ctx, rel32_at, rn, name_len + 1);
+  }
   return elf_add_reloc(ctx, rel32_at, name, name_len);
 }
 
@@ -385,6 +444,16 @@ function enc_call(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
 function enc_label(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32, is_func: i32): i32 {
   if (elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
+    if (ctx.macho_leading_underscore != 0) {
+      let mn: [64]u8 = [];
+      mn[0] = 95;
+      let k: i32 = 0;
+      while (k < name_len && k < 63) {
+        mn[k + 1] = name[k];
+        k = k + 1;
+      }
+      return elf_add_sym(ctx, mn, name_len + 1, ctx.code_len);
+    }
     return elf_add_sym(ctx, name, name_len, ctx.code_len);
   }
   return 0;
