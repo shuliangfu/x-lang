@@ -74,7 +74,4 @@ int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_pat
  */
 void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n);
 
-/** .su 用：path 为 "std.io.core" 时返回 1，codegen 不为其加前缀，生成 shu_io_register 等符号。 */
-int codegen_su_path_is_std_io_core(const char *path);
-
 #endif /* SHU_CODEGEN_H */
