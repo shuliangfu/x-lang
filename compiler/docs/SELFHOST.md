@@ -23,6 +23,8 @@
 | 目的 | 命令 |
 |------|------|
 | **语义自举 + 两代一致性** | `make bootstrap-verify`（或 `make bootstrap-self` 烟测） |
+| **Stage2（shu-su → shu-su2，-E-extern 全模块）** | `make verify-selfhost-stage2` 或 `sh ./verify-selfhost-stage2.sh`（macOS/Linux 已验通过；CI 见 `selfhost-stage2.yml`） |
+| **仅重编 SU 三件套 .o** | `make gen-su-driver-objs`（`pipeline_su.o` + `driver_su.o` + `preprocess_su.o`；改 parser/main/preprocess 后 `make shu-su` 会自动触发） |
 | **全量 .su 测试** | `make test_su` |
 | **C 前端回归** | `make test_c` |
 | **asm 构建脚本（Goal 2）** | `SHU=./shu ./scripts/build_shu_asm.sh`；成功应产出 `shu_asm`（或 Linux crt0 路径下等价信息） |
@@ -70,6 +72,22 @@
   - `compiler/build_asm/.asm_empty_text_list`：**一行一条**，形如 `MISSING foo.o`、`EMPTY foo.o`。按文件名对应 `asm_build_list.su` 的 `// BUILD:` 源 `.su`，在 **解析/类型/asm 后端**侧消除「仅占位无代码」的编译结果。
   - **质检脚本**对 **Mach-O** 读段名 `__text`，对 **ELF（Linux）** 读 `.text`；若仅在 Linux 上曾出现「24 条全 EMPTY」而 macOS 仅少数条，多半是段名误判而非 asm 未落码——以 `check_asm_o_quality.sh` 实现为准。
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.su` 中 `let_type_refs`）。
+- **macOS arm64 实测（2026-05-21）**：`SHU_ASM_ENTRY_MODULE_ONLY=1 ./scripts/build_shu_asm.sh` + `check_asm_o_quality.sh build_asm` → **24/24** 模块 `__text` 非空（含此前 EMPTY 的 `typeck.o`/`pipeline.o`/`backend.o`/`arm64.o`）。主要修复：`typeck.su` 类型池/struct_lit 走 `pipeline_glue.c`；`backend.su`/`arm64.su` 辅助函数与 `emit_index_eff_addr_text` 避免 `Expr` 按值字段访问导致 asm codegen 失败。质检通过时自动 `SHU_ASM_LINK_TOPOLOGY=full_asm`，默认链接仍为 **B-hybrid**。
+- **实验链 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**：跳过 `cc -c pipeline_gen.c`，并列链 `build_asm/*.o`。**`SHU_ASM_ENTRY_MODULE_ONLY=1`**（`build_shu_asm.sh` 编译各 `.o` 时自动设置）已消除 macOS 上「dep 机器码重复符号」；手动 `cc … build_asm/*.o` 试链**不再报 duplicate symbol**，但仍 **undefined symbol**（见下），脚本在 Darwin 上仍跳过 asm-only 试链并回退 gen_driver。
+- **Darwin asm-only 链剩余阻塞（2026-05-21 实测）**：
+  1. **大模块 parse 截断**：如 `typeck.su` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
+  2. **跨模块符号名**：`backend.o` 引用 `arch_arm64_*`，而 `arm64.o` 导出 `_arch_arm64_*` 或 `append_byte` 等待定。
+  3. Linux 仍可在上述问题解决后试全量 `build_asm/*.o` 实验链；成功时打印 `Target-B-experimental`。**B-partial（crt0）** 仅在 **Linux** 且 crt0 链接成功时成立。
+
+### 4.2 CI 与本地验收（Linux / macOS）
+
+| 平台 | CI job | 自举相关步骤 |
+|------|--------|----------------|
+| **Linux** | `.github/workflows/ci.yml` → `linux` | `make test_c`（=`run-all-c.sh`）、`test_su`、`build_shu_asm.sh`、`check_asm_o_quality.sh`、`bootstrap-verify` |
+| **macOS** | `ci.yml` → `mac` | 同上（crt0 路径在 mac 上通常不启用，仍为 B-hybrid） |
+| **可选** | `selfhost-stage2.yml` | 手动/每周 `verify-selfhost-stage2.sh`（不阻塞 PR） |
+
+本地与 CI 对齐：`make -C compiler test` 或 `./tests/run-all-c.sh` + `./tests/run-all-su.sh`。
 
 ---
 
