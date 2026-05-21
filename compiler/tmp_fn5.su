@@ -1,7 +1,0 @@
-import ast;
-function f(arena: *ASTArena, base_ref: i32): i32 {
-  if (ref_is_null(base_ref)) {
-    return 0;
-  }
-  return 0;
-}
