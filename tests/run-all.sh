@@ -6,10 +6,18 @@
 set -e
 cd "$(dirname "$0")/.."
 if [ -n "$SHU" ]; then
-    [ -f compiler/shu ] && mv compiler/shu compiler/shu.bak
-    cp "$SHU" compiler/shu
-    trap '[ -f compiler/shu.bak ] && mv compiler/shu.bak compiler/shu 2>/dev/null || true' EXIT
     export RUN_ALL_USE_C=
+    # SHU 与 compiler/shu 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHU=./compiler/shu）。
+    if [ -f compiler/shu ] && [ compiler/shu -ef "$SHU" ]; then
+        :
+    elif [ -f compiler/shu ]; then
+        mv compiler/shu compiler/shu.bak
+        cp "$SHU" compiler/shu
+        trap '[ -f compiler/shu.bak ] && mv compiler/shu.bak compiler/shu 2>/dev/null || true' EXIT
+    else
+        cp "$SHU" compiler/shu
+        trap '[ -f compiler/shu.bak ] && mv compiler/shu.bak compiler/shu 2>/dev/null || true' EXIT
+    fi
 else
     # 无 SHU 时默认使用 C 流水线：仅构建 all（C 版 shu），子脚本不构建 bootstrap-driver-seed
     export RUN_ALL_USE_C=1
@@ -33,7 +41,10 @@ RUN_FAILED_COUNT=0
 RUN_FAILED_SCRIPTS=""
 run() {
     local script="$1"
-    if [ ! -f "tests/$script" ]; then return 0; fi
+    if [ ! -f "tests/$script" ]; then
+        echo "run-all FAIL: missing tests/$script" >&2
+        exit 1
+    fi
     chmod +x "tests/$script"
     if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
         s=0; ./tests/$script || s=$?
@@ -52,7 +63,10 @@ run() {
 # 在 CI 下也必须通过的脚本（失败则 run-all 失败，不 SKIP）
 run_required() {
     local script="$1"
-    if [ ! -f "tests/$script" ]; then return 0; fi
+    if [ ! -f "tests/$script" ]; then
+        echo "run-all FAIL: missing tests/$script (required)" >&2
+        exit 1
+    fi
     chmod +x "tests/$script"
     ./tests/$script
 }
@@ -74,6 +88,7 @@ run run-multi-file.sh
 run run-multi-file-generic.sh
 # 表达式与控制流
 run run-binary-expr.sh
+run run-compound-assign.sh
 run run-let-const.sh
 # toplevel let：C 与 .su 流水线均已支持，自举后始终跑
 run run-toplevel-let.sh
@@ -147,6 +162,7 @@ run run-error.sh
 run run-net.sh
 run run-io-driver.sh
 run run-ub.sh
+run run-pool-limits.sh
 run run-abi-layout.sh
 
 if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
