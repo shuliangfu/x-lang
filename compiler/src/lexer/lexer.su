@@ -4,8 +4,8 @@
 
 import token;
 
-/** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 []u8 传入。 */
-struct Lexer {
+/** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 []u8 传入。allow(padding) 与跨模块拷贝/赋值对齐。 */
+allow(padding) struct Lexer {
   pos: usize;
   line: i32;
   col: i32;
@@ -15,23 +15,30 @@ struct Lexer {
  * token_start：当前 token 在 source 中的字节起点（跳过空白后的首字节偏移），供 parser 复制 IDENT/关键字字面量；
  * 与 lexer_next_body_into 一致（IDENT 与 TOKEN_INT 等带文本的 token 均填真实起点，偏移 0 合法）。
  * 单字符标点等多数字面量仍为 0。 */
-struct LexerResult {
+/** allow(padding)：Token 含 f64，与 next_lex 组合时 token_start 前可有隐式 gap（§11.1）。 */
+allow(padding) struct LexerResult {
   next_lex: Lexer;
   tok: Token;
   token_start: usize;
 }
 
+/**
+ * glue：pipeline_glue.c 提供 lexer_parser_slice_from_buf；（data,len）与 []u8 视图一致，
+ * 供 buf 路径会合到 slice 版本逻辑，避免在 buf 循环里手写 i32→usize 转换触发 typecheck 不稳定。
+ */
+extern function lexer_parser_slice_from_buf(data: *u8, len: i32): []u8;
+
 /** 返回初始 Lexer 状态（pos=0, line=1, col=1）。 */
 function lexer_init(): Lexer {
-  return Lexer { pos: 0, line: 1, col: 1 }
+  return Lexer { pos: 0, line: 1, col: 1 };
 }
 
 /** 消费一个字符，返回新的 Lexer 状态（pos+1，换行时 line+1、col 置 1，否则 col+1）。 */
 function advance_one(lex: Lexer, c: u8): Lexer {
   if (c == 10) {
-    return Lexer { pos: lex.pos + 1, line: lex.line + 1, col: 1 }
+    return Lexer { pos: lex.pos + 1, line: lex.line + 1, col: 1 };
   }
-  return Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }
+  return Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
 }
 
 /** 判断是否为字母或下划线（标识符/关键字首字符）。 */
@@ -708,22 +715,18 @@ function try_keyword_buf(data: *u8, data_len: i32, start: usize, len: usize, lin
   return t;
 }
 
-/** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前 lex。 */
+/** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前 lex。控制流仅用 if/else-if（无 continue），以满足 asm codegen 对 EXPR_CONTINUE 的限制。 */
 function skip_whitespace_and_comments(lex: Lexer, data: []u8): Lexer {
   let l: Lexer = lex;
   while (l.pos < data.length) {
     let c: u8 = data[l.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
       l = advance_one(l, c);
-      continue;
-    }
-    if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 47) {
+    } else if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 47) {
       while (l.pos < data.length && data[l.pos] != 10) {
         l = advance_one(l, data[l.pos]);
       }
-      continue;
-    }
-    if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 42) {
+    } else if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 42) {
       l = advance_one(l, 47);
       l = advance_one(l, 42);
       while (l.pos + 1 < data.length) {
@@ -734,57 +737,21 @@ function skip_whitespace_and_comments(lex: Lexer, data: []u8): Lexer {
         }
         l = advance_one(l, data[l.pos]);
       }
-      continue;
-    }
-    if (c == 35) {
+    } else if (c == 35) {
       while (l.pos < data.length && data[l.pos] != 10) {
         l = advance_one(l, data[l.pos]);
       }
-      continue;
+    } else {
+      return l;
     }
-    return l;
   }
   return l;
 }
 
-/** 与 skip_whitespace_and_comments 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
+/** 与 skip_whitespace_and_comments 等价，接受 (data: *u8, len) 供 buf 路径使用；委托 slice 路径，logic 仅此一份。 */
 function skip_whitespace_and_comments_buf(lex: Lexer, data: *u8, len: i32): Lexer {
-  let l: Lexer = lex;
-  let len_u: usize = len as usize;
-  while (l.pos < len_u) {
-    let c: u8 = data[l.pos];
-    if (c == 32 || c == 9 || c == 10 || c == 13) {
-      l = advance_one(l, c);
-      continue;
-    }
-    if (c == 47 && l.pos + 1 < len_u && data[l.pos + 1] == 47) {
-      while (l.pos < len_u && data[l.pos] != 10) {
-        l = advance_one(l, data[l.pos]);
-      }
-      continue;
-    }
-    if (c == 47 && l.pos + 1 < len_u && data[l.pos + 1] == 42) {
-      l = advance_one(l, 47);
-      l = advance_one(l, 42);
-      while (l.pos + 1 < len_u) {
-        if (data[l.pos] == 42 && data[l.pos + 1] == 47) {
-          l = advance_one(l, 42);
-          l = advance_one(l, 47);
-          break;
-        }
-        l = advance_one(l, data[l.pos]);
-      }
-      continue;
-    }
-    if (c == 35) {
-      while (l.pos < len_u && data[l.pos] != 10) {
-        l = advance_one(l, data[l.pos]);
-      }
-      continue;
-    }
-    return l;
-  }
-  return l;
+  let source: []u8 = lexer_parser_slice_from_buf(data, len);
+  return skip_whitespace_and_comments(lex, source);
 }
 
 /** 取下一个 Token；跳过空白与注释后，识别关键字/标识符/数字/符号，写 tok 并返回新状态。IDENT 时 ident 置 0，仅 ident_len 有效。遇 NUL 或越界视为 EOF（便于从文件读入的固定长缓冲）。先做 EOF 检查再调 lexer_next_body，避免代码生成将 data[l.pos] 提到越界检查前导致 panic。
@@ -1097,31 +1064,20 @@ function lexer_next_into(out: *LexerResult, lex: Lexer, data: []u8): void {
   lexer_next_impl(out, lex, data);
 }
 
-/**
- * glue：pipeline_glue.c 提供 lexer_parser_slice_from_buf；（data,len）与 []u8 视图一致，
- * 供 buf 路径会合到 lexer_next_into；避免 lexer_next_buf 按值 LexerResult 在 AArch64/Mac 宿主 ABI 损坏。
- */
-extern function lexer_parser_slice_from_buf(data: *u8, len: i32): []u8;
-
-/** buf + len：写入 out；内部走 lexer_next_into，不得依赖 lexer_next_buf 的返回值。 */
+/** buf + len：写入 out；内部走 lexer_next_into；优先此路径可避免 lexer_next_buf 按值 LexerResult 在部分宿主 ABI 上不稳定。 */
 function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   let source: []u8 = lexer_parser_slice_from_buf(data, len);
   lexer_next_into(out, lex, source);
 }
 
-/** 与 lexer_next 等价，接受 (data: *u8, len) 供无 slice 的 buf 路径使用；早退 + 单独 return，避免 if 表达式作返回值触发 typecheck 不稳定。 */
+/**
+ * 与 lexer_next 等价，接受 (data: *u8, len)。
+ * 委托 lexer_next(lex, source)，勿在本函数展开 skip/EOF/next_body：
+ * codegen 对「栈上 []u8 绑定」易产生 (source)->length 等箭头误用；(lex, &(source)) 传参路径与 lexer_next 一致可避免坏 C。
+ */
 function lexer_next_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
-  let l: Lexer = skip_whitespace_and_comments_buf(lex, data, len);
-  let len_u: usize = len as usize;
-  if (l.pos >= len_u) {
-    let t: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
-    return LexerResult { next_lex: l, tok: t, token_start: (0 as usize) };
-  }
-  if (data[l.pos] == 0) {
-    let t2: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
-    return LexerResult { next_lex: l, tok: t2, token_start: (0 as usize) };
-  }
-  return lexer_next_body_buf(l, data, len);
+  let source: []u8 = lexer_parser_slice_from_buf(data, len);
+  return lexer_next(lex, source);
 }
 
 /** 在已保证 l.pos < data.length 且 data[l.pos] != 0 时取下一 Token；供 lexer_next 在 EOF 检查后调用。 */
@@ -1138,7 +1094,7 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
     let len: usize = l.pos - start;
     let tok: Token = try_keyword(data, start, len, line0, col0);
     /** IDENT/关键字：必须与 lexer_next_body_into 一致写入起点，否则会触发 parser 误判与 struct 字段名不匹配。 */
-    return LexerResult { next_lex: l, tok: tok, token_start: start }
+    return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (is_digit(c)) {
     let start: usize = l.pos;
@@ -1163,7 +1119,7 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
         frac = frac * 0.1;
       }
       let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
       l = advance_one(l, data[l.pos]);
@@ -1196,10 +1152,10 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
       }
       let fval: f64 = ival * scale;
       let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival, float_val: 0.0, ident: 0, ident_len: 0 }
-    return LexerResult { next_lex: l, tok: tok, token_start: start }
+    return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (c == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
     let line0: i32 = l.line;
@@ -1214,224 +1170,108 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
       frac = frac * 0.1;
     }
     let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   let line0: i32 = l.line;
   let col0: i32 = l.col;
   l = advance_one(l, c);
   let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
-  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
+  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
   if (c == 45) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
       tok.kind = TokenKind.TOKEN_ARROW;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_MINUS;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
-  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
+  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       l = advance_one(l, 38);
       tok.kind = TokenKind.TOKEN_AMPAMP;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_AMP;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   if (c == 124) {
     if (l.pos < data.length && data[l.pos] == 124) {
       l = advance_one(l, 124);
       tok.kind = TokenKind.TOKEN_PIPEPIPE;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_PIPE;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   if (c == 60) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
       tok.kind = TokenKind.TOKEN_LE;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     if (l.pos < data.length && data[l.pos] == 60) {
       l = advance_one(l, 60);
       tok.kind = TokenKind.TOKEN_LSHIFT;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_LT;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   if (c == 62) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
       tok.kind = TokenKind.TOKEN_GE;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
       tok.kind = TokenKind.TOKEN_RSHIFT;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_GT;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   if (c == 33) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
       tok.kind = TokenKind.TOKEN_NE;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_BANG;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
-  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
+  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
       tok.kind = TokenKind.TOKEN_FATARROW;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
       tok.kind = TokenKind.TOKEN_EQ;
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     tok.kind = TokenKind.TOKEN_ASSIGN;
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
-  return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-}
-
-/** 与 lexer_next_body 等价，接受 (data: *u8, len) 供 buf 路径使用；保证 l.pos < len 且 data[l.pos] != 0。 */
-function lexer_next_body_buf(l: Lexer, data: *u8, len: i32): LexerResult {
-  let len_u: usize = len as usize;
-  let c: u8 = data[l.pos];
-  if (is_alpha(c)) {
-    let start: usize = l.pos;
-    let line0: i32 = l.line;
-    let col0: i32 = l.col;
-    let l2: Lexer = advance_one(l, c);
-    l = l2;
-    while (l.pos < len_u && is_alnum_underscore(data[l.pos])) {
-      l = advance_one(l, data[l.pos]);
-    }
-    let seg_len: usize = l.pos - start;
-    let tok: Token = try_keyword_buf(data, len, start, seg_len, line0, col0);
-    /** buf 路径 IDENT/关键字起点，与 lexer_next_body/token_start 语义一致（勿恒为 0）。 */
-    return LexerResult { next_lex: l, tok: tok, token_start: start }
-  }
-  if (is_digit(c)) {
-    let start: usize = l.pos;
-    let line0: i32 = l.line;
-    let col0: i32 = l.col;
-    let ival: i32 = 0;
-    l = advance_one(l, c);
-    ival = ival * 10 + (c - 48);
-    while (l.pos < len_u && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      ival = ival * 10 + (d - 48);
-    }
-    if (l.pos < len_u && data[l.pos] == 46 && l.pos + 1 < len_u && is_digit(data[l.pos + 1])) {
-      l = advance_one(l, 46);
-      let fval: f64 = ival;
-      let frac: f64 = 0.1;
-      while (l.pos < len_u && is_digit(data[l.pos])) {
-        let d: u8 = data[l.pos];
-        l = advance_one(l, d);
-        fval = fval + frac * (d - 48);
-        frac = frac * 0.1;
-      }
-      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 };
-      return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-    }
-    let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival, float_val: 0.0, ident: 0, ident_len: 0 };
-    return LexerResult { next_lex: l, tok: tok, token_start: start }
-  }
-  if (c == 46 && l.pos + 1 < len_u && is_digit(data[l.pos + 1])) {
-    let line0: i32 = l.line;
-    let col0: i32 = l.col;
-    l = advance_one(l, 46);
-    let fval: f64 = 0.0;
-    let frac: f64 = 0.1;
-    while (l.pos < len_u && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      fval = fval + frac * (d - 48);
-      frac = frac * 0.1;
-    }
-    let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 };
-    return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  let line0: i32 = l.line;
-  let col0: i32 = l.col;
-  l = advance_one(l, c);
-  let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
-  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 45) {
-    if (l.pos < len_u && data[l.pos] == 62) { l = advance_one(l, 62); tok.kind = TokenKind.TOKEN_ARROW; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_MINUS; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 38) {
-    if (l.pos < len_u && data[l.pos] == 38) { l = advance_one(l, 38); tok.kind = TokenKind.TOKEN_AMPAMP; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_AMP; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 124) {
-    if (l.pos < len_u && data[l.pos] == 124) { l = advance_one(l, 124); tok.kind = TokenKind.TOKEN_PIPEPIPE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_PIPE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 60) {
-    if (l.pos < len_u && data[l.pos] == 61) { l = advance_one(l, 61); tok.kind = TokenKind.TOKEN_LE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    if (l.pos < len_u && data[l.pos] == 60) { l = advance_one(l, 60); tok.kind = TokenKind.TOKEN_LSHIFT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_LT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 62) {
-    if (l.pos < len_u && data[l.pos] == 61) { l = advance_one(l, 61); tok.kind = TokenKind.TOKEN_GE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    if (l.pos < len_u && data[l.pos] == 62) { l = advance_one(l, 62); tok.kind = TokenKind.TOKEN_RSHIFT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_GT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 33) {
-    if (l.pos < len_u && data[l.pos] == 61) { l = advance_one(l, 61); tok.kind = TokenKind.TOKEN_NE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_BANG; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-  if (c == 61) {
-    if (l.pos < len_u && data[l.pos] == 62) { l = advance_one(l, 62); tok.kind = TokenKind.TOKEN_FATARROW; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    if (l.pos < len_u && data[l.pos] == 61) { l = advance_one(l, 61); tok.kind = TokenKind.TOKEN_EQ; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } }
-    tok.kind = TokenKind.TOKEN_ASSIGN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
-  }
-  return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) }
+  return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
 }
 
 /** 自举 9.1 测试：初始化 Lexer，用固定源码调用 lexer_next 若干次，确认 TOKEN_LET/TOKEN_IDENT/TOKEN_ASSIGN/TOKEN_INT/TOKEN_EOF。 */
