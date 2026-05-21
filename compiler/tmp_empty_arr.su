@@ -1,5 +1,0 @@
-function f(): bool {
-    let empty_name: [64]u8 = [];
-    let i: i32 = 0;
-    return empty_name[(0 as isize)] == 0;
-}
