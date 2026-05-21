@@ -1,16 +1,34 @@
 {
   "name": "vscode-shulang",
   "displayName": "Shulang Language",
-  "description": "Shulang (.su) 语法高亮、语言配置与 LSP（诊断、跳转定义、查找引用、悬停、文档格式化）",
+  "description": "Shulang (.su) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
   "version": "0.1.0",
   "license": "MIT",
   "publisher": "shulang",
   "icon": "icon.png",
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:su",
+    "onCommand:shulang.openSettings",
+    "onCommand:shulang.restartServer",
+    "onCommand:shulang.showServerOutput",
+    "onCommand:shulang.runFile",
+    "onCommand:shulang.refreshCodeLens"
+  ],
   "engines": {
     "vscode": "^1.75.0"
   },
-  "categories": ["Programming Languages"],
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters"
+  ],
+  "keywords": [
+    "shulang",
+    "su",
+    "compiler",
+    "lsp"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/shuliangfu/shulang"
@@ -19,8 +37,13 @@
     "languages": [
       {
         "id": "su",
-        "extensions": [".su"],
-        "aliases": ["Shulang", "su"],
+        "extensions": [
+          ".su"
+        ],
+        "aliases": [
+          "Shulang",
+          "su"
+        ],
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/su.png",
@@ -40,17 +63,293 @@
       "properties": {
         "shulang.serverPath": {
           "type": "string",
-          "default": "shu",
-          "description": "Shulang 编译器（shu）可执行文件路径，用于 LSP（诊断、跳转定义、查找引用、格式化）。若 shu 已在 PATH 中可填 shu；否则填绝对路径或相对工作区路径。"
+          "default": "compiler/shu",
+          "markdownDescription": "Shulang 编译器（`shu`）可执行文件路径，用于 LSP（诊断、跳转定义、查找引用、格式化）。可填 `shu`（PATH 查找；若工作区存在 `compiler/shu` 会自动使用）、相对工作区路径（如 `compiler/shu`）或绝对路径。",
+          "scope": "machine-overridable"
+        },
+        "shulang.server.trace": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "enumDescriptions": [
+            "不记录 LSP 通信日志",
+            "记录请求/响应消息摘要",
+            "记录完整 JSON 通信内容"
+          ],
+          "markdownDescription": "LSP 客户端与服务端之间的通信日志级别。调试语言服务问题时设为 `verbose` 可查看完整 JSON 交互。日志输出到 VS Code 的 **Shulang** 输出通道。",
+          "scope": "window"
+        },
+        "shulang.server.restartOnCrash": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "语言服务进程崩溃时是否自动重启。关闭后需要手动 **Shulang: 重启语言服务** 命令来恢复。",
+          "scope": "window"
+        },
+        "shulang.format.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用 Shulang 代码格式化。关闭后 `.su` 文件的 **格式化文档** 命令不生效，同时禁用编辑器格式化快捷键。",
+          "scope": "resource"
+        },
+        "shulang.format.tabSize": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 16,
+          "markdownDescription": "每级缩进空格数。仅当 `shulang.format.insertSpaces` 为 `true` 时生效。",
+          "scope": "resource"
+        },
+        "shulang.format.insertSpaces": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "使用空格缩进。设为 `false` 时使用 Tab（制表符）缩进。",
+          "scope": "resource"
+        },
+        "shulang.format.maxLineLength": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 20,
+          "maximum": 512,
+          "markdownDescription": "每行最大字符数。超出时格式化器会在合适位置折行。",
+          "scope": "resource"
+        },
+        "shulang.format.insertFinalNewline": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "文件末尾插入一个换行符。启用后保存时保证文件末尾恰好有一个换行。",
+          "scope": "resource"
+        },
+        "shulang.format.trimTrailingWhitespace": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "去除行尾多余空格和制表符。保存时自动清理。",
+          "scope": "resource"
+        },
+        "shulang.format.trimFinalNewlines": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "压缩文件末尾多余空行。启用后末尾只保留至多一个换行符。",
+          "scope": "resource"
+        },
+        "shulang.features.symbols": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用大纲视图与面包屑导航（DocumentSymbolProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.folding": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用语义代码折叠（FoldingRangeProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.hover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用悬停提示（HoverProvider，LSP 不可用时的本地回退）。",
+          "scope": "resource"
+        },
+        "shulang.features.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用行内 CodeLens（▶ Run、字段数、变体数等）。",
+          "scope": "resource"
+        },
+        "shulang.features.signatureHelp": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用函数参数签名提示（SignatureHelpProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.completion": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用智能补全（CompletionItemProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.formatOnType": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用输入时实时缩进（OnTypeFormattingProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.documentLinks": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用 import 路径可点击跳转（DocumentLinkProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用右下角符号统计状态栏。",
+          "scope": "resource"
+        },
+        "shulang.features.selectionRange": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "启用 Ctrl+Shift+→ 智能选区扩展（SelectionRangeProvider）。",
+          "scope": "resource"
+        },
+        "shulang.features.formatOnBlur": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "`.su` 编辑器失去焦点（切换标签页或文件）时自动格式化上一个文档。",
+          "scope": "resource"
+        },
+        "shulang.compiler.diagnosticLevel": {
+          "type": "string",
+          "default": "warning",
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info"
+          ],
+          "enumDescriptions": [
+            "关闭所有编译器诊断",
+            "仅显示错误",
+            "显示警告和错误（默认）",
+            "显示信息、警告和错误"
+          ],
+          "markdownDescription": "编译器诊断报告的最低级别。影响问题面板中 `.su` 文件的诊断标记。",
+          "scope": "resource"
+        },
+        "shulang.compiler.extraArgs": {
+          "type": "string",
+          "default": "[]",
+          "markdownDescription": "传递给 `shu --lsp` 的额外命令行参数，JSON 数组字符串，如 `[\"--verbose\"]`。请在 settings.json 中编辑。",
+          "scope": "resource"
+        },
+        "shulang.compiler.targetDir": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "编译器输出目录（如 `build/`）。相对路径基于工作区根目录。留空使用编译器默认输出位置。",
+          "scope": "resource"
+        },
+        "shulang.compiler.libRoots": {
+          "type": "string",
+          "default": "[\".\", \"compiler/src\", \"core\", \"std\"]",
+          "markdownDescription": "import 路径解析库根目录列表（JSON 数组字符串），与 shu -L 布局一致。用于 import 跳转与跨模块符号索引。",
+          "scope": "resource"
+        },
+        "shulang.compiler.envJson": {
+          "type": "string",
+          "default": "{}",
+          "markdownDescription": "传递给 `shu` 进程的环境变量，JSON 对象字符串，例如 `{\"SHULANG_PATH\":\"/opt/shu\"}`。请在 settings.json 中编辑。",
+          "scope": "machine"
         }
       }
     },
     "configurationDefaults": {
       "[su]": {
         "editor.defaultFormatter": "shulang.vscode-shulang",
-        "editor.formatOnSave": false
+        "editor.formatOnSave": true,
+        "editor.formatOnPaste": true,
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.codeLens": true
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "shulang.restartServer",
+        "title": "重启语言服务",
+        "category": "Shulang"
+      },
+      {
+        "command": "shulang.showServerOutput",
+        "title": "显示语言服务输出",
+        "category": "Shulang"
+      },
+      {
+        "command": "shulang.openSettings",
+        "title": "打开 Shulang 设置（工作区 settings.json）",
+        "category": "Shulang"
+      },
+      {
+        "command": "shulang.runFile",
+        "title": "运行当前 .su 文件",
+        "category": "Shulang"
+      },
+      {
+        "command": "shulang.refreshCodeLens",
+        "title": "刷新 CodeLens",
+        "category": "Shulang"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "su",
+        "path": "./snippets/su.json"
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "shulang-parse",
+        "label": "Shulang: parse error",
+        "owner": "su",
+        "source": "shulang",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^parse error at (\\d+):(\\d+):\\s*(.+)$",
+          "line": 1,
+          "column": 2,
+          "message": 3
+        }
+      },
+      {
+        "name": "shulang-typeck",
+        "label": "Shulang: typeck error",
+        "owner": "su",
+        "source": "shulang",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^typeck error:\\s*(.+?)\\s+at\\s+(\\d+):(\\d+)\\s*$",
+          "message": 1,
+          "line": 2,
+          "column": 3
+        }
+      },
+      {
+        "name": "shulang-generic",
+        "label": "Shulang: generic error",
+        "owner": "su",
+        "source": "shulang",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^(.*?)(?:\\s+at\\s+|\\s+in\\s+)(\\S+):(\\d+):(\\d+)",
+          "message": 1,
+          "file": 2,
+          "line": 3,
+          "column": 4
+        }
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "shulang",
+        "required": [
+          "task"
+        ],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Shulang 任务类型: build / build-file / run / check",
+            "enum": [
+              "build",
+              "build-file",
+              "run",
+              "check"
+            ]
+          }
+        }
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
