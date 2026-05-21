@@ -1,3 +1,0 @@
-function foo(arr: *[4]i32): i32 {
-    { arr[(1 as isize)] }
-}
