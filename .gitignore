@@ -53,9 +53,10 @@ deps/
 node_modules/
 
 # --- 开发环境 ---
-# IDE
-.idea/
-.vscode/
+# IDE（保留团队共享的工作区 Shulang 配置）
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .cursor/
 *.swp
 *.swo
@@ -63,6 +64,9 @@ node_modules/
 .project
 .settings/
 *.sublime-*
+
+# Hermes / 相关工具链本地缓存目录（不提交）
+.hermes/
 
 # OS
 .DS_Store
@@ -73,13 +77,35 @@ Thumbs.db
 # 可执行文件（根已有 shu/shu-c，此处补 compiler 下特有）
 compiler/shu_driver
 compiler/build_tool
-# 构建目录
+# 构建目录（含历史手工 build_v* / build_final 等）
 compiler/build_asm/
 compiler/build/
+compiler/build_*/
 compiler/su/
+# 本地调试 scratch（保留已提交的 _stubs.c / _su_stubs*.c）
+compiler/_*
+!compiler/_stubs.c
+!compiler/_su_stubs.c
+!compiler/_su_stubs2.c
+!compiler/_stubs_driver.c
+compiler/0
+compiler/bootstrap_shu
+compiler/shu_stage1
+compiler/shu_stage2
+compiler/shu_su_dbg
+compiler/shu_asm2
+compiler/shu-su
+compiler/shu-su2
+compiler/shu_asm
+compiler/asm_min
+compiler/asm_v2
+compiler/shu_stage1_test
 # 由 -E 或脚本生成的 C 源文件（parser_gen.c, driver_gen.c, pipeline_gen.c, typeck_gen.c, codegen_gen.c 等）
 compiler/*_gen.c
 compiler/**/*_gen.c
+# Stage2 验证脚本产出的第二代生成 C（token_gen2.c 等）
+compiler/*_gen2.c
+compiler/**/*_gen2.c
 compiler/std_fs_gen.c
 # 生成 C 的快照/副本（与 *_gen.c 等价，构建时产出，不提交）
 compiler/*_gen_new.c
@@ -91,9 +117,20 @@ compiler/*.bak
 compiler/*.bak*
 compiler/**/*.bak*
 compiler/*.append
-# 调试与临时
+# 调试与临时（perl/汇编烟测、链接器 .o.tmp、编辑器缓冲）
 compiler/scripts/lldb_crash_bt.txt
 compiler/test_perl.txt
+compiler/test_pre_out.s
+*.o.tmp
+/rvwbuf.tmp
+**/*.su.bak
+# LLDB：本地导出的会话/断点命令脚本（非仓库约定资产）
+compiler/.lldb_*
+# 本地 scratch：tmp_* 调试草稿（compiler/ 与仓库根目录）
+compiler/tmp_*
+compiler/tmp_bisect/
+/tmp_*.su
+/tmp_*.c
 
 # --- 测试与临时 ---
 # 测试 ABI 脚本编译出的可执行文件
@@ -111,3 +148,5 @@ temp/
 # coverage/
 # *.gcno
 # *.gcda
+# Clang/LLVM 插桩覆盖率原始数据（llvm-profdata merge 的输入）
+*.profraw
