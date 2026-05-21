@@ -1,7 +1,0 @@
-import ast;
-function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 {
-  if (ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
-    return 0;
-  }
-  return 0;
-}
