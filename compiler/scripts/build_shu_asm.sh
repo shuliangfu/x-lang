@@ -44,10 +44,11 @@ compile_su() {
   local out="$BUILD_DIR/$1"
   local src="$2"
   printf "  asm %s -> %s ... " "$src" "$out"
+  # 单模块 .o：仅编入口符号，dep 由其它 build_asm/*.o 并列提供，避免 Mach-O 重复定义。
   if [ -n "${SHU_ASM_QUIET}" ]; then
-    if "$SHU" -backend asm -o "$out" $LIBROOT "$src" 2>/dev/null; then echo OK; else echo SKIP; fi
+    if SHU_ASM_ENTRY_MODULE_ONLY=1 "$SHU" -backend asm -o "$out" $LIBROOT "$src" 2>/dev/null; then echo OK; else echo SKIP; fi
   else
-    if "$SHU" -backend asm -o "$out" $LIBROOT "$src"; then echo OK; else echo SKIP; fi
+    if SHU_ASM_ENTRY_MODULE_ONLY=1 "$SHU" -backend asm -o "$out" $LIBROOT "$src"; then echo OK; else echo SKIP; fi
   fi
 }
 
@@ -162,10 +163,18 @@ ensure_asm_gen_driver_su_objs() {
     fi
   fi
   LIB_E_PIPELINE="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess"
-  LIB_E_MAIN="-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess"
+  LIB_E_MAIN="-L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess"
+
+  # -E 单文件聚合时可能对 slice ABI 重复吐出同名 struct，同一 TU 内触发重定义；与 verify-selfhost.sh 一致只保留首行。
+  dedupe_shulang_slice_struct() {
+    f="$1"
+    [ -f "$f" ] || return 0
+    perl -i -ne 'print unless /^struct shulang_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
+  }
 
   echo "  $SHU_E -E pipeline.su -> $GEN_DIR/pipeline_gen.c ..."
   "$SHU_E" $LIB_E_PIPELINE src/pipeline/pipeline.su -E >"$GEN_DIR/pipeline_gen.c"
+  dedupe_shulang_slice_struct "$GEN_DIR/pipeline_gen.c"
   echo "  $SHU_E -E lsp_io.su (-E-extern) -> $GEN_DIR/lsp_io_gen.c ..."
   "$SHU_E" $LIB_E_MAIN src/lsp/lsp_io.su -E -E-extern >"$GEN_DIR/lsp_io_gen.c"
   echo "  $SHU_E -E lsp.su (-E-extern) -> $GEN_DIR/lsp_gen.c ..."
@@ -178,23 +187,62 @@ ensure_asm_gen_driver_su_objs() {
   "$SHU_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.su -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
   echo "  $SHU_E -E main.su (-E-extern) -> $GEN_DIR/driver_gen.c ..."
   "$SHU_E" $LIB_E_MAIN src/main.su -E -E-extern >"$GEN_DIR/driver_gen.c"
+  dedupe_shulang_slice_struct "$GEN_DIR/driver_gen.c"
   echo "  $SHU_E -E preprocess.su (-E-extern) -> $GEN_DIR/preprocess_gen.c ..."
   "$SHU_E" -L src/lexer -E -E-extern src/preprocess/preprocess.su >"$GEN_DIR/preprocess_gen.c"
+  dedupe_shulang_slice_struct "$GEN_DIR/preprocess_gen.c"
 
-  echo "  cc -c gen_driver/*_su.o <- pipeline/driver/lsp/preprocess -E 产物"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
-    -Dstd_io_driver_driver_read_ptr_len=shu_io_read_ptr_len \
-    -Dstd_io_driver_driver_read_ptr=shu_io_read_ptr \
-    -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_su.o"
+  echo "  $SHU_E -E driver/*.su (-E-extern) -> $GEN_DIR/driver_*.c ..."
+  "$SHU_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/fmt.su >"$GEN_DIR/driver_fmt.c"
+  "$SHU_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/check.su >"$GEN_DIR/driver_check.c"
+  "$SHU_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/test.su >"$GEN_DIR/driver_test.c"
+
+  echo "  cc -c gen_driver/driver_*.o <- src/driver/*.su (-E-extern)"
+  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_fmt.c" -o "$GEN_DIR/driver_fmt_su.o"
+  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_check.c" -o "$GEN_DIR/driver_check_su.o"
+  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_test.c" -o "$GEN_DIR/driver_test_su.o"
+
+  # pipeline/driver/preprocess：优先复用 Makefile gen-su-driver-objs（与 bootstrap-driver-seed 同源依赖）
+  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    echo "  make gen-su-driver-objs -> copy pipeline_su.o driver_su.o preprocess_su.o to $GEN_DIR/"
+    make -s gen-su-driver-objs
+    cp -f pipeline_su.o driver_su.o preprocess_su.o "$GEN_DIR/"
+  else
+    echo "  cc -c gen_driver/*_su.o <- pipeline/driver/lsp/preprocess -E 产物 (no Makefile make)"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
+      -Dstd_io_driver_driver_read_ptr_len=shu_io_read_ptr_len \
+      -Dstd_io_driver_driver_read_ptr=shu_io_read_ptr \
+      -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_su.o"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS \
+      -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
+      -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_su.o"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_su.o"
+  fi
+
+  echo "  cc -c gen_driver/lsp*.o <- lsp -E 产物"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Dstd_io_read=io_read -Dstd_io_write=io_write \
     -c "$GEN_DIR/lsp_io_gen.c" -o "$GEN_DIR/lsp_io_su.o"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/lsp_gen.c" -o "$GEN_DIR/lsp_su.o"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
     -c "$GEN_DIR/lsp_io_std_heap_gen.c" -o "$GEN_DIR/lsp_io_std_heap_su.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS \
-    -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
-    -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_su.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_su.o"
+}
+
+# lsp_diag.c 依赖 pipeline 结构体 sizeof（与 Makefile bootstrap-driver-seed 一致）
+ensure_lsp_diag_pipeline_sizes_obj() {
+  if [ ! -f src/lsp/lsp_diag_pipeline_sizes.o ]; then
+    echo "  cc -c src/lsp/lsp_diag_pipeline_sizes.o"
+    "$CC" $CFLAGS -c -o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_sizes.c
+  fi
+}
+
+# B-hybrid 链 lsp_su.o 需要 lsp_build_diagnostics_response，但不链整份 lsp_diag_su.o（与 pipeline_su.o 重复 ast 符号）
+ensure_asm_shu_lsp_diag_stub_obj() {
+  STUB_C="scripts/asm_shu_lsp_diag_stub.c"
+  STUB_O="$BUILD_DIR/asm_shu_lsp_diag_stub.o"
+  if [ ! -f "$STUB_O" ]; then
+    echo "  cc -c $STUB_O <- $STUB_C"
+    "$CC" $CFLAGS -c -o "$STUB_O" "$STUB_C"
+  fi
 }
 
 # 回退链接所需的 C 桩（不依赖 make）
@@ -240,11 +288,15 @@ ASM_TEXT_ALL_OK=0
 if [ -z "${SHU_ASM_LINK_TOPOLOGY+x}" ]; then
   SHU_ASM_LINK_TOPOLOGY=pipeline_su
   UNAMES=$(uname -s 2>/dev/null || echo Unknown)
-  if [ "$UNAMES" != "Linux" ]; then
-    echo "build_shu_asm: host=$UNAMES: topology pipeline_su (non-Linux hosts: crt0/B-partial ELF path not wired; hybrid only; docs/SELFHOST.md §4)"
-  elif [ "$ASM_TEXT_ALL_OK" = "1" ]; then
+  if [ "$ASM_TEXT_ALL_OK" = "1" ]; then
     SHU_ASM_LINK_TOPOLOGY=full_asm
-    echo "build_shu_asm: auto SHU_ASM_LINK_TOPOLOGY=full_asm (Linux, all BUILD objects non-empty __text)"
+    if [ "$UNAMES" = "Linux" ]; then
+      echo "build_shu_asm: auto SHU_ASM_LINK_TOPOLOGY=full_asm (Linux, all BUILD __text non-empty)"
+    else
+      echo "build_shu_asm: auto SHU_ASM_LINK_TOPOLOGY=full_asm ($UNAMES, all BUILD __text non-empty; link仍默认 pipeline_su 回退，见 SHU_ASM_EXPERIMENTAL_SKIP_GEN)"
+    fi
+  elif [ "$UNAMES" != "Linux" ]; then
+    echo "build_shu_asm: host=$UNAMES: topology pipeline_su (crt0 仅 Linux；docs/SELFHOST.md §4)"
   fi
 else
   if [ "$SHU_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" != "1" ]; then
@@ -279,45 +331,93 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
     ensure_runtime_cc_stubs
     ensure_std_fs_io_heap_objs
     ensure_asm_driver_seed_c_objs
-    if [ "$SHU_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" = "1" ]; then
-      echo "build_shu_asm: full_asm: __text 已全部非空，但默认仍生成 gen_driver（单一 full_asm 链接未默认启用）；见 docs/SELFHOST.md。"
+    ensure_lsp_diag_pipeline_sizes_obj
+    ensure_asm_shu_lsp_diag_stub_obj
+    if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ "$ASM_TEXT_ALL_OK" = "1" ] && [ -n "$NONEMPTY_ASM" ]; then
+      echo "build_shu_asm: SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 — 尝试无 pipeline_gen.c 链（实验）"
+      ensure_std_fs_io_heap_objs
+      PIPELINE_LIBS=""
+      if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+        PIPELINE_LIBS="-luring -lpthread"
+      fi
+      UNAME_ASM=$(uname -s 2>/dev/null || echo Unknown)
+      # Darwin：ENTRY_MODULE_ONLY 下 duplicate symbol 已消除，但大模块 .o 符号不全/跨模块命名仍会导致 undefined；试链后失败则回退 gen_driver。
+      ASM_TRY_OBJS="$NONEMPTY_ASM"
+      if [ "$UNAME_ASM" = "Darwin" ]; then
+        echo "build_shu_asm: Darwin 试 asm-only 链（ENTRY_MODULE_ONLY 已无 duplicate；若 undefined 则回退）"
+      fi
+      if [ -n "$ASM_TRY_OBJS" ]; then
+        echo "  linking shu_asm (experimental: runtime + build_asm/*.o + stubs, no pipeline_su.o) ..."
+        set +e
+        "$CC" $CFLAGS -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o shu_asm \
+          src/asm/runtime_asm_build.o \
+          src/runtime_driver.o \
+          $ASM_TRY_OBJS \
+          "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+          src/lsp/lsp_diag_pipeline_sizes.o \
+          ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o \
+          -lm -lc $PIPELINE_LIBS
+        FB_RC=$?
+        set -e
+        if [ "$FB_RC" -eq 0 ]; then
+          echo "build_shu_asm: shu_asm built (experimental asm-only, no pipeline_su.o)."
+          LINK_OK=1
+          LINK_MODE=asm_only_experimental
+        else
+          echo "build_shu_asm: experimental asm-only link failed (rc=$FB_RC); falling back to gen_driver..."
+        fi
+      else
+        echo "build_shu_asm: experimental asm-only skipped on $UNAME_ASM; falling back to gen_driver (仍含 cc -c pipeline_gen.c)..."
+      fi
     fi
-    ensure_asm_gen_driver_su_objs
-    PIPELINE_LIBS=""
-    if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
-      PIPELINE_LIBS="-luring -lpthread"
+    if [ "$LINK_OK" -ne 1 ]; then
+      if [ "$SHU_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" = "1" ]; then
+        echo "build_shu_asm: full_asm: __text 已全部非空，默认仍走 gen_driver（设 SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 试 asm-only 链）"
+      fi
+      ensure_asm_gen_driver_su_objs
     fi
-    SEED_O="$BUILD_DIR/asm_driver_seed"
-    GEN_O="$BUILD_DIR/gen_driver"
-    echo "  linking shu_asm (runtime_asm_build + runtime_driver + seed + -E driver/pipeline/lsp; no build_asm/*.o) ..."
-    set +e
-    "$CC" $CFLAGS -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o shu_asm \
-      src/asm/runtime_asm_build.o \
-      src/runtime_driver.o \
-      "$SEED_O/preprocess.o" \
-      "$SEED_O/lexer.o" \
-      "$SEED_O/ast_seed.o" \
-      "$SEED_O/parser.o" \
-      "$SEED_O/typeck.o" \
-      "$SEED_O/codegen.o" \
-      "$GEN_O/driver_su.o" \
-      "$GEN_O/pipeline_su.o" \
-      "$GEN_O/preprocess_su.o" \
-      "$GEN_O/lsp_su.o" \
-      "$GEN_O/lsp_io_su.o" \
-      "$GEN_O/lsp_io_std_heap_su.o" \
-      "$SEED_O/lsp_diag.o" \
-      "$SEED_O/lsp_state.o" \
-      ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o \
-      -lm -lc $PIPELINE_LIBS
-    FB_RC=$?
-    set -e
-    if [ "$FB_RC" -eq 0 ]; then
-      echo "build_shu_asm: shu_asm built."
-      LINK_OK=1
-      LINK_MODE=driver
-    else
-      echo "build_shu_asm: link failed (rc=$FB_RC). See src/asm/README.md Goal 2."
+    if [ "$LINK_OK" -ne 1 ]; then
+      PIPELINE_LIBS=""
+      if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+        PIPELINE_LIBS="-luring -lpthread"
+      fi
+      SEED_O="$BUILD_DIR/asm_driver_seed"
+      GEN_O="$BUILD_DIR/gen_driver"
+      echo "  linking shu_asm (runtime_asm_build + runtime_driver + seed + driver/* + -E pipeline/lsp; no build_asm/*.o) ..."
+      set +e
+      "$CC" $CFLAGS -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o shu_asm \
+        src/asm/runtime_asm_build.o \
+        src/runtime_driver.o \
+        "$SEED_O/preprocess.o" \
+        "$SEED_O/lexer.o" \
+        "$SEED_O/ast_seed.o" \
+        "$SEED_O/parser.o" \
+        "$SEED_O/typeck.o" \
+        "$SEED_O/codegen.o" \
+        "$GEN_O/driver_su.o" \
+        "$GEN_O/driver_fmt_su.o" \
+        "$GEN_O/driver_check_su.o" \
+        "$GEN_O/driver_test_su.o" \
+        "$GEN_O/pipeline_su.o" \
+        "$GEN_O/preprocess_su.o" \
+        "$GEN_O/lsp_su.o" \
+        "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+        "$GEN_O/lsp_io_su.o" \
+        "$GEN_O/lsp_io_std_heap_su.o" \
+        "$SEED_O/lsp_diag.o" \
+        src/lsp/lsp_diag_pipeline_sizes.o \
+        "$SEED_O/lsp_state.o" \
+        ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o \
+        -lm -lc $PIPELINE_LIBS
+      FB_RC=$?
+      set -e
+      if [ "$FB_RC" -eq 0 ]; then
+        echo "build_shu_asm: shu_asm built."
+        LINK_OK=1
+        LINK_MODE=driver
+      else
+        echo "build_shu_asm: link failed (rc=$FB_RC). See src/asm/README.md Goal 2."
+      fi
     fi
   fi
 else
@@ -332,6 +432,9 @@ if [ "$ASM_READY" -eq 1 ] && [ "$LINK_OK" -eq 1 ]; then
       ;;
     driver)
       echo "build_shu_asm: Target-B-hybrid: shu-c -E + cc -c gen_driver (topology=${SHU_ASM_LINK_TOPOLOGY})."
+      ;;
+    asm_only_experimental)
+      echo "build_shu_asm: Target-B-experimental: no pipeline_gen.c in link (SHU_ASM_EXPERIMENTAL_SKIP_GEN)."
       ;;
   esac
 fi
