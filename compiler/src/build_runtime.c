@@ -127,7 +127,7 @@ static const char *const build_literals[] = {
   /* 2: step 2 */
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c pipeline_gen.c -o pipeline_su.o",
   /* 3: step 3 后缀 */
-  " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.su -E -E-extern > driver_gen.c",
+  " -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.su -E -E-extern > driver_gen.c",
   /* 4: step 4 */
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c driver_gen.c -o driver_su.o",
   /* 5: step 5（含 std_fs.o 供 pipeline/driver 的 std.fs 符号） */
@@ -329,7 +329,7 @@ int build_run_step(int step_id, const char *shu_path) {
     return system(cmd);
   case 3:
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.su > driver_gen.c",
+      "%s -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.su > driver_gen.c",
       shu_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
