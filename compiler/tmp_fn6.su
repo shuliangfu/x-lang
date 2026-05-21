@@ -1,7 +1,0 @@
-import ast;
-function f(x: i32): i32 {
-  if (ref_is_null(x)) {
-    return 0;
-  }
-  return 0;
-}
