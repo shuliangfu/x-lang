@@ -37,7 +37,7 @@ chmod +x scripts/docker-ci-local.sh
 
 | 方式 | 复现的 CI job | 命令 |
 |------|----------------|------|
-| **本机直接 make** | **mac** | 仓库根：`make -C compiler OPT=1 all && make -C compiler test_c && make -C compiler test_su`（需先 `brew install brotli` 等） |
+| **本机直接 make** | **mac** | 仓库根：`make -C compiler OPT=1 all && make -C compiler test`（`test_c` 即 `run-all-c.sh` 全量 + `test_su`）；或 `./tests/run-all-c.sh` + `./tests/run-all-su.sh` |
 | **Docker 跑 Ubuntu** | **linux (Ubuntu)** | `./scripts/docker-ci-local.sh ubuntu` |
 
 - **macOS / Windows / ARM64**：需对应系统或 CI 跑，无法在 x86 Docker 里复现。
