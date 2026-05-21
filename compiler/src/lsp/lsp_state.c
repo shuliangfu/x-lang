@@ -5,3 +5,8 @@
 #include <stdint.h>
 
 uint8_t g_lsp_state_buf[16388];
+
+/** 供 lsp.su read_message 使用，避免 lsp_main 栈上再放 16KiB state（与 g_lsp_state_buf 同缓冲）。 */
+uint8_t *lsp_state_buf_ptr(void) {
+    return g_lsp_state_buf;
+}
