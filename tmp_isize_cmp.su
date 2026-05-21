@@ -1,5 +1,0 @@
-function f(): i32 {
-  let r: isize = -1;
-  if (r < 0) { return -1; }
-  return 0;
-}
