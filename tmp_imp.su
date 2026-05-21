@@ -1,3 +1,0 @@
-import std.io.core;
-
-function m(): i32 { return 0; }
