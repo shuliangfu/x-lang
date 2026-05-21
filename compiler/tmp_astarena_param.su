@@ -1,6 +1,0 @@
-// 最小复现：*ASTArena 形参与 FIELD_ACCESS，用于对照 ast.su typeck。
-import ast;
-
-function tmp_astarena_touch(a: *ASTArena): void {
-  a.num_types = 0;
-}
