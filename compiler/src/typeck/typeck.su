@@ -2,7 +2,8 @@
 //
 // 职责：对 .su AST（Module + Arena）做类型检查，全部逻辑在 .su；阶段 5.2 跨模块调用时通过 extern 取 dep 模块。
 // 内容：main 校验、const/let 类型与初值一致、while/for 条件须 bool、if/三元条件须 bool、
-//       赋值左右类型一致、块末表达式类型与函数返回类型一致、return 操作数类型一致；EXPR_CALL 在本模块或 deps 中解析 callee 并设 resolved_type_ref。
+//       赋值左右类型一致、块末表达式类型与函数返回类型一致、`return expr`：i32 目标下允许切片下标得到之 u8 与 `.length` 之 usize 隐式收窄并写回 resolved_type；
+//       EXPR_CALL 在本模块或 deps 中解析 callee 并设 resolved_type_ref。
 //       非 void 函数块末不得为「隐式尾表达式」（final_expr 非 EXPR_RETURN 等），否则 typeck_su_ast_impl/library 返回 -6，与 C 路径「须显式 return」一致。
 // 依赖：import ast。
 
@@ -23,19 +24,89 @@ extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 extern function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
 /** EXPR_RETURN 失败诊断：SHU_TYPECK_RET=1（runtime.c）。 */
 extern function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void;
+/** return 表达式类型与函数签名不符：stderr 含 typeck error（runtime.c）。 */
+extern function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32,
+    expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
 /** 赋值类型不符：stderr 行文与 typeck.c + lsp_diag_report_typeck 一致（runtime.c）。 */
 extern function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32,
-  expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+    expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+/** 下标基类型非法时打印 stderr（与 typeck.c 一致）。 */
+extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void;
 extern function driver_typeck_diag_scratch_expect(): *u8;
 extern function driver_typeck_diag_scratch_found(): *u8;
-/** runtime.c：pipeline 依赖槽位镜像；ctx.dep_arenas[i] 未与时序写入时仍可读 dep 的类型池（整包限定调用 ASSIGN/let 需 resolved_type_ref）。 */
+/** runtime.c：pipeline 依赖槽位镜像；dep 池 arena 槽未与时序写入时仍可读 dep 的类型池（整包限定调用 ASSIGN/let 需 resolved_type_ref）。 */
 extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
 /** 按当前函数下标与变量名查形参的类型池 ref；由 pipeline_glue.c 指针读 Param，避免 asm 下 module.funcs[fi].params[pi] 寻址错误。 */
 extern function pipeline_module_func_param_type_ref_for_name(module: *Module, func_index: i32, vname: *u8, vname_len: i32): i32;
+extern function pipeline_module_func_is_extern_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
+extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
+extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8, name_len: i32): i32;
 /** 合并 dep 的 struct_layout 到入口 module 时用 glue 写入槽位（与 parser 一致）。 */
 extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
 extern function pipeline_module_struct_layout_set_field(module: *Module, layout_idx: i32, j: i32, fname: *u8, fname_len: i32, ftype_ref: i32, foff: i32): void;
+/** 读 struct_layout 字段名/长度，避免 SU 内 field_names[j][0] 嵌套下标 typeck 失败。 */
+extern function pipeline_module_struct_layout_field_name_into(module: *Module, layout_idx: i32, j: i32, out: *u8): void;
+extern function pipeline_module_struct_layout_field_name_len(module: *Module, layout_idx: i32, j: i32): i32;
+extern function pipeline_module_struct_layout_name_into(module: *Module, idx: i32, out: *u8): void;
+extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
+extern function pipeline_module_struct_layout_num_fields(module: *Module, layout_idx: i32): i32;
+extern function pipeline_module_struct_layout_set_num_fields(module: *Module, layout_idx: i32, nf: i32): void;
+/** 读 struct_lit expr 字段；避免 SU 内 e.struct_lit_field_names[j][0] 嵌套下标 typeck 失败。 */
+extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_struct_lit_type_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
+extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32, j: i32): i32;
+extern function pipeline_expr_struct_lit_field_name_into(arena: *ASTArena, expr_ref: i32, j: i32, out: *u8): void;
+extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_ref: i32, j: i32): i32;
+extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** 类型池分配/查找；避免 SU 内 ti.kind = TypeKind.* 等对大 Type 局部副本赋值 typeck 失败。 */
+extern function pipeline_type_ensure_by_kind_ord(arena: *ASTArena, kind_ord: i32): i32;
+extern function pipeline_type_find_or_alloc_named(arena: *ASTArena, name: *u8, name_len: i32): i32;
+extern function pipeline_type_find_or_alloc_compound(arena: *ASTArena, kind_ord: i32, elem_ref: i32, array_size: i32): i32;
+/** 读 expr 字段；避免 SU 内 ast_arena_expr_get 后 field_access_field_name[i] 等 typeck 失败。 */
+extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
+/** 读 unary_operand_ref；块末 void return 判定用，避免 Expr 按值拷贝。 */
+extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_field_access_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
+extern function pipeline_expr_field_access_name_len(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_field_access_base_ref(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_var_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
+extern function pipeline_expr_var_name_len(arena: *ASTArena, expr_ref: i32): i32;
+/** import 限定符号 field 层 scratch（ast_pool.c；与 backend.su 共用）。 */
+extern function asm_qual_sym_layer_reset(): void;
+extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
+extern function asm_qual_sym_layer_count(): i32;
+extern function asm_qual_sym_layer_len(i: i32): i32;
+extern function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
+/** §11.1 隐式 padding：与 typeck.c compute_struct_layouts 措辞一致（lsp_diag_report_typeck）。 */
+extern function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void;
+extern function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void;
+extern function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
+extern function pipeline_module_struct_layout_alloc(module: *Module): i32;
+extern function pipeline_module_struct_layout_field_type_ref(module: *Module, layout_idx: i32, j: i32): i32;
+extern function pipeline_module_struct_layout_field_offset_at(module: *Module, li: i32, j: i32): i32;
+extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
+extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32, v: i32): void;
+extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
+extern function pipeline_module_import_path_byte_at(module: *Module, idx: i32, off: i32): u8;
+extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
+extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
+extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+extern function pipeline_module_import_select_count_at(module: *Module, idx: i32): i32;
+extern function pipeline_module_import_select_name_len(module: *Module, idx: i32, sel: i32): i32;
+extern function pipeline_module_import_select_name_byte_at(module: *Module, idx: i32, sel: i32, off: i32): u8;
+extern function pipeline_module_top_level_let_name_len(module: *Module, idx: i32): i32;
+extern function pipeline_module_top_level_let_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
 
 /** 将 TypeKind 转为序数（与 ast.su enum 顺序一致）；函数实参里不可用 enum as i32（shu-c）。 */
 function type_kind_ordinal(k: TypeKind): i32 {
@@ -73,21 +144,321 @@ function name_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   return true;
 }
 
+/** 比较 module struct_layout 槽名与外部字节序列（走 C grow pool）。 */
+function typeck_layout_name_equal(module: *Module, k: i32, nm: *u8, nlen: i32): bool {
+  let buf: [64]u8 = [];
+  let slen: i32 = pipeline_module_struct_layout_name_len(module, k);
+  if (slen != nlen || nlen <= 0) {
+    return false;
+  }
+  pipeline_module_struct_layout_name_into(module, k, &buf[0]);
+  return name_equal(&buf[0], slen, nm, nlen);
+}
+
+/** 比较 module struct_layout 字段名与外部字节序列。 */
+function typeck_layout_field_name_equal(module: *Module, k: i32, j: i32, nm: *u8, nlen: i32): bool {
+  let buf: [64]u8 = [];
+  let fl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+  if (fl != nlen || nlen <= 0) {
+    return false;
+  }
+  pipeline_module_struct_layout_field_name_into(module, k, j, &buf[0]);
+  return name_equal(&buf[0], fl, nm, nlen);
+}
+
+/** 拷贝 struct_layout 槽名到 buf 并返回 name_len。 */
+function typeck_layout_name_into(module: *Module, k: i32, buf: *u8): i32 {
+  let slen: i32 = pipeline_module_struct_layout_name_len(module, k);
+  pipeline_module_struct_layout_name_into(module, k, buf);
+  return slen;
+}
+
+/** 拷贝 struct_layout 字段名到 buf 并返回 field name len。 */
+function typeck_layout_field_name_into(module: *Module, k: i32, j: i32, buf: *u8): i32 {
+  let fl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+  pipeline_module_struct_layout_field_name_into(module, k, j, buf);
+  return fl;
+}
+
+/** 比较 import 路径内 [off..off+seg_len) 与外部字节序列是否相等。 */
+function typeck_import_path_slice_equal(module: *Module, imp_ix: i32, off: i32, seg_len: i32, nm: *u8, nm_len: i32): bool {
+  if (seg_len != nm_len || seg_len <= 0) {
+    return false;
+  }
+  let i: i32 = 0;
+  while (i < seg_len) {
+    if (pipeline_module_import_path_byte_at(module, imp_ix, off + i) != nm[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+/** 比较 import 绑定名与外部字节序列是否相等。 */
+function typeck_import_binding_name_equal(module: *Module, imp_ix: i32, nm: *u8, nm_len: i32): bool {
+  let bl: i32 = pipeline_module_import_binding_name_len(module, imp_ix);
+  if (bl != nm_len || nm_len <= 0) {
+    return false;
+  }
+  let i: i32 = 0;
+  while (i < nm_len) {
+    if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+/** 比较 import 解构选取名与外部字节序列是否相等。 */
+function typeck_import_select_name_equal(module: *Module, imp_ix: i32, sel: i32, nm: *u8, nm_len: i32): bool {
+  let sl: i32 = pipeline_module_import_select_name_len(module, imp_ix, sel);
+  if (sl != nm_len || nm_len <= 0) {
+    return false;
+  }
+  let i: i32 = 0;
+  while (i < nm_len) {
+    if (pipeline_module_import_select_name_byte_at(module, imp_ix, sel, i) != nm[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+/** 比较顶层 let/const 名与外部字节序列是否相等。 */
+function typeck_top_level_let_name_equal(module: *Module, tl_ix: i32, nm: *u8, nm_len: i32): bool {
+  let tll: i32 = pipeline_module_top_level_let_name_len(module, tl_ix);
+  if (tll != nm_len || nm_len <= 0) {
+    return false;
+  }
+  let i: i32 = 0;
+  while (i < nm_len) {
+    if (pipeline_module_top_level_let_name_byte_at(module, tl_ix, i) != nm[i]) {
+      return false;
+    }
+    i = i + 1;
+  }
+  return true;
+}
+
+/**
+ * 按 struct_layout 槽位名查找下标；无匹配返回 -1。
+ */
+function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
+  let k: i32 = 0;
+  while (k < module.num_struct_layouts) {
+    if (typeck_layout_name_equal(module, k, nm, nlen)) {
+      return k;
+    }
+    k = k + 1;
+  }
+  return -1;
+}
+
+/** NAMED 类型为内建别名（与 typeck.c NAMED i32 等）时返回对齐；非内建返回 0。 */
+function typeck_su_named_builtin_align(nm: *u8, nlen: i32): i32 {
+  if (nm == 0 as *u8 || nlen <= 0) {
+    return 0;
+  }
+  if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }
+  if (nlen == 3 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50) { return 4; }
+  if (nlen == 4 && nm[0] == 98 && nm[1] == 111 && nm[2] == 111 && nm[3] == 108) { return 4; }
+  if (nlen == 2 && nm[0] == 117 && nm[1] == 56) { return 1; }
+  if (nlen == 3 && nm[0] == 105 && nm[1] == 54 && nm[2] == 52) { return 8; }
+  if (nlen == 3 && nm[0] == 117 && nm[1] == 54 && nm[2] == 52) { return 8; }
+  if (nlen == 5 && nm[0] == 117 && nm[1] == 115 && nm[2] == 105 && nm[3] == 122 && nm[4] == 101) { return 8; }
+  if (nlen == 5 && nm[0] == 105 && nm[1] == 115 && nm[2] == 105 && nm[3] == 122 && nm[4] == 101) { return 8; }
+  if (nlen == 3 && nm[0] == 102 && nm[1] == 51 && nm[2] == 50) { return 4; }
+  if (nlen == 3 && nm[0] == 102 && nm[1] == 54 && nm[2] == 52) { return 8; }
+  return 0;
+}
+
+function typeck_su_named_builtin_size(nm: *u8, nlen: i32): i32 {
+  let a: i32 = typeck_su_named_builtin_align(nm, nlen);
+  if (a == 1 && nlen == 2 && nm[0] == 117 && nm[1] == 56) { return 1; }
+  if (a == 4) { return 4; }
+  if (a == 8) { return 8; }
+  return 0;
+}
+
+/** 与 C type_align_of 对齐：用于 §11.1 结构体布局与零填充校验。 */
+function typeck_su_type_align(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
+  if (ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    return 1;
+  }
+  let t: Type = ast_arena_type_get(arena, ty_ref);
+  if (t.kind == TypeKind.TYPE_U8) {
+    return 1;
+  }
+  if (t.kind == TypeKind.TYPE_I32 || t.kind == TypeKind.TYPE_U32 || t.kind == TypeKind.TYPE_BOOL || t.kind == TypeKind.TYPE_F32) {
+    return 4;
+  }
+  if (t.kind == TypeKind.TYPE_I64 || t.kind == TypeKind.TYPE_U64 || t.kind == TypeKind.TYPE_USIZE || t.kind == TypeKind.TYPE_ISIZE || t.kind == TypeKind.TYPE_F64 || t.kind == TypeKind.TYPE_PTR) {
+    return 8;
+  }
+  if (t.kind == TypeKind.TYPE_SLICE) {
+    return 8;
+  }
+  if (t.kind == TypeKind.TYPE_ARRAY || t.kind == TypeKind.TYPE_VECTOR) {
+    if (ref_is_null(t.elem_type_ref)) {
+      return 1;
+    }
+    return typeck_su_type_align(module, arena, t.elem_type_ref, depth + 1);
+  }
+  if (t.kind == TypeKind.TYPE_NAMED) {
+    let li: i32 = typeck_find_layout_idx_by_type_name(module, &t.name[0], t.name_len);
+    if (li >= 0) {
+      let z: i32 = 0;
+      let al: i32 = 1;
+      if (typeck_struct_layout_metrics(module, arena, li, depth + 1, 0, &z, &al) != 0) {
+        return 1;
+      }
+      return al;
+    }
+    let ba: i32 = typeck_su_named_builtin_align(&t.name[0], t.name_len);
+    if (ba > 0) {
+      return ba;
+    }
+    return 4;
+  }
+  return 1;
+}
+
+function typeck_su_type_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
+  if (ref_is_null(ty_ref) || ty_ref <= 0 || ty_ref > arena.num_types || depth > 64) {
+    return 0;
+  }
+  let t: Type = ast_arena_type_get(arena, ty_ref);
+  if (t.kind == TypeKind.TYPE_VOID) {
+    return 0;
+  }
+  if (t.kind == TypeKind.TYPE_U8) {
+    return 1;
+  }
+  if (t.kind == TypeKind.TYPE_I32 || t.kind == TypeKind.TYPE_U32 || t.kind == TypeKind.TYPE_BOOL || t.kind == TypeKind.TYPE_F32) {
+    return 4;
+  }
+  if (t.kind == TypeKind.TYPE_I64 || t.kind == TypeKind.TYPE_U64 || t.kind == TypeKind.TYPE_USIZE || t.kind == TypeKind.TYPE_ISIZE || t.kind == TypeKind.TYPE_F64 || t.kind == TypeKind.TYPE_PTR) {
+    return 8;
+  }
+  if (t.kind == TypeKind.TYPE_SLICE) {
+    return 16;
+  }
+  if (t.kind == TypeKind.TYPE_ARRAY || t.kind == TypeKind.TYPE_VECTOR) {
+    if (ref_is_null(t.elem_type_ref) || t.array_size <= 0) {
+      return 0;
+    }
+    let es: i32 = typeck_su_type_size(module, arena, t.elem_type_ref, depth + 1);
+    if (es <= 0) {
+      return 0;
+    }
+    return t.array_size * es;
+  }
+  if (t.kind == TypeKind.TYPE_NAMED) {
+    let li2: i32 = typeck_find_layout_idx_by_type_name(module, &t.name[0], t.name_len);
+    if (li2 >= 0) {
+      let z2: i32 = 0;
+      let al2: i32 = 1;
+      if (typeck_struct_layout_metrics(module, arena, li2, depth + 1, 0, &z2, &al2) != 0) {
+        return 0;
+      }
+      return z2;
+    }
+    let bsz: i32 = typeck_su_named_builtin_size(&t.name[0], t.name_len);
+    if (bsz > 0) {
+      return bsz;
+    }
+    return 4;
+  }
+  return 0;
+}
+
+/**
+ * 计算 struct_layouts[li] 按 §11.1 填充后的总大小与对齐；check_pad=1 时对隐式 gap/尾填充报错（与 C compute_struct_layouts 一致）。
+ * 返回值：0 成功；-1 已打印诊断。
+ */
+function typeck_struct_layout_metrics(module: *Module, arena: *ASTArena, li: i32, depth: i32, check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || out_sz == 0 as *i32 || out_al == 0 as *i32) {
+    return -1;
+  }
+  if (li < 0 || li >= module.num_struct_layouts || depth > 64) {
+    return -1;
+  }
+  let nf: i32 = pipeline_module_struct_layout_num_fields(module, li);
+  let allow: i32 = pipeline_module_struct_layout_allow_padding_at(module, li);
+  let layout_name: [64]u8 = [];
+  let layout_nlen: i32 = typeck_layout_name_into(module, li, &layout_name[0]);
+  let current: i32 = 0;
+  let max_align: i32 = 1;
+  let j: i32 = 0;
+  while (j < nf) {
+    let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    let fname: [64]u8 = [];
+    let flen: i32 = typeck_layout_field_name_into(module, li, j, &fname[0]);
+    let A: i32 = typeck_su_type_align(module, arena, ftr, depth);
+    if (A <= 0) {
+      A = 1;
+    }
+    let rem: i32 = current % A;
+    let gap: i32 = A - rem;
+    gap = gap % A;
+    if (check_pad != 0 && gap > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_before(&layout_name[0], layout_nlen, gap, &fname[0], flen);
+      return -1;
+    }
+    current = current + gap;
+    let fsize: i32 = typeck_su_type_size(module, arena, ftr, depth);
+    if (fsize <= 0) {
+      driver_diagnostic_typeck_struct_field_bad_size(&layout_name[0], layout_nlen, &fname[0], flen);
+      return -1;
+    }
+    current = current + fsize;
+    if (A > max_align) {
+      max_align = A;
+    }
+    j = j + 1;
+  }
+  if (max_align > 0 && (current % max_align) != 0) {
+    let end_pad: i32 = max_align - (current % max_align);
+    if (check_pad != 0 && end_pad > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_trailing(&layout_name[0], layout_nlen, end_pad);
+      return -1;
+    }
+    current = current + end_pad;
+  }
+  out_sz[0] = current;
+  out_al[0] = max_align;
+  return 0;
+}
+
+/** 模块内全部 struct_layout 跑 Zero-Padding 门禁；失败返回 -1。 */
+function typeck_validate_struct_layouts_zero_padding(module: *Module, arena: *ASTArena): i32 {
+  let li: i32 = 0;
+  while (li < module.num_struct_layouts) {
+    let dz: i32 = 0;
+    let da: i32 = 1;
+    if (typeck_struct_layout_metrics(module, arena, li, 0, 1, &dz, &da) != 0) {
+      return -1;
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
 /** 从 module 的 struct_layouts 中按类型名与字段名查字段偏移；未找到返回 -1。 */
 function get_field_offset_from_layout(module: *Module, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
   let k: i32 = 0;
-  while (k < module.num_struct_layouts && k < 32) {
-    /** 禁止 let sl = module.struct_layouts[k]：StructLayout 体积极大，按值拷贝在部分 codegen 下不完整，字段名/偏移全坏，p.a 等永不命中布局。 */
-    if (name_equal(&module.struct_layouts[k].name[0], module.struct_layouts[k].name_len, type_name, type_name_len)) {
+  while (k < module.num_struct_layouts) {
+    if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
       let j: i32 = 0;
-      while (j < module.struct_layouts[k].num_fields && j < 64) {
-        /** 必须以首元素指针传入：行类型 [64]u8 若整体作实参，codegen 可能与 *u8 不匹配导致字段永远不命中。 */
-        if (name_equal(&module.struct_layouts[k].field_names[j][0], module.struct_layouts[k].field_lens[j], field_name, field_name_len)) {
-          return module.struct_layouts[k].field_offsets[j];
+      while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
+          return pipeline_module_struct_layout_field_offset_at(module, k, j);
         }
         j = j + 1;
       }
-      /** 同名多条 layout 时（如 library 先注册占位、后由 struct 补全），勿在此 return，继续 k+1。 */
     }
     k = k + 1;
   }
@@ -97,23 +468,22 @@ function get_field_offset_from_layout(module: *Module, type_name: *u8, type_name
 /** 从 struct_layouts 查字段对应的类型池 ref；未找到返回 0。 */
 function get_field_type_ref_from_layout(module: *Module, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
   let k: i32 = 0;
-  while (k < module.num_struct_layouts && k < 32) {
-    if (name_equal(&module.struct_layouts[k].name[0], module.struct_layouts[k].name_len, type_name, type_name_len)) {
+  while (k < module.num_struct_layouts) {
+    if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
       let j: i32 = 0;
-      while (j < module.struct_layouts[k].num_fields && j < 64) {
-        if (name_equal(&module.struct_layouts[k].field_names[j][0], module.struct_layouts[k].field_lens[j], field_name, field_name_len)) {
-          return module.struct_layouts[k].field_type_refs[j];
+      while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
+          return pipeline_module_struct_layout_field_type_ref(module, k, j);
         }
         j = j + 1;
       }
-      /** 同上：占位 layout 无合法字段名长时继续搜下一槽位。 */
     }
     k = k + 1;
   }
   return 0;
 }
 
-/** 在本 module 未命中时继续扫 ctx.dep_modules；import ast 时 Expr 等 struct_layout 在 dep 中。 */
+/** 在本 module 未命中时继续扫 dep 池；import ast 时 Expr 等 struct_layout 在 dep 中。 */
 function get_field_offset_from_layout_deps(module: *Module, ctx: *PipelineDepCtx, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
   let r: i32 = get_field_offset_from_layout(module, type_name, type_name_len, field_name, field_name_len);
   if (r >= 0) {
@@ -122,10 +492,11 @@ function get_field_offset_from_layout_deps(module: *Module, ctx: *PipelineDepCtx
   if (ctx == 0 as *PipelineDepCtx) {
     return -1;
   }
-  /** 勿仅依赖 ctx.ndep（driver 预填 dep 时可能为 0）；与 resolve 调用路径一致扫 32 槽。 */
+  /** 勿仅依赖 ctx.ndep 字段（driver 预填 dep 时可能未写回）；与 resolve 调用路径一致扫 dep 池。 */
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
   let di: i32 = 0;
-  while (di < 32) {
-    let dm: *Module = ctx.dep_modules[di];
+  while (di < nd) {
+    let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
     if (dm != 0 as *Module) {
       r = get_field_offset_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
       if (r >= 0) {
@@ -142,18 +513,28 @@ function get_field_offset_from_layout_deps(module: *Module, ctx: *PipelineDepCtx
  * init 表达式已在调用方经 check_expr，此处把各字段的 resolved 类型写入 field_type_refs，
  * 供后续 `ptr.field` 赋值左侧与 C 路径一致（否则会落成「expected ?, found bool」等）。
  */
-function ensure_struct_layout_from_struct_lit(module: *Module, arena: *ASTArena, e: Expr): i32 {
-  if (e.struct_lit_num_fields <= 0 || e.struct_lit_num_fields > 8) {
+function ensure_struct_layout_from_struct_lit(module: *Module, arena: *ASTArena, expr_ref: i32): i32 {
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
     return 0;
   }
-  let name_len: i32 = e.struct_lit_struct_name_len;
+  /** 勿 `let e: Expr = ast_arena_expr_get`：struct_lit 嵌套数组字段在 typeck 上 base 非 ARRAY。 */
+  let num_fields: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+  if (num_fields <= 0 || num_fields > 8) {
+    return 0;
+  }
+  let name_len: i32 = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
   if (name_len <= 0 || name_len > 63) {
     return 0;
   }
+  let type_name_buf: [64]u8 = [];
+  pipeline_expr_struct_lit_type_name_into(arena, expr_ref, &type_name_buf[0]);
   let k: i32 = 0;
   let found_idx: i32 = -1;
-  while (k < module.num_struct_layouts && k < 32) {
-    if (name_equal(&module.struct_layouts[k].name[0], module.struct_layouts[k].name_len, &e.struct_lit_struct_name[0], name_len)) {
+  while (k < module.num_struct_layouts) {
+    let sname_buf: [64]u8 = [];
+    pipeline_module_struct_layout_name_into(module, k, &sname_buf[0]);
+    let sname_len: i32 = pipeline_module_struct_layout_name_len(module, k);
+    if (name_equal(&sname_buf[0], sname_len, &type_name_buf[0], name_len)) {
       found_idx = k;
       break;
     }
@@ -163,100 +544,91 @@ function ensure_struct_layout_from_struct_lit(module: *Module, arena: *ASTArena,
   if (found_idx >= 0) {
     let idx_m: i32 = found_idx;
     let jm: i32 = 0;
-    while (jm < e.struct_lit_num_fields && jm < 8) {
-      let fnlen_m: i32 = e.struct_lit_field_lens[jm];
+    while (jm < num_fields) {
+      let lit_fnbuf: [64]u8 = [];
+      pipeline_expr_struct_lit_field_name_into(arena, expr_ref, jm, &lit_fnbuf[0]);
+      let fnlen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, jm);
       let exists_m: i32 = 0;
       let tm: i32 = 0;
-      while (tm < module.struct_layouts[idx_m].num_fields && tm < 64) {
-        if (name_equal(
-              &module.struct_layouts[idx_m].field_names[tm][0],
-              module.struct_layouts[idx_m].field_lens[tm],
-              &e.struct_lit_field_names[jm][0],
-              fnlen_m)) {
+      let nf_layout: i32 = pipeline_module_struct_layout_num_fields(module, idx_m);
+      while (tm < nf_layout) {
+        let fnbuf: [64]u8 = [];
+        pipeline_module_struct_layout_field_name_into(module, idx_m, tm, &fnbuf[0]);
+        let flen_tm: i32 = pipeline_module_struct_layout_field_name_len(module, idx_m, tm);
+        if (name_equal(&fnbuf[0], flen_tm, &lit_fnbuf[0], fnlen_m)) {
           exists_m = 1;
         }
         tm = tm + 1;
       }
-      if (exists_m == 0 && module.struct_layouts[idx_m].num_fields < 64) {
-        let nf_m: i32 = module.struct_layouts[idx_m].num_fields;
-        let fi_m: i32 = 0;
-        while (fi_m < 64) {
-          module.struct_layouts[idx_m].field_names[nf_m][fi_m] = e.struct_lit_field_names[jm][fi_m];
-          fi_m = fi_m + 1;
-        }
-        module.struct_layouts[idx_m].field_lens[nf_m] = fnlen_m;
-        module.struct_layouts[idx_m].field_offsets[nf_m] = nf_m * 8;
-        module.struct_layouts[idx_m].field_type_refs[nf_m] = 0;
-        let init_rm: i32 = e.struct_lit_init_refs[jm];
+      if (exists_m == 0) {
+        let nf_m: i32 = nf_layout;
+        let ftr_m: i32 = 0;
+        let init_rm: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, jm);
         if (!ref_is_null(init_rm) && init_rm > 0 && init_rm <= arena.num_exprs) {
           let fr_m: i32 = expr_type_ref(arena, init_rm);
           if (!ref_is_null(fr_m)) {
-            module.struct_layouts[idx_m].field_type_refs[nf_m] = fr_m;
+            ftr_m = fr_m;
           }
         }
-        module.struct_layouts[idx_m].num_fields = nf_m + 1;
+        pipeline_module_struct_layout_set_field(module, idx_m, nf_m, &lit_fnbuf[0], fnlen_m, ftr_m, nf_m * 8);
+        pipeline_module_struct_layout_set_num_fields(module, idx_m, nf_m + 1);
       }
       jm = jm + 1;
     }
     return 0;
   }
-  if (module.num_struct_layouts >= 32) {
+  let idx: i32 = pipeline_module_struct_layout_alloc(module);
+  if (idx < 0) {
     return -1;
   }
-  let idx: i32 = module.num_struct_layouts;
-  module.num_struct_layouts = module.num_struct_layouts + 1;
-  let i: i32 = 0;
-  while (i < 64) {
-    module.struct_layouts[idx].name[i] = e.struct_lit_struct_name[i];
-    i = i + 1;
-  }
-  module.struct_layouts[idx].name_len = name_len;
-  module.struct_layouts[idx].num_fields = e.struct_lit_num_fields;
+  pipeline_module_struct_layout_reset_slot(module, idx);
+  pipeline_module_struct_layout_set_name(module, idx, &type_name_buf[0], name_len);
+  pipeline_module_struct_layout_set_num_fields(module, idx, num_fields);
   let off: i32 = 0;
   let j: i32 = 0;
-  while (j < e.struct_lit_num_fields && j < 8) {
-    let fi: i32 = 0;
-    while (fi < 64) {
-      module.struct_layouts[idx].field_names[j][fi] = e.struct_lit_field_names[j][fi];
-      fi = fi + 1;
-    }
-    module.struct_layouts[idx].field_lens[j] = e.struct_lit_field_lens[j];
-    module.struct_layouts[idx].field_offsets[j] = off;
-    module.struct_layouts[idx].field_type_refs[j] = 0;
-    let init_r: i32 = e.struct_lit_init_refs[j];
+  while (j < num_fields) {
+    let lit_fnbuf2: [64]u8 = [];
+    pipeline_expr_struct_lit_field_name_into(arena, expr_ref, j, &lit_fnbuf2[0]);
+    let fnlen_j: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j);
+    let ftr: i32 = 0;
+    let init_r: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j);
     if (!ref_is_null(init_r) && init_r > 0 && init_r <= arena.num_exprs) {
       let fr: i32 = expr_type_ref(arena, init_r);
       if (!ref_is_null(fr)) {
-        module.struct_layouts[idx].field_type_refs[j] = fr;
+        ftr = fr;
       }
     }
+    pipeline_module_struct_layout_set_field(module, idx, j, &lit_fnbuf2[0], fnlen_j, ftr, off);
     off = off + 8;
     j = j + 1;
   }
   return 0;
 }
 
-/** 比较模块中某函数名与 arena 中某 VAR 表达式的 var_name 是否相等。避免取址语法。 */
+/** 比较模块中某函数名与 arena 中某 VAR 表达式的 var_name 是否相等。避免取址语法。
+ * 禁止 ast_arena_expr_get 取整颗 Expr 按值：Expr 极大，自举 codegen 拷贝会撕裂 var_name，整包同模块 callee 永远匹配失败。 */
 function expr_var_name_equal_func(arena: *ASTArena, callee_expr_ref: i32, mod: *Module, func_index: i32): bool {
+  let vbuf: [64]u8 = [];
+  let b_len: i32 = 0;
+  let a_len: i32 = 0;
+  let i: i32 = 0;
   if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs) {
     return false;
   }
-  let callee: Expr = ast_arena_expr_get(arena, callee_expr_ref);
-  if (callee.kind != ExprKind.EXPR_VAR) {
+  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 3) {
     return false;
   }
-  let b_len: i32 = callee.var_name_len;
+  b_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
   if (func_index < 0 || func_index >= mod.num_funcs) {
     return false;
   }
-  /** 禁止 let ff = mod.funcs[j]：Func 体极大，部分 codegen 按值拷贝不完整会撕裂 name/name_len，跨模块 callee 永远无法匹配（与 struct_layout 注释同源）。 */
-  let a_len: i32 = mod.funcs[func_index].name_len;
+  a_len = pipeline_module_func_name_len_at(mod, func_index);
   if (a_len != b_len || a_len <= 0 || a_len > 63) {
     return false;
   }
-  let i: i32 = 0;
+  pipeline_expr_var_name_into(arena, callee_expr_ref, &vbuf[0]);
   while (i < a_len) {
-    if (mod.funcs[func_index].name[i] != callee.var_name[i]) {
+    if (pipeline_module_func_name_byte_at(mod, func_index, i) != vbuf[i]) {
       return false;
     }
     i = i + 1;
@@ -266,161 +638,129 @@ function expr_var_name_equal_func(arena: *ASTArena, callee_expr_ref: i32, mod: *
 
 /** 在 arena 中按名查找或分配 TYPE_NAMED，返回 type_ref；供 struct literal 设 resolved_type_ref，使 if-expr 能取到 else 分支类型。 */
 function find_or_alloc_named_type_ref(arena: *ASTArena, name: *u8, name_len: i32): i32 {
-  if (name_len <= 0 || name_len > 63) {
+  return pipeline_type_find_or_alloc_named(arena, name, name_len);
+}
+
+/**
+ * parser/lexer 包装 struct 的嵌套字段（.next_lex.pos、.lex.pos 等）：
+ * struct_layout 的 field_type_refs 未同步时，按 TYPE_NAMED 名 + 字段名回落类型。
+ * 返回非 0 type_ref 表示已解析。
+ */
+function typeck_field_access_lexer_wrapper_fallback(arena: *ASTArena, base_type_ref: i32, field_name: *u8, field_name_len: i32): i32 {
+  if (ref_is_null(base_type_ref) || base_type_ref <= 0 || base_type_ref > arena.num_types) {
     return 0;
   }
-  let k: i32 = 1;
-  while (k <= arena.num_types) {
-    let tk: Type = ast_arena_type_get(arena, k);
-    if (tk.kind == TypeKind.TYPE_NAMED && name_equal(tk.name, tk.name_len, name, name_len)) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(arena);
-  if (new_ref == 0) {
+  /** 勿用 pipeline_type_named_name_into：glue 仅允许 types 下标 <512，parser 大模块 type_ref 常更大。 */
+  let bt_nm: Type = ast_arena_type_get(arena, base_type_ref);
+  let bn_len: i32 = bt_nm.name_len;
+  if (bn_len <= 0 || bn_len > 63) {
     return 0;
   }
-  let ti: Type = ast_arena_type_get(arena, new_ref);
-  ti.kind = TypeKind.TYPE_NAMED;
-  ti.name_len = name_len;
-  let i: i32 = 0;
-  while (i < 64) {
-    if (i < name_len) {
-      ti.name[i] = name[i];
-    } else {
-      ti.name[i] = 0;
-    }
-    i = i + 1;
+  let bn: [64]u8 = [];
+  let bni: i32 = 0;
+  while (bni < bn_len && bni < 64) {
+    bn[bni] = bt_nm.name[bni];
+    bni = bni + 1;
   }
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(arena, new_ref, ti);
-  return new_ref;
+  let nm_lexer: [5]u8 = [76, 101, 120, 101, 114];
+  let nm_next_lex: [8]u8 = [110, 101, 120, 95, 108, 101, 120];
+  let nm_token_start: [11]u8 = [116, 111, 107, 101, 110, 95, 115, 116, 97, 114, 116];
+  let nm_lex: [3]u8 = [108, 101, 120];
+  let nm_pos: [3]u8 = [112, 111, 115];
+  let nm_line: [4]u8 = [108, 105, 110, 101];
+  let nm_col: [3]u8 = [99, 111, 108];
+  let nm_lres: [11]u8 = [76, 101, 120, 101, 114, 82, 101, 115, 117, 108, 116];
+  let nm_cir: [21]u8 = [67, 111, 108, 108, 101, 99, 116, 73, 109, 112, 111, 114, 116, 115, 82, 101, 115, 117, 108, 116];
+  let nm_tsar: [18]u8 = [84, 114, 121, 83, 107, 105, 112, 65, 108, 108, 111, 119, 82, 101, 115, 117, 108, 116];
+  let nm_lpr: [19]u8 = [76, 105, 98, 114, 97, 114, 121, 80, 97, 114, 115, 101, 82, 101, 115, 117, 108, 116];
+  let nm_per: [15]u8 = [80, 97, 114, 115, 101, 69, 120, 112, 114, 82, 101, 115, 117, 108, 116];
+  let nm_pbr: [16]u8 = [80, 97, 114, 115, 101, 66, 108, 111, 99, 107, 82, 101, 115, 117, 108, 116];
+  let nm_tlr: [17]u8 = [84, 111, 112, 76, 101, 118, 101, 108, 76, 101, 116, 82, 101, 115, 117, 108, 116];
+  let lex_tr: i32 = find_or_alloc_named_type_ref(arena, &nm_lexer[0], 5);
+  if (lex_tr == 0) {
+    return 0;
+  }
+  if (field_name_len == 8 && name_equal(field_name, field_name_len, &nm_next_lex[0], 8)) {
+    if (bn_len == 11 && name_equal(&bn[0], bn_len, &nm_lres[0], 11)) {
+      return lex_tr;
+    }
+    if (bn_len == 19 && name_equal(&bn[0], bn_len, &nm_lpr[0], 19)) {
+      return lex_tr;
+    }
+    if (bn_len == 15 && name_equal(&bn[0], bn_len, &nm_per[0], 15)) {
+      return lex_tr;
+    }
+    if (bn_len == 16 && name_equal(&bn[0], bn_len, &nm_pbr[0], 16)) {
+      return lex_tr;
+    }
+    if (bn_len == 17 && name_equal(&bn[0], bn_len, &nm_tlr[0], 17)) {
+      return lex_tr;
+    }
+  }
+  if (field_name_len == 11 && name_equal(field_name, field_name_len, &nm_token_start[0], 11)) {
+    if (bn_len == 11 && name_equal(&bn[0], bn_len, &nm_lres[0], 11)) {
+      return ensure_usize_type_ref(arena);
+    }
+  }
+  if (field_name_len == 3 && name_equal(field_name, field_name_len, &nm_lex[0], 3)) {
+    if (bn_len == 21 && name_equal(&bn[0], bn_len, &nm_cir[0], 21)) {
+      return lex_tr;
+    }
+    if (bn_len == 18 && name_equal(&bn[0], bn_len, &nm_tsar[0], 18)) {
+      return lex_tr;
+    }
+  }
+  if (bn_len == 5 && name_equal(&bn[0], bn_len, &nm_lexer[0], 5)) {
+    if (field_name_len == 3 && name_equal(field_name, field_name_len, &nm_pos[0], 3)) {
+      return ensure_usize_type_ref(arena);
+    }
+    if (field_name_len == 4 && name_equal(field_name, field_name_len, &nm_line[0], 4)) {
+      return ensure_i32_type_ref(arena);
+    }
+    if (field_name_len == 3 && name_equal(field_name, field_name_len, &nm_col[0], 3)) {
+      return ensure_i32_type_ref(arena);
+    }
+  }
+  return 0;
 }
 
 /** 在当前 arena 中取或分配 TYPE_I32，返回其 type_ref；供跨模块调用时 dep 返回 i32 时复用本 arena 的类型。 */
 function ensure_i32_type_ref(arena: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= arena.num_types) {
-    let tk: Type = ast_arena_type_get(arena, k);
-    if (tk.kind == TypeKind.TYPE_I32) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(arena);
-  if (new_ref == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(arena, new_ref);
-  ti.kind = TypeKind.TYPE_I32;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(arena, new_ref, ti);
-  return new_ref;
+  return pipeline_type_ensure_by_kind_ord(arena, 0);
+}
+
+/** 在当前 arena 中取或分配 TYPE_U8，返回其 type_ref；供 [64]u8 内联字段 ARRAY typeck。 */
+function ensure_u8_type_ref(arena: *ASTArena): i32 {
+  return pipeline_type_ensure_by_kind_ord(arena, 2);
 }
 
 /** 在当前 arena 中取或分配 TYPE_BOOL，返回其 type_ref；供字面量 true/false 自设类型。 */
 function ensure_bool_type_ref(arena: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= arena.num_types) {
-    let tk: Type = ast_arena_type_get(arena, k);
-    if (tk.kind == TypeKind.TYPE_BOOL) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(arena);
-  if (new_ref == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(arena, new_ref);
-  ti.kind = TypeKind.TYPE_BOOL;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(arena, new_ref, ti);
-  return new_ref;
+  return pipeline_type_ensure_by_kind_ord(arena, 1);
 }
 
 /** 在当前 arena 中取或分配 TYPE_F64，返回其 type_ref；供字面量浮点自设类型。 */
 function ensure_f64_type_ref(arena: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= arena.num_types) {
-    let tk: Type = ast_arena_type_get(arena, k);
-    if (tk.kind == TypeKind.TYPE_F64) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(arena);
-  if (new_ref == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(arena, new_ref);
-  ti.kind = TypeKind.TYPE_F64;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(arena, new_ref, ti);
-  return new_ref;
+  return pipeline_type_ensure_by_kind_ord(arena, 14);
 }
 
 /** 在当前 arena 中取或分配 TYPE_USIZE，供切片 .length 等使用。 */
 function ensure_usize_type_ref(arena: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= arena.num_types) {
-    let tk: Type = ast_arena_type_get(arena, k);
-    if (tk.kind == TypeKind.TYPE_USIZE) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(arena);
-  if (new_ref == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(arena, new_ref);
-  ti.kind = TypeKind.TYPE_USIZE;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(arena, new_ref, ti);
-  return new_ref;
+  return pipeline_type_ensure_by_kind_ord(arena, 6);
 }
 
 /** 在当前 arena 中取或分配 TYPE_VOID；import dep 返回 void（如 setter）时需在调用方池中建立等价 ref，供 CALLEE resolved_type_ref。 */
 function ensure_void_type_ref(a: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= a.num_types) {
-    let tk: Type = ast_arena_type_get(a, k);
-    if (tk.kind == TypeKind.TYPE_VOID && tk.name_len == 0 && tk.elem_type_ref == 0 && tk.array_size == 0) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let nr: i32 = ast_arena_type_alloc(a);
-  if (nr == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(a, nr);
-  ti.kind = TypeKind.TYPE_VOID;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(a, nr, ti);
-  return nr;
+  return pipeline_type_ensure_by_kind_ord(a, 15);
 }
 
 /** 按 dep 下标取 arena 并在 caller_arena 中得到对应 return_type_ref；ctx 由 typeck 入口传入。 */
 function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (from_dep_index < 0 || from_dep_index >= 32) {
+  if (from_dep_index < 0 || ctx == 0 as *PipelineDepCtx || from_dep_index >= pipeline_dep_ctx_ndep(ctx)) {
     return 0;
   }
-  let dep_arena: *ASTArena = ctx.dep_arenas[from_dep_index];
-  /** driver 预填 slot 但未同步写入 PipelineDepCtx 时 ctx.dep_arenas[i] 可能仍为 0；回读 runtime slot，否则 ASSIGN/let 侧跨模块 CALL 永远无返回类型（块末/final_expr 却对「未解析」放行，易漏报）。 */
+  let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
+  /** driver 预填 slot 但未同步写入 dep 池时 arena 槽可能仍为 0；回读 runtime slot，否则 ASSIGN/let 侧跨模块 CALL 永远无返回类型（块末/final_expr 却对「未解析」放行，易漏报）。 */
   if (dep_arena == 0 as *ASTArena) {
     dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
     if (dep_arena == 0 as *ASTArena) {
@@ -432,25 +772,7 @@ function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_typ
 
 /** 在 caller_arena 中取或分配 TYPE_I64，返回 type_ref；供 dep_return_type_to_caller_arena 调用。 */
 function ensure_i64_type_ref(caller_arena: *ASTArena): i32 {
-  let k: i32 = 1;
-  while (k <= caller_arena.num_types) {
-    let tk: Type = ast_arena_type_get(caller_arena, k);
-    if (tk.kind == TypeKind.TYPE_I64) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let new_ref: i32 = ast_arena_type_alloc(caller_arena);
-  if (new_ref == 0) {
-    return 0;
-  }
-  let ti: Type = ast_arena_type_get(caller_arena, new_ref);
-  ti.kind = TypeKind.TYPE_I64;
-  ti.name_len = 0;
-  ti.elem_type_ref = 0;
-  ti.array_size = 0;
-  ast_arena_type_set(caller_arena, new_ref, ti);
-  return new_ref;
+  return pipeline_type_ensure_by_kind_ord(caller_arena, 5);
 }
 
 /**
@@ -460,25 +782,7 @@ function find_or_alloc_array_type_ref(a: *ASTArena, elem_ref: i32, array_size: i
   if (elem_ref == 0) {
     return 0;
   }
-  let k: i32 = 1;
-  while (k <= a.num_types) {
-    let tk: Type = ast_arena_type_get(a, k);
-    if (tk.kind == TypeKind.TYPE_ARRAY && tk.elem_type_ref == elem_ref && tk.array_size == array_size) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let arr_ref: i32 = ast_arena_type_alloc(a);
-  if (arr_ref == 0) {
-    return 0;
-  }
-  let ta: Type = ast_arena_type_get(a, arr_ref);
-  ta.kind = TypeKind.TYPE_ARRAY;
-  ta.elem_type_ref = elem_ref;
-  ta.array_size = array_size;
-  ta.name_len = 0;
-  ast_arena_type_set(a, arr_ref, ta);
-  return arr_ref;
+  return pipeline_type_find_or_alloc_compound(a, 10, elem_ref, array_size);
 }
 
 /**
@@ -497,94 +801,22 @@ function ensure_array_type_ref_named_elem(a: *ASTArena, elem_nm: *u8, elem_nm_le
  * TYPE_U8/TYPE_ISIZE 等结构与 ensure_* 分配节点语义一致（type_refs_equal 按字段比较）。
  */
 function ensure_kind_only_type_ref(w: *ASTArena, kind: TypeKind): i32 {
-  let i: i32 = 1;
-  while (i <= w.num_types) {
-    let t: Type = ast_arena_type_get(w, i);
-    if (t.kind == kind && t.name_len == 0 && t.elem_type_ref == 0 && t.array_size == 0) {
-      return i;
-    }
-    i = i + 1;
-  }
-  let pr: i32 = ast_arena_type_alloc(w);
-  if (pr == 0) {
-    return 0;
-  }
-  let tn: Type = ast_arena_type_get(w, pr);
-  tn.kind = kind;
-  tn.name_len = 0;
-  tn.elem_type_ref = 0;
-  tn.array_size = 0;
-  ast_arena_type_set(w, pr, tn);
-  return pr;
+  return pipeline_type_ensure_by_kind_ord(w, type_kind_ordinal(kind));
 }
 
 /** caller 中取或分配 TYPE_PTR(elem)，elem 可为 0（opaque *）。 */
 function find_or_alloc_ptr_type_ref(w: *ASTArena, elem_ref: i32): i32 {
-  let k: i32 = 1;
-  while (k <= w.num_types) {
-    let t: Type = ast_arena_type_get(w, k);
-    if (t.kind == TypeKind.TYPE_PTR && t.elem_type_ref == elem_ref && t.name_len == 0 && t.array_size == 0) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let rr: i32 = ast_arena_type_alloc(w);
-  if (rr == 0) {
-    return 0;
-  }
-  let pt: Type = ast_arena_type_get(w, rr);
-  pt.kind = TypeKind.TYPE_PTR;
-  pt.elem_type_ref = elem_ref;
-  pt.name_len = 0;
-  pt.array_size = 0;
-  ast_arena_type_set(w, rr, pt);
-  return rr;
+  return pipeline_type_find_or_alloc_compound(w, 9, elem_ref, 0);
 }
 
 /** caller 中取或分配 TYPE_SLICE(elem)。 */
 function find_or_alloc_slice_type_ref(w: *ASTArena, elem_ref: i32): i32 {
-  let k: i32 = 1;
-  while (k <= w.num_types) {
-    let t: Type = ast_arena_type_get(w, k);
-    if (t.kind == TypeKind.TYPE_SLICE && t.elem_type_ref == elem_ref && t.name_len == 0 && t.array_size == 0) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let sr: i32 = ast_arena_type_alloc(w);
-  if (sr == 0) {
-    return 0;
-  }
-  let st: Type = ast_arena_type_get(w, sr);
-  st.kind = TypeKind.TYPE_SLICE;
-  st.elem_type_ref = elem_ref;
-  st.name_len = 0;
-  st.array_size = 0;
-  ast_arena_type_set(w, sr, st);
-  return sr;
+  return pipeline_type_find_or_alloc_compound(w, 11, elem_ref, 0);
 }
 
 /** caller 中取或分配 TYPE_VECTOR(elem, array_size)，与 ast.su Type 布局一致。 */
 function find_or_alloc_vector_type_ref(w: *ASTArena, elem_ref: i32, array_size: i32): i32 {
-  let k: i32 = 1;
-  while (k <= w.num_types) {
-    let t: Type = ast_arena_type_get(w, k);
-    if (t.kind == TypeKind.TYPE_VECTOR && t.elem_type_ref == elem_ref && t.array_size == array_size && t.name_len == 0) {
-      return k;
-    }
-    k = k + 1;
-  }
-  let vr: i32 = ast_arena_type_alloc(w);
-  if (vr == 0) {
-    return 0;
-  }
-  let vt: Type = ast_arena_type_get(w, vr);
-  vt.kind = TypeKind.TYPE_VECTOR;
-  vt.elem_type_ref = elem_ref;
-  vt.array_size = array_size;
-  vt.name_len = 0;
-  ast_arena_type_set(w, vr, vt);
-  return vr;
+  return pipeline_type_find_or_alloc_compound(w, 12, elem_ref, array_size);
 }
 
 /**
@@ -680,6 +912,16 @@ function expr_field_access_fallback_scalar_type_ref(arena: *ASTArena, field_name
   let nm_index_proven_in_bounds: [22]u8 = [
     105, 110, 100, 101, 120, 95, 112, 114, 111, 118, 101, 110, 95, 105, 110, 95, 98, 111, 117, 110, 100, 115
   ];
+  /** parser expr_set_common_zeros：Expr 尾字段，struct_layout 常未登记 */
+  let nm_call_resolved_func_index: [24]u8 = [
+    99, 97, 108, 108, 95, 114, 101, 115, 111, 108, 118, 101, 100, 95, 102, 117, 110, 99, 95, 105, 110, 100, 101, 120
+  ];
+  let nm_call_resolved_dep_index: [22]u8 = [
+    99, 97, 108, 108, 95, 114, 101, 115, 111, 108, 118, 101, 100, 95, 100, 101, 112, 95, 105, 110, 100, 101, 120
+  ];
+  let nm_enum_variant_tag: [16]u8 = [
+    101, 110, 117, 109, 95, 118, 97, 114, 105, 97, 110, 116, 95, 116, 97, 103
+  ];
   if (field_name_len == 14 && name_equal(field_name, field_name_len, &nm_match_num_arms[0], 14)) {
     return ensure_i32_type_ref(arena);
   }
@@ -713,11 +955,52 @@ function expr_field_access_fallback_scalar_type_ref(arena: *ASTArena, field_name
   if (field_name_len == 22 && name_equal(field_name, field_name_len, &nm_index_proven_in_bounds[0], 22)) {
     return ensure_i32_type_ref(arena);
   }
+  if (field_name_len == 24 && name_equal(field_name, field_name_len, &nm_call_resolved_func_index[0], 24)) {
+    return ensure_i32_type_ref(arena);
+  }
+  if (field_name_len == 22 && name_equal(field_name, field_name_len, &nm_call_resolved_dep_index[0], 22)) {
+    return ensure_i32_type_ref(arena);
+  }
+  if (field_name_len == 16 && name_equal(field_name, field_name_len, &nm_enum_variant_tag[0], 16)) {
+    return ensure_i32_type_ref(arena);
+  }
   return 0;
 }
 
 /** FIELD_ACCESS：dep 中 struct_layout 的 field_type_refs 落在 dep.types 池，须映到当前 arena（与 dep_return_type_to_caller_arena 一致）。 */
 function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
+  /**
+   * 大模块（codegen 等）自登记 struct_layout 时 field_type_ref 常为 0 或误为标量；
+   * 须先于 layout 命中 Module/ASTArena.funcs、[64]u8 / [16]i32 内联池字段。
+   */
+  let nm_funcs_pool: [5]u8 = [102, 117, 110, 99, 115];
+  let nm_func_elem: [4]u8 = [70, 117, 110, 99];
+  if (field_name_len == 5 && name_equal(field_name, field_name_len, &nm_funcs_pool[0], 5)) {
+    let arr_funcs_pool: i32 = ensure_array_type_ref_named_elem(arena, &nm_func_elem[0], 4, 256);
+    if (arr_funcs_pool != 0) {
+      return arr_funcs_pool;
+    }
+  }
+  let nm_struct_layouts_pool: [14]u8 = [115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+  let nm_sl_elem: [12]u8 = [83, 116, 114, 117, 99, 116, 76, 97, 121, 111, 117, 116];
+  if (field_name_len == 14 && name_equal(field_name, field_name_len, &nm_struct_layouts_pool[0], 14)) {
+    let arr_sl_pool: i32 = ensure_array_type_ref_named_elem(arena, &nm_sl_elem[0], 12, 32);
+    if (arr_sl_pool != 0) {
+      return arr_sl_pool;
+    }
+  }
+  let nm_num_struct_layouts_pool: [18]u8 = [110, 117, 109, 95, 115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+  if (field_name_len == 18 && name_equal(field_name, field_name_len, &nm_num_struct_layouts_pool[0], 18)) {
+    return ensure_i32_type_ref(arena);
+  }
+  let u8_inline: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
+  if (u8_inline != 0) {
+    return u8_inline;
+  }
+  let i32_arr_inline: i32 = typeck_expr_inline_array_field_type_ref(arena, field_name, field_name_len);
+  if (i32_arr_inline != 0) {
+    return i32_arr_inline;
+  }
   let r: i32 = get_field_type_ref_from_layout(module, type_name, type_name_len, field_name, field_name_len);
   if (r != 0) {
     return r;
@@ -725,14 +1008,15 @@ function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena, 
   if (ctx == 0 as *PipelineDepCtx) {
     return 0;
   }
-  /** 同上：ndep 可能未写回，扫满 dep 槽。 */
+  /** 同上：ndep 可能未写回，扫满 dep 池。 */
+  let nd2: i32 = pipeline_dep_ctx_ndep(ctx);
   let di: i32 = 0;
-  while (di < 32) {
-    let dm: *Module = ctx.dep_modules[di];
+  while (di < nd2) {
+    let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
     if (dm != 0 as *Module) {
       r = get_field_type_ref_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
       if (r != 0) {
-        let da: *ASTArena = ctx.dep_arenas[di];
+        let da: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
         if (da != 0 as *ASTArena) {
           return dep_return_type_to_caller_arena(da, r, arena);
         }
@@ -741,28 +1025,196 @@ function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena, 
     }
     di = di + 1;
   }
-  /** ast.Expr：合并/胶水后仍无 field_type_ref 时按名回落 i32，避免赋值左侧 resolved_type_ref 等为 ? */
+  /** ast.Expr / Type 等：合并/胶水后仍无 field_type_ref 时，先识别内联 [64]u8 / [16]i32 池字段，再按名回落 i32。 */
   if (type_name_len == 4 && type_name[0] == 69 && type_name[1] == 120 && type_name[2] == 112 && type_name[3] == 114) {
+    let u8_fb: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
+    if (u8_fb != 0) {
+      return u8_fb;
+    }
+    let arr_fb: i32 = typeck_expr_inline_array_field_type_ref(arena, field_name, field_name_len);
+    if (arr_fb != 0) {
+      return arr_fb;
+    }
     let fb: i32 = expr_field_access_fallback_scalar_type_ref(arena, field_name, field_name_len);
     if (fb != 0) {
       return fb;
     }
+  }
+  /** Type.name 等：layout 未映 [64]u8 时仍供 name[i] 下标 typeck。 */
+  if (type_name_len == 4 && type_name[0] == 84 && type_name[1] == 121 && type_name[2] == 112 && type_name[3] == 101) {
+    let u8_ty: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
+    if (u8_ty != 0) {
+      return u8_ty;
+    }
+  }
+  /** Func.name / Func.params 等：codegen_copy_func_name64_from_module 路径。 */
+  if (type_name_len == 4 && type_name[0] == 70 && type_name[1] == 117 && type_name[2] == 110 && type_name[3] == 99) {
+    let u8_fn: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
+    if (u8_fn != 0) {
+      return u8_fn;
+    }
+    let nm_params: [6]u8 = [112, 97, 114, 97, 109, 115];
+    let nm_pa: [5]u8 = [80, 97, 114, 97, 109];
+    if (field_name_len == 6 && name_equal(field_name, field_name_len, &nm_params[0], 6)) {
+      return ensure_array_type_ref_named_elem(arena, &nm_pa[0], 5, 16);
+    }
+    let fb_fn: i32 = expr_field_access_fallback_scalar_type_ref(arena, field_name, field_name_len);
+    if (fb_fn != 0) {
+      return fb_fn;
+    }
+  }
+  /** Param.name：形参名 [32]u8。 */
+  if (type_name_len == 5 && type_name[0] == 80 && type_name[1] == 97 && type_name[2] == 114 && type_name[3] == 97 && type_name[4] == 109) {
+    let nm_pname: [4]u8 = [110, 97, 109, 101];
+    if (field_name_len == 4 && name_equal(field_name, field_name_len, &nm_pname[0], 4)) {
+      let u8r_p: i32 = ensure_u8_type_ref(arena);
+      if (u8r_p != 0) {
+        return find_or_alloc_array_type_ref(arena, u8r_p, 32);
+      }
+    }
+  }
+  /** StructLayout：module.struct_layouts[k].field_* 链（layout 未合并时仍须 INDEX typeck）。 */
+  if (type_name_len == 12 && type_name[0] == 83 && type_name[1] == 116 && type_name[2] == 114 && type_name[3] == 117
+      && type_name[4] == 99 && type_name[5] == 116 && type_name[6] == 76 && type_name[7] == 97
+      && type_name[8] == 121 && type_name[9] == 111 && type_name[10] == 117 && type_name[11] == 116) {
+    let u8r_sl: i32 = ensure_u8_type_ref(arena);
+    let i32r_sl: i32 = ensure_i32_type_ref(arena);
+    let nm_sl_name: [4]u8 = [110, 97, 109, 101];
+    let nm_sl_field_names: [11]u8 = [102, 105, 101, 108, 100, 95, 110, 97, 109, 101, 115];
+    let nm_sl_field_lens: [11]u8 = [102, 105, 101, 108, 100, 95, 108, 101, 110, 115];
+    let nm_sl_field_offsets: [13]u8 = [102, 105, 101, 108, 100, 95, 111, 102, 102, 115, 101, 116, 115];
+    let nm_sl_field_type_refs: [15]u8 = [102, 105, 101, 108, 100, 95, 116, 121, 112, 101, 95, 114, 101, 102, 115];
+    let nm_sl_num_fields: [10]u8 = [110, 117, 109, 95, 102, 105, 101, 108, 100, 115];
+    let nm_sl_allow_padding: [14]u8 = [97, 108, 108, 111, 119, 95, 112, 97, 100, 100, 105, 110, 103];
+    if (field_name_len == 4 && name_equal(field_name, field_name_len, &nm_sl_name[0], 4) && u8r_sl != 0) {
+      return find_or_alloc_array_type_ref(arena, u8r_sl, 64);
+    }
+    if (field_name_len == 11 && name_equal(field_name, field_name_len, &nm_sl_field_names[0], 11) && u8r_sl != 0) {
+      let row_u8: i32 = find_or_alloc_array_type_ref(arena, u8r_sl, 64);
+      if (row_u8 != 0) {
+        return find_or_alloc_array_type_ref(arena, row_u8, 64);
+      }
+    }
+    if (field_name_len == 11 && name_equal(field_name, field_name_len, &nm_sl_field_lens[0], 11) && i32r_sl != 0) {
+      return find_or_alloc_array_type_ref(arena, i32r_sl, 64);
+    }
+    if (field_name_len == 13 && name_equal(field_name, field_name_len, &nm_sl_field_offsets[0], 13) && i32r_sl != 0) {
+      return find_or_alloc_array_type_ref(arena, i32r_sl, 64);
+    }
+    if (field_name_len == 15 && name_equal(field_name, field_name_len, &nm_sl_field_type_refs[0], 15) && i32r_sl != 0) {
+      return find_or_alloc_array_type_ref(arena, i32r_sl, 64);
+    }
+    if (field_name_len == 10 && name_equal(field_name, field_name_len, &nm_sl_num_fields[0], 10)) {
+      return i32r_sl;
+    }
+    if (field_name_len == 14 && name_equal(field_name, field_name_len, &nm_sl_allow_padding[0], 14)) {
+      return i32r_sl;
+    }
+    if (field_name_len == 8 && field_name[0] == 110 && field_name[1] == 97 && field_name[2] == 109 && field_name[3] == 101
+        && field_name[4] == 95 && field_name[5] == 108 && field_name[6] == 101 && field_name[7] == 110) {
+      return i32r_sl;
+    }
+  }
+  return 0;
+}
+
+/**
+ * 各 struct 上内联 [64]u8 字段（Expr.var_name、Type.name 等）：layout 未登记 field_type_ref 时仍返回 TYPE_ARRAY，
+ * 供 field[i] 通过 EXPR_INDEX typeck（如 codegen.field_access_base_is_slice_param_name 中 base.var_name[0]）。
+ */
+function typeck_inline_u8_64_array_field_type_ref(arena: *ASTArena, field_name: *u8, field_name_len: i32): i32 {
+  let u8r: i32 = ensure_u8_type_ref(arena);
+  if (u8r == 0) {
+    return 0;
+  }
+  let nm_name: [4]u8 = [110, 97, 109, 101];
+  let nm_var_name: [8]u8 = [118, 97, 114, 95, 110, 97, 109, 101];
+  let nm_field_access_field_name: [22]u8 = [
+    102, 105, 101, 108, 100, 95, 97, 99, 99, 101, 115, 115, 95, 102, 105, 101, 108, 100, 95, 110, 97, 109, 101
+  ];
+  let nm_method_call_name: [16]u8 = [
+    109, 101, 116, 104, 111, 100, 95, 99, 97, 108, 108, 95, 110, 97, 109, 101
+  ];
+  let nm_struct_lit_struct_name: [22]u8 = [
+    115, 116, 114, 117, 99, 116, 95, 108, 105, 116, 95, 115, 116, 114, 117, 99, 116, 95, 110, 97, 109, 101
+  ];
+  if (field_name_len == 4 && name_equal(field_name, field_name_len, &nm_name[0], 4)) {
+    return find_or_alloc_array_type_ref(arena, u8r, 64);
+  }
+  if (field_name_len == 8 && name_equal(field_name, field_name_len, &nm_var_name[0], 8)) {
+    return find_or_alloc_array_type_ref(arena, u8r, 64);
+  }
+  if (field_name_len == 22 && name_equal(field_name, field_name_len, &nm_field_access_field_name[0], 22)) {
+    return find_or_alloc_array_type_ref(arena, u8r, 64);
+  }
+  if (field_name_len == 16 && name_equal(field_name, field_name_len, &nm_method_call_name[0], 16)) {
+    return find_or_alloc_array_type_ref(arena, u8r, 64);
+  }
+  if (field_name_len == 22 && name_equal(field_name, field_name_len, &nm_struct_lit_struct_name[0], 22)) {
+    return find_or_alloc_array_type_ref(arena, u8r, 64);
+  }
+  return 0;
+}
+
+/** Expr 上 [16]i32 固定数组字段：layout 未登记时仍返回 TYPE_ARRAY，供 e.call_arg_refs[i] 通过 INDEX typeck。 */
+function typeck_expr_inline_array_field_type_ref(arena: *ASTArena, field_name: *u8, field_name_len: i32): i32 {
+  let i32r: i32 = ensure_i32_type_ref(arena);
+  if (i32r == 0) {
+    return 0;
+  }
+  let nm_call_arg_refs: [13]u8 = [99, 97, 108, 108, 95, 97, 114, 103, 95, 114, 101, 102, 115];
+  let nm_method_call_arg_refs: [20]u8 = [
+    109, 101, 116, 104, 111, 100, 95, 99, 97, 108, 108, 95, 97, 114, 103, 95, 114, 101, 102, 115
+  ];
+  let nm_match_arm_result_refs: [21]u8 = [
+    109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 114, 101, 115, 117, 108, 116, 95, 114, 101, 102, 115
+  ];
+  let nm_array_lit_elem_refs: [19]u8 = [
+    97, 114, 114, 97, 121, 95, 108, 105, 116, 95, 101, 108, 101, 109, 95, 114, 101, 102, 115
+  ];
+  /** ast.expr_init_match_enum：match 每臂 [16]i32 池字段（layout 未映 field_type_ref 时仍须为 INDEX 提供 TYPE_ARRAY）。 */
+  let nm_match_arm_is_wildcard: [21]u8 = [
+    109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 105, 115, 95, 119, 105, 108, 100, 99, 97, 114, 100
+  ];
+  let nm_match_arm_lit_val: [17]u8 = [
+    109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 108, 105, 116, 95, 118, 97, 108
+  ];
+  let nm_match_arm_is_enum_variant: [25]u8 = [
+    109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 105, 115, 95, 101, 110, 117, 109, 95, 118, 97, 114, 105, 97, 110, 116
+  ];
+  let nm_match_arm_variant_index: [23]u8 = [
+    109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 118, 97, 114, 105, 97, 110, 116, 95, 105, 110, 100, 101, 120
+  ];
+  if (field_name_len == 13 && name_equal(field_name, field_name_len, &nm_call_arg_refs[0], 13)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 20 && name_equal(field_name, field_name_len, &nm_method_call_arg_refs[0], 20)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 21 && name_equal(field_name, field_name_len, &nm_match_arm_result_refs[0], 21)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 19 && name_equal(field_name, field_name_len, &nm_array_lit_elem_refs[0], 19)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 21 && name_equal(field_name, field_name_len, &nm_match_arm_is_wildcard[0], 21)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 17 && name_equal(field_name, field_name_len, &nm_match_arm_lit_val[0], 17)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 25 && name_equal(field_name, field_name_len, &nm_match_arm_is_enum_variant[0], 25)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
+  }
+  if (field_name_len == 23 && name_equal(field_name, field_name_len, &nm_match_arm_variant_index[0], 23)) {
+    return find_or_alloc_array_type_ref(arena, i32r, 16);
   }
   return 0;
 }
 
 /** 入口 module 中与 nm 同名的 struct_layout 下标，无则 -1。 */
 function entry_module_find_struct_layout_index(mod: *Module, nm: *u8, nlen: i32): i32 {
-  let k: i32 = 0;
-  while (k < mod.num_struct_layouts && k < 32) {
-    if (mod.struct_layouts[k].name_len == nlen && nlen > 0) {
-      if (name_equal(&mod.struct_layouts[k].name[0], mod.struct_layouts[k].name_len, nm, nlen)) {
-        return k;
-      }
-    }
-    k = k + 1;
-  }
-  return -1;
+  return typeck_find_layout_idx_by_type_name(mod, nm, nlen);
 }
 
 /**
@@ -772,73 +1224,84 @@ function typeck_merge_dep_struct_layouts_into_entry(mod: *Module, arena: *ASTAre
   if (ctx == 0 as *PipelineDepCtx) {
     return;
   }
+  let nd_merge: i32 = pipeline_dep_ctx_ndep(ctx);
   let di: i32 = 0;
-  while (di < 32) {
-    let dm: *Module = ctx.dep_modules[di];
-    let darena: *ASTArena = ctx.dep_arenas[di];
+  while (di < nd_merge) {
+    let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
+    let darena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
     if (dm == 0 as *Module || darena == 0 as *ASTArena) {
       di = di + 1;
       continue;
     }
     let k: i32 = 0;
-    while (k < dm.num_struct_layouts && k < 32) {
-      let nl: i32 = dm.struct_layouts[k].name_len;
+    while (k < dm.num_struct_layouts) {
+      let nl: i32 = pipeline_module_struct_layout_name_len(dm, k);
       if (nl > 0 && nl <= 63) {
-        let nf_dep: i32 = dm.struct_layouts[k].num_fields;
+        let nf_dep: i32 = pipeline_module_struct_layout_num_fields(dm, k);
         if (nf_dep > 64) {
           nf_dep = 64;
         }
-        let ex: i32 = entry_module_find_struct_layout_index(mod, &dm.struct_layouts[k].name[0], nl);
+        let dep_nm_buf: [64]u8 = [];
+        pipeline_module_struct_layout_name_into(dm, k, &dep_nm_buf[0]);
+        let ex: i32 = entry_module_find_struct_layout_index(mod, &dep_nm_buf[0], nl);
         let need: i32 = 0;
         if (ex < 0) {
-          if (mod.num_struct_layouts < 32) {
-            need = 1;
-          }
+          need = 1;
         } else {
           let weak_entry: bool = false;
           /** prime/占位布局可能字段个数已够但 field_type_refs 未填（如 resolved_type_ref 槽为 0），用 dep 整槽覆盖。 */
-          if (mod.struct_layouts[ex].num_fields >= 2 && mod.struct_layouts[ex].field_type_refs[1] == 0) {
+          if (pipeline_module_struct_layout_num_fields(mod, ex) >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
             weak_entry = true;
           }
           /** 具名 Expr 以 dep（ast.su）为唯一真源整槽覆盖，不依赖字段个数阈值（避免 48/54 边界未触发）。 */
           let is_expr_nm: bool = false;
           if (nl == 4) {
-            if (dm.struct_layouts[k].name[0] == 69 && dm.struct_layouts[k].name[1] == 120 && dm.struct_layouts[k].name[2] == 112
-                && dm.struct_layouts[k].name[3] == 114) {
+            if (pipeline_module_struct_layout_name_byte_at(dm, k, 0) == 69 && pipeline_module_struct_layout_name_byte_at(dm, k, 1) == 120
+                && pipeline_module_struct_layout_name_byte_at(dm, k, 2) == 112
+                && pipeline_module_struct_layout_name_byte_at(dm, k, 3) == 114) {
               is_expr_nm = true;
             }
           }
-          if (nf_dep > mod.struct_layouts[ex].num_fields || weak_entry || is_expr_nm) {
+          if (nf_dep > pipeline_module_struct_layout_num_fields(mod, ex) || weak_entry || is_expr_nm) {
             need = 1;
           }
         }
         if (need != 0) {
           let ni: i32 = ex;
           if (ex < 0) {
-            ni = mod.num_struct_layouts;
-            mod.num_struct_layouts = mod.num_struct_layouts + 1;
+            ni = pipeline_module_struct_layout_alloc(mod);
+            if (ni < 0) {
+              k = k + 1;
+              continue;
+            }
           }
           pipeline_module_struct_layout_reset_slot(mod, ni);
-          pipeline_module_struct_layout_set_name(mod, ni, &dm.struct_layouts[k].name[0], nl);
+          pipeline_module_struct_layout_set_name(mod, ni, &dep_nm_buf[0], nl);
           let j: i32 = 0;
-          while (j < nf_dep && j < 64) {
-            let raw_fr: i32 = dm.struct_layouts[k].field_type_refs[j];
+          while (j < nf_dep) {
+            let raw_fr: i32 = pipeline_module_struct_layout_field_type_ref(dm, k, j);
             let mapped: i32 = 0;
             if (raw_fr != 0) {
               mapped = dep_return_type_to_caller_arena(darena, raw_fr, arena);
             }
+            let fn_buf: [64]u8 = [];
+            let fnlen: i32 = pipeline_module_struct_layout_field_name_len(dm, k, j);
+            pipeline_module_struct_layout_field_name_into(dm, k, j, &fn_buf[0]);
+            let foff: i32 = pipeline_module_struct_layout_field_offset_at(dm, k, j);
             pipeline_module_struct_layout_set_field(
               mod,
               ni,
               j,
-              &dm.struct_layouts[k].field_names[j][0],
-              dm.struct_layouts[k].field_lens[j],
+              &fn_buf[0],
+              fnlen,
               mapped,
-              dm.struct_layouts[k].field_offsets[j]
+              foff
             );
             j = j + 1;
           }
-          mod.struct_layouts[ni].num_fields = nf_dep;
+          pipeline_module_struct_layout_set_num_fields(mod, ni, nf_dep);
+          /** 与 dep 一致：import 合并后仍须保留 allow(padding)，否则 StmtOrderItem 等 u8+ i32 布局在入口 module 误报隐式 padding。 */
+          pipeline_module_struct_layout_set_allow_padding(mod, ni, pipeline_module_struct_layout_allow_padding_at(dm, k));
         }
       }
       k = k + 1;
@@ -847,15 +1310,20 @@ function typeck_merge_dep_struct_layouts_into_entry(mod: *Module, arena: *ASTAre
   }
 }
 
-/** 在给定模块中按名字查找函数，返回 return_type_ref（当前 arena 内有效），未找到返回 0。from_dep_index<0 表示当前模块，>=0 表示 dep 下标时需 ctx。 */
-function find_func_return_type_in_module(mod: *Module, mod_arena: *ASTArena, caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
+/** 若 CALL 结点 ref 有效，将解析到的 dep 槽与目标函数下标写入 Expr；委托 ast 模块以避免 import 方 Expr 布局缺尾字段。 */
+function typeck_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
+  ast_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+}
+
+/** 在给定模块中按名字查找函数，返回 return_type_ref（当前 arena 内有效），未找到返回 0。from_dep_index<0 表示当前模块，>=0 表示 dep 下标时需 ctx。func_index_out 非空时写入匹配到的 funcs[] 下标。 */
+function find_func_return_type_in_module(mod: *Module, mod_arena: *ASTArena, caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
   let j: i32 = 0;
   while (j < mod.num_funcs) {
-    if (j >= 256) {
-      break;
-    }
     if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
-      let ret_dep: i32 = mod.funcs[j].return_type_ref;
+      if (func_index_out != 0 as *i32) {
+        func_index_out[0] = j;
+      }
+      let ret_dep: i32 = pipeline_module_func_return_type_at(mod, j);
       if (from_dep_index < 0) {
         return ret_dep;
       }
@@ -866,16 +1334,18 @@ function find_func_return_type_in_module(mod: *Module, mod_arena: *ASTArena, cal
   return 0;
 }
 
-/** 在模块中按名字（字节+长度）查找函数，返回 return_type_ref；from_dep_index>=0 时通过 ctx 转成 caller_arena。供绑定/解构 import 解析调用。 */
-function find_func_return_type_in_module_by_name(mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
+/** 在模块中按名字（字节+长度）查找函数，返回 return_type_ref；from_dep_index>=0 时通过 ctx 转成 caller_arena。func_index_out 非空时写入 funcs[] 下标。 */
+function find_func_return_type_in_module_by_name(mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
   if (name_len <= 0 || name_len > 63) {
     return 0;
   }
   let j: i32 = 0;
-  while (j < mod.num_funcs && j < 256) {
-    /** 同上：勿按值拷贝 Func，否则 dep 顶层函数名字节可能损坏，整包限定调用的 return_type_ref 永远无法解析。 */
-    if (mod.funcs[j].name_len == name_len && name_equal(&mod.funcs[j].name[0], mod.funcs[j].name_len, name, name_len)) {
-      let rtr: i32 = mod.funcs[j].return_type_ref;
+  while (j < mod.num_funcs) {
+    if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+      if (func_index_out != 0 as *i32) {
+        func_index_out[0] = j;
+      }
+      let rtr: i32 = pipeline_module_func_return_type_at(mod, j);
       if (from_dep_index < 0) {
         return rtr;
       }
@@ -907,11 +1377,10 @@ function typeck_import_path_segment_count(path: *u8, path_len: i32): i32 {
 /** import_path[j] 的第 want_seg 段（0 起始）的起点（相对该行 64 字节块内偏移）、长度写入 *ostr / *olen。 */
 function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg: i32,
   ostr: *i32, olen: *i32): bool {
-  if (module == 0 as *Module || imp_ix < 0 || imp_ix >= 32) {
+  if (module == 0 as *Module || imp_ix < 0 || imp_ix >= module.num_imports) {
     return false;
   }
-  let pb: i32 = imp_ix * 64;
-  let pl: i32 = module.import_path_lens[imp_ix];
+  let pl: i32 = pipeline_module_import_path_len(module, imp_ix);
   if (pl <= 0 || pl > 63) {
     return false;
   }
@@ -922,7 +1391,7 @@ function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg: i32,
     let at_end_p: bool = k == pl;
     let dot_p: bool = false;
     if (!at_end_p && k < pl) {
-      dot_p = module.import_path_data[pb + k] == 46;
+      dot_p = pipeline_module_import_path_byte_at(module, imp_ix, k) == 46;
     }
     if (at_end_p || dot_p) {
       let seg_len_here: i32 = k - ss;
@@ -945,63 +1414,67 @@ function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg: i32,
 }
 
 /** 整包 import（IMPORT_WHOLE）：`platform.elf.fn(args)`，`fn` 为 dep 模块内顶层函数；
- * callee 为最外层 FIELD_ACCESS，向内剥至 VAR，`layers[]` 自外向内为 [fn,...,中间命名空间]，深度须等于路径段数。 */
-function resolve_whole_import_qualified_call_return_type(module: *Module, arena: *ASTArena, callee_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+ * callee 为最外层 FIELD_ACCESS，向内剥至 VAR，`layers[]` 自外向内为 [fn,...,中间命名空间]，深度须等于路径段数。
+ * dep_index_out / func_index_out 可为空：非空时在成功路径写入供 LSP 的 dep 槽与函数下标。 */
+function resolve_whole_import_qualified_call_return_type(module: *Module, arena: *ASTArena, callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32 {
   if (ctx == 0 as *PipelineDepCtx) {
     return 0;
   }
   if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs || module == 0 as *Module) {
     return 0;
   }
-  let callee0: Expr = ast_arena_expr_get(arena, callee_expr_ref);
-  if (callee0.kind != ExprKind.EXPR_FIELD_ACCESS) {
+  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != (44 as i32)) {
     return 0;
   }
-  let layer_bytes: [16][64]u8 = [];
-  let layer_lens: [16]i32 = [];
+  /** field 层栈走 asm_qual_sym_layer_* grow 池（与 backend.su 对称）。 */
+  let layer_buf: [64]u8 = [];
+  asm_qual_sym_layer_reset();
   let nstack: i32 = 0;
   let cur_ref: i32 = callee_expr_ref;
   while (true) {
     if (cur_ref <= 0 || cur_ref > arena.num_exprs) {
       return 0;
     }
-    let exx: Expr = ast_arena_expr_get(arena, cur_ref);
-    if (exx.kind != ExprKind.EXPR_FIELD_ACCESS || exx.field_access_field_len <= 0 || exx.field_access_field_len > 63) {
+    let falen: i32 = pipeline_expr_field_access_name_len(arena, cur_ref);
+    if (pipeline_expr_kind_ord_at(arena, cur_ref) != (44 as i32) || falen <= 0 || falen > 63) {
       break;
     }
-    if (nstack >= 16) {
+    pipeline_expr_field_access_name_into(arena, cur_ref, &layer_buf[0]);
+    if (asm_qual_sym_layer_push(&layer_buf[0], falen) < 0) {
       return 0;
     }
-    let lix: i32 = 0;
-    while (lix < exx.field_access_field_len && lix < 64) {
-      layer_bytes[nstack][lix] = exx.field_access_field_name[lix];
-      lix = lix + 1;
-    }
-    layer_lens[nstack] = exx.field_access_field_len;
     nstack = nstack + 1;
-    cur_ref = exx.field_access_base_ref;
+    cur_ref = pipeline_expr_field_access_base_ref(arena, cur_ref);
   }
+  nstack = asm_qual_sym_layer_count();
   if (cur_ref <= 0 || cur_ref > arena.num_exprs) {
     return 0;
   }
-  let base_var_ex: Expr = ast_arena_expr_get(arena, cur_ref);
-  if (base_var_ex.kind != ExprKind.EXPR_VAR || base_var_ex.var_name_len <= 0 || base_var_ex.var_name_len > 63) {
+  let vnlen: i32 = pipeline_expr_var_name_len(arena, cur_ref);
+  if (pipeline_expr_kind_ord_at(arena, cur_ref) != (3 as i32) || vnlen <= 0 || vnlen > 63) {
     return 0;
   }
+  let vname_buf: [64]u8 = [];
+  pipeline_expr_var_name_into(arena, cur_ref, &vname_buf[0]);
   /**
    * 不再按 IMPORT_WHOLE 过滤：若 import_kinds[] 零初始化或未写入等与 C ABI 漂移时易被误判为非 WHOLE，
    * platform.elf.* 将无法匹配；前缀 + 中段与 import_path 一致且 dep 槽有效时即有唯一语义。
    */
   let dep_j: i32 = 0;
-  /** 与 module.num_imports 对齐逐槽匹配；不因 ctx.ndep==0（预填 deps 但未写回 ndep）而整段跳过。空 dep_modules[j] 时 continue。 */
-  while (dep_j < module.num_imports && dep_j < 32) {
-    let pb: i32 = dep_j * 64;
-    let plen: i32 = module.import_path_lens[dep_j];
+  /** 与 module.num_imports 对齐逐槽匹配；不因 ctx.ndep==0（预填 deps 但未写回 ndep）而整段跳过。空 module_at 槽时 continue。 */
+  while (dep_j < module.num_imports) {
+    let plen: i32 = pipeline_module_import_path_len(module, dep_j);
     if (plen <= 0 || plen > 63) {
       dep_j = dep_j + 1;
       continue;
     }
-    let Pseg: i32 = typeck_import_path_segment_count(&module.import_path_data[pb], plen);
+    let path_cnt_buf: [64]u8 = [];
+    let pci: i32 = 0;
+    while (pci < plen && pci < 64) {
+      path_cnt_buf[pci] = pipeline_module_import_path_byte_at(module, dep_j, pci);
+      pci = pci + 1;
+    }
+    let Pseg: i32 = typeck_import_path_segment_count(&path_cnt_buf[0], plen);
     if (Pseg <= 0 || nstack != Pseg) {
       dep_j = dep_j + 1;
       continue;
@@ -1012,7 +1485,7 @@ function resolve_whole_import_qualified_call_return_type(module: *Module, arena:
       dep_j = dep_j + 1;
       continue;
     }
-    if (!name_equal(&module.import_path_data[pb + s0_rel], s0_ln, base_var_ex.var_name, base_var_ex.var_name_len)) {
+    if (!typeck_import_path_slice_equal(module, dep_j, s0_rel, s0_ln, &vname_buf[0], vnlen)) {
       dep_j = dep_j + 1;
       continue;
     }
@@ -1025,7 +1498,8 @@ function resolve_whole_import_qualified_call_return_type(module: *Module, arena:
         bad_mid = true;
       } else {
         let lay_ix: i32 = Pseg - sm;
-        if (!name_equal(&module.import_path_data[pb + srv], slv, &layer_bytes[lay_ix][0], layer_lens[lay_ix])) {
+        asm_qual_sym_layer_copy(lay_ix, &layer_buf[0], 64);
+        if (!typeck_import_path_slice_equal(module, dep_j, srv, slv, &layer_buf[0], asm_qual_sym_layer_len(lay_ix))) {
           bad_mid = true;
         }
       }
@@ -1038,89 +1512,155 @@ function resolve_whole_import_qualified_call_return_type(module: *Module, arena:
       dep_j = dep_j + 1;
       continue;
     }
-    let dm: *Module = ctx.dep_modules[dep_j];
+    let dm: *Module = pipeline_dep_ctx_module_at(ctx, dep_j);
     if (dm == 0 as *Module) {
       dep_j = dep_j + 1;
       continue;
     }
-    return find_func_return_type_in_module_by_name(dm, arena, &layer_bytes[0][0], layer_lens[0], dep_j, ctx);
+    asm_qual_sym_layer_copy(0, &layer_buf[0], 64);
+    let ret_fn: i32 = find_func_return_type_in_module_by_name(dm, arena, &layer_buf[0], asm_qual_sym_layer_len(0), dep_j, ctx, func_index_out);
+    if (ret_fn != 0) {
+      if (dep_index_out != 0 as *i32) {
+        dep_index_out[0] = dep_j;
+      }
+    }
+    return ret_fn;
   }
   return 0;
 }
 
-/** 解析调用目标：先本模块，再扫描 ctx.dep_modules（按 import 条数与 ctx.ndep 较大者 capped 32）；callee_expr_ref 为 CALL 的 call_callee_ref。
- * 支持整包 import 路径前缀 + 嵌套字段形式的跨模块调用（如 platform.elf.fn）。
- * 支持绑定 import（const x = import path）：callee 为 EXPR_FIELD_ACCESS(base=VAR "x", field）时按 import_binding_name 找 dep 再按字段名找函数。
- * 支持解构 import（const { f } = import path）：callee 为 EXPR_VAR 且 dep 的 import_kinds[i]==SELECT 且名字在 import_select_names 中时按该 dep 解析。 */
-function resolve_call_callee_return_type(module: *Module, arena: *ASTArena, callee_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+/** 解析调用目标：先本模块，再扫描 dep 池。callee_expr_ref 为 callee 子式；call_expr_ref 为 CALL 结点 ref，0 表示不求 LSP 字段。
+ * 支持整包 import、绑定 import（process.getenv）、解构 import。 */
+function resolve_call_callee_return_type(module: *Module, arena: *ASTArena, callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs) {
     return 0;
   }
-  let callee: Expr = ast_arena_expr_get(arena, callee_expr_ref);
-  if (callee.kind == ExprKind.EXPR_FIELD_ACCESS) {
-    let r_whole: i32 = resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx);
+  let want_resolve: bool = call_expr_ref > 0 && call_expr_ref <= arena.num_exprs;
+  let null_po: *i32 = 0 as *i32;
+  let whole_dep: i32 = 0;
+  let whole_fn: i32 = 0;
+  let p_whole_dep: *i32 = null_po;
+  let p_whole_fn: *i32 = null_po;
+  if (want_resolve) {
+    p_whole_dep = &whole_dep;
+    p_whole_fn = &whole_fn;
+  }
+  let callee_ord: i32 = pipeline_expr_kind_ord_at(arena, callee_expr_ref);
+  /** 勿 ast_arena_expr_get 整颗 Expr：自举 typeck 按值拷贝撕裂 kind，误走 FIELD 分支或漏掉本模块 VAR callee。 */
+  if (callee_ord == 44) {
+    let r_whole: i32 = resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx, p_whole_dep, p_whole_fn);
     if (r_whole != 0) {
+      if (want_resolve) {
+        typeck_expr_apply_call_resolve(arena, call_expr_ref, whole_dep, whole_fn);
+      }
       return r_whole;
     }
   }
   /** 绑定形式 process.getenv：callee 为 FIELD_ACCESS，base 为 VAR "process" */
-  if (callee.kind == ExprKind.EXPR_FIELD_ACCESS && callee.field_access_base_ref > 0 && callee.field_access_base_ref <= arena.num_exprs) {
-    let base_bind: Expr = ast_arena_expr_get(arena, callee.field_access_base_ref);
-    if (base_bind.kind == ExprKind.EXPR_VAR && base_bind.var_name_len > 0 && base_bind.var_name_len <= 63) {
-      let ii: i32 = 0;
-      while (ii < module.num_imports && ii < 32) {
-        if (module.import_kinds[ii] == ImportKind.IMPORT_BINDING && module.import_binding_name_len[ii] == base_bind.var_name_len && name_equal(&module.import_binding_name[ii][0], module.import_binding_name_len[ii], base_bind.var_name, base_bind.var_name_len)) {
-          let dm: *Module = ctx.dep_modules[ii];
-          if (dm != 0 as *Module) {
-            let ret_b: i32 = find_func_return_type_in_module_by_name(dm, arena, callee.field_access_field_name, callee.field_access_field_len, ii, ctx);
-            if (ret_b != 0) {
-              return ret_b;
+  if (callee_ord == 44) {
+    let base_bind_ref: i32 = pipeline_expr_field_access_base_ref(arena, callee_expr_ref);
+    if (base_bind_ref > 0 && base_bind_ref <= arena.num_exprs) {
+      if (pipeline_expr_kind_ord_at(arena, base_bind_ref) == 3) {
+        let base_bind_len: i32 = pipeline_expr_var_name_len(arena, base_bind_ref);
+        if (base_bind_len > 0 && base_bind_len <= 63) {
+          let base_bind_nm: [64]u8 = [];
+          pipeline_expr_var_name_into(arena, base_bind_ref, &base_bind_nm[0]);
+          let field_len: i32 = pipeline_expr_field_access_name_len(arena, callee_expr_ref);
+          let field_nm: [64]u8 = [];
+          pipeline_expr_field_access_name_into(arena, callee_expr_ref, &field_nm[0]);
+          let ii: i32 = 0;
+          while (ii < module.num_imports) {
+            if (pipeline_module_import_kind_at(module, ii) == ImportKind.IMPORT_BINDING
+                && typeck_import_binding_name_equal(module, ii, &base_bind_nm[0], base_bind_len)) {
+              let dm: *Module = pipeline_dep_ctx_module_at(ctx, ii);
+              if (dm != 0 as *Module) {
+                let bind_fn: i32 = 0;
+                let p_bind_fn: *i32 = null_po;
+                if (want_resolve) {
+                  p_bind_fn = &bind_fn;
+                }
+                let ret_b: i32 = find_func_return_type_in_module_by_name(dm, arena, &field_nm[0], field_len, ii, ctx, p_bind_fn);
+                if (ret_b != 0) {
+                  if (want_resolve) {
+                    typeck_expr_apply_call_resolve(arena, call_expr_ref, ii, bind_fn);
+                  }
+                  return ret_b;
+                }
+              }
+              break;
             }
+            ii = ii + 1;
           }
-          break;
         }
-        ii = ii + 1;
       }
     }
   }
   let minus_one: i32 = 0 - 1;
-  let ret: i32 = find_func_return_type_in_module(module, arena, arena, arena, callee_expr_ref, minus_one, ctx);
+  let loc_fn: i32 = 0;
+  let p_loc_fn: *i32 = null_po;
+  if (want_resolve) {
+    p_loc_fn = &loc_fn;
+  }
+  let ret: i32 = find_func_return_type_in_module(module, arena, arena, arena, callee_expr_ref, minus_one, ctx, p_loc_fn);
   if (ret != 0) {
+    if (want_resolve) {
+      typeck_expr_apply_call_resolve(arena, call_expr_ref, minus_one, loc_fn);
+    }
     return ret;
   }
   let i: i32 = 0;
-  /** 扫描已加载 dep：imax 盖住 import 条数与 ctx.ndep 较大者（重复 import 同源时二者可能不等），仍以 dep_modules[i] 非空为准。 */
+  /** 扫描已加载 dep：imax 盖住 import 条数与 ndep 较大者（重复 import 同源时二者可能不等），仍以 module_at 非空为准。 */
   let imax: i32 = module.num_imports;
-  if (ctx.ndep > imax) {
-    imax = ctx.ndep;
-  }
-  if (imax > 32) {
-    imax = 32;
+  let nd_scan: i32 = pipeline_dep_ctx_ndep(ctx);
+  if (nd_scan > imax) {
+    imax = nd_scan;
   }
   while (i < imax) {
-    let dm: *Module = ctx.dep_modules[i];
+    let dm: *Module = pipeline_dep_ctx_module_at(ctx, i);
     if (dm == 0 as *Module) {
       i = i + 1;
       continue;
     }
-    ret = find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, i, ctx);
+    let dep_fn: i32 = 0;
+    let p_dep_fn: *i32 = null_po;
+    if (want_resolve) {
+      p_dep_fn = &dep_fn;
+    }
+    ret = find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, i, ctx, p_dep_fn);
     if (ret != 0) {
+      if (want_resolve) {
+        typeck_expr_apply_call_resolve(arena, call_expr_ref, i, dep_fn);
+      }
       return ret;
     }
     /* 解构形式 const { getenv } = import std.process；裸名 getenv 在 dep i 的 import_select_names 中 */
-    if (i < module.num_imports && module.import_kinds[i] == ImportKind.IMPORT_SELECT && callee.kind == ExprKind.EXPR_VAR && callee.var_name_len > 0) {
-      let k: i32 = 0;
-      while (k < module.import_select_count[i] && k < 8) {
-        if (module.import_select_name_lens[i][k] == callee.var_name_len && name_equal(&module.import_select_names[i][k][0], module.import_select_name_lens[i][k], callee.var_name, callee.var_name_len)) {
-          if (dm != 0 as *Module) {
-            ret = find_func_return_type_in_module_by_name(dm, arena, callee.var_name, callee.var_name_len, i, ctx);
-            if (ret != 0) {
-              return ret;
+    if (i < module.num_imports && pipeline_module_import_kind_at(module, i) == ImportKind.IMPORT_SELECT && callee_ord == 3) {
+      let cv_len: i32 = pipeline_expr_var_name_len(arena, callee_expr_ref);
+      if (cv_len > 0) {
+        let cv_nm: [64]u8 = [];
+        pipeline_expr_var_name_into(arena, callee_expr_ref, &cv_nm[0]);
+        let k: i32 = 0;
+        let sel_cnt: i32 = pipeline_module_import_select_count_at(module, i);
+        while (k < sel_cnt) {
+          if (typeck_import_select_name_equal(module, i, k, &cv_nm[0], cv_len)) {
+            if (dm != 0 as *Module) {
+              let sel_fn: i32 = 0;
+              let p_sel_fn: *i32 = null_po;
+              if (want_resolve) {
+                p_sel_fn = &sel_fn;
+              }
+              ret = find_func_return_type_in_module_by_name(dm, arena, &cv_nm[0], cv_len, i, ctx, p_sel_fn);
+              if (ret != 0) {
+                if (want_resolve) {
+                  typeck_expr_apply_call_resolve(arena, call_expr_ref, i, sel_fn);
+                }
+                return ret;
+              }
             }
+            break;
           }
-          break;
+          k = k + 1;
         }
-        k = k + 1;
       }
     }
     i = i + 1;
@@ -1128,10 +1668,9 @@ function resolve_call_callee_return_type(module: *Module, arena: *ASTArena, call
   return 0;
 }
 
-/** 取表达式的类型池下标（内部）；仅在 ref 已通过 null/边界检查后调用。 */
+/** 取 expr.resolved_type_ref；须走 glue 指针读，勿 ast_arena_expr_get 按值拷贝（大 Expr 撕裂导致 return ? 误报）。 */
 function expr_type_ref_impl(arena: *ASTArena, expr_ref: i32): i32 {
-  let e: Expr = ast_arena_expr_get(arena, expr_ref);
-  return e.resolved_type_ref;
+  return pipeline_expr_resolved_type_ref(arena, expr_ref);
 }
 
 /** 取表达式的类型池下标；ref 为 0 或无效时返回 0。 */
@@ -1197,6 +1736,92 @@ function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
     return true;
   }
   return type_refs_equal_impl(arena, a, b);
+}
+
+/**
+ * let 初值与声明类型对齐（在 check_expr 之后、type_refs_equal 之前调用）。
+ * 与 ASSIGN 分支一致：0→指针/数组零初始化、字面量→i64、非负整型→usize/u32/u64、u8 范围、枚举变体→命名枚举类型。
+ * 返回 1 表示已写入 init 的 resolved_type_ref 可与 decl 比较。
+ */
+function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32): i32 {
+  if (ref_is_null(init_ref) || ref_is_null(decl_ty_ref)) {
+    return 0;
+  }
+  if (init_ref <= 0 || init_ref > arena.num_exprs) {
+    return 0;
+  }
+  let init_e: Expr = ast_arena_expr_get(arena, init_ref);
+  let decl_ty: Type = ast_arena_type_get(arena, decl_ty_ref);
+  if (init_e.kind == ExprKind.EXPR_LIT) {
+    if (decl_ty.kind == TypeKind.TYPE_PTR && init_e.int_val == 0) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+    if (decl_ty.kind == TypeKind.TYPE_ARRAY && init_e.int_val == 0) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+    if (decl_ty.kind == TypeKind.TYPE_U8 && init_e.int_val >= 0 && init_e.int_val <= 255) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+    /* 整数字面量初值与 i64 声明对齐（如 let y: i64 = 0 / 1000）；默认字面量为 i32 时会与 i64 声明不一致而 check_block 失败。 */
+    if (decl_ty.kind == TypeKind.TYPE_I64) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+    if (init_e.int_val >= 0
+        && (decl_ty.kind == TypeKind.TYPE_USIZE || decl_ty.kind == TypeKind.TYPE_U32 || decl_ty.kind == TypeKind.TYPE_U64)) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+    if (init_e.int_val == 0
+        && (decl_ty.kind == TypeKind.TYPE_NAMED || decl_ty.kind == TypeKind.TYPE_VECTOR)) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+  }
+  if (decl_ty.kind == TypeKind.TYPE_NAMED && init_e.kind == ExprKind.EXPR_FIELD_ACCESS) {
+    let base_ix: i32 = init_e.field_access_base_ref;
+    if (!ref_is_null(base_ix) && base_ix > 0 && base_ix <= arena.num_exprs) {
+      let base_e: Expr = ast_arena_expr_get(arena, base_ix);
+      if (base_e.kind == ExprKind.EXPR_VAR
+          && name_equal(&decl_ty.name[0], decl_ty.name_len, &base_e.var_name[0], base_e.var_name_len)) {
+        init_e.field_access_is_enum_variant = 1;
+        init_e.enum_variant_tag = 0;
+        init_e.resolved_type_ref = decl_ty_ref;
+        ast_arena_expr_set(arena, init_ref, init_e);
+        return 1;
+      }
+    }
+    if (init_e.field_access_is_enum_variant != 0) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+  }
+  /*
+   * import 整包调用（如 lexer_next_buf）在部分路径上 CALL 的 resolved_type_ref 仍为 0；
+   * 显式 let r: LexerResult = call() 时用声明类型回填，与 C 路径「已知声明类型」一致。
+   */
+  if (decl_ty.kind == TypeKind.TYPE_NAMED && init_e.kind == ExprKind.EXPR_CALL && ref_is_null(init_e.resolved_type_ref)) {
+    init_e.resolved_type_ref = decl_ty_ref;
+    ast_arena_expr_set(arena, init_ref, init_e);
+    return 1;
+  }
+  /* let buf: [N]u8 = [ ... ]：数组字面量初值与固定数组声明对齐（typeck 诊断缓冲等小数组）。 */
+  if (decl_ty.kind == TypeKind.TYPE_ARRAY && init_e.kind == ExprKind.EXPR_ARRAY_LIT) {
+    init_e.resolved_type_ref = decl_ty_ref;
+    ast_arena_expr_set(arena, init_ref, init_e);
+    return 1;
+  }
+  return 0;
 }
 
 /** 写入 lit 后缀到诊断缓冲；不写 NUL；返回下一写入偏移（至多 cap）。 */
@@ -1334,6 +1959,35 @@ function typeck_diag_fmt_type_or_question(arena: *ASTArena, ref: i32, out: *u8):
 }
 
 /**
+ * `return expr`：函数声明为 i32 时，允许来自切片元素（u8）与 `.length`（usize）等与 C ABI 一致的整型收窄；
+ * 将操作数 resolved_type_ref 改写为期望类型，便于 codegen 与后续相等比较。
+ */
+function typeck_ret_coerce_integral_to_expect_i32(arena: *ASTArena, op_ref: i32, expect_ref: i32): void {
+  if (ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena.num_exprs || ref_is_null(expect_ref)) {
+    return;
+  }
+  if (expect_ref <= 0 || expect_ref > arena.num_types) {
+    return;
+  }
+  let exp_ty: Type = ast_arena_type_get(arena, expect_ref);
+  if (exp_ty.kind != TypeKind.TYPE_I32) {
+    return;
+  }
+  let got_ref: i32 = expr_type_ref(arena, op_ref);
+  if (ref_is_null(got_ref) || got_ref <= 0 || got_ref > arena.num_types) {
+    return;
+  }
+  let got_ty: Type = ast_arena_type_get(arena, got_ref);
+  /** 对齐 ASSIGN 对部分整型的放宽；暂不包含 i64→i32（需显式 as）。 */
+  if (got_ty.kind != TypeKind.TYPE_U8 && got_ty.kind != TypeKind.TYPE_USIZE) {
+    return;
+  }
+  let rw: Expr = ast_arena_expr_get(arena, op_ref);
+  rw.resolved_type_ref = expect_ref;
+  ast_arena_expr_set(arena, op_ref, rw);
+}
+
+/**
  * 递归检查表达式（内部）：仅在 expr_ref 已通过 null/边界检查后调用，避免 codegen 将 expr_get 提升到检查前导致 panic。
  * module 用于阶段 5.2 跨模块 EXPR_CALL 时解析 callee。
  */
@@ -1351,12 +2005,14 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     }
     return 0;
   }
-  /* 字面量自设类型，确保后续类型比较前 resolved_type_ref 已有效 */
+  /* 字面量自设类型；若 parser/fill_block 已写入声明类型（如 let p: *i32 = 0、[4]i32 = 0）则保留，勿一律覆盖为 i32。 */
   if (e.kind == ExprKind.EXPR_LIT) {
-    let it: i32 = ensure_i32_type_ref(arena);
-    if (it != 0) {
-      e.resolved_type_ref = it;
-      ast_arena_expr_set(arena, expr_ref, e);
+    if (ref_is_null(e.resolved_type_ref)) {
+      let it: i32 = ensure_i32_type_ref(arena);
+      if (it != 0) {
+        e.resolved_type_ref = it;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
     }
     return 0;
   }
@@ -1408,6 +2064,16 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       let te: Type = ast_arena_type_get(arena, ty_e);
       e_named = (te.kind == TypeKind.TYPE_NAMED);
     }
+    /* 三元：与 typeck.c AST_EXPR_TERNARY 一致，两分支类型须完全一致（含 i32 vs bool）。 */
+    if (e.kind == ExprKind.EXPR_TERNARY) {
+      if (ref_is_null(ty_t) || ref_is_null(ty_e) || !type_refs_equal(arena, ty_t, ty_e)) {
+        return -1;
+      }
+      e.resolved_type_ref = ty_t;
+      ast_arena_expr_set(arena, expr_ref, e);
+      return 0;
+    }
+    /* if 表达式：仅当 then/else 均为具名 struct 且不一致时报错；一侧 struct 一侧标量时 resolved 取 struct 侧（与 C EXPR_IF 一致）。 */
     if (!ref_is_null(ty_t) && !ref_is_null(ty_e) && t_named && e_named && !type_refs_equal(arena, ty_t, ty_e)) {
       return -1;
     }
@@ -1475,6 +2141,10 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
                      && (ltp.kind == TypeKind.TYPE_USIZE || ltp.kind == TypeKind.TYPE_U32 || ltp.kind == TypeKind.TYPE_U64)) {
             rhs_coerce.resolved_type_ref = lt;
             ast_arena_expr_set(arena, right_ref, rhs_coerce);
+          /* 单 = 时字面量赋给 i64（含负数），与 let 初值 coerce 一致。 */
+          } else if (e.kind == ExprKind.EXPR_ASSIGN && ltp.kind == TypeKind.TYPE_I64) {
+            rhs_coerce.resolved_type_ref = lt;
+            ast_arena_expr_set(arena, right_ref, rhs_coerce);
           }
         }
       }
@@ -1483,6 +2153,25 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       if (e.kind == ExprKind.EXPR_ASSIGN) {
         compound_flag = 0;
       }
+      /* 跨模块 CALL 返回 struct 时 resolved_type_ref 可能未填；左侧 VAR/let 已有显式类型则回填 RHS。 */
+      if (!ref_is_null(lt) && ref_is_null(rt)) {
+        let rhs_e: Expr = ast_arena_expr_get(arena, right_ref);
+        if (rhs_e.kind == ExprKind.EXPR_CALL) {
+          rhs_e.resolved_type_ref = lt;
+          ast_arena_expr_set(arena, right_ref, rhs_e);
+          rt = lt;
+        }
+      }
+      /* lex = r.next_lex / res.next_lex = lex 等：LHS 未绑类型而 RHS 已解析时，用 RHS 类型回填 LHS（parser 结构体字段与形参更新）。 */
+      if (ref_is_null(lt) && !ref_is_null(rt)) {
+        let lhs_e2: Expr = ast_arena_expr_get(arena, left_ref);
+        if (lhs_e2.kind == ExprKind.EXPR_VAR || lhs_e2.kind == ExprKind.EXPR_FIELD_ACCESS
+            || lhs_e2.kind == ExprKind.EXPR_INDEX) {
+          lhs_e2.resolved_type_ref = rt;
+          ast_arena_expr_set(arena, left_ref, lhs_e2);
+          lt = rt;
+        }
+      }
       if (!ref_is_null(lt) && !ref_is_null(rt) && !type_refs_equal(arena, lt, rt)) {
         let eb_ptr: *u8 = driver_typeck_diag_scratch_expect();
         let gb_ptr: *u8 = driver_typeck_diag_scratch_found();
@@ -1490,6 +2179,18 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
         let gl: i32 = typeck_diag_fmt_type_into(arena, rt, gb_ptr, 96);
         driver_diagnostic_typeck_assign_mismatch(compound_flag, e.line, e.col, eb_ptr, el, gb_ptr, gl);
         return -1;
+      }
+      /** parser：`p = r.next_lex.pos - 1` — SUB 未推导结果类型时，赋给 usize 局部变量则按 LHS 回填 RHS 类型。 */
+      if (!ref_is_null(lt) && ref_is_null(rt)) {
+        let rhs_sub: Expr = ast_arena_expr_get(arena, right_ref);
+        if (rhs_sub.kind == ExprKind.EXPR_SUB || rhs_sub.kind == ExprKind.EXPR_ADD) {
+          let lt_ty: Type = ast_arena_type_get(arena, lt);
+          if (lt_ty.kind == TypeKind.TYPE_USIZE) {
+            rhs_sub.resolved_type_ref = lt;
+            ast_arena_expr_set(arena, right_ref, rhs_sub);
+            rt = lt;
+          }
+        }
       }
       /* 一侧已有类型、另一侧仍无类型：禁止隐式赋值（与 C 路径一致；避免 LHS VAR 未绑定仍放过） */
       if ((ref_is_null(lt) && !ref_is_null(rt)) || (!ref_is_null(lt) && ref_is_null(rt))) {
@@ -1505,6 +2206,31 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
   }
   if (e.kind == ExprKind.EXPR_RETURN) {
     let op_ref: i32 = e.unary_operand_ref;
+    /*
+     * `return;`（无操作数）：仅允许函数返回类型为 void；不做「返回值」递归类型匹配（对齐 typeck.c：
+     * typeck_block 在 typeck_expr_sym 之前对裸 return 做 void 校验；typeck_expr_sym 对无 operand 的 RETURN 直接返回 0）。
+     * 为块尾 expr_type_ref 比较一致，将本结点 resolved_type_ref 设为 void。
+     */
+    if (ref_is_null(op_ref)) {
+      if (!ref_is_null(return_type_ref)) {
+        let rt_bare: Type = ast_arena_type_get(arena, return_type_ref);
+        if (rt_bare.kind != TypeKind.TYPE_VOID) {
+          driver_diagnostic_typeck_ret_fail(1, expr_ref, return_type_ref, 0);
+          return -1;
+        }
+        e.resolved_type_ref = return_type_ref;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
+      return 0;
+    }
+    /* void 函数禁止 `return expr;`（对齐 typeck.c typeck_block）。 */
+    if (!ref_is_null(return_type_ref)) {
+      let rt_no_val: Type = ast_arena_type_get(arena, return_type_ref);
+      if (rt_no_val.kind == TypeKind.TYPE_VOID) {
+        driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, expr_type_ref(arena, op_ref));
+        return -1;
+      }
+    }
     /* 先递归解析操作数，确保 resolved_type_ref 已设（如字面量现在会自设类型），再比较 */
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       driver_diagnostic_typeck_ret_fail(1, op_ref, return_type_ref, 0);
@@ -1532,8 +2258,16 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       }
     }
     if (!ref_is_null(return_type_ref) && !ref_is_null(op_ref)) {
+      /** 切片 `x[y]`→u8、`x.length`→usize 常与 `fn ... : i32` 同用；先于严格相等校验做 i32 目标收窄（见 typeck_ret_coerce_integral_to_expect_i32）。 */
+      typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref);
       let got: i32 = expr_type_ref(arena, op_ref);
-      if (!ref_is_null(got) && !type_refs_equal(arena, got, return_type_ref)) {
+      /** got 未解析（0）或与签名不一致均拒绝；勿因 `!ref_is_null(got)` 跳过漏报 bool→i32 等。 */
+      if (ref_is_null(got) || !type_refs_equal(arena, got, return_type_ref)) {
+        let eb_ret: *u8 = driver_typeck_diag_scratch_expect();
+        let gb_ret: *u8 = driver_typeck_diag_scratch_found();
+        let el_ret: i32 = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb_ret);
+        let gl_ret: i32 = typeck_diag_fmt_type_or_question(arena, got, gb_ret);
+        driver_diagnostic_typeck_return_mismatch(e.line, e.col, eb_ret, el_ret, gb_ret, gl_ret);
         driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
         return -1;
       }
@@ -1541,7 +2275,15 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     return 0;
   }
   if (e.kind == ExprKind.EXPR_PANIC) {
-    return check_expr(module, arena, e.unary_operand_ref, return_type_ref, ctx);
+    if (check_expr(module, arena, e.unary_operand_ref, return_type_ref, ctx) != 0) {
+      return -1;
+    }
+    /** 发散表达式：在 return panic() 等上下文中与期望返回类型一致，避免 unary_operand 无类型导致 RETURN 分支误判。 */
+    if (!ref_is_null(return_type_ref)) {
+      e.resolved_type_ref = return_type_ref;
+      ast_arena_expr_set(arena, expr_ref, e);
+    }
+    return 0;
   }
   if (e.kind == ExprKind.EXPR_MATCH) {
     if (check_expr(module, arena, e.match_matched_ref, return_type_ref, ctx) != 0) {
@@ -1549,10 +2291,7 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     }
     let i: i32 = 0;
     while (i < e.match_num_arms) {
-      if (i >= 16) {
-        break;
-      }
-      if (check_expr(module, arena, e.match_arm_result_refs[i], return_type_ref, ctx) != 0) {
+      if (check_expr(module, arena, pipeline_expr_match_arm_result_ref(arena, expr_ref, i), return_type_ref, ctx) != 0) {
         return -1;
       }
       i = i + 1;
@@ -1562,6 +2301,24 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
   if (e.kind == ExprKind.EXPR_FIELD_ACCESS) {
     if (ref_is_null(e.field_access_base_ref) || e.field_access_base_ref <= 0 || e.field_access_base_ref > arena.num_exprs) {
       return -1;
+    }
+    /** Color.Green：base 为未绑定的 VAR(Color) 时先按命名类型解析；形参名（如 module: *Module）须跳过，否则抢在 param 解析前绑成 TYPE_NAMED 导致 .funcs[i] 失败。 */
+    let base_pre: Expr = ast_arena_expr_get(arena, e.field_access_base_ref);
+    if (base_pre.kind == ExprKind.EXPR_VAR && ref_is_null(base_pre.resolved_type_ref) && base_pre.var_name_len > 0) {
+      let skip_named_prebind: bool = false;
+      if (ctx.current_func_index >= 0 && ctx.current_func_index < module.num_funcs) {
+        let param_pre: i32 = pipeline_module_func_param_type_ref_for_name(module, ctx.current_func_index, &base_pre.var_name[0], base_pre.var_name_len);
+        if (!ref_is_null(param_pre)) {
+          skip_named_prebind = true;
+        }
+      }
+      if (!skip_named_prebind) {
+        let nt_pre: i32 = find_or_alloc_named_type_ref(arena, &base_pre.var_name[0], base_pre.var_name_len);
+        if (nt_pre != 0) {
+          base_pre.resolved_type_ref = nt_pre;
+          ast_arena_expr_set(arena, e.field_access_base_ref, base_pre);
+        }
+      }
     }
     if (check_expr(module, arena, e.field_access_base_ref, return_type_ref, ctx) != 0) {
       return -1;
@@ -1612,7 +2369,7 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
           }
           if (!matched_at && fl == 5 && name_equal(fn, fl, &nm_exprs[0], 5)) {
             e.field_access_offset = 40968;
-            let arr_exprs: i32 = ensure_array_type_ref_named_elem(arena, &nm_ex[0], 4, 4096);
+            let arr_exprs: i32 = ensure_array_type_ref_named_elem(arena, &nm_ex[0], 4, 32768);
             if (arr_exprs != 0) {
               e.resolved_type_ref = arr_exprs;
               matched_at = true;
@@ -1627,7 +2384,7 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
           }
           if (!matched_at && fl == 6 && name_equal(fn, fl, &nm_blocks[0], 6)) {
             e.field_access_offset = 6234124;
-            let arr_blocks: i32 = ensure_array_type_ref_named_elem(arena, &nm_bl[0], 5, 512);
+            let arr_blocks: i32 = ensure_array_type_ref_named_elem(arena, &nm_bl[0], 5, 8192);
             if (arr_blocks != 0) {
               e.resolved_type_ref = arr_blocks;
               matched_at = true;
@@ -1656,6 +2413,49 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
             }
           }
           if (matched_at) {
+            ast_arena_expr_set(arena, expr_ref, e);
+          }
+        }
+        /** *Module：codegen 等 module.funcs[fi].name[i] 须识别 funcs 为 [256]Func。 */
+        let nm_module: [6]u8 = [77, 111, 100, 117, 108, 101];
+        if (inner_ord == 8 && inner_nm_len == 6 && name_equal(&inner_nm_buf[0], inner_nm_len, &nm_module[0], 6)) {
+          let fl_m: i32 = e.field_access_field_len;
+          let fn_m: *u8 = &e.field_access_field_name[0];
+          let nm_funcs_m: [5]u8 = [102, 117, 110, 99, 115];
+          let nm_num_funcs_m: [9]u8 = [110, 117, 109, 95, 102, 117, 110, 99, 115];
+          let nm_struct_layouts_m: [14]u8 = [115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+          let nm_num_struct_layouts_m: [18]u8 = [110, 117, 109, 95, 115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+          let nm_fu_m: [4]u8 = [70, 117, 110, 99];
+          let nm_sl_m: [12]u8 = [83, 116, 114, 117, 99, 116, 76, 97, 121, 111, 117, 116];
+          let i32r_mod: i32 = ensure_i32_type_ref(arena);
+          let matched_mod: bool = false;
+          if (fl_m == 5 && name_equal(fn_m, fl_m, &nm_funcs_m[0], 5)) {
+            let arr_funcs_m: i32 = ensure_array_type_ref_named_elem(arena, &nm_fu_m[0], 4, 256);
+            if (arr_funcs_m != 0) {
+              e.resolved_type_ref = arr_funcs_m;
+              matched_mod = true;
+            }
+          }
+          if (!matched_mod && fl_m == 14 && name_equal(fn_m, fl_m, &nm_struct_layouts_m[0], 14)) {
+            let arr_sl_m: i32 = ensure_array_type_ref_named_elem(arena, &nm_sl_m[0], 12, 32);
+            if (arr_sl_m != 0) {
+              e.resolved_type_ref = arr_sl_m;
+              matched_mod = true;
+            }
+          }
+          if (!matched_mod && fl_m == 9 && name_equal(fn_m, fl_m, &nm_num_funcs_m[0], 9)) {
+            if (i32r_mod != 0) {
+              e.resolved_type_ref = i32r_mod;
+              matched_mod = true;
+            }
+          }
+          if (!matched_mod && fl_m == 18 && name_equal(fn_m, fl_m, &nm_num_struct_layouts_m[0], 18)) {
+            if (i32r_mod != 0) {
+              e.resolved_type_ref = i32r_mod;
+              matched_mod = true;
+            }
+          }
+          if (matched_mod) {
             ast_arena_expr_set(arena, expr_ref, e);
           }
         }
@@ -1786,6 +2586,89 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
         }
       }
     }
+    /** layout/dep 未命中时按字段名回落 [64]u8 / [16]i32 / i32（parser、codegen 逐字节比较 var_name[i] 等）。 */
+    if (ref_is_null(e.resolved_type_ref) && e.field_access_field_len == 4 && !ref_is_null(base.resolved_type_ref)) {
+      /** CodegenOutBuf.data：[8388608]u8，供 codegen append_byte 等对 out.data[i] 下标赋值。 */
+      let nm_dat: [4]u8 = [100, 97, 116, 97];
+      if (name_equal(&e.field_access_field_name[0], e.field_access_field_len, &nm_dat[0], 4)) {
+        let cob_nm: [64]u8 = [];
+        let cob_len: i32 = 0;
+        let named_ref: i32 = 0;
+        let bt_cob: Type = ast_arena_type_get(arena, base.resolved_type_ref);
+        if (bt_cob.kind == TypeKind.TYPE_PTR && !ref_is_null(bt_cob.elem_type_ref)) {
+          if (pipeline_type_kind_ord_at(arena, bt_cob.elem_type_ref) == 8) {
+            named_ref = bt_cob.elem_type_ref;
+          }
+        } else if (bt_cob.kind == TypeKind.TYPE_NAMED) {
+          named_ref = base.resolved_type_ref;
+        }
+        if (named_ref != 0) {
+          cob_len = pipeline_type_named_name_into(arena, named_ref, &cob_nm[0]);
+        }
+        let nm_cob: [13]u8 = [67, 111, 100, 101, 103, 101, 110, 79, 117, 116, 66, 117, 102];
+        if (cob_len == 13 && name_equal(&cob_nm[0], cob_len, &nm_cob[0], 13)) {
+          let u8r_cob: i32 = ensure_u8_type_ref(arena);
+          if (u8r_cob != 0) {
+            let arr_cob: i32 = find_or_alloc_array_type_ref(arena, u8r_cob, 8388608);
+            if (arr_cob != 0) {
+              e.resolved_type_ref = arr_cob;
+              ast_arena_expr_set(arena, expr_ref, e);
+            }
+          }
+        }
+      }
+    }
+    if (ref_is_null(e.resolved_type_ref) && e.field_access_field_len > 0) {
+      let u8_fb_end: i32 = typeck_inline_u8_64_array_field_type_ref(arena, &e.field_access_field_name[0], e.field_access_field_len);
+      if (u8_fb_end != 0) {
+        e.resolved_type_ref = u8_fb_end;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
+    }
+    if (ref_is_null(e.resolved_type_ref) && e.field_access_field_len > 0) {
+      let arr_fb_end: i32 = typeck_expr_inline_array_field_type_ref(arena, &e.field_access_field_name[0], e.field_access_field_len);
+      if (arr_fb_end != 0) {
+        e.resolved_type_ref = arr_fb_end;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
+    }
+    if (ref_is_null(e.resolved_type_ref) && e.field_access_field_len > 0) {
+      let fb_end: i32 = expr_field_access_fallback_scalar_type_ref(arena, &e.field_access_field_name[0], e.field_access_field_len);
+      if (fb_end != 0) {
+        e.resolved_type_ref = fb_end;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
+    }
+    /** parser.su：LexerResult.next_lex / Lexer.pos 等嵌套字段 layout 未命中时的名语义回落。 */
+    if (ref_is_null(e.resolved_type_ref) && !ref_is_null(base.resolved_type_ref)) {
+      let lx_fb: i32 = typeck_field_access_lexer_wrapper_fallback(arena, base.resolved_type_ref, &e.field_access_field_name[0], e.field_access_field_len);
+      if (lx_fb != 0) {
+        e.resolved_type_ref = lx_fb;
+        ast_arena_expr_set(arena, expr_ref, e);
+      }
+      if (ref_is_null(e.resolved_type_ref)) {
+        let bt_fb: Type = ast_arena_type_get(arena, base.resolved_type_ref);
+        if (bt_fb.kind == TypeKind.TYPE_PTR && !ref_is_null(bt_fb.elem_type_ref)) {
+          let lx_fb2: i32 = typeck_field_access_lexer_wrapper_fallback(arena, bt_fb.elem_type_ref, &e.field_access_field_name[0], e.field_access_field_len);
+          if (lx_fb2 != 0) {
+            e.resolved_type_ref = lx_fb2;
+            ast_arena_expr_set(arena, expr_ref, e);
+          }
+        }
+      }
+    }
+    /** 形参 struct 字段：base VAR 已解析但 base.resolved_type_ref 未设时，用 param 类型名回落。 */
+    if (ref_is_null(e.resolved_type_ref) && base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0
+        && ctx.current_func_index >= 0 && ctx.current_func_index < module.num_funcs) {
+      let pr_fb: i32 = pipeline_module_func_param_type_ref_for_name(module, ctx.current_func_index, &base.var_name[0], base.var_name_len);
+      if (!ref_is_null(pr_fb)) {
+        let lx_fb3: i32 = typeck_field_access_lexer_wrapper_fallback(arena, pr_fb, &e.field_access_field_name[0], e.field_access_field_len);
+        if (lx_fb3 != 0) {
+          e.resolved_type_ref = lx_fb3;
+          ast_arena_expr_set(arena, expr_ref, e);
+        }
+      }
+    }
     return 0;
   }
   if (e.kind == ExprKind.EXPR_INDEX) {
@@ -1799,61 +2682,85 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       return 0;
     }
     let eb: Expr = ast_arena_expr_get(arena, e.index_base_ref);
-    if (!ref_is_null(eb.resolved_type_ref) && eb.resolved_type_ref > 0 && eb.resolved_type_ref <= arena.num_types) {
-      let bt: Type = ast_arena_type_get(arena, eb.resolved_type_ref);
-      if ((bt.kind == TypeKind.TYPE_ARRAY || bt.kind == TypeKind.TYPE_SLICE || bt.kind == TypeKind.TYPE_PTR) && !ref_is_null(bt.elem_type_ref)) {
-        e.resolved_type_ref = bt.elem_type_ref;
-        if (bt.kind == TypeKind.TYPE_SLICE) {
-          e.index_base_is_slice = 1;
-        } else {
-          e.index_base_is_slice = 0;
-        }
-        if (!ref_is_null(e.index_index_ref) && e.index_index_ref > 0 && e.index_index_ref <= arena.num_exprs) {
-          let idxe: Expr = ast_arena_expr_get(arena, e.index_index_ref);
-          if (idxe.kind == ExprKind.EXPR_LIT && idxe.int_val == 0 && bt.kind == TypeKind.TYPE_ARRAY && bt.array_size >= 1) {
-            e.index_proven_in_bounds = 1;
-          }
-        }
-        ast_arena_expr_set(arena, expr_ref, e);
+    if (ref_is_null(eb.resolved_type_ref) || eb.resolved_type_ref <= 0 || eb.resolved_type_ref > arena.num_types) {
+      driver_diagnostic_typeck_subscript_base(e.line, e.col);
+      return -1;
+    }
+    let bt: Type = ast_arena_type_get(arena, eb.resolved_type_ref);
+    if (bt.kind != TypeKind.TYPE_ARRAY && bt.kind != TypeKind.TYPE_SLICE && bt.kind != TypeKind.TYPE_PTR) {
+      driver_diagnostic_typeck_subscript_base(e.line, e.col);
+      return -1;
+    }
+    if (ref_is_null(bt.elem_type_ref)) {
+      driver_diagnostic_typeck_subscript_base(e.line, e.col);
+      return -1;
+    }
+    e.resolved_type_ref = bt.elem_type_ref;
+    if (bt.kind == TypeKind.TYPE_SLICE) {
+      e.index_base_is_slice = 1;
+    } else {
+      e.index_base_is_slice = 0;
+    }
+    if (!ref_is_null(e.index_index_ref) && e.index_index_ref > 0 && e.index_index_ref <= arena.num_exprs) {
+      let idxe: Expr = ast_arena_expr_get(arena, e.index_index_ref);
+      if (idxe.kind == ExprKind.EXPR_LIT && idxe.int_val == 0 && bt.kind == TypeKind.TYPE_ARRAY && bt.array_size >= 1) {
+        e.index_proven_in_bounds = 1;
       }
     }
+    ast_arena_expr_set(arena, expr_ref, e);
     return 0;
   }
   if (e.kind == ExprKind.EXPR_CALL) {
     let j: i32 = 0;
     while (j < e.call_num_args) {
-      if (j >= 16) {
-        break;
-      }
-      if (check_expr(module, arena, e.call_arg_refs[j], return_type_ref, ctx) != 0) {
+      if (check_expr(module, arena, pipeline_expr_call_arg_ref(arena, expr_ref, j), return_type_ref, ctx) != 0) {
         return -1;
       }
       j = j + 1;
     }
     /* 阶段 5.2：解析 callee（本模块或 deps），设置 CALL 的 resolved_type_ref 为被调函数返回类型 */
     if (!ref_is_null(e.call_callee_ref)) {
-      let callee_ce: Expr = ast_arena_expr_get(arena, e.call_callee_ref);
-      if ((callee_ce.kind == ExprKind.EXPR_VAR && callee_ce.var_name_len > 0 && callee_ce.var_name_len <= 63)
-          || callee_ce.kind == ExprKind.EXPR_FIELD_ACCESS) {
-        let ret_ty: i32 = resolve_call_callee_return_type(module, arena, e.call_callee_ref, ctx);
-        if (ret_ty != 0) {
-          e.resolved_type_ref = ret_ty;
-          ast_arena_expr_set(arena, expr_ref, e);
+      /* 部分 parser 路径可能产生 &foo 形态 callee；resolve 只认 VAR/FIELD_ACCESS，须先剥一层 ADDR_OF（与 expr_var_name_equal_func 注释对齐） */
+      let callee_eff: i32 = e.call_callee_ref;
+      /** 勿 ast_arena_expr_get 整颗 Expr：自举 typeck 按值拷贝撕裂 kind/operand，ADDR_OF callee 剥除失败。 */
+      if (pipeline_expr_kind_ord_at(arena, callee_eff) == (51 as i32)) {
+        let inner_c: i32 = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
+        if (!ref_is_null(inner_c)) {
+          callee_eff = inner_c;
         }
+      }
+      let ret_ty: i32 = resolve_call_callee_return_type(module, arena, callee_eff, expr_ref, ctx);
+      /** 本模块 i32 助手仍 unresolved 时按名再扫（resolve 内历史 Expr 拷贝撕裂 kind 的兜底）。 */
+      if (ret_ty == 0 && pipeline_expr_kind_ord_at(arena, callee_eff) == 3) {
+        let cnm: [64]u8 = [];
+        let cnml: i32 = pipeline_expr_var_name_len(arena, callee_eff);
+        if (cnml > 0) {
+          pipeline_expr_var_name_into(arena, callee_eff, &cnm[0]);
+          let cfi: i32 = 0;
+          ret_ty = find_func_return_type_in_module_by_name(module, arena, &cnm[0], cnml, 0 - 1, ctx, &cfi);
+          if (ret_ty != 0) {
+            typeck_expr_apply_call_resolve(arena, expr_ref, 0 - 1, cfi);
+          }
+        }
+      }
+      if (ret_ty != 0) {
+        e.resolved_type_ref = ret_ty;
+        ast_arena_expr_set(arena, expr_ref, e);
       }
     }
     return 0;
   }
   if (e.kind == ExprKind.EXPR_METHOD_CALL) {
+    /** METHOD_CALL 的 impl 解析未接流水线；占位 -1/-1，与 parser 初始化一致，供 LSP 后续扩展。 */
+    expr_init_call_resolve(arena, expr_ref);
+    /* 重新读取 e 以获取更新后的 call_resolved_* 字段 */
+    e = ast_arena_expr_get(arena, expr_ref);
     if (check_expr(module, arena, e.method_call_base_ref, return_type_ref, ctx) != 0) {
       return -1;
     }
     let j: i32 = 0;
     while (j < e.method_call_num_args) {
-      if (j >= 16) {
-        break;
-      }
-      if (check_expr(module, arena, e.method_call_arg_refs[j], return_type_ref, ctx) != 0) {
+      if (check_expr(module, arena, pipeline_expr_method_call_arg_ref(arena, expr_ref, j), return_type_ref, ctx) != 0) {
         return -1;
       }
       j = j + 1;
@@ -1891,6 +2798,16 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
           out_ar = ensure_f64_type_ref(arena);
         } else if (type_refs_equal(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
+        } else if (!ref_is_null(lt_ar)) {
+          out_ar = lt_ar;
+        } else if (!ref_is_null(rt_ar)) {
+          out_ar = rt_ar;
+        }
+        /** 位/算术 binop 两侧已 check 但类型池 ref 不一致时仍回落 i32（如 let lo: i32 = b & 255）。 */
+        if (out_ar == 0 && (e.kind == ExprKind.EXPR_BITAND || e.kind == ExprKind.EXPR_BITOR || e.kind == ExprKind.EXPR_BITXOR
+            || e.kind == ExprKind.EXPR_ADD || e.kind == ExprKind.EXPR_SUB || e.kind == ExprKind.EXPR_MUL
+            || e.kind == ExprKind.EXPR_DIV || e.kind == ExprKind.EXPR_MOD || e.kind == ExprKind.EXPR_SHL || e.kind == ExprKind.EXPR_SHR)) {
+          out_ar = ensure_i32_type_ref(arena);
         }
         if (out_ar != 0) {
           e.resolved_type_ref = out_ar;
@@ -1920,12 +2837,65 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     }
     return 0;
   }
+  /*
+   * 一元 & ：操作数须有类型 T，表达式类型为 *T。
+   */
+  if (e.kind == ExprKind.EXPR_ADDR_OF) {
+    if (!ref_is_null(e.unary_operand_ref) && check_expr(module, arena, e.unary_operand_ref, return_type_ref, ctx) != 0) {
+      return -1;
+    }
+    let op_addr: i32 = expr_type_ref(arena, e.unary_operand_ref);
+    if (ref_is_null(op_addr) || op_addr <= 0 || op_addr > arena.num_types) {
+      return -1;
+    }
+    let pt_addr: i32 = find_or_alloc_ptr_type_ref(arena, op_addr);
+    if (pt_addr == 0) {
+      return -1;
+    }
+    e.resolved_type_ref = pt_addr;
+    ast_arena_expr_set(arena, expr_ref, e);
+    return 0;
+  }
+  /*
+   * 一元 * ：操作数须为指针，结果为指向元素类型。
+   */
+  if (e.kind == ExprKind.EXPR_DEREF) {
+    if (!ref_is_null(e.unary_operand_ref) && check_expr(module, arena, e.unary_operand_ref, return_type_ref, ctx) != 0) {
+      return -1;
+    }
+    let op_ptr: i32 = expr_type_ref(arena, e.unary_operand_ref);
+    if (ref_is_null(op_ptr) || op_ptr <= 0 || op_ptr > arena.num_types) {
+      return -1;
+    }
+    let top: Type = ast_arena_type_get(arena, op_ptr);
+    if (top.kind != TypeKind.TYPE_PTR || ref_is_null(top.elem_type_ref)) {
+      return -1;
+    }
+    e.resolved_type_ref = top.elem_type_ref;
+    ast_arena_expr_set(arena, expr_ref, e);
+    return 0;
+  }
   if (e.kind == ExprKind.EXPR_VAR && ctx.current_block_ref != 0 && ctx.current_block_ref <= arena.num_blocks) {
     let vd_tr: i32 = ast_block_resolve_var_to_type_ref(arena, ctx.current_block_ref, e.var_name, e.var_name_len);
     if (!ref_is_null(vd_tr)) {
       e.resolved_type_ref = vd_tr;
       ast_arena_expr_set(arena, expr_ref, e);
       return 0;
+    }
+  }
+  /* 模块顶层 let/const：与 C typeck 将 top_level_lets 并入 symtab 一致，供 main 中引用 global_x 等。 */
+  if (e.kind == ExprKind.EXPR_VAR && module.num_top_level_lets > 0) {
+    let tl: i32 = 0;
+    while (tl < module.num_top_level_lets) {
+      if (typeck_top_level_let_name_equal(module, tl, &e.var_name[0], e.var_name_len)) {
+        let tl_tr: i32 = pipeline_module_top_level_let_type_ref(module, tl);
+        if (!ref_is_null(tl_tr)) {
+          e.resolved_type_ref = tl_tr;
+          ast_arena_expr_set(arena, expr_ref, e);
+          return 0;
+        }
+      }
+      tl = tl + 1;
     }
   }
   /* 未在块内找到时，从当前函数的形参解析（供库函数如 token_is_eof(t: Token) 使用） */
@@ -1985,13 +2955,14 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
   }
   if (e.kind == ExprKind.EXPR_STRUCT_LIT) {
     let fi: i32 = 0;
-    while (fi < e.struct_lit_num_fields && fi < 8) {
-      if (!ref_is_null(e.struct_lit_init_refs[fi]) && check_expr(module, arena, e.struct_lit_init_refs[fi], return_type_ref, ctx) != 0) {
+    while (fi < pipeline_expr_struct_lit_num_fields(arena, expr_ref)) {
+      let init_sl: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
+      if (!ref_is_null(init_sl) && check_expr(module, arena, init_sl, return_type_ref, ctx) != 0) {
         return -1;
       }
       fi = fi + 1;
     }
-    if (ensure_struct_layout_from_struct_lit(module, arena, e) != 0) {
+    if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
       return -1;
     }
     /* 为结构体字面量设 resolved_type_ref，使 if-expr 的 then/else 类型推断正确，避免 codegen 生成 int __tmp = (struct X){0} */
@@ -2020,19 +2991,49 @@ function check_expr(module: *Module, arena: *ASTArena, expr_ref: i32, return_typ
 }
 
 /**
- * 函数体块末若存在 final_expr 且不是显式 return / panic / break / continue，则视为「隐式尾表达式」；
- * 对非 void 返回类型须在 typeck 顶层拒绝（与 C 一致：须有 return 语句）。
+ * 取函数体块上用于「禁止隐式尾返回」规则所审视的表达式 ref。
+ * - 优先 final_expr_ref；
+ * - 否则若 stmt_order 的**最后一条**为 kind=2（expr_stmt），取该条（parser 将仅含尾式的 `{ 0 }` 升格为一条 expr_stmt 并清空 final_expr，见 parser.su 约 7323+；末条为 if/while 时不应向前扫旧的 expr_stmt）；
+ * - 无 stmt_order 的旧式块则回退为最后一条 expr_stmt。
+ */
+function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body_ref: i32): i32 {
+  let fin_ref: i32 = ast_block_final_expr_ref(arena, body_ref);
+  if (!ref_is_null(fin_ref)) {
+    return fin_ref;
+  }
+  let nso: i32 = ast_block_num_stmt_order(arena, body_ref);
+  if (nso > 0) {
+    let last_k: u8 = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k == (2 as u8)) {
+      let idx: i32 = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      let nes: i32 = ast_block_num_expr_stmts(arena, body_ref);
+      if (idx >= 0 && idx < nes) {
+        return ast_block_expr_stmt_ref(arena, body_ref, idx);
+      }
+    }
+    return 0;
+  }
+  let nes2: i32 = ast_block_num_expr_stmts(arena, body_ref);
+  if (nes2 > 0) {
+    return ast_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
+  }
+  return 0;
+}
+
+/**
+ * 函数体块末存在「裸尾值」且不是显式 return / panic / break / continue 时，视为隐式尾返回；
+ * 对非 void 返回类型须在 typeck 顶层拒绝（与 C typeck.c block_has_implicit_return 一致：须写 return）。
  */
 function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i32): bool {
   if (ref_is_null(body_ref) || body_ref <= 0 || body_ref > arena.num_blocks) {
     return false;
   }
-  /** 不写 let bb: Block / let _: Expr；隐式尾判定由 ast.extern（C glue）实现 ast_ast_expr_disallows_implicit_tail。 */
-  let fin_ref: i32 = ast_block_final_expr_ref(arena, body_ref);
-  if (ref_is_null(fin_ref)) {
+  /** 隐式尾判定：expr.kind 委托 pipeline_glue implicit_tail_expr_disallowed_by_glue（与 ast_expr_disallows_implicit_tail 一致）。 */
+  let tail_ref: i32 = func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);
+  if (ref_is_null(tail_ref)) {
     return false;
   }
-  if (ast_expr_disallows_implicit_tail(arena, fin_ref)) {
+  if (ast_expr_disallows_implicit_tail(arena, tail_ref)) {
     return false;
   }
   return true;
@@ -2091,6 +3092,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
             return -1;
           }
           if (!ref_is_null(ld0_ir) && !ref_is_null(ld0_tr)) {
+            typeck_coerce_init_expr_to_decl(arena, ld0_ir, ld0_tr);
             let init_ty_l: i32 = expr_type_ref(arena, ld0_ir);
             if (!ref_is_null(init_ty_l) && !type_refs_equal(arena, ld0_tr, init_ty_l)) {
               ctx.current_block_ref = saved_block_ref;
@@ -2099,7 +3101,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
           }
         }
       } else if (sk == 2) {
-        if (idx >= 0 && idx < nes && idx < 32) {
+        if (idx >= 0 && idx < nes) {
           let expr_s: i32 = ast_block_expr_stmt_ref(arena, block_ref, idx);
           if (check_expr(module, arena, expr_s, return_type_ref, ctx) != 0) {
             ctx.current_block_ref = saved_block_ref;
@@ -2108,7 +3110,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
         }
       } else if (sk == 3) {
         /* 与同文件 EXPR_IF 一致：须先 check_expr(cond) 为比较式等填入 bool，再 type_ref_is_bool。 */
-        if (idx >= 0 && idx < nlp && idx < 8) {
+        if (idx >= 0 && idx < nlp) {
           let wc: i32 = ast_block_while_cond_ref(arena, block_ref, idx);
           let wb: i32 = ast_block_while_body_ref(arena, block_ref, idx);
           if (!ref_is_null(wc)) {
@@ -2128,7 +3130,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
         }
       } else if (sk == 4) {
         /* for：先 init/step 子表达式可与 cond 并列检查；cond 须在 check_expr 之后再看是否为 bool */
-        if (idx >= 0 && idx < nfp && idx < 8) {
+        if (idx >= 0 && idx < nfp) {
           let fi_ir: i32 = ast_block_for_init_ref(arena, block_ref, idx);
           let fc_cr: i32 = ast_block_for_cond_ref(arena, block_ref, idx);
           let fs_sr: i32 = ast_block_for_step_ref(arena, block_ref, idx);
@@ -2158,7 +3160,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
         }
       } else if (sk == 5) {
         /* 语句级 if：与 EXPR_IF / sk==3while 同理，必须先 typeck 条件再断言 bool */
-        if (idx >= 0 && idx < nif && idx < 16) {
+        if (idx >= 0 && idx < nif) {
           let ic_cr: i32 = ast_block_if_cond_ref(arena, block_ref, idx);
           let ib_tr: i32 = ast_block_if_then_body_ref(arena, block_ref, idx);
           if (!ref_is_null(ic_cr)) {
@@ -2175,6 +3177,13 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
             ctx.current_block_ref = saved_block_ref;
             return -1;
           }
+          let ib_er: i32 = ast_block_if_else_body_ref(arena, block_ref, idx);
+          if (!ref_is_null(ib_er)) {
+            if (check_block(module, arena, ib_er, return_type_ref, ctx) != 0) {
+              ctx.current_block_ref = saved_block_ref;
+              return -1;
+            }
+          }
         }
       }
       si = si + 1;
@@ -2182,9 +3191,6 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
   } else {
   let i: i32 = 0;
   while (i < nc) {
-    if (i >= 64) {
-      break;
-    }
     let cd_ir: i32 = ast_block_const_init_ref(arena, block_ref, i);
     let cd_tr: i32 = ast_block_const_type_ref(arena, block_ref, i);
     if (check_expr(module, arena, cd_ir, return_type_ref, ctx) != 0) {
@@ -2202,9 +3208,6 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
   }
   i = 0;
   while (i < nl) {
-    if (i >= 64) {
-      break;
-    }
     let ld_ir: i32 = ast_block_let_init_ref(arena, block_ref, i);
     let ld_tr: i32 = ast_block_let_type_ref(arena, block_ref, i);
     if (check_expr(module, arena, ld_ir, return_type_ref, ctx) != 0) {
@@ -2212,6 +3215,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
       return -1;
     }
     if (!ref_is_null(ld_ir) && !ref_is_null(ld_tr)) {
+      typeck_coerce_init_expr_to_decl(arena, ld_ir, ld_tr);
       let init_ty: i32 = expr_type_ref(arena, ld_ir);
       if (!ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
         ctx.current_block_ref = saved_block_ref;
@@ -2222,9 +3226,6 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
   }
   i = 0;
   while (i < nlp) {
-    if (i >= 8) {
-      break;
-    }
     let w_cr: i32 = ast_block_while_cond_ref(arena, block_ref, i);
     let w_br: i32 = ast_block_while_body_ref(arena, block_ref, i);
     if (!ref_is_null(w_cr)) {
@@ -2245,9 +3246,6 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
   }
   i = 0;
   while (i < nfp) {
-    if (i >= 8) {
-      break;
-    }
     let fl_ir: i32 = ast_block_for_init_ref(arena, block_ref, i);
     let fl_cr: i32 = ast_block_for_cond_ref(arena, block_ref, i);
     let fl_sr: i32 = ast_block_for_step_ref(arena, block_ref, i);
@@ -2281,9 +3279,6 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
    * 否则会跳过外层 if/then（仅递归进入 then 的子块永远不发生），语义检查与 codegen 分叉。 */
   i = 0;
   while (i < nif) {
-    if (i >= 16) {
-      break;
-    }
     let ik_cr: i32 = ast_block_if_cond_ref(arena, block_ref, i);
     let ik_tr: i32 = ast_block_if_then_body_ref(arena, block_ref, i);
     if (!ref_is_null(ik_cr)) {
@@ -2299,6 +3294,13 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
     if (check_block(module, arena, ik_tr, return_type_ref, ctx) != 0) {
       ctx.current_block_ref = saved_block_ref;
       return -1;
+    }
+    let ik_er: i32 = ast_block_if_else_body_ref(arena, block_ref, i);
+    if (!ref_is_null(ik_er)) {
+      if (check_block(module, arena, ik_er, return_type_ref, ctx) != 0) {
+        ctx.current_block_ref = saved_block_ref;
+        return -1;
+      }
     }
     i = i + 1;
   }
@@ -2320,10 +3322,23 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
       ctx.current_block_ref = saved_block_ref;
       return -1;
     }
-    /* 仅当块末表达式类型已解析时才与 return_type_ref 比较；未解析（如跨模块 call 未解析到返回类型）时不判失败，避免库模块 std.io 等 typeck -5。 */
-    if (!ref_is_null(return_type_ref)) {
+    /* 块末 `return;`（无操作数）不是「有类型的尾表达式」，勿与 return_type_ref 做相等比较（已由 EXPR_RETURN 分支校验 void）。 */
+    /** 勿 `let fin_ex: Expr = ast_arena_expr_get`：大 struct 按值 + 字段访问在自举 asm 下 fail_at=51/55。 */
+    let skip_tail_ty_cmp: bool = false;
+    if (pipeline_expr_kind_ord_at(arena, fin0) == (41 as i32)) {
+      if (ref_is_null(pipeline_expr_unary_operand_ref_at(arena, fin0))) {
+        skip_tail_ty_cmp = true;
+      }
+    }
+    /* 仅当块末表达式类型已解析时才与 return_type_ref 比较；未解析时亦判失败（与 EXPR_RETURN 分支一致）。 */
+    if (!ref_is_null(return_type_ref) && !skip_tail_ty_cmp) {
       let got: i32 = expr_type_ref(arena, fin0);
-      if (!ref_is_null(got) && !type_refs_equal(arena, got, return_type_ref)) {
+      if (ref_is_null(got) || !type_refs_equal(arena, got, return_type_ref)) {
+        let eb_fin: *u8 = driver_typeck_diag_scratch_expect();
+        let gb_fin: *u8 = driver_typeck_diag_scratch_found();
+        let el_fin: i32 = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb_fin);
+        let gl_fin: i32 = typeck_diag_fmt_type_or_question(arena, got, gb_fin);
+        driver_diagnostic_typeck_return_mismatch(0, 0, eb_fin, el_fin, gb_fin, gl_fin);
         ctx.current_block_ref = saved_block_ref;
         return -1;
       }
@@ -2348,42 +3363,62 @@ function check_block(module: *Module, arena: *ASTArena, block_ref: i32, return_t
 }
 
 /**
+ * 为模块内各函数体补嵌套块 parent_block_ref（parser 分配子块时父 ref 尚为 0）；
+ * 供 ast_block_resolve_var_to_type_ref 在 if/while 体内解析外层 let/const。
+ */
+function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTArena): void {
+  let i: i32 = 0;
+  while (i < module.num_funcs) {
+    if (!ref_is_null(pipeline_module_func_body_ref_at(module, i))) {
+      ast_arena_patch_block_parent_links(arena, pipeline_module_func_body_ref_at(module, i), 0);
+    }
+    i = i + 1;
+  }
+}
+
+/**
  * 类型检查入口（内部）：在 main_func_index 已校验后调用，避免 codegen 将 funcs[main_func_index] 提升到 guard 前导致 panic。
- * 失败时返回负值：-1 is_extern，-2 body_ref null，-3 return_type_ref null，-4 ret_ty 非 i32/i64，-5 check_block 失败，-6 非 void 函数块末隐式返回值（缺显式 return）。
+ * 失败时返回负值：-1 is_extern，-2 body_ref null，-3 return_type_ref null，-4 ret_ty 非 i32/i64，-5 check_block 失败，-6 非 void 函数块末隐式返回值（缺显式 return），-7 struct §11.1 隐式 padding。
  */
 function typeck_su_ast_impl(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  let main_f: Func = module.funcs[module.main_func_index];
-  /* 仅当明确为 extern（is_extern==1 且无体）时报错；避免 C/.su 布局或未初始化使 is_extern 非 0 时误拒有体 main。 */
-  if (main_f.is_extern == 1 && ref_is_null(main_f.body_ref)) {
+  let mi: i32 = module.main_func_index;
+  /* 仅当明确为 extern（is_extern==1 且无体）时报错；避免 C/.su 布局或未初始化使 is_extern 非 0 时误拒有体 main。
+   * 禁止 let main_f: Func = module.funcs[mi]：Func 按值拷贝在自举 codegen 上会撕裂，导致 name/body_ref 等错乱。 */
+  if (pipeline_module_func_is_extern_at(module, mi) == 1 && ref_is_null(pipeline_module_func_body_ref_at(module, mi))) {
     return -1;
   }
-  if (ref_is_null(main_f.body_ref) && ref_is_null(main_f.body_expr_ref)) {
+  if (ref_is_null(pipeline_module_func_body_ref_at(module, mi)) && ref_is_null(pipeline_module_func_body_expr_ref_at(module, mi))) {
     return -2;
   }
-  if (ref_is_null(main_f.return_type_ref)) {
+  if (ref_is_null(pipeline_module_func_return_type_at(module, mi))) {
     return -3;
   }
-  let ret_ty: Type = ast_arena_type_get(arena, main_f.return_type_ref);
+  let ret_ty: Type = ast_arena_type_get(arena, pipeline_module_func_return_type_at(module, mi));
   if (ret_ty.kind != TypeKind.TYPE_I32 && ret_ty.kind != TypeKind.TYPE_I64) {
     return -4;
   }
+  if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
+    return -7;
+  }
+  typeck_patch_all_body_parent_links(module, arena);
   let i: i32 = 0;
   while (i < module.num_funcs) {
-    if (i >= 256) {
-      break;
-    }
     ctx.current_func_index = i;
-    let f: Func = module.funcs[i];
-    if (!ref_is_null(f.body_ref) && f.is_extern == 0) {
-      if (check_block(module, arena, f.body_ref, f.return_type_ref, ctx) != 0) {
-        driver_diagnostic_typeck_func_fail(i, &f.name[0], f.name_len, 0 - 5);
+    /* 禁止 let f: Func = module.funcs[i]：按值拷贝 Func 在自举路径上会抹掉 name 等字段（与 parser 注释一致）。 */
+    if (!ref_is_null(pipeline_module_func_body_ref_at(module, i)) && pipeline_module_func_is_extern_at(module, i) == 0) {
+      if (check_block(module, arena, pipeline_module_func_body_ref_at(module, i), pipeline_module_func_return_type_at(module, i), ctx) != 0) {
+        let fn_name_buf: [64]u8 = [];
+        pipeline_module_func_name_copy64(module, i, &fn_name_buf[0]);
+        driver_diagnostic_typeck_func_fail(i, &fn_name_buf[0], pipeline_module_func_name_len_at(module, i), 0 - 5);
         ctx.current_func_index = -1;
         return -5;
       }
-      if (!ref_is_null(f.return_type_ref)) {
-        let rt: Type = ast_arena_type_get(arena, f.return_type_ref);
-        if (rt.kind != TypeKind.TYPE_VOID && func_body_has_implicit_return_tail(arena, f.body_ref)) {
-          driver_diagnostic_typeck_func_fail(i, &f.name[0], f.name_len, 0 - 6);
+      if (!ref_is_null(pipeline_module_func_return_type_at(module, i))) {
+        let rt: Type = ast_arena_type_get(arena, pipeline_module_func_return_type_at(module, i));
+        if (rt.kind != TypeKind.TYPE_VOID && func_body_has_implicit_return_tail(arena, pipeline_module_func_body_ref_at(module, i))) {
+          let fn_name_buf2: [64]u8 = [];
+          pipeline_module_func_name_copy64(module, i, &fn_name_buf2[0]);
+          driver_diagnostic_typeck_func_fail(i, &fn_name_buf2[0], pipeline_module_func_name_len_at(module, i), 0 - 6);
           ctx.current_func_index = -1;
           return -6;
         }
@@ -2397,26 +3432,30 @@ function typeck_su_ast_impl(module: *Module, arena: *ASTArena, ctx: *PipelineDep
 
 /**
  * 库模块类型检查：无 main 时仅遍历所有有体函数做 check_block，供 -backend asm -o xxx.o 编库用。
- * 返回 0 通过；-5 check_block 失败；-6 非 void 函数块末隐式返回值。
+ * 返回 0 通过；-5 check_block 失败；-6 非 void 函数块末隐式返回值；-7 struct §11.1 隐式 padding。
  */
 function typeck_su_ast_library(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
+    return -7;
+  }
+  typeck_patch_all_body_parent_links(module, arena);
   let i: i32 = 0;
   while (i < module.num_funcs) {
-    if (i >= 256) {
-      break;
-    }
     ctx.current_func_index = i;
-    let f: Func = module.funcs[i];
-    if (!ref_is_null(f.body_ref) && f.is_extern == 0) {
-      if (check_block(module, arena, f.body_ref, f.return_type_ref, ctx) != 0) {
-        driver_diagnostic_typeck_func_fail(i, &f.name[0], f.name_len, 0 - 5);
+    if (!ref_is_null(pipeline_module_func_body_ref_at(module, i)) && pipeline_module_func_is_extern_at(module, i) == 0) {
+      if (check_block(module, arena, pipeline_module_func_body_ref_at(module, i), pipeline_module_func_return_type_at(module, i), ctx) != 0) {
+        let fn_name_lib: [64]u8 = [];
+        pipeline_module_func_name_copy64(module, i, &fn_name_lib[0]);
+        driver_diagnostic_typeck_func_fail(i, &fn_name_lib[0], pipeline_module_func_name_len_at(module, i), 0 - 5);
         ctx.current_func_index = -1;
         return -5;
       }
-      if (!ref_is_null(f.return_type_ref)) {
-        let rt2: Type = ast_arena_type_get(arena, f.return_type_ref);
-        if (rt2.kind != TypeKind.TYPE_VOID && func_body_has_implicit_return_tail(arena, f.body_ref)) {
-          driver_diagnostic_typeck_func_fail(i, &f.name[0], f.name_len, 0 - 6);
+      if (!ref_is_null(pipeline_module_func_return_type_at(module, i))) {
+        let rt2: Type = ast_arena_type_get(arena, pipeline_module_func_return_type_at(module, i));
+        if (rt2.kind != TypeKind.TYPE_VOID && func_body_has_implicit_return_tail(arena, pipeline_module_func_body_ref_at(module, i))) {
+          let fn_name_lib2: [64]u8 = [];
+          pipeline_module_func_name_copy64(module, i, &fn_name_lib2[0]);
+          driver_diagnostic_typeck_func_fail(i, &fn_name_lib2[0], pipeline_module_func_name_len_at(module, i), 0 - 6);
           ctx.current_func_index = -1;
           return -6;
         }
