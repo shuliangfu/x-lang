@@ -1,50 +1,144 @@
 # Shulang Language
 
-在 VS Code / Cursor 中为 `.su`（Shulang）提供语法高亮、语言配置和 LSP。
+VS Code / Cursor 中 `.su`（Shulang）语言的完整开发体验扩展。
 
-## 功能
+## 功能一览
 
-- **语法高亮**：关键字、类型、字面量、注释、字符串、运算符
-- **语言配置**：行/块注释、括号配对与自动闭合、折叠、单词边界
-- **文件图标**：`.su` 在编辑器和文件树中显示专用图标；可在「文件图标主题」中选择 **Shulang (.su)** 以在资源管理器中为 .su 使用该图标
-- **LSP**：诊断（问题面板）、转到定义、查找引用、悬停显示类型、**文档格式化**
+### 编辑器基础
 
-LSP 需要本机已安装 **shu**（Shulang 编译器），扩展会通过 `shu --lsp` 启动语言服务。
+- **语法高亮** — `function`/`struct`/`enum`/`trait`/`let`/`const`/`extern`/`import` 关键字分色；函数名/调用/结构体名/枚举变体/字段访问/标签/类型独立着色；注释/字符串/数字/运算符全覆盖
+- **代码片段** — 25 个 Snippets：`func`/`extern`/`main`/`struct`/`structp`/`enum`/`trait`/`impl`/`let`/`const`/`if`/`ife`/`while`/`for`/`loop`/`match`/`defer`/`return`/`break`/`continue`/`goto`/`panic`/`import`/`as`/`/**`
+- **实时缩进** — 打完 `{` 回车自动多缩进一级，输入 `}` 自动对齐匹配 `{`，`=>`/`->` 臂下一行额外缩进
+- **智能选区扩展** — `Ctrl+Shift+→` 逐级扩大选区：单词 → 整行 → `{}` 块 → 整个文档
+- **保存时格式化** — 默认开启，保存 `.su` 文件即自动格式化
+- **失去焦点格式化** — 切走编辑器时自动格式化上一个 `.su` 文档
+
+### 代码导航
+
+- **大纲视图** — 函数、结构体（含字段展开）、枚举（含变体展开）、trait、import
+- **面包屑导航** — 编辑器顶部显示当前所在函数 / 结构体层级
+- **语义折叠** — 按函数体、结构体、枚举、注释块独立折叠
+- **Import 可点击跳转** — `import lexer;` 中的模块路径 Ctrl+Click 直接打开对应 `.su` 源文件
+
+### 代码理解
+
+- **悬停提示** — 鼠标悬停函数名 → 签名 + 文档注释，悬停结构体名 → 全部字段，悬停变量 → 声明类型
+- **函数参数提示** — 输入 `func(` 自动弹出参数签名，`,` 切换高亮参数
+- **智能补全** — 上下文感知：关键字、当前文件函数/结构体/字段、类型名补全、模块路径补全
+- **CodeLens** — main 函数上方显示 `▶ Run`（点击运行），结构体显示字段数，枚举显示变体数
+- **状态栏统计** — 右下角实时显示当前文件的 `fn N · st N · en N` 计数
+
+### 构建与诊断
+
+- **构建任务** — `Ctrl+Shift+B` 一键 `shu build`，另有 `shu build（当前文件）`、`shu run`、`shu check`
+- **错误跳转** — 编译器输出 `parse error at 12:5: ...` / `typeck error: ... at 45:10` 自动解析到问题面板，点击跳转
+- **LSP** — 诊断、定义跳转、查找引用、Hover、格式化
+
+---
 
 ## 安装
 
-1. 按 **Ctrl+Shift+P**（Mac：**Cmd+Shift+P**），输入 **Install from VSIX**，选 **Extensions: Install from VSIX...**
-2. 选择本扩展的 `.vsix` 文件
-3. 按提示重载窗口
+1. `Ctrl+Shift+P`（Mac: `Cmd+Shift+P`），输入 **Extensions: Install from VSIX...**
+2. 选择 `.vsix` 文件
+3. 重载窗口
 
-或在 **扩展** 视图右上角 **⋯** 里选 **从 VSIX 安装...**，再选 `.vsix` 文件。
+---
 
 ## 配置
 
+`Ctrl+,` 打开设置，搜索 **Shulang**，共 27 个配置项，分为 5 组：
+
+### LSP 服务
 | 设置 | 说明 | 默认 |
 |------|------|------|
-| `shulang.serverPath` | shu 可执行文件路径 | `shu`（从 PATH 查找） |
+| `shulang.serverPath` | shu 可执行路径（默认 `compiler/shu`，相对工作区根目录） | `compiler/shu` |
+| `shulang.server.trace` | LSP 通信日志：`off` / `messages` / `verbose` | `off` |
+| `shulang.server.restartOnCrash` | 语言服务崩溃时自动重启 | `true` |
 
-shu 不在 PATH 时，在设置里搜 **Shulang**，把 **Shulang: Server Path** 设为 shu 的路径（绝对路径或相对工作区根，如 `compiler/shu`）。
+### 格式化
+| 设置 | 说明 | 默认 |
+|------|------|------|
+| `shulang.format.enabled` | 启用格式化 | `true` |
+| `shulang.format.tabSize` | 缩进空格数（1–16） | `2` |
+| `shulang.format.insertSpaces` | 使用空格而非 Tab | `true` |
+| `shulang.format.maxLineLength` | 行宽上限（20–512） | `100` |
+| `shulang.format.insertFinalNewline` | 文件末尾加换行 | `true` |
+| `shulang.format.trimTrailingWhitespace` | 清除行尾空格 | `true` |
+| `shulang.format.trimFinalNewlines` | 压缩末尾空行 | `true` |
 
-### 代码格式化
+### 功能开关
+| 设置 | 说明 | 默认 |
+|------|------|------|
+| `shulang.features.completion` | 智能补全（关键字/函数/结构体/字段/路径） | `true` |
+| `shulang.features.signatureHelp` | 函数参数签名提示 | `true` |
+| `shulang.features.hover` | 悬停提示 | `true` |
+| `shulang.features.codeLens` | CodeLens 行内提示 | `true` |
+| `shulang.features.symbols` | 大纲视图和面包屑导航 | `true` |
+| `shulang.features.folding` | 语义代码折叠 | `true` |
+| `shulang.features.documentLinks` | import 路径可点击跳转 | `true` |
+| `shulang.features.statusBar` | 状态栏符号统计 | `true` |
+| `shulang.features.formatOnType` | 实时缩进 | `true` |
+| `shulang.features.selectionRange` | 智能选区扩展 | `true` |
+| `shulang.features.formatOnBlur` | 失去焦点时自动格式化 | `true` |
 
-对 `.su` 文件可使用 **格式化文档**（右键 → 格式化文档，或快捷键）。扩展已为 `[su]` 设置默认格式化器；如需保存时自动格式化，在设置中为 `[su]` 开启 `editor.formatOnSave`。
+### 编译器
+| 设置 | 说明 | 默认 |
+|------|------|------|
+| `shulang.compiler.diagnosticLevel` | 诊断级别：`off` / `error` / `warning` / `info` | `warning` |
+| `shulang.compiler.extraArgs` | 额外命令行参数（数组） | `[]` |
+| `shulang.compiler.targetDir` | 编译器输出目录 | `""` |
+| `shulang.compiler.envJson` | 传递给 shu 的环境变量（JSON 字符串，如 `{"SHULANG_PATH":"/path"}`） | `{}` |
 
-格式化选项通过 LSP 的 `textDocument/formatting` 请求的 `params.options` 传入，可由支持传递 FormattingOptions 的客户端使用。支持的选项如下：
+---
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `tabSize` | 数字 | `2` | 每级缩进宽度（1–16），仅当 `insertSpaces` 为 true 时有效 |
-| `insertSpaces` | 布尔 | `true` | 使用空格缩进；为 false 时使用 Tab |
-| `maxLineLength` | 数字 | `100` | 每行最大字符数（20–512），超长时在空格处折行 |
-| `insertFinalNewline` | 布尔 | `true` | 为 true 时保证文件末尾有且仅有一个换行；为 false 时去掉末尾换行 |
-| `trimTrailingWhitespace` | 布尔 | `true` | 为 true 时去掉每行行尾空格/制表符；为 false 时保留 |
-| `trimFinalNewlines` | 布尔 | `true` | 为 true 时将文件末尾多余空行压成至多一个换行；为 false 时保留 |
+## 命令
 
-在 VS Code 中，`editor.tabSize`、`editor.insertSpaces` 等会由语言客户端传给 LSP；若需自定义行宽等，可在扩展或客户端侧在请求里附带上述 `options`。
+`Ctrl+Shift+P` 可执行：
+
+| 命令 | 说明 |
+|------|------|
+| **Shulang: 重启语言服务** | 强制重启 LSP |
+| **Shulang: 显示语言服务输出** | 打开 LSP 调试输出面板 |
+| **Shulang: 打开 Shulang 设置** | 跳转到 Shulang 设置页面 |
+| **Shulang: 运行当前 .su 文件** | `shu run` 当前文件 |
+
+---
+
+## 格式化触发方式
+
+| 触发方式 | 默认 | 配置 |
+|----------|------|------|
+| 手动格式化 | ✅ | `Shift+Option+F` 或右键 → 格式化文档 |
+| 保存时格式化 | ✅ 默认开启 | 设置搜 `[su]` → `Editor: Format On Save` |
+| 粘贴时格式化 | ✅ 默认开启 | 设置搜 `[su]` → `Editor: Format On Paste` |
+| 失去焦点格式化 | ✅ 默认开启 | `shulang.features.formatOnBlur` |
+
+---
+
+## 片段速查
+
+| 前缀 | 展开 |
+|------|------|
+| `func` | `function name(params): i32 { ... }` |
+| `extern` | `extern function name(params): i32;` |
+| `main` | `function main(): i32 { ... return 0; }` |
+| `struct` / `structp` | 结构体 / 带 `allow(padding)` 结构体 |
+| `enum` | `enum Name { VARIANT, }` |
+| `trait` / `impl` | trait 定义 / 实现 |
+| `let` / `const` | 变量 / 常量声明 |
+| `if` / `ife` | if / if-else |
+| `while` / `for` / `loop` | 循环 |
+| `match` | `match (expr) { Variant => ..., _ => ... }` |
+| `defer` | defer 块 |
+| `return` / `break` / `continue` | 控制流语句 |
+| `goto` / `panic` | 跳转 / 异常 |
+| `import` | `import module;` |
+| `as` | `expr as Type` |
+| `/**` | 文档注释 |
+
+---
 
 ## 要求
 
-- VS Code 或 Cursor（引擎 ^1.75.0）
-- 使用 LSP 时需本机可运行 shu
+- VS Code / Cursor `^1.75.0`
+- 使用 LSP 时需本机可运行 `shu`（PATH 中或通过 `shulang.serverPath` 指定路径）
