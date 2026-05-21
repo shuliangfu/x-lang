@@ -16,6 +16,23 @@ extern int lsp_diag_enabled;
 /** 清空当前收集的诊断条数。 */
 void lsp_diag_clear(void);
 
+/** 开始一次「仅收集、不写 stderr」的诊断会话（parse/typeck 路径会写入 lsp_diag_add）。 */
+void lsp_diag_collect_begin(void);
+
+/** 结束诊断收集会话。 */
+void lsp_diag_collect_end(void);
+
+/** .su 诊断路径：arena/module/PipelineDepCtx 一次性分配（体积大），指针在进程内常驻。 */
+void *lsp_diag_su_arena_ptr(void);
+void *lsp_diag_su_module_ptr(void);
+void *lsp_diag_su_ctx_ptr(void);
+
+/** 复位上述三块缓冲为全零，便于重复 parse_into/typeck（勿对池化 AST 调 ast_module_free）。 */
+void lsp_diag_su_reset_parse_buffers(void);
+
+/** 为 .su pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
+void lsp_diag_prepare_pipeline_ctx(void *ctx_void);
+
 /** 文档变更时由 lsp_io 调用，使模块与诊断缓存失效，避免旧模块指向已释放的文档缓冲。 */
 void lsp_diag_invalidate_cache(void);
 
@@ -26,10 +43,10 @@ void lsp_diag_add(int line, int col, int severity, const char *msg);
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 
 /**
- * 对 source[0..source_len-1] 跑 C parser，收集诊断，并构建完整 JSON-RPC 响应正文：
+ * 对 source[0..source_len-1] 跑 .su parse_into_buf + typeck_su_ast，收集诊断，构建完整 JSON-RPC 响应正文：
  * {"jsonrpc":"2.0","id":<id_val>,"result":<Diagnostic[] 的 JSON>}。
+ * 实现位于 lsp_diag.su（-E 生成 lsp_diag_gen.c）；与 C 缓存的 definition/hover 路径独立，调用前会使缓存失效。
  * 写入 out_buf，返回长度，失败或越界返回 -1。
- * 高性能：仅在此处跑一次解析，不在 didChange 时跑。
  */
 int lsp_build_diagnostics_response(int id_val, const uint8_t *source, int source_len,
                                    uint8_t *out_buf, int out_cap);
@@ -60,5 +77,22 @@ int lsp_build_definition_response(int id_val, const uint8_t *body, int body_len,
 int lsp_build_references_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
+
+/** textDocument/completion：返回 CompletionItem[] JSON；无模块或失败时 result 为 []。 */
+int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
+                                  const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
+
+/** textDocument/documentSymbol：返回 DocumentSymbol[] JSON；无模块时 result 为 []。 */
+int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body_len,
+                                       const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
+
+/** textDocument/semanticTokens/full：返回 SemanticTokens JSON；无模块时 result 为 {"data":[]}。 */
+int lsp_build_semantic_tokens_response(int id_val, const uint8_t *doc_buf, int doc_len,
+                                       uint8_t *out_buf, int out_cap);
+
+/** textDocument/rename：返回 WorkspaceEdit JSON；无匹配时 result 为 null。 */
+int lsp_build_rename_response(int id_val, const uint8_t *body, int body_len,
+                              const uint8_t *doc_buf, int doc_len,
+                              uint8_t *out_buf, int out_cap);
 
 #endif /* SHU_LSP_DIAG_H */
