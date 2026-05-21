@@ -11,7 +11,7 @@
 - **推荐（分轨全量）**：`./tests/run-all-c.sh`（全量用 C 版编译器 shu-c）、`./tests/run-all-su.sh`（全量用 .su 流水线编译器 shu_su）。CI 两条都跑，见 `.github/workflows/ci.yml`。
 - **通用脚本**：`./tests/run-all.sh` 跑全部 run-*.sh；通过环境变量 `SHU=compiler/shu-c` 或 `SHU=compiler/shu_su` 指定用哪支编译器，不设则用当前 `compiler/shu`。
 - **从零与 build_tool**：`make -C compiler build-tool` / `first-time` 仅用 **shu-c** 对 `../build.su` 做 `-E`（与 `lsp_*_gen` 同源，避免 Makefile 规则环）；仓库根 `./build.sh` 与 Makefile 一致（`-E` + `cc`，勿用 `shu ../build.su -o build_tool`）。`make -C compiler all` 默认同时产出 **shu** 与 **shu-c**。
-- 编译器目录：`make -C compiler test` 与上述等价（内部调 run-all）。
+- 编译器目录：`make -C compiler test` = `test_c`（委托 `./tests/run-all-c.sh`）+ `test_su`（`run-all-su.sh`）；`make test_c` 与 `run-all-c.sh` **等价**，勿再假定 Makefile 内联脚本列表。
 
 **不纳入回归的脚本**：`run-size-baseline.sh`、`run-perf-baseline.sh` 为可选体积/性能基线，需时单独执行。
 
@@ -35,6 +35,7 @@
 | `run-multi-file.sh` | 多文件编译与链接 | 正例 |
 | `run-multi-file-generic.sh` | 多文件 + 泛型 | 正例 |
 | `run-binary-expr.sh` | 二元运算：加减乘除取模、移位、位运算、比较、逻辑等 | 正例 |
+| `run-compound-assign.sh` | 复合赋值 +=、-=、*= 等 | 正例 |
 | `run-let-const.sh` | let/const 声明与常量表达式 | 正例 |
 | `run-bool.sh` | 布尔类型与 true/false | 正例 |
 | `run-if-expr.sh` | if/else、else if、无 else | 正例 |
@@ -62,9 +63,9 @@
 | `run-su-multi-file.sh` | 多文件 .su 流水线；无 pipeline 时 SKIP | 正例 / SKIP |
 | `run-asm.sh` | -backend asm 出汇编、.text/main/ret、可选 as+ld；无 asm 时 SKIP | 正例 / SKIP |
 | `run-without-c.sh` | 用 asm 路径构建 shu_asm 再跑全量测试（无 C 运行时）；无 asm 时 SKIP | 正例 / SKIP |
-| `run-vector.sh` | 向量 i32x4/u32x4/i32x16、0 与字面量初始化、逐分量加 | 正例 |
-| `run-fmt.sh` | core.fmt 格式化 | 正例 |
-| `run-debug.sh` | 调试/打印相关 | 正例 |
+| `run-vector.sh` | 向量 i32x4/u32x4/i32x16、0 与字面量初始化、逐分量加 | 正例（失败即 exit 1，不再 CI SKIP） |
+| `run-fmt.sh` | core.fmt 格式化 | 正例（失败即 exit 1） |
+| `run-debug.sh` | 调试/打印相关 | 正例（失败即 exit 1） |
 | `run-core-types.sh` | core 基础类型 | 正例 |
 | `run-builtin.sh` | 内建函数 | 正例 |
 | `run-mem.sh` | std.mem（Buffer、分配等） | 正例 |
@@ -79,6 +80,7 @@
 | `run-net.sh` | std.net 占位（Ipv4Addr、TcpStream、udp_recv_many_buf/udp_send_many_buf） | 正例 |
 | `run-io-driver.sh` | std.io.driver 占位（Buffer、submit、submit_*_batch_buf、register_fixed_buffers_buf） | 正例 |
 | `run-ub.sh` | 未定义行为收窄：除零、越界等应 panic | 正例 + 负例 |
+| `run-pool-limits.sh` | 侧车 grow 池边界：>16 形参、>64 实参、>96 stmt、>256 函数、>32 #if 深度、>24 局部、6/8 层嵌套 loop、>8 import select | 边界 |
 | `run-abi-layout.sh` | ABI/布局断言（layout_abi.c），与 analysis/ABI与布局.md 一致 | 正例 |
 | `run-lsp.sh` | LSP（shu --lsp）：initialize、didOpen、diagnostics、**textDocument/formatting**、shutdown/exit，校验 JSON-RPC 响应含 capabilities（含 documentFormattingProvider）、result 数组及格式化结果 newText | 正例 |
 
@@ -127,7 +129,7 @@ make test
 |------|------|
 | **FFI（extern function）** | `tests/run-ffi.sh` 已纳入 **run-all**（`tests/ffi/main.su`：cstr_len / cstring_new / cstring_free）。扩展覆盖时在 `tests/ffi/` 增例并加长脚本即可。 |
 | **return 操作数 vs 函数返回类型** | **`compiler/shu_su`** 或 **`shu-su`**：**`-su`** 跑 `tests/typeck/return_operand_type_mismatch.su` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.su`。宿主 **shu-c** 仍可能与 C typeck 宽松行为不完全一致。 |
-| **memory-contract / packed** | `memory-contract/packed_struct.su` 仍多由 abi 文档引用；**run-struct.sh** 已含 padding 负例；深测可单独加脚本。 |
+| **memory-contract / packed** | `run-struct.sh` 已含 `memory-contract/packed_struct.su` 正例；padding 负例同脚本。 |
 | **体积/性能基线** | run-size-baseline.sh、run-perf-baseline.sh 有意不纳入 run-all，需时单独执行。 |
 
 ### 5.3 结论
