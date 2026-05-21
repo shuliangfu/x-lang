@@ -1,0 +1,11 @@
+// check.su — shu check 子命令（尚未实现）
+// 符号名 driver_cmd_check：源码标识符 cmd_check + 模块前缀 driver_
+
+import ast;
+
+/** 未实现：返回 1。 */
+function cmd_check(argc: i32, argv: *u8): i32 {
+  let _a: i32 = argc;
+  let _v: *u8 = argv;
+  return 1;
+}
