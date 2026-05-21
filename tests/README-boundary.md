@@ -25,6 +25,8 @@
 | **trait** | 正例 main.su；负例 `method_no_impl.su`（对无 impl 的类型调用方法）。 |
 | **ub** | 边界/异常行为：`div_zero`、`bounds_array`、`bounds_slice` 预期 panic，`div_ok` 预期正常退出码。 |
 | **panic** | 预期非零退出（abort），`with_msg.su` 带消息。 |
+| **pool-limits** | grow 池边界：20 形参、65 实参、30 局部、100 block stmt、260 函数（fn259→42 避 exit 截断）、40 层 #if、20 struct 字段、6/8 层嵌套 loop、10 项 import select（`run-pool-limits.sh`）。 |
+| **compound-assign** | 复合赋值 +=/-=/*= 等（`run-compound-assign.sh`）。 |
 
 ---
 
