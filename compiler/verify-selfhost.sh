@@ -61,7 +61,7 @@ echo "  pipeline..."
 ./shu -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E -E-extern src/pipeline/pipeline.su > pipeline_gen.c && echo "    $(wc -l < pipeline_gen.c) lines"
 
 echo "  driver (main.su)..."
-./shu -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.su > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
+./shu -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.su > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
 
 # ── Step 2: Fix generated C files ───────────
 echo ""
