@@ -1,10 +1,10 @@
 // lsp.su — LSP 协议层（路线 A：用 .su 写，内置于 shu）
 //
 // 职责：从 stdin 读 JSON-RPC（Content-Length + 正文），解析 method 并分发；向 stdout 写响应。
-// 已实现：initialize（含 capabilities）、initialized、textDocument/didOpen、didChange、didSave、
-// textDocument/diagnostics（parse+typeck 诊断与缓存）、definition（跳转定义）、references（查找引用）、hover（悬停类型）、shutdown、exit。
-// 高性能：仅在收到 diagnostics 请求时跑解析，不在 didChange 时跑。
-// 依赖：lsp_io.su（std.io/std.heap：读消息、写、alloc、build_response_with_result）；C：文档缓冲、diagnostics/definition/references/hover/formatting 响应构建、InitializeResult。
+// 已实现：initialize（含 capabilities）、initialized、textDocument/didOpen、didChange、didSave、didClose、
+// textDocument/diagnostic（诊断缓存）、definition、references、hover、completion、documentSymbol、
+// semanticTokens、rename、shutdown、exit、$/cancelRequest、workspace/didChangeConfiguration。
+// 高性能：诊断有文档哈希缓存（不变则跳过重解析）。
 
 import lsp_io;
 
@@ -14,9 +14,17 @@ let LSP_BODY_CAP: i32 = 67108864;
 /** 读消息用的状态缓冲大小（4 + leftover 区）。 */
 let LSP_STATE_SIZE: i32 = 4 + 8192 * 2;
 
+/** 诊断 / 格式化响应堆缓冲容量（勿放入 lsp_main 栈：合计 >300KiB 会在 macOS 默认线程栈上溢出）。 */
+let LSP_DIAG_RESP_CAP: i32 = 32768;
+let LSP_REF_RESP_CAP: i32 = 8192;
+let LSP_FORMAT_RESP_CAP: i32 = 262144;
+
+/** read_message 状态区：定义在 lsp_state.c，避免栈上大数组。 */
+extern function lsp_state_buf_ptr(): *u8;
+
 /** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
 extern function lsp_build_initialize_result(out_buf: *u8, out_cap: i32): i32;
-/** 对 source 跑 C parser 收集诊断，构建完整 JSON-RPC 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
+/** 对 source 跑 .su pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
 extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 definition 请求 body 与当前文档构建 definition 响应（result: Location 或 null）；返回长度，失败 -1。 */
 extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
@@ -26,6 +34,16 @@ extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: 
 extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 formatting 请求 body 与当前文档构建格式化响应（result: TextEdit[]）；返回长度，失败 -1。 */
 extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 completion 请求 body 与当前文档构建补全响应（result: CompletionItem[]）；返回长度，失败 -1。 */
+extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 documentSymbol 请求与当前文档构建文档符号响应（result: DocumentSymbol[]）；返回长度，失败 -1。 */
+extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 semanticTokens/full 请求构建响应（result: SemanticTokens）；返回长度，失败 -1。 */
+extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 rename 请求 body + 文档构建 WorkspaceEdit 响应；失败返回 -1。 */
+extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 文档变更时使诊断哈希缓存失效。 */
+extern function lsp_diag_invalidate_cache(): void;
 /** 构建 JSON-RPC 响应外壳 {"jsonrpc":"2.0","id":<id>,"result":<result>}；仍由 lsp_io.c 提供（供 C 内 build_definition 等调用）。 */
 extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 didOpen/didChange 的 body 中提取文档并设为当前文档（仍由 lsp_io.c 维护）。 */
@@ -107,11 +125,95 @@ function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/diagnostics"；Client 请求诊断，需按 id 回复 result: []。 */
-function lsp_body_contains_diagnostics(body: *u8, len: i32): i32 {
+/** 在 body 中查找 "textDocument/diagnostic"（23 字节，LSP 规范单数）；Client 请求诊断，需按 id 回复 result。 */
+function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 97 && body[i+16] == 103 && body[i+17] == 110 && body[i+18] == 111 && body[i+19] == 115 && body[i+20] == 116 && body[i+21] == 105 && body[i+22] == 99 && body[i+23] == 115) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 97 && body[i+16] == 103 && body[i+17] == 110 && body[i+18] == 111 && body[i+19] == 115 && body[i+20] == 116 && body[i+21] == 105 && body[i+22] == 99) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 textDocument/completion（23 字符）；补全请求。
+function lsp_body_contains_completion(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 23 <= len) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 99 && body[i+14] == 111 && body[i+15] == 109 && body[i+16] == 112 && body[i+17] == 108 && body[i+18] == 101 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 111 && body[i+22] == 110) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 textDocument/documentSymbol（27 字符）；文档大纲符号请求。
+function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 27 <= len) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 111 && body[i+15] == 99 && body[i+16] == 117 && body[i+17] == 109 && body[i+18] == 101 && body[i+19] == 110 && body[i+20] == 116 && body[i+21] == 83 && body[i+22] == 121 && body[i+23] == 109 && body[i+24] == 98 && body[i+25] == 111 && body[i+26] == 108) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 textDocument/semanticTokens（28 字符）
+function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 28 <= len) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 115 && body[i+14] == 101 && body[i+15] == 109 && body[i+16] == 97 && body[i+17] == 110 && body[i+18] == 116 && body[i+19] == 105 && body[i+20] == 99 && body[i+21] == 84 && body[i+22] == 111 && body[i+23] == 107 && body[i+24] == 101 && body[i+25] == 110 && body[i+26] == 115) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 textDocument/rename（20 字符）
+function lsp_body_contains_rename(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 20 <= len) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 114 && body[i+14] == 101 && body[i+15] == 110 && body[i+16] == 97 && body[i+17] == 109 && body[i+18] == 101) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 textDocument/didClose（20 字符）；通知，无需响应。
+function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 20 <= len) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 100 && body[i+16] == 67 && body[i+17] == 108 && body[i+18] == 111 && body[i+19] == 115 && body[i+20] == 101) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 $/cancelRequest（14 字符）；通知，无需响应。
+function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 14 <= len) {
+    if (body[i] == 36 && body[i+1] == 47 && body[i+2] == 99 && body[i+3] == 97 && body[i+4] == 110 && body[i+5] == 99 && body[i+6] == 101 && body[i+7] == 108 && body[i+8] == 82 && body[i+9] == 101 && body[i+10] == 113 && body[i+11] == 117 && body[i+12] == 101 && body[i+13] == 115 && body[i+14] == 116) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 在 body 中查找 workspace/didChangeConfiguration（35 字符）；通知，无需响应。
+function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 35 <= len) {
+    if (body[i] == 119 && body[i+1] == 111 && body[i+2] == 114 && body[i+3] == 107 && body[i+4] == 115 && body[i+5] == 112 && body[i+6] == 97 && body[i+7] == 99 && body[i+8] == 101 && body[i+9] == 47 && body[i+10] == 100 && body[i+11] == 105 && body[i+12] == 100 && body[i+13] == 67 && body[i+14] == 104 && body[i+15] == 97 && body[i+16] == 110 && body[i+17] == 103 && body[i+18] == 101 && body[i+19] == 67 && body[i+20] == 111 && body[i+21] == 110 && body[i+22] == 102 && body[i+23] == 105 && body[i+24] == 103 && body[i+25] == 117 && body[i+26] == 114 && body[i+27] == 97 && body[i+28] == 116 && body[i+29] == 105 && body[i+30] == 111 && body[i+31] == 110) {
       return 1;
     }
     i = i + 1;
@@ -281,16 +383,23 @@ function lsp_main(): i32 {
   let out_buf: [4096]u8 = [];
   let shutdown_requested: i32 = 0;
   let id_buf: [32]u8 = [];
-  let diag_resp_buf: [32768]u8 = [];
-  let ref_resp_buf: [8192]u8 = [];
-  let format_resp_buf: [262144]u8 = [];
-  let state_buf: [16388]u8 = [];
+  let state_ptr: *u8 = lsp_state_buf_ptr();
+  let diag_ptr: *u8 = lsp_io.lsp_alloc(LSP_DIAG_RESP_CAP as usize);
+  let ref_ptr: *u8 = lsp_io.lsp_alloc(LSP_REF_RESP_CAP as usize);
+  let format_ptr: *u8 = lsp_io.lsp_alloc(LSP_FORMAT_RESP_CAP as usize);
+  if (lsp_io.lsp_is_null(state_ptr) != 0 || lsp_io.lsp_is_null(diag_ptr) != 0
+      || lsp_io.lsp_is_null(ref_ptr) != 0 || lsp_io.lsp_is_null(format_ptr) != 0) {
+    if (lsp_io.lsp_is_null(diag_ptr) == 0) { lsp_io.lsp_free(diag_ptr); }
+    if (lsp_io.lsp_is_null(ref_ptr) == 0) { lsp_io.lsp_free(ref_ptr); }
+    if (lsp_io.lsp_is_null(format_ptr) == 0) { lsp_io.lsp_free(format_ptr); }
+    return -1;
+  }
   while (true) {
     let body_ptr: *u8 = lsp_io.lsp_alloc(LSP_BODY_CAP as usize);
     if (lsp_io.lsp_is_null(body_ptr) != 0) {
       continue;
     }
-    let msg_len: isize = lsp_io.read_message(stdin_fd, body_ptr, LSP_BODY_CAP, &state_buf[0]);
+    let msg_len: isize = lsp_io.read_message(stdin_fd, body_ptr, LSP_BODY_CAP, state_ptr);
     if (msg_len < 0) {
       lsp_io.lsp_free(body_ptr);
       break;
@@ -316,6 +425,23 @@ function lsp_main(): i32 {
       continue;
     }
     if (lsp_body_contains_did_save(body_ptr, content_len) != 0) {
+      lsp_io.lsp_free(body_ptr);
+      continue;
+    }
+    if (lsp_body_contains_did_close(body_ptr, content_len) != 0) {
+      /* didClose：释放内部资源，无响应 */
+      lsp_diag_invalidate_cache();
+      lsp_io.lsp_free(body_ptr);
+      continue;
+    }
+    if (lsp_body_contains_cancel(body_ptr, content_len) != 0) {
+      /* $/cancelRequest：通知，无响应 */
+      lsp_io.lsp_free(body_ptr);
+      continue;
+    }
+    if (lsp_body_contains_did_change_config(body_ptr, content_len) != 0) {
+      /* workspace/didChangeConfiguration：通知，无响应，但需使缓存失效 */
+      lsp_diag_invalidate_cache();
       lsp_io.lsp_free(body_ptr);
       continue;
     }
@@ -354,10 +480,10 @@ function lsp_main(): i32 {
     if (req_id >= 0) {
       let empty_arr: [2]u8 = [91, 93];
       let null_val: [4]u8 = [110, 117, 108, 108];
-      if (lsp_body_contains_diagnostics(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_diagnostics_response(req_id, doc_ptr, doc_len, diag_resp_buf, 32768);
+      if (lsp_body_contains_diagnostic(body_ptr, content_len) != 0) {
+        let resp_len: i32 = lsp_build_diagnostics_response(req_id, doc_ptr, doc_len, diag_ptr, LSP_DIAG_RESP_CAP);
         if (resp_len > 0) {
-          lsp_send_response(stdout_fd, diag_resp_buf, resp_len);
+          lsp_send_response(stdout_fd, diag_ptr, resp_len);
         } else {
           let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
           if (fallback_len > 0) {
@@ -381,9 +507,9 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_references(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_references_response(req_id, body_ptr, content_len, doc_ptr, doc_len, ref_resp_buf, 8192);
+        let resp_len: i32 = lsp_build_references_response(req_id, body_ptr, content_len, doc_ptr, doc_len, ref_ptr, LSP_REF_RESP_CAP);
         if (resp_len > 0) {
-          lsp_send_response(stdout_fd, ref_resp_buf, resp_len);
+          lsp_send_response(stdout_fd, ref_ptr, resp_len);
         } else {
           let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
           if (fallback_len > 0) {
@@ -407,11 +533,63 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_formatting(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_formatting_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_resp_buf, 262144);
+        let resp_len: i32 = lsp_build_formatting_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
-          lsp_send_response(stdout_fd, format_resp_buf, resp_len);
+          lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
           let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          if (fallback_len > 0) {
+            lsp_send_response(stdout_fd, out_buf, fallback_len);
+          }
+        }
+        lsp_io.lsp_free(body_ptr);
+        continue;
+      }
+      if (lsp_body_contains_completion(body_ptr, content_len) != 0) {
+        let resp_len: i32 = lsp_build_completion_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        if (resp_len > 0) {
+          lsp_send_response(stdout_fd, format_ptr, resp_len);
+        } else {
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          if (fallback_len > 0) {
+            lsp_send_response(stdout_fd, out_buf, fallback_len);
+          }
+        }
+        lsp_io.lsp_free(body_ptr);
+        continue;
+      }
+      if (lsp_body_contains_document_symbol(body_ptr, content_len) != 0) {
+        let resp_len: i32 = lsp_build_document_symbol_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        if (resp_len > 0) {
+          lsp_send_response(stdout_fd, format_ptr, resp_len);
+        } else {
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          if (fallback_len > 0) {
+            lsp_send_response(stdout_fd, out_buf, fallback_len);
+          }
+        }
+        lsp_io.lsp_free(body_ptr);
+        continue;
+      }
+      if (lsp_body_contains_semantic_tokens(body_ptr, content_len) != 0) {
+        let resp_len: i32 = lsp_build_semantic_tokens_response(req_id, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        if (resp_len > 0) {
+          lsp_send_response(stdout_fd, format_ptr, resp_len);
+        } else {
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          if (fallback_len > 0) {
+            lsp_send_response(stdout_fd, out_buf, fallback_len);
+          }
+        }
+        lsp_io.lsp_free(body_ptr);
+        continue;
+      }
+      if (lsp_body_contains_rename(body_ptr, content_len) != 0) {
+        let resp_len: i32 = lsp_build_rename_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        if (resp_len > 0) {
+          lsp_send_response(stdout_fd, format_ptr, resp_len);
+        } else {
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf, 4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -422,5 +600,8 @@ function lsp_main(): i32 {
     }
     lsp_io.lsp_free(body_ptr);
   }
+  lsp_io.lsp_free(diag_ptr);
+  lsp_io.lsp_free(ref_ptr);
+  lsp_io.lsp_free(format_ptr);
   return 0;
 }
