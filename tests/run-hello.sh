@@ -6,6 +6,17 @@
 set -e
 cd "$(dirname "$0")/.."
 SHU=${SHU:-./compiler/shu}
+
+# 探测二进制是否编译了 -su（链 pipeline）；默认 make 的 compiler/shu 仅有 C 前端时会报 unknown option。
+shu_cli_supports_su() {
+  local o
+  o=$("$1" -su 2>&1) || true
+  case "$o" in
+    *"unknown option"*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 # check-7.2 的 shu_stage1/2 对 hello 走 -su 时 .su typeck 尚未全覆盖；有同目录 shu-c 时 hello 改由 C 前端编译，与默认全量回归一致。
 HELLO_COMPILE_SHU="$SHU"
 case "${SHU##*/}" in
@@ -19,7 +30,7 @@ if [ -n "${RUN_ALL_USE_C:-}" ]; then
   make -C compiler -q all 2>/dev/null || make -C compiler all
   "$HELLO_COMPILE_SHU" examples/hello.su -o /tmp/shu_hello
 else
-  if [[ "$HELLO_COMPILE_SHU" == *shu-c* ]]; then
+  if [[ "$HELLO_COMPILE_SHU" == *shu-c* ]] || ! shu_cli_supports_su "$HELLO_COMPILE_SHU"; then
     "$HELLO_COMPILE_SHU" examples/hello.su -o /tmp/shu_hello
   else
     # 使用 .su 流水线时禁止把生成的 C 打到终端（重定向 stdout，保留 stderr）
