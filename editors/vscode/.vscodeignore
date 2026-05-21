@@ -3,7 +3,6 @@ README.md
 *.md
 .git*
 .vscode/**
-node_modules/**
 src/**
 tsconfig.json
 *.ts
