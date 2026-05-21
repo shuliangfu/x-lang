@@ -13,6 +13,8 @@ import * as vscode from 'vscode';
 import type { LanguageClient, Trace } from 'vscode-languageclient/node';
 
 import { resolveServerCommand } from './shuPath';
+import { readEnvJsonSetting, readExtraArgsSetting, readLibRootsSetting } from './configSettings';
+import { getLibRootsEnvColon } from './importResolve';
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
@@ -40,41 +42,22 @@ function traceFromString(s: string): Trace {
   }
 }
 
-/** 读取 shulang.compiler.envJson，构造进程 env */
+/** 读取 shulang.compiler.envJson 与 libRoots，构造 LSP 进程 env */
 function buildServerEnv(): Record<string, string> | undefined {
   const config = vscode.workspace.getConfiguration('shulang');
-  const raw = config.get<string>('compiler.envJson', '{}').trim();
-  if (!raw || raw === '{}') {
-    return undefined;
+  const env: Record<string, string> = { ...(process.env as Record<string, string>) };
+  env.SHULANG_LSP_LIB_ROOTS = getLibRootsEnvColon();
+
+  const envObj = readEnvJsonSetting(config, outputChannel);
+  if (Object.keys(envObj).length > 0) {
+    Object.assign(env, envObj);
   }
-  try {
-    const envObj = JSON.parse(raw) as Record<string, string>;
-    if (!envObj || typeof envObj !== 'object' || Object.keys(envObj).length === 0) {
-      return undefined;
-    }
-    return { ...(process.env as Record<string, string>), ...envObj };
-  } catch {
-    outputChannel?.appendLine('[Shulang] compiler.envJson 不是合法 JSON，已忽略。');
-    return undefined;
-  }
+  return env;
 }
 
-/** 解析 shulang.compiler.extraArgs JSON 字符串为参数数组 */
+/** 解析 shulang.compiler.extraArgs 为参数数组 */
 function parseExtraArgs(config: vscode.WorkspaceConfiguration): string[] {
-  const raw = config.get<string>('compiler.extraArgs', '[]').trim();
-  if (!raw || raw === '[]') {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((item): item is string => typeof item === 'string');
-  } catch {
-    outputChannel?.appendLine('[Shulang] compiler.extraArgs 不是合法 JSON 数组，已忽略。');
-    return [];
-  }
+  return readExtraArgsSetting(config, outputChannel);
 }
 
 /** 构造 shu --lsp 参数列表 */
@@ -114,10 +97,11 @@ function snapshotServerConfig(): string {
   const config = vscode.workspace.getConfiguration('shulang');
   return JSON.stringify({
     serverPath: config.get<string>('serverPath', 'shu'),
-    extraArgs: config.get<string>('compiler.extraArgs', '[]'),
+    extraArgs: readExtraArgsSetting(config),
+    libRoots: readLibRootsSetting(config),
     diagnosticLevel: config.get<string>('compiler.diagnosticLevel', 'warning'),
     targetDir: config.get<string>('compiler.targetDir', ''),
-    envJson: config.get<string>('compiler.envJson', '{}'),
+    envJson: readEnvJsonSetting(config),
     trace: config.get<string>('server.trace', 'off'),
   });
 }
@@ -426,24 +410,30 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
         const newConfig = vscode.workspace.getConfiguration('shulang');
         const prev = JSON.parse(prevSnapshot ?? '{}') as Record<string, unknown>;
+        const nextExtraArgs = readExtraArgsSetting(newConfig);
+        const nextLibRoots = readLibRootsSetting(newConfig);
+        const nextEnvJson = readEnvJsonSetting(newConfig);
 
         if (prev.trace !== newConfig.get<string>('server.trace', 'off')) {
           client?.setTrace(traceFromString(newConfig.get<string>('server.trace', 'off')));
         }
 
         if (
-          prev.extraArgs !== newConfig.get<string>('compiler.extraArgs', '[]') ||
-          e.affectsConfiguration('shulang.compiler')
+          JSON.stringify(prev.extraArgs) !== JSON.stringify(nextExtraArgs) ||
+          JSON.stringify(prev.libRoots) !== JSON.stringify(nextLibRoots) ||
+          e.affectsConfiguration('shulang.compiler') ||
+          e.affectsConfiguration('shulang.features')
         ) {
           codeLensProvider?.refresh();
         }
 
         const restartKeysChanged =
           prev.serverPath !== newConfig.get<string>('serverPath', 'shu') ||
-          prev.extraArgs !== newConfig.get<string>('compiler.extraArgs', '[]') ||
+          JSON.stringify(prev.extraArgs) !== JSON.stringify(nextExtraArgs) ||
+          JSON.stringify(prev.libRoots) !== JSON.stringify(nextLibRoots) ||
           prev.diagnosticLevel !== newConfig.get<string>('compiler.diagnosticLevel', 'warning') ||
           prev.targetDir !== newConfig.get<string>('compiler.targetDir', '') ||
-          prev.envJson !== newConfig.get<string>('compiler.envJson', '{}');
+          JSON.stringify(prev.envJson) !== JSON.stringify(nextEnvJson);
 
         if (restartKeysChanged) {
           void vscode.window
