@@ -24,14 +24,18 @@ send_lsp() {
 # 用 Python 做 JSON 转义（若不可用则用内联写死的短文档）
 if command -v python3 >/dev/null 2>&1; then
   DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/main.su').read()))")
+  DEF_DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/def_call.su').read()))")
 else
   DOC_JSON='"function main(): i32 { return 0; }"'
+  DEF_DOC_JSON='"function helper(): i32 { return 1; } function main(): i32 { return helper(); }"'
 fi
 
 INIT_REQ='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}'
 DID_OPEN='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/main.su","languageId":"su","version":1,"text":'"$DOC_JSON"'}}}'
+DID_OPEN_DEF='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.su","languageId":"su","version":1,"text":'"$DEF_DOC_JSON"'}}}'
 DIAG_REQ='{"jsonrpc":"2.0","id":2,"method":"textDocument/diagnostics","params":{"textDocument":{"uri":"file:///tests/lsp/main.su"}}}'
 FMT_REQ='{"jsonrpc":"2.0","id":4,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///tests/lsp/main.su"},"options":{"tabSize":2,"insertSpaces":true,"maxLineLength":100}}}'
+DEF_REQ='{"jsonrpc":"2.0","id":5,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.su"},"position":{"line":6,"character":9}}}'
 SHUTDOWN='{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
 EXIT_NOTIF='{"jsonrpc":"2.0","method":"exit"}'
 
@@ -46,15 +50,25 @@ trap "rm -f $OUT $ERR $LSP_IN" EXIT
   send_lsp "$DID_OPEN"
   send_lsp "$DIAG_REQ"
   send_lsp "$FMT_REQ"
+  send_lsp "$DID_OPEN_DEF"
+  send_lsp "$DEF_REQ"
   send_lsp "$SHUTDOWN"
   send_lsp "$EXIT_NOTIF"
 } >"$LSP_IN"
 # 调试 stdin 每次 read 的请求/返回字节数：LSP_READ_DEBUG=1 时 LSP 的 stderr 会打 io_read 日志
 # timeout 为 GNU coreutils，macOS 默认无；无 timeout 时直接运行，避免 exit 127
+LSP_EC=0
 if command -v timeout >/dev/null 2>&1; then
-  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" timeout 5 "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT"; true
+  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" timeout 5 "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 else
-  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT"; true
+  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+fi
+# 124 = timeout 且已有部分响应时可接受；0 为正常；其余为失败
+if [ "$LSP_EC" -ne 0 ] && [ "$LSP_EC" -ne 124 ]; then
+  echo "LSP test FAIL: shu --lsp exit $LSP_EC" >&2
+  [ -s "$ERR" ] && cat "$ERR" >&2
+  [ -s "$OUT" ] && cat "$OUT"
+  exit 1
 fi
 if [ -n "${LSP_READ_DEBUG:-}" ]; then
   echo "LSP stderr (LSP_READ_DEBUG):" >&2
@@ -92,6 +106,12 @@ fi
 # formatting 的 result 应为 TextEdit 数组，且含 newText
 if ! grep -q '"newText":' "$OUT"; then
   echo "LSP test FAIL: formatting response missing newText"
+  cat "$OUT"
+  exit 1
+fi
+# definition 烟测：helper() 调用应解析到 def_call.su 内 helper 定义（非 null）
+if ! grep -q '"id":5' "$OUT" || ! grep -q '"line":0' "$OUT"; then
+  echo "LSP test FAIL: definition response missing expected helper location"
   cat "$OUT"
   exit 1
 fi
