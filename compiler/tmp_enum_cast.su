@@ -1,9 +1,0 @@
-enum E {
-    A,
-    B,
-}
-
-function f(): i32 {
-    let x: E = (0 as E);
-    return (x as i32);
-}
