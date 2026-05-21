@@ -1,0 +1,80 @@
+/**
+ * lsp_diag_pipeline_sizes.c — 仅为 lsp_diag.c 提供 ASTArena / Module / PipelineDepCtx 的 sizeof。
+ *
+ * 须与 ast.su 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
+ */
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+enum ast_TypeKind { ast_TypeKind_TYPE_I32 };
+enum ast_ExprKind { ast_ExprKind_EXPR_LIT };
+struct ast_Type { int32_t kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; };
+struct ast_Expr { int32_t kind; };
+struct ast_Block { int32_t const_base; int32_t num_consts; };
+struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; };
+
+/** 瘦身后 Module：import/struct/top_level/enum 在 C grow pool。 */
+struct ast_Module {
+  int32_t num_funcs;
+  int32_t main_func_index;
+  int32_t num_imports;
+  int32_t num_top_level_lets;
+  int32_t num_struct_layouts;
+  int32_t pending_allow_padding;
+  int32_t num_module_enums;
+};
+
+/** 瘦身后 ASTArena：主池在 C grow pool。 */
+struct ast_ASTArena {
+  int32_t num_types;
+  int32_t num_exprs;
+  int32_t num_blocks;
+  int32_t num_funcs;
+};
+
+struct ast_PipelineDepCtx {
+  int32_t ndep;
+  uint8_t entry_dir_buf[512];
+  int32_t entry_dir_len;
+  int32_t num_lib_roots;
+  uint8_t path_buf[512];
+  uint8_t loaded_buf[4194304];
+  ptrdiff_t loaded_len;
+  uint8_t preprocess_buf[4194304];
+  int32_t preprocess_len;
+  int32_t use_asm_backend;
+  int32_t target_arch;
+  int32_t use_macho_o;
+  int32_t use_coff_o;
+  int32_t current_block_ref;
+  int32_t current_func_index;
+  int32_t skip_codegen_dep_0;
+  int32_t entry_already_parsed;
+  int32_t current_func_single_empty_param_index;
+  int32_t current_func_empty_param_count;
+  int32_t current_emit_empty_var_next_index;
+  int32_t emit_expr_as_callee;
+  struct ast_Module *current_codegen_module;
+  struct ast_ASTArena *current_codegen_arena;
+  int32_t current_codegen_dep_index;
+  uint8_t current_codegen_prefix_mirror[64];
+  int32_t current_codegen_prefix_len;
+  int32_t asm_entry_module_only;
+  uint8_t entry_module_import_path_mirror[64];
+  int32_t entry_module_import_path_len;
+};
+
+size_t lsp_diag_pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
+size_t lsp_diag_pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
+size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
+
+/** shu-c 链接用弱符号占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。 */
+__attribute__((weak)) void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
+                                                            const char **lib_roots, int n_lib_roots) {
+    (void)ctx_void;
+    (void)entry_dir;
+    (void)lib_roots;
+    (void)n_lib_roots;
+}
