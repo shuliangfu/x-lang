@@ -35,10 +35,8 @@ function register(buf: Buffer): i32 {
   return shu_io_register(buf.ptr, buf.len, buf.handle);
 }
 
-// ——— 预注册固定 buffer 池（最多 4 块）：(p0,l0)..(p3,l3) 为 (ptr,len) 对，nr 为实际数量 1..4。返回 1 成功，0 失败。———
-function register_fixed_buffers(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
-  return shu_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
-}
+// register_fixed_buffers / wait_readable / placeholder 在 std.io（mod.su）中提供；
+// asm 后端将 std.io 与 std.io.driver 合并进同一 .o 时，此处若再定义会与 mod 重复符号。
 
 // ——— 与 Zig/Rust 对齐：按「指针+块数」注册固定 buffer 池；bufs 指向至少 nr 个 Buffer（ptr/len 有效），nr 为 1..8（IO_FIXED_MAX）。C 侧 io_register_buffers_buf。 ———
 extern function io_register_buffers_buf(bufs: *Buffer, nr: i32): i32;
@@ -94,10 +92,4 @@ function submit_write_batch_buf(handle: usize, bufs: *Buffer, n: i32, timeout_ms
   return (r as i32);
 }
 
-// ——— 多 fd 就绪等待：fds 指向 n 个 i32（fd），一次系统调用等待任意可读。返回就绪下标 0..n-1，超时/错误 -1。n 建议 ≤8。———
-function wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
-  return shu_io_wait_readable(fds, n, timeout_ms);
-}
-
-// 占位，表示本模块可 import
-function placeholder(): i32 { return 0; }
+// register_fixed_buffers、wait_readable、placeholder 均由 std.io（mod.su）导出；本层不再重复定义，避免 asm 合并 dep 进单 .o 时重复符号。
