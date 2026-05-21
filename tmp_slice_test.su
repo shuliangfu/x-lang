@@ -1,9 +1,0 @@
-function use_slice(buf: []u8): i32 {
-  let p: *u8 = buf.data;
-  let n: usize = buf.length;
-  return 0;
-}
-
-function m(): i32 {
-  return 0;
-}
