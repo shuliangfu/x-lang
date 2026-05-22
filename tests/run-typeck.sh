@@ -25,15 +25,8 @@ expect_typeck_error() {
   echo "$err" | grep -q "typeck error" || { echo "expected typeck error in $file (e.g. $msg), got: $err"; exit 1; }
 }
 if [ -n "$SHU" ]; then
-  # test_c 传 SHU=./compiler/shu-c 时用其跑负例以得 typeck error；test_su 不传 SHU 时用 compiler/shu
   TYPECK_SHU="$SHU"
-  # check-7.2 的 shu_stage1/2/shu-su：带 -o 的 typeck 负例在部分 .su 单文件路径与 C typeck 未完全对齐时使用 shu-c 跑负例，避免误 PASS。
-  case "${SHU##*/}" in
-    shu_stage1|shu_stage2|shu-su|shu_su)
-      if [ -x ./compiler/shu-c ]; then TYPECK_SHU=./compiler/shu-c; fi
-      ;;
-  esac
-  # SU 宿主（shu_su / shu-su）：赋值 for-step 负例须在本地 -su 流水线上报与 shu-c 同源的行（grep 短语）；其余负例仍由 TYPECK_SHU 兜底
+  # SU 宿主（shu_su / shu-su）：赋值 for-step 负例须在本地 -su 流水线上报与 shu-c 同源的行（grep 短语）；其余负例走 .su typeck（与 shu-c 对齐，不再回退 C 前端）。
   case "${SHU##*/}" in
     shu-su|shu_su)
       err_assign_su=$("$SHU" -su tests/typeck/type_mismatch_assign.su 2>&1) || true
