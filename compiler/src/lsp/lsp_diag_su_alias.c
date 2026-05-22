@@ -30,6 +30,18 @@ int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line
   return typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
 }
 
+/** bootstrap driver：强符号覆盖 lsp_diag.c 内 weak 实现，统一走 parse_into_buf。 */
+int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
+  return (int)typeck_lsp_diag_hover_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0,
+                                       (uint8_t *)out_buf, (int32_t)out_cap);
+}
+
+int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
+                      int *out_lines, int *out_cols, int max_refs) {
+  return (int)typeck_lsp_diag_references_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0,
+                                            (int32_t *)out_lines, (int32_t *)out_cols, (int32_t)max_refs);
+}
+
 /* semanticTokens/full：lsp_diag.su -E 产出 typeck_ 前缀，lsp.su 期望无前缀名。 */
 extern int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
                                                           uint8_t *out_buf, int32_t out_cap);
