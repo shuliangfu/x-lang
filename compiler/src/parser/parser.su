@@ -174,6 +174,8 @@ allow(padding) struct OneFuncResult {
   return_var_name_len: i32;
   /** 非 0：return 子表达式已在 arena（如 return foo(buffers[0].ptr,1)）；parse_into 用其作 final，勿再走 has_call_expr。 */
   return_expr_ref: i32;
+  /** true：函数体经 `return` 关键字结束（含 return 1 / return call），非 `{ 0 }` 裸尾式；供 parse_into 决定是否包 EXPR_RETURN。 */
+  has_explicit_return_kw: bool;
   /** 有参调用时解析得到的实参个数（如 return add(1,2) 为 2）；0 表示无参或沿用当前函数形参个数 */
   call_num_args: i32;
   /** 块内 while 循环数（侧车池缓存计数，由 pipeline_onefunc_num_whiles 同步） */
@@ -497,6 +499,7 @@ function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): void {
     rvni = rvni + 1;
   }
   dst.return_expr_ref = src.return_expr_ref;
+  dst.has_explicit_return_kw = src.has_explicit_return_kw;
   dst.has_call_expr = src.has_call_expr;
   dst.call_callee_len = src.call_callee_len;
   let cci: i32 = 0;
@@ -628,6 +631,7 @@ function onefunc_snap_set_return_path(
   snap.has_call_expr = has_call;
   snap.return_var_name_len = ret_var_len;
   snap.return_expr_ref = ret_expr_ref;
+  snap.has_explicit_return_kw = true;
   let rvni: i32 = 0;
   while (rvni < 64) {
     snap.return_var_name[rvni] = ret_var[rvni];
@@ -700,6 +704,24 @@ function expr_set_common_zeros(e: *ast.Expr): void {
 }
 
 /**
+ * loop { } 等价 while (true)：分配 EXPR_BOOL_LIT(1) 作为 while 条件 ref；失败返回 0。
+ */
+function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
+  let ref: i32 = ast_arena_expr_alloc(arena);
+  if (ref == 0) {
+    return 0;
+  }
+  let e: Expr = ast_arena_expr_get(arena, ref);
+  e.kind = ExprKind.EXPR_BOOL_LIT;
+  e.int_val = 1;
+  e.line = 0;
+  e.col = 0;
+  expr_set_common_zeros(&e);
+  ast_arena_expr_set(arena, ref, e);
+  return ref;
+}
+
+/**
  * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回 inner_ref）。
  * 供 `return ident` 与块尾 wrap_tail 共用，避免 final_expr 落成 EXPR_VAR 触发 typeck 隐式尾返回 -6。
  * alloc 失败或 inner_ref 无效时返回 0。
@@ -726,6 +748,23 @@ function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inner_ref: 
   rwe.unary_operand_ref = inner_ref;
   ast_arena_expr_set(arena, wrap, rwe);
   return wrap;
+}
+
+/**
+ * 非 void 函数体 final_expr 是否须包 EXPR_RETURN：显式 return 关键字/return_expr_ref/return ident；裸 `{ 0 }` 不包。
+ */
+function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncResult, type_ref: i32): bool {
+  if (res.return_expr_ref == 0 && res.return_var_name_len == 0 && !res.has_explicit_return_kw) {
+    return false;
+  }
+  if (ref_is_null(type_ref)) {
+    return false;
+  }
+  let rtw: Type = ast_arena_type_get(arena, type_ref);
+  if (rtw.kind == TypeKind.TYPE_VOID) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -2287,6 +2326,39 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: []u
       }
       b = ast_arena_block_get(arena, block_ref);
       lex_cur = r.next_lex;
+      lexer_next_into(&r, lex_cur, source);
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_LOOP) {
+      lex_from_next_into(&lex_cur, r);
+      lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        out.ok = false;
+        return;
+      }
+      lex_cur = r.next_lex;
+      let cond_ref_blk: i32 = parser_alloc_true_bool_lit(arena);
+      if (cond_ref_blk == 0) {
+        out.ok = false;
+        return;
+      }
+      let block_res_blk: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      parse_block_into(arena, lex_cur, source, type_ref, &block_res_blk);
+      if (!block_res_blk.ok) {
+        out.ok = false;
+        return;
+      }
+      let while_idx_blk: i32 = pipeline_block_append_while(arena, block_ref, cond_ref_blk, block_res_blk.block_ref);
+      if (while_idx_blk < 0) {
+        out.ok = false;
+        return;
+      }
+      if (pipeline_block_append_stmt_order(arena, block_ref, 3, while_idx_blk) < 0) {
+        out.ok = false;
+        return;
+      }
+      b = ast_arena_block_get(arena, block_ref);
+      lex_cur = block_res_blk.next_lex;
       lexer_next_into(&r, lex_cur, source);
       continue;
     }
@@ -3856,8 +3928,9 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     out.num_src_body_expr_stmts = 0;
     parse_body_lets_into(arena, lex, source, out, &lex);
     out.num_lets = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
+    /** 将 { 后连续 let 写入 stmt_order；须用 out.num_lets（impl_snap 侧车池未参与 parse_body_lets_into，其 num_lets 恒为 0）。 */
     let lsr: i32 = 0;
-    while (lsr < impl_snap.num_lets) {
+    while (lsr < out.num_lets) {
       onefunc_push_src_stmt(out, 1, lsr);
       lsr = lsr + 1;
     }
@@ -3889,6 +3962,32 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
           onefunc_push_src_stmt(out, 1, push_mi);
           push_mi = push_mi + 1;
         }
+        lexer_next_into(&r, lex, source);
+        continue;
+      }
+      if (r.tok.kind == TokenKind.TOKEN_LOOP) {
+        lex_from_next_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+          set_onefunc_fail(out, lex); return;
+        }
+        lex = r.next_lex;
+        let cond_ref_loop: i32 = parser_alloc_true_bool_lit(arena);
+        if (cond_ref_loop == 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        let block_res_loop: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        parse_block_into(arena, lex, source, 0, &block_res_loop);
+        if (!block_res_loop.ok) {
+          set_onefunc_fail(out, lex); return;
+        }
+        let while_idx_loop: i32 = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, block_res_loop.block_ref);
+        if (while_idx_loop < 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        impl_snap.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(out));
+        onefunc_push_src_stmt(out, 3, while_idx_loop);
+        lex = block_res_loop.next_lex;
         lexer_next_into(&r, lex, source);
         continue;
       }
@@ -4083,6 +4182,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     return;
   }
   if (r.tok.kind == TokenKind.TOKEN_RETURN) {
+  impl_snap.has_explicit_return_kw = true;
   lex_from_next_into(&lex, r);
   lexer_next_into(&r, lex, source);
   /* bool 返回值：return 后为任意 parse_expr_into 可解析表达式（如 t.kind == TokenKind.x、true/false）；return if (...) 仍以 if 为首 token，走下方专有分支 */
@@ -7488,12 +7588,14 @@ function parse_into(arena: *ASTArena, module: *Module, source: []u8): ParseIntoR
     b.num_defers = 0;
     b.num_labeled_stmts = 0;
     b.num_expr_stmts = 0;
-    /* 将解析得到的返回值表达式包装为 EXPR_RETURN，供给 codegen（解析阶段已强制显式 return）。 */
-    let wrapped_fe: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
-    if (wrapped_fe == 0) {
-      return ParseIntoResult { ok: -1, main_idx: -1011 }
+    /* 仅显式 return 时包 EXPR_RETURN；裸尾 `{ 0 }` 留裸表达式供 typeck 报隐式尾返回。 */
+    if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
+      let wrapped_fe: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
+      if (wrapped_fe == 0) {
+        return ParseIntoResult { ok: -1, main_idx: -1011 }
+      }
+      final_expr_ref = wrapped_fe;
     }
-    final_expr_ref = wrapped_fe;
     b.final_expr_ref = final_expr_ref;
     b.num_stmt_order = 0;
     if (!fill_block_const_let_from_res(arena, block_ref, &res, type_ref)) {
@@ -8414,17 +8516,8 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     b.num_defers = 0;
     b.num_labeled_stmts = 0;
     b.num_expr_stmts = 0;
-    /* 与 parse_into_buf 主路径一致：void 勿包 RETURN(尾式)，否则 typeck 拒绝且 dedup 难消 final_expr。 */
-    let wrap_tail_in_return2: bool = true;
-    if (ref_is_null(type_ref)) {
-      wrap_tail_in_return2 = false;
-    } else {
-      let rtw_tail2: Type = ast_arena_type_get(arena, type_ref);
-      if (rtw_tail2.kind == TypeKind.TYPE_VOID) {
-        wrap_tail_in_return2 = false;
-      }
-    }
-    if (wrap_tail_in_return2) {
+    /* 与 parse_into 主路径一致：仅显式 return 时包 EXPR_RETURN。 */
+    if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
       let wrapped_tail2: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (wrapped_tail2 == 0) {
         return ParseIntoResult { ok: -1, main_idx: -1 }
