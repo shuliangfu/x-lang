@@ -23,6 +23,7 @@ struct ast_PipelineDepCtx {
   int32_t use_macho_o;
   int32_t use_coff_o;
   int32_t current_block_ref;
+  int32_t typeck_loop_depth;
   int32_t current_func_index;
   int32_t skip_codegen_dep_0;
   int32_t entry_already_parsed;
