@@ -75,6 +75,9 @@ run_required() {
 run run-lexer.sh
 run run-typeck.sh
 run run-hello.sh
+run run-check.sh
+run run-fmt-cmd.sh
+run run-test-cmd.sh
 run run-import.sh
 run run-std.sh
 run run-stdlib-import.sh
