@@ -13,9 +13,9 @@
 | `shu build file.su -o exe` | 仅编译到指定可执行文件。 |
 | `shu run file.su` | 编译并运行给定源文件。 |
 | `shu file.su` | 无子命令时：与 **`shu run file.su`** 相同（编译并运行）。 |
-| `shu fmt` | **未实现**：[`fmt.su`](fmt.su) 定义 `cmd_fmt`（链接符号 `driver_cmd_fmt`），经 `-E-extern` → `driver_fmt_su.o`。 |
-| `shu check` | **未实现**：[`check.su`](check.su) 定义 `cmd_check` → `driver_cmd_check`。 |
-| `shu test` | **未实现**：[`test.su`](test.su) 定义 `cmd_test` → `driver_cmd_test`。 |
+| `shu fmt file.su` | **已实现**：格式化 .su 源（与 LSP formatting 同规则）；变化时写回并打印 `fmt OK`。 |
+| `shu check file.su` | **已实现**：[`check.su`](check.su) 定义 `cmd_check` → `driver_cmd_check`；仅 parse+typeck（含 import deps），不 codegen、不链接。支持 `-L` 等常用标志。 |
+| `shu test [script.sh]` | **已实现**：[`test.su`](test.su) 定义 `cmd_test` → `driver_cmd_test`；默认执行 `tests/run-all.sh`，可指定脚本路径。 |
 
 **模块前缀约定**：`src/driver/*.su` 内函数名不要重复写 `driver_` 前缀（与 [`run.su`](run.su) 中 `exec_compiled` → `driver_exec_compiled` 相同）；否则 `-E-extern` 会生成 `driver_driver_*` 导致链接失败。
 
