@@ -241,7 +241,7 @@ static int parse_generic_param_list(Parser *p, char ***out_names, int *out_count
 /** 单 struct 字面量最大字段数（与 parse_one_struct 用到的 MAX_STRUCT_FIELDS 一致；需 >= OneFuncResult 等大块字面量字段数） */
 #define MAX_STRUCT_FIELDS 64
 
-/* 前向声明：parse_primary 中 ( expr ) 会调用 parse_expr；parse_postfix 调用 parse_cast；parse_cast 调用 parse_primary 并处理 expr as type */
+/* 前向声明：parse_primary 中 ( expr ) 会调用 parse_expr；parse_postfix 先 primary 再 postfix/调用，最后 parse_as_chain */
 static ASTExpr *parse_expr(Parser *p);
 
 static ASTExpr *parse_term(Parser *p);
@@ -1079,12 +1079,11 @@ static ASTExpr *parse_primary(Parser *p) {
 }
 
 /**
- * 解析「primary 或 primary as type」：先解析 primary，再零个或多个「as 类型」得到转换表达式。
- * 参数：p 解析器状态。返回值：成功返回 ASTExpr*；失败返回 NULL。
+ * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.su parse_as_suffix_into 一致）。
+ * 支持 path[i] as i32、foo() as *u8 等；as 不可放在 [index] 之前。
+ * 参数：p 解析器；left 已有子表达式。返回值：成功返回（可能嵌套 AS 的）ASTExpr*；失败返回 NULL。
  */
-static ASTExpr *parse_cast(Parser *p) {
-    ASTExpr *left = parse_primary(p);
-    if (!left) return NULL;
+static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
     while (peek(p) && peek(p)->kind == TOKEN_AS) {
         advance(p);
         ASTType *ty = parse_type_name(p);
@@ -1108,6 +1107,14 @@ static ASTExpr *parse_cast(Parser *p) {
         left = e;
     }
     return left;
+}
+
+/**
+ * 解析 primary（不含 as 后缀；as 由 parse_postfix 在 postfix/调用之后统一处理）。
+ * 参数：p 解析器状态。返回值：成功返回 ASTExpr*；失败返回 NULL。
+ */
+static ASTExpr *parse_cast(Parser *p) {
+    return parse_primary(p);
 }
 
 /**
@@ -1366,7 +1373,8 @@ static ASTExpr *parse_postfix(Parser *p) {
         e->value.call.num_type_args = num_type_args;
         left = e;
     }
-    return left;
+    /* postfix / 调用之后再接 as type（path[i] as i32、foo() as *u8） */
+    return parse_as_chain(p, left);
 }
 
 /**
