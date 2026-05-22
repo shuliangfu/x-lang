@@ -14,7 +14,7 @@
  * | parser_slice_from_buf / lexer_parser_slice_from_buf / pipeline_source_slice | parser.su, lexer.su, pipeline.su |
  * | parser_lex_from_lexer_result_ptr_into | parser.su（*LexerResult → *Lexer，避 typeck 链式 FIELD_ACCESS） |
  * | pipeline_run_su_pipeline | runtime.c（C 包装 buf+len） |
- * | pipeline_sizeof_* / pipeline_arena_offset_num_types | parser.su, lsp_diag.su |
+ * | pipeline_sizeof_* / pipeline_arena_offset_num_types | parser.su, lsp_diag.su；**PipelineDepCtx 增字段时须同步** runtime.c / lsp_diag_pipeline_sizes.c / ast.su |
  * | pipeline_expr_ref_is_assign_lvalue | parser.su |
  * | compound_assign_token_to_expr_kind_from_glue | parser.su |
  * | pipeline_expr_* / ast_pipeline_expr_* / implicit_tail_expr_disallowed_by_glue | ast.su, typeck.su |
