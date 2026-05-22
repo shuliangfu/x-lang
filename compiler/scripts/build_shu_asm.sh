@@ -114,6 +114,15 @@ detect_pipeline_gen_cflags() {
   fi
 }
 
+# Target B 实验链：编译 pipeline_run_su_pipeline 最小 C 桥（见 src/asm/pipeline_glue_link.c）。
+ensure_asm_pipeline_glue_link_obj() {
+  GLUE_LINK_OBJ="$BUILD_DIR/pipeline_glue_link.o"
+  if [ ! -f "$GLUE_LINK_OBJ" ] || [ "src/asm/pipeline_glue_link.c" -nt "$GLUE_LINK_OBJ" ]; then
+    echo "  cc -c src/asm/pipeline_glue_link.c -> $GLUE_LINK_OBJ"
+    "$CC" $CFLAGS -c -o "$GLUE_LINK_OBJ" src/asm/pipeline_glue_link.c
+  fi
+}
+
 # 收集非空 build_asm/*.o（空文件多为 asm SKIP 残留）
 build_nonempty_asm_objs() {
   NONEMPTY_ASM=""
@@ -347,12 +356,14 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         echo "build_shu_asm: Darwin 试 asm-only 链（ENTRY_MODULE_ONLY 已无 duplicate；若 undefined 则回退）"
       fi
       if [ -n "$ASM_TRY_OBJS" ]; then
-        echo "  linking shu_asm (experimental: runtime + build_asm/*.o + stubs, no pipeline_su.o) ..."
+        ensure_asm_pipeline_glue_link_obj
+        echo "  linking shu_asm (experimental: runtime + build_asm/*.o + pipeline_glue_link + stubs, no pipeline_su.o) ..."
         set +e
         "$CC" $CFLAGS -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o shu_asm \
           src/asm/runtime_asm_build.o \
           src/runtime_driver.o \
           $ASM_TRY_OBJS \
+          "$BUILD_DIR/pipeline_glue_link.o" \
           "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
           src/lsp/lsp_diag_pipeline_sizes.o \
           ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o \
