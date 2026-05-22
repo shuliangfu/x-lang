@@ -323,6 +323,8 @@ allow(padding) struct PipelineDepCtx {
   use_coff_o: i32;
   /** typeck 用：当前检查的块 ref，供 EXPR_VAR 查 const/let 填 resolved_type_ref。0 表示未在块内。 */
   current_block_ref: i32;
+  /** typeck 用：当前嵌套循环深度；>0 时允许 break/continue，与 typeck.c inside_loop 一致。 */
+  typeck_loop_depth: i32;
   /** typeck 用：当前检查的函数在 module.funcs 中的下标，供 EXPR_VAR 查形参填 resolved_type_ref。-1 表示未在函数内。 */
   current_func_index: i32;
   /** 非 0 时跳过 dep 0 的 codegen（-o 时设，driver 由 io.o 提供，避免重复符号） */
