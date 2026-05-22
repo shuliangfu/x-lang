@@ -37,4 +37,10 @@ else
   exit 1
 fi
 
+# while 体内 index + as cast（path[i] as i32 / arr[i] as i32）
+$SHU tests/while/index_as_cast.su -o /tmp/shu_while_index_as 2>&1
+exitcode=0
+/tmp/shu_while_index_as >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 60 ] && { echo "expected 60 (10+20+30+0), got $exitcode"; exit 1; }
+
 echo "while test OK"
