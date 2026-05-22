@@ -29,10 +29,16 @@
 
 | 状态 | 项 | 验收 |
 |------|----|------|
+| ✅ | `shu check` / `shu fmt` / `shu test` 子命令 | check/fmt/test.su + runtime.c；run-check/fmt-cmd/test-cmd 纳入 run-all |
+| ✅ | parser `index+as`（`arr[i] as i32`） | parser.c 与 parser.su 对齐；run-while `index_as_cast` 在 shu/shu-c 均通过 |
+| ✅ | `.su typeck` break/continue 循环外检查 | 与 typeck.c 一致；run-while `break_outside` 通过 |
+| ✅ | dep 全局槽（`driver_dep_slot_for_path`）+ collect 传递闭包 | check 含 import 通过；hello 等多 dep 经 collect 展开子 import；run-all-su 全绿 |
 | ✅ | 放宽单函数 let 上限（避免 parser.su 做 while/for 时「too many let」） | 与 `MAX_LET_DECLS`/`OneFuncResult` 对齐到 256；`make bootstrap-parser` 通过 |
 | ✅ | 修 bootstrap-parser / codegen（OneFuncResult、数组初始化等） | `make bootstrap-parser`、`make bootstrap-parse-file` 通过 |
 | ✅ | parser.su：**回归与文档**与通用 `parse_expr_into` 对齐；新语法按需扩 | **while/for** 见时序表 2.6/2.7 ✅。**`parse_expr_into`** 已承载 2.8～2.10 主路径；验收：`make bootstrap-parse-file`（见上「进展备忘」）与 `run-binary-expr.sh`、**`-su` return 负例**（`tests/typeck/return_operand_type_mismatch.su`，`run-typeck.sh`） |
-| ⬜ | 更多 typeck/codegen 逻辑迁入 .su（10.4.2） | 自举仍过；**codegen.su** 已有 `codegen_import_path_to_c_prefix_into`、`codegen_path_is_std_io_*`、`codegen_use_buf_wrapper`（与 C 对齐）；待收窄 `pipeline_glue.c` / `runtime.c` 中 `-E` 补丁 |
+| ⬜ | 更多 typeck/codegen 逻辑迁入 .su（10.4.2） | 自举仍过；**bootstrap shu** 多 dep（hello.su）preamble 与 codegen skip 已对齐；**codegen.su** dep 前缀与 std.io trivial handle 跳过；待继续收窄 `write_io_net_abi_inline` / `pipeline_glue.c` |
+| ⬜ | pipeline_glue / LSP 去 C（`-E-extern` 自动 extern、统一 parse_into API） | **diagnostic/hover/references** 已走 `parse_into_buf`；**definition** 仍 C `parse()`；`-E-extern` 仍靠 codegen.c 内嵌块 |
+| ⬜ | Target B macOS asm-only（`SHU_ASM_EXPERIMENTAL_SKIP_GEN`） | macOS **24/24** `__text` 非空（`SHU_ASM_ENTRY_MODULE_ONLY`）；Darwin 实验链仍 **undefined symbol**（缺独立 pipeline_glue TU），见 `SELFHOST.md` §4.1 |
 
 ---
 
