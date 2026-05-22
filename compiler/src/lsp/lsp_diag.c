@@ -1457,12 +1457,9 @@ int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col
 #define LSP_REFs_MAX 128
 
 /**
- * 在 (line_0, col_0) 处确定目标函数并收集引用位置；复用模块缓存。优先使用预计算的引用索引，O(目标函数)。
+ * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
  */
-/**
- * 在 (line_0, col_0) 处确定目标函数并收集引用位置；复用模块缓存。优先使用预计算的引用索引，O(目标函数)。
- */
-int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
+__attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
                       int *out_lines, int *out_cols, int max_refs) {
     if (!source || !out_lines || !out_cols || source_len < 0 || max_refs <= 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, -1);
@@ -1487,9 +1484,9 @@ int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col
 #define LSP_HOVER_BUF_MAX 128
 
 /**
- * 在 (line_0, col_0) 处找表达式类型并格式化为字符串；复用模块缓存。
+ * 在 (line_0, col_0) 处找表达式类型；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
  */
-int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
+__attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
     if (!source || !out_buf || out_cap <= 0 || source_len < 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
     if (!mod) return 0;
@@ -2322,6 +2319,11 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
             out_len--;
     }
     return out_len;
+}
+
+/** shu fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
+int shu_format_su_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+    return lsp_format_document(doc, doc_len, 2, 1, 100, 1, 1, 1, out_buf, out_cap);
 }
 
 /** 统计文档行数（0-based 最后一行号）与最后一行的字符数。 */
