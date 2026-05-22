@@ -31,6 +31,8 @@ extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx
 extern function pipeline_module_import_select_count_at(module: *Module, idx: i32): i32;
 extern function pipeline_module_import_select_name_len(module: *Module, idx: i32, sel: i32): i32;
 extern function pipeline_module_import_select_name_byte_at(module: *Module, idx: i32, sel: i32, off: i32): u8;
+/** runtime.c：当前 codegen 单元的 dep 逻辑路径（如 std.io.core），dep 池 prefix 不可用时的回退。 */
+extern function driver_get_current_dep_path_for_codegen(): *u8;
 /** Expr 变长附属池读 API。 */
 extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
@@ -508,6 +510,85 @@ function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): i32 {
 }
 
 /**
+ * std.io.core 的 shu_io_read_fixed 等与 io.o 强符号重复；SU 内联 std.io 时仍链 io.o，须跳过 core 段这些函数体。
+ */
+function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
+  let path_core: [11]u8 = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101];
+  let n_rf: [17]u8 = [115, 104, 117, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
+  let n_wf: [18]u8 = [115, 104, 117, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
+  let n_srb: [24]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104];
+  let n_swb: [25]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104];
+  let n_sr: [18]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
+  let n_sw: [19]u8 = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
+  let di: i32 = 0;
+  if (dep_path == 0 as *u8 || name == 0 as *u8) {
+    return 0;
+  }
+  while (di < 11) {
+    if (dep_path[di] != path_core[di]) {
+      return 0;
+    }
+    di = di + 1;
+  }
+  if ((name_len == 17 || name_len == 18) && codegen_name_bytes_prefix_eq(name, name_len, &n_rf[0], 17) != 0) {
+    return 1;
+  }
+  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &n_wf[0], 18) != 0) {
+    return 1;
+  }
+  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &n_srb[0], 24) != 0) {
+    return 1;
+  }
+  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &n_swb[0], 25) != 0) {
+    return 1;
+  }
+  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &n_sr[0], 18) != 0) {
+    return 1;
+  }
+  if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_sw[0], 19) != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * std.io 的 handle_stdin/stdout/stderr/from_fd 为字面量返回；若 dep 槽误用 std_io_driver_ 前缀再生成会与 std_io_handle_* 重复。
+ * dep_path 非空时须为 std.io（path_io）；prefix-only 分支传 dep_path=0，仅按 name 判断。
+ */
+function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, name: *u8, name_len: i32): i32 {
+  let path_io: [7]u8 = [115, 116, 100, 46, 105, 111, 0];
+  let h_stdin: [12]u8 = [104, 97, 110, 100, 108, 101, 95, 115, 116, 100, 105, 110];
+  let h_stdout: [13]u8 = [104, 97, 110, 100, 108, 101, 95, 115, 116, 100, 111, 117, 116];
+  let h_stderr: [13]u8 = [104, 97, 110, 100, 108, 101, 95, 115, 116, 100, 101, 114, 114];
+  let h_from_fd: [15]u8 = [104, 97, 110, 100, 108, 101, 95, 102, 114, 111, 109, 95, 102, 100, 0];
+  let di: i32 = 0;
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (dep_path != 0 as *u8) {
+    while (di < 7) {
+      if (dep_path[di] != path_io[di]) {
+        return 0;
+      }
+      di = di + 1;
+    }
+  }
+  if ((name_len == 12 || name_len == 13) && codegen_name_bytes_prefix_eq(name, name_len, &h_stdin[0], 12) != 0) {
+    return 1;
+  }
+  if ((name_len == 13 || name_len == 14) && codegen_name_bytes_prefix_eq(name, name_len, &h_stdout[0], 13) != 0) {
+    return 1;
+  }
+  if ((name_len == 13 || name_len == 14) && codegen_name_bytes_prefix_eq(name, name_len, &h_stderr[0], 13) != 0) {
+    return 1;
+  }
+  if ((name_len == 15 || name_len == 16) && codegen_name_bytes_prefix_eq(name, name_len, &h_from_fd[0], 15) != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * 合并原 driver_should_skip_emit_* 三套逻辑：优先按 prefix+name 拼接是否等于 std_io_driver_driver_read_ptr(_len)；
  * 否则按 dep_path 是否为 std.io.driver/std.io 且 name 为 driver_read_ptr(_len) 判断。
  * dep_path/prefix 可为空指针；prefix_len≤0 时不走前缀拼接分支。
@@ -619,6 +700,28 @@ function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix_len: i
       ok_drv_only = 1;
     }
     if (ok_drv_only != 0 && codegen_is_std_io_driver_bridge_name(name, name_len) != 0) {
+      return 1;
+    }
+  }
+  /* dep 误标为 std.io.driver 时 mod 的 handle_* 会以 std_io_driver_handle_* 再生成一次，与 std_io_handle_* 重复。 */
+  if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8) {
+    if (codegen_should_skip_emit_std_io_trivial_handle(0 as *u8, name, name_len) != 0) {
+      return 1;
+    }
+  }
+  if (dep_path != 0 as *u8 && name != 0 as *u8) {
+    if (codegen_should_skip_emit_std_io_core_io_dup(dep_path, name, name_len) != 0) {
+      return 1;
+    }
+    let path_driver: [14]u8 = [115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0];
+    let di2: i32 = 0;
+    while (di2 < 14) {
+      if (dep_path[di2] != path_driver[di2]) {
+        break;
+      }
+      di2 = di2 + 1;
+    }
+    if (di2 == 14 && codegen_should_skip_emit_std_io_trivial_handle(0 as *u8, name, name_len) != 0) {
       return 1;
     }
   }
@@ -1092,6 +1195,24 @@ function emit_indent(out: *CodegenOutBuf, indent: i32): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+/** 写 break;\n（含缩进）。 */
+function emit_break_stmt(out: *CodegenOutBuf, indent: i32): i32 {
+  if (emit_indent(out, indent) != 0) {
+    return -1;
+  }
+  let br: [8]u8 = [98, 114, 101, 97, 107, 59, 10, 0];
+  return emit_bytes_8(out, br, 7);
+}
+
+/** 写 continue;\n（含缩进）。 */
+function emit_continue_stmt(out: *CodegenOutBuf, indent: i32): i32 {
+  if (emit_indent(out, indent) != 0) {
+    return -1;
+  }
+  let co: [11]u8 = [99, 111, 110, 116, 105, 110, 117, 101, 59, 10, 0];
+  return emit_bytes_from_ptr(out, &co[0], 10);
 }
 
 /** 根据 TypeKind 写 C 类型名到 out（仅内建类型）；纯 .su，按数组尺寸调用对应 emit_bytes_N。 */
@@ -3729,6 +3850,14 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
             if (emit_bytes_4(out, sc, 2) != 0) {
               return -1;
             }
+          } else if (st.kind == ExprKind.EXPR_BREAK) {
+            if (emit_break_stmt(out, indent) != 0) {
+              return -1;
+            }
+          } else if (st.kind == ExprKind.EXPR_CONTINUE) {
+            if (emit_continue_stmt(out, indent) != 0) {
+              return -1;
+            }
           } else {
             if (emit_indent(out, indent) != 0) {
               return -1;
@@ -4091,6 +4220,16 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
       }
       let sc: [4]u8 = [59, 10, 0, 0];
       if (emit_bytes_4(out, sc, 2) != 0) {
+        return -1;
+      }
+    } else if (st.kind == ExprKind.EXPR_BREAK) {
+      let br: [8]u8 = [98, 114, 101, 97, 107, 59, 10, 0];
+      if (emit_bytes_8(out, br, 7) != 0) {
+        return -1;
+      }
+    } else if (st.kind == ExprKind.EXPR_CONTINUE) {
+      let co: [11]u8 = [99, 111, 110, 116, 105, 110, 117, 101, 59, 10, 0];
+      if (emit_bytes_from_ptr(out, &co[0], 10) != 0) {
         return -1;
       }
     } else {
@@ -4878,7 +5017,9 @@ function codegen_su_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, 
       if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx && dep_path_prefix_len > 0) {
         skip_dep = &dep_path_prefix[0];
       }
-      /* TODO：若无可用 dep 池路径，应传入 pipeline 当前单元的实际 dep_path（原 driver_current_dep_path_for_codegen）。 */
+      if (skip_dep == 0 as *u8) {
+        skip_dep = driver_get_current_dep_path_for_codegen();
+      }
       skip = codegen_should_skip_emit_func(skip_dep, 0 as *u8, 0, &skip_name[0], skip_nl);
     }
     if (skip != 0) {
