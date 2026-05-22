@@ -78,6 +78,12 @@ int lsp_build_references_response(int id_val, const uint8_t *body, int body_len,
 int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 
+/**
+ * shu fmt CLI：对 .su 源码做与 LSP formatting 相同的缩进/换行规范（tabSize=2、空格缩进、maxLineLength=100）。
+ * 写入 out_buf，返回格式化后字节数；失败或越界返回 -1。
+ */
+int shu_format_su_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
+
 /** textDocument/completion：返回 CompletionItem[] JSON；无模块或失败时 result 为 []。 */
 int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
                                   const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
