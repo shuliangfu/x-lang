@@ -33,9 +33,9 @@
 | `shu -E file.su` | 输出 C 源码（调试用） |
 | `shu -backend asm file.su` | ASM 后端（默认已是，可显式写出） |
 | `shu -backend c file.su` | 强制走 C 路径 |
-| `shu fmt` | 占位（开发中） |
-| `shu check` | 占位（开发中） |
-| `shu test` | 占位（开发中） |
+| `shu fmt file.su` | 格式化 .su 源文件（缩进/换行，与 LSP 一致） |
+| `shu check file.su` | 仅 parse+typeck（含 import），不链接 |
+| `shu test [script.sh]` | 运行测试脚本（默认 `tests/run-all.sh`） |
 
 ---
 
