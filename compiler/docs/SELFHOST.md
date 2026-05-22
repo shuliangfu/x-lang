@@ -78,6 +78,7 @@
   1. **大模块 parse 截断**：如 `typeck.su` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
   2. **跨模块符号名**：`backend.o` 引用 `arch_arm64_*`，而 `arm64.o` 导出 `_arch_arm64_*` 或 `append_byte` 等待定。
   3. Linux 仍可在上述问题解决后试全量 `build_asm/*.o` 实验链；成功时打印 `Target-B-experimental`。**B-partial（crt0）** 仅在 **Linux** 且 crt0 链接成功时成立。
+- **bootstrap shu 双轨（2026-05-22）**：`parser.su` stmt_order 用 `out.num_lets`；`codegen.su` 发射 break/continue；`typeck.su` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import std.io `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-su` 全绿；**bootstrap `shu`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shu_su` 有差异，待 10.4.2 收窄 runtime。
 
 ### 4.2 CI 与本地验收（Linux / macOS）
 
