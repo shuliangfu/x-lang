@@ -18,6 +18,8 @@ extern function driver_dep_arena_buf(i: i32): *u8;
 extern function driver_dep_module_buf(i: i32): *u8;
 /** 非 0 表示 dep i 已由 C 侧预填，跳过 read/parse 直接使用 driver 槽位。 */
 extern function driver_dep_seeded_get(i: i32): i32;
+/** 按 import 逻辑路径（如 std.io.core）查 dep 预跑全局槽；-1 未找到。 */
+extern function driver_dep_slot_for_path(path: *u8): i32;
 /** 当前 dep 个数（与 ctx.ndep 同步，由 C 在 codegen 前设置）；循环中用 get_ndep() 从源头避免 build 对 while (j < ndep) 的补丁。 */
 extern function get_ndep(): i32;
 
@@ -291,16 +293,20 @@ function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTA
     if (n_imports > 0) {
       let i: i32 = 0;
       while (i < n_imports) {
-        if (driver_dep_seeded_get(i) != 0) {
+        let path_buf: [64]u8 = [];
+        get_module_import_path(module, i, path_buf);
+        let path_len: i32 = 0;
+        while (path_len < 64 && path_buf[path_len] != 0) {
+          path_len = path_len + 1;
+        }
+        let global_slot: i32 = driver_dep_slot_for_path(&path_buf[0]);
+        if (global_slot >= 0 && driver_dep_seeded_get(global_slot) != 0) {
+          pipeline_dep_ctx_set_arena(ctx, i, (driver_dep_arena_buf(global_slot)) as *ASTArena);
+          pipeline_dep_ctx_set_module(ctx, i, (driver_dep_module_buf(global_slot)) as *Module);
+        } else if (driver_dep_seeded_get(i) != 0) {
           pipeline_dep_ctx_set_arena(ctx, i, (driver_dep_arena_buf(i)) as *ASTArena);
           pipeline_dep_ctx_set_module(ctx, i, (driver_dep_module_buf(i)) as *Module);
         } else {
-          let path_buf: [64]u8 = [];
-          get_module_import_path(module, i, path_buf);
-          let path_len: i32 = 0;
-          while (path_len < 64 && path_buf[path_len] != 0) {
-            path_len = path_len + 1;
-          }
           if (resolve_path_su(ctx, path_buf, path_len) != 0) {
             return -7;
           }
@@ -328,8 +334,14 @@ function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTA
   let dep_sync_nd: i32 = pipeline_dep_ctx_ndep(ctx);
   let dep_sync_i: i32 = 0;
   while (dep_sync_i < dep_sync_nd) {
-    pipeline_dep_ctx_set_module(ctx, dep_sync_i, (driver_dep_module_buf(dep_sync_i)) as *Module);
-    pipeline_dep_ctx_set_arena(ctx, dep_sync_i, (driver_dep_arena_buf(dep_sync_i)) as *ASTArena);
+    let sync_path: [64]u8 = [];
+    get_module_import_path(module, dep_sync_i, sync_path);
+    let sync_slot: i32 = driver_dep_slot_for_path(&sync_path[0]);
+    if (sync_slot < 0) {
+      sync_slot = dep_sync_i;
+    }
+    pipeline_dep_ctx_set_module(ctx, dep_sync_i, (driver_dep_module_buf(sync_slot)) as *Module);
+    pipeline_dep_ctx_set_arena(ctx, dep_sync_i, (driver_dep_arena_buf(sync_slot)) as *ASTArena);
     dep_sync_i = dep_sync_i + 1;
   }
   typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
@@ -379,6 +391,8 @@ extern function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void;
 extern function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): void;
 /** 非 0 时跳过 dep 0 的 codegen（-o 时 C 设，driver 由 io.o 提供）；用 extern 避免与 ctx 布局耦合。 */
 extern function driver_skip_codegen_dep_0_get(): i32;
+/** shu check：非 0 时 typeck 通过后直接返回，不跑 codegen/asm。 */
+extern function driver_check_only_get(): i32;
 /** 诊断：pipeline 入口打印 ctx.entry_already_parsed（非 0 则跳过解析）。由 runtime.c 实现。 */
 extern function driver_diagnostic_entry_already(v: i32): void;
 /** 诊断：解析前打印 source_len（0 表示无源码）。由 runtime.c 实现。 */
@@ -427,6 +441,10 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
       driver_diagnostic_typeck_fail();
       return -1;
     }
+  }
+  /** shu check：仅验证 parse+typeck+deps，不写 C / 不链可执行文件。 */
+  if (driver_check_only_get() != 0) {
+    return 0;
   }
   out_buf.len = 0;
   driver_diagnostic_before_codegen(module.num_funcs, out_buf.len);
