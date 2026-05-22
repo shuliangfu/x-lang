@@ -32,6 +32,8 @@ extern function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line:
     expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
 /** 下标基类型非法时打印 stderr（与 typeck.c 一致）。 */
 extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void;
+/** break/continue 出现在循环外：stderr 含「'break' only allowed inside a loop」（与 typeck.c 一致）。 */
+extern function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is_break: i32): void;
 extern function driver_typeck_diag_scratch_expect(): *u8;
 extern function driver_typeck_diag_scratch_found(): *u8;
 /** runtime.c：pipeline 依赖槽位镜像；dep 池 arena 槽未与时序写入时仍可读 dep 的类型池（整包限定调用 ASSIGN/let 需 resolved_type_ref）。 */
@@ -2024,6 +2026,18 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     }
     return 0;
   }
+  /** break/continue 须位于循环体内（while/for/loop）；与 typeck.c EXPR_BREAK/CONTINUE + inside_loop 一致。 */
+  if (e.kind == ExprKind.EXPR_BREAK || e.kind == ExprKind.EXPR_CONTINUE) {
+    if (ctx.typeck_loop_depth <= 0) {
+      let is_br: i32 = 0;
+      if (e.kind == ExprKind.EXPR_BREAK) {
+        is_br = 1;
+      }
+      driver_diagnostic_typeck_break_continue_outside(e.line, e.col, is_br);
+      return -1;
+    }
+    return 0;
+  }
   /*
    * EXPR_ENUM_VARIANT：library_one_function 或专用 AST 落成；语义为枚举字面量/tag，与 FIELD_ACCESS + is_enum_variant 一致视作 i32，供比较与 asm。
    */
@@ -3040,6 +3054,17 @@ function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i32): bo
 }
 
 /**
+ * 递归检查循环体块：进入前递增 ctx.typeck_loop_depth，退出后恢复，供 break/continue 合法性判定。
+ */
+function check_block_as_loop_body(module: *Module, arena: *ASTArena, body_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  let saved_ld: i32 = ctx.typeck_loop_depth;
+  ctx.typeck_loop_depth = ctx.typeck_loop_depth + 1;
+  let rc: i32 = check_block(module, arena, body_ref, return_type_ref, ctx);
+  ctx.typeck_loop_depth = saved_ld;
+  return rc;
+}
+
+/**
  * 检查块（内部）：仅在 block_ref 已通过 null/边界检查后调用，避免 codegen 将 block_get 提升到检查前导致 panic。
  */
 function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -3123,7 +3148,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
               return -1;
             }
           }
-          if (check_block(module, arena, wb, return_type_ref, ctx) != 0) {
+          if (check_block_as_loop_body(module, arena, wb, return_type_ref, ctx) != 0) {
             ctx.current_block_ref = saved_block_ref;
             return -1;
           }
@@ -3153,7 +3178,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
             ctx.current_block_ref = saved_block_ref;
             return -1;
           }
-          if (check_block(module, arena, fb_br, return_type_ref, ctx) != 0) {
+          if (check_block_as_loop_body(module, arena, fb_br, return_type_ref, ctx) != 0) {
             ctx.current_block_ref = saved_block_ref;
             return -1;
           }
@@ -3238,7 +3263,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
         return -1;
       }
     }
-    if (check_block(module, arena, w_br, return_type_ref, ctx) != 0) {
+    if (check_block_as_loop_body(module, arena, w_br, return_type_ref, ctx) != 0) {
       ctx.current_block_ref = saved_block_ref;
       return -1;
     }
@@ -3268,7 +3293,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
       ctx.current_block_ref = saved_block_ref;
       return -1;
     }
-    if (check_block(module, arena, fl_br, return_type_ref, ctx) != 0) {
+    if (check_block_as_loop_body(module, arena, fl_br, return_type_ref, ctx) != 0) {
       ctx.current_block_ref = saved_block_ref;
       return -1;
     }
