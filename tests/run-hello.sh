@@ -31,10 +31,10 @@ if [ -n "${RUN_ALL_USE_C:-}" ]; then
   "$HELLO_COMPILE_SHU" examples/hello.su -o /tmp/shu_hello
 else
   if [[ "$HELLO_COMPILE_SHU" == *shu-c* ]] || ! shu_cli_supports_su "$HELLO_COMPILE_SHU"; then
-    "$HELLO_COMPILE_SHU" examples/hello.su -o /tmp/shu_hello
+    "$HELLO_COMPILE_SHU" -L . examples/hello.su -o /tmp/shu_hello
   else
-    # 使用 .su 流水线时禁止把生成的 C 打到终端（重定向 stdout，保留 stderr）
-    "$HELLO_COMPILE_SHU" -su examples/hello.su -o /tmp/shu_hello 1>/dev/null
+    # -o 链接走 driver 全路径；显式 -su 在 shu_su 上对 import std.io 会 dep 预跑 rc=-7。与 run-all-su 一致带 -L .
+    "$HELLO_COMPILE_SHU" -L . examples/hello.su -o /tmp/shu_hello 1>/dev/null
   fi
 fi
 out=$(/tmp/shu_hello)
