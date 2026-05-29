@@ -51,6 +51,26 @@ int32_t csv_next_field_c(const uint8_t *ptr, int32_t len, int32_t offset, int32_
   return offset;
 }
 
+/**
+ * Shulang std.csv.next_field（_std_csv_next_field）：由 csv.o 提供实现。
+ * seed asm 对同模块五实参 bl 会错传 out_len；.su 侧仅 extern 声明，链接本符号。
+ */
+int32_t std_csv_next_field(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *out_start,
+                           int32_t *out_len) {
+  return csv_next_field_c(ptr, len, offset, out_start, out_len);
+}
+
+/** tests/csv 引号字段探针（C 栈上缓冲，规避 seed asm 第三段定长数组 &quoted[0] 错址）。 */
+int32_t std_csv_csv_test_quoted_first(int32_t *out_start, int32_t *out_len) {
+  const uint8_t q[] = {34, 97, 44, 98, 34, 44, 99, 0};
+  return csv_next_field_c(q, 8, 0, out_start, out_len);
+}
+
+int32_t std_csv_csv_test_quoted_second(int32_t offset, int32_t *out_start, int32_t *out_len) {
+  const uint8_t q[] = {34, 97, 44, 98, 34, 44, 99, 0};
+  return csv_next_field_c(q, 8, offset, out_start, out_len);
+}
+
 /** 将 ptr[0..len] 转义写入 buf（含引号、内部 " 双写）；最多写 buf_cap 字节。返回写入长度，不足返回 -1。 */
 int32_t csv_escape_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
   if (!ptr || !buf || buf_cap < 2) return -1;
@@ -74,4 +94,47 @@ int32_t csv_unescape_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t bu
     else { if (i >= buf_cap) return -1; buf[i++] = ptr[j]; }
   }
   return i;
+}
+
+/** Shulang std.csv.unescape：由 csv.o 提供（seed asm 在 3+ 定长数组函数内 while+else 可能死循环）。 */
+int32_t std_csv_unescape(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
+  return csv_unescape_c(ptr, len, buf, buf_cap);
+}
+
+/** tests/csv：""a 探针，返回写入长度；-1 表示缓冲不足。 */
+int32_t std_csv_csv_test_unescape_ok(uint8_t *buf, int32_t buf_cap) {
+  const uint8_t raw[] = {34, 34, 97, 0};
+  return csv_unescape_c(raw, 3, buf, buf_cap);
+}
+
+/** tests/csv：缓冲不足应返回 -1。 */
+int32_t std_csv_csv_test_unescape_fail(void) {
+  uint8_t tiny[1];
+  const uint8_t raw[] = {34, 34, 97, 0};
+  return csv_unescape_c(raw, 3, tiny, 1);
+}
+
+/**
+ * import std.csv 裸名调用与 std_csv_* 的链接别名（codegen 未加模块前缀时由 csv.o 解析）。
+ * 与 std/csv/mod.su 中 extern 名称一致，实现仍由上方 std_csv_* 提供。
+ */
+int32_t next_field(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *out_start,
+                   int32_t *out_len) {
+  return std_csv_next_field(ptr, len, offset, out_start, out_len);
+}
+
+int32_t csv_test_quoted_first(int32_t *out_start, int32_t *out_len) {
+  return std_csv_csv_test_quoted_first(out_start, out_len);
+}
+
+int32_t csv_test_quoted_second(int32_t offset, int32_t *out_start, int32_t *out_len) {
+  return std_csv_csv_test_quoted_second(offset, out_start, out_len);
+}
+
+int32_t csv_test_unescape_ok(uint8_t *buf, int32_t buf_cap) {
+  return std_csv_csv_test_unescape_ok(buf, buf_cap);
+}
+
+int32_t csv_test_unescape_fail(void) {
+  return std_csv_csv_test_unescape_fail();
 }

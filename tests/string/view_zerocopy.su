@@ -1,6 +1,7 @@
 // 测试 std.string：StrView 零拷贝只读、string_view_*、string_data_ptr、string_eq_view
 //
-// 【文件职责】验证 (ptr, len) 通过 StrView 做只读操作无拷贝；String 通过 string_data_ptr + string_len 零拷贝输出。
+// 【文件职责】验证 (ptr, len) 通过 StrView 做只读操作无拷贝；String 通过
+// string_data_ptr + string_len 零拷贝输出。
 import std.string;
 
 function main(): i32 {

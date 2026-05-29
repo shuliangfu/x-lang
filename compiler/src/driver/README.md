@@ -13,10 +13,11 @@
 | `shu build file.su -o exe` | 仅编译到指定可执行文件。 |
 | `shu run file.su` | 编译并运行给定源文件。 |
 | `shu file.su` | 无子命令时：与 **`shu run file.su`** 相同（编译并运行）。 |
-| `shu fmt file.su` | **已实现**：格式化 .su 源（与 LSP formatting 同规则）；变化时写回并打印 `fmt OK`。 |
-| `shu check file.su` | **已实现**：[`check.su`](check.su) 定义 `cmd_check` → `driver_cmd_check`；仅 parse+typeck（含 import deps），不 codegen、不链接。支持 `-L` 等常用标志。 |
+| `shu fmt [path...]` | **已实现**（对标 `deno fmt`）：无路径时递归当前目录 `*.su`；**仅在实际写回时**打印 `fmt OK: path`，已规范文件无输出；`SHU_FMT_VERBOSE=1` 可打印统计。 |
+| `shu fmt --check [path...]` | **已实现**（对标 `deno fmt --check`）：不写回；全通过时**无输出** exit 0；否则列出未格式化文件并 exit 1。支持 `--fail-fast`、`--ignore=子串`。 |
+| `shu check [path...]` | **已实现**（对标 `deno check`）：**无路径时递归当前目录 `*.su`**；多文件/目录；**全通过时无输出**；失败为 `path:line:col - error: msg`；支持 `-L`、`--ignore=`、`--fail-fast`。 |
 | `shu test [script.sh]` | **已实现**：[`test.su`](test.su) 定义 `cmd_test` → `driver_cmd_test`；默认执行 `tests/run-all.sh`，可指定脚本路径。 |
 
-**模块前缀约定**：`src/driver/*.su` 内函数名不要重复写 `driver_` 前缀（与 [`run.su`](run.su) 中 `exec_compiled` → `driver_exec_compiled` 相同）；否则 `-E-extern` 会生成 `driver_driver_*` 导致链接失败。
+**模块前缀约定**：`src/driver/*.su` 内函数名不要重复写 `driver_` 前缀（例如 `cmd_check` → `driver_cmd_check`）。**例外**：根目录另有 `build.su` 时，`src/driver/build.su` 的模块前缀为 `build_`（`cmd_build` → `build_cmd_build`），`main.su` 须 `extern build_cmd_build`。C 侧 `extern` 须写全链接名（如 `driver_exec_compiled`）。
 
 调试输出 C 与后端切换（`-E`、`-backend asm` / `-backend c`）见仓库根目录 **`README.md`**「shu 编译器用法」表。

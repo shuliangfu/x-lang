@@ -602,9 +602,9 @@ function run_compiler_su_path_impl(argc: i32, argv: *u8): i32 {
   }
   /*
    * 含 `-o` 的可执行文件/目标产物必须经 C 的 driver_run_compiler_full：临时 .c + cc/strip，
-   * 链接 std/io、std/time、panic 等 .o。.su-only 的 driver_run_su_emit_su 只是把 codegen 缓冲区
-   * 写入路径（等同导出 C，不链接），run-std/run-time/import 会一直失败甚至得到空文件。
-   * 无 `-o` 时仍走 driver_run_su_emit_su：stderr 打印 parse/typeck OK、stdout 可出 C。
+   * * 链接 std/io、std/time、panic 等 .o。.su-only 的 driver_run_su_emit_su 只是把 codegen 缓冲区
+   * * 写入路径（等同导出 C，不链接），run-std/run-time/import 会一直失败甚至得到空文件。
+   * * 无 `-o` 时仍走 driver_run_su_emit_su：stderr 打印 parse/typeck OK、stdout 可出 C。
    */
   if (state.out_path_len > 0) {
     return run_compiler_c_impl(argc, argv);

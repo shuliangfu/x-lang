@@ -1,7 +1,8 @@
 /*
- * SU 流水线 typeck：`struct.field == Enum.VAR`，与 codegen.su/typeck.su 中 `ty.kind == TypeKind.TYPE_*` 同形态。
- * 无 import ast，仅用本地 enum/struct（run-su-pipeline 风格 -su -E）。
- */
+* SU 流水线 typeck：`struct.field == Enum.VAR`，与 codegen.su/typeck.su 中 `ty.kind ==
+* * * * * TypeKind.TYPE_*` 同形态。
+* * * * * * 无 import ast，仅用本地 enum/struct（run-su-pipeline 风格 -su -E）。
+*/
 enum ShapeKind {
   SK_I32,
   SK_PTR,

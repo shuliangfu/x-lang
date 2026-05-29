@@ -1,32 +1,56 @@
 #!/usr/bin/env bash
-# shu check：仅 parse+typeck，不链接；合法通过、非法拒绝。
+# shu check（deno check 语义）：合法静默通过；非法打印 path:line:col - error: 并 exit 1。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler bootstrap-driver-seed
-SHU=${SHU:-./compiler/shu}
-
-# 负例须走 .su pipeline typeck（shu-su）；C 前端 shu-c 对 return 操作数类型仍较宽松。
-NEG_SHU="$SHU"
-if [ -x ./compiler/shu-su ]; then
-  NEG_SHU=./compiler/shu-su
-elif [ "${SHU##*/}" = "shu-c" ]; then
-  make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
-  [ -x ./compiler/shu-su ] && NEG_SHU=./compiler/shu-su
+./tests/run-comment-prefix.sh
+chmod +x tests/run-fmt-wrap.sh 2>/dev/null || true
+./tests/run-fmt-wrap.sh
+if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler bootstrap-driver-seed
 fi
+SHU=${SHU:-./compiler/shu}
+ROOT=$(pwd)
+case "$SHU" in
+  /*) SHU_EXE="$SHU" ;;
+  *) SHU_EXE="$ROOT/$SHU" ;;
+esac
 
-# 合法：return-value 主程序
-$SHU check tests/return-value/main.su 2>&1 | grep -q "check OK"
-echo "check OK: return-value"
+# 无参：在子目录内递归 check（与 fmt 一致，不应要求显式路径）
+(
+  cd tests/return-value
+  chk_cwd=$("$SHU_EXE" check main.su 2>&1)
+  if [ -n "$chk_cwd" ]; then
+    echo "expected silent check on main.su, got: $chk_cwd"
+    exit 1
+  fi
+)
+echo "check OK: cwd (no path arg)"
 
-# 合法：含 import（多模块 core/std）
-$SHU check -L . tests/stdlib-import/main.su 2>&1 | grep -q "check OK"
-echo "check OK: import"
-
-# 非法：typeck 应失败（优先 shu-su/.su pipeline）
-if $NEG_SHU check tests/typeck/return_operand_type_mismatch.su 2>&1; then
-  echo "expected check to fail on type mismatch"
+# 合法：成功时无输出（deno check）
+chk_out=$($SHU check tests/return-value/main.su 2>&1)
+if [ -n "$chk_out" ]; then
+  echo "expected silent check success, got: $chk_out"
   exit 1
 fi
+echo "check OK: return-value (silent)"
+
+# 合法：含 import
+chk_out2=$($SHU check -L . tests/stdlib-import/main.su 2>&1)
+if [ -n "$chk_out2" ]; then
+  echo "expected silent check success with import, got: $chk_out2"
+  exit 1
+fi
+echo "check OK: import (silent)"
+
+# 非法：typeck 应失败并带诊断行
+neg_out=$($SHU check tests/typeck/return_operand_type_mismatch.su 2>&1) && {
+  echo "expected check to fail on type mismatch"
+  exit 1
+}
+echo "$neg_out" | grep -qE " - error: |typeck error:|check failed" || {
+  echo "expected type error diagnostic, got: $neg_out"
+  exit 1
+}
 echo "check reject type error OK"
 
 echo "check test OK"

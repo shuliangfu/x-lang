@@ -1,18 +1,15 @@
-// fmt.su — shu fmt 子命令：格式化 .su 源文件（缩进/换行，与 LSP formatting 规则一致）
-// 符号名 driver_cmd_fmt：源码标识符 cmd_fmt + 模块前缀 driver_（与 main.su extern 一致）
+// fmt.su — shu fmt 子命令：委托 C 侧 fmt_check_cmd（对标 deno fmt）
+// 符号名 driver_cmd_fmt：源码标识符 cmd_fmt + 模块前缀 driver_
+// 勿 import ast：shu-c -E 生成 driver_fmt_gen.c 时无需 AST 
+// 类型，且可避免解析失败。
 
-import ast;
-
-/** C 侧 runtime.c：读入 .su、调用 shu_format_su_document、变化时写回。 */
+/** C 侧 fmt_check_cmd.c：无参递归 cwd；--check / --fail-fast / --ignore=。 */
 extern function driver_run_fmt(argc: i32, argv: *u8): i32;
 
 /**
- * shu fmt file.su [file2.su ...]
- * 跳过 `-` 开头标志；至少一个 .su 路径；成功 0，失败 1。
- */
+* shu fmt [--check] [--fail-fast] [--ignore=a,b] [path ...]
+* 无路径时格式化当前目录下全部 .su；--check 成功时无输出。
+*/
 function cmd_fmt(argc: i32, argv: *u8): i32 {
-  if (argc < 2) {
-    return 1;
-  }
   return driver_run_fmt(argc, argv);
 }

@@ -22,6 +22,8 @@ extern function driver_dep_seeded_get(i: i32): i32;
 extern function driver_dep_slot_for_path(path: *u8): i32;
 /** 当前 dep 个数（与 ctx.ndep 同步，由 C 在 codegen 前设置）；循环中用 get_ndep() 从源头避免 build 对 while (j < ndep) 的补丁。 */
 extern function get_ndep(): i32;
+/** build_shu_asm：SHU_ASM_BUILD_SKIP_TYPECK=1 时跳过 .su typeck（pipeline_glue.c → driver_asm_build_skip_typeck）。 */
+extern function pipeline_driver_asm_build_skip_typeck(): i32;
 
 /* codegen.su 的 -E-extern 生成 C 时不自动扫描间接调用，以下显式声明 pipeline 内调用的外部函数。 */
 extern function parser_parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, source: []u8): void;
@@ -254,8 +256,8 @@ function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, 
   parse_into_init(module, arena);
   /*
    * 必须直达 parser.parse_into_buf，不可再走 pipeline_source_slice + parse_into(slice)。
-   * parse_into(slice) 在 parse_one_function_impl 失败后只会 skip_one_function_*，没有像 parse_into_buf 那样的
-   * parse_one_function_buf_into 二次尝试；结果 codegen/parser 等大模块仅留下顶层 extern stub，-backend asm 编出 __text 恒空。
+   * * parse_into(slice) 在 parse_one_function_impl 失败后只会 skip_one_function_*，没有像 parse_into_buf 那样的
+   * * parse_one_function_buf_into 二次尝试；结果 codegen/parser 等大模块仅留下顶层 extern stub，-backend asm 编出 __text 恒空。
    */
   return parser.parse_into_buf(arena, module, data, len);
 }
@@ -289,6 +291,14 @@ function typeck_after_parse_ok(arena: *ASTArena, module: *Module, source: []u8, 
  */
 function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   let n_imports: i32 = get_module_num_imports(module);
+  /**
+   * build_shu_asm 单模块 -o（SHU_ASM_ENTRY_MODULE_ONLY + SHU_ASM_BUILD_SKIP_TYPECK）：
+   * dep 机器码已由 build_asm/*.o 并列链提供；C 侧 skip_dep_file_load 时勿 resolve/read import 源。
+   */
+  if (ctx.asm_entry_module_only != 0 && pipeline_driver_asm_build_skip_typeck() != 0) {
+    pipeline_dep_ctx_set_ndep(ctx, 0);
+    return 0;
+  }
   if (pipeline_dep_ctx_ndep(ctx) == 0) {
     if (n_imports > 0) {
       let i: i32 = 0;
@@ -393,6 +403,8 @@ extern function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): voi
 extern function driver_skip_codegen_dep_0_get(): i32;
 /** shu check：非 0 时 typeck 通过后直接返回，不跑 codegen/asm。 */
 extern function driver_check_only_get(): i32;
+/** asm -o 单模块：C 设 1 时 pipeline 仅 parse（+ 可选 skip typeck），勿 codegen_su_ast（大模块宿主栈风险）。 */
+extern function driver_su_pipeline_skip_codegen_get(): i32;
 /** 诊断：pipeline 入口打印 ctx.entry_already_parsed（非 0 则跳过解析）。由 runtime.c 实现。 */
 extern function driver_diagnostic_entry_already(v: i32): void;
 /** 诊断：解析前打印 source_len（0 表示无源码）。由 runtime.c 实现。 */
@@ -429,28 +441,39 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
   }
   /* 失败时传播具体码：-5 库 typeck，-6 代码生成，便于诊断。
    * 库模块（main_func_index<0）：仍须走下文的 deps + codegen（-backend asm -o xxx.o 否则 .o __text 恒为空）。
-   * 仅在 typecheck 失败时返回；通过后与带 main 的模块共用 codegen 路径。 */
-  if (module.main_func_index < 0) {
-    let tc_lib: i32 = typeck_su_ast_library(module, arena, ctx);
-    if (tc_lib != 0) {
-      driver_diagnostic_typeck_fail();
-      return tc_lib;
-    }
-  } else {
-    if (typeck_su_ast(module, arena, ctx) != 0) {
-      driver_diagnostic_typeck_fail();
-      return -1;
+   * * 仅在 typecheck 失败时返回；通过后与带 main 的模块共用 codegen 路径。 */
+  /** build_shu_asm SKIP_TYPECK：入口仅 asm emit 桩/白名单，勿对无 dep AST 跑全量 .su typeck。 */
+  let skip_su_typeck: i32 = 0;
+  if (ctx.asm_entry_module_only != 0 && pipeline_driver_asm_build_skip_typeck() != 0) {
+    skip_su_typeck = 1;
+  }
+  if (skip_su_typeck == 0) {
+    if (module.main_func_index < 0) {
+      let tc_lib: i32 = typeck_su_ast_library(module, arena, ctx);
+      if (tc_lib != 0) {
+        driver_diagnostic_typeck_fail();
+        return tc_lib;
+      }
+    } else {
+      if (typeck_su_ast(module, arena, ctx) != 0) {
+        driver_diagnostic_typeck_fail();
+        return -1;
+      }
     }
   }
   /** shu check：仅验证 parse+typeck+deps，不写 C / 不链可执行文件。 */
   if (driver_check_only_get() != 0) {
     return 0;
   }
+  /** build_shu_asm / asm -o：C 已设 skip_codegen，仅 parse；真 .o 由 asm_asm_codegen_elf_o 产出。 */
+  if (driver_su_pipeline_skip_codegen_get() != 0) {
+    return 0;
+  }
   out_buf.len = 0;
   driver_diagnostic_before_codegen(module.num_funcs, out_buf.len);
   /** build_shu_asm 按模块单独 -o xxx.o 再并列链接：dep 已由其它 .o 提供，此处勿再嵌入 dep 机器码。 */
   let skip_asm_dep_codegen: i32 = 0;
-  if (ctx.asm_entry_module_only != 0 && ctx.use_asm_backend != 0) {
+  if (ctx.asm_entry_module_only != 0) {
     skip_asm_dep_codegen = 1;
   }
   let ndep_codegen: i32 = pipeline_dep_ctx_ndep(ctx);
@@ -499,7 +522,7 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
   driver_diagnostic_entry_module(module, arena);
   /*
    * 入口汇编：不限于「有 main」的 exe 单元。库翻译单元（main_func_index<0、仅有 num_funcs 与函数体）
-   * 须经 typeck_su_ast_library 后同样走 asm_codegen_ast，否则 -backend asm -o xxx.o 可能仅编 deps、入口 __text 为空。
+   * * 须经 typeck_su_ast_library 后同样走 asm_codegen_ast，否则 -backend asm -o xxx.o 可能仅编 deps、入口 __text 为空。
    */
   if (ctx.use_asm_backend != 0) {
     if (asm.asm_codegen_ast(module, arena, out_buf, ctx) != 0) {

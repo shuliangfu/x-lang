@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=lib/build-std-c-o.sh
+. "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
+ensure_std_c_o ../std/encoding/encoding.o
 SHU="${SHU:-./compiler/shu}"
 exe="/tmp/shu_encoding_$$"
 if ! $SHU -L . tests/encoding/main.su -o "$exe" 2>&1; then echo "encoding test: compile failed"; rm -f "$exe"; exit 1; fi

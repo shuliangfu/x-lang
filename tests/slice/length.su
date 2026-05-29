@@ -1,4 +1,5 @@
-// 测试 core.slice：len_i32/get_i32（[]i32）、len_u8/get_u8（[]u8）；边界内返回 some，越界返回 none
+// 测试 core.slice：len_i32/get_i32（[]i32）、len_u8/get_u8（[]u8）；边界内返回
+// some，越界返回 none
 import core.slice;
 import core.option;
 

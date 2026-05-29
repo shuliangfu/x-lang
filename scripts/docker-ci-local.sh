@@ -25,6 +25,8 @@ run_one() {
       make -C compiler OPT=1 all &&
       make -C compiler test_c &&
       make -C compiler test_su &&
+      chmod +x tests/run-bootstrap-bstrict-ci.sh &&
+      ./tests/run-bootstrap-bstrict-ci.sh &&
       make -C compiler bootstrap-verify
     '
 }

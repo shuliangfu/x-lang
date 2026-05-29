@@ -85,6 +85,9 @@ function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepC
   if (backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx) != 0) {
     return -1;
   }
+  if (peephole.peephole_elf_run(elf_ctx) != 0) {
+    return -1;
+  }
   if (platform.elf.elf_resolve_patches(elf_ctx) != 0) {
     return -1;
   }

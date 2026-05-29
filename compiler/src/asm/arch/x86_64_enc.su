@@ -1,7 +1,10 @@
 // x86_64_enc.su — x86-64 机器码编码（供 ELF .o 直接写出）
 //
-// 职责：将 backend 用到的每条指令编码为字节，写入 ElfCodegenCtx.code；jz/jmp 写占位并记 patch，call 记 reloc。
-// 依赖：elf（ElfCodegenCtx、append_elf_bytes、elf_add_label、elf_add_patch、elf_add_reloc、elf_add_sym）。
+// 职责：将 backend 用到的每条指令编码为字节，写入 ElfCodegenCtx.code；jz/jmp
+// 写占位并记 patch，call 记 reloc。
+//
+// 依赖：elf（ElfCodegenCtx、append_elf_bytes、elf_add_label、elf_add_patch、elf_add_reloc、el
+// f_add_sym）。
 //
 
 import platform.elf;
@@ -16,10 +19,10 @@ function enc_u8(ctx: *ElfCodegenCtx, b: i32): i32 {
 /** 向 ctx 追加 4 字节小端 imm32。 */
 function enc_u32_le(ctx: *ElfCodegenCtx, imm: i32): i32 {
   let buf: [4]u8 = [];
-  buf[0] = platform.elf.elf_to_u8(imm);
-  buf[1] = platform.elf.elf_to_u8(imm >> 8);
-  buf[2] = platform.elf.elf_to_u8(imm >> 16);
-  buf[3] = platform.elf.elf_to_u8(imm >> 24);
+  buf[0] = platform.elf.elf_u32_byte_at(imm, 0);
+  buf[1] = platform.elf.elf_u32_byte_at(imm, 1);
+  buf[2] = platform.elf.elf_u32_byte_at(imm, 2);
+  buf[3] = platform.elf.elf_u32_byte_at(imm, 3);
   return platform.elf.append_elf_bytes(ctx, buf, 4);
 }
 
@@ -56,7 +59,8 @@ function enc_mov_imm32_to_rbx(ctx: *ElfCodegenCtx, imm32: i32): i32 {
   return enc_u32_le(ctx, imm32);
 }
 
-/** 将 64 位立即数（lo 低 32 位、hi 高 32 位）装入 %rax。用于 EXPR_FLOAT_LIT 发射 double 位模式。movabs rax, imm64。 */
+/** 将 64 位立即数（lo 低 32 位、hi 高 32 位）装入 %rax。用于 EXPR_FLOAT_LIT
+* 发射 double 位模式。movabs rax, imm64。 */
 function enc_mov_imm64_to_rax(ctx: *ElfCodegenCtx, lo: i32, hi: i32): i32 {
   if (enc_u8(ctx, 72) != 0) { return -1; }
   if (enc_u8(ctx, 184) != 0) { return -1; }
@@ -91,6 +95,12 @@ function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
   if (platform.elf.append_elf_bytes(ctx, sub, 3) != 0) { return -1; }
   let mov: [3]u8 = [72, 137, 216];
   return platform.elf.append_elf_bytes(ctx, mov, 3);
+}
+
+/** subq %rax, %rbx（rax = rax - rbx，字面量右操作数 SUB 快路径）。 */
+function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
+  let buf: [3]u8 = [72, 41, 216];
+  return platform.elf.append_elf_bytes(ctx, buf, 3);
 }
 
 /** imulq %rbx, %rax。 */
@@ -196,7 +206,8 @@ function enc_cmp_rbx_rax(ctx: *ElfCodegenCtx): i32 {
   return platform.elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** 根据 cc 发射 setcc %al；cc: 0=sete, 1=setne, 2=setl, 3=setle, 4=setg, 5=setge；再 movzbl %al, %eax。 */
+/** 根据 cc 发射 setcc %al；cc: 0=sete, 1=setne, 2=setl, 3=setle, 4=setg, 5=setge；再 movzbl
+* %al, %eax。 */
 function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
   let op: i32 = 148;
   if (cc == 1) { op = 149; }
@@ -259,8 +270,9 @@ function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
 }
 
 /**
- * 将 [rbp-rbp_off, rbp) 共 nbytes 字节清零：lea 到 rdi，xor esi，edx=nbytes，call memset（SysV）。
- */
+* 将 [rbp-rbp_off, rbp) 共 nbytes 字节清零：lea 到 rdi，xor esi，edx=nbytes，call
+* memset（SysV）。
+*/
 function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i32 {
   if (nbytes <= 0) {
     return 0;
@@ -284,11 +296,14 @@ function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i3
   if (enc_mov_rax_to_arg_reg(ctx, 2) != 0) {
     return -1;
   }
-  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return enc_call(ctx, memset_nm, 6);
 }
 
-/** leaq (%rax,%rbx,1), %rax — 元素宽 1 字节时下标缩放。魔数取自 x86 ISA（REX.W + modrm）。 */
+/** leaq (%rax,%rbx,1), %rax — 元素宽 1 字节时下标缩放。魔数取自 x86 ISA（REX.W +
+* modrm）。 */
 function enc_rax_plus_rbx_scale1(ctx: *ElfCodegenCtx): i32 {
   let buf: [4]u8 = [72, 141, 4, 24];
   return platform.elf.append_elf_bytes(ctx, buf, 4);
@@ -332,7 +347,8 @@ function enc_load_zext8_from_rax(ctx: *ElfCodegenCtx): i32 {
   return platform.elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** addq $imm32, %rax。用于 EXPR_FIELD_ACCESS 字段偏移。imm==0 时不编码（与文本 asm 优化一致）。 */
+/** addq $imm32, %rax。用于 EXPR_FIELD_ACCESS 字段偏移。imm==0 时不编码（与文本 asm
+* 优化一致）。 */
 function enc_add_imm_to_rax(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   if (enc_u8(ctx, 72) != 0) { return -1; }
@@ -346,7 +362,8 @@ function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
   return platform.elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** 将 rax 存到 [rbx+offset]。store_size 4：movl %eax（89 83 disp32）；8：movq %rax（48 89 83 disp32）。 */
+/** 将 rax 存到 [rbx+offset]。store_size 4：movl %eax（89 83 disp32）；8：movq %rax（48
+* 89 83 disp32）。 */
 function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size: i32): i32 {
   if (store_size == 4) {
     let buf: [6]u8 = [137, 131, 0, 0, 0, 0];
@@ -370,33 +387,53 @@ function enc_mov_rbx_to_rax(ctx: *ElfCodegenCtx): i32 {
   return platform.elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** jz rel32：发 0F 84 00 00 00 00，并记 patch(rel32 位置, label)。调用前需先 enc_test_eax_eax。 */
-function enc_jz(ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32): i32 {
+/** jz rel32：发 0F 84 00 00 00 00，并记 patch(rel32 位置, label)。调用前需先
+* enc_test_eax_eax。 */
+function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   let buf: [6]u8 = [15, 132, 0, 0, 0, 0];
   if (platform.elf.append_elf_bytes(ctx, buf, 6) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
+  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf_add_patch(ctx, rel32_at, label, label_len);
+}
+
+/** je rel32：发 0F 84（与 jz 同操作码），须紧接 cmpl 之后。match 臂比较用。 */
+function enc_jeq(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
+  return enc_jz(ctx, label, label_len);
+}
+
+/** jge rel32：发 0F 8D 00 00 00 00；须紧接 cmpl 之后（i>=n 时跳出计数循环）。 */
+function enc_jge(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
+  let buf: [6]u8 = [15, 141, 0, 0, 0, 0];
+  if (platform.elf.append_elf_bytes(ctx, buf, 6) != 0) { return -1; }
+  let rel32_at: i32 = ctx.code_len - 4;
+  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
   return elf_add_patch(ctx, rel32_at, label, label_len);
 }
 
 /** jnz rel32：发 0F 85 00 00 00 00，并记 patch。调用前需先 enc_test_eax_eax。 */
-function enc_jnz(ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32): i32 {
+function enc_jnz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   let buf: [6]u8 = [15, 133, 0, 0, 0, 0];
   if (platform.elf.append_elf_bytes(ctx, buf, 6) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
+  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
   return elf_add_patch(ctx, rel32_at, label, label_len);
 }
 
 /** jmp rel32：发 E9 00 00 00 00，并记 patch。 */
-function enc_jmp(ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32): i32 {
+function enc_jmp(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u8(ctx, 233) != 0) { return -1; }
   if (enc_u32_le(ctx, 0) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
+  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
   return elf_add_patch(ctx, rel32_at, label, label_len);
 }
 
-/** 将 %rax 拷到第 k 个参数寄存器（0=rdi, 1=rsi, 2=rdx, 3=rcx, 4=r8, 5=r9）。movq %rax, %reg。 */
+/** 将 %rax 拷到第 k 个参数寄存器（0=rdi, 1=rsi, 2=rdx, 3=rcx, 4=r8, 5=r9）。movq
+* %rax, %reg。 */
 function enc_mov_rax_to_arg_reg(ctx: *ElfCodegenCtx, k: i32): i32 {
-  let ins: [6][3]u8 = [ [72, 137, 199], [72, 137, 198], [72, 137, 194], [72, 137, 200], [73, 137, 192], [73, 137, 193] ];
+  let ins: [6][3]u8 = [ [72, 137, 199], [72, 137, 198], [72, 137, 194], [72, 137, 200], [73, 137,
+  192], [73, 137, 193] ];
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
   if (idx > 5) { idx = 5; }
@@ -426,7 +463,8 @@ function enc_call(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
   if (enc_u8(ctx, 232) != 0) { return -1; }
   if (enc_u32_le(ctx, 0) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
-  /** Mach-O x86_64：符号名须有 Darwin leading `_`；name_len≤63 时前缀与名称同入 [64]u8。 */
+  /** Mach-O x86_64：符号名须有 Darwin leading `_`；name_len≤63 时前缀与名称同入
+  * [64]u8。 */
   if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
     let rn: [64]u8 = [];
     rn[0] = 95;
@@ -435,13 +473,17 @@ function enc_call(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32): i32 {
       rn[k + 1] = name[k];
       k = k + 1;
     }
-    return elf_add_reloc(ctx, rel32_at, rn, name_len + 1);
+    return elf_add_reloc(ctx, rel32_at, &rn[0], name_len + 1);
   }
-  return elf_add_reloc(ctx, rel32_at, name, name_len);
+  return elf_add_reloc(ctx, rel32_at, &name[0], name_len);
 }
 
-/** 标签：不发射字节，只记录 label 及其当前偏移；若名称非 .L 开头则同时记入 sym（函数入口）。 */
-function enc_label(ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32, is_func: i32): i32 {
+/** 标签：不发射字节，只记录 label 及其当前偏移；若名称非 .L
+* 开头则同时记入 sym（函数入口，先 4 字节对齐）。 */
+function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32): i32 {
+  if (is_func != 0) {
+    if (platform.elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
+  }
   if (elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
     if (ctx.macho_leading_underscore != 0) {

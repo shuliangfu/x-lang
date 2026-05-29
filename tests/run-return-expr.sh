@@ -2,7 +2,9 @@
 # 验证显式 return expr；块尾可为 return 42 作为返回值。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHU=${SHU:-./compiler/shu}
 
 $SHU tests/return-expr/explicit.su -o /tmp/shu_return_explicit 2>&1

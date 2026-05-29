@@ -1,8 +1,12 @@
 // build_runner.su — build_tool 的入口与编排（无 C main：由 crt0 调 entry）
 //
-// 与 build.su 配合：build.su 提供 build_get_step_count()；-E 生成 build_gen.c；build_get_step_at() 在 build_runtime.c（与 build.su 注释中的步骤表同步），
-// 本文件提供 entry(argc, argv)。asm 路径（argv[2]=asm）已完全在 .su 中实现（不调 C）；
-// 默认路径仍调 build_run_step（由 build_runtime.c 提供），完全无 C 时需将 run_step 与 patch 迁入 .su。
+// 与 build.su 配合：build.su 提供 build_get_step_count()；-E 生成
+// build_gen.c；build_get_step_at() 在 build_runtime.c（与 build.su
+// 注释中的步骤表同步），
+// 本文件提供 entry(argc, argv)。asm 路径（argv[2]=asm）已完全在 .su
+// 中实现（不调 C）；
+// 默认路径仍调 build_run_step（由 build_runtime.c 提供），完全无 C 时需将
+// run_step 与 patch 迁入 .su。
 // 链接：crt0_x86_64.o + build_runner_gen.o + build_gen.o + build_runtime.o（无 main）+ -lc。
 
 /** 从 argv 取第 i 个参数到 buf，NUL 结尾；由 crt0 提供。 */
@@ -15,7 +19,8 @@ extern function build_get_step_at(i: i32): i32;
 /** libc：执行命令行；asm 路径完全无 C 时用此拼出 SHU=path + 脚本并执行。 */
 extern function system(cmd: *u8): i32;
 
-/** 将 asm 路径命令拼入 buf：SHU=<shu_path> ./scripts/build_shu_asm.sh，NUL 结尾。返回 0 成功，-1 溢出。 */
+/** 将 asm 路径命令拼入 buf：SHU=<shu_path> ./scripts/build_shu_asm.sh，NUL
+* 结尾。返回 0 成功，-1 溢出。 */
 function build_asm_cmd(buf: *u8, size: i32, shu_path: *u8): i32 {
   let k: i32 = 0;
   let prefix: [5]u8 = [83, 72, 85, 61, 0];
@@ -35,7 +40,8 @@ function build_asm_cmd(buf: *u8, size: i32, shu_path: *u8): i32 {
   if (k >= size - 1) {
     return -1;
   }
-  let suffix: [29]u8 = [32, 46, 47, 115, 99, 114, 105, 112, 116, 115, 47, 98, 117, 105, 108, 100, 95, 115, 104, 117, 95, 97, 115, 109, 46, 115, 104, 0, 0];
+  let suffix: [29]u8 = [32, 46, 47, 115, 99, 114, 105, 112, 116, 115, 47, 98, 117, 105, 108, 100,
+  95, 115, 104, 117, 95, 97, 115, 109, 46, 115, 104, 0, 0];
   p = 0;
   while (suffix[p] != 0 && k < size - 1) {
     buf[k] = suffix[p];
@@ -46,7 +52,8 @@ function build_asm_cmd(buf: *u8, size: i32, shu_path: *u8): i32 {
   return 0;
 }
 
-/** 入口：crt0 调用。argv[1]=shu 路径，argv[2]=asm 时走 asm 路径（纯 .su，不调 C），否则按步骤顺序执行。返回 0 成功 1 失败。 */
+/** 入口：crt0 调用。argv[1]=shu 路径，argv[2]=asm 时走 asm 路径（纯 .su，不调
+* C），否则按步骤顺序执行。返回 0 成功 1 失败。 */
 function entry(argc: i32, argv: *u8): i32 {
   let shu_buf: [256]u8 = [];
   let len: i32 = driver_get_argv_i(argc, argv, 1, shu_buf, 256);

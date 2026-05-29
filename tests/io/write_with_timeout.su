@@ -1,4 +1,5 @@
-// 测试 std.io 带超时 API：write_with_timeout(ptr, len, 0) 等价于 write_stdout，0 表示无超时
+// 测试 std.io 带超时 API：write_with_timeout(ptr, len, 0) 等价于 write_stdout，0
+// 表示无超时
 import std.io;
 
 function main(): i32 {

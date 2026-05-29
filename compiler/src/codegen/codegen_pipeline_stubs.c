@@ -9,6 +9,10 @@
 
 void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
 
+void codegen_reset_preamble_skip_mask(void) { }
+void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
+unsigned codegen_get_preamble_skip_mask(void) { return 0; }
+
 void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n) {
     (void)mods;
     (void)paths;

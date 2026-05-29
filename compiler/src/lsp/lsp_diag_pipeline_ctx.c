@@ -14,9 +14,9 @@ struct ast_PipelineDepCtx {
   int32_t entry_dir_len;
   int32_t num_lib_roots;
   uint8_t path_buf[512];
-  uint8_t loaded_buf[4194304];
+  uint8_t *loaded_buf;
   ptrdiff_t loaded_len;
-  uint8_t preprocess_buf[4194304];
+  uint8_t *preprocess_buf;
   int32_t preprocess_len;
   int32_t use_asm_backend;
   int32_t target_arch;
@@ -24,8 +24,11 @@ struct ast_PipelineDepCtx {
   int32_t use_coff_o;
   int32_t current_block_ref;
   int32_t typeck_loop_depth;
+  /** typeck: check_expr 递归深度计数器，防 self-typeck.su 编译时循环引用栈溢出（lsp_diag_pipeline_ctx.c）。 */
+  int32_t typeck_check_depth;
   int32_t current_func_index;
   int32_t skip_codegen_dep_0;
+  int32_t check_only_mode;
   int32_t entry_already_parsed;
   int32_t current_func_single_empty_param_index;
   int32_t current_func_empty_param_count;

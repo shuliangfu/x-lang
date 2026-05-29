@@ -1,20 +1,26 @@
 // lsp.su — LSP 协议层（路线 A：用 .su 写，内置于 shu）
 //
-// 职责：从 stdin 读 JSON-RPC（Content-Length + 正文），解析 method 并分发；向 stdout 写响应。
-// 已实现：initialize（含 capabilities）、initialized、textDocument/didOpen、didChange、didSave、didClose、
-// textDocument/diagnostic（诊断缓存）、definition、references、hover、completion、documentSymbol、
+// 职责：从 stdin 读 JSON-RPC（Content-Length + 正文），解析 method 并分发；向
+// stdout 写响应。
+// 已实现：initialize（含
+// capabilities）、initialized、textDocument/didOpen、didChange、didSave、didClose、
+//
+// textDocument/diagnostic（诊断缓存）、definition、references、hover、completion、documentS
+// ymbol、
 // semanticTokens、rename、shutdown、exit、$/cancelRequest、workspace/didChangeConfiguration。
 // 高性能：诊断有文档哈希缓存（不变则跳过重解析）。
 
 import lsp_io;
 
-/** 单条消息 body 安全上限（64MB）；顶层 let 须在任意 extern/function 之前，供 C 解析器正确识别。 */
+/** 单条消息 body 安全上限（64MB）；顶层 let 须在任意 extern/function 之前，供
+* C 解析器正确识别。 */
 let LSP_BODY_CAP: i32 = 67108864;
 
 /** 读消息用的状态缓冲大小（4 + leftover 区）。 */
 let LSP_STATE_SIZE: i32 = 4 + 8192 * 2;
 
-/** 诊断 / 格式化响应堆缓冲容量（勿放入 lsp_main 栈：合计 >300KiB 会在 macOS 默认线程栈上溢出）。 */
+/** 诊断 / 格式化响应堆缓冲容量（勿放入 lsp_main 栈：合计 >300KiB 会在 macOS
+* 默认线程栈上溢出）。 */
 let LSP_DIAG_RESP_CAP: i32 = 32768;
 let LSP_REF_RESP_CAP: i32 = 8192;
 let LSP_FORMAT_RESP_CAP: i32 = 262144;
@@ -24,29 +30,49 @@ extern function lsp_state_buf_ptr(): *u8;
 
 /** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
 extern function lsp_build_initialize_result(out_buf: *u8, out_cap: i32): i32;
-/** 对 source 跑 .su pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
-extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 definition 请求 body 与当前文档构建 definition 响应（result: Location 或 null）；返回长度，失败 -1。 */
-extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 references 请求 body 与当前文档构建 references 响应（result: Location[]）；返回长度，失败 -1。 */
-extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 hover 请求 body 与当前文档构建 hover 响应（result: Hover 或 null）；返回长度，失败 -1。 */
-extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 formatting 请求 body 与当前文档构建格式化响应（result: TextEdit[]）；返回长度，失败 -1。 */
-extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 completion 请求 body 与当前文档构建补全响应（result: CompletionItem[]）；返回长度，失败 -1。 */
-extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 documentSymbol 请求与当前文档构建文档符号响应（result: DocumentSymbol[]）；返回长度，失败 -1。 */
-extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 semanticTokens/full 请求构建响应（result: SemanticTokens）；返回长度，失败 -1。 */
-extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 对 source 跑 .su pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC
+* 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
+extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf:
+*u8, out_cap: i32): i32;
+/** 从 definition 请求 body 与当前文档构建 definition 响应（result: Location 或
+* null）；返回长度，失败 -1。 */
+extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 references 请求 body 与当前文档构建 references 响应（result:
+* Location[]）；返回长度，失败 -1。 */
+extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 hover 请求 body 与当前文档构建 hover 响应（result: Hover 或
+* null）；返回长度，失败 -1。 */
+extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 formatting 请求 body 与当前文档构建格式化响应（result:
+* TextEdit[]）；返回长度，失败 -1。 */
+extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 completion 请求 body 与当前文档构建补全响应（result:
+* CompletionItem[]）；返回长度，失败 -1。 */
+extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 documentSymbol 请求与当前文档构建文档符号响应（result:
+* DocumentSymbol[]）；返回长度，失败 -1。 */
+extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf:
+*u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+/** 从 semanticTokens/full 请求构建响应（result: SemanticTokens）；返回长度，失败
+-1。 */
+extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
+out_buf: *u8, out_cap: i32): i32;
 /** 从 rename 请求 body + 文档构建 WorkspaceEdit 响应；失败返回 -1。 */
-extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 文档变更时使诊断哈希缓存失效。 */
 extern function lsp_diag_invalidate_cache(): void;
-/** 构建 JSON-RPC 响应外壳 {"jsonrpc":"2.0","id":<id>,"result":<result>}；仍由 lsp_io.c 提供（供 C 内 build_definition 等调用）。 */
-extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 didOpen/didChange 的 body 中提取文档并设为当前文档（仍由 lsp_io.c 维护）。 */
+/** 构建 JSON-RPC 响应外壳 {"jsonrpc":"2.0","id":<id>,"result":<result>}；仍由 lsp_io.c
+* 提供（供 C 内 build_definition 等调用）。 */
+extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
+out_buf: *u8, out_cap: i32): i32;
+/** 从 didOpen/didChange 的 body 中提取文档并设为当前文档（仍由 lsp_io.c
+* 维护）。 */
 extern function lsp_set_document_from_body(body: *u8, body_len: i32): void;
 /** 当前文档内容指针（只读）。 */
 extern function lsp_get_document_ptr(): *u8;
@@ -57,7 +83,9 @@ extern function lsp_get_document_len(): i32;
 function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 10 <= len) {
-    if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i + 4] == 105 && body[i + 5] == 97 && body[i + 6] == 108 && body[i + 7] == 105 && body[i + 8] == 122 && body[i + 9] == 101) {
+    if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i
+    + 4] == 105 && body[i + 5] == 97 && body[i + 6] == 108 && body[i + 7] == 105 && body[i + 8] ==
+    122 && body[i + 9] == 101) {
       return 1;
     }
     i = i + 1;
@@ -65,11 +93,14 @@ function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "initialized"（11 字节）；握手后 Client 发的通知，无需响应。 */
+/** 在 body[0..len-1] 中查找子串 "initialized"（11 字节）；握手后 Client
+* 发的通知，无需响应。 */
 function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 11 <= len) {
-    if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i + 4] == 105 && body[i + 5] == 97 && body[i + 6] == 108 && body[i + 7] == 105 && body[i + 8] == 122 && body[i + 9] == 101 && body[i + 10] == 100) {
+    if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i
+    + 4] == 105 && body[i + 5] == 97 && body[i + 6] == 108 && body[i + 7] == 105 && body[i + 8] ==
+    122 && body[i + 9] == 101 && body[i + 10] == 100) {
       return 1;
     }
     i = i + 1;
@@ -81,7 +112,8 @@ function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
 function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 8 <= len) {
-    if (body[i] == 115 && body[i + 1] == 104 && body[i + 2] == 117 && body[i + 3] == 116 && body[i + 4] == 100 && body[i + 5] == 111 && body[i + 6] == 119 && body[i + 7] == 110) {
+    if (body[i] == 115 && body[i + 1] == 104 && body[i + 2] == 117 && body[i + 3] == 116 && body[i
+    + 4] == 100 && body[i + 5] == 111 && body[i + 6] == 119 && body[i + 7] == 110) {
       return 1;
     }
     i = i + 1;
@@ -89,11 +121,16 @@ function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "textDocument/didOpen"；打开文件时 Client 发此通知。 */
+/** 在 body[0..len-1] 中查找子串 "textDocument/didOpen"；打开文件时 Client
+* 发此通知。 */
 function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
-    if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i + 4] == 68 && body[i + 5] == 111 && body[i + 6] == 99 && body[i + 7] == 117 && body[i + 8] == 109 && body[i + 9] == 101 && body[i + 10] == 110 && body[i + 11] == 116 && body[i + 12] == 47 && body[i + 13] == 100 && body[i + 14] == 105 && body[i + 15] == 100 && body[i + 16] == 79 && body[i + 17] == 112 && body[i + 18] == 101 && body[i + 19] == 110) {
+    if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i
+    + 4] == 68 && body[i + 5] == 111 && body[i + 6] == 99 && body[i + 7] == 117 && body[i + 8] ==
+    109 && body[i + 9] == 101 && body[i + 10] == 110 && body[i + 11] == 116 && body[i + 12] == 47
+    && body[i + 13] == 100 && body[i + 14] == 105 && body[i + 15] == 100 && body[i + 16] == 79 &&
+    body[i + 17] == 112 && body[i + 18] == 101 && body[i + 19] == 110) {
       return 1;
     }
     i = i + 1;
@@ -101,11 +138,17 @@ function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "textDocument/didChange"；编辑时 Client 发此通知。 */
+/** 在 body[0..len-1] 中查找子串 "textDocument/didChange"；编辑时 Client 发此通知。
+*/
 function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 21 <= len) {
-    if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i + 4] == 68 && body[i + 5] == 111 && body[i + 6] == 99 && body[i + 7] == 117 && body[i + 8] == 109 && body[i + 9] == 101 && body[i + 10] == 110 && body[i + 11] == 116 && body[i + 12] == 47 && body[i + 13] == 100 && body[i + 14] == 105 && body[i + 15] == 100 && body[i + 16] == 67 && body[i + 17] == 104 && body[i + 18] == 97 && body[i + 19] == 110 && body[i + 20] == 103 && body[i + 21] == 101) {
+    if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i
+    + 4] == 68 && body[i + 5] == 111 && body[i + 6] == 99 && body[i + 7] == 117 && body[i + 8] ==
+    109 && body[i + 9] == 101 && body[i + 10] == 110 && body[i + 11] == 116 && body[i + 12] == 47
+    && body[i + 13] == 100 && body[i + 14] == 105 && body[i + 15] == 100 && body[i + 16] == 67 &&
+    body[i + 17] == 104 && body[i + 18] == 97 && body[i + 19] == 110 && body[i + 20] == 103 &&
+    body[i + 21] == 101) {
       return 1;
     }
     i = i + 1;
@@ -117,7 +160,11 @@ function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
 function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 100 && body[i+16] == 83 && body[i+17] == 97 && body[i+18] == 118 && body[i+19] == 101) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 &&
+    body[i+14] == 105 && body[i+15] == 100 && body[i+16] == 83 && body[i+17] == 97 && body[i+18] ==
+    118 && body[i+19] == 101) {
       return 1;
     }
     i = i + 1;
@@ -125,11 +172,16 @@ function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/diagnostic"（23 字节，LSP 规范单数）；Client 请求诊断，需按 id 回复 result。 */
+/** 在 body 中查找 "textDocument/diagnostic"（23 字节，LSP 规范单数）；Client
+* 请求诊断，需按 id 回复 result。 */
 function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 97 && body[i+16] == 103 && body[i+17] == 110 && body[i+18] == 111 && body[i+19] == 115 && body[i+20] == 116 && body[i+21] == 105 && body[i+22] == 99) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 &&
+    body[i+14] == 105 && body[i+15] == 97 && body[i+16] == 103 && body[i+17] == 110 && body[i+18]
+    == 111 && body[i+19] == 115 && body[i+20] == 116 && body[i+21] == 105 && body[i+22] == 99) {
       return 1;
     }
     i = i + 1;
@@ -141,7 +193,11 @@ function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
 function lsp_body_contains_completion(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 99 && body[i+14] == 111 && body[i+15] == 109 && body[i+16] == 112 && body[i+17] == 108 && body[i+18] == 101 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 111 && body[i+22] == 110) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 99 &&
+    body[i+14] == 111 && body[i+15] == 109 && body[i+16] == 112 && body[i+17] == 108 && body[i+18]
+    == 101 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 111 && body[i+22] == 110) {
       return 1;
     }
     i = i + 1;
@@ -153,7 +209,12 @@ function lsp_body_contains_completion(body: *u8, len: i32): i32 {
 function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 27 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 111 && body[i+15] == 99 && body[i+16] == 117 && body[i+17] == 109 && body[i+18] == 101 && body[i+19] == 110 && body[i+20] == 116 && body[i+21] == 83 && body[i+22] == 121 && body[i+23] == 109 && body[i+24] == 98 && body[i+25] == 111 && body[i+26] == 108) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 &&
+    body[i+14] == 111 && body[i+15] == 99 && body[i+16] == 117 && body[i+17] == 109 && body[i+18]
+    == 101 && body[i+19] == 110 && body[i+20] == 116 && body[i+21] == 83 && body[i+22] == 121 &&
+    body[i+23] == 109 && body[i+24] == 98 && body[i+25] == 111 && body[i+26] == 108) {
       return 1;
     }
     i = i + 1;
@@ -165,7 +226,12 @@ function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
 function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 28 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 115 && body[i+14] == 101 && body[i+15] == 109 && body[i+16] == 97 && body[i+17] == 110 && body[i+18] == 116 && body[i+19] == 105 && body[i+20] == 99 && body[i+21] == 84 && body[i+22] == 111 && body[i+23] == 107 && body[i+24] == 101 && body[i+25] == 110 && body[i+26] == 115) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 115 &&
+    body[i+14] == 101 && body[i+15] == 109 && body[i+16] == 97 && body[i+17] == 110 && body[i+18]
+    == 116 && body[i+19] == 105 && body[i+20] == 99 && body[i+21] == 84 && body[i+22] == 111 &&
+    body[i+23] == 107 && body[i+24] == 101 && body[i+25] == 110 && body[i+26] == 115) {
       return 1;
     }
     i = i + 1;
@@ -177,7 +243,11 @@ function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
 function lsp_body_contains_rename(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 114 && body[i+14] == 101 && body[i+15] == 110 && body[i+16] == 97 && body[i+17] == 109 && body[i+18] == 101) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 114 &&
+    body[i+14] == 101 && body[i+15] == 110 && body[i+16] == 97 && body[i+17] == 109 && body[i+18]
+    == 101) {
       return 1;
     }
     i = i + 1;
@@ -189,7 +259,11 @@ function lsp_body_contains_rename(body: *u8, len: i32): i32 {
 function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 105 && body[i+15] == 100 && body[i+16] == 67 && body[i+17] == 108 && body[i+18] == 111 && body[i+19] == 115 && body[i+20] == 101) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 &&
+    body[i+14] == 105 && body[i+15] == 100 && body[i+16] == 67 && body[i+17] == 108 && body[i+18]
+    == 111 && body[i+19] == 115 && body[i+20] == 101) {
       return 1;
     }
     i = i + 1;
@@ -201,7 +275,10 @@ function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
 function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 14 <= len) {
-    if (body[i] == 36 && body[i+1] == 47 && body[i+2] == 99 && body[i+3] == 97 && body[i+4] == 110 && body[i+5] == 99 && body[i+6] == 101 && body[i+7] == 108 && body[i+8] == 82 && body[i+9] == 101 && body[i+10] == 113 && body[i+11] == 117 && body[i+12] == 101 && body[i+13] == 115 && body[i+14] == 116) {
+    if (body[i] == 36 && body[i+1] == 47 && body[i+2] == 99 && body[i+3] == 97 && body[i+4] == 110
+    && body[i+5] == 99 && body[i+6] == 101 && body[i+7] == 108 && body[i+8] == 82 && body[i+9] ==
+    101 && body[i+10] == 113 && body[i+11] == 117 && body[i+12] == 101 && body[i+13] == 115 &&
+    body[i+14] == 116) {
       return 1;
     }
     i = i + 1;
@@ -213,7 +290,13 @@ function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
 function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 35 <= len) {
-    if (body[i] == 119 && body[i+1] == 111 && body[i+2] == 114 && body[i+3] == 107 && body[i+4] == 115 && body[i+5] == 112 && body[i+6] == 97 && body[i+7] == 99 && body[i+8] == 101 && body[i+9] == 47 && body[i+10] == 100 && body[i+11] == 105 && body[i+12] == 100 && body[i+13] == 67 && body[i+14] == 104 && body[i+15] == 97 && body[i+16] == 110 && body[i+17] == 103 && body[i+18] == 101 && body[i+19] == 67 && body[i+20] == 111 && body[i+21] == 110 && body[i+22] == 102 && body[i+23] == 105 && body[i+24] == 103 && body[i+25] == 117 && body[i+26] == 114 && body[i+27] == 97 && body[i+28] == 116 && body[i+29] == 105 && body[i+30] == 111 && body[i+31] == 110) {
+    if (body[i] == 119 && body[i+1] == 111 && body[i+2] == 114 && body[i+3] == 107 && body[i+4] ==
+    115 && body[i+5] == 112 && body[i+6] == 97 && body[i+7] == 99 && body[i+8] == 101 && body[i+9]
+    == 47 && body[i+10] == 100 && body[i+11] == 105 && body[i+12] == 100 && body[i+13] == 67 &&
+    body[i+14] == 104 && body[i+15] == 97 && body[i+16] == 110 && body[i+17] == 103 && body[i+18]
+    == 101 && body[i+19] == 67 && body[i+20] == 111 && body[i+21] == 110 && body[i+22] == 102 &&
+    body[i+23] == 105 && body[i+24] == 103 && body[i+25] == 117 && body[i+26] == 114 && body[i+27]
+    == 97 && body[i+28] == 116 && body[i+29] == 105 && body[i+30] == 111 && body[i+31] == 110) {
       return 1;
     }
     i = i + 1;
@@ -221,11 +304,16 @@ function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/definition"（23 字符）；转到定义请求，需按 id 回复 result。 */
+/** 在 body 中查找 "textDocument/definition"（23 字符）；转到定义请求，需按 id
+* 回复 result。 */
 function lsp_body_contains_definition(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 22 < len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 && body[i+14] == 101 && body[i+15] == 102 && body[i+16] == 105 && body[i+17] == 110 && body[i+18] == 105 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 111 && body[i+22] == 110) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 100 &&
+    body[i+14] == 101 && body[i+15] == 102 && body[i+16] == 105 && body[i+17] == 110 && body[i+18]
+    == 105 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 111 && body[i+22] == 110) {
       return 1;
     }
     i = i + 1;
@@ -237,7 +325,12 @@ function lsp_body_contains_definition(body: *u8, len: i32): i32 {
 function lsp_body_contains_references(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 < len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 114 && body[i+14] == 101 && body[i+15] == 102 && body[i+16] == 101 && body[i+17] == 114 && body[i+18] == 101 && body[i+19] == 110 && body[i+20] == 99 && body[i+21] == 101 && body[i+22] == 115 && body[i+23] == 115) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 114 &&
+    body[i+14] == 101 && body[i+15] == 102 && body[i+16] == 101 && body[i+17] == 114 && body[i+18]
+    == 101 && body[i+19] == 110 && body[i+20] == 99 && body[i+21] == 101 && body[i+22] == 115 &&
+    body[i+23] == 115) {
       return 1;
     }
     i = i + 1;
@@ -249,7 +342,10 @@ function lsp_body_contains_references(body: *u8, len: i32): i32 {
 function lsp_body_contains_hover(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 17 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 104 && body[i+14] == 111 && body[i+15] == 118 && body[i+16] == 101 && body[i+17] == 114) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 104 &&
+    body[i+14] == 111 && body[i+15] == 118 && body[i+16] == 101 && body[i+17] == 114) {
       return 1;
     }
     i = i + 1;
@@ -261,7 +357,11 @@ function lsp_body_contains_hover(body: *u8, len: i32): i32 {
 function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
-    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] == 68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9] == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 102 && body[i+14] == 111 && body[i+15] == 114 && body[i+16] == 109 && body[i+17] == 97 && body[i+18] == 116 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 110 && body[i+22] == 103) {
+    if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
+    68 && body[i+5] == 111 && body[i+6] == 99 && body[i+7] == 117 && body[i+8] == 109 && body[i+9]
+    == 101 && body[i+10] == 110 && body[i+11] == 116 && body[i+12] == 47 && body[i+13] == 102 &&
+    body[i+14] == 111 && body[i+15] == 114 && body[i+16] == 109 && body[i+17] == 97 && body[i+18]
+    == 116 && body[i+19] == 116 && body[i+20] == 105 && body[i+21] == 110 && body[i+22] == 103) {
       return 1;
     }
     i = i + 1;
@@ -281,11 +381,13 @@ function lsp_body_contains_exit(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 从 body 中提取请求 id（简单实现：找 "id": 后的数字）；未找到返回 -1。 */
+/** 从 body 中提取请求 id（简单实现：找 "id": 后的数字）；未找到返回 -1。
+*/
 function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
   let i: i32 = 0;
   while (i + 6 <= len) {
-    if (body[i] == 34 && body[i + 1] == 105 && body[i + 2] == 100 && body[i + 3] == 34 && body[i + 4] == 58) {
+    if (body[i] == 34 && body[i + 1] == 105 && body[i + 2] == 100 && body[i + 3] == 34 && body[i +
+    4] == 58) {
       i = i + 5;
       while (i < len && (body[i] == 32 || body[i] == 9)) {
         i = i + 1;
@@ -375,7 +477,8 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
   return 0;
 }
 
-/** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
+/** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
+* 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
 function lsp_main(): i32 {
   let stdin_fd: i32 = 0;
   let stdout_fd: i32 = 1;
@@ -388,7 +491,7 @@ function lsp_main(): i32 {
   let ref_ptr: *u8 = lsp_io.lsp_alloc(LSP_REF_RESP_CAP as usize);
   let format_ptr: *u8 = lsp_io.lsp_alloc(LSP_FORMAT_RESP_CAP as usize);
   if (lsp_io.lsp_is_null(state_ptr) != 0 || lsp_io.lsp_is_null(diag_ptr) != 0
-      || lsp_io.lsp_is_null(ref_ptr) != 0 || lsp_io.lsp_is_null(format_ptr) != 0) {
+  || lsp_io.lsp_is_null(ref_ptr) != 0 || lsp_io.lsp_is_null(format_ptr) != 0) {
     if (lsp_io.lsp_is_null(diag_ptr) == 0) { lsp_io.lsp_free(diag_ptr); }
     if (lsp_io.lsp_is_null(ref_ptr) == 0) { lsp_io.lsp_free(ref_ptr); }
     if (lsp_io.lsp_is_null(format_ptr) == 0) { lsp_io.lsp_free(format_ptr); }
@@ -413,7 +516,8 @@ function lsp_main(): i32 {
       lsp_io.lsp_free(body_ptr);
       continue;
     }
-    /* 文档同步：didOpen / didChange 提取文档到 C 内部缓冲（堆，按需大小）。 */
+    /* 文档同步：didOpen / didChange 提取文档到 C 内部缓冲（堆，按需大小）。
+    */
     if (lsp_body_contains_did_open(body_ptr, content_len) != 0) {
       lsp_set_document_from_body(body_ptr, content_len);
       lsp_io.lsp_free(body_ptr);
@@ -473,7 +577,8 @@ function lsp_main(): i32 {
       lsp_io.lsp_free(body_ptr);
       continue;
     }
-    /* 以下为带 id 的请求：解析 id 后按 id 回复 result；文档从 C 侧动态缓冲获取。 */
+    /* 以下为带 id 的请求：解析 id 后按 id 回复 result；文档从 C
+    侧动态缓冲获取。 */
     let req_id: i32 = lsp_parse_id(body_ptr, content_len, id_buf, 32);
     let doc_ptr: *u8 = lsp_get_document_ptr();
     let doc_len: i32 = lsp_get_document_len();
@@ -481,11 +586,13 @@ function lsp_main(): i32 {
       let empty_arr: [2]u8 = [91, 93];
       let null_val: [4]u8 = [110, 117, 108, 108];
       if (lsp_body_contains_diagnostic(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_diagnostics_response(req_id, doc_ptr, doc_len, diag_ptr, LSP_DIAG_RESP_CAP);
+        let resp_len: i32 = lsp_build_diagnostics_response(req_id, doc_ptr, doc_len, diag_ptr,
+        LSP_DIAG_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, diag_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -494,11 +601,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_definition(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_definition_response(req_id, body_ptr, content_len, doc_ptr, doc_len, out_buf, 4096);
+        let resp_len: i32 = lsp_build_definition_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, out_buf, 4096);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, out_buf, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -507,11 +616,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_references(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_references_response(req_id, body_ptr, content_len, doc_ptr, doc_len, ref_ptr, LSP_REF_RESP_CAP);
+        let resp_len: i32 = lsp_build_references_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, ref_ptr, LSP_REF_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, ref_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -520,11 +631,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_hover(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_hover_response(req_id, body_ptr, content_len, doc_ptr, doc_len, out_buf, 4096);
+        let resp_len: i32 = lsp_build_hover_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, out_buf, 4096);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, out_buf, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -533,11 +646,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_formatting(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_formatting_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        let resp_len: i32 = lsp_build_formatting_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -546,11 +661,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_completion(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_completion_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        let resp_len: i32 = lsp_build_completion_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -559,11 +676,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_document_symbol(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_document_symbol_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        let resp_len: i32 = lsp_build_document_symbol_response(req_id, body_ptr, content_len,
+        doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -572,11 +691,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_semantic_tokens(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_semantic_tokens_response(req_id, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        let resp_len: i32 = lsp_build_semantic_tokens_response(req_id, doc_ptr, doc_len,
+        format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, empty_arr, 2, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }
@@ -585,11 +706,13 @@ function lsp_main(): i32 {
         continue;
       }
       if (lsp_body_contains_rename(body_ptr, content_len) != 0) {
-        let resp_len: i32 = lsp_build_rename_response(req_id, body_ptr, content_len, doc_ptr, doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
+        let resp_len: i32 = lsp_build_rename_response(req_id, body_ptr, content_len, doc_ptr,
+        doc_len, format_ptr, LSP_FORMAT_RESP_CAP);
         if (resp_len > 0) {
           lsp_send_response(stdout_fd, format_ptr, resp_len);
         } else {
-          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf, 4096);
+          let fallback_len: i32 = lsp_build_response_with_result(req_id, null_val, 4, out_buf,
+          4096);
           if (fallback_len > 0) {
             lsp_send_response(stdout_fd, out_buf, fallback_len);
           }

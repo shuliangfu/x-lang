@@ -1,9 +1,8 @@
 /**
  * pipeline_glue_link.c — Target B 实验链用最小 C 桥（不拉整份 pipeline_gen.c）。
  *
- * 提供 runtime_driver.o 调用的 pipeline_run_su_pipeline 包装；实现体在 build_asm/pipeline.o
- *（pipeline_run_su_pipeline_impl）。完整 pipeline_glue.c 仍须独立 TU 或 gen_driver 才能消除
- * backend/typeck 等对 pipeline_* 池读写的 undefined symbol。
+ * 提供 runtime_driver.o 调用的 pipeline_run_su_pipeline 包装；实现体为 pipeline_run_su_pipeline_impl
+ *（pipeline_su.o）或 build_asm/pipeline.o 的 run_su_pipeline_impl（经 pipeline_run_impl_alias.o 别名）。
  */
 #include <stddef.h>
 #include <stdint.h>

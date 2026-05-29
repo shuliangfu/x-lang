@@ -97,6 +97,9 @@ compiler/shu_asm2
 compiler/shu-su
 compiler/shu-su2
 compiler/shu_asm
+compiler/lsp_gen_full.c
+compiler/shu-su.hide
+compiler/shu_seed_backup
 compiler/asm_min
 compiler/asm_v2
 compiler/shu_stage1_test
@@ -129,6 +132,30 @@ compiler/.lldb_*
 # 本地 scratch：tmp_* 调试草稿（compiler/ 与仓库根目录）
 compiler/tmp_*
 compiler/tmp_bisect/
+# dot 前缀临时文件（.tmp_emit_result.txt / .tmp_be_test 等；非 *.tmp 后缀）
+compiler/.tmp_*
+**/.tmp_*
+# -E / 脚本中间 C（*.tmp 后缀与 asm_full_gen 原子写）
+**/*_gen.c.tmp
+**/asm_full_gen.c.tmp
+# build.su / build_runner.su -E 产出（build_gen.c 亦匹配 *_gen.c，此处显式列出）
+compiler/build_gen.c
+compiler/build_runner_gen.c
+compiler/build_runner.o
+# pipeline 实验/单测生成 C（非 Makefile 常规 pipeline_gen.c）
+compiler/pipeline_gen_extern.c
+compiler/pipeline_gen2_test.c
+# shu_asm 实验链路、备份与调试二进制（shu_asm / shu_asm2 已在上方）
+compiler/shu_asm.*
+compiler/shu_asm_*
+compiler/shu_asm_stage1
+compiler/shu-test
+compiler/shu_test
+compiler/shu_test_*
+compiler/shu-new-*
+# 类型检查/测试错误转储
+compiler/tests/tck_err.txt
+compiler/tests/*_err.txt
 /tmp_*.su
 /tmp_*.c
 
@@ -136,12 +163,28 @@ compiler/tmp_bisect/
 # 测试 ABI 脚本编译出的可执行文件
 tests/abi/layout_abi
 tests/tmp_out.txt
+tests/fmt/.fmt_wrap_out.su
+tests/fmt/.fmt_comprehensive_out.su
 # 测试输出、临时目录
 tmp/
 temp/
 *.tmp
 *.temp
 .cache/
+# Python 脚本缓存（verify_comment_prefixes / scan_fmt_damage 等）
+__pycache__/
+*.py[cod]
+*$py.class
+# 本地会话/完成标记（非仓库资产）
+DONE
+.done/
+# 根目录 build.su -E 产物（若在仓库根执行 build.sh）
+/build_gen.c
+/build_runner_gen.c
+/build_tool
+/build_tool.o
+/build_runner.o
+/build_runtime.o
 
 # --- 可选：调试与覆盖率 ---
 # *.dSYM/

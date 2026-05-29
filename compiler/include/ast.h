@@ -287,7 +287,8 @@ typedef struct ASTForLoop {
 
 /** 块内语句顺序：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for；idx 为对应数组下标；codegen 按此顺序生成保证 let/expr/loop 交错正确。
  * 需足够大以容纳 parse_into 等大块（成功路径含大量 let/loop/expr_stmt），否则写回 block_set/num_funcs++/lex 等被截断。 */
-#define MAX_BLOCK_STMT_ORDER 256
+/** 大函数体（如 typeck.su check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
+#define MAX_BLOCK_STMT_ORDER 512
 typedef struct ASTBlockStmtOrder {
     unsigned char kind;
     int idx;

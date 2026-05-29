@@ -1,8 +1,12 @@
 // coff.su — PE/COFF 可重定位 .obj 写出（Windows 目标文件）
 //
-// 职责：将 backend 已填充且 elf_resolve_patches 后的 ElfCodegenCtx 写出为 PE/COFF .obj，
-//      供 -target *-windows-* 且 -backend asm -o xxx.obj 使用。仅支持 x86_64 (e_machine 62)。
-// 依赖：codegen（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_eq_arr_to_pool）。
+// 职责：将 backend 已填充且 elf_resolve_patches 后的 ElfCodegenCtx 写出为 PE/COFF
+// .obj，
+//      供 -target *-windows-* 且 -backend asm -o xxx.obj 使用。仅支持 x86_64 (e_machine
+// 62)。
+//
+// 依赖：codegen（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、
+// elf_name_eq_arr_to_pool）。
 //
 
 import codegen;
@@ -20,7 +24,8 @@ function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   return 0;
 }
 
-/** 将 PE/COFF x86_64 可重定位 .obj 写入 out；调用前需已执行 elf_resolve_patches。仅支持 ctx.e_machine == 62。返回写入字节数，失败 -1。 */
+/** 将 PE/COFF x86_64 可重定位 .obj 写入 out；调用前需已执行
+* elf_resolve_patches。仅支持 ctx.e_machine == 62。返回写入字节数，失败 -1。 */
 function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (ctx.e_machine != 62) {
     return -1;
@@ -42,9 +47,9 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   let ptr_reloc: i32 = ptr_raw + align4;
   let ptr_sym: i32 = ptr_reloc + reloc_size;
   let ptr_str: i32 = ptr_sym + symtab_size;
-
+  
   out.len = 0;
-
+  
   let fh: [20]u8 = [];
   fh[0] = platform.elf.elf_to_u8(100);
   fh[1] = platform.elf.elf_to_u8(134);
@@ -67,7 +72,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   fh[18] = 0;
   fh[19] = 0;
   if (coff_append(out, fh, 20) != 0) { return -1; }
-
+  
   let sh: [40]u8 = [];
   sh[0] = 46;
   sh[1] = 116;
@@ -110,7 +115,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   sh[38] = 80;
   sh[39] = 96;
   if (coff_append(out, sh, 40) != 0) { return -1; }
-
+  
   if (coff_append(out, &ctx.code_data[0], code_len) != 0) { return -1; }
   let zero: [1]u8 = [];
   s = 0;
@@ -118,7 +123,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     if (coff_append(out, zero, 1) != 0) { return -1; }
     s = s + 1;
   }
-
+  
   let r: i32 = 0;
   while (r < num_relocs) {
     let rel: [10]u8 = [];
@@ -126,7 +131,8 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     let m: i32 = 0;
     while (m < num_syms) {
       /** COFF 符号索引解析须用 reloc_sym_names（与 elf_add_reloc 写入一致）。 */
-      if (platform.elf.elf_name_eq_arr_to_pool(ctx.reloc_sym_names[r], ctx.relocs[r].name_len, platform.elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+      if (platform.elf.elf_name_eq_arr_to_pool(ctx.reloc_sym_names[r], ctx.relocs[r].name_len,
+      platform.elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = 2 + m;
         break;
       }
@@ -145,7 +151,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     if (coff_append(out, rel, 10) != 0) { return -1; }
     r = r + 1;
   }
-
+  
   let sym_sec: [18]u8 = [];
   sym_sec[16] = 1;
   sym_sec[17] = 0;
@@ -162,7 +168,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   aux[14] = 1;
   aux[15] = 0;
   if (coff_append(out, aux, 18) != 0) { return -1; }
-
+  
   let str_off: i32 = 4;
   s = 0;
   while (s < num_syms) {
@@ -189,7 +195,7 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     str_off = str_off + ctx.syms[s].name_len + 1;
     s = s + 1;
   }
-
+  
   let str_size: [4]u8 = [];
   str_size[0] = platform.elf.elf_to_u8(strtab_used);
   str_size[1] = platform.elf.elf_to_u8(strtab_used >> 8);
@@ -198,7 +204,8 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   if (coff_append(out, str_size, 4) != 0) { return -1; }
   s = 0;
   while (s < num_syms) {
-    if (coff_append(out, platform.elf.elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) { return -1; }
+    if (coff_append(out, platform.elf.elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) {
+      return -1; }
     if (coff_append(out, zero, 1) != 0) { return -1; }
     s = s + 1;
   }

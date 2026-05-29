@@ -21,7 +21,7 @@ if (-f $glue_path) {
   open my $gl, '<', $glue_path or die "open $glue_path: $!\n";
   my $glue = do { local $/; <$gl> };
   close $gl;
-  while ($glue =~ /((?:void|int32_t|int|struct\s+ast_\w+)\s+(ast_pipeline_\w+)\s*\((?:[^()]*|\([^()]*\))*\))\s*\{/gs) {
+  while ($glue =~ /((?:void|int32_t|int|uint8_t|struct\s+ast_\w+\s*\*?)\s+(ast_pipeline_\w+)\s*\((?:[^()]*|\([^()]*\))*\))\s*\{/gs) {
     push @decls, "extern $1;\n";
   }
 }

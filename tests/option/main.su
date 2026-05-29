@@ -1,4 +1,5 @@
-// 测试 core.option：Option_i32 / Option_u8 全 API（none/some/unwrap_or/expect/is_some/is_none、or/and）
+// 测试 core.option：Option_i32 / Option_u8 全
+// API（none/some/unwrap_or/expect/is_some/is_none、or/and）
 import core.option;
 
 function main(): i32 {

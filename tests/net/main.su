@@ -1,4 +1,5 @@
-// 测试 std.net 占位：Ipv4Addr、TcpStream、TcpListener、connect、listen、accept、accept_many、connect_many
+// 测试 std.net
+// 占位：Ipv4Addr、TcpStream、TcpListener、connect、listen、accept、accept_many、connect_many
 import std.net;
 
 function main(): i32 {

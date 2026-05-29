@@ -1,10 +1,8 @@
 /**
  * _su_stubs2.c — verify-selfhost-stage2.sh 链接 shu-su2 时的桩与转发
  *
- * Stage2 用 shu-su 生成的 *_gen2.c / *_su2.o 与 C 侧模块混合链接，不链完整
- * bootstrap-driver-seed 的 DRIVER_SUBCMD_OBJS / heap.o 等；本文件补齐：
- * - asm 后端占位（asm_asm_codegen_ast 等）
- * - asm_driver_* → runtime driver_* 转发
+ * Stage2 用 shu-su 生成的 *_gen2.c / *_su2.o 与 seed 拓扑混合链接；本文件补齐：
+ * - asm_driver_* → runtime driver_* 转发（asm 后端由 asm_backend_partial.o 提供，勿在此占位）
  * - std_heap_*（parser_gen2 经 -E-extern 引用）
  * - driver_cmd_* 子命令桩（hello 烟测不走 fmt/check/test）
  * - preprocess 名桥接
@@ -14,29 +12,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
-
-/** asm 后端占位：Stage2 仅验 C 生成路径，不链真实 asm 模块。 */
-int asm_asm_codegen_ast(void *a, void *b, void *c, void *d) {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    return -1;
-}
-
-/** asm ELF 占位。 */
-int asm_asm_codegen_elf_o(void *a, void *b, void *c, void *d, void *e) {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    (void)e;
-    return -1;
-}
-
-int io_read_batch_buf(void) { return -1; }
-int io_write_batch_buf(void) { return -1; }
-int typeck_lsp_main(void) { return -1; }
 
 extern int32_t typeck_preprocess_su_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
 

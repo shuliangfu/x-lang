@@ -1,7 +1,10 @@
-// 测试第 2 种导入方式：const xxx = import std.xxx（解析与 typeck）；与 main.su 相同 body 保证可运行。
+// 测试第 2 种导入方式：const xxx = import std.xxx（解析与 typeck）；与 main.su
+// 相同 body 保证可运行。
 //
-// 【文件职责】验证 const io = import std.io 解析通过；main 与 main.su 一致（import std.io + print_str），待 codegen 支持 io.print_str 后改回。
-// 【运行方式】./tests/run-import.sh（脚本会编译并运行，期望 stdout 含 "Hello World"）。
+// 【文件职责】验证 const io = import std.io 解析通过；main 与 main.su
+// 一致（import std.io + print_str），待 codegen 支持 io.print_str 后改回。
+// 【运行方式】./tests/run-import.sh（脚本会编译并运行，期望 stdout 含 "Hello
+// World"）。
 import std.io;
 
 function main(): i32 {

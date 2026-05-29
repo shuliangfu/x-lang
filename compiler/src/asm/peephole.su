@@ -1,13 +1,18 @@
 // peephole.su — 汇编窥孔优化（可选）
 //
-// 职责：对 backend 产出的汇编文本做一次或多次窥孔扫描，合并/删除冗余指令或空行，减少输出体积。
-// 依赖：codegen（CodegenOutBuf）、types。
-// 当前：去除连续空行；消除连续 push rax + pop rax（x86/arm64，与 7.3 寄存器分配相关）。
+// 职责：对 backend
+// 产出的汇编文本做一次或多次窥孔扫描，合并/删除冗余指令或空行，减少输
+// 出体积；ELF 直编路径对 code_data 做等价字节级窥孔（须在 elf_resolve_patches 前）。
+// 依赖：codegen（CodegenOutBuf）、types、platform.elf。
+// 当前：去除连续空行；消除连续 push rax + pop rax（x86/arm64/riscv64，与 7.3
+// 寄存器分配相关）。
 
 import codegen;
 import asm.types;
+import platform.elf;
 
-/** 比较 out.data[pos..pos+len] 与 ptr 指向的 len 字节是否相等。相等返回 1，否则 0。 */
+/** 比较 out.data[pos..pos+len] 与 ptr 指向的 len 字节是否相等。相等返回
+* 1，否则 0。 */
 function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
   if (pos + len > out.len) { return 0; }
   let i: i32 = 0;
@@ -18,13 +23,18 @@ function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
   return 1;
 }
 
-/** 窥孔：消除连续的「push rax」行与「pop rax」行（两行紧邻且无其他指令时冗余，可删）。x86: pushq %rax + popq %rax；arm64: str w0,[sp,#-16]! + ldr w0,[sp],#16。写回 out.data，更新 out.len。 */
+/** 窥孔：消除连续的「push rax」行与「pop
+* rax」行（两行紧邻且无其他指令时冗余，可删）。x86: pushq %rax + popq
+* %rax；arm64: str w0,[sp,#-16]! + ldr w0,[sp],#16。写回 out.data，更新 out.len。 */
 function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
-  /* x86: "pushq %rax\n" 11 字节；"popq %rax\n" 10 字节。arm64: "str w0, [sp, #-16]!\n" 20 字节；"ldr w0, [sp], #16\n" 18 字节。 */
+  /* x86: "pushq %rax\n" 11 字节；"popq %rax\n" 10 字节。arm64: "str w0, [sp, #-16]!\n" 20
+  字节；"ldr w0, [sp], #16\n" 18 字节。 */
   let x86_push: [11]u8 = [112, 117, 115, 104, 113, 32, 37, 114, 97, 120, 10];
   let x86_pop: [10]u8 = [112, 111, 112, 113, 32, 37, 114, 97, 120, 10];
-  let arm_push: [20]u8 = [115, 116, 114, 32, 119, 48, 44, 32, 91, 115, 112, 44, 32, 35, 45, 49, 54, 93, 33, 10];
-  let arm_pop: [18]u8 = [108, 100, 114, 32, 119, 48, 44, 32, 91, 115, 112, 93, 44, 32, 35, 49, 54, 10];
+  let arm_push: [20]u8 = [115, 116, 114, 32, 119, 48, 44, 32, 91, 115, 112, 44, 32, 35, 45, 49, 54,
+  93, 33, 10];
+  let arm_pop: [18]u8 = [108, 100, 114, 32, 119, 48, 44, 32, 91, 115, 112, 93, 44, 32, 35, 49, 54,
+  10];
   let i: i32 = 0;
   while (i < out.len) {
     let line_end: i32 = i;
@@ -35,9 +45,11 @@ function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
     if (line_end >= out.len) { break; }
     line_len = line_end - i;
     next_start = line_end + 1;
-    if (line_len == 10 && next_start + 10 <= out.len && slice_eq(out, i, x86_push, 11) != 0 && slice_eq(out, next_start, x86_pop, 10) != 0) {
+    if (line_len == 10 && next_start + 10 <= out.len && slice_eq(out, i, x86_push, 11) != 0 &&
+    slice_eq(out, next_start, x86_pop, 10) != 0) {
       remove_len = 11 + 10;
-    } else if (line_len == 19 && next_start + 18 <= out.len && slice_eq(out, i, arm_push, 20) != 0 && slice_eq(out, next_start, arm_pop, 18) != 0) {
+    } else if (line_len == 19 && next_start + 18 <= out.len && slice_eq(out, i, arm_push, 20) != 0
+    && slice_eq(out, next_start, arm_pop, 18) != 0) {
       remove_len = 20 + 18;
     }
     if (remove_len > 0) {
@@ -76,7 +88,30 @@ function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 窥孔：去除连续空行（将多行 \n 压成单行）。写回 out.data，更新 out.len。返回 0 成功，-1 失败。 */
+/** 窥孔：消除 arm64 无操作「mov x0, x0」（单行，11 字节含换行）。 */
+function peephole_remove_noop_mov_x0_x0(out: *CodegenOutBuf): i32 {
+  let arm_noop: [11]u8 = [109, 111, 118, 32, 120, 48, 44, 32, 120, 48, 10];
+  let i: i32 = 0;
+  while (i < out.len) {
+    if (i + 11 <= out.len && slice_eq(out, i, arm_noop, 11) != 0) {
+      let j: i32 = i;
+      while (j < out.len - 11) {
+        out.data[j] = out.data[j + 11];
+        j = j + 1;
+      }
+      out.len = out.len - 11;
+      continue;
+    }
+    let line_end: i32 = i;
+    while (line_end < out.len && out.data[line_end] != 10) { line_end = line_end + 1; }
+    if (line_end >= out.len) { break; }
+    i = line_end + 1;
+  }
+  return 0;
+}
+
+/** 窥孔：去除连续空行（将多行 \n 压成单行）。写回 out.data，更新
+* out.len。返回 0 成功，-1 失败。 */
 function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   let src: i32 = 0;
   let dst: i32 = 0;
@@ -100,7 +135,8 @@ function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 对 out 执行当前所有窥孔模式；供 pipeline 在 asm_codegen_ast 之后可选调用。 */
+/** 对 out 执行当前所有窥孔模式；供 pipeline 在 asm_codegen_ast 之后可选调用。
+*/
 function peephole_run(out: *CodegenOutBuf): i32 {
   if (peephole_remove_redundant_push_pop(out) != 0) {
     return -1;
@@ -108,7 +144,163 @@ function peephole_run(out: *CodegenOutBuf): i32 {
   if (peephole_remove_noop_mov_rax_rax(out) != 0) {
     return -1;
   }
+  if (peephole_remove_noop_mov_x0_x0(out) != 0) {
+    return -1;
+  }
   if (peephole_remove_empty_lines(out) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** ELF：code_data[pos..pos+3] 是否与 w 小端相等。 */
+function peephole_elf_u32_eq(ctx: *platform.elf.ElfCodegenCtx, pos: i32, w: i32): i32 {
+  if (pos < 0 || pos + 3 >= ctx.code_len) {
+    return 0;
+  }
+  if (platform.elf.elf_read_u32_le(ctx, pos) == w) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * ELF：标签/补丁/重定位/符号是否有点落在 [pos, pos+len) 内；有则不可删字节（避免偏移悬空）。
+ */
+function peephole_elf_region_has_meta(ctx: *platform.elf.ElfCodegenCtx, pos: i32, len: i32): i32 {
+  let end: i32 = pos + len;
+  let li: i32 = 0;
+  while (li < ctx.num_labels) {
+    let off: i32 = ctx.labels[li].offset;
+    if (off >= pos && off < end) {
+      return 1;
+    }
+    li = li + 1;
+  }
+  let pi: i32 = 0;
+  while (pi < ctx.num_patches) {
+    let poff: i32 = ctx.patches[pi].rel32_offset;
+    if (poff >= pos && poff < end) {
+      return 1;
+    }
+    pi = pi + 1;
+  }
+  let ri: i32 = 0;
+  while (ri < ctx.num_relocs) {
+    let roff: i32 = ctx.relocs[ri].offset;
+    if (roff >= pos && roff < end) {
+      return 1;
+    }
+    ri = ri + 1;
+  }
+  let si: i32 = 0;
+  while (si < ctx.num_syms) {
+    let soff: i32 = ctx.syms[si].offset;
+    if (soff >= pos && soff < end) {
+      return 1;
+    }
+    si = si + 1;
+  }
+  return 0;
+}
+
+/** ELF：删除 code_data[pos..pos+len) 后，将所有 offset >= pos+len 的元数据减 len。 */
+function peephole_elf_shift_meta_after_remove(ctx: *platform.elf.ElfCodegenCtx, pos: i32, len: i32): void {
+  let bound: i32 = pos + len;
+  let li: i32 = 0;
+  while (li < ctx.num_labels) {
+    if (ctx.labels[li].offset >= bound) {
+      ctx.labels[li].offset = ctx.labels[li].offset - len;
+    }
+    li = li + 1;
+  }
+  let pi: i32 = 0;
+  while (pi < ctx.num_patches) {
+    if (ctx.patches[pi].rel32_offset >= bound) {
+      ctx.patches[pi].rel32_offset = ctx.patches[pi].rel32_offset - len;
+    }
+    pi = pi + 1;
+  }
+  let ri: i32 = 0;
+  while (ri < ctx.num_relocs) {
+    if (ctx.relocs[ri].offset >= bound) {
+      ctx.relocs[ri].offset = ctx.relocs[ri].offset - len;
+    }
+    ri = ri + 1;
+  }
+  let si: i32 = 0;
+  while (si < ctx.num_syms) {
+    if (ctx.syms[si].offset >= bound) {
+      ctx.syms[si].offset = ctx.syms[si].offset - len;
+    }
+    si = si + 1;
+  }
+}
+
+/** ELF：从 code_data 删除 len 字节（起始于 pos），并修正元数据偏移。 */
+function peephole_elf_remove_code_bytes(ctx: *platform.elf.ElfCodegenCtx, pos: i32, len: i32): i32 {
+  if (len <= 0 || pos < 0 || pos + len > ctx.code_len) {
+    return -1;
+  }
+  if (peephole_elf_region_has_meta(ctx, pos, len) != 0) {
+    return 0;
+  }
+  let j: i32 = pos;
+  while (j < ctx.code_len - len) {
+    ctx.code_data[j] = ctx.code_data[j + len];
+    j = j + 1;
+  }
+  ctx.code_len = ctx.code_len - len;
+  peephole_elf_shift_meta_after_remove(ctx, pos, len);
+  return 0;
+}
+
+/**
+ * ELF：消除连续 push rax + pop rax（与文本窥孔等价）。
+ * e_machine：62=x86_64，183=arm64，243=riscv64。
+ */
+function peephole_elf_remove_redundant_push_pop(ctx: *platform.elf.ElfCodegenCtx, e_machine: i32): i32 {
+  let i: i32 = 0;
+  while (i < ctx.code_len) {
+    let remove_len: i32 = 0;
+    if (e_machine == 62) {
+      if (i + 1 < ctx.code_len && ctx.code_data[i] == 80 && ctx.code_data[i + 1] == 88) {
+        remove_len = 2;
+      }
+    } else if (e_machine == 183) {
+      if (i + 15 < ctx.code_len
+      && peephole_elf_u32_eq(ctx, i, 3506455551) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, 4177527776) != 0
+      && peephole_elf_u32_eq(ctx, i + 8, 4181722080) != 0
+      && peephole_elf_u32_eq(ctx, i + 12, 2432713727) != 0) {
+        remove_len = 16;
+      }
+    } else if (e_machine == 243) {
+      if (i + 15 < ctx.code_len
+      && peephole_elf_u32_eq(ctx, i, 4278255891) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, 10563619) != 0
+      && peephole_elf_u32_eq(ctx, i + 8, 79107) != 0
+      && peephole_elf_u32_eq(ctx, i + 12, 16843027) != 0) {
+        remove_len = 16;
+      }
+    }
+    if (remove_len > 0) {
+      if (peephole_elf_remove_code_bytes(ctx, i, remove_len) != 0) {
+        return -1;
+      }
+      continue;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/** ELF 窥孔入口：在 elf_resolve_patches 之前调用；e_machine 从 ctx 读取。 */
+function peephole_elf_run(ctx: *platform.elf.ElfCodegenCtx): i32 {
+  if (ctx == (0 as *platform.elf.ElfCodegenCtx)) {
+    return 0;
+  }
+  if (peephole_elf_remove_redundant_push_pop(ctx, ctx.e_machine) != 0) {
     return -1;
   }
   return 0;

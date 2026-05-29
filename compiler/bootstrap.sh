@@ -11,7 +11,7 @@ set -e
 
 echo "=== Shulang Cold Bootstrap ==="
 
-SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
+SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_codegen_extern.c src/lsp/lsp_diag.c src/lsp/lsp_diag_pipeline_sizes.c"
 OBJS=""
 
 echo "[1/4] compiling C sources..."

@@ -3281,7 +3281,7 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
     }
     /*
      * std.io.driver 的 register/submit_read/submit_write 首参在 C 侧已强制为 ptrdiff_t 句柄，
-     * 函数体内仍写 buf.ptr / buf.len 会形成对标量取字段；若 base 即该首参变量，只发射变量名。
+     * * 函数体内仍写 buf.ptr / buf.len 会形成对标量取字段；若 base 即该首参变量，只发射变量名。
      */
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_codegen_arena == arena && ctx.current_func_index >= 0) {
       let mod: *Module = ctx.current_codegen_module;

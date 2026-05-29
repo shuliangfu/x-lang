@@ -20,6 +20,12 @@ extern function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32
 extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
 /** arena.types[ref].kind 的序数值（与 type_kind_ordinal 一致）；无效 ref 返回 -1。 */
 extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
+/** arena.types[ref].array_size / elem_type_ref；向量 lane 与元素类型比较用（pipeline_glue.c）。 */
+extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i32): i32;
+extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
+/** 读 binop 子表达式 ref；勿用 ast_arena_expr_get 后 e.binop_*（自举 asm 下字段可能撕裂）。 */
+extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 /** check_block_impl 入口：SHU_TYPECK_BLOCK=1 时打印块 stmt 计数（runtime.c）。 */
 extern function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
 /** EXPR_RETURN 失败诊断：SHU_TYPECK_RET=1（runtime.c）。 */
@@ -69,6 +75,11 @@ extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_ref: i3
 extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+extern function pipeline_module_enum_variant_tag_for_names(m: *Module, enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32;
+extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void;
 /** 类型池分配/查找；避免 SU 内 ti.kind = TypeKind.* 等对大 Type 局部副本赋值 typeck 失败。 */
 extern function pipeline_type_ensure_by_kind_ord(arena: *ASTArena, kind_ord: i32): i32;
 extern function pipeline_type_find_or_alloc_named(arena: *ASTArena, name: *u8, name_len: i32): i32;
@@ -739,6 +750,11 @@ function ensure_u8_type_ref(arena: *ASTArena): i32 {
 /** 在当前 arena 中取或分配 TYPE_BOOL，返回其 type_ref；供字面量 true/false 自设类型。 */
 function ensure_bool_type_ref(arena: *ASTArena): i32 {
   return pipeline_type_ensure_by_kind_ord(arena, 1);
+}
+
+/** 在当前 arena 中取或分配 TYPE_F32，返回其 type_ref；供 f32 字面量/let 初值与声明对齐。 */
+function ensure_f32_type_ref(arena: *ASTArena): i32 {
+  return pipeline_type_ensure_by_kind_ord(arena, 13);
 }
 
 /** 在当前 arena 中取或分配 TYPE_F64，返回其 type_ref；供字面量浮点自设类型。 */
@@ -1726,6 +1742,9 @@ function type_refs_equal_impl(arena: *ASTArena, a: i32, b: i32): bool {
   if (ta.kind == TypeKind.TYPE_ARRAY) {
     return ta.array_size == tb.array_size && type_refs_equal(arena, ta.elem_type_ref, tb.elem_type_ref);
   }
+  if (ta.kind == TypeKind.TYPE_VECTOR) {
+    return ta.array_size == tb.array_size && type_refs_equal(arena, ta.elem_type_ref, tb.elem_type_ref);
+  }
   return true;
 }
 
@@ -1741,11 +1760,37 @@ function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
 }
 
 /**
+ * return 操作数类型是否与函数返回类型一致（对齐 typeck.c typeck_return_value_matches）。
+ * i32 目标允许 `return !expr` 与 `return true/false`（bool 字面量/逻辑非）。
+ */
+function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, expect_ref: i32): bool {
+  let got: i32 = expr_type_ref(arena, op_ref);
+  if (ref_is_null(op_ref) || ref_is_null(expect_ref)) {
+    return true;
+  }
+  if (ref_is_null(got)) {
+    return false;
+  }
+  if (type_refs_equal(arena, got, expect_ref)) {
+    return true;
+  }
+  let exp: Type = ast_arena_type_get(arena, expect_ref);
+  if (exp.kind != TypeKind.TYPE_I32 || !type_ref_is_bool(arena, got)) {
+    return false;
+  }
+  let kop: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
+  if (kop == 2 || kop == 24) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * let 初值与声明类型对齐（在 check_expr 之后、type_refs_equal 之前调用）。
  * 与 ASSIGN 分支一致：0→指针/数组零初始化、字面量→i64、非负整型→usize/u32/u64、u8 范围、枚举变体→命名枚举类型。
  * 返回 1 表示已写入 init 的 resolved_type_ref 可与 decl 比较。
  */
-function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32): i32 {
+function typeck_coerce_init_expr_to_decl(module: *Module, arena: *ASTArena, init_ref: i32, decl_ty_ref: i32): i32 {
   if (ref_is_null(init_ref) || ref_is_null(decl_ty_ref)) {
     return 0;
   }
@@ -1782,6 +1827,12 @@ function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_t
       ast_arena_expr_set(arena, init_ref, init_e);
       return 1;
     }
+    /** f32/f64 声明允许整数字面量 0 初值（let z: f32 = 0）。 */
+    if (init_e.int_val == 0 && (decl_ty.kind == TypeKind.TYPE_F32 || decl_ty.kind == TypeKind.TYPE_F64)) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
     if (init_e.int_val == 0
         && (decl_ty.kind == TypeKind.TYPE_NAMED || decl_ty.kind == TypeKind.TYPE_VECTOR)) {
       init_e.resolved_type_ref = decl_ty_ref;
@@ -1789,17 +1840,28 @@ function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_t
       return 1;
     }
   }
+  /** 浮点字面量初值与 f32/f64 声明对齐（check_expr 默认给 f64，此处按声明覆盖）。 */
+  if (init_e.kind == ExprKind.EXPR_FLOAT_LIT
+      && (decl_ty.kind == TypeKind.TYPE_F32 || decl_ty.kind == TypeKind.TYPE_F64)) {
+    init_e.resolved_type_ref = decl_ty_ref;
+    ast_arena_expr_set(arena, init_ref, init_e);
+    return 1;
+  }
   if (decl_ty.kind == TypeKind.TYPE_NAMED && init_e.kind == ExprKind.EXPR_FIELD_ACCESS) {
     let base_ix: i32 = init_e.field_access_base_ref;
     if (!ref_is_null(base_ix) && base_ix > 0 && base_ix <= arena.num_exprs) {
       let base_e: Expr = ast_arena_expr_get(arena, base_ix);
       if (base_e.kind == ExprKind.EXPR_VAR
           && name_equal(&decl_ty.name[0], decl_ty.name_len, &base_e.var_name[0], base_e.var_name_len)) {
-        init_e.field_access_is_enum_variant = 1;
-        init_e.enum_variant_tag = 0;
-        init_e.resolved_type_ref = decl_ty_ref;
-        ast_arena_expr_set(arena, init_ref, init_e);
-        return 1;
+        let ev_tag: i32 = pipeline_module_enum_variant_tag_for_names(module, &decl_ty.name[0], decl_ty.name_len,
+          &init_e.field_access_field_name[0], init_e.field_access_field_len);
+        if (ev_tag >= 0) {
+          init_e.field_access_is_enum_variant = 1;
+          init_e.enum_variant_tag = ev_tag;
+          init_e.resolved_type_ref = decl_ty_ref;
+          ast_arena_expr_set(arena, init_ref, init_e);
+          return 1;
+        }
       }
     }
     if (init_e.field_access_is_enum_variant != 0) {
@@ -1810,7 +1872,7 @@ function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_t
   }
   /*
    * import 整包调用（如 lexer_next_buf）在部分路径上 CALL 的 resolved_type_ref 仍为 0；
-   * 显式 let r: LexerResult = call() 时用声明类型回填，与 C 路径「已知声明类型」一致。
+   * * 显式 let r: LexerResult = call() 时用声明类型回填，与 C 路径「已知声明类型」一致。
    */
   if (decl_ty.kind == TypeKind.TYPE_NAMED && init_e.kind == ExprKind.EXPR_CALL && ref_is_null(init_e.resolved_type_ref)) {
     init_e.resolved_type_ref = decl_ty_ref;
@@ -1822,6 +1884,59 @@ function typeck_coerce_init_expr_to_decl(arena: *ASTArena, init_ref: i32, decl_t
     init_e.resolved_type_ref = decl_ty_ref;
     ast_arena_expr_set(arena, init_ref, init_e);
     return 1;
+  }
+  /* let v: i32x16 = [0,1,...]：向量字面量车道数须与声明一致（与 typeck.c check_block let 分支一致）。 */
+  if (decl_ty.kind == TypeKind.TYPE_VECTOR && init_e.kind == ExprKind.EXPR_ARRAY_LIT) {
+    let nel_v: i32 = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    if (nel_v == decl_ty.array_size) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
+  }
+  /*
+   * let c: i32x4 = a + b：向量逐分量算术（与 typeck.c EXPR_ADD 向量分支一致）。
+   * 操作数类型经 pipeline_type_kind_ord_at 读取，避免 Type 按值拷贝后 kind 误判为 i32。
+   */
+  let init_is_vec_arith: bool = false;
+  if (init_e.kind == ExprKind.EXPR_ADD || init_e.kind == ExprKind.EXPR_SUB || init_e.kind == ExprKind.EXPR_MUL
+      || init_e.kind == ExprKind.EXPR_DIV) {
+    init_is_vec_arith = true;
+  }
+  if (pipeline_type_kind_ord_at(arena, decl_ty_ref) == 12 && init_is_vec_arith) {
+    /** TYPE_VECTOR 序数 12（与 type_kind_ordinal / ast.su 一致）。 */
+    let vord_coerce: i32 = 12;
+    let lref_c: i32 = pipeline_expr_binop_left_ref_at(arena, init_ref);
+    let rref_c: i32 = pipeline_expr_binop_right_ref_at(arena, init_ref);
+    if (!ref_is_null(lref_c) && !ref_is_null(rref_c)) {
+      let lt_c: i32 = expr_type_ref(arena, lref_c);
+      let rt_c: i32 = expr_type_ref(arena, rref_c);
+      if (!ref_is_null(lt_c) && !ref_is_null(rt_c)
+          && pipeline_type_kind_ord_at(arena, lt_c) == vord_coerce
+          && pipeline_type_kind_ord_at(arena, rt_c) == vord_coerce
+          && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, rt_c)
+          && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, decl_ty_ref)
+          && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_c), pipeline_type_elem_ref_at(arena, rt_c))) {
+        init_e.resolved_type_ref = decl_ty_ref;
+        ast_arena_expr_set(arena, init_ref, init_e);
+        return 1;
+      }
+    }
+  }
+  /*
+   * let s: []T = a：切片由同元素类型的数组变量初始化（与 typeck.c check_block let 分支一致）。
+   * check_expr 后 init 的 resolved_type_ref 为 TYPE_ARRAY，此处对齐为声明的 TYPE_SLICE。
+   */
+  if (decl_ty.kind == TypeKind.TYPE_SLICE && !ref_is_null(decl_ty.elem_type_ref)
+      && !ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0
+      && init_e.resolved_type_ref <= arena.num_types) {
+    let init_ty: Type = ast_arena_type_get(arena, init_e.resolved_type_ref);
+    if (init_ty.kind == TypeKind.TYPE_ARRAY && !ref_is_null(init_ty.elem_type_ref)
+        && type_refs_equal(arena, init_ty.elem_type_ref, decl_ty.elem_type_ref)) {
+      init_e.resolved_type_ref = decl_ty_ref;
+      ast_arena_expr_set(arena, init_ref, init_e);
+      return 1;
+    }
   }
   return 0;
 }
@@ -2000,6 +2115,7 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     e.float_bits_lo = typeck_float64_bits_lo(e.float_val);
     e.float_bits_hi = typeck_float64_bits_hi(e.float_val);
     ast_arena_expr_set(arena, expr_ref, e);
+    /** 默认 f64；let x: f32 = … 由 typeck_coerce_init_expr_to_decl 按声明改为 f32。 */
     let ft: i32 = ensure_f64_type_ref(arena);
     if (ft != 0) {
       e.resolved_type_ref = ft;
@@ -2222,8 +2338,8 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     let op_ref: i32 = e.unary_operand_ref;
     /*
      * `return;`（无操作数）：仅允许函数返回类型为 void；不做「返回值」递归类型匹配（对齐 typeck.c：
-     * typeck_block 在 typeck_expr_sym 之前对裸 return 做 void 校验；typeck_expr_sym 对无 operand 的 RETURN 直接返回 0）。
-     * 为块尾 expr_type_ref 比较一致，将本结点 resolved_type_ref 设为 void。
+     * * typeck_block 在 typeck_expr_sym 之前对裸 return 做 void 校验；typeck_expr_sym 对无 operand 的 RETURN 直接返回 0）。
+     * * 为块尾 expr_type_ref 比较一致，将本结点 resolved_type_ref 设为 void。
      */
     if (ref_is_null(op_ref)) {
       if (!ref_is_null(return_type_ref)) {
@@ -2275,8 +2391,8 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       /** 切片 `x[y]`→u8、`x.length`→usize 常与 `fn ... : i32` 同用；先于严格相等校验做 i32 目标收窄（见 typeck_ret_coerce_integral_to_expect_i32）。 */
       typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref);
       let got: i32 = expr_type_ref(arena, op_ref);
-      /** got 未解析（0）或与签名不一致均拒绝；勿因 `!ref_is_null(got)` 跳过漏报 bool→i32 等。 */
-      if (ref_is_null(got) || !type_refs_equal(arena, got, return_type_ref)) {
+      /** got 未解析或与签名不一致均拒绝；i32 目标允许 `return !expr` / bool 字面量（typeck.c）。 */
+      if (!typeck_return_operand_matches(arena, op_ref, return_type_ref)) {
         let eb_ret: *u8 = driver_typeck_diag_scratch_expect();
         let gb_ret: *u8 = driver_typeck_diag_scratch_found();
         let el_ret: i32 = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb_ret);
@@ -2305,10 +2421,20 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
     }
     let i: i32 = 0;
     while (i < e.match_num_arms) {
+      if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0) {
+        if (pipeline_expr_match_arm_variant_index(arena, expr_ref, i) < 0) {
+          driver_diagnostic_typeck_enum_no_variant(e.line, e.col);
+          return -1;
+        }
+      }
       if (check_expr(module, arena, pipeline_expr_match_arm_result_ref(arena, expr_ref, i), return_type_ref, ctx) != 0) {
         return -1;
       }
       i = i + 1;
+    }
+    if (!ref_is_null(return_type_ref)) {
+      e.resolved_type_ref = return_type_ref;
+      ast_arena_expr_set(arena, expr_ref, e);
     }
     return 0;
   }
@@ -2491,8 +2617,23 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       }
       if (layout_nm_len > 0 && pipeline_type_kind_ord_at(arena, layout_named_ref) == 8) {
         /*
+         * 用户 enum（如 Color.Green）：在 struct layout / TypeKind 特判之前查 module sidecar 变体 tag。
+         */
+        let user_ev_tag: i32 = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0], layout_nm_len,
+          &e.field_access_field_name[0], e.field_access_field_len);
+        if (user_ev_tag >= 0) {
+          e.field_access_is_enum_variant = 1;
+          e.enum_variant_tag = user_ev_tag;
+          let i32r_ev: i32 = ensure_i32_type_ref(arena);
+          if (i32r_ev != 0) {
+            e.resolved_type_ref = i32r_ev;
+            ast_arena_expr_set(arena, expr_ref, e);
+          }
+          return 0;
+        }
+        /*
          * TypeKind.TYPE_*（见 ast.su）：须在 get_field_*_layout 之前识别。
-         * 否则若某 struct 布局里误含同名字段，off>=0 会拦住 is_enum_variant，asm 将把 TypeKind.FIELD 当栈上字段加载而失败（如 emit_type_kind）。
+         * * 否则若某 struct 布局里误含同名字段，off>=0 会拦住 is_enum_variant，asm 将把 TypeKind.FIELD 当栈上字段加载而失败（如 emit_type_kind）。
          */
         let nm_type_kind_ty: [8]u8 = [84, 121, 112, 101, 75, 105, 110, 100];
         let skip_layout_for_type_kind: bool = false;
@@ -2785,10 +2926,12 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
       || e.kind == ExprKind.EXPR_SHL || e.kind == ExprKind.EXPR_SHR || e.kind == ExprKind.EXPR_BITAND || e.kind == ExprKind.EXPR_BITOR || e.kind == ExprKind.EXPR_BITXOR
       || e.kind == ExprKind.EXPR_EQ || e.kind == ExprKind.EXPR_NE || e.kind == ExprKind.EXPR_LT || e.kind == ExprKind.EXPR_LE || e.kind == ExprKind.EXPR_GT || e.kind == ExprKind.EXPR_GE
       || e.kind == ExprKind.EXPR_LOGAND || e.kind == ExprKind.EXPR_LOGOR) {
-    if (check_expr(module, arena, e.binop_left_ref, return_type_ref, ctx) != 0) {
+    let bop_l: i32 = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    let bop_r: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (check_expr(module, arena, bop_l, return_type_ref, ctx) != 0) {
       return -1;
     }
-    if (check_expr(module, arena, e.binop_right_ref, return_type_ref, ctx) != 0) {
+    if (check_expr(module, arena, bop_r, return_type_ref, ctx) != 0) {
       return -1;
     }
     /* 比较/逻辑运算结果类型为 bool；算术/移位/位运算结果类型由左右操作数推导（与 C 版 typeck_expr_sym 一致）。 */
@@ -2800,15 +2943,22 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
         ast_arena_expr_set(arena, expr_ref, e);
       }
     } else {
-      let lt_ar: i32 = expr_type_ref(arena, e.binop_left_ref);
-      let rt_ar: i32 = expr_type_ref(arena, e.binop_right_ref);
+      let lt_ar: i32 = expr_type_ref(arena, bop_l);
+      let rt_ar: i32 = expr_type_ref(arena, bop_r);
       if (!ref_is_null(lt_ar) && lt_ar > 0 && lt_ar <= arena.num_types && !ref_is_null(rt_ar) && rt_ar > 0 && rt_ar <= arena.num_types) {
-        let lar: Type = ast_arena_type_get(arena, lt_ar);
-        let rar: Type = ast_arena_type_get(arena, rt_ar);
+        /** TYPE_VECTOR=12、TYPE_I64=5、TYPE_F64=14（与 type_kind_ordinal 一致；binop 分支内勿传 TypeKind 实参）。 */
+        let vord_bin: i32 = 12;
+        let lko: i32 = pipeline_type_kind_ord_at(arena, lt_ar);
+        let rko: i32 = pipeline_type_kind_ord_at(arena, rt_ar);
         let out_ar: i32 = 0;
-        if (lar.kind == TypeKind.TYPE_I64 || rar.kind == TypeKind.TYPE_I64) {
+        /** 向量逐分量运算：kind/lane/elem 均经 glue 读取（§10；与 typeck.c 向量 ADD 一致）。 */
+        if (lko == vord_bin && rko == vord_bin
+            && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar)
+            && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_ar), pipeline_type_elem_ref_at(arena, rt_ar))) {
+          out_ar = lt_ar;
+        } else if (lko == 5 || rko == 5) {
           out_ar = ensure_i64_type_ref(arena);
-        } else if (lar.kind == TypeKind.TYPE_F64 || rar.kind == TypeKind.TYPE_F64) {
+        } else if (lko == 14 || rko == 14) {
           out_ar = ensure_f64_type_ref(arena);
         } else if (type_refs_equal(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
@@ -2817,10 +2967,19 @@ function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, retur
         } else if (!ref_is_null(rt_ar)) {
           out_ar = rt_ar;
         }
-        /** 位/算术 binop 两侧已 check 但类型池 ref 不一致时仍回落 i32（如 let lo: i32 = b & 255）。 */
-        if (out_ar == 0 && (e.kind == ExprKind.EXPR_BITAND || e.kind == ExprKind.EXPR_BITOR || e.kind == ExprKind.EXPR_BITXOR
+        /** 位/算术 binop 两侧已 check 但类型池 ref 不一致时仍回落 i32；向量运算勿回落 i32。
+         * 须先写入局部 bool：shu-c 生成 C 时 `&& a || b` 会误解析为 (&&a)||b，导致 EXPR_ADD 恒回落 i32。 */
+        let allow_i32_fallback: bool = false;
+        if (e.kind == ExprKind.EXPR_BITAND || e.kind == ExprKind.EXPR_BITOR || e.kind == ExprKind.EXPR_BITXOR
             || e.kind == ExprKind.EXPR_ADD || e.kind == ExprKind.EXPR_SUB || e.kind == ExprKind.EXPR_MUL
-            || e.kind == ExprKind.EXPR_DIV || e.kind == ExprKind.EXPR_MOD || e.kind == ExprKind.EXPR_SHL || e.kind == ExprKind.EXPR_SHR)) {
+            || e.kind == ExprKind.EXPR_DIV || e.kind == ExprKind.EXPR_MOD || e.kind == ExprKind.EXPR_SHL || e.kind == ExprKind.EXPR_SHR) {
+          allow_i32_fallback = true;
+        }
+        if (out_ar == 0 && lko != vord_bin && rko != vord_bin && allow_i32_fallback) {
+          out_ar = ensure_i32_type_ref(arena);
+        }
+        /** bool 参与算术时结果为 i32（如 (3==3)+(2<5)；与 typeck.c 一致，勿让 type_refs_equal 保留 bool）。 */
+        if (allow_i32_fallback && (type_ref_is_bool(arena, lt_ar) || type_ref_is_bool(arena, rt_ar))) {
           out_ar = ensure_i32_type_ref(arena);
         }
         if (out_ar != 0) {
@@ -3117,9 +3276,14 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
             return -1;
           }
           if (!ref_is_null(ld0_ir) && !ref_is_null(ld0_tr)) {
-            typeck_coerce_init_expr_to_decl(arena, ld0_ir, ld0_tr);
+            typeck_coerce_init_expr_to_decl(module, arena, ld0_ir, ld0_tr);
             let init_ty_l: i32 = expr_type_ref(arena, ld0_ir);
             if (!ref_is_null(init_ty_l) && !type_refs_equal(arena, ld0_tr, init_ty_l)) {
+              let eb_let: *u8 = driver_typeck_diag_scratch_expect();
+              let gb_let: *u8 = driver_typeck_diag_scratch_found();
+              let el_let: i32 = typeck_diag_fmt_type_into(arena, ld0_tr, eb_let, 96);
+              let gl_let: i32 = typeck_diag_fmt_type_into(arena, init_ty_l, gb_let, 96);
+              driver_diagnostic_typeck_assign_mismatch(0, 0, 0, eb_let, el_let, gb_let, gl_let);
               ctx.current_block_ref = saved_block_ref;
               return -1;
             }
@@ -3240,9 +3404,14 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
       return -1;
     }
     if (!ref_is_null(ld_ir) && !ref_is_null(ld_tr)) {
-      typeck_coerce_init_expr_to_decl(arena, ld_ir, ld_tr);
+      typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
       let init_ty: i32 = expr_type_ref(arena, ld_ir);
       if (!ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
+        let eb_let2: *u8 = driver_typeck_diag_scratch_expect();
+        let gb_let2: *u8 = driver_typeck_diag_scratch_found();
+        let el_let2: i32 = typeck_diag_fmt_type_into(arena, ld_tr, eb_let2, 96);
+        let gl_let2: i32 = typeck_diag_fmt_type_into(arena, init_ty, gb_let2, 96);
+        driver_diagnostic_typeck_assign_mismatch(0, 0, 0, eb_let2, el_let2, gb_let2, gl_let2);
         ctx.current_block_ref = saved_block_ref;
         return -1;
       }
@@ -3301,7 +3470,7 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
   }
   /* 无 stmt_order 的旧路径须与 codegen emit_block（及 parse_into 回退拼装）一致：
    * 若块内存在 if_stmts（parse_into 已将 kind=5 置于 for 之后 expr 之前），此处必须逐项检查，
-   * 否则会跳过外层 if/then（仅递归进入 then 的子块永远不发生），语义检查与 codegen 分叉。 */
+   * * 否则会跳过外层 if/then（仅递归进入 then 的子块永远不发生），语义检查与 codegen 分叉。 */
   i = 0;
   while (i < nif) {
     let ik_cr: i32 = ast_block_if_cond_ref(arena, block_ref, i);
@@ -3350,15 +3519,28 @@ function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, ret
     /* 块末 `return;`（无操作数）不是「有类型的尾表达式」，勿与 return_type_ref 做相等比较（已由 EXPR_RETURN 分支校验 void）。 */
     /** 勿 `let fin_ex: Expr = ast_arena_expr_get`：大 struct 按值 + 字段访问在自举 asm 下 fail_at=51/55。 */
     let skip_tail_ty_cmp: bool = false;
-    if (pipeline_expr_kind_ord_at(arena, fin0) == (41 as i32)) {
+    let fin_k_tail: i32 = pipeline_expr_kind_ord_at(arena, fin0);
+    if (fin_k_tail == (41 as i32)) {
       if (ref_is_null(pipeline_expr_unary_operand_ref_at(arena, fin0))) {
         skip_tail_ty_cmp = true;
       }
     }
+    /*
+     * break/continue 作块尾（如 `{ break }`）无值类型，勿与外层 fn 的 return_type_ref 比较；
+     * 与 typeck.c typeck_su_block_result_matches_func_return 对 BREAK/CONTINUE 的排除一致。
+     */
+    if (fin_k_tail == (39 as i32) || fin_k_tail == (40 as i32)) {
+      skip_tail_ty_cmp = true;
+    }
     /* 仅当块末表达式类型已解析时才与 return_type_ref 比较；未解析时亦判失败（与 EXPR_RETURN 分支一致）。 */
     if (!ref_is_null(return_type_ref) && !skip_tail_ty_cmp) {
       let got: i32 = expr_type_ref(arena, fin0);
-      if (ref_is_null(got) || !type_refs_equal(arena, got, return_type_ref)) {
+      let fin_op: i32 = fin0;
+      let fin_k_ret: i32 = pipeline_expr_kind_ord_at(arena, fin0);
+      if (fin_k_ret == (41 as i32)) {
+        fin_op = pipeline_expr_unary_operand_ref_at(arena, fin0);
+      }
+      if (!typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
         let eb_fin: *u8 = driver_typeck_diag_scratch_expect();
         let gb_fin: *u8 = driver_typeck_diag_scratch_found();
         let el_fin: i32 = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb_fin);

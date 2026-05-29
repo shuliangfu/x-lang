@@ -1,4 +1,5 @@
-// 测试 core.fmt：fmt_i32、fmt_*_to_buf（i32/u32/i64/u64/bool/f64）、append_i64、容量不足返回 -1
+// 测试
+// core.fmt：fmt_i32、fmt_*_to_buf（i32/u32/i64/u64/bool/f64）、append_i64、容量不足返回 -1
 import core.fmt;
 
 function main(): i32 {

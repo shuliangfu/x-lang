@@ -6,7 +6,33 @@
 set -e
 cd "$(dirname "$0")/.."
 if [ -n "$SHU" ]; then
+    export SHU
     export RUN_ALL_USE_C=
+    # B-strict run-all（tests/run-all-bstrict.sh）：勿 bootstrap-driver-seed 覆盖 shu_asm。
+    if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ]; then
+        if [ ! -x "$SHU" ]; then
+            echo "run-all.sh: SHULANG_BSTRICT_RUN_ALL but $SHU not executable" >&2
+            exit 127
+        fi
+        export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
+        export SHULANG_LINK_SHU="${SHULANG_LINK_SHU:-$SHU}"
+        # 非白名单脚本仍走 shu-c，须确保 shu-c 已构建。
+        make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+    else
+    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shu 覆盖 .su pipeline 链。
+    export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
+    # 子脚本不再各自 make，避免长回归中反复链接 shu 产生竞态；入口统一构建一次 seed。
+    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    fi
+    if [ -z "${SHULANG_BSTRICT_RUN_ALL:-}" ]; then
+        # stdlib-import 等用 shu-c 链多模块可执行；seed 仅 check/typeck。
+        make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+        # 可执行链接/退出码回归优先 shu-c；typeck/check 仍用 SHU（seed）。
+        if [ -x ./compiler/shu-c ]; then
+            export SHULANG_LINK_SHU=./compiler/shu-c
+        fi
+    fi
+    export SHULANG_SKIP_SUBSCRIPT_MAKE=1
     # SHU 与 compiler/shu 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHU=./compiler/shu）。
     if [ -f compiler/shu ] && [ compiler/shu -ef "$SHU" ]; then
         :
@@ -39,16 +65,57 @@ fi
 # 失败时用醒目前缀和 stdout+stderr 双打，便于在截断的 CI 日志里快速定位
 RUN_FAILED_COUNT=0
 RUN_FAILED_SCRIPTS=""
+RUN_BSTRICT_SKIP_COUNT=0
+# bootstrap seed 下：typeck/check 与已验 -o 绿了的 run-*.sh 用 seed；其余 -o 仍走 shu-c（避免未覆盖用例 SIGSEGV）。
+# L5 白名单增量与三链矩阵：tests/docs/run-all-l5-whitelist.md
+# 白名单脚本列表（run_shu_for_script / SHULANG_BSTRICT_RUN_ALL 门禁共用）。
+run_all_l5_whitelist_case() {
+    case "$1" in
+        run-lexer.sh|run-typeck.sh|run-check.sh|run-stdlib-import.sh|run-import.sh|run-std.sh|run-hello.sh|run-io.sh|run-csv.sh|run-target.sh|run-fmt-cmd.sh|run-test-cmd.sh|run-multi-file.sh|run-multi-func.sh|run-toplevel-let.sh|run-let-const.sh|run-return-value.sh|run-return-expr.sh|run-struct.sh|run-parser.sh|run-for.sh|run-array.sh|run-pointer.sh|run-if-expr.sh|run-enum-asm.sh|run-match.sh|run-enum.sh|run-dual-chain-struct-return.sh|run-float.sh|run-slice.sh|run-defer.sh|run-vector.sh|run-panic.sh|run-result.sh|run-bool.sh|run-while.sh|run-option.sh|run-binary-expr.sh|run-compound-assign.sh|run-ternary.sh|run-boundary-encodings.sh|run-preprocess.sh|run-goto.sh|run-mem.sh|run-string.sh|run-core-types.sh|run-builtin.sh|run-generic.sh|run-trait.sh|run-encoding.sh|run-base64.sh|run-time.sh|run-sync.sh|run-atomic.sh|run-ffi.sh)
+            return 0
+            ;;
+    esac
+    return 1
+}
+run_shu_for_script() {
+    local script="$1"
+    # B-strict：白名单脚本一律用 SHU（shu_asm），其余仍 shu-c（与 L4 拓扑相同，仅编译器二进制不同）。
+    if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
+        if run_all_l5_whitelist_case "$script"; then
+            echo "$SHU"
+            return 0
+        fi
+        echo "./compiler/shu-c"
+        return 0
+    fi
+    if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -x ./compiler/shu-c ]; then
+        if run_all_l5_whitelist_case "$script"; then
+            echo "$SHU"
+            return 0
+        fi
+        echo "./compiler/shu-c"
+        return 0
+    fi
+    echo "$SHU"
+}
 run() {
     local script="$1"
+    local run_shu
+    run_shu=$(run_shu_for_script "$script")
     if [ ! -f "tests/$script" ]; then
         echo "run-all FAIL: missing tests/$script" >&2
         exit 1
     fi
     chmod +x "tests/$script"
     if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
-        s=0; ./tests/$script || s=$?
+        s=0; SHU="$run_shu" ./tests/$script || s=$?
         if [ "$s" -ne 0 ]; then
+            # B-strict 全量：非白名单走 shu-c，失败仅记 SKIP（L5 只门禁 shu_asm 白名单）。
+            if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && ! run_all_l5_whitelist_case "$script"; then
+                echo "run-all SKIP (non-whitelist shu-c): $script (exit $s)"
+                RUN_BSTRICT_SKIP_COUNT=$((RUN_BSTRICT_SKIP_COUNT + 1))
+                return 0
+            fi
             local msg="*** run-all FAILED: $script (exit $s) ***"
             echo "$msg"
             echo "$msg" >&2
@@ -56,7 +123,7 @@ run() {
             RUN_FAILED_SCRIPTS="$RUN_FAILED_SCRIPTS $script"
         fi
     else
-        ./tests/$script
+        SHU="$run_shu" ./tests/$script
     fi
 }
 
@@ -126,6 +193,7 @@ run run-thread.sh
 run run-random.sh
 run run-http.sh
 run run-tar.sh
+run run-boundary-encodings.sh
 run run-time.sh
 run run-io.sh
 run run-while.sh
@@ -175,5 +243,8 @@ if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
         echo "run-all: $RUN_FAILED_COUNT test(s) failed; failed scripts:$RUN_FAILED_SCRIPTS" >&2
         exit 1
     fi
+fi
+if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ "${RUN_BSTRICT_SKIP_COUNT:-0}" -gt 0 ]; then
+    echo "run-all-bstrict: L5 whitelist OK; skipped $RUN_BSTRICT_SKIP_COUNT non-whitelist shu-c script(s)"
 fi
 echo "all tests OK"

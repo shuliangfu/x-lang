@@ -27,6 +27,15 @@ typedef int (*codegen_is_type_used_fn)(void *ctx, const struct ASTModule *mod, c
 /** pipeline 单文件时 preamble（write_io_net_abi_inline）已输出 core.option/core.result 的 Option_i32/Result_i32；置 1 时 codegen_library_module_to_c 跳过二者避免重定义。 */
 void codegen_set_preamble_has_core_option_result(int on);
 
+/** write_io_net_abi_inline 可选段：codegen.su 在 emit 与 preamble 重叠符号时 OR 入 mask，runtime 写 preamble 时跳过对应行。 */
+#define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
+#define CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE  2u
+#define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
+#define CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH         8u
+void codegen_reset_preamble_skip_mask(void);
+void codegen_or_preamble_skip_mask(unsigned mask);
+unsigned codegen_get_preamble_skip_mask(void);
+
 /**
  * 将入口模块（含 main）生成 C 源码写入 out。
  * 若 is_func_used/is_mono_used 非 NULL，仅生成被引用函数与单态化实例；若 is_type_used 非 NULL 则仅生成被引用 struct/enum（阶段 8.1 DCE）。

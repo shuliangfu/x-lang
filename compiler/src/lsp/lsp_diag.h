@@ -39,6 +39,12 @@ void lsp_diag_invalidate_cache(void);
 /** 追加一条诊断：line/col 为 1-based；severity 1=Error 2=Warning；msg 以 NUL 结尾。 */
 void lsp_diag_add(int line, int col, int severity, const char *msg);
 
+/**
+ * 将当前收集的诊断打印到 stderr（deno / rustc 风格：path:line:col - error: msg）。
+ * path 为源文件路径前缀；返回打印的条数。
+ */
+int lsp_diag_print_stderr_human(const char *path);
+
 /** typeck 统一报错入口：line/col 为 1-based；LSP 模式下写入收集器，否则 fprintf stderr + " at line:col\n"。 */
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 

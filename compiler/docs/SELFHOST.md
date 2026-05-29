@@ -23,7 +23,8 @@
 | 目的 | 命令 |
 |------|------|
 | **语义自举 + 两代一致性** | `make bootstrap-verify`（或 `make bootstrap-self` 烟测） |
-| **Stage2（shu-su → shu-su2，-E-extern 全模块）** | `make verify-selfhost-stage2` 或 `sh ./verify-selfhost-stage2.sh`（macOS/Linux 已验通过；CI 见 `selfhost-stage2.yml`） |
+| **Stage2 SU（shu-su → shu-su2，-su -E 全模块）** | `make verify-selfhost-stage2` / `verify-selfhost-stage2.sh`（须 `shu-su`；CI `selfhost-stage2.yml` job `stage2`） |
+| **Stage2 B-strict（shu_asm → shu_asm2）** | `make bootstrap-verify-stage2-bstrict` / `verify-selfhost-stage2-bstrict.sh`（二遍 `build_shu_asm`；CI job `stage2-bstrict`） |
 | **仅重编 SU 三件套 .o** | `make gen-su-driver-objs`（`pipeline_su.o` + `driver_su.o` + `preprocess_su.o`；改 parser/main/preprocess 后 `make shu-su` 会自动触发） |
 | **全量 .su 测试** | `make test_su` |
 | **C 前端回归** | `make test_c` |
@@ -73,22 +74,55 @@
   - **质检脚本**对 **Mach-O** 读段名 `__text`，对 **ELF（Linux）** 读 `.text`；若仅在 Linux 上曾出现「24 条全 EMPTY」而 macOS 仅少数条，多半是段名误判而非 asm 未落码——以 `check_asm_o_quality.sh` 实现为准。
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.su` 中 `let_type_refs`）。
 - **macOS arm64 实测（2026-05-21）**：`SHU_ASM_ENTRY_MODULE_ONLY=1 ./scripts/build_shu_asm.sh` + `check_asm_o_quality.sh build_asm` → **24/24** 模块 `__text` 非空（含此前 EMPTY 的 `typeck.o`/`pipeline.o`/`backend.o`/`arm64.o`）。主要修复：`typeck.su` 类型池/struct_lit 走 `pipeline_glue.c`；`backend.su`/`arm64.su` 辅助函数与 `emit_index_eff_addr_text` 避免 `Expr` 按值字段访问导致 asm codegen 失败。质检通过时自动 `SHU_ASM_LINK_TOPOLOGY=full_asm`，默认链接仍为 **B-hybrid**。
-- **实验链 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**：跳过 `cc -c pipeline_gen.c`，并列链 `build_asm/*.o`。**`SHU_ASM_ENTRY_MODULE_ONLY=1`**（`build_shu_asm.sh` 编译各 `.o` 时自动设置）已消除 macOS 上「dep 机器码重复符号」；手动 `cc … build_asm/*.o` 试链**不再报 duplicate symbol**，但仍 **undefined symbol**（见下），脚本在 Darwin 上仍跳过 asm-only 试链并回退 gen_driver。
+- **实验链 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**（2026-05-23 起演进）：Darwin 上 **两阶段**——① **bootstrap 首遍**链 `pipeline_su.o`（`-E-extern` 瘦 TU）+ `parser_su.o`/`typeck_su.o`/`codegen_su.o`/`lexer_su.o` + `seed_host/asm_backend_partial.o` + C seed（**不**并 `build_asm/*.o`，避免 `__shu_asm_mod_stub` 重复）；② **第二遍**用 bootstrap `shu_asm` 重编 `pipeline.o`/`typeck.o`/`parser.o`/`backend.o`，再 **strict 重链**（`run_bootstrap_trampoline` + `strict_core partial`，**无** `pipeline_su.o`）。验收：`SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 ./scripts/build_shu_asm.sh` → `LINK_MODE=asm_only_strict` + `run_shu_asm_smoke.sh`。
+- **B-strict 下一跳**：**pipeline.su** 第二遍 ✅（`#10–#52` 索引桩 + 小入口 skip 短路修复）；**typeck/backend** EMIT_HEAVY 第二遍；**perf** 循环优化（见 `analysis/perf-vs-zig-baseline.md`）。
+- **dep 预跑 lib_root 回归（2026-05-22）**：`runtime_one_ctx_for_dep_prerun` 曾调用 `ast_pipeline_dep_ctx_reset` 抹掉 `pipeline_fill_ctx_path_buffers` 写入的 lib_root sidecar，导致 dep 预跑 `resolve_path_su` **rc=-7**、多数 `build_asm/*.o` EMPTY；已改为仅 `ast_pipeline_dep_ctx_set_ndep(0)` 且先 reset 再 fill。
 - **Darwin asm-only 链剩余阻塞（2026-05-21 实测）**：
   1. **大模块 parse 截断**：如 `typeck.su` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
   2. **跨模块符号名**：`backend.o` 引用 `arch_arm64_*`，而 `arm64.o` 导出 `_arch_arm64_*` 或 `append_byte` 等待定。
   3. Linux 仍可在上述问题解决后试全量 `build_asm/*.o` 实验链；成功时打印 `Target-B-experimental`。**B-partial（crt0）** 仅在 **Linux** 且 crt0 链接成功时成立。
 - **bootstrap shu 双轨（2026-05-22）**：`parser.su` stmt_order 用 `out.num_lets`；`codegen.su` 发射 break/continue；`typeck.su` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import std.io `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-su` 全绿；**bootstrap `shu`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shu_su` 有差异，待 10.4.2 收窄 runtime。
 
-### 4.2 CI 与本地验收（Linux / macOS）
+### 4.2 run-all 自举层级（L3 / L4 / L5）
+
+| 层级 | 命令 | 含义 |
+|------|------|------|
+| **L3** | `SHU=./compiler/shu-c ./tests/run-all.sh` | C 前端发布基线 |
+| **L4** | `SHU=./compiler/shu SHULANG_RUN_ALL_BOOTSTRAP_SHU=1 ./tests/run-all.sh` | M1：seed 做 check/typeck/smoke，多数 `-o` 经 `SHULANG_LINK_SHU=shu-c` |
+| **L5** | 同上，但 `run_shu_for_script` 白名单外脚本也用 seed | 真 parity：缩小白名单；已用 seed 链路的子集含 `run-multi-file`、`run-multi-func`、`run-toplevel-let`、`run-let-const` 等 |
+
+**L5 相关实现（2026-05）**：`user_asm_seed_bridge.c` 在 `asm_codegen_elf_o` 前编入各 dep；`asm_export_func_symbol_name` + `pipeline_module_num_funcs`；用户 `-o` exe 不再对本地 import 强制 `asm_entry_module_only`。**std.io 族**：pipeline/bridge 跳过整库 asm emit；`runtime_asm_io_stubs.o` + `io.o` 链入；ARM64 支持 9+ 参 call（`io_register_buffers_4`）。`SHU=./compiler/shu ./tests/run-io.sh` 除 `read_ptr.su` 外已通过。
+
+**`run_shu_for_script` 白名单（bootstrap 下仍用 seed `SHU`，其余 `-o` 用 `SHULANG_LINK_SHU`/`shu-c`）**：
+
+| 仍用 seed | 仍用 shu-c（示例） |
+|-----------|-------------------|
+| run-lexer/typeck/check/import/stdlib-import | run-io（bootstrap run-all 仍 shu-c；seed 直跑除 read_ptr 外已绿）、run-heap 等 |
+| run-std/hello/target/fmt-cmd/test-cmd | run-binary-expr / run-csv：seed 单测与 L4 run-all 均已绿（2026-05-27） |
+| run-multi-file/multi-func/toplevel-let/let-const | 待逐类收敛至 L5 |
+
+本地验收（约 70s）：`SHU=./compiler/shu SHULANG_RUN_ALL_BOOTSTRAP_SHU=1 ./tests/run-all.sh` → `all tests OK`。
+
+### 4.3 平台与 B 目标矩阵（M4）
+
+| 宿主 | 构建目标 | 命令 | 链形态 | 用户态 driver |
+|------|----------|------|--------|----------------|
+| **Linux x86_64（glibc）** | **B-partial（crt0）** | `make -C compiler bootstrap-driver-crt0` | `crt0` + `build_asm/*.o`，无 `pipeline_gen.c` | 无 `runtime_driver`（烟测 return-value 等子集） |
+| **Linux / macOS** | **B-strict** | `make bootstrap-driver-bstrict` | `asm_only_strict`（`SKIP_GEN` 跳过 crt0） | 有（import/hello 门禁） |
+| **macOS arm64** | **B-strict**（默认） | 同上 | 第二遍自举 `pipeline/typeck/backend.o` | 有 |
+| **Alpine / Windows** | **B-hybrid** | `build_shu_asm.sh` 回退 | `pipeline_su` + gen_driver | 有 |
+
+分轨脚本：`./tests/run-bootstrap-bstrict-linux.sh`（仅 Linux）、`./tests/run-bootstrap-bstrict-ci.sh`（含 gate + 白名单 + Linux crt0 + stage2 预检）。
+
+### 4.4 CI 与本地验收（Linux / macOS）
 
 | 平台 | CI job | 自举相关步骤 |
 |------|--------|----------------|
-| **Linux** | `.github/workflows/ci.yml` → `linux` | `make test_c`（=`run-all-c.sh`）、`test_su`、`build_shu_asm.sh`、`check_asm_o_quality.sh`、`bootstrap-verify` |
-| **macOS** | `ci.yml` → `mac` | 同上（crt0 路径在 mac 上通常不启用，仍为 B-hybrid） |
-| **可选** | `selfhost-stage2.yml` | 手动/每周 `verify-selfhost-stage2.sh`（不阻塞 PR） |
+| **Linux** | `.github/workflows/ci.yml` → `linux` | `test_c`、`test_su`、`./tests/run-bootstrap-bstrict-ci.sh`（含 M4 crt0 + M5 stage2 预检）、`bootstrap-verify` |
+| **macOS** | `ci.yml` → `mac` | 同上（`run-bootstrap-bstrict-linux` 自动 skip） |
+| **可选** | `selfhost-stage2.yml` | `verify-selfhost-stage2.sh`（shu-su）+ `verify-selfhost-stage2-bstrict.sh`（shu_asm→shu_asm2） |
 
-本地与 CI 对齐：`make -C compiler test` 或 `./tests/run-all-c.sh` + `./tests/run-all-su.sh`。
+本地与 CI 对齐：`make -C compiler test` 或 `./tests/run-bootstrap-bstrict-ci.sh`。
 
 ---
 

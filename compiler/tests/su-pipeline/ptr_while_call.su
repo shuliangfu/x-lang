@@ -1,0 +1,14 @@
+// ptr_while_call.su — 复现 typeck_validate 中 while + *Module 实参 call（arm64 须 ldr
+// x0）
+import ast;
+
+extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
+
+/** 与 typeck_validate_struct_layouts_zero_padding 循环条件同形。 */
+function test_while_call(module: *Module): i32 {
+  let li: i32 = 0;
+  while (li < pipeline_module_num_struct_layouts_at(module)) {
+    li = li + 1;
+  }
+  return li;
+}

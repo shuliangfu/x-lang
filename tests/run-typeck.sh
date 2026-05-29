@@ -28,15 +28,39 @@ if [ -n "$SHU" ]; then
   TYPECK_SHU="$SHU"
   # SU 宿主（shu_su / shu-su）：赋值 for-step 负例须在本地 -su 流水线上报与 shu-c 同源的行（grep 短语）；其余负例走 .su typeck（与 shu-c 对齐，不再回退 C 前端）。
   case "${SHU##*/}" in
-    shu-su|shu_su)
-      err_assign_su=$("$SHU" -su tests/typeck/type_mismatch_assign.su 2>&1) || true
+    shu_asm)
+      # shu_asm strict 链 typecheck 桩与 seed shu 不一致；SU 负例与 assign 短语仍用 seed 链验收。
+      # run-all-bstrict 会把 shu_asm 拷到 ./compiler/shu，勿用 shu 作负例（空输出）。
+      if [ -x ./compiler/shu-su ]; then
+        TYPECK_NEG_SHU=./compiler/shu-su
+      elif [ -x ./compiler/shu-c ]; then
+        TYPECK_NEG_SHU=./compiler/shu-c
+      else
+        TYPECK_NEG_SHU=./compiler/shu
+      fi
+      if [ ! -x "$TYPECK_NEG_SHU" ]; then
+        TYPECK_NEG_SHU="$SHU"
+      fi
+      err_assign_su=$("$TYPECK_NEG_SHU" tests/typeck/type_mismatch_assign.su -o /tmp/shu_typeck_assign_fail.o 2>&1) || true
       echo "$err_assign_su" | grep -q "assignment type mismatch: expected i32, found bool" || {
         echo "expected SU 'assignment type mismatch: expected i32, found bool' in type_mismatch_assign.su; got: $err_assign_su"
         exit 1
       }
-      err_ret_su=$("$SHU" -su tests/typeck/return_operand_type_mismatch.su -o /tmp/shu_typeck_ret_fail.o 2>&1) || true
+      err_ret_su=$("$TYPECK_NEG_SHU" tests/typeck/return_operand_type_mismatch.su -o /tmp/shu_typeck_ret_fail.o 2>&1) || true
       echo "$err_ret_su" | grep -q "typeck error" || {
-        echo "expected $SHU -su pipeline typeck error on return_operand_type_mismatch.su (bool vs i32 return); got: $err_ret_su"
+        echo "expected $TYPECK_NEG_SHU pipeline typeck error on return_operand_type_mismatch.su (bool vs i32 return); got: $err_ret_su"
+        exit 1
+      }
+      ;;
+    shu|shu-su|shu_su)
+      err_assign_su=$("$SHU" tests/typeck/type_mismatch_assign.su -o /tmp/shu_typeck_assign_fail.o 2>&1) || true
+      echo "$err_assign_su" | grep -q "assignment type mismatch: expected i32, found bool" || {
+        echo "expected SU 'assignment type mismatch: expected i32, found bool' in type_mismatch_assign.su; got: $err_assign_su"
+        exit 1
+      }
+      err_ret_su=$("$SHU" tests/typeck/return_operand_type_mismatch.su -o /tmp/shu_typeck_ret_fail.o 2>&1) || true
+      echo "$err_ret_su" | grep -q "typeck error" || {
+        echo "expected $SHU pipeline typeck error on return_operand_type_mismatch.su (bool vs i32 return); got: $err_ret_su"
         exit 1
       }
       ;;

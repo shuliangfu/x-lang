@@ -1,0 +1,7 @@
+import std.csv;
+
+function main(): i32 {
+  let line: [8]u8 = [97, 98, 0, 0, 0, 0, 0, 0];
+  let buf: [64]u8 = [];
+  return escape(&line[0], 2, &buf[0], 64);
+}

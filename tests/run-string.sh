@@ -2,7 +2,10 @@
 # 测试 std.string：string_empty、string_from_slice/eq/len、string_compare/append/find/starts_with/ends_with/copy_to
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=lib/build-std-c-o.sh
+. "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
+ensure_std_c_o ../std/string/string.o
 SHU=${SHU:-./compiler/shu}
 
 $SHU -L . tests/string/main.su -o /tmp/shu_string 2>&1

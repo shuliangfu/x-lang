@@ -16,11 +16,13 @@ function main(): i32 {
   let stem_buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
   let stem_len: i32 = path_stem(&file_txt[0], 12, &stem_buf[0], 8);
   if (stem_len != 4) { return 6; }
-  if (stem_buf[0] != 102 || stem_buf[1] != 105 || stem_buf[2] != 108 || stem_buf[3] != 101) { return 7; }
+  if (stem_buf[0] != 102 || stem_buf[1] != 105 || stem_buf[2] != 108 || stem_buf[3] != 101) {
+    return 7; }
   let simple: [5]u8 = [47, 97, 47, 98, 0];
   let clean_buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let clean_len: i32 = path_clean(&simple[0], 4, &clean_buf[0], 16);
   if (clean_len != 4) { return 8; }
-  if (clean_buf[0] != 47 || clean_buf[1] != 97 || clean_buf[2] != 47 || clean_buf[3] != 98) { return 9; }
+  if (clean_buf[0] != 47 || clean_buf[1] != 97 || clean_buf[2] != 47 || clean_buf[3] != 98) {
+    return 9; }
   return 0;
 }

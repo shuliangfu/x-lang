@@ -1,8 +1,9 @@
 // std.math — 数学常量与函数（对标 Zig std.math、Rust std::f64）
 //
-// 【文件职责】PI、E、Tau；floor/ceil/trunc/round；sin/cos/tan、asin/acos/atan、atan2；sqrt、cbrt、pow、exp、log、abs、signum；min/max。
+//
+// 【文件职责】PI、E、Tau；floor/ceil/trunc/round；sin/cos/tan、asin/acos/atan、atan2；sqr
+// t、cbrt、pow、exp、log、abs、signum；min/max。
 // 【依赖】core；与 std/math/math.c 同属一模块。链接时需 -lm。
-
 extern function math_pi_c(): f64;
 extern function math_e_c(): f64;
 extern function math_tau_c(): f64;
@@ -26,7 +27,6 @@ extern function math_fabs_c(x: f64): f64;
 extern function math_signum_c(x: f64): f64;
 extern function math_fmin_c(a: f64, b: f64): f64;
 extern function math_fmax_c(a: f64, b: f64): f64;
-
 function pi(): f64 { return math_pi_c(); }
 function e(): f64 { return math_e_c(); }
 function tau(): f64 { return math_tau_c(); }

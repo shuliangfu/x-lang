@@ -1,4 +1,5 @@
-// tests/channel/main.su — std.channel 回归：有界 send/recv、try_send/try_recv、close/free。
+// tests/channel/main.su — std.channel 回归：有界
+// send/recv、try_send/try_recv、close/free。
 // 单线程有界测试；Windows 上 C 层为 stub，跳过并返回 0。
 
 import std.channel;

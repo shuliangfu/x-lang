@@ -6,7 +6,10 @@
 #
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=lib/build-std-c-o.sh
+. "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
+ensure_std_c_o ../std/time/time.o
 
 SHU="${SHU:-./compiler/shu}"
 run_one() {

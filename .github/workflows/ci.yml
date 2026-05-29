@@ -1,6 +1,6 @@
 # Shulang CI: multi-platform build, C test suite, and self-host (.su) tests
 # Linux (multi-version), Linux ARM64, macOS (multi-version), Windows, Docker multi-distro (Alpine/Debian).
-# Build: shu (C compiler). 各平台测试：make test_c（C 路径全量）、make test_su（.su 自举 + run-all-su）、make bootstrap-verify。
+# Build: shu (C compiler). 各平台：test_c / test_su / run-bootstrap-bstrict-ci（M3-c）/ bootstrap-verify（语义自举）。
 
 name: CI
 
@@ -46,6 +46,27 @@ jobs:
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
         timeout-minutes: 20
+      - name: Install Zig (perf baseline -O2对照)
+        run: sudo apt-get install -y -qq zig || true
+      - name: Perf baseline bench (Shu / C / Zig)
+        run: |
+          SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
+          grep -q 'perf baseline OK' /tmp/perf_bench.log
+        timeout-minutes: 5
+      - name: Compile dogfood (P3 fixed -o/check timing)
+        run: |
+          chmod +x tests/run-perf-compile-dogfood.sh
+          SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+          grep -q 'compile dogfood OK' /tmp/compile_dogfood.log
+        timeout-minutes: 3
+      - name: Bootstrap driver seed gate (hello + while + typeck)
+        run: ./tests/run-bootstrap-shu-gate.sh
+        timeout-minutes: 12
+      - name: Bootstrap run-all (M1 seed + shu-c link分流)
+        run: |
+          make -C compiler bootstrap-driver-seed
+          SHU=./compiler/shu SHULANG_RUN_ALL_BOOTSTRAP_SHU=1 ./tests/run-all.sh
+        timeout-minutes: 25
       - name: Run .su test suite (make test_su)
         run: make -C compiler test_su
         timeout-minutes: 25
@@ -55,12 +76,22 @@ jobs:
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         timeout-minutes: 3
-      - name: Bootstrap verify (shu1 -> shu2, both run run-all)
+      - name: shu_asm smoke (return-value + bootstrap gate)
+        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
+        timeout-minutes: 8
+      - name: B-strict bootstrap + gates (M3-c)
+        run: |
+          chmod +x tests/run-bootstrap-bstrict-ci.sh
+          ./tests/run-bootstrap-bstrict-ci.sh
+        timeout-minutes: 25
+      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
+          echo "=== build_bstrict.log (last 120 lines) ==="
+          tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           echo "=== run_shu1.log (last 200 lines) ==="
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           echo "=== run_shu2.log (last 200 lines) ==="
@@ -91,6 +122,9 @@ jobs:
       - name: Run asm regression script (forces CI path)
         run: SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh
         timeout-minutes: 12
+      - name: shu_asm smoke (return-value)
+        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
+        timeout-minutes: 8
 
   linux-arm64:
     name: Linux (ARM64)
@@ -121,6 +155,9 @@ jobs:
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
         timeout-minutes: 20
+      - name: Bootstrap driver seed gate (hello + while + typeck)
+        run: ./tests/run-bootstrap-shu-gate.sh
+        timeout-minutes: 12
       - name: Run .su test suite (make test_su)
         run: make -C compiler test_su
         timeout-minutes: 25
@@ -130,15 +167,22 @@ jobs:
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         timeout-minutes: 3
-      - name: Bootstrap verify (shu1 -> shu2, both run run-all)
+      - name: shu_asm smoke (return-value + bootstrap gate)
+        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
+        timeout-minutes: 8
+      - name: B-strict bootstrap + gates (M3-c)
+        run: |
+          chmod +x tests/run-bootstrap-bstrict-ci.sh
+          ./tests/run-bootstrap-bstrict-ci.sh
+        timeout-minutes: 25
+      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
-          echo "=== run_shu1.log (last 200 lines) ==="
+          tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
-          echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
@@ -175,6 +219,9 @@ jobs:
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
         timeout-minutes: 20
+      - name: Bootstrap driver seed gate (hello + while + typeck)
+        run: ./tests/run-bootstrap-shu-gate.sh
+        timeout-minutes: 12
       - name: Run .su test suite (make test_su)
         run: make -C compiler test_su
         timeout-minutes: 25
@@ -184,15 +231,22 @@ jobs:
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         timeout-minutes: 3
-      - name: Bootstrap verify (shu1 -> shu2, both run run-all)
+      - name: shu_asm smoke (return-value + bootstrap gate)
+        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
+        timeout-minutes: 8
+      - name: B-strict bootstrap + gates (M3-c)
+        run: |
+          chmod +x tests/run-bootstrap-bstrict-ci.sh
+          ./tests/run-bootstrap-bstrict-ci.sh
+        timeout-minutes: 25
+      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
-          echo "=== run_shu1.log (last 200 lines) ==="
+          tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
-          echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 

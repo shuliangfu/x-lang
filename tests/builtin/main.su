@@ -1,4 +1,5 @@
-// 测试 core.builtin：placeholder、copy、min/max、clz/ctz/popcount；unreachable/abort 仅死分支覆盖（不执行）
+// 测试 core.builtin：placeholder、copy、min/max、clz/ctz/popcount；unreachable/abort
+// 仅死分支覆盖（不执行）
 import core.builtin;
 
 function main(): i32 {

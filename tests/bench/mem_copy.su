@@ -1,0 +1,17 @@
+// mem_copy.su — 性能基线：大块 memcpy 风格循环
+function main(): i32 {
+  let n: i32 = 4096;
+  let buf: [4096]u8 = [];
+  let i: i32 = 0;
+  while (i < n) {
+    buf[i] = (i as u8);
+    i = i + 1;
+  }
+  let j: i32 = 0;
+  let sum: i32 = 0;
+  while (j < n) {
+    sum = sum + (buf[j] as i32);
+    j = j + 1;
+  }
+  return sum;
+}

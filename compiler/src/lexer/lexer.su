@@ -1,10 +1,13 @@
 // lexer.su — 词法分析器（自举 9.1：.su 实现，与 lexer.c 并存）
-// 职责：提供 Lexer、lexer_init、lexer_next；将 .su 源码按字符流切分为 Token 流。
-// 依赖：token.su（Token/TokenKind）。源码以 []u8 传入，IDENT 的 ident 暂置 0，仅填 ident_len。
+// 职责：提供 Lexer、lexer_init、lexer_next；将 .su 源码按字符流切分为 Token
+// 流。
+// 依赖：token.su（Token/TokenKind）。源码以 []u8 传入，IDENT 的 ident 暂置
+// 0，仅填 ident_len。
 
 import token;
 
-/** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 []u8 传入。allow(padding) 与跨模块拷贝/赋值对齐。 */
+/** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 []u8
+* 传入。allow(padding) 与跨模块拷贝/赋值对齐。 */
 allow(padding) struct Lexer {
   pos: usize;
   line: i32;
@@ -12,10 +15,14 @@ allow(padding) struct Lexer {
 }
 
 /** 一次 lexer_next 的返回：更新后的 Lexer 状态与本次读到的 Token。
- * token_start：当前 token 在 source 中的字节起点（跳过空白后的首字节偏移），供 parser 复制 IDENT/关键字字面量；
- * 与 lexer_next_body_into 一致（IDENT 与 TOKEN_INT 等带文本的 token 均填真实起点，偏移 0 合法）。
- * 单字符标点等多数字面量仍为 0。 */
-/** allow(padding)：Token 含 f64，与 next_lex 组合时 token_start 前可有隐式 gap（§11.1）。 */
+* token_start：当前 token 在 source
+* 中的字节起点（跳过空白后的首字节偏移），供 parser 复制
+* IDENT/关键字字面量；
+* 与 lexer_next_body_into 一致（IDENT 与 TOKEN_INT 等带文本的 token
+* 均填真实起点，偏移 0 合法）。
+* 单字符标点等多数字面量仍为 0。 */
+/** allow(padding)：Token 含 f64，与 next_lex 组合时 token_start 前可有隐式
+gap（§11.1）。 */
 allow(padding) struct LexerResult {
   next_lex: Lexer;
   tok: Token;
@@ -23,9 +30,10 @@ allow(padding) struct LexerResult {
 }
 
 /**
- * glue：pipeline_glue.c 提供 lexer_parser_slice_from_buf；（data,len）与 []u8 视图一致，
- * 供 buf 路径会合到 slice 版本逻辑，避免在 buf 循环里手写 i32→usize 转换触发 typecheck 不稳定。
- */
+* glue：pipeline_glue.c 提供 lexer_parser_slice_from_buf；（data,len）与 []u8 视图一致，
+* 供 buf 路径会合到 slice 版本逻辑，避免在 buf 循环里手写 i32→usize
+* 转换触发 typecheck 不稳定。
+*/
 extern function lexer_parser_slice_from_buf(data: *u8, len: i32): []u8;
 
 /** 返回初始 Lexer 状态（pos=0, line=1, col=1）。 */
@@ -33,7 +41,8 @@ function lexer_init(): Lexer {
   return Lexer { pos: 0, line: 1, col: 1 };
 }
 
-/** 消费一个字符，返回新的 Lexer 状态（pos+1，换行时 line+1、col 置 1，否则 col+1）。 */
+/** 消费一个字符，返回新的 Lexer 状态（pos+1，换行时 line+1、col 置 1，否则
+col+1）。 */
 function advance_one(lex: Lexer, c: u8): Lexer {
   if (c == 10) {
     return Lexer { pos: lex.pos + 1, line: lex.line + 1, col: 1 };
@@ -58,7 +67,8 @@ function is_alnum_underscore(c: u8): bool {
   return is_alpha(c) || is_digit(c);
 }
 
-/** 比较 data[start..start+len] 与 keyword 的前 len 字节是否相等；要求 keyword 长度 >= len。 */
+/** 比较 data[start..start+len] 与 keyword 的前 len 字节是否相等；要求 keyword 长度
+>= len。 */
 function match_keyword(data: []u8, start: usize, len: i32, keyword: []u8): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -68,7 +78,8 @@ function match_keyword(data: []u8, start: usize, len: i32, keyword: []u8): bool 
   return true;
 }
 
-/** 与 match_keyword 等价，但接受 (data: *u8, data_len) 用于无 slice 的 buf 路径；要求 start+len <= data_len。 */
+/** 与 match_keyword 等价，但接受 (data: *u8, data_len) 用于无 slice 的 buf
+* 路径；要求 start+len <= data_len。 */
 function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i32, keyword: []u8): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -79,7 +90,9 @@ function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i32, key
   return true;
 }
 
-/** 根据已扫描的标识符 (data, start, len) 判断关键字；若是关键字返回对应 Token，否则返回 TOKEN_IDENT（ident 置 0，ident_len 为 len）。多行构造便于阅读与维护。 */
+/** 根据已扫描的标识符 (data, start, len) 判断关键字；若是关键字返回对应
+* Token，否则返回 TOKEN_IDENT（ident 置 0，ident_len 为
+* len）。多行构造便于阅读与维护。 */
 function try_keyword(data: []u8, start: usize, len: usize, line0: i32, col0: i32): Token {
   if (len == 8 && match_keyword(data, start, 8, [102, 117, 110, 99, 116, 105, 111, 110])) {
     let t: Token = Token {
@@ -622,100 +635,127 @@ function try_keyword(data: []u8, start: usize, len: usize, line0: i32, col0: i32
 }
 
 /** 与 try_keyword 等价，接受 (data: *u8, data_len) 供无 slice 的 buf 路径使用。 */
-function try_keyword_buf(data: *u8, data_len: i32, start: usize, len: usize, line0: i32, col0: i32): Token {
-  if (len == 8 && match_keyword_buf(data, data_len, start, 8, [102, 117, 110, 99, 116, 105, 111, 110])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_FUNCTION, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+function try_keyword_buf(data: *u8, data_len: i32, start: usize, len: usize, line0: i32, col0:
+i32): Token {
+  if (len == 8 && match_keyword_buf(data, data_len, start, 8, [102, 117, 110, 99, 116, 105, 111,
+  110])) {
+    let t: Token = Token { kind: TokenKind.TOKEN_FUNCTION, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [108, 101, 116])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_LET, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_LET, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [99, 111, 110, 115, 116])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_CONST, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_CONST, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [105, 102])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_IF, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_IF, line: line0, col: col0, int_val: 0, float_val:
+      0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [101, 108, 115, 101])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_ELSE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_ELSE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [114, 101, 116, 117, 114, 110])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_RETURN, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_RETURN, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [115, 116, 114, 117, 99, 116])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_STRUCT, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_STRUCT, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [101, 110, 117, 109])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_ENUM, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_ENUM, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [109, 97, 116, 99, 104])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_MATCH, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_MATCH, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [116, 114, 117, 101])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_TRUE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_TRUE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [102, 97, 108, 115, 101])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_FALSE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_FALSE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [102, 54, 52])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_F64, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_F64, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [118, 111, 105, 100])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_VOID, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_VOID, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [105, 51, 50])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_I32, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_I32, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [98, 111, 111, 108])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_BOOL, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_BOOL, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [117, 56])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_U8, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_U8, line: line0, col: col0, int_val: 0, float_val:
+      0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [117, 115, 105, 122, 101])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_USIZE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_USIZE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [105, 115, 105, 122, 101])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_ISIZE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_ISIZE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [97, 115])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_AS, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_AS, line: line0, col: col0, int_val: 0, float_val:
+      0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [105, 109, 112, 111, 114, 116])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_IMPORT, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_IMPORT, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [101, 120, 116, 101, 114, 110])) {
-    let t: Token = Token { kind: TokenKind.TOKEN_EXTERN, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_EXTERN, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
   if (len == 1 && start < (data_len as usize) && data[start] == 95) {
-    let t: Token = Token { kind: TokenKind.TOKEN_UNDERSCORE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
+    let t: Token = Token { kind: TokenKind.TOKEN_UNDERSCORE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
-  let t: Token = Token { kind: TokenKind.TOKEN_IDENT, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: len }
+  let t: Token = Token { kind: TokenKind.TOKEN_IDENT, line: line0, col: col0, int_val: 0,
+    float_val: 0.0, ident: 0, ident_len: len }
   return t;
 }
 
-/** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前 lex。控制流仅用 if/else-if（无 continue），以满足 asm codegen 对 EXPR_CONTINUE 的限制。 */
+/** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前
+* lex。控制流仅用 if/else-if（无 continue），以满足 asm codegen 对 EXPR_CONTINUE
+* 的限制。 */
 function skip_whitespace_and_comments(lex: Lexer, data: []u8): Lexer {
   let l: Lexer = lex;
   while (l.pos < data.length) {
@@ -748,14 +788,19 @@ function skip_whitespace_and_comments(lex: Lexer, data: []u8): Lexer {
   return l;
 }
 
-/** 与 skip_whitespace_and_comments 等价，接受 (data: *u8, len) 供 buf 路径使用；委托 slice 路径，logic 仅此一份。 */
+/** 与 skip_whitespace_and_comments 等价，接受 (data: *u8, len) 供 buf 路径使用；委托
+* slice 路径，logic 仅此一份。 */
 function skip_whitespace_and_comments_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   let source: []u8 = lexer_parser_slice_from_buf(data, len);
   return skip_whitespace_and_comments(lex, source);
 }
 
-/** 取下一个 Token；跳过空白与注释后，识别关键字/标识符/数字/符号，写 tok 并返回新状态。IDENT 时 ident 置 0，仅 ident_len 有效。遇 NUL 或越界视为 EOF（便于从文件读入的固定长缓冲）。先做 EOF 检查再调 lexer_next_body，避免代码生成将 data[l.pos] 提到越界检查前导致 panic。
- * 使用单一 return + if-else 链使两分支类型一致为 LexerResult，避免 codegen 产出 __tmp=LexerResult 却赋 (Token){0}。 */
+/** 取下一个 Token；跳过空白与注释后，识别关键字/标识符/数字/符号，写
+* tok 并返回新状态。IDENT 时 ident 置 0，仅 ident_len 有效。遇 NUL 或越界视为
+* EOF（便于从文件读入的固定长缓冲）。先做 EOF 检查再调
+* lexer_next_body，避免代码生成将 data[l.pos] 提到越界检查前导致 panic。
+* 使用单一 return + if-else 链使两分支类型一致为 LexerResult，避免 codegen 产出
+* __tmp=LexerResult 却赋 (Token){0}。 */
 function lexer_next(lex: Lexer, data: []u8): LexerResult {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   return (if (l.pos >= data.length) {
@@ -785,7 +830,51 @@ function lexer_next(lex: Lexer, data: []u8): LexerResult {
   });
 }
 
-/** 与 lexer_next_body 逻辑相同，但将结果写入 out 而非返回，供 lexer_next_impl 使用以绕过结构体返回 ABI。 */
+/**
+* 浮点字面量可选指数（e/E[+/-]digits）；与 lexer.c lex_optional_exponent 一致。
+* 通过 out_l/out_f 写回推进后的 Lexer 与缩放后的值。
+*/
+function lexer_apply_optional_exponent(l: Lexer, data: []u8, fval: f64, out_l: *Lexer, out_f:
+*f64): void {
+  let lex: Lexer = l;
+  let cur: f64 = fval;
+  if (lex.pos < data.length && (data[lex.pos] == 101 || data[lex.pos] == 69)) {
+    lex = advance_one(lex, data[lex.pos]);
+    let exp_sign: i32 = 1;
+    if (lex.pos < data.length && data[lex.pos] == 45) {
+      exp_sign = -1;
+      lex = advance_one(lex, 45);
+    } else {
+      if (lex.pos < data.length && data[lex.pos] == 43) { lex = advance_one(lex, 43); }
+    }
+    let exp: i32 = 0;
+    while (lex.pos < data.length && is_digit(data[lex.pos])) {
+      let d: u8 = data[lex.pos];
+      lex = advance_one(lex, d);
+      exp = exp * 10 + (d - 48);
+    }
+    exp = exp * exp_sign;
+    let scale: f64 = 1.0;
+    let e: i32 = 0;
+    if (exp > 0) {
+      while (e < exp) {
+        scale = scale * 10.0;
+        e = e + 1;
+      }
+    } else {
+      while (e > exp) {
+        scale = scale * 0.1;
+        e = e - 1;
+      }
+    }
+    cur = fval * scale;
+  }
+  out_l[0] = lex;
+  out_f[0] = cur;
+}
+
+/** 与 lexer_next_body 逻辑相同，但将结果写入 out 而非返回，供 lexer_next_impl
+* 使用以绕过结构体返回 ABI。 */
 function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
   let c: u8 = data[l.pos];
   if (is_alpha(c)) {
@@ -804,6 +893,7 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
     return;
   }
   if (is_digit(c)) {
+    let start: usize = l.pos;
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let ival: i32 = 0;
@@ -814,7 +904,8 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
       l = advance_one(l, d);
       ival = ival * 10 + (d - 48);
     }
-    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
+    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos
+    + 1])) {
       l = advance_one(l, 46);
       let fval: f64 = ival;
       let frac: f64 = 0.1;
@@ -824,7 +915,9 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
         fval = fval + frac * (d - 48);
         frac = frac * 0.1;
       }
-      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 };
+      lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+        float_val: fval, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       return;
@@ -859,14 +952,18 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
         }
       }
       let fval: f64 = ival * scale;
-      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 };
+      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+        float_val: fval, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       return;
     }
-    let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival, float_val: 0.0, ident: 0, ident_len: 0 };
+    let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival,
+      float_val: 0.0, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
+    /** 与 IDENT 分支一致：块尾 `{ 10 }` 依赖 token_start，否则 parser lex_at_token 仅回溯 1 字节。 */
+    out.token_start = start;
     return;
   }
   if (c == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
@@ -881,7 +978,9 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
       fval = fval + frac * (d - 48);
       frac = frac * 0.1;
     }
-    let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 };
+    lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+    let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+      float_val: fval, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     return;
@@ -889,18 +988,30 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
   let line0: i32 = l.line;
   let col0: i32 = l.col;
   l = advance_one(l, c);
-  let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
-  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
+  let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0,
+    float_val: 0.0, ident: 0, ident_len: 0 };
+  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
   if (c == 45) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
@@ -914,11 +1025,16 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
     write_tok_into(out, tok);
     return;
   }
-  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
-  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
+  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
+  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; write_next_lex_into(out, l); write_tok_into(out,
+    tok); return; }
+  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       l = advance_one(l, 38);
@@ -998,7 +1114,8 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
     write_tok_into(out, tok);
     return;
   }
-  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; write_next_lex_into(out, l); write_tok_into(out, tok); return; }
+  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; write_next_lex_into(out, l);
+    write_tok_into(out, tok); return; }
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
@@ -1023,7 +1140,8 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
   write_tok_into(out, tok);
 }
 
-/** 将 Lexer 各字段写入 out.next_lex，并置 token_start=0；ident 分支会在调用后再写 out.token_start。 */
+/** 将 Lexer 各字段写入 out.next_lex，并置 token_start=0；ident
+* 分支会在调用后再写 out.token_start。 */
 function write_next_lex_into(out: *LexerResult, l: Lexer): void {
   out.next_lex.pos = l.pos;
   out.next_lex.line = l.line;
@@ -1041,17 +1159,20 @@ function write_tok_into(out: *LexerResult, t: Token): void {
   out.tok.ident_len = t.ident_len;
 }
 
-/** 核心实现：将下一 token 的结果写入 out（不返回结构体），避免 ABI 下 LexerResult 按值返回错误。 */
+/** 核心实现：将下一 token 的结果写入 out（不返回结构体），避免 ABI 下
+* LexerResult 按值返回错误。 */
 function lexer_next_impl(out: *LexerResult, lex: Lexer, data: []u8): void {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   if (l.pos >= data.length) {
-    let t: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
+    let t: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
     return;
   }
   if (data[l.pos] == 0) {
-    let t: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 };
+    let t: Token = Token { kind: TokenKind.TOKEN_EOF, line: l.line, col: l.col, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
     return;
@@ -1059,28 +1180,32 @@ function lexer_next_impl(out: *LexerResult, lex: Lexer, data: []u8): void {
   lexer_next_body_into(out, l, data);
 }
 
-/** 将 lexer_next 的结果写入 out，供 parser 关键路径使用，避免结构体返回 ABI 问题。 */
+/** 将 lexer_next 的结果写入 out，供 parser 关键路径使用，避免结构体返回 ABI
+* 问题。 */
 function lexer_next_into(out: *LexerResult, lex: Lexer, data: []u8): void {
   lexer_next_impl(out, lex, data);
 }
 
-/** buf + len：写入 out；内部走 lexer_next_into；优先此路径可避免 lexer_next_buf 按值 LexerResult 在部分宿主 ABI 上不稳定。 */
+/** buf + len：写入 out；内部走 lexer_next_into；优先此路径可避免 lexer_next_buf
+* 按值 LexerResult 在部分宿主 ABI 上不稳定。 */
 function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   let source: []u8 = lexer_parser_slice_from_buf(data, len);
   lexer_next_into(out, lex, source);
 }
 
 /**
- * 与 lexer_next 等价，接受 (data: *u8, len)。
- * 委托 lexer_next(lex, source)，勿在本函数展开 skip/EOF/next_body：
- * codegen 对「栈上 []u8 绑定」易产生 (source)->length 等箭头误用；(lex, &(source)) 传参路径与 lexer_next 一致可避免坏 C。
- */
+* 与 lexer_next 等价，接受 (data: *u8, len)。
+* 委托 lexer_next(lex, source)，勿在本函数展开 skip/EOF/next_body：
+* codegen 对「栈上 []u8 绑定」易产生 (source)->length 等箭头误用；(lex, &(source))
+* 传参路径与 lexer_next 一致可避免坏 C。
+*/
 function lexer_next_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   let source: []u8 = lexer_parser_slice_from_buf(data, len);
   return lexer_next(lex, source);
 }
 
-/** 在已保证 l.pos < data.length 且 data[l.pos] != 0 时取下一 Token；供 lexer_next 在 EOF 检查后调用。 */
+/** 在已保证 l.pos < data.length 且 data[l.pos] != 0 时取下一 Token；供 lexer_next 在
+* EOF 检查后调用。 */
 function lexer_next_body(l: Lexer, data: []u8): LexerResult {
   let c: u8 = data[l.pos];
   if (is_alpha(c)) {
@@ -1093,7 +1218,8 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
     }
     let len: usize = l.pos - start;
     let tok: Token = try_keyword(data, start, len, line0, col0);
-    /** IDENT/关键字：必须与 lexer_next_body_into 一致写入起点，否则会触发 parser 误判与 struct 字段名不匹配。 */
+    /** IDENT/关键字：必须与 lexer_next_body_into 一致写入起点，否则会触发
+    * parser 误判与 struct 字段名不匹配。 */
     return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (is_digit(c)) {
@@ -1108,7 +1234,8 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
       l = advance_one(l, d);
       ival = ival * 10 + (d - 48);
     }
-    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
+    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos
+    + 1])) {
       l = advance_one(l, 46);
       let fval: f64 = ival;
       let frac: f64 = 0.1;
@@ -1118,7 +1245,9 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
         fval = fval + frac * (d - 48);
         frac = frac * 0.1;
       }
-      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
+      lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+        float_val: fval, ident: 0, ident_len: 0 }
       return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
@@ -1151,10 +1280,12 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
         }
       }
       let fval: f64 = ival * scale;
-      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
+      let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+        float_val: fval, ident: 0, ident_len: 0 }
       return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
     }
-    let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival, float_val: 0.0, ident: 0, ident_len: 0 }
+    let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: ival,
+      float_val: 0.0, ident: 0, ident_len: 0 }
     return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (c == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
@@ -1169,24 +1300,38 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
       fval = fval + frac * (d - 48);
       frac = frac * 0.1;
     }
-    let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0, float_val: fval, ident: 0, ident_len: 0 }
+    lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+    let tok: Token = Token { kind: TokenKind.TOKEN_FLOAT, line: line0, col: col0, int_val: 0,
+      float_val: fval, ident: 0, ident_len: 0 }
     return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
   let line0: i32 = l.line;
   let col0: i32 = l.col;
   l = advance_one(l, c);
-  let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }
-  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  let tok: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0,
+    float_val: 0.0, ident: 0, ident_len: 0 }
+  if (c == 40) { tok.kind = TokenKind.TOKEN_LPAREN; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 41) { tok.kind = TokenKind.TOKEN_RPAREN; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 123) { tok.kind = TokenKind.TOKEN_LBRACE; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 125) { tok.kind = TokenKind.TOKEN_RBRACE; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 91) { tok.kind = TokenKind.TOKEN_LBRACKET; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 93) { tok.kind = TokenKind.TOKEN_RBRACKET; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 44) { tok.kind = TokenKind.TOKEN_COMMA; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 43) { tok.kind = TokenKind.TOKEN_PLUS; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
   if (c == 45) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
@@ -1196,11 +1341,16 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
     tok.kind = TokenKind.TOKEN_MINUS;
     return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
-  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
-  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 42) { tok.kind = TokenKind.TOKEN_STAR; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 47) { tok.kind = TokenKind.TOKEN_SLASH; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 37) { tok.kind = TokenKind.TOKEN_PERCENT; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 94) { tok.kind = TokenKind.TOKEN_CARET; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
+  if (c == 126) { tok.kind = TokenKind.TOKEN_TILDE; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       l = advance_one(l, 38);
@@ -1256,7 +1406,8 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
     tok.kind = TokenKind.TOKEN_BANG;
     return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
   }
-  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) } };
+  if (c == 63) { tok.kind = TokenKind.TOKEN_QUESTION; return LexerResult { next_lex: l, tok: tok,
+      token_start: (0 as usize) } };
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
@@ -1274,9 +1425,11 @@ function lexer_next_body(l: Lexer, data: []u8): LexerResult {
   return LexerResult { next_lex: l, tok: tok, token_start: (0 as usize) };
 }
 
-/** 自举 9.1 测试：初始化 Lexer，用固定源码调用 lexer_next 若干次，确认 TOKEN_LET/TOKEN_IDENT/TOKEN_ASSIGN/TOKEN_INT/TOKEN_EOF。 */
+/** 自举 9.1 测试：初始化 Lexer，用固定源码调用 lexer_next 若干次，确认
+TOKEN_LET/TOKEN_IDENT/TOKEN_ASSIGN/TOKEN_INT/TOKEN_EOF。 */
 function main(): i32 {
-  let src: [32]u8 = [108, 101, 116, 32, 120, 32, 61, 32, 49, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let src: [32]u8 = [108, 101, 116, 32, 120, 32, 61, 32, 49, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let sl: []u8 = src;
   let lex: Lexer = lexer_init();
   let r: LexerResult = lexer_next(lex, sl);

@@ -10,7 +10,7 @@ on:
 
 jobs:
   stage2:
-    name: verify-selfhost-stage2
+    name: verify-selfhost-stage2 (shu-su -su -E)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -20,4 +20,17 @@ jobs:
         run: make -C compiler OPT=1 all
       - name: Run verify-selfhost-stage2.sh
         run: cd compiler && sh ./verify-selfhost-stage2.sh
+        timeout-minutes: 45
+
+  stage2-bstrict:
+    name: verify-selfhost-stage2-bstrict (shu_asm -> shu_asm2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libbrotli-dev
+      - name: Build seed shu
+        run: make -C compiler OPT=1 all
+      - name: Run verify-selfhost-stage2-bstrict.sh
+        run: cd compiler && sh ./verify-selfhost-stage2-bstrict.sh
         timeout-minutes: 45

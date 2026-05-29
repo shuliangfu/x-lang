@@ -1,4 +1,5 @@
-// 测试 std.fs：fs_open_write、fs_write、fs_close（大块写）；fs_open_read、fs_read 由 main.su 与 pipeline 等覆盖
+// 测试 std.fs：fs_open_write、fs_write、fs_close（大块写）；fs_open_read、fs_read 由
+// main.su 与 pipeline 等覆盖
 import std.fs;
 
 function main(): i32 {

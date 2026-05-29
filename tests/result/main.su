@@ -1,4 +1,4 @@
-// 测试 core.result 的 Result_i32：ok_i32、err_i32、unwrap_or_i32、expect_i32、expect_i32_or_panic
+// 测试 core.result 的 Result_i32: ok_i32, err_i32, unwrap_or_i32, expect_i32, expect_i32_or_panic
 import core.result;
 
 function main(): i32 {

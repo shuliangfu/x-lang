@@ -1,0 +1,61 @@
+// fmt 综合回归：注释、块注释、分号链、空格链、超长无断点标识符、嵌套块。
+// 本文件由 tests/run-fmt-wrap.sh 复制后执行 fmt，再经 scan_fmt_damage / check 校验。
+
+// 超长单行注释：formatter 不得折断且不得丢失 // 前缀；若折行则每行必须以 // 开头。
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+/**
+* 多行块注释第一行故意写得很长，用来验证星号续行不会被 fmt 折成丢失 * 的普通代码行。
+* 第二行正常较短。
+*/
+
+/** 单行块注释包裹说明。 */
+
+import core.option;
+
+// ——— 1. 分号链：优先在 ; 后折行 ———
+function fmt_comp_semicolon_chain(): i32 {
+  let prefix: [48]u8 = [];
+  prefix[0] = 1; prefix[1] = 2; prefix[2] = 3; prefix[3] = 4; prefix[4] = 5; prefix[5] = 6;
+  prefix[6] = 7; prefix[7] = 8; prefix[8] = 9; prefix[9] = 10; prefix[10] = 11; prefix[11] = 12;
+  prefix[12] = 13; prefix[13] = 14; prefix[14] = 15; prefix[15] = 16;
+  return prefix[0] + prefix[15];
+}
+
+// ——— 2. 空格链：无分号时长表达式应在空格处折行 ———
+function fmt_comp_space_chain(): i32 {
+  let first_long_name: i32 = 1;
+  let second_long_name: i32 = 2;
+  let third_long_name: i32 = 3;
+  return first_long_name + second_long_name + third_long_name;
+}
+
+// ——— 3. 无安全断点：超长标识符连接符，宁可超宽也不拆词 ———
+function fmt_comp_no_break_token(): i32 {
+  let verylongidentifierwithoutanyspaces: i32 = 42;
+  return verylongidentifierwithoutanyspaces;
+}
+
+// ——— 4. 嵌套块与缩进：折行后缩进须与 depth 一致 ———
+function fmt_comp_nested(): i32 {
+  let acc: i32 = 0;
+  if (acc == 0) {
+    let inner_a: i32 = 1;
+    let inner_b: i32 = 2;
+  }
+  return acc;
+}
+
+// ——— 5. 逗号+空格参数列表（应在逗号后空格处折，而非拆标识符） ———
+function fmt_comp_call_args(a: i32, b: i32, c: i32, d: i32): i32 {
+  return a + b + c + d;
+}
+
+function main(): i32 {
+  let x: i32 = fmt_comp_semicolon_chain();
+  let y: i32 = fmt_comp_space_chain();
+  let z: i32 = fmt_comp_no_break_token();
+  let w: i32 = fmt_comp_nested();
+  let v: i32 = fmt_comp_call_args(x, y, z, w);
+  return v;
+}

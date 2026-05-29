@@ -313,6 +313,26 @@ void lsp_diag_collect_end(void) {
     lsp_diag_enabled = 0;
 }
 
+/**
+ * 将 s_diag 中已收集条目打印为 CLI 友好行（deno check 风格）。
+ * path：诊断前缀文件路径；severity 1→error，2→warning。
+ */
+int lsp_diag_print_stderr_human(const char *path) {
+    int i;
+    int n = 0;
+    const char *sev;
+    if (!path)
+        path = "?";
+    for (i = 0; i < s_diag_count; i++) {
+        sev = (s_diag[i].severity == 2) ? "warning" : "error";
+        fprintf(stderr, "%s:%d:%d - %s: %s\n", path, s_diag[i].line, s_diag[i].col, sev, s_diag[i].msg);
+        n++;
+    }
+  if (n > 0)
+        fflush(stderr);
+    return n;
+}
+
 void *lsp_diag_su_arena_ptr(void) {
     static void *p;
     if (!p)
@@ -1440,11 +1460,13 @@ extern int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t li
                                   uint8_t *out_buf, int32_t out_cap);
 extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                        int32_t *out_lines, int32_t *out_cols, int32_t max_refs);
+extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                       int32_t *out_line, int32_t *out_col);
 
 /**
- * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；复用模块缓存，不重复 parse/typeck。
+ * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
  */
-int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
+__attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
     if (!source || !out_line || !out_col || source_len < 0) return 0;
     s_def_target_func = NULL;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
@@ -2227,15 +2249,391 @@ static int lsp_extract_formatting_options(const uint8_t *body, int len,
 }
 
 /**
+ * 在本行 [line_start, line_start+line_len) 内更新花括号 depth，忽略 // 注释与 "..." 字符串内的 { }。
+ */
+static void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_len, int *depth) {
+    int in_line_comment = 0;
+    int in_string = 0;
+    int escape = 0;
+    int j;
+    if (!doc || !depth)
+        return;
+    for (j = 0; j < line_len; j++) {
+        uint8_t c = doc[line_start + j];
+        if (in_line_comment)
+            continue;
+        if (in_string) {
+            if (escape) {
+                escape = 0;
+                continue;
+            }
+            if (c == '\\') {
+                escape = 1;
+                continue;
+            }
+            if (c == '"')
+                in_string = 0;
+            continue;
+        }
+        if (j + 1 < line_len && c == '/' && doc[line_start + j + 1] == '/') {
+            in_line_comment = 1;
+            continue;
+        }
+        if (c == '"') {
+            in_string = 1;
+            continue;
+        }
+        if (c == '{')
+            (*depth)++;
+        else if (c == '}')
+            (*depth)--;
+    }
+}
+
+/**
  * 对文档做简单格式化：按行处理，根据 { } 跟踪缩进深度，每行输出规范缩进 + 去首尾空白的内容；
  * 若缩进+内容超过 max_line_length 则在空格处折行；受 trim_trailing_whitespace / trim_final_newlines / insert_final_newline 控制结尾。
  * 写入 out_buf，返回长度；越界返回 -1。
  */
+/** 行 [start, start+len) 内是否出现块注释结束符 \c *\/ 。 */
+static int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
+    for (int i = 0; i + 1 < len; i++) {
+        if (doc[start + i] == '*' && doc[start + i + 1] == '/')
+            return 1;
+    }
+    return 0;
+}
+
+/**
+ * 是否为块注释行（\c /** 、\c * 续行，或处于未闭合的块注释内）。
+ */
+static int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
+    if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
+        return 1;
+    if (in_block && content_len >= 1 && doc[content_start] == '*')
+        return 1;
+    return 0;
+}
+
+/** 输出缓冲中最后一个非空白字符；无则返回 0。 */
+static uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
+    int k;
+    for (k = out_len - 1; k >= 0; k--) {
+        if (out_buf[k] != ' ' && out_buf[k] != '\t')
+            return out_buf[k];
+    }
+    return 0;
+}
+
+/** 源码 [start+j) 之前最后一个非空白字符；无则返回 0。 */
+static uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
+    int k;
+    for (k = j - 1; k >= 0; k--) {
+        uint8_t c = doc[start + k];
+        if (c != ' ' && c != '\t' && c != '\r')
+            return c;
+    }
+    return 0;
+}
+
+/** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
+static int lsp_fmt_is_atom_tail(uint8_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
+}
+
+/** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
+static int lsp_fmt_is_atom_head(uint8_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
+}
+
+/** 一元运算符左邻字符（含行首 0）。 */
+static int lsp_fmt_unary_lhs(uint8_t prev) {
+    if (prev == 0)
+        return 1;
+    return prev == '(' || prev == '[' || prev == '{' || prev == ',' || prev == ':' || prev == ';' || prev == '='
+        || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
+        || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
+}
+
+/** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
+static int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
+    int k = j - 1;
+    while (k >= 0) {
+        uint8_t c = doc[start + k];
+        if (c == ' ' || c == '\t')
+            return 1;
+        if (c == '\r')
+            return 0;
+        return 0;
+    }
+    return 0;
+}
+
+/** 源码 j 之后是否已有空白。 */
+static int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
+    int k = j + 1;
+    while (k < len) {
+        uint8_t c = doc[start + k];
+        if (c == ' ' || c == '\t')
+            return 1;
+        if (c == '\r' || c == '\n')
+            return 0;
+        return 0;
+    }
+    return 0;
+}
+
+/** 在 out 中补一个前导空格（若需要且容量足够）。 */
+static int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+    uint8_t last;
+    if (lsp_fmt_src_ws_before(doc, start, j))
+        return 0;
+    last = lsp_fmt_last_out(out_buf, *out_len);
+    if (last != 0 && last != ' ' && last != '\t' && *out_len < out_cap - 1) {
+        out_buf[(*out_len)++] = ' ';
+        return 1;
+    }
+    return 0;
+}
+
+/** 在 out 中补一个后继空格（若需要且容量足够）。 */
+static int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+    int k;
+    if (lsp_fmt_src_ws_after(doc, start, len, j))
+        return 0;
+    for (k = j + 1; k < len; k++) {
+        uint8_t n = doc[start + k];
+        if (n == ' ' || n == '\t' || n == '\r')
+            continue;
+        if (lsp_fmt_is_atom_head(n) && *out_len < out_cap - 1) {
+            out_buf[(*out_len)++] = ' ';
+            return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+/**
+ * 尝试在 j 处匹配 len_op 的多字符运算符；匹配则写出（含两侧空格）并返回消耗长度，否则返回 0。
+ */
+static int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
+                               uint8_t *out_buf, int *out_len, int out_cap) {
+    int k;
+    uint8_t prev;
+    uint8_t next;
+    if (!doc || !op || op_len <= 0 || j + op_len > len)
+        return 0;
+    for (k = 0; k < op_len; k++) {
+        if (doc[start + j + k] != (uint8_t)op[k])
+            return 0;
+    }
+    prev = lsp_fmt_last_out(out_buf, *out_len);
+    if (prev == 0)
+        prev = lsp_fmt_prev_src(doc, start, j);
+    next = 0;
+    if (j + op_len < len) {
+        int t;
+        for (t = j + op_len; t < len; t++) {
+            uint8_t c = doc[start + t];
+            if (c != ' ' && c != '\t' && c != '\r') {
+                next = c;
+                break;
+            }
+        }
+    }
+  /* 二元运算符：两侧为“原子”时加空格；一元 - ! ~ & * 不在此表。 */
+    if (!lsp_fmt_is_atom_tail(prev) || !lsp_fmt_is_atom_head(next))
+        return 0;
+    (void)lsp_fmt_space_before(doc, start, j, out_buf, out_len, out_cap);
+    for (k = 0; k < op_len && *out_len < out_cap - 1; k++)
+        out_buf[(*out_len)++] = (uint8_t)op[k];
+    (void)lsp_fmt_space_after(doc, start, len, j + op_len - 1, out_buf, out_len, out_cap);
+    return op_len;
+}
+
+/**
+ * 将 doc[start .. start+len) 写入 out_buf：分号后空格、二元运算符两侧空格（字符串与 // 内不处理）。
+ * 不对 . : :: , ()[]{} 强行加空格，保持 arr[i]、let x: i32、f() 等惯写法。
+ */
+static int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
+    int in_string = 0;
+    int escape = 0;
+    int in_line_comment = 0;
+    int j;
+    if (!doc || !out_buf || len <= 0)
+        return out_len;
+    for (j = 0; j < len && out_len < out_cap - 1; ) {
+        uint8_t c = doc[start + j];
+        int consumed;
+        uint8_t prev;
+        if (in_line_comment) {
+            out_buf[out_len++] = c;
+            j++;
+            continue;
+        }
+        if (in_string) {
+            out_buf[out_len++] = c;
+            if (escape) {
+                escape = 0;
+                j++;
+                continue;
+            }
+            if (c == '\\') {
+                escape = 1;
+                j++;
+                continue;
+            }
+            if (c == '"')
+                in_string = 0;
+            j++;
+            continue;
+        }
+        if (j + 1 < len && c == '/' && doc[start + j + 1] == '/') {
+            in_line_comment = 1;
+            out_buf[out_len++] = c;
+            j++;
+            continue;
+        }
+        if (c == '"') {
+            in_string = 1;
+            out_buf[out_len++] = c;
+            j++;
+            continue;
+        }
+        /* 多字符二元运算符（长优先） */
+        consumed = 0;
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "<<=", 3, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, ">>=", 3, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "==", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "!=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "<=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, ">=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "<<", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, ">>", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "&&", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "||", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "+=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "-=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "*=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "/=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "%=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "&=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "|=", 2, out_buf, &out_len, out_cap);
+        if (!consumed) consumed = lsp_fmt_try_emit_op(doc, start, len, j, "^=", 2, out_buf, &out_len, out_cap);
+        if (consumed) {
+            j += consumed;
+            continue;
+        }
+        prev = lsp_fmt_last_out(out_buf, out_len);
+        if (prev == 0)
+            prev = lsp_fmt_prev_src(doc, start, j);
+        /* 单字符二元 + - * / % = < > & | ^（排除一元与 . : 等） */
+        if ((c == '+' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' || c == '&' || c == '|' || c == '^')
+            && lsp_fmt_is_atom_tail(prev)) {
+            int next_i = j + 1;
+            uint8_t next = 0;
+            while (next_i < len) {
+                uint8_t n = doc[start + next_i];
+                if (n != ' ' && n != '\t' && n != '\r') {
+                    next = n;
+                    break;
+                }
+                next_i++;
+            }
+            if (lsp_fmt_is_atom_head(next)) {
+                if (c == '=' && next == '=')
+                    goto emit_raw;
+                if (c == '<' && (next == '<' || next == '='))
+                    goto emit_raw;
+                if (c == '>' && (next == '>' || next == '='))
+                    goto emit_raw;
+                if (c == '&' && next == '&')
+                    goto emit_raw;
+                if (c == '|' && next == '|')
+                    goto emit_raw;
+                (void)lsp_fmt_space_before(doc, start, j, out_buf, &out_len, out_cap);
+                out_buf[out_len++] = c;
+                (void)lsp_fmt_space_after(doc, start, len, j, out_buf, &out_len, out_cap);
+                j++;
+                continue;
+            }
+        }
+        if (c == '-' && lsp_fmt_is_atom_tail(prev) && !lsp_fmt_unary_lhs(prev)) {
+            int next_i = j + 1;
+            uint8_t next = 0;
+            while (next_i < len) {
+                uint8_t n = doc[start + next_i];
+                if (n != ' ' && n != '\t' && n != '\r') {
+                    next = n;
+                    break;
+                }
+                next_i++;
+            }
+            if (lsp_fmt_is_atom_head(next) && next != '=') {
+                (void)lsp_fmt_space_before(doc, start, j, out_buf, &out_len, out_cap);
+                out_buf[out_len++] = c;
+                (void)lsp_fmt_space_after(doc, start, len, j, out_buf, &out_len, out_cap);
+                j++;
+                continue;
+            }
+        }
+emit_raw:
+        out_buf[out_len++] = c;
+        if (c == ',') {
+            if (!lsp_fmt_src_ws_after(doc, start, len, j)) {
+                uint8_t n;
+                int k = j + 1;
+                while (k < len) {
+                    n = doc[start + k];
+                    if (n == ' ' || n == '\t' || n == '\r')
+                        k++;
+                    else
+                        break;
+                }
+                if (k < len && n != ']' && n != '}' && n != '\r' && n != '\n' && out_len < out_cap - 1)
+                    out_buf[out_len++] = ' ';
+            }
+        }
+        if (c == ';' && j + 1 < len) {
+            uint8_t n = doc[start + j + 1];
+            if (n != ' ' && n != '\t' && n != '\r' && n != '\n' && n != ';' && n != ')')
+                if (out_len < out_cap - 1)
+                    out_buf[out_len++] = ' ';
+        }
+        j++;
+    }
+    return out_len;
+}
+
+/**
+ * 在 [pos, pos+room) 内选择折行点：优先 \c ; ，其次空格；禁止在标识符/单词中间硬切。
+ * 若无安全断点则返回 content_len（整段剩余保持一行，允许超 max_line_length）。
+ */
+static int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
+    int end = pos + room;
+    int k;
+    if (end > content_len)
+        end = content_len;
+    if (end <= pos)
+        return content_len;
+    for (k = end - 1; k > pos; k--) {
+        if (doc[content_start + k] == ';')
+            return k + 1;
+    }
+    for (k = end - 1; k > pos; k--) {
+        if (doc[content_start + k] == ' ' || doc[content_start + k] == '\t')
+            return k + 1;
+    }
+    return content_len;
+}
+
 static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
                                int trim_trailing_whitespace, int insert_final_newline, int trim_final_newlines,
                                uint8_t *out_buf, int out_cap) {
     if (!doc || !out_buf || out_cap <= 0) return -1;
     int depth = 0;
+    int in_block_comment = 0;
     int out_len = 0;
     int line_start = 0;
     for (int i = 0; i <= doc_len && out_len < out_cap - 2; i++) {
@@ -2253,13 +2651,39 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
             lead++;
         int content_start = line_start + lead;
         int content_len = line_len - lead;
+        int is_line_comment = (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '/');
+        int is_block_comment = lsp_line_is_block_comment(doc, content_start, content_len, in_block_comment);
         int line_depth = depth;
         if (content_len > 0 && doc[content_start] == '}')
             line_depth = (depth - 1) >= 0 ? depth - 1 : 0;
         int indent_chars = insert_spaces ? (line_depth * tab_size) : line_depth;
         int room = max_line_length - indent_chars;
         if (room < 1) room = 1;
-        /* 输出行内容：若超过 max_line_length 则在空格处折行 */
+        /* Line comments and block comments: never wrap (continuation must keep // or *). */
+        if (is_line_comment || is_block_comment) {
+            if (insert_spaces) {
+                for (int k = 0; k < line_depth * tab_size && out_len < out_cap - 1; k++)
+                    out_buf[out_len++] = ' ';
+            } else {
+                for (int k = 0; k < line_depth && out_len < out_cap - 1; k++)
+                    out_buf[out_len++] = '\t';
+            }
+            for (int j = 0; j < content_len && out_len < out_cap - 1; j++)
+                out_buf[out_len++] = doc[content_start + j];
+            if (out_len < out_cap - 1)
+                out_buf[out_len++] = '\n';
+            if (is_block_comment) {
+                if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
+                    in_block_comment = 1;
+                if (lsp_line_has_block_comment_end(doc, content_start, content_len))
+                    in_block_comment = 0;
+            }
+            lsp_format_line_update_depth(doc, line_start, line_len, &depth);
+            if (depth < 0) depth = 0;
+            line_start = i + 1;
+            continue;
+        }
+        /* 代码行折行：仅在 ; 或空格处断行，禁止拆词（如 prefix[7]= 被切成 refix[7]） */
         int pos = 0;
         for (;;) {
             /* 输出本段缩进 */
@@ -2275,33 +2699,26 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
                 break;
             }
             if (pos + room >= content_len) {
-                for (int j = pos; j < content_len && out_len < out_cap - 1; j++)
-                    out_buf[out_len++] = doc[content_start + j];
+                out_len = lsp_format_emit_segment(doc, content_start + pos, content_len - pos, out_buf, out_len, out_cap);
                 if (out_len < out_cap - 1) out_buf[out_len++] = '\n';
                 break;
             }
-            /* 在 [pos, pos+room] 内找最后一个空格作为折行点 */
-            int end = pos + room;
-            int break_at = end;
-            for (int k = end - 1; k >= pos; k--) {
-                if (doc[content_start + k] == ' ') {
-                    break_at = k + 1;
+            {
+                int break_at = lsp_format_find_break(doc, content_start, pos, content_len, room);
+                if (break_at >= content_len) {
+                    out_len = lsp_format_emit_segment(doc, content_start + pos, content_len - pos, out_buf, out_len, out_cap);
+                    if (out_len < out_cap - 1) out_buf[out_len++] = '\n';
                     break;
                 }
+                out_len = lsp_format_emit_segment(doc, content_start + pos, break_at - pos, out_buf, out_len, out_cap);
+                if (out_len < out_cap - 1) out_buf[out_len++] = '\n';
+                pos = break_at;
+                while (pos < content_len && (doc[content_start + pos] == ' ' || doc[content_start + pos] == '\t'))
+                    pos++;
             }
-            if (break_at <= pos) break_at = end;
-            for (int j = pos; j < break_at && out_len < out_cap - 1; j++)
-                out_buf[out_len++] = doc[content_start + j];
-            if (out_len < out_cap - 1) out_buf[out_len++] = '\n';
-            pos = break_at;
-            while (pos < content_len && doc[content_start + pos] == ' ') pos++;
         }
-        /* 更新 depth：统计本行 { 与 } */
-        for (int j = 0; j < line_len; j++) {
-            uint8_t c = doc[line_start + j];
-            if (c == '{') depth++;
-            else if (c == '}') depth--;
-        }
+        /* 更新 depth：忽略字符串与 // 注释内的花括号 */
+        lsp_format_line_update_depth(doc, line_start, line_len, &depth);
         if (depth < 0) depth = 0;
         line_start = i + 1;
     }

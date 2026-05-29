@@ -2,7 +2,6 @@
 //
 // 【文件职责】占位；向量类型与 std::arch 类 API 待语言阶段支持后实现。
 // 【依赖】语言/目标架构。当前仅占位。
-
 function placeholder(): i32 {
   return 0;
 }

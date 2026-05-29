@@ -6,10 +6,8 @@
 //
 // 【所属模块/组件】
 // 标准库 std.fmt；用户通过 import std.fmt 使用。
-
 import core.fmt;
 import std.io;
-
 // ——— 重导出 core.fmt（保持 core 无 OS 依赖，std.fmt 仅重导出 + 扩展） ———
 function fmt_i32(x: i32): i32 { return core.fmt.fmt_i32(x); }
 function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 { return core.fmt.fmt_i32_to_buf(buf, cap, x); }
@@ -23,13 +21,11 @@ function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 { return core.fmt.f
 function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 { return core.fmt.fmt_append_i32_to_buf(buf, cap, off, x); }
 function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 { return core.fmt.fmt_append_i64_to_buf(buf, cap, off, x); }
 function placeholder(): i32 { return core.fmt.placeholder(); }
-
 // ——— 格式化到 stdout：委托 std.io，零拷贝（不先 format 到 String 再写） ———
 /** 将 ptr[0..len] 写入 stdout。返回写入字节数，-1 错误。对标 print!。 */
 function print(ptr: *u8, len: i32): i32 {
   return std.io.print_str(ptr, len as usize);
 }
-
 /** 将 ptr[0..len] 写入 stdout，再写换行符。返回首段写入字节数，-1 错误。对标 println!。 */
 function println(ptr: *u8, len: i32): i32 {
   let r: i32 = std.io.print_str(ptr, len as usize);
@@ -37,10 +33,8 @@ function println(ptr: *u8, len: i32): i32 {
   let ign: i32 = std.io.print_str(&nl[0], 1 as usize);
   return r;
 }
-
 // ——— 多参数按序拼接（阶段目标，无占位符解析） ———
 // 全部直接写 buf（fmt_*_to_buf(buf, cap, a) 再 fmt_*_to_buf(&buf[n1], cap - n1, b)），无中间 tmp、无二次拷贝。
-
 /** 将 a、b 两个 i32 的十进制表示按序写入 buf[0..cap)，返回总字节数，容量不足返回 -1。 */
 function format_2_i32_i32(buf: *u8, cap: i32, a: i32, b: i32): i32 {
   let n1: i32 = core.fmt.fmt_i32_to_buf(buf, cap, a);
@@ -49,7 +43,6 @@ function format_2_i32_i32(buf: *u8, cap: i32, a: i32, b: i32): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a(i32)、b(u32) 按序写入 buf，返回总字节数或 -1。 */
 function format_2_i32_u32(buf: *u8, cap: i32, a: i32, b: u32): i32 {
   let n1: i32 = core.fmt.fmt_i32_to_buf(buf, cap, a);
@@ -58,7 +51,6 @@ function format_2_i32_u32(buf: *u8, cap: i32, a: i32, b: u32): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a(u32)、b(i32) 按序写入 buf，返回总字节数或 -1。 */
 function format_2_u32_i32(buf: *u8, cap: i32, a: u32, b: i32): i32 {
   let n1: i32 = core.fmt.fmt_u32_to_buf(buf, cap, a);
@@ -67,7 +59,6 @@ function format_2_u32_i32(buf: *u8, cap: i32, a: u32, b: i32): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a、b 两个 u32 按序写入 buf，返回总字节数或 -1。 */
 function format_2_u32_u32(buf: *u8, cap: i32, a: u32, b: u32): i32 {
   let n1: i32 = core.fmt.fmt_u32_to_buf(buf, cap, a);
@@ -76,7 +67,6 @@ function format_2_u32_u32(buf: *u8, cap: i32, a: u32, b: u32): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a(i64)、b(i32) 按序写入 buf，返回总字节数或 -1。 */
 function format_2_i64_i32(buf: *u8, cap: i32, a: i64, b: i32): i32 {
   let n1: i32 = core.fmt.fmt_i64_to_buf(buf, cap, a);
@@ -85,7 +75,6 @@ function format_2_i64_i32(buf: *u8, cap: i32, a: i64, b: i32): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a(i32)、b(i64) 按序写入 buf，返回总字节数或 -1。 */
 function format_2_i32_i64(buf: *u8, cap: i32, a: i32, b: i64): i32 {
   let n1: i32 = core.fmt.fmt_i32_to_buf(buf, cap, a);
@@ -94,7 +83,6 @@ function format_2_i32_i64(buf: *u8, cap: i32, a: i32, b: i64): i32 {
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
-
 /** 将 a、b 两个 i64 按序写入 buf，返回总字节数或 -1。 */
 function format_2_i64_i64(buf: *u8, cap: i32, a: i64, b: i64): i32 {
   let n1: i32 = core.fmt.fmt_i64_to_buf(buf, cap, a);

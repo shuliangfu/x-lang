@@ -1,0 +1,10 @@
+// 最小复现：expect_i32 出现在 if 条件中，seed shu typeck 曾 SIGSEGV（shu-c 正常）
+import core.option;
+
+function main(): i32 {
+  let o1: Option_i32 = or_i32(none_i32(), some_i32(99));
+  if (expect_i32(o1) != 99) {
+    return -3;
+  }
+  return 0;
+}

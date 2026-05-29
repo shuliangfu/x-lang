@@ -93,8 +93,8 @@ function parse_directive_into(out: *ParseDirectiveResult, line_buf: [512]u8, lin
   out.sym_len = 0;
   /*
    * 跳过行首空格/制表符：不得在 while 条件里写 (line_buf[pos] == ... || line_buf[pos] == ...)：
-   * 当前 .su 解析器对该形态会误判并丢弃整函数，pipeline 可得 num_funcs=0、 asm 产出空壳 .o。
-   * 改用局部字节再判断。
+   * * 当前 .su 解析器对该形态会误判并丢弃整函数，pipeline 可得 num_funcs=0、 asm 产出空壳 .o。
+   * * 改用局部字节再判断。
    */
   while (pos < line_len) {
     let ws0: u8 = line_buf[pos];

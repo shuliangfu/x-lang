@@ -4,9 +4,9 @@
 
 | Job | 环境 | 步骤 |
 |-----|------|------|
-| **linux** | ubuntu-22.04, ubuntu-latest | 装 liburing/zlib/brotli → `make OPT=1 all`（**shu** + **shu-c**）→ test_c → test_su → bootstrap-verify |
+| **linux** | ubuntu-22.04, ubuntu-latest | `make OPT=1 all` → test_c → test_su → **`./tests/run-bootstrap-bstrict-ci.sh`**（M3-c）→ `bootstrap-verify` |
 | **linux-arm64** | ubuntu-24.04-arm | 同上 |
-| **mac** | macos-14, macos-latest | brew brotli → `make OPT=1 all`（**shu** + **shu-c**）→ test_c → test_su → bootstrap-verify |
+| **mac** | macos-14, macos-latest | 同上 |
 | **windows** | windows-latest + MSYS2 | 装 make/gcc/zlib/brotli 等 → `make OPT=1 all`（**shu** + **shu-c**）→ test_c → test_su → bootstrap-verify |
 | **docker-distro** | 容器内 | Alpine / Debian 下 **make clean** → all → test_c → test_su → bootstrap-verify |
 | **linux-option-asan** | ubuntu-22.04 | 可选，ASan 构建复现 run-option 崩溃用，不阻塞主流程 |
@@ -31,7 +31,7 @@ chmod +x scripts/docker-ci-local.sh
 - `./scripts/docker-ci-local.sh debian`：只跑 Debian（docker-distro）
 - `./scripts/docker-ci-local.sh all` 或 `./scripts/docker-ci-local.sh`：Alpine + Debian + Ubuntu 都跑
 
-流程与 CI 一致：容器内安装依赖 → `make -C compiler clean` → `make -C compiler OPT=1 all` → test_c → test_su → bootstrap-verify。
+流程与 CI 一致：容器内安装依赖 → `make clean` → `OPT=1 all` → test_c → test_su →（可选 `./tests/run-bootstrap-bstrict-ci.sh`）→ bootstrap-verify。
 
 ### Mac 上两种本地测法
 

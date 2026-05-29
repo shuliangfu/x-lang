@@ -761,6 +761,22 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
     if (!e || !out_kind || !out_name) return -1;
     *out_name = NULL;
     if (out_elem_type) *out_elem_type = NULL;
+    /* SU parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
+    if (e->kind == AST_EXPR_LIT) {
+        if (e->resolved_type) {
+            *out_kind = e->resolved_type->kind;
+            *out_name = e->resolved_type->name;
+        } else {
+            *out_kind = AST_TYPE_I32;
+            *out_name = NULL;
+        }
+        return 0;
+    }
+    if (e->kind == AST_EXPR_BOOL_LIT) {
+        *out_kind = AST_TYPE_BOOL;
+        *out_name = NULL;
+        return 0;
+    }
     if (e->kind == AST_EXPR_FLOAT_LIT) {
         if (e->resolved_type) {
             *out_kind = e->resolved_type->kind;
@@ -968,7 +984,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     ((struct ASTExpr *)e)->resolved_type = &static_type_bool;
                 else if (e->kind == AST_EXPR_LOGAND || e->kind == AST_EXPR_LOGOR)
                     ((struct ASTExpr *)e)->resolved_type = &static_type_bool;
-                else if (lt && rt && e->kind <= AST_EXPR_GE) {
+                else if (lt && rt) {
                     /* 标量算术：i64 与 i32 混合时提升为 i64；含 f64/f32 时提升为浮点；否则两类型须一致 */
                     if (lt->kind == AST_TYPE_I64 || rt->kind == AST_TYPE_I64)
                         ((struct ASTExpr *)e)->resolved_type = &static_type_i64;
@@ -978,6 +994,13 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         ((struct ASTExpr *)e)->resolved_type = &static_type_f32;
                     else if (type_equal(lt, rt))
                         ((struct ASTExpr *)e)->resolved_type = lt;
+                    /* bool 参与 + - * / % 时结果为 i32（如 (3==3)+(2<5)；勿把 usize-i32 等混算一律提升为 i32） */
+                    if ((e->kind == AST_EXPR_ADD || e->kind == AST_EXPR_SUB || e->kind == AST_EXPR_MUL
+                            || e->kind == AST_EXPR_DIV || e->kind == AST_EXPR_MOD)
+                        && (lt->kind == AST_TYPE_BOOL || rt->kind == AST_TYPE_BOOL
+                            || (((struct ASTExpr *)e)->resolved_type
+                                && ((struct ASTExpr *)e)->resolved_type->kind == AST_TYPE_BOOL)))
+                        ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
                 }
             }
             return 0;
@@ -1790,6 +1813,49 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
 }
 
 /**
+ * 检查 return 操作数类型是否与函数返回类型一致。
+ * bool→i32 仅允许 `return !expr` 与 bool 字面量；`return x`（x: bool）拒绝（return_operand_type_mismatch）。
+ * 返回值：1 匹配；0 不匹配（含 got 未解析）。
+ */
+static int typeck_return_value_matches(const struct ASTExpr *op, const struct ASTType *expect) {
+    const struct ASTType *got;
+    if (!op || !expect)
+        return 1;
+    got = op->resolved_type;
+    if (!got)
+        return 0;
+    if (type_equal(got, expect))
+        return 1;
+    if (expect->kind == AST_TYPE_I32 && got->kind == AST_TYPE_BOOL) {
+        if (op->kind == AST_EXPR_LOGNOT || op->kind == AST_EXPR_BOOL_LIT)
+            return 1;
+        return 0;
+    }
+    return 0;
+}
+
+/**
+ * return 操作数与函数签名不一致时打印 typeck error 并返回 -1。
+ */
+static int typeck_check_return_operand(const struct ASTExpr *ret_site, const struct ASTExpr *op,
+                                     const struct ASTType *func_return_type) {
+    char ebuf[80], fbuf[80];
+    const struct ASTType *got;
+    if (!ret_site || !op || !func_return_type || func_return_type->kind != AST_TYPE_I32)
+        return 0;
+    got = op->resolved_type;
+    /* 仅拒绝明确的 bool 变量/字段 return i32；未解析类型与其它不匹配留给 .su typeck 或后续扩展。 */
+    if (!got || got->kind != AST_TYPE_BOOL)
+        return 0;
+    if (typeck_return_value_matches(op, func_return_type))
+        return 0;
+    type_to_string_buf(func_return_type, ebuf, sizeof(ebuf));
+    type_to_string_buf(got, fbuf, sizeof(fbuf));
+    TYPECK_ERR(ret_site, "return type mismatch: expected %s, found %s", ebuf, fbuf);
+    return -1;
+}
+
+/**
  * 判断块是否以「裸的最终表达式」作为返回值（即未写 return，仅写 0 等表达式）。
  * 约定：返回值统一使用 return expr;，不允许以块尾表达式隐式作为返回值。
  * 返回值：1 表示块有 final_expr 且非 return/panic/break/continue（即隐式返回值）；0 表示无或为控制流。
@@ -2072,6 +2138,9 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                     return -1;
                 }
                 if (typeck_expr_sym(b->labeled_stmts[i].u.return_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                if (typeck_check_return_operand(b->labeled_stmts[i].u.return_expr, b->labeled_stmts[i].u.return_expr,
+                        func_return_type) != 0)
+                    return -1;
                 fold_expr((struct ASTExpr *)b->labeled_stmts[i].u.return_expr, names, const_values, n_consts, const_start, parent_n_consts);
             }
         }
@@ -2090,6 +2159,11 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
         return -1;
     }
     if (typeck_expr_sym(b->final_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+    if (b->final_expr->kind == AST_EXPR_RETURN && b->final_expr->value.unary.operand && func_return_type &&
+        func_return_type->kind != AST_TYPE_VOID) {
+        if (typeck_check_return_operand(b->final_expr, b->final_expr->value.unary.operand, func_return_type) != 0)
+            return -1;
+    }
     fold_expr((struct ASTExpr *)b->final_expr, names, const_values, n_consts, const_start, parent_n_consts);
     return 0;
 }
