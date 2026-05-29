@@ -1,60 +1,209 @@
 # Shulang 下一步开发清单
 
-> 根目录清单：按顺序推进，每完成一项将 ⬜ 改为 ✅ 并保存。详细背景见 `analysis/下一步开发分析.md`、`analysis/接下来做什么-性能压榨与新std.md`。
+> **北极星**：**自举**（B-strict 替代 seed）→ **完善功能**（语言/工具链/std 对标 Zig 可用性）→ **性能超越 Zig**（计算 + I/O + 网络 + 零拷贝，均有 bench 与 CI 门禁）。  
+> 背景：`compiler/docs/SELFHOST.md`、`analysis/perf-vs-zig-baseline.md`、`std/fs/PERF-ASSESSMENT.md`、`std/README.md`。
 
 ---
 
-## 一、高优先级
+## 零、综合诊断（2026-05）
 
-| 状态 | 项 | 验收 |
-|------|----|------|
-| ✅ | 修 -su -E 平台差异（Linux/Windows/Debian 上 -su -E 只出 "0" 的问题） | runtime.c：-su -E 时 setvbuf(stdout, _IONBF) 避免缓冲截断；全平台通过需结合 CI 日志再查 |
-| ✅ | 提交 import 两种方式测试（const_binding / const_select + run-import.sh） | 已提交并纳入 CI，run-import 覆盖三种 import |
+### 0.1 三条主线现状
+
+| 主线 | 已达成 | 真实缺口 | 相对 Zig |
+|------|--------|----------|----------|
+| **自举** | B-strict 链通；`shu_asm` gate + **52 项** bstrict 白名单；Stage2 B-strict；CI `run-bootstrap-bstrict-ci.sh` | 默认产物仍是 **seed `shu`**；大模块 **skip_heavy 桩**；全量 `run-all` 非白名单仍走 `shu-c`；macOS 生产链仍 **B-hybrid**（`-E pipeline_gen.c`） | Zig 已自举；我们 **M6 完成、M7 未开始** |
+| **功能** | `check/fmt/test`、52 项 L5 白名单、按需 std（io/fs/net/thread…） | `run-io`/`run-http` 未进 bstrict；`std.async`/`std.simd` 占位；process spawn 未做；多数 std 仅 smoke 测 | API 面接近，**生态与测试深度**落后 |
+| **性能（计算）** | P0–P3：四 microbench ≤ C -O2；CI `SHU_PERF_FAIL_ON_ZIG` + compile dogfood | Linux CI 有 zig 时方可真正 **≤ Zig**；归纳变量/内联仍偏窄 | **微基准同级**；未证明全面超越 |
+| **性能（I/O/网络）** | Linux **io_uring** + 批 readv/writev；mmap/sendfile/copy_file_range；net accept/connect **批量** | **无 IO/网络 perf bench**；无 Zig 对照门禁；macOS 无 uring 级后端；同步 submit 模型 | **能力上 std 内建 uring**（Zig 需 libxev），但 **缺度量，不能宣称超越** |
+| **性能（零拷贝）** | 写路径直传 ptr；`read_ptr`；fs mmap/sendfile | 读零拷贝生命周期文档化不足；**无吞吐 bench** | 设计对齐，**未量化** |
+
+### 0.2 性能超越 Zig：分层目标
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  L4  生态默认：release shu = shu_asm，用户无感 B-strict       │
+├─────────────────────────────────────────────────────────────┤
+│  L3  编译器：compile dogfood 中位数不升（P3 ✅）               │
+├─────────────────────────────────────────────────────────────┤
+│  L2  计算：asm microbench ≤ Zig -O2（P2 ✅，待 Linux CI 实锤）│
+├─────────────────────────────────────────────────────────────┤
+│  L1  I/O：mmap/read_batch/sendfile 吞吐 ≥ Zig std+uring 同级  │  ← 当前空白
+├─────────────────────────────────────────────────────────────┤
+│  L0  网络：accept_many/connect_many 并发 ≥ Zig+libxev 同级   │  ← 当前空白
+└─────────────────────────────────────────────────────────────┘
+```
+
+**纪律**（不变）：
+
+1. 自举阻塞项优先于 perf 微优化。  
+2. 改 **用户默认 `-backend asm -o`** 须对应 bench 用例。  
+3. 宣称「超越 Zig」的每一层须 **脚本 + 基线文件 + CI 可选 fail**（与 P2/P3 同模式）。
+
+### 0.3 推荐排序（接下来 3 个季度）
+
+| 优先级 | 方向 | 理由 |
+|--------|------|------|
+| **P0** | 自举 M7–M8：默认 `shu_asm`、缩小 skip_heavy | 不完成则 perf/io 优化无法 dogfood 到编译器自身 |
+| **P1** | IO/网络 bench + Zig 门禁（L1/L0） | std 能力已具备，缺度量则无法证「超越」 |
+| **P2** | 功能：bstrict 纳入 run-io、http 测试；async 最小运行时 | 与 Zig 用户态并发叙事对齐 |
+| **P3** | asm 计算继续：SIMD 内联、更多 call 模式 | 在 L2 已绿前提下增量 |
 
 ---
 
-## 二、标准库（新 std，小步快跑）
+## 一、主线 1：自举（M6 完成 → M9）
+
+### 1.1 已达里程碑（摘要）
+
+| 代号 | 验收 |
+|------|------|
+| M2–M5 | B-strict 链通；gate；Linux crt0；Stage2 `shu_asm→shu_asm2` |
+| M6 | `run-all-bstrict.sh` **52/52**；CI bstrict-ci + stage2 预检 |
+
+详见 `compiler/docs/SELFHOST.md` §4；白名单矩阵见 `tests/docs/run-all-l5-whitelist.md`。
+
+### 1.2 下一步
 
 | 状态 | 项 | 验收 |
 |------|----|------|
-| ✅ | std.time：最小 API（单调时间、墙上时钟、sleep_ms） | 已有 mod.su、time.c、README、run-time.sh，按需链接 |
-| ✅ | std.random：最小 API（fill_bytes、u32） | 已有 mod.su、random.c、README、run-random.sh，按需链接 |
-| ✅ | std.env（或扩 std.process）：getenv 等独立/扩展 | 已有 mod.su、env.c、README、run-env.sh，与 process 独立，文档清晰 |
+| ⬜ | **M7**：release 默认 B-strict | 文档/CI/本地默认 `compiler/shu` 由 `bootstrap-driver-bstrict` 产出；seed 仅 bootstrap 冷启动 |
+| ⬜ | **M8**：消除 skip_heavy 桩 | `backend.o`/`typeck.o`/`parser.o` 第二遍 __text 覆盖真实 emit；`check-asm-o-quality` 24/24 且 strict 链无 ret0 桩 |
+| ⬜ | **M9**：语义自举迁 B-strict | `bootstrap-verify` / stage2 **主路径**走 `shu_asm`，`-su -E` 全模块仍 `shu-su`（与 SELFHOST 正交） |
+| ⬜ | M10：全量 run-all @ shu_asm | `SHULANG_BSTRICT_RUN_ALL=1` 白名单扩至 run-io/run-http；非白名单显式 SKIP 清单收敛 |
+| ⬜ | M11：macOS 生产 B-strict | `full_asm` 为默认拓扑，链接审计无 `cc -c pipeline_gen.c`（现仅 Linux crt0 / 实验链可达） |
+
+### 1.3 已知风险（须跟踪）
+
+- `shu_asm -o` 偶发 SIGSEGV → `SHU_SKIP_PARSE_SMOKE=1`、import 重试（M3-b 文档）。  
+- 改 `backend.su` 后须 `./scripts/build_seed_asm_host.sh` + `make relink-shu`（seed 路径）。  
+- `check` 后 `driver_dep_seeded_clear_all` 清 dep/typeck 槽。
 
 ---
 
-## 三、自举与 .su 迁移
+## 二、主线 2：完善功能
 
-**进展备忘：** C 前端 `parser.c` 块级 **`MAX_CONST_DECLS` / `MAX_LET_DECLS` 均为 256**；`parser.su` 中 **`OneFuncResult`、AST/`ast.su::Block`、`parse_into`/dummy/diag** 等与 const/let 槽位相关的上限已统一到 **256**；诊断路径 `diag_parse_one_after_collect_imports` 的 dummy 已与结构体对齐。**`make bootstrap-parse-file`**：**第一段** `.su` 与 **shu** 均写 **`return 0`**；**第二段** 均写 **`return (1 + 2) * 3 + -1`**，**.su standalone** 经 **`parse()`** 内在堆上分配 Arena 并调 **`parse_expr_into`**（与宿主完整前端一致，不再用语义等价的字面量替身）。
+### 2.1 已达（摘要）
+
+- 工具链：`shu check/fmt/test` 纳入 gate；注释/fmt 折行门禁。  
+- L5：`run-all` 白名单 **52 项** @ seed/shu_asm（见矩阵文档）。  
+- std：io/fs/net/thread/time/json/csv… 已完善（`std/README.md` §一）。
+
+### 2.2 下一步
 
 | 状态 | 项 | 验收 |
 |------|----|------|
-| ✅ | `shu check` / `shu fmt` / `shu test` 子命令 | check/fmt/test.su + runtime.c；run-check/fmt-cmd/test-cmd 纳入 run-all |
-| ✅ | parser `index+as`（`arr[i] as i32`） | parser.c 与 parser.su 对齐；run-while `index_as_cast` 在 shu/shu-c 均通过 |
-| ✅ | `.su typeck` break/continue 循环外检查 | 与 typeck.c 一致；run-while `break_outside` 通过 |
-| ✅ | dep 全局槽（`driver_dep_slot_for_path`）+ collect 传递闭包 | check 含 import 通过；hello 等多 dep 经 collect 展开子 import；run-all-su 全绿 |
-| ✅ | 放宽单函数 let 上限（避免 parser.su 做 while/for 时「too many let」） | 与 `MAX_LET_DECLS`/`OneFuncResult` 对齐到 256；`make bootstrap-parser` 通过 |
-| ✅ | 修 bootstrap-parser / codegen（OneFuncResult、数组初始化等） | `make bootstrap-parser`、`make bootstrap-parse-file` 通过 |
-| ✅ | parser.su：**回归与文档**与通用 `parse_expr_into` 对齐；新语法按需扩 | **while/for** 见时序表 2.6/2.7 ✅。**`parse_expr_into`** 已承载 2.8～2.10 主路径；验收：`make bootstrap-parse-file`（见上「进展备忘」）与 `run-binary-expr.sh`、**`-su` return 负例**（`tests/typeck/return_operand_type_mismatch.su`，`run-typeck.sh`） |
-| ⬜ | 更多 typeck/codegen 逻辑迁入 .su（10.4.2） | 自举仍过；**bootstrap shu** 多 dep（hello.su）preamble 与 codegen skip 已对齐；**codegen.su** dep 前缀与 std.io trivial handle 跳过；待继续收窄 `write_io_net_abi_inline` / `pipeline_glue.c` |
-| ⬜ | pipeline_glue / LSP 去 C（`-E-extern` 自动 extern、统一 parse_into API） | **diagnostic/hover/references** 已走 `parse_into_buf`；**definition** 仍 C `parse()`；`-E-extern` 仍靠 codegen.c 内嵌块 |
-| ⬜ | Target B macOS asm-only（`SHU_ASM_EXPERIMENTAL_SKIP_GEN`） | macOS **24/24** `__text` 非空（`SHU_ASM_ENTRY_MODULE_ONLY`）；Darwin 实验链仍 **undefined symbol**（缺独立 pipeline_glue TU），见 `SELFHOST.md` §4.1 |
+| ⬜ | **F1**：bstrict + run-io | `run-io.sh` 进 bstrict；`shu_asm` 编 import std.io 全绿（除已知 read_ptr 边界） |
+| ⬜ | F2：http/tar 回归 | `tests/run-http.sh`、`run-tar.sh` + run-all |
+| ⬜ | F3：process spawn | `std.process` spawn/exec/管道（README P3 规划） |
+| ⬜ | F4：`std.async` 最小集 | submit/wait 分离，对接现有 io_uring completion（非占位） |
+| ⬜ | F5：std 边界测试 | 每已完善模块：round-trip + 空输入/溢出（`std/README.md` §4.4） |
+| ⬜ | F6：全量 run-all 收敛 | 将仍走 `shu-c` 的脚本逐类迁入白名单或明确永久 C-only |
 
 ---
 
-## 四、可选与收尾
+## 三、主线 3：性能超越 Zig
+
+### 3.1 计算路径（microbench）— 已完成基线
 
 | 状态 | 项 | 验收 |
 |------|----|------|
-| ✅ | CI 可选跑 asm（bootstrap-driver + run-asm） | 主编译 Linux job：`build_shu_asm.sh` + `check_asm_o_quality.sh`；另见 workflows `linux-asm-smoke`（`bootstrap-driver` + `SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh`） |
-| ✅ | 测试与语言缺口：FFI 回归、return 类型断言、packed 等 | **FFI**：`run-ffi.sh` 已在 run-all。**return**：`-su` 下 `shu_su`/`shu-su` 对齐见 `run-typeck.sh` 与 tests/README §5.2。**packed/memory-contract**：仍以文档与 struct 负例为主；深测可单列脚本（README 已说明） |
-| ⬜ | 自举前基建：FFI 规范、UB 清单、Result 寄存器化、io.driver 占位 | 见 analysis/自举前-目标与缺口分析.md |
+| ✅ | P0–P1 | loop/mem/struct/call；peephole ELF；while 折叠；call/struct 内联 |
+| ✅ | P2 | `SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench`（CI linux 已启用） |
+| ✅ | P3 | `run-perf-compile-dogfood.sh` + `tests/baseline/compile-dogfood.tsv`（CI 已启用） |
+| ⬜ | P4 | Linux CI 稳定出现 Zig 列且全绿；记录 median 入 `analysis/perf-vs-zig-baseline.md` |
+
+### 3.2 I/O 吞吐（L1）— **下一性能主战场**
+
+| 状态 | 项 | 验收 |
+|------|----|------|
+| ⬜ | **I1**：`tests/bench/io_mmap_throughput` | 大文件 mmap 顺序读；Shu vs C -O2 vs Zig -O2 |
+| ⬜ | **I2**：`tests/bench/io_write_throughput` | 大缓冲 write/sendfile；对比 Zig `std.fs` + `std.Io` |
+| ⬜ | **I3**：`tests/bench/io_batch_readv` | `read_batch_fd` 4 段打满 vs Zig readv |
+| ⬜ | I4 | `run-perf-io.sh --bench` + `tests/baseline/io-perf.tsv` |
+| ⬜ | I5 | CI：`SHU_PERF_FAIL_ON_IO_ZIG=1`（Linux only） |
+| ⬜ | I6 | fixed buffer 池默认启用路径；ring 512→2K A/B |
+
+依据：`std/fs/PERF-ASSESSMENT.md` §三（Linux 已接近内核上限，差 bench 与 async in-flight）。
+
+### 3.3 网络并发（L0）
+
+| 状态 | 项 | 验收 |
+|------|----|------|
+| ⬜ | **N1**：`tests/bench/net_accept_many` | N worker × accept_many；对比 Zig + libxev / 裸 epoll |
+| ⬜ | **N2**：`tests/bench/net_echo_throughput` | TcpStream batch read/write vs Zig |
+| ⬜ | N3 | `run-perf-net.sh` + CI 可选门禁 |
+| ⬜ | N4 | UDP recv_many/send_many buf 路径 bench |
+
+现有基础：`std/net` accept/connect_many（Linux io_uring）、`stream_*_batch`（`std/net/mod.su`）。
+
+### 3.4 零拷贝（横切）
+
+| 状态 | 项 | 验收 |
+|------|----|------|
+| ✅ | 写路径 | user ptr → 内核（无库内二次拷贝） |
+| ✅ | 读路径 API | `read_ptr` / `fs_mmap_ro` / `fs_sendfile` |
+| ⬜ | Z1 | `tests/bench/zero_copy_sendfile`：文件→socket 吞吐 vs Zig |
+| ⬜ | Z2 | 文档：`read_ptr` 生命周期 + 与 slice 互操作（`std/io/mod.su`） |
+
+### 3.5 asm 计算增量（P4+）
+
+| 状态 | 项 | 验收 |
+|------|----|------|
+| ⬜ | 更多内联 | 单字段 return、小 struct 按值返回 |
+| ⬜ | SIMD | `std.simd` + backend vector emit（依赖语言） |
+| ⬜ | 寄存器分配 | 活跃分析减少 push/pop（README 7.3 后续） |
+
+---
+
+## 四、固定验收命令
+
+```bash
+# ── 自举 ──
+make -C compiler bootstrap-driver-bstrict
+./tests/run-shu-asm-gate.sh
+./tests/run-all-bstrict.sh                    # 52 项
+./tests/run-bootstrap-bstrict-ci.sh           # CI 同套：gate + 白名单 + crt0 + stage2
+make -C compiler bootstrap-verify-stage2-bstrict
+make -C compiler bootstrap-verify             # 语义自举（shu-su 链，与 B-strict 正交）
+
+# ── 功能 ──
+./tests/run-check.sh
+./tests/run-check-compiler.sh
+SHULANG_BSTRICT_RUN_ALL=1 SHU=./compiler/shu_asm ./tests/run-all.sh
+
+# ── 性能：计算 ──
+./tests/run-perf-baseline.sh --bench
+SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench
+
+# ── 性能：编译器 dogfood ──
+./tests/run-perf-compile-dogfood.sh
+SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
+
+# ── 性能：I/O / 网络（待 I4/N3 脚本落地后启用） ──
+# ./tests/run-perf-io.sh --bench
+# ./tests/run-perf-net.sh --bench
+```
+
+---
+
+## 五、归档（历史完成项）
+
+<details>
+<summary>自举 M2–M6、L5 白名单、asm 修复、std 按需、P0–P3 perf 等</summary>
+
+- B-strict / skip_gen / strict 重链 / ast_pool_l5_bridge  
+- while 折叠、`try_inline_x_plus_k_call_elf`、`try_inline_param0_field_sum_call_elf`、peephole_elf  
+- fmt/check/comment 门禁；csv/boundary；run-enum + dual-chain 入 bstrict  
+- seed `core.option`；CI perf + compile dogfood 严格门禁  
+
+完整勾选表见 git 历史或 `compiler/docs/SELFHOST.md`。
+
+</details>
 
 ---
 
 ## 使用说明
 
-- **顺序**：建议先做「一」再做「二」，三、四可按需穿插。
-- **性能**：无 benchmark/业务瓶颈报告前，不单开长周期性能专项；需要时再榨 std.net（如 multishot）或编译器 IR/阶段 8（参见 `analysis/接下来做什么-性能压榨与新std.md`）。**触发条件**：`tests/run-perf-baseline.sh` 建立基线 + 明确热点后再立项。
-- **打勾**：完成一项后，把该项的 `⬜` 改成 `✅` 并保存本文件。
-- **更新**：若某条验收标准变更，直接改表中「验收」列即可。
+- 新任务只挂在 **§1–§3** 对应主线；完成后 `⬜` → `✅`。  
+- **性能项**须附 bench 数字；**自举项**须标明 B-strict / B-hybrid / seed。  
+- 「超越 Zig」仅当 **L0–L2 对应 bench + CI 门禁** 绿时可写 ✅。  
+- §五 仅查阅，不再追加。
