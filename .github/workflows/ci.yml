@@ -795,9 +795,9 @@ jobs:
               make -C compiler bootstrap-verify &&
               chmod +x tests/run-freestanding-hello.sh &&
               SHU=./compiler/shu_asm ./tests/run-freestanding-hello.sh 2>&1 | tee /tmp/freestanding_docker.log &&
-              if grep -q 'musl crt0 syscall link smoke' /tmp/freestanding_docker.log; then
+              if grep -q "musl crt0 syscall link smoke" /tmp/freestanding_docker.log; then
                 echo "docker-distro: WARN freestanding used musl fallback (Alpine 目标：SHU=shu_asm 仍不可用时回退)"
-              elif grep -q 'run-freestanding-hello OK' /tmp/freestanding_docker.log; then
+              elif grep -q "run-freestanding-hello OK" /tmp/freestanding_docker.log; then
                 echo "docker-distro: freestanding full asm OK (SHU=shu_asm -freestanding -backend asm)"
               fi
             '
