@@ -267,6 +267,54 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
 }
 
 /**
+ * let 初值：较小整数类型向较宽整数类型隐式拓宽（如 u8→u32、i32→i64）。
+ */
+static int typeck_integer_widen_ok(enum ASTTypeKind dest, enum ASTTypeKind src) {
+    if (dest == src) return 1;
+    if (src == AST_TYPE_U8)
+        return dest == AST_TYPE_U32 || dest == AST_TYPE_U64 || dest == AST_TYPE_USIZE || dest == AST_TYPE_I32;
+    if (src == AST_TYPE_I32)
+        return dest == AST_TYPE_I64 || dest == AST_TYPE_U32 || dest == AST_TYPE_USIZE;
+    if (src == AST_TYPE_U32 && dest == AST_TYPE_U64)
+        return 1;
+    return 0;
+}
+
+/**
+ * let 初值：整数字面量按声明类型收窄/零初始化（与 typeck.su 一致）。
+ */
+static int typeck_coerce_let_int_lit(const struct ASTType *decl, struct ASTExpr *init) {
+    int iv;
+    enum ASTTypeKind dk;
+    if (!decl || !init || init->kind != AST_EXPR_LIT)
+        return 0;
+    iv = init->value.int_val;
+    dk = decl->kind;
+    if (iv == 0 && (dk == AST_TYPE_PTR || dk == AST_TYPE_ARRAY || dk == AST_TYPE_VECTOR || dk == AST_TYPE_NAMED)) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
+    if (dk == AST_TYPE_U8 && iv >= 0 && iv <= 255) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
+    if (dk == AST_TYPE_I64) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
+    if (iv >= 0 && (dk == AST_TYPE_U32 || dk == AST_TYPE_U64 || dk == AST_TYPE_USIZE)) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
+    if (iv == 0 && (dk == AST_TYPE_U8 || dk == AST_TYPE_U32 || dk == AST_TYPE_U64 || dk == AST_TYPE_USIZE ||
+                    dk == AST_TYPE_I64)) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
+    return 0;
+}
+
+/**
  * 判断实参类型 arg_type 是否与形参类型 param_type 在代入泛型实参后一致。
  * 用于泛型调用 f<Type>(args) 的实参与形参匹配；gp_names/type_args 为泛型参数名与类型实参。
  * 若 param_type 为泛型参数名（NAMED 且 name 在 gp_names 中），则与对应 type_args[i] 比较；
@@ -1202,6 +1250,30 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             {
                 const struct ASTType *lt = e->value.binop.left->resolved_type;
                 const struct ASTType *rt = e->value.binop.right->resolved_type;
+                /* [a,b,c,d] + [e,f,g,h]：数组字面量按 lanes 推断向量类型（vec_add_lit.su） */
+                if (e->value.binop.left->kind == AST_EXPR_ARRAY_LIT &&
+                    e->value.binop.right->kind == AST_EXPR_ARRAY_LIT) {
+                    const struct ASTExpr *ll = e->value.binop.left;
+                    const struct ASTExpr *lr = e->value.binop.right;
+                    int nl = ll->value.array_lit.num_elems;
+                    int nr = lr->value.array_lit.num_elems;
+                    const struct ASTType *et = (nl > 0 && ll->value.array_lit.elems[0])
+                        ? ll->value.array_lit.elems[0]->resolved_type : NULL;
+                    if (nl > 0 && nl == nr && et && lr->value.array_lit.elems[0]
+                        && lr->value.array_lit.elems[0]->resolved_type
+                        && type_equal(et, lr->value.array_lit.elems[0]->resolved_type)) {
+                        static struct ASTType vec_from_lit;
+                        vec_from_lit.kind = AST_TYPE_VECTOR;
+                        vec_from_lit.name = NULL;
+                        vec_from_lit.elem_type = (struct ASTType *)et;
+                        vec_from_lit.array_size = nl;
+                        vec_from_lit.region_label = NULL;
+                        ((struct ASTExpr *)e->value.binop.left)->resolved_type = &vec_from_lit;
+                        ((struct ASTExpr *)e->value.binop.right)->resolved_type = &vec_from_lit;
+                        ((struct ASTExpr *)e)->resolved_type = &vec_from_lit;
+                        lt = rt = &vec_from_lit;
+                    }
+                }
                 if (lt && rt && lt->kind == AST_TYPE_VECTOR && rt->kind == AST_TYPE_VECTOR
                     && lt->elem_type && rt->elem_type && lt->elem_type->kind == rt->elem_type->kind
                     && lt->array_size == rt->array_size)
@@ -2462,7 +2534,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             if (init->kind == AST_EXPR_FLOAT_LIT)
                 ((struct ASTExpr *)init)->resolved_type = b->let_decls[i].type;
             else if (init->kind == AST_EXPR_LIT && init->value.int_val == 0)
-                ;
+                ((struct ASTExpr *)init)->resolved_type = b->let_decls[i].type;
             else if (init->kind == AST_EXPR_LIT && init->value.int_val != 0) {
                 TYPECK_ERR_AT(0, 0, "f32/f64 init must be float literal or integer 0");
                 return -1;
@@ -2483,6 +2555,11 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 TYPECK_ERR_AT(0, 0, "f32/f64 init must be float literal, integer 0, or numeric expression");
                 return -1;
             }
+        }
+        (void)typeck_coerce_let_int_lit(b->let_decls[i].type, (struct ASTExpr *)b->let_decls[i].init);
+        if (b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
+            && typeck_integer_widen_ok(b->let_decls[i].type->kind, b->let_decls[i].init->resolved_type->kind)) {
+            ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
         }
         if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
             && !type_equal(b->let_decls[i].type, b->let_decls[i].init->resolved_type)
