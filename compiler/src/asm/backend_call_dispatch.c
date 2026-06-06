@@ -1,0 +1,1000 @@
+/**
+ * backend_call_dispatch.c — EXPR_CALL ELF 发射与 import 限定符号解析（C 实现）
+ *
+ * M8 自举：emit_expr_elf_call / emit_expr_elf_method_call / asm_emit_call_args_elf 等在 mega_entry 下为 ret0 桩；
+ * 本 TU 供 pipeline_asm_emit_call_elf_c / pipeline_asm_emit_method_call_elf_c / pipeline_asm_emit_call_args_elf_c 真 emit。
+ */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct ast_ASTArena;
+struct ast_Module;
+struct platform_elf_ElfCodegenCtx;
+struct backend_AsmFuncCtx;
+struct codegen_CodegenOutBuf;
+
+/** 与 backend.su AsmFuncCtx 前缀一致（module_ref + dep_pipe）。 */
+struct glue_AsmFuncCtxCall {
+  int32_t frame_size;
+  int32_t next_offset;
+  int32_t num_locals;
+  int32_t label_counter;
+  struct ast_Module *module_ref;
+  uint8_t loop_break_label_stack[512];
+  int32_t loop_break_len_stack[8];
+  uint8_t loop_continue_label_stack[512];
+  int32_t loop_continue_len_stack[8];
+  uint8_t break_label[64];
+  int32_t break_len;
+  uint8_t continue_label[64];
+  int32_t continue_len;
+  int32_t loop_label_depth;
+  void *dep_pipe;
+};
+
+/** import ast.su ImportKind.IMPORT_BINDING */
+#define GLUE_IMPORT_KIND_BINDING 1
+
+extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
+
+extern int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx);
+extern uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx);
+extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern int32_t pipeline_codegen_call_num_args_override(uint8_t *prefix, int32_t prefix_len, uint8_t *name,
+                                                       int32_t name_len, int32_t num_args);
+extern int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                         int32_t sym_cap);
+
+extern void parser_get_module_import_path(void *module, int32_t i, uint8_t *out);
+extern int32_t parser_get_module_num_imports(void *module);
+
+extern void asm_qual_sym_layer_reset(void);
+extern int32_t asm_qual_sym_layer_push(uint8_t *bytes, int32_t len);
+extern int32_t asm_qual_sym_layer_count(void);
+extern int32_t asm_qual_sym_layer_len(int32_t i);
+extern void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap);
+
+extern int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern void pipeline_asm_emit_set_call_param_type_ref(int32_t type_ref);
+extern int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                                     int32_t param_index);
+extern int32_t pipeline_asm_emit_expr_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
+                                        struct backend_AsmFuncCtx *ctx, int32_t target_arch);
+extern int32_t backend_arch_emit_mov_rax_to_arg_reg(struct codegen_CodegenOutBuf *out, int32_t k, int32_t ta);
+extern int32_t backend_arch_emit_push_rax(struct codegen_CodegenOutBuf *out, int32_t ta);
+extern int32_t backend_arch_emit_ldr_sp_offset_to_wi(struct codegen_CodegenOutBuf *out, int32_t i, int32_t ta);
+extern int32_t backend_arch_emit_add_sp_imm(struct codegen_CodegenOutBuf *out, int32_t n, int32_t ta);
+
+extern int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                          struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
+                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                                  int32_t ta);
+extern int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
+                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                               int32_t ta);
+
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+                                     int32_t ta);
+extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
+extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t nbytes,
+                                                   int32_t ta);
+extern int32_t backend_enc_call_stack_reserve_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t nbytes,
+                                                   int32_t ta);
+extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
+                                                   int32_t ta);
+
+/** bench stream_*_batch 等最多 11 实参；与 backend.su 6 参上限解耦。 */
+/** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.su。 */
+#define GLUE_ASM_MAX_CALL_ARGS 96
+
+extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
+                                                   int32_t ta);
+extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
+extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
+extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
+
+#define GLUE_TYPE_F32_ORD 14
+
+static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
+static int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index,
+                                            struct backend_AsmFuncCtx *ctx, int32_t ta);
+
+/** 形参/实参 type_ref 是否为 f32。 */
+static int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_F32_ORD ? 1 : 0;
+}
+
+/**
+ * SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。
+ * reg_k / stack_k 为对应类内序号。
+ */
+static void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
+                                          int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
+                                          int32_t *out_stack_k) {
+  int32_t gp;
+  int32_t xmm;
+  int32_t stk;
+  int32_t j;
+  int32_t pty;
+  gp = 0;
+  xmm = 0;
+  stk = 0;
+  for (j = 0; j <= arg_index && j < nargs; j++) {
+    pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
+    if (j == arg_index) {
+      if (glue_call_param_is_f32_c(arena, pty)) {
+        if (xmm < 8) {
+          *out_kind = 1;
+          *out_reg_k = xmm;
+        } else {
+          *out_kind = 2;
+          *out_stack_k = stk;
+        }
+      } else if (gp < 6) {
+        *out_kind = 0;
+        *out_reg_k = gp;
+      } else {
+        *out_kind = 2;
+        *out_stack_k = stk;
+      }
+      return;
+    }
+    if (glue_call_param_is_f32_c(arena, pty)) {
+      if (xmm < 8)
+        xmm++;
+      else
+        stk++;
+    } else if (gp < 6) {
+      gp++;
+    } else {
+      stk++;
+    }
+  }
+  *out_kind = 2;
+  *out_reg_k = 0;
+  *out_stack_k = 0;
+}
+
+/** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
+static int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+  int32_t gp;
+  int32_t xmm;
+  int32_t stk;
+  int32_t j;
+  int32_t pty;
+  gp = 0;
+  xmm = 0;
+  stk = 0;
+  for (j = 0; j < nargs; j++) {
+    pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
+    if (glue_call_param_is_f32_c(arena, pty)) {
+      if (xmm < 8)
+        xmm++;
+      else
+        stk++;
+    } else if (gp < 6) {
+      gp++;
+    } else {
+      stk++;
+    }
+  }
+  return stk;
+}
+
+/** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHU_ABI_F32_XMM=1）。 */
+static int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
+  int32_t n_stack;
+  int32_t stack_reserve;
+  int32_t i;
+  int32_t arg_ref;
+  int32_t kind;
+  int32_t reg_k;
+  int32_t stack_k;
+  int32_t stk_push[GLUE_ASM_MAX_CALL_ARGS];
+  int32_t n_stk_push;
+  int32_t si;
+
+  n_stack = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+  stack_reserve = 0;
+  if (n_stack > 0) {
+    stack_reserve = n_stack * 8;
+    if (n_stack & 1)
+      stack_reserve += 8;
+  }
+  if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+    return -1;
+  n_stk_push = 0;
+  for (i = 0; i < nargs; i++) {
+    glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i, &kind, &reg_k, &stack_k);
+    if (kind == 2)
+      stk_push[n_stk_push++] = i;
+  }
+  if (n_stack > 0 && (n_stack & 1)) {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  for (si = n_stk_push - 1; si >= 0; si--) {
+    i = stk_push[si];
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      continue;
+    if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  pipeline_asm_emit_set_call_f32_xmm(1);
+  for (i = 0; i < nargs; i++) {
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      continue;
+    glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i, &kind, &reg_k, &stack_k);
+    if (kind == 2)
+      continue;
+    if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+      pipeline_asm_emit_set_call_f32_xmm(0);
+      return -1;
+    }
+    if (kind == 0) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
+        pipeline_asm_emit_set_call_f32_xmm(0);
+        return -1;
+      }
+    } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
+      pipeline_asm_emit_set_call_f32_xmm(0);
+      return -1;
+    }
+  }
+  pipeline_asm_emit_set_call_f32_xmm(0);
+  pipeline_asm_emit_set_call_param_type_ref(0);
+  return 0;
+}
+
+/**
+ * 当前架构整数 CALL 寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）。
+ */
+static int32_t glue_asm_call_reg_max(int32_t ta) {
+  if (ta == 0)
+    return 6;
+  return 8;
+}
+
+/**
+ * call 完成后须回收的 outgoing 栈字节数（含 16 字节对齐垫层）。
+ */
+static int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
+  int32_t reg_max;
+  int32_t n_stack;
+  if (nargs <= 0)
+    return 0;
+  reg_max = glue_asm_call_reg_max(ta);
+  n_stack = nargs - reg_max;
+  if (n_stack <= 0)
+    return 0;
+  if (ta == 0) {
+    int32_t bytes = n_stack * 8;
+    if (n_stack & 1)
+      bytes += 8;
+    return bytes;
+  }
+  if (ta == 2)
+    return -1;
+  return (n_stack * 8 + 15) & ~15;
+}
+
+/**
+ * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.su codegen_import_path_to_c_prefix_into 一致。
+ */
+static void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+  int32_t off;
+  int32_t pi;
+  if (!buf || buf_cap <= 0)
+    return;
+  off = 0;
+  pi = 0;
+  while (path) {
+    uint8_t ch = path[pi];
+    if (ch == 0)
+      break;
+    if (off + 2 >= buf_cap)
+      break;
+    buf[off] = (ch == 46) ? 95 : ch;
+    off++;
+    pi++;
+  }
+  if (off + 1 < buf_cap) {
+    buf[off] = 95;
+    off++;
+  }
+  buf[off] = 0;
+}
+
+/** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1。 */
+static int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
+                                                     int32_t name_len) {
+  int32_t i;
+  if (!prefix || !name || prefix_len != 6 || name_len < prefix_len)
+    return 0;
+  if (prefix[0] != 98 || prefix[1] != 117 || prefix[2] != 105 || prefix[3] != 108 || prefix[4] != 100 ||
+      prefix[5] != 95)
+    return 0;
+  for (i = 0; i < prefix_len; i++) {
+    if (name[i] != prefix[i])
+      return 0;
+  }
+  return 1;
+}
+
+/** 将 C 前缀与字段名拼成至多 63 字节的 call 符号；成功返回长度，失败 -1。 */
+static int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+                                                      int32_t field_len, uint8_t *out_name) {
+  int32_t pos;
+  int32_t pi;
+  pos = 0;
+  if (pre_len > 0 && !glue_asm_c_prefix_redundant_with_name(pre, pre_len, field_name, field_len)) {
+    pi = 0;
+    while (pi < pre_len && pos < 63) {
+      out_name[pos++] = pre[pi++];
+    }
+  }
+  pi = 0;
+  while (pi < field_len && pos < 63)
+    out_name[pos++] = field_name[pi++];
+  return pos > 0 ? pos : -1;
+}
+
+/** import 路径缓冲区中 '.' 分段数。 */
+static int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
+  int32_t n;
+  int32_t ii;
+  if (!path || path_len <= 0)
+    return 0;
+  n = 1;
+  for (ii = 0; ii < path_len; ii++) {
+    if (path[ii] == 46)
+      n++;
+  }
+  return n;
+}
+
+/** 比较 module import 路径切片与外部字节序列是否相等。 */
+static int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
+                                                int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
+  int32_t i;
+  if (seg_len != nm_len || seg_len <= 0)
+    return 0;
+  for (i = 0; i < seg_len; i++) {
+    if (pipeline_module_import_path_byte_at(module, imp_ix, off + i) != nm[i])
+      return 0;
+  }
+  return 1;
+}
+
+/** 比较 import 绑定名与外部字节序列是否相等。 */
+static int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
+                                                  int32_t nm_len) {
+  int32_t bl;
+  int32_t i;
+  bl = pipeline_module_import_binding_name_len(module, imp_ix);
+  if (bl != nm_len || nm_len <= 0)
+    return 0;
+  for (i = 0; i < nm_len; i++) {
+    if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i])
+      return 0;
+  }
+  return 1;
+}
+
+/** pipeline_module_import_path 内第 want_seg 段起点偏移与长度。 */
+static int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+                                          int32_t *olen) {
+  int32_t pl;
+  int32_t ci;
+  int32_t ss;
+  int32_t k;
+  if (!module || imp_ix < 0 || imp_ix >= parser_get_module_num_imports(module))
+    return 0;
+  pl = pipeline_module_import_path_len(module, imp_ix);
+  if (pl <= 0 || pl > 63)
+    return 0;
+  ci = 0;
+  ss = 0;
+  for (k = 0; k <= pl; k++) {
+    int32_t at_end = (k == pl);
+    int32_t dot = (!at_end && k < pl && pipeline_module_import_path_byte_at(module, imp_ix, k) == 46);
+    if (at_end || dot) {
+      int32_t seg_len_here = k - ss;
+      if (seg_len_here <= 0)
+        return 0;
+      if (ci == want_seg) {
+        *ostr = ss;
+        *olen = seg_len_here;
+        return 1;
+      }
+      if (dot)
+        ss = k + 1;
+      ci++;
+    }
+  }
+  return 0;
+}
+
+/** 将 module 第 imp_ix 槽 import 逻辑路径转成 C ABI 前缀；成功返回前缀字节长度。 */
+static int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+  uint8_t path_bytes[64];
+  int32_t pre_len;
+  parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
+  if (path_bytes[0] == 0)
+    return -1;
+  glue_codegen_import_path_to_c_prefix_into(path_bytes, pre_buf, 128);
+  pre_len = 0;
+  while (pre_len < 128 && pre_buf[pre_len] != 0)
+    pre_len++;
+  return pre_len > 0 ? pre_len : -1;
+}
+
+/**
+ * `import a.b…` + `a.b….method(args)` 形式解析 C ABI 符号；成功写 sym_flat 并返回长度。
+ * pipe 参数保留兼容，查找一律基于 cur_mod->imports。
+ */
+int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena *arena, struct ast_Module *cur_mod,
+                                                              int32_t callee_expr_ref, uint8_t *sym_flat,
+                                                              int32_t *out_match_imp_j) {
+  int32_t cur_ref;
+  uint8_t layer_buf[64];
+  int32_t nstack;
+  int32_t dep_j;
+  if (!arena || !cur_mod || !sym_flat || callee_expr_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 44)
+    return -1;
+  asm_qual_sym_layer_reset();
+  cur_ref = callee_expr_ref;
+  while (1) {
+    int32_t falen;
+    if (cur_ref <= 0)
+      return -1;
+    falen = pipeline_expr_field_access_name_len(arena, cur_ref);
+    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 44 || falen <= 0 || falen > 63)
+      break;
+    pipeline_expr_field_access_name_into(arena, cur_ref, layer_buf);
+    if (asm_qual_sym_layer_push(layer_buf, falen) < 0)
+      return -1;
+    cur_ref = pipeline_expr_field_access_base_ref(arena, cur_ref);
+  }
+  nstack = asm_qual_sym_layer_count();
+  if (cur_ref <= 0)
+    return -1;
+  {
+    int32_t vnlen;
+    uint8_t vname_buf[64];
+    vnlen = pipeline_expr_var_name_len(arena, cur_ref);
+    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 63)
+      return -1;
+    pipeline_expr_var_name_into(arena, cur_ref, vname_buf);
+    dep_j = 0;
+    while (dep_j < parser_get_module_num_imports(cur_mod)) {
+      int32_t plen;
+      uint8_t path_cnt_buf[64];
+      int32_t pci;
+      int32_t pseg;
+      int32_t s0_rel;
+      int32_t s0_ln;
+      plen = pipeline_module_import_path_len(cur_mod, dep_j);
+      if (plen <= 0 || plen > 63) {
+        dep_j++;
+        continue;
+      }
+      for (pci = 0; pci < plen && pci < 64; pci++)
+        path_cnt_buf[pci] = pipeline_module_import_path_byte_at(cur_mod, dep_j, pci);
+      pseg = glue_asm_import_path_segment_count(path_cnt_buf, plen);
+      if (pseg <= 0 || nstack != pseg) {
+        dep_j++;
+        continue;
+      }
+      if (!glue_asm_import_segment_at(cur_mod, dep_j, 0, &s0_rel, &s0_ln) ||
+          !glue_asm_import_path_slice_equal(cur_mod, dep_j, s0_rel, s0_ln, vname_buf, vnlen)) {
+        dep_j++;
+        continue;
+      }
+      {
+        int32_t bad_mid = 0;
+        int32_t sm;
+        for (sm = 1; sm <= pseg - 1; sm++) {
+          int32_t srv;
+          int32_t slv;
+          int32_t lay_ix;
+          if (!glue_asm_import_segment_at(cur_mod, dep_j, sm, &srv, &slv)) {
+            bad_mid = 1;
+            break;
+          }
+          lay_ix = pseg - sm;
+          asm_qual_sym_layer_copy(lay_ix, layer_buf, 64);
+          if (!glue_asm_import_path_slice_equal(cur_mod, dep_j, srv, slv, layer_buf, asm_qual_sym_layer_len(lay_ix))) {
+            bad_mid = 1;
+            break;
+          }
+        }
+        if (bad_mid) {
+          dep_j++;
+          continue;
+        }
+      }
+      {
+        uint8_t pre_buf[128];
+        int32_t pre_len;
+        int32_t blt;
+        pre_len = glue_asm_fill_c_prefix_from_module_import(cur_mod, dep_j, pre_buf);
+        if (pre_len <= 0) {
+          dep_j++;
+          continue;
+        }
+        asm_qual_sym_layer_copy(0, layer_buf, 64);
+        blt = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, layer_buf, asm_qual_sym_layer_len(0), sym_flat);
+        if (out_match_imp_j)
+          *out_match_imp_j = dep_j;
+        return blt;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * text 路径：为 call 准备至多 6 个实参（与 backend.su asm_emit_call_args_text 语义一致）。
+ * 供 backend.su 薄包装 bl 委托（M8-tail）。
+ */
+int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch,
+                                           int32_t nargs) {
+  int32_t i;
+  int32_t arg_ref;
+  if (!arena || !out || !ctx || expr_ref <= 0)
+    return -1;
+  if (nargs < 0 || nargs > 6)
+    return -1;
+  if (nargs <= 0)
+    return 0;
+  for (i = 0; i < nargs; i++) {
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      continue;
+    if (pipeline_asm_emit_expr_c(arena, out, arg_ref, ctx, target_arch) != 0)
+      return -1;
+    if (target_arch == 0 || target_arch == 2) {
+      if (backend_arch_emit_mov_rax_to_arg_reg(out, i, target_arch) != 0)
+        return -1;
+    } else if (backend_arch_emit_push_rax(out, target_arch) != 0) {
+      return -1;
+    }
+  }
+  if (target_arch == 1) {
+    for (i = 0; i < nargs; i++) {
+      if (backend_arch_emit_ldr_sp_offset_to_wi(out, i, target_arch) != 0)
+        return -1;
+    }
+    if (backend_arch_emit_add_sp_imm(out, nargs * 16, target_arch) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * ELF 路径：为 enc_call 准备实参（寄存器 + outgoing 栈；经 pipeline_asm_emit_expr_elf_for_call_args）。
+ * 供 backend.su asm_emit_call_args_elf 薄包装（M8-tail）。
+ */
+static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
+  return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
+}
+
+/** 设置 callee 形参 type_ref 后 emit 单个 CALL 实参。 */
+static int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index,
+                                            struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  if (!arena || !elf_ctx || !ctx || arg_ref == 0)
+    return 0;
+  pipeline_asm_emit_set_call_param_type_ref(glue_call_param_type_ref_at(arena, call_expr_ref, arg_index));
+  return pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                          int32_t nargs) {
+  int32_t reg_max;
+  int32_t n_stack;
+  int32_t stack_reserve;
+  int32_t i;
+  int32_t arg_ref;
+
+  if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
+    return -1;
+  /** x86 SysV f32 xmm 实参（SHU_ABI_F32_XMM=1）。 */
+  if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c())
+    return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+  reg_max = glue_asm_call_reg_max(ta);
+  n_stack = nargs - reg_max;
+  if (n_stack > 0 && ta == 2)
+    return -1;
+
+  stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  if (stack_reserve < 0)
+    return -1;
+  if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+    return -1;
+
+  /** x86_64：奇数个栈实参时先 push 8B 对齐垫（须在实参之前，否则 callee 0x10(%rbp) 错位）；再右到左 push 栈实参。 */
+  if (ta == 0 && n_stack > 0) {
+    if (n_stack & 1) {
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    for (i = nargs - 1; i >= reg_max; i--) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref != 0) {
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+    }
+  }
+
+  /**
+   * AAPCS64：实参经 x0 中转再 mov 到 xN；须从高序号寄存器实参向低序号 emit，
+   * 避免 emit arg1 覆盖已就位的 arg0（memcmp(pc,pe,16) 曾把 16 误装入 x0 致 SIGSEGV）。
+   */
+  if (ta == 1) {
+    int32_t reg_n = nargs < reg_max ? nargs : reg_max;
+    for (i = reg_n - 1; i >= 0; i--) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref == 0)
+        continue;
+      if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i, ta) != 0)
+        return -1;
+    }
+    for (i = reg_max; i < nargs; i++) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref == 0)
+        continue;
+      if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_x0_sp_offset_arch(elf_ctx, (i - reg_max) * 8, ta) != 0)
+        return -1;
+    }
+    pipeline_asm_emit_set_call_param_type_ref(0);
+    return 0;
+  }
+
+  for (i = 0; i < nargs; i++) {
+    if (ta == 0 && i >= reg_max)
+      continue;
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    if (arg_ref == 0)
+      continue;
+    if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+      return -1;
+    if (i < reg_max) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i, ta) != 0)
+        return -1;
+    }
+  }
+  pipeline_asm_emit_set_call_param_type_ref(0);
+  return 0;
+}
+
+/** std.heap 薄包装 → heap.o 符号（DOD-S2：alloc_f32 等；与 ast_pool_bootstrap_glue 表一致）。 */
+static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                    int32_t out_cap) {
+  static const struct {
+    const char *from;
+    const char *to;
+  } k_tab[] = {
+      {"alloc_i32", "heap_alloc_i32_c"},
+      {"realloc_i32", "heap_realloc_i32_c"},
+      {"free_i32", "heap_free_i32_c"},
+      {"alloc_u8", "heap_alloc_u8_c"},
+      {"realloc_u8", "heap_realloc_u8_c"},
+      {"free_u8", "heap_free_u8_c"},
+      {"alloc_f32", "heap_alloc_f32_c"},
+      {"realloc_f32", "heap_realloc_f32_c"},
+      {"free_f32", "heap_free_f32_c"},
+      {"copy_i32_at", "heap_copy_i32_at_c"},
+      {"copy_u8_at", "heap_copy_u8_at_c"},
+      {"copy_f32_at", "heap_copy_f32_at_c"},
+      {"arena64_init", "heap_arena64_init_c"},
+      {"arena64_alloc", "heap_arena64_alloc_c"},
+      {"arena64_deinit", "heap_arena64_deinit_c"},
+      {"ptr_mod", "heap_ptr_mod_c"},
+  };
+  size_t i;
+  for (i = 0; i < sizeof(k_tab) / sizeof(k_tab[0]); i++) {
+    size_t flen = strlen(k_tab[i].from);
+    size_t tlen = strlen(k_tab[i].to);
+    if ((int32_t)flen != name_len || memcmp(name, k_tab[i].from, flen) != 0)
+      continue;
+    if ((int32_t)tlen + 1 > out_cap)
+      return 0;
+    memcpy(sym_out, k_tab[i].to, tlen);
+    return (int32_t)tlen;
+  }
+  return 0;
+}
+
+/** 经 std.fs/net/std.heap 薄包装重定向表发射 call；无命中则直调 name。 */
+static int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+                                            int32_t ta) {
+  uint8_t redir[64];
+  int32_t rlen;
+  if (!name || name_len <= 0)
+    return -1;
+  rlen = glue_try_std_heap_redirect_sym_local(name, name_len, redir, 64);
+  if (rlen <= 0)
+    rlen = pipeline_asm_redirect_std_c_wrapper_sym(name, name_len, redir, 64);
+  if (rlen > 0) {
+    if (getenv("SHU_ASM_DEBUG"))
+      fprintf(stderr, "shu: call_redirect %.*s -> %.*s\n", (int)name_len, (char *)name, (int)rlen, (char *)redir);
+    return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
+  }
+  return backend_enc_call_arch(elf_ctx, name, name_len, ta);
+}
+
+/**
+ * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
+ */
+static int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                               int32_t nargs, uint8_t *cname, int32_t clen) {
+  int32_t cleanup;
+  if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0)
+    return -1;
+  if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
+    return -1;
+  cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  if (cleanup < 0)
+    return -1;
+  return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
+}
+
+/**
+ * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
+ * 供 pipeline_asm_emit_expr_elf_rec 与 backend.su emit_expr_elf_call 委托。
+ */
+int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  struct glue_AsmFuncCtxCall *ly;
+  struct ast_Module *mod_ref;
+  int32_t callee_ref;
+  int32_t callee_ko;
+  int32_t nargs;
+  int32_t inline_rc;
+  uint8_t cname[64];
+  int32_t clen;
+
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+  if (callee_ref <= 0)
+    return -1;
+  ly = (struct glue_AsmFuncCtxCall *)ctx;
+  mod_ref = ly ? ly->module_ref : 0;
+  callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+
+  /** import binding + `binding.field(args)` callee。 */
+  if (mod_ref && callee_ko == 44) {
+    int32_t base_ref = pipeline_expr_field_access_base_ref(arena, callee_ref);
+    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+      uint8_t base_name[64];
+      int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
+      if (base_len > 0 && base_len <= 63) {
+        int32_t j;
+        uint8_t field_name[64];
+        int32_t field_len;
+        pipeline_expr_var_name_into(arena, base_ref, base_name);
+        field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
+        if (field_len > 0 && field_len <= 63) {
+          pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
+          for (j = 0; j < parser_get_module_num_imports(mod_ref); j++) {
+            if (pipeline_module_import_kind_at(mod_ref, j) == GLUE_IMPORT_KIND_BINDING &&
+                glue_asm_import_binding_name_equal(mod_ref, j, base_name, base_len)) {
+              uint8_t pre_buf[128];
+              uint8_t sym_flat[64];
+              int32_t pre_len;
+              int32_t sym_len;
+              int32_t call_nargs;
+              int32_t n_ov;
+              pre_len = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, pre_buf);
+              if (pre_len <= 0)
+                return -1;
+              sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+              if (sym_len <= 0)
+                return -1;
+              call_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+              n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, field_name, field_len, call_nargs);
+              if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, n_ov) != 0)
+                return -1;
+              if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)
+                return -1;
+              {
+                int32_t cln = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
+                if (cln < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
+                  return -1;
+              }
+              return 0;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /** `import a.b` + `a.b.c.method(args)` whole-import 限定 callee。 */
+  if (mod_ref && callee_ko == 44) {
+    int32_t imp_elt = 0;
+    uint8_t sym_eh[64];
+    int32_t elen;
+    uint8_t field_name[64];
+    int32_t field_len;
+    elen = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, mod_ref, callee_ref, sym_eh, &imp_elt);
+    if (elen > 0 && imp_elt >= 0 && imp_elt < parser_get_module_num_imports(mod_ref)) {
+      uint8_t pre_eb[128];
+      int32_t pre_el;
+      int32_t call_nargs2;
+      int32_t n_wo_elf;
+      field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
+      if (field_len <= 0 || field_len > 63)
+        return -1;
+      pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
+      pre_el = glue_asm_fill_c_prefix_from_module_import(mod_ref, imp_elt, pre_eb);
+      if (pre_el <= 0)
+        return -1;
+      call_nargs2 = pipeline_expr_call_num_args_at(arena, expr_ref);
+      n_wo_elf = pipeline_codegen_call_num_args_override(pre_eb, pre_el, field_name, field_len, call_nargs2);
+      if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, n_wo_elf) != 0)
+        return -1;
+      if (glue_asm_enc_call_redirected(elf_ctx, sym_eh, elen, ta) != 0)
+        return -1;
+      {
+        int32_t cln2 = glue_asm_call_stack_cleanup_bytes(ta, n_wo_elf);
+        if (cln2 < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln2, ta) != 0)
+          return -1;
+      }
+      return 0;
+    }
+  }
+
+  /** 同模块 VAR callee。 */
+  if (callee_ko != 3)
+    return -1;
+  nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+  if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
+    return -1;
+  inline_rc = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  if (inline_rc != 0)
+    return inline_rc < 0 ? -1 : 0;
+  inline_rc = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  if (inline_rc != 0)
+    return inline_rc < 0 ? -1 : 0;
+  inline_rc = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  if (inline_rc != 0)
+    return inline_rc < 0 ? -1 : 0;
+  inline_rc = try_call_wpo_mono_symbol_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  if (inline_rc != 0)
+    return inline_rc < 0 ? -1 : 0;
+  inline_rc = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  if (inline_rc != 0)
+    return inline_rc < 0 ? -1 : 0;
+  if (!getenv("SHU_WPO_MONO") && !getenv("SHU_WPO_NO_FOLD")) {
+    /* SHU_WPO_NO_FOLD=1：bench/对照时禁用常量实参 fold（仍允许 mono 路径）。 */
+    inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_rc != 0)
+      return inline_rc < 0 ? -1 : 0;
+    inline_rc = try_inline_wpo_const_scalar_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
+    if (inline_rc != 0)
+      return inline_rc < 0 ? -1 : 0;
+  }
+  clen = pipeline_expr_var_name_len(arena, callee_ref);
+  if (clen <= 0 || clen > 63)
+    return -1;
+  pipeline_expr_var_name_into(arena, callee_ref, cname);
+  if (getenv("SHU_ASM_DEBUG"))
+    fprintf(stderr, "shu: call_elf_c %.*s nargs=%d\n", (int)clen, (char *)cname, (int)nargs);
+  return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
+}
+
+extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+
+/**
+ * EXPR_METHOD_CALL ELF：receiver 作 arg0，实参 arg1..argN，enc_call(method_name)。
+ * 供 backend.su emit_expr_elf_method_call 薄包装（M8-tail）。
+ */
+int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t nargs;
+  int32_t base_ref;
+  int32_t i;
+  int32_t name_len;
+  uint8_t name[64];
+
+  nargs = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+  if (nargs > 5)
+    return -1;
+  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  if (base_ref != 0) {
+    if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0)
+      return -1;
+    if (ta != 1 && backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+  }
+  /** AAPCS64：receiver 已在 x0；其余实参从高序号向低序号 emit，勿覆盖 x0。 */
+  if (ta == 1) {
+    for (i = nargs - 1; i >= 0; i--) {
+      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref != 0) {
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
+          return -1;
+      }
+    }
+  } else {
+    for (i = 0; i < nargs && i < 6; i++) {
+      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      if (arg_ref != 0) {
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
+          return -1;
+      }
+    }
+  }
+  name_len = pipeline_expr_method_call_name_len(arena, expr_ref);
+  if (name_len <= 0 || name_len > 63)
+    return -1;
+  pipeline_expr_method_call_name_into(arena, expr_ref, name);
+  return backend_enc_call_arch(elf_ctx, name, name_len, ta);
+}
