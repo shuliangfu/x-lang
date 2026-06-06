@@ -12,6 +12,7 @@
 #include "typeck/typeck.h"
 #include "codegen/codegen.h"
 #include "ast.h"
+#include "target_cpu.h"
 #include "lsp/lsp_diag.h"
 #ifdef SHU_USE_SU_CODEGEN
 /* 6.2：.su codegen 入口；由 codegen.su 提供（库模块形式，符号带 codegen_ 前缀），转调 C codegen */
@@ -66,6 +67,11 @@ static int driver_check_only_flag;
 void driver_check_only_set(int32_t v) { driver_check_only_flag = (v != 0); }
 int32_t driver_check_only_get(void) { return driver_check_only_flag ? 1 : 0; }
 
+/** `-freestanding` / SHU_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
+static int driver_freestanding_flag;
+void driver_freestanding_set(int32_t v) { driver_freestanding_flag = (v != 0); }
+int32_t driver_freestanding_get(void) { return driver_freestanding_flag ? 1 : 0; }
+
 static int driver_fmt_check_only_flag;
 /** shu fmt --check：仅校验格式，不写回；需 reform 时返回 1。 */
 void driver_fmt_check_only_set(int32_t v) { driver_fmt_check_only_flag = (v != 0); }
@@ -110,8 +116,23 @@ void driver_su_pipeline_skip_codegen_set(int32_t v) {
     driver_su_pipeline_skip_codegen_flag = (v != 0);
 }
 
-/** asm emit 桩判定：build_shu_asm 编 typeck/parser 等大模块前须设置 ctx（ast_pool.c）。 */
-extern void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx);
+#if defined(SHU_USE_SU_PIPELINE) || defined(SHU_USE_SU_DRIVER)
+/** asm emit 桩判定：build_shu_asm 编 typeck/parser 等大模块前须设置 ctx（ast_pool.c）。形参用 void* 避免 GCC 15 参数列表内 struct 不可见导致 -Wincompatible-pointer-types 报错（Alpine/musl）。 */
+extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
+/** C 预检跳过 .su typeck 后：为块内 ARRAY_LIT 回填 resolved_type_ref（pipeline_glue.c）。 */
+extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
+/** asm emit 前：DOD-S1 SoA arr[i].field 补 stride（pipeline_glue.c）。 */
+extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
+
+/**
+ * asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型（C typeck 路径无 .su typeck）。
+ */
+static void driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
+    asm_skip_heavy_set_pipeline_ctx(pctx);
+    pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
+    pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+}
+#endif /* SHU_USE_SU_PIPELINE || SHU_USE_SU_DRIVER */
 
 /**
  * 非 0 时入口模块 typeck 走 C 的 typeck_module（build_shu_asm 编 typeck/parser 等大模块时设置，避免 .su typeck 栈过深）。
@@ -979,6 +1000,19 @@ static const char *get_std_tar_o_path(const char *argv0) {
     return buf;
 }
 
+/** std.async 协作调度内核（std/async/scheduler.o）；调用 coop_pingpong* 时按需链入。 */
+static const char *get_std_async_scheduler_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/async/scheduler.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 26) != NULL) { size_t L = strlen(cwd); if (L + 26 <= sizeof(cwd)) { memcpy(cwd + L, "/std/async/scheduler.o", 22); cwd[L+22] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 26 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/async/scheduler.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
 /** runtime_panic.o 路径；优先 cwd（compiler/runtime_panic.o 或 getcwd+"/compiler/runtime_panic.o"），再 argv[0] 目录。 */
 static const char *get_runtime_panic_o_path(const char *argv0) {
     static char buf[512];
@@ -1006,6 +1040,257 @@ static const char *get_runtime_panic_o_path(const char *argv0) {
     }
     return buf;
 }
+
+/** crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 SHU_FREESTANDING 链入。 */
+static const char *get_crt0_user_o_path(const char *argv0) {
+    static char buf[512];
+    static char resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("compiler/crt0_user.o", resolved) != NULL)
+        return resolved;
+    {
+        char cwd[512];
+        if (getcwd(cwd, sizeof(cwd) - 22) != NULL) {
+            size_t L = strlen(cwd);
+            if (L + 22 <= sizeof(cwd)) {
+                memcpy(cwd + L, "/compiler/crt0_user.o", 22);
+                cwd[L + 21] = '\0';
+                if (realpath(cwd, resolved) != NULL)
+                    return resolved;
+            }
+        }
+    }
+    if (argv0 && argv0[0]) {
+        const char *last_slash = strrchr(argv0, '/');
+        int n;
+        if (last_slash) {
+            n = (int)(last_slash - argv0);
+            if (n >= (int)sizeof(buf) - 16)
+                return buf;
+            memcpy(buf, argv0, (size_t)n);
+            buf[n] = '\0';
+        } else {
+            buf[0] = '.';
+            buf[1] = '\0';
+            n = 1;
+        }
+        if (n + 14 < (int)sizeof(buf)) {
+            strcat(buf, "/crt0_user.o");
+            if (realpath(buf, resolved) != NULL)
+                return resolved;
+            return buf;
+        }
+    }
+    return buf;
+}
+
+/** freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 SHU_FREESTANDING syscall write。 */
+static const char *get_freestanding_io_o_path(const char *argv0) {
+    static char buf[512];
+    static char resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("compiler/freestanding_io.o", resolved) != NULL)
+        return resolved;
+    {
+        char cwd[512];
+        if (getcwd(cwd, sizeof(cwd) - 28) != NULL) {
+            size_t L = strlen(cwd);
+            if (L + 28 <= sizeof(cwd)) {
+                memcpy(cwd + L, "/compiler/freestanding_io.o", 28);
+                cwd[L + 27] = '\0';
+                if (realpath(cwd, resolved) != NULL)
+                    return resolved;
+            }
+        }
+    }
+    if (argv0 && argv0[0]) {
+        const char *last_slash = strrchr(argv0, '/');
+        int n;
+        if (last_slash) {
+            n = (int)(last_slash - argv0);
+            if (n >= (int)sizeof(buf) - 20)
+                return buf;
+            memcpy(buf, argv0, (size_t)n);
+            buf[n] = '\0';
+        } else {
+            buf[0] = '.';
+            buf[1] = '\0';
+            n = 1;
+        }
+        if (n + 18 < (int)sizeof(buf)) {
+            strcat(buf, "/freestanding_io.o");
+            if (realpath(buf, resolved) != NULL)
+                return resolved;
+            return buf;
+        }
+    }
+    return buf;
+}
+
+/** SHU_FREESTANDING=1 或 `-freestanding`：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。 */
+static int shu_ld_freestanding_enabled(void) {
+    const char *e;
+#if !defined(__linux__)
+    return 0;
+#endif
+    if (driver_freestanding_get())
+        return 1;
+    e = getenv("SHU_FREESTANDING");
+    return e && e[0] && e[0] != '0';
+}
+
+#if defined(__linux__) || defined(__APPLE__)
+/**
+ * 扫描用户 .o 的 nm 未定义符号表；若引用 sym 则返回 1。
+ * nm 不可用时保守返回 1（仍链入对应 runtime 桩，避免链接缺符号）。
+ */
+static int freestanding_o_needs_undef_sym(const char *o_path, const char *sym) {
+    char cmd[PATH_MAX + 160];
+    FILE *fp;
+    char line[512];
+    size_t sym_len;
+    if (!o_path || !o_path[0] || !sym || !sym[0])
+        return 0;
+    sym_len = strlen(sym);
+    /** GNU nm（Linux/Alpine）无 --porcelain；BSD/macOS 用 porcelain 单行符号名。 */
+#if defined(__APPLE__)
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u --porcelain '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 1;
+#else
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 1;
+#endif
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 1;
+    while (fgets(line, sizeof line, fp)) {
+        if (strncmp(line, sym, sym_len) == 0 &&
+            (line[sym_len] == ' ' || line[sym_len] == '\n' || line[sym_len] == '\0')) {
+            pclose(fp);
+            return 1;
+        }
+        if (strchr(line, 'U') != NULL && strstr(line, sym) != NULL) {
+            pclose(fp);
+            return 1;
+        }
+    }
+    pclose(fp);
+    return 0;
+}
+
+/** 用户模块是否引用 shulang_sys_write（按需链 freestanding_io.o）。 */
+static int freestanding_user_o_needs_io(const char *user_o) {
+    return freestanding_o_needs_undef_sym(user_o, "shulang_sys_write");
+}
+
+/** 用户模块是否引用 shulang_panic_（按需链 runtime_panic.o）。 */
+static int freestanding_user_o_needs_panic(const char *user_o) {
+    return freestanding_o_needs_undef_sym(user_o, "shulang_panic_");
+}
+
+/** 用户是否引用 std.async scheduler（按需链 std/async/scheduler.o）。 */
+static int asm_user_o_needs_async_scheduler(const char *user_o) {
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_coop_pingpong"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_coop_pingpong_jmp"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_cps_suspend"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_phase_by_id"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_store_from_ptr"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_load_to_ptr"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_reset_by_id"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_cps_suspend_io"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_i32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_task_submit"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_task_submit_to"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_scheduler_drain"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_drain"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_count"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_pending"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_queue_reset"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_scheduler_pending"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_wake_all"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_waiters_pending"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_completions_ready"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_set_i32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_reset"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_i32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_u32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_i64"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_valid"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_i32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_u32"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_i64"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_submit_read_async"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_read_async"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_read_async_slot"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_submit_write_async"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_write_async"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_write_async_slot"))
+        return 1;
+    return 0;
+}
+
+/**
+ * 用户 .o 是否仍有未定义外部符号（nm -u 非空）。
+ * 自包含模块（如 return-value）可仅 gcc 链 user.o + -lc，避免 Alpine/musl 上全量 std/*.o 链接挂起。
+ */
+static int asm_user_o_has_undef_syms(const char *o_path) {
+    char cmd[PATH_MAX + 160];
+    FILE *fp;
+    char line[512];
+    size_t i;
+    if (!o_path || !o_path[0])
+        return 1;
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 1;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 1;
+    while (fgets(line, sizeof line, fp)) {
+        for (i = 0; line[i]; i++) {
+            if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n' && line[i] != '\r') {
+                pclose(fp);
+                return 1;
+            }
+        }
+    }
+    pclose(fp);
+    return 0;
+}
+#endif /* __linux__ || __APPLE__ */
 
 /**
  * 等待子进程结束；waitpid 在调试器附加或信号中断时可能返回 -1 且 errno==EINTR，须重试。
@@ -1168,8 +1453,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
     const char *src = NULL;
     int from_asm_s = 0;
 #if defined(__linux__)
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/runtime_panic_x86_64.s", comp) < sizeof src_s && access(src_s, R_OK) == 0
-        && access("/etc/alpine-release", F_OK) != 0) {
+    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/runtime_panic_x86_64.s", comp) < sizeof src_s && access(src_s, R_OK) == 0) {
         src = src_s;
         from_asm_s = 1;
     }
@@ -1213,6 +1497,121 @@ static int ensure_runtime_panic_o(const char *argv0) {
     }
     if (!asm_link_obj_skip_missing(get_runtime_panic_o_path(argv0))) {
         fprintf(stderr, "shu: runtime_panic.o missing after cc -c (expected near %s)\n", out_o);
+        return -1;
+    }
+    return 0;
+}
+
+#if defined(__linux__)
+/**
+ * freestanding：仅当用户 .o 引用 panic 时才 ensure runtime_panic.o；非 freestanding 始终 ensure。
+ * 须与 ensure_runtime_panic_o 同处 SHU_USE_SU_* 块，避免 plain runtime.o（shu-c）仅见前向声明而无定义导致链接失败。
+ */
+static int freestanding_prepare_runtime_panic_o(const char *argv0, const char *user_o) {
+    if (shu_ld_freestanding_enabled()) {
+        if (!freestanding_user_o_needs_panic(user_o))
+            return 0;
+    }
+    return ensure_runtime_panic_o(argv0);
+}
+#endif /* __linux__ */
+
+/**
+ * 若 crt0_user.o 尚不存在则从 crt0_user_x86_64.s 编译到 shu 同目录（仅 SHU_FREESTANDING 路径需要）。
+ * 成功返回 0；未启用 freestanding 时 no-op 返回 0。
+ */
+static int ensure_crt0_user_o(const char *argv0) {
+    char comp[PATH_MAX];
+    char out_o[PATH_MAX];
+    char src_s[PATH_MAX];
+    if (!shu_ld_freestanding_enabled())
+        return 0;
+    if (asm_link_obj_skip_missing(get_crt0_user_o_path(argv0)))
+        return 0;
+    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
+        fprintf(stderr, "shu: cannot resolve compiler directory to build crt0_user.o\n");
+        return -1;
+    }
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/crt0_user.o", comp) >= sizeof out_o)
+        return -1;
+    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/crt0_user_x86_64.s", comp) >= sizeof src_s
+        || access(src_s, R_OK) != 0) {
+        fprintf(stderr, "shu: crt0_user source not found at %s\n", src_s);
+        return -1;
+    }
+    {
+        pid_t pid = fork();
+        if (pid < 0) {
+            perror("shu: fork (crt0_user.o)");
+            return -1;
+        }
+        if (pid == 0) {
+            execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
+            perror("shu: cc (crt0_user.o)");
+            _exit(127);
+        }
+        {
+            int st;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return -1;
+            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
+                fprintf(stderr, "shu: failed to build crt0_user.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                return -1;
+            }
+        }
+    }
+    if (!asm_link_obj_skip_missing(get_crt0_user_o_path(argv0))) {
+        fprintf(stderr, "shu: crt0_user.o missing after cc -c (expected %s)\n", out_o);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHU_FREESTANDING 链入 shulang_sys_write）。
+ */
+static int ensure_freestanding_io_o(const char *argv0) {
+    char comp[PATH_MAX];
+    char out_o[PATH_MAX];
+    char src_s[PATH_MAX];
+    if (!shu_ld_freestanding_enabled())
+        return 0;
+    if (asm_link_obj_skip_missing(get_freestanding_io_o_path(argv0)))
+        return 0;
+    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
+        fprintf(stderr, "shu: cannot resolve compiler directory to build freestanding_io.o\n");
+        return -1;
+    }
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/freestanding_io.o", comp) >= sizeof out_o)
+        return -1;
+    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/freestanding_io_x86_64.s", comp) >= sizeof src_s
+        || access(src_s, R_OK) != 0) {
+        fprintf(stderr, "shu: freestanding_io source not found at %s\n", src_s);
+        return -1;
+    }
+    {
+        pid_t pid = fork();
+        if (pid < 0) {
+            perror("shu: fork (freestanding_io.o)");
+            return -1;
+        }
+        if (pid == 0) {
+            execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
+            perror("shu: cc (freestanding_io.o)");
+            _exit(127);
+        }
+        {
+            int st;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return -1;
+            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
+                fprintf(stderr, "shu: failed to build freestanding_io.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                return -1;
+            }
+        }
+    }
+    if (!asm_link_obj_skip_missing(get_freestanding_io_o_path(argv0))) {
+        fprintf(stderr, "shu: freestanding_io.o missing after cc -c (expected %s)\n", out_o);
         return -1;
     }
     return 0;
@@ -1292,6 +1691,35 @@ static const char *shu_asm_ld_effective_link_argv0(const char *link_argv0, char 
     if (nn < 0 || (size_t)nn >= syn_sz)
         return NULL;
     return syn_buf;
+}
+
+/**
+ * 按用户 .o 未定义符号按需追加 std 伴生对象（如 std/async/scheduler.o）。
+ * 须在 asm_ld_append_std_objs 之后、exec ld/gcc 之前调用。
+ */
+static void asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots,
+    struct ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
+#if defined(__linux__) || defined(__APPLE__)
+    const char *p;
+    if (!user_o || !user_o[0] || !la || *la >= max_la - 1)
+        return;
+    if (!asm_user_o_needs_async_scheduler(user_o))
+        return;
+    p = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+#else
+    (void)link_argv0;
+    (void)user_o;
+    (void)lib_roots;
+    (void)n_lib_roots;
+    (void)bank;
+    (void)argv;
+    (void)la;
+    (void)max_la;
+#endif
 }
 
 /**
@@ -1558,6 +1986,7 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = exe_path;
             argv[la++] = o_path;
             asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
             if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
@@ -1578,6 +2007,7 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = exe_path;
             argv[la++] = o_path;
             asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
             if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
@@ -1606,6 +2036,7 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = out_opt;
             argv[la++] = o_path;
             asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
             execvp("lld-link", (char *const *)argv);
@@ -1617,13 +2048,88 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
         la = 0;
         ld_bank_child.n = 0;
         memset(ld_bank_child.slots, 0, sizeof ld_bank_child.slots);
+#if defined(__linux__)
+        /* S4：`-freestanding` 时 crt0_user +（按需）runtime_panic +（按需）freestanding_io + 用户 .o */
+        if (shu_ld_freestanding_enabled()) {
+            const char *crt0_p;
+            const char *panic_p;
+            const char *io_p;
+            int need_io = 0;
+            int need_panic = 0;
+            need_io = freestanding_user_o_needs_io(o_path);
+            need_panic = freestanding_user_o_needs_panic(o_path);
+            argv[la++] = "ld";
+            argv[la++] = "-nostdlib";
+            argv[la++] = "-static";
+            if (la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "--gc-sections";
+            argv[la++] = "-o";
+            argv[la++] = exe_path;
+            crt0_p = asm_link_obj_skip_missing(get_crt0_user_o_path(link_eff));
+            if (!crt0_p) {
+                fprintf(stderr, "shu: freestanding link missing crt0_user.o\n");
+                _exit(127);
+            }
+            panic_p = NULL;
+            if (need_panic)
+                panic_p = asm_link_obj_skip_missing(get_runtime_panic_o_path(link_eff));
+            if (need_panic && !panic_p) {
+                fprintf(stderr, "shu: freestanding link missing runtime_panic.o (user references shulang_panic_)\n");
+                _exit(127);
+            }
+            io_p = NULL;
+            if (need_io)
+                io_p = asm_link_obj_skip_missing(get_freestanding_io_o_path(link_eff));
+            if (need_io && !io_p) {
+                fprintf(stderr, "shu: freestanding link missing freestanding_io.o (user references shulang_sys_write)\n");
+                _exit(127);
+            }
+            if (la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = crt0_p;
+            if (need_panic && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = panic_p;
+            if (need_io && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = io_p;
+            if (la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = o_path;
+            argv[la] = NULL;
+            execvp("ld", (char *const *)argv);
+            perror("shu: ld (freestanding)");
+            _exit(127);
+        }
+#endif
+#if defined(__linux__)
+        /*
+         * 自包含 .o（nm -u 为空）：gcc 仅链 user.o + libc crt。
+         * 勿 append 全量 std/*.o（Alpine/musl 上 ld 可能挂起或 SIGKILL，且 return-value 等无需 std）。
+         */
+        if (!asm_user_o_has_undef_syms(o_path)) {
+            argv[la++] = "gcc";
+            argv[la++] = "-o";
+            argv[la++] = exe_path;
+            argv[la++] = o_path;
+            if (la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lc";
+            argv[la] = NULL;
+            execvp("gcc", (char *const *)argv);
+            perror("shu: gcc (minimal user.o)");
+            _exit(127);
+        }
+#endif
+#if defined(__linux__)
+        /* Linux ELF：gcc 驱动链接（crt _start→main）；裸 ld -e main 缺 crt 初始化易 SIGSEGV。 */
+        argv[la++] = "gcc";
+#else
+        /* 其它 Unix 非 Mach-O/COFF：裸 ld + _main 入口（与 Mach-O 命名一致）。 */
         argv[la++] = "ld";
         argv[la++] = "-e";
         argv[la++] = "_main";
+#endif
         argv[la++] = "-o";
         argv[la++] = exe_path;
         argv[la++] = o_path;
         asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
+        asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
         if (ldflags.have_io) {
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-luring";
@@ -1669,8 +2175,13 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
 #endif
         }
         argv[la] = NULL;
+#if defined(__linux__)
+        execvp("gcc", (char *const *)argv);
+        perror("shu: gcc");
+#else
         execvp("ld", (char *const *)argv);
         perror("shu: ld");
+#endif
         _exit(127);
     }
     {
@@ -1678,7 +2189,10 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
         if (shu_waitpid_retry(pid, &status) != 0)
             return -1;
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "shu: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+            if (WIFSIGNALED(status))
+                fprintf(stderr, "shu: ld failed (signal %d)\n", WTERMSIG(status));
+            else
+                fprintf(stderr, "shu: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
             return -1;
         }
     }
@@ -1709,6 +2223,7 @@ struct ast_PipelineDepCtx {
     int32_t preprocess_len;
     int32_t use_asm_backend;
     int32_t target_arch;
+    int32_t target_cpu_features;
     int32_t use_macho_o;
     int32_t use_coff_o;
     int32_t current_block_ref;
@@ -1788,6 +2303,37 @@ int32_t driver_asm_build_skip_typeck(void) {
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
+/** asm 用户程序：std.io/fs/net dep 跳过 .su typeck（符号由 io.o/fs.o/net.o 提供；见 ast_pool.c）。 */
+extern int32_t pipeline_asm_user_dep_skip_su_typeck(uint8_t *path);
+extern int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path);
+extern void pipeline_asm_seed_std_net_struct_layouts(struct ast_Module *m);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
+
+static int asm_user_std_dep_skip_su_typeck(const char *dep_path) {
+    if (!dep_path || dep_path[0] == '\0')
+        return 0;
+    return pipeline_asm_user_dep_skip_su_typeck((uint8_t *)dep_path) != 0;
+}
+
+/** std.net dep 路径：须 co-emit listen/accept_many 等，但 seed .su typeck 对 stream_* 假阳性。 */
+static int asm_user_std_net_dep_path(const char *dep_path) {
+    if (!dep_path || dep_path[0] == '\0')
+        return 0;
+    return pipeline_asm_user_std_net_dep_path((uint8_t *)dep_path) != 0;
+}
+
+/** std.io.driver：co-emit submit_* 包装供 std.net stream_*_batch；seed typeck 对 register 假阳性。 */
+static int asm_user_std_io_driver_dep_path(const char *dep_path) {
+    if (!dep_path || dep_path[0] == '\0')
+        return 0;
+    return pipeline_codegen_path_is_std_io_driver_bytes((uint8_t *)dep_path) != 0;
+}
+
+static int asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
+    return asm_user_std_net_dep_path(dep_path) || asm_user_std_io_driver_dep_path(dep_path);
+}
+
 /**
  * typeck 第二遍 EMIT_HEAVY：pipeline 跳过文本 asm codegen，由 runtime asm_codegen_elf_o 单路径真 emit。
  */
@@ -1809,24 +2355,63 @@ static void *pipeline_run_su_thread_fn(void *arg) {
 }
 
 /**
+ * 在 256MiB 栈 pthread 上执行 fn(arg)；SHU_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
+ * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，C typeck / asm_codegen_elf_o 深递归须与大 pipeline 同路径。
+ */
+static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+    pthread_attr_t attr;
+    pthread_t tid;
+    void *stk = NULL;
+    size_t stack_sz = (size_t)256 * 1024 * 1024;
+    const char *no_large = getenv("SHU_PIPELINE_NO_LARGE_STACK");
+    driver_bump_stack_limit_if_needed();
+    if (no_large != NULL && no_large[0] != '\0' && no_large[0] != '0') {
+        fn(arg);
+        return;
+    }
+    if (pthread_attr_init(&attr) != 0) {
+        fn(arg);
+        return;
+    }
+    (void)pthread_attr_setguardsize(&attr, 0);
+    if (posix_memalign(&stk, (size_t)65536, stack_sz) != 0)
+        stk = NULL;
+    if (stk != NULL && pthread_attr_setstack(&attr, stk, stack_sz) == 0) {
+        if (pthread_create(&tid, &attr, fn, arg) == 0) {
+            pthread_join(tid, NULL);
+            pthread_attr_destroy(&attr);
+            free(stk);
+            return;
+        }
+    }
+    pthread_attr_destroy(&attr);
+    free(stk);
+    if (pthread_attr_init(&attr) != 0) {
+        fn(arg);
+        return;
+    }
+    if (pthread_attr_setstacksize(&attr, stack_sz) != 0) {
+        pthread_attr_destroy(&attr);
+        fn(arg);
+        return;
+    }
+    if (pthread_create(&tid, &attr, fn, arg) != 0) {
+        pthread_attr_destroy(&attr);
+        fn(arg);
+        return;
+    }
+    pthread_join(tid, NULL);
+    pthread_attr_destroy(&attr);
+}
+
+/**
  * 在 64MiB 栈的 pthread 上调用 pipeline_run_su_pipeline；失败时回退到当前线程直接调用。
  * 大模块（typeck/parser）经 .su 编译后栈帧极深，setrlimit 无法突破 macOS RLIMIT_STACK 硬顶时需此路径。
  */
 static int pipeline_run_su_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     driver_set_pipeline_entry_source_len(source_len);
-    driver_bump_stack_limit_if_needed();
-    const char *no_large = getenv("SHU_PIPELINE_NO_LARGE_STACK");
-    if (no_large != NULL && no_large[0] != '\0' && no_large[0] != '0') {
-        driver_set_pipeline_entry_source_len(source_len);
-        return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
-    }
     PipelineRunSuArgs args;
-    pthread_attr_t attr;
-    pthread_t tid;
-    void *stk = NULL;
-    /* macOS 主线程 RLIMIT_STACK 硬顶常为 8MiB；用页对齐栈 + pthread_attr_setstack 供 typeck 深递归。 */
-    size_t stack_sz = (size_t)256 * 1024 * 1024;
     args.module = module;
     args.arena = arena;
     args.source_data = source_data;
@@ -1834,34 +2419,35 @@ static int pipeline_run_su_pipeline_large_stack(void *module, void *arena, const
     args.out_buf = out_buf;
     args.ctx = ctx;
     args.result = -99;
-    if (pthread_attr_init(&attr) != 0)
+    driver_run_thread_on_large_stack(pipeline_run_su_thread_fn, &args);
+    if (args.result == -99)
         return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
-    (void)pthread_attr_setguardsize(&attr, 0);
-    if (posix_memalign(&stk, (size_t)65536, stack_sz) != 0)
-        stk = NULL;
-    if (stk != NULL && pthread_attr_setstack(&attr, stk, stack_sz) == 0) {
-        if (pthread_create(&tid, &attr, pipeline_run_su_thread_fn, &args) == 0) {
-            pthread_join(tid, NULL);
-            pthread_attr_destroy(&attr);
-            free(stk);
-            return args.result;
-        }
-    }
-    pthread_attr_destroy(&attr);
-    free(stk);
-    if (pthread_attr_init(&attr) != 0)
-        return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
-    if (pthread_attr_setstacksize(&attr, stack_sz) != 0) {
-        pthread_attr_destroy(&attr);
-        return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
-    }
-    if (pthread_create(&tid, &attr, pipeline_run_su_thread_fn, &args) != 0) {
-        pthread_attr_destroy(&attr);
-        return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
-    }
-    pthread_join(tid, NULL);
-    pthread_attr_destroy(&attr);
     return args.result;
+}
+
+/**
+ * dep 预跑：完整 pipeline parse，跳过 .su typeck/codegen；供 std.net 等 co-emit 前填 funcs（parse_only 对库模块常 funcs=0）。
+ */
+static int pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+    int saved = driver_check_only_get();
+    int saved_entry_only = 0;
+    int ec;
+    struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)one_ctx;
+    driver_check_only_set(1);
+    if (pctx) {
+        saved_entry_only = pctx->asm_entry_module_only;
+        pctx->asm_entry_module_only = 1;
+    }
+    driver_su_pipeline_skip_typeck_set(1);
+    driver_su_pipeline_skip_codegen_set(1);
+    ec = pipeline_run_su_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    driver_su_pipeline_skip_codegen_set(0);
+    driver_su_pipeline_skip_typeck_set(0);
+    if (pctx)
+        pctx->asm_entry_module_only = saved_entry_only;
+    driver_check_only_set(saved ? 1 : 0);
+    return ec;
 }
 
 /**
@@ -1982,11 +2568,47 @@ static void pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const
 }
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
+extern int32_t pipeline_typeck_su_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
 /** 7.4：ELF .o 路径；由 Makefile 追加到 pipeline_gen.c，用于分配 ElfCodegenCtx */
 extern size_t pipeline_sizeof_elf_ctx(void);
 /** 7.4：直接生成 ELF64 .o 到 out_buf（仅 x86_64）；由 asm.su 提供，pipeline_su.o 链接；ElfCodegenCtx 在 platform/elf.su，C 侧为 platform_elf_ElfCodegenCtx。out_buf 用 void* 避免不同 GCC 下「形参内 struct 声明不可见」导致 -Wincompatible-pointer-types。 */
 struct platform_elf_ElfCodegenCtx;
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
+
+/** asm_codegen_elf_o 大栈线程参数（与 pipeline_run_su_pipeline_large_stack 同策略）。 */
+typedef struct {
+    void *module;
+    void *arena;
+    void *ctx;
+    struct platform_elf_ElfCodegenCtx *elf_ctx;
+    void *out_buf;
+    int32_t result;
+} AsmCodegenElfLargeArgs;
+
+/** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
+static void *asm_codegen_elf_o_thread_fn(void *arg) {
+    AsmCodegenElfLargeArgs *a = (AsmCodegenElfLargeArgs *)arg;
+    a->result = asm_asm_codegen_elf_o(a->module, a->arena, a->ctx, a->elf_ctx, a->out_buf);
+    return NULL;
+}
+
+/**
+ * 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；C typeck 后主线程栈已深时避免 lexer_next emit Abort。
+ */
+static int32_t asm_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+    AsmCodegenElfLargeArgs args;
+    args.module = module;
+    args.arena = arena;
+    args.ctx = ctx;
+    args.elf_ctx = elf_ctx;
+    args.out_buf = out_buf;
+    args.result = -99;
+    driver_run_thread_on_large_stack(asm_codegen_elf_o_thread_fn, &args);
+    if (args.result == -99)
+        return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
+    return args.result;
+}
 extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
 
 #if !defined(SHU_USE_SU_DRIVER)
@@ -2025,8 +2647,25 @@ static int invoke_ld(const char *o_path, const char *exe_path, const char *targe
     link_eff = shu_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
+#if defined(__linux__)
+    if (freestanding_prepare_runtime_panic_o(link_eff, o_path) != 0)
+        return -1;
+#else
     if (ensure_runtime_panic_o(link_eff) != 0)
         return -1;
+#endif
+    if (ensure_crt0_user_o(link_eff) != 0)
+        return -1;
+#if defined(__linux__)
+    if (shu_ld_freestanding_enabled() && freestanding_user_o_needs_io(o_path)) {
+        if (ensure_freestanding_io_o(link_eff) != 0)
+            return -1;
+    }
+#endif
+    if (shu_ld_freestanding_enabled() && (use_macho_o || use_coff_o)) {
+        fprintf(stderr, "shu: -freestanding / SHU_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
+        return -1;
+    }
     return asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
 }
 #endif /* !SHU_USE_SU_DRIVER */
@@ -2655,6 +3294,8 @@ static const char *token_kind_str(TokenKind k) {
         case TOKEN_MATCH:   return "MATCH";
         case TOKEN_STRUCT:  return "STRUCT";
         case TOKEN_PACKED:  return "PACKED";
+        case TOKEN_SOA:     return "SOA";
+        case TOKEN_ATTR_SOA: return "ATTR_SOA";
         case TOKEN_ENUM:    return "ENUM";
         case TOKEN_GOTO:    return "GOTO";
         case TOKEN_TRAIT:   return "TRAIT";
@@ -2729,6 +3370,7 @@ static const char *token_kind_str(TokenKind k) {
         case TOKEN_BANG:   return "BANG";
         case TOKEN_QUESTION: return "QUESTION";
         case TOKEN_AS:     return "AS";
+        case TOKEN_AT:     return "AT";
         case TOKEN_ASSIGN: return "ASSIGN";
         default:            return "?";
     }
@@ -2932,11 +3574,52 @@ struct dce_ctx {
     ASTModule *entry;
     ASTModule **deps;
     int nd;
+    const CodegenWpoReach *wpo; /**< 非 NULL 且 valid 时 WPO 全程序 dead export 剔除 */
 };
+#define RUNTIME_MAX_USED_FUNCS 256
+#define RUNTIME_MAX_DCE_MODULES 33
+/** 填充 DCE 上下文：classic compute_used + 可选 WPO reach；*dce_ready 非 0 时可传 dce 回调。 */
+static void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
+    ASTFunc **used_funcs, int *n_used, int used_mono[RUNTIME_MAX_DCE_MODULES][64],
+    const char **used_type_names, int *n_used_types,
+    CodegenWpoReach *wpo_reach, struct dce_ctx *dce, int *dce_ready) {
+    *dce_ready = 0;
+    *n_used = 0;
+    *n_used_types = 0;
+    memset(wpo_reach, 0, sizeof(*wpo_reach));
+    dce->used = used_funcs;
+    dce->n = 0;
+    dce->mono = used_mono;
+    dce->mono_rows = 1 + n_all;
+    dce->used_type_names = NULL;
+    dce->n_used_types = 0;
+    dce->entry = mod;
+    dce->deps = all_dep_mods;
+    dce->nd = n_all;
+    dce->wpo = NULL;
+    if (n_all >= 0 && n_all < RUNTIME_MAX_DCE_MODULES - 1) {
+        codegen_compute_used(mod, all_dep_mods, n_all, used_funcs, n_used, RUNTIME_MAX_USED_FUNCS, used_mono);
+        codegen_compute_used_types(mod, all_dep_mods, n_all, used_funcs, *n_used, used_type_names, n_used_types, 64);
+        dce->used_type_names = used_type_names;
+        dce->n_used_types = *n_used_types;
+        dce->n = *n_used;
+        *dce_ready = 1;
+    }
+    /* WPO v0：全程序 call graph 可达性；typeck 后始终构建，供 DCE 剔除 dead export（含 import 库）。 */
+    codegen_wpo_reach_compute(wpo_reach, mod, all_dep_mods, n_all);
+    if (wpo_reach->valid) {
+        dce->wpo = wpo_reach;
+        *dce_ready = 1;
+    }
+}
 static int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
-    if (!c || !c->used) return 1;
-    /* 库模块（非入口）：始终保留符号，避免入口 extern 引用的 import 函数被误删导致链接失败 */
+    if (!c) return 1;
+    if (func && func->is_extern) return 1;
+    if (c->wpo && c->wpo->valid)
+        return codegen_wpo_reach_is_reachable(c->wpo, mod, func);
+    if (!c->used) return 1;
+    /* 库模块（非入口）：classic DCE 仅剔除入口模块；WPO 见上方 c->wpo 分支。 */
     if (mod != c->entry) return 1;
     for (int i = 0; i < c->n; i++)
         if (c->used[i] == func) return 1;
@@ -3415,8 +4098,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 runtime_one_ctx_for_dep_prerun(one_ctx, j, dep_modules[j], dep_arenas[j]);
                 pipeline_fill_ctx_path_buffers(one_ctx, runtime_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                     lib_roots_arr, n_lib_roots);
-                int ec = pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
-                    (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                int ec;
+                if (use_asm_backend && emit_elf_o && asm_user_std_dep_skip_su_typeck(dep_paths[j])) {
+                    ec = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                        (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+                } else if (use_asm_backend && emit_elf_o && asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
+                    ec = pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                        (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                    if (ec == 0 && asm_user_std_net_dep_path(dep_paths[j]))
+                        pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
+                } else {
+                    ec = pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+                        (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                }
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 if (ec != 0) {
@@ -3439,6 +4133,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             pctx->target_arch = 1;
         if (target && strstr(target, "riscv64") != NULL)
             pctx->target_arch = 2;
+        pctx->target_cpu_features = (int32_t)driver_get_pending_target_cpu_features();
 #if defined(__APPLE__) && defined(__aarch64__)
         /* 未传 -target 时 Mach-O 须与宿主一致，避免 x86_64 对象与 arm64 runtime 混链。 */
         if (!target)
@@ -3484,7 +4179,16 @@ int RUN_CC_FUNC(int argc, char **argv) {
             parser_parse_into_init(module, arena);
             pctx->entry_already_parsed = 0;
         }
+        /*
+         * run_compiler_c + import 降级路径：仍可能 -o .o 并走 asm_codegen_elf_o；与 driver_run_asm_backend 一致跳过 .su typeck。
+         */
+        if (emit_elf_o && out_path && !driver_check_only_get()) {
+            driver_su_pipeline_skip_typeck_set(1);
+            driver_su_pipeline_skip_codegen_set(1);
+        }
         int ec = pipeline_run_su_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+        driver_su_pipeline_skip_typeck_set(0);
+        driver_su_pipeline_skip_codegen_set(0);
         if (getenv("SHU_ASM_ENTRY_DEBUG")) {
             fprintf(stderr, "shu: asm entry dbg ec=%d num_funcs=%d out_asm_len=%zu\n",
                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -3493,7 +4197,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         codegen_set_dep_slots_for_su_pipeline(NULL, NULL, 0);
         if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
             if (emit_elf_o && elf_ctx_ptr) {
-                int32_t elf_ec = asm_asm_codegen_elf_o(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+                driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+                int32_t elf_ec = asm_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
                 if (elf_ec != 0 || out_buf->len <= 0) {
                     fprintf(stderr, "shu: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
                             (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
@@ -3629,6 +4334,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 1;
     }
 
+    /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（SHU_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
+    {
+        const char *wpo_out = getenv("SHU_WPO_DUMP_CALLGRAPH");
+        if (wpo_out && wpo_out[0]) {
+            FILE *wf = (strcmp(wpo_out, "-") == 0) ? stdout : fopen(wpo_out, "w");
+            if (wf) {
+                codegen_dump_wpo_callgraph_json(wf, mod, input_path,
+                    n_all > 0 ? all_dep_mods : NULL,
+                    n_all > 0 ? (const char **)all_dep_paths : NULL, n_all);
+                if (wf != stdout) fclose(wf);
+            }
+        }
+    }
+
     /** shu check（C 路径）：typeck 通过后跳过 codegen 与链接。 */
     if (driver_check_only_get()) {
         while (n_all--) {
@@ -3647,6 +4366,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
         char emitted_type_buf[128][CODEGEN_EMITTED_TYPE_NAME_MAX];
         int n_emitted = 0;
         const int max_emitted = (int)(sizeof(emitted_type_buf) / sizeof(emitted_type_buf[0]));
+        ASTFunc *used_funcs[RUNTIME_MAX_USED_FUNCS];
+        int n_used = 0;
+        int used_mono[RUNTIME_MAX_DCE_MODULES][64];
+        const char *used_type_names[64];
+        int n_used_types = 0;
+        CodegenWpoReach wpo_reach;
+        struct dce_ctx dce;
+        int dce_ready = 0;
+        runtime_prepare_dce_ctx(mod, all_dep_mods, n_all, used_funcs, &n_used, used_mono, used_type_names, &n_used_types, &wpo_reach, &dce, &dce_ready);
+        void *dce_ctx_arg = dce_ready ? (void *)&dce : NULL;
+        /* -E-extern 瘦 TU（typeck_gen/parser_gen/codegen_gen）：入口无 main/entry 根，WPO/classic DCE 会误删
+         * 入口模块全体符号；须 emit 全量函数供 pipeline_su.o 链接 C 依赖实现。 */
+        if (emit_extern_imports)
+            dce_ctx_arg = NULL;
 
         if (n_all > 0) {
             /* 有依赖时与 -o 单文件一致：先统一输出 include 与 panic，再按拓扑序写各库，最后写入口，类型名去重避免重定义。
@@ -3693,9 +4426,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         }
                     }
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
-                    if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted) != 0) {
+                    if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted) != 0) {
 #else
-                    if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
+                    if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
 #endif
                         ec = -1;
                         break;
@@ -3707,15 +4440,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 const char *lib_name = entry_lib_name_from_path(input_path);
                 if (mod->num_funcs > 0) {
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
-                    ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
+                    ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
-                    ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted, input_path);
+                    ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, input_path);
 #endif
                 } else if (mod->main_func && mod->main_func->body) {
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
-                    ec = codegen_codegen_entry_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
+                    ec = codegen_codegen_entry_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
-                    ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
+                    ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #endif
                 } else {
                     fprintf(stderr, "shu: no main function (cannot emit C)\n");
@@ -3726,16 +4459,16 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* 无依赖：仅输出入口模块（保持原有行为） */
             if (mod->main_func && mod->main_func->body) {
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
-                ec = codegen_codegen_entry_module_to_c(mod, stdout, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+                ec = codegen_codegen_entry_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
-                ec = codegen_module_to_c(mod, stdout, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+                ec = codegen_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #endif
             } else if (mod->num_funcs > 0) {
                 const char *lib_name = entry_lib_name_from_path(input_path);
 #if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
-                ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+                ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
-                ec = codegen_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path);
+                ec = codegen_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0, input_path);
 #endif
             } else {
                 fprintf(stderr, "shu: no main function (cannot emit C)\n");
@@ -3754,29 +4487,24 @@ int RUN_CC_FUNC(int argc, char **argv) {
     /* 若指定 -o：需有 main，生成 C（含 import 的 .c）→ 调用 cc 链接；依赖使用已加载的 dep_mods（7.3 跨模块调用 + 传递依赖）；阶段 8.1 DCE 仅生成被引用函数与单态化 */
     if (out_path) {
         codegen_set_preamble_has_core_option_result(0); /* C 路径 preamble 无 Option/Result，由 codegen 输出 */
-        if (!mod->main_func || !mod->main_func->body) {
+        ASTFunc *root_func = codegen_entry_root_func(mod);
+        if (!root_func || !root_func->body) {
             fprintf(stderr, "shu: no main function (cannot emit executable)\n");
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
             free(src);
             return 1;
         }
-        /* 阶段 8.1 DCE：从 main 起算可达性，仅生成已引用函数与 mono 实例；未做 DCE 时传 NULL 避免误删库符号 */
-        #define MAX_USED_FUNCS 256
-        #define MAX_DCE_MODULES 33
-        ASTFunc *used_funcs[MAX_USED_FUNCS];
+        ASTFunc *used_funcs[RUNTIME_MAX_USED_FUNCS];
         int n_used = 0;
-        int used_mono[MAX_DCE_MODULES][64];
+        int used_mono[RUNTIME_MAX_DCE_MODULES][64];
         const char *used_type_names[64];
         int n_used_types = 0;
-        int dce_done = 0;
-        if (n_all >= 0 && n_all < MAX_DCE_MODULES - 1) {
-            codegen_compute_used(mod, all_dep_mods, n_all, used_funcs, &n_used, MAX_USED_FUNCS, used_mono);
-            codegen_compute_used_types(mod, all_dep_mods, n_all, used_funcs, n_used, used_type_names, &n_used_types, 64);
-            dce_done = 1;
-        }
-        struct dce_ctx dce = { used_funcs, n_used, used_mono, 1 + n_all, dce_done ? used_type_names : NULL, n_used_types, mod, all_dep_mods, n_all };
-        void *dce_ctx_arg = dce_done ? (void *)&dce : NULL;
+        CodegenWpoReach wpo_reach;
+        struct dce_ctx dce;
+        int dce_ready = 0;
+        runtime_prepare_dce_ctx(mod, all_dep_mods, n_all, used_funcs, &n_used, used_mono, used_type_names, &n_used_types, &wpo_reach, &dce, &dce_ready);
+        void *dce_ctx_arg = dce_ready ? (void *)&dce : NULL;
 
         const char *c_paths[MAX_C_FILES];
         int n_c = 0;
@@ -4727,6 +5455,11 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
     lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
 }
 
+/** .su typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
+void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");
+}
+
 /** .su typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     const char *msg = "typeck error: enum has no variant";
@@ -4915,6 +5648,12 @@ void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx) {
     fflush(stderr);
 }
 
+/** asm 后端：Mach-O 写出时外部 reloc 未命中 und 池（常与 macho_leading_underscore 未置 1 有关）。 */
+void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx) {
+    fprintf(stderr, "shu: macho undef reloc not in und pool at idx=%d\n", (int)reloc_idx);
+    fflush(stderr);
+}
+
 /** asm 后端：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 static int driver_diagnostic_asm_last_expr_kind = -1;
 void driver_diagnostic_asm_set_last_expr_kind(int32_t k) {
@@ -4925,11 +5664,29 @@ void driver_diagnostic_asm_set_last_expr_kind(int32_t k) {
 static uint8_t driver_diagnostic_asm_current_func[72];
 static int driver_diagnostic_asm_current_func_len = 0;
 void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
+    const char *trace;
     driver_diagnostic_asm_current_func_len = (len > 0 && len <= 64) ? (int)len : 0;
     if (name && driver_diagnostic_asm_current_func_len > 0) {
         for (int i = 0; i < driver_diagnostic_asm_current_func_len; i++)
             driver_diagnostic_asm_current_func[i] = name[i];
     }
+    /** SHU_ASM_FUNC_TRACE=1：打印当前 asm emit 函数名，便于二分大模块失败点。 */
+    trace = getenv("SHU_ASM_FUNC_TRACE");
+    if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
+        fprintf(stderr, "asm_trace: %.*s\n", driver_diagnostic_asm_current_func_len,
+                (const char *)driver_diagnostic_asm_current_func);
+        fflush(stderr);
+    }
+}
+
+/** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHU_ASM_DEBUG）。 */
+void driver_diagnostic_asm_print_current_func(void) {
+    if (driver_diagnostic_asm_current_func_len > 0)
+        fprintf(stderr, "shu: asm codegen failed in func=%.*s\n", driver_diagnostic_asm_current_func_len,
+                (const char *)driver_diagnostic_asm_current_func);
+    else
+        fprintf(stderr, "shu: asm codegen failed (func unknown)\n");
+    fflush(stderr);
 }
 
 /** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.su 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
@@ -5017,6 +5774,28 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
     return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
 }
 #endif /* SHU_USE_SU_PIPELINE */
+
+/** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
+ * 须在 #if SHU_USE_SU_PIPELINE 外：C 前端 typeck.o（shu-c）也调用。 */
+void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
+                                                       int32_t f0_len, const uint8_t *f1, int32_t f1_len) {
+    fprintf(stderr,
+            "warning: -pad-fields: struct '%.*s' fields '%.*s' and '%.*s' share a 64-byte cache line; "
+            "consider align(64) to avoid false sharing\n",
+            (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
+            (int)(f0_len > 0 ? f0_len : 0), (const char *)(f0 ? f0 : (const uint8_t *)""),
+            (int)(f1_len > 0 ? f1_len : 0), (const char *)(f1 ? f1 : (const uint8_t *)""));
+}
+
+/** DOD-CL-S2 -hot-reorder：热标量字段宜置大字段之前；C 前端 typeck.o 亦调用。 */
+void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
+                                              int32_t hot_len, const uint8_t *cold, int32_t cold_len) {
+    fprintf(stderr,
+            "warning: -hot-reorder: struct '%.*s': consider moving hot field '%.*s' before '%.*s'\n",
+            (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
+            (int)(hot_len > 0 ? hot_len : 0), (const char *)(hot ? hot : (const uint8_t *)""),
+            (int)(cold_len > 0 ? cold_len : 0), (const char *)(cold ? cold : (const uint8_t *)""));
+}
 
 #ifdef SHU_USE_SU_DRIVER
 /* 阶段 6.2：main.su 内实现 argv 解析与 -su -E 执行逻辑；C 仅提供极薄原语 driver_get_argv_i。 */
@@ -5323,16 +6102,46 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     return content_has_generic_syntax(content, n);
 }
 
-/** 检测内存源码是否含复合赋值（+= 等）；.su 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。 */
+/** 检测内存源码是否含复合赋值（+= 等）；.su 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
+ * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
 static int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
     /* 长 token 优先，避免 `<<=` 被 `+=` 子串误伤。 */
     static const char *tokens[] = {"<<=", ">>=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="};
-    size_t i;
-    for (i = 0; i < sizeof(tokens) / sizeof(tokens[0]); i++) {
-        if (strstr(content, tokens[i]) != NULL)
-            return 1;
+    size_t pos = 0;
+    while (pos < n) {
+        if (pos + 1 < n && content[pos] == '/' && content[pos + 1] == '/') {
+            pos += 2;
+            while (pos < n && content[pos] != '\n')
+                pos++;
+            continue;
+        }
+        if (pos + 1 < n && content[pos] == '/' && content[pos + 1] == '*') {
+            pos += 2;
+            while (pos + 1 < n && !(content[pos] == '*' && content[pos + 1] == '/'))
+                pos++;
+            pos += (pos + 1 < n) ? 2 : 0;
+            continue;
+        }
+        if (content[pos] == '"') {
+            pos++;
+            while (pos < n && content[pos] != '"') {
+                if (content[pos] == '\\' && pos + 1 < n)
+                    pos += 2;
+                else
+                    pos++;
+            }
+            if (pos < n)
+                pos++;
+            continue;
+        }
+        for (size_t i = 0; i < sizeof(tokens) / sizeof(tokens[0]); i++) {
+            size_t tlen = strlen(tokens[i]);
+            if (pos + tlen <= n && memcmp(content + pos, tokens[i], tlen) == 0)
+                return 1;
+        }
+        pos++;
     }
     return 0;
 }
@@ -5561,8 +6370,25 @@ static int driver_asm_invoke_ld(const char *o_path, const char *exe_path, const 
     link_eff = shu_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
+#if defined(__linux__)
+    if (freestanding_prepare_runtime_panic_o(link_eff, o_path) != 0)
+        return -1;
+#else
     if (ensure_runtime_panic_o(link_eff) != 0)
         return -1;
+#endif
+    if (ensure_crt0_user_o(link_eff) != 0)
+        return -1;
+#if defined(__linux__)
+    if (shu_ld_freestanding_enabled() && freestanding_user_o_needs_io(o_path)) {
+        if (ensure_freestanding_io_o(link_eff) != 0)
+            return -1;
+    }
+#endif
+    if (shu_ld_freestanding_enabled() && (use_macho_o || use_coff_o)) {
+        fprintf(stderr, "shu: -freestanding / SHU_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
+        return -1;
+    }
     return asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
 }
 
@@ -5584,6 +6410,8 @@ static int driver_asm_out_buf_is_object(const struct codegen_CodegenOutBuf *out)
 #if !defined(SHU_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
+static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
+    int print_ok);
 #endif
 
 #if !defined(SHU_NO_C_FRONTEND)
@@ -5878,6 +6706,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pctx->target_arch = 1;
     if (target && strstr(target, "riscv64") != NULL)
         pctx->target_arch = 2;
+    pctx->target_cpu_features = (int32_t)driver_get_pending_target_cpu_features();
 #if defined(__APPLE__) && defined(__aarch64__)
     if (!target)
         pctx->target_arch = 1;
@@ -5897,6 +6726,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * 用户多文件（tests/multi-file 等）：须在 asm_codegen_elf_o 内编入各 dep，否则 ld 缺 _foo_bar 等符号。
      */
     if (asm_want_exe && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() != 0)
+        pctx->asm_entry_module_only = 1;
+    /**
+     * 用户单文件 -o（无 dep、非 build_shu_asm SKIP_TYPECK）：强制 ENTRY_MODULE_ONLY，
+     * 与 asm_skip_heavy 用户完整 emit 分支对齐（seed shu return42 等 freestanding 烟测）。
+     */
+    if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0)
         pctx->asm_entry_module_only = 1;
     driver_dep_seeded_clear_all();
     /*
@@ -5936,6 +6771,37 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             if (asm_smoke_only) {
                 ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+            } else if (emit_elf_o && asm_user_std_dep_skip_su_typeck(dep_paths[j])) {
+                /*
+                 * 用户 asm -o：std.io/fs 由并列 *.o 提供 *_c，dep 仅 parse 填 import 槽；
+                 * 勿对 read_fd 等跑 .su typeck（与 user_asm_seed_bridge dep skip emit 对齐）。
+                 */
+                ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                    (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+            } else if (emit_elf_o && asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
+                /*
+                 * std.net：须 co-emit listen/accept_many；parse_only 常 funcs=0，改 parse+skip typeck 填槽。
+                 */
+                ec_loop = pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                    (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                if (ec_loop == 0 && asm_user_std_net_dep_path(dep_paths[j]))
+                    pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
+            } else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0) {
+                /*
+                 * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .su typeck（栈/耗时）。
+                 * 入口模块类型由 driver_c_typeck_entry 与并列 build_asm/*.o 保证。
+                 */
+                ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                    (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
+            } else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck()) {
+                /*
+                 * B-strict shu_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .su typeck（见下方 set）。
+                 * 注：std.string/heap 等 .su 符号须 shu-c 链 exe，或后续改 co-emit 填全量 func 槽。
+                 */
+                ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                    (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+#endif
             } else {
                 ec_loop = pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
@@ -5976,6 +6842,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         entry_name = entry_name ? entry_name + 1 : input_path;
         if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
             fprintf(stderr, ">> [ASM_ENTRY_DEBUG] entry=%s n_deps=%d\n", entry_name, n_deps);
+            fflush(stderr);
         }
         /* 1. 预检：当前文件长度 */
         if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
@@ -5988,32 +6855,39 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
 #if !defined(SHU_NO_C_FRONTEND)
         /*
-         * 用户程序 asm 编译：先用 C typeck 预检（与 shu-c 一致），再跳过 pipeline 内 .su typeck。
-         * seed 链 .su typeck 对「第 2+ CALL 实参」仍可能 SIGSEGV；codegen 仍走 SU pipeline。
+         * 用户程序 asm 编译：C typeck 预检（strict 链 typeck_c_orchestration_partial 提供真 typeck_module），
+         * 再 skip pipeline 内 .su typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            if (driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
-                free(out_buf);
-                pipeline_dep_ctx_heap_destroy(pctx);
-                for (j = 0; j < n_deps; j++) {
-                    free(dep_arenas[j]);
-                    free(dep_modules[j]);
+            const char *skip_c_precheck = getenv("SHU_ASM_SKIP_C_TYPECK_PRECHECK");
+            if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
+                if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
+                    free(out_buf);
+                    pipeline_dep_ctx_heap_destroy(pctx);
+                    for (j = 0; j < n_deps; j++) {
+                        free(dep_arenas[j]);
+                        free(dep_modules[j]);
+                    }
+                    while (n_deps > 0) {
+                        n_deps--;
+                        free(dep_sources[n_deps]);
+                        free(dep_paths[n_deps]);
+                    }
+                    free(arena);
+                    free(module);
+                    free(src);
+                    return 1;
                 }
-                while (n_deps > 0) {
-                    n_deps--;
-                    free(dep_sources[n_deps]);
-                    free(dep_paths[n_deps]);
-                }
-                free(arena);
-                free(module);
-                free(src);
-                return 1;
             }
-            driver_su_pipeline_skip_typeck_set(1);
         }
 #endif
-        /** 用户 asm 有 -o：pipeline 仅 parse（+ 可选 skip typeck），勿 codegen_su_ast（第 2+ CALL 实参 seed 缺陷）。 */
+        /*
+         * 用户 asm -o：入口 pipeline 跳过 .su typeck（须在 #endif 外：shu_asm 为 SHU_NO_C_FRONTEND 时仍要 skip）。
+         * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
+         */
         if (!asm_smoke_only) {
+            driver_su_pipeline_skip_typeck_set(1);
+            /** 仅 parse+填槽；真机器码由 asm_asm_codegen_elf_o 生成。 */
             driver_su_pipeline_skip_codegen_set(1);
         }
         ec = pipeline_run_su_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
@@ -6096,11 +6970,16 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 pipeline_set_dep_slots(dep_arenas, dep_modules);
                 driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
                 runtime_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
-                pctx->asm_entry_module_only = 0;
+                /*
+                 * 多文件 -o 须编 dep 机器码；显式 SHU_ASM_ENTRY_MODULE_ONLY=1（build_shu_asm / M8 单模块 -o）
+                 * 时保持仅入口，dep 由并列 build_asm/*.o 提供，勿对 arch/x86_64 等 dep 再跑 asm emit。
+                 */
+                if (!asm_entry_module_only_from_env())
+                    pctx->asm_entry_module_only = 0;
                 pctx->use_asm_backend = 1;
             }
-            asm_skip_heavy_set_pipeline_ctx(pctx);
-            int32_t elf_ec = asm_asm_codegen_elf_o(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+            driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+            int32_t elf_ec = asm_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
             if (getenv("SHU_ASM_DEBUG")) {
                 fprintf(stderr, "shu: asm_codegen_elf_o: elf_ec=%d elf_len=%zu\n", (int)elf_ec, (size_t)out_buf->len);
             }
@@ -6270,6 +7149,36 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     return 0;
 }
 
+#if defined(SHU_USE_SU_PIPELINE)
+/** shu check 后 SU 栈逃逸 gate 大栈线程参数。 */
+typedef struct {
+    uint8_t *src;
+    int32_t src_len;
+    int32_t result;
+} DriverStackEscGateArgs;
+
+/** pthread 入口：WPO-S3 post-scan gate。 */
+static void *driver_stack_esc_gate_thread_fn(void *arg) {
+    DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
+    a->result = pipeline_typeck_su_stack_escape_gate_from_src_c(a->src, a->src_len);
+    return NULL;
+}
+
+/**
+ * 在 256MiB 栈 pthread 上跑 SU struct 栈逃逸 gate（check 路径；勿在主线程 parse）。
+ */
+static int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
+    DriverStackEscGateArgs args;
+    args.src = src;
+    args.src_len = src_len;
+    args.result = -99;
+    driver_run_thread_on_large_stack(driver_stack_esc_gate_thread_fn, &args);
+    if (args.result == -99)
+        return pipeline_typeck_su_stack_escape_gate_from_src_c(src, src_len);
+    return args.result;
+}
+#endif
+
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
@@ -6305,6 +7214,19 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
         ast_module_free(mod);
         return 1;
     }
+#if defined(SHU_USE_SU_PIPELINE)
+    if (print_ok && mod->num_imports == 0) {
+        int32_t slen = (int32_t)strlen(src);
+        if (slen > 0 && driver_stack_esc_gate_large_stack((uint8_t *)src, slen) != 0) {
+            while (n_all--) {
+                free(all_dep_paths[n_all]);
+                ast_module_free(all_dep_mods[n_all]);
+            }
+            ast_module_free(mod);
+            return 1;
+        }
+    }
+#endif
     while (n_all--) {
         free(all_dep_paths[n_all]);
         ast_module_free(all_dep_mods[n_all]);
@@ -6313,6 +7235,41 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
     if (print_ok)
         driver_print_check_ok(input_path);
     return 0;
+}
+
+/** C typeck 大栈线程参数。 */
+typedef struct {
+    const char *input_path;
+    char *src;
+    const char **lib_roots_arr;
+    int n_lib_roots;
+    int print_ok;
+    int result;
+} DriverCTypeckLargeArgs;
+
+/** pthread 入口：driver_c_typeck_entry 并将 rc 写入 args->result。 */
+static void *driver_c_typeck_entry_thread_fn(void *arg) {
+    DriverCTypeckLargeArgs *a = (DriverCTypeckLargeArgs *)arg;
+    a->result = driver_c_typeck_entry(a->input_path, a->src, a->lib_roots_arr, a->n_lib_roots, a->print_ok);
+    return NULL;
+}
+
+/**
+ * 在 256MiB 栈 pthread 上执行 C typeck 预检；避免 lexer 等大模块在主线程耗尽栈后 asm emit Abort。
+ */
+static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr,
+    int n_lib_roots, int print_ok) {
+    DriverCTypeckLargeArgs args;
+    args.input_path = input_path;
+    args.src = src;
+    args.lib_roots_arr = lib_roots_arr;
+    args.n_lib_roots = n_lib_roots;
+    args.print_ok = print_ok;
+    args.result = -99;
+    driver_run_thread_on_large_stack(driver_c_typeck_entry_thread_fn, &args);
+    if (args.result == -99)
+        return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
+    return args.result;
 }
 
 /** shu check：C typeck 入口（库模块无 main 时比 SU pipeline 更稳；bootstrap 与 shu-c 共用）。 */
@@ -6353,13 +7310,16 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     if (want_asm_backend && input_path && (!out_path || driver_asm_output_want_exe_cstr(out_path))) {
         int plen = (int)strlen(input_path);
         if (plen > 0 && plen < 512 &&
-            (driver_source_has_generic_syntax((const uint8_t *)input_path, plen) ||
-             driver_source_has_compound_assign_syntax((const uint8_t *)input_path, plen)))
+            driver_source_has_generic_syntax((const uint8_t *)input_path, plen))
             want_asm_backend = 0;
     }
     /*
      * 默认走 asm：一律走 SU pipeline + asm_asm_codegen_*（有无 -o 均如此）；`-backend c` 已在上方关闭 want_asm_backend。
      * 无 \c out_path 时向 stdout 打汇编文本；否则写 \c .o / \c .s / 或可执行路径（参见 driver_run_asm_backend）。
+     */
+#if !defined(SHU_NO_C_FRONTEND)
+    /*
+     * shu-c 路径：顶层 import 时 SU asm parse 易 0 func，降级 C；shu_asm（SHU_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
      */
     if (want_asm_backend) {
         size_t imp_raw_len = 0;
@@ -6373,6 +7333,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             free(imp_src);
         }
     }
+#endif
     if (want_asm_backend)
         return driver_run_asm_backend(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
 #endif
@@ -6409,7 +7370,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     /* 若预处理后源码含泛型语法，.su 流水线不解析泛型，改走 C 流水线（parse + typeck_module + codegen）以保证 id<i32>(42) 等正确单态化。
      * 无 import 时内联 C 路径，避免 run_compiler_c 重入导致崩溃；有 import 时仍调 run_compiler_c。 */
 #if !defined(SHU_NO_C_FRONTEND)
-    if (content_has_generic_syntax(src, src_len) || content_has_compound_assign_syntax(src, src_len)) {
+    if (content_has_generic_syntax(src, src_len)) {
         {
             Lexer *lex = lexer_new(src);
             ASTModule *c_mod = NULL;
@@ -6926,6 +7887,8 @@ void driver_bump_stack_limit(void) {
 }
 
 extern int32_t driver_emit_lib_root_count(uint8_t *state);
+extern int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len);
+extern void driver_emit_lib_root_reset(uint8_t *state);
 extern int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap);
 
@@ -6956,14 +7919,50 @@ static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, cha
     return n;
 }
 
-/** asm 后端 C 桥：供 compile.su 调用。 */
-int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
-                                 int32_t argc, uint8_t *argv) {
+/**
+ * compile.su DriverCompileState 布局（字段顺序与 compile.su 一致；EMIT_HEAVY impl_c 与 SU parse_argv 共用）。
+ * 须在 driver_run_asm_backend_impl_c 之前可见（lib_key 即 DriverCompileStateSU*）。
+ */
+typedef struct DriverCompileStateSU {
+    uint8_t path_buf[512];
+    int32_t path_len;
+    uint8_t out_path_buf[512];
+    int32_t out_path_len;
+    int32_t use_asm_backend;
+    int32_t target_arch;
+    uint8_t target_buf[512];
+    int32_t target_len;
+    uint8_t opt_level_buf[8];
+    int32_t opt_level_len;
+    int32_t use_lto;
+    int32_t backend_asm_explicit;
+    int32_t use_freestanding;
+    int32_t parse_saw_target;
+    uint8_t target_cpu_buf[64];
+    int32_t target_cpu_len;
+    int32_t target_cpu_features;
+    int32_t print_target_cpu;
+    int32_t parse_saw_target_cpu;
+} DriverCompileStateSU;
+
+/** asm 后端 C mega：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
+int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      int32_t argc, uint8_t *argv) {
     const char *lib_roots[SU_FULL_MAX_LIB_ROOTS];
     char lib_bufs[SU_FULL_MAX_LIB_ROOTS][512];
     int n = driver_lib_roots_from_key(lib_key, lib_roots, lib_bufs);
+    if (lib_key)
+        driver_set_pending_target_cpu_features((uint32_t)((DriverCompileStateSU *)lib_key)->target_cpu_features);
+    else
+        driver_set_pending_target_cpu_features(0);
     return driver_run_asm_backend((const char *)input_path, out_path ? (const char *)out_path : NULL, lib_roots, n,
                                   target && target[0] ? (const char *)target : NULL, (int)argc, (char **)argv);
+}
+
+/** 兼容旧符号名；新路径 compile.su 经 compile_dispatch_* 调 impl_c。 */
+int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                 int32_t argc, uint8_t *argv) {
+    return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
 }
 
 /** C 后端 C 桥：供 compile.su 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
@@ -7012,8 +8011,9 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     }
 }
 
-int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
-                                 uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
+/** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shu-c；否则 driver_run_compiler_parsed。 */
+int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     const char *lib_roots[SU_FULL_MAX_LIB_ROOTS];
     char lib_bufs[SU_FULL_MAX_LIB_ROOTS][512];
     int n = driver_lib_roots_from_key(lib_key, lib_roots, lib_bufs);
@@ -7040,12 +8040,563 @@ int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t
     return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
 }
 
+/** 兼容旧符号名；新路径 compile.su 经 compile_dispatch_* 调 impl_c。 */
+int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                 uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
+    return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
+}
+
+/** `-freestanding` / argv 解析 glue：前置声明（parse_argv_step_c 早于本 TU 内定义；GCC 禁止隐式声明）。 */
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
+
 /**
- * 完整编译入口：argv 解析在 driver/compile.su；本函数转调 driver_run_compiler_full_su。
+ * 堆分配 DriverCompileState（与 impl_c 默认字段一致）；供 compile.su run_compiler_full_su SU emit。
+ */
+DriverCompileStateSU *driver_compile_state_alloc_c(void) {
+    DriverCompileStateSU *state;
+
+    state = (DriverCompileStateSU *)malloc(sizeof(DriverCompileStateSU));
+    if (!state)
+        return NULL;
+    memset(state, 0, sizeof(*state));
+    state->use_asm_backend = 1;
+    state->opt_level_buf[0] = (uint8_t)'2';
+    state->opt_level_len = 1;
+    return state;
+}
+
+/** 释放 driver_compile_state_alloc_c 分配的 state。 */
+void driver_compile_state_free_c(DriverCompileStateSU *state) {
+    if (state)
+        free(state);
+}
+
+/** compile.su EMIT_HEAVY 真 emit 的 parse_argv 链；impl_c 在 C 栈上持 state 后调用。 */
+extern int32_t driver_compile_parse_argv(int32_t argc, uint8_t *argv, DriverCompileStateSU *state);
+
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
+void driver_compile_ensure_default_lib_c(uint8_t *key);
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+
+/** argv 令牌比较与 path 后缀检测（与 compile.su 同名 helper 语义一致）。 */
+static int drv_eq_minus_o(const char *buf, int len) {
+    return len == 2 && buf[0] == '-' && buf[1] == 'o';
+}
+static int drv_eq_minus_L(const char *buf, int len) {
+    return len == 2 && buf[0] == '-' && buf[1] == 'L';
+}
+static int drv_eq_minus_O(const char *buf, int len) {
+    return len == 2 && buf[0] == '-' && buf[1] == 'O';
+}
+static int drv_eq_flto(const char *buf, int len) {
+    return len == 5 && buf[0] == '-' && buf[1] == 'f' && buf[2] == 'l' && buf[3] == 't' && buf[4] == 'o';
+}
+static int drv_eq_minus_freestanding(const char *buf, int len) {
+    return len == 13 && !memcmp(buf, "-freestanding", 13);
+}
+static int drv_eq_legacy_f32_abi(const char *buf, int len) {
+    return len == 15 && !memcmp(buf, "-legacy-f32-abi", 15);
+}
+static int drv_eq_minus_backend(const char *buf, int len) {
+    return len == 8 && !memcmp(buf, "-backend", 8);
+}
+static int drv_eq_minus_target(const char *buf, int len) {
+    return len >= 7 && !memcmp(buf, "-target", 7);
+}
+static int drv_eq_minus_target_cpu(const char *buf, int len) {
+    return len >= 11 && !memcmp(buf, "-target-cpu", 11);
+}
+static int drv_eq_print_target_cpu(const char *buf, int len) {
+    return (len == 18 && !memcmp(buf, "--print-target-cpu", 18)) ||
+           (len == 17 && !memcmp(buf, "-print-target-cpu", 17));
+}
+static int drv_eq_asm_word(const char *buf, int len) {
+    return len == 3 && buf[0] == 'a' && buf[1] == 's' && buf[2] == 'm';
+}
+static int drv_eq_c_word(const char *buf, int len) {
+    return len == 1 && buf[0] == 'c';
+}
+static int drv_path_ends_su(const char *buf, int len) {
+    return len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's' && buf[len - 1] == 'u';
+}
+static int drv_target_has_arm(const char *buf, int len) {
+    int start;
+    for (start = 0; start + 5 <= len; start++) {
+        if (buf[start] == 'a' && buf[start + 1] == 'r' && buf[start + 2] == 'm' && buf[start + 3] == '6' &&
+            buf[start + 4] == '4')
+            return 1;
+    }
+    return 0;
+}
+
+/**
+ * 处理 argv[i] 一项（C 实现；strict emit 下 SU step 的 if+side-effect+return 会错序提前 return）。
+ * 返回下一 argv 下标。
+ */
+static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                            int arg_cap) {
+    int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
+    if (len < 0)
+        return i + 1;
+    if (drv_eq_minus_o(arg_buf, len) && i + 1 < argc) {
+        int olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->out_path_buf, 512);
+        if (olen >= 0)
+            state->out_path_len = olen;
+        return i + 2;
+    }
+    if (drv_eq_minus_L(arg_buf, len) && i + 1 < argc) {
+        int llen = driver_get_argv_i(argc, argv, i + 1, arg_buf, arg_cap);
+        if (llen >= 0)
+            driver_compile_append_lib_root_c(state, (uint8_t *)arg_buf, llen);
+        return i + 2;
+    }
+    if (drv_eq_minus_O(arg_buf, len) && i + 1 < argc) {
+        int olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->opt_level_buf, 8);
+        if (olen >= 0)
+            state->opt_level_len = olen;
+        return i + 2;
+    }
+    if (drv_eq_flto(arg_buf, len)) {
+        state->use_lto = 1;
+        return i + 1;
+    }
+    if (drv_eq_minus_freestanding(arg_buf, len)) {
+        driver_compile_argv_set_use_freestanding_c(state);
+        return i + 1;
+    }
+    if (drv_eq_legacy_f32_abi(arg_buf, len)) {
+        driver_compile_argv_set_legacy_f32_abi_c();
+        return i + 1;
+    }
+    if (drv_eq_minus_backend(arg_buf, len) && i + 1 < argc) {
+        int vlen = driver_get_argv_i(argc, argv, i + 1, arg_buf, arg_cap);
+        if (vlen >= 0 && drv_eq_asm_word(arg_buf, vlen)) {
+            state->use_asm_backend = 1;
+            state->backend_asm_explicit = 1;
+        }
+        if (vlen >= 0 && drv_eq_c_word(arg_buf, vlen)) {
+            state->use_asm_backend = 0;
+            state->backend_asm_explicit = 0;
+        }
+        return i + 2;
+    }
+    if (drv_eq_minus_target(arg_buf, len) && i + 1 < argc) {
+        int tlen;
+        state->parse_saw_target = 1;
+        tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_buf, 512);
+        if (tlen >= 0) {
+            state->target_len = tlen;
+            if (drv_target_has_arm((char *)state->target_buf, tlen))
+                state->target_arch = 1;
+        }
+        return i + 2;
+    }
+    if (drv_eq_minus_target_cpu(arg_buf, len) && i + 1 < argc) {
+        int tlen;
+        state->parse_saw_target_cpu = 1;
+        tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_cpu_buf, 64);
+        if (tlen >= 0)
+            state->target_cpu_len = tlen;
+        return i + 2;
+    }
+    if (drv_eq_print_target_cpu(arg_buf, len)) {
+        state->print_target_cpu = 1;
+        return i + 1;
+    }
+    if (arg_buf[0] != '-' && drv_path_ends_su(arg_buf, len))
+        driver_compile_argv_copy_path_c(state, (uint8_t *)arg_buf, len);
+    return i + 1;
+}
+
+/**
+ * argv[1..] 扫描 loop（C step_c）；compile.su parse_argv SU 编排调本符号。
+ */
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+    char **argv = (char **)argv_opaque;
+    char arg_buf[512];
+    int i;
+
+    if (argc < 2 || !state)
+        return;
+    for (i = 1; i < argc;)
+        i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
+}
+
+/**
+ * 完整 argv 解析（C mega）：init → scan → finalize。
+ * strict emit 下 SU parse_argv_step 对 `-L`/`-o` 等分支会跳过 side-effect；scan 仍走 C step_c。
+ */
+int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+    if (argc < 2 || !state)
+        return 1;
+    driver_compile_parse_argv_init_c(state);
+    driver_compile_parse_argv_scan_c(argc, argv_opaque, state);
+    driver_compile_resolve_target_cpu_c(state);
+    if (state->print_target_cpu)
+        return 0;
+    if (state->path_len <= 0)
+        return 1;
+    state->target_arch = driver_resolve_target_arch(state->target_arch, state->parse_saw_target);
+    driver_compile_ensure_default_lib_c((uint8_t *)state);
+    return 0;
+}
+
+/**
+ * 将 argv 路径字节拷入 state.path_buf 并写 path_len（cap 511）。
+ * EMIT_HEAVY 下 SU while+INDEX 形参 field 易误折叠/漏 emit；与 impl_c 一样走 C 原语。
+ */
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
+    int32_t k;
+    int32_t n;
+    if (!state || !arg_buf || plen <= 0)
+        return;
+    n = plen;
+    if (n > 511)
+        n = 511;
+    for (k = 0; k < n; k++)
+        state->path_buf[k] = arg_buf[k];
+    state->path_len = n;
+}
+
+/**
+ * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.su ensure_default_lib 语义一致）。
+ * EMIT_HEAVY driver_compile.o 中 SU 体常为 ret0 桩；finalize 与薄包装均 bl 本符号。
+ */
+void driver_compile_ensure_default_lib_c(uint8_t *key) {
+    static const uint8_t dot[1] = {46};
+    if (!key)
+        return;
+    if (driver_emit_lib_root_count(key) == 0)
+        (void)driver_emit_append_lib_root(key, (uint8_t *)dot, 1);
+}
+
+/**
+ * 重置 DriverCompileState 默认值并清空 lib_root sidecar（与 compile.su parse_argv_init 语义一致）。
+ * EMIT_HEAVY 下对 *DriverCompileState 形参的 field store 易写成 fp 槽地址+offset，须走 C。
+ */
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
+    if (!state)
+        return;
+    state->path_len = 0;
+    state->out_path_len = 0;
+    state->use_asm_backend = 1;
+    state->target_arch = 0;
+    state->target_len = 0;
+    state->opt_level_len = 1;
+    state->opt_level_buf[0] = (uint8_t)'2';
+    state->use_lto = 0;
+    state->backend_asm_explicit = 0;
+    state->use_freestanding = 0;
+    state->parse_saw_target = 0;
+    state->target_cpu_len = 0;
+    state->target_cpu_features = 0;
+    state->print_target_cpu = 0;
+    state->parse_saw_target_cpu = 0;
+    driver_freestanding_set(0);
+    driver_emit_lib_root_reset((uint8_t *)state);
+}
+
+/** parse_argv -L 分支：直接用 state 指针作 sidecar 键（与 init_c/ensure_default 一致）。 */
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
+    if (!state || !path || len <= 0)
+        return;
+    (void)driver_emit_append_lib_root((uint8_t *)state, path, len);
+}
+
+/** -o：下一 argv 写入 out_path_buf/out_path_len（EMIT_HEAVY step 勿 SU field store）。 */
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i) {
+    char **argv = (char **)argv_opaque;
+    int32_t olen;
+
+    if (!state || i + 1 >= argc)
+        return;
+    olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->out_path_buf, 512);
+    if (olen >= 0)
+        state->out_path_len = olen;
+}
+
+/** -L：下一 argv 经 arg_buf 追加 lib_root sidecar。 */
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
+    char **argv = (char **)argv_opaque;
+    int32_t llen;
+
+    if (!state || !arg_buf || arg_cap <= 0 || i + 1 >= argc)
+        return;
+    llen = driver_get_argv_i(argc, argv, i + 1, (char *)arg_buf, arg_cap);
+    if (llen >= 0)
+        driver_compile_append_lib_root_c(state, arg_buf, llen);
+}
+
+/** -O：下一 argv 写入 opt_level_buf/opt_level_len。 */
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i) {
+    char **argv = (char **)argv_opaque;
+    int32_t olen;
+
+    if (!state || i + 1 >= argc)
+        return;
+    olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->opt_level_buf, 8);
+    if (olen >= 0)
+        state->opt_level_len = olen;
+}
+
+/** -flto：置 use_lto。 */
+void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
+    if (state)
+        state->use_lto = 1;
+}
+
+/** `-freestanding`：置 use_freestanding 并同步 driver_freestanding_set（S4 nostdlib 链）。 */
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
+    if (!state)
+        return;
+    state->use_freestanding = 1;
+    driver_freestanding_set(1);
+}
+
+/** `-legacy-f32-abi`：等价 SHU_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
+void driver_compile_argv_set_legacy_f32_abi_c(void) {
+    setenv("SHU_ABI_F32_XMM", "0", 1);
+}
+
+/** -backend <asm|c>：更新 use_asm_backend/backend_asm_explicit。 */
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
+    char **argv = (char **)argv_opaque;
+    int32_t vlen;
+
+    if (!state || !arg_buf || arg_cap <= 0 || i + 1 >= argc)
+        return;
+    vlen = driver_get_argv_i(argc, argv, i + 1, (char *)arg_buf, arg_cap);
+    if (vlen >= 0 && drv_eq_asm_word((char *)arg_buf, vlen)) {
+        state->use_asm_backend = 1;
+        state->backend_asm_explicit = 1;
+    }
+    if (vlen >= 0 && drv_eq_c_word((char *)arg_buf, vlen)) {
+        state->use_asm_backend = 0;
+        state->backend_asm_explicit = 0;
+    }
+}
+
+/** -target：写入 target_buf/target_len/parse_saw_target/target_arch。 */
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                             int32_t i) {
+    char **argv = (char **)argv_opaque;
+    int32_t tlen;
+
+    if (!state || i + 1 >= argc)
+        return;
+    state->parse_saw_target = 1;
+    tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_buf, 512);
+    if (tlen >= 0) {
+        state->target_len = tlen;
+        if (drv_target_has_arm((char *)state->target_buf, tlen))
+            state->target_arch = 1;
+    }
+}
+
+/** `-target-cpu`：下一 argv 写入 target_cpu_buf/target_cpu_len。 */
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                                  int32_t i) {
+    char **argv = (char **)argv_opaque;
+    int32_t tlen;
+
+    if (!state || i + 1 >= argc)
+        return;
+    state->parse_saw_target_cpu = 1;
+    tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_cpu_buf, 64);
+    if (tlen >= 0)
+        state->target_cpu_len = tlen;
+}
+
+/** `--print-target-cpu`：仅打印 feature 后退出。 */
+void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
+    if (state)
+        state->print_target_cpu = 1;
+}
+
+/** SU run_compiler_full_su：`--print-target-cpu` 早退（与 driver_run_compiler_full_su_impl_c 对齐）。 */
+int32_t driver_print_target_cpu_features_c(int32_t features) {
+    shu_target_cpu_print(stdout, (uint32_t)features);
+    return 0;
+}
+
+/**
+ * finalize：按 target_cpu_buf（空则 native）解析 feature 掩码。
+ * 未知规格时 stderr 告警并回退 generic baseline。
+ */
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
+    const char *spec;
+    size_t spec_len;
+    uint32_t feats = 0;
+
+    if (!state)
+        return;
+    spec = "native";
+    spec_len = 6;
+    if (state->target_cpu_len > 0) {
+        spec = (const char *)state->target_cpu_buf;
+        spec_len = (size_t)state->target_cpu_len;
+    }
+    if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
+        fprintf(stderr, "shu: unknown -target-cpu '%.*s'; using generic baseline\n", (int)spec_len, spec);
+        feats = shu_target_cpu_generic_for_host();
+    }
+    state->target_cpu_features = (int32_t)feats;
+}
+
+/** parse 完成后后端选择 + 分派；compile.su 薄包装 bl 本符号（EMIT_HEAVY 勿 SU 真 emit，宿主 SIGSEGV）。 */
+int32_t driver_run_compiler_full_su_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv) {
+    uint8_t *out_ptr;
+    uint8_t *target_ptr;
+    int32_t want_generic_check;
+
+    if (!state)
+        return 1;
+    if (driver_check_only_get())
+        state->use_asm_backend = 0;
+    want_generic_check = 0;
+    if (state->out_path_len == 0)
+        want_generic_check = 1;
+    else if (driver_asm_output_want_exe(state->out_path_buf))
+        want_generic_check = 1;
+    if (state->use_asm_backend && want_generic_check) {
+        if (driver_source_has_generic_syntax(state->path_buf, state->path_len))
+            state->use_asm_backend = 0;
+    }
+    if (state->use_asm_backend && state->out_path_len > 0 &&
+        driver_asm_output_want_exe(state->out_path_buf)) {
+        /** 复合赋值已由 SU lexer/parser 支持；勿降级 C。 */
+    }
+    out_ptr = NULL;
+    if (state->out_path_len > 0)
+        out_ptr = state->out_path_buf;
+    target_ptr = NULL;
+    if (state->target_len > 0)
+        target_ptr = state->target_buf;
+#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
+    /** B-strict shu_asm 有 -o 时默认显式 asm，避免 top-level import 被降级到 C 后端（hello.su）。 */
+    if (state->out_path_len > 0 && !state->backend_asm_explicit)
+        state->backend_asm_explicit = 1;
+#endif
+    if (state->use_asm_backend && !state->backend_asm_explicit &&
+        driver_asm_entry_module_only_from_env() == 0 &&
+        driver_source_has_top_level_import_path((const char *)state->path_buf))
+        state->use_asm_backend = 0;
+    if (state->use_freestanding) {
+        state->use_asm_backend = 1;
+        state->backend_asm_explicit = 1;
+        driver_freestanding_set(1);
+    }
+    if (state->use_asm_backend) {
+        return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);
+    }
+    return driver_run_emit_c_path_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr,
+                                         state->opt_level_buf, state->use_lto, argc, argv);
+}
+
+/**
+ * 扫描 argv 是否含 `-h` 或 `--help`。
+ * 返回 1 表示应打印用法并 exit 0。
+ */
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
+    char **argv = (char **)argv_opaque;
+    char buf[16];
+    int len;
+    int i;
+
+    if (argc < 2 || !argv)
+        return 0;
+    for (i = 1; i < argc; i++) {
+        len = driver_get_argv_i(argc, argv, i, buf, (int32_t)sizeof(buf));
+        if (len == 2 && buf[0] == '-' && buf[1] == 'h')
+            return 1;
+        if (len == 6 && !memcmp(buf, "--help", 6))
+            return 1;
+    }
+    return 0;
+}
+
+/** 打印 shu 用法摘要（stdout）；含 `-legacy-f32-abi` 与 release 默认说明。 */
+void driver_print_usage_c(void) {
+    fputs(
+        "Shulang (shu) compiler\n"
+        "\n"
+        "Usage:\n"
+        "  shu [options] file.su          compile and run\n"
+        "  shu build [file.su] [-o exe]   compile (default a.out)\n"
+        "  shu run file.su                compile and run\n"
+        "  shu check [paths...]           parse + typeck only\n"
+        "  shu fmt [--check] [paths...]   format .su sources\n"
+        "  shu test [script.sh]           run test script\n"
+        "\n"
+        "Common options:\n"
+        "  -backend asm|c    backend (default asm)\n"
+        "  -O <0|1|2|3|s>    optimization (default 2)\n"
+        "  -o <path>         output binary or .o\n"
+        "  -L <dir>          library search path\n"
+        "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
+        "  -target-cpu <cpu> native|generic|avx2|...\n"
+        "  --print-target-cpu  print host CPU features and exit\n"
+        "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
+        "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+        "  -E                emit C (debug)\n"
+        "  -flto              link-time optimization (C backend)\n"
+        "  -h, --help         show this help\n"
+        "\n"
+        "Environment:\n"
+        "  SHU_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
+        "  SHULANG_OPT          default -O level if omitted\n"
+        "\n"
+        "Release default: shu_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n",
+        stdout);
+}
+
+/**
+ * 完整编译 C 入口：堆 state + parse_argv + post_parse（standalone / 非 asm 链回退）。
+ */
+int32_t driver_run_compiler_full_su_impl_c(int32_t argc, uint8_t *argv) {
+    DriverCompileStateSU *state;
+    int32_t rc;
+
+    if (driver_compile_argv_is_help_c(argc, argv)) {
+        driver_print_usage_c();
+        return 0;
+    }
+    driver_bump_stack_limit();
+    state = driver_compile_state_alloc_c();
+    if (!state)
+        return 1;
+    if (driver_compile_parse_argv(argc, argv, state) != 0) {
+        driver_compile_state_free_c(state);
+        return 1;
+    }
+    if (state->print_target_cpu) {
+        shu_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
+        driver_compile_state_free_c(state);
+        return 0;
+    }
+    rc = driver_run_compiler_full_su_post_parse_impl_c(state, argc, argv);
+    driver_compile_state_free_c(state);
+    return rc;
+}
+
+/**
+ * 完整编译入口：argv 解析在 driver/compile.su；B-strict shu_asm 走 impl_c（完整 parse_argv+finalize），避免 SU emit 的 driver_run_compiler_full_su 在 strict 链 silent fail。
  */
 int driver_run_compiler_full(int argc, char **argv) {
+#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
+    return (int)driver_run_compiler_full_su_impl_c((int32_t)argc, (uint8_t *)argv);
+#else
     extern int32_t driver_run_compiler_full_su(int32_t argc, uint8_t *argv);
     return (int)driver_run_compiler_full_su((int32_t)argc, (uint8_t *)argv);
+#endif
 }
 
 /**
