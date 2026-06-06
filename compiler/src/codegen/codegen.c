@@ -2106,6 +2106,19 @@ int32_t codegen_su_emit_array_lit_array_suffix(uint8_t *out) {
     return 0;
 }
 
+/** 向量 binop 单 lane：数组字面量取 elems[i]，否则 (.v[i])。 */
+static int codegen_vector_lane_expr(const struct ASTExpr *e, int lane, FILE *out) {
+    if (e->kind == AST_EXPR_ARRAY_LIT) {
+        if (lane < 0 || lane >= e->value.array_lit.num_elems)
+            return -1;
+        return codegen_expr(e->value.array_lit.elems[lane], out);
+    }
+    fprintf(out, "(");
+    if (codegen_expr(e, out) != 0) return -1;
+    fprintf(out, ").v[%d]", lane);
+    return 0;
+}
+
 /** 若 e 为向量二元运算（resolved_type 为 VECTOR），则生成逐分量 op 的复合字面量并返回 0；否则返回 -1（调用方走标量分支）。 */
 static int codegen_vector_binop(const struct ASTExpr *e, const char *op, FILE *out) {
     if (!e || !e->resolved_type || e->resolved_type->kind != AST_TYPE_VECTOR
@@ -2113,14 +2126,15 @@ static int codegen_vector_binop(const struct ASTExpr *e, const char *op, FILE *o
         return -1;
     int lanes = e->resolved_type->array_size;
     const char *tname = vector_c_type_name(e->resolved_type);
+    ensure_vector_typedef(e->resolved_type, out);
     fprintf(out, "(%s){ ", tname);
     for (int i = 0; i < lanes; i++) {
         if (i) fprintf(out, ", ");
         fprintf(out, "(");
-        if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-        fprintf(out, ").v[%d] %s (", i, op);
-        if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-        fprintf(out, ").v[%d]", i);
+        if (codegen_vector_lane_expr(e->value.binop.left, i, out) != 0) return -1;
+        fprintf(out, ") %s (", op);
+        if (codegen_vector_lane_expr(e->value.binop.right, i, out) != 0) return -1;
+        fprintf(out, ")");
     }
     fprintf(out, " }");
     return 0;
@@ -2745,8 +2759,20 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_ADDR_OF: {
-            /* 取址操作数为 INDEX 且带边界检查时，避免 &(ternary) 在 C 中非法（三元结果为 rvalue）；改为 越界?panic:&(base)[idx] */
+            /* &v as *T 解析为 &(v as *T)：AS 已对向量/结构体 lvalue 生成 (T)&v，勿再包一层 &。 */
             const struct ASTExpr *op = e->value.unary.operand;
+            if (op && op->kind == AST_EXPR_AS) {
+                const struct ASTType *cast_ty = op->value.as_type.type;
+                const struct ASTExpr *inner = op->value.as_type.operand;
+                if (cast_ty && cast_ty->kind == AST_TYPE_PTR && inner && inner->resolved_type
+                    && (inner->resolved_type->kind == AST_TYPE_VECTOR
+                        || inner->resolved_type->kind == AST_TYPE_ARRAY
+                        || inner->resolved_type->kind == AST_TYPE_NAMED)
+                    && inner->kind != AST_EXPR_ADDR_OF) {
+                    return codegen_expr(op, out);
+                }
+            }
+            /* 取址操作数为 INDEX 且带边界检查时，避免 &(ternary) 在 C 中非法（三元结果为 rvalue）；改为 越界?panic:&(base)[idx] */
             if (op && op->kind == AST_EXPR_INDEX && !op->index_proven_in_bounds && op->value.index.base) {
                 const struct ASTExpr *base = op->value.index.base;
                 const struct ASTExpr *idx = op->value.index.index_expr;
@@ -2840,12 +2866,23 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         }
         case AST_EXPR_AS: {
-            /* 类型转换 expr as type → C 的 (target_type)(expr) */
+            /* 类型转换 expr as type → C 的 (target_type)(expr)；向量/结构体 lvalue 转指针须 (T)&v。 */
             const struct ASTType *ty = e->value.as_type.type;
+            const struct ASTExpr *op = e->value.as_type.operand;
             static char cast_buf[128];
             c_type_to_buf(ty, cast_buf, sizeof(cast_buf));
+            if (ty && ty->kind == AST_TYPE_PTR && op && op->resolved_type
+                && (op->resolved_type->kind == AST_TYPE_VECTOR
+                    || op->resolved_type->kind == AST_TYPE_ARRAY
+                    || op->resolved_type->kind == AST_TYPE_NAMED)
+                && op->kind != AST_EXPR_ADDR_OF) {
+                fprintf(out, "((%s)&(", cast_buf);
+                if (codegen_expr(op, out) != 0) return -1;
+                fprintf(out, "))");
+                return 0;
+            }
             fprintf(out, "((%s)(", cast_buf);
-            if (codegen_expr(e->value.as_type.operand, out) != 0) return -1;
+            if (codegen_expr(op, out) != 0) return -1;
             fprintf(out, "))");
             return 0;
         }
