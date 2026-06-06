@@ -419,7 +419,7 @@ static const char *codegen_run_seed_push_fn(const struct ASTType *ty) {
 static int codegen_async_cps_await_read(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
     const char *var_name, FILE *out, const char *pad) {
     const struct ASTExpr *op;
-    const struct ASTExpr **args;
+    struct ASTExpr **args;
     const AsyncFrameLayout *layout;
     const char *p;
     int phase;
@@ -470,7 +470,7 @@ static int codegen_async_cps_await_read(AsyncCpsCodegenCtx *ctx, const struct AS
 static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
     const char *var_name, FILE *out, const char *pad) {
     const struct ASTExpr *op;
-    const struct ASTExpr **args;
+    struct ASTExpr **args;
     const AsyncFrameLayout *layout;
     const char *p;
     int phase;
@@ -521,7 +521,7 @@ static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct
 static int codegen_async_cps_await_write_fd(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
     const char *var_name, FILE *out, const char *pad) {
     const struct ASTExpr *op;
-    const struct ASTExpr **args;
+    struct ASTExpr **args;
     const AsyncFrameLayout *layout;
     const char *p;
     int phase;
@@ -572,7 +572,7 @@ static int codegen_async_cps_await_write_fd(AsyncCpsCodegenCtx *ctx, const struc
 static int codegen_async_cps_await_write(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
     const char *var_name, FILE *out, const char *pad) {
     const struct ASTExpr *op;
-    const struct ASTExpr **args;
+    struct ASTExpr **args;
     const AsyncFrameLayout *layout;
     const char *p;
     int phase;
