@@ -31,7 +31,11 @@ has_nm_sym() {
   _obj="$1"
   _want="$2"
   _bare="${_want#_}"
-  nm "$_obj" 2>/dev/null | awk -v w="$_want" -v b="$_bare" '$3==w || $3==b {found=1} END{exit !found}'
+  nm "$_obj" 2>/dev/null | awk -v w="$_bare" '{
+    s = $3
+    sub(/^_/, "", s)
+    if (s == w) found = 1
+  } END { exit !found }'
 }
 
 # 从 .o 收集 backend/peephole/platform 导出符号名（保留 nm 原样：Darwin 带 _，ELF 不带）。
