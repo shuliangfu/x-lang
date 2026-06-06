@@ -43,3 +43,15 @@ chmod +x scripts/docker-ci-local.sh
 - **macOS / Windows / ARM64**：需对应系统或 CI 跑，无法在 x86 Docker 里复现。
 
 建议顺序：**Mac 上先 `./scripts/docker-ci-local.sh ubuntu`（或 `all`）全过 → 再推分支/PR 跑完整 CI**。
+
+### f32 xmm ABI（默认 ON，linux x64 shu_asm）
+
+详见 **`compiler/docs/F32_XMM_ABI.md`**（含 release `-O2` 与 legacy 弃用时间表 §5）。本地/Docker 一键验收：
+
+```bash
+SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh
+# legacy 回归已含于 run-abi-f32-xmm-gate.sh（CLI -legacy-f32-abi 烟测）
+```
+
+GHA **linux x64** DOD/SIMD job：**`run-f32-xmm-gates.sh`**（xmm + CLI legacy）。  
+**ubuntu-gates**（P5）同上。
