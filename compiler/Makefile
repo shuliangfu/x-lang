@@ -170,7 +170,9 @@ compress-o-zlib: ../std/compress/compress.c
 # 测试与 shu 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
 STD_AND_PANIC_O = ../std/io/io.o ../std/fs/fs.o ../std/process/process.o ../std/string/string.o ../std/heap/heap.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o
 ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
 STD_AND_PANIC_O += crt0_user.o freestanding_io.o
+endif
 endif
 
 # 同时链出 shu-c：与 pipeline/lsp/build_gen 的 -E 生成及 test_c 前置一致，避免仅 make all 后缺少 shu-c。
@@ -294,10 +296,15 @@ freestanding_io.o: src/asm/freestanding_io_x86_64.o
 endif
 endif
 
-# asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi。Linux 优先用 asm 实现（完全无 C），无 .s 时用 .c
+# asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi。Linux x86_64 优先用 asm，否则 .c
 ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
 	$(CC) -c -o $@ $<
+else
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+endif
 else
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits.c
 	$(CC) $(CFLAGS) -c -o $@ $<
