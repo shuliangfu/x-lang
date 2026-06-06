@@ -22,8 +22,10 @@ su
 # 链接与中间文件
 *.ll
 *.bc
-*.s
 *.asm
+# 编译器输出的 .s（保留 compiler/src/asm/ 手写启动/运行时汇编）
+*.s
+!compiler/src/asm/*.s
 
 # 构建时生成的 C 源文件（由 -E 等生成，不提交）
 std_fs_gen.c
