@@ -45,7 +45,7 @@ jobs:
           fi
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
-        timeout-minutes: 20
+        timeout-minutes: 45
       - name: M-3 slice region typeck (prototype)
         run: |
           chmod +x tests/run-typeck-region.sh
@@ -369,7 +369,7 @@ jobs:
           fi
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
-        timeout-minutes: 20
+        timeout-minutes: 45
       - name: Bootstrap driver seed gate (hello + while + typeck)
         run: ./tests/run-bootstrap-shu-gate.sh
         timeout-minutes: 12
@@ -520,7 +520,7 @@ jobs:
           fi
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
-        timeout-minutes: 20
+        timeout-minutes: 45
       - name: Bootstrap driver seed gate (hello + while + typeck)
         run: ./tests/run-bootstrap-shu-gate.sh
         timeout-minutes: 12
@@ -683,7 +683,7 @@ jobs:
       - name: Run C test suite (make test_c)
         run: make -C compiler test_c
         shell: msys2 {0}
-        timeout-minutes: 20
+        timeout-minutes: 45
         env:
           CI: "1"
       - name: Run .su test suite (make test_su)

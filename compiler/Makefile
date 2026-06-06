@@ -20,8 +20,9 @@ PIPELINE_GEN_CFLAGS = $(PIPELINE_GEN_CFLAGS_BASE) $(if $(CC_IS_CLANG),$(PIPELINE
 ifeq ($(OPT),1)
   CFLAGS += -O2
 endif
-# 宿主 OS（runtime_panic / freestanding / crt0 规则共用）
+# 宿主 OS/架构（runtime_panic / freestanding / crt0 规则共用）
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
+UNAME_M := $(shell uname -m 2>/dev/null || echo unknown)
 ALPINE := $(shell test -f /etc/alpine-release && echo 1)
 TARGET  = shu
 SRCS    = src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/async/async_liveness.c src/async/async_cps_codegen.c
@@ -250,12 +251,17 @@ ifeq ($(UNAME_S),Linux)
   PIPELINE_LIBS := -luring -lpthread
 endif
 
-# asm 后端 -o <exe> 时链接用：提供 shulang_panic_；Linux 有 .s 时用纯 syscall .s（glibc/musl 通用），否则 .c
+# asm 后端 -o <exe> 时链接用：提供 shulang_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .c
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
 ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
 ifneq (,$(RUNTIME_PANIC_S))
 runtime_panic.o: src/asm/runtime_panic_x86_64.s
 	$(CC) -c -o $@ $<
+else
+runtime_panic.o: src/asm/runtime_panic.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+endif
 else
 runtime_panic.o: src/asm/runtime_panic.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -271,6 +277,7 @@ runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.c
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i（仅 Linux x86_64）；链接 asm 版 shu 时用本 .o 替代 main.o / runtime_asm_build.o
 ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
 src/asm/crt0_x86_64.o: src/asm/crt0_x86_64.s
 	$(CC) -c -o $@ $<
 # S4 freestanding 用户程序入口（call _main；见 tests/run-freestanding-hello.sh）
@@ -284,6 +291,7 @@ crt0_user.o: src/asm/crt0_user_x86_64.o
 	cp $< $@
 freestanding_io.o: src/asm/freestanding_io_x86_64.o
 	cp $< $@
+endif
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi。Linux 优先用 asm 实现（完全无 C），无 .s 时用 .c
