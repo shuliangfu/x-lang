@@ -4,6 +4,7 @@
 // 基于 std.heap 的可增长数组：Vec_i32、Vec_u8，提供
 // new/with_capacity、push/pop、get/len/capacity、
 // clear/truncate/reserve、append_slice/from_slice、is_empty、ptr、deinit。
+// DOD-S2：Vec3f_soa（默认三列 SoA）与 Vec3f_aos（opt-in 交错 AoS）。
 //
 // 【对标】
 // Zig: std.ArrayList(T) — init/deinit、append、appendSlice、items、len、capacity、clear；
@@ -39,12 +40,15 @@ function vec_i32_with_capacity(v: *Vec_i32, capacity: i32): i32 {
   if (p == 0) {
     v.cap = 0;
     return -1;
-  } else {
+  }
+  /* 根块末条须为 if/return，勿以赋值作 stmt_order 末条（隐式尾返回误判）。 */
+  if (0 == 0) {
     v.ptr = p;
     v.cap = capacity;
     v.len = 0;
     return 0;
   }
+  return -1;
 }
 /** 确保至少能再放 1 个元素；不足则扩容（2 倍或
 * default_capacity）。失败返回 -1，成功返回 0。热路径：先判 len<cap 再算 want。
@@ -56,11 +60,13 @@ function vec_i32_reserve_one(v: *Vec_i32): i32 {
   let p: *i32 = if (v.ptr == 0) { alloc_i32(want) } else { realloc_i32(v.ptr, want) };
   if (p == 0) {
     return -1;
-  } else {
+  }
+  if (0 == 0) {
     v.ptr = p;
     v.cap = want;
     return 0;
   }
+  return -1;
 }
 /** 追加元素 x；成功返回 0，分配失败返回 -1。 */
 function vec_i32_push(v: *Vec_i32, x: i32): i32 {
@@ -114,11 +120,13 @@ function vec_i32_reserve(v: *Vec_i32, new_cap: i32): i32 {
   let p: *i32 = if (v.ptr == 0) { alloc_i32(new_cap) } else { realloc_i32(v.ptr, new_cap) };
   if (p == 0) {
     return -1;
-  } else {
+  }
+  if (0 == 0) {
     v.ptr = p;
     v.cap = new_cap;
     return 0;
   }
+  return -1;
 }
 /** 追加切片 ptr[0..n-1]；失败返回 -1，成功返回 0。≥8 元素走 C memcpy
 * 快路径。 */
@@ -178,12 +186,14 @@ function vec_u8_with_capacity(v: *Vec_u8, capacity: i32): i32 {
   if (p == 0) {
     v.cap = 0;
     return -1;
-  } else {
+  }
+  if (0 == 0) {
     v.ptr = p;
     v.cap = capacity;
     v.len = 0;
     return 0;
   }
+  return -1;
 }
 function vec_u8_reserve_one(v: *Vec_u8): i32 {
   if (v.len < v.cap) { return 0; }
@@ -192,11 +202,13 @@ function vec_u8_reserve_one(v: *Vec_u8): i32 {
   let p: *u8 = if (v.ptr == 0) { alloc_u8(want) } else { realloc_u8(v.ptr, want) };
   if (p == 0) {
     return -1;
-  } else {
+  }
+  if (0 == 0) {
     v.ptr = p;
     v.cap = want;
     return 0;
   }
+  return -1;
 }
 function vec_u8_push(v: *Vec_u8, x: u8): i32 {
   /* 同 vec_i32_push：根块末条须避免「赋值」作隐式尾返回判定。 */
@@ -234,11 +246,13 @@ function vec_u8_reserve(v: *Vec_u8, new_cap: i32): i32 {
   let p: *u8 = if (v.ptr == 0) { alloc_u8(new_cap) } else { realloc_u8(v.ptr, new_cap) };
   if (p == 0) {
     return -1;
-  } else {
+  }
+  if (0 == 0) {
     v.ptr = p;
     v.cap = new_cap;
     return 0;
   }
+  return -1;
 }
 function vec_u8_append_slice(v: *Vec_u8, ptr: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
@@ -264,6 +278,200 @@ function vec_u8_ptr(v: Vec_u8): *u8 { return v.ptr; }
 function vec_u8_deinit(v: *Vec_u8): void {
   if (v.ptr != 0) {
     free_u8(v.ptr);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+// ——— DOD-S2：Vec3f SoA 默认 / AoS opt-in ———
+/** SoA 三列 f32 向量（x/y/z 各一列，列主序；DOD-S2 默认布局）。 */
+allow(padding) struct Vec3f_soa {
+  col_x: *f32;
+  col_y: *f32;
+  col_z: *f32;
+  len: i32;
+  cap: i32;
+}
+/** AoS 交错 xyz 向量（DOD-S2 opt-in；每元素 3 连续 f32）。 */
+allow(padding) struct Vec3f_aos {
+  ptr: *f32;
+  len: i32;
+  cap: i32;
+}
+/** 新建空 Vec3f_soa（三列 ptr 均为 null）。 */
+function vec3f_soa_new(): Vec3f_soa {
+  return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, len: 0, cap: 0 };
+}
+/** 预分配每列 capacity 个 f32；失败返回 -1。 */
+function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.col_x = 0;
+    v.col_y = 0;
+    v.col_z = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let px: *f32 = alloc_f32(capacity);
+  let py: *f32 = alloc_f32(capacity);
+  let pz: *f32 = alloc_f32(capacity);
+  if (px == 0 || py == 0 || pz == 0) {
+    if (px != 0) { free_f32(px); }
+    if (py != 0) { free_f32(py); }
+    if (pz != 0) { free_f32(pz); }
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.col_x = px;
+    v.col_y = py;
+    v.col_z = pz;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** 确保至少能再放 1 个三元组；三列同步扩容。 */
+function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let px: *f32 = if (v.col_x == 0) { alloc_f32(want) } else { realloc_f32(v.col_x, want) };
+  let py: *f32 = if (v.col_y == 0) { alloc_f32(want) } else { realloc_f32(v.col_y, want) };
+  let pz: *f32 = if (v.col_z == 0) { alloc_f32(want) } else { realloc_f32(v.col_z, want) };
+  if (px == 0 || py == 0 || pz == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.col_x = px;
+    v.col_y = py;
+    v.col_z = pz;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+/** 追加 (x,y,z)；成功 0，分配失败 -1。 */
+function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
+  if (vec3f_soa_reserve_one(v) != 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    let i: i32 = v.len;
+    v.col_x[i] = x;
+    v.col_y[i] = y;
+    v.col_z[i] = z;
+    v.len = v.len + 1;
+    return 0;
+  }
+  return -1;
+}
+/** 长度（三元组个数）。 */
+function vec3f_soa_len(v: Vec3f_soa): i32 { return v.len; }
+/** 读第 i 个 x 分量；i 越界未定义。 */
+function vec3f_soa_get_x(v: Vec3f_soa, i: i32): f32 { return v.col_x[i]; }
+/** 读第 i 个 y 分量。 */
+function vec3f_soa_get_y(v: Vec3f_soa, i: i32): f32 { return v.col_y[i]; }
+/** 读第 i 个 z 分量。 */
+function vec3f_soa_get_z(v: Vec3f_soa, i: i32): f32 { return v.col_z[i]; }
+/** 写第 i 个三元组；i 越界未定义。 */
+function vec3f_soa_set(v: *Vec3f_soa, i: i32, x: f32, y: f32, z: f32): void {
+  v.col_x[i] = x;
+  v.col_y[i] = y;
+  v.col_z[i] = z;
+}
+/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致，勿大 struct 按值传参。 */
+/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致。 */
+function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
+  let s: f32 = 0.0;
+  let i: i32 = 0;
+  while (i < v.len) {
+    s = s + v.col_x[i];
+    i = i + 1;
+  }
+  return s;
+}
+/** 释放三列堆内存。 */
+function vec3f_soa_deinit(v: *Vec3f_soa): void {
+  if (v.col_x != 0) { free_f32(v.col_x); v.col_x = 0; }
+  if (v.col_y != 0) { free_f32(v.col_y); v.col_y = 0; }
+  if (v.col_z != 0) { free_f32(v.col_z); v.col_z = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+/** 新建空 Vec3f_aos。 */
+function vec3f_aos_new(): Vec3f_aos {
+  return Vec3f_aos { ptr: 0, len: 0, cap: 0 };
+}
+/** 预分配 capacity 个三元组（3*cap f32）；失败 -1。 */
+function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let words: i32 = capacity * 3;
+  let p: *f32 = alloc_f32(words);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 扩容：元素槽 ×3 f32。 */
+function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let words: i32 = want * 3;
+  let p: *f32 = if (v.ptr == 0) { alloc_f32(words) } else { realloc_f32(v.ptr, words) };
+  if (p == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 追加 (x,y,z)。 */
+function vec3f_aos_push(v: *Vec3f_aos, x: f32, y: f32, z: f32): i32 {
+  if (vec3f_aos_reserve_one(v) != 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    let base: i32 = v.len * 3;
+    v.ptr[base + 0] = x;
+    v.ptr[base + 1] = y;
+    v.ptr[base + 2] = z;
+    v.len = v.len + 1;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 读 x 分量（第 i 个三元组）。 */
+function vec3f_aos_get_x(v: Vec3f_aos, i: i32): f32 { return v.ptr[i * 3 + 0]; }
+/** AoS 扫描 x 分量之和（对照 SoA 列扫描）。 */
+function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
+  let s: f32 = 0.0;
+  let i: i32 = 0;
+  while (i < v.len) {
+    s = s + v.ptr[i * 3 + 0];
+    i = i + 1;
+  }
+  return s;
+}
+/** 释放 AoS 堆缓冲。 */
+function vec3f_aos_deinit(v: *Vec3f_aos): void {
+  if (v.ptr != 0) {
+    free_f32(v.ptr);
     v.ptr = 0;
   }
   v.len = 0;

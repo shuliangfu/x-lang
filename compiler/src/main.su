@@ -498,7 +498,7 @@ function driver_run_su_emit_su(state: *DriverSuEmitState): i32 {
     return 1;
   }
   let loaded_buf: [4194304]u8 = [];
-  let cap: usize = 4194304;
+  let cap: usize = 4194304 as usize;
   let n: isize = fs_read(fd, loaded_buf, cap);
   if (fd >= 0) {
     fs_close(fd);
@@ -539,7 +539,7 @@ function driver_run_su_emit_su(state: *DriverSuEmitState): i32 {
   ctx.num_lib_roots = 0;
   driver_emit_copy_lib_roots_to_ctx(state, &ctx);
   let out: CodegenOutBuf = CodegenOutBuf { data: [], len: 0 };
-  let source_len: usize = out_len;
+  let source_len: usize = out_len as usize;
   let rc: i32 = pipeline_run_su_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, &out, &ctx);
   if (rc != 0) {
     driver_pipeline_fail_code(rc, &ctx.path_buf[0]);

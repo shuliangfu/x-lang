@@ -28,7 +28,7 @@ if [ -n "$SHU" ]; then
   TYPECK_SHU="$SHU"
   # SU 宿主（shu_su / shu-su）：赋值 for-step 负例须在本地 -su 流水线上报与 shu-c 同源的行（grep 短语）；其余负例走 .su typeck（与 shu-c 对齐，不再回退 C 前端）。
   case "${SHU##*/}" in
-    shu_asm)
+    shu_asm*)
       # shu_asm strict 链 typecheck 桩与 seed shu 不一致；SU 负例与 assign 短语仍用 seed 链验收。
       # run-all-bstrict 会把 shu_asm 拷到 ./compiler/shu，勿用 shu 作负例（空输出）。
       if [ -x ./compiler/shu-su ]; then
@@ -51,6 +51,8 @@ if [ -n "$SHU" ]; then
         echo "expected $TYPECK_NEG_SHU pipeline typeck error on return_operand_type_mismatch.su (bool vs i32 return); got: $err_ret_su"
         exit 1
       }
+      # gen2 strict 链对用户 .su 常 skip typeck；负例与正例 typeck 短语均用 seed 链（与 run-all-bstrict 一致）。
+      TYPECK_SHU="$TYPECK_NEG_SHU"
       ;;
     shu|shu-su|shu_su)
       err_assign_su=$("$SHU" tests/typeck/type_mismatch_assign.su -o /tmp/shu_typeck_assign_fail.o 2>&1) || true

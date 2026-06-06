@@ -5,11 +5,15 @@
 // 出体积；ELF 直编路径对 code_data 做等价字节级窥孔（须在 elf_resolve_patches 前）。
 // 依赖：codegen（CodegenOutBuf）、types、platform.elf。
 // 当前：去除连续空行；消除连续 push rax + pop rax（x86/arm64/riscv64，与 7.3
-// 寄存器分配相关）。
+// 寄存器分配相关）；消除 arm64 7.3 spill 槽 x10–x14 与 x0/x1 往返冗余 mov 对。
 
 import codegen;
 import asm.types;
 import platform.elf;
+
+/** sidecar reloc offset glue（定义在 ast_pool.c）。 */
+extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+extern function pipeline_elf_ctx_reloc_offset_set(ctx: *u8, idx: i32, offset: i32): void;
 
 /** 比较 out.data[pos..pos+len] 与 ptr 指向的 len 字节是否相等。相等返回
 * 1，否则 0。 */
@@ -187,7 +191,7 @@ function peephole_elf_region_has_meta(ctx: *platform.elf.ElfCodegenCtx, pos: i32
   }
   let ri: i32 = 0;
   while (ri < ctx.num_relocs) {
-    let roff: i32 = ctx.relocs[ri].offset;
+    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, ri);
     if (roff >= pos && roff < end) {
       return 1;
     }
@@ -223,8 +227,9 @@ function peephole_elf_shift_meta_after_remove(ctx: *platform.elf.ElfCodegenCtx, 
   }
   let ri: i32 = 0;
   while (ri < ctx.num_relocs) {
-    if (ctx.relocs[ri].offset >= bound) {
-      ctx.relocs[ri].offset = ctx.relocs[ri].offset - len;
+    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, ri);
+    if (roff >= bound) {
+      pipeline_elf_ctx_reloc_offset_set(ctx as *u8, ri, roff - len);
     }
     ri = ri + 1;
   }
@@ -295,12 +300,99 @@ function peephole_elf_remove_redundant_push_pop(ctx: *platform.elf.ElfCodegenCtx
   return 0;
 }
 
+/**
+ * arm64 ORR mov 编码：mov Rd, Rn → 2852127712 | (Rn<<16) | Rd（与 arm64_enc.su 一致）。
+ */
+function peephole_elf_arm64_mov_u32(rd: i32, rn: i32): i32 {
+  return 2852127712 | (rn << 16) | rd;
+}
+
+/**
+ * ELF：消除 7.3 spill 物理槽 x10–x15 与 rax/x0、rbx/x1 的连续往返 mov（各 8 字节）。
+ * 例如 mov x10,x0 + mov x0,x10 或 mov x0,x10 + mov x10,x0（中间无其它指令时无意义）。
+ */
+function peephole_elf_remove_redundant_spill_reg_mov_pair(ctx: *platform.elf.ElfCodegenCtx): i32 {
+  if (ctx.e_machine != 183) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i + 7 < ctx.code_len) {
+    let remove_len: i32 = 0;
+    let n: i32 = 10;
+    while (n <= 15) {
+      let w_to_rax: i32 = peephole_elf_arm64_mov_u32(n, 0);
+      let w_from_rax: i32 = peephole_elf_arm64_mov_u32(0, n);
+      let w_to_rbx: i32 = peephole_elf_arm64_mov_u32(n, 1);
+      let w_from_rbx: i32 = peephole_elf_arm64_mov_u32(1, n);
+      if (peephole_elf_u32_eq(ctx, i, w_to_rax) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, w_from_rax) != 0) {
+        remove_len = 8;
+      } else if (peephole_elf_u32_eq(ctx, i, w_from_rax) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, w_to_rax) != 0) {
+        remove_len = 8;
+      } else if (peephole_elf_u32_eq(ctx, i, w_to_rbx) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, w_from_rbx) != 0) {
+        remove_len = 8;
+      } else if (peephole_elf_u32_eq(ctx, i, w_from_rbx) != 0
+      && peephole_elf_u32_eq(ctx, i + 4, w_to_rbx) != 0) {
+        remove_len = 8;
+      }
+      if (remove_len > 0) {
+        break;
+      }
+      n = n + 1;
+    }
+    if (remove_len > 0) {
+      if (peephole_elf_remove_code_bytes(ctx, i, remove_len) != 0) {
+        return -1;
+      }
+      continue;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/** ELF：消除 arm64 连续 mov x2,scratch + mov scratch,x2（8 字节，scratch 为 x0/x1）。 */
+function peephole_elf_remove_redundant_mov_x2_pair(ctx: *platform.elf.ElfCodegenCtx): i32 {
+  if (ctx.e_machine != 183) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i + 7 < ctx.code_len) {
+    let remove_len: i32 = 0;
+    /* mov x2, x0 (0xAA0003E2) + mov x0, x2 (0xAA0203E0) */
+    if (peephole_elf_u32_eq(ctx, i, 2852127714) != 0
+    && peephole_elf_u32_eq(ctx, i + 4, 2852258784) != 0) {
+      remove_len = 8;
+    } else if (peephole_elf_u32_eq(ctx, i, 2852193250) != 0
+    && peephole_elf_u32_eq(ctx, i + 4, 2852258785) != 0) {
+      /* mov x2, x1 + mov x1, x2 */
+      remove_len = 8;
+    }
+    if (remove_len > 0) {
+      if (peephole_elf_remove_code_bytes(ctx, i, remove_len) != 0) {
+        return -1;
+      }
+      continue;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 /** ELF 窥孔入口：在 elf_resolve_patches 之前调用；e_machine 从 ctx 读取。 */
 function peephole_elf_run(ctx: *platform.elf.ElfCodegenCtx): i32 {
   if (ctx == (0 as *platform.elf.ElfCodegenCtx)) {
     return 0;
   }
   if (peephole_elf_remove_redundant_push_pop(ctx, ctx.e_machine) != 0) {
+    return -1;
+  }
+  if (peephole_elf_remove_redundant_mov_x2_pair(ctx) != 0) {
+    return -1;
+  }
+  if (peephole_elf_remove_redundant_spill_reg_mov_pair(ctx) != 0) {
     return -1;
   }
   return 0;

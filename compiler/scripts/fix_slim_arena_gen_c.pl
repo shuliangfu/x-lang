@@ -116,8 +116,9 @@ if ($path =~ /lexer_gen(?:2)?\.c$/) {
 
 # parser_gen.c 顶部「parser extern ast helpers」与 inject 块重复，去掉前者避免 conflicting types。
 if ($path =~ /parser_gen\.c$/) {
-  $src =~ s/\n\/\* parser extern ast helpers \*\/\nvoid ast_expr_init_match_enum\([^\n]*\n//s;
+  $src =~ s/\n\/\* parser extern ast helpers \*\/\n(?:extern )?void ast_expr_init_match_enum\([^\n]*\n//s;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
+  $src =~ s/^extern void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
   # -E-extern 误导出 lexer_lexer_*，生成体调用 lexer_*；补与 lexer_su.o 一致的声明。
   $src =~ s/^#define lexer_next_into lexer_lexer_next_into\n//mg;
   $src =~ s/^#define lexer_init lexer_lexer_init\n//mg;
@@ -380,6 +381,21 @@ sub inject_pipeline_glue_from_usage {
 }
 
 # inject_pipeline_glue_from_usage 定义见上；module gen2 已在 reverse alias 前调用。
+
+# parser_gen.c：所有 inject 完成后，将 shulang_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
+sub hoist_shulang_slice_struct {
+  my ($s) = @_;
+  my $def = "struct shulang_slice_uint8_t { uint8_t *data; size_t length; };\n";
+  return $s unless index($s, $def) >= 0;
+  return $s if $s =~ /struct ast_ASTArena \{[^\}]+\};\n\Q$def\E/s;
+  $s =~ s/\Q$def\E//g;
+  $s =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$def/s
+    or warn "fix_slim_arena_gen_c: hoist shulang_slice anchor not found in $path\n";
+  return $s;
+}
+if ($path =~ /parser_gen\.c$/) {
+  $src = hoist_shulang_slice_struct($src);
+}
 
 if ($src ne $orig) {
   seek $fh, 0, 0;

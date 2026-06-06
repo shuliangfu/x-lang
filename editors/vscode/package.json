@@ -2,7 +2,7 @@
   "name": "vscode-shulang",
   "displayName": "Shulang Language",
   "description": "Shulang (.su) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "publisher": "shulang",
   "icon": "icon.png",

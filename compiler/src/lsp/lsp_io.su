@@ -32,7 +32,7 @@ extern function lsp_debug_ptr(p: *u8): void;
 * 内容，state_buf[LSP_STATE_LEN_OFF..LSP_STATE_LEN_OFF+3] 为 leftover 长度（小端）；仅用
 * state_buf[i] 与 &state_buf[expr]，无指针运算。 */
 function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): isize {
-  let h: usize = 0;
+  let h: usize = 0 as usize;
   if (fd != 0) { return -1; }
   let b0: u8 = state_buf[LSP_STATE_LEN_OFF];
   let b1: u8 = state_buf[LSP_STATE_LEN_OFF + 1];
@@ -159,7 +159,7 @@ function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32):
 
 /** 向 fd（1=stdout）写 ptr[0..count-1]；返回写入字节数，-1 错误。 */
 function write_fd(fd: i32, ptr: *u8, count: usize): isize {
-  let h: usize = 1;
+  let h: usize = 1 as usize;
   if (fd != 1) { return (-1) as isize; }
   let r: i32 = std.io.write(h, ptr, count, 0 as u32);
   if (r < 0) { return (-1) as isize; }

@@ -26,9 +26,13 @@ typedef enum TokenKind {
     TOKEN_RETURN,   /**< 关键字 return（显式返回） */
     TOKEN_PANIC,    /**< 关键字 panic（终止并可选打印） */
     TOKEN_DEFER,    /**< 关键字 defer（作用域退出时执行） */
+    TOKEN_REGION,   /**< 关键字 region（M-3：域块，块内 []T 继承域标签） */
     TOKEN_MATCH,    /**< 关键字 match（多分支匹配） */
     TOKEN_STRUCT,   /**< 关键字 struct（结构体定义） */
     TOKEN_PACKED,   /**< 关键字 packed（结构体无填充布局，与 C __attribute__((packed)) 一致） */
+    TOKEN_SOA,      /**< 关键字 soa（DOD-S1：数组按 StructOfArray 列主序存储） */
+    TOKEN_ATTR_SOA, /**< 属性 #[soa]（等价于 struct Name soa { }） */
+    TOKEN_ALIGN,    /**< 关键字 align（DOD-CL：struct 字段 align(N) cache line 对齐） */
     TOKEN_ENUM,     /**< 关键字 enum（枚举定义，§7） */
     TOKEN_GOTO,     /**< 关键字 goto（跳转） */
     TOKEN_TRAIT,    /**< 关键字 trait（接口定义，阶段 7.2） */
@@ -37,6 +41,10 @@ typedef enum TokenKind {
     TOKEN_UNDERSCORE, /**< _（match 通配模式） */
     TOKEN_IMPORT,   /**< 关键字 import（阶段 5） */
     TOKEN_EXTERN,   /**< 关键字 extern（FFI：声明 C 函数，无体） */
+    TOKEN_ASYNC,    /**< 关键字 async（async function 修饰，P2 原型） */
+    TOKEN_AWAIT,    /**< 关键字 await（一元 await expr；仅 async function 内，A3 同步 stub） */
+    TOKEN_RUN,      /**< 关键字 run（run async_fn()；经 scheduler drain 驱动，A4） */
+    TOKEN_SPAWN,    /**< 关键字 spawn（spawn async_fn()；非阻塞 submit + 并行 in-flight，IO-A5 v4） */
     TOKEN_IDENT,    /**< 标识符（如 main） */
     TOKEN_I32,      /**< 类型名 i32（内建整数） */
     TOKEN_BOOL,     /**< 类型名 bool（布尔） */
@@ -52,6 +60,7 @@ typedef enum TokenKind {
     TOKEN_U32X4,    /**< 类型名 u32x4（4 车道 u32 向量） */
     TOKEN_U32X8,    /**< 类型名 u32x8（8 车道 u32 向量） */
     TOKEN_U32X16,   /**< 类型名 u32x16（16 车道 u32 向量，512-bit） */
+    TOKEN_F32X4,    /**< 类型名 f32x4（4 车道 f32 向量，SIMD-S2 / Vec4f 底层） */
     TOKEN_TRUE,     /**< 布尔字面量 true */
     TOKEN_FALSE,    /**< 布尔字面量 false */
     TOKEN_F32,      /**< 类型名 f32（32 位浮点，文档阶段 8+） */
@@ -103,7 +112,8 @@ typedef enum TokenKind {
     TOKEN_PIPEPIPE, /**< || 逻辑或 */
     TOKEN_BANG,     /**< ! 逻辑非（一元） */
     TOKEN_QUESTION, /**< ? 三元运算符 cond ? then : else */
-    TOKEN_AS        /**< as 类型转换 expr as type */
+    TOKEN_AS,       /**< as 类型转换 expr as type */
+    TOKEN_AT        /**< @ SIMD comptime builtin 前缀（@shuffle / @select） */
 } TokenKind;
 
 /** 单个 Token：类型 + 源码位置 + 可选值（字面量/标识符） */

@@ -29,7 +29,7 @@ let LSP_FORMAT_RESP_CAP: i32 = 262144;
 extern function lsp_state_buf_ptr(): *u8;
 
 /** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
-extern function lsp_build_initialize_result(out_buf: *u8, out_cap: i32): i32;
+extern function lsp_build_initialize_result(id_val: i32, out_buf: *u8, out_cap: i32): i32;
 /** 对 source 跑 .su pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC
 * 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
 extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf:
@@ -570,7 +570,11 @@ function lsp_main(): i32 {
       continue;
     }
     if (lsp_body_contains_initialize(body_ptr, content_len) != 0) {
-      let out_len: i32 = lsp_build_initialize_result(out_buf, 4096);
+      let sid: i32 = lsp_parse_id(body_ptr, content_len, id_buf, 32);
+      if (sid < 0) {
+        sid = 1;
+      }
+      let out_len: i32 = lsp_build_initialize_result(sid, out_buf, 4096);
       if (out_len > 0) {
         lsp_send_response(stdout_fd, out_buf, out_len);
       }

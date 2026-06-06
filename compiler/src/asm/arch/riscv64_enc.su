@@ -26,7 +26,7 @@ function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32):
   }
   if (platform.elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
-    return platform.elf.elf_add_sym(ctx, name, name_len, ctx.code_len);
+    return platform.elf.elf_add_sym(ctx, name, name_len, platform.elf.elf_section_code_len(ctx));
   }
   return 0;
 }
@@ -122,6 +122,12 @@ function enc_mov_imm64_to_rax(ctx: *ElfCodegenCtx, lo: i32, hi: i32): i32 {
 function enc_push_rax(ctx: *ElfCodegenCtx): i32 {
   if (enc_u32_le(ctx, 19 | (2 << 7) | (0 << 12) | (2 << 15) | (4080 << 20)) != 0) { return -1; }
   return enc_u32_le(ctx, 35 | (0 << 7) | (3 << 12) | (2 << 15) | (10 << 20) | (0 << 25));
+}
+
+/** addi sp, sp, -16; sd a1, 0(sp)。 */
+function enc_push_rbx(ctx: *ElfCodegenCtx): i32 {
+  if (enc_u32_le(ctx, 19 | (2 << 7) | (0 << 12) | (2 << 15) | (4080 << 20)) != 0) { return -1; }
+  return enc_u32_le(ctx, 35 | (0 << 7) | (3 << 12) | (2 << 15) | (11 << 20) | (0 << 25));
 }
 
 /** ld a1, 0(sp); addi sp, sp, 16。 */
@@ -226,6 +232,11 @@ function enc_test_eax_eax(ctx: *ElfCodegenCtx): i32 {
   return 0;
 }
 
+/** 除数 a1 零检占位（RISC-V idiv 路径仍走 slow push）。 */
+function enc_test_rbx_rbx(ctx: *ElfCodegenCtx): i32 {
+  return 0;
+}
+
 /** seqz a0, a0。sltiu a0, a0, 1。 */
 function enc_setz_movzbl_eax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 19 | (10 << 7) | (3 << 12) | (10 << 15) | (1 << 20));
@@ -267,6 +278,13 @@ function enc_load_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm: i32 = 0 - offset;
   imm = imm & 4095;
   return enc_u32_le(ctx, 3 | (10 << 7) | (3 << 12) | (8 << 15) | (imm << 20));
+}
+
+/** ld a1, -offset(s0)（7.3 binop VAR 右操作数直 load 到 rbx/a1）。 */
+function enc_load_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  let imm: i32 = 0 - offset;
+  imm = imm & 4095;
+  return enc_u32_le(ctx, 3 | (11 << 7) | (3 << 12) | (8 << 15) | (imm << 20));
 }
 
 /** li a2, imm32（memset 第三参）；与 enc_mov_imm32_to_rbx 同算法，目标 a2。 */
@@ -312,6 +330,13 @@ function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm12: i32 = 0 - offset;
   imm12 = imm12 & 4095;
   return enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (8 << 15) | (imm12 << 20));
+}
+
+/** addi a1, fp, -off — 向量 dst 基址（勿 clobber a0 中 binop 结果）。 */
+function enc_lea_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  let imm12: i32 = 0 - offset;
+  imm12 = imm12 & 4095;
+  return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (8 << 15) | (imm12 << 20));
 }
 
 /** a0 += a1（缩放 ×1，无移位）。 */
@@ -361,6 +386,123 @@ function enc_add_imm_to_rax(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let imm12: i32 = imm & 4095;
   return enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (10 << 15) | (imm12 << 20));
+}
+
+/** addi a1, a1, imm（字面量 INDEX 偏移入 rbx/a1）。 */
+function enc_add_imm_to_rbx(ctx: *ElfCodegenCtx, imm: i32): i32 {
+  if (imm == 0) { return 0; }
+  let imm12: i32 = imm & 4095;
+  return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (11 << 15) | (imm12 << 20));
+}
+
+/** lw a2, -offset(s0)（INDEX 变量下标；勿 clobber a0 assign 右值）。 */
+function enc_load_rbp_to_a2(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  let imm: i32 = 0 - offset;
+  imm = imm & 4095;
+  return enc_u32_le(ctx, 3 | (12 << 7) | (2 << 12) | (8 << 15) | (imm << 20));
+}
+
+/** a1 += a2（变量下标 ×1）。 */
+function enc_rbx_plus_a2_scale1(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
+}
+
+/** slli a2,a2,2; add a1,a1,a2（变量下标 ×4）。 */
+function enc_rbx_plus_a2_scale4(ctx: *ElfCodegenCtx): i32 {
+  if (enc_u32_le(ctx, 19 | (12 << 7) | (1 << 12) | (12 << 15) | (2 << 20)) != 0) { return -1; }
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
+}
+
+/** slli a2,a2,3; add a1,a1,a2（变量下标 ×8）。 */
+function enc_rbx_plus_a2_scale8(ctx: *ElfCodegenCtx): i32 {
+  if (enc_u32_le(ctx, 19 | (12 << 7) | (1 << 12) | (12 << 15) | (3 << 20)) != 0) { return -1; }
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
+}
+
+/** addi a2, a2, imm（INDEX 下标 var+lit）。 */
+function enc_add_imm_to_a2(ctx: *ElfCodegenCtx, imm: i32): i32 {
+  if (imm == 0) { return 0; }
+  let imm12: i32 = imm & 4095;
+  return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (12 << 15) | (imm12 << 20));
+}
+
+/** lw a3, -offset(s0)（INDEX 第二下标 var+var）。 */
+function enc_load_rbp_to_a3(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  let imm: i32 = 0 - offset;
+  imm = imm & 4095;
+  return enc_u32_le(ctx, 3 | (13 << 7) | (2 << 12) | (8 << 15) | (imm << 20));
+}
+
+/** add a2, a2, a3（INDEX scratch 下标 i+j）。 */
+function enc_add_a2_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20));
+}
+
+/** addi a2, a2, -imm（INDEX 下标 var-lit；imm>0 时减）。 */
+function enc_sub_imm_from_a2(ctx: *ElfCodegenCtx, imm: i32): i32 {
+  if (imm == 0) { return 0; }
+  let neg: i32 = 0 - imm;
+  let imm12: i32 = neg & 4095;
+  return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (12 << 15) | (imm12 << 20));
+}
+
+/** sub a2, a2, a3（INDEX scratch 下标 i-j）。 */
+function enc_sub_a2_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (64 << 25));
+}
+
+/** sub a2, a3, a2（INDEX scratch = a3 - a2，i-(j+k)）。 */
+function enc_rsub_a2_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (13 << 15) | (12 << 20) | (64 << 25));
+}
+
+/** sub a1, a3, a1（INDEX 读路径 rbx = a3 - a1，i-(j+k)）。 */
+function enc_rsub_rbx_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (13 << 15) | (11 << 20) | (64 << 25));
+}
+
+/** mul a2, a2, lit（INDEX scratch 下标 var*lit；lit>1）。 */
+function enc_mul_imm_to_a2(ctx: *ElfCodegenCtx, lit: i32): i32 {
+  if (lit <= 1) { return 0; }
+  let imm12: i32 = lit & 4095;
+  if (enc_u32_le(ctx, 19 | (13 << 7) | (0 << 12) | (13 << 15) | (imm12 << 20)) != 0) { return -1; }
+  return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (1 << 25));
+}
+
+/** mul a1, a1, lit（INDEX 读路径 var*lit 下标在 rbx/a1）。 */
+function enc_mul_imm_to_rbx(ctx: *ElfCodegenCtx, lit: i32): i32 {
+  if (lit <= 1) { return 0; }
+  let imm12: i32 = lit & 4095;
+  if (enc_u32_le(ctx, 19 | (13 << 7) | (0 << 12) | (13 << 15) | (imm12 << 20)) != 0) { return -1; }
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (1 << 25));
+}
+
+/** addi a1, a1, -imm（INDEX 读路径 var-lit 下标）。 */
+function enc_sub_imm_from_rbx_index(ctx: *ElfCodegenCtx, imm: i32): i32 {
+  if (imm == 0) { return 0; }
+  let neg: i32 = 0 - imm;
+  let imm12: i32 = neg & 4095;
+  return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (11 << 15) | (imm12 << 20));
+}
+
+/** add a1, a1, a3（INDEX 读路径 i+j 下标）。 */
+function enc_add_rbx_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20));
+}
+
+/** sub a1, a1, a3（INDEX 读路径 i-j 下标）。 */
+function enc_sub_rbx_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (64 << 25));
+}
+
+/** mul a2, a2, a3（INDEX assign scratch 下标 i*j）。 */
+function enc_mul_a2_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (1 << 25));
+}
+
+/** mul a1, a1, a3（INDEX 读路径 i*j 下标）。 */
+function enc_mul_rbx_a3(ctx: *ElfCodegenCtx): i32 {
+  return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (1 << 25));
 }
 
 /** ld a0, 0(a0)。 */

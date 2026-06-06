@@ -1,0 +1,10 @@
+// dead_lib3.su — WPO 多库 proxy：第三 import 库
+/** 不可达 export：WPO asm DCE 应剔除。 */
+function dead_export3(): i32 {
+  return 88;
+}
+
+/** 被 dead_multi_user 引用的 export。 */
+function live_export3(): i32 {
+  return 13;
+}

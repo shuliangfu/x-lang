@@ -25,6 +25,7 @@ extern int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, unsigned t
 /* 阶段 2 性能压榨：一次提交 N 个 accept/connect，一次收割 N 个 CQE。 */
 extern int io_uring_accept_many(int listener_fd, int32_t *out_fds, int n, unsigned timeout_ms);
 extern int io_uring_connect_many(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, int n, unsigned timeout_ms);
+extern int io_uring_prefetch_fd(int fd);
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -63,16 +64,42 @@ static void shu_net_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, ui
     sin->sin_port = htons((uint16_t)(port_u32 & 0xFFFFu));
 }
 
+#if defined(__linux__)
+/** connect/accept 成功后预注册 fd 到 SQPOLL fixed files 槽（echo 热路径一次注册）。 */
+static void shu_net_io_uring_prefetch_fd(int32_t fd) {
+    if (fd >= 0)
+        (void)io_uring_prefetch_fd((int)fd);
+}
+#else
+static void shu_net_io_uring_prefetch_fd(int32_t fd) {
+    (void)fd;
+}
+#endif
+
 #if defined(_WIN32) || defined(_WIN64)
 static int shu_net_set_nonblock(int fd) {
     u_long one = 1;
     return ioctlsocket((SOCKET)fd, FIONBIO, &one) == 0 ? 0 : -1;
+}
+static int shu_net_set_blocking(int fd, int blocking) {
+    u_long mode = blocking ? 0u : 1u;
+    return ioctlsocket((SOCKET)fd, FIONBIO, &mode) == 0 ? 0 : -1;
 }
 #else
 static int shu_net_set_nonblock(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags < 0) return -1;
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0 ? 0 : -1;
+}
+/** 切换阻塞/非阻塞；blocking=1 阻塞，0 非阻塞。bulk sendfile/writev 快路径用。 */
+static int shu_net_set_blocking(int fd, int blocking) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0) return -1;
+    if (blocking)
+        flags &= ~O_NONBLOCK;
+    else
+        flags |= O_NONBLOCK;
+    return fcntl(fd, F_SETFL, flags) == 0 ? 0 : -1;
 }
 #endif
 
@@ -152,6 +179,8 @@ int32_t net_tcp_connect_c(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout
 #if defined(__linux__)
     {
         int32_t fd = io_uring_connect(addr_u32, port_u32, (unsigned)timeout_ms);
+        if (fd >= 0)
+            shu_net_io_uring_prefetch_fd(fd);
         return fd;
     }
 #else
@@ -170,6 +199,67 @@ int32_t net_tcp_connect_c(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout
     }
     return (int32_t)fd;
 #endif
+#endif
+}
+
+/** 阻塞 TCP 连接（bulk sendfile/writev 快路径）；timeout_ms 毫秒（0=无超时）。成功返回 fd，失败 -1。 */
+int32_t net_tcp_connect_blocking_c(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout_ms) {
+    struct sockaddr_in sin;
+    shu_net_set_addr_port(&sin, addr_u32, port_u32);
+#if defined(_WIN32) || defined(_WIN64)
+    static int wsa_done;
+    if (!wsa_done) {
+        WSADATA wsa;
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return -1;
+        wsa_done = 1;
+    }
+    {
+        SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (s == INVALID_SOCKET) return -1;
+        if (timeout_ms != 0) {
+            if (shu_net_set_nonblock((int)s) != 0) { closesocket(s); return -1; }
+            if (connect(s, (struct sockaddr *)&sin, (int)sizeof(sin)) != 0) {
+                if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { closesocket(s); return -1; }
+                if (shu_net_poll_writable((int)s, timeout_ms) != 0) { closesocket(s); return -1; }
+                {
+                    int err = 0;
+                    int errlen = (int)sizeof(err);
+                    if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&err, &errlen) != 0 || err != 0) {
+                        closesocket(s);
+                        return -1;
+                    }
+                }
+            }
+            if (shu_net_set_blocking((int)s, 1) != 0) { closesocket(s); return -1; }
+        } else {
+            if (connect(s, (struct sockaddr *)&sin, (int)sizeof(sin)) != 0) {
+                closesocket(s);
+                return -1;
+            }
+        }
+        return (int32_t)s;
+    }
+#else
+    if (timeout_ms != 0) {
+        int32_t fd = net_tcp_connect_c(addr_u32, port_u32, timeout_ms);
+        if (fd < 0) return -1;
+        if (shu_net_set_blocking((int)fd, 1) != 0) {
+            close((int)fd);
+            return -1;
+        }
+        shu_net_io_uring_prefetch_fd(fd);
+        return fd;
+    }
+    {
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) return -1;
+        if (connect(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0) {
+            close(fd);
+            return -1;
+        }
+        shu_net_io_uring_prefetch_fd((int32_t)fd);
+        return (int32_t)fd;
+    }
 #endif
 }
 
@@ -207,6 +297,7 @@ int32_t net_tcp_listen_c(uint32_t addr_u32, uint32_t port_u32) {
     if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0) { close(fd); return -1; }
     if (listen(fd, 128) != 0) { close(fd); return -1; }
     if (shu_net_set_nonblock(fd) != 0) { close(fd); return -1; }
+    shu_net_io_uring_prefetch_fd((int32_t)fd);
     return (int32_t)fd;
 #endif
 }
@@ -250,9 +341,11 @@ int net_accept_many_c(int32_t listener_fd, int32_t *out_fds, int n, uint32_t tim
 #if defined(__linux__)
     return io_uring_accept_many(listener_fd, out_fds, n, (unsigned)timeout_ms);
 #else
+    /* 仅首槽等待 timeout_ms；后续槽 timeout=0 快速排空 backlog，避免 macOS 上每槽 5s 假超时。 */
     int i;
     for (i = 0; i < n; i++) {
-        int32_t fd = net_accept_c(listener_fd, timeout_ms);
+        uint32_t tm = (i == 0) ? timeout_ms : 0u;
+        int32_t fd = net_accept_c(listener_fd, tm);
         if (fd < 0) return i;
         out_fds[i] = fd;
     }
@@ -284,9 +377,12 @@ int net_connect_many_c(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, i
 extern int net_accept_many_c(int32_t listener_fd, int32_t *out_fds, int n, uint32_t timeout_ms);
 extern int32_t net_close_socket_c_real(int32_t fd);
 
-/* 可选：链接 std.thread 时每 worker 绑核；未链 thread.o 时为弱符号 0，不调用。仅 GCC/Clang 支持 weak。 */
+/* 可选绑核：弱定义 stub；链接 std/thread/thread.o 时由强符号覆盖。 */
 #if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak)) extern int32_t thread_set_affinity_self_c(int32_t cpu_index);
+__attribute__((weak)) int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+    (void)cpu_index;
+    return 0;
+}
 #endif
 
 struct shu_net_worker_arg {
@@ -298,8 +394,7 @@ struct shu_net_worker_arg {
 static void *shu_net_worker_accept_loop(void *arg) {
     struct shu_net_worker_arg *a = (struct shu_net_worker_arg *)arg;
 #if defined(__GNUC__) || defined(__clang__)
-    if (thread_set_affinity_self_c)
-        (void)thread_set_affinity_self_c(a->worker_index);
+    (void)thread_set_affinity_self_c(a->worker_index);
 #endif
     int32_t fds[SHU_NET_ACCEPT_BATCH];
     for (;;) {
@@ -379,6 +474,12 @@ int32_t net_close_socket_c_real(int32_t fd) {
 
 /* 兼容：部分编译路径仍引用旧名，提供别名供链接。 */
 int32_t net_close_socket_c(int32_t fd) { return net_close_socket_c_real(fd); }
+
+/** 设置 socket 阻塞/非阻塞；blocking：1=阻塞（bulk sendfile/writev 快路径），0=非阻塞（默认 connect 语义）。0 成功，-1 失败。 */
+int32_t net_set_blocking_c(int32_t fd, int32_t blocking) {
+    if (fd < 0) return -1;
+    return shu_net_set_blocking((int)fd, blocking != 0 ? 1 : 0) == 0 ? 0 : -1;
+}
 
 /* ========== UDP ========== */
 
@@ -753,6 +854,7 @@ int32_t net_tcp_listen_ipv6_c(const uint8_t *addr_16, uint32_t port_u32) {
     if (bind(fd, (struct sockaddr *)&sin6, sizeof(sin6)) != 0) { close(fd); return -1; }
     if (listen(fd, 128) != 0) { close(fd); return -1; }
     if (shu_net_set_nonblock(fd) != 0) { close(fd); return -1; }
+    shu_net_io_uring_prefetch_fd((int32_t)fd);
     return (int32_t)fd;
 #endif
 }
@@ -784,4 +886,61 @@ uint32_t net_resolve_ipv4_c(const char *hostname) {
     }
     if (res) freeaddrinfo(res);
     return addr_u32;
+}
+
+/** std.io 批量读写（io.o）；TcpStream 首参 fd 与 AAPCS64 x0 低 32 位一致。 */
+extern ptrdiff_t io_read_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n,
+                               unsigned timeout_ms);
+extern ptrdiff_t io_read_batch_provided(int fd, int n, unsigned timeout_ms, unsigned *out_bids, unsigned *out_lens);
+extern ptrdiff_t io_write_batch(int fd, const uint8_t *p0, size_t l0, const uint8_t *p1, size_t l1, const uint8_t *p2, size_t l2,
+                                const uint8_t *p3, size_t l3, int n, unsigned timeout_ms);
+
+/**
+ * asm 用户 bench：stream_write_batch 薄包装 → io_write_batch（勿 co-emit std.net 内 [4]Buffer 字面量）。
+ * 首参 stream_fd：TcpStream { fd } 按值传入时 x0 低 32 位即为 fd。
+ */
+int32_t net_stream_write_batch_c(int32_t stream_fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3,
+                                 size_t l3, int32_t n, uint32_t timeout_ms) {
+    ptrdiff_t r;
+    if (stream_fd < 0)
+        return -1;
+    r = io_write_batch(stream_fd, (const uint8_t *)p0, l0, (const uint8_t *)p1, l1, (const uint8_t *)p2, l2, (const uint8_t *)p3, l3,
+                       (int)n, (unsigned)timeout_ms);
+    if (r < 0)
+        return -1;
+    if (r > 2147483647)
+        return 2147483647;
+    return (int32_t)r;
+}
+
+/**
+ * asm 用户 bench：stream_read_batch 薄包装 → io_read_batch。
+ */
+int32_t net_stream_read_batch_c(int32_t stream_fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3,
+                                size_t l3, int32_t n, uint32_t timeout_ms) {
+    ptrdiff_t r;
+    if (stream_fd < 0)
+        return -1;
+    r = io_read_batch(stream_fd, p0, l0, p1, l1, p2, l2, p3, l3, (int)n, (unsigned)timeout_ms);
+    if (r < 0)
+        return -1;
+    if (r > 2147483647)
+        return 2147483647;
+    return (int32_t)r;
+}
+
+/**
+ * ZC-1：stream 批量 provided recv 薄包装 → io_read_batch_provided。
+ */
+int32_t net_stream_read_batch_provided_c(int32_t stream_fd, int32_t n, uint32_t timeout_ms, uint32_t *out_bids,
+                                         uint32_t *out_lens) {
+    ptrdiff_t r;
+    if (stream_fd < 0 || !out_bids || !out_lens)
+        return -1;
+    r = io_read_batch_provided(stream_fd, (int)n, (unsigned)timeout_ms, (unsigned *)out_bids, (unsigned *)out_lens);
+    if (r < 0)
+        return -1;
+    if (r > 2147483647)
+        return 2147483647;
+    return (int32_t)r;
 }

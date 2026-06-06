@@ -1,7 +1,84 @@
-// std.simd — SIMD/arch 预留（P4 长期；与语言/目标架构一致再做）
+// std.simd — SIMD-S2：标准向量类型 Vec4f / Vec8i（映射 f32x4 / i32x8 语义）
 //
-// 【文件职责】占位；向量类型与 std::arch 类 API 待语言阶段支持后实现。
-// 【依赖】语言/目标架构。当前仅占位。
-function placeholder(): i32 {
+// 【文件职责】
+//   - Vec4f：4×f32（128-bit，NEON / SSE / AVX 低半）
+//   - Vec8i：8×i32（256-bit，AVX2；arm64 为 lane-scalar 路径直至 SVE）
+// 编译器将 Vec4f/Vec8i 识别为 TYPE_VECTOR 栈槽（16B / 32B，16B 对齐）。
+// 【依赖】语言 TYPE_VECTOR；SIMD-S1 target_cpu_features 供后续 intrinsic 分派。
+//
+// 底层拼写：f32x4 / i32x8 与 Vec4f / Vec8i 等价（parser + asm 后端）。
+
+/** Vec8i 逐 lane 加法（当前 lane-scalar emit；SIMD-S3 起可矢量化）。 */
+function vec8i_add(a: Vec8i, b: Vec8i): Vec8i {
+  return a + b;
+}
+
+/** Vec8i 广播单值到 8 lane。 */
+function vec8i_splat(x: i32): Vec8i {
+  let v: Vec8i = [x, x, x, x, x, x, x, x];
+  return v;
+}
+
+/** Vec4f 逐 lane 加法。 */
+function vec4f_add(a: Vec4f, b: Vec4f): Vec4f {
+  return a + b;
+}
+
+/** Vec4f 广播单值到 4 lane。 */
+function vec4f_splat(x: f32): Vec4f {
+  let v: Vec4f = [x, x, x, x];
+  return v;
+}
+
+/**
+ * Vec4f comptime shuffle（SIMD-S4）：mask 为编译期 [4]i32，lane 索引 0..3。
+ * 编译器内联为 pshufd imm8；未匹配时 lane-scalar 回退。
+ */
+function vec4f_shuffle(v: Vec4f, mask: [4]i32): Vec4f {
+  let r: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  return r;
+}
+
+/**
+ * Vec8i comptime shuffle（SIMD-S4）：mask 为编译期 [8]i32。
+ * 硬件路径要求 mask[i+4]==mask[i]+4（两半对称）；否则 lane-scalar 回退。
+ */
+function vec8i_shuffle(v: Vec8i, mask: [8]i32): Vec8i {
+  let r: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  return r;
+}
+
+/**
+ * Vec8i 向量 select（SIMD-S4）：mask lane 为 0/1 时取 a，否则取 b。
+ * 编译器内联为 pcmpgtd/pand/por（或 lane-scalar 分支回退）。
+ */
+function vec8i_select(mask: Vec8i, a: Vec8i, b: Vec8i): Vec8i {
+  let r: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  return r;
+}
+
+/**
+ * Vec4f 向量 select（SIMD-S4）：mask lane 为 0.0/1.0 时取 a，否则取 b。
+ */
+function vec4f_select(mask: Vec4f, a: Vec4f, b: Vec4f): Vec4f {
+  let r: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  return r;
+}
+
+/**
+ * @shuffle / @select 语法糖目标（按 let 向量类型分派 vec4f/vec8i 路径）。
+ */
+function simd_shuffle(v: Vec8i, mask: [8]i32): Vec8i {
+  let r: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  return r;
+}
+
+function simd_select(mask: Vec8i, a: Vec8i, b: Vec8i): Vec8i {
+  let r: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  return r;
+}
+
+/** 占位：模块加载 smoke（import std.simd 链）。 */
+function simd_placeholder(): i32 {
   return 0;
 }

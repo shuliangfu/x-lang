@@ -3,7 +3,19 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+
+if [ -n "$SHU" ]; then
+  :
+elif [ -x ./compiler/shu ]; then
+  SHU=./compiler/shu
+elif [ -x ./compiler/shu-c ]; then
+  SHU=./compiler/shu-c
+else
+  SHU=./compiler/shu-c
+fi
+
+make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
+  || make -C compiler ../std/process/process.o ../std/io/io.o
 
 $SHU -L . tests/io/main.su -o /tmp/shu_io 2>&1
 out=$(/tmp/shu_io 2>&1)
@@ -38,5 +50,16 @@ $SHU -L . tests/io/read_ptr.su -o /tmp/shu_io_read_ptr 2>&1
 echo -n "AB" | /tmp/shu_io_read_ptr
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr), got $ec"; exit 1; }
+
+# M-5：read_ptr_slice / read_stdin_ptr_slice（管道喂入 "AB"）
+$SHU -L . tests/io/read_ptr_slice.su -o /tmp/shu_io_read_ptr_slice 2>&1
+echo -n "AB" | /tmp/shu_io_read_ptr_slice
+ec=$?
+[ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
+
+$SHU -L . tests/io/read_ptr_slice_param.su -o /tmp/shu_io_read_ptr_slice_param 2>&1
+echo -n "AB" | /tmp/shu_io_read_ptr_slice_param
+ec=$?
+[ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param), got $ec"; exit 1; }
 
 echo "io test OK"

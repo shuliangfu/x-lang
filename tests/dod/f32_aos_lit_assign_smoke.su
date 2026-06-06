@@ -1,0 +1,24 @@
+/**
+ * DOD f32 AoS 字面量 field assign smoke：arr[i].x = 1.0 须写 32-bit IEEE754（勿 f64 截断为 0）。
+ * 四元累加 1+2+3+4=10 → main 返回 10（addss + cvttss2si）。
+ */
+struct Particle {
+  x: f32
+  y: f32
+  z: f32
+}
+
+function main(): i32 {
+  let arr: [4]Particle = [];
+  arr[0].x = 1.0;
+  arr[1].x = 2.0;
+  arr[2].x = 3.0;
+  arr[3].x = 4.0;
+  let s: f32 = 0.0;
+  let i: i32 = 0;
+  while (i < 4) {
+    s = s + arr[i].x;
+    i = i + 1;
+  }
+  return s as i32;
+}

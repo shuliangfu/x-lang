@@ -930,7 +930,7 @@ function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: *u8, na
   return 0;
 }
 
-/** 从 arena 判断 base 表达式（base_ref）类型是否为指针或 slice，用于字段访问输出 ->（ref-based AST 时 resolved_type_ref 有效，source/out_buf 等形参由 typeck 已填）。 */
+/** 从 arena 判断 base 是否为指针，或 slice 形参名 source/out_buf（按指针传）；局部 slice 值用 `.`。 */
 function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 {
   if (ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
     return 0;
@@ -940,7 +940,7 @@ function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 
     return 0;
   }
   let ty: Type = ast_arena_type_get(arena, base.resolved_type_ref);
-  if (ty.kind == TypeKind.TYPE_PTR || ty.kind == TypeKind.TYPE_SLICE) {
+  if (ty.kind == TypeKind.TYPE_PTR) {
     return 1;
   }
   return 0;
@@ -1541,6 +1541,10 @@ function type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32,
     }
     let i32_fallback: TypeKind = TypeKind.TYPE_I32;
     return type_kind_append_to_scratch(scratch, cap, 0, i32_fallback);
+  }
+  /** M-4：Linear(T) 与内层 T 同 C 布局，零 RT 开销。 */
+  if (t.kind == TypeKind.TYPE_LINEAR && !ref_is_null(t.elem_type_ref)) {
+    return type_to_c_repr(arena, scratch, cap, t.elem_type_ref, struct_prefix, struct_prefix_len);
   }
   if (t.kind == TypeKind.TYPE_SLICE && !ref_is_null(t.elem_type_ref)) {
     let eb: [256]u8 = [];
@@ -3995,6 +3999,28 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
           }
           let cif: [3]u8 = [125, 10, 0];
           if (emit_bytes_3(out, cif, 2) != 0) {
+            return -1;
+          }
+        }
+      } else if (k == 6) {
+        /** M-3：region 块运行时等价嵌套 { }（零开销域标签）。 */
+        if (idx >= 0 && idx < ast_block_num_regions(arena, block_ref)) {
+          let reg_body: i32 = ast_block_region_body_ref(arena, block_ref, idx);
+          if (emit_indent(out, indent) != 0) {
+            return -1;
+          }
+          let ob: [2]u8 = [123, 10];
+          if (emit_bytes_2(out, ob, 2) != 0) {
+            return -1;
+          }
+          if (emit_block(arena, out, reg_body, indent + 2, ctx) != 0) {
+            return -1;
+          }
+          if (emit_indent(out, indent) != 0) {
+            return -1;
+          }
+          let cb: [3]u8 = [125, 10, 0];
+          if (emit_bytes_3(out, cb, 2) != 0) {
             return -1;
           }
         }

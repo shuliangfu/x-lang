@@ -1,5 +1,5 @@
 /**
- * std/fs/fs.c — 高性能文件：mmap 只读/可写、munmap、O_DIRECT、fadvise、madvise、copy_file_range（极致压榨）
+ * std/fs/fs.c — 高性能文件：mmap 只读/可写、munmap、O_DIRECT、fadvise、madvise、copy_file_range、sendfile、pipe_splice（ZC-5）（极致压榨）
  *
  * 与 std/fs/mod.su 同目录；供 std.fs 各 API 调用。
  * 链接用户程序时由编译器链入本目录产出的 fs.o；POSIX 需 -lc。
@@ -68,6 +68,21 @@ void *fs_mmap_rw_c(uint8_t *path, size_t *out_size) {
 int32_t fs_munmap_c(void *ptr, size_t size) {
     (void)size;
     return (ptr && UnmapViewOfFile(ptr)) ? 0 : -1;
+}
+
+/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.su fs_open_read 语义一致。 */
+int32_t fs_open_read_c(uint8_t *path) {
+    HANDLE h;
+    int fd;
+    if (!path) return -1;
+    h = CreateFileA((const char *)path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) return -1;
+    fd = (int)_open_osfhandle((intptr_t)h, _O_RDONLY);
+    if (fd < 0) {
+        CloseHandle(h);
+        return -1;
+    }
+    return fd;
 }
 
 /** 无缓冲只读打开（FILE_FLAG_NO_BUFFERING）；buf 与 offset 须对齐 fs_direct_align()。返回 CRT fd，失败 -1。 */
@@ -148,6 +163,31 @@ int64_t fs_sendfile_c(int32_t out_fd, int32_t in_fd, size_t count) {
     s = (SOCKET)(intptr_t)_get_osfhandle(out_fd);
     ok = TransmitFile(s, hFile, (DWORD)(count > 0x7FFFFFFFu ? 0x7FFFFFFFu : count), 0, NULL, NULL, TF_USE_DEFAULT_WORKER);
     return ok ? (int64_t)count : -1;
+}
+
+/** ZC-5：pipe 中转拷贝（Windows 无 splice，ReadFile/WriteFile 回退）；返回字节数，-1 失败。 */
+int64_t fs_pipe_splice_c(int32_t fd_in, int32_t fd_out, size_t len) {
+    HANDLE hIn, hOut;
+    uint8_t *buf;
+    size_t chunk, copied = 0;
+    DWORD nr, nw;
+    const size_t buf_size = 256 * 1024;
+    if (len == 0) return 0;
+    hIn = (HANDLE)_get_osfhandle(fd_in);
+    hOut = (HANDLE)_get_osfhandle(fd_out);
+    if (hIn == INVALID_HANDLE_VALUE || hOut == INVALID_HANDLE_VALUE) return -1;
+    buf = (uint8_t *)malloc(buf_size);
+    if (!buf) return -1;
+    while (copied < len) {
+        chunk = len - copied;
+        if (chunk > buf_size) chunk = buf_size;
+        if (!ReadFile(hIn, buf, (DWORD)chunk, &nr, NULL) || nr == 0) break;
+        if (!WriteFile(hOut, buf, nr, &nw, NULL) || nw != nr) { copied = (size_t)-1; break; }
+        copied += (size_t)nr;
+        if ((DWORD)nr < (DWORD)chunk) break;
+    }
+    free(buf);
+    return (copied != (size_t)-1) ? (int64_t)copied : -1;
 }
 
 /** 范围刷盘：Windows 无等价 API，整文件用 FlushFileBuffers；此处 no-op 返回 0 以兼容调用方。 */
@@ -311,7 +351,10 @@ int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n) {
 #ifndef SYNC_FILE_RANGE_WRITE
 #define SYNC_FILE_RANGE_WRITE 2
 #endif
+#elif defined(__APPLE__)
+#include <sys/socket.h>
 #endif
+#include <poll.h>
 /* posix_fadvise 仅 Linux 提供；macOS/FreeBSD 无此 API，fadvise 包装在 Linux 外为 no-op。 */
 
 /** 只读 mmap 整个文件；path 为 NUL 结尾。返回映射首地址，*out_size 为文件字节数；失败返回 NULL。调用方用毕须 fs_munmap(ptr, *out_size)。madvise(MADV_SEQUENTIAL) 提示内核顺序访问以压榨吞吐。macOS 上刚 fsync 后立即 open 有时失败或 st_size==0，重试最多 3 次（50/100/150ms）以兼容 CI。 */
@@ -473,14 +516,138 @@ int64_t fs_writev2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1)
 
 /** 零拷贝：从 in_fd 当前偏移发送 count 字节到 out_fd（Linux sendfile，常用于文件→socket）；返回发送字节数，-1 失败。in_fd 偏移会前进。 */
 int64_t fs_sendfile_c(int32_t out_fd, int32_t in_fd, size_t count) {
+    size_t remaining = count;
+    int64_t total = 0;
+    while (remaining > 0) {
 #if defined(__linux__)
-    ssize_t n = sendfile(out_fd, in_fd, NULL, count);
-    return n >= 0 ? (int64_t)n : -1;
+        ssize_t n = sendfile(out_fd, in_fd, NULL, remaining);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfd = { out_fd, POLLOUT, 0 };
+                if (poll(&pfd, 1, -1) <= 0) return total > 0 ? total : -1;
+                continue;
+            }
+            return total > 0 ? total : -1;
+        }
+        if (n == 0) break;
+        total += (int64_t)n;
+        remaining -= (size_t)n;
+#elif defined(__APPLE__)
+        off_t len = (off_t)remaining;
+        if (sendfile(in_fd, out_fd, 0, &len, NULL, 0) < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfd = { out_fd, POLLOUT, 0 };
+                if (poll(&pfd, 1, -1) <= 0) return total > 0 ? total : -1;
+                continue;
+            }
+            return total > 0 ? total : -1;
+        }
+        if (len == 0) break;
+        total += (int64_t)len;
+        remaining -= (size_t)len;
 #else
-    (void)out_fd;
-    (void)in_fd;
-    (void)count;
-    return -1;
+        (void)out_fd;
+        (void)in_fd;
+        (void)count;
+        return -1;
+#endif
+    }
+    return total;
+}
+
+/** read/write 回退：非 Linux 或 splice 不可用时由 pipe_splice 调用。 */
+static int64_t fs_pipe_splice_rw_fallback(int32_t fd_in, int32_t fd_out, size_t len) {
+    uint8_t buf[256 * 1024];
+    size_t total = 0;
+    if (len == 0) return 0;
+    while (total < len) {
+        size_t chunk = len - total;
+        if (chunk > sizeof(buf)) chunk = sizeof(buf);
+        ssize_t nr = read(fd_in, buf, chunk);
+        if (nr <= 0) break;
+        ssize_t nw = write(fd_out, buf, (size_t)nr);
+        if (nw != nr) return total > 0 ? (int64_t)total : -1;
+        total += (size_t)nr;
+        if ((size_t)nr < chunk) break;
+    }
+    return (int64_t)total;
+}
+
+/**
+ * ZC-5：经内核 pipe 中转 splice（fd_in → pipe → fd_out），Linux 无 userspace 拷贝。
+ * 返回已传输字节数，-1 失败。非 Linux 回退 read/write。
+ */
+int64_t fs_pipe_splice_c(int32_t fd_in, int32_t fd_out, size_t len) {
+#if defined(__linux__)
+    int pipefd[2];
+    int64_t total = 0;
+    if (len == 0) return 0;
+    if (pipe(pipefd) != 0) return -1;
+
+    while ((size_t)total < len) {
+        size_t ask = len - (size_t)total;
+        if (ask > (size_t)(1 << 20)) ask = (size_t)(1 << 20);
+
+        ssize_t n = splice(fd_in, NULL, pipefd[1], NULL, ask, SPLICE_F_MOVE);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfds[2];
+                pfds[0].fd = fd_in;
+                pfds[0].events = POLLIN;
+                pfds[1].fd = pipefd[1];
+                pfds[1].events = POLLOUT;
+                if (poll(pfds, 2, -1) <= 0) {
+                    close(pipefd[0]);
+                    close(pipefd[1]);
+                    return total > 0 ? total : -1;
+                }
+                continue;
+            }
+            close(pipefd[0]);
+            close(pipefd[1]);
+            return total > 0 ? total : -1;
+        }
+        if (n == 0) break;
+
+        size_t left = (size_t)n;
+        while (left > 0) {
+            ssize_t m = splice(pipefd[0], NULL, fd_out, NULL, left, SPLICE_F_MOVE);
+            if (m < 0) {
+                if (errno == EINTR) continue;
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    struct pollfd pfds[2];
+                    pfds[0].fd = pipefd[0];
+                    pfds[0].events = POLLIN;
+                    pfds[1].fd = fd_out;
+                    pfds[1].events = POLLOUT;
+                    if (poll(pfds, 2, -1) <= 0) {
+                        close(pipefd[0]);
+                        close(pipefd[1]);
+                        return total > 0 ? total : -1;
+                    }
+                    continue;
+                }
+                close(pipefd[0]);
+                close(pipefd[1]);
+                return total > 0 ? total : -1;
+            }
+            if (m == 0) {
+                close(pipefd[0]);
+                close(pipefd[1]);
+                return total > 0 ? total : -1;
+            }
+            left -= (size_t)m;
+            total += m;
+        }
+    }
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return total;
+#else
+    return fs_pipe_splice_rw_fallback(fd_in, fd_out, len);
 #endif
 }
 
@@ -517,6 +684,12 @@ int32_t fs_fallocate_c(int32_t fd, int64_t offset, int64_t len) {
     (void)len;
     return 0;
 #endif
+}
+
+/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.su fs_open_read 语义一致。 */
+int32_t fs_open_read_c(uint8_t *path) {
+    if (!path) return -1;
+    return open((const char *)path, O_RDONLY, 0);
 }
 
 /** 写打开 path（不存在则创建、存在则截断）；临时 umask(0) 并 fchmod 0644，确保后续 mmap_ro 等读打开不遇 EACCES。 */

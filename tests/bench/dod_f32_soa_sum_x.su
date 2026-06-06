@@ -1,0 +1,31 @@
+/**
+ * DOD f32 SoA L1 bench：4096 粒子列主序 arr[i].x 累加（SSE addss 热路径）。
+ * 每 x=1.0 → sum=4096.0；main 返回 (s as i32)/256（=16，规避 shell exit 8-bit 截断）。
+ */
+struct Particle soa {
+  x: f32
+  y: f32
+  z: f32
+}
+
+function main(): i32 {
+  let n: i32 = 4096;
+  let arr: [4096]Particle = [];
+  let one: f32 = 1.0;
+  let two: f32 = 2.0;
+  let three: f32 = 3.0;
+  let i: i32 = 0;
+  while (i < n) {
+    arr[i].x = one;
+    arr[i].y = two;
+    arr[i].z = three;
+    i = i + 1;
+  }
+  let s: f32 = 0.0;
+  i = 0;
+  while (i < n) {
+    s = s + arr[i].x;
+    i = i + 1;
+  }
+  return (s as i32) / 256;
+}

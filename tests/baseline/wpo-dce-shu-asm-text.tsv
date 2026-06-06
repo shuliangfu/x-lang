@@ -1,0 +1,6 @@
+# shu_asm 全二进制 .text dogfood：wpo-eligible(main+driver+pipeline+typeck+backend) 代理反推 WPO-off
+# 实测 2026-06-03：eligible save 100687B / proxy 5.92%
+# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh
+min_wpo_eligible_save_bytes	50000
+min_binary_proxy_save_bytes	50000
+min_binary_proxy_save_pct	3.00

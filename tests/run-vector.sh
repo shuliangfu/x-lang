@@ -20,6 +20,26 @@ exitcode=0
 /tmp/shu_vec_add >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add expected exit 0, got $exitcode"; exit 1; }
 
+$SHU tests/vector/vec_add_check.su -o /tmp/shu_vec_add_check 2>&1
+exitcode=0
+/tmp/shu_vec_add_check >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_check expected exit 0, got $exitcode"; exit 1; }
+
+$SHU tests/vector/vec_add_lit.su -o /tmp/shu_vec_add_lit 2>&1
+exitcode=0
+/tmp/shu_vec_add_lit >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_lit expected exit 0, got $exitcode"; exit 1; }
+
+$SHU tests/vector/vec_copy.su -o /tmp/shu_vec_copy 2>&1
+exitcode=0
+/tmp/shu_vec_copy >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_copy expected exit 0, got $exitcode"; exit 1; }
+
+$SHU tests/vector/vec_add_verify.su -o /tmp/shu_vec_add_verify 2>&1
+exitcode=0
+/tmp/shu_vec_add_verify >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_verify expected exit 0, got $exitcode"; exit 1; }
+
 $SHU tests/vector/i32x16.su -o /tmp/shu_vec_i32x16 2>&1
 exitcode=0
 /tmp/shu_vec_i32x16 >/dev/null 2>&1 || exitcode=$?

@@ -1,0 +1,10 @@
+# shu coldstart bench 上限；门禁：实测 ≤ 本列值（us 或 bytes）
+# 更新：SHU_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench
+# hello：含 std.io；B-BOOT stretch 500us，cap 防回归宽松值
+# fs_return42：最小 freestanding（无 io/panic）；stretch 500us
+# fs_hello：freestanding + shulang_sys_write；B-BOOT-FS cap 2000us / 128KiB
+hello_stripped_us	8000
+fs_return42_stripped_us	1500
+fs_return42_stripped_bytes	65536
+fs_hello_stripped_us	2000
+fs_hello_stripped_bytes	131072

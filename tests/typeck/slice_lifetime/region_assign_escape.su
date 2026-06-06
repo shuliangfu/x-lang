@@ -1,0 +1,11 @@
+// M-3 负例：region 内域绑定 slice 赋给块外未标注域变量（逃逸）
+extern function slice_src(): []i32;
+
+function main(): i32 {
+  let leaked: []i32 = slice_src();
+  region ra {
+    let inner: []i32 = slice_src();
+    leaked = inner;
+  }
+  return 0;
+}

@@ -6,6 +6,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# main.su EMIT_HEAVY + asm pipeline 深递归；默认 8MB 栈会导致 compile/SIGSEGV（与 build_shu_asm ulimit 对齐）。
+ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
+
 if [ ! -x ./shu_asm ]; then
   echo "run_shu_asm_smoke: ./shu_asm missing (run SHU=./shu ./scripts/build_shu_asm.sh first)"
   exit 1

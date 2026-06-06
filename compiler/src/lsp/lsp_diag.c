@@ -1741,11 +1741,11 @@ static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, i
 }
 
 /**
- * 构建 InitializeResult JSON，含 capabilities（同步、定义、引用、悬停、格式化、补全、文档符号、签名帮助）与 serverInfo。
+ * 构建 InitializeResult JSON（capabilities + serverInfo），并用请求 id 封装为 JSON-RPC 响应。
  * 写入 out_buf，返回写入长度，失败返回 -1。
  */
-int lsp_build_initialize_result(uint8_t *out_buf, int out_cap) {
-    const char *json = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{"
+int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
+    const char *result = "{"
         "\"capabilities\":{"
         "\"textDocumentSync\":1,"
         "\"definitionProvider\":true,"
@@ -1755,17 +1755,16 @@ int lsp_build_initialize_result(uint8_t *out_buf, int out_cap) {
         "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\",\"(\"]},"
         "\"documentSymbolProvider\":true,"
         "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"deprecated\",\"abstract\",\"async\",\"modification\",\"documentation\",\"defaultLibrary\"]},\"full\":true,\"range\":false},"
-        "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},\""
+        "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
         "\"renameProvider\":true,"
         "\"diagnosticProvider\":{\"identifier\":\"shulang\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
         "},"
         "\"serverInfo\":{\"name\":\"shulang\",\"version\":\"0.1.0\"}"
-        "}}";
+        "}";
     int len = 0;
-    while (json[len] != '\0') len++;
-    if (len >= out_cap) return -1;
-    for (int i = 0; i < len; i++) out_buf[i] = (uint8_t)json[i];
-    return len;
+    while (result[len] != '\0')
+        len++;
+    return lsp_build_response_with_result(id_val, (const uint8_t *)result, len, out_buf, out_cap);
 }
 
 /**
@@ -2453,8 +2452,8 @@ static int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, co
 }
 
 /**
- * 将 doc[start .. start+len) 写入 out_buf：分号后空格、二元运算符两侧空格（字符串与 // 内不处理）。
- * 不对 . : :: , ()[]{} 强行加空格，保持 arr[i]、let x: i32、f() 等惯写法。
+ * 将 doc[start .. start+len) 写入 out_buf：分号后空格、数组/列表元素逗号后空格、二元运算符两侧空格（字符串与 // 内不处理）。
+ * 不对 . : :: ()[]{} 强行加空格，保持 arr[i]、let x: i32、f() 等惯写法；`, ` 仅在 ] } 前不补空格。
  */
 static int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
     int in_string = 0;
@@ -2607,7 +2606,42 @@ emit_raw:
 }
 
 /**
- * 在 [pos, pos+room) 内选择折行点：优先 \c ; ，其次空格；禁止在标识符/单词中间硬切。
+ * 估算 [pos, break_at) 经 emit_segment 后相对原长多出的字符数（主要为紧凑逗号后补空格）。
+ */
+static int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
+    int extra = 0;
+    int k;
+    int seg_len = break_at - pos;
+    if (seg_len <= 0)
+        return 0;
+    for (k = 0; k < seg_len; k++) {
+        int j = pos + k;
+        uint8_t n;
+        int t;
+        if (doc[content_start + j] != ',')
+            continue;
+        if (lsp_fmt_src_ws_after(doc, content_start, content_len, j))
+            continue;
+        t = j + 1;
+        while (t < content_len) {
+            n = doc[content_start + t];
+            if (n == ' ' || n == '\t' || n == '\r')
+                t++;
+            else
+                break;
+        }
+        if (t < content_len) {
+            n = doc[content_start + t];
+            if (n != ']' && n != '}' && n != '\r' && n != '\n')
+                extra++;
+        }
+    }
+    return extra;
+}
+
+/**
+ * 在 [pos, pos+room) 内选择折行点：优先 ; ，其次 ,（长数组字面量），再其次空格；禁止在标识符/单词中间硬切。
+ * 候选断点须满足 emit_segment 后（含逗号补空格）不超过 room，保证 fmt 幂等。
  * 若无安全断点则返回 content_len（整段剩余保持一行，允许超 max_line_length）。
  */
 static int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
@@ -2618,12 +2652,25 @@ static int lsp_format_find_break(const uint8_t *doc, int content_start, int pos,
     if (end <= pos)
         return content_len;
     for (k = end - 1; k > pos; k--) {
-        if (doc[content_start + k] == ';')
-            return k + 1;
+        if (doc[content_start + k] == ';') {
+            int br = k + 1;
+            if (br - pos + lsp_fmt_comma_expand_extra(doc, content_start, pos, br, content_len) <= room)
+                return br;
+        }
     }
     for (k = end - 1; k > pos; k--) {
-        if (doc[content_start + k] == ' ' || doc[content_start + k] == '\t')
-            return k + 1;
+        if (doc[content_start + k] == ',') {
+            int br = k + 1;
+            if (br - pos + lsp_fmt_comma_expand_extra(doc, content_start, pos, br, content_len) <= room)
+                return br;
+        }
+    }
+    for (k = end - 1; k > pos; k--) {
+        if (doc[content_start + k] == ' ' || doc[content_start + k] == '\t') {
+            int br = k + 1;
+            if (br - pos + lsp_fmt_comma_expand_extra(doc, content_start, pos, br, content_len) <= room)
+                return br;
+        }
     }
     return content_len;
 }
@@ -2683,7 +2730,7 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
             line_start = i + 1;
             continue;
         }
-        /* 代码行折行：仅在 ; 或空格处断行，禁止拆词（如 prefix[7]= 被切成 refix[7]） */
+        /* 代码行折行：优先 ;、其次 ,（数组元素）、再空格；禁止拆词（如 prefix[7]= 被切成 refix[7]） */
         int pos = 0;
         for (;;) {
             /* 输出本段缩进 */

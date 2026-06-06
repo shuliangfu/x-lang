@@ -39,10 +39,12 @@ SHU="$SHU" ./tests/run-struct.sh
 SHU="$SHU" ./tests/run-return-value.sh
 SHU="$SHU" ./tests/run-return-expr.sh
 
+SHU="$SHU" ./tests/run-pool-limits.sh
+
 SHU="$SHU" ./tests/run-check.sh
 SHU="$SHU" ./tests/run-check-compiler.sh
 SHU="$SHU" ./tests/run-fmt-cmd.sh
 SHU="$SHU" ./tests/run-fmt-check-cmd.sh
 SHU="$SHU" ./tests/run-test-cmd.sh
 
-echo "shu_asm gate OK (hello + while + typeck + option + import + compound + multi-file + struct/return + check/fmt/test cmd)"
+echo "shu_asm gate OK (hello + while + typeck + option + import + compound + multi-file + struct/return + pool-limits + check/fmt/test cmd)"

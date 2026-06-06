@@ -1,0 +1,14 @@
+// 7.3：嵌套 while 汇合 live ∪ 后 return a+b；b 未在循环内写，应保持入口缓存（cfg-merge ldur 门禁）。
+function main(): i32 {
+  let a: i32 = 0;
+  let b: i32 = 2;
+  let c: i32 = a + b;
+  while (a < 1) {
+    let j: i32 = 0;
+    while (j < 1) {
+      a += 1;
+      j += 1;
+    }
+  }
+  return a + b;
+}

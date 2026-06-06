@@ -23,7 +23,7 @@ extern int32_t entry(int32_t argc, uint8_t *argv);
 /** runtime.c 完整编译驱动（-o / -backend asm 等）；实验链无 driver_su.o 时作 main_run_compiler_c 兜底。 */
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t *argv);
 
-/** main.o 与 runtime 重复 run_compiler_c 时不链 main.o；entry 弱符号转 C run_compiler_c。 */
+/** main.o 链入时其强符号 entry 覆盖本 weak 实现；未链 main.o 时转 runtime run_compiler_c（缺 run_compiler_su_path_impl 会 silent fail）。 */
 __attribute__((weak)) int32_t entry(int32_t argc, uint8_t *argv) {
   extern int32_t run_compiler_c(int32_t, char **);
   return run_compiler_c(argc, (char **)argv);
@@ -295,6 +295,16 @@ __attribute__((weak)) void typeck_merge_dep_struct_layouts_into_entry(void *modu
 /** pipeline.su import 前缀名；typeck_su.o 链入时强符号覆盖。 */
 __attribute__((weak)) void typeck_typeck_merge_dep_struct_layouts_into_entry(void *module, void *arena, void *ctx) {
   typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
+}
+
+/** DOD-S3：WPO SoA layout 统一；typeck_su.o 未链入时 no-op。 */
+__attribute__((weak)) void typeck_wpo_unify_soa_layouts(void *entry, void *ctx) {
+  (void)entry;
+  (void)ctx;
+}
+
+__attribute__((weak)) void typeck_typeck_wpo_unify_soa_layouts(void *entry, void *ctx) {
+  typeck_wpo_unify_soa_layouts(entry, ctx);
 }
 
 /**

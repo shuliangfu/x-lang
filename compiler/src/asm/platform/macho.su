@@ -13,10 +13,13 @@ import platform.elf;
 
 /** 诊断：Mach-O 写出时遇到空外部符号名。 */
 extern function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
+/** 诊断：写出 relocation_info 时未定义符号未在 und 池中找到。 */
+extern function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
 /** elf sidecar：reloc_sym_names 行读写（定义在 ast_pool.c）。 */
 extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
 extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
 extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
 function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
@@ -319,9 +322,9 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     lz = lz + 1;
   }
   /* LC_SYMTAB = 2，cmdsize = 24 */
-  let lc_cmd: u8 = 2;
+  let lc_cmd: u8 = 2 as u8;
   lc_sym[0] = lc_cmd;
-  let lc_cmdsize_b0: u8 = 24;
+  let lc_cmdsize_b0: u8 = 24 as u8;
   lc_sym[4] = lc_cmdsize_b0;
   let lc_offsym_0: u8 = platform.elf.elf_to_u8(off_sym);
   let lc_offsym_1: u8 = platform.elf.elf_to_u8(off_sym >> 8);
@@ -368,8 +371,8 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   while (s < ctx.num_syms) {
     let ent: [16]u8 = [];
     /* n_type = N_SECT(0x0e) | N_EXT(0x01) = 15；n_sect = 1（__text section） */
-    let ent_ntype: u8 = 15;
-    let ent_nsect: u8 = 1;
+    let ent_ntype: u8 = 15 as u8;
+    let ent_nsect: u8 = 1 as u8;
     ent[4] = ent_ntype;
     ent[5] = ent_nsect;
     let ent_nstrx_0: u8 = platform.elf.elf_to_u8(str_off);
@@ -407,8 +410,8 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     entu[2] = entu_nstrx_2;
     entu[3] = entu_nstrx_3;
     /* N_UNDF(0) | N_EXT(1)：未定义外部符号，链器从其它 .o 解析 */
-    let entu_ntype: u8 = 1;
-    let entu_ndesc: u8 = 0;
+    let entu_ntype: u8 = 1 as u8;
+    let entu_ndesc: u8 = 0 as u8;
     entu[4] = entu_ntype;
     entu[6] = entu_ndesc;
     if (macho_append(out, entu, 16) != 0) { return -1; }
@@ -479,6 +482,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
         us2 = us2 + 1;
       }
       if (uslot < 0) {
+        driver_diagnostic_asm_macho_missing_und_reloc(r);
         return -1;
       }
       sym_idx = ctx.num_syms + uslot;
@@ -489,10 +493,11 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     r_extern，28-31 r_type */
     let word2: i32 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type <<
     28);
-    ri[0] = platform.elf.elf_to_u8(ctx.relocs[r].offset);
-    ri[1] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 8);
-    ri[2] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 16);
-    ri[3] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 24);
+    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, r);
+    ri[0] = platform.elf.elf_to_u8(roff);
+    ri[1] = platform.elf.elf_to_u8(roff >> 8);
+    ri[2] = platform.elf.elf_to_u8(roff >> 16);
+    ri[3] = platform.elf.elf_to_u8(roff >> 24);
     ri[4] = platform.elf.elf_to_u8(word2);
     ri[5] = platform.elf.elf_to_u8(word2 >> 8);
     ri[6] = platform.elf.elf_to_u8(word2 >> 16);

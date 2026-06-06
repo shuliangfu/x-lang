@@ -7,7 +7,7 @@
 # 前提：compiler 下已有可执行 shu 或 bootstrap_shu（首次：make -C compiler、或 cd compiler && sh bootstrap.sh）。
 #
 # 完全无 C/无 Makefile 自举见：analysis/完全自举-无C无Makefile.md；
-# asm 后端编 shu：compiler/scripts/build_shu_asm.sh（需 bootstrap-driver，链接可选 crt0_x86_64.o）。
+# asm 后端编 shu（M7 默认 B-strict）：make -C compiler bootstrap-driver 或 ./build_tool ./shu asm。
 
 set -e
 cd "$(dirname "$0")/compiler"

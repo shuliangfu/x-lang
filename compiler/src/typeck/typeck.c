@@ -14,6 +14,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/** DOD-CL -pad-fields warning（runtime.c）。 */
+extern void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len,
+                                                              const uint8_t *f0, int32_t f0_len,
+                                                              const uint8_t *f1, int32_t f1_len);
+extern void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
+                                                     int32_t hot_len, const uint8_t *cold, int32_t cold_len);
+
 /** 符号表：names[0..n) 为当前作用域内 const/let 名称（const 在前）；type_kinds[i] 为对应类型；type_names[i] 为 NAMED 类型名（结构体名等）。 */
 #define MAX_SYMTAB 128
 
@@ -24,6 +31,17 @@ static int bce_bound_const[MAX_BCE_RANGES];   /* 1 表示上界为常数 bce_bou
 static int bce_bound_val[MAX_BCE_RANGES];
 static const struct ASTExpr *bce_bound_base[MAX_BCE_RANGES];
 static int bce_n;
+
+/** 当前 typeck 的函数是否为 async function（await 仅允许在其体内）。 */
+static int typeck_current_func_is_async;
+
+/** M-4：线性类型 use-once move 跟踪；与 symtab names[i] 平行，仅 AST_TYPE_LINEAR 有意义。 */
+static int g_linear_moved[MAX_SYMTAB];
+
+/** M-4：进入新函数体前清零线性 move 状态。 */
+static void typeck_linear_reset(void) {
+    memset(g_linear_moved, 0, sizeof(g_linear_moved));
+}
 
 /** 结构体字面量具名类型缓存：为 (Type){0} 等设置 resolved_type，使 if-expr/嵌套 if 能正确推断 __tmp 类型，从源头消除对 sed 补丁的依赖。 */
 #define MAX_STRUCT_LIT_TYPES 32
@@ -42,6 +60,19 @@ static struct ASTType static_type_usize = { AST_TYPE_USIZE, NULL, NULL, 0 };
 /** u8 与 *u8，用于切片 []u8 的 .data 字段类型（与 C 侧 elem* data 一致） */
 static struct ASTType static_type_u8 = { AST_TYPE_U8, NULL, NULL, 0 };
 static struct ASTType static_type_ptr_u8 = { AST_TYPE_PTR, NULL, &static_type_u8, 0 };
+/** M-5：read_ptr_slice 等零拷贝读 API 的 TLS buf 域标签（与 typeck 自动绑定一致）。 */
+static struct ASTType static_type_slice_u8_io_read_ptr = {
+    AST_TYPE_SLICE, NULL, &static_type_u8, 0, "io_read_ptr"
+};
+
+/** M-5：callee 是否为 read_ptr 系 slice 生产者（typeck 自动绑 io_read_ptr 域）。 */
+static int typeck_is_read_ptr_slice_producer(const char *name) {
+    if (!name) return 0;
+    return strcmp(name, "read_ptr_slice") == 0
+        || strcmp(name, "shu_io_read_ptr_slice") == 0
+        || strcmp(name, "driver_read_ptr_slice") == 0
+        || strcmp(name, "io_read_ptr_slice") == 0;
+}
 
 /** 当前 typeck 的依赖模块列表（与 m->import_paths 顺序一致），供 CALL 跨模块解析；由 typeck_module 设置。 */
 static struct ASTModule **typeck_dep_mods;
@@ -71,7 +102,20 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     const int *parent_type_kinds, const char **parent_type_names, const struct ASTType **parent_type_ptrs, int parent_n,
     const int *parent_const_values, int parent_n_consts, int inside_loop,
     struct ASTStructDef **struct_defs, int num_structs, struct ASTEnumDef **enum_defs, int num_enums, const struct ASTModule *m,
-    const struct ASTType *func_return_type);
+    const struct ASTType *func_return_type, const char *scope_region);
+
+/** run v4：seed 支持的标量形参/实参类型（usize 用于 IO handle / fd）。 */
+static int typeck_run_seed_scalar_kind(int kind) {
+    return kind == AST_TYPE_I32 || kind == AST_TYPE_U32 || kind == AST_TYPE_I64
+        || kind == AST_TYPE_USIZE;
+}
+
+/** run v3：实参类型须与形参类型一致。 */
+static int typeck_run_seed_arg_matches_param(const struct ASTType *arg, const struct ASTType *param) {
+    if (!arg || !param)
+        return 0;
+    return arg->kind == param->kind;
+}
 
 /**
  * 按名称查找结构体定义；用于字段访问与结构体字面量校验。
@@ -215,7 +259,7 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
         }
         return 0;
     }
-    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_SLICE || a->kind == AST_TYPE_VECTOR)
+    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_SLICE || a->kind == AST_TYPE_LINEAR || a->kind == AST_TYPE_VECTOR)
         return type_equal(a->elem_type, b->elem_type);
     if (a->kind == AST_TYPE_ARRAY)
         return a->array_size == b->array_size && type_equal(a->elem_type, b->elem_type);
@@ -237,12 +281,43 @@ static int type_equal_subst(const struct ASTType *param_type, const struct ASTTy
                 return type_equal(arg_type, type_args[i]);
     }
     if (param_type->kind != arg_type->kind) return 0;
-    if (param_type->kind == AST_TYPE_PTR || param_type->kind == AST_TYPE_SLICE || param_type->kind == AST_TYPE_VECTOR)
+    if (param_type->kind == AST_TYPE_PTR || param_type->kind == AST_TYPE_SLICE || param_type->kind == AST_TYPE_LINEAR || param_type->kind == AST_TYPE_VECTOR)
         return type_equal_subst(param_type->elem_type, arg_type->elem_type, gp_names, type_args, num_gp);
     if (param_type->kind == AST_TYPE_ARRAY)
         return param_type->array_size == arg_type->array_size
             && type_equal_subst(param_type->elem_type, arg_type->elem_type, gp_names, type_args, num_gp);
     return type_equal(param_type, arg_type);
+}
+
+/**
+ * M-3 原型：切片域标签冲突检测。expect/src 均为 SLICE 且均带 region_label 时须一致。
+ * 返回 1 表示冲突（应报错），0 表示可接受。
+ */
+static int typeck_slice_region_conflict(const struct ASTType *expect, const struct ASTType *src) {
+    if (!expect || !src || expect->kind != AST_TYPE_SLICE || src->kind != AST_TYPE_SLICE)
+        return 0;
+    if (!expect->region_label || !src->region_label)
+        return 0;
+    return strcmp(expect->region_label, src->region_label) != 0;
+}
+
+/**
+ * M-3：域绑定 slice 逃逸到未标注域（外层 let / 返回值等）。
+ * 返回 1 表示逃逸（应报错），0 表示可接受。
+ */
+static int typeck_slice_region_escape(const struct ASTType *expect, const struct ASTType *src) {
+    if (!expect || !src || expect->kind != AST_TYPE_SLICE || src->kind != AST_TYPE_SLICE)
+        return 0;
+    return (src->region_label && !expect->region_label) ? 1 : 0;
+}
+
+/**
+ * M-3：为未标注域的 []T 类型打上当前 region 块标签（scope_region）。
+ */
+static void typeck_stamp_slice_region(struct ASTType *ty, const char *scope_region) {
+    if (!ty || ty->kind != AST_TYPE_SLICE || !scope_region || !scope_region[0] || ty->region_label)
+        return;
+    ty->region_label = strdup(scope_region);
 }
 
 /**
@@ -296,13 +371,22 @@ static void type_to_string_buf(const struct ASTType *ty, char *buf, size_t size)
     if (ty->kind == AST_TYPE_SLICE && ty->elem_type) {
         char inner[64];
         type_to_string_buf(ty->elem_type, inner, sizeof(inner));
-        (void)snprintf(buf, size, "[]%s", inner[0] ? inner : "?");
+        if (ty->region_label && ty->region_label[0])
+            (void)snprintf(buf, size, "[]%s<%s>", inner[0] ? inner : "?", ty->region_label);
+        else
+            (void)snprintf(buf, size, "[]%s", inner[0] ? inner : "?");
         return;
     }
     if (ty->kind == AST_TYPE_ARRAY && ty->elem_type && ty->array_size > 0) {
         char inner[64];
         type_to_string_buf(ty->elem_type, inner, sizeof(inner));
         (void)snprintf(buf, size, "[%d]%s", ty->array_size, inner[0] ? inner : "?");
+        return;
+    }
+    if (ty->kind == AST_TYPE_LINEAR && ty->elem_type) {
+        char inner[64];
+        type_to_string_buf(ty->elem_type, inner, sizeof(inner));
+        (void)snprintf(buf, size, "Linear(%s)", inner[0] ? inner : "?");
         return;
     }
     if (base && base[0])
@@ -320,6 +404,72 @@ static void typeck_err_loc(const struct ASTExpr *e) {
 }
 #define TYPECK_ERR(e, fmt, ...) do { lsp_diag_report_typeck((e)->line, (e)->col, fmt, ##__VA_ARGS__); } while(0)
 #define TYPECK_ERR_AT(line, col, fmt, ...) do { lsp_diag_report_typeck(line, col, fmt, ##__VA_ARGS__); } while(0)
+
+/** M-4：VAR 读取线性值时检查并标记 moved；返回 -1 并已报错。 */
+static int typeck_linear_use_var(const struct ASTExpr *e, int sym_index,
+    const struct ASTType **type_ptrs) {
+    if (!e || sym_index < 0 || sym_index >= MAX_SYMTAB || !type_ptrs || !type_ptrs[sym_index])
+        return 0;
+    if (type_ptrs[sym_index]->kind != AST_TYPE_LINEAR)
+        return 0;
+    if (g_linear_moved[sym_index]) {
+        TYPECK_ERR(e, "linear value used after move");
+        return -1;
+    }
+    g_linear_moved[sym_index] = 1;
+    return 0;
+}
+
+/** M-4：Linear(T) 是否接受内层标量/指针字面量初始化。 */
+static int typeck_linear_accepts_inner(const struct ASTType *linear, const struct ASTType *inner) {
+    if (!linear || linear->kind != AST_TYPE_LINEAR || !linear->elem_type || !inner)
+        return 0;
+    return type_equal(linear->elem_type, inner);
+}
+
+/**
+ * M-3：统一检查 slice 域 assign/let；返回 -1 并已打印 typeck error。
+ */
+static int typeck_check_slice_region_assign(const struct ASTExpr *site,
+    const struct ASTType *expect, const struct ASTType *src) {
+    if (!site || !expect || !src || expect->kind != AST_TYPE_SLICE || src->kind != AST_TYPE_SLICE)
+        return 0;
+    if (typeck_slice_region_escape(expect, src)) {
+        TYPECK_ERR(site, "slice region escape: cannot assign <%s> slice to unbound []T",
+            src->region_label);
+        return -1;
+    }
+    if (typeck_slice_region_conflict(expect, src)) {
+        TYPECK_ERR(site, "slice region mismatch: expected <%s>, found <%s>",
+            expect->region_label, src->region_label);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * M-3：return 路径 slice 域逃逸 / 不一致检查。
+ */
+static int typeck_check_return_slice_region(const struct ASTExpr *ret_site,
+    const struct ASTExpr *op, const struct ASTType *func_return_type) {
+    const struct ASTType *got;
+    if (!ret_site || !op || !func_return_type || func_return_type->kind != AST_TYPE_SLICE)
+        return 0;
+    got = op->resolved_type;
+    if (!got || got->kind != AST_TYPE_SLICE)
+        return 0;
+    if (typeck_slice_region_escape(func_return_type, got)) {
+        TYPECK_ERR(ret_site, "slice region escape: cannot return <%s> slice as unbound []T",
+            got->region_label);
+        return -1;
+    }
+    if (typeck_slice_region_conflict(func_return_type, got)) {
+        TYPECK_ERR(ret_site, "slice region mismatch in return: expected <%s>, found <%s>",
+            func_return_type->region_label, got->region_label);
+        return -1;
+    }
+    return 0;
+}
 
 /**
  * 在枚举定义中按变体名查找 0-based 序号；用于 match 枚举分支（§7.4）。
@@ -443,6 +593,7 @@ static int compute_struct_layouts(struct ASTStructDef **struct_defs, int num_str
             if (!fty) { sd->field_offsets[i] = current_offset; continue; }
             int A = type_align_of(fty, struct_defs, num_structs, enum_defs, num_enums);
             if (A <= 0) A = 1;
+            if (sd->field_min_align[i] > A) A = sd->field_min_align[i];
             int gap = (A - (current_offset % A)) % A;
             /* Zero-Padding 强制校验（§11.1）：存在隐式 padding 且未标记 allow(padding) 则报错 */
             if (gap > 0 && !sd->allow_padding) {
@@ -473,6 +624,71 @@ static int compute_struct_layouts(struct ASTStructDef **struct_defs, int num_str
         }
         sd->struct_size = current_offset;
         sd->struct_align = max_align;
+    }
+    /** DOD-CL：SHU_PAD_FIELDS=1 时 -pad-fields 伪共享 warning（C/shu-c 路径）。 */
+    {
+        const char *pf = getenv("SHU_PAD_FIELDS");
+        if (pf && pf[0] == '1' && pf[1] == '\0') {
+            for (int idx = 0; idx < num_structs; idx++) {
+                struct ASTStructDef *sd = struct_defs[idx];
+                int j;
+                if (!sd || sd->num_fields < 2)
+                    continue;
+                for (j = 0; j + 1 < sd->num_fields; j++) {
+                    const struct ASTType *t0 = sd->fields[j].type;
+                    const struct ASTType *t1 = sd->fields[j + 1].type;
+                    int off0 = sd->field_offsets[j];
+                    int off1 = sd->field_offsets[j + 1];
+                    int sz0 = t0 ? type_size_of(t0, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                    int sz1 = t1 ? type_size_of(t1, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                    if (sd->field_min_align[j] >= 64 || sd->field_min_align[j + 1] >= 64)
+                        continue;
+                    if (off0 / 64 != off1 / 64)
+                        continue;
+                    if ((sz0 != 4 && sz0 != 8) && (sz1 != 4 && sz1 != 8))
+                        continue;
+                    driver_diagnostic_warn_pad_fields_same_cache_line(
+                        (const uint8_t *)(sd->name ? sd->name : "?"),
+                        sd->name ? (int32_t)strlen(sd->name) : 1,
+                        (const uint8_t *)(sd->fields[j].name ? sd->fields[j].name : "?"),
+                        sd->fields[j].name ? (int32_t)strlen(sd->fields[j].name) : 1,
+                        (const uint8_t *)(sd->fields[j + 1].name ? sd->fields[j + 1].name : "?"),
+                        sd->fields[j + 1].name ? (int32_t)strlen(sd->fields[j + 1].name) : 1);
+                }
+            }
+        }
+    }
+    /** DOD-CL-S2：SHU_HOT_REORDER=1 时热字段重排 hint（C/shu-c 路径）。 */
+    {
+        const char *hr = getenv("SHU_HOT_REORDER");
+        if (hr && hr[0] == '1' && hr[1] == '\0') {
+            for (int idx = 0; idx < num_structs; idx++) {
+                struct ASTStructDef *sd = struct_defs[idx];
+                int j, i;
+                if (!sd || sd->num_fields < 2)
+                    continue;
+                for (j = 1; j < sd->num_fields; j++) {
+                    const struct ASTType *ty = sd->fields[j].type;
+                    int sz = ty ? type_size_of(ty, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                    if (sz <= 0 || sz > 4)
+                        continue;
+                    for (i = 0; i < j; i++) {
+                        const struct ASTType *ty_c = sd->fields[i].type;
+                        int sz_c = ty_c ? type_size_of(ty_c, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                        if (sz_c >= 8) {
+                            driver_diagnostic_warn_hot_reorder_field(
+                                (const uint8_t *)(sd->name ? sd->name : "?"),
+                                sd->name ? (int32_t)strlen(sd->name) : 1,
+                                (const uint8_t *)(sd->fields[j].name ? sd->fields[j].name : "?"),
+                                sd->fields[j].name ? (int32_t)strlen(sd->fields[j].name) : 1,
+                                (const uint8_t *)(sd->fields[i].name ? sd->fields[i].name : "?"),
+                                sd->fields[i].name ? (int32_t)strlen(sd->fields[i].name) : 1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
     return 0;
 }
@@ -868,7 +1084,7 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
         if (get_expr_type(e->value.index.base, names, type_kinds, type_names, n, type_ptrs, struct_defs, num_structs, enum_defs, num_enums, &base_kind, &base_name, &base_elem) != 0) return -1;
         if (base_kind == AST_TYPE_PTR && !base_elem && e->value.index.base->resolved_type && e->value.index.base->resolved_type->kind == AST_TYPE_PTR)
             base_elem = e->value.index.base->resolved_type->elem_type;
-        if (base_kind != AST_TYPE_ARRAY && base_kind != AST_TYPE_SLICE && base_kind != AST_TYPE_PTR) {
+        if (base_kind != AST_TYPE_ARRAY && base_kind != AST_TYPE_SLICE && base_kind != AST_TYPE_PTR && base_kind != AST_TYPE_VECTOR) {
                 TYPECK_ERR(e, "subscript base must be array, slice or pointer type");
                 return -1;
         }
@@ -890,6 +1106,14 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
         if (out_elem_type && ty->elem_type && (ty->kind == AST_TYPE_ARRAY || ty->kind == AST_TYPE_SLICE || ty->kind == AST_TYPE_PTR))
             *out_elem_type = ty->elem_type;
         return 0;
+    }
+    if (e->kind == AST_EXPR_AWAIT) {
+        return get_expr_type(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs,
+            struct_defs, num_structs, enum_defs, num_enums, out_kind, out_name, out_elem_type);
+    }
+    if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
+        return get_expr_type(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs,
+            struct_defs, num_structs, enum_defs, num_enums, out_kind, out_name, out_elem_type);
     }
     TYPECK_ERR((struct ASTExpr *)e, "get_expr_type unhandled expression kind %d", (int)e->kind);
     return -1;
@@ -950,6 +1174,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             const char *name = e->value.var.name;
             for (int i = 0; i < n; i++)
                 if (names[i] && name && strcmp(names[i], name) == 0) {
+                    if (typeck_linear_use_var(e, i, type_ptrs) != 0)
+                        return -1;
                     if (type_ptrs && i < n && type_ptrs[i])
                         ((struct ASTExpr *)e)->resolved_type = type_ptrs[i];
                     return 0;
@@ -988,6 +1214,11 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     /* 标量算术：i64 与 i32 混合时提升为 i64；含 f64/f32 时提升为浮点；否则两类型须一致 */
                     if (lt->kind == AST_TYPE_I64 || rt->kind == AST_TYPE_I64)
                         ((struct ASTExpr *)e)->resolved_type = &static_type_i64;
+                    else if ((lt->kind == AST_TYPE_F32 && rt->kind == AST_TYPE_F64 &&
+                              e->value.binop.right->kind == AST_EXPR_FLOAT_LIT) ||
+                             (rt->kind == AST_TYPE_F32 && lt->kind == AST_TYPE_F64 &&
+                              e->value.binop.left->kind == AST_EXPR_FLOAT_LIT))
+                        ((struct ASTExpr *)e)->resolved_type = &static_type_f32;
                     else if (lt->kind == AST_TYPE_F64 || rt->kind == AST_TYPE_F64)
                         ((struct ASTExpr *)e)->resolved_type = &static_type_f64;
                     else if (lt->kind == AST_TYPE_F32 || rt->kind == AST_TYPE_F32)
@@ -1004,9 +1235,36 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 }
             }
             return 0;
-        case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
-        case AST_EXPR_ADDR_OF:
+        case AST_EXPR_NEG:
+        case AST_EXPR_BITNOT: {
+            if (typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                return -1;
+            {
+                const struct ASTType *op_ty = e->value.unary.operand->resolved_type;
+                if (op_ty)
+                    ((struct ASTExpr *)e)->resolved_type = op_ty;
+            }
+            return 0;
+        }
+        case AST_EXPR_LOGNOT: {
+            if (typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                return -1;
+            ((struct ASTExpr *)e)->resolved_type = &static_type_bool;
+            return 0;
+        }
+        case AST_EXPR_ADDR_OF: {
+            /* M-4：禁止对 Linear(T) 取址（须在 use-once 消费 VAR 之前检查）。 */
+            if (e->value.unary.operand && e->value.unary.operand->kind == AST_EXPR_VAR) {
+                const char *vname = e->value.unary.operand->value.var.name;
+                for (int i = 0; i < n; i++)
+                    if (names[i] && vname && strcmp(names[i], vname) == 0 && type_ptrs && type_ptrs[i] &&
+                        type_ptrs[i]->kind == AST_TYPE_LINEAR) {
+                        TYPECK_ERR(e, "cannot take address of linear value");
+                        return -1;
+                    }
+            }
             return typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m);
+        }
         case AST_EXPR_DEREF: {
             if (typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
             const struct ASTType *op_ty = e->value.unary.operand->resolved_type;
@@ -1024,6 +1282,87 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (typeck_expr_sym(e->value.as_type.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
             ((struct ASTExpr *)e)->resolved_type = e->value.as_type.type;
             return 0;
+        case AST_EXPR_AWAIT:
+            if (!typeck_current_func_is_async) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'await' is only allowed inside async function");
+                    return -1;
+                }
+                return 0;
+            }
+            if (typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            ((struct ASTExpr *)e)->resolved_type = e->value.unary.operand->resolved_type;
+            return 0;
+        case AST_EXPR_RUN:
+        case AST_EXPR_SPAWN: {
+            const char *spawn_kw = (e->kind == AST_EXPR_SPAWN) ? "spawn" : "run";
+            const struct ASTExpr *op = e->value.unary.operand;
+            const struct ASTFunc *callee;
+            int num_args;
+            int pi;
+            if (typeck_current_func_is_async) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'%s' is not allowed inside async function (use await)", spawn_kw);
+                    return -1;
+                }
+                return 0;
+            }
+            if (!op || op->kind != AST_EXPR_CALL) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'%s' operand must be a call like %s async_fn()", spawn_kw, spawn_kw);
+                    return -1;
+                }
+                return 0;
+            }
+            num_args = op->value.call.num_args;
+            if (num_args < 0 || num_args > 8) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'%s' async call supports zero to eight scalar arguments (v4)", spawn_kw);
+                    return -1;
+                }
+                return 0;
+            }
+            if (typeck_expr_sym(op, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                return -1;
+            callee = op->value.call.resolved_callee_func;
+            if (!callee || !callee->is_async) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'%s' target must be async function", spawn_kw);
+                    return -1;
+                }
+                return 0;
+            }
+            if (callee->num_params != num_args) {
+                if (!typeck_fill_only) {
+                    TYPECK_ERR(e, "'%s' argument count must match async function parameter count (v4)", spawn_kw);
+                    return -1;
+                }
+                return 0;
+            }
+            for (pi = 0; pi < num_args; pi++) {
+                const struct ASTExpr *a = op->value.call.args[pi];
+                const struct ASTType *pty = callee->params[pi].type;
+                if (!pty || !typeck_run_seed_scalar_kind(pty->kind)) {
+                    if (!typeck_fill_only) {
+                        TYPECK_ERR(e, "'%s' async params must be i32, u32, i64, or usize (v4)", spawn_kw);
+                        return -1;
+                    }
+                    return 0;
+                }
+                if (!a || !a->resolved_type || !typeck_run_seed_arg_matches_param(a->resolved_type, pty)) {
+                    if (!typeck_fill_only) {
+                        TYPECK_ERR(e, "'%s' async argument type must match parameter type (v4)", spawn_kw);
+                        return -1;
+                    }
+                    return 0;
+                }
+            }
+            if (e->kind == AST_EXPR_SPAWN)
+                ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
+            else
+                ((struct ASTExpr *)e)->resolved_type = op->resolved_type;
+            return 0;
+        }
         case AST_EXPR_IF: {
             const struct ASTExpr *cond_if = e->value.if_expr.cond;
             if (typeck_expr_sym(cond_if, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
@@ -1062,7 +1401,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
         case AST_EXPR_BLOCK: {
             /* 块表达式（if 的 then/else 体）：用块表达式上下文 typeck_block（func_return_type=NULL 允许 return） */
             const struct ASTBlock *b = e->value.block;
-            if (typeck_block(b, names, type_kinds, type_names, type_ptrs, n, NULL, 0, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, NULL) != 0) return -1;
+            if (typeck_block(b, names, type_kinds, type_names, type_ptrs, n, NULL, 0, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, NULL, NULL) != 0) return -1;
             if (b->final_expr && b->final_expr->kind != AST_EXPR_RETURN) {
                 /* 若 final_expr 为赋值，用 RHS 类型作为块类型（如 else { __tmp = (struct ast_Type){0} } 取 ast.Type），便于 if 表达式 __tmp 推断 */
                 if (expr_is_assign_or_compound(b->final_expr) && b->final_expr->value.binop.right && b->final_expr->value.binop.right->resolved_type)
@@ -1129,13 +1468,24 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     ((struct ASTExpr *)e->value.binop.right)->resolved_type = lt;
                 }
                 if (!allow_u8_lit && !allow_ptr_zero && !typeck_fill_only) {
+                    /* f32 赋值：右端 f64 浮点字面量允许窄化（sum = sum + 1.0；simd_dot.su） */
+                    int allow_f32_narrow = 0;
+                    if (lt && lt->kind == AST_TYPE_F32 && rt && rt->kind == AST_TYPE_F64 &&
+                        e->value.binop.right->kind == AST_EXPR_FLOAT_LIT) {
+                        allow_f32_narrow = 1;
+                        ((struct ASTExpr *)e->value.binop.right)->resolved_type = lt;
+                    }
+                    if (!allow_f32_narrow) {
                     char ebuf[80], fbuf[80];
                     type_to_string_buf(lt, ebuf, sizeof(ebuf));
                     type_to_string_buf(rt, fbuf, sizeof(fbuf));
                     TYPECK_ERR(e, "assignment type mismatch: expected %s, found %s", ebuf, fbuf);
                     return -1;
+                    }
                 }
             }
+            if (!typeck_fill_only && typeck_check_slice_region_assign(e, lt, rt) != 0)
+                return -1;
             ((struct ASTExpr *)e)->resolved_type = lt;
             return 0;
         }
@@ -1331,6 +1681,44 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 TYPECK_ERR(e, "field access requires struct type");
                 return -1;
             }
+            /* DOD-S1：arr[i].field — base 为 INDEX 且数组元素为 soa struct */
+            if (e->value.field_access.base->kind == AST_EXPR_INDEX) {
+                const struct ASTExpr *ix = e->value.field_access.base;
+                const struct ASTType *arr_ty = ix->value.index.base && ix->value.index.base->resolved_type
+                    ? ix->value.index.base->resolved_type : NULL;
+                if (arr_ty && arr_ty->kind == AST_TYPE_ARRAY && arr_ty->elem_type
+                    && arr_ty->elem_type->kind == AST_TYPE_NAMED && arr_ty->elem_type->name) {
+                    const struct ASTStructDef *sd_arr = find_struct_def_with_deps(struct_defs, num_structs, arr_ty->elem_type->name);
+                    const char *field = e->value.field_access.field_name;
+                    if (sd_arr && sd_arr->soa && field) {
+                        int N = arr_ty->array_size;
+                        int fi;
+                        for (fi = 0; fi < sd_arr->num_fields; fi++) {
+                            if (!sd_arr->fields[fi].name || strcmp(sd_arr->fields[fi].name, field) != 0)
+                                continue;
+                            int col = 0;
+                            int j;
+                            for (j = 0; j < fi; j++) {
+                                const struct ASTType *fty = sd_arr->fields[j].type;
+                                int fsize = fty ? type_size_of(fty, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                                int A = fty ? type_align_of(fty, struct_defs, num_structs, enum_defs, num_enums) : 1;
+                                if (A <= 0) A = 1;
+                                if (fsize <= 0) fsize = 4;
+                                col += (A - (col % A)) % A;
+                                col += N * fsize;
+                            }
+                            int stride = sd_arr->fields[fi].type
+                                ? type_size_of(sd_arr->fields[fi].type, struct_defs, num_structs, enum_defs, num_enums) : 0;
+                            if (stride <= 0) stride = 4;
+                            if (sd_arr->fields[fi].type)
+                                ((struct ASTExpr *)e)->resolved_type = sd_arr->fields[fi].type;
+                            ((struct ASTExpr *)e)->value.field_access.field_offset = col;
+                            ((struct ASTExpr *)e)->value.field_access.field_soa_stride = stride;
+                            return 0;
+                        }
+                    }
+                }
+            }
             const struct ASTStructDef *sd = find_struct_def_with_deps(struct_defs, num_structs, base_name);
             if (!sd) {
                 TYPECK_ERR(e, "unknown struct type '%s'", base_name);
@@ -1447,7 +1835,18 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 TYPECK_ERR(e, "subscript base must be array, slice or pointer");
                 return -1;
             }
-            if (base_kind != AST_TYPE_ARRAY && base_kind != AST_TYPE_SLICE && base_kind != AST_TYPE_PTR) {
+            if (base_kind != AST_TYPE_ARRAY && base_kind != AST_TYPE_SLICE && base_kind != AST_TYPE_PTR && base_kind != AST_TYPE_VECTOR) {
+                /* SIMD-S4：Vec4f/Vec8i 形参/变量 lane 下标（hsum4 等）；parser 将 Vec4f 存为 TYPE_NAMED。 */
+                if (base_kind == AST_TYPE_NAMED && base_name &&
+                    (strcmp(base_name, "Vec4f") == 0 || strcmp(base_name, "f32x4") == 0)) {
+                    ((struct ASTExpr *)e)->resolved_type = &static_type_f32;
+                    return 0;
+                }
+                if (base_kind == AST_TYPE_NAMED && base_name &&
+                    (strcmp(base_name, "Vec8i") == 0 || strcmp(base_name, "i32x8") == 0)) {
+                    ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
+                    return 0;
+                }
                 TYPECK_ERR(e, "subscript base must be array, slice or pointer type");
                 return -1;
             }
@@ -1457,7 +1856,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 const struct ASTExpr *idx = e->value.index.index_expr;
                 const struct ASTType *base_ty = e->value.index.base->resolved_type;
                 if (idx->kind == AST_EXPR_LIT && idx->value.int_val == 0 && base_ty &&
-                    base_ty->kind == AST_TYPE_ARRAY && base_ty->array_size >= 1)
+                    (base_ty->kind == AST_TYPE_ARRAY || base_ty->kind == AST_TYPE_VECTOR) && base_ty->array_size >= 1)
                     ((struct ASTExpr *)e)->index_proven_in_bounds = 1;
             }
             /* BCE 扩展：循环内值域——若下标为变量且在当前 for 的 [0, bound) 上下文中，且 base 长度与 bound 一致则标为在界内 */
@@ -1621,10 +2020,17 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                             i + 1, callee_name ? callee_name : "", ebuf, fbuf);
                         return -1;
                     }
+                    arg_type = e->value.call.args[i]->resolved_type;
+                    if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
+                        return -1;
                 }
-                if (func->return_type)
-                    ((struct ASTExpr *)e)->resolved_type = get_substituted_return_type(func->return_type,
+                if (func->return_type) {
+                    const struct ASTType *rt = func->return_type;
+                    if (typeck_is_read_ptr_slice_producer(callee_name))
+                        rt = &static_type_slice_u8_io_read_ptr;
+                    ((struct ASTExpr *)e)->resolved_type = get_substituted_return_type(rt,
                         func->generic_param_names, e->value.call.type_args, e->value.call.num_type_args);
+                }
                 return 0;
             }
             /* 非泛型调用：不允许调用泛型函数而不提供类型实参 */
@@ -1662,10 +2068,31 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     int v = e->value.call.args[i]->value.int_val;
                     if (v >= 0 && v <= 255) ok = 1;
                 }
+                /* 允许 f64 浮点字面量传给 f32 参数（默认浮点字面量为 f64，如 vec4f_splat(1.0)） */
+                if (!ok && param_type && param_type->kind == AST_TYPE_F32
+                    && arg_type && arg_type->kind == AST_TYPE_F64
+                    && e->value.call.args[i]->kind == AST_EXPR_FLOAT_LIT) {
+                    ok = 1;
+                    ((struct ASTExpr *)e->value.call.args[i])->resolved_type = param_type;
+                }
                 /* 允许数组字面量 [x, y, ...] 传给 []u8 参数（如 match_keyword 的 keyword）；设 resolved_type 为参数类型供 codegen 生成 slice 复合字面量 */
                 if (!ok && param_type && param_type->kind == AST_TYPE_SLICE && param_type->elem_type
                     && param_type->elem_type->kind == AST_TYPE_U8
                     && e->value.call.args[i]->kind == AST_EXPR_ARRAY_LIT) {
+                    ok = 1;
+                    ((struct ASTExpr *)e->value.call.args[i])->resolved_type = param_type;
+                }
+                /* i32x4 等：固定长度数组字面量传给 vector 形参（WPO vec_const_spec、bench lane0） */
+                if (!ok && param_type && param_type->kind == AST_TYPE_VECTOR
+                    && e->value.call.args[i]->kind == AST_EXPR_ARRAY_LIT
+                    && e->value.call.args[i]->value.array_lit.num_elems == param_type->array_size) {
+                    ok = 1;
+                    ((struct ASTExpr *)e->value.call.args[i])->resolved_type = param_type;
+                }
+                /* [N]T 固定数组字面量传给同尺寸数组形参（SIMD-S4 vec4f_shuffle mask: [4]i32） */
+                if (!ok && param_type && param_type->kind == AST_TYPE_ARRAY
+                    && e->value.call.args[i]->kind == AST_EXPR_ARRAY_LIT
+                    && e->value.call.args[i]->value.array_lit.num_elems == param_type->array_size) {
                     ok = 1;
                     ((struct ASTExpr *)e->value.call.args[i])->resolved_type = param_type;
                 }
@@ -1696,9 +2123,16 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         i + 1, callee_name ? callee_name : "", ebuf, fbuf);
                     return -1;
                 }
+                arg_type = e->value.call.args[i]->resolved_type;
+                if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
+                    return -1;
             }
-            if (func->return_type)
-                ((struct ASTExpr *)e)->resolved_type = func->return_type;
+            if (func->return_type) {
+                const struct ASTType *rt = func->return_type;
+                if (typeck_is_read_ptr_slice_producer(callee_name))
+                    rt = &static_type_slice_u8_io_read_ptr;
+                ((struct ASTExpr *)e)->resolved_type = rt;
+            }
             return 0;
         }
         case AST_EXPR_METHOD_CALL: {
@@ -1874,6 +2308,39 @@ static int block_has_implicit_return(const struct ASTBlock *b) {
 }
 
 /**
+ * let/const 初值：声明为 slice、初值为同 elem 的 array 变量时，将 init->resolved_type 设为 slice 类型。
+ * 返回值：0 成功或非此场景；非 0 则已写 typeck 错误。
+ */
+static int typeck_coerce_array_var_to_slice_type(struct ASTExpr *init, const struct ASTType *slice_ty,
+    const char **names, int n, const struct ASTType **type_ptrs) {
+    const char *vname;
+    int j;
+    if (!slice_ty || slice_ty->kind != AST_TYPE_SLICE || !init || init->kind != AST_EXPR_VAR)
+        return 0;
+    vname = init->value.var.name;
+    for (j = 0; j < n; j++) {
+        const struct ASTType *arr;
+        if (!names[j] || !vname || strcmp(names[j], vname) != 0)
+            continue;
+        arr = (type_ptrs && j < n) ? type_ptrs[j] : NULL;
+        if (!arr || arr->kind != AST_TYPE_ARRAY)
+            return 0;
+        if (!arr->elem_type || !slice_ty->elem_type)
+            break;
+        if (arr->elem_type->kind != slice_ty->elem_type->kind)
+            break;
+        if (arr->elem_type->kind == AST_TYPE_NAMED &&
+            (!arr->elem_type->name || !slice_ty->elem_type->name ||
+             strcmp(arr->elem_type->name, slice_ty->elem_type->name) != 0))
+            break;
+        init->resolved_type = slice_ty;
+        return 0;
+    }
+    TYPECK_ERR_AT(0, 0, "slice init must be array variable with matching element type");
+    return -1;
+}
+
+/**
  * 对块做类型检查；parent_names/... 为外层符号表；parent_const_values/parent_n_consts 为外层 const 求值结果（CTFE）；inside_loop 表示当前块是否为某 while 体。
  */
 static int typeck_block(const struct ASTBlock *b, const char **parent_names,
@@ -1881,11 +2348,12 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     const int *parent_const_values, int parent_n_consts,
     int inside_loop,
     struct ASTStructDef **struct_defs, int num_structs, struct ASTEnumDef **enum_defs, int num_enums, const struct ASTModule *m,
-    const struct ASTType *func_return_type) {
+    const struct ASTType *func_return_type, const char *scope_region) {
     if (!b) return -1;
     /* 允许空块 {}（如 if (x) { } 的 then 体）；仅当块完全为空且无 final_expr 时放行，不视为错误 */
     if (!b->final_expr && b->num_labeled_stmts == 0 && b->num_expr_stmts == 0
-        && b->num_consts == 0 && b->num_lets == 0 && b->num_loops == 0 && b->num_for_loops == 0 && b->num_defers == 0)
+        && b->num_consts == 0 && b->num_lets == 0 && b->num_loops == 0 && b->num_for_loops == 0 && b->num_defers == 0
+        && b->num_regions == 0)
         return 0;
     const char *names[MAX_SYMTAB];
     int type_kinds[MAX_SYMTAB];
@@ -1912,6 +2380,9 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             return -1;
         }
         if (typeck_expr_sym(b->const_decls[i].init, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+        if (!typeck_fill_only && b->const_decls[i].type && b->const_decls[i].type->kind == AST_TYPE_SLICE && b->const_decls[i].init &&
+            typeck_coerce_array_var_to_slice_type((struct ASTExpr *)b->const_decls[i].init, b->const_decls[i].type, names, n, type_ptrs) != 0)
+            return -1;
         const_values[n] = eval_const_int(b->const_decls[i].init, names, const_values, n);
         fold_expr((struct ASTExpr *)b->const_decls[i].init, names, const_values, i, const_start, parent_n_consts);
         /* 数组初值：= [] 表示全零初始化；= [e1,e2,...] 可写不超过声明长度的元素，不足部分按 0 填充 */
@@ -1935,17 +2406,11 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             }
         }
         if (b->const_decls[i].type && b->const_decls[i].type->kind == AST_TYPE_SLICE &&
-            b->const_decls[i].init && b->const_decls[i].init->kind == AST_EXPR_VAR) {
-            const char *vname = b->const_decls[i].init->value.var.name;
-            int j;
-            for (j = 0; j < n && (!names[j] || !vname || strcmp(names[j], vname) != 0); j++) ;
-            if (j >= n || !type_ptrs[j] || type_ptrs[j]->kind != AST_TYPE_ARRAY || !type_ptrs[j]->elem_type ||
-                !b->const_decls[i].type->elem_type ||
-                type_ptrs[j]->elem_type->kind != b->const_decls[i].type->elem_type->kind ||
-                (type_ptrs[j]->elem_type->kind == AST_TYPE_NAMED && (!type_ptrs[j]->elem_type->name || !b->const_decls[i].type->elem_type->name || strcmp(type_ptrs[j]->elem_type->name, b->const_decls[i].type->elem_type->name) != 0))) {
-                TYPECK_ERR_AT(0, 0, "slice init must be array variable with matching element type");
-                return -1;
-            }
+            b->const_decls[i].init && b->const_decls[i].init->kind == AST_EXPR_VAR &&
+            b->const_decls[i].init->resolved_type &&
+            b->const_decls[i].init->resolved_type->kind != AST_TYPE_SLICE) {
+            TYPECK_ERR_AT(0, 0, "slice init must be array variable with matching element type");
+            return -1;
         }
         /* f32/f64 初值：浮点字面量或整数字面量 0；非零整数字面量禁止（避免隐式截断）；浮点字面量设 resolved_type 供 codegen 生成 0.0f/0.0 */
         if (b->const_decls[i].type && (b->const_decls[i].type->kind == AST_TYPE_F32 || b->const_decls[i].type->kind == AST_TYPE_F64) && b->const_decls[i].init) {
@@ -1986,44 +2451,12 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             TYPECK_ERR_AT(0, 0, "too many declarations");
             return -1;
         }
+        typeck_stamp_slice_region((struct ASTType *)b->let_decls[i].type, scope_region);
         if (typeck_expr_sym(b->let_decls[i].init, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
-        fold_expr((struct ASTExpr *)b->let_decls[i].init, names, const_values, n_consts, const_start, parent_n_consts);
-        /* 数组初值：= [] 表示全零初始化；= [e1,e2,...] 可写不超过声明长度的元素，不足部分按 0 填充 */
-        if (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_ARRAY &&
-            b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
-            int narr = b->let_decls[i].init->value.array_lit.num_elems;
-            int decl_size = b->let_decls[i].type->array_size;
-            /* 自举：允许 64 元素字面量（parser.su）；narr>64 时仍报错 */
-            if (narr > decl_size && narr > 64) {
-                TYPECK_ERR_AT(0, 0, "array literal length exceeds declaration size");
-                return -1;
-            }
-            /* 将数组字面量 resolved_type 设为声明类型，供 codegen 生成 { e1,... } 或 { 0 }，C 对未写元素零初始化 */
-            ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
-        }
-        /* 向量可从数组字面量初始化：let v: i32x4 = [a,b,c,d]（文档 §10） */
-        if (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_VECTOR &&
-            b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
-            if (b->let_decls[i].init->value.array_lit.num_elems != b->let_decls[i].type->array_size) {
-                TYPECK_ERR_AT(0, 0, "vector literal length must match vector lanes");
-                return -1;
-            }
-        }
-        /* 切片可从数组变量初始化：init 为 VAR 且该变量类型为 ARRAY，elem_type 须与切片一致 */
-        if (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_SLICE &&
-            b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_VAR) {
-            const char *vname = b->let_decls[i].init->value.var.name;
-            int j;
-            for (j = 0; j < n && (!names[j] || !vname || strcmp(names[j], vname) != 0); j++) ;
-            if (j >= n || !type_ptrs[j] || type_ptrs[j]->kind != AST_TYPE_ARRAY || !type_ptrs[j]->elem_type ||
-                !b->let_decls[i].type->elem_type ||
-                type_ptrs[j]->elem_type->kind != b->let_decls[i].type->elem_type->kind ||
-                (type_ptrs[j]->elem_type->kind == AST_TYPE_NAMED && (!type_ptrs[j]->elem_type->name || !b->let_decls[i].type->elem_type->name || strcmp(type_ptrs[j]->elem_type->name, b->let_decls[i].type->elem_type->name) != 0))) {
-                TYPECK_ERR_AT(0, 0, "slice init must be array variable with matching element type");
-                return -1;
-            }
-        }
-        /* f32/f64 初值：浮点字面量或整数字面量 0；非零整数字面量禁止（避免隐式截断）；浮点字面量设 resolved_type 供 codegen 生成 0.0f/0.0 */
+        if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_SLICE && b->let_decls[i].init &&
+            typeck_coerce_array_var_to_slice_type((struct ASTExpr *)b->let_decls[i].init, b->let_decls[i].type, names, n, type_ptrs) != 0)
+            return -1;
+        /* f32/f64 初值须在 let type mismatch 之前：浮点字面量默认为 f64，如 let sum: f32 = 0.0（simd_dot.su） */
         if (b->let_decls[i].type && (b->let_decls[i].type->kind == AST_TYPE_F32 || b->let_decls[i].type->kind == AST_TYPE_F64) && b->let_decls[i].init) {
             const struct ASTExpr *init = b->let_decls[i].init;
             if (init->kind == AST_EXPR_FLOAT_LIT)
@@ -2051,9 +2484,49 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 return -1;
             }
         }
-        type_kinds[n] = b->let_decls[i].type ? b->let_decls[i].type->kind : AST_TYPE_I32;
-        type_names[n] = (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_NAMED) ? b->let_decls[i].type->name : NULL;
+        if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
+            && !type_equal(b->let_decls[i].type, b->let_decls[i].init->resolved_type)
+            && !(b->let_decls[i].type->kind == AST_TYPE_F32 && b->let_decls[i].init->resolved_type->kind == AST_TYPE_F64)
+            && !(b->let_decls[i].type->kind == AST_TYPE_LINEAR
+                && typeck_linear_accepts_inner(b->let_decls[i].type, b->let_decls[i].init->resolved_type))) {
+            char ebuf[64], fbuf[64];
+            type_to_string_buf(b->let_decls[i].type, ebuf, sizeof(ebuf));
+            type_to_string_buf(b->let_decls[i].init->resolved_type, fbuf, sizeof(fbuf));
+            TYPECK_ERR_AT(0, 0, "let type mismatch: expected %s, found %s", ebuf, fbuf);
+            return -1;
+        }
+        if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
+            && typeck_check_slice_region_assign(b->let_decls[i].init, b->let_decls[i].type,
+                b->let_decls[i].init->resolved_type) != 0) {
+            return -1;
+        }
+        fold_expr((struct ASTExpr *)b->let_decls[i].init, names, const_values, n_consts, const_start, parent_n_consts);
+        /* 数组初值：= [] 表示全零初始化；= [e1,e2,...] 可写不超过声明长度的元素，不足部分按 0 填充 */
+        if (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_ARRAY &&
+            b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
+            int narr = b->let_decls[i].init->value.array_lit.num_elems;
+            int decl_size = b->let_decls[i].type->array_size;
+            /* 自举：允许 64 元素字面量（parser.su）；narr>64 时仍报错 */
+            if (narr > decl_size && narr > 64) {
+                TYPECK_ERR_AT(0, 0, "array literal length exceeds declaration size");
+                return -1;
+            }
+            /* 将数组字面量 resolved_type 设为声明类型，供 codegen 生成 { e1,... } 或 { 0 }，C 对未写元素零初始化 */
+            ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
+        }
+        /* 向量可从数组字面量初始化：let v: i32x4 = [a,b,c,d]（文档 §10） */
+        if (b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_VECTOR &&
+            b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
+            if (b->let_decls[i].init->value.array_lit.num_elems != b->let_decls[i].type->array_size) {
+                TYPECK_ERR_AT(0, 0, "vector literal length must match vector lanes");
+                return -1;
+            }
+        }
         type_ptrs[n] = b->let_decls[i].type;
+        if (!type_ptrs[n] && b->let_decls[i].init && b->let_decls[i].init->resolved_type)
+            type_ptrs[n] = b->let_decls[i].init->resolved_type;
+        type_kinds[n] = type_ptrs[n] ? type_ptrs[n]->kind : AST_TYPE_I32;
+        type_names[n] = (type_ptrs[n] && type_ptrs[n]->kind == AST_TYPE_NAMED) ? type_ptrs[n]->name : NULL;
         names[n++] = b->let_decls[i].name;
     }
     for (int i = 0; i < b->num_loops; i++) {
@@ -2066,7 +2539,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 return -1;
             }
         }
-        if (typeck_block(b->loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type) != 0) return -1;
+        if (typeck_block(b->loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
     }
     for (int i = 0; i < b->num_for_loops; i++) {
         if (b->for_loops[i].init && typeck_expr_sym(b->for_loops[i].init, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
@@ -2117,12 +2590,15 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                     }
                 }
             }
-            if (typeck_block(b->for_loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type) != 0) return -1;
+            if (typeck_block(b->for_loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
             bce_n = saved_bce;
         }
     }
     for (int i = 0; i < b->num_defers; i++) {
-        if (typeck_block(b->defer_blocks[i], names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type) != 0) return -1;
+        if (typeck_block(b->defer_blocks[i], names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
+    }
+    for (int i = 0; i < b->num_regions; i++) {
+        if (typeck_block(b->regions[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, b->regions[i].label) != 0) return -1;
     }
     for (int i = 0; i < b->num_labeled_stmts; i++) {
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN) {
@@ -2140,6 +2616,9 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 if (typeck_expr_sym(b->labeled_stmts[i].u.return_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
                 if (typeck_check_return_operand(b->labeled_stmts[i].u.return_expr, b->labeled_stmts[i].u.return_expr,
                         func_return_type) != 0)
+                    return -1;
+                if (typeck_check_return_slice_region(b->labeled_stmts[i].u.return_expr,
+                        b->labeled_stmts[i].u.return_expr, func_return_type) != 0)
                     return -1;
                 fold_expr((struct ASTExpr *)b->labeled_stmts[i].u.return_expr, names, const_values, n_consts, const_start, parent_n_consts);
             }
@@ -2162,6 +2641,8 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     if (b->final_expr->kind == AST_EXPR_RETURN && b->final_expr->value.unary.operand && func_return_type &&
         func_return_type->kind != AST_TYPE_VOID) {
         if (typeck_check_return_operand(b->final_expr, b->final_expr->value.unary.operand, func_return_type) != 0)
+            return -1;
+        if (typeck_check_return_slice_region(b->final_expr, b->final_expr->value.unary.operand, func_return_type) != 0)
             return -1;
     }
     fold_expr((struct ASTExpr *)b->final_expr, names, const_values, n_consts, const_start, parent_n_consts);
@@ -2459,7 +2940,9 @@ int typeck_one_function(struct ASTModule *m, struct ASTModule **dep_mods, int nu
             type_ptrs[n] = m->top_level_lets[t].type;
             n++;
         }
-        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type) != 0)
+        typeck_current_func_is_async = f->is_async ? 1 : 0;
+        typeck_linear_reset();
+        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type, NULL) != 0)
             return -1;
     } else {
         const char *names[MAX_SYMTAB];
@@ -2474,8 +2957,261 @@ int typeck_one_function(struct ASTModule *m, struct ASTModule **dep_mods, int nu
             type_ptrs[n] = f->params[j].type;
             n++;
         }
-        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type) != 0)
+        typeck_current_func_is_async = f->is_async ? 1 : 0;
+        typeck_linear_reset();
+        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type, NULL) != 0)
             return -1;
+    }
+    return 0;
+}
+
+/** WPO-S3：NAMED 类型是否为模块内 struct 定义。 */
+static int typeck_wpo3_type_is_struct(const struct ASTType *ty, struct ASTStructDef **defs, int n) {
+    if (!ty || ty->kind != AST_TYPE_NAMED || !ty->name || !defs)
+        return 0;
+    for (int i = 0; i < n; i++)
+        if (defs[i] && defs[i]->name && strcmp(defs[i]->name, ty->name) == 0)
+            return 1;
+    return 0;
+}
+
+/** WPO-S3：块树内是否定义 let/const 名（非形参）。 */
+static int typeck_wpo3_block_tree_has_let(const struct ASTBlock *b, const char *name) {
+    int i;
+    if (!b || !name || !name[0])
+        return 0;
+    for (i = 0; i < b->num_lets; i++)
+        if (b->let_decls[i].name && strcmp(b->let_decls[i].name, name) == 0)
+            return 1;
+    for (i = 0; i < b->num_consts; i++)
+        if (b->const_decls[i].name && strcmp(b->const_decls[i].name, name) == 0)
+            return 1;
+    for (i = 0; i < b->num_loops; i++)
+        if (b->loops[i].body && typeck_wpo3_block_tree_has_let(b->loops[i].body, name))
+            return 1;
+    for (i = 0; i < b->num_for_loops; i++)
+        if (b->for_loops[i].body && typeck_wpo3_block_tree_has_let(b->for_loops[i].body, name))
+            return 1;
+    for (i = 0; i < b->num_regions; i++)
+        if (b->regions[i].body && typeck_wpo3_block_tree_has_let(b->regions[i].body, name))
+            return 1;
+    return 0;
+}
+
+/** WPO-S3：expr 是否为第 param_idx 个形参 VAR。 */
+static int typeck_wpo3_expr_is_param(const struct ASTExpr *e, const struct ASTFunc *f, int param_idx) {
+    if (!e || !f || e->kind != AST_EXPR_VAR || param_idx < 0 || param_idx >= f->num_params)
+        return 0;
+    if (!e->value.var.name || !f->params[param_idx].name)
+        return 0;
+    return strcmp(e->value.var.name, f->params[param_idx].name) == 0;
+}
+
+/** WPO-S3：left 是否为形参 *T 上的字段写入左值（field 基为形参）。 */
+static int typeck_wpo3_lval_is_param_ptr_field(const struct ASTExpr *left, const struct ASTFunc *f, int dst_pi) {
+    const struct ASTExpr *base;
+    if (!left || !f || left->kind != AST_EXPR_FIELD_ACCESS || dst_pi < 0 || dst_pi >= f->num_params)
+        return 0;
+    base = left->value.field_access.base;
+    if (!base || !typeck_wpo3_expr_is_param(base, f, dst_pi))
+        return 0;
+    return f->params[dst_pi].type && f->params[dst_pi].type->kind == AST_TYPE_PTR;
+}
+
+/** WPO-S3：在块树中查找 let 类型。 */
+static const struct ASTType *typeck_wpo3_lookup_let_type_in_block(const struct ASTBlock *b, const char *name) {
+    int i;
+    const struct ASTType *ty;
+    if (!b || !name || !name[0])
+        return NULL;
+    for (i = 0; i < b->num_lets; i++)
+        if (b->let_decls[i].name && strcmp(b->let_decls[i].name, name) == 0)
+            return b->let_decls[i].type;
+    for (i = 0; i < b->num_loops; i++) {
+        ty = b->loops[i].body ? typeck_wpo3_lookup_let_type_in_block(b->loops[i].body, name) : NULL;
+        if (ty) return ty;
+    }
+    for (i = 0; i < b->num_for_loops; i++) {
+        ty = b->for_loops[i].body ? typeck_wpo3_lookup_let_type_in_block(b->for_loops[i].body, name) : NULL;
+        if (ty) return ty;
+    }
+    for (i = 0; i < b->num_regions; i++) {
+        ty = b->regions[i].body ? typeck_wpo3_lookup_let_type_in_block(b->regions[i].body, name) : NULL;
+        if (ty) return ty;
+    }
+    for (i = 0; i < b->num_regions; i++) {
+        ty = b->regions[i].body ? typeck_wpo3_lookup_let_type_in_block(b->regions[i].body, name) : NULL;
+        if (ty) return ty;
+    }
+    return NULL;
+}
+
+/** WPO-S3：&块内局部 struct 的元素类型（非 addr 或非 struct 则 NULL）。 */
+static const struct ASTType *typeck_wpo3_addr_of_local_struct_type(const struct ASTExpr *e, const struct ASTFunc *f,
+    struct ASTStructDef **defs, int num_structs) {
+    const struct ASTExpr *op;
+    const struct ASTType *vty;
+    if (!e || !f || e->kind != AST_EXPR_ADDR_OF)
+        return NULL;
+    op = e->value.unary.operand;
+    if (!op || op->kind != AST_EXPR_VAR || !op->value.var.name)
+        return NULL;
+    if (!typeck_wpo3_block_tree_has_let(f->body, op->value.var.name))
+        return NULL;
+    vty = op->resolved_type;
+    if (!vty && f->body)
+        vty = typeck_wpo3_lookup_let_type_in_block(f->body, op->value.var.name);
+    if (!typeck_wpo3_type_is_struct(vty, defs, num_structs))
+        return NULL;
+    return vty;
+}
+
+/** WPO-S3：expr 是否为 &块内局部 struct（seed AST 路径 post-scan）。 */
+static int typeck_wpo3_expr_is_addr_of_local_struct(const struct ASTExpr *e, const struct ASTFunc *f,
+    struct ASTStructDef **defs, int num_structs) {
+    return typeck_wpo3_addr_of_local_struct_type(e, f, defs, num_structs) != NULL;
+}
+
+/** WPO-S3：两 NAMED 类型是否同名（*T 与 &local T 同型快照合法，如 copy_onefunc_into）。 */
+static int typeck_wpo3_named_types_same(const struct ASTType *a, const struct ASTType *b) {
+    if (!a || !b || a->kind != AST_TYPE_NAMED || b->kind != AST_TYPE_NAMED)
+        return 0;
+    if (!a->name || !b->name)
+        return 0;
+    return strcmp(a->name, b->name) == 0;
+}
+
+/** WPO-S3：assign 路径 — 禁止局部 struct 指针写入形参 *T 字段。 */
+static int typeck_wpo3_check_assign_escape(const struct ASTExpr *site, const struct ASTExpr *left,
+    const struct ASTExpr *right, const struct ASTFunc *f, struct ASTStructDef **defs, int num_structs) {
+    int pi;
+    int line;
+    int col;
+    if (!left || !right || !f)
+        return 0;
+    if (!typeck_wpo3_expr_is_addr_of_local_struct(right, f, defs, num_structs))
+        return 0;
+    for (pi = 0; pi < f->num_params; pi++) {
+        if (typeck_wpo3_lval_is_param_ptr_field(left, f, pi)) {
+            line = site ? site->line : 0;
+            col = site ? site->col : 0;
+            TYPECK_ERR_AT(line, col,
+                "struct stack escape: cannot store address of local struct in outer lifetime");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/** WPO-S3：CALL 路径 — 局部 struct 与**异型** *Struct 形参同传时拒绝（同型 *T + &local T 为合法快照）。 */
+static int typeck_wpo3_check_call_escape(const struct ASTExpr *call, const struct ASTFunc *f,
+    struct ASTStructDef **defs, int num_structs) {
+    const struct ASTFunc *callee;
+    int src_i;
+    int dst_j;
+    if (!call || call->kind != AST_EXPR_CALL || !f)
+        return 0;
+    callee = call->value.call.resolved_callee_func;
+    if (!callee || callee->num_params != call->value.call.num_args || callee->num_params < 2)
+        return 0;
+    for (src_i = 0; src_i < call->value.call.num_args; src_i++) {
+        const struct ASTExpr *arg = call->value.call.args[src_i];
+        const struct ASTType *local_st;
+        local_st = typeck_wpo3_addr_of_local_struct_type(arg, f, defs, num_structs);
+        if (!local_st)
+            continue;
+        for (dst_j = 0; dst_j < callee->num_params; dst_j++) {
+            const struct ASTType *pt;
+            if (dst_j == src_i)
+                continue;
+            pt = callee->params[dst_j].type;
+            if (!pt || pt->kind != AST_TYPE_PTR || !pt->elem_type)
+                continue;
+            if (!typeck_wpo3_type_is_struct(pt->elem_type, defs, num_structs))
+                continue;
+            /** parser copy_onefunc_into(out, &snap) 等同型 *OneFuncResult，非 WPO 逃逸。 */
+            if (typeck_wpo3_named_types_same(local_st, pt->elem_type))
+                continue;
+            TYPECK_ERR_AT(call->line, call->col,
+                "struct stack escape: cannot pass address of local struct with outer struct pointer");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/** WPO-S3：扫描单 expr（assign/call）。 */
+static int typeck_wpo3_scan_expr_escape(const struct ASTExpr *e, const struct ASTFunc *f,
+    struct ASTStructDef **defs, int num_structs) {
+    if (!e || !f)
+        return 0;
+    if (expr_is_assign_or_compound(e)) {
+        if (typeck_wpo3_check_assign_escape(e, e->value.binop.left, e->value.binop.right, f, defs, num_structs) != 0)
+            return -1;
+    } else if (e->kind == AST_EXPR_CALL) {
+        if (typeck_wpo3_check_call_escape(e, f, defs, num_structs) != 0)
+            return -1;
+    }
+    return 0;
+}
+
+/** WPO-S3：递归扫描块内 expr_stmt / final_expr / 子块。 */
+static int typeck_wpo3_scan_block_escape(const struct ASTBlock *b, const struct ASTFunc *f,
+    struct ASTStructDef **defs, int num_structs) {
+    int i;
+    if (!b || !f)
+        return 0;
+    for (i = 0; i < b->num_expr_stmts; i++)
+        if (typeck_wpo3_scan_expr_escape(b->expr_stmts[i], f, defs, num_structs) != 0)
+            return -1;
+    if (b->final_expr && typeck_wpo3_scan_expr_escape(b->final_expr, f, defs, num_structs) != 0)
+        return -1;
+    if (b->num_stmt_order > 0) {
+        for (i = 0; i < b->num_stmt_order; i++) {
+            unsigned char kind = b->stmt_order[i].kind;
+            int idx = b->stmt_order[i].idx;
+            if (kind == 2 && b->expr_stmts && idx >= 0 && idx < b->num_expr_stmts) {
+                if (typeck_wpo3_scan_expr_escape(b->expr_stmts[idx], f, defs, num_structs) != 0)
+                    return -1;
+            } else if (kind == 3 && b->loops && idx >= 0 && idx < b->num_loops && b->loops[idx].body) {
+                if (typeck_wpo3_scan_block_escape(b->loops[idx].body, f, defs, num_structs) != 0)
+                    return -1;
+            } else if (kind == 4 && b->for_loops && idx >= 0 && idx < b->num_for_loops && b->for_loops[idx].body) {
+                if (typeck_wpo3_scan_block_escape(b->for_loops[idx].body, f, defs, num_structs) != 0)
+                    return -1;
+            } else if (kind == 5 && b->regions && idx >= 0 && idx < b->num_regions && b->regions[idx].body) {
+                if (typeck_wpo3_scan_block_escape(b->regions[idx].body, f, defs, num_structs) != 0)
+                    return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+/** WPO-S3：模块级 post-typeck struct 栈指针逃逸扫描（seed shu-c 路径）。 */
+static int typeck_wpo3_scan_module_struct_stack_escape(struct ASTModule *m) {
+    int i;
+    if (!m || !m->funcs)
+        return 0;
+    for (i = 0; i < m->num_funcs; i++) {
+        struct ASTFunc *f = m->funcs[i];
+        if (!f || f->is_extern || !f->body)
+            continue;
+        if (typeck_wpo3_scan_block_escape(f->body, f, m->struct_defs, m->num_structs) != 0)
+            return -1;
+    }
+    for (i = 0; m->impl_blocks && i < m->num_impl_blocks; i++) {
+        struct ASTImplBlock *impl = m->impl_blocks[i];
+        int j;
+        if (!impl || !impl->funcs)
+            continue;
+        for (j = 0; j < impl->num_funcs; j++) {
+            struct ASTFunc *f = impl->funcs[j];
+            if (!f || !f->body)
+                continue;
+            if (typeck_wpo3_scan_block_escape(f->body, f, m->struct_defs, m->num_structs) != 0)
+                return -1;
+        }
     }
     return 0;
 }
@@ -2561,7 +3297,9 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
                 type_ptrs[n] = m->top_level_lets[t].type;
                 n++;
             }
-            if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type) != 0)
+            typeck_current_func_is_async = f->is_async ? 1 : 0;
+            typeck_linear_reset();
+            if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type, NULL) != 0)
                 return -1;
         }
         return 0;
@@ -2642,7 +3380,9 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
                     type_ptrs[n] = m->top_level_lets[t].type;
                     n++;
                 }
-                if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type) != 0)
+                typeck_current_func_is_async = f->is_async ? 1 : 0;
+                typeck_linear_reset();
+                if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type, NULL) != 0)
                     return -1;
                 if (f->return_type && f->return_type->kind != AST_TYPE_VOID && block_has_implicit_return(f->body)) {
                     TYPECK_ERR_AT(0, 0, "return value must use explicit return statement (e.g. return 0;)");
@@ -2676,7 +3416,9 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
             type_ptrs[n] = m->top_level_lets[t].type;
             n++;
         }
-        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type) != 0)
+        typeck_current_func_is_async = f->is_async ? 1 : 0;
+        typeck_linear_reset();
+        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, f->return_type, NULL) != 0)
             return -1;
         if (f->return_type && f->return_type->kind != AST_TYPE_VOID && block_has_implicit_return(f->body)) {
             TYPECK_ERR_AT(0, 0, "return value must use explicit return statement (e.g. return 0;)");
@@ -2709,7 +3451,9 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
             n++;
         }
         const struct ASTType *mono_ret = get_substituted_return_type(f->return_type, f->generic_param_names, type_args, num_type_args);
-        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, mono_ret) != 0)
+        typeck_current_func_is_async = f->is_async ? 1 : 0;
+        typeck_linear_reset();
+        if (typeck_block(f->body, names, type_kinds, type_names, type_ptrs, n, NULL, 0, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m, mono_ret, NULL) != 0)
             return -1;
         if (mono_ret && mono_ret->kind != AST_TYPE_VOID && block_has_implicit_return(f->body)) {
             TYPECK_ERR_AT(0, 0, "return value must use explicit return statement (e.g. return 0;)");
@@ -2732,6 +3476,9 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
                 if (f->params[p].type && f->params[p].type->kind == AST_TYPE_PTR)
                     f->params[p].is_restrict = 1;
         }
+    /* WPO-S3：post-typeck struct 栈指针逃逸（与 pipeline_typeck_scan_module_struct_stack_escape_c 对齐）。 */
+    if (typeck_wpo3_scan_module_struct_stack_escape(m) != 0)
+        return -1;
     return 0;
 }
 

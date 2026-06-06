@@ -33,6 +33,7 @@ typedef enum ASTTypeKind {
     AST_TYPE_PTR,    /**< 裸指针 *T，elem_type 指向元素类型（见 §5.1） */
     AST_TYPE_ARRAY,  /**< 固定长数组 [N]T，elem_type 为元素类型，array_size 为 N（文档 §6.2） */
     AST_TYPE_SLICE,  /**< 切片 []T，elem_type 为元素类型；语义为 { ptr, length }（文档 §6.3） */
+    AST_TYPE_LINEAR, /**< M-4：线性类型 Linear(T)，use-once move；elem_type 为内层类型，零 RT 开销 */
     AST_TYPE_VECTOR, /**< 向量类型如 i32x4；elem_type 为元素类型，array_size 为 lane 数（文档 §10，先用 struct 模拟） */
     AST_TYPE_F32,    /**< 32 位浮点（文档阶段 8+ 可选） */
     AST_TYPE_F64,    /**< 64 位浮点 */
@@ -45,6 +46,7 @@ typedef struct ASTType {
     const char *name;  /**< 对于 AST_TYPE_NAMED 为 strdup 的类型名，其它种类可为 NULL */
     struct ASTType *elem_type;  /**< 对于 AST_TYPE_PTR / AST_TYPE_ARRAY 为元素类型，其它为 NULL */
     int array_size;    /**< 对于 AST_TYPE_ARRAY 为编译期常量长度 N，其它为 0 */
+    const char *region_label;  /**< M-3：仅 AST_TYPE_SLICE；域标签（[]T<label>），NULL 表示未绑定域 */
 } ASTType;
 
 /** 表达式节点类型：字面量、变量引用、二元运算、一元运算 */
@@ -102,7 +104,10 @@ typedef enum ASTExprKind {
     AST_EXPR_ENUM_VARIANT, /**< 已废弃：枚举值现用 Name.Variant（FIELD_ACCESS+is_enum_variant），保留以兼容旧 AST/typeck/codegen 分支 */
     AST_EXPR_ADDR_OF,      /**< 取址 &expr（一元 &，用于传指针给 extern 函数）；value.unary.operand 为子表达式 */
     AST_EXPR_DEREF,        /**< 解引用 *expr（一元 *，操作数须为 *T，结果类型为 T）；value.unary.operand 为子表达式 */
-    AST_EXPR_AS            /**< 类型转换 expr as type；value.as_type.operand 为子表达式，value.as_type.type 为目标类型 */
+    AST_EXPR_AS,           /**< 类型转换 expr as type；value.as_type.operand 为子表达式，value.as_type.type 为目标类型 */
+    AST_EXPR_AWAIT,        /**< await expr（仅 async function 内；A3 同步 stub，复用 value.unary.operand） */
+    AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 shu_async_sched_* drain；复用 value.unary.operand） */
+    AST_EXPR_SPAWN         /**< spawn async_fn()（非阻塞 submit；须 shu_async_run_drain_until_idle，IO-A5 v4） */
 } ASTExprKind;
 
 /** match 单分支：整数字面量、_、或枚举变体 Name.Variant => 表达式（arms 由 ast_module_free 路径释放） */
@@ -151,6 +156,7 @@ typedef struct ASTExpr {
             char *field_name;        /**< 字段名（strdup，由 ast_expr_free 释放） */
             int is_enum_variant;     /**< 由 typeck 设置：1 表示 Type.Variant 枚举变体访问（base 为类型名），codegen 生成 EnumName_VariantName */
             int field_offset;        /**< 字段偏移（字节），由 typeck 从结构体布局填写；asm 后端用于 add_imm + load */
+            int field_soa_stride;    /**< SoA：>0 时 field_offset 为列基址，本字段为 index*stride 步长（DOD-S1） */
         } field_access;
         struct {
             char *struct_name;        /**< 结构体类型名（strdup，由 ast_expr_free 释放） */
@@ -240,8 +246,10 @@ typedef struct ASTStructDef {
     int num_fields;
     int allow_padding;           /**< 1 表示允许隐式 padding（§11.1 allow(padding)），0 则存在 padding 时报错 */
     int packed;                  /**< 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）；0 为默认 */
+    int soa;                     /**< 1 表示 SoA 语义：`[N]T` 按列主序存储，仅 `arr[i].field` 访问；0 为默认 AoS */
     /** 以下由 typeck 结构体布局 pass 填充（变量类型与类型系统设计 §11.1） */
     int field_offsets[AST_STRUCT_MAX_FIELDS]; /**< 各字段偏移（字节），未计算时为 0 */
+    int field_min_align[AST_STRUCT_MAX_FIELDS]; /**< DOD-CL：align(N) 最小对齐；0 表示未指定 */
     int struct_size;   /**< 结构体总大小（字节），含末尾对齐；未计算时为 0 */
     int struct_align;  /**< 结构体对齐要求（字节）；未计算时为 0 */
 } ASTStructDef;
@@ -285,7 +293,13 @@ typedef struct ASTForLoop {
     struct ASTBlock *body;  /**< 循环体块 */
 } ASTForLoop;
 
-/** 块内语句顺序：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for；idx 为对应数组下标；codegen 按此顺序生成保证 let/expr/loop 交错正确。
+/** M-3：region 域块（region label { body }）；label 为域符号，typeck 给块内未标注 []T 打上域标签。 */
+typedef struct ASTRegionBlock {
+    const char *label;     /**< 域标签名（strdup） */
+    struct ASTBlock *body; /**< 域块体 */
+} ASTRegionBlock;
+
+/** 块内语句顺序：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=region；idx 为对应数组下标；codegen 按此顺序生成保证 let/expr/loop 交错正确。
  * 需足够大以容纳 parse_into 等大块（成功路径含大量 let/loop/expr_stmt），否则写回 block_set/num_funcs++/lex 等被截断。 */
 /** 大函数体（如 typeck.su check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
 #define MAX_BLOCK_STMT_ORDER 512
@@ -315,7 +329,9 @@ typedef struct ASTBlock {
     int num_expr_stmts;
     struct ASTExpr *final_expr;
     int num_stmt_order;             /**< 语句顺序条数；>0 时 codegen 按 stmt_order 输出 */
-    ASTBlockStmtOrder stmt_order[MAX_BLOCK_STMT_ORDER];  /**< 源码顺序：const(0)/let(1)/expr(2)/loop(3)/for(4) */
+    ASTRegionBlock *regions;  /**< region label { } 列表，可为 NULL（M-3） */
+    int num_regions;
+    ASTBlockStmtOrder stmt_order[MAX_BLOCK_STMT_ORDER];  /**< 源码顺序：const(0)/let(1)/expr(2)/loop(3)/for(4)/region(5) */
 } ASTBlock;
 
 /** 函数形参：名称与类型（与 analysis/自举前路线分析.md 多函数 一致）；is_restrict 供 noalias 传递生成 C restrict。 */
@@ -341,6 +357,7 @@ typedef struct ASTFunc {
     struct ASTType *return_type;
     ASTBlock *body;    /**< 函数体（块）；extern 时为 NULL；普通函数不可为 NULL（main 至少含 final_expr） */
     int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .su 函数 */
+    int is_async;      /**< 1 表示 async function（P2）；await 仅允许在其体内（A2c） */
     /** 以下仅当本函数为 impl 块内方法时非 NULL；codegen 用于生成 mangle 名（阶段 7.2） */
     const char *impl_for_trait; /**< 所属 trait 名，NULL 表示顶层函数 */
     const char *impl_for_type;  /**< 实现类型名（如 i32、Foo），NULL 表示顶层函数 */

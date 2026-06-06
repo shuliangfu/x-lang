@@ -1,0 +1,6 @@
+// freestanding/panic_div — S4 烟测：除零应引用 shulang_panic_，按需链 runtime_panic.o
+/** 整数除零：asm 后端生成 call shulang_panic_，链接器须链入 runtime_panic.o。 */
+function main(): i32 {
+  let x: i32 = 0;
+  return 42 / x;
+}

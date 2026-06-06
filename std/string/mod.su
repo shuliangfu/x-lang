@@ -13,7 +13,10 @@
 // 【大长字符串】String 最大 string_capacity()=256 字节；更长数据用 StrView +
 // string_view_* 或 (ptr,len)/Buffer。StrView 的 eq/compare/find_slice 在 len≥32 时走 C
 // 快路径（memcmp/memmem）。
+// 【ZC-4】StrView 零拷贝 subview；拼接走 Arena64 bump（非 per-concat heap_alloc）；
+// StackStr（SSO_STACK 32B 栈内联）可零拷贝转 StrView。
 // 【对标】见 README；约定不分配堆，cap=256。
+import std.heap;
 /** 长串快路径阈值：长度 ≥ 此值时 eq/compare/find 走
 * C（memcmp/memmem/memchr）；热路径内用字面量 32 避免调用。 */
 function string_long_threshold(): i32 { return 32; }
@@ -26,6 +29,8 @@ extern function shulang_string_copy_c(dst: *u8, src: *u8, n: i32): void;
 extern function shulang_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
 extern function shulang_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
 extern function shulang_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
+/** 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 */
+extern function shulang_string_ptr_at_c(ptr: *u8, off: i32): *u8;
 /** 固定缓冲容量（字节）；不分配堆，超过请用 StrView。 */
 function string_capacity(): i32 { return 256; }
 struct String {
@@ -55,6 +60,43 @@ function string_view_is_empty(v: StrView): i32 {
 }
 /** 取视图中第 i 字节；i 越界未定义。 */
 function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
+/**
+ * ZC-4：零拷贝子视图 v[off..off+len)。
+ * off/len 钳制到 v 范围内；len<=0 或 off>=v.len 时返回 len=0 的空视图。
+ */
+function string_view_subview(v: StrView, off: i32, len: i32): StrView {
+  if (off < 0) { off = 0; }
+  if (off >= v.len || len <= 0) {
+    return string_view(shulang_string_ptr_at_c(v.ptr, off), 0);
+  }
+  let remain: i32 = v.len - off;
+  let n: i32 = len;
+  if (n > remain) { n = remain; }
+  return string_view(shulang_string_ptr_at_c(v.ptr, off), n);
+}
+/**
+ * ZC-4：在 Arena64 上 bump 拼接 left+right，返回新 StrView。
+ * 分配路径仅为 arena chunk（posix_memalign 一次）；不做 per-concat heap_alloc。
+ * arena 空间不足时返回 len=0 的空视图。
+ */
+function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView): StrView {
+  let n: i32 = left.len + right.len;
+  if (n <= 0) {
+    return string_view(left.ptr, 0);
+  }
+  let p: *u8 = arena64_alloc(arena, n as usize, 1);
+  if (p == 0 as *u8) {
+    return string_view(0 as *u8, 0);
+  }
+  if (left.len > 0) {
+    shulang_string_copy_c(p, left.ptr, left.len);
+  }
+  if (right.len > 0) {
+    let dst2: *u8 = shulang_string_ptr_at_c(p, left.len);
+    shulang_string_copy_c(dst2, right.ptr, right.len);
+  }
+  return string_view(p, n);
+}
 /** 两视图相等。返回 1 相等，0 不等。超短串(1~4)特判，长串走 C
 * memcmp；中间长度 4 字节展开。 */
 function string_view_eq(a: StrView, b: StrView): i32 {
@@ -245,6 +287,55 @@ function string_compare_view(s: String, v: StrView): i32 {
   }
   if (s.len < v.len) { return -1; }
   if (s.len > v.len) { return 1; }
+  return 0;
+}
+// ——— ZC-4 SSO_STACK：栈上小字符串（32B 内联），无堆；零拷贝转 StrView ———
+/** StackStr 内联容量（字节）；超出请用 StrView + Arena64 或 String(256)。 */
+function stack_str_capacity(): i32 { return 32; }
+/** 栈上小字符串拥有者：data+len 均在栈帧内，不触发 heap_alloc。 */
+struct StackStr {
+  data: [32]u8;
+  len: i32;
+}
+/** 新建空 StackStr。 */
+function stack_str_new(): StackStr {
+  return StackStr { data: [], len: 0 };
+}
+/** 当前字节数。 */
+function stack_str_len(s: *StackStr): i32 { return s.len; }
+/** 零拷贝转为 StrView；视图生命周期须不超出 StackStr 所在栈帧。 */
+function stack_str_view(s: *StackStr): StrView {
+  return string_view(&s.data[0], s.len);
+}
+/**
+ * 从 (ptr,len) 写入 StackStr；len 超过 stack_str_capacity 时返回 -1 且不修改。
+ * 成功返回 0。≥8 字节走 C memcpy。
+ */
+function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
+  let cap: i32 = stack_str_capacity();
+  if (len > cap) { return -1; }
+  if (len <= 0) {
+    s.len = 0;
+    return 0;
+  }
+  if (len >= 8) {
+    shulang_string_copy_c(&s.data[0], ptr, len);
+  } else {
+    let i: i32 = 0;
+    while (i < len) {
+      s.data[i] = ptr[i];
+      i = i + 1;
+    }
+  }
+  s.len = len;
+  return 0;
+}
+/** 追加一字节；溢出返回 -1，成功返回 0。 */
+function stack_str_append_char(s: *StackStr, c: u8): i32 {
+  let cap: i32 = stack_str_capacity();
+  if (s.len >= cap) { return -1; }
+  s.data[s.len] = c;
+  s.len = s.len + 1;
   return 0;
 }
 // ——— String 构造与访问 ———

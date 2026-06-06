@@ -15,6 +15,9 @@ import * as vscode from 'vscode';
 /** 本仓库内 shu 相对工作区根目录的默认位置 */
 export const WORKSPACE_SHU_RELATIVE = 'compiler/shu';
 
+/** 与 package.json shulang.serverPath 默认一致 */
+export const DEFAULT_SERVER_PATH = WORKSPACE_SHU_RELATIVE;
+
 /**
  * 解析 shulang.serverPath 为可用于 ProcessExecution / LSP 的可执行路径。
  * @param configured 用户配置的 shulang.serverPath

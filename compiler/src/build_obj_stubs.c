@@ -10,6 +10,12 @@
 int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle) { return 0; }
 int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) { return 0; }
 int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) { return 0; }
+int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return -1; }
+int32_t shu_io_complete_read_async(void) { return -1; }
+int32_t shu_io_complete_read_async_slot(int slot) { (void)slot; return -1; }
+int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return -1; }
+int32_t shu_io_complete_write_async(void) { return -1; }
+int32_t shu_io_complete_write_async_slot(int slot) { (void)slot; return -1; }
 int io_register_buffers_buf_c(const void *bufs, int nr) { return 0; }
 int32_t shulang_panic_(int has_msg, int msg_val) { if (has_msg) fprintf(stderr, "panic: %d\n", msg_val); abort(); }
 void *std_io_driver_driver_read_ptr(void) { return NULL; }

@@ -109,7 +109,7 @@ function run_su_emit_su(state: *DriverSuEmitState): i32 {
     }
     return 1;
   }
-  let cap: usize = 4194304;
+  let cap: usize = 4194304 as usize;
   let n: isize = fs_posix_read_c(fd, pipeline_dep_ctx_loaded_buf_ptr(&ctx), cap);
   if (fd >= 0) {
     fs_posix_close_c(fd);

@@ -1,0 +1,5 @@
+# build_asm/backend_wpo.o WPO 生产链：asm_codegen_ast root + reach DCE
+# 实测 2026-06-03：4677B → 117B（5 export）
+backend_wpo_max_text_bytes	512
+backend_wpo_min_save_bytes	4000
+backend_dce_off_text	4677

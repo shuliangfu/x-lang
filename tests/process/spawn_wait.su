@@ -9,11 +9,9 @@
 // 【运行方式】./tests/run-process.sh
 //
 // 支持三种导入方式（本文件用第 2 种演示）：
-//   1) import std.process;           — 整模块，spawn_simple / waitpid / getenv
-// 等直接可用
-//   2) const process = import std.process;  — 绑定模块名，用 process.getenv /
-// process.spawn_simple 等
-//   3) const { getenv } = import std.process;  — 仅引入 getenv，其它名不可用
+//   1) import std.process; — 整模块，spawn_simple / waitpid / getenv 等直接可用
+//   2) const process = import std.process; — 绑定模块名，用 process.getenv / process.spawn_simple 等
+//   3) const { getenv } = import std.process; — 仅引入 getenv，其它名不可用
 const process = import std.process;
 
 function run_true(path: *u8): i32 {

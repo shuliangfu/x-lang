@@ -47,6 +47,22 @@ function driver_read_ptr(handle: usize, timeout_ms: u32): *u8 {
 function driver_read_ptr_len(): i32 {
   return shu_io_read_ptr_len();
 }
+/** ZC-2：read_ptr generation；供 mod.read_ptr_gen 导出。 */
+function driver_read_ptr_gen(): u64 {
+  return shu_io_read_ptr_gen();
+}
+/** ZC-2：generation 校验。 */
+function driver_read_ptr_gen_valid(saved: u64): i32 {
+  return shu_io_read_ptr_gen_valid(saved);
+}
+/** ZC-2：read_ptr 后端（0 TLS / 1 mmap / 2 dispatch_data）。 */
+function driver_read_ptr_backend(): i32 {
+  return shu_io_read_ptr_backend();
+}
+/** M-5：零拷贝读 slice；供 mod.read_ptr_slice 导出。 */
+function driver_read_ptr_slice(handle: usize, timeout_ms: u32): []u8<io_read_ptr> {
+  return shu_io_read_ptr_slice(handle, timeout_ms);
+}
 // ——— 提交写；预留 []Buffer 多段扩展 ———
 function submit_write(buf: Buffer, timeout_ms: u32): i32 {
   return shu_io_submit_write(buf.ptr, buf.len, buf.handle, timeout_ms);

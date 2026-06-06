@@ -1,0 +1,8 @@
+// 7.3：arr[i+j]=value 双 VAR 下标 scratch 寻址，main 内无 mov x2（run-asm-assign-index-expr.sh）。
+function main(): i32 {
+  let arr: [3]i32 = [5, 10, 15];
+  let i: i32 = 0;
+  let j: i32 = 1;
+  arr[i + j] = 99;
+  return arr[1];
+}

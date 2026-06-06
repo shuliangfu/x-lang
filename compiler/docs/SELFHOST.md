@@ -31,6 +31,9 @@
 | **asm 构建脚本（Goal 2）** | `SHU=./shu ./scripts/build_shu_asm.sh`；成功应产出 `shu_asm`（或 Linux crt0 路径下等价信息） |
 | **asm smoke（可选 CI job）** | 仓库根：`SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh`（workflow 中该 job 会先 `make bootstrap-driver`）；见 `.github/workflows/ci.yml` 之 `linux-asm-smoke` |
 | **asm .o 段质量（非阻塞默认可选）** | `SHU=./shu ./scripts/check_asm_o_quality.sh`；严格失败：`SHU_ASM_QUALITY_STRICT=1 SHU=./shu ./scripts/check_asm_o_quality.sh`；缺口列表见 `build_asm/.asm_empty_text_list` |
+| **P0 push 前（bstrict 107 + perf P1）** | 仓库根：`SHU=./compiler/shu_asm ./tests/run-pre-push-p0.sh`（= `run-bootstrap-bstrict-ci.sh` + `run-perf-p1-gate.sh`） |
+| **asm 计算门禁** | `run-asm-73-gate.sh`（8× binop + vector-var + call-inline **11 例**）；`make refresh-shu-asm-gate` 对齐 strict `shu_asm`；`run-bootstrap-bstrict-ci.sh` / `run-pre-push-p0.sh` |
+| **asm 7.3 寄存器/spill/φ** | `run-asm-binop-block-var.sh`（x10–**x15**）+ `run-asm-binop-cfg-merge.sh`（if/while/for/嵌套/φ）；见 `compiler/src/asm/README.md` |
 
 `./build_tool ./shu` / `./build_tool ./shu asm` 的行为见根目录 [build.su](../../build.su) 与 [build_runtime.c](../src/build_runtime.c)（`build_run_asm_build` 调用 `scripts/build_shu_asm.sh`）。
 
@@ -48,7 +51,7 @@
 
 - **当前**：非 Linux 或未导出拓扑时等价 **`pipeline_su`**；Linux 且 `check_asm_o_quality.sh` 认定全部 `__text` 非空时，脚本**自动打上** `full_asm` 拓扑标签（§4）；**driver 回退分支仍可能执行** `ensure_asm_gen_driver_su_objs`（`shu-c -E` + `cc -c`），直至 **`full_asm` 单一链接线**（如 `SHU_ASM_EXPERIMENTAL_SKIP_GEN`）落地并默认跳过 gen_driver。
 - **已满足部分**：Linux **crt0** 路径成功时，本次 `shu_asm` **未**使用 `pipeline_gen.c`（**B-partial**）。
-- **预留环境变量**：`SHU_ASM_EXPERIMENTAL_SKIP_GEN` 保留给将来在 `full_asm` + 全 `__text` 非空时跳过 `gen_driver` 的实验分支（**未默认启用**）。
+- **M7 默认**：`make bootstrap-driver` / `make bootstrap-driver-bstrict` / `./build_tool ./shu`（asm 路径）均设置 **`SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**，产出 `shu_asm` 并覆盖 `compiler/shu`；仅冷启动与语义自举仍依赖 **`make bootstrap-driver-seed`**（`shu-su` 为 seed 副本）。B-hybrid 回退：`make bootstrap-driver-hybrid`。
 
 ---
 
@@ -58,13 +61,13 @@
 
 | 值 | 含义 |
 |----|------|
-| **`pipeline_su`**（默认／非 Linux） | `-E` 生成 `pipeline_su.o`、`driver_su.o`、LSP/preprocess 等 **gen_driver**，与 **C seed**（`asm_driver_seed`）及 **runtime_driver** 链接；**不**把 `build_asm/*.o` 并入（避免与 `pipeline_su.o` 重复符号及 macOS `ld` 异常）。**未手动导出拓扑时**：非 **Linux** 宿主一律保持此值（crt0+B-partial 仅 Linux glibc‑类路径已实现）。 |
-| **`full_asm`**（Linux 自动选择） | 当 **`SHU_ASM_LINK_TOPOLOGY` 未导出**且 `check_asm_o_quality.sh` 写出 `build_asm/.asm_text_quality` 为 **`1`**（`asm_build_list` 中每条 `BUILD` 对应 `.o` 的 **`__text` 均非空**）时，`build_shu_asm.sh` **自动设为 `full_asm`**，用于标注与§3 对齐的 Target‑B‑strict 就绪度；driver 回退路径若仍调用 `ensure_asm_gen_driver_su_objs`，脚本会打印说明——**跳过 `cc -c pipeline_gen.c` 仍以 crt0 成功链接为准**。 |
+| **`pipeline_su`**（__text 未全绿 / B-hybrid 回退） | `-E` 生成 `pipeline_su.o`、`driver_su.o`、LSP/preprocess 等 **gen_driver**，与 **C seed** 及 **runtime_driver** 链接；**不**把 `build_asm/*.o` 并入（避免重复符号）。非 Linux 且未设 `SKIP_GEN` 时走此路径。 |
+| **`full_asm`**（Linux/macOS 自动选择） | 当 **`SHU_ASM_LINK_TOPOLOGY` 未导出**且 `check_asm_o_quality.sh` 写出 **`1`**（全部 `BUILD` 对应 `.o` 的 **`__text` 非空**）时自动设为 **`full_asm`**。配合 **`SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**（`make bootstrap-driver-bstrict` 默认）→ **`asm_only_strict`** 最终链，**无** `pipeline_su.o` / `cc -c pipeline_gen.c`（M11 macOS 生产 B-strict）。 |
 
 **宿主策略（摘要）**：
 
 - **Linux x86_64（非 Alpine）**：优先 **crt0** 链 `shu_asm`（可达 **B-partial**，无 `pipeline_gen.c`）。
-- **macOS / Windows / Alpine 等**：仅 **pipeline_su** 混合链（**B-hybrid**）；不要将 `full_asm` 与同机构 `build_asm/*.o` 盲目并入回退链接。
+- **macOS / Windows / Alpine 等**：**M7/M11 默认** `make bootstrap-driver-bstrict` → **`full_asm` + `asm_only_strict`**（__text 全绿时）；B-hybrid 回退：`make bootstrap-driver-hybrid` 或无 `SKIP_GEN` 的 `build_shu_asm.sh`。
 
 ### 4.1 空 `__text` 清单（逐项修 emitter / typeck / import）
 
@@ -73,9 +76,9 @@
   - `compiler/build_asm/.asm_empty_text_list`：**一行一条**，形如 `MISSING foo.o`、`EMPTY foo.o`。按文件名对应 `asm_build_list.su` 的 `// BUILD:` 源 `.su`，在 **解析/类型/asm 后端**侧消除「仅占位无代码」的编译结果。
   - **质检脚本**对 **Mach-O** 读段名 `__text`，对 **ELF（Linux）** 读 `.text`；若仅在 Linux 上曾出现「24 条全 EMPTY」而 macOS 仅少数条，多半是段名误判而非 asm 未落码——以 `check_asm_o_quality.sh` 实现为准。
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.su` 中 `let_type_refs`）。
-- **macOS arm64 实测（2026-05-21）**：`SHU_ASM_ENTRY_MODULE_ONLY=1 ./scripts/build_shu_asm.sh` + `check_asm_o_quality.sh build_asm` → **24/24** 模块 `__text` 非空（含此前 EMPTY 的 `typeck.o`/`pipeline.o`/`backend.o`/`arm64.o`）。主要修复：`typeck.su` 类型池/struct_lit 走 `pipeline_glue.c`；`backend.su`/`arm64.su` 辅助函数与 `emit_index_eff_addr_text` 避免 `Expr` 按值字段访问导致 asm codegen 失败。质检通过时自动 `SHU_ASM_LINK_TOPOLOGY=full_asm`，默认链接仍为 **B-hybrid**。
+- **macOS arm64 实测（2026-05）**：`check_asm_o_quality.sh` → **24/24** 非空；`make bootstrap-driver-bstrict` → **`LINK_MODE=asm_only_strict`** + **`full_asm`**（M11），最终链无 `pipeline_gen.c`。B-hybrid 仅作 `bootstrap-driver-hybrid` 回退。
 - **实验链 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**（2026-05-23 起演进）：Darwin 上 **两阶段**——① **bootstrap 首遍**链 `pipeline_su.o`（`-E-extern` 瘦 TU）+ `parser_su.o`/`typeck_su.o`/`codegen_su.o`/`lexer_su.o` + `seed_host/asm_backend_partial.o` + C seed（**不**并 `build_asm/*.o`，避免 `__shu_asm_mod_stub` 重复）；② **第二遍**用 bootstrap `shu_asm` 重编 `pipeline.o`/`typeck.o`/`parser.o`/`backend.o`，再 **strict 重链**（`run_bootstrap_trampoline` + `strict_core partial`，**无** `pipeline_su.o`）。验收：`SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 ./scripts/build_shu_asm.sh` → `LINK_MODE=asm_only_strict` + `run_shu_asm_smoke.sh`。
-- **B-strict 下一跳**：**pipeline.su** 第二遍 ✅（`#10–#52` 索引桩 + 小入口 skip 短路修复）；**typeck/backend** EMIT_HEAVY 第二遍；**perf** 循环优化（见 `analysis/perf-vs-zig-baseline.md`）。
+- **B-strict 下一跳**：**pipeline.su** 第二遍 ✅（`#10–#52` 索引桩 + 小入口 skip 短路修复）；**typeck/backend** EMIT_HEAVY 第二遍（2026-06：`typeck.su` 78 func 须走瘦模块 `#0–35` 分支，见 `ast_pool.c` `num_funcs>=75`）；**perf** 循环优化（见 `analysis/perf-vs-zig-baseline.md`）。
 - **dep 预跑 lib_root 回归（2026-05-22）**：`runtime_one_ctx_for_dep_prerun` 曾调用 `ast_pipeline_dep_ctx_reset` 抹掉 `pipeline_fill_ctx_path_buffers` 写入的 lib_root sidecar，导致 dep 预跑 `resolve_path_su` **rc=-7**、多数 `build_asm/*.o` EMPTY；已改为仅 `ast_pipeline_dep_ctx_set_ndep(0)` 且先 reset 再 fill。
 - **Darwin asm-only 链剩余阻塞（2026-05-21 实测）**：
   1. **大模块 parse 截断**：如 `typeck.su` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
@@ -108,9 +111,9 @@
 | 宿主 | 构建目标 | 命令 | 链形态 | 用户态 driver |
 |------|----------|------|--------|----------------|
 | **Linux x86_64（glibc）** | **B-partial（crt0）** | `make -C compiler bootstrap-driver-crt0` | `crt0` + `build_asm/*.o`，无 `pipeline_gen.c` | 无 `runtime_driver`（烟测 return-value 等子集） |
-| **Linux / macOS** | **B-strict** | `make bootstrap-driver-bstrict` | `asm_only_strict`（`SKIP_GEN` 跳过 crt0） | 有（import/hello 门禁） |
-| **macOS arm64** | **B-strict**（默认） | 同上 | 第二遍自举 `pipeline/typeck/backend.o` | 有 |
-| **Alpine / Windows** | **B-hybrid** | `build_shu_asm.sh` 回退 | `pipeline_su` + gen_driver | 有 |
+| **Linux / macOS** | **B-strict（M7 release 默认）** | `make bootstrap-driver`（= `bootstrap-driver-bstrict`） | `asm_only_strict`（`SKIP_GEN`） | 有（import/hello 门禁） |
+| **macOS arm64** | **B-strict + full_asm（M11 生产默认）** | `make bootstrap-driver-bstrict` | `asm_only_strict` + `build_asm/pipeline.o` | 有 |
+| **Alpine / Windows / 实验** | **B-hybrid** | `make bootstrap-driver-hybrid` 或 `build_shu_asm.sh` 无 SKIP_GEN | `pipeline_su` + gen_driver | 有 |
 
 分轨脚本：`./tests/run-bootstrap-bstrict-linux.sh`（仅 Linux）、`./tests/run-bootstrap-bstrict-ci.sh`（含 gate + 白名单 + Linux crt0 + stage2 预检）。
 
@@ -137,7 +140,10 @@
 ## 6. 目标 C（freestanding / 弱化 libc）
 
 - **入口**：Linux x86_64 使用 [src/asm/crt0_x86_64.s](../src/asm/crt0_x86_64.s) 替代 `main` C 桩。
-- **Panic**：`runtime_panic_x86_64.s`（syscall exit）或各平台 `runtime_panic.c` / `runtime_panic_arm64.c`。
+- **Panic**：`runtime_panic_x86_64.s`（syscall exit 134，已落地）或各平台 `runtime_panic.c` / `runtime_panic_arm64.c`。
+- **freestanding_io_x86_64.s**（S4）：`shulang_sys_write(fd,buf,len)` → Linux write(2) syscall；**`-freestanding`** 时按用户 `.o` 未定义符号**按需**链入。
+- **用户 freestanding**：`crt0_user_x86_64.s` + **`-freestanding`**；按需链 `freestanding_io.o` / `runtime_panic.o`；`ld -nostdlib -static --gc-sections`。
+- **B-BOOT-FS**：`tests/run-perf-coldstart.sh` 在 Linux x86_64 + `shu_asm` 上测 `fs_return42`（最小体积）与 `fs_hello`（syscall write）冷启动与 stripped 体积；CI job `S4 freestanding coldstart`。
 - **后续**：自有 syscall 封装、std 与 core 拆分见项目宗旨与 [src/asm/README.md](../src/asm/README.md)。
 
 ---

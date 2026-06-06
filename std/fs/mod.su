@@ -13,7 +13,8 @@
 //   - 分散读/集中写：fs_readv2 / fs_writev2 一次 syscall 两段，压榨 syscall 数。
 //   - 极致吞吐：fs_open_read_direct（O_DIRECT）；buf 对齐 fs_direct_align()。
 //   -
-// 零拷贝：fs_copy_file_range（文件→文件）；fs_sendfile（文件→socket，Linux）。
+// 零拷贝：fs_copy_file_range（文件→文件）；fs_sendfile（文件→socket，Linux）；
+//   fs_pipe_splice（ZC-5：pipe+splice 代理，Linux 无 userspace copy）。
 //   - 大文件写：fs_fallocate 预分配；fs_sync_range
 // 范围刷盘不阻塞，重叠写+刷盘。
 //   - 与 std.io 联合：本模块已 import std.io，用户仅 import std.fs 即可用
@@ -24,6 +25,8 @@ import std.io.driver;
 // fs_readv_buf/fs_writev_buf 的 bufs 与 std.io.driver.Buffer ABI
 // 一致（ptr+len+handle），可传 Buffer 数组首地址。
 extern function open(path: *u8, flags: i32, mode: i32): i32;
+/** 只读打开（fs.c）；asm 用户程序跳过 std.fs emit 时由 fs.o 提供。 */
+extern function fs_open_read_c(path: *u8): i32;
 extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 extern function close(fd: i32): i32;
@@ -40,6 +43,8 @@ extern function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64;
 extern function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64;
 extern function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64;
 extern function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64;
+/** ZC-5：经 pipe splice 中转（Linux 内核零拷贝；非 Linux read/write 回退）。 */
+extern function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64;
 extern function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32;
 extern function fs_sync_c(fd: i32): i32;
 extern function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32;
@@ -59,7 +64,7 @@ function fs_invalid_handle(): i32 { return -1; }
 /** 推荐大块读单次字节数（1MiB），极致压榨时用此大小循环 fs_read。 */
 function fs_read_chunk(): usize { return 1048576; }
 /** 只读打开 path（NUL 结尾）；失败返回 -1。 */
-function fs_open_read(path: *u8): i32 { return open(path, 0, 0); }
+function fs_open_read(path: *u8): i32 { return fs_open_read_c(path); }
 /** 写打开 path，不存在则创建、存在则截断；失败返回 -1。走 C 实现以
 * umask(0) 保证 0644，避免 mmap_ro 等后续读打开 EACCES。 */
 function fs_open_write(path: *u8): i32 { return fs_open_write_c(path); }
@@ -110,6 +115,13 @@ function fs_writev2(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 { retu
 * 偏移会前进。 */
 function fs_sendfile(out_fd: i32, in_fd: i32, count: usize): i64 { return fs_sendfile_c(out_fd,
   in_fd, count); }
+/**
+ * ZC-5：fd_in → 内核 pipe → fd_out（Linux splice，无 userspace 拷贝）。
+ * 常用于 file→socket 代理路径；非 Linux 回退 read/write。返回传输字节数，-1 失败。
+ */
+function fs_pipe_splice(fd_in: i32, fd_out: i32, len: usize): i64 {
+  return fs_pipe_splice_c(fd_in, fd_out, len);
+}
 /** 范围刷盘（Linux）：将 [offset, offset+len) 写回磁盘，不阻塞全文件
 * sync；大文件顺序写时可重叠写+刷盘压榨吞吐。0 成功，-1 失败。 */
 function fs_sync_range(fd: i32, offset: i64, len: usize): i32 { return fs_sync_range_c(fd, offset,

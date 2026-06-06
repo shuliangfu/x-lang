@@ -8,10 +8,14 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stddef.h>
 
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 64
 #endif
+
+/** 多 Module 共用 elf_ctx 时分配 tail_join 等局部标签 scope（定义见本文件后部）。 */
+void pipeline_elf_label_mod_scope_begin_module(void);
 
 /** 无实际上限：grow 直至 OOM；cap API 仅兼容旧 .su 边界检查。 */
 #define AST_POOL_NO_LIMIT 2147483647
@@ -57,6 +61,8 @@ typedef struct {
   int32_t name_len;
   int32_t field_offset;
   int32_t type_ref;
+  /** DOD-CL：字段最小对齐（align(N)）；0 表示仅按类型自然对齐。 */
+  int32_t field_align;
 } StructLayoutFieldEntry;
 
 /** 顶层 let/const 槽。 */
@@ -150,6 +156,13 @@ static int32_t grow_vec_push(GrowVec *v) {
   return idx;
 }
 
+/** M-3：region label { body } 侧车槽（与 C ASTRegionBlock 语义一致）。 */
+typedef struct {
+  uint8_t label[64];
+  int32_t label_len;
+  int32_t body_ref;
+} RegionBlockEntry;
+
 /** 每个 ASTArena 的统一 sidecar：主池 + 块附属池。 */
 typedef struct {
   struct ast_ASTArena *arena;
@@ -161,6 +174,7 @@ typedef struct {
   GrowVec consts;
   GrowVec lets;
   GrowVec ifs;
+  GrowVec regions;
   GrowVec loops;
   GrowVec for_loops;
   GrowVec defer_block_refs;
@@ -191,6 +205,13 @@ typedef struct {
   GrowVec func_params;
   GrowVec struct_layout_fields;
 } ModuleSidecar;
+
+/** M-3：OneFunc 侧车 region 条目。 */
+typedef struct {
+  uint8_t label[64];
+  int32_t label_len;
+  int32_t body_ref;
+} OneFuncRegionEntry;
 
 /** parse_one_function_impl 的 scratch 池，按 OneFuncResult* 键控。 */
 typedef struct {
@@ -223,6 +244,8 @@ typedef struct {
   GrowVec param_name_lens;
   GrowVec param_type_refs;
   GrowVec call_arg_vals;
+  /** M-3：region label { body } 暂存（parse_one_function_impl → Block 池）。 */
+  GrowVec regions;
 } OneFuncSidecar;
 
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
@@ -360,6 +383,8 @@ static ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create) {
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].ifs, sizeof(struct ast_IfStmt), AST_POOL_GROW))
         return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].regions, sizeof(RegionBlockEntry), AST_POOL_GROW))
+        return NULL;
       if (!grow_vec_init(&g_arena_sc[i].loops, sizeof(struct ast_WhileLoop), AST_POOL_GROW))
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].for_loops, sizeof(struct ast_ForLoop), AST_POOL_GROW))
@@ -495,6 +520,8 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
       if (!grow_vec_init(&g_onefunc_sc[i].param_type_refs, sizeof(int32_t), AST_POOL_GROW))
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].call_arg_vals, sizeof(int32_t), AST_POOL_GROW))
+        return NULL;
+      if (!grow_vec_init(&g_onefunc_sc[i].regions, sizeof(OneFuncRegionEntry), AST_POOL_GROW))
         return NULL;
       return &g_onefunc_sc[i];
     }
@@ -857,6 +884,7 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref) {
   b->loop_base = sc->loops.len;
   b->for_loop_base = sc->for_loops.len;
   b->if_base = sc->ifs.len;
+  b->region_base = sc->regions.len;
   b->defer_base = sc->defer_block_refs.len;
   b->labeled_base = sc->labeled_stmts.len;
   b->expr_stmt_base = sc->expr_stmt_refs.len;
@@ -903,6 +931,7 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
   sc->consts.len = 0;
   sc->lets.len = 0;
   sc->ifs.len = 0;
+  sc->regions.len = 0;
   sc->loops.len = 0;
   sc->for_loops.len = 0;
   sc->defer_block_refs.len = 0;
@@ -950,6 +979,7 @@ void ast_pool_onefunc_reset(uint8_t *out) {
   sc->param_name_lens.len = 0;
   sc->param_type_refs.len = 0;
   sc->call_arg_vals.len = 0;
+  sc->regions.len = 0;
 }
 
 /** Module 侧分配新函数槽，返回 0-based 下标；失败返回 -1。 */
@@ -1047,6 +1077,21 @@ void pipeline_module_func_set_is_extern(struct ast_Module *m, int32_t fi, int32_
   struct ast_Func *f = module_func_at(m, fi);
   if (f)
     f->is_extern = is_extern;
+}
+
+/** 设置 module 第 fi 个函数是否为 async function（P2 语法原型）。 */
+void pipeline_module_func_set_is_async(struct ast_Module *m, int32_t fi, int32_t is_async) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f)
+    f->is_async = is_async;
+}
+
+int32_t pipeline_module_func_is_async_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs)
+    return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_async : 0;
 }
 
 void pipeline_module_func_set_num_params(struct ast_Module *m, int32_t fi, int32_t n) {
@@ -1211,6 +1256,21 @@ void pipeline_module_set_main_func_index(struct ast_Module *m, int32_t idx) {
 }
 
 /**
+ * M8-tail：parser.su pipeline_module_reset_parse_counters 的 C 实现；SKIP/EMIT_HEAVY 薄包装 bl 目标。
+ * 避免 *Module 字段 FIELD_ACCESS 在 shu_asm emit 失败。
+ */
+void pipeline_module_reset_parse_counters_c(struct ast_Module *module) {
+  if (!module)
+    return;
+  module->num_funcs = 0;
+  module->main_func_index = -1;
+  module->num_imports = 0;
+  module->num_top_level_lets = 0;
+  module->num_struct_layouts = 0;
+  module->num_module_enums = 0;
+}
+
+/**
  * strict asm 链：parse 前重置 arena/module（等价 parser.su parse_into_init）。
  * build_asm/parser.o 的 parse_into_init 不重置 sidecar grow 池，二次 parse 会累积 funcs。
  */
@@ -1249,6 +1309,15 @@ int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi) 
   return f ? (int32_t)f->body_expr_ref : 0;
 }
 
+/**
+ * 嵌套 parse_block_into 会先递归子块并在父块首次 append 之前写入侧车池；
+ * alloc 时快照的 *base 会与兄弟块相同，须在首次 append 该池条目时对齐到实际 abs 下标。
+ */
+static void block_lazy_fix_sidecar_base(int32_t *base, int32_t num_before, int32_t abs_idx) {
+  if (num_before == 0)
+    *base = abs_idx;
+}
+
 /** Block 池 append/read — const */
 int32_t pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t *name, int32_t name_len,
                                     int32_t type_ref, int32_t init_ref) {
@@ -1261,6 +1330,7 @@ int32_t pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t 
   idx = grow_vec_push(&sc->consts);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->const_base, b->num_consts, idx);
   cd = (struct ast_ConstDecl *)grow_vec_at(&sc->consts, idx);
   memset(cd, 0, sizeof(*cd));
   if (name_len > 0 && name)
@@ -1283,6 +1353,7 @@ int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *n
   idx = grow_vec_push(&sc->lets);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->let_base, b->num_lets, idx);
   ld = (struct ast_LetDecl *)grow_vec_at(&sc->lets, idx);
   memset(ld, 0, sizeof(*ld));
   if (name_len > 0 && name)
@@ -1305,12 +1376,71 @@ int32_t pipeline_block_append_if(struct ast_ASTArena *a, int32_t br, int32_t con
   idx = grow_vec_push(&sc->ifs);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->if_base, b->num_if_stmts, idx);
   is = (struct ast_IfStmt *)grow_vec_at(&sc->ifs, idx);
   is->cond_ref = cond_ref;
   is->then_body_ref = then_ref;
   is->else_body_ref = else_ref;
   b->num_if_stmts++;
   return idx - b->if_base;
+}
+
+/** M-3：向块追加 region label { body }；返回块内 region 下标，失败 -1。 */
+int32_t pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t *label, int32_t label_len,
+                                     int32_t body_ref) {
+  ArenaSidecar *sc;
+  struct ast_Block *b;
+  RegionBlockEntry *rb;
+  int32_t idx;
+  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || !label || label_len <= 0 || label_len > 63)
+    return -1;
+  idx = grow_vec_push(&sc->regions);
+  if (idx < 0)
+    return -1;
+  block_lazy_fix_sidecar_base(&b->region_base, b->num_regions, idx);
+  rb = (RegionBlockEntry *)grow_vec_at(&sc->regions, idx);
+  memset(rb, 0, sizeof(*rb));
+  memcpy(rb->label, label, (size_t)label_len);
+  rb->label_len = label_len;
+  rb->body_ref = body_ref;
+  b->num_regions++;
+  return idx - b->region_base;
+}
+
+static RegionBlockEntry *block_region_at(struct ast_ASTArena *a, int32_t br, int32_t ri) {
+  ArenaSidecar *sc;
+  struct ast_Block *b;
+  int32_t abs;
+  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || ri < 0 || ri >= b->num_regions)
+    return NULL;
+  abs = b->region_base + ri;
+  return (RegionBlockEntry *)grow_vec_at(&sc->regions, abs);
+}
+
+/** M-3：读块内第 ri 个 region 的 body 块 ref；无效时 0。 */
+int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri) {
+  RegionBlockEntry *rb = block_region_at(a, br, ri);
+  return rb ? rb->body_ref : 0;
+}
+
+/** M-3：读块内 region 域标签长度；无效时 0。 */
+int32_t pipeline_block_region_label_len(struct ast_ASTArena *a, int32_t br, int32_t ri) {
+  RegionBlockEntry *rb = block_region_at(a, br, ri);
+  return rb && rb->label_len > 0 ? rb->label_len : 0;
+}
+
+/** M-3：拷贝 region 域标签到 dst[64]（不保证 NUL 结尾）。 */
+void pipeline_block_region_label_copy64(struct ast_ASTArena *a, int32_t br, int32_t ri, uint8_t *dst) {
+  RegionBlockEntry *rb;
+  if (!dst)
+    return;
+  rb = block_region_at(a, br, ri);
+  if (!rb || rb->label_len <= 0) {
+    memset(dst, 0, 64);
+    return;
+  }
+  memset(dst, 0, 64);
+  memcpy(dst, rb->label, (size_t)rb->label_len);
 }
 
 int32_t pipeline_block_append_expr_stmt(struct ast_ASTArena *a, int32_t br, int32_t expr_ref) {
@@ -1323,6 +1453,7 @@ int32_t pipeline_block_append_expr_stmt(struct ast_ASTArena *a, int32_t br, int3
   idx = grow_vec_push(&sc->expr_stmt_refs);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->expr_stmt_base, b->num_expr_stmts, idx);
   pr = (int32_t *)grow_vec_at(&sc->expr_stmt_refs, idx);
   *pr = expr_ref;
   b->num_expr_stmts++;
@@ -1339,6 +1470,7 @@ int32_t pipeline_block_append_stmt_order(struct ast_ASTArena *a, int32_t br, uin
   idx = grow_vec_push(&sc->stmt_order);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->stmt_order_base, b->num_stmt_order, idx);
   so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, idx);
   so->kind = kind;
   so->idx = idx_val;
@@ -1417,6 +1549,7 @@ int32_t pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t 
   idx = grow_vec_push(&sc->loops);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->loop_base, b->num_loops, idx);
   wl = (struct ast_WhileLoop *)grow_vec_at(&sc->loops, idx);
   if (!wl)
     return -1;
@@ -1438,6 +1571,7 @@ int32_t pipeline_block_append_for(struct ast_ASTArena *a, int32_t br, int32_t in
   idx = grow_vec_push(&sc->for_loops);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->for_loop_base, b->num_for_loops, idx);
   fl = (struct ast_ForLoop *)grow_vec_at(&sc->for_loops, idx);
   if (!fl)
     return -1;
@@ -1491,6 +1625,7 @@ int32_t pipeline_block_append_labeled(struct ast_ASTArena *a, int32_t br, int32_
   idx = grow_vec_push(&sc->labeled_stmts);
   if (idx < 0)
     return -1;
+  block_lazy_fix_sidecar_base(&b->labeled_base, b->num_labeled_stmts, idx);
   ls = (struct ast_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, idx);
   if (!ls)
     return -1;
@@ -1800,6 +1935,43 @@ int32_t pipeline_onefunc_if_else_body_ref(uint8_t *out, int32_t i) {
 int32_t pipeline_onefunc_num_if_stmts(uint8_t *out) {
   OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
   return sc ? sc->if_cond_refs.len : 0;
+}
+
+/** M-3：OneFunc 侧车追加 region；返回 region 下标，失败 -1。 */
+int32_t pipeline_onefunc_append_region(uint8_t *out, uint8_t *label, int32_t label_len, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 63)
+    return -1;
+  if (grow_vec_push(&sc->regions) < 0)
+    return -1;
+  re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, sc->regions.len - 1);
+  if (!re)
+    return -1;
+  memset(re, 0, sizeof(*re));
+  memcpy(re->label, label, (size_t)label_len);
+  re->label_len = label_len;
+  re->body_ref = body_ref;
+  return sc->regions.len - 1;
+}
+
+int32_t pipeline_onefunc_num_regions(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->regions.len : 0;
+}
+
+/** M-3：将 OneFunc 中 region 链批量写入 Block 池。 */
+void pipeline_block_fill_regions_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  int32_t i;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  for (i = 0; i < count && i < sc->regions.len; i++) {
+    re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, i);
+    if (re && re->label_len > 0)
+      pipeline_block_append_region(a, br, re->label, re->label_len, re->body_ref);
+  }
 }
 
 int32_t pipeline_onefunc_push_stmt_order(uint8_t *out, uint8_t kind, int32_t idx) {
@@ -2133,6 +2305,7 @@ void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, i
   fe->name_len = fname_len;
   fe->type_ref = ftype_ref;
   fe->field_offset = foff;
+  fe->field_align = 0;
   memset(fe->name, 0, sizeof(fe->name));
   if (fname_bytes)
     memcpy(fe->name, fname_bytes, (size_t)fname_len);
@@ -2230,6 +2403,25 @@ int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int3
   return fe ? fe->field_offset : 0;
 }
 
+/** DOD-CL：读 struct 字段 align(N) 要求；0 表示未指定。 */
+int32_t pipeline_module_struct_layout_field_align_at(struct ast_Module *m, int32_t li, int32_t j) {
+  StructLayoutFieldEntry *fe;
+  if (j < 0)
+    return 0;
+  fe = module_layout_field_entry(m, li, j, 0);
+  return fe ? fe->field_align : 0;
+}
+
+/** DOD-CL：写 struct 字段 align(N) 要求（parser 在 set_field 之后调用）。 */
+void pipeline_module_struct_layout_set_field_align(struct ast_Module *m, int32_t li, int32_t j, int32_t al) {
+  StructLayoutFieldEntry *fe;
+  if (j < 0 || al < 0)
+    return;
+  fe = module_layout_field_entry(m, li, j, 0);
+  if (fe)
+    fe->field_align = al;
+}
+
 void pipeline_module_struct_layout_set_allow_padding(struct ast_Module *m, int32_t idx, int32_t v) {
   struct ast_StructLayout *sl = module_layout_at(m, idx);
   if (sl)
@@ -2239,6 +2431,19 @@ void pipeline_module_struct_layout_set_allow_padding(struct ast_Module *m, int32
 int32_t pipeline_module_struct_layout_allow_padding_at(struct ast_Module *m, int32_t idx) {
   struct ast_StructLayout *sl = module_layout_at(m, idx);
   return sl ? sl->allow_padding : 0;
+}
+
+/** DOD-S1：写 struct layout 的 soa 标记（parser `struct Name soa {`）。 */
+void pipeline_module_struct_layout_set_soa(struct ast_Module *m, int32_t idx, int32_t v) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  if (sl)
+    sl->soa = v;
+}
+
+/** DOD-S1：读 struct layout 是否为 SoA 布局。 */
+int32_t pipeline_module_struct_layout_soa_at(struct ast_Module *m, int32_t idx) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  return sl ? sl->soa : 0;
 }
 
 /** typeck.su：读 module.num_struct_layouts；勿 SU 内 Module 字段访问（check_block 失败）。 */
@@ -2424,6 +2629,70 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
   pipeline_block_stmt_order_prepend_lets(a, br, let_start_idx, n);
   sc->top_level_lets.len = 0;
   m->num_top_level_lets = 0;
+}
+
+/** seed partial（build_seed_asm_host）导出的 mega 全量实现；勿与薄包装 backend_asm_codegen_ast 混调（会递归）。 */
+extern int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *m, struct ast_ASTArena *a,
+                                                 struct codegen_CodegenOutBuf *out,
+                                                 struct ast_PipelineDepCtx *pipeline_ctx);
+extern int32_t backend_asm_codegen_ast_to_elf_seed_mega(struct ast_Module *m, struct ast_ASTArena *a,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                        struct ast_PipelineDepCtx *pipeline_ctx);
+extern void pipeline_asm_emit_set_elf_ctx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_asm_emit_set_module(struct ast_Module *m);
+extern void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena);
+
+/**
+ * M8-tail：`asm_codegen_ast` 薄包装 C 委托；顶层 let hoist 后调 seed partial mega。
+ */
+int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                            struct codegen_CodegenOutBuf *out,
+                                            struct ast_PipelineDepCtx *pipeline_ctx) {
+  if (!m || !a || !out || !pipeline_ctx)
+    return -1;
+  if (m->num_top_level_lets > 0 && m->main_func_index >= 0)
+    pipeline_module_hoist_top_level_lets_into_main(m, a);
+  return backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
+}
+
+/** skip .su typeck 时 dep/entry 各模块 emit 前补 ARRAY_LIT / SoA 字段类型（定义见 pipeline_glue.c 后部）。 */
+void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
+void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
+extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module *mod, struct ast_ASTArena *arena,
+                                                              struct ast_PipelineDepCtx *ctx);
+extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
+
+/**
+ * M8-tail：`asm_codegen_ast_to_elf` 薄包装 C 委托；顶层 let hoist 后调 seed partial mega。
+ */
+int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   struct ast_PipelineDepCtx *pipeline_ctx) {
+  int32_t rc;
+  if (!m || !a || !elf_ctx || !pipeline_ctx)
+    return -1;
+  if (m->num_top_level_lets > 0 && m->main_func_index >= 0)
+    pipeline_module_hoist_top_level_lets_into_main(m, a);
+  /** DOD-S3：skip .su typeck 时仍须 dep SoA layout 并入 entry + 全图升档，再 fill stride。 */
+  typeck_typeck_merge_dep_struct_layouts_into_entry(m, a, pipeline_ctx);
+  typeck_typeck_wpo_unify_soa_layouts(m, pipeline_ctx);
+  /** dep co-emit 与 entry 均须 SoA stride / 形参类型 / FIELD_ACCESS 偏移，否则跨模块 call 链 SIGSEGV。 */
+  pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
+  pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
+  pipeline_fill_soa_field_access_for_asm_emit(m, a);
+  glue_wpo_mono_reset_pending();
+  /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
+  pipeline_elf_label_mod_scope_begin_module();
+  /** WPO-S3：import struct FIELD_ACCESS 查 layout 时须可见 dep 池（backend.su mega 亦会设置）。 */
+  pipeline_asm_emit_set_module(m);
+  pipeline_asm_emit_set_arena(a);
+  pipeline_asm_emit_set_elf_ctx(elf_ctx);
+  rc = backend_asm_codegen_ast_to_elf_seed_mega(m, a, elf_ctx, pipeline_ctx);
+  pipeline_asm_emit_set_elf_ctx(NULL);
+  if (rc != 0)
+    return rc;
+  return pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
 }
 
 int32_t pipeline_module_enum_alloc(struct ast_Module *m) {
@@ -3673,6 +3942,65 @@ void pipeline_dep_ctx_entry_dir_copy(struct ast_PipelineDepCtx *ctx, uint8_t *ds
   dst[n] = 0;
 }
 
+/**
+ * M8-tail：path_append_from_buf_256 的 C 实现；SKIP/EMIT_HEAVY 薄包装 bl 目标。
+ * 将 buf[0..len-1] 写入 ctx.path_buf[off..]，off 上限 508。
+ */
+int32_t pipeline_path_append_from_buf_256_c(struct ast_PipelineDepCtx *ctx, int32_t off, uint8_t *buf,
+                                             int32_t len) {
+  int32_t k;
+  if (!ctx || !buf || len <= 0)
+    return off;
+  k = 0;
+  while (k < len && off < 508) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, buf[k]);
+    off++;
+    k++;
+  }
+  return off;
+}
+
+/** M8-tail：path_append_from_buf_512 的 C 实现（与 256 版相同逻辑，buf 由调用方保证容量）。 */
+int32_t pipeline_path_append_from_buf_512_c(struct ast_PipelineDepCtx *ctx, int32_t off, uint8_t *buf,
+                                             int32_t len) {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+
+/**
+ * M8-tail：path_append_import_path 的 C 实现；'.' (46) 替换为 '/' (47) 后写入 path_buf。
+ */
+int32_t pipeline_path_append_import_path_c(struct ast_PipelineDepCtx *ctx, int32_t off, uint8_t *import_path,
+                                            int32_t path_len) {
+  int32_t k;
+  uint8_t b;
+  if (!ctx || !import_path || path_len <= 0)
+    return off;
+  k = 0;
+  while (k < path_len && off < 508) {
+    b = import_path[k];
+    if (b == 46)
+      b = 47;
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, b);
+    off++;
+    k++;
+  }
+  return off;
+}
+
+/** M8-tail：resolve_path_import_has_dot 的 C 实现；import 路径含 '.' 返回 1，否则 0。 */
+int32_t pipeline_resolve_path_import_has_dot_c(uint8_t *import_path, int32_t path_len) {
+  int32_t k;
+  if (!import_path || path_len <= 0)
+    return 0;
+  k = 0;
+  while (k < path_len && k < 64) {
+    if (import_path[k] == 46)
+      return 1;
+    k++;
+  }
+  return 0;
+}
+
 /** CodegenOutBuf.len 读写（pipeline.su 避免 *CodegenOutBuf 字段 FIELD_ACCESS；layout 与 codegen.su 一致）。 */
 struct codegen_CodegenOutBuf;
 
@@ -3781,6 +4109,11 @@ int32_t pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->current_func_index : -1;
 }
 
+/** typeck EXPR_VAR：读 ctx.current_block_ref（EMIT_HEAVY 勿 SU 直接写字段）。 */
+int32_t pipeline_dep_ctx_current_block_ref_at(struct ast_PipelineDepCtx *ctx) {
+  return ctx ? ctx->current_block_ref : 0;
+}
+
 void pipeline_dep_ctx_set_current_codegen_module(struct ast_PipelineDepCtx *ctx, struct ast_Module *m) {
   if (ctx)
     ctx->current_codegen_module = m;
@@ -3860,6 +4193,585 @@ void pipeline_ctx_lib_root_copy(struct ast_PipelineDepCtx *ctx, int32_t i, uint8
     n = cap - 1;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
+}
+
+/** std.fs 原语（pipeline resolve/read C glue 使用；与 fix_pipeline_extern_gen_c.pl 别名一致）。 */
+extern int32_t std_fs_fs_open_read(uint8_t *path);
+extern int32_t std_fs_fs_close(int32_t fd);
+extern ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t *buf, size_t count);
+/** pipeline_glue.c 在 #include ast_pool.c 之后定义；此处前向声明供 resolve C glue 调用。 */
+int32_t pipeline_copy_lib_root_to_buf256(struct ast_PipelineDepCtx *ctx, int32_t lib_idx, uint8_t *dst);
+
+/**
+ * 在 ctx.path_buf 前缀后于 off 处尝试 `.su` 与 `/mod.su` 并 fs_open_read 探测。
+ * 成功返回 0，失败返回 -1。
+ */
+static int32_t pipeline_resolve_path_probe_dot_su_and_mod_c(struct ast_PipelineDepCtx *ctx, int32_t off) {
+  int32_t fd;
+
+  if (!ctx)
+    return -1;
+  if (off + 4 <= 512) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 115);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 117);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 0);
+    fd = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+    if (fd >= 0) {
+      std_fs_fs_close(fd);
+      return 0;
+    }
+    if (off + 8 <= 512) {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 109);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 111);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 100);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 4, 46);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 5, 115);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 6, 117);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 7, 0);
+      fd = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+      if (fd >= 0) {
+        std_fs_fs_close(fd);
+        return 0;
+      }
+    }
+  }
+  return -1;
+}
+
+/** 单段 import 在 lib_root 下再试 lib_root/name/name.su。 */
+static int32_t pipeline_resolve_path_try_flat_import_under_lib_c(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
+                                                                  uint8_t *import_path, int32_t path_len) {
+  uint8_t lr_buf[256];
+  int32_t lr_len;
+  int32_t off_base;
+
+  if (!ctx || !import_path)
+    return -1;
+  lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, lr_buf);
+  off_base = 0;
+  if (lr_len > 0)
+    off_base = pipeline_path_append_from_buf_256_c(ctx, 0, lr_buf, lr_len);
+  if (off_base < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47);
+    off_base = off_base + 1;
+  }
+  off_base = pipeline_path_append_import_path_c(ctx, off_base, import_path, path_len);
+  if (off_base < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47);
+    off_base = off_base + 1;
+  }
+  off_base = pipeline_path_append_import_path_c(ctx, off_base, import_path, path_len);
+  if (off_base + 4 <= 512) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 46);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 1, 115);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 2, 117);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 3, 0);
+    if (std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx)) >= 0)
+      return 0;
+  }
+  return -1;
+}
+
+/** 在单个 lib_root 下拼接 import 并探测 .su / mod.su / 扁平单段路径。 */
+static int32_t pipeline_resolve_path_try_one_lib_root_c(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
+                                                         uint8_t *import_path, int32_t path_len) {
+  uint8_t lr_buf[256];
+  int32_t lr_len;
+  int32_t off;
+
+  if (!ctx || !import_path)
+    return -1;
+  lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, lr_buf);
+  off = 0;
+  if (lr_len > 0)
+    off = pipeline_path_append_from_buf_256_c(ctx, 0, lr_buf, lr_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  if (pipeline_resolve_path_probe_dot_su_and_mod_c(ctx, off) == 0)
+    return 0;
+  if (path_len > 0 && path_len < 64 && pipeline_resolve_path_import_has_dot_c(import_path, path_len) == 0) {
+    if (pipeline_resolve_path_try_flat_import_under_lib_c(ctx, lib_idx, import_path, path_len) == 0)
+      return 0;
+  }
+  return -1;
+}
+
+/** 在 entry_dir 下拼接单段 import 并探测 .su / mod.su。 */
+static int32_t pipeline_resolve_path_try_entry_dir_c(struct ast_PipelineDepCtx *ctx, uint8_t *import_path,
+                                                    int32_t path_len) {
+  int32_t ed_len;
+  uint8_t ed_buf[512];
+  int32_t off;
+
+  if (!ctx || !import_path)
+    return -1;
+  ed_len = pipeline_dep_ctx_entry_dir_len(ctx);
+  if (ed_len <= 0 || pipeline_resolve_path_import_has_dot_c(import_path, path_len) != 0)
+    return -1;
+  pipeline_dep_ctx_entry_dir_copy(ctx, ed_buf, 512);
+  off = pipeline_path_append_from_buf_512_c(ctx, 0, ed_buf, ed_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  return pipeline_resolve_path_probe_dot_su_and_mod_c(ctx, off);
+}
+
+/** SU 真 emit 或 weak 默认；_c 经此 dispatch（build_asm pipeline.o 强符号覆盖 weak）。 */
+extern int32_t pipeline_resolve_path_su(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
+extern int32_t pipeline_read_file_su(struct ast_PipelineDepCtx *ctx);
+
+/**
+ * M8-tail strict 回退：`resolve_path_su` 按 lib_roots 与 entry_dir 解析 import 到 ctx.path_buf。
+ */
+int32_t pipeline_resolve_path_su_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
+  int32_t r;
+  int32_t n_lib;
+
+  if (!ctx || !import_path || path_len <= 0)
+    return -1;
+  n_lib = pipeline_ctx_lib_root_count(ctx);
+  r = 0;
+  while (r < n_lib) {
+    if (pipeline_resolve_path_try_one_lib_root_c(ctx, r, import_path, path_len) == 0)
+      return 0;
+    r = r + 1;
+  }
+  if (pipeline_resolve_path_try_entry_dir_c(ctx, import_path, path_len) == 0)
+    return 0;
+  return -1;
+}
+
+/** M8-tail：优先 dispatch 至 pipeline_resolve_path_su（SU 或 weak impl_c）。 */
+int32_t pipeline_resolve_path_su_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
+  return pipeline_resolve_path_su(ctx, import_path, path_len);
+}
+
+/** read_file_su SU emit：单点 fs read + loaded_len（前向声明，供 read_file_su / impl_c 调用）。 */
+int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t fd);
+
+/**
+ * M8-tail strict 回退：`read_file_su` 读 ctx.path_buf 文件到 ctx.loaded_buf。
+ */
+int32_t pipeline_read_file_su_impl_c(struct ast_PipelineDepCtx *ctx) {
+  int32_t fd;
+  int32_t rc;
+
+  if (!ctx)
+    return -1;
+  fd = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+  if (fd < 0)
+    return -1;
+  rc = pipeline_read_fd_into_loaded_buf(ctx, fd);
+  std_fs_fs_close(fd);
+  return rc;
+}
+
+/** M8-tail：优先 dispatch 至 pipeline_read_file_su（SU 或 weak impl_c）。 */
+int32_t pipeline_read_file_su_c(struct ast_PipelineDepCtx *ctx) {
+  return pipeline_read_file_su(ctx);
+}
+
+/**
+ * read_file_su SU emit：单点 fs read + loaded_len 写入（避免 SU 侧 fs_posix_read_c 嵌套 ptr 实参 SIGSEGV）。
+ */
+int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t fd) {
+  ptrdiff_t n;
+
+  if (!ctx || fd < 0)
+    return -1;
+  n = std_fs_fs_read(fd, pipeline_dep_ctx_loaded_buf_ptr(ctx), (size_t)PIPELINE_SOURCE_BUF_CAP);
+  if (n < 0)
+    return -1;
+  pipeline_dep_ctx_set_loaded_len(ctx, n);
+  return 0;
+}
+
+extern int32_t preprocess_preprocess_su_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+                                              int32_t out_cap);
+extern uint8_t *driver_dep_arena_buf(int32_t i);
+extern uint8_t *driver_dep_module_buf(int32_t i);
+extern int32_t driver_dep_seeded_get(int32_t i);
+extern int32_t driver_dep_slot_for_path(uint8_t *path);
+extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
+
+/** pipeline_load_import_from_disk SU emit：读 ctx.preprocess_len（避免 FIELD_ACCESS emit 失败）。 */
+int32_t pipeline_dep_ctx_preprocess_len_get(struct ast_PipelineDepCtx *ctx) {
+  return ctx ? ctx->preprocess_len : -1;
+}
+
+/**
+ * loaded_buf → preprocess_buf；成功返回 0，preprocess 失败返回 -9。
+ */
+int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx *ctx) {
+  int32_t out_len;
+
+  if (!ctx)
+    return -1;
+  out_len = preprocess_preprocess_su_buf(pipeline_dep_ctx_loaded_buf_ptr(ctx), ctx->loaded_len,
+                                         pipeline_dep_ctx_preprocess_buf_ptr(ctx), PIPELINE_SOURCE_BUF_CAP);
+  if (out_len < 0)
+    return -9;
+  ctx->preprocess_len = out_len;
+  return 0;
+}
+
+/** import 槽绑定 driver dep arena/module 缓冲（指针 cast 须 C glue）。 */
+void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
+  if (!ctx || import_idx < 0)
+    return;
+  pipeline_dep_ctx_set_arena(ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(import_idx));
+  pipeline_dep_ctx_set_module(ctx, import_idx, (struct ast_Module *)driver_dep_module_buf(import_idx));
+}
+
+/**
+ * 若 global_slot 或 import_idx 已由 driver seed，绑定 arena/module 槽并返回 1；未 seed 返回 0。
+ * C glue：SU 侧 (struct ast_ASTArena *)driver_dep_arena_buf 指针 cast 在 M8 asm 真 emit 时易 SIGSEGV。
+ */
+int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx, int32_t import_idx, int32_t global_slot) {
+  if (!ctx || import_idx < 0)
+    return 0;
+  if (global_slot >= 0 && driver_dep_seeded_get(global_slot) != 0) {
+    pipeline_dep_ctx_set_arena(ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(global_slot));
+    pipeline_dep_ctx_set_module(ctx, import_idx, (struct ast_Module *)driver_dep_module_buf(global_slot));
+    return 1;
+  }
+  if (driver_dep_seeded_get(import_idx) != 0) {
+    pipeline_dep_ctx_set_arena(ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(import_idx));
+    pipeline_dep_ctx_set_module(ctx, import_idx, (struct ast_Module *)driver_dep_module_buf(import_idx));
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * 将 dep_i 槽与 driver 全局 seed 槽对齐；C glue 单点指针 cast。
+ */
+int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i) {
+  uint8_t sync_path[64];
+  int32_t sync_slot;
+
+  if (!module || !ctx || dep_i < 0)
+    return -1;
+  (void)parser_copy_module_import_path64(module, dep_i, sync_path);
+  sync_slot = driver_dep_slot_for_path(sync_path);
+  if (sync_slot < 0)
+    sync_slot = dep_i;
+  pipeline_dep_ctx_set_module(ctx, dep_i, (struct ast_Module *)driver_dep_module_buf(sync_slot));
+  pipeline_dep_ctx_set_arena(ctx, dep_i, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+  return 0;
+}
+
+extern void driver_diagnostic_entry_already(int32_t v);
+extern void driver_diagnostic_source_len(int32_t len);
+extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
+extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
+extern void driver_diagnostic_entry_module(struct ast_Module *module, struct ast_ASTArena *arena);
+extern void driver_diagnostic_typeck_fail(void);
+extern int32_t pipeline_dep_ctx_entry_already_parsed(struct ast_PipelineDepCtx *ctx);
+extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t main_idx);
+extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
+                                                                         struct ast_Module *module, uint8_t *data,
+                                                                         int32_t len);
+extern int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_driver_asm_build_skip_typeck(void);
+extern int32_t pipeline_driver_su_pipeline_skip_typeck(void);
+extern int32_t driver_su_pipeline_skip_typeck_get(void);
+extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct ast_ASTArena *arena,
+                                                                               struct ast_Module *module,
+                                                                               uint8_t *data, int32_t len);
+extern int32_t typeck_typeck_su_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_typeck_su_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+                                            struct ast_PipelineDepCtx *ctx);
+/** WPO-S3：post-typeck struct 栈指针逃逸扫描（pipeline_glue.c）。 */
+extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module,
+                                                                 struct ast_ASTArena *arena,
+                                                                 struct ast_PipelineDepCtx *ctx);
+
+/** EMIT_HEAVY SU 读 parse scalars 出参（sidecar；避免 SU &local 导致 asm parse 0 func）。 */
+static int32_t g_pipeline_parse_scalars_ok;
+static int32_t g_pipeline_parse_scalars_main_idx;
+
+int32_t pipeline_parse_scalars_ok_get(void) {
+  return g_pipeline_parse_scalars_ok;
+}
+
+int32_t pipeline_parse_scalars_main_idx_get(void) {
+  return g_pipeline_parse_scalars_main_idx;
+}
+
+/**
+ * 单模块 asm -o 是否跳过 .su typeck：须 C glue（SU emit 读 skip 标志/ctx 字段易错序）。
+/**
+ * 与 pipeline.su pipeline_should_skip_su_typeck 语义一致。
+ * runtime 在 C 预检后设 driver_su_pipeline_skip_typeck 时须对用户 -o 程序生效（B-strict shu_asm hello 等）。
+ */
+int32_t pipeline_should_skip_su_typeck_c(struct ast_PipelineDepCtx *ctx) {
+  if (!ctx)
+    return 0;
+  if (pipeline_driver_su_pipeline_skip_typeck() != 0)
+    return 1;
+  if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0)
+    return 0;
+  if (pipeline_driver_asm_build_skip_typeck() != 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * parse 失败时 stderr 诊断（EMIT_HEAVY 勿 SU 真 emit driver_diagnostic_parse_fail 多实参）。
+ */
+void pipeline_parse_fail_diag_scalars_c(struct ast_Module *module, struct ast_ASTArena *arena) {
+  if (!module || !arena)
+    return;
+  driver_diagnostic_parse_fail(g_pipeline_parse_scalars_main_idx, pipeline_module_num_funcs(module),
+                               pipeline_arena_num_types(arena));
+}
+
+/**
+ * 从 parse scalars sidecar 构造 ParseIntoResult（EMIT_HEAVY 勿 SU 按值拼装后 return）。
+ */
+struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c(void) {
+  struct parser_ParseIntoResult r;
+
+  r.ok = g_pipeline_parse_scalars_ok;
+  r.main_idx = g_pipeline_parse_scalars_main_idx;
+  return r;
+}
+
+/**
+ * parse_into_with_init_buf 的 ok/main_idx 出参版；避免 SU 局部 ParseIntoResult 按值（EMIT_HEAVY SIGSEGV）。
+ * out_ok/out_main_idx 非 NULL 时写入；并始终更新 sidecar 供 pipeline_parse_scalars_*_get。
+ */
+int32_t pipeline_parse_into_with_init_buf_scalars(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                   uint8_t *data, int32_t len, int32_t *out_ok,
+                                                   int32_t *out_main_idx) {
+  struct parser_ParseIntoResult r;
+
+  if (!arena || !module || !data || len <= 0) {
+    g_pipeline_parse_scalars_ok = 1;
+    g_pipeline_parse_scalars_main_idx = -1;
+    if (out_ok)
+      *out_ok = g_pipeline_parse_scalars_ok;
+    if (out_main_idx)
+      *out_main_idx = g_pipeline_parse_scalars_main_idx;
+    return 0;
+  }
+  r = pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+  g_pipeline_parse_scalars_ok = r.ok;
+  g_pipeline_parse_scalars_main_idx = r.main_idx;
+  if (out_ok)
+    *out_ok = r.ok;
+  if (out_main_idx)
+    *out_main_idx = r.main_idx;
+  return 0;
+}
+
+/** SU 薄包装：sidecar 版 scalars（无 *i32 出参，避免 asm 前端 parse 0 func）。 */
+int32_t pipeline_parse_into_with_init_buf_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                          uint8_t *data, int32_t len) {
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, NULL, NULL);
+}
+
+/**
+ * []u8 slice 路径 sidecar：读 data/length 后复用 buf scalars（勿 SU ParseIntoResult 按值 EMIT_HEAVY SIGSEGV）。
+ * SU 传 []u8 时 ABI 为 shulang_slice_uint8_t*。
+ */
+int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                             struct shulang_slice_uint8_t *source) {
+  if (!source || !source->data || source->length == 0)
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, NULL, 0, NULL, NULL);
+  if (source->length > (size_t)2147483647)
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, source->data, 2147483647, NULL, NULL);
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, source->data, (int32_t)source->length, NULL, NULL);
+}
+
+/**
+ * buf 路径 parse + set_main；C glue 回退（strict 无 pipeline.o 时；有 SU 强符号则覆盖）。
+ * EMIT_HEAVY 第二遍 pipeline.su 内 pipeline_parse_set_main_from_buf SU 真 emit。
+ */
+int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *data,
+                                           int32_t len) {
+  int32_t ok;
+  int32_t main_idx;
+
+  if (!module || !arena || !data || len <= 0)
+    return -2;
+  pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
+  if (ok != 0) {
+    driver_diagnostic_parse_fail(main_idx, pipeline_module_num_funcs(module), pipeline_arena_num_types(arena));
+    return -2;
+  }
+  pipeline_module_set_main_func_index(module, main_idx);
+  return 0;
+}
+
+/**
+ * 已对 module 设好 main_idx：按 library / 可执行分派 typeck_su_ast*（与 pipeline.su 语义一致）。
+ * fail_mapped 非 0 时 typeck 失败返回该码（LSP 用 -3）。
+ */
+int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                      struct ast_PipelineDepCtx *ctx, int32_t fail_mapped) {
+  if (!module || !arena || !ctx) {
+    if (fail_mapped != 0)
+      return fail_mapped;
+    return -1;
+  }
+  if (pipeline_module_main_func_index(module) < 0) {
+    int32_t tc_lib = typeck_typeck_su_ast_library(module, arena, ctx);
+    if (tc_lib != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return tc_lib;
+    }
+    if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return -1;
+    }
+    return 0;
+  }
+  {
+    int32_t tc = typeck_typeck_su_ast(module, arena, ctx);
+    if (tc != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return tc;
+    }
+    if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return -1;
+    }
+  }
+  return 0;
+}
+
+/** 主流水线 entry typeck：library→parsed_module；可执行→typeck_su_ast（EMIT_HEAVY SU emit）。 */
+int32_t pipeline_typeck_entry_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       struct ast_PipelineDepCtx *ctx) {
+  if (!module || !arena || !ctx)
+    return -1;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, 0);
+}
+
+/** LSP entry parse：与 pipeline_parse_set_main_from_buf 同路径 C glue。 */
+int32_t lsp_diag_parse_entry_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
+                                   int32_t source_len) {
+  return pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+}
+
+/** C glue 经 pipeline_typeck_parsed_module_c 复用 typeck 分派。 */
+extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                         struct ast_PipelineDepCtx *ctx);
+
+/**
+ * LSP 全路径 C glue：set_main_c + load/sync + pipeline_typeck_parsed_module_c（typeck 失败 -3）。
+ */
+int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
+                                    int32_t source_len, struct ast_PipelineDepCtx *ctx) {
+  int32_t parse_rc;
+  int32_t load_rc;
+
+  if (!module || !arena || !ctx || !source_data || source_len <= 0)
+    return -2;
+  parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+  if (parse_rc != 0)
+    return parse_rc;
+  load_rc = pipeline_load_and_sync_direct_import_deps(module, arena, ctx);
+  if (load_rc != 0)
+    return load_rc;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, 0 - 3);
+}
+
+/**
+ * entry 尚未解析：parse_into_with_init_buf + set_main + 收尾诊断；C glue（scalars 路径）。
+ */
+int32_t run_su_pipeline_parse_entry_do_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                              uint8_t *source_data, size_t source_len,
+                                              struct ast_PipelineDepCtx *ctx) {
+  int32_t len_i32 = (int32_t)source_len;
+  int32_t parse_rc;
+
+  if (!module || !arena || !ctx)
+    return -1;
+  driver_diagnostic_source_len(len_i32);
+  parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, len_i32);
+  if (parse_rc != 0)
+    return parse_rc;
+  driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+  driver_diagnostic_entry_module(module, arena);
+  return 0;
+}
+
+/**
+ * entry typeck emit；C glue（skip 判定 + typeck 深栈 + module 字段读）。
+ */
+int32_t run_su_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                               struct ast_PipelineDepCtx *ctx) {
+  if (!module || !arena || !ctx)
+    return -1;
+  /** 优先读 runtime 全局标志（C 预检后 set）；勿仅依赖 SU pipeline_should_skip_su_typeck（strict 链 thin bl 偶发失效）。 */
+  if (driver_su_pipeline_skip_typeck_get() != 0)
+    return 0;
+  if (pipeline_should_skip_su_typeck(ctx) != 0)
+    return 0;
+  return pipeline_typeck_entry_module_c(module, arena, ctx);
+}
+
+extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
+extern int32_t asm_asm_codegen_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                                   struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
+extern int32_t codegen_codegen_su_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                                      struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
+                                      int32_t dep_index);
+
+/**
+ * 对单个 dep 执行 asm/C codegen；C glue（dep_mod->num_funcs 读 + asm 深栈 emit 仍须 C）。
+ */
+int32_t run_su_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct codegen_CodegenOutBuf *out_buf,
+                                             struct ast_PipelineDepCtx *ctx, int32_t dep_j, int32_t skip_asm_dep_codegen,
+                                             int32_t use_asm_backend) {
+  if (!out_buf || !ctx || dep_j < 0)
+    return -1;
+  if (dep_mod && pipeline_module_num_funcs(dep_mod) > 0) {
+    if (use_asm_backend != 0) {
+      if (skip_asm_dep_codegen == 0 &&
+          asm_asm_codegen_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx) != 0)
+        return -6;
+    } else if (codegen_codegen_su_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
+      return -6;
+    }
+  }
+  return 0;
+}
+
+/**
+ * entry module 最终 codegen emit；C glue（asm_asm_codegen_ast / codegen_codegen_su_ast 深栈保留 C）。
+ */
+int32_t run_su_pipeline_codegen_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
+                                           int32_t use_asm_backend) {
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  if (use_asm_backend != 0) {
+    if (asm_asm_codegen_ast(module, arena, out_buf, ctx) != 0)
+      return -6;
+  } else if (codegen_codegen_su_ast(module, arena, out_buf, ctx, -1) != 0) {
+    return -6;
+  }
+  return 0;
 }
 
 /** 读 lib_root 路径第 off 字节；越界或无效返回 0（避免 pipeline.su 侧整段 copy 大缓冲）。 */
@@ -4191,9 +5103,79 @@ uint8_t *typeck_scratch64_slot(int32_t slot) {
 
 /** typeck.su：CALL resolve 写 func 下标用；勿用栈上 &cfi（自举 pipeline 下可撕裂致 segfault）。 */
 static int32_t g_typeck_call_resolve_func_idx;
+static int32_t g_typeck_call_resolve_dep_idx;
 
 int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx;
+}
+
+int32_t *typeck_call_resolve_dep_idx_slot(void) {
+  return &g_typeck_call_resolve_dep_idx;
+}
+
+/** 读 CALL resolve dep scratch（SU emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
+int32_t typeck_call_resolve_dep_idx_peek(void) {
+  return g_typeck_call_resolve_dep_idx;
+}
+
+/** 读 CALL resolve func scratch（SU emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
+int32_t typeck_call_resolve_func_idx_peek(void) {
+  return g_typeck_call_resolve_func_idx;
+}
+
+/** 前向声明：binop arith infer C glue 读/写类型池。 */
+extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref);
+extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *a, int32_t type_ref);
+extern int32_t pipeline_type_array_size_at(struct ast_ASTArena *a, int32_t type_ref);
+extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t type_ref);
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord);
+
+/**
+ * 算术/位 binop 结果类型推导（typeck.su 同逻辑；SU 单函 emit 触顶 reloc 8192，暂经 C glue）。
+ * 假定 bop_l/bop_r 已 check；写 expr_ref.resolved_type_ref。
+ */
+void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t bop_l,
+                                     int32_t bop_r, int32_t expr_kind) {
+  int32_t lt_ar;
+  int32_t rt_ar;
+  int32_t lko;
+  int32_t rko;
+  int32_t out_ar = 0;
+  int32_t allow_i32_fallback = 0;
+  if (!arena || expr_ref <= 0 || bop_l <= 0 || bop_r <= 0)
+    return;
+  lt_ar = pipeline_expr_resolved_type_ref(arena, bop_l);
+  rt_ar = pipeline_expr_resolved_type_ref(arena, bop_r);
+  if (lt_ar <= 0 || rt_ar <= 0 || lt_ar > arena->num_types || rt_ar > arena->num_types)
+    return;
+  lko = pipeline_type_kind_ord_at(arena, lt_ar);
+  rko = pipeline_type_kind_ord_at(arena, rt_ar);
+  if (lko == 12 && rko == 12 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
+      pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
+                                        pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {
+    out_ar = lt_ar;
+  } else if (lko == 5 || rko == 5) {
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
+  } else if (lko == 14 || rko == 14) {
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
+  } else if (pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
+    out_ar = lt_ar;
+  } else if (lt_ar != 0) {
+    out_ar = lt_ar;
+  } else if (rt_ar != 0) {
+    out_ar = rt_ar;
+  }
+  if (expr_kind >= 4 && expr_kind <= 13)
+    allow_i32_fallback = 1;
+  if (out_ar == 0 && lko != 12 && rko != 12 && allow_i32_fallback)
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 0);
+  if (allow_i32_fallback &&
+      (pipeline_type_kind_ord_at(arena, lt_ar) == 1 || pipeline_type_kind_ord_at(arena, rt_ar) == 1))
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 0);
+  if (out_ar != 0)
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
 }
 
 /** typeck.su：struct_layout_metrics 写 out_sz/out_al；勿用栈上 &z/&al。 */
@@ -4225,16 +5207,25 @@ int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   return &g_typeck_layout_metrics_depth_scratch[s % 8][1];
 }
 
+/** ElfCodegenCtx 标签/补丁/重定位/符号表行数；与 platform/elf.su 内联数组维度一致（改须全链 rebuild）。
+ * typeck EMIT_HEAVY 真 emit 函数≈128 时 num_patches 触顶 2048；扩至 4096 后须 make bootstrap-driver-bstrict 全链 rebuild。 */
+#define PIPELINE_ELF_CTX_TABLE_CAP 4096
+/** 堆 sidecar 扩 reloc 总上限（内联 4096 + heap 8192）；typeck EMIT_HEAVY 真 emit≈131 时触顶 8192，预留至 12288。 */
+#define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 12288
+#define PIPELINE_ELF_CTX_RELOC_HEAP_CAP (PIPELINE_ELF_CTX_RELOC_TOTAL_CAP - PIPELINE_ELF_CTX_TABLE_CAP)
+
 /**
  * platform/elf.su：ElfCodegenCtx 体量大，.su/asm 对 patches[pi].* / relocs[ri].* 字段写入 typeck 失败；
- * 布局须与 elf.su 中 ElfLabelEntry / ElfPatchEntry / ElfRelocEntry 前缀一致（改 elf.su 时同步）。
+ * 布局须与 elf.su 中 ElfLabelEntry / ElfPatchEntry / ElfRelocEntry / ElfSymEntry 前缀一致（改 elf.su 时同步）。
  */
+/** 与 elf.su ElfLabelEntry 布局一致（无 code_shndx；PGO 段索引见 sidecar）。 */
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
   int32_t offset;
 } PipelineElfLabelEntry;
 
+/** 与 elf.su ElfPatchEntry 布局一致。 */
 typedef struct {
   int32_t rel32_offset;
   uint8_t name[64];
@@ -4242,21 +5233,944 @@ typedef struct {
   int32_t patch_imm_bits;
 } PipelineElfPatchEntry;
 
+/** 与 elf.su ElfRelocEntry 布局一致。 */
 typedef struct {
   int32_t offset;
   int32_t name_len;
 } PipelineElfRelocEntry;
 
+/** heap reloc sidecar 专用：内联 relocs[] 无 code_shndx 字段。 */
+typedef struct {
+  int32_t offset;
+  int32_t name_len;
+  int32_t code_shndx;
+} PipelineElfRelocHeapEntry;
+
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t offset;
+  /** 符号所属段：1=.text，2=.text.hot，3=.text.unlikely。 */
+  int32_t sym_shndx;
+} PipelineElfSymEntry;
+
+/** code_data 之前的完整前缀；glue 用 offsetof 取 e_machine / code_data，避免手算偏移漂移。 */
 typedef struct {
   int32_t code_len;
-  PipelineElfLabelEntry labels[2048];
+  PipelineElfLabelEntry labels[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_labels;
-  PipelineElfPatchEntry patches[2048];
+  PipelineElfPatchEntry patches[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_patches;
-  PipelineElfRelocEntry relocs[2048];
-  uint8_t reloc_sym_names[2048][64];
+  PipelineElfRelocEntry relocs[PIPELINE_ELF_CTX_TABLE_CAP];
+  uint8_t reloc_sym_names[PIPELINE_ELF_CTX_TABLE_CAP][64];
   int32_t num_relocs;
+  PipelineElfSymEntry syms[PIPELINE_ELF_CTX_TABLE_CAP];
+  int32_t num_syms;
+  int32_t sym_name_len;
+  int32_t e_machine;
+  int32_t reloc_type_r_pc32;
+  int32_t current_frame_size;
+  int32_t macho_leading_underscore;
+  /** PGO-Lite：.text.hot 已写字节数；与 code_data 之后的 code_hot_data 对应。 */
+  int32_t code_hot_len;
+  /** 当前 emit 段：0=.text，非 0=.text.hot（须 SHU_WPO_PGO_HOT=1）。 */
+  int32_t emit_hot;
 } PipelineElfCtxAccess;
+
+/** code_data 容量；与 elf.su ElfCodegenCtx.code_data 维度一致。 */
+#define PIPELINE_ELF_CTX_CODE_BUF_CAP 8388608
+/** .text.hot 缓冲（用户程序热段通常远小于 cold；减小 ctx 体积避免 malloc/栈压力）。 */
+#define PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP 1048576
+
+/** platform_elf_ElfCodegenCtx 后缀字段偏移（须与 elf.su / pipeline_gen 一致）。 */
+enum {
+  kPipelineElfCtxEMachineOff = (int)offsetof(PipelineElfCtxAccess, e_machine),
+  kPipelineElfCtxMachoUnderscoreOff = (int)offsetof(PipelineElfCtxAccess, macho_leading_underscore),
+  kPipelineElfCtxCodeDataOff = (int)sizeof(PipelineElfCtxAccess),
+  kPipelineElfCtxCodeHotDataOff = (int)sizeof(PipelineElfCtxAccess) + PIPELINE_ELF_CTX_CODE_BUF_CAP,
+  kPipelineElfCtxSymNameDataOff =
+      (int)sizeof(PipelineElfCtxAccess) + PIPELINE_ELF_CTX_CODE_BUF_CAP + PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP
+};
+
+/** 与 elf.su ElfCodegenCtx 前缀一致；漂移会导致 append_bytes 写穿 malloc 区。 */
+_Static_assert(sizeof(PipelineElfLabelEntry) == 72, "PipelineElfLabelEntry must match elf.su ElfLabelEntry");
+_Static_assert(sizeof(PipelineElfPatchEntry) == 76, "PipelineElfPatchEntry must match elf.su ElfPatchEntry");
+_Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.su ElfRelocEntry");
+_Static_assert(sizeof(PipelineElfSymEntry) == 76, "PipelineElfSymEntry must match elf.su ElfSymEntry");
+_Static_assert(kPipelineElfCtxCodeDataOff == 1212464, "PipelineElfCtxAccess prefix size drift vs elf.su");
+
+/** SHU_WPO_PGO_HOT=1 时启用 .text.hot 双段 emit。 */
+int32_t pipeline_elf_pgo_hot_enabled(void) {
+  const char *e = getenv("SHU_WPO_PGO_HOT");
+  if (!e || e[0] == '\0')
+    return 0;
+  if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))
+    return 0;
+  return 1;
+}
+
+/** 设置当前函数 emit 目标段（backend 每函数 emit 前调用）。 */
+void pipeline_elf_ctx_set_emit_hot(uint8_t *ctx_bytes, int32_t hot) {
+  PipelineElfCtxAccess *ctx;
+  if (!ctx_bytes)
+    return;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  ctx->emit_hot = hot != 0 ? 1 : 0;
+}
+
+/** .text + .text.hot 已编码字节总和（空 __text 拒绝用）。 */
+int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes) {
+  PipelineElfCtxAccess *ctx;
+  if (!ctx_bytes)
+    return 0;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  return ctx->code_len + ctx->code_hot_len;
+}
+
+/** PGO-Lite ELF 段索引（与 write_elf_o_pgo 中 shdr 顺序一致）。 */
+enum {
+  PIPELINE_ELF_SHNX_TEXT = 1,
+  PIPELINE_ELF_SHNX_TEXT_HOT = 2,
+  PIPELINE_ELF_SHNX_TEXT_UNLIKELY = 3
+};
+
+/** 当前 emit 的 ELF 段索引：hot→2，PGO 冷路径→3，否则→1。 */
+static int32_t pipeline_elf_ctx_current_shndx(PipelineElfCtxAccess *ctx) {
+  if (!ctx)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (pipeline_elf_pgo_hot_enabled()) {
+    if (ctx->emit_hot != 0)
+      return PIPELINE_ELF_SHNX_TEXT_HOT;
+    return PIPELINE_ELF_SHNX_TEXT_UNLIKELY;
+  }
+  return PIPELINE_ELF_SHNX_TEXT;
+}
+
+/** 按段索引取 code 缓冲指针（unlikely 与 legacy .text 共用 code_data）。 */
+static uint8_t *pipeline_elf_ctx_code_buf(uint8_t *ctx_bytes, int32_t shndx) {
+  if (shndx == PIPELINE_ELF_SHNX_TEXT_HOT)
+    return ctx_bytes + kPipelineElfCtxCodeHotDataOff;
+  return ctx_bytes + kPipelineElfCtxCodeDataOff;
+}
+
+/** 按段索引读已编码长度。 */
+static int32_t pipeline_elf_ctx_section_len(PipelineElfCtxAccess *ctx, int32_t shndx) {
+  if (!ctx)
+    return 0;
+  if (shndx == PIPELINE_ELF_SHNX_TEXT_HOT)
+    return ctx->code_hot_len;
+  return ctx->code_len;
+}
+
+/**
+ * 向当前 emit 段追加机器码字节（append_elf_bytes 统一 C 路由，避免 partial .o 与 ctx 布局漂移）。
+ * 返回 0 成功，-1 缓冲满。
+ */
+int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n) {
+  PipelineElfCtxAccess *ctx;
+  uint8_t *buf;
+  int32_t *len_slot;
+  int32_t i;
+  if (!ctx_bytes || !ptr || n < 0)
+    return -1;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (pipeline_elf_pgo_hot_enabled() && ctx->emit_hot != 0) {
+    buf = ctx_bytes + kPipelineElfCtxCodeHotDataOff;
+    len_slot = &ctx->code_hot_len;
+    if (*len_slot + n > (int32_t)PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP)
+      return -1;
+  } else {
+    buf = ctx_bytes + kPipelineElfCtxCodeDataOff;
+    len_slot = &ctx->code_len;
+    if (*len_slot + n > (int32_t)PIPELINE_ELF_CTX_CODE_BUF_CAP)
+      return -1;
+  }
+  for (i = 0; i < n; i++)
+    buf[*len_slot + i] = ptr[i];
+  *len_slot = *len_slot + n;
+  return 0;
+}
+
+/** num_relocs > TABLE_CAP 时的堆 sidecar（单 ctx 编译期有效；elf_ctx_reset 绑定 owner）。 */
+static uint8_t *g_pipeline_elf_reloc_sidecar_owner;
+static PipelineElfRelocHeapEntry g_pipeline_elf_reloc_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP];
+static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][64];
+
+/** PGO 段索引 sidecar：内联 labels/patches/relocs 无 code_shndx 字段（与 elf.su 布局对齐）。 */
+static uint8_t *g_pipeline_elf_shndx_sidecar_owner;
+static int32_t g_pipeline_elf_label_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_patch_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_reloc_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
+
+/** 未显式记录时的默认 reloc 段索引。 */
+static int32_t pipeline_elf_default_reloc_shndx(void) {
+  return pipeline_elf_pgo_hot_enabled() ? PIPELINE_ELF_SHNX_TEXT_UNLIKELY : PIPELINE_ELF_SHNX_TEXT;
+}
+
+/** 重置 label/patch/reloc 段 sidecar（与 elf_ctx_reset 同步）。 */
+static void pipeline_elf_shndx_sidecar_reset(uint8_t *ctx_bytes) {
+  g_pipeline_elf_shndx_sidecar_owner = ctx_bytes;
+  memset(g_pipeline_elf_label_shndx, 0, sizeof(g_pipeline_elf_label_shndx));
+  memset(g_pipeline_elf_patch_shndx, 0, sizeof(g_pipeline_elf_patch_shndx));
+  memset(g_pipeline_elf_reloc_shndx, 0, sizeof(g_pipeline_elf_reloc_shndx));
+}
+
+static int32_t pipeline_elf_label_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
+  if (!ctx_bytes || idx < 0 || idx >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (g_pipeline_elf_shndx_sidecar_owner != ctx_bytes || g_pipeline_elf_label_shndx[idx] == 0)
+    return pipeline_elf_default_reloc_shndx();
+  return g_pipeline_elf_label_shndx[idx];
+}
+
+static void pipeline_elf_label_shndx_set(uint8_t *ctx_bytes, int32_t idx, int32_t shndx) {
+  if (!ctx_bytes || idx < 0 || idx >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return;
+  g_pipeline_elf_shndx_sidecar_owner = ctx_bytes;
+  g_pipeline_elf_label_shndx[idx] = shndx;
+}
+
+static int32_t pipeline_elf_patch_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
+  if (!ctx_bytes || idx < 0 || idx >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (g_pipeline_elf_shndx_sidecar_owner != ctx_bytes || g_pipeline_elf_patch_shndx[idx] == 0)
+    return pipeline_elf_default_reloc_shndx();
+  return g_pipeline_elf_patch_shndx[idx];
+}
+
+static void pipeline_elf_patch_shndx_set(uint8_t *ctx_bytes, int32_t idx, int32_t shndx) {
+  if (!ctx_bytes || idx < 0 || idx >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return;
+  g_pipeline_elf_shndx_sidecar_owner = ctx_bytes;
+  g_pipeline_elf_patch_shndx[idx] = shndx;
+}
+
+static void pipeline_elf_reloc_shndx_set(uint8_t *ctx_bytes, int32_t idx, int32_t shndx) {
+  if (!ctx_bytes || idx < 0)
+    return;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP) {
+    g_pipeline_elf_shndx_sidecar_owner = ctx_bytes;
+    g_pipeline_elf_reloc_shndx[idx] = shndx;
+    return;
+  }
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
+  idx = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (idx >= 0 && idx < PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    g_pipeline_elf_reloc_heap[idx].code_shndx = shndx;
+}
+
+/** elf_ctx_reset：绑定 sidecar owner；num_relocs 清零后 heap 槽位可复用。 */
+void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes) {
+  g_pipeline_elf_reloc_sidecar_owner = ctx_bytes;
+  pipeline_elf_shndx_sidecar_reset(ctx_bytes);
+}
+
+/** 读第 idx 条 reloc 的 code offset（内联或 heap sidecar）。 */
+int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx) {
+  PipelineElfCtxAccess *ctx;
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
+    return 0;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_relocs)
+    return 0;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
+    return ctx->relocs[idx].offset;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return 0;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return 0;
+  return g_pipeline_elf_reloc_heap[hi].offset;
+}
+
+/** 读第 idx 条 reloc 的目标段（1=.text，2=.text.hot）。 */
+int32_t pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
+  PipelineElfCtxAccess *ctx;
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
+    return 1;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_relocs)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP) {
+    if (g_pipeline_elf_shndx_sidecar_owner == ctx_bytes && g_pipeline_elf_reloc_shndx[idx] != 0)
+      return g_pipeline_elf_reloc_shndx[idx];
+    return pipeline_elf_default_reloc_shndx();
+  }
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return PIPELINE_ELF_SHNX_TEXT;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (g_pipeline_elf_reloc_heap[hi].code_shndx != 0)
+    return g_pipeline_elf_reloc_heap[hi].code_shndx;
+  return pipeline_elf_default_reloc_shndx();
+}
+
+/** 读第 idx 个导出符号的 st_shndx（1=.text，2=.text.hot）。 */
+int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
+  PipelineElfCtxAccess *ctx;
+  if (!ctx_bytes || idx < 0)
+    return 1;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_syms)
+    return PIPELINE_ELF_SHNX_TEXT;
+  if (ctx->syms[idx].sym_shndx != 0)
+    return ctx->syms[idx].sym_shndx;
+  return pipeline_elf_pgo_hot_enabled() ? PIPELINE_ELF_SHNX_TEXT_UNLIKELY : PIPELINE_ELF_SHNX_TEXT;
+}
+
+/** 向 CodegenOutBuf 追加字节；layout 与 codegen.su 一致。 */
+static int32_t pipeline_elf_out_append(struct codegen_CodegenOutBuf *out, const uint8_t *p, int32_t n) {
+  int32_t len;
+  uint8_t *data;
+  int32_t i;
+  if (!out || !p || n < 0)
+    return -1;
+  len = codegen_out_buf_len(out);
+  if (len + n > (int32_t)PIPELINE_ELF_CTX_CODE_BUF_CAP)
+    return -1;
+  data = (uint8_t *)out;
+  for (i = 0; i < n; i++)
+    data[len + i] = p[i];
+  codegen_out_buf_set_len(out, len + n);
+  return 0;
+}
+
+/** 第 sym_idx 个符号名在 sym_name_data 中的偏移。 */
+static int32_t pipeline_elf_sym_name_off(PipelineElfCtxAccess *ctx, int32_t sym_idx) {
+  int32_t off;
+  int32_t i;
+  off = 0;
+  i = 0;
+  while (i < sym_idx && i < ctx->num_syms) {
+    off = off + ctx->syms[i].name_len;
+    i = i + 1;
+  }
+  return off;
+}
+
+/** reloc 目标是否为已定义导出符号（非 UND）。 */
+static int32_t pipeline_elf_reloc_is_defined(PipelineElfCtxAccess *ctx, uint8_t *ctx_bytes, int32_t reloc_idx,
+                                             uint8_t *rname, int32_t rlen) {
+  int32_t m;
+  int32_t off;
+  uint8_t *sym_pool;
+  if (!ctx || !ctx_bytes || !rname || rlen <= 0)
+    return 0;
+  sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+  for (m = 0; m < ctx->num_syms; m++) {
+    off = pipeline_elf_sym_name_off(ctx, m);
+    if (ctx->syms[m].name_len == rlen && rlen > 0 &&
+        memcmp(sym_pool + off, rname, (size_t)rlen) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * PGO-Lite：写出 .text（空）/ .text.hot / .text.unlikely 三代码段 ELF64 ET_REL .o。
+ * code_data→unlikely，code_hot_data→hot；冷/热/空 rela 分表。
+ */
+int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
+  PipelineElfCtxAccess *ctx;
+  uint8_t *unlikely;
+  uint8_t *hot;
+  int32_t code_unlikely_len;
+  int32_t code_hot_len;
+  int32_t strtab_off;
+  int32_t strtab_size;
+  int32_t num_undef;
+  uint8_t undef_names[32][64];
+  int32_t undef_lens[32];
+  int32_t num_text_rela;
+  int32_t num_hot_rela;
+  int32_t num_unlikely_rela;
+  int32_t symtab_ents;
+  int32_t symtab_size;
+  int32_t align_hot;
+  int32_t align_unlikely;
+  int32_t off_text;
+  int32_t off_hot;
+  int32_t off_unlikely;
+  int32_t off_strtab;
+  int32_t off_shstrtab;
+  int32_t off_symtab;
+  int32_t off_rela_text;
+  int32_t off_rela_hot;
+  int32_t off_rela_unlikely;
+  int32_t off_shdr;
+  /** shstrtab：.text / .text.hot / .text.unlikely / symtab / strtab / shstrtab / rela×3 */
+  static const uint8_t shstrtab_pgo[107] = {
+      0,
+      46, 116, 101, 120, 116, 0,
+      46, 116, 101, 120, 116, 46, 104, 111, 116, 0,
+      46, 116, 101, 120, 116, 46, 117, 110, 108, 105, 107, 101, 108, 121, 0,
+      46, 115, 121, 109, 116, 97, 98, 0,
+      46, 115, 116, 114, 116, 97, 98, 0,
+      46, 115, 104, 115, 116, 114, 116, 97, 98, 0,
+      46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 0,
+      46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 46, 104, 111, 116, 0,
+      46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 46, 117, 110, 108, 105, 107, 101, 108, 121, 0};
+  uint8_t ehdr[64];
+  uint8_t z0[1];
+  int32_t s;
+  int32_t r0;
+  int32_t r;
+  int32_t e_machine;
+  int32_t reloc_type;
+  if (!ctx_bytes || !out)
+    return -1;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  unlikely = ctx_bytes + kPipelineElfCtxCodeDataOff;
+  hot = ctx_bytes + kPipelineElfCtxCodeHotDataOff;
+  code_unlikely_len = ctx->code_len;
+  code_hot_len = ctx->code_hot_len;
+  e_machine = ctx->e_machine;
+  reloc_type = ctx->reloc_type_r_pc32;
+  num_undef = 0;
+  num_text_rela = 0;
+  num_hot_rela = 0;
+  num_unlikely_rela = 0;
+  r0 = 0;
+  while (r0 < ctx->num_relocs) {
+    uint8_t rname[64];
+    int32_t rlen;
+    int32_t rsh;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r0);
+    if (pipeline_elf_reloc_is_defined(ctx, ctx_bytes, r0, rname, rlen) == 0) {
+      int32_t u0;
+      int32_t dup;
+      dup = 0;
+      u0 = 0;
+      while (u0 < num_undef) {
+        if (undef_lens[u0] == rlen && rlen > 0 && memcmp(undef_names[u0], rname, (size_t)rlen) == 0) {
+          dup = 1;
+          break;
+        }
+        u0 = u0 + 1;
+      }
+      if (dup == 0 && num_undef < 32) {
+        if (rlen > 64)
+          rlen = 64;
+        if (rlen > 0)
+          memcpy(undef_names[num_undef], rname, (size_t)rlen);
+        undef_lens[num_undef] = rlen;
+        num_undef = num_undef + 1;
+      }
+    }
+    rsh = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r0);
+    if (rsh == PIPELINE_ELF_SHNX_TEXT_HOT)
+      num_hot_rela = num_hot_rela + 1;
+    else if (rsh == PIPELINE_ELF_SHNX_TEXT_UNLIKELY)
+      num_unlikely_rela = num_unlikely_rela + 1;
+    else
+      num_text_rela = num_text_rela + 1;
+    r0 = r0 + 1;
+  }
+  strtab_off = 1;
+  s = 0;
+  while (s < ctx->num_syms) {
+    strtab_off = strtab_off + ctx->syms[s].name_len + 1;
+    s = s + 1;
+  }
+  s = 0;
+  while (s < num_undef) {
+    strtab_off = strtab_off + undef_lens[s] + 1;
+    s = s + 1;
+  }
+  strtab_size = strtab_off;
+  symtab_ents = 3 + ctx->num_syms + num_undef;
+  symtab_size = symtab_ents * 24;
+  align_hot = (code_hot_len + 3) & ~3;
+  align_unlikely = (code_unlikely_len + 3) & ~3;
+  off_text = 64;
+  off_hot = off_text;
+  off_unlikely = off_hot + align_hot;
+  off_strtab = off_unlikely + align_unlikely;
+  off_shstrtab = off_strtab + strtab_size;
+  off_symtab = off_shstrtab + 107;
+  off_rela_text = off_symtab + symtab_size;
+  off_rela_hot = off_rela_text + num_text_rela * 24;
+  off_rela_unlikely = off_rela_hot + num_hot_rela * 24;
+  off_shdr = off_rela_unlikely + num_unlikely_rela * 24;
+  memset(ehdr, 0, sizeof(ehdr));
+  ehdr[0] = 127;
+  ehdr[1] = 69;
+  ehdr[2] = 76;
+  ehdr[3] = 70;
+  ehdr[4] = 2;
+  ehdr[5] = 1;
+  ehdr[6] = 1;
+  ehdr[16] = 1;
+  ehdr[18] = (uint8_t)(e_machine & 255);
+  ehdr[19] = (uint8_t)((e_machine >> 8) & 255);
+  ehdr[32] = 64;
+  ehdr[40] = (uint8_t)(off_shdr & 255);
+  ehdr[41] = (uint8_t)((off_shdr >> 8) & 255);
+  ehdr[42] = (uint8_t)((off_shdr >> 16) & 255);
+  ehdr[43] = (uint8_t)((off_shdr >> 24) & 255);
+  ehdr[52] = 64;
+  ehdr[58] = 64;
+  ehdr[60] = 10;
+  ehdr[62] = 6;
+  codegen_out_buf_set_len(out, 0);
+  if (pipeline_elf_out_append(out, ehdr, 64) != 0)
+    return -1;
+  if (code_hot_len > 0 && pipeline_elf_out_append(out, hot, code_hot_len) != 0)
+    return -1;
+  z0[0] = 0;
+  s = code_hot_len;
+  while (s < align_hot) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  if (code_unlikely_len > 0 && pipeline_elf_out_append(out, unlikely, code_unlikely_len) != 0)
+    return -1;
+  s = code_unlikely_len;
+  while (s < align_unlikely) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  if (pipeline_elf_out_append(out, z0, 1) != 0)
+    return -1;
+  {
+    uint8_t *sym_pool;
+    int32_t str_off;
+    sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+    s = 0;
+    while (s < ctx->num_syms) {
+      int32_t nlen;
+      nlen = ctx->syms[s].name_len;
+      if (nlen > 0 && pipeline_elf_out_append(out, sym_pool + pipeline_elf_sym_name_off(ctx, s), nlen) != 0)
+        return -1;
+      if (pipeline_elf_out_append(out, z0, 1) != 0)
+        return -1;
+      s = s + 1;
+    }
+    s = 0;
+    while (s < num_undef) {
+      if (undef_lens[s] > 0 && pipeline_elf_out_append(out, undef_names[s], undef_lens[s]) != 0)
+        return -1;
+      if (pipeline_elf_out_append(out, z0, 1) != 0)
+        return -1;
+      s = s + 1;
+    }
+    if (pipeline_elf_out_append(out, shstrtab_pgo, 107) != 0)
+      return -1;
+    {
+      uint8_t sym_sect[24];
+      memset(sym_sect, 0, sizeof(sym_sect));
+      sym_sect[4] = 3;
+      sym_sect[6] = PIPELINE_ELF_SHNX_TEXT;
+      if (pipeline_elf_out_append(out, sym_sect, 24) != 0)
+        return -1;
+      sym_sect[6] = PIPELINE_ELF_SHNX_TEXT_HOT;
+      sym_sect[8] = (uint8_t)(code_hot_len & 255);
+      sym_sect[9] = (uint8_t)((code_hot_len >> 8) & 255);
+      sym_sect[10] = (uint8_t)((code_hot_len >> 16) & 255);
+      sym_sect[11] = (uint8_t)((code_hot_len >> 24) & 255);
+      if (pipeline_elf_out_append(out, sym_sect, 24) != 0)
+        return -1;
+      sym_sect[6] = PIPELINE_ELF_SHNX_TEXT_UNLIKELY;
+      sym_sect[8] = (uint8_t)(code_unlikely_len & 255);
+      sym_sect[9] = (uint8_t)((code_unlikely_len >> 8) & 255);
+      sym_sect[10] = (uint8_t)((code_unlikely_len >> 16) & 255);
+      sym_sect[11] = (uint8_t)((code_unlikely_len >> 24) & 255);
+      if (pipeline_elf_out_append(out, sym_sect, 24) != 0)
+        return -1;
+    }
+    str_off = 1;
+    s = 0;
+    while (s < ctx->num_syms) {
+      uint8_t ent[24];
+      int32_t shndx;
+      memset(ent, 0, sizeof(ent));
+      shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+      ent[0] = (uint8_t)(str_off & 255);
+      ent[1] = (uint8_t)((str_off >> 8) & 255);
+      ent[2] = (uint8_t)((str_off >> 16) & 255);
+      ent[3] = (uint8_t)((str_off >> 24) & 255);
+      ent[4] = 18;
+      ent[6] = (uint8_t)(shndx & 255);
+      ent[7] = (uint8_t)((shndx >> 8) & 255);
+      ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
+      ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
+      ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
+      ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      if (pipeline_elf_out_append(out, ent, 24) != 0)
+        return -1;
+      str_off = str_off + ctx->syms[s].name_len + 1;
+      s = s + 1;
+    }
+    s = 0;
+    while (s < num_undef) {
+      uint8_t uent[24];
+      memset(uent, 0, sizeof(uent));
+      uent[0] = (uint8_t)(str_off & 255);
+      uent[1] = (uint8_t)((str_off >> 8) & 255);
+      uent[2] = (uint8_t)((str_off >> 16) & 255);
+      uent[3] = (uint8_t)((str_off >> 24) & 255);
+      uent[4] = 18;
+      if (pipeline_elf_out_append(out, uent, 24) != 0)
+        return -1;
+      str_off = str_off + undef_lens[s] + 1;
+      s = s + 1;
+    }
+  }
+  /** 写出 rela 表（按 shndx 分三段；sym index 含 3 个 STT_SECTION 占位）。 */
+  for (r = 0; r < ctx->num_relocs; r++) {
+    int32_t want_sh;
+    int32_t roff;
+    int32_t sym_idx;
+    int32_t m;
+    int32_t u;
+    uint8_t rela_buf[24];
+    uint8_t r_sym_buf[64];
+    int32_t rlen;
+    want_sh = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
+    if (want_sh != PIPELINE_ELF_SHNX_TEXT)
+      continue;
+    memset(rela_buf, 0, sizeof(rela_buf));
+    rela_buf[16] = 252;
+    rela_buf[17] = 255;
+    rela_buf[18] = 255;
+    rela_buf[19] = 255;
+    rela_buf[20] = 255;
+    rela_buf[21] = 255;
+    rela_buf[22] = 255;
+    rela_buf[23] = 255;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    sym_idx = 0;
+    m = 0;
+    while (m < ctx->num_syms) {
+      int32_t off;
+      uint8_t *sym_pool;
+      sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+      off = pipeline_elf_sym_name_off(ctx, m);
+      if (ctx->syms[m].name_len == rlen && rlen > 0 && memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
+        sym_idx = m + 3;
+        break;
+      }
+      m = m + 1;
+    }
+    if (sym_idx == 0) {
+      u = 0;
+      while (u < num_undef) {
+        if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
+          sym_idx = ctx->num_syms + 3 + u;
+          break;
+        }
+        u = u + 1;
+      }
+    }
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    rela_buf[0] = (uint8_t)(roff & 255);
+    rela_buf[1] = (uint8_t)((roff >> 8) & 255);
+    rela_buf[2] = (uint8_t)((roff >> 16) & 255);
+    rela_buf[3] = (uint8_t)((roff >> 24) & 255);
+    rela_buf[8] = (uint8_t)(reloc_type & 255);
+    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
+    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
+    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    rela_buf[12] = (uint8_t)(sym_idx & 255);
+    rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
+    rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
+    rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
+    if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
+      return -1;
+  }
+  for (r = 0; r < ctx->num_relocs; r++) {
+    int32_t roff;
+    int32_t sym_idx;
+    int32_t m;
+    int32_t u;
+    uint8_t rela_buf[24];
+    uint8_t r_sym_buf[64];
+    int32_t rlen;
+    if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) != PIPELINE_ELF_SHNX_TEXT_HOT)
+      continue;
+    memset(rela_buf, 0, sizeof(rela_buf));
+    rela_buf[16] = 252;
+    rela_buf[17] = 255;
+    rela_buf[18] = 255;
+    rela_buf[19] = 255;
+    rela_buf[20] = 255;
+    rela_buf[21] = 255;
+    rela_buf[22] = 255;
+    rela_buf[23] = 255;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    sym_idx = 0;
+    m = 0;
+    while (m < ctx->num_syms) {
+      int32_t off;
+      uint8_t *sym_pool;
+      sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+      off = pipeline_elf_sym_name_off(ctx, m);
+      if (ctx->syms[m].name_len == rlen && rlen > 0 && memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
+        sym_idx = m + 3;
+        break;
+      }
+      m = m + 1;
+    }
+    if (sym_idx == 0) {
+      u = 0;
+      while (u < num_undef) {
+        if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
+          sym_idx = ctx->num_syms + 3 + u;
+          break;
+        }
+        u = u + 1;
+      }
+    }
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    rela_buf[0] = (uint8_t)(roff & 255);
+    rela_buf[1] = (uint8_t)((roff >> 8) & 255);
+    rela_buf[2] = (uint8_t)((roff >> 16) & 255);
+    rela_buf[3] = (uint8_t)((roff >> 24) & 255);
+    rela_buf[8] = (uint8_t)(reloc_type & 255);
+    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
+    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
+    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    rela_buf[12] = (uint8_t)(sym_idx & 255);
+    rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
+    rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
+    rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
+    if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
+      return -1;
+  }
+  for (r = 0; r < ctx->num_relocs; r++) {
+    int32_t roff;
+    int32_t sym_idx;
+    int32_t m;
+    int32_t u;
+    uint8_t rela_buf[24];
+    uint8_t r_sym_buf[64];
+    int32_t rlen;
+    if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) != PIPELINE_ELF_SHNX_TEXT_UNLIKELY)
+      continue;
+    memset(rela_buf, 0, sizeof(rela_buf));
+    rela_buf[16] = 252;
+    rela_buf[17] = 255;
+    rela_buf[18] = 255;
+    rela_buf[19] = 255;
+    rela_buf[20] = 255;
+    rela_buf[21] = 255;
+    rela_buf[22] = 255;
+    rela_buf[23] = 255;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    sym_idx = 0;
+    m = 0;
+    while (m < ctx->num_syms) {
+      int32_t off;
+      uint8_t *sym_pool;
+      sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+      off = pipeline_elf_sym_name_off(ctx, m);
+      if (ctx->syms[m].name_len == rlen && rlen > 0 && memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
+        sym_idx = m + 3;
+        break;
+      }
+      m = m + 1;
+    }
+    if (sym_idx == 0) {
+      u = 0;
+      while (u < num_undef) {
+        if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
+          sym_idx = ctx->num_syms + 3 + u;
+          break;
+        }
+        u = u + 1;
+      }
+    }
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    rela_buf[0] = (uint8_t)(roff & 255);
+    rela_buf[1] = (uint8_t)((roff >> 8) & 255);
+    rela_buf[2] = (uint8_t)((roff >> 16) & 255);
+    rela_buf[3] = (uint8_t)((roff >> 24) & 255);
+    rela_buf[8] = (uint8_t)(reloc_type & 255);
+    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
+    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
+    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    rela_buf[12] = (uint8_t)(sym_idx & 255);
+    rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
+    rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
+    rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
+    if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
+      return -1;
+  }
+  {
+    uint8_t shdr0[64];
+    uint8_t shdr_text[64];
+    uint8_t shdr_hot[64];
+    uint8_t shdr_unlikely[64];
+    uint8_t shdr_sym[64];
+    uint8_t shdr_str[64];
+    uint8_t shdr_shstr[64];
+    uint8_t shdr_rela_text[64];
+    uint8_t shdr_rela_hot[64];
+    uint8_t shdr_rela_unlikely[64];
+    memset(shdr0, 0, sizeof(shdr0));
+    memset(shdr_text, 0, sizeof(shdr_text));
+    memset(shdr_hot, 0, sizeof(shdr_hot));
+    memset(shdr_unlikely, 0, sizeof(shdr_unlikely));
+    memset(shdr_sym, 0, sizeof(shdr_sym));
+    memset(shdr_str, 0, sizeof(shdr_str));
+    memset(shdr_shstr, 0, sizeof(shdr_shstr));
+    memset(shdr_rela_text, 0, sizeof(shdr_rela_text));
+    memset(shdr_rela_hot, 0, sizeof(shdr_rela_hot));
+    memset(shdr_rela_unlikely, 0, sizeof(shdr_rela_unlikely));
+    shdr_text[0] = 1;
+    shdr_text[4] = 1;
+    shdr_text[8] = 6;
+    shdr_text[24] = (uint8_t)(off_text & 255);
+    shdr_text[25] = (uint8_t)((off_text >> 8) & 255);
+    shdr_text[26] = (uint8_t)((off_text >> 16) & 255);
+    shdr_text[27] = (uint8_t)((off_text >> 24) & 255);
+    shdr_hot[0] = 7;
+    shdr_hot[4] = 1;
+    shdr_hot[8] = 6;
+    shdr_hot[24] = (uint8_t)(off_hot & 255);
+    shdr_hot[25] = (uint8_t)((off_hot >> 8) & 255);
+    shdr_hot[26] = (uint8_t)((off_hot >> 16) & 255);
+    shdr_hot[27] = (uint8_t)((off_hot >> 24) & 255);
+    shdr_hot[32] = (uint8_t)(code_hot_len & 255);
+    shdr_hot[33] = (uint8_t)((code_hot_len >> 8) & 255);
+    shdr_hot[34] = (uint8_t)((code_hot_len >> 16) & 255);
+    shdr_hot[35] = (uint8_t)((code_hot_len >> 24) & 255);
+    shdr_unlikely[0] = 17;
+    shdr_unlikely[4] = 1;
+    shdr_unlikely[8] = 6;
+    shdr_unlikely[24] = (uint8_t)(off_unlikely & 255);
+    shdr_unlikely[25] = (uint8_t)((off_unlikely >> 8) & 255);
+    shdr_unlikely[26] = (uint8_t)((off_unlikely >> 16) & 255);
+    shdr_unlikely[27] = (uint8_t)((off_unlikely >> 24) & 255);
+    shdr_unlikely[32] = (uint8_t)(code_unlikely_len & 255);
+    shdr_unlikely[33] = (uint8_t)((code_unlikely_len >> 8) & 255);
+    shdr_unlikely[34] = (uint8_t)((code_unlikely_len >> 16) & 255);
+    shdr_unlikely[35] = (uint8_t)((code_unlikely_len >> 24) & 255);
+    shdr_sym[0] = 32;
+    shdr_sym[4] = 2;
+    shdr_sym[24] = (uint8_t)(off_symtab & 255);
+    shdr_sym[25] = (uint8_t)((off_symtab >> 8) & 255);
+    shdr_sym[26] = (uint8_t)((off_symtab >> 16) & 255);
+    shdr_sym[27] = (uint8_t)((off_symtab >> 24) & 255);
+    shdr_sym[32] = (uint8_t)(symtab_size & 255);
+    shdr_sym[33] = (uint8_t)((symtab_size >> 8) & 255);
+    shdr_sym[34] = (uint8_t)((symtab_size >> 16) & 255);
+    shdr_sym[35] = (uint8_t)((symtab_size >> 24) & 255);
+    shdr_sym[40] = 5;
+    shdr_sym[44] = 1;
+    shdr_sym[56] = 24;
+    shdr_str[0] = 40;
+    shdr_str[4] = 3;
+    shdr_str[24] = (uint8_t)(off_strtab & 255);
+    shdr_str[25] = (uint8_t)((off_strtab >> 8) & 255);
+    shdr_str[26] = (uint8_t)((off_strtab >> 16) & 255);
+    shdr_str[27] = (uint8_t)((off_strtab >> 24) & 255);
+    shdr_str[32] = (uint8_t)(strtab_size & 255);
+    shdr_str[33] = (uint8_t)((strtab_size >> 8) & 255);
+    shdr_str[34] = (uint8_t)((strtab_size >> 16) & 255);
+    shdr_str[35] = (uint8_t)((strtab_size >> 24) & 255);
+    shdr_str[48] = 1;
+    shdr_shstr[0] = 48;
+    shdr_shstr[4] = 3;
+    shdr_shstr[24] = (uint8_t)(off_shstrtab & 255);
+    shdr_shstr[25] = (uint8_t)((off_shstrtab >> 8) & 255);
+    shdr_shstr[26] = (uint8_t)((off_shstrtab >> 16) & 255);
+    shdr_shstr[27] = (uint8_t)((off_shstrtab >> 24) & 255);
+    shdr_shstr[32] = 107;
+    shdr_shstr[48] = 1;
+    shdr_rela_text[0] = 58;
+    shdr_rela_text[4] = 4;
+    shdr_rela_text[24] = (uint8_t)(off_rela_text & 255);
+    shdr_rela_text[25] = (uint8_t)((off_rela_text >> 8) & 255);
+    shdr_rela_text[26] = (uint8_t)((off_rela_text >> 16) & 255);
+    shdr_rela_text[27] = (uint8_t)((off_rela_text >> 24) & 255);
+    shdr_rela_text[32] = (uint8_t)((num_text_rela * 24) & 255);
+    shdr_rela_text[33] = (uint8_t)(((num_text_rela * 24) >> 8) & 255);
+    shdr_rela_text[34] = (uint8_t)(((num_text_rela * 24) >> 16) & 255);
+    shdr_rela_text[35] = (uint8_t)(((num_text_rela * 24) >> 24) & 255);
+    shdr_rela_text[40] = 4;
+    shdr_rela_text[44] = 1;
+    shdr_rela_text[56] = 24;
+    shdr_rela_hot[0] = 71;
+    shdr_rela_hot[4] = 4;
+    shdr_rela_hot[24] = (uint8_t)(off_rela_hot & 255);
+    shdr_rela_hot[25] = (uint8_t)((off_rela_hot >> 8) & 255);
+    shdr_rela_hot[26] = (uint8_t)((off_rela_hot >> 16) & 255);
+    shdr_rela_hot[27] = (uint8_t)((off_rela_hot >> 24) & 255);
+    shdr_rela_hot[32] = (uint8_t)((num_hot_rela * 24) & 255);
+    shdr_rela_hot[33] = (uint8_t)(((num_hot_rela * 24) >> 8) & 255);
+    shdr_rela_hot[34] = (uint8_t)(((num_hot_rela * 24) >> 16) & 255);
+    shdr_rela_hot[35] = (uint8_t)(((num_hot_rela * 24) >> 24) & 255);
+    shdr_rela_hot[40] = 4;
+    shdr_rela_hot[44] = 2;
+    shdr_rela_hot[56] = 24;
+    shdr_rela_unlikely[0] = 86;
+    shdr_rela_unlikely[4] = 4;
+    shdr_rela_unlikely[24] = (uint8_t)(off_rela_unlikely & 255);
+    shdr_rela_unlikely[25] = (uint8_t)((off_rela_unlikely >> 8) & 255);
+    shdr_rela_unlikely[26] = (uint8_t)((off_rela_unlikely >> 16) & 255);
+    shdr_rela_unlikely[27] = (uint8_t)((off_rela_unlikely >> 24) & 255);
+    shdr_rela_unlikely[32] = (uint8_t)((num_unlikely_rela * 24) & 255);
+    shdr_rela_unlikely[33] = (uint8_t)(((num_unlikely_rela * 24) >> 8) & 255);
+    shdr_rela_unlikely[34] = (uint8_t)(((num_unlikely_rela * 24) >> 16) & 255);
+    shdr_rela_unlikely[35] = (uint8_t)(((num_unlikely_rela * 24) >> 24) & 255);
+    shdr_rela_unlikely[40] = 4;
+    shdr_rela_unlikely[44] = 3;
+    shdr_rela_unlikely[56] = 24;
+    if (pipeline_elf_out_append(out, shdr0, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_text, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_hot, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_unlikely, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_sym, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_str, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_shstr, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_rela_text, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_rela_hot, 64) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, shdr_rela_unlikely, 64) != 0)
+      return -1;
+  }
+  return codegen_out_buf_len(out);
+}
+
+/** 写第 idx 条 reloc 的 code offset（内联或 heap sidecar）。 */
+void pipeline_elf_ctx_reloc_offset_set(uint8_t *ctx_bytes, int32_t idx, int32_t offset) {
+  PipelineElfCtxAccess *ctx;
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
+    return;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_relocs)
+    return;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP) {
+    ctx->relocs[idx].offset = offset;
+    return;
+  }
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return;
+  g_pipeline_elf_reloc_heap[hi].offset = offset;
+}
 
 struct platform_elf_ElfCodegenCtx;
 
@@ -4276,25 +6190,43 @@ int32_t pipeline_elf_label_mod_scope_next_module(void) {
   return base;
 }
 
+/** 当前 Module 写入共享 ElfCodegenCtx 时的标签 scope（与 pipeline_asm_emit_next_label_c 对齐）。 */
+static int32_t g_pipeline_elf_label_mod_scope_active;
+
+/**
+ * 每个 Module 开始 asm_codegen_ast_to_elf 前调用一次，避免多 Module 共用 elf_ctx 时 `.L_0` 标签名碰撞。
+ */
+void pipeline_elf_label_mod_scope_begin_module(void) {
+  g_pipeline_elf_label_mod_scope_active = pipeline_elf_label_mod_scope_next_module();
+}
+
+/** 返回当前 emit 模块的 ELF 局部标签 scope。 */
+int32_t pipeline_elf_label_mod_scope_active(void) {
+  return g_pipeline_elf_label_mod_scope_active;
+}
+
 /** 追加或更新局部标签；ctx 为 *ElfCodegenCtx 转 *u8。 */
 int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset) {
   PipelineElfCtxAccess *ctx;
   int32_t l;
   int32_t li;
   int32_t n;
+  int32_t shndx;
   if (!ctx_bytes || !name || name_len < 0)
     return -1;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  shndx = pipeline_elf_ctx_current_shndx(ctx);
   l = 0;
   while (l < ctx->num_labels) {
     if (ctx->labels[l].name_len == name_len && name_len > 0 &&
         memcmp(ctx->labels[l].name, name, (size_t)name_len) == 0) {
       ctx->labels[l].offset = offset;
+      pipeline_elf_label_shndx_set(ctx_bytes, l, shndx);
       return 0;
     }
     l = l + 1;
   }
-  if (ctx->num_labels >= 2048)
+  if (ctx->num_labels >= PIPELINE_ELF_CTX_TABLE_CAP)
     return -1;
   li = ctx->num_labels;
   n = name_len > 64 ? 64 : name_len;
@@ -4302,6 +6234,7 @@ int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t na
     memcpy(ctx->labels[li].name, name, (size_t)n);
   ctx->labels[li].name_len = name_len;
   ctx->labels[li].offset = offset;
+  pipeline_elf_label_shndx_set(ctx_bytes, li, shndx);
   ctx->num_labels = ctx->num_labels + 1;
   return 0;
 }
@@ -4335,8 +6268,8 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
   if (!ctx_bytes || !name || name_len < 0)
     return -1;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  if (ctx->num_patches >= 2048) {
-    fprintf(stderr, "shu: elf num_patches limit 2048 reached\n");
+  if (ctx->num_patches >= PIPELINE_ELF_CTX_TABLE_CAP) {
+    fprintf(stderr, "shu: elf num_patches limit %d reached\n", PIPELINE_ELF_CTX_TABLE_CAP);
     return -1;
   }
   bits = imm_bits;
@@ -4356,6 +6289,7 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
     memcpy(ent->name, name, (size_t)n);
   ent->name_len = name_len;
   ent->patch_imm_bits = bits;
+  pipeline_elf_patch_shndx_set(ctx_bytes, pi, pipeline_elf_ctx_current_shndx(ctx));
   ctx->num_patches = ctx->num_patches + 1;
   return 0;
 }
@@ -4363,7 +6297,7 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
 /** 读取第 patch_idx 条补丁的 imm_bits；越界返回 0。 */
 int32_t pipeline_elf_ctx_patch_imm_bits_at(uint8_t *ctx_bytes, int32_t patch_idx) {
   PipelineElfCtxAccess *ctx;
-  if (!ctx_bytes || patch_idx < 0 || patch_idx >= 2048)
+  if (!ctx_bytes || patch_idx < 0 || patch_idx >= PIPELINE_ELF_CTX_TABLE_CAP)
     return 0;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
   if (patch_idx >= ctx->num_patches)
@@ -4371,36 +6305,30 @@ int32_t pipeline_elf_ctx_patch_imm_bits_at(uint8_t *ctx_bytes, int32_t patch_idx
   return ctx->patches[patch_idx].patch_imm_bits;
 }
 
-/** platform_elf_ElfCodegenCtx 后缀字段偏移（须与 pipeline_gen.c struct 一致；前缀与 PipelineElfCtxAccess 同布局）。 */
-enum {
-  kPipelineElfCtxEMachineOff = 598040,
-  kPipelineElfCtxCodeDataOff = 598056
-};
-
-/** 读 ctx.code_data 小端 u32；ctx 为完整 ElfCodegenCtx 字节视图。 */
-static int32_t pipeline_elf_ctx_read_u32_le(uint8_t *ctx_bytes, int32_t off) {
+/** 读 ctx 指定段 code 小端 u32；ctx 为完整 ElfCodegenCtx 字节视图。 */
+static int32_t pipeline_elf_ctx_read_u32_le(uint8_t *ctx_bytes, int32_t shndx, int32_t off) {
   PipelineElfCtxAccess *acc;
   uint8_t *code;
   if (!ctx_bytes || off < 0)
     return 0;
   acc = (PipelineElfCtxAccess *)ctx_bytes;
-  if (off + 3 >= acc->code_len)
+  if (off + 3 >= pipeline_elf_ctx_section_len(acc, shndx))
     return 0;
-  code = ctx_bytes + kPipelineElfCtxCodeDataOff;
+  code = pipeline_elf_ctx_code_buf(ctx_bytes, shndx);
   return (int32_t)((unsigned)code[off] | ((unsigned)code[off + 1] << 8) | ((unsigned)code[off + 2] << 16) |
                    ((unsigned)code[off + 3] << 24));
 }
 
-/** 写 ctx.code_data 小端 u32。 */
-static void pipeline_elf_ctx_write_u32_le(uint8_t *ctx_bytes, int32_t off, int32_t word) {
+/** 写 ctx 指定段 code 小端 u32。 */
+static void pipeline_elf_ctx_write_u32_le(uint8_t *ctx_bytes, int32_t shndx, int32_t off, int32_t word) {
   PipelineElfCtxAccess *acc;
   uint8_t *code;
   if (!ctx_bytes || off < 0)
     return;
   acc = (PipelineElfCtxAccess *)ctx_bytes;
-  if (off + 3 >= acc->code_len)
+  if (off + 3 >= pipeline_elf_ctx_section_len(acc, shndx))
     return;
-  code = ctx_bytes + kPipelineElfCtxCodeDataOff;
+  code = pipeline_elf_ctx_code_buf(ctx_bytes, shndx);
   code[off] = (uint8_t)(word & 255);
   code[off + 1] = (uint8_t)((word >> 8) & 255);
   code[off + 2] = (uint8_t)((word >> 16) & 255);
@@ -4408,16 +6336,16 @@ static void pipeline_elf_ctx_write_u32_le(uint8_t *ctx_bytes, int32_t off, int32
 }
 
 /** 从占位指令推断 arm64/riscv patch 位宽；与 platform/elf.su elf_infer_patch_imm_bits_from_code 一致。 */
-static int32_t pipeline_elf_ctx_infer_patch_imm_bits(uint8_t *ctx_bytes, int32_t rel32_offset) {
+static int32_t pipeline_elf_ctx_infer_patch_imm_bits(uint8_t *ctx_bytes, int32_t shndx, int32_t rel32_offset) {
   PipelineElfCtxAccess *acc;
   uint8_t *code;
   int32_t op8;
   if (!ctx_bytes || rel32_offset < 0)
     return 0;
   acc = (PipelineElfCtxAccess *)ctx_bytes;
-  if (rel32_offset + 3 >= acc->code_len)
+  if (rel32_offset + 3 >= pipeline_elf_ctx_section_len(acc, shndx))
     return 0;
-  code = ctx_bytes + kPipelineElfCtxCodeDataOff;
+  code = pipeline_elf_ctx_code_buf(ctx_bytes, shndx);
   op8 = (int32_t)(code[rel32_offset + 3] & 255);
   if (op8 == 52 || op8 == 53 || op8 == 84)
     return 19;
@@ -4464,13 +6392,18 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
     int32_t imm_bits;
     int32_t delta;
     int32_t l;
+    int32_t patch_shndx;
+    int32_t target_shndx;
     patch = &ctx->patches[p];
     rel32_offset = patch->rel32_offset;
+    patch_shndx = pipeline_elf_patch_shndx_at(ctx_bytes, p);
     target_offset = -1;
+    target_shndx = patch_shndx;
     l = 0;
     while (l < ctx->num_labels) {
       if (pipeline_elf_ctx_name_eq(patch->name, patch->name_len, ctx->labels[l].name, ctx->labels[l].name_len) != 0) {
         target_offset = ctx->labels[l].offset;
+        target_shndx = pipeline_elf_label_shndx_at(ctx_bytes, l);
         break;
       }
       l = l + 1;
@@ -4480,9 +6413,13 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
       pipeline_elf_log_unresolved_patch((struct platform_elf_ElfCodegenCtx *)ctx_bytes, p);
       return -1;
     }
+    if (patch_shndx != target_shndx) {
+      driver_diagnostic_asm_elf_unresolved_patch(patch->name, patch->name_len);
+      return -1;
+    }
     imm_bits = patch->patch_imm_bits;
     if (imm_bits == 0)
-      imm_bits = pipeline_elf_ctx_infer_patch_imm_bits(ctx_bytes, rel32_offset);
+      imm_bits = pipeline_elf_ctx_infer_patch_imm_bits(ctx_bytes, patch_shndx, rel32_offset);
     /*
      * x86 rel32：相对下一条；AArch64 B/BL/CBZ/CBNZ：相对当前 PC（ARM ARM）。
      * 误用 next_insn 作 arm64 基准会把 imm 少 1 → cbz 跳自身（asm 编排 smoke SIGSEGV）。
@@ -4494,19 +6431,19 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
     if (e_machine == 183 || imm_bits == 19 || imm_bits == 26) {
       int32_t insn;
       int32_t imm;
-      insn = pipeline_elf_ctx_read_u32_le(ctx_bytes, rel32_offset);
+      insn = pipeline_elf_ctx_read_u32_le(ctx_bytes, patch_shndx, rel32_offset);
       imm = delta / 4;
       if (imm_bits == 26)
         insn = (insn & (int32_t)4293918720) | (imm & 67108863);
       else if (imm_bits == 19)
         insn = (insn & (int32_t)4278190175) | ((imm & 524287) << 5);
-      pipeline_elf_ctx_write_u32_le(ctx_bytes, rel32_offset, insn);
+      pipeline_elf_ctx_write_u32_le(ctx_bytes, patch_shndx, rel32_offset, insn);
     } else if (e_machine == 243 || imm_bits == 13 || imm_bits == 21) {
       int32_t insn;
       int32_t val;
       int32_t b_imm;
       int32_t j_imm;
-      insn = pipeline_elf_ctx_read_u32_le(ctx_bytes, rel32_offset);
+      insn = pipeline_elf_ctx_read_u32_le(ctx_bytes, patch_shndx, rel32_offset);
       val = delta >> 1;
       if (imm_bits == 13) {
         b_imm = val & 8191;
@@ -4517,67 +6454,119 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
         insn = (insn & 4095) | ((j_imm & 524288) << 11) | ((j_imm & 1023) << 21) | ((j_imm & 1024) << 8) |
                ((j_imm & 522240) << 1);
       }
-      pipeline_elf_ctx_write_u32_le(ctx_bytes, rel32_offset, insn);
+      pipeline_elf_ctx_write_u32_le(ctx_bytes, patch_shndx, rel32_offset, insn);
     } else {
-      pipeline_elf_ctx_write_u32_le(ctx_bytes, rel32_offset, delta);
+      pipeline_elf_ctx_write_u32_le(ctx_bytes, patch_shndx, rel32_offset, delta);
     }
     p = p + 1;
   }
   return 0;
 }
 
-/** 追加一条外部重定位；ctx 为 *ElfCodegenCtx 转 *u8。 */
+/** 追加一条外部重定位；ctx 为 *ElfCodegenCtx 转 *u8；超 TABLE_CAP 写入 heap sidecar。 */
 int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len) {
   PipelineElfCtxAccess *ctx;
   int32_t ri;
+  int32_t hi;
   int32_t n;
+  PipelineElfRelocEntry *ent;
+  PipelineElfRelocHeapEntry *hent;
+  uint8_t *sym_row;
   if (!ctx_bytes || !name || name_len <= 0 || name[0] == 0)
     return -1;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  if (ctx->num_relocs >= 2048) {
-    fprintf(stderr, "shu: elf num_relocs limit 2048 reached\n");
+  if (ctx->num_relocs >= PIPELINE_ELF_CTX_RELOC_TOTAL_CAP) {
+    fprintf(stderr, "shu: elf num_relocs limit %d reached\n", PIPELINE_ELF_CTX_RELOC_TOTAL_CAP);
     return -1;
   }
   ri = ctx->num_relocs;
-  ctx->relocs[ri].offset = offset;
-  memset(ctx->reloc_sym_names[ri], 0, 64);
+  if (ri < PIPELINE_ELF_CTX_TABLE_CAP) {
+    ent = &ctx->relocs[ri];
+    sym_row = ctx->reloc_sym_names[ri];
+    hent = NULL;
+  } else {
+    if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+      pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
+    hi = ri - PIPELINE_ELF_CTX_TABLE_CAP;
+    if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+      return -1;
+    hent = &g_pipeline_elf_reloc_heap[hi];
+    ent = NULL;
+    sym_row = g_pipeline_elf_reloc_sym_heap[hi];
+  }
+  if (ent) {
+    ent->offset = offset;
+    ent->name_len = name_len;
+  } else if (hent) {
+    hent->offset = offset;
+    hent->name_len = name_len;
+  }
+  pipeline_elf_reloc_shndx_set(ctx_bytes, ri, pipeline_elf_ctx_current_shndx(ctx));
+  memset(sym_row, 0, 64);
   n = name_len > 64 ? 64 : name_len;
-  memcpy(ctx->reloc_sym_names[ri], name, (size_t)n);
-  ctx->relocs[ri].name_len = name_len;
+  memcpy(sym_row, name, (size_t)n);
+  if (ent)
+    ent->name_len = name_len;
+  else if (hent)
+    hent->name_len = name_len;
   ctx->num_relocs = ctx->num_relocs + 1;
   return 0;
 }
 
-/** 返回 reloc_sym_names[idx] 首地址；越界返回 NULL。 */
+/** 返回 reloc_sym_names[idx] 首地址；越界返回 NULL（含 heap sidecar）。 */
 uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
   PipelineElfCtxAccess *ctx;
-  if (!ctx_bytes || idx < 0 || idx >= 2048)
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
     return NULL;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  return ctx->reloc_sym_names[idx];
+  if (idx >= ctx->num_relocs)
+    return NULL;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
+    return ctx->reloc_sym_names[idx];
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return NULL;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return NULL;
+  return g_pipeline_elf_reloc_sym_heap[hi];
 }
 
-/** 将 reloc_sym_names[idx] 拷入 dst（最多 63 字节 + NUL）。 */
+/** 将 reloc_sym_names[idx] 拷入 dst（最多 63 字节 + NUL）；含 heap sidecar。 */
 void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst) {
   PipelineElfCtxAccess *ctx;
   int32_t k;
+  uint8_t *src;
   if (!dst)
     return;
   memset(dst, 0, 64);
-  if (!ctx_bytes || idx < 0 || idx >= 2048)
+  src = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
+  if (!src)
     return;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (!ctx || idx < 0 || idx >= ctx->num_relocs)
+    return;
   for (k = 0; k < 64; k++)
-    dst[k] = ctx->reloc_sym_names[idx][k];
+    dst[k] = src[k];
 }
 
-/** 读 relocs[idx].name_len。 */
+/** 读 relocs[idx].name_len（内联或 heap sidecar）。 */
 int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx) {
   PipelineElfCtxAccess *ctx;
-  if (!ctx_bytes || idx < 0 || idx >= 2048)
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
     return 0;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  return ctx->relocs[idx].name_len;
+  if (idx >= ctx->num_relocs)
+    return 0;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
+    return ctx->relocs[idx].name_len;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return 0;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return 0;
+  return g_pipeline_elf_reloc_heap[hi].name_len;
 }
 
 /** asm .o 失败诊断：打印 ElfCodegenCtx 前几项计数（与 PipelineElfCtxAccess 布局一致）。 */
@@ -5365,11 +7354,15 @@ static AsmLocalsSidecar *asm_locals_sidecar_get(uint8_t *ctx, int create) {
   return NULL;
 }
 
-/** 清空某 AsmFuncCtx 的局部槽 grow 池。 */
+/** 前向声明：块→slot_base 表与 locals 同生命周期，ctx_reset 须一并清空。 */
+void asm_ctx_block_slot_reset(uint8_t *ctx);
+
+/** 清空某 AsmFuncCtx 的局部槽 grow 池；同步清空 block_slot 以免跨函数/跨 dep 模块 block_ref 碰撞误跳过 fill。 */
 void asm_ctx_local_reset(uint8_t *ctx) {
   AsmLocalsSidecar *sc = asm_locals_sidecar_get(ctx, 0);
   if (sc)
     sc->slots.len = 0;
+  asm_ctx_block_slot_reset(ctx);
 }
 
 /** 局部槽数量。 */
@@ -5473,6 +7466,51 @@ int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len)
   return -1;
 }
 
+struct backend_AsmFuncCtx;
+
+/**
+ * backend.su local_offset 的 C 实现（含零字节占位名回退）；M8-tail 薄包装 bl 目标。
+ */
+int32_t pipeline_asm_local_offset_c(struct backend_AsmFuncCtx *ctx, uint8_t *name, int32_t name_len) {
+  uint8_t *key;
+  int32_t nloc;
+  int32_t i;
+  int32_t k;
+  int32_t eq;
+  int32_t j;
+  int32_t all_zero;
+  if (!ctx || !name || name_len <= 0)
+    return -1;
+  key = (uint8_t *)ctx;
+  nloc = asm_ctx_local_count(key);
+  for (i = 0; i < nloc; i++) {
+    if (asm_ctx_local_name_len(key, i) == name_len) {
+      eq = 1;
+      for (k = 0; k < name_len && eq != 0; k++) {
+        if (name[k] != asm_ctx_local_name_byte_at(key, i, k))
+          eq = 0;
+      }
+      if (eq != 0)
+        return asm_ctx_local_offset_at(key, i);
+    }
+  }
+  /** 与 backend.su 一致：name_len<=32 且 sidecar 槽名为全零时仍匹配（自举 tear 修复路径）。 */
+  if (name_len > 0 && name_len <= 32) {
+    for (j = 0; j < nloc; j++) {
+      if (asm_ctx_local_name_len(key, j) == name_len) {
+        all_zero = 1;
+        for (k = 0; k < name_len && all_zero != 0; k++) {
+          if (asm_ctx_local_name_byte_at(key, j, k) != 0)
+            all_zero = 0;
+        }
+        if (all_zero != 0)
+          return asm_ctx_local_offset_at(key, j);
+      }
+    }
+  }
+  return -1;
+}
+
 /** backend.su：块 ref → 该块 const/let 在 sidecar 中的起始槽下标（树遍历 fill 时写入）。 */
 typedef struct {
   void *ctx;
@@ -5559,52 +7597,84 @@ int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref) {
 
 /** 前向声明：实现在下文（ensure_block_locals 须按类型步进栈槽）。 */
 int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref);
+extern struct ast_Module *pipeline_asm_glue_emit_module_ref(void);
+extern int32_t asm_bump_off_before_struct_local(struct ast_ASTArena *arena, int32_t type_ref, int32_t off);
+extern int32_t asm_bump_off_align_for_local(struct ast_ASTArena *arena, int32_t type_ref, int32_t off);
+extern int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, int32_t off,
+                                         int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref,
+                                                         int32_t init_ref);
+extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                  int32_t elem_type_ref, int32_t array_len, int32_t depth);
+extern int32_t typeck_su_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                    int32_t li, int32_t depth);
 
 /**
- * 懒登记 block 内 const/let 到 asm 局部 sidecar（C 实现，避免 .su 生成代码在 if+while 双路径组合时崩溃）。
- * inout_next_offset / inout_num_locals 对应 AsmFuncCtx.next_offset / num_locals。
+ * [N]T 定长数组总字节宽：SoA 列主序或 AoS N×struct layout（与 typeck typeck_su_type_size 一致）。
+ * 非 struct 元素或 layout 未命中时返回 0，由调用方回落 esz 启发式。
  */
-void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
-                                 int32_t *inout_next_offset, int32_t *inout_num_locals) {
-  struct ast_Block *b;
-  int32_t i, off, base, nlen;
-  uint8_t name_buf[64];
-  if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
-    return;
-  if (asm_ctx_block_slot_get(ctx, block_ref) >= 0)
-    return;
-  b = block_at(arena, block_ref);
-  if (!b)
-    return;
-  base = asm_ctx_local_count(ctx);
-  asm_ctx_block_slot_set(ctx, block_ref, base);
-  off = *inout_next_offset;
-  for (i = 0; i < b->num_consts; i++) {
-    nlen = pipeline_block_const_name_len(arena, block_ref, i);
-    if (nlen <= 0)
-      continue;
-    pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
-    if (asm_ctx_local_append(ctx, name_buf, nlen, off) < 0)
-      return;
-    off += asm_local_slot_bytes(arena, pipeline_block_const_type_ref(arena, block_ref, i));
+static int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
+  struct ast_Type *t;
+  int32_t elem_ref;
+  int32_t soa_sz;
+  if (!arena || type_ref <= 0 || type_ref > arena->num_types)
+    return 0;
+  t = pipeline_arena_type_ptr(arena, type_ref);
+  if (!t || pipeline_type_kind_ord_at(arena, type_ref) != 10 || t->array_size <= 0)
+    return 0;
+  elem_ref = t->elem_type_ref;
+  if (elem_ref <= 0)
+    return 0;
+  if (!mod)
+    mod = pipeline_asm_glue_emit_module_ref();
+  if (!mod || pipeline_type_kind_ord_at(arena, elem_ref) != 8)
+    return 0;
+  soa_sz = typeck_soa_array_storage_size_glue(mod, arena, elem_ref, t->array_size, 0);
+  if (soa_sz > 0)
+    return soa_sz;
+  {
+    uint8_t ename[64];
+    int32_t elen = pipeline_type_named_name_into(arena, elem_ref, ename);
+    if (elen > 0 && elen <= 63) {
+      int32_t lk;
+      for (lk = 0; lk < (int32_t)mod->num_struct_layouts; lk++) {
+        int32_t ln = pipeline_module_struct_layout_name_len(mod, lk);
+        int32_t j;
+        int32_t eq = 1;
+        int32_t es;
+        if (ln != elen)
+          continue;
+        for (j = 0; j < elen; j++) {
+          if (pipeline_module_struct_layout_name_byte_at(mod, lk, j) != ename[j]) {
+            eq = 0;
+            break;
+          }
+        }
+        if (!eq)
+          continue;
+        es = typeck_su_type_size_from_layout_glue(mod, arena, lk, 0);
+        if (es > 0)
+          return t->array_size * es;
+      }
+    }
   }
-  for (i = 0; i < b->num_lets; i++) {
-    nlen = pipeline_block_let_name_len(arena, block_ref, i);
-    if (nlen <= 0)
-      continue;
-    pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
-    if (asm_ctx_local_append(ctx, name_buf, nlen, off) < 0)
-      return;
-    off += asm_local_slot_bytes(arena, pipeline_block_let_type_ref(arena, block_ref, i));
-  }
-  *inout_next_offset = off;
-  *inout_num_locals = asm_ctx_local_count(ctx);
+  return 0;
 }
 
 /**
- * 单个 const/let 在栈上的占用字节（标量 8；TYPE_VECTOR 为 lanes×元素宽，与 codegen 向量布局一致）。
+ * 从 AsmFuncCtx 前缀读取 module_ref（偏移 16，与 backend.su / pipeline_glue 布局一致）。
+ * fill_block_locals_tree 早于 emit 设置 global 时仍可按 layout 算 struct 栈槽宽。
  */
-int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
+static struct ast_Module *asm_ctx_module_ref(uint8_t *ctx) {
+  if (!ctx)
+    return NULL;
+  return *(struct ast_Module **)(ctx + 16);
+}
+
+/**
+ * 单个 const/let 栈槽字节；mod 优先，否则回落 g_pipeline_asm_emit_module。
+ */
+static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
   struct ast_Type *t;
   int32_t elem_ref;
   int32_t esz;
@@ -5615,9 +7685,104 @@ int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
   t = pipeline_arena_type_ptr(arena, type_ref);
   if (!t)
     return 8;
-  /* AST_TYPE_VECTOR == 12 */
-  if ((int32_t)t->kind != 12)
+  /** 与 pipeline_type_kind_ord_at / glue_type_size_simple 一致，勿直接读 t->kind。 */
+  if (pipeline_type_kind_ord_at(arena, type_ref) == 8) {
+    if (!mod)
+      mod = pipeline_asm_glue_emit_module_ref();
+    if (mod) {
+      uint8_t name[64];
+      int32_t nlen = pipeline_type_named_name_into(arena, type_ref, name);
+      if (nlen > 0 && nlen <= 63) {
+        int32_t k;
+        for (k = 0; k < (int32_t)mod->num_struct_layouts; k++) {
+          int32_t ln = pipeline_module_struct_layout_name_len(mod, k);
+          int32_t j;
+          int32_t eq = 1;
+          int32_t sz;
+          if (ln != nlen)
+            continue;
+          for (j = 0; j < nlen; j++) {
+            if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != name[j]) {
+              eq = 0;
+              break;
+            }
+          }
+          if (!eq)
+            continue;
+          sz = typeck_su_type_size_from_layout_glue(mod, arena, k, 0);
+          if (sz <= 0) {
+            /** layout metrics 失败时按末字段 offset+宽估算（many_fields 等）。 */
+            int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
+            if (nf > 0) {
+              int32_t last = nf - 1;
+              int32_t foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
+              int32_t fty = pipeline_module_struct_layout_field_type_ref(mod, k, last);
+              int32_t fsz = asm_local_slot_bytes_mod(arena, fty, mod);
+              if (fsz <= 0)
+                fsz = 4;
+              sz = foff + fsz;
+            }
+          }
+          if (sz > 0) {
+            if (sz % 8 != 0)
+              sz += 8 - (sz % 8);
+            if (getenv("SHU_ASM_EMIT_TRACE"))
+              fprintf(stderr, "shu: local_slot struct %.*s sz=%d\n", (int)nlen, name, (int)sz);
+            return sz;
+          }
+        }
+      }
+    }
+  }
+  /** 定长数组 [N]T 按值内联栈槽；SoA 列主序 / AoS N×layout，勿误用 esz=8 指针宽。 */
+  if (pipeline_type_kind_ord_at(arena, type_ref) == 10 && t->array_size > 0) {
+    elem_ref = t->elem_type_ref;
+    {
+      int32_t arr_sz = asm_fixed_array_total_bytes_mod(arena, type_ref, mod);
+      if (arr_sz > 0) {
+        if (arr_sz % 8 != 0)
+          arr_sz += 8 - (arr_sz % 8);
+        return arr_sz;
+      }
+    }
+    esz = 4;
+    if (elem_ref > 0 && elem_ref <= arena->num_types) {
+      struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
+      if (et) {
+        if ((int32_t)et->kind == 2)
+          esz = 1;
+        else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
+                 (int32_t)et->kind == 6 || (int32_t)et->kind == 14)
+          esz = 8;
+      }
+    }
+    bytes = t->array_size * esz;
+    if (bytes < 8)
+      bytes = 8;
+    if (bytes % 8 != 0)
+      bytes = bytes + (8 - (bytes % 8));
+    return bytes;
+  }
+  /* TYPE_VECTOR ord==12；或 NAMED i32x4 等拼写（lex IDENT 回落）。 */
+  if (!asm_type_is_simd_vector_spelling(arena, type_ref) && pipeline_type_kind_ord_at(arena, type_ref) != 12)
     return 8;
+  if (pipeline_type_kind_ord_at(arena, type_ref) != 12) {
+    /** NAMED 拼写：lane 数由类型名 x4/x8/x16 或 Vec8i 推断。 */
+    lanes = 4;
+    if (t->name_len == 5 && t->name[4] == 56)
+      lanes = 8;
+    if (t->name_len == 6 && t->name[4] == 49 && t->name[5] == 54)
+      lanes = 16;
+    if (t->name_len == 5 && memcmp(t->name, "Vec8i", 5) == 0)
+      lanes = 8;
+    esz = 4;
+    bytes = lanes * esz;
+    if (bytes < 8)
+      bytes = 8;
+    if (bytes % 8 != 0)
+      bytes = bytes + (8 - (bytes % 8));
+    return bytes;
+  }
   lanes = t->array_size > 0 ? t->array_size : 4;
   esz = 4;
   elem_ref = t->elem_type_ref;
@@ -5637,6 +7802,67 @@ int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
   if (bytes % 8 != 0)
     bytes = bytes + (8 - (bytes % 8));
   return bytes;
+}
+
+/** 公开入口：无 ctx 时仅依赖 g_pipeline_asm_emit_module。 */
+int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
+  return asm_local_slot_bytes_mod(arena, type_ref, NULL);
+}
+
+/**
+ * 懒登记 block 内 const/let 到 asm 局部 sidecar（C 实现，避免 .su 生成代码在 if+while 双路径组合时崩溃）。
+ * inout_next_offset / inout_num_locals 对应 AsmFuncCtx.next_offset / num_locals。
+ * 与 pipeline_asm_fill_local_slots 一致：struct 前 16 字节对齐 + layout 真实槽宽。
+ */
+void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
+                                 int32_t *inout_next_offset, int32_t *inout_num_locals) {
+  struct ast_Block *b;
+  struct ast_Module *mod;
+  int32_t i, off, base, nlen, type_ref, init_ref;
+  uint8_t name_buf[64];
+  if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
+    return;
+  if (asm_ctx_block_slot_get(ctx, block_ref) >= 0)
+    return;
+  b = block_at(arena, block_ref);
+  if (!b)
+    return;
+  mod = asm_ctx_module_ref(ctx);
+  if (!mod)
+    mod = pipeline_asm_glue_emit_module_ref();
+  base = asm_ctx_local_count(ctx);
+  asm_ctx_block_slot_set(ctx, block_ref, base);
+  off = *inout_next_offset;
+  for (i = 0; i < b->num_consts; i++) {
+    nlen = pipeline_block_const_name_len(arena, block_ref, i);
+    if (nlen <= 0)
+      continue;
+    pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
+    type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+    {
+      int32_t slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+      if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+        return;
+    }
+    init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  for (i = 0; i < b->num_lets; i++) {
+    nlen = pipeline_block_let_name_len(arena, block_ref, i);
+    if (nlen <= 0)
+      continue;
+    pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
+    type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+    {
+      int32_t slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+      if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+        return;
+    }
+    init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  *inout_next_offset = off;
+  *inout_num_locals = asm_ctx_local_count(ctx);
 }
 
 /** 块树遍历栈：压入待访问 block_ref（GrowVec，避免 .su 大栈数组在大模块 asm 单编时 SIGSEGV）。 */
@@ -5766,6 +7992,9 @@ static int32_t asm_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t ty
   /* TYPE_ARRAY 序数为 10（与 ast.h AST_TYPE_ARRAY / ast.su TypeKind 一致）；误用 9 会当成 TYPE_PTR 导致 frame 未预留 temp。 */
   if (!t || (int32_t)t->kind != 10 || t->array_size <= 0)
     return 0;
+  bytes = asm_fixed_array_total_bytes_mod(arena, type_ref, NULL);
+  if (bytes > 0)
+    return bytes;
   elem_ref = t->elem_type_ref;
   esz = 4;
   if (elem_ref > 0 && elem_ref <= arena->num_types) {
@@ -5851,8 +8080,8 @@ void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
 #define ASM_EMIT_HEAVY_LARGE_BACKEND_SLOT_THRESHOLD 96
 /** backend helper 白名单真 emit 时块树槽位上限（过大仍走索引桩）。 */
 #define ASM_EMIT_HEAVY_BACKEND_HELPER_SLOT_MAX 48
-/** typeck layout helper 允许略大栈帧（仍远小于 check_block mega）。 */
-#define ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX 96
+/** typeck layout helper 允许略大栈帧（merge_dep 双循环 ~110 slot；仍远小于 check_block mega）。 */
+#define ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX 128
 
 /** 读 SHU_ASM_EMIT_ABORT_LO/HI：调试二分定位 Abort 区间（默认见上常量）。 */
 static int32_t asm_emit_heavy_abort_lo(void) {
@@ -5971,6 +8200,9 @@ static int32_t asm_env_strict_orchestration(void) {
 /** 非 0 表示入口源码过大，merge/library typeck 等应跳过（runtime.c）。 */
 extern int32_t driver_typeck_skip_large_entry(void);
 
+/** 前向声明：parser 自举判定（定义在 asm_module_is_pipeline_selfhost 之后）。 */
+static int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
+
 /**
  * SKIP_TYPECK 全桩模式下仍须保留真实机器码的入口（实验 asm-only 链与 shu_asm 烟囱测试依赖）。
  * 返回 1 表示该函数不应被 asm_skip_heavy 桩掉。
@@ -6004,10 +8236,18 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
       {"typeck_su_ast", 13, 0},
       {"typeck_su_ast_library", 21, 0},
       {"asm_codegen_ast", 15, 0},
+      /** main.su build_asm/main.o：entry 须真 emit（WPO root + crt0 链）。 */
+      {"entry", 5, 1},
   };
   int32_t k;
   int32_t large_entry;
   if (!m || func_index < 0)
+    return 0;
+  /**
+   * parser.su 自举编 module 时勿 whitelist 真 emit（parse_into_init 等会 expr emit 失败）；
+   * strict 链 parse_into_* 由 pipeline_su partial / C alias 提供。
+   */
+  if (asm_module_is_parser_selfhost(m))
     return 0;
   large_entry = driver_typeck_skip_large_entry();
   for (k = 0; k < (int32_t)(sizeof(k_keep) / sizeof(k_keep[0])); k++) {
@@ -6056,13 +8296,50 @@ static int32_t asm_env_entry_emit_heavy(void) {
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
-/** 模块是否 backend.su 自举单元（asm_codegen_ast 符号探针）。 */
+/**
+ * 模块内非 extern 函数个数。
+ * typeck.su 声明大量 extern pipeline/driver 符号时 num_funcs≈175，可 emit 体仅 ~78。
+ */
+static int32_t asm_module_num_defined_funcs(struct ast_Module *m) {
+  int32_t i, n = 0;
+  if (!m)
+    return 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) == 0)
+      n++;
+  }
+  return n;
+}
+
+/**
+ * func_index 在「已定义（非 extern）」函数中的序号（0..ndef-1）；index 为 extern 时返回 -1。
+ * EMIT_HEAVY 瘦 typeck 的 #0–#35 须按此序号，勿用含 extern 占位的 raw func_index。
+ */
+static int32_t asm_module_defined_func_ordinal(struct ast_Module *m, int32_t func_index) {
+  int32_t i, ord = 0;
+  if (!m || func_index < 0 || func_index >= m->num_funcs)
+    return -1;
+  if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0)
+    return -1;
+  for (i = 0; i < func_index; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) == 0)
+      ord++;
+  }
+  return ord;
+}
+
+/** 模块是否 backend.su 自举单元（asm_codegen_ast 或 M8-tail 薄包装探针）。 */
 static int32_t asm_module_is_backend_selfhost(struct ast_Module *m) {
   int32_t i;
-  if (!m || m->num_funcs < 150)
+  if (!m || m->num_funcs < 80)
     return 0;
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"asm_codegen_ast", 15))
+      return 1;
+  }
+  /** 瘦 backend（~100 func）仍含 emit_expr_elf / fill_param_slots 等薄包装符号。 */
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"emit_expr_elf", 13))
       return 1;
   }
   return 0;
@@ -6079,12 +8356,123 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_su_ast", 13))
       return 1;
   }
-  /** ENTRY_MODULE_ONLY 编 typeck.su 时 module 前置 pipeline glue func；按名或 func 规模识别。 */
-  if (m->num_funcs >= 80 && m->num_funcs <= 120)
-    return 1;
-  if (m->num_funcs >= 168 && m->num_funcs <= 180)
-    return 1;
+  /** ENTRY_MODULE_ONLY 编 typeck.su：按已定义 func 规模识别（extern 占位不计入）。 */
+  {
+    int32_t ndef = asm_module_num_defined_funcs(m);
+    if (ndef >= 75 && ndef <= 155)
+      return 1;
+    if (ndef >= 160 && ndef <= 180)
+      return 1;
+  }
   return 0;
+}
+
+/**
+ * 模块是否 pipeline.su 自举单元（含 extern 占位时 num_funcs 可达 ~70；按 resolve_path_su 等符号名判定）。
+ */
+static int32_t asm_module_is_pipeline_selfhost(struct ast_Module *m) {
+  int32_t i;
+  int32_t has_resolve;
+  int32_t has_marker;
+  if (!m || m->num_funcs < 12)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m))
+    return 0;
+  has_resolve = 0;
+  has_marker = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"resolve_path_su", 15))
+      has_resolve = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_should_skip_su_typeck", 30))
+      has_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"path_append_from_buf_256", 24))
+      has_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"read_file_su", 12))
+      has_marker = 1;
+  }
+  return has_resolve != 0 && has_marker != 0;
+}
+
+/**
+ * 模块是否 main.su 驱动单元（~28 func；entry + run_compiler_su_path_impl）。
+ * build_asm/main.o 须走 SKIP 桩 + WPO，勿当用户程序全量 emit（9460B）。
+ */
+static int32_t asm_module_is_main_driver_selfhost(struct ast_Module *m) {
+  int32_t i;
+  int32_t has_entry;
+  int32_t has_run_path;
+  int32_t ndef;
+  if (!m)
+    return 0;
+  ndef = asm_module_num_defined_funcs(m);
+  if (ndef < 12 || ndef > 48)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
+      asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
+    return 0;
+  has_entry = 0;
+  has_run_path = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"entry", 5))
+      has_entry = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_su_path_impl", 25))
+      has_run_path = 1;
+  }
+  return has_entry != 0 && has_run_path != 0;
+}
+
+/**
+ * 模块是否 driver/compile.su 自举单元（~26 func；compile_dispatch_* 可能未进 module 表，用 parse_argv + entry 判定）。
+ */
+static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
+  int32_t i;
+  int32_t has_parse_argv;
+  int32_t has_entry;
+  if (!m || m->num_funcs < 8 || m->num_funcs > 48)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
+      asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
+    return 0;
+  has_parse_argv = 0;
+  has_entry = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"driver_compile_parse_argv", 25))
+      has_parse_argv = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_su", 20))
+      has_entry = 1;
+    /** gen.o 路径可能注册 dispatch；单编 compile.su 时常缺失，作可选辅助。 */
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"compile_dispatch_asm_backend", 28))
+      has_parse_argv = 1;
+  }
+  return has_parse_argv != 0 && has_entry != 0;
+}
+
+/**
+ * 模块是否 parser.su 自举单元（~288 func；parse_into_buf 可能未进 module 表，用 parse_into_init 等判定）。
+ * strict 链 parse_into_* 真机码由 pipeline_su partial / C alias 提供；func 数 >200 时仍须识别，否则
+ * whitelist 会对 parse_into_buf 真 emit → .L_* 未解析 / code_len 截断。
+ */
+static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
+  int32_t i;
+  int32_t has_parse_marker;
+  int32_t has_reset;
+  if (!m || m->num_funcs < 150 || m->num_funcs > 320)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) || asm_module_is_pipeline_selfhost(m))
+    return 0;
+  has_parse_marker = 0;
+  has_reset = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      has_reset = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_init", 15))
+      has_parse_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_set_main_index", 25))
+      has_parse_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
+      has_parse_marker = 1;
+  }
+  return has_reset != 0 && has_parse_marker != 0;
 }
 
 /** 函数名前缀匹配（module func 池按字节比较）。 */
@@ -6108,35 +8496,495 @@ static int32_t pipeline_module_func_name_has_prefix_at(struct ast_Module *m, int
 static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0)
     return 0;
-  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_kind_ordinal", 17))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"name_equal", 10))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_align", 20) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_size", 19))
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "ensure_", 7))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_import_path_slice_equal", 30) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_import_binding_name_equal", 32) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_import_select_name_equal", 31) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_top_level_let_name_equal", 31))
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "find_or_alloc_", 14))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_named_builtin_align", 29) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_named_builtin_size", 28))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_field_offset_from_layout", 28))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_find_layout_idx_by_type_name", 35))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_field_type_ref_from_layout", 30))
     return 1;
-  if (func_index >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO)
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_name", 18))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_field_name", 24))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_path_slice", 24))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_binding_name", 26))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_select_name", 25))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_top_level_let_name", 25))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_find_layout_idx", 22))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_su_named_builtin_", 24))
+    return 1;
+  /** §11.1 align/size：layout 命中走 C glue，SU 真 emit 递归/array 分支（勿 metrics depth slot）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_align", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_size", 19))
+    return 1;
+  /** §11.1 metrics：scratch 预绑定 + typeck_i32_ptr_store 写 out；槽位≤96 SU 真 emit。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_struct_layout_metrics", 28))
+    return 1;
+  /** import 合并 / struct_lit 登记：scratch 预绑定 + glue 读 num_struct_layouts。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_merge_dep_struct_layouts_into_entry", 42))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_wpo_unify_soa_layouts", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_ensure_primitive_by_kind_ord", 35))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_find_or_alloc_compound_type_ref", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"ensure_struct_layout_from_struct_lit", 36))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_dep_return_type_in_caller_arena", 35))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"dep_return_type_to_caller_arena", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_field_offset_from_layout_deps", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_field_type_ref_from_layout_deps", 35))
+    return 1;
+  /** FIELD_ACCESS 内联池字段 / Expr 标量回落：小 helper SU 真 emit（layout_deps/name_fallback 已真 emit）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_inline_u8_64_array_field_type_ref", 40))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_expr_inline_array_field_type_ref", 39))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_field_access_fallback_scalar_type_ref", 42))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_field_access_lexer_wrapper_fallback", 42))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"entry_module_find_struct_layout_index", 37))
+    return 1;
+  /** ord>45 小 helper：import 路径分段 / diag 追加 / 隐式 return 判定 / parent 链 patch。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_import_path_segment_count", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_import_segment_at", 24))
+    return 1;
+  /** ord>58：diag 缓冲追加（小循环体；fmt_* 仍 mega 桩）。 */
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_diag_append_", 19))
+    return 1;
+  /** diag fmt 族：glue 读类型池 + 局部序数；勿 ast_arena_type_get 按值 Type。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_at", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_into", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_or_question", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_resolve_scan_dep_with_apply", 34))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_return_type", 31))
+    return 1;
+  /** 隐式尾返回判定：tail ref 扫描 + ast_expr_disallows_implicit_tail（patch 4096 后 SU 真 emit）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_tail_expr_ref_for_implicit_rule", 41))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_has_implicit_return_tail", 34))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_binop", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_binop_cmp", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_method_call", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_method_call_arg", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_as", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_struct_lit", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_struct_lit_field", 34))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_field_access", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_one_const", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_one_let", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_one_while", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_one_for", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_one_if", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_final", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_binop_arith", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"find_func_return_type_in_module", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"find_func_return_type_in_module_by_name", 39))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_whole_import_qualified_call_return_type", 47))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_binding_import_return_type", 39))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_select_import_return_type", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_local_module", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_try_whole_import", 36))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_try_binding_import", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_scan_dep", 28))
+    return 1;
+  /** S2 SU 真 emit：expr/type 小 helper（glue 指针读池；勿 Type 按值 ast_arena_type_get）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_type_ref", 13))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool_impl", 21))
+    return 1;
+  /** type_refs_equal 薄包装可 SU emit；拆分 named/same_kind/impl 逐步 SU 真 emit。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal_impl", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_return_operand_matches", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_var_name_equal_func", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_ret_coerce_integral_to_expect_i32", 40))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_expr_to_decl", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal_named", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal_same_kind", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_lit_to_decl", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_enum_field_to_decl", 37))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_float_lit_to_decl", 36))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_named_call_to_decl", 37))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_array_vector_lit_to_decl", 43))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_vector_binop_to_decl", 39))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_slice_from_array", 35))
+    return 1;
+  /** validate 薄循环：metrics/align/size 仍 mega/thin stub（独立 SU emit SIGSEGV）；本函数 SU 真 emit。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_validate_struct_layouts_zero_padding", 43))
+    return 1;
+  /** typeck_su_ast 薄入口见 mega_entry；check_block 薄 guard 仍 SU 真 emit。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block", 11))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_as_loop_body", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_loop_depth_push", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_loop_depth_pop", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_patch_all_body_parent_links", 34))
+    return 1;
+  /** check_expr/check_block 薄 guard→check_*_impl；impl/mega 走 asm_skip_heavy_typeck_mega_entry 桩。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr", 10))
+    return 1;
+  /** check_expr mega 分派子 helper（assign/index/unary/addr/deref/var/return/panic）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_expr_is_any_assign_kind", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_assign", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_index", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_unary", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_addr_of", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_deref", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_var", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_return", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_panic", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_break_continue", 32))
+    return 1;
+  /** check_block_impl 编排子 helper（stmt_order/impl 主体 mega 桩）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_consts", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_lets", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_whiles", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_fors", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_ifs", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_legacy_expr_stmts", 36))
+    return 1;
+  /** check_expr_impl 小 kind 子 helper（impl/mega 主体 mega 桩）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_int_lit", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_bool_lit", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_float_lit", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_enum_variant", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_block", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_if_ternary", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_match", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_match_arm", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_call", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_call_arg", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_expr_call_resolve", 30))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
     return 0;
   return 0;
 }
 
 /**
- * backend EMIT_HEAVY 第二遍：按符号名保留小 helper 真 emit（覆盖 #87+ 索引桩；219 func 模块中 arch_emit/enc 常在 #87 之后）。
+ * pipeline EMIT_HEAVY 第二遍：编排 helper SU 真 emit；parse/typecheck 关键路径 thin→C（strict smoke）。
+ * S3：resolve/read 经 weak→强符号 dispatch（build_asm 覆盖 impl_c）。
  */
+static int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_pipeline_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_prepare_dep_codegen_path", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_finish_dep_codegen_diag", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_one_function_ok", 21))
+    return 1;
+  /** resolve 探测：path_buf 写后缀 + fs_open_read；依赖 pipeline_dep_ctx_* glue，勿大栈数组按值。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_append_from_buf_256", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_append_from_buf_512", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_append_import_path", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_import_has_dot", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_probe_dot_su_and_mod", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_entry_dir", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_flat_import_under_lib", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_one_lib_root", 29))
+    return 1;
+  /** resolve 入口：while lib_root + try_entry_dir。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_su", 15))
+    return 1;
+  /** read 编排：open/close SU；pipeline_read_fd_into_loaded_buf 走 C glue。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"read_file_su", 12))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_loaded_buf_cap", 23))
+    return 1;
+  /** parse dep：init + parser.parse_into_buf；EMIT_HEAVY SU 真 emit（load_import 编排调用）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_parse_into_buf", 23))
+    return 1;
+  /** entry parse buf 路径：strict reset + parser.parse_into_buf；返回 ParseIntoResult 按值（与 pipeline_parse_into_buf 同模式）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_with_init_buf", 24))
+    return 1;
+  /** load import：resolve/read SU + preprocess/bind glue + parse_into_buf SU。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_import_resolve_read", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_import_from_disk", 30))
+    return 1;
+  /** load/sync 编排：单槽 load_one + load_and_sync while 循环；try_bind/sync_one 仍 C glue。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_one_import_slot", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_and_sync_direct_import_deps", 41))
+    return 1;
+  /** sync 全槽：while ndep 委托 sync_one_dep_slot（LSP/其它路径亦可用）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_sync_dep_slots_from_driver", 35))
+    return 1;
+  /** codegen 前补全 dep import 路径（空槽从 entry module 拷贝）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_fill_dep_import_path", 36))
+    return 1;
+  /** codegen 编排：one_dep + deps while + entry；emit 仍 C glue。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_codegen_one_dep", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_codegen_deps", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_codegen_entry", 29))
+    return 1;
+  /** 完整流水线编排：parse/load/typecheck/codegen 阶段串联。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_impl", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_parse_entry_if_needed", 37))
+    return 1;
+  /** do_parse 须 SU 真 emit（thin bl→C reloc 空符号自调用）；set_main 仍 thin→C。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_su_pipeline_parse_entry_do_parse", 36))
+    return 1;
+  /** typecheck entry / skip 判定：thin→C（C 预检后须 honor driver_su_pipeline_skip_typeck）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_after_parse_ok", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_with_init", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_parse_apply_main_from_scalars", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"lsp_diag_parse_entry_buf", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"lsp_diag_parse_typeck_buf", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_typeck_parsed_module", 29))
+    return 1;
+  /** 主流水线 entry typeck：library→parsed_module；main 失败 -1。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_typeck_entry_module", 28))
+    return 1;
+  /** LSP 诊断：parse+typeck SU 编排（slice parse/typeck_after 仍 thin→C）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"lsp_diag_typeck_after_load", 26))
+    return 1;
+  return 0;
+}
+
+/**
+ * driver/compile.su EMIT_HEAVY 第二遍：argv 分 helper + dispatch SU 真 emit；post_parse / run_compiler_full_su 仍桩。
+ */
+static int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_driver_compile_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"compile_dispatch_asm_backend", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"compile_dispatch_emit_c_path", 28))
+    return 1;
+  /** driver_compile_gen.o 导出带 driver_ 前缀；module 表多为裸名，二者均匹配。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_dispatch_asm_backend", 35))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_dispatch_emit_c_path", 35))
+    return 1;
+  /** run_compiler_full_su* 大栈/复杂分派：EMIT_HEAVY 堆 state + post_parse/dispatch SU 真 emit（thin 表已空）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_state_key", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_ensure_default_lib", 29))
+    return 1;
+  /** parse_argv 分 helper：init/step/loop/finalize/入口 SU 真 emit（单函数双 512 栈数组 SIGSEGV）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_init", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_step", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_loop", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_finalize", 34))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_scan_c", 31))
+    return 0;
+  /** run_compiler_full_su / post_parse：堆 state + dispatch SU 真 emit（勿 thin→impl_c）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_su", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_su_post_parse", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_su", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_su_post_parse", 38))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_ends_su", 12))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"target_has_arm", 14))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "eq_", 3))
+    return 1;
+  return 0;
+}
+
+/**
+ * backend EMIT_HEAVY 第二遍：按符号名保留小 helper 真 emit（覆盖 #87+ 索引桩；219 func 模块中 arch_emit/enc 常在 #87 之后）。
+ * M8-tail：fold_/asm_import_ 等前缀体 + 薄包装 C 委托函数按名放行。
+ */
+static int32_t asm_skip_heavy_backend_m8_helper_keep(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_backend_selfhost(m))
+    return 0;
+#define ASMB_M8_HLP_PREFIX(pfx, plen)                                                                                  \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, (pfx), (int32_t)(plen)))                                \
+      return 1;                                                                                                        \
+  } while (0)
+  ASMB_M8_HLP_PREFIX("asm_import_", 11);
+  ASMB_M8_HLP_PREFIX("asm_build_import_", 17);
+  ASMB_M8_HLP_PREFIX("asm_c_prefix_", 13);
+  ASMB_M8_HLP_PREFIX("fold_", 5);
+  ASMB_M8_HLP_PREFIX("asm_module_named_", 17);
+  ASMB_M8_HLP_PREFIX("asm_expr_binop_", 15);
+  ASMB_M8_HLP_PREFIX("asm_field_access_", 17);
+#undef ASMB_M8_HLP_PREFIX
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"ctx_push_loop_labels", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"ctx_pop_loop_labels", 19))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_hoist_top_level_lets_for_codegen", 36))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"ctx_reset", 9))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"compute_frame_size", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf", 13))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"local_offset", 12))
+    return 1;
+  /** M8-tail：形参/局部槽与 ELF/text 块体薄包装（单行 C 委托），扩 backend.o __text。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_param_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_local_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body_elf", 19))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits_elf", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_elf", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop_elf", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop_elf", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content_elf", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_next_label", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"format_label_id", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_call", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_method_call", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_emit_call_args_elf", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop", 13))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_text", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr", 9))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_call", 14))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_method_call", 21))
+    return 1;
+  return 0;
+}
+
+/** 旧名别名：arch_emit_/enc_ 前缀 helper。 */
 static int32_t asm_skip_heavy_backend_helper_keep(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_backend_selfhost(m))
     return 0;
-  /** 仅保留薄包装 dispatch（arch→enc 一行转发）；大块 enc_/emit 仍走 mega/索引桩。 */
 #define ASMB_KEEP_PREFIX(pfx)                                                                                            \
   do {                                                                                                                 \
     if (pipeline_module_func_name_has_prefix_at(m, func_index, (pfx), (int32_t)(sizeof(pfx) - 1)))                     \
@@ -6149,16 +8997,299 @@ static int32_t asm_skip_heavy_backend_helper_keep(struct ast_Module *m, int32_t 
 }
 
 /**
+ * M8-tail：backend.su 薄包装 SU 名 → C glue/partial 委托符号。
+ * 首遍 SKIP 桩路径 emit bl（非 ret0），扩 build_asm/backend.o __text。
+ */
+typedef struct {
+  const char *su_name;
+  int32_t su_len;
+  const char *c_name;
+  int32_t c_len;
+} AsmBackendThinDelegateRow;
+
+static const AsmBackendThinDelegateRow k_asm_backend_thin_delegate[] = {
+    {"fill_param_slots", 16, "pipeline_asm_fill_param_slots", 29},
+    {"fill_local_slots", 16, "pipeline_asm_fill_local_slots", 29},
+    {"compute_frame_size", 18, "pipeline_asm_compute_frame_size_c", 33},
+    {"emit_block_body_elf", 19, "backend_emit_block_body_sync_elf", 32},
+    {"emit_block_inits_elf", 20, "pipeline_asm_emit_block_inits_elf_c", 35},
+    {"emit_if_then_block_body_elf", 27, "pipeline_asm_emit_if_then_block_body_elf_c", 42},
+    {"emit_while_loop_elf", 18, "pipeline_asm_emit_while_loop_elf_c", 34},
+    {"emit_for_loop_elf", 16, "pipeline_asm_emit_for_loop_elf_c", 32},
+    {"emit_loop_body_content", 22, "pipeline_asm_emit_loop_body_content_c", 35},
+    {"emit_loop_body_content_elf", 26, "pipeline_asm_emit_loop_body_content_elf_c", 39},
+    {"emit_next_label", 15, "pipeline_asm_emit_next_label_c", 30},
+    {"format_label_id", 15, "pipeline_asm_format_label_id_c", 30},
+    {"emit_expr_elf_call", 18, "pipeline_asm_emit_call_elf_c", 28},
+    {"emit_expr_elf_method_call", 25, "pipeline_asm_emit_method_call_elf_c", 35},
+    {"asm_emit_call_args_elf", 22, "pipeline_asm_emit_call_args_elf_c", 33},
+    {"emit_block_inits", 16, "pipeline_asm_emit_block_inits_c", 31},
+    {"emit_block_body", 15, "pipeline_asm_emit_block_body_c", 30},
+    {"emit_while_loop", 15, "pipeline_asm_emit_while_loop_c", 30},
+    {"emit_for_loop", 13, "pipeline_asm_emit_for_loop_c", 28},
+    {"emit_if_then_block_body_text", 28, "pipeline_asm_emit_if_then_block_body_text_c", 43},
+    {"emit_expr", 9, "pipeline_asm_emit_expr_c", 24},
+    {"emit_expr_call", 14, "pipeline_asm_emit_expr_call_c", 29},
+    {"emit_expr_method_call", 21, "pipeline_asm_emit_expr_method_call_c", 36},
+    {"emit_expr_elf", 13, "pipeline_asm_emit_expr_elf_c", 28},
+    {"emit_index_eff_addr_text", 24, "pipeline_asm_emit_index_eff_addr_text_c", 39},
+    {"emit_index_eff_addr_elf", 23, "pipeline_asm_emit_index_eff_addr_elf_c", 38},
+    {"emit_lvalue_eff_addr_text", 25, "pipeline_asm_emit_lvalue_eff_addr_text_c", 40},
+    {"emit_lvalue_eff_addr_elf", 24, "pipeline_asm_emit_lvalue_eff_addr_elf_c", 39},
+    {"asm_emit_call_args_text", 23, "pipeline_asm_emit_call_args_text_c", 33},
+    {"local_offset", 12, "pipeline_asm_local_offset_c", 27},
+    {"asm_resolve_whole_import_qualified_symbol", 41, "pipeline_asm_resolve_whole_import_qualified_symbol_c", 52},
+    {"emit_skip_heavy_stub_elf", 24, "pipeline_asm_emit_skip_heavy_stub_elf_c", 39},
+    {"simd_try_inline_shuffle_call_elf", 32, "pipeline_asm_simd_try_inline_shuffle_call_elf_c", 47},
+    {"simd_try_inline_select_call_elf", 31, "pipeline_asm_simd_try_inline_select_call_elf_c", 46},
+    {"simd_try_inline_binop2_call_elf", 31, "pipeline_asm_simd_try_inline_binop2_call_elf_c", 46},
+    {"asm_codegen_ast", 15, "pipeline_backend_asm_codegen_ast_c", 34},
+    {"asm_codegen_ast_to_elf", 22, "pipeline_backend_asm_codegen_ast_to_elf_c", 41},
+};
+
+/**
+ * 查 backend 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ */
+int32_t asm_backend_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                  int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_backend_thin_delegate) / sizeof(k_asm_backend_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_backend_thin_delegate[i].su_name,
+                                           k_asm_backend_thin_delegate[i].su_len)) {
+      if (k_asm_backend_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_backend_thin_delegate[i].c_name, (size_t)k_asm_backend_thin_delegate[i].c_len);
+      out[k_asm_backend_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_backend_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** M8-tail：parse/typecheck entry 薄 bl→C（do_parse 仍 SU emit 调 set_main thin→C）。 */
+static const AsmBackendThinDelegateRow k_asm_pipeline_thin_delegate[] = {
+    {"pipeline_parse_set_main_from_buf", 32, "pipeline_parse_set_main_from_buf_c", 34},
+    {"pipeline_should_skip_su_typeck", 30, "pipeline_should_skip_su_typeck_c", 32},
+    {"run_su_pipeline_typecheck_entry", 31, "run_su_pipeline_typecheck_entry_emit_c", 36},
+};
+
+/**
+ * 查 pipeline 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ */
+int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                   int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0 || !asm_module_is_pipeline_selfhost(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_pipeline_thin_delegate) / sizeof(k_asm_pipeline_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_pipeline_thin_delegate[i].su_name,
+                                           k_asm_pipeline_thin_delegate[i].su_len)) {
+      if (k_asm_pipeline_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_pipeline_thin_delegate[i].c_name, (size_t)k_asm_pipeline_thin_delegate[i].c_len);
+      out[k_asm_pipeline_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_pipeline_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** M8-tail：parser.su 小 helper 薄包装 SU 名 → C 实现（parse_into_* mega 仍 ret0 桩）。 */
+static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
+    {"pipeline_module_reset_parse_counters", 36, "pipeline_module_reset_parse_counters_c", 38},
+    {"parse_into_set_main_index", 25, "pipeline_module_set_main_func_index", 35},
+};
+
+/**
+ * 查 parser 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ */
+int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0 || !asm_module_is_parser_selfhost(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].su_name,
+                                           k_asm_parser_thin_delegate[i].su_len)) {
+      if (k_asm_parser_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_parser_thin_delegate[i].c_name, (size_t)k_asm_parser_thin_delegate[i].c_len);
+      out[k_asm_parser_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_parser_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** M8-tail：driver compile 薄 bl 表已空；run_compiler_full_su* 堆 state + SU post_parse 真 emit。 */
+static const AsmBackendThinDelegateRow k_asm_driver_thin_delegate[] = {
+};
+
+/**
+ * 查 driver/compile.su 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ */
+int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0 || !asm_module_is_driver_compile_selfhost(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_driver_thin_delegate) / sizeof(k_asm_driver_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_driver_thin_delegate[i].su_name,
+                                           k_asm_driver_thin_delegate[i].su_len)) {
+      if (k_asm_driver_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_driver_thin_delegate[i].c_name, (size_t)k_asm_driver_thin_delegate[i].c_len);
+      out[k_asm_driver_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_driver_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** typeck EMIT_HEAVY 薄委托：仅剩须 C 维持的入口（typeck 主体已 SU emit）。 */
+static const AsmBackendThinDelegateRow k_asm_typeck_thin_delegate[] = {
+};
+
+/**
+ * typeck EMIT_HEAVY 第二遍：SKIP 桩路径 bl→C 委托或 typeck_su.o 同名实现（首遍 SKIP 仍 ret0）。
+ * 实参已在 ABI 寄存器；Mach-O 由 backend_enc_call_arch 加 leading `_`。
+ */
+int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  int32_t nl;
+
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  if (!asm_module_is_typeck_selfhost(m) || asm_env_entry_emit_heavy() == 0)
+    return 0;
+  if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0)
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_typeck_thin_delegate) / sizeof(k_asm_typeck_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_typeck_thin_delegate[i].su_name,
+                                           k_asm_typeck_thin_delegate[i].su_len)) {
+      if (k_asm_typeck_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_typeck_thin_delegate[i].c_name, (size_t)k_asm_typeck_thin_delegate[i].c_len);
+      out[k_asm_typeck_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_typeck_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  nl = pipeline_module_func_name_len_at(m, func_index);
+  if (nl <= 0 || nl >= out_cap)
+    return 0;
+  pipeline_asm_module_func_name_copy64(m, func_index, out);
+  out[nl] = 0;
+  *out_len = nl;
+  return 1;
+}
+
+/**
+ * M8-tail：backend 薄包装 helper 按名真 emit，须先于 #87+ 索引桩（emit_block_body_elf #179 等）。
+ * 不含 fold_/asm_import_ 等前缀体，避免 Abort 带内误放行大函数。
+ */
+static int32_t asm_skip_heavy_backend_m8_tail_thin_keep(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_backend_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_param_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_local_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"compute_frame_size", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body_elf", 19))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits_elf", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_elf", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop_elf", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop_elf", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content_elf", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_next_label", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"format_label_id", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_call", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_method_call", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_emit_call_args_elf", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop", 13))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_text", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr", 9))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_call", 14))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_method_call", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_index_eff_addr_text", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_index_eff_addr_elf", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_lvalue_eff_addr_text", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_lvalue_eff_addr_elf", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_emit_call_args_text", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"local_offset", 12))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_resolve_whole_import_qualified_symbol", 41))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_skip_heavy_stub_elf", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_shuffle_call_elf", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_select_call_elf", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_binop2_call_elf", 31))
+    return 1;
+  return 0;
+}
+
+/**
  * typeck EMIT_HEAVY 第二遍：layout/diag 小 helper 真 emit（ExprKind=51 已修；槽位过大仍走 mega/默认桩）。
  */
 static int32_t asm_skip_heavy_typeck_helper_keep(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_typeck_selfhost(m))
     return 0;
   if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
-    return 1;
+    return 0;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_align", 20) ||
       pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_size", 19))
-    return 1;
+    return 0;
   return 0;
 }
 
@@ -6175,57 +9306,10 @@ static int32_t asm_skip_heavy_backend_mega_entry(struct ast_Module *m, int32_t f
       return 1;                                                                                                        \
   } while (0)
   ASMB_MEGA("asm_codegen_ast", 15);
-  ASMB_MEGA("asm_codegen_ast_to_elf", 21);
-  ASMB_MEGA("emit_expr", 9);
-  ASMB_MEGA("emit_expr_elf", 13);
-  ASMB_MEGA("emit_expr_elf_slow", 17);
-  ASMB_MEGA("emit_expr_call", 14);
-  ASMB_MEGA("emit_expr_elf_call", 18);
-  ASMB_MEGA("emit_expr_method_call", 21);
-  ASMB_MEGA("emit_expr_elf_method_call", 25);
-  ASMB_MEGA("emit_block_body", 14);
-  ASMB_MEGA("emit_block_body_elf", 18);
-  ASMB_MEGA("emit_block_body_driver", 21);
-  ASMB_MEGA("emit_block_body_driver_elf", 25);
-  ASMB_MEGA("emit_loop_body_content", 22);
-  ASMB_MEGA("emit_loop_body_content_elf", 26);
-  ASMB_MEGA("emit_while_loop", 14);
-  ASMB_MEGA("emit_while_loop_elf", 18);
-  ASMB_MEGA("emit_for_loop", 12);
-  ASMB_MEGA("emit_for_loop_elf", 16);
-  ASMB_MEGA("emit_if_then_block_body_text", 27);
-  ASMB_MEGA("emit_if_then_block_body_elf", 27);
-  ASMB_MEGA("emit_block_inits", 15);
-  ASMB_MEGA("emit_block_inits_elf", 19);
-  ASMB_MEGA("emit_field_access_base_addr", 27);
-  ASMB_MEGA("emit_field_access_base_addr_elf", 31);
-  ASMB_MEGA("emit_index_eff_addr_text", 22);
-  ASMB_MEGA("emit_index_eff_addr_elf", 22);
-  ASMB_MEGA("emit_lvalue_eff_addr_text", 23);
-  ASMB_MEGA("emit_lvalue_eff_addr_elf", 23);
-  ASMB_MEGA("emit_binop_add_text", 19);
-  ASMB_MEGA("emit_binop_sub_text", 19);
-  ASMB_MEGA("emit_binop_mul_text", 19);
-  ASMB_MEGA("emit_binop_div_text", 19);
-  ASMB_MEGA("emit_binop_mod_text", 19);
-  ASMB_MEGA("emit_binop_add_elf", 18);
-  ASMB_MEGA("emit_binop_sub_elf", 18);
-  ASMB_MEGA("emit_binop_mul_elf", 18);
-  ASMB_MEGA("emit_binop_div_elf", 18);
-  ASMB_MEGA("emit_binop_mod_elf", 18);
-  ASMB_MEGA("asm_emit_call_args_text", 23);
-  ASMB_MEGA("asm_emit_call_args_elf", 22);
-  ASMB_MEGA("asm_resolve_dep_var_call_symbol", 31);
-  ASMB_MEGA("asm_resolve_whole_import_qualified_symbol", 41);
-  ASMB_MEGA("get_dep_return_type_in_caller_arena", 35);
-  ASMB_MEGA("ctx_reset", 9);
-  ASMB_MEGA("block_slot_base_for", 19);
-  ASMB_MEGA("compute_frame_size", 18);
-  ASMB_MEGA("fill_param_slots", 16);
-  ASMB_MEGA("fill_local_slots", 16);
-  ASMB_MEGA("ensure_block_local_slots", 24);
-  ASMB_MEGA("local_offset", 12);
-  ASMB_MEGA("emit_next_label", 15);
+  ASMB_MEGA("asm_codegen_ast_to_elf", 22);
+  ASMB_MEGA("asm_codegen_ast_seed_mega", 25);
+  ASMB_MEGA("asm_codegen_ast_to_elf_seed_mega", 32);
+  /** emit_expr / emit_block_* / loop / if-then / fill_* / call / local_offset：thin_keep 真 emit（C/partial 委托）。 */
   /** extern/C sidecar glue：.su 体含 ExprKind 54 等 asm 未支持形态，须桩化。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_ctx_key", 11))
     return 1;
@@ -6244,43 +9328,33 @@ static int32_t asm_skip_heavy_backend_mega_entry(struct ast_Module *m, int32_t f
 static int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0)
     return 0;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_as_loop_body", 24) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_tail_expr_ref_for_implicit_rule", 41) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_has_implicit_return_tail", 34) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_ret_coerce_integral_to_expect_i32", 40) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_expr_to_decl", 31))
-    return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_whole_import_qualified_call_return_type", 47) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_return_type", 31) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_type_ref_impl", 18) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_type_ref", 13) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool_impl", 21) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool", 16) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal_impl", 20) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal", 15))
-    return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_append_lit", 22) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_append_u32_dec", 26) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_at", 23) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_into", 25) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_diag_fmt_type_or_question", 32))
-    return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast", 13) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_impl", 18) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_library", 21) ||
+  if (/** typeck_skip_heavy_selfhost 等 mega 入口仍桩化。 */
       pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_skip_heavy_selfhost_func_body", 36))
     return 1;
-  /** layout 小 helper 改由 typeck_helper_keep 真 emit；仅 struct_layout 大入口仍 mega 桩。 */
-  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_struct_layout", 20))
+  /**
+   * check_* mega：宿主编译器真 emit 会 SIGSEGV；EMIT_HEAVY 第二遍 ret0 桩。
+   * 子 helper 经 asm_typeck_emit_heavy_safe_helper 分片 SU 真 emit。
+   */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl_mega", 20))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"ensure_struct_layout_from_struct_lit", 36))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl", 15))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_kind_ordinal", 17) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_var_name_equal_func", 24) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_field_access_lexer_wrapper_fallback", 42) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"find_func_return_type_in_module_by_name", 39) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"find_func_return_type_in_module", 31))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_impl", 16))
     return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_stmt_order_one", 33))
+    return 1;
+  /** 遍历全模块函数：槽位高；EMIT_HEAVY 第二遍 ret0 桩（子 helper check_one_func 仍 SU）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_impl", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_library", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_check_all_funcs_loop", 34))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast_check_one_func", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_ast", 13))
+    return 1;
+  /** type_kind_ordinal 在瘦 typeck #0 须真 emit；勿在此 mega 桩。 */
   return 0;
 }
 
@@ -6326,11 +9400,24 @@ void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_c
   *out_len = pos;
 }
 
+/** 模块是否为 compiler .su 自举单元；用户小程序（pool-limits / 普通 -o）不在此列。 */
+static int32_t asm_module_is_compiler_selfhost(struct ast_Module *m) {
+  return asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
+         asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m) ||
+         asm_module_is_driver_compile_selfhost(m) || asm_module_is_main_driver_selfhost(m);
+}
+
 int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index) {
   int32_t body_ref;
   int32_t slots;
   int32_t slot_threshold;
   if (!m || func_index < 0)
+    return 0;
+  /**
+   * 用户程序（非 parser/typeck/backend/pipeline/driver 自举模块）：须完整 emit 真机码。
+   * 须先于 SHU_ASM_BUILD_SKIP_TYPECK 桩分支；否则 return42 等单文件 -o 被 ret0 桩化或 WPO 跳过。
+   */
+  if (!asm_module_is_compiler_selfhost(m))
     return 0;
   /**
    * 用户 import+exe（asm_entry_module_only、非大入口）：须完整 emit 入口模块，禁止 ret0 桩。
@@ -6355,13 +9442,16 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 0;
     return 1;
   }
-  /* 小模块（lexer 等 ~21 func）：前段函数体仍极大，完整 emit 会 139；仅 build_shu_asm 路径启用。 */
-  if (asm_env_build_skip_typeck() != 0 && m->num_funcs > 0 && m->num_funcs <= 32 && func_index < 10)
+  /* 小模块（lexer 等 ~21 func）：首遍 SKIP 桩前 10 项；EMIT_HEAVY 第二遍改走 driver/pipeline 按名白名单。 */
+  if (asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0 && m->num_funcs > 0 &&
+      m->num_funcs <= 32 && func_index < 10)
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr", 10) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl", 15) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block", 11) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_impl", 16))
+  /** 首遍 SKIP 桩：mega check_* 勿真 emit；EMIT_HEAVY 第二遍改走下方按名/索引桩。 */
+  if (asm_env_entry_emit_heavy() == 0 &&
+      (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr", 10) ||
+       pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl", 15) ||
+       pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block", 11) ||
+       pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_impl", 16)))
     return 1;
   /**
    * ENTRY_EMIT_HEAVY 第二遍：放宽槽位阈值；桩化 mega typecheck/diag 入口（按符号名）。
@@ -6370,33 +9460,96 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
    * 非 typeck/backend 大模块且 func≥160：func#72+ 仍粗筛桩化。
    */
   if (asm_env_entry_emit_heavy() != 0) {
+    int32_t typeck_ndef = asm_module_is_typeck_selfhost(m) ? asm_module_num_defined_funcs(m) : 0;
+    int32_t typeck_ord = asm_module_defined_func_ordinal(m, func_index);
     /**
-     * typeck.su 合并 glue 后 ~173 func：#0–89 glue 桩；#90–117 layout/小 helper 真 emit；#118–159 check_* 桩。
+     * typeck.su 合并 glue 后 ~160–180 已定义 func：#0–89 glue 桩；#90–117 按名小 helper；
+     * #118–159 check_* 桩；#160+ typeck_su_ast mega 桩（序号均按非 extern ordinal）。
      */
-    if (m->num_funcs >= 168 && m->num_funcs <= 180 && !asm_module_is_backend_selfhost(m)) {
-      if (func_index < 90)
+    if (asm_module_is_typeck_selfhost(m) && typeck_ndef >= 160 && typeck_ndef <= 180) {
+      if (typeck_ord < 0)
         return 1;
       if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0)
         return 1;
-      if (func_index >= 118 && func_index <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
+      /** safe_helper 须先于 ord #118–159 粗筛，否则 expr_type_ref 等无法 SU 真 emit。 */
+      if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
+        return 0;
+      if (typeck_ord >= 118 && typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
         return 1;
-      /** 按名放行 layout/小 helper（勿整段 #90–117 真 emit，易宿主栈 Abort）。 */
+      /** 按名放行 layout/小 helper（须在 ordinal<90 粗筛之前，type_kind_ordinal 在 #0）。 */
       if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_kind_ordinal", 17))
         return 0;
       if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
         return 0;
+      if (typeck_ord < 90)
+        return 1;
       return 1;
     }
-    /** 瘦 typeck 单元（~83 func）：#1–#35 小 helper 真 emit。 */
-    if (m->num_funcs >= 80 && m->num_funcs <= 90 && !asm_module_is_backend_selfhost(m)) {
+    /** 瘦 typeck：safe_helper 白名单 + 槽位过关 SU 真 emit；上限随 block helper 扩容（2026-06 ndef≈130）。 */
+    if (typeck_ndef >= 75 && typeck_ndef <= 200 && !asm_module_is_backend_selfhost(m)) {
+      int32_t body_ref_thin;
+      int32_t slots_thin;
+      if (typeck_ord < 0)
+        return 1;
       if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0)
         return 1;
-      if (func_index > 35)
+      /** merge_dep 须先于 safe_helper 粗筛（双循环槽位高；按名强制 SU 真 emit）。 */
+      if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_merge_dep_struct_layouts_into_entry", 42))
+        return 0;
+      if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_wpo_unify_soa_layouts", 28))
+        return 0;
+      if (asm_typeck_emit_heavy_safe_helper(m, func_index) == 0)
+        return 1;
+      body_ref_thin = pipeline_module_func_body_ref_at(m, func_index);
+      if (!arena || body_ref_thin <= 0)
+        return 1;
+      slots_thin = asm_count_block_stack_slots(arena, body_ref_thin);
+      if (slots_thin > ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX)
         return 1;
       return 0;
     }
-    /** 白名单须先于 mega/索引桩：layout/arch helper 按名保留真 emit（小槽位体）。 */
-    if (asm_module_is_backend_selfhost(m) && asm_skip_heavy_backend_helper_keep(m, func_index) != 0) {
+    /**
+     * pipeline.su：编排经 asm_pipeline_emit_heavy_safe_helper 真 emit；C mega 仅 ast_pool/pipeline_glue 回退。
+     * safe_helper 小函数 SU 真 emit（S3 起步）。
+     */
+    if (asm_module_is_pipeline_selfhost(m)) {
+      if (asm_pipeline_emit_heavy_safe_helper(m, func_index) != 0)
+        return 0;
+      return 1;
+    }
+    /**
+     * main.su：仅 entry 真 emit；其余 helper 走 SKIP 桩 + WPO 从 entry 建 reach。
+     */
+    if (asm_module_is_main_driver_selfhost(m)) {
+      if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"entry", 5))
+        return 0;
+      return 1;
+    }
+    /**
+     * driver/compile.su：parse_argv 分 helper + dispatch SU 真 emit；run_compiler_full_su* 薄 bl→runtime impl_c。
+     */
+    if (asm_module_is_driver_compile_selfhost(m)) {
+      if (asm_driver_compile_emit_heavy_safe_helper(m, func_index) != 0)
+        return 0;
+      return 1;
+    }
+    /**
+     * parser.su：parse_into_* mega 全桩；reset/set_main 等小 helper 经 k_asm_parser_thin_delegate bl→C。
+     */
+    if (asm_module_is_parser_selfhost(m))
+      return 1;
+    /**
+     * M8-tail：backend 薄包装 EMIT_HEAVY 仍 skip 桩 + bl→C（与 SKIP 首遍一致；勿真 emit 单行 SU）。
+     */
+    if (asm_module_is_backend_selfhost(m) && asm_skip_heavy_backend_m8_tail_thin_keep(m, func_index) != 0)
+      return 1;
+    /**
+     * 白名单须先于 mega/索引桩：layout/arch helper 按名保留真 emit（小槽位体）。
+     * 合并 glue 后 num_funcs>150（~285 func）时勿 #0–86 真 emit，否则宿主编 backend.su SIGSEGV。
+     */
+    if (asm_module_is_backend_selfhost(m) && m->num_funcs <= 150 &&
+        (asm_skip_heavy_backend_helper_keep(m, func_index) != 0 ||
+         asm_skip_heavy_backend_m8_helper_keep(m, func_index) != 0)) {
       body_ref = pipeline_module_func_body_ref_at(m, func_index);
       if (!arena || body_ref <= 0 ||
           asm_count_block_stack_slots(arena, body_ref) <= ASM_EMIT_HEAVY_BACKEND_HELPER_SLOT_MAX)
@@ -6405,10 +9558,10 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
     if (asm_module_is_typeck_selfhost(m) && asm_skip_heavy_typeck_helper_keep(m, func_index) != 0) {
       /** layout/metrics 小 helper 先于 Abort 索引带真 emit（合并 glue 后 #90 即为 type_kind_ordinal）。 */
       if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
-        return 0;
+        return 1;
       if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_align", 20) ||
           pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_su_type_size", 19))
-        return 0;
+        return 1;
       if (func_index >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO && func_index <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
         return 1;
       body_ref = pipeline_module_func_body_ref_at(m, func_index);
@@ -6421,10 +9574,13 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     if (asm_skip_heavy_backend_mega_entry(m, func_index) != 0)
       return 1;
-    /** typeck.su：#90–159 Abort 区间 ret0 桩（helper_keep 已提前放行 layout）。 */
-    if (asm_module_is_typeck_selfhost(m) && m->num_funcs >= 90 &&
-        func_index >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO && func_index <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
+    /** typeck.su：ordinal #90–159 Abort 区间 ret0 桩（safe_helper 已 SU 真 emit 的除外）。 */
+    if (asm_module_is_typeck_selfhost(m) && typeck_ndef >= 90 && typeck_ord >= 0 &&
+        typeck_ord >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO && typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI) {
+      if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
+        return 0;
       return 1;
+    }
     /** backend.su ~100 func：勿要求 num_funcs>=175，否则 #87+ 全走真 emit → 宿主栈 Abort。 */
     if (asm_module_is_backend_selfhost(m) && m->num_funcs >= 80) {
       int32_t be_hi = asm_emit_heavy_abort_hi();
@@ -6452,17 +9608,17 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       if (slots > slot_threshold)
         return 1;
     }
-    /** backend/typeck 第二遍：backend 默认 ret0 桩；typeck 仅 safe helper 真 emit。 */
+    /** backend/typeck 第二遍：backend 默认 ret0 桩；typeck 槽位过关则真 emit。 */
     if (asm_module_is_backend_selfhost(m))
       return 1;
     if (asm_module_is_typeck_selfhost(m)) {
       if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
         return 0;
-      return 1;
+      return 0;
     }
     return 0;
   }
-  /** 默认大模块：func_index>=72 粗筛（非 EMIT_HEAVY 第二遍）。 */
+  /** 默认大模块：func_index>=72 粗筛（非 EMIT_HEAVY 第二遍；仅 compiler 自举）。 */
   if (m->num_funcs >= 160 && func_index >= 72)
     return 1;
   body_ref = pipeline_module_func_body_ref_at(m, func_index);
@@ -6765,3 +9921,1173 @@ int32_t asm_be_cont_resume(int32_t *out_block, int32_t *out_stmt_i, uint8_t *out
 int32_t asm_be_cont_depth(void) {
   return g_asm_be_cont_depth;
 }
+
+/**
+ * WPO v0（asm 后端 DCE）：按 typeck 解析后的 call graph 标记 reachable，emit 时跳过 dead export。
+ * 与 codegen.c 的 codegen_wpo_reach 语义对齐，但 keyed by (ast_Module*, func_index) 供 .su asm 后端查询。
+ */
+#define ASM_WPO_MAX_FUNCS 1024
+#define ASM_WPO_MAX_MODS 64
+#define ASM_WPO_MAX_EDGES 4096
+
+/** WPO call 边解析：与 backend emit_call 同读 pipeline_expr_*（勿裸 *Expr 字段，避免池布局偏差）。 */
+extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+
+typedef struct {
+  int32_t valid;
+  struct ast_Module *entry;
+  struct ast_PipelineDepCtx *dep_ctx;
+  struct ast_Module *mods[ASM_WPO_MAX_MODS];
+  struct ast_ASTArena *arenas[ASM_WPO_MAX_MODS];
+  int32_t nmods;
+  struct ast_Module *func_mod[ASM_WPO_MAX_FUNCS];
+  int32_t func_fi[ASM_WPO_MAX_FUNCS];
+  int32_t nfuncs;
+  int32_t root_id;
+  unsigned char reachable[ASM_WPO_MAX_FUNCS];
+  struct {
+    int32_t from;
+    int32_t to;
+  } edges[ASM_WPO_MAX_EDGES];
+  int32_t nedges;
+} AsmWpoReachState;
+
+static AsmWpoReachState g_asm_wpo;
+/** PGO-Lite：root + 直接 callee（BFS depth≤1）标记为 hot emit 候选。 */
+static unsigned char g_asm_wpo_pgo_hot[ASM_WPO_MAX_FUNCS];
+/** PGO-Lite S2：自 root 的静态 call-depth（BFS）；未 reach 保持 -1。 */
+static int32_t g_asm_wpo_pgo_depth[ASM_WPO_MAX_FUNCS];
+/** 当前 module 的 emit 顺序（func_index 表；PGO 时按 depth 升序）。 */
+static struct ast_Module *g_asm_wpo_pgo_emit_mod;
+static int32_t g_asm_wpo_pgo_emit_order[ASM_WPO_MAX_FUNCS];
+static int32_t g_asm_wpo_pgo_emit_n;
+
+/** 清空 asm WPO 状态；elf emit 结束或失败时调用。 */
+void pipeline_asm_wpo_reach_clear(void) {
+  memset(&g_asm_wpo, 0, sizeof(g_asm_wpo));
+  memset(g_asm_wpo_pgo_hot, 0, sizeof(g_asm_wpo_pgo_hot));
+  memset(g_asm_wpo_pgo_depth, 0xff, sizeof(g_asm_wpo_pgo_depth));
+  g_asm_wpo_pgo_emit_mod = NULL;
+  g_asm_wpo_pgo_emit_n = 0;
+}
+
+/** 在 mods[] 中查找 module 下标；未注册返回 -1。 */
+static int32_t asm_wpo_mod_index(struct ast_Module *m) {
+  int32_t i;
+  if (!m)
+    return -1;
+  for (i = 0; i < g_asm_wpo.nmods; i++) {
+    if (g_asm_wpo.mods[i] == m)
+      return i;
+  }
+  return -1;
+}
+
+/** 注册 module+arena；已存在则仅返回下标。 */
+static int32_t asm_wpo_register_mod(struct ast_Module *m, struct ast_ASTArena *a) {
+  int32_t ix;
+  if (!m || !a)
+    return -1;
+  ix = asm_wpo_mod_index(m);
+  if (ix >= 0)
+    return ix;
+  if (g_asm_wpo.nmods >= ASM_WPO_MAX_MODS)
+    return -1;
+  g_asm_wpo.mods[g_asm_wpo.nmods] = m;
+  g_asm_wpo.arenas[g_asm_wpo.nmods] = a;
+  return g_asm_wpo.nmods++;
+}
+
+/** (module, func_index) → 全局 func id；未注册返回 -1。 */
+static int32_t asm_wpo_func_id_of(struct ast_Module *m, int32_t fi) {
+  int32_t i;
+  if (!m || fi < 0)
+    return -1;
+  for (i = 0; i < g_asm_wpo.nfuncs; i++) {
+    if (g_asm_wpo.func_mod[i] == m && g_asm_wpo.func_fi[i] == fi)
+      return i;
+  }
+  return -1;
+}
+
+/** 登记单个非 extern 函数节点。 */
+static int32_t asm_wpo_register_func(struct ast_Module *m, int32_t fi) {
+  struct ast_Func *f;
+  int32_t id;
+  if (!m || fi < 0 || g_asm_wpo.nfuncs >= ASM_WPO_MAX_FUNCS)
+    return -1;
+  f = module_func_at(m, fi);
+  if (!f || f->is_extern)
+    return -1;
+  id = asm_wpo_func_id_of(m, fi);
+  if (id >= 0)
+    return id;
+  id = g_asm_wpo.nfuncs;
+  g_asm_wpo.func_mod[id] = m;
+  g_asm_wpo.func_fi[id] = fi;
+  g_asm_wpo.nfuncs++;
+  return id;
+}
+
+/** 按函数名在指定 module 已注册节点中查找 id；未命中返回 -1。 */
+static int32_t asm_wpo_func_id_in_module(struct ast_Module *m, uint8_t *name, int32_t name_len) {
+  int32_t nf;
+  int32_t fi;
+  int32_t id;
+  if (!m || !name || name_len <= 0)
+    return -1;
+  nf = pipeline_module_num_funcs(m);
+  for (fi = 0; fi < nf; fi++) {
+    if (!pipeline_module_func_name_equal_at(m, fi, name, name_len))
+      continue;
+    id = asm_wpo_func_id_of(m, fi);
+    if (id >= 0)
+      return id;
+  }
+  return -1;
+}
+
+/** 按函数名在已注册图中查找 id（跨模块）；重名时取首个。 */
+static int32_t asm_wpo_func_id_by_name(uint8_t *name, int32_t name_len) {
+  int32_t i;
+  int32_t fi;
+  if (!name || name_len <= 0)
+    return -1;
+  for (i = 0; i < g_asm_wpo.nfuncs; i++) {
+    fi = g_asm_wpo.func_fi[i];
+    if (pipeline_module_func_name_equal_at(g_asm_wpo.func_mod[i], fi, name, name_len))
+      return i;
+  }
+  return -1;
+}
+
+/** 去重登记 from→to 边。 */
+static void asm_wpo_add_edge(int32_t from, int32_t to) {
+  int32_t i;
+  if (from < 0 || to < 0 || from >= g_asm_wpo.nfuncs || to >= g_asm_wpo.nfuncs)
+    return;
+  for (i = 0; i < g_asm_wpo.nedges; i++) {
+    if (g_asm_wpo.edges[i].from == from && g_asm_wpo.edges[i].to == to)
+      return;
+  }
+  if (g_asm_wpo.nedges >= ASM_WPO_MAX_EDGES)
+    return;
+  g_asm_wpo.edges[g_asm_wpo.nedges].from = from;
+  g_asm_wpo.edges[g_asm_wpo.nedges].to = to;
+  g_asm_wpo.nedges++;
+}
+
+/**
+ * 从 CALL 的 callee expr 取函数名（pipeline_expr_* 优先；kind 非 VAR 时回退裸 var_name 槽）。
+ * 返回名长度；0 表示无可用名。
+ */
+static int32_t asm_wpo_call_callee_name(struct ast_ASTArena *a, int32_t callee_ref, uint8_t *cname) {
+  struct ast_Expr *callee_ex;
+  int32_t clen;
+  if (!a || callee_ref <= 0 || !cname)
+    return 0;
+  clen = pipeline_expr_var_name_len(a, callee_ref);
+  if (clen > 0 && clen <= 63) {
+    pipeline_expr_var_name_into(a, callee_ref, cname);
+    return clen;
+  }
+  callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
+  if (!callee_ex || callee_ex->var_name_len <= 0 || callee_ex->var_name_len > 63)
+    return 0;
+  clen = callee_ex->var_name_len;
+  memcpy(cname, callee_ex->var_name, (size_t)clen);
+  return clen;
+}
+
+/** 解析 CALL 的 func id（callee 名与 emit bl 一致；再回退 typeck call_resolved_*，须与名一致）。 */
+static int32_t asm_wpo_call_callee_id(struct ast_ASTArena *a, int32_t call_expr_ref, struct ast_Module *caller_mod,
+                                      struct ast_PipelineDepCtx *ctx) {
+  struct ast_Module *callee_mod;
+  int32_t dep_ix;
+  int32_t func_ix;
+  int32_t callee_ref;
+  int32_t cid;
+  int32_t clen;
+  uint8_t cname[64];
+  if (!a || call_expr_ref <= 0)
+    return -1;
+  callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+  clen = asm_wpo_call_callee_name(a, callee_ref, cname);
+  if (clen > 0) {
+    cid = asm_wpo_func_id_in_module(caller_mod, cname, clen);
+    if (cid < 0)
+      cid = asm_wpo_func_id_by_name(cname, clen);
+    if (cid >= 0)
+      return cid;
+  }
+  func_ix = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
+  if (func_ix >= 0) {
+    /** typeck 偶发把 warm_mid() 解到 #0/hot_add；若 callee 名与 resolved 目标不符则拒用。 */
+    if (clen > 0 && caller_mod &&
+        !pipeline_module_func_name_equal_at(caller_mod, func_ix, cname, clen))
+      return -1;
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(a, call_expr_ref);
+    callee_mod = caller_mod;
+    if (dep_ix >= 0 && ctx)
+      callee_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    if (callee_mod) {
+      cid = asm_wpo_func_id_of(callee_mod, func_ix);
+      if (cid >= 0)
+        return cid;
+    }
+  }
+  return -1;
+}
+
+/** 前向声明：块内 call 边收集（collect_edges 与 collect_from_block 互递归）。 */
+static void asm_wpo_collect_from_block(struct ast_ASTArena *a, int32_t block_ref, int32_t caller_id,
+                                       struct ast_Module *caller_mod, struct ast_PipelineDepCtx *ctx);
+
+/** 递归收集表达式中的 call 边（depth 上限防栈溢出）。 */
+static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr_ref, int32_t caller_id,
+                                            struct ast_Module *caller_mod, struct ast_PipelineDepCtx *ctx, int32_t depth) {
+  struct ast_Expr *ex;
+  int32_t i;
+  int32_t cid;
+  int32_t *arg_slot;
+  if (!a || expr_ref <= 0 || caller_id < 0 || depth > 64)
+    return;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return;
+  if (ex->kind == ast_ExprKind_EXPR_CALL) {
+    cid = asm_wpo_call_callee_id(a, expr_ref, caller_mod, ctx);
+    if (cid >= 0)
+      asm_wpo_add_edge(caller_id, cid);
+    for (i = 0; i < ex->call_num_args; i++) {
+      arg_slot = expr_call_arg_slot(a, expr_ref, i, 0);
+      if (arg_slot && *arg_slot > 0)
+        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+    }
+    if (ex->call_callee_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->call_callee_ref, caller_id, caller_mod, ctx, depth + 1);
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_RETURN || ex->kind == ast_ExprKind_EXPR_PANIC || ex->kind == ast_ExprKind_EXPR_NEG ||
+      ex->kind == ast_ExprKind_EXPR_BITNOT || ex->kind == ast_ExprKind_EXPR_LOGNOT || ex->kind == ast_ExprKind_EXPR_ADDR_OF ||
+      ex->kind == ast_ExprKind_EXPR_DEREF || ex->kind == ast_ExprKind_EXPR_AWAIT || ex->kind == ast_ExprKind_EXPR_RUN ||
+      ex->kind == ast_ExprKind_EXPR_SPAWN) {
+    {
+      int32_t uop = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+      if (uop > 0)
+        asm_wpo_collect_edges_from_expr(a, uop, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_AS) {
+    if (ex->as_operand_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->as_operand_ref, caller_id, caller_mod, ctx, depth + 1);
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_IF || ex->kind == ast_ExprKind_EXPR_TERNARY) {
+    if (ex->if_cond_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->if_cond_ref, caller_id, caller_mod, ctx, depth + 1);
+    if (ex->if_then_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->if_then_ref, caller_id, caller_mod, ctx, depth + 1);
+    if (ex->if_else_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->if_else_ref, caller_id, caller_mod, ctx, depth + 1);
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_BLOCK) {
+    if (ex->block_ref > 0)
+      asm_wpo_collect_from_block(a, ex->block_ref, caller_id, caller_mod, ctx);
+    return;
+  }
+  if (ex->binop_left_ref > 0 || ex->binop_right_ref > 0) {
+    if (ex->binop_left_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->binop_left_ref, caller_id, caller_mod, ctx, depth + 1);
+    if (ex->binop_right_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->binop_right_ref, caller_id, caller_mod, ctx, depth + 1);
+    return;
+  }
+  if (ex->field_access_base_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, ex->field_access_base_ref, caller_id, caller_mod, ctx, depth + 1);
+  if (ex->index_base_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, ex->index_base_ref, caller_id, caller_mod, ctx, depth + 1);
+  if (ex->index_index_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, ex->index_index_ref, caller_id, caller_mod, ctx, depth + 1);
+  if (ex->method_call_base_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
+}
+
+/**
+ * stmt_order 单步：按 kind 分派 const/let/expr/loop/for/if/region（与 typeck/codegen 一致）。
+ * 现代 parser 以 stmt_order 为源码序权威；仅扫 legacy 池会漏 return/expr 边（WPO-S4 warm_mid UND）。
+ */
+static void asm_wpo_collect_from_stmt_order_one(struct ast_ASTArena *a, int32_t block_ref, int32_t caller_id,
+                                              struct ast_Module *caller_mod, struct ast_PipelineDepCtx *ctx,
+                                              int32_t si) {
+  struct ast_Block *b;
+  uint8_t sk;
+  int32_t idx;
+  int32_t er;
+  if (!a || block_ref <= 0 || caller_id < 0)
+    return;
+  b = pipeline_arena_block_ptr(a, block_ref);
+  if (!b || si < 0 || si >= b->num_stmt_order)
+    return;
+  sk = pipeline_block_stmt_order_kind(a, block_ref, si);
+  idx = pipeline_block_stmt_order_idx(a, block_ref, si);
+  if (sk == 0 && idx >= 0 && idx < b->num_consts) {
+    er = pipeline_block_const_init_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+  } else if (sk == 1 && idx >= 0 && idx < b->num_lets) {
+    er = pipeline_block_let_init_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+  } else if (sk == 2 && idx >= 0 && idx < b->num_expr_stmts) {
+    er = pipeline_block_expr_stmt_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+  } else if (sk == 3 && idx >= 0 && idx < b->num_loops) {
+    er = pipeline_block_while_cond_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    er = pipeline_block_while_body_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+  } else if (sk == 4 && idx >= 0 && idx < b->num_for_loops) {
+    er = pipeline_block_for_init_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    er = pipeline_block_for_cond_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    er = pipeline_block_for_step_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    er = pipeline_block_for_body_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+  } else if (sk == 5 && idx >= 0 && idx < b->num_if_stmts) {
+    er = pipeline_block_if_cond_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    er = pipeline_block_if_then_body_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+    er = pipeline_block_if_else_body_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+  } else if (sk == 6) {
+    er = pipeline_block_region_body_ref(a, block_ref, idx);
+    if (er > 0)
+      asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+  }
+}
+
+/** 收集块内全部 call 边。 */
+static void asm_wpo_collect_from_block(struct ast_ASTArena *a, int32_t block_ref, int32_t caller_id,
+                                       struct ast_Module *caller_mod, struct ast_PipelineDepCtx *ctx) {
+  struct ast_Block *b;
+  int32_t i;
+  int32_t er;
+  struct ast_LabeledStmt *ls;
+  if (!a || block_ref <= 0 || caller_id < 0)
+    return;
+  b = pipeline_arena_block_ptr(a, block_ref);
+  if (!b)
+    return;
+  /** num_stmt_order>0 时按源码序 walk（与 backend emit_block 一致）；否则回退 legacy 池扫描。 */
+  if (b->num_stmt_order > 0) {
+    for (i = 0; i < b->num_stmt_order; i++)
+      asm_wpo_collect_from_stmt_order_one(a, block_ref, caller_id, caller_mod, ctx, i);
+    /** stmt_order 与 expr_stmt 池偶发不同步；再扫 expr_stmt 兜底（WPO-S4 return warm_mid 漏边）。 */
+    for (i = 0; i < b->num_expr_stmts; i++) {
+      er = pipeline_block_expr_stmt_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    }
+  } else {
+    for (i = 0; i < b->num_consts; i++) {
+      er = pipeline_block_const_init_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    }
+    for (i = 0; i < b->num_lets; i++) {
+      er = pipeline_block_let_init_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    }
+    for (i = 0; i < b->num_loops; i++) {
+      er = pipeline_block_while_cond_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+      er = pipeline_block_while_body_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+    }
+    for (i = 0; i < b->num_for_loops; i++) {
+      er = pipeline_block_for_init_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+      er = pipeline_block_for_cond_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+      er = pipeline_block_for_step_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+      er = pipeline_block_for_body_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+    }
+    for (i = 0; i < b->num_if_stmts; i++) {
+      er = pipeline_block_if_cond_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+      er = pipeline_block_if_then_body_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+      er = pipeline_block_if_else_body_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_from_block(a, er, caller_id, caller_mod, ctx);
+    }
+    for (i = 0; i < b->num_expr_stmts; i++) {
+      er = pipeline_block_expr_stmt_ref(a, block_ref, i);
+      if (er > 0)
+        asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+    }
+  }
+  /** C parser return 进 labeled 池且不进 stmt_order；须单独扫。 */
+  for (i = 0; i < b->num_labeled_stmts; i++) {
+    ls = pipeline_block_labeled_ptr(a, block_ref, i);
+    if (!ls || ls->is_goto)
+      continue;
+    er = (int32_t)ls->return_expr_ref;
+    if (er > 0)
+      asm_wpo_collect_edges_from_expr(a, er, caller_id, caller_mod, ctx, 0);
+  }
+  if (b->final_expr_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, b->final_expr_ref, caller_id, caller_mod, ctx, 0);
+}
+
+/** 用户单文件 + SHU_WPO_PGO_HOT：非自举 compiler 模块（pgo_hot_smoke 等）。 */
+static int32_t asm_wpo_is_user_single_file_pgo_entry(void) {
+  if (!pipeline_elf_pgo_hot_enabled() || !g_asm_wpo.entry || g_asm_wpo.nmods != 1)
+    return 0;
+  if (asm_module_is_main_driver_selfhost(g_asm_wpo.entry))
+    return 0;
+  if (asm_module_is_pipeline_selfhost(g_asm_wpo.entry) || asm_module_is_typeck_selfhost(g_asm_wpo.entry) ||
+      asm_module_is_backend_selfhost(g_asm_wpo.entry) || asm_module_is_parser_selfhost(g_asm_wpo.entry))
+    return 0;
+  return 1;
+}
+
+/** 用户程序 main 的 WPO func id；未找到返回 -1。 */
+static int32_t asm_wpo_user_main_func_id(void) {
+  static const uint8_t main_nm[5] = {'m', 'a', 'i', 'n', 0};
+  int32_t nf;
+  int32_t fi;
+  int32_t id;
+  if (!g_asm_wpo.entry)
+    return -1;
+  nf = pipeline_module_num_funcs(g_asm_wpo.entry);
+  for (fi = 0; fi < nf; fi++) {
+    if (!pipeline_module_func_name_equal_at(g_asm_wpo.entry, fi, main_nm, 4))
+      continue;
+    id = asm_wpo_func_id_of(g_asm_wpo.entry, fi);
+    if (id >= 0)
+      return id;
+  }
+  return -1;
+}
+
+/** 扫描单函数体中的 call 边（caller_id 固定为图节点 id）。 */
+static void asm_wpo_scan_func_body_calls(struct ast_ASTArena *a, struct ast_Module *mod, int32_t func_fi,
+                                         int32_t caller_id, struct ast_PipelineDepCtx *ctx) {
+  struct ast_Func *f;
+  if (!a || !mod || caller_id < 0 || func_fi < 0)
+    return;
+  f = module_func_at(mod, func_fi);
+  if (!f)
+    return;
+  if (f->body_ref > 0)
+    asm_wpo_collect_from_block(a, f->body_ref, caller_id, mod, ctx);
+  else if (f->body_expr_ref > 0)
+    asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, caller_id, mod, ctx, 0);
+}
+
+/** BFS 前预收集全模块 call 边（避免 root 误指 #0 时漏扫 main 体）。 */
+static void asm_wpo_precollect_all_func_edges(void) {
+  int32_t fid;
+  int32_t mi;
+  struct ast_ASTArena *a;
+  for (fid = 0; fid < g_asm_wpo.nfuncs; fid++) {
+    mi = asm_wpo_mod_index(g_asm_wpo.func_mod[fid]);
+    a = (mi >= 0) ? g_asm_wpo.arenas[mi] : NULL;
+    asm_wpo_scan_func_body_calls(a, g_asm_wpo.func_mod[fid], g_asm_wpo.func_fi[fid], fid, g_asm_wpo.dep_ctx);
+  }
+}
+
+/**
+ * 用户 PGO：强制补 main 尾 return/expr_stmt 的直接 call 边；返回 callee func id 或 -1。
+ */
+static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry, struct ast_ASTArena *a) {
+  int32_t main_id;
+  int32_t main_fi;
+  struct ast_Func *f;
+  struct ast_Block *b;
+  int32_t er;
+  int32_t op;
+  int32_t cid;
+  int32_t ko;
+  if (!entry || !a)
+    return -1;
+  main_id = asm_wpo_user_main_func_id();
+  if (main_id < 0)
+    return -1;
+  main_fi = g_asm_wpo.func_fi[main_id];
+  f = module_func_at(entry, main_fi);
+  if (!f || f->body_ref <= 0)
+    return -1;
+  b = pipeline_arena_block_ptr(a, f->body_ref);
+  if (!b)
+    return -1;
+  er = 0;
+  if (b->num_expr_stmts > 0)
+    er = pipeline_block_expr_stmt_ref(a, f->body_ref, b->num_expr_stmts - 1);
+  if (er <= 0 && b->final_expr_ref > 0)
+    er = b->final_expr_ref;
+  if (er <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(a, er);
+  if (ko == (int32_t)ast_ExprKind_EXPR_RETURN) {
+    op = pipeline_expr_unary_operand_ref_at(a, er);
+    if (op <= 0)
+      return -1;
+    er = op;
+  }
+  if (pipeline_expr_kind_ord_at(a, er) != (int32_t)ast_ExprKind_EXPR_CALL)
+    return -1;
+  cid = asm_wpo_call_callee_id(a, er, entry, g_asm_wpo.dep_ctx);
+  if (cid >= 0)
+    asm_wpo_add_edge(main_id, cid);
+  return cid;
+}
+
+/** 用户 PGO：删除 main 上除 legit_to 外的误边（main 体误指 warm_mid 块时 main→hot_add）。 */
+static void asm_wpo_user_pgo_prune_main_edges(int32_t main_id, int32_t legit_to) {
+  int32_t ei;
+  if (main_id < 0 || legit_to < 0)
+    return;
+  ei = 0;
+  while (ei < g_asm_wpo.nedges) {
+    if (g_asm_wpo.edges[ei].from == main_id && g_asm_wpo.edges[ei].to != legit_to) {
+      g_asm_wpo.edges[ei] = g_asm_wpo.edges[g_asm_wpo.nedges - 1];
+      g_asm_wpo.nedges--;
+      continue;
+    }
+    ei++;
+  }
+}
+
+/**
+ * 在已有 reachable 集合上反复补边 + BFS 扩展（至多 16 轮）。
+ * SKIP_TYPECK 自举模块 call graph 首轮常不完整，须 fixpoint 才能保留编排链 callee。
+ */
+static void asm_wpo_reach_fixpoint_expand(void) {
+  int32_t queue[ASM_WPO_MAX_FUNCS];
+  int32_t qh;
+  int32_t qt;
+  int32_t pass;
+  int32_t fid;
+  int32_t expanded;
+  struct ast_Module *m;
+  struct ast_ASTArena *a;
+  struct ast_Func *f;
+  int32_t mi;
+  int32_t fi;
+  int32_t ei;
+  int32_t to;
+
+  for (pass = 0; pass < 16; pass++) {
+    expanded = 0;
+    for (fid = 0; fid < g_asm_wpo.nfuncs; fid++) {
+      if (!g_asm_wpo.reachable[(size_t)fid])
+        continue;
+      m = g_asm_wpo.func_mod[fid];
+      fi = g_asm_wpo.func_fi[fid];
+      mi = asm_wpo_mod_index(m);
+      a = (mi >= 0) ? g_asm_wpo.arenas[mi] : NULL;
+      f = module_func_at(m, fi);
+      if (!a || !f)
+        continue;
+      if (f->body_ref > 0)
+        asm_wpo_collect_from_block(a, f->body_ref, fid, m, g_asm_wpo.dep_ctx);
+      else if (f->body_expr_ref > 0)
+        asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, fid, m, g_asm_wpo.dep_ctx, 0);
+    }
+    qh = 0;
+    qt = 0;
+    for (fid = 0; fid < g_asm_wpo.nfuncs; fid++) {
+      if (g_asm_wpo.reachable[(size_t)fid] && qt < ASM_WPO_MAX_FUNCS)
+        queue[qt++] = fid;
+    }
+    while (qh < qt && qh < ASM_WPO_MAX_FUNCS) {
+      fid = queue[qh++];
+      for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
+        if (g_asm_wpo.edges[ei].from != fid)
+          continue;
+        to = g_asm_wpo.edges[ei].to;
+        if (to < 0 || to >= g_asm_wpo.nfuncs)
+          continue;
+        if (!g_asm_wpo.reachable[(size_t)to]) {
+          g_asm_wpo.reachable[(size_t)to] = 1;
+          expanded = 1;
+          if (qt < ASM_WPO_MAX_FUNCS)
+            queue[qt++] = to;
+        }
+      }
+    }
+    if (!expanded)
+      break;
+  }
+}
+
+/** 从 root 起 BFS 标记 reachable 并补全边（与 codegen WPO 同语义）。 */
+static void asm_wpo_build_reach(void) {
+  int32_t queue[ASM_WPO_MAX_FUNCS];
+  int32_t qh;
+  int32_t qt;
+  int32_t fid;
+  struct ast_Module *m;
+  struct ast_ASTArena *a;
+  struct ast_Func *f;
+  int32_t mi;
+  int32_t fi;
+  int32_t ei;
+  int32_t to;
+  int32_t user_pgo;
+  if (g_asm_wpo.root_id < 0 || g_asm_wpo.root_id >= g_asm_wpo.nfuncs)
+    return;
+  user_pgo = asm_wpo_is_user_single_file_pgo_entry();
+  /** 预收集全图边 + 用户 PGO 补 main→直接 callee 并修剪误边（warm_mid UND / hot_add 误 hot）。 */
+  asm_wpo_precollect_all_func_edges();
+  if (user_pgo && g_asm_wpo.entry && g_asm_wpo.nmods > 0) {
+    int32_t main_callee = asm_wpo_user_pgo_force_main_callee_edge(g_asm_wpo.entry, g_asm_wpo.arenas[0]);
+    int32_t main_id = asm_wpo_user_main_func_id();
+    if (main_id >= 0 && main_callee >= 0)
+      asm_wpo_user_pgo_prune_main_edges(main_id, main_callee);
+  }
+  qh = 0;
+  qt = 0;
+  g_asm_wpo.reachable[(size_t)g_asm_wpo.root_id] = 1;
+  queue[qt++] = g_asm_wpo.root_id;
+  while (qh < qt && qh < ASM_WPO_MAX_FUNCS) {
+    fid = queue[qh++];
+    m = g_asm_wpo.func_mod[fid];
+    fi = g_asm_wpo.func_fi[fid];
+    mi = asm_wpo_mod_index(m);
+    a = (mi >= 0) ? g_asm_wpo.arenas[mi] : NULL;
+    f = module_func_at(m, fi);
+    if (a && f) {
+      if (f->body_ref > 0)
+        asm_wpo_collect_from_block(a, f->body_ref, fid, m, g_asm_wpo.dep_ctx);
+      else if (f->body_expr_ref > 0)
+        asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, fid, m, g_asm_wpo.dep_ctx, 0);
+    }
+    for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
+      if (g_asm_wpo.edges[ei].from != fid)
+        continue;
+      to = g_asm_wpo.edges[ei].to;
+      if (to < 0 || to >= g_asm_wpo.nfuncs)
+        continue;
+      if (!g_asm_wpo.reachable[(size_t)to]) {
+        g_asm_wpo.reachable[(size_t)to] = 1;
+        if (qt < ASM_WPO_MAX_FUNCS)
+          queue[qt++] = to;
+      }
+    }
+  }
+  asm_wpo_reach_fixpoint_expand();
+}
+
+/** SHU_WPO_PGO_HOT=1 时：root 与其直接 callee 标记 hot（静态 call-depth 代理）。 */
+static void asm_wpo_mark_pgo_hot(void) {
+  int32_t root;
+  int32_t ei;
+  int32_t to;
+  int32_t nf;
+  int32_t fi;
+  int32_t mid;
+  static const uint8_t main_nm[5] = {'m', 'a', 'i', 'n', 0};
+  memset(g_asm_wpo_pgo_hot, 0, sizeof(g_asm_wpo_pgo_hot));
+  if (!pipeline_elf_pgo_hot_enabled())
+    return;
+  root = g_asm_wpo.root_id;
+  if (root < 0 || root >= g_asm_wpo.nfuncs)
+    return;
+  g_asm_wpo_pgo_hot[(size_t)root] = 1;
+  /** 用户 PGO：main + 其 return 直接 callee 进 .text.hot（勿用误扫的 main→hot_add 边）。 */
+  if (asm_wpo_is_user_single_file_pgo_entry()) {
+    int32_t main_id = asm_wpo_user_main_func_id();
+    int32_t main_callee;
+    if (main_id >= 0) {
+      g_asm_wpo_pgo_hot[(size_t)main_id] = 1;
+      if (g_asm_wpo.entry && g_asm_wpo.nmods > 0) {
+        main_callee = asm_wpo_user_pgo_force_main_callee_edge(g_asm_wpo.entry, g_asm_wpo.arenas[0]);
+        if (main_callee >= 0 && g_asm_wpo.reachable[(size_t)main_callee])
+          g_asm_wpo_pgo_hot[(size_t)main_callee] = 1;
+      }
+    }
+    return;
+  }
+  /** 用户程序：入口 main 须进 .text.hot（root 误指 #0 占位符时兜底，与 should_emit main 保留配套）。 */
+  if (g_asm_wpo.entry && !asm_module_is_main_driver_selfhost(g_asm_wpo.entry)) {
+    nf = pipeline_module_num_funcs(g_asm_wpo.entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (!pipeline_module_func_name_equal_at(g_asm_wpo.entry, fi, main_nm, 4))
+        continue;
+      mid = asm_wpo_func_id_of(g_asm_wpo.entry, fi);
+      if (mid >= 0)
+        g_asm_wpo_pgo_hot[(size_t)mid] = 1;
+    }
+  }
+  for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
+    if (g_asm_wpo.edges[ei].from != root)
+      continue;
+    to = g_asm_wpo.edges[ei].to;
+    if (to < 0 || to >= g_asm_wpo.nfuncs)
+      continue;
+    if (g_asm_wpo.reachable[(size_t)to])
+      g_asm_wpo_pgo_hot[(size_t)to] = 1;
+  }
+}
+
+/** PGO-Lite S2：自 root BFS 标记 call-depth（供 .text.hot / unlikely emit 排序）。 */
+static void asm_wpo_mark_pgo_depth_user_from_main(void) {
+  int32_t main_id;
+  int32_t queue[ASM_WPO_MAX_FUNCS];
+  int32_t qh;
+  int32_t qt;
+  int32_t fid;
+  int32_t ei;
+  int32_t to;
+  int32_t nd;
+  main_id = asm_wpo_user_main_func_id();
+  if (main_id < 0 || main_id >= g_asm_wpo.nfuncs)
+    return;
+  memset(g_asm_wpo_pgo_depth, 0xff, sizeof(g_asm_wpo_pgo_depth));
+  g_asm_wpo_pgo_depth[(size_t)main_id] = 0;
+  qh = 0;
+  qt = 1;
+  queue[0] = main_id;
+  while (qh < qt && qh < ASM_WPO_MAX_FUNCS) {
+    fid = queue[qh++];
+    nd = g_asm_wpo_pgo_depth[(size_t)fid];
+    if (nd < 0)
+      continue;
+    for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
+      if (g_asm_wpo.edges[ei].from != fid)
+        continue;
+      to = g_asm_wpo.edges[ei].to;
+      if (to < 0 || to >= g_asm_wpo.nfuncs)
+        continue;
+      if (!g_asm_wpo.reachable[(size_t)to])
+        continue;
+      if (g_asm_wpo_pgo_depth[(size_t)to] >= 0)
+        continue;
+      g_asm_wpo_pgo_depth[(size_t)to] = nd + 1;
+      if (qt < ASM_WPO_MAX_FUNCS)
+        queue[qt++] = to;
+    }
+  }
+}
+
+/** PGO-Lite S2：自 root BFS 标记 call-depth（供 .text.hot / unlikely emit 排序）。 */
+static void asm_wpo_mark_pgo_depth(void) {
+  int32_t root;
+  int32_t queue[ASM_WPO_MAX_FUNCS];
+  int32_t qh;
+  int32_t qt;
+  int32_t fid;
+  int32_t ei;
+  int32_t to;
+  int32_t nd;
+  memset(g_asm_wpo_pgo_depth, 0xff, sizeof(g_asm_wpo_pgo_depth));
+  if (!pipeline_elf_pgo_hot_enabled() || !g_asm_wpo.valid)
+    return;
+  /** 用户 PGO 单文件：depth 恒以 main 为根（勿用误 root 导致 warm_mid depth0 先于 main emit）。 */
+  if (asm_wpo_is_user_single_file_pgo_entry()) {
+    asm_wpo_mark_pgo_depth_user_from_main();
+    return;
+  }
+  root = g_asm_wpo.root_id;
+  if (root < 0 || root >= g_asm_wpo.nfuncs)
+    return;
+  g_asm_wpo_pgo_depth[(size_t)root] = 0;
+  qh = 0;
+  qt = 1;
+  queue[0] = root;
+  while (qh < qt && qh < ASM_WPO_MAX_FUNCS) {
+    fid = queue[qh++];
+    nd = g_asm_wpo_pgo_depth[(size_t)fid];
+    if (nd < 0)
+      continue;
+    for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
+      if (g_asm_wpo.edges[ei].from != fid)
+        continue;
+      to = g_asm_wpo.edges[ei].to;
+      if (to < 0 || to >= g_asm_wpo.nfuncs)
+        continue;
+      if (!g_asm_wpo.reachable[(size_t)to])
+        continue;
+      if (g_asm_wpo_pgo_depth[(size_t)to] >= 0)
+        continue;
+      g_asm_wpo_pgo_depth[(size_t)to] = nd + 1;
+      if (qt < ASM_WPO_MAX_FUNCS)
+        queue[qt++] = to;
+    }
+  }
+}
+
+/** 取 (module, fi) 的 PGO call-depth；未知/不可达返回 9999。 */
+static int32_t asm_wpo_pgo_depth_of(struct ast_Module *m, int32_t fi) {
+  int32_t id;
+  int32_t d;
+  if (!m || fi < 0)
+    return 9999;
+  id = asm_wpo_func_id_of(m, fi);
+  if (id < 0)
+    return 9999;
+  d = g_asm_wpo_pgo_depth[(size_t)id];
+  if (d < 0)
+    return 9999;
+  return d;
+}
+
+/** 读 SHU_ASM_WPO_DCE：未设或非 "0" 时启用 asm WPO DCE；设为 0 时关闭（A/B __text bench）。
+ * SHU_WPO_NO_FOLD=1 时亦关闭：对照 bench 须保留 lane0/scale 等 callee 定义，避免 reach 漏边导致 UNDEF。 */
+static int32_t asm_wpo_dce_env_enabled(void) {
+  if (getenv("SHU_WPO_NO_FOLD"))
+    return 0;
+  const char *e = getenv("SHU_ASM_WPO_DCE");
+  if (!e || e[0] == '\0')
+    return 1;
+  if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))
+    return 0;
+  return 1;
+}
+
+/** 在 asm_codegen_elf_o 入口：登记 entry+deps 全部函数并构建 WPO reach。 */
+void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast_ASTArena *entry_arena,
+                                            struct ast_PipelineDepCtx *ctx) {
+  int32_t ndep;
+  int32_t j;
+  struct ast_Module *dm;
+  struct ast_ASTArena *da;
+  int32_t mi;
+  int32_t nf;
+  int32_t fi;
+  int32_t main_ix;
+  uint8_t main_nm[5] = {'m', 'a', 'i', 'n', 0};
+  pipeline_asm_wpo_reach_clear();
+  if (!entry || !entry_arena)
+    return;
+  /** A/B bench：SHU_ASM_WPO_DCE=0 时不构图，emit 全量函数。 */
+  if (!asm_wpo_dce_env_enabled())
+    return;
+  /**
+   * build_shu_asm EMIT_HEAVY 第二遍：全 compiler 自举模块均可 WPO（root 按模块名设置）。
+   * pipeline/typeck/backend 分别以 run_su_pipeline_impl / typeck_su_ast / asm_codegen_ast 为 root。
+   */
+  g_asm_wpo.entry = entry;
+  g_asm_wpo.dep_ctx = ctx;
+  if (asm_wpo_register_mod(entry, entry_arena) < 0)
+    return;
+  if (ctx) {
+    ndep = pipeline_dep_ctx_ndep(ctx);
+    for (j = 0; j < ndep; j++) {
+      dm = pipeline_dep_ctx_module_at(ctx, j);
+      da = pipeline_dep_ctx_arena_at(ctx, j);
+      if (!dm || !da || dm == entry)
+        continue;
+      (void)asm_wpo_register_mod(dm, da);
+    }
+  }
+  for (mi = 0; mi < g_asm_wpo.nmods; mi++) {
+    nf = pipeline_module_num_funcs(g_asm_wpo.mods[mi]);
+    for (fi = 0; fi < nf; fi++)
+      (void)asm_wpo_register_func(g_asm_wpo.mods[mi], fi);
+  }
+  /** driver main.su 可执行入口为 entry；须优先于 main_func_index（常误指 #0 占位符 → 32B 错杀 entry）。 */
+  {
+    static const uint8_t entry_nm[6] = {'e', 'n', 't', 'r', 'y', 0};
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, entry_nm, 5)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+  }
+  /** 用户程序 root 为 main；须先于 main_func_index（首函数 mk/占位常误设 #0）。 */
+  if (g_asm_wpo.root_id < 0) {
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, main_nm, 4)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+  }
+  /** pipeline.su 编排根：run_su_pipeline_impl（优于 main_func_index #0 占位符）。 */
+  if (g_asm_wpo.root_id < 0 && asm_module_is_pipeline_selfhost(entry)) {
+    static const uint8_t pipe_impl_nm[21] = {'r', 'u', 'n', '_', 's', 'u', '_', 'p', 'i', 'p', 'e', 'l', 'i', 'n', 'e', '_', 'i', 'm', 'p', 'l', 0};
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, pipe_impl_nm, 20)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+  }
+  /** typeck.su 编排根：typeck_su_ast（S2 gate + pipeline typecheck 入口）。 */
+  if (g_asm_wpo.root_id < 0 && asm_module_is_typeck_selfhost(entry)) {
+    static uint8_t typeck_root_nm[14] = {'t', 'y', 'p', 'e', 'c', 'k', '_', 's', 'u', '_', 'a', 's', 't', 0};
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, typeck_root_nm, 13)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+  }
+  /** backend.su 编排根：asm_codegen_ast（pipeline codegen 入口；mega 仍 EMIT_HEAVY 桩）。 */
+  if (g_asm_wpo.root_id < 0 && asm_module_is_backend_selfhost(entry)) {
+    static uint8_t backend_root_nm[16] = {'a', 's', 'm', '_', 'c', 'o', 'd', 'e', 'g', 'e', 'n', '_', 'a', 's', 't', 0};
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, backend_root_nm, 15)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+  }
+  main_ix = pipeline_module_main_func_index(entry);
+  /** main_func_index 仅当其确实指向名为 main 的函数时作 fallback（勿用 #0 误根）。 */
+  if (g_asm_wpo.root_id < 0 && main_ix >= 0 &&
+      pipeline_module_func_name_equal_at(entry, main_ix, main_nm, 4))
+    g_asm_wpo.root_id = asm_wpo_func_id_of(entry, main_ix);
+  if (g_asm_wpo.root_id < 0 || g_asm_wpo.nfuncs <= 0)
+    return;
+  /** 用户 PGO 单文件：root 强制 main（#0/hot_add 占位符误根会导致 warm_mid UND）。 */
+  if (asm_wpo_is_user_single_file_pgo_entry()) {
+    int32_t user_main = asm_wpo_user_main_func_id();
+    if (user_main >= 0)
+      g_asm_wpo.root_id = user_main;
+  }
+  asm_wpo_build_reach();
+  g_asm_wpo.valid = 1;
+  asm_wpo_mark_pgo_hot();
+  asm_wpo_mark_pgo_depth();
+}
+
+/** 前向声明：emit 顺序构建须过滤 WPO dead export。 */
+int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi);
+
+/**
+ * 为 module 构建 emit 顺序表：WPO 过滤后按 call-depth 升序（同 depth 按 func_index）。
+ * asm_codegen_ast_to_elf 每 Module 入口调用一次。
+ */
+void pipeline_asm_wpo_pgo_emit_order_prepare(struct ast_Module *m) {
+  int32_t nf;
+  int32_t fi;
+  int32_t n;
+  int32_t a;
+  int32_t b;
+  int32_t tmp;
+  int32_t da;
+  int32_t db;
+  if (!m) {
+    g_asm_wpo_pgo_emit_mod = NULL;
+    g_asm_wpo_pgo_emit_n = 0;
+    return;
+  }
+  g_asm_wpo_pgo_emit_mod = m;
+  n = 0;
+  nf = pipeline_module_num_funcs(m);
+  fi = 0;
+  while (fi < nf) {
+    if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 && pipeline_asm_wpo_should_emit_func(m, fi) != 0) {
+      if (n < ASM_WPO_MAX_FUNCS)
+        g_asm_wpo_pgo_emit_order[n] = fi;
+      n = n + 1;
+    }
+    fi = fi + 1;
+  }
+  if (pipeline_elf_pgo_hot_enabled() && g_asm_wpo.valid) {
+    a = 0;
+    while (a < n) {
+      b = a + 1;
+      while (b < n) {
+        da = asm_wpo_pgo_depth_of(m, g_asm_wpo_pgo_emit_order[a]);
+        db = asm_wpo_pgo_depth_of(m, g_asm_wpo_pgo_emit_order[b]);
+        if (da > db || (da == db && g_asm_wpo_pgo_emit_order[a] > g_asm_wpo_pgo_emit_order[b])) {
+          tmp = g_asm_wpo_pgo_emit_order[a];
+          g_asm_wpo_pgo_emit_order[a] = g_asm_wpo_pgo_emit_order[b];
+          g_asm_wpo_pgo_emit_order[b] = tmp;
+        }
+        b = b + 1;
+      }
+      a = a + 1;
+    }
+  }
+  g_asm_wpo_pgo_emit_n = n;
+}
+
+/** 返回 module 待 emit 函数个数（须先 prepare 或 lazy prepare）。 */
+int32_t pipeline_asm_wpo_pgo_emit_order_count(struct ast_Module *m) {
+  if (m != g_asm_wpo_pgo_emit_mod)
+    pipeline_asm_wpo_pgo_emit_order_prepare(m);
+  return g_asm_wpo_pgo_emit_n;
+}
+
+/** 第 order_index 个待 emit 函数的 func_index；越界返回 -1。 */
+int32_t pipeline_asm_wpo_pgo_emit_order_at(struct ast_Module *m, int32_t order_index) {
+  if (m != g_asm_wpo_pgo_emit_mod)
+    pipeline_asm_wpo_pgo_emit_order_prepare(m);
+  if (order_index < 0 || order_index >= g_asm_wpo_pgo_emit_n)
+    return -1;
+  return g_asm_wpo_pgo_emit_order[order_index];
+}
+
+/**
+ * PGO-Lite emit 查询：1=写入 .text.hot，0=写入 .text；未启用 SHU_WPO_PGO_HOT 时恒 0。
+ */
+int32_t pipeline_asm_wpo_pgo_is_hot_func(struct ast_Module *m, int32_t fi) {
+  int32_t id;
+  if (!pipeline_elf_pgo_hot_enabled())
+    return 0;
+  if (!g_asm_wpo.valid)
+    return 1;
+  id = asm_wpo_func_id_of(m, fi);
+  if (id < 0)
+    return 0;
+  return g_asm_wpo_pgo_hot[(size_t)id] ? 1 : 0;
+}
+
+/** pipeline.su WPO：strict 编排链 export 须保留（SKIP_TYPECK 时 call graph 兜底）。 */
+static int32_t asm_wpo_pipeline_strict_preserve_emit(struct ast_Module *m, int32_t fi) {
+  if (!m || fi < 0 || !asm_module_is_pipeline_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_impl", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_parse_entry_if_needed", 37))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_parse_entry_do_parse", 36))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_typecheck_entry", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_codegen_deps", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_codegen_entry", 29))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_su_pipeline_codegen_one_dep", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_typeck_entry_module", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_typeck_parsed_module", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"resolve_path_su", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_should_skip_su_typeck", 30))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"read_file_su", 12))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_load_and_sync_direct_import_deps", 41))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_parse_into_buf", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_parse_set_main_from_buf", 32))
+    return 1;
+  return 0;
+}
+
+/**
+ * asm emit 前查询：1=应发射，0= WPO dead export 跳过；未启用 WPO 或 extern 保守保留。
+ */
+int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
+  struct ast_Func *f;
+  int32_t id;
+  if (!g_asm_wpo.valid)
+    return 1;
+  f = module_func_at(m, fi);
+  if (!f || f->is_extern)
+    return 1;
+  /** 入口模块的 entry 符号须保留（CLI / crt0 / bridge 链）。 */
+  if (m == g_asm_wpo.entry && pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"entry", 5))
+    return 1;
+  /** 用户程序须 export main（WPO root 误指 #0/mk 时兜底，与 root 按名 main 优先配套）。 */
+  if (m == g_asm_wpo.entry && !asm_module_is_main_driver_selfhost(m) &&
+      pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"main", 4))
+    return 1;
+  /**
+   * build_asm/main.o 生产链：WPO 启用时仅 export entry（~512B 内），
+   * 其余 driver helper 由 runtime_driver / driver_*_su.o 提供。
+   */
+  if (m == g_asm_wpo.entry && asm_module_is_main_driver_selfhost(m))
+    return 0;
+  /**
+   * build_asm/driver_compile.o WPO 压缩：仅保留 WPO reach 内 export（~145B，常为 compile_dispatch_asm_backend）；
+   * parse_argv / run_compiler_full_su 由 driver_compile_emit_heavy.o + link.o 提供。
+   */
+  if (m == g_asm_wpo.entry && asm_module_is_driver_compile_selfhost(m))
+    return 0;
+  /**
+   * pipeline.su WPO：gate/strict 关键 export 须保留；其余走 reach DCE（勿 blanket return 0）。
+   */
+  if (asm_wpo_pipeline_strict_preserve_emit(m, fi))
+    return 1;
+  if (m == g_asm_wpo.entry && asm_module_is_pipeline_selfhost(m)) {
+    /* 遗留显式名单已由 asm_wpo_pipeline_strict_preserve_emit 覆盖；保留 reach 路径。 */
+  }
+  /**
+   * typeck.su WPO：S2 gate 关键 export + pipeline merge 须保留；其余走 reach DCE。
+   */
+  if (m == g_asm_wpo.entry && asm_module_is_typeck_selfhost(m)) {
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_su_ast", 13))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_su_ast_library", 21))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"check_block", 11))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"check_expr", 10))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_merge_dep_struct_layouts_into_entry", 42))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_wpo_unify_soa_layouts", 28))
+      return 1;
+  }
+  /**
+   * backend.su WPO：codegen 入口 export 须保留；其余走 reach DCE（M8-tail 薄包装 bl→C）。
+   */
+  if (m == g_asm_wpo.entry && asm_module_is_backend_selfhost(m)) {
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"asm_codegen_ast", 15))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"asm_codegen_ast_to_elf", 22))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"emit_expr_elf", 13))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"emit_block_body_elf", 19))
+      return 1;
+  }
+  id = asm_wpo_func_id_of(m, fi);
+  if (id < 0)
+    return 1;
+  return g_asm_wpo.reachable[(size_t)id] ? 1 : 0;
+}
+
+/** bootstrap 链接 glue：pipeline 编排 / asm scope / typeck 指针写槽（误 revert 后补全）。 */
+#include "ast_pool_bootstrap_glue.c"

@@ -19,6 +19,11 @@
 #define HAVE_MEMMEM 1
 #endif
 
+/** 返回 ptr + off；off 可为 0 或正，供 StrView 子视图与 arena concat 偏移写入。 */
+const uint8_t *shulang_string_ptr_at_c(const uint8_t *ptr, int32_t off) {
+  return ptr + (size_t)off;
+}
+
 /** 与 memcmp 一致：<0 / 0 / >0；.su 侧 i32。链接时可用 -flto 内联。 */
 int32_t shulang_string_memcmp_c(const uint8_t *a, const uint8_t *b, int32_t n) {
   if (n <= 0) return 0;

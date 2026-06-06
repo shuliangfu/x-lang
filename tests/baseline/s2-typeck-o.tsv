@@ -1,0 +1,9 @@
+# S2 typeck.o：build_asm/typeck.su 的 asm 产物 baseline
+# 更新 build_asm 下限：SHU_S2_UPDATE_BASELINE=1 ./tests/run-s2-typeck-gate.sh
+# 同步 build_asm/typeck.o：./tests/run-s2-typeck-sync-build-o.sh
+# typeck_patch_all_body_parent_links + loop_depth push/pop SU（2026-06-02）
+min_text_bytes	68264
+# EMIT_HEAVY 真 emit 函数数；S2 mega 桩 + 子 helper SU（2026-06-02）
+min_real_funcs	133
+# build_shu_asm asm_strict_typeck_selfhosted 阈值
+min_text_emit_heavy	8192

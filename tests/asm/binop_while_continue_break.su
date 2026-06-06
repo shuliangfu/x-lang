@@ -1,0 +1,15 @@
+// 7.3：continue 跳过 a+=1，随后 break；return a+b → 6（cfg-merge）。
+function main(): i32 {
+  let a: i32 = 0;
+  let b: i32 = 2;
+  while (a < 5) {
+    if (a == 2) {
+      continue;
+    }
+    if (a == 4) {
+      break;
+    }
+    a += 1;
+  }
+  return a + b;
+}

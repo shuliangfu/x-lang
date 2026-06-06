@@ -71,6 +71,16 @@
   // 编辑器是否显示 CodeLens 行（函数上方的灰色小字、▶ Run 等）
   "editor.codeLens": true,
 
+
+  // --- clangd（C 前端 .c 语义分析；与 Microsoft C/C++ 扩展二选一）---
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "C_Cpp.errorSquiggles": "disabled",
+  "clangd.arguments": [
+    "--background-index",
+    "--clang-tidy=false"
+  ],
+  "clangd.checkUpdates": false,
+
   // --- .su 文件专用编辑器行为 ---
   "[su]": {
     // 默认格式化器：Shulang 扩展

@@ -12,6 +12,11 @@
 import codegen;
 import platform.elf;
 
+/** sidecar reloc glue（定义在 ast_pool.c）。 */
+extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
 function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
@@ -129,19 +134,22 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     let rel: [10]u8 = [];
     let sym_idx: i32 = 0;
     let m: i32 = 0;
+    let r_sym_buf: [64]u8 = [];
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, r, &r_sym_buf[0]);
     while (m < num_syms) {
       /** COFF 符号索引解析须用 reloc_sym_names（与 elf_add_reloc 写入一致）。 */
-      if (platform.elf.elf_name_eq_arr_to_pool(ctx.reloc_sym_names[r], ctx.relocs[r].name_len,
+      if (platform.elf.elf_name_eq_arr_to_pool(r_sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
       platform.elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = 2 + m;
         break;
       }
       m = m + 1;
     }
-    rel[0] = platform.elf.elf_to_u8(ctx.relocs[r].offset);
-    rel[1] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 8);
-    rel[2] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 16);
-    rel[3] = platform.elf.elf_to_u8(ctx.relocs[r].offset >> 24);
+    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, r);
+    rel[0] = platform.elf.elf_to_u8(roff);
+    rel[1] = platform.elf.elf_to_u8(roff >> 8);
+    rel[2] = platform.elf.elf_to_u8(roff >> 16);
+    rel[3] = platform.elf.elf_to_u8(roff >> 24);
     rel[4] = platform.elf.elf_to_u8(sym_idx);
     rel[5] = platform.elf.elf_to_u8(sym_idx >> 8);
     rel[6] = platform.elf.elf_to_u8(sym_idx >> 16);

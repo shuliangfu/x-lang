@@ -93,6 +93,50 @@ void heap_copy_u8_at_c(uint8_t *dst, int32_t dst_offset, const uint8_t *src, int
   memcpy(dst + dst_offset, src, (size_t)count);
 }
 
+/** 分配 count 个 float，未初始化；失败返回 NULL。DOD-S2：std.vec SoA 列存储。 */
+float *heap_alloc_f32_c(int32_t count) {
+  if (count <= 0) return NULL;
+  return (float *)malloc((size_t)count * sizeof(float));
+}
+
+/** 将 ptr 调整为 new_count 个 float；失败返回 NULL 且原 ptr 未释放。 */
+float *heap_realloc_f32_c(float *ptr, int32_t new_count) {
+  if (new_count <= 0) {
+    if (ptr) free(ptr);
+    return NULL;
+  }
+  return (float *)realloc(ptr, (size_t)new_count * sizeof(float));
+}
+
+/** 释放由 heap_alloc_f32_c / heap_realloc_f32_c 分配的 ptr；ptr 可为 NULL。 */
+void heap_free_f32_c(float *ptr) {
+  if (ptr) free(ptr);
+}
+
+/** 块拷贝 f32：dst[dst_offset..] = src[0..count-1]；count<=0 不写。 */
+void heap_copy_f32_at_c(float *dst, int32_t dst_offset, const float *src, int32_t count) {
+  if (count <= 0) return;
+  memcpy(dst + dst_offset, src, (size_t)count * sizeof(float));
+}
+
+/**
+ * std.heap/mod.su 薄包装符号（asm 路径跳过 std.heap dep emit 时由 heap.o 解析）。
+ * 与 pipeline_asm_redirect_std_c_wrapper_sym 中 alloc_f32→heap_alloc_f32_c 双轨，保证 ld 可链。
+ */
+float *alloc_f32(int32_t count) {
+  return heap_alloc_f32_c(count);
+}
+
+/** 见 alloc_f32。 */
+float *realloc_f32(float *ptr, int32_t new_count) {
+  return heap_realloc_f32_c(ptr, new_count);
+}
+
+/** 见 alloc_f32。 */
+void free_f32(float *ptr) {
+  heap_free_f32_c(ptr);
+}
+
 /** std.map 查找快路径：在 keys/occupied 中线性探测找 key；存在返回下标，否则 -1。与 .su map_i32_i32_slot 一致。 */
 static inline int32_t map_slot(int32_t key, int32_t cap) {
   int32_t h = key % cap;
@@ -130,4 +174,87 @@ int32_t heap_mem_compare_c(const uint8_t *a, const uint8_t *b, int32_t n) {
   if (r < 0) return -1;
   if (r > 0) return 1;
   return 0;
+}
+
+/** DOD-CL-S2 默认 arena chunk 字节数（须为 64 倍数）。 */
+#define HEAP_ARENA64_DEFAULT_CAP 4096u
+
+/**
+ * DOD-CL-S2：posix_memalign 分配；align 须为 2 的幂且 ≥ sizeof(void*)。
+ * 失败返回 NULL。
+ */
+void *heap_alloc_aligned_c(size_t align, size_t size) {
+  void *p = NULL;
+  if (size == 0)
+    return NULL;
+  if (align < sizeof(void *))
+    align = sizeof(void *);
+  if (posix_memalign(&p, align, size) != 0)
+    return NULL;
+  return p;
+}
+
+/** 返回 (uintptr_t)ptr % mod；供 smoke 验证指针对齐。mod<=0 时返回 0。 */
+uintptr_t heap_ptr_mod_c(void *ptr, uintptr_t mod) {
+  if (!ptr || mod == 0)
+    return 0;
+  return (uintptr_t)ptr % mod;
+}
+
+/** DOD-CL-S2 bump arena 状态（chunk 由 heap_alloc_aligned_c(64, cap) 分配）。 */
+typedef struct {
+  uint8_t *chunk;
+  size_t cap;
+  size_t off;
+} heap_arena64_t;
+
+/** 初始化 arena：cap==0 时用 HEAP_ARENA64_DEFAULT_CAP；失败返回 -1。 */
+int32_t heap_arena64_init_c(heap_arena64_t *a, size_t cap) {
+  if (!a)
+    return -1;
+  a->chunk = NULL;
+  a->cap = 0;
+  a->off = 0;
+  if (cap == 0)
+    cap = HEAP_ARENA64_DEFAULT_CAP;
+  a->chunk = (uint8_t *)heap_alloc_aligned_c(64, cap);
+  if (!a->chunk)
+    return -1;
+  a->cap = cap;
+  return 0;
+}
+
+/**
+ * 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）。
+ * 空间不足返回 NULL。
+ */
+void *heap_arena64_alloc_c(heap_arena64_t *a, size_t size, size_t align) {
+  size_t cur;
+  size_t rem;
+  size_t gap;
+  size_t next;
+  void *p;
+  if (!a || !a->chunk || size == 0)
+    return NULL;
+  if (align == 0)
+    align = 8;
+  cur = a->off;
+  rem = cur % align;
+  gap = rem ? (align - rem) : 0;
+  next = cur + gap + size;
+  if (next > a->cap)
+    return NULL;
+  p = a->chunk + cur + gap;
+  a->off = next;
+  return p;
+}
+
+/** 释放 arena chunk 并重置状态。 */
+void heap_arena64_deinit_c(heap_arena64_t *a) {
+  if (!a)
+    return;
+  heap_free_c(a->chunk);
+  a->chunk = NULL;
+  a->cap = 0;
+  a->off = 0;
 }

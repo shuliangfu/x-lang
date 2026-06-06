@@ -1,0 +1,10 @@
+// 7.3：块内 (i-j+k)*lit 后 (i-j)*lit 前缀栈复用（run-asm-assign-index-block.sh）。
+function main(): i32 {
+  let arr: [8]i32 = [10, 20, 30, 40, 50, 60, 70, 80];
+  let i: i32 = 2;
+  let j: i32 = 1;
+  let k: i32 = 0;
+  arr[(i - j + k) * 2] = 11;
+  arr[(i - j) * 3] = 22;
+  return arr[2] + arr[3];
+}

@@ -13,15 +13,25 @@ rm -f "$OUT" "${OUT}.bin"
 $SHU tests/return-value/main.su -o "$OUT" 2>&1
 BIN="$OUT"
 ft=$(file -b "$OUT" 2>/dev/null || true)
+# 无 file(1) 时勿把已链接 ELF 当 C 源；读魔数 0x7F 'E' 'L' 'F'。
+is_elf=0
+if [ -f "$OUT" ]; then
+  magic=$(dd if="$OUT" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
+  [ "$magic" = "7f454c46" ] && is_elf=1
+fi
 case "$ft" in
   *Mach-O*|*ELF*|*PE32*)
     ;;
   *)
+    if [ "$is_elf" -eq 1 ]; then
+      :
+    else
     # 无 .c 后缀时须 -x c，否则 clang 会把输入当链接目标而非 C 源（报 ld: unknown file type）。
     cc -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT" 2>/dev/null \
       || gcc -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT" 2>/dev/null \
       || clang -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT"
     BIN="${OUT}.bin"
+    fi
     ;;
 esac
 # 运行生成的可执行文件并捕获退出码（set -e 下非零会退出，故用 || 保存到变量）

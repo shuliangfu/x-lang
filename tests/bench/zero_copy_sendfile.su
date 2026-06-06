@@ -1,0 +1,66 @@
+// zero_copy_sendfile.su — Z1：fs_sendfile 文件→socket 零拷贝吞吐（与 run-perf-io.sh 配套）
+// 走 std.fs / std.net 薄包装（P0：connect_blocking + fs_sendfile_c）；含 import 时 driver 走 C codegen+链 fs.o/net.o。
+// 输入 tests/bench/.io_mmap_bench_tmp（默认 16MiB）；sink 端口 argv[1] 或默认 38459（与 C bench 一致）。
+import std.fs;
+import std.net;
+import std.process;
+
+/** 解析十进制 u32 端口（NUL 结尾 ASCII）；非法字符返回 default_port。 */
+function bench_parse_port(s: *u8, default_port: u32): u32 {
+  if (s == 0 as *u8) { return default_port; }
+  let n: u32 = 0;
+  let i: i32 = 0;
+  while (true) {
+    let c: u8 = s[i];
+    if (c == 0) { break; }
+    if (c < 48 || c > 57) { return default_port; }
+    n = n * 10 + ((c - 48) as u32);
+    i = i + 1;
+  }
+  if (i <= 0) { return default_port; }
+  return n;
+}
+
+function main(): i32 {
+  /** 路径 "tests/bench/.io_mmap_bench_tmp"（NUL 结尾）。 */
+  let path: [31]u8 =
+  [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
+  98, 101, 110, 99, 104, 95,
+  116, 109, 112, 0];
+  /** 与 zero_copy_sendfile_sink.c / run-perf-io.sh 一致；run-perf 传 argv[1] 动态端口。 */
+  let sink_port: u32 = 38459;
+  if (args_count() >= 2) {
+    sink_port = bench_parse_port(arg(1), sink_port);
+  }
+  /** 与 SHU_IO_BENCH_MB 默认 16 对应（16777216）；脚本按 BENCH_MB sed 替换。 */
+  let bench_bytes: usize = 16777216;
+  let chunk: usize = 1048576;
+  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let file_fd: i32 = fs_open_read(&path[0]);
+  if (file_fd < 0) { return 1; }
+  /** timeout=0：阻塞 connect，与 C bench 对齐 bulk 快路径。 */
+  let stream: TcpStream = connect_blocking(addr, sink_port, 0);
+  if (stream.fd < 0) {
+    fs_close(file_fd);
+    return 2;
+  }
+  let sent: usize = 0;
+  while (sent < bench_bytes) {
+    let left: usize = bench_bytes - sent;
+    let ask: usize = chunk;
+    if (left < ask) { ask = left; }
+    let n: i64 = fs_sendfile(stream.fd, file_fd, ask);
+    if (n <= 0) {
+      close_stream(stream);
+      fs_close(file_fd);
+      return 3;
+    }
+    sent = sent + (n as usize);
+  }
+  if (close_stream(stream) != 0) {
+    fs_close(file_fd);
+    return 4;
+  }
+  if (fs_close(file_fd) != 0) { return 5; }
+  return (sent as i32) & 255;
+}

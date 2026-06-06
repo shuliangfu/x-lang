@@ -138,6 +138,37 @@ static int is_ident_str(Parser *p, const char *str, size_t len) {
 }
 
 /**
+ * 结构体字段名 / 字面量字段名：允许 soa、packed 等关键字在 { } 内作字段名
+ * （与 `struct Name soa { }` 修饰符区分上下文）。
+ * 成功返回 strdup 名并消费 token；失败返回 NULL。
+ */
+static char *parser_struct_field_name_dup(Parser *p) {
+    const Token *t = peek(p);
+    const char *lit = NULL;
+    size_t lit_len = 0;
+    if (t->kind == TOKEN_IDENT && t->value.ident && t->ident_len > 0) {
+        char *n = strndup(t->value.ident, (size_t)t->ident_len);
+        if (n)
+            advance(p);
+        return n;
+    }
+    if (t->kind == TOKEN_SOA) {
+        lit = "soa";
+        lit_len = 3;
+    } else if (t->kind == TOKEN_PACKED) {
+        lit = "packed";
+        lit_len = 6;
+    }
+    if (lit) {
+        char *n = strndup(lit, lit_len);
+        if (n)
+            advance(p);
+        return n;
+    }
+    return NULL;
+}
+
+/**
  * 向 stderr 输出 "parse error at line:col: msg" 并返回 -1；用于统一错误处理。
  * LSP 模式（lsp_diag_enabled）下改为写入诊断收集器，不写 stderr。
  */
@@ -249,6 +280,186 @@ static ASTExpr *parse_term(Parser *p);
 static ASTExpr *parse_cast(Parser *p);
 static ASTExpr *parse_postfix(Parser *p);
 static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace);
+static ASTExpr *parse_at_simd_builtin(Parser *p);
+
+/**
+ * 构造 EXPR_VAR 标识符节点（供 @shuffle/@select desugar 为 simd_* CALL）。
+ */
+static ASTExpr *parse_new_var_expr(const char *name, int line, int col) {
+  ASTExpr *e;
+  if (!name)
+    return NULL;
+  e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+  if (!e) {
+    fprintf(stderr, "parse: out of memory\n");
+    return NULL;
+  }
+  set_expr_loc_at(e, line, col);
+  e->kind = AST_EXPR_VAR;
+  e->value.var.name = strdup(name);
+  if (!e->value.var.name) {
+    free(e);
+    fprintf(stderr, "parse: out of memory\n");
+    return NULL;
+  }
+  return e;
+}
+
+/**
+ * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select（SIMD-S4 语法糖）。
+ */
+static ASTExpr *parse_at_simd_builtin(Parser *p) {
+  int line;
+  int col;
+  const char *callee;
+  int need_args;
+  ASTExpr **args;
+  int num_args;
+  int cap;
+  ASTExpr *call;
+  char *bname;
+
+  if (!peek(p) || peek(p)->kind != TOKEN_AT)
+    return NULL;
+  line = peek(p)->line;
+  col = peek(p)->col;
+  advance(p);
+  if (peek(p)->kind != TOKEN_IDENT) {
+    fail(p, "expected identifier after '@'");
+    return NULL;
+  }
+  bname = peek(p)->ident_len > 0 && peek(p)->value.ident
+              ? strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len)
+              : NULL;
+  advance(p);
+  if (!bname) {
+    fail(p, "invalid @ builtin name");
+    return NULL;
+  }
+  callee = NULL;
+  need_args = 0;
+  if (strcmp(bname, "shuffle") == 0) {
+    callee = "simd_shuffle";
+    need_args = 2;
+  } else if (strcmp(bname, "select") == 0) {
+    callee = "simd_select";
+    need_args = 3;
+  } else {
+    free(bname);
+    fail(p, "unknown @ builtin (expected shuffle or select)");
+    return NULL;
+  }
+  free(bname);
+  if (peek(p)->kind != TOKEN_LPAREN) {
+    fail(p, "expected '(' after @ builtin");
+    return NULL;
+  }
+  advance(p);
+  args = NULL;
+  num_args = 0;
+  cap = 0;
+  if (peek(p)->kind != TOKEN_RPAREN) {
+    for (;;) {
+      ASTExpr *arg;
+      if (num_args >= cap) {
+        ASTExpr **n;
+        cap = cap == 0 ? 4 : cap * 2;
+        n = (ASTExpr **)realloc(args, (size_t)cap * sizeof(ASTExpr *));
+        if (!n) {
+          for (int i = 0; i < num_args; i++)
+            ast_expr_free(args[i]);
+          free(args);
+          fprintf(stderr, "parse: out of memory\n");
+          return NULL;
+        }
+        args = n;
+      }
+      arg = parse_expr(p);
+      if (!arg) {
+        for (int i = 0; i < num_args; i++)
+          ast_expr_free(args[i]);
+        free(args);
+        return NULL;
+      }
+      args[num_args++] = arg;
+      if (peek(p)->kind == TOKEN_COMMA) {
+        advance(p);
+        continue;
+      }
+      if (peek(p)->kind == TOKEN_RPAREN)
+        break;
+      for (int i = 0; i < num_args; i++)
+        ast_expr_free(args[i]);
+      free(args);
+      fail(p, "expected ',' or ')' in @ builtin call");
+      return NULL;
+    }
+  }
+  if (peek(p)->kind != TOKEN_RPAREN) {
+    for (int i = 0; i < num_args; i++)
+      ast_expr_free(args[i]);
+    free(args);
+    fail(p, "expected ')' after @ builtin args");
+    return NULL;
+  }
+  advance(p);
+  if (num_args != need_args) {
+    for (int i = 0; i < num_args; i++)
+      ast_expr_free(args[i]);
+    free(args);
+    fail(p, "@ builtin argument count mismatch");
+    return NULL;
+  }
+  call = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+  if (!call) {
+    for (int i = 0; i < num_args; i++)
+      ast_expr_free(args[i]);
+    free(args);
+    fprintf(stderr, "parse: out of memory\n");
+    return NULL;
+  }
+  set_expr_loc_at(call, line, col);
+  call->kind = AST_EXPR_CALL;
+  call->value.call.callee = parse_new_var_expr(callee, line, col);
+  call->value.call.args = args;
+  call->value.call.num_args = num_args;
+  if (!call->value.call.callee) {
+    ast_expr_free(call);
+    return NULL;
+  }
+  return call;
+}
+
+/**
+ * M-3：解析切片类型可选域标签 []T<label>；当前 Token 须为 '>' 之后已消费 '<' 与 label。
+ * 成功时写入 ty->region_label（strdup），失败时已 fail。
+ */
+static void parse_slice_region_label(Parser *p, ASTType *ty) {
+    if (!p || !ty || ty->kind != AST_TYPE_SLICE)
+        return;
+    if (peek(p)->kind != TOKEN_LT)
+        return;
+    advance(p);
+    const Token *lab = peek(p);
+    if (!lab || lab->kind != TOKEN_IDENT || lab->ident_len <= 0) {
+        fail(p, "expected region label after '<' in slice type []T<label>");
+        return;
+    }
+    ty->region_label = (const char *)malloc((size_t)lab->ident_len + 1u);
+    if (!ty->region_label) {
+        fprintf(stderr, "parse: out of memory\n");
+        fail(p, "out of memory");
+        return;
+    }
+    memcpy((void *)ty->region_label, lab->value.ident, (size_t)lab->ident_len);
+    ((char *)ty->region_label)[lab->ident_len] = '\0';
+    advance(p);
+    if (peek(p)->kind != TOKEN_GT) {
+        fail(p, "expected '>' after region label in slice type []T<label>");
+        return;
+    }
+    advance(p);
+}
 
 /**
  * 解析类型名称（内建/标识符类型名、裸指针 *T；* 后递归解析元素类型）。
@@ -272,6 +483,7 @@ static ASTType *parse_type_name(Parser *p) {
         ty->name = NULL;
         ty->elem_type = inner;
         ty->array_size = 0;
+        ty->region_label = NULL;
         return ty;
     }
     /* 切片 []T 或 固定长数组 [N]T：文档 §6.2、§6.3 */
@@ -293,6 +505,8 @@ static ASTType *parse_type_name(Parser *p) {
             ty->name = NULL;
             ty->elem_type = inner;
             ty->array_size = 0;
+            ty->region_label = NULL;
+            parse_slice_region_label(p, ty);
             return ty;
         }
         if (!t || t->kind != TOKEN_INT) {
@@ -419,7 +633,38 @@ static ASTType *parse_type_name(Parser *p) {
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 16;
             advance(p); return ty;
         }
+        case TOKEN_F32X4: {
+            ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
+            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            elem->kind = AST_TYPE_F32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
+            ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 4;
+            advance(p); return ty;
+        }
         case TOKEN_IDENT: {
+            /* M-4：Linear(T) 线性类型包装；须在内建/限定名解析之前识别 */
+            if (t->ident_len == 6 && t->value.ident && memcmp(t->value.ident, "Linear", 6) == 0) {
+                advance(p);
+                if (peek(p) && peek(p)->kind == TOKEN_LPAREN) {
+                    advance(p);
+                    ASTType *inner = parse_type_name(p);
+                    if (!inner) { free(ty); return NULL; }
+                    if (!peek(p) || peek(p)->kind != TOKEN_RPAREN) {
+                        ast_type_free(inner);
+                        free(ty);
+                        fail(p, "expected ')' after Linear(T");
+                        return NULL;
+                    }
+                    advance(p);
+                    ty->kind = AST_TYPE_LINEAR;
+                    ty->elem_type = inner;
+                    return ty;
+                }
+                /* 非 Linear(...) 时回退为 NAMED "Linear"：还原 pos 不可行，按 NAMED 处理 */
+                ty->kind = AST_TYPE_NAMED;
+                ty->name = strndup("Linear", 6);
+                if (!ty->name) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+                return ty;
+            }
             /* 支持限定类型名：Module.sub.Type（如 platform.elf.ElfCodegenCtx）；拼成 "module.sub.Type" 存 name */
             char qbuf[256];
             int qlen = 0;
@@ -610,6 +855,9 @@ static ASTExpr *parse_primary(Parser *p) {
         set_expr_loc(e, p);
         e->kind = AST_EXPR_CONTINUE;
         return e;
+    }
+    if (t->kind == TOKEN_AT) {
+        return parse_at_simd_builtin(p);
     }
     /* return expr 或 return;：显式返回，仅允许在函数体内，由 typeck 校验（文档 01：return expr; / return;） */
     if (t->kind == TOKEN_RETURN) {
@@ -815,6 +1063,9 @@ static ASTExpr *parse_primary(Parser *p) {
                 elems[num_elems++] = e;
                 if (peek(p)->kind == TOKEN_COMMA) {
                     advance(p);
+                    /* 尾逗号 `, ]`：多行 [64]i32 初值等与 parser.su 一致 */
+                    if (peek(p)->kind == TOKEN_RBRACKET)
+                        break;
                     continue;
                 }
                 break;
@@ -902,7 +1153,8 @@ static ASTExpr *parse_primary(Parser *p) {
                     fail(p, "too many struct literal fields");
                     return NULL;
                 }
-                if (peek(p)->kind != TOKEN_IDENT) {
+                fnames[nf] = parser_struct_field_name_dup(p);
+                if (!fnames[nf]) {
                     free(name);
                     for (int i = 0; i < nf; i++) {
                         free((void *)fnames[i]);
@@ -913,19 +1165,6 @@ static ASTExpr *parse_primary(Parser *p) {
                     fail(p, "expected field name in struct literal");
                     return NULL;
                 }
-                fnames[nf] = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-                if (!fnames[nf]) {
-                    free(name);
-                    for (int i = 0; i < nf; i++) {
-                        free((void *)fnames[i]);
-                        ast_expr_free(inits[i]);
-                    }
-                    free(fnames);
-                    free(inits);
-                    fprintf(stderr, "parse: out of memory\n");
-                    return NULL;
-                }
-                advance(p);
                 if (peek(p)->kind != TOKEN_COLON) {
                     free((void *)fnames[nf]);
                     free(name);
@@ -1257,7 +1496,7 @@ static ASTExpr *parse_postfix(Parser *p) {
             const Token *nn = peek_next_next(p);
             type_start = (nn->kind == TOKEN_GT || nn->kind == TOKEN_COMMA);
         } else {
-            type_start = (k == TOKEN_I32 || k == TOKEN_BOOL || k == TOKEN_U8 || k == TOKEN_U32 || k == TOKEN_U64 || k == TOKEN_I64 || k == TOKEN_USIZE || k == TOKEN_ISIZE || k == TOKEN_F32 || k == TOKEN_F64 || k == TOKEN_VOID || k == TOKEN_I32X4 || k == TOKEN_I32X8 || k == TOKEN_I32X16 || k == TOKEN_U32X4 || k == TOKEN_U32X8 || k == TOKEN_U32X16 || k == TOKEN_STAR || k == TOKEN_LBRACKET);
+            type_start = (k == TOKEN_I32 || k == TOKEN_BOOL || k == TOKEN_U8 || k == TOKEN_U32 || k == TOKEN_U64 || k == TOKEN_I64 || k == TOKEN_USIZE || k == TOKEN_ISIZE || k == TOKEN_F32 || k == TOKEN_F64 || k == TOKEN_VOID || k == TOKEN_I32X4 || k == TOKEN_I32X8 || k == TOKEN_I32X16 || k == TOKEN_U32X4 || k == TOKEN_U32X8 || k == TOKEN_U32X16 || k == TOKEN_F32X4 || k == TOKEN_STAR || k == TOKEN_LBRACKET);
         }
         if (!type_start) {
             /* 视为小于运算，不解析类型实参 */
@@ -1383,6 +1622,60 @@ static ASTExpr *parse_postfix(Parser *p) {
  */
 static ASTExpr *parse_unary(Parser *p) {
     TokenKind k = peek(p)->kind;
+    /* await expr：仅 async function 内合法（typeck 校验）；codegen 暂等同 operand（无 CPS） */
+    if (k == TOKEN_AWAIT) {
+        int unary_line = peek(p)->line;
+        int unary_col = peek(p)->col;
+        advance(p);
+        ASTExpr *inner = parse_unary(p);
+        if (!inner) return NULL;
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+        if (!e) {
+            ast_expr_free(inner);
+            fprintf(stderr, "parse: out of memory\n");
+            return NULL;
+        }
+        set_expr_loc_at(e, unary_line, unary_col);
+        e->kind = AST_EXPR_AWAIT;
+        e->value.unary.operand = inner;
+        return e;
+    }
+    /* run async_fn()：sync 上下文经 scheduler drain（typeck 校验）；codegen → shu_async_sched_* */
+    if (k == TOKEN_RUN) {
+        int unary_line = peek(p)->line;
+        int unary_col = peek(p)->col;
+        advance(p);
+        ASTExpr *inner = parse_unary(p);
+        if (!inner) return NULL;
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+        if (!e) {
+            ast_expr_free(inner);
+            fprintf(stderr, "parse: out of memory\n");
+            return NULL;
+        }
+        set_expr_loc_at(e, unary_line, unary_col);
+        e->kind = AST_EXPR_RUN;
+        e->value.unary.operand = inner;
+        return e;
+    }
+    /* spawn async_fn(args)：非阻塞 submit（IO-A5 v4 并行 in-flight；须 drain_until_idle） */
+    if (k == TOKEN_SPAWN) {
+        int unary_line = peek(p)->line;
+        int unary_col = peek(p)->col;
+        advance(p);
+        ASTExpr *inner = parse_unary(p);
+        if (!inner) return NULL;
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+        if (!e) {
+            ast_expr_free(inner);
+            fprintf(stderr, "parse: out of memory\n");
+            return NULL;
+        }
+        set_expr_loc_at(e, unary_line, unary_col);
+        e->kind = AST_EXPR_SPAWN;
+        e->value.unary.operand = inner;
+        return e;
+    }
     /* 一元 & 取址：&expr，用于传指针给 extern 函数（如 &out、&ctx） */
     if (k == TOKEN_AMP) {
         int unary_line = peek(p)->line;
@@ -1775,13 +2068,44 @@ static ASTExpr *parse_expr(Parser *p) {
 #define MAX_LET_DECLS 256
 /** 块内最大 while 循环数 */
 #define MAX_WHILE_LOOPS 32
+#define MAX_REGION_BLOCKS 32
 #define MAX_FOR_LOOPS 32
 #define MAX_DEFERS 16
 #define MAX_LABELED_STMTS 32
 #define MAX_EXPR_STMTS 512
 
 /**
- * 解析单条 import 路径：IDENT 或 I32 后接零个或多个 . IDENT/I32，拼成 "core.types" 形式。
+ * import 路径段长度：IDENT/I32 或关键字 async（std.async 模块名）。
+ * 返回字节数；非法 token 返回 -1。
+ */
+static int import_path_segment_len(const Token *t) {
+    if (!t)
+        return -1;
+    if (t->kind == TOKEN_IDENT && t->ident_len > 0)
+        return t->ident_len;
+    if (t->kind == TOKEN_I32)
+        return 3;
+    if (t->kind == TOKEN_ASYNC)
+        return 5;
+    return -1;
+}
+
+/**
+ * 将 import 路径段写入 buf（调用方保证 buf 至少 seg_len 字节）。
+ */
+static void import_path_segment_copy(const Token *t, char *buf, int seg_len) {
+    if (!t || !buf || seg_len <= 0)
+        return;
+    if (t->kind == TOKEN_IDENT && t->value.ident && t->ident_len > 0)
+        memcpy(buf, t->value.ident, (size_t)t->ident_len);
+    else if (t->kind == TOKEN_I32)
+        memcpy(buf, "i32", 3);
+    else if (t->kind == TOKEN_ASYNC)
+        memcpy(buf, "async", 5);
+}
+
+/**
+ * 解析单条 import 路径：IDENT 或 I32 后接零个或多个 . IDENT/I32/async，拼成 "std.async" 形式。
  * 参数：p 解析器状态；当前 Token 须为路径起始。返回值：成功返回 strdup 的字符串，调用方须 free；失败返回 NULL 且已 fail。
  * 错误与边界：路径过长（≥256）或非法 token 序列时失败。副作用：成功时 advance 消耗整条路径。
  */
@@ -1789,45 +2113,33 @@ static char *parse_import_path(Parser *p) {
     char buf[256];
     int off = 0;
     const Token *t = peek(p);
-    if (t->kind != TOKEN_IDENT && t->kind != TOKEN_I32) {
+    int seg_len = import_path_segment_len(t);
+    if (seg_len <= 0) {
         fail(p, "expected identifier in import path");
         return NULL;
     }
-    int len = t->ident_len;
-    if (t->kind == TOKEN_IDENT && t->value.ident && len > 0) {
-        if (off + len >= (int)sizeof(buf)) { fail(p, "import path too long"); return NULL; }
-        memcpy(buf + off, t->value.ident, (size_t)len);
-        off += len;
-    } else if (t->kind == TOKEN_I32) {
-        if (off + 3 >= (int)sizeof(buf)) { fail(p, "import path too long"); return NULL; }
-        memcpy(buf + off, "i32", 3);
-        off += 3;
-    } else {
-        fail(p, "expected identifier in import path");
+    if (off + seg_len >= (int)sizeof(buf)) {
+        fail(p, "import path too long");
         return NULL;
     }
+    import_path_segment_copy(t, buf + off, seg_len);
+    off += seg_len;
     advance(p);
     while (peek(p)->kind == TOKEN_DOT) {
         advance(p);
         buf[off++] = '.';
         t = peek(p);
-        if (t->kind != TOKEN_IDENT && t->kind != TOKEN_I32) {
+        seg_len = import_path_segment_len(t);
+        if (seg_len <= 0) {
             fail(p, "expected identifier after '.' in import path");
             return NULL;
         }
-        len = t->ident_len;
-        if (t->kind == TOKEN_IDENT && t->value.ident && len > 0) {
-            if (off + len >= (int)sizeof(buf)) { fail(p, "import path too long"); return NULL; }
-            memcpy(buf + off, t->value.ident, (size_t)len);
-            off += len;
-        } else if (t->kind == TOKEN_I32) {
-            if (off + 3 >= (int)sizeof(buf)) { fail(p, "import path too long"); return NULL; }
-            memcpy(buf + off, "i32", 3);
-            off += 3;
-        } else {
-            fail(p, "expected identifier after '.'");
+        if (off + seg_len >= (int)sizeof(buf)) {
+            fail(p, "import path too long");
             return NULL;
         }
+        import_path_segment_copy(t, buf + off, seg_len);
+        off += seg_len;
         advance(p);
     }
     buf[off] = '\0';
@@ -1838,7 +2150,7 @@ static char *parse_import_path(Parser *p) {
  * 解析单条结构体定义：struct Name { field : Type ; ... }。
  * 参数：p 解析器状态；当前 Token 须为 TOKEN_STRUCT；allow_padding 为 1 表示该 struct 前有 allow(padding)。返回值：成功返回新分配的 ASTStructDef*（调用方须通过 ast_struct_def_free 释放）；失败返回 NULL 且已 fail。
  */
-static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
+static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_soa) {
     if (peek(p)->kind != TOKEN_STRUCT) return NULL;
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) {
@@ -1858,16 +2170,26 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
         free(name);
         return NULL;
     }
-    /* 可选 packed：struct Name packed { ... }（内存契约，无填充布局） */
+    /* 可选 packed / soa：struct Name packed|soa { ... } 或 `#[soa] struct Name { }`（force_soa）。 */
     int is_packed = 0;
+    int is_soa = force_soa;
     if (peek(p)->kind == TOKEN_PACKED) {
         is_packed = 1;
         advance(p);
+    } else if (peek(p)->kind == TOKEN_SOA) {
+        is_soa = 1;
+        advance(p);
+    }
+    if (is_packed && is_soa) {
+        free(name);
+        if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
+        fail(p, "struct cannot be both packed and soa");
+        return NULL;
     }
     if (peek(p)->kind != TOKEN_LBRACE) {
         free(name);
         if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-        fail(p, "expected '{' or 'packed' after struct name");
+        fail(p, "expected '{' after struct name");
         return NULL;
     }
     advance(p);
@@ -1879,6 +2201,8 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
         return NULL;
     }
     int num_fields = 0;
+    int field_aligns[MAX_STRUCT_FIELDS_DEF];
+    memset(field_aligns, 0, sizeof(field_aligns));
     while (peek(p)->kind != TOKEN_RBRACE) {
         if (num_fields >= MAX_STRUCT_FIELDS_DEF) {
             free(name);
@@ -1891,7 +2215,29 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
             fail(p, "too many struct fields");
             return NULL;
         }
-        if (peek(p)->kind != TOKEN_IDENT) {
+        /** DOD-CL：可选 align(N) 前缀。 */
+        int field_min_align = 0;
+        if (peek(p)->kind == TOKEN_ALIGN) {
+            advance(p);
+            if (peek(p)->kind != TOKEN_LPAREN) {
+                fail(p, "expected '(' after align");
+                return NULL;
+            }
+            advance(p);
+            if (peek(p)->kind != TOKEN_INT || peek(p)->value.int_val <= 0) {
+                fail(p, "expected positive integer in align(N)");
+                return NULL;
+            }
+            field_min_align = peek(p)->value.int_val;
+            advance(p);
+            if (peek(p)->kind != TOKEN_RPAREN) {
+                fail(p, "expected ')' after align(N)");
+                return NULL;
+            }
+            advance(p);
+        }
+        char *fname = parser_struct_field_name_dup(p);
+        if (!fname) {
             free(name);
             if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
             for (int i = 0; i < num_fields; i++) {
@@ -1902,19 +2248,6 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
             fail(p, "expected field name in struct");
             return NULL;
         }
-        char *fname = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-        if (!fname) {
-            free(name);
-            if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-            for (int i = 0; i < num_fields; i++) {
-                free((void *)fields[i].name);
-                ast_type_free(fields[i].type);
-            }
-            free(fields);
-            fprintf(stderr, "parse: out of memory\n");
-            return NULL;
-        }
-        advance(p);
         if (peek(p)->kind != TOKEN_COLON) {
             free(fname);
             free(name);
@@ -1942,6 +2275,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
         }
         fields[num_fields].name = fname;
         fields[num_fields].type = ty;
+        field_aligns[num_fields] = field_min_align;
         num_fields++;
         if (peek(p)->kind == TOKEN_SEMICOLON) advance(p);
     }
@@ -1968,6 +2302,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
         fprintf(stderr, "parse: out of memory\n");
         return NULL;
     }
+    memset(s, 0, sizeof(*s));
     s->name = name;
     s->generic_param_names = gp_names;
     s->num_generic_params = n_gp;
@@ -1975,6 +2310,9 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding) {
     s->num_fields = num_fields;
     s->allow_padding = allow_padding;
     s->packed = is_packed;
+    s->soa = is_soa;
+    for (int fi = 0; fi < num_fields && fi < AST_STRUCT_MAX_FIELDS; fi++)
+        s->field_min_align[fi] = field_aligns[fi];
     return s;
 }
 
@@ -2463,6 +2801,8 @@ static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace) {
     b->num_for_loops = 0;
     b->defer_blocks = NULL;
     b->num_defers = 0;
+    b->regions = NULL;
+    b->num_regions = 0;
     b->labeled_stmts = NULL;
     b->num_labeled_stmts = 0;
     b->expr_stmts = NULL;
@@ -2495,6 +2835,7 @@ next_stmt:
             }
             if (allow_while && (peek(p)->kind == TOKEN_WHILE || peek(p)->kind == TOKEN_LOOP)) goto parse_while_start;
             if (allow_while && peek(p)->kind == TOKEN_FOR) goto parse_for_start;
+            if (peek(p)->kind == TOKEN_REGION) goto parse_region_start;
             if (peek(p)->kind == TOKEN_DEFER) goto parse_defer_start;
             if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON) goto parse_label_start;
             ASTExpr *e = parse_expr(p);
@@ -2867,6 +3208,74 @@ parse_defer_start:
         b->defer_blocks[b->num_defers++] = db;
     }
     goto next_stmt;
+    /* M-3：region label { body }；块内 slice 由 typeck 继承域标签 */
+parse_region_start:
+    if (b->num_regions >= MAX_REGION_BLOCKS) {
+        fail(p, "too many region blocks");
+        ast_block_free(b);
+        return NULL;
+    }
+    advance(p);
+    {
+        const Token *lab = peek(p);
+        char *label = NULL;
+        ASTBlock *rb = NULL;
+        if (!lab || lab->kind != TOKEN_IDENT || lab->ident_len <= 0) {
+            ast_block_free(b);
+            fail(p, "expected region label after region");
+            return NULL;
+        }
+        label = (lab->value.ident && lab->ident_len > 0)
+            ? strndup(lab->value.ident, (size_t)lab->ident_len) : NULL;
+        if (!label) {
+            ast_block_free(b);
+            fail(p, "out of memory");
+            return NULL;
+        }
+        advance(p);
+        if (peek(p)->kind != TOKEN_LBRACE) {
+            free(label);
+            ast_block_free(b);
+            fail(p, "expected '{' after region label");
+            return NULL;
+        }
+        advance(p);
+        rb = parse_block(p, 1, 0);
+        if (!rb) {
+            free(label);
+            ast_block_free(b);
+            return NULL;
+        }
+        if (peek(p)->kind != TOKEN_RBRACE) {
+            free(label);
+            ast_block_free(rb);
+            ast_block_free(b);
+            fail(p, "expected '}' after region body");
+            return NULL;
+        }
+        advance(p);
+        if (fail_if_semicolon_after_brace(p) != 0) {
+            free(label);
+            ast_block_free(rb);
+            ast_block_free(b);
+            return NULL;
+        }
+        if (!b->regions) {
+            b->regions = (ASTRegionBlock *)malloc((size_t)MAX_REGION_BLOCKS * sizeof(ASTRegionBlock));
+            if (!b->regions) {
+                free(label);
+                ast_block_free(rb);
+                ast_block_free(b);
+                fprintf(stderr, "parse: out of memory\n");
+                return NULL;
+            }
+        }
+        b->regions[b->num_regions].label = label;
+        b->regions[b->num_regions].body = rb;
+        b->num_regions++;
+        push_stmt_order(b, 5, b->num_regions - 1);
+    }
+    goto next_stmt;
     /* 解析 ( [label:] (goto id;|return expr;) )*；从 for(;;) 内 goto 到达 */
 parse_label_start:
     while (1) {
@@ -2994,7 +3403,7 @@ after_block:
  * 当 is_extern 非 0 时，当前 Token 须为 TOKEN_FUNCTION（extern 已在上层消费），结尾为 ; 且 body 为 NULL。
  * 返回值：成功返回新分配的 ASTFunc*（调用方由 ast_module_free 统一释放）；失败返回 NULL 且已 fail。
  */
-static ASTFunc *parse_one_function(Parser *p, int is_extern) {
+static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
     if (peek(p)->kind != TOKEN_FUNCTION) return NULL;
     advance(p);
     /* 函数名允许 IDENT 或关键字 panic/abort、或类型关键字 u32/u64/bool（std.random 中 function u32(): u32 等合法） */
@@ -3018,6 +3427,11 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern) {
         name_col = peek(p)->col;
     } else if (peek(p)->kind == TOKEN_BOOL) {
         name = strdup("bool");
+        name_line = peek(p)->line;
+        name_col = peek(p)->col;
+    } else if (peek(p)->kind == TOKEN_SPAWN) {
+        /* std.process 的 function spawn(...) 与 async spawn 关键字同名；声明位置允许作函数名 */
+        name = strdup("spawn");
         name_line = peek(p)->line;
         name_col = peek(p)->col;
     } else {
@@ -3214,6 +3628,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern) {
     func->return_type = return_type;
     func->body = body;
     func->is_extern = is_extern ? 1 : 0;
+    func->is_async = is_async ? 1 : 0;
     func->impl_for_trait = NULL;
     func->impl_for_type = NULL;
     return func;
@@ -3635,7 +4050,7 @@ int parse(Lexer *lex, ASTModule **out) {
             allow_padding = 1;
         }
         if (peek(&prs)->kind != TOKEN_STRUCT) break;
-        ASTStructDef *s = parse_one_struct(&prs, allow_padding);
+        ASTStructDef *s = parse_one_struct(&prs, allow_padding, 0);
         if (!s) {
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
@@ -3723,8 +4138,10 @@ int parse(Lexer *lex, ASTModule **out) {
         return -1;
     }
     int nfuncs = 0;
-    while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_FUNCTION
+    int pending_soa = 0;
+    while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
+           || peek(&prs)->kind == TOKEN_ATTR_SOA
            || peek(&prs)->kind == TOKEN_LET || peek(&prs)->kind == TOKEN_CONST
            || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5))) {
         /* 顶层 let：与 function/struct/enum 同级，可任意顺序出现 */
@@ -3851,6 +4268,12 @@ int parse(Lexer *lex, ASTModule **out) {
             mod->num_top_level_lets++;
             continue;
         }
+        /** DOD-S1：`#[soa]` 属性；下一顶层 struct 记 soa。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_SOA) {
+            advance(&prs);
+            pending_soa = 1;
+            continue;
+        }
         int allow_padding = 0;
         if (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5)) {
             advance(&prs);
@@ -3867,7 +4290,8 @@ int parse(Lexer *lex, ASTModule **out) {
             }
         }
         if (peek(&prs)->kind == TOKEN_STRUCT) {
-            ASTStructDef *s = parse_one_struct(&prs, allow_padding);
+            ASTStructDef *s = parse_one_struct(&prs, allow_padding, pending_soa);
+            pending_soa = 0;
             if (!s) goto cleanup_funcs_fail;
             if (nstructs >= MAX_STRUCTS) {
                 ast_struct_def_free(s);
@@ -3888,15 +4312,30 @@ int parse(Lexer *lex, ASTModule **out) {
             enum_list[nenums++] = e;
             continue;
         }
+        int is_async = (peek(&prs)->kind == TOKEN_ASYNC) ? 1 : 0;
+        if (is_async)
+            advance(&prs);
         int is_extern = (peek(&prs)->kind == TOKEN_EXTERN) ? 1 : 0;
         if (is_extern) {
             advance(&prs);
+            if (is_async) {
+                fail(&prs, "'async' cannot modify extern function");
+                goto cleanup_funcs_fail;
+            }
             if (peek(&prs)->kind != TOKEN_FUNCTION) {
                 fail(&prs, "expected 'function' after 'extern'");
                 goto cleanup_funcs_fail;
             }
         }
-        ASTFunc *func = parse_one_function(&prs, is_extern);
+        if (peek(&prs)->kind != TOKEN_FUNCTION) {
+            if (is_async) {
+                fail(&prs, "expected 'function' after 'async'");
+                goto cleanup_funcs_fail;
+            }
+            fail(&prs, "expected 'function' after 'extern'");
+            goto cleanup_funcs_fail;
+        }
+        ASTFunc *func = parse_one_function(&prs, is_extern, is_async);
         if (!func) {
 cleanup_funcs_fail:
             while (nfuncs--) {

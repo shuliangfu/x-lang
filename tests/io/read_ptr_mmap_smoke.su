@@ -1,0 +1,57 @@
+/**
+ * ZC-2 smoke：常规文件 read_ptr mmap 绝对视图（macOS/Linux）+ gen 校验。
+ * 写 /tmp/zc2_read_ptr_in → read_ptr(fd) → 校验内容与 gen。exit 0。
+ */
+import std.fs;
+import std.io;
+
+function main(): i32 {
+  /** "/tmp/zc2_read_ptr_in\0" */
+  let path: [21]u8 =
+  [47, 116, 109, 112, 47, 122, 99, 50, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 105, 110, 0];
+  let payload: [12]u8 = [90, 67, 50, 109, 109, 97, 112, 116, 101, 115, 116, 10];
+  let pay_len: usize = 12 as usize;
+  let fd_w: i32 = fs_open_write(&path[0]);
+  if (fd_w < 0) {
+    return 1;
+  }
+  let nw: isize = fs_write(fd_w, &payload[0], pay_len);
+  if (fs_sync(fd_w) != 0) {
+    fs_close(fd_w);
+    return 2;
+  }
+  fs_close(fd_w);
+  if (nw != (pay_len as isize)) {
+    return 3;
+  }
+  let fd_r: i32 = fs_open_read(&path[0]);
+  if (fd_r < 0) {
+    return 4;
+  }
+  let handle: usize = handle_from_fd(fd_r, 0);
+  let p: *u8 = read_ptr(handle, 0);
+  if (p == 0 as *u8) {
+    fs_close(fd_r);
+    return 5;
+  }
+  if (read_ptr_len() != (pay_len as i32)) {
+    fs_close(fd_r);
+    return 6;
+  }
+  if (p[0] != 90 || p[4] != 109) {
+    fs_close(fd_r);
+    return 7;
+  }
+  let g: u64 = read_ptr_gen();
+  if (read_ptr_gen_valid(g) != 1) {
+    fs_close(fd_r);
+    return 8;
+  }
+  let backend: i32 = read_ptr_backend();
+  if (backend != 1 && backend != 2) {
+    fs_close(fd_r);
+    return 9;
+  }
+  fs_close(fd_r);
+  return 20 + backend;
+}

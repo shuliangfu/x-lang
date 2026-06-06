@@ -1,0 +1,8 @@
+// import_std_async.su — 烟测：import std.async（async 关键字作模块路径段）
+import std.async;
+
+/** 入口：仅验证 import 解析与链接符号解析。 */
+function main(): i32 {
+  shu_async_queue_reset();
+  return 0;
+}

@@ -1,0 +1,4 @@
+# shu IOCP pipe batch bench 中位数上限（秒）；门禁：实测 median ≤ 本列值
+# 更新：SHU_PERF_UPDATE_IOCP_BASELINE=1 ./tests/run-perf-iocp.sh --bench
+# 仅 Windows MSYS2；65536 轮 2×64B write_batch + read_batch
+iocp_pipe_batch	0.12

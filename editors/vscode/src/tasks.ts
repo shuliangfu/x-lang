@@ -11,7 +11,7 @@
  */
 
 import * as vscode from 'vscode';
-import { resolveServerCommand } from './shuPath';
+import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuPath';
 
 export class ShulangTaskProvider implements vscode.TaskProvider {
   static ShulangType = 'shulang';
@@ -20,7 +20,7 @@ export class ShulangTaskProvider implements vscode.TaskProvider {
     _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.Task[]> {
     const config = vscode.workspace.getConfiguration('shulang');
-    const serverPath = config.get<string>('serverPath', 'shu');
+    const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
     const command = resolveServerCommand(serverPath);
 
     const tasks: vscode.Task[] = [];
@@ -104,6 +104,7 @@ export class ShulangTaskProvider implements vscode.TaskProvider {
       panel: vscode.TaskPanelKind.Shared,
       clear: true,
     };
+    checkTask.problemMatchers = ['$shulang-parse', '$shulang-typeck'];
     tasks.push(checkTask);
 
     return tasks;

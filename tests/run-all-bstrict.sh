@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M3-b：B-strict 替换 seed 后跑 bootstrap 白名单（与 run-shu-asm-gate + L4 核心子集一致）。
+# M3-b / F1–F2：B-strict 白名单（含 run-io/http/tar/json；与 run-shu-asm-gate + L4 核心子集一致）。
 # 用法：./tests/run-all-bstrict.sh
 # 不跑全量 run-all（其余用例仍走 shu-c）；验收 shu_asm 替代 seed 后白名单不回归。
 
@@ -16,8 +16,8 @@ if [ -n "${SHU_BSTRICT_SKIP_BUILD:-}" ]; then
   echo "run-all-bstrict: SHU_BSTRICT_SKIP_BUILD=1, cp shu_asm -> shu ..."
   cp -f compiler/shu_asm compiler/shu
 else
-  echo "run-all-bstrict: SHU_BSTRICT_REPLACE=1 bootstrap-driver-bstrict ..."
-  make -C compiler bootstrap-driver-bstrict SHU_BSTRICT_REPLACE=1
+  echo "run-all-bstrict: bootstrap-driver-bstrict (M7: shu_asm -> shu by default) ..."
+  make -C compiler bootstrap-driver-bstrict
 fi
 
 export SHU=./compiler/shu
@@ -56,6 +56,24 @@ BSTRICT_SCRIPTS=(
   run-slice.sh
   run-defer.sh
   run-vector.sh
+  run-asm-binop-var.sh
+  run-asm-binop-block-var.sh
+  run-asm-binop-cfg-merge.sh
+  run-asm-binop-field-index.sh
+  run-asm-binop-nested-var.sh
+  run-asm-binop-index-lit.sh
+  run-asm-index-var.sh
+  run-asm-vector-var.sh
+  run-asm-assign-var.sh
+  run-asm-assign-index-binop.sh
+  run-asm-assign-index-lit.sh
+  run-asm-assign-index-lit-to-index.sh
+  run-asm-assign-index-var.sh
+  run-asm-assign-index-expr.sh
+  run-asm-assign-index-block.sh
+  run-asm-assign-index-param.sh
+  run-asm-binop-div-index.sh
+  run-asm-cmp-index-binop.sh
   run-panic.sh
   run-result.sh
   run-binary-expr.sh
@@ -82,6 +100,43 @@ BSTRICT_SCRIPTS=(
   run-atomic.sh
   run-ffi.sh
   run-csv.sh
+  run-io.sh
+  run-http.sh
+  run-tar.sh
+  run-json.sh
+  run-net.sh
+  run-process.sh
+  run-set.sh
+  run-queue.sh
+  run-vec.sh
+  run-heap.sh
+  run-fs.sh
+  run-path.sh
+  run-map.sh
+  run-error.sh
+  run-compress.sh
+  run-thread.sh
+  run-fmt.sh
+  run-debug.sh
+  run-io-driver.sh
+  run-multi-file-generic.sh
+  run-env.sh
+  run-crypto.sh
+  run-log.sh
+  run-stdtest.sh
+  run-channel.sh
+  run-backtrace.sh
+  run-hash.sh
+  run-math.sh
+  run-sort.sh
+  run-unicode.sh
+  run-dynlib.sh
+  run-random.sh
+  run-runtime.sh
+  run-abi-layout.sh
+  run-fmt-std.sh
+  run-ub.sh
+  run-pool-limits.sh
 )
 
 for script in "${BSTRICT_SCRIPTS[@]}"; do

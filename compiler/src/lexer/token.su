@@ -17,9 +17,15 @@ enum TokenKind {
   TOKEN_RETURN,
   TOKEN_PANIC,
   TOKEN_DEFER,
+  /** M-3：region 域块（与 token.h TOKEN_REGION 一致） */
+  TOKEN_REGION,
   TOKEN_MATCH,
   TOKEN_STRUCT,
   TOKEN_PACKED,
+  TOKEN_SOA,
+  TOKEN_ATTR_SOA,
+  /** DOD-CL：struct 字段 align(N) cache line 对齐 */
+  TOKEN_ALIGN,
   TOKEN_ENUM,
   TOKEN_GOTO,
   TOKEN_TRAIT,
@@ -28,6 +34,14 @@ enum TokenKind {
   TOKEN_UNDERSCORE,
   TOKEN_IMPORT,
   TOKEN_EXTERN,
+  /** async function 修饰（P2 原型） */
+  TOKEN_ASYNC,
+  /** await expr（仅 async function 内；与 token.h 一致） */
+  TOKEN_AWAIT,
+  /** run async_fn()（sync 上下文经 scheduler drain） */
+  TOKEN_RUN,
+  /** spawn async_fn()（非阻塞 submit） */
+  TOKEN_SPAWN,
   TOKEN_IDENT,
   TOKEN_I32,
   TOKEN_BOOL,
@@ -43,6 +57,7 @@ enum TokenKind {
   TOKEN_U32X4,
   TOKEN_U32X8,
   TOKEN_U32X16,
+  TOKEN_F32X4,
   TOKEN_TRUE,
   TOKEN_FALSE,
   TOKEN_F32,
@@ -98,6 +113,8 @@ enum TokenKind {
   TOKEN_QUESTION,
   /** as 类型转换 expr as type（与 token.h / lexer.c 一致） */
   TOKEN_AS,
+  /** @ SIMD comptime builtin（@shuffle / @select） */
+  TOKEN_AT,
 }
 
 // 单个 Token：类型 + 源码位置 + 字面量/标识符（.su 无

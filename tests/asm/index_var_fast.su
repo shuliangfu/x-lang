@@ -1,0 +1,6 @@
+// 7.3：局部 arr[i]（VAR 基址 + VAR 下标）应 lea/ldr 直取，免 push/pop（run-asm-index-var.sh）。
+function main(): i32 {
+  let arr: [3]u8 = [5, 10, 15];
+  let i: i32 = 1;
+  return arr[i] as i32;
+}

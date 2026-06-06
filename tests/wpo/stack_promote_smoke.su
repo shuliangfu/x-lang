@@ -1,0 +1,23 @@
+// stack_promote_smoke.su — WPO-S3 占位：小 struct 按值传递/返回（未来 escape→stack promotion）
+// 当前仅验证编译+运行；待 S3 启用后 disasm 断言少 mem load/store。
+
+/** 两字段 POD；适合 stack promotion 候选。 */
+struct Pair {
+  a: i32
+  b: i32
+}
+
+/** 按值构造并返回 struct。 */
+function make_pair(x: i32, y: i32): Pair {
+  return Pair { a: x, b: y };
+}
+
+/** 按值读字段求和。 */
+function sum_pair(p: Pair): i32 {
+  return p.a + p.b;
+}
+
+function main(): i32 {
+  let p: Pair = make_pair(3, 4);
+  return sum_pair(p);
+}

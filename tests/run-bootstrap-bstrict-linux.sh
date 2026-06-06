@@ -12,8 +12,7 @@ if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
 fi
 
 if [ -f /etc/alpine-release ]; then
-  echo "run-bootstrap-bstrict-linux: skip (Alpine musl 暂不走 crt0 主路径)"
-  exit 0
+  echo "run-bootstrap-bstrict-linux: Alpine musl — crt0 + full_asm（与 glibc Linux 同路径）"
 fi
 
 ulimit -s 16384 2>/dev/null || true

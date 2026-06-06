@@ -1,0 +1,7 @@
+# shu io bench 中位数上限（秒）；门禁：实测 median ≤ 本列值
+# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench
+io_mmap_throughput	0.006
+io_batch_readv	0.006
+io_write_throughput	0.032
+zero_copy_sendfile	0.20
+zero_copy_splice	0.35

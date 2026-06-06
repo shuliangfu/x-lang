@@ -186,8 +186,7 @@ function emit_push_rax(out: *CodegenOutBuf): i32 {
   return append_asm_line(out, line, 10);
 }
 
-/** call 后回收栈传参：addq $nbytes, %rsp（SysV 溢出实参；nbytes 须为 8 的倍数且
-* ≤127 用 imm8）。 */
+/** call 后回收栈传参：addq $nbytes, %rsp（SysV 溢出实参；ELF 路径 enc_add_rsp_imm 同语义）。 */
 function emit_add_rsp_imm(out: *CodegenOutBuf, nbytes: i32): i32 {
   if (nbytes <= 0) {
     return 0;

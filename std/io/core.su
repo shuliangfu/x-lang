@@ -13,6 +13,29 @@ extern function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usiz
 extern function io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32;
 extern function io_read_ptr(handle: usize, timeout_ms: u32): *u8;
 extern function io_read_ptr_len(): i32;
+/** ZC-2：read_ptr 视图 generation 与校验。 */
+extern function io_read_ptr_gen(): u64;
+extern function io_read_ptr_gen_valid(saved: u64): i32;
+/** ZC-2：0=TLS，1=mmap(Linux)，2=dispatch_data(macOS)。 */
+extern function io_read_ptr_backend(): i32;
+/** M-5：零拷贝读返回 []u8 slice（C 侧 shulang_slice_uint8_t）。 */
+extern function io_read_ptr_slice(handle: usize, timeout_ms: u32): []u8<io_read_ptr>;
+// ZC-1：Provided Buffers（Linux io_uring IORING_OP_PROVIDE_BUFFERS）
+extern function io_register_provided_buffers(nr: u32, bufsz: u32): i32;
+extern function io_unregister_provided_buffers(): void;
+extern function io_provided_buffer_ptr(bid: u32): *u8;
+extern function io_provided_buffer_size(): u32;
+extern function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): isize;
+extern function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize;
+// IO-A5 v2：非阻塞 read submit + complete（submit 返回 slot>=0；C 侧 io.c）
+extern function shu_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32;
+extern function shu_io_complete_read_async(): i32;
+extern function shu_io_complete_read_async_slot(slot: i32): i32;
+extern function shu_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32;
+extern function shu_io_complete_write_async(): i32;
+extern function shu_io_complete_write_async_slot(slot: i32): i32;
+/** IO-A5 v3：poll io_uring async CQE 并唤醒 scheduler（不消费 CQE）。 */
+extern function shu_io_poll_async_completions(timeout_ms: u32): u32;
 // 预注册当前线程的固定 buffer（单 buffer）：Linux 上走 io_uring_register_buffers，它平台仅存 (ptr,len) 供 read_fixed/write_fixed。handle 暂未使用。返回 1 成功，0 失败。
 function shu_io_register(ptr: *u8, len: usize, handle: usize): i32 {
   return io_register_buffer(ptr, len);
@@ -60,6 +83,22 @@ function shu_io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
 function shu_io_read_ptr_len(): i32 {
   return io_read_ptr_len();
 }
+/** ZC-2：返回当前 read_ptr generation。 */
+function shu_io_read_ptr_gen(): u64 {
+  return io_read_ptr_gen();
+}
+/** ZC-2：校验 saved generation 是否仍对应当前有效 read_ptr 视图。 */
+function shu_io_read_ptr_gen_valid(saved: u64): i32 {
+  return io_read_ptr_gen_valid(saved);
+}
+/** ZC-2：read_ptr 绝对视图后端探测。 */
+function shu_io_read_ptr_backend(): i32 {
+  return io_read_ptr_backend();
+}
+/** M-5：read_ptr + len 打包为 []u8 slice；域标签 io_read_ptr 由 typeck 绑定。 */
+function shu_io_read_ptr_slice(handle: usize, timeout_ms: u32): []u8<io_read_ptr> {
+  return io_read_ptr_slice(handle, timeout_ms);
+}
 // 同步写：handle 1=stdout，handle≥2 视为 fd；timeout_ms 传给 C 后端。返回写入字节数，-1=错误/超时。
 function shu_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
   let fd: i32 = (handle as i32);
@@ -85,6 +124,43 @@ function shu_io_submit_write_batch(ptr0: *u8, len0: usize, ptr1: *u8, len1: usiz
   let fd: i32 = (handle as i32);
   if (handle >= 1) {
     let r: isize = io_write_batch(fd, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, n, timeout_ms);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+// ─── ZC-1 Provided Buffers：内核 buffer ring，recv 零拷贝落池 ───
+/** 注册当前线程 provided 池；nr 1..32，bufsz 建议 4096。Linux io_uring 专用；失败返回 0。 */
+function shu_io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
+  return io_register_provided_buffers(nr, bufsz);
+}
+/** 注销 provided 池。 */
+function shu_io_unregister_provided_buffers(): void {
+  io_unregister_provided_buffers();
+}
+/** 返回 bid 对应只读指针；无效返回 0。 */
+function shu_io_provided_buffer_ptr(bid: u32): *u8 {
+  return io_provided_buffer_ptr(bid);
+}
+/** 单块容量（字节）。 */
+function shu_io_provided_buffer_size(): u32 {
+  return io_provided_buffer_size();
+}
+/** 单次 provided recv；out_bid/out_len 可传 0 忽略。返回读入字节数，0=EOF，-1=错误。 */
+function shu_io_read_provided(handle: usize, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_read_provided(fd, timeout_ms, out_bid, out_len);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+/** 批量 provided recv（n=1..4）；out_bids/out_lens 各 n 元素。返回总字节数，-1=错误。 */
+function shu_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_read_batch_provided(fd, n, timeout_ms, out_bids, out_lens);
     if (r < 0) { return -1; }
     return (r as i32);
   }

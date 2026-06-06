@@ -9,6 +9,8 @@
 
 #include "codegen/codegen.h"
 #include "ast.h"
+#include "async_liveness.h"
+#include "async_cps_codegen.h"
 #include "../lsp/lsp_codegen_extern.h"
 #include <stdio.h>
 #include <string.h>
@@ -282,14 +284,13 @@ int32_t codegen_su_index_skip_bounds(uint8_t *expr) { const struct ASTExpr *e = 
 uint8_t *codegen_su_field_access_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.base) ? (uint8_t *)e->value.field_access.base : NULL; }
 uint8_t *codegen_su_field_access_field_name(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? (uint8_t *)e->value.field_access.field_name : (uint8_t *)""; }
 int32_t codegen_su_field_access_field_len(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; const char *fn = (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? e->value.field_access.field_name : ""; return (int32_t)strlen(fn); }
-/** .su 侧 FIELD_ACCESS：base 是否为指针或 slice 类型（1 则输出 ->，0 则输出 .）；C 中 slice 按指针传，自举时 arena/source/out_buf.field 需生成 ->。 */
+/** .su 侧 FIELD_ACCESS：base 是否为指针类型，或 slice 形参（按指针传）；局部 slice 值类型用 `.`。 */
 int32_t codegen_su_field_access_base_is_pointer(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_FIELD_ACCESS || !e->value.field_access.base) return 0;
     const struct ASTExpr *base = e->value.field_access.base;
     if (!base->resolved_type) return 0;
     if (base->resolved_type->kind == AST_TYPE_PTR) return 1;
-    if (base->resolved_type->kind == AST_TYPE_SLICE) return 1;
     return 0;
 }
 int32_t codegen_su_expr_type_kind(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->resolved_type) ? (int32_t)e->resolved_type->kind : -1; }
@@ -387,6 +388,242 @@ static const char *codegen_library_prefix;
 static const struct ASTModule *codegen_library_module;
 /** 库模块 import 路径（如 std.process），用于 std.process.exit 等特殊函数体生成。 */
 static const char *codegen_library_import_path;
+
+/** A3 CPS：async 函数 switch(__phase) 分段生成状态。 */
+static int codegen_async_cps_active;
+static AsyncCpsCodegenCtx codegen_async_cps_ctx;
+
+/** async CPS 正常 return 前 reset __phase（suspend return 不经过此处）。 */
+static void codegen_async_cps_before_return(FILE *out, const char *pad) {
+    if (codegen_async_cps_active)
+        async_cps_codegen_emit_phase_reset(out, pad);
+}
+
+/**
+ * run v4：按形参类型选择 seed push 运行时入口。
+ */
+static const char *codegen_run_seed_push_fn(const struct ASTType *ty) {
+    if (ty && ty->kind == AST_TYPE_U32)
+        return "shu_async_run_seed_push_u32";
+    if (ty && ty->kind == AST_TYPE_I64)
+        return "shu_async_run_seed_push_i64";
+    if (ty && ty->kind == AST_TYPE_USIZE)
+        return "shu_async_run_seed_push_usize";
+    return "shu_async_run_seed_push_i32";
+}
+
+/**
+ * IO-A5 v1：`let v = await read(h, ptr, len, tm)` → submit_read_async + suspend_io + complete。
+ * 非阻塞 submit 在 suspend 前；resume 后 shu_io_complete_read_async 赋值。
+ */
+static int codegen_async_cps_await_read(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
+    const char *var_name, FILE *out, const char *pad) {
+    const struct ASTExpr *op;
+    const struct ASTExpr **args;
+    const AsyncFrameLayout *layout;
+    const char *p;
+    int phase;
+    int i;
+    if (!ctx || !await_expr || !var_name || !out || !ctx->layout)
+        return -1;
+    op = await_expr->value.unary.operand;
+    if (!op || op->kind != AST_EXPR_CALL || op->value.call.num_args < 3)
+        return -1;
+    args = op->value.call.args;
+    if (!args || !args[0] || !args[1] || !args[2])
+        return -1;
+    layout = ctx->layout;
+    p = pad ? pad : "  ";
+    phase = ctx->phase_next++;
+    fprintf(out, "%sif ((__shu_frame.__io_rd_slot = shu_io_submit_read_async(", p);
+    if (codegen_expr(args[1], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[2], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[0], out) != 0) return -1;
+    fprintf(out, ")) < 0) {\n");
+    fprintf(out, "%s  %s = -1;\n", p, var_name);
+    fprintf(out, "%s} else {\n", p);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s  __shu_frame.%s = %s;\n", p, v, v);
+    }
+    fprintf(out, "%s  __shu_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%s  if (shu_async_cps_suspend_io(&__shu_frame.__phase, %d)) return (int32_t)SHU_ASYNC_SUSPENDED;\n",
+        p, phase);
+    fprintf(out, "%s}\n", p);
+    fprintf(out, "%s/* SHU_ASYNC_CPS io_read fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%scase %d:\n", p, phase);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
+    }
+    fprintf(out, "%s%s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n", p, var_name);
+    return 0;
+}
+
+/**
+ * IO-A5 v1：`let v = await read_fd(fd, ptr, len)` → submit_read_async(ptr, len, fd as handle)。
+ */
+static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
+    const char *var_name, FILE *out, const char *pad) {
+    const struct ASTExpr *op;
+    const struct ASTExpr **args;
+    const AsyncFrameLayout *layout;
+    const char *p;
+    int phase;
+    int i;
+    if (!ctx || !await_expr || !var_name || !out || !ctx->layout)
+        return -1;
+    op = await_expr->value.unary.operand;
+    if (!op || op->kind != AST_EXPR_CALL || op->value.call.num_args < 3)
+        return -1;
+    args = op->value.call.args;
+    if (!args || !args[0] || !args[1] || !args[2])
+        return -1;
+    layout = ctx->layout;
+    p = pad ? pad : "  ";
+    phase = ctx->phase_next++;
+    fprintf(out, "%sif ((__shu_frame.__io_rd_slot = shu_io_submit_read_async(", p);
+    if (codegen_expr(args[1], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[2], out) != 0) return -1;
+    fprintf(out, ", (size_t)(unsigned)(");
+    if (codegen_expr(args[0], out) != 0) return -1;
+    fprintf(out, ")) < 0) {\n");
+    fprintf(out, "%s  %s = -1;\n", p, var_name);
+    fprintf(out, "%s} else {\n", p);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s  __shu_frame.%s = %s;\n", p, v, v);
+    }
+    fprintf(out, "%s  __shu_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%s  if (shu_async_cps_suspend_io(&__shu_frame.__phase, %d)) return (int32_t)SHU_ASYNC_SUSPENDED;\n",
+        p, phase);
+    fprintf(out, "%s}\n", p);
+    fprintf(out, "%s/* SHU_ASYNC_CPS io_read_fd fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%scase %d:\n", p, phase);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
+    }
+    fprintf(out, "%s%s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n", p, var_name);
+    return 0;
+}
+
+/**
+ * IO-A5 v1：`let v = await write_fd(fd, ptr, len)` → submit_write_async(ptr, len, fd as handle)。
+ */
+static int codegen_async_cps_await_write_fd(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
+    const char *var_name, FILE *out, const char *pad) {
+    const struct ASTExpr *op;
+    const struct ASTExpr **args;
+    const AsyncFrameLayout *layout;
+    const char *p;
+    int phase;
+    int i;
+    if (!ctx || !await_expr || !var_name || !out || !ctx->layout)
+        return -1;
+    op = await_expr->value.unary.operand;
+    if (!op || op->kind != AST_EXPR_CALL || op->value.call.num_args < 3)
+        return -1;
+    args = op->value.call.args;
+    if (!args || !args[0] || !args[1] || !args[2])
+        return -1;
+    layout = ctx->layout;
+    p = pad ? pad : "  ";
+    phase = ctx->phase_next++;
+    fprintf(out, "%sif ((__shu_frame.__io_wr_slot = shu_io_submit_write_async(", p);
+    if (codegen_expr(args[1], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[2], out) != 0) return -1;
+    fprintf(out, ", (size_t)(unsigned)(");
+    if (codegen_expr(args[0], out) != 0) return -1;
+    fprintf(out, ")) < 0) {\n");
+    fprintf(out, "%s  %s = -1;\n", p, var_name);
+    fprintf(out, "%s} else {\n", p);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s  __shu_frame.%s = %s;\n", p, v, v);
+    }
+    fprintf(out, "%s  __shu_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%s  if (shu_async_cps_suspend_io(&__shu_frame.__phase, %d)) return (int32_t)SHU_ASYNC_SUSPENDED;\n",
+        p, phase);
+    fprintf(out, "%s}\n", p);
+    fprintf(out, "%s/* SHU_ASYNC_CPS io_write_fd fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%scase %d:\n", p, phase);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
+    }
+    fprintf(out, "%s%s = shu_io_complete_write_async_slot(__shu_frame.__io_wr_slot);\n", p, var_name);
+    return 0;
+}
+
+/**
+ * IO-A5 v1：`let v = await write(h, ptr, len, tm)` → submit_write_async + suspend_io + complete。
+ */
+static int codegen_async_cps_await_write(AsyncCpsCodegenCtx *ctx, const struct ASTExpr *await_expr,
+    const char *var_name, FILE *out, const char *pad) {
+    const struct ASTExpr *op;
+    const struct ASTExpr **args;
+    const AsyncFrameLayout *layout;
+    const char *p;
+    int phase;
+    int i;
+    if (!ctx || !await_expr || !var_name || !out || !ctx->layout)
+        return -1;
+    op = await_expr->value.unary.operand;
+    if (!op || op->kind != AST_EXPR_CALL || op->value.call.num_args < 3)
+        return -1;
+    args = op->value.call.args;
+    if (!args || !args[0] || !args[1] || !args[2])
+        return -1;
+    layout = ctx->layout;
+    p = pad ? pad : "  ";
+    phase = ctx->phase_next++;
+    fprintf(out, "%sif ((__shu_frame.__io_wr_slot = shu_io_submit_write_async(", p);
+    if (codegen_expr(args[1], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[2], out) != 0) return -1;
+    fprintf(out, ", ");
+    if (codegen_expr(args[0], out) != 0) return -1;
+    fprintf(out, ")) < 0) {\n");
+    fprintf(out, "%s  %s = -1;\n", p, var_name);
+    fprintf(out, "%s} else {\n", p);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s  __shu_frame.%s = %s;\n", p, v, v);
+    }
+    fprintf(out, "%s  __shu_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%s  if (shu_async_cps_suspend_io(&__shu_frame.__phase, %d)) return (int32_t)SHU_ASYNC_SUSPENDED;\n",
+        p, phase);
+    fprintf(out, "%s}\n", p);
+    fprintf(out, "%s/* SHU_ASYNC_CPS io_write fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%scase %d:\n", p, phase);
+    for (i = 0; i < layout->live.n; i++) {
+        const char *v = layout->live.names[i];
+        if (!v || !v[0]) continue;
+        fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
+    }
+    fprintf(out, "%s%s = shu_io_complete_write_async_slot(__shu_frame.__io_wr_slot);\n", p, var_name);
+    return 0;
+}
+
+/** DCE/WPO 未直连时：模块内有 shu_async_sched_<fn> extern 则保留 async 函数体。 */
+static int codegen_async_keep_for_sched(const struct ASTModule *m, const struct ASTFunc *f,
+    codegen_is_func_used_fn is_func_used, void *dce_ctx) {
+    if (!dce_ctx || !is_func_used || is_func_used(dce_ctx, m, f))
+        return 1;
+    return async_cps_module_has_sched_extern(m, f) || async_cps_module_references_run_async(m, f);
+}
 
 /** pipeline 单文件时 preamble 已输出 Option_i32/Result_i32，库模块生成时跳过二者避免重定义。由 runtime 在调用 pipeline 前置 1。 */
 static int codegen_preamble_has_core_option_result = 0;
@@ -525,7 +762,7 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
     if (a->kind != b->kind) return 0;
     if (a->kind == AST_TYPE_NAMED)
         return (a->name && b->name && strcmp(a->name, b->name) == 0);
-    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_SLICE || a->kind == AST_TYPE_VECTOR)
+    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_SLICE || a->kind == AST_TYPE_LINEAR || a->kind == AST_TYPE_VECTOR)
         return type_equal(a->elem_type, b->elem_type);
     if (a->kind == AST_TYPE_ARRAY)
         return a->array_size == b->array_size && type_equal(a->elem_type, b->elem_type);
@@ -672,6 +909,7 @@ static void collect_import_calls_from_expr(const struct ASTExpr *e, const char *
             collect_import_calls_from_expr(e->value.binop.right, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             collect_import_calls_from_expr(e->value.unary.operand, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
             break;
         case AST_EXPR_AS:
@@ -761,6 +999,7 @@ next_call: ;
             collect_lib_dep_calls_from_expr(e->value.binop.right, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             collect_lib_dep_calls_from_expr(e->value.unary.operand, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
             break;
         case AST_EXPR_AS:
@@ -884,6 +1123,11 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
     }
     /* 数组类型 [N]T：声明时用 elem_type name[N]，此处只写元素类型（文档 §6.2） */
     if (ty->kind == AST_TYPE_ARRAY && ty->elem_type) {
+        c_type_to_buf(ty->elem_type, buf, size);
+        return;
+    }
+    /* M-4：Linear(T) 与内层 T 同 C 布局，零 RT 开销 */
+    if (ty->kind == AST_TYPE_LINEAR && ty->elem_type) {
         c_type_to_buf(ty->elem_type, buf, size);
         return;
     }
@@ -1081,7 +1325,10 @@ static int expr_produces_struct_type(const struct ASTExpr *e) {
  * 不含 U8：u8 的 const_folded_val 可能被误用导致 return -1094795586 等错误，故 u8 一律走正常表达式生成。 */
 static int expr_type_is_foldable_scalar(const struct ASTExpr *e) {
     if (!e || !e->resolved_type) return 0;
-    switch (e->resolved_type->kind) {
+    const struct ASTType *ty = e->resolved_type;
+    if (ty->kind == AST_TYPE_LINEAR && ty->elem_type)
+        ty = ty->elem_type;
+    switch (ty->kind) {
         case AST_TYPE_I32: case AST_TYPE_BOOL: case AST_TYPE_U32:
         case AST_TYPE_I64: case AST_TYPE_USIZE: case AST_TYPE_ISIZE:
             return 1;
@@ -1283,6 +1530,16 @@ static void ensure_block_vector_typedefs(const struct ASTBlock *b, FILE *out) {
         if (b->loops[i].body) ensure_block_vector_typedefs(b->loops[i].body, out);
     for (int i = 0; i < b->num_for_loops; i++)
         if (b->for_loops[i].body) ensure_block_vector_typedefs(b->for_loops[i].body, out);
+}
+
+/** 函数签名中的向量返回/形参须先于 static inline 前向声明输出 typedef（与 ensure_slice_struct 对称）。 */
+static void ensure_func_sig_vector_typedefs(const struct ASTFunc *f, FILE *out) {
+    if (!f || !out) return;
+    if (f->return_type && f->return_type->kind == AST_TYPE_VECTOR)
+        ensure_vector_typedef(f->return_type, out);
+    for (int p = 0; p < f->num_params; p++)
+        if (f->params[p].type && f->params[p].type->kind == AST_TYPE_VECTOR)
+            ensure_vector_typedef(f->params[p].type, out);
 }
 
 /**
@@ -2522,6 +2779,66 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             fprintf(out, "))");
             return 0;
         }
+        case AST_EXPR_AWAIT:
+            /* A3 同步 stub：暂等同 eval operand，无 suspend/resume（CPS 待后续） */
+            return codegen_expr(e->value.unary.operand, out);
+        case AST_EXPR_RUN: {
+            /* A4/run v4：run async_fn(...) → seed 队列 + shu_async_sched_<name>() */
+            const struct ASTExpr *op = e->value.unary.operand;
+            const struct ASTFunc *af;
+            int ai;
+            if (!op || op->kind != AST_EXPR_CALL || !op->value.call.resolved_callee_func)
+                return -1;
+            af = op->value.call.resolved_callee_func;
+            if (!af->name || !af->is_async)
+                return -1;
+            if (op->value.call.num_args > 0) {
+                fprintf(out, "(shu_async_run_seed_reset()");
+                for (ai = 0; ai < op->value.call.num_args; ai++) {
+                    const struct ASTExpr *a = op->value.call.args[ai];
+                    const struct ASTType *pty = (ai < af->num_params) ? af->params[ai].type : NULL;
+                    if (!a)
+                        return -1;
+                    fprintf(out, ", %s(", codegen_run_seed_push_fn(pty));
+                    if (codegen_expr(a, out) != 0) return -1;
+                    fprintf(out, ")");
+                }
+                fprintf(out, ", shu_async_sched_%s())", af->name);
+            } else {
+                fprintf(out, "shu_async_sched_%s()", af->name);
+            }
+            return 0;
+        }
+        case AST_EXPR_SPAWN: {
+            /* IO-A5 v4：spawn async_fn(...) → push seed + task_submit(coro)；不 reset seed 队列 */
+            const struct ASTExpr *op = e->value.unary.operand;
+            const struct ASTFunc *af;
+            int ai;
+            if (!op || op->kind != AST_EXPR_CALL || !op->value.call.resolved_callee_func)
+                return -1;
+            af = op->value.call.resolved_callee_func;
+            if (!af->name || !af->is_async)
+                return -1;
+            if (op->value.call.num_args > 0) {
+                for (ai = 0; ai < op->value.call.num_args; ai++) {
+                    const struct ASTExpr *a = op->value.call.args[ai];
+                    const struct ASTType *pty = (ai < af->num_params) ? af->params[ai].type : NULL;
+                    if (!a)
+                        return -1;
+                    if (ai == 0)
+                        fprintf(out, "(");
+                    else
+                        fprintf(out, ", ");
+                    fprintf(out, "%s(", codegen_run_seed_push_fn(pty));
+                    if (codegen_expr(a, out) != 0) return -1;
+                    fprintf(out, ")");
+                }
+                fprintf(out, ", shu_async_task_submit((int32_t (*)(void))%s))", af->name);
+            } else {
+                fprintf(out, "shu_async_task_submit((int32_t (*)(void))%s)", af->name);
+            }
+            return 0;
+        }
         case AST_EXPR_AS: {
             /* 类型转换 expr as type → C 的 (target_type)(expr) */
             const struct ASTType *ty = e->value.as_type.type;
@@ -2950,10 +3267,10 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                         return 0;
                     }
             }
-            /* 字段访问 base.field；base 为指针、slice 类型或指针/slice 形参时输出 ->（C 中按指针传），否则 .；形参查表弥补 resolved_type 未填。 */
+            /* 字段访问 base.field；指针或 slice 形参用 ->，局部 slice 值类型与其它用 . */
             fprintf(out, "(");
             if (codegen_expr(e->value.field_access.base, out) != 0) return -1;
-            if ((e->value.field_access.base->resolved_type && (e->value.field_access.base->resolved_type->kind == AST_TYPE_PTR || e->value.field_access.base->resolved_type->kind == AST_TYPE_SLICE))
+            if ((e->value.field_access.base->resolved_type && e->value.field_access.base->resolved_type->kind == AST_TYPE_PTR)
                 || expr_is_ptr_or_slice_param(e->value.field_access.base))
                 fprintf(out, ")->%s", e->value.field_access.field_name ? e->value.field_access.field_name : "");
             else
@@ -3701,6 +4018,46 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 const struct ASTType *ty = b->let_decls[idx].type;
                 const struct ASTExpr *linit = b->let_decls[idx].init;
                 const struct ASTType *ety = codegen_emit_type(ty);
+                /* A3 CPS：hoist 后的 let 用 assignment；await 边界保存/恢复帧。 */
+                if (codegen_async_cps_active && linit) {
+                    if (linit->kind == AST_EXPR_AWAIT) {
+                        if (async_cps_expr_is_await_read_fd(linit)) {
+                            if (codegen_async_cps_await_read_fd(&codegen_async_cps_ctx, linit, name, out, pad) != 0)
+                                return -1;
+                            break;
+                        }
+                        if (async_cps_expr_is_await_read(linit)) {
+                            if (codegen_async_cps_await_read(&codegen_async_cps_ctx, linit, name, out, pad) != 0)
+                                return -1;
+                            break;
+                        }
+                        if (async_cps_expr_is_await_write_fd(linit)) {
+                            if (codegen_async_cps_await_write_fd(&codegen_async_cps_ctx, linit, name, out, pad) != 0)
+                                return -1;
+                            break;
+                        }
+                        if (async_cps_expr_is_await_write(linit)) {
+                            if (codegen_async_cps_await_write(&codegen_async_cps_ctx, linit, name, out, pad) != 0)
+                                return -1;
+                            break;
+                        }
+                        fprintf(out, "%s%s = ", pad, name);
+                        if (codegen_expr(linit->value.unary.operand, out) != 0) return -1;
+                        fprintf(out, ";\n");
+                        if (async_cps_expr_is_io_await(linit)) {
+                            if (async_cps_codegen_after_await_io(&codegen_async_cps_ctx, out, pad) != 0) return -1;
+                        } else if (async_cps_codegen_after_await(&codegen_async_cps_ctx, out, pad) != 0) {
+                            return -1;
+                        }
+                        break;
+                    }
+                    if (ety && ety->kind != AST_TYPE_ARRAY && ety->kind != AST_TYPE_SLICE) {
+                        fprintf(out, "%s%s = ", pad, name);
+                        if (codegen_init(ty, linit, out, b) != 0) return -1;
+                        fprintf(out, ";\n");
+                        break;
+                    }
+                }
                 /* 若初值为 extern 调用且返回 slice 而 ty 未正确填为 SLICE，用 callee 返回类型兜底，避免生成 int32_t var = parser_slice_from_buf(...) 导致 run-hello 解析失败 */
                 if ((!ety || ety->kind != AST_TYPE_SLICE) && linit && linit->kind == AST_EXPR_CALL && linit->value.call.resolved_callee_func) {
                     const struct ASTFunc *f = linit->value.call.resolved_callee_func;
@@ -3772,6 +4129,13 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                     if (b->for_loops[idx].step) { if (codegen_expr(b->for_loops[idx].step, out) != 0) return -1; }
                     fprintf(out, ") {\n");
                     if (codegen_block_body(b->for_loops[idx].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                    fprintf(out, "%s}\n", pad);
+                }
+                break;
+            case 5: /* region：编译期域标签，运行时等价嵌套块 */
+                if (idx < b->num_regions) {
+                    fprintf(out, "%s{\n", pad);
+                    if (codegen_block_body(b->regions[idx].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
                     fprintf(out, "%s}\n", pad);
                 }
                 break;
@@ -4037,6 +4401,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
 #endif
             const struct ASTExpr *re = b->labeled_stmts[i].u.return_expr;
             if (!re) {
+                codegen_async_cps_before_return(out, pad);
                 fprintf(out, "%sreturn;\n", pad);
                 continue;
             }
@@ -4049,14 +4414,18 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 fprintf(out, "%s  ", pad);
                 if (codegen_expr(re->value.if_expr.then_expr, out) != 0) return -1;
                 fprintf(out, ";\n%s}\n", pad);
+                codegen_async_cps_before_return(out, pad);
                 if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
                 if (codegen_expr(re->value.if_expr.else_expr, out) != 0) return -1;
                 fprintf(out, cast_return_to_int ? ");\n" : ";\n");
             } else if (re->kind == AST_EXPR_PANIC) {
                 fprintf(out, "%s", pad);
                 if (codegen_expr(re, out) != 0) return -1;
-                fprintf(out, ";\n%sreturn 0;\n", pad);
+                fprintf(out, ";\n");
+                codegen_async_cps_before_return(out, pad);
+                fprintf(out, "%sreturn 0;\n", pad);
             } else {
+                codegen_async_cps_before_return(out, pad);
                 if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
                 if (codegen_expr(re, out) != 0) return -1;
                 fprintf(out, cast_return_to_int ? ");\n" : ";\n");
@@ -4091,6 +4460,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
 #ifdef SHU_USE_SU_CODEGEN
             if (codegen_codegen_su_emit_return_no_val((uint8_t *)out, indent) != 0) return -1;
 #else
+            codegen_async_cps_before_return(out, pad);
             fprintf(out, "%sreturn;\n", pad);
 #endif
             return 0;
@@ -4098,8 +4468,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         if (op->kind == AST_EXPR_PANIC) {
             fprintf(out, "%s", pad);
             if (codegen_expr(op, out) != 0) return -1;
-            fprintf(out, ";\n%sreturn 0;\n", pad);
+            fprintf(out, ";\n");
+            codegen_async_cps_before_return(out, pad);
+            fprintf(out, "%sreturn 0;\n", pad);
         } else {
+            codegen_async_cps_before_return(out, pad);
             if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
             if (codegen_expr(op, out) != 0) return -1;
             fprintf(out, cast_return_to_int ? ");\n" : ";\n");
@@ -4119,8 +4492,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         if (then_ret && then_ret->kind == AST_EXPR_PANIC) {
             fprintf(out, "%s  ", pad);
             if (codegen_expr(then_ret, out) != 0) return -1;
-            fprintf(out, ";\n%s  return 0;\n", pad);
+            fprintf(out, ";\n");
+            codegen_async_cps_before_return(out, pad);
+            fprintf(out, "%s  return 0;\n", pad);
         } else {
+            codegen_async_cps_before_return(out, pad);
             fprintf(out, "%s  return ", pad);
             if (codegen_expr(then_ret, out) != 0) return -1;
             fprintf(out, ";\n");
@@ -4129,8 +4505,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         if (else_ret && else_ret->kind == AST_EXPR_PANIC) {
             fprintf(out, "%s  ", pad);
             if (codegen_expr(else_ret, out) != 0) return -1;
-            fprintf(out, ";\n%s  return 0;\n", pad);
+            fprintf(out, ";\n");
+            codegen_async_cps_before_return(out, pad);
+            fprintf(out, "%s  return 0;\n", pad);
         } else {
+            codegen_async_cps_before_return(out, pad);
             fprintf(out, "%s  return ", pad);
             if (codegen_expr(else_ret, out) != 0) return -1;
             fprintf(out, ";\n");
@@ -4770,10 +5149,12 @@ func_body_after_block:
             fprintf(out, "%sbreak;\n", pad);
         } else if (st->kind == AST_EXPR_RETURN) {
             if (st->value.unary.operand) {
+                codegen_async_cps_before_return(out, pad);
                 fprintf(out, "%sreturn ", pad);
                 if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
                 fprintf(out, ";\n");
             } else {
+                codegen_async_cps_before_return(out, pad);
                 fprintf(out, "%sreturn;\n", pad);
             }
         } else {
@@ -4914,11 +5295,28 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         fprintf(out, "}\n");
         return 0;
     }
-    /* 小函数内联提示（§3.4）：入口模块内非 main、非 extern 加 static inline；core.option/core.result 库函数加 inline；core.types/core.mem 的 size_of_* 与 align_of_* 加 inline 便于常量折叠 */
-    if (!codegen_library_prefix && f->name && strcmp(f->name, "main") != 0 && !f->is_extern)
+    /* A3：async 函数在签名前 emit 协程帧 typedef。 */
+    AsyncFrameLayout async_layout;
+    AsyncCpsCodegenCtx async_cps_ctx;
+    int has_async_frame = 0;
+    if (f->is_async && async_liveness_func_has_await(f)) {
+        if (async_liveness_layout_func_module(f, m, &async_layout) == 0) {
+            async_liveness_emit_frame_typedef(f, &async_layout, out);
+            has_async_frame = 1;
+        }
+    }
+    /* 小函数内联提示（§3.4）：入口模块内非 main、非 extern 加 static inline；
+     * async CPS 函数仅 static（同 TU 可取址给 shu_async_run_i32）。 */
+    if (!codegen_library_prefix && f->name && strcmp(f->name, "main") != 0 && !f->is_extern) {
+        if (has_async_frame)
+            fprintf(out, "static ");
+        else
+            fprintf(out, "static inline ");
+    } else if (codegen_library_prefix && codegen_library_import_path && !f->is_extern
+        && (strcmp(codegen_library_import_path, "core.option") == 0 || strcmp(codegen_library_import_path, "core.result") == 0))
         fprintf(out, "static inline ");
     else if (codegen_library_prefix && codegen_library_import_path && !f->is_extern
-        && (strcmp(codegen_library_import_path, "core.option") == 0 || strcmp(codegen_library_import_path, "core.result") == 0))
+        && (strcmp(codegen_library_import_path, "std.fs") == 0 || strcmp(codegen_library_import_path, "std.net") == 0))
         fprintf(out, "static inline ");
     else if (codegen_library_prefix && codegen_library_import_path && f->name && !f->is_extern
         && (strcmp(codegen_library_import_path, "core.types") == 0 || strcmp(codegen_library_import_path, "core.mem") == 0)
@@ -4939,6 +5337,14 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         codegen_emit_param(&f->params[i], out, param_override, i);
     }
     fprintf(out, ") {\n");
+    /* A3：帧布局注释 + 帧局部占位（sync stub；CPS 后续分段读写 __shu_frame）。 */
+    if (has_async_frame) {
+        async_liveness_emit_codegen_comment(f, &async_layout, out);
+        async_liveness_emit_frame_local(f, &async_layout, out);
+        async_cps_codegen_begin(&async_cps_ctx, f, &async_layout, out);
+        codegen_async_cps_ctx = async_cps_ctx;
+        codegen_async_cps_active = 1;
+    }
     /* std.io.driver 的 register/submit_read/submit_write 首参已生成为 ptrdiff_t，须直接调 _buf 包装；submit_register_fixed_buffers_buf 首参为 struct *，体内转 intptr_t 调 io_register_buffers_buf_i32。 */
     if (codegen_library_import_path && f->name && f->params
         && (strcmp(codegen_library_import_path, "std.io.driver") == 0 || strcmp(codegen_library_import_path, "std/io/driver") == 0)) {
@@ -4990,7 +5396,13 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         fprintf(out, "  (void)printf(\"%%lld\\n\", (long long)%s);\n  return 0;\n", pname);
     } else if (codegen_func_body(f->body, m, out, f) != 0)
         return -1;
+    if (has_async_frame) {
+        async_cps_codegen_end(&codegen_async_cps_ctx, out);
+        codegen_async_cps_active = 0;
+    }
     fprintf(out, "}\n");
+    if (has_async_frame)
+        async_cps_codegen_emit_sched_wrapper(f, fname, out);
     return 0;
 }
 
@@ -5106,6 +5518,19 @@ static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *ent
             worklist[*n_wl++] = (struct ASTFunc *)callee;
             if (in_wl) in_wl[(size_t)(const char *)callee % (size_t)max_wl] = 1;
         }
+        /* A4：extern shu_async_sched_<async_fn> 调用须保留 async 函数体（wrapper 同 TU emit）。 */
+        if (callee && callee->name && callee->is_extern) {
+            struct ASTFunc *async_target = async_cps_resolve_sched_target(entry, callee->name);
+            if (async_target) {
+                for (int ai = 0; ai < *n_wl && ai < max_wl; ai++)
+                    if (worklist[ai] == async_target) goto skip_async_sched_target;
+                if (*n_wl < max_wl) {
+                    worklist[*n_wl++] = async_target;
+                    if (in_wl) in_wl[(size_t)(const char *)async_target % (size_t)max_wl] = 1;
+                }
+            skip_async_sched_target: ;
+            }
+        }
     skip_add: ;
     }
     if (e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.resolved_impl_func) {
@@ -5135,9 +5560,24 @@ static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *ent
             dce_collect_from_expr(e->value.binop.left, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
             dce_collect_from_expr(e->value.binop.right, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
             break;
-        case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
-        case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             dce_collect_from_expr(e->value.unary.operand, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
+            if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
+                const struct ASTExpr *op = e->value.unary.operand;
+                if (op && op->kind == AST_EXPR_CALL && op->value.call.resolved_callee_func) {
+                    struct ASTFunc *async_target = op->value.call.resolved_callee_func;
+                    if (async_target && async_target->is_async && async_liveness_func_has_await(async_target)) {
+                        int ai;
+                        for (ai = 0; ai < *n_wl && ai < max_wl; ai++)
+                            if (worklist[ai] == async_target) break;
+                        if (ai >= *n_wl && *n_wl < max_wl) {
+                            worklist[*n_wl++] = async_target;
+                            if (in_wl) in_wl[(size_t)(const char *)async_target % (size_t)max_wl] = 1;
+                        }
+                    }
+                }
+            }
             break;
         case AST_EXPR_AS:
             dce_collect_from_expr(e->value.as_type.operand, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
@@ -5197,6 +5637,7 @@ static int expr_references_func(const struct ASTExpr *e, const struct ASTFunc *f
             if (expr_references_func(e->value.binop.left, func) || expr_references_func(e->value.binop.right, func)) return 1;
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             if (expr_references_func(e->value.unary.operand, func)) return 1;
             break;
         case AST_EXPR_AS:
@@ -5253,6 +5694,7 @@ static void collect_var_names_from_expr(const struct ASTExpr *e, const char **ou
             collect_var_names_from_expr(e->value.binop.right, out, n, max);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_RETURN: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             if (e->value.unary.operand) collect_var_names_from_expr(e->value.unary.operand, out, n, max);
             break;
         case AST_EXPR_AS:
@@ -5464,27 +5906,41 @@ static void dce_collect_from_block(const struct ASTBlock *b, struct ASTModule *e
     if (b->final_expr) dce_collect_from_expr(b->final_expr, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
 }
 
+/** 入口根函数：main_func，或同模块内名为 entry/main 的顶层函数（main.su 用 entry）。 */
+struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry) {
+    if (!entry) return NULL;
+    if (entry->main_func) return entry->main_func;
+    for (int i = 0; i < entry->num_funcs && entry->funcs; i++) {
+        struct ASTFunc *f = entry->funcs[i];
+        if (!f || !f->name || f->is_extern) continue;
+        if (strcmp(f->name, "entry") == 0 || strcmp(f->name, "main") == 0)
+            return f;
+    }
+    return NULL;
+}
+
 void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
     struct ASTFunc **used_funcs_out, int *n_used_out, int max_used,
     int used_mono[][64]) {
-    if (!entry || !entry->main_func || !used_funcs_out || !n_used_out || max_used <= 0) return;
+    struct ASTFunc *root = codegen_entry_root_func(entry);
+    if (!root || !used_funcs_out || !n_used_out || max_used <= 0) return;
     if (used_mono) {
         for (int r = 0; r <= ndep; r++)
             for (int k = 0; k < 64; k++) used_mono[r][k] = 0;
     }
     int n = 0;
-    used_funcs_out[n++] = entry->main_func;
+    used_funcs_out[n++] = root;
 #define DCE_WORKLIST_MAX 512
     /* worklist 与 n_wl 放在同一 struct 内，避免栈上 n_wl 与 used_mono_rows 相邻导致 &n_wl 被误用为相邻变量地址（ASan 报 offset 52 越界） */
     struct dce_worklist {
         struct ASTFunc *list[DCE_WORKLIST_MAX];
         int n;
     } wl = { .n = 0 };
-    wl.list[wl.n++] = (struct ASTFunc *)entry->main_func;
+    wl.list[wl.n++] = root;
     int used_mono_rows = used_mono ? (1 + ndep) : 0;
     /* 种子：先遍历 main 体填满 worklist，再把 worklist 中所有函数加入 used，确保入口引用的 import 符号不被误删 */
-    if (entry->main_func->body)
-        dce_collect_from_block(entry->main_func->body, entry, dep_mods, ndep, wl.list, &wl.n, DCE_WORKLIST_MAX, NULL, used_mono, used_mono_rows);
+    if (root->body)
+        dce_collect_from_block(root->body, entry, dep_mods, ndep, wl.list, &wl.n, DCE_WORKLIST_MAX, NULL, used_mono, used_mono_rows);
     for (int i = 0; i < wl.n && n < max_used; i++) {
         struct ASTFunc *f = wl.list[i];
         if (!f) continue;
@@ -5545,6 +6001,7 @@ static void collect_type_from_expr(const struct ASTExpr *e, const char **out, in
             collect_type_from_expr(e->value.binop.right, out, n, max);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
         case AST_EXPR_RETURN:
             collect_type_from_expr(e->value.unary.operand, out, n, max);
             break;
@@ -5823,6 +6280,8 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                 if (pt) ensure_slice_struct(pt, out);
             }
         }
+        /* 单文件（deps 已写入同 TU 的 static inline 定义）时勿 extern import 符号，否则 C 编译器无法内联 std.fs/std.net 薄包装。 */
+        if (!emitted_type_names) {
         for (int i = 0; i < nimp; i++) {
             char pre[256];
             import_path_to_c_prefix(imp_paths[i], pre, sizeof(pre));
@@ -5849,6 +6308,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
             }
             fprintf(out, ");\n");
         }
+        }
     }
     /* 为所有函数体块及泛型单态化实例体生成 vector/slice 前置定义 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++)
@@ -5861,10 +6321,11 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         for (int j = 0; j < m->impl_blocks[k]->num_funcs; j++)
             if (m->impl_blocks[k]->funcs[j]->body)
                 ensure_block_vector_typedefs(m->impl_blocks[k]->funcs[j]->body, out);
-    /* 入口模块自身函数若参数/返回为 []T，须先输出 slice 结构体定义，避免 C 不完整类型 */
+    /* 入口模块自身函数若参数/返回为 []T / 向量，须先输出 slice/typedef，避免 C 不完整类型 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         const struct ASTFunc *f = m->funcs[i];
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0) continue;
+        ensure_func_sig_vector_typedefs(f, out);
         if (f->return_type) ensure_slice_struct(f->return_type, out);
         for (int j = 0; j < f->num_params; j++)
             if (f->params[j].type) ensure_slice_struct(f->params[j].type, out);
@@ -5873,6 +6334,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         for (int j = 0; j < m->impl_blocks[k]->num_funcs; j++) {
             const struct ASTFunc *f = m->impl_blocks[k]->funcs[j];
             if (!f) continue;
+            ensure_func_sig_vector_typedefs(f, out);
             if (f->return_type) ensure_slice_struct(f->return_type, out);
             for (int p = 0; p < f->num_params; p++)
                 if (f->params[p].type) ensure_slice_struct(f->params[p].type, out);
@@ -5881,10 +6343,13 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         const struct ASTMonoInstance *inst = &m->mono_instances[k];
         if (!inst->template || !inst->type_args) continue;
         const struct ASTFunc *f = inst->template;
+        ensure_func_sig_vector_typedefs(f, out);
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, inst->type_args, inst->num_type_args);
+        if (ret_ty && ret_ty->kind == AST_TYPE_VECTOR) ensure_vector_typedef(ret_ty, out);
         if (ret_ty) ensure_slice_struct(ret_ty, out);
         for (int p = 0; p < f->num_params; p++) {
             const struct ASTType *pt = subst_type(f->params[p].type, f->generic_param_names, inst->type_args, inst->num_type_args);
+            if (pt && pt->kind == AST_TYPE_VECTOR) ensure_vector_typedef(pt, out);
             if (pt) ensure_slice_struct(pt, out);
         }
     }
@@ -5933,6 +6398,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                     }
                 }
             if (need_for_sig) { /* 被本模块某函数签名使用，必须输出，不因 DCE 跳过 */ }
+            else if (async_liveness_module_struct_in_frame(m, sd->name)) { /* async 帧字段须完整 struct */ }
             else if (dce_ctx && is_type_used && !is_type_used(dce_ctx, m, sd->name)) continue;
         }
         if (emitted_type_names && n_emitted_inout && emitted_type_contains(sd->name, emitted_type_names, *n_emitted_inout)) continue;
@@ -6016,10 +6482,24 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
             fprintf(out, "}\n");
         }
     }
-    /* 入口模块内函数前向声明：满足 C 要求（任意顺序调用须先声明后定义）；对所有有体的非 main、非 extern、非泛型函数均声明，避免 DCE 未收集到的同模块 callee 导致 C undeclared */
+    /* 入口模块 extern：生成 C extern 声明，供 main 等同模块 CALL 链接 fs.o/net.o 等（库模块在 codegen_library_module_to_c 末尾处理）。 */
+    for (int i = 0; i < m->num_funcs && m->funcs; i++) {
+        const struct ASTFunc *f = m->funcs[i];
+        if (!f || !f->is_extern) continue;
+        /* shu_async_sched_* 由 async 函数体末尾 wrapper 定义，勿重复 extern。 */
+        if (f->name && async_cps_resolve_sched_target(m, f->name)) continue;
+        fprintf(out, "extern %s %s(", c_type_str(f->return_type), f->name ? f->name : "");
+        for (int j = 0; j < f->num_params; j++) {
+            if (j) fprintf(out, ", ");
+            codegen_emit_param(&f->params[j], out, NULL, j);
+        }
+        fprintf(out, ");\n");
+    }
+    /* 入口模块内函数前向声明：满足 C 任意顺序调用；DCE/WPO 开启时仅声明可达函数。 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         const struct ASTFunc *f = m->funcs[i];
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0 || f->is_extern || !f->body) continue;
+        if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
         fprintf(out, "static inline %s %s(", c_type_str(f->return_type), f->name ? f->name : "");
         for (int j = 0; j < f->num_params; j++) {
             if (j) fprintf(out, ", ");
@@ -6051,11 +6531,11 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         }
         fprintf(out, ");\n");
     }
-    /* 先输出非 main 函数，再输出 impl 方法、泛型单态化实例，最后 main；阶段 8.1 DCE 时仅输出已引用；若未在 used 中但被 main 体直接引用则兜底保留；extern 函数仅声明不生成定义 */
+    /* 先输出非 main 函数，再 impl/mono，最后 main；阶段 8.1 DCE / WPO 时仅输出已引用。 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         if (!m->funcs[i] || strcmp(m->funcs[i]->name, "main") == 0 || m->funcs[i]->num_generic_params > 0) continue;
         if (m->funcs[i]->is_extern || !m->funcs[i]->body) continue;
-        /* 入口模块内被同模块调用的函数须全部生成定义，否则 DCE 未收集到的间接 callee 会导致链接未定义符号；此处不再按 DCE 过滤 */
+        if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, m->funcs[i], is_func_used, dce_ctx)) continue;
         if (codegen_one_func(m->funcs[i], m, out) != 0) {
             fprintf(stderr, "codegen error: failed to emit function '%s'\n", m->funcs[i]->name ? m->funcs[i]->name : "?");
             return -1;
@@ -6174,10 +6654,11 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         }
     }
 
-    /* 本库函数签名若含 []T，须最先输出 slice 结构体定义，否则后续 extern/前向声明中的 struct shulang_slice_* 为不完整类型导致 C 报错 */
+    /* 本库函数签名若含 []T / 向量，须最先输出 slice/typedef，否则后续 extern/前向声明为不完整类型 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         const struct ASTFunc *f = m->funcs[i];
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0) continue;
+        ensure_func_sig_vector_typedefs(f, out);
         if (f->return_type) ensure_slice_struct(f->return_type, out);
         for (int j = 0; j < f->num_params; j++)
             if (f->params[j].type) ensure_slice_struct(f->params[j].type, out);
@@ -6186,6 +6667,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         for (int j = 0; j < m->impl_blocks[k]->num_funcs; j++) {
             const struct ASTFunc *f = m->impl_blocks[k]->funcs[j];
             if (!f) continue;
+            ensure_func_sig_vector_typedefs(f, out);
             if (f->return_type) ensure_slice_struct(f->return_type, out);
             for (int p = 0; p < f->num_params; p++)
                 if (f->params[p].type) ensure_slice_struct(f->params[p].type, out);
@@ -6194,10 +6676,13 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         const struct ASTMonoInstance *inst = &m->mono_instances[k];
         if (!inst->template || !inst->type_args) continue;
         const struct ASTFunc *f = inst->template;
+        ensure_func_sig_vector_typedefs(f, out);
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, inst->type_args, inst->num_type_args);
+        if (ret_ty && ret_ty->kind == AST_TYPE_VECTOR) ensure_vector_typedef(ret_ty, out);
         if (ret_ty) ensure_slice_struct(ret_ty, out);
         for (int p = 0; p < f->num_params; p++) {
             const struct ASTType *pt = subst_type(f->params[p].type, f->generic_param_names, inst->type_args, inst->num_type_args);
+            if (pt && pt->kind == AST_TYPE_VECTOR) ensure_vector_typedef(pt, out);
             if (pt) ensure_slice_struct(pt, out);
         }
     }
@@ -6272,7 +6757,8 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
                     if (!need_for_sig && pt->kind == AST_TYPE_PTR && pt->elem_type && pt->elem_type->kind == AST_TYPE_NAMED && pt->elem_type->name && strcmp(pt->elem_type->name, sd->name) == 0) need_for_sig = 1;
                 }
             }
-            if (!need_for_sig && dce_ctx && is_type_used && !is_type_used(dce_ctx, m, sd->name)) continue;
+            if (!need_for_sig && dce_ctx && is_type_used && !is_type_used(dce_ctx, m, sd->name)
+                && !async_liveness_module_struct_in_frame(m, sd->name)) continue;
         }
         char sname[256];
         library_prefixed_name(sd->name, sname, sizeof(sname));
@@ -6321,10 +6807,12 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0 || f->is_extern || !f->body) continue;
         /* std.io.driver 的 submit_read/write_batch_buf 由 runtime 单文件 preamble 提供正确签名实现，此处跳过避免 C 桩签名冲突 */
         if (codegen_library_import_path && f->name && (strcmp(f->name, "submit_read_batch_buf") == 0 || strcmp(f->name, "submit_write_batch_buf") == 0) && strstr(codegen_library_import_path, "io")) continue;
-        if (dce_ctx && is_func_used && !is_func_used(dce_ctx, m, f)) continue;
+        if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
         char fwd_name[256];
         library_prefixed_name(f->name, fwd_name, sizeof(fwd_name));
         if (codegen_library_import_path && !f->is_extern && (strcmp(codegen_library_import_path, "core.option") == 0 || strcmp(codegen_library_import_path, "core.result") == 0))
+            fprintf(out, "static inline ");
+        if (codegen_library_import_path && !f->is_extern && (strcmp(codegen_library_import_path, "std.fs") == 0 || strcmp(codegen_library_import_path, "std.net") == 0))
             fprintf(out, "static inline ");
         fprintf(out, "%s %s(", c_type_str(f->return_type), fwd_name);
         for (int j = 0; j < f->num_params; j++) {
@@ -6396,4 +6884,647 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     codegen_dep_paths = NULL;
     codegen_ndep = 0;
     return 0;
+}
+
+/* ── WPO-S1：跨模块 call graph JSON（NEXT §4.1 WPO-S1） ── */
+
+/** WPO 图内函数节点上限（compiler self 足够；超出时截断并仍输出可达子图）。 */
+#define WPO_MAX_FUNCS 4096
+/** WPO 边上限（静态 CALL/METHOD_CALL 去重后）。 */
+#define WPO_MAX_EDGES 16384
+/** WPO call site 上限（含同 from→to 不同实参的多条边；WPO-S2 特化分析用）。 */
+#define WPO_MAX_CALL_SITES 4096
+/** 单 call site 记录的整型常量实参个数上限。 */
+#define WPO_MAX_CALL_SITE_ARGS 8
+/** WPO 模块槽上限（entry + 传递依赖）。 */
+#define WPO_MAX_MODS 128
+
+/** WPO-S2：单个静态 call site 的 from/to 与全常量实参 profile（args[i]=-1 表示非常量）。 */
+typedef struct WpoCallSite {
+    int from;
+    int to;
+    int nargs;
+    int args[WPO_MAX_CALL_SITE_ARGS];
+    unsigned char all_const;
+} WpoCallSite;
+
+/** WPO 图构建上下文：函数表、边表、call site 表、模块路径。 */
+typedef struct WpoGraph {
+    struct ASTModule *entry;
+    const char *entry_path;
+    struct ASTModule *mods[WPO_MAX_MODS];
+    const char *paths[WPO_MAX_MODS];
+    int nmods;
+    struct ASTFunc *funcs[WPO_MAX_FUNCS];
+    int mod_of[WPO_MAX_FUNCS];
+    int nfuncs;
+    int root_id;
+    struct { int from; int to; } edges[WPO_MAX_EDGES];
+    int nedges;
+    WpoCallSite call_sites[WPO_MAX_CALL_SITES];
+    int ncall_sites;
+    unsigned char reachable[WPO_MAX_FUNCS];
+} WpoGraph;
+
+/** JSON 字符串转义输出（不含外围引号）。 */
+static void wpo_json_escape(FILE *out, const char *s) {
+    if (!s) return;
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') fputc('\\', out);
+        if (*p == '\n') { fputs("\\n", out); continue; }
+        if (*p == '\r') { fputs("\\r", out); continue; }
+        if (*p == '\t') { fputs("\\t", out); continue; }
+        fputc(*p, out);
+    }
+}
+
+/** 将字符串以 JSON 字符串字面量写入 out。 */
+static void wpo_json_string(FILE *out, const char *s) {
+    fputc('"', out);
+    wpo_json_escape(out, s ? s : "");
+    fputc('"', out);
+}
+
+/** 在 g 中查找 func 指针对应的节点 id，未注册返回 -1。 */
+static int wpo_func_id(const WpoGraph *g, const struct ASTFunc *f) {
+    if (!f || !g) return -1;
+    for (int i = 0; i < g->nfuncs; i++)
+        if (g->funcs[i] == f) return i;
+    return -1;
+}
+
+/** 选定 WPO 根：main_func → 入口模块内 main/entry 函数名。 */
+static void wpo_pick_root(WpoGraph *g) {
+    if (!g || !g->entry) return;
+    if (g->entry->main_func) {
+        int rid = wpo_func_id(g, g->entry->main_func);
+        if (rid >= 0) { g->root_id = rid; return; }
+    }
+    for (int i = 0; i < g->nfuncs; i++) {
+        if (g->mod_of[i] != 0) continue;
+        struct ASTFunc *f = g->funcs[i];
+        if (!f || !f->name || f->is_extern) continue;
+        if (strcmp(f->name, "entry") == 0 || strcmp(f->name, "main") == 0) {
+            g->root_id = i;
+            return;
+        }
+    }
+}
+
+/** 注册单个函数节点（去重）；main_func 优先作为 root（wpo_pick_root 补 entry 名）。 */
+static void wpo_register_one(WpoGraph *g, struct ASTFunc *f, int mod_idx) {
+    if (!g || !f || g->nfuncs >= WPO_MAX_FUNCS) return;
+    if (wpo_func_id(g, f) >= 0) return;
+    g->funcs[g->nfuncs] = f;
+    g->mod_of[g->nfuncs] = mod_idx;
+    if (g->entry && f == g->entry->main_func) g->root_id = g->nfuncs;
+    g->nfuncs++;
+}
+
+/** 注册模块内顶层函数与 impl 方法到 g；mod_idx 为 mods[] 下标。 */
+static void wpo_register_module(WpoGraph *g, struct ASTModule *m, int mod_idx) {
+    if (!g || !m || mod_idx < 0) return;
+    if (m->main_func) wpo_register_one(g, m->main_func, mod_idx);
+    for (int i = 0; i < m->num_funcs && m->funcs; i++)
+        wpo_register_one(g, m->funcs[i], mod_idx);
+    for (int k = 0; k < m->num_impl_blocks && m->impl_blocks; k++)
+        for (int j = 0; j < m->impl_blocks[k]->num_funcs; j++)
+            wpo_register_one(g, m->impl_blocks[k]->funcs[j], mod_idx);
+}
+
+/** 追加有向边 from→to（去重）；成功返回 1。 */
+static int wpo_add_edge(WpoGraph *g, int from, int to) {
+    if (!g || from < 0 || to < 0 || from >= g->nfuncs || to >= g->nfuncs) return 0;
+    for (int i = 0; i < g->nedges; i++)
+        if (g->edges[i].from == from && g->edges[i].to == to) return 0;
+    if (g->nedges >= WPO_MAX_EDGES) return 0;
+    g->edges[g->nedges].from = from;
+    g->edges[g->nedges].to = to;
+    g->nedges++;
+    return 1;
+}
+
+/** 若 e 为整型常量（字面量 / CTFE fold），写入 *out 并返回 1。 */
+static int wpo_expr_const_i32(const struct ASTExpr *e, int *out) {
+    if (!e || !out) return 0;
+    if (e->kind == AST_EXPR_LIT) {
+        *out = e->value.int_val;
+        return 1;
+    }
+    if (e->kind == AST_EXPR_BOOL_LIT) {
+        *out = e->value.int_val;
+        return 1;
+    }
+    if (e->const_folded_valid) {
+        *out = e->const_folded_val;
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * WPO-S2：记录 call site 的 from/to 与实参 profile；全为整型常量时 all_const=1。
+ * 同 from→to 不同实参保留多条（与 edges 去重不同），供后续 monomorphize 分析。
+ */
+static void wpo_record_call_site(WpoGraph *g, int from, int to, struct ASTExpr **args, int nargs) {
+    WpoCallSite *cs;
+    int i;
+    if (!g || from < 0 || to < 0 || from >= g->nfuncs || to >= g->nfuncs) return;
+    if (g->ncall_sites >= WPO_MAX_CALL_SITES) return;
+    if (nargs < 0) nargs = 0;
+    if (nargs > WPO_MAX_CALL_SITE_ARGS) nargs = WPO_MAX_CALL_SITE_ARGS;
+    cs = &g->call_sites[g->ncall_sites];
+    cs->from = from;
+    cs->to = to;
+    cs->nargs = nargs;
+    cs->all_const = (unsigned char)(nargs > 0);
+    for (i = 0; i < WPO_MAX_CALL_SITE_ARGS; i++)
+        cs->args[i] = -1;
+    for (i = 0; i < nargs; i++) {
+        int v = 0;
+        if (!wpo_expr_const_i32(args[i], &v)) {
+            cs->all_const = 0;
+            cs->args[i] = -1;
+        } else {
+            cs->args[i] = v;
+        }
+    }
+    if (nargs == 0)
+        cs->all_const = 0;
+    g->ncall_sites++;
+}
+
+/** 在 g 中按 VAR callee 名称解析函数 id；未命中返回 -1。 */
+static int wpo_func_id_by_name(const WpoGraph *g, const char *name) {
+    if (!g || !name)
+        return -1;
+    for (int i = 0; i < g->nfuncs; i++) {
+        struct ASTFunc *f = g->funcs[i];
+        if (f && f->name && strcmp(f->name, name) == 0)
+            return i;
+    }
+    return -1;
+}
+
+/** CALL 的 callee 解析为图节点 id：优先 resolved_callee_func，否则 VAR 名匹配。 */
+static int wpo_call_callee_id(const struct ASTExpr *e, const WpoGraph *g) {
+    int cid;
+    if (!e || e->kind != AST_EXPR_CALL || !g)
+        return -1;
+    if (e->value.call.resolved_callee_func) {
+        cid = wpo_func_id(g, e->value.call.resolved_callee_func);
+        if (cid >= 0)
+            return cid;
+    }
+    if (e->value.call.callee && e->value.call.callee->kind == AST_EXPR_VAR &&
+        e->value.call.callee->value.var.name)
+        return wpo_func_id_by_name(g, e->value.call.callee->value.var.name);
+    return -1;
+}
+
+/** 从块递归收集 call 边（前向声明，供 AST_EXPR_BLOCK 分支调用）。 */
+static void wpo_collect_edges_from_block(const struct ASTBlock *b, int caller_id, WpoGraph *g);
+
+/** 从表达式递归收集静态 call 边（caller_id 为当前函数节点）。 */
+static void wpo_collect_edges_from_expr(const struct ASTExpr *e, int caller_id, WpoGraph *g) {
+    if (!e || !g || caller_id < 0) return;
+    if (e->kind == AST_EXPR_RETURN && e->value.unary.operand) {
+        wpo_collect_edges_from_expr(e->value.unary.operand, caller_id, g);
+        return;
+    }
+    if (e->kind == AST_EXPR_CALL) {
+        int cid = wpo_call_callee_id(e, g);
+        if (cid >= 0) {
+            (void)wpo_add_edge(g, caller_id, cid);
+            wpo_record_call_site(g, caller_id, cid, e->value.call.args, e->value.call.num_args);
+        }
+    }
+    if (e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.resolved_impl_func) {
+        int cid = wpo_func_id(g, e->value.method_call.resolved_impl_func);
+        if (cid >= 0) {
+            (void)wpo_add_edge(g, caller_id, cid);
+            wpo_record_call_site(g, caller_id, cid, e->value.method_call.args, e->value.method_call.num_args);
+        }
+    }
+    switch (e->kind) {
+        case AST_EXPR_CALL:
+            for (int i = 0; i < e->value.call.num_args; i++)
+                wpo_collect_edges_from_expr(e->value.call.args[i], caller_id, g);
+            break;
+        case AST_EXPR_METHOD_CALL:
+            wpo_collect_edges_from_expr(e->value.method_call.base, caller_id, g);
+            for (int i = 0; i < e->value.method_call.num_args; i++)
+                wpo_collect_edges_from_expr(e->value.method_call.args[i], caller_id, g);
+            break;
+        case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV: case AST_EXPR_MOD:
+        case AST_EXPR_SHL: case AST_EXPR_SHR: case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
+        case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE: case AST_EXPR_GT: case AST_EXPR_GE:
+        case AST_EXPR_LOGAND: case AST_EXPR_LOGOR: case AST_EXPR_ASSIGN:
+        case AST_EXPR_ADD_ASSIGN: case AST_EXPR_SUB_ASSIGN: case AST_EXPR_MUL_ASSIGN: case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
+        case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN: case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
+            wpo_collect_edges_from_expr(e->value.binop.left, caller_id, g);
+            wpo_collect_edges_from_expr(e->value.binop.right, caller_id, g);
+            break;
+        case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC:
+        case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF: case AST_EXPR_RETURN: case AST_EXPR_AWAIT: case AST_EXPR_RUN:
+            wpo_collect_edges_from_expr(e->value.unary.operand, caller_id, g);
+            break;
+        case AST_EXPR_AS:
+            wpo_collect_edges_from_expr(e->value.as_type.operand, caller_id, g);
+            break;
+        case AST_EXPR_IF: case AST_EXPR_TERNARY:
+            wpo_collect_edges_from_expr(e->value.if_expr.cond, caller_id, g);
+            wpo_collect_edges_from_expr(e->value.if_expr.then_expr, caller_id, g);
+            if (e->value.if_expr.else_expr) wpo_collect_edges_from_expr(e->value.if_expr.else_expr, caller_id, g);
+            break;
+        case AST_EXPR_MATCH:
+            wpo_collect_edges_from_expr(e->value.match_expr.matched_expr, caller_id, g);
+            for (int i = 0; i < e->value.match_expr.num_arms; i++)
+                wpo_collect_edges_from_expr(e->value.match_expr.arms[i].result, caller_id, g);
+            break;
+        case AST_EXPR_FIELD_ACCESS:
+            wpo_collect_edges_from_expr(e->value.field_access.base, caller_id, g);
+            break;
+        case AST_EXPR_STRUCT_LIT:
+            for (int i = 0; i < e->value.struct_lit.num_fields; i++)
+                wpo_collect_edges_from_expr(e->value.struct_lit.inits[i], caller_id, g);
+            break;
+        case AST_EXPR_ARRAY_LIT:
+            for (int i = 0; i < e->value.array_lit.num_elems; i++)
+                wpo_collect_edges_from_expr(e->value.array_lit.elems[i], caller_id, g);
+            break;
+        case AST_EXPR_INDEX:
+            wpo_collect_edges_from_expr(e->value.index.base, caller_id, g);
+            wpo_collect_edges_from_expr(e->value.index.index_expr, caller_id, g);
+            break;
+        case AST_EXPR_BLOCK:
+            wpo_collect_edges_from_block(e->value.block, caller_id, g);
+            break;
+        default: break;
+    }
+}
+
+/** 从块递归收集 call 边。 */
+static void wpo_collect_edges_from_block(const struct ASTBlock *b, int caller_id, WpoGraph *g) {
+    if (!b || !g || caller_id < 0) return;
+    for (int i = 0; i < b->num_consts; i++)
+        if (b->const_decls[i].init) wpo_collect_edges_from_expr(b->const_decls[i].init, caller_id, g);
+    for (int i = 0; i < b->num_lets; i++)
+        if (b->let_decls[i].init) wpo_collect_edges_from_expr(b->let_decls[i].init, caller_id, g);
+    for (int i = 0; i < b->num_loops; i++)
+        wpo_collect_edges_from_block(b->loops[i].body, caller_id, g);
+    for (int i = 0; i < b->num_for_loops; i++) {
+        if (b->for_loops[i].init) wpo_collect_edges_from_expr(b->for_loops[i].init, caller_id, g);
+        if (b->for_loops[i].cond) wpo_collect_edges_from_expr(b->for_loops[i].cond, caller_id, g);
+        if (b->for_loops[i].step) wpo_collect_edges_from_expr(b->for_loops[i].step, caller_id, g);
+        wpo_collect_edges_from_block(b->for_loops[i].body, caller_id, g);
+    }
+    for (int i = 0; i < b->num_labeled_stmts; i++)
+        if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
+            wpo_collect_edges_from_expr(b->labeled_stmts[i].u.return_expr, caller_id, g);
+    for (int i = 0; i < b->num_expr_stmts; i++)
+        wpo_collect_edges_from_expr(b->expr_stmts[i], caller_id, g);
+    if (b->final_expr) wpo_collect_edges_from_expr(b->final_expr, caller_id, g);
+}
+
+/** 从 root 起 BFS 标记 reachable 并补全边（与 DCE worklist 同语义）。 */
+static void wpo_build_edges_and_reach(WpoGraph *g) {
+    if (!g || g->root_id < 0 || g->root_id >= g->nfuncs) return;
+    int queue[WPO_MAX_FUNCS];
+    int qh = 0, qt = 0;
+    g->reachable[(size_t)g->root_id] = 1;
+    queue[qt++] = g->root_id;
+    while (qh < qt && qh < WPO_MAX_FUNCS) {
+        int fid = queue[qh++];
+        struct ASTFunc *f = g->funcs[fid];
+        if (!f || !f->body) continue;
+        wpo_collect_edges_from_block(f->body, fid, g);
+        for (int ei = 0; ei < g->nedges; ei++) {
+            if (g->edges[ei].from != fid) continue;
+            int to = g->edges[ei].to;
+            if (to < 0 || to >= g->nfuncs) continue;
+            if (!g->reachable[(size_t)to]) {
+                g->reachable[(size_t)to] = 1;
+                if (qt < WPO_MAX_FUNCS) queue[qt++] = to;
+            }
+        }
+    }
+}
+
+/** 初始化 WpoGraph：entry 在 mod 0，all_mods 从 1 起。 */
+static void wpo_graph_init(WpoGraph *g, struct ASTModule *entry, const char *entry_path,
+    struct ASTModule **all_mods, const char **all_paths, int n_all) {
+    memset(g, 0, sizeof(*g));
+    g->entry = entry;
+    g->entry_path = entry_path;
+    g->root_id = -1;
+    if (entry && g->nmods < WPO_MAX_MODS) {
+        g->mods[g->nmods] = entry;
+        g->paths[g->nmods] = entry_path ? entry_path : "";
+        wpo_register_module(g, entry, g->nmods);
+        g->nmods++;
+    }
+    if (all_mods) {
+        for (int i = 0; i < n_all && g->nmods < WPO_MAX_MODS; i++) {
+            if (!all_mods[i]) continue;
+            if (all_mods[i] == entry) continue;
+            g->mods[g->nmods] = all_mods[i];
+            g->paths[g->nmods] = (all_paths && all_paths[i]) ? all_paths[i] : "";
+            wpo_register_module(g, all_mods[i], g->nmods);
+            g->nmods++;
+        }
+    }
+    wpo_pick_root(g);
+    wpo_build_edges_and_reach(g);
+}
+
+/** WPO v0：填充全程序可达性表，供 codegen DCE 跨模块剔除 dead export。 */
+void codegen_wpo_reach_compute(CodegenWpoReach *out,
+    struct ASTModule *entry,
+    struct ASTModule **all_mods, int n_all) {
+    WpoGraph g;
+    if (!out) return;
+    memset(out, 0, sizeof(*out));
+    if (!entry) return;
+    wpo_graph_init(&g, entry, NULL, all_mods, NULL, n_all);
+    out->nfuncs = g.nfuncs < CODEGEN_WPO_REACH_MAX_FUNCS ? g.nfuncs : CODEGEN_WPO_REACH_MAX_FUNCS;
+    out->root_id = g.root_id;
+    out->valid = (g.root_id >= 0 && out->nfuncs > 0);
+    for (int i = 0; i < out->nfuncs; i++) {
+        out->funcs[i] = g.funcs[i];
+        out->reachable[i] = g.reachable[i];
+        out->mod_of[i] = (g.mod_of[i] >= 0 && g.mod_of[i] < g.nmods) ? g.mods[g.mod_of[i]] : NULL;
+    }
+}
+
+/** 查询函数在 WPO 图中是否可达；extern 与未注册函数保守保留。 */
+int codegen_wpo_reach_is_reachable(const CodegenWpoReach *wpo, const struct ASTModule *mod, const struct ASTFunc *func) {
+    if (!wpo || !wpo->valid || !func) return 1;
+    if (func->is_extern) return 1;
+    for (int i = 0; i < wpo->nfuncs; i++) {
+        if (wpo->funcs[i] == func)
+            return wpo->reachable[i] ? 1 : 0;
+    }
+    /* import 库 emit 时 ASTFunc 指针偶发与构图时不一致：按 (mod, name) 兜底。 */
+    if (mod && func->name) {
+        for (int i = 0; i < wpo->nfuncs; i++) {
+            if (wpo->mod_of[i] != mod) continue;
+            if (!wpo->funcs[i] || !wpo->funcs[i]->name) continue;
+            if (strcmp(wpo->funcs[i]->name, func->name) != 0) continue;
+            return wpo->reachable[i] ? 1 : 0;
+        }
+    }
+    /* 模块指针不一致时：全局唯一函数名兜底（compiler self 常见 duplicate 名较少）。 */
+    if (func->name) {
+        int found = -1;
+        for (int i = 0; i < wpo->nfuncs; i++) {
+            if (!wpo->funcs[i] || !wpo->funcs[i]->name) continue;
+            if (strcmp(wpo->funcs[i]->name, func->name) != 0) continue;
+            if (found >= 0) { found = -2; break; }
+            found = i;
+        }
+        if (found >= 0) return wpo->reachable[found] ? 1 : 0;
+    }
+    return 1;
+}
+
+void codegen_dump_wpo_callgraph_json(FILE *out,
+    struct ASTModule *entry, const char *entry_path,
+    struct ASTModule **all_mods, const char **all_paths, int n_all) {
+    WpoGraph g;
+    if (!out || !entry) return;
+    wpo_graph_init(&g, entry, entry_path, all_mods, all_paths, n_all);
+    fputs("{\n  \"version\": 2,\n", out);
+    fputs("  \"entry\": ", out);
+    wpo_json_string(out, entry_path ? entry_path : "");
+    fputs(",\n  \"modules\": [\n", out);
+    for (int mi = 0; mi < g.nmods; mi++) {
+        if (mi) fputs(",\n", out);
+        fprintf(out, "    {\"id\": %d, \"path\": ", mi);
+        wpo_json_string(out, g.paths[mi]);
+        fputc('}', out);
+    }
+    fputs("\n  ],\n  \"functions\": [\n", out);
+    for (int fi = 0; fi < g.nfuncs; fi++) {
+        struct ASTFunc *f = g.funcs[fi];
+        if (fi) fputs(",\n", out);
+        fprintf(out, "    {\"id\": %d, \"module\": %d, \"name\": ", fi, g.mod_of[fi]);
+        wpo_json_string(out, f && f->name ? f->name : "");
+        fprintf(out, ", \"extern\": %s, \"reachable\": %s}",
+            (f && f->is_extern) ? "true" : "false",
+            g.reachable[(size_t)fi] ? "true" : "false");
+    }
+    fputs("\n  ],\n  \"edges\": [\n", out);
+    for (int ei = 0; ei < g.nedges; ei++) {
+        if (ei) fputs(",\n", out);
+        fprintf(out, "    {\"from\": %d, \"to\": %d}", g.edges[ei].from, g.edges[ei].to);
+    }
+    fputs("\n  ],\n  \"call_sites\": [\n", out);
+    for (int ci = 0; ci < g.ncall_sites; ci++) {
+        const WpoCallSite *cs = &g.call_sites[ci];
+        if (ci) fputs(",\n", out);
+        fprintf(out, "    {\"from\": %d, \"to\": %d, \"all_const\": %s, \"args\": [",
+            cs->from, cs->to, cs->all_const ? "true" : "false");
+        for (int ai = 0; ai < cs->nargs; ai++) {
+            if (ai) fputc(',', out);
+            if (cs->args[ai] >= 0)
+                fprintf(out, "%d", cs->args[ai]);
+            else
+                fputs("null", out);
+        }
+        fputs("]}", out);
+    }
+    fprintf(out, "\n  ],\n  \"root\": %d\n}\n", g.root_id);
+}
+
+/** 函数体唯一 return 操作数（final_expr 或单条 return stmt）。 */
+static struct ASTExpr *cg_wpo_func_return_operand(struct ASTFunc *f) {
+    struct ASTBlock *b;
+    struct ASTExpr *op;
+    int found;
+    int i;
+    if (!f || !f->body)
+        return NULL;
+    b = f->body;
+    if (b->final_expr) {
+        if (b->final_expr->kind == AST_EXPR_RETURN && b->final_expr->value.unary.operand)
+            return b->final_expr->value.unary.operand;
+        return b->final_expr;
+    }
+    op = NULL;
+    found = 0;
+    for (i = 0; i < b->num_expr_stmts; i++) {
+        struct ASTExpr *er = b->expr_stmts[i];
+        if (er && er->kind == AST_EXPR_RETURN && er->value.unary.operand) {
+            found++;
+            op = er->value.unary.operand;
+        }
+    }
+    return found == 1 ? op : NULL;
+}
+
+/** 表达式是否为函数第 param_idx 个形参名。 */
+static int cg_wpo_expr_is_func_param(const struct ASTExpr *e, const struct ASTFunc *f, int param_idx) {
+    const char *pname;
+    if (!e || e->kind != AST_EXPR_VAR || !f || param_idx < 0 || param_idx >= f->num_params || !f->params)
+        return 0;
+    pname = f->params[param_idx].name;
+    return pname && e->value.var.name && strcmp(e->value.var.name, pname) == 0;
+}
+
+/** callee 是否为 `return param0 binop param1`（两 i32 形参标量 binop）。 */
+static int cg_wpo_func_returns_param01_scalar_binop(const struct ASTFunc *f, ASTExprKind *out_binop) {
+    struct ASTExpr *ret;
+    struct ASTExpr *left;
+    struct ASTExpr *right;
+    if (!f || !out_binop || f->num_params != 2 || !f->params)
+        return 0;
+    ret = cg_wpo_func_return_operand((struct ASTFunc *)f);
+    if (!ret)
+        return 0;
+    switch (ret->kind) {
+        case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV: case AST_EXPR_MOD:
+            break;
+        default:
+            return 0;
+    }
+    left = ret->value.binop.left;
+    right = ret->value.binop.right;
+    if (!cg_wpo_expr_is_func_param(left, f, 0))
+        return 0;
+    if (!cg_wpo_expr_is_func_param(right, f, 1))
+        return 0;
+    *out_binop = ret->kind;
+    return 1;
+}
+
+/** 编译期 i32 binop 求值（与 asm glue_const_scalar_binop_eval 语义一致）。 */
+static int cg_wpo_binop_eval_i32(ASTExprKind kind, int32_t a, int32_t b, int32_t *out) {
+    int64_t wide;
+    if (!out)
+        return 0;
+    switch (kind) {
+        case AST_EXPR_ADD: wide = (int64_t)a + (int64_t)b; break;
+        case AST_EXPR_SUB: wide = (int64_t)a - (int64_t)b; break;
+        case AST_EXPR_MUL: wide = (int64_t)a * (int64_t)b; break;
+        case AST_EXPR_DIV:
+            if (b == 0) return 0;
+            wide = (int64_t)a / (int64_t)b;
+            break;
+        case AST_EXPR_MOD:
+            if (b == 0) return 0;
+            wide = (int64_t)a % (int64_t)b;
+            break;
+        default:
+            return 0;
+    }
+    *out = (int32_t)wide;
+    return 1;
+}
+
+int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
+    int pos;
+    int i;
+    int n;
+    if (!base || !out || cap < 16)
+        return -1;
+    pos = snprintf(out, (size_t)cap, "%s__wpo", base);
+    if (pos < 0 || pos >= cap)
+        return -1;
+    for (i = 0; i < nargs; i++) {
+        if (!args)
+            return -1;
+        if (args[i] < 0)
+            n = snprintf(out + pos, (size_t)(cap - pos), "_n%d", -args[i]);
+        else
+            n = snprintf(out + pos, (size_t)(cap - pos), "_%d", args[i]);
+        if (n < 0 || pos + n >= cap)
+            return -1;
+        pos += n;
+    }
+    return pos;
+}
+
+/** 按 sym 字符串去重；已存在返回 1。 */
+static int cg_wpo_mono_thunk_has_sym(const CodegenWpoMonoThunks *bag, const char *sym) {
+    int i;
+    if (!bag || !sym)
+        return 0;
+    for (i = 0; i < bag->n; i++)
+        if (bag->thunks[i].valid && strcmp(bag->thunks[i].sym, sym) == 0)
+            return 1;
+    return 0;
+}
+
+void codegen_wpo_collect_mono_thunks(CodegenWpoMonoThunks *out,
+    struct ASTModule *entry,
+    struct ASTModule **dep_mods, int ndep,
+    const char *entry_path) {
+    static WpoGraph g;
+    struct ASTModule *mods[WPO_MAX_MODS];
+    const char *paths[WPO_MAX_MODS];
+    int n_all;
+    int ci;
+    if (!out)
+        return;
+    memset(out, 0, sizeof(*out));
+    if (!entry)
+        return;
+    n_all = 0;
+    if (dep_mods && ndep > 0) {
+        for (int di = 0; di < ndep && n_all < WPO_MAX_MODS; di++) {
+            if (!dep_mods[di])
+                continue;
+            mods[n_all] = dep_mods[di];
+            paths[n_all] = "";
+            n_all++;
+        }
+    }
+    memset(&g, 0, sizeof(g));
+    wpo_graph_init(&g, entry, entry_path, mods, paths, n_all);
+    for (ci = 0; ci < g.ncall_sites; ci++) {
+        const WpoCallSite *cs = &g.call_sites[ci];
+        struct ASTFunc *callee;
+        ASTExprKind binop;
+        CodegenWpoMonoThunk *slot;
+        char sym[CODEGEN_WPO_MONO_SYM_MAX];
+        int sym_len;
+        int32_t folded;
+        if (!cs->all_const || cs->nargs != 2)
+            continue;
+        if (cs->from < 0 || cs->from >= g.nfuncs || !g.reachable[(size_t)cs->from])
+            continue;
+        if (cs->to < 0 || cs->to >= g.nfuncs)
+            continue;
+        callee = g.funcs[cs->to];
+        if (!callee || callee->is_extern || !callee->name)
+            continue;
+        if (!cg_wpo_func_returns_param01_scalar_binop(callee, &binop))
+            continue;
+        if (!cg_wpo_binop_eval_i32(binop, cs->args[0], cs->args[1], &folded))
+            continue;
+        sym_len = codegen_wpo_mono_sym_format(callee->name, cs->nargs, cs->args, sym, (int)sizeof(sym));
+        if (sym_len <= 0)
+            continue;
+        if (cg_wpo_mono_thunk_has_sym(out, sym))
+            continue;
+        if (out->n >= CODEGEN_WPO_MAX_MONO_THUNKS)
+            break;
+        slot = &out->thunks[out->n];
+        memset(slot, 0, sizeof(*slot));
+        memcpy(slot->sym, sym, (size_t)sym_len + 1);
+        {
+            size_t bn = strlen(callee->name);
+            if (bn >= sizeof(slot->base_name))
+                bn = sizeof(slot->base_name) - 1;
+            memcpy(slot->base_name, callee->name, bn);
+            slot->base_name[bn] = '\0';
+        }
+        slot->nargs = cs->nargs;
+        for (int ai = 0; ai < cs->nargs && ai < CODEGEN_WPO_MONO_MAX_ARGS; ai++)
+            slot->args[ai] = cs->args[ai];
+        slot->result_imm = folded;
+        slot->valid = 1;
+        out->n++;
+    }
 }

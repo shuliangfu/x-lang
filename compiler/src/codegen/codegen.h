@@ -11,6 +11,7 @@
 #define SHU_CODEGEN_H
 
 #include <stdio.h>
+#include <stdint.h>
 
 struct ASTModule;
 struct ASTFunc;
@@ -66,6 +67,29 @@ void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, 
     struct ASTFunc **used_funcs_out, int *n_used_out, int max_used,
     int used_mono[][64]);
 
+/** 入口根函数：main_func 或名为 entry/main 的顶层函数。 */
+struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry);
+
+/**
+ * WPO v0（S5 前置）：全程序 call graph 可达性；`SHU_WPO_DCE=1` 时 runtime 用于跨模块 dead export 剔除。
+ */
+#define CODEGEN_WPO_REACH_MAX_FUNCS 4096
+typedef struct CodegenWpoReach {
+    struct ASTFunc *funcs[CODEGEN_WPO_REACH_MAX_FUNCS];
+    struct ASTModule *mod_of[CODEGEN_WPO_REACH_MAX_FUNCS];
+    unsigned char reachable[CODEGEN_WPO_REACH_MAX_FUNCS];
+    int nfuncs;
+    int root_id;
+    int valid;
+} CodegenWpoReach;
+
+void codegen_wpo_reach_compute(CodegenWpoReach *out,
+    struct ASTModule *entry,
+    struct ASTModule **all_mods, int n_all);
+
+/** 函数是否在 WPO 图从 entry/main 可达；mod 用于指针不一致时按模块+名字兜底。 */
+int codegen_wpo_reach_is_reachable(const CodegenWpoReach *wpo, const struct ASTModule *mod, const struct ASTFunc *func);
+
 /**
  * 阶段 8.1 DCE 扩展：从已用函数与 mono 中收集被引用的类型名（struct/enum），并做结构体字段传递闭包；结果写入 used_type_names_out，供 is_type_used 使用。
  */
@@ -82,5 +106,44 @@ int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_pat
  * .su pipeline 用：在调用 pipeline_run_su_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
  */
 void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n);
+
+/**
+ * WPO-S1/S2：从 entry + 全部传递依赖模块构建 call graph 并输出 JSON（version 2）。
+ * 节点=函数、边=静态 CALL/METHOD_CALL；call_sites 含全整型常量实参 profile（WPO-S2 特化前置）。
+ * 由 runtime 在 typeck 通过后、SHU_WPO_DUMP_CALLGRAPH 指向路径（或 "-"=stdout）时调用。
+ */
+void codegen_dump_wpo_callgraph_json(FILE *out,
+    struct ASTModule *entry, const char *entry_path,
+    struct ASTModule **all_mods, const char **all_paths, int n_all);
+
+/**
+ * WPO-S2 monomorphize：全常量实参 + callee 为 `return param0 binop param1`（i32 标量）时，
+ * 收集需生成的单态 thunk（如 scale__wpo_1024_64 → mov imm; ret）。
+ */
+#define CODEGEN_WPO_MAX_MONO_THUNKS 256
+#define CODEGEN_WPO_MONO_SYM_MAX 128
+#define CODEGEN_WPO_MONO_MAX_ARGS 8
+
+typedef struct CodegenWpoMonoThunk {
+    char sym[CODEGEN_WPO_MONO_SYM_MAX];
+    char base_name[64];
+    int nargs;
+    int args[CODEGEN_WPO_MONO_MAX_ARGS];
+    int32_t result_imm;
+    unsigned char valid;
+} CodegenWpoMonoThunk;
+
+typedef struct CodegenWpoMonoThunks {
+    CodegenWpoMonoThunk thunks[CODEGEN_WPO_MAX_MONO_THUNKS];
+    int n;
+} CodegenWpoMonoThunks;
+
+void codegen_wpo_collect_mono_thunks(CodegenWpoMonoThunks *out,
+    struct ASTModule *entry,
+    struct ASTModule **dep_mods, int ndep,
+    const char *entry_path);
+
+/** 格式化单态符号：base + __wpo + _arg0 + _arg1（负实参用 _n123）。成功返回 sym 长度，失败 -1。 */
+int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
 
 #endif /* SHU_CODEGEN_H */

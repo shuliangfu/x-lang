@@ -35,6 +35,7 @@ struct ast_Expr {
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
+  int32_t field_access_soa_stride;
   int32_t index_base_ref;
   int32_t index_index_ref;
   int32_t index_base_is_slice;

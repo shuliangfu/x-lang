@@ -42,6 +42,7 @@ void ast_expr_free(ASTExpr *e) {
             ast_expr_free(e->value.binop.right);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
             ast_expr_free(e->value.unary.operand);
             break;
         case AST_EXPR_IF:
@@ -147,8 +148,10 @@ void ast_expr_free(ASTExpr *e) {
  */
 void ast_type_free(ASTType *t) {
     if (!t) return;
-    if ((t->kind == AST_TYPE_PTR || t->kind == AST_TYPE_ARRAY || t->kind == AST_TYPE_SLICE || t->kind == AST_TYPE_VECTOR) && t->elem_type)
+    if ((t->kind == AST_TYPE_PTR || t->kind == AST_TYPE_ARRAY || t->kind == AST_TYPE_SLICE || t->kind == AST_TYPE_LINEAR || t->kind == AST_TYPE_VECTOR) && t->elem_type)
         ast_type_free(t->elem_type);
+    if (t->kind == AST_TYPE_SLICE && t->region_label)
+        free((void *)t->region_label);
     if (t->kind == AST_TYPE_NAMED && t->name)
         free((void *)t->name);
     free(t);
@@ -201,6 +204,15 @@ void ast_block_free(ASTBlock *b) {
         free(b->defer_blocks);
         b->defer_blocks = NULL;
         b->num_defers = 0;
+    }
+    if (b->regions) {
+        for (int i = 0; i < b->num_regions; i++) {
+            if (b->regions[i].label) free((void *)b->regions[i].label);
+            ast_block_free(b->regions[i].body);
+        }
+        free(b->regions);
+        b->regions = NULL;
+        b->num_regions = 0;
     }
     if (b->labeled_stmts) {
         for (int i = 0; i < b->num_labeled_stmts; i++) {

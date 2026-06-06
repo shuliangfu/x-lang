@@ -31,4 +31,7 @@
 // BUILD:	pipeline.o	src/pipeline/pipeline.su
 // BUILD:	main.o	src/main.su
 
-// EMPTY_TEXT_EMITTER_BACKLOG（check_asm_o_quality.sh）：曾见多 import 时 pipeline 将各 dep_paths[j] 指向同一 path_buf 致 asm 前缀错乱；已用 PipelineDepCtx.dep_logical_path_mirror 按槽固定。其余 lexer/preprocess/lsp/types/*_enc/backend/asm/macho/coff/parser/pipeline 等仍可能 __text=0，逐项对照 SELFHOST §4.1。
+// EMPTY_TEXT_EMITTER_BACKLOG（M8a，2026-05）：lsp.o/asm.o/arm64_enc.o 等 __text=0 时先用
+//   SHU_ASM_ENTRY_ONLY_DEBUG=1 ./shu -backend asm -o /tmp/x.o $LIBROOT <src> 看 AFTER funcs=N。
+// arm64_enc 典型 N=1/62（parser 截断，非仅 skip_heavy）。typeck/parser/backend 见 M8b 第二遍 EMIT_HEAVY。
+// 曾见 dep path_buf 错乱已用 dep_logical_path_mirror 修复；对照 SELFHOST §4.1。

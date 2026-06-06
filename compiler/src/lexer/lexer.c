@@ -132,6 +132,38 @@ static void lex_ident_or_keyword(Lexer *l, Token *out) {
         out->ident_len = 0;
         return;
     }
+    if (len == 5 && memcmp(start, "async", 5) == 0) {
+        out->kind = TOKEN_ASYNC;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 5 && memcmp(start, "await", 5) == 0) {
+        out->kind = TOKEN_AWAIT;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 3 && memcmp(start, "run", 3) == 0) {
+        out->kind = TOKEN_RUN;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 5 && memcmp(start, "spawn", 5) == 0) {
+        out->kind = TOKEN_SPAWN;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
     if (len == 5 && memcmp(start, "while", 5) == 0) {
         out->kind = TOKEN_WHILE;
         out->line = line0;
@@ -196,6 +228,14 @@ static void lex_ident_or_keyword(Lexer *l, Token *out) {
         out->ident_len = 0;
         return;
     }
+    if (len == 6 && memcmp(start, "region", 6) == 0) {
+        out->kind = TOKEN_REGION;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
     if (len == 5 && memcmp(start, "match", 5) == 0) {
         out->kind = TOKEN_MATCH;
         out->line = line0;
@@ -206,6 +246,22 @@ static void lex_ident_or_keyword(Lexer *l, Token *out) {
     }
     if (len == 6 && memcmp(start, "packed", 6) == 0) {
         out->kind = TOKEN_PACKED;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 3 && memcmp(start, "soa", 3) == 0) {
+        out->kind = TOKEN_SOA;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 5 && memcmp(start, "align", 5) == 0) {
+        out->kind = TOKEN_ALIGN;
         out->line = line0;
         out->col = col0;
         out->value.ident = NULL;
@@ -312,6 +368,14 @@ static void lex_ident_or_keyword(Lexer *l, Token *out) {
     }
     if (len == 6 && memcmp(start, "u32x16", 6) == 0) {
         out->kind = TOKEN_U32X16;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 5 && memcmp(start, "f32x4", 5) == 0) {
+        out->kind = TOKEN_F32X4;
         out->line = line0;
         out->col = col0;
         out->value.ident = NULL;
@@ -467,11 +531,58 @@ static int lex_optional_exponent(Lexer *l, double *fval) {
 }
 
 /**
- * 识别整数字面量或浮点字面量：支持 42、3.14、.5、1e2、1.5e-1 等形式；含小数点或指数则输出 TOKEN_FLOAT。
+ * 是否为十六进制数字字符（0-9、a-f、A-F）。
+ */
+static int is_hex_digit(int c) {
+    return isdigit((unsigned char)c)
+        || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+/**
+ * 十六进制数字字符转 0..15。
+ */
+static int hex_digit_value(int c) {
+    if (isdigit((unsigned char)c))
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return 0;
+}
+
+/**
+ * 识别 0x/0X 前缀十六进制整数字面量；调用前须已消费 leading '0'。
+ */
+static void lex_hex_number(Lexer *l, Token *out, int line0, int col0) {
+    unsigned long val = 0;
+    lexer_advance(l); /* x 或 X */
+    while (l->src < l->end && is_hex_digit(lexer_peek(l))) {
+        val = (val << 4) | (unsigned long)hex_digit_value(lexer_peek(l));
+        lexer_advance(l);
+    }
+    out->kind = TOKEN_INT;
+    out->line = line0;
+    out->col = col0;
+    out->value.int_val = (int)(unsigned)(val & 0xFFFFFFFFUL);
+    out->ident_len = 0;
+}
+
+/**
+ * 识别整数字面量或浮点字面量：支持 42、0x2A、3.14、.5、1e2、1.5e-1 等形式；含小数点或指数则输出 TOKEN_FLOAT。
  * 参数：l 当前 Lexer；out 输出 Token。副作用：推进 l，写 out。
  */
 static void lex_number(Lexer *l, Token *out) {
     int line0 = l->line, col0 = l->col;
+    /* 0x / 0X 十六进制整数字面量 */
+    if (lexer_peek(l) == '0' && l->src + 1 < l->end) {
+        int nx = (unsigned char)l->src[1];
+        if (nx == 'x' || nx == 'X') {
+            lexer_advance(l);
+            lex_hex_number(l, out, line0, col0);
+            return;
+        }
+    }
     int ival = 0;
     while (l->src < l->end && isdigit((unsigned char)*l->src))
         ival = ival * 10 + (lexer_advance(l) - '0');
@@ -556,6 +667,8 @@ void lexer_next(Lexer *l, Token *out) {
             continue;
         }
         if (c == '#') {
+            if (l->src + 1 < l->end && l->src[1] == '[')
+                break;
             while (l->src < l->end && lexer_peek(l) != '\n') lexer_advance(l);
             continue;
         }
@@ -568,6 +681,23 @@ void lexer_next(Lexer *l, Token *out) {
     }
 
     int c = lexer_peek(l);
+    /* DOD-S1：#[soa] 属性 token */
+    if (c == '#' && l->src + 6 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'o'
+        && l->src[4] == 'a' && l->src[5] == ']') {
+        int line = l->line, col = l->col;
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        out->kind = TOKEN_ATTR_SOA;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
     if (isalpha((unsigned char)c) || c == '_') {
         lex_ident_or_keyword(l, out);
         return;
@@ -660,6 +790,7 @@ void lexer_next(Lexer *l, Token *out) {
             else { out->kind = TOKEN_BANG; }
             break;
         case '?': out->kind = TOKEN_QUESTION; break;  /* 三元运算符 cond ? then : else */
+        case '@': out->kind = TOKEN_AT; break;       /* SIMD @shuffle / @select */
         case '=':
             if (lexer_peek(l) == '>') { lexer_advance(l); out->kind = TOKEN_FATARROW; }
             else if (lexer_peek(l) == '=') { lexer_advance(l); out->kind = TOKEN_EQ; }

@@ -1,0 +1,15 @@
+// 7.3：for 体内 continue+break；return a+b → 6（cfg-merge）。
+function main(): i32 {
+  let a: i32 = 0;
+  let b: i32 = 2;
+  for ( ; a < 5 ; ) {
+    if (a == 2) {
+      continue;
+    }
+    if (a == 4) {
+      break;
+    }
+    a += 1;
+  }
+  return a + b;
+}

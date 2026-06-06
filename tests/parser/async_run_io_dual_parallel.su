@@ -1,0 +1,29 @@
+// async_run_io_dual_parallel.su — IO-A5 v4：spawn 双协程并行 read + drain_until_idle
+// 由 async_run_io_dual_pipe_wrapper.c 在 fd 3/4 注入 pipe 后 exec。
+import std.async;
+extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
+
+/** 读 pipe A（独立 static 帧）。 */
+async function read_a(fd: i32): i32 {
+  let buf: [8]u8 = [];
+  let n: i32 = await read_fd(fd, buf as *u8, 8);
+  return n;
+}
+
+/** 读 pipe B（独立 static 帧；与 read_a 并行 in-flight）。 */
+async function read_b(fd: i32): i32 {
+  let buf: [8]u8 = [];
+  let n: i32 = await read_fd(fd, buf as *u8, 8);
+  return n;
+}
+
+function main(): i32 {
+  shu_async_queue_reset();
+  spawn read_a(3);
+  spawn read_b(4);
+  let total: i32 = shu_async_run_drain_until_idle();
+  if (total != 5) {
+    return 1;
+  }
+  return 0;
+}

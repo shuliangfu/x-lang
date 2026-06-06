@@ -30,8 +30,14 @@ while (my $line = <$fh>) {
             print $line;
             next;
         }
-        if ($line =~ /^static inline .+\{/) {
+        # 单行 static inline 保留；多行函数体（如 shulang_panic_）整段跳过。
+        if ($line =~ /^static inline .+\{.*\}\s*$/) {
             print $line;
+            next;
+        }
+        if ($line =~ /^static inline .+\{/) {
+            $in_body = 1;
+            $brace = ($line =~ tr/{//) - ($line =~ tr/}//);
             next;
         }
         if ($line =~ /^struct .+\{.*\};\s*$/) {
@@ -50,6 +56,15 @@ while (my $line = <$fh>) {
         if ($line =~ /^[a-zA-Z_][\w\s\*]*\([^;]*\)\s*\{/) {
             $in_body = 1;
             $brace = ($line =~ tr/{//) - ($line =~ tr/}//);
+            next;
+        }
+        # 多行签名后单独一行 {，或 extract 漏掉函数头时丢弃 orphaned body 行。
+        if ($line =~ /^\s*\{/) {
+            $in_body = 1;
+            $brace = ($line =~ tr/{//) - ($line =~ tr/}//);
+            next;
+        }
+        if ($line =~ /^\s+return\b/ || $line =~ /^\s*\}\s*$/) {
             next;
         }
         if ($line =~ /^[a-zA-Z_][\w\s\*]*\([^;]*\)\s*$/) {
@@ -72,3 +87,17 @@ while (my $line = <$fh>) {
 }
 
 close $fh;
+
+# pipeline_glue_standalone TU：ast_pool 依赖但不在 pipeline_gen 前缀中的 runtime 符号（勿重复 pipeline_gen 已有声明）。
+my $types_so_far = do { local $/; open my $tf, '<', $path; <$tf> // '' };
+if ($types_so_far !~ /driver_diagnostic_asm_elf_unresolved_patch\s*\(/) {
+  print <<'EOF';
+/** ast_pool standalone：resolve_patches / asm_driver_current_dep_path_for_codegen 依赖。 */
+extern void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t name_len);
+EOF
+}
+if ($types_so_far !~ /driver_get_current_dep_path_for_codegen\s*\(/) {
+  print <<'EOF';
+extern uint8_t *driver_get_current_dep_path_for_codegen(void);
+EOF
+}

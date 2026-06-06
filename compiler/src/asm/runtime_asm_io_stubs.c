@@ -73,6 +73,16 @@ int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t timeout_ms)
   return seed_io_write_fd1(ptr, len, timeout_ms);
 }
 
+/** std.io.print_str C ABI：入口裸调 print_str 经 redirect 链入本符号。 */
+int32_t std_io_print_str(uint8_t *ptr, size_t len) {
+  return std_io_write_stdout(ptr, len);
+}
+
+/** 兜底：未走 redirect 的 call 仍可直接链到 print_str。 */
+int32_t print_str(uint8_t *ptr, size_t len) {
+  return std_io_print_str(ptr, len);
+}
+
 uint8_t *std_io_read_stdin_ptr(void) {
   return io_read_ptr(0, 0);
 }

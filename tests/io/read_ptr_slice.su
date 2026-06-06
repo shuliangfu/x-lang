@@ -1,0 +1,13 @@
+// M-5：read_ptr_slice / read_stdin_ptr_slice 零拷贝 slice 烟测（管道喂入 "AB"）
+import std.io;
+
+function main(): i32 {
+  let s: []u8<io_read_ptr> = read_stdin_ptr_slice();
+  if (s.length <= 0) {
+    return 1;
+  }
+  if (s.data[0] != 65) {
+    return 2;
+  }
+  return 0;
+}

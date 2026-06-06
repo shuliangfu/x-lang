@@ -9,11 +9,19 @@
 
 enum ast_TypeKind { ast_TypeKind_TYPE_I32 };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT };
-struct ast_Type { int32_t kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; };
+struct ast_Type {
+  int32_t kind;
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t elem_type_ref;
+  int32_t array_size;
+  uint8_t region_label[64];
+  int32_t region_label_len;
+};
 struct ast_Expr { int32_t kind; };
 struct ast_Block { int32_t const_base; int32_t num_consts; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; };
 
 /** 瘦身后 Module：import/struct/top_level/enum 在 C grow pool。 */
 struct ast_Module {
@@ -23,6 +31,7 @@ struct ast_Module {
   int32_t num_top_level_lets;
   int32_t num_struct_layouts;
   int32_t pending_allow_padding;
+  int32_t pending_soa_struct;
   int32_t num_module_enums;
 };
 
@@ -46,6 +55,7 @@ struct ast_PipelineDepCtx {
   int32_t preprocess_len;
   int32_t use_asm_backend;
   int32_t target_arch;
+  int32_t target_cpu_features;
   int32_t use_macho_o;
   int32_t use_coff_o;
   int32_t current_block_ref;
@@ -68,6 +78,8 @@ struct ast_PipelineDepCtx {
   int32_t asm_entry_module_only;
   uint8_t entry_module_import_path_mirror[64];
   int32_t entry_module_import_path_len;
+  int32_t typeck_scope_region_len;
+  uint8_t typeck_scope_region_label[64];
 };
 
 size_t lsp_diag_pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }

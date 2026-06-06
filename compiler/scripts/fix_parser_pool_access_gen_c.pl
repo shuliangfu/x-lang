@@ -22,29 +22,17 @@ fix_pool_get('types',  'ast_arena_type_get');
 fix_pool_get('blocks', 'ast_arena_block_get');
 fix_pool_get('funcs',  'ast_arena_func_get');
 
-# -E-extern 未导出 ast.su 内联 helper 原型时补声明（parser 生成体直接调用）。
-# 若 ast gen2 段已有 extern void ast_expr_init_match_enum，勿再插 early decl（避免 conflicting types）。
-if (index($src, 'ast_expr_init_match_enum') >= 0
-    && index($src, 'extern void ast_expr_init_match_enum') < 0
-    && index($src, '/* parser extern ast helpers */') < 0) {
-  my $decl = "/* parser extern ast helpers */\nvoid ast_expr_init_match_enum(struct ast_Expr *e);\n";
-  $src =~ s/(static inline void shulang_panic_\([^\n]*\n)/$decl$1/s
-    or warn "fix_parser_pool_access_gen_c: ast_expr_init_match_enum anchor not found\n";
-}
-# 历史产物可能同时含 early void 与 ast gen2 extern：去掉 redundant early 块。
-if (index($src, 'extern void ast_expr_init_match_enum') >= 0) {
-  $src =~ s/\n\/\* parser extern ast helpers \*\/\nvoid ast_expr_init_match_enum\([^\n]*\n//s;
-}
-# parser_gen.c：去掉 early/weak 重复声明，保留单一 extern（定义在 su_seed_bridge.o）。
+# parser_gen.c：ast_expr_init_match_enum 须在 struct ast_Expr 完整定义之后声明（GCC Alpine -Wincompatible-pointer-types）。
 if ($path =~ /parser_gen\.c$/) {
+  $src =~ s/^\/\* parser extern ast helpers \*\/\n(?:extern )?void ast_expr_init_match_enum\([^\n]*\n//m;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
-  $src =~ s/^\/\* parser extern ast helpers \*\/\nvoid ast_expr_init_match_enum\([^\n]*\n//m;
+  $src =~ s/^extern void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
   $src =~ s/^extern __attribute__\(\(weak\)\) void ast_expr_init_match_enum\([^\n]*\n//mg;
   $src =~ s/\n\/\* ast gen2 single-prefix externs \*\/\n(?:extern[^\n]*\n)*//s;
   if (index($src, 'ast_expr_init_match_enum') >= 0
-      && index($src, 'extern void ast_expr_init_match_enum') < 0) {
-    $src =~ s/(static inline void shulang_panic_\([^\n]*\n)/extern void ast_expr_init_match_enum(struct ast_Expr *e);\n\n$1/s
-      or warn "fix_parser_pool_access_gen_c: parser_gen ast_expr_init_match_enum anchor not found\n";
+      && $src !~ /struct ast_Expr \{[^}]+\};\nextern void ast_expr_init_match_enum/s) {
+    $src =~ s/(struct ast_Expr \{[^}]+\};\n)/$1\nextern void ast_expr_init_match_enum(struct ast_Expr *e);\n/s
+      or warn "fix_parser_pool_access_gen_c: post-struct ast_expr_init_match_enum anchor not found\n";
   }
 }
 # parser_gen2.c 与 -include ast.h 同编：ast.h 已声明 ast_expr_init_match_enum(ASTExpr*)，勿再插 struct ast_Expr 版 extern。
@@ -53,10 +41,18 @@ if ($is_parser_gen2) {
   $src =~ s/^extern __attribute__\(\(weak\)\) void ast_expr_init_match_enum\([^\n]*\n//mg;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
 }
-if (index($src, 'ast_arena_func_get(') >= 0 && index($src, 'struct ast_Func ast_arena_func_get') < 0) {
-  my $decl = "struct ast_ASTArena;\nstruct ast_Func ast_arena_func_get(struct ast_ASTArena *arena, int32_t ref);\n";
-  $src =~ s/(void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n)/$1$decl/s
-    or warn "fix_parser_pool_access_gen_c: ast_arena_func_get decl anchor not found\n";
+if (index($src, 'ast_arena_func_get(') >= 0) {
+  # fix_slim_arena 已注入 #define ast_arena_func_get ast_ast_arena_func_get 时，须声明 ast_ast_arena_func_get。
+  my $use_ast_ast = index($src, '#define ast_arena_func_get ast_ast_arena_func_get') >= 0;
+  my $getter_sym = $use_ast_ast ? 'ast_ast_arena_func_get' : 'ast_arena_func_get';
+  if (index($src, "struct ast_Func $getter_sym") < 0) {
+    my $decl = "struct ast_ASTArena;\nstruct ast_Func $getter_sym(struct ast_ASTArena *arena, int32_t ref);\n";
+    $src =~ s/(void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n)/$1$decl/s
+      or warn "fix_parser_pool_access_gen_c: ast_arena_func_get decl anchor not found\n";
+  }
+  if ($use_ast_ast) {
+    $src =~ s/^struct ast_Func ast_arena_func_get\([^\n]*\n//m;
+  }
 }
 
 # parser.su 新增 onefunc const 池 API：补 #define 使 parser_gen.c 链到 ast_pipeline_* glue。
@@ -72,6 +68,21 @@ for my $pair (@pipeline_const_aliases) {
     $orig = '' if $src ne $orig;    # force write below
   } else {
     warn "fix_parser_pool_access_gen_c: anchor for $from alias not found\n";
+  }
+}
+
+# parser_gen -E-extern：parser_parse 烟测调 parse_expr_into；符号在 build_asm/parser.o 为 parse_expr_into（无 parser_ 前缀）。
+if ($path =~ /parser_gen\.c$/ && index($src, 'parser_parse_expr_into') >= 0) {
+  $src =~ s/\n\/\* parser_gen thin TU: parse_expr_into.*?\n#define parser_parse_expr_into parse_expr_into\n\n//s;
+  if (index($src, '#define parser_parse_expr_into') < 0) {
+    my $pex = <<'PEX';
+
+/* parser_gen thin TU: parse_expr_into 由 build_asm/parser.o 提供 */
+extern void parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexer lex, struct shulang_slice_uint8_t *source, struct parser_ParseExprResult *out);
+#define parser_parse_expr_into parse_expr_into
+PEX
+    $src =~ s/(struct parser_ParseExprResult \{[^\}]+\};)/$1$pex/s
+      or warn "fix_parser_pool_access_gen_c: parse_expr_into alias anchor not found\n";
   }
 }
 

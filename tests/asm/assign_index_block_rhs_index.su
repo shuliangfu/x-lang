@@ -1,0 +1,8 @@
+// 7.3：INDEX assign rhs 为 INDEX 读时须失效 rbx 址缓存（run-asm-assign-index-block.sh）。
+function main(): i32 {
+  let arr: [4]i32 = [10, 20, 30, 40];
+  let j: i32 = 1;
+  arr[2] = 11;
+  arr[2] = arr[j];
+  return arr[2];
+}

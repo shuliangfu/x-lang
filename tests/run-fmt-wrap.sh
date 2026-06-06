@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shu fmt 折行回归：注释不折、代码仅在 ;/空格处折、fmt 后须能 check 通过。
+# shu fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -71,4 +71,5 @@ run_one_case tests/fmt/fmt_wrap_cases.su "$ROOT/tests/fmt/.fmt_wrap_out.su" || e
 run_one_case tests/fmt/fmt_comprehensive.su "$ROOT/tests/fmt/.fmt_comprehensive_out.su" || exit 1
 run_one_case tests/fmt/fmt_semicolon_space.su "$ROOT/tests/fmt/.fmt_semicolon_space_out.su" || exit 1
 run_one_case tests/fmt/fmt_operator_space.su "$ROOT/tests/fmt/.fmt_operator_space_out.su" || exit 1
+run_one_case tests/fmt/fmt_array_comma_space.su "$ROOT/tests/fmt/.fmt_array_comma_space_out.su" || exit 1
 echo "fmt wrap test OK (all cases)"

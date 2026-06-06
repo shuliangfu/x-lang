@@ -1,0 +1,12 @@
+struct WithArr {
+  arr: [3]i32
+}
+/** 形参 struct 内联数组字段 INDEX assign（run-asm-assign-index-param.sh）。 */
+function set_in(p: WithArr, i: i32, v: i32): i32 {
+  p.arr[i] = v;
+  return p.arr[i];
+}
+function main(): i32 {
+  let w: WithArr = WithArr { arr: [5, 10, 15] };
+  return set_in(w, 1, 99);
+}

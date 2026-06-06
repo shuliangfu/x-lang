@@ -360,13 +360,16 @@ int build_run_step(int step_id, const char *shu_path) {
  *
  * 语义与「是否仍 cc -c pipeline_gen」以 compiler/docs/SELFHOST.md 为准（Target B-partial /
  * B-hybrid、`SHU_ASM_LINK_TOPOLOGY`）。
- * 拓扑：未导出 `SHU_ASM_LINK_TOPOLOGY` 时，脚本在 Linux 且 `check_asm_o_quality.sh` 认定全部
- * __text 非空后自动选 `full_asm`；非 Linux 宿主固定等价于 pipeline_su / B-hybrid 路径。
+ * 拓扑：未导出 `SHU_ASM_LINK_TOPOLOGY` 时，脚本在 **Linux/macOS** 且 `check_asm_o_quality.sh` 认定全部
+ * __text 非空后自动选 `full_asm`；M7 默认 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1` → asm_only_strict。
  * 不在此重复脚本细节，避免与 build_shu_asm.sh 漂移。
  */
 int build_run_asm_build(const char *shu_path) {
   char cmd[4096];
-  int n = snprintf(cmd, sizeof(cmd), "SHU=%s ./scripts/build_shu_asm.sh", shu_path ? shu_path : "./shu");
+  /* M7：与 make bootstrap-driver-bstrict 一致，默认 B-strict（SKIP_GEN）。 */
+  int n = snprintf(cmd, sizeof(cmd),
+                   "SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 SHU=%s ./scripts/build_shu_asm.sh",
+                   shu_path ? shu_path : "./shu");
   if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
   return system(cmd);
 }

@@ -53,6 +53,8 @@ deps/
 node_modules/
 
 # --- 开发环境 ---
+# clangd 本地配置（非仓库约定）
+.clangd
 # IDE（保留团队共享的工作区 Shulang 配置）
 .vscode/*
 !.vscode/settings.json
@@ -74,6 +76,14 @@ Thumbs.db
 *.log
 
 # --- compiler 目录：构建产物与生成文件（不提交） ---
+# 根目录 build_asm/（gen_driver、seed_host 等；compiler/build_asm/ 见下）
+/build_asm/
+# clangd compile_commands（scripts/gen_compile_commands.sh 生成）
+compiler/compile_commands.json
+# 类型检查错误转储（与 tests/*_err.txt 同类）
+compiler/typeck_err.txt
+# lexer/typeck 等临时调试 .su
+compiler/**/tmp_*.su
 # 可执行文件（根已有 shu/shu-c，此处补 compiler 下特有）
 compiler/shu_driver
 compiler/build_tool
@@ -106,6 +116,8 @@ compiler/shu_stage1_test
 # 由 -E 或脚本生成的 C 源文件（parser_gen.c, driver_gen.c, pipeline_gen.c, typeck_gen.c, codegen_gen.c 等）
 compiler/*_gen.c
 compiler/**/*_gen.c
+# IDE/clangd 快照与单测生成 C（typeck_gen_full 等后缀非 *_gen.c）
+compiler/*_gen_*.c
 # Stage2 验证脚本产出的第二代生成 C（token_gen2.c 等）
 compiler/*_gen2.c
 compiler/**/*_gen2.c
@@ -170,6 +182,9 @@ tmp/
 temp/
 *.tmp
 *.temp
+# 根目录测试编译 scratch 二进制/输出
+/tmp_*
+!/tests/**/tmp_*.su
 .cache/
 # Python 脚本缓存（verify_comment_prefixes / scan_fmt_damage 等）
 __pycache__/

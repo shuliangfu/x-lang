@@ -1,0 +1,8 @@
+// 7.3：arr[i]=arr[j] 变量下标 INDEX 赋值应 scratch 缩放寻址，main 内无 mov x2（run-asm-assign-index-var.sh）。
+function main(): i32 {
+  let arr: [3]i32 = [5, 10, 15];
+  let i: i32 = 1;
+  let j: i32 = 2;
+  arr[i] = arr[j];
+  return arr[i];
+}

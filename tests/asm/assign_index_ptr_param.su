@@ -1,0 +1,9 @@
+// 7.3：*i32 形参 INDEX assign scratch 寻址，set_at 内无 mov x2（run-asm-assign-index-param.sh）。
+function set_at(buf: *i32, i: i32, v: i32): i32 {
+  buf[i] = v;
+  return buf[i];
+}
+function main(): i32 {
+  let arr: [3]i32 = [5, 10, 15];
+  return set_at(&arr[0], 1, 99);
+}

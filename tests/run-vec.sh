@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 测试 std.vec（vec_len_empty、vec_placeholder）
+# 测试 std.vec（vec_len_empty、vec_placeholder、DOD-S2 Vec3f_soa）
 # 输出到仓库内目录，避免 /tmp 不可写（macOS 沙箱或 ld 无法写 /tmp）
 set -e
 cd "$(dirname "$0")/.."

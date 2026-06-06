@@ -30,10 +30,16 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
 extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
+extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 extern int32_t driver_skip_codegen_dep_0_get(void);
 /** std.io 族由 io.o + 本文件桩提供；seed asm 跳过整族 dep 的机器码生成。 */
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_io(uint8_t *path);
+extern int32_t pipeline_codegen_dep_skip_asm_user_std_fs(uint8_t *path);
+extern int32_t pipeline_codegen_dep_skip_asm_user_std_process(uint8_t *path);
+extern void pipeline_asm_seed_std_net_struct_layouts(struct ast_Module *m);
+extern int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                         int32_t sym_cap);
 extern int32_t pipeline_expr_call_arg_ref(void *arena, int32_t expr_ref, int32_t idx);
 
 struct ast_Expr;
@@ -89,8 +95,53 @@ extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *e
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
 extern void platform_elf_elf_ctx_reset(void *elf_ctx);
+/** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.su 4096 表一致）。 */
+#define SHU_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
+
+/** Darwin -o：call/reloc 符号须 leading `_`（与 asm.su::asm_codegen_elf_o 一致）。 */
+static void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
+  if (!elf_ctx)
+    return;
+  *(int32_t *)((uint8_t *)elf_ctx + SHU_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
+}
 extern int32_t platform_elf_elf_resolve_patches(void *elf_ctx);
+/** asm 失败时打印 backend.su 记录的当前函数名。 */
+extern void driver_diagnostic_asm_print_current_func(void);
+extern int32_t pipeline_asm_patch_module_parent_links(struct ast_Module *m, struct ast_ASTArena *a);
+extern void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast_ASTArena *entry_arena,
+                                                     struct ast_PipelineDepCtx *ctx);
+extern void pipeline_asm_wpo_reach_clear(void);
 extern int32_t platform_elf_write_elf_o_to_buf(void *elf_ctx, void *out_buf);
+
+/** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.su / PipelineElfCtxAccess 一致）。 */
+static int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
+  if (!elf_ctx)
+    return 0;
+  return *(const int32_t *)elf_ctx;
+}
+
+extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
+
+/**
+ * 用户 .o 须含非空 __text；code_len==0 时拒绝写出（避免 576B 空 .o + U main 误导 ld）。
+ */
+static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
+  int32_t nf;
+  int32_t clen;
+  if (!module || !elf_ctx)
+    return 0;
+  nf = pipeline_module_num_funcs((struct ast_Module *)module);
+  if (nf <= 0)
+    return 0;
+  clen = seed_elf_ctx_code_len(elf_ctx);
+  if (clen > 0)
+    return 0;
+  if (pipeline_elf_ctx_total_code_len((uint8_t *)elf_ctx) > 0)
+    return 0;
+  fprintf(stderr, "shu: asm_codegen_elf_o: empty __text (code_len=0 num_funcs=%d)\n", (int)nf);
+  pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx);
+  return -1;
+}
 extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 
 /** .su 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
@@ -121,8 +172,13 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
   int32_t jdep;
   int32_t ndep_elf;
 
-  if (elf_ctx)
+  if (elf_ctx) {
     platform_elf_elf_ctx_reset(elf_ctx);
+    if (pctx && pipeline_dep_ctx_use_macho_o(pctx) != 0)
+      seed_elf_ctx_set_macho_leading_underscore(elf_ctx, 1);
+  }
+  /** WPO v0：elf 全程序 emit 前构建 reach，供 backend 跳过 dead export。 */
+  pipeline_asm_wpo_reach_compute_for_elf((struct ast_Module *)module, (struct ast_ASTArena *)arena, pctx);
   if (pctx && pipeline_dep_ctx_asm_entry_module_only(pctx) == 0) {
     ndep_elf = pipeline_dep_ctx_ndep(pctx);
     for (jdep = 0; jdep < ndep_elf; jdep++) {
@@ -147,14 +203,26 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
         continue;
       memset(dep_path_buf, 0, sizeof(dep_path_buf));
       pipeline_dep_ctx_import_path_copy64(pctx, jdep, dep_path_buf);
+      if (getenv("SHU_ASM_EMIT_TRACE")) {
+        fprintf(stderr, "shu: co-emit dep[%d] path=%s funcs=%d\n", (int)jdep, (char *)dep_path_buf,
+                dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
+        fflush(stderr);
+      }
       /** std.io 族：符号由 io.o + 本 TU 桩提供，避免整库 asm emit 导致宿主 Abort。 */
       if (pipeline_codegen_dep_skip_asm_user_std_io(dep_path_buf) != 0)
+        continue;
+      /** std.fs 族：符号由 fs.o 提供，勿整模块 asm emit（薄包装经 CALL redirect→fs.o）。 */
+      if (pipeline_codegen_dep_skip_asm_user_std_fs(dep_path_buf) != 0)
+        continue;
+      /** std.process：符号由 process.o 提供，args_count/arg 经 CALL redirect。 */
+      if (pipeline_codegen_dep_skip_asm_user_std_process(dep_path_buf) != 0)
         continue;
       driver_set_current_dep_path_for_codegen((const char *)dep_path_buf);
       dep_ar = pipeline_dep_ctx_arena_at(pctx, jdep);
       if (dep_mod != NULL && dep_ar != NULL && pipeline_module_num_funcs(dep_mod) > 0) {
         if (backend_asm_codegen_ast_to_elf(dep_mod, dep_ar, elf_ctx, ctx) != 0) {
           driver_set_current_dep_path_for_codegen(NULL);
+          pipeline_asm_wpo_reach_clear();
           return -1;
         }
       }
@@ -162,13 +230,46 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     }
   }
   driver_set_current_dep_path_for_codegen(NULL);
-  if (backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx) != 0)
+  if (getenv("SHU_ASM_EMIT_TRACE"))
+    fprintf(stderr, "shu: asm_codegen_ast_to_elf entry module funcs=%d\n",
+            (int)pipeline_module_num_funcs(module));
+  pipeline_asm_patch_module_parent_links(module, arena);
+  if (backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx) != 0) {
+    if (getenv("SHU_ASM_DEBUG")) {
+      fprintf(stderr, "shu: asm_codegen_elf_o fail at backend entry\n");
+      driver_diagnostic_asm_print_current_func();
+    }
+    pipeline_asm_wpo_reach_clear();
     return -1;
-  if (elf_ctx && peephole_elf_run(elf_ctx) != 0)
+  }
+  if (seed_asm_reject_empty_elf_text(module, elf_ctx) != 0) {
+    pipeline_asm_wpo_reach_clear();
     return -1;
-  if (elf_ctx && platform_elf_elf_resolve_patches(elf_ctx) != 0)
+  }
+  if (elf_ctx && peephole_elf_run(elf_ctx) != 0) {
+    if (getenv("SHU_ASM_DEBUG"))
+      fprintf(stderr, "shu: asm_codegen_elf_o fail at peephole_elf\n");
+    pipeline_asm_wpo_reach_clear();
     return -1;
-  if (pctx && pipeline_dep_ctx_use_macho_o(pctx) != 0)
-    return platform_macho_write_macho_o_to_buf(elf_ctx, out_buf) < 0 ? -1 : 0;
-  return platform_elf_write_elf_o_to_buf(elf_ctx, out_buf) < 0 ? -1 : 0;
+  }
+  if (elf_ctx && platform_elf_elf_resolve_patches(elf_ctx) != 0) {
+    if (getenv("SHU_ASM_DEBUG"))
+      fprintf(stderr, "shu: asm_codegen_elf_o fail at resolve_patches\n");
+    pipeline_asm_wpo_reach_clear();
+    return -1;
+  }
+  if (pctx && pipeline_dep_ctx_use_macho_o(pctx) != 0) {
+    int32_t mw = platform_macho_write_macho_o_to_buf(elf_ctx, out_buf);
+    if (getenv("SHU_ASM_DEBUG"))
+      fprintf(stderr, "shu: asm_codegen_elf_o macho_write=%d out_len=%d\n", (int)mw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+    pipeline_asm_wpo_reach_clear();
+    return mw < 0 ? -1 : 0;
+  }
+  {
+    int32_t ew = platform_elf_write_elf_o_to_buf(elf_ctx, out_buf);
+    if (getenv("SHU_ASM_DEBUG"))
+      fprintf(stderr, "shu: asm_codegen_elf_o elf_write=%d out_len=%d\n", (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+    pipeline_asm_wpo_reach_clear();
+    return ew < 0 ? -1 : 0;
+  }
 }

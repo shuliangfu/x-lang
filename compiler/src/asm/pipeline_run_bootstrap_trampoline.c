@@ -2,8 +2,8 @@
  * pipeline_run_bootstrap_trampoline.c — B-strict 链 runtime 入口薄壳
  *
  * 勿链 pipeline_su.o 仅导出 run_su_pipeline_impl 的 partial（同 TU 内 local 编排/codegen 绑定 → 大模块 SIGSEGV）。
- * build_asm/pipeline.o 自举完成（__text>512B）时链真 run_su_pipeline_impl；否则 strict_core partial 的
- * pipeline_impl_run_all（由 pipeline_su.o / strict_core partial 导出；-E-extern 瘦 TU 无 pipeline_pipeline_* 前缀）。
+ * build_asm/pipeline.o 自举完成（__text>512B 且 run_su_pipeline_impl 含 bl 真机码）时链真 run_su_pipeline_impl；
+ * 否则 strict_core partial 的 pipeline_impl_run_all（由 pipeline_su.o / strict_core partial 导出；-E-extern 瘦 TU 无 pipeline_pipeline_* 前缀）。
  */
 #include <stddef.h>
 #include <stdint.h>

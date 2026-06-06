@@ -212,7 +212,7 @@ int lsp_build_formatting_response(int id_val, const uint8_t *source, int source_
     if (out_buf && out_cap > 0) { out_buf[0] = '\0'; return 0; }
     return -1;
 }
-int lsp_build_initialize_result(uint8_t *out_buf, int out_cap) {
-    (void)out_buf; (void)out_cap;
+int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
+    (void)id_val; (void)out_buf; (void)out_cap;
     return -1;
 }

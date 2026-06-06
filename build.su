@@ -70,8 +70,9 @@
 ��════════════════════════════════�
 �════════════
 //
-//   • 日常构建（等价于 make bootstrap-driver）：
+//   • 日常构建（M7：等价于 make bootstrap-driver = B-strict）：
 //       cd compiler && ./build_tool ./shu
+//     或：make -C compiler bootstrap-driver-bstrict
 //
 //   • 指定 shu 路径：
 //       ./build_tool /path/to/shu

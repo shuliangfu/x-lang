@@ -1,0 +1,14 @@
+# WPO-S3 disasm baseline (shu_asm)
+# stack_promote_smoke / stack_promote_cross: make_pair+sum_pair inlined in _main
+# stack_promote_cross_ret: make_pair inlined; field sum in _main (no sum_pair)
+# stack_promote_escape: make_pair inlined; &p 同模块经 *Pair 读字段 (exit 7)
+# stack_promote_escape_cross: make_pair inlined; &p 传 import read_pair_ptr (exit 7)
+# stack_promote_escape_global: typeck 拒 struct stack escape（跨函数 Slot）
+# stack_promote_await: struct 跨 await typeck 占位（待 asm 帧 + exit 断言）
+main_calls_make_pair=0
+main_calls_sum_pair=0
+intra_module_inlined=1
+cross_module_inlined=1
+cross_ret_field_sum=1
+escape_addr_of_local=1
+escape_cross_import_ptr=1

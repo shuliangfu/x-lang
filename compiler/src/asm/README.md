@@ -66,8 +66,9 @@
 
 | 项 | 状态 | 说明 |
 |----|------|------|
-| 7.3 寄存器分配 | ✅ | 固定 rax/rbx；窥孔消除连续 push/pop；**发射时右操作数为字面量则 mov 到 rbx 免 push/pop**（文本 asm 与 ELF 双路径均已支持）；可进一步做活跃分析 |
-| 窥孔优化 | ✅ | peephole_run：去空行 + 消除冗余 push/pop（x86/arm64）+ **消除 no-op movq %rax,%rax** |
+| 7.3 寄存器分配 | ✅ | **线性 scan**（x10–**x15**）+ **Chaitin（K=6）** + **栈帧 spill** + **if/loop 最小 φ**；`run-asm-73-gate.sh` |
+| CALL 内联（P3） | ✅ | `backend_try_inline_*`；`run-asm-call-inline.sh`（**11 例**；\_main 无用户 `bl`，vec div 允许 `bl _shulang_panic_`） |
+| 窥孔优化 | ✅ | peephole_elf：冗余 push/pop、**x2↔x0/x1 对**、**7.3 spill x10–x15↔x0/x1 往返 mov 对**；文本路径 no-op mov |
 | EXPR_FIELD_ACCESS 真实偏移 | ✅ | backend 已用；**C 与 .su typeck 均已填写**（.su 从 STRUCT_LIT 推导布局 + VAR 的 resolved_type_ref） |
 | EXPR_INDEX base 为表达式/切片 | ✅ | base 可为任意表达式；slice 已支持（从 (ptr,len) 取 ptr 再下标） |
 | FLOAT_LIT 位模式 | ✅ | typeck 填 float_bits_lo/hi，asm 内联 movq/movz+movk |
@@ -88,8 +89,12 @@
 
 - **crt0_x86_64.s**：提供 `_start` 与 `driver_get_argv_i`，用于「无 C」构建时替代 main.o / runtime_asm_build.o。
 - **_start**：从栈取 argc、argv，对齐栈后调用 `entry`，再以返回值做 exit(60) 系统调用。
+- **crt0_user_x86_64.s**（S4）：用户程序 freestanding 入口，`_start` → `_main` → exit(60)；**`-freestanding`** 时 `runtime.c` 自动 `ld -nostdlib -static`。
+- **freestanding_io_x86_64.s**（S4）：`shulang_sys_write` → write(2) syscall；**仅当**用户 `.o` 引用 `shulang_sys_write` 时链入。
+- **runtime_panic_x86_64.s**（S4）：`shulang_panic_` 经 syscall exit(134)，不链 libc；**仅当**用户 `.o` 引用 `shulang_panic_` 时链入（`return42` 等无 panic 路径可省略）。
+- **WPO-S2 vec 特化**（`backend_try_inline_dispatch.c`）：`laneK(vec_binop([const…],[const…]))` — 默认 **fold** 为标量 imm；`SHU_WPO_MONO=1` 时生成单态 thunk（如 `lane0__wpo_1_2_3_4_10_20_30_40`）；`SHU_WPO_NO_FOLD=1` 对照 bench。
 - **driver_get_argv_i**：ABI 为 rdi=argc, rsi=argv, rdx=i, rcx=buf, r8=max；从 argv[i] 拷贝到 buf 并 NUL 结尾，返回长度，越界/失败返回 -1。
-- Makefile 中已增加 `src/asm/crt0_x86_64.o` 目标（仅 `uname -s == Linux` 时）；链接 asm 版 shu 时可将该 .o 与各 .su 的 asm .o、runtime_panic.o、-lc 一起链接。
+- Makefile 中已增加 `src/asm/crt0_x86_64.o` / `crt0_user_x86_64.o` 目标（仅 Linux）；链接 asm 版 shu 时可将 crt0 + asm .o + runtime_panic.o、-lc 一起链接。
 
 ---
 
@@ -112,7 +117,7 @@
    已实现：Expr.enum_variant_tag 由 typeck 填写，backend 返回该 tag；payload 布局仍待类型/变体扩展。
 
 6. **7.3 寄存器分配**
-   已实现：窥孔消除连续 push/pop；**二元运算右操作数为 EXPR_LIT 时**（ADD/SUB/MUL/DIV/MOD、比较、BITAND/BITOR/BITXOR、SHL/SHR）在 emit_expr 与 emit_expr_elf 中直接 mov 立即数到 rbx，避免 push rax + emit right + pop rbx。可进一步做活跃分析减少更多 push/pop。
+   已实现（`pipeline_glue.c`）：块级 live_in、if/loop 最小 φ；**rax/rbx VAR 槽 cache**；arm64 **x9**、**x10–x13** spill；**Chaitin（K=4）** + 子块干涉 **push/pop**；cfg 汇合 live 不加假干涉边。门禁：`run-asm-binop-block-var.sh`（含 `binop_block_two_phase_add`）、`run-asm-binop-cfg-merge.sh`。
 
 7. **INDEX/FIELD base 为表达式与 slice**  
    已实现：EXPR_INDEX 与 EXPR_FIELD_ACCESS 的 base 可为任意产生地址的表达式；INDEX 的 base 为 slice 时从 (ptr,len) 取 ptr 再下标（双路径均已支持）。
@@ -157,7 +162,7 @@ AST (typeck 后) --[asm_codegen_ast]--> 汇编文本 (.s) --[as]--> .o --[ld]-->
 ## 六、多平台（target_arch）
 
 - **ctx.target_arch**：0=x86_64，1=arm64（aarch64），2=riscv64。
-- **x86_64**：文本 asm 与直接 .o 均支持；GAS AT&T，System V ABI。
+- **x86_64**：文本 asm 与直接 .o 均支持；GAS AT&T，System V ABI。**f32 xmm 实/形参默认开启**（`SHU_ABI_F32_XMM=0` 为 legacy）；见 `compiler/docs/F32_XMM_ABI.md`。
 - **arm64**：文本 asm 与直接 .o 均支持（arm64_enc 已实现，ELF e_machine 等按 AArch64 设置）。
 - **riscv64**：文本 asm 与直接 .o 均支持（riscv64.su / riscv64_enc.su 已实现，ELF e_machine=243，B/J 型 patch）。
 - **用法**：  
