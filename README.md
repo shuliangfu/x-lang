@@ -33,6 +33,10 @@
 | `shu -E file.su` | 输出 C 源码（调试用） |
 | `shu -backend asm file.su` | ASM 后端（默认已是，可显式写出） |
 | `shu -backend c file.su` | 强制走 C 路径 |
+| `shu -O2 file.su -o app` | 优化级别（**默认 -O2**；release 推荐 `shu_asm -backend asm -O2`） |
+| `shu -legacy-f32-abi …` | x86_64 SysV **legacy** f32 CALL（默认 **xmm ABI**；见 `compiler/docs/F32_XMM_ABI.md`） |
+| `shu -freestanding … -o app` | Linux x86_64 nostdlib 静态链（S4） |
+| `shu -h` / `shu --help` | 打印用法摘要 |
 | `shu fmt file.su` | 格式化 .su 源文件（缩进/换行，与 LSP 一致） |
 | `shu check file.su` | 仅 parse+typeck（含 import），不链接 |
 | `shu test [script.sh]` | 运行测试脚本（默认 `tests/run-all.sh`） |
