@@ -32,5 +32,8 @@ Makefile 仅作从零构建/首次；`make all` 默认同时产出 **shu** 与 *
 | `shu run file.su` | 编译并运行 |
 | `shu -E file.su` | 输出 C 源码（调试用） |
 | `shu -backend c file.su` | 强制走 C 路径 |
+| `shu -O2 file.su -o app` | 默认 **-O2**；release 推荐 `shu_asm -backend asm -O2` |
+| `shu -legacy-f32-abi …` | x86_64 legacy f32 CALL（默认 xmm；见 `docs/F32_XMM_ABI.md`） |
+| `shu --help` | 用法摘要 |
 
-更全的子命令表（含 `-backend asm`、`shu fmt` / `check` / `test` 占位）见仓库根目录 `README.md` 中的「shu 编译器用法」一节。
+更全的子命令表（含 `-backend asm`、`shu fmt` / `check` / `test`）见仓库根目录 `README.md`「shu 编译器用法」。
