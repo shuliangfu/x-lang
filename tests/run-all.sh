@@ -79,6 +79,21 @@ run_all_l5_whitelist_case() {
 }
 run_shu_for_script() {
     local script="$1"
+    # 非 x86_64 bootstrap：可执行 -o 优先 shu-c；typeck/check/lexer 仍用 seed SHU 验 .su 流水线。
+    case "$(uname -m 2>/dev/null)" in
+      x86_64|amd64) ;;
+      *)
+        if [ -x ./compiler/shu-c ] && { [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] || [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ]; }; then
+            case "$script" in
+              run-typeck.sh|run-check.sh|run-lexer.sh) ;;
+              *)
+                echo "./compiler/shu-c"
+                return 0
+                ;;
+            esac
+        fi
+        ;;
+    esac
     # B-strict：白名单脚本一律用 SHU（shu_asm），其余仍 shu-c（与 L4 拓扑相同，仅编译器二进制不同）。
     if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
         if run_all_l5_whitelist_case "$script"; then
