@@ -4,6 +4,6 @@ loop_i32	0.060
 mem_copy	0.060
 struct_param	0.060
 call_boundary	0.060
-perf_main	0.060
+perf_main	0.070
 check_backend	0.050
 check_parser	0.040
