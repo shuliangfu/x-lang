@@ -24,6 +24,7 @@ if [ -n "${CI:-}" ] && [ "${SHU_ASM_CI_SKIP_FAST:-0}" != "1" ]; then
   export SHU_ASM_FORCE_SKIP_TYPECK="${SHU_ASM_FORCE_SKIP_TYPECK:-1}"
   export SHU_ASM_QUIET="${SHU_ASM_QUIET:-1}"
   export SHU_ASM_CI_SKIP_SECOND_PASS=1
+  export SHU_ASM_EXPERIMENTAL_SKIP_GEN="${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-1}"
 fi
 
 # 调试 env 勿泄漏进 build_asm：SHU_ASM_START_FUNC>=模块 func 数时 emit 循环全跳过，仅剩 8B 空 __text 桩（B-strict PTEXT 门禁失败）。
