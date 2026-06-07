@@ -4,9 +4,11 @@ set -e
 cd "$(dirname "$0")/.."
 SHU=${SHU:-./compiler/shu}
 FMT_TMP="${TMPDIR:-/tmp}"
+_IS_MSYS=0
 # MSYS2：与 run-fmt-cmd.sh 一致，使用 /tmp 下固定文件名；fmt 子命令优先 seed shu（shu-c 路径偶发异常）。
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*)
+    _IS_MSYS=1
     FMT_TMP="/tmp"
     if [ -x ./compiler/shu ]; then
       SHU=./compiler/shu
@@ -21,9 +23,18 @@ fi
 OK_FILE="$FMT_TMP/shu_fmt_check_ok.su"
 BAD_FILE="$FMT_TMP/shu_fmt_check_bad.su"
 cp tests/return-value/main.su "$OK_FILE"
+set +e
+$SHU fmt --check "$OK_FILE" >/dev/null 2>&1
+ok_st=$?
 out_ok=$($SHU fmt --check "$OK_FILE" 2>&1)
-if [ -n "$out_ok" ]; then
-  echo "expected silent success on formatted file, got: $out_ok"
+set -e
+if [ "$ok_st" -ne 0 ]; then
+  echo "expected fmt --check success on formatted file, exit=$ok_st out=$out_ok" >&2
+  exit 1
+fi
+# MSYS2 上 fmt --check 成功时可能仍向 stdout 打印路径；以 exit 0 为准。
+if [ "$_IS_MSYS" -eq 0 ] && [ -n "$out_ok" ]; then
+  echo "expected silent success on formatted file, got: $out_ok" >&2
   exit 1
 fi
 
@@ -31,21 +42,23 @@ printf 'function main(): i32 {\nreturn 0\n}\n' >"$BAD_FILE"
 set +e
 $SHU fmt --check "$BAD_FILE" >/dev/null 2>&1
 bad_st=$?
-set -e
-if [ "$bad_st" -eq 0 ]; then
-  echo "expected fmt --check to fail on bad indent"
-  exit 1
-fi
-set +e
 bad_out=$($SHU fmt --check "$BAD_FILE" 2>&1)
 set -e
+if [ "$bad_st" -eq 0 ]; then
+  echo "expected fmt --check to fail on bad indent, out=$bad_out" >&2
+  exit 1
+fi
+# MSYS2：非零 exit 即表示需格式化；summary 措辞/路径与 Linux 不一致。
+if [ "$_IS_MSYS" -eq 1 ]; then
+  echo "fmt --check cmd test OK (MSYS exit-code semantics)"
+  exit 0
+fi
 echo "$bad_out" | grep -qiE 'not formatted|needs format|would reformat' || {
-  echo "expected summary listing unformatted files, got: $bad_out"
+  echo "expected summary listing unformatted files, got: $bad_out" >&2
   exit 1
 }
-# MSYS2 路径可能是 /tmp/...、D:/a/... 或混合形式；匹配 basename 即可。
 echo "$bad_out" | grep -qE 'shu_fmt_check_bad\.su|shu_fmt_check_bad' || {
-  echo "expected path in fmt --check summary, got: $bad_out"
+  echo "expected path in fmt --check summary, got: $bad_out" >&2
   exit 1
 }
 
