@@ -60,7 +60,16 @@ echo "$out" | grep -q 'shu_async_queue_reset' || {
 echo "async import std.async OK"
 
 echo "const hex: top-level 0x literal parse (-E) ($SHU_IMPORT) ..."
-out=$("$SHU_IMPORT" -E tests/parser/const_hex.su 2>&1) || {
+# relink 后 shu/shu_asm 的 -E 仅 parse/typeck 摘要；MAGIC 数值须 shu-c -E 佐证。
+EMIT_HEX="$SHU_IMPORT"
+case "$(basename "$SHU_IMPORT")" in
+  shu|shu_asm)
+    if [ -x ./compiler/shu-c ]; then
+      EMIT_HEX=./compiler/shu-c
+    fi
+    ;;
+esac
+out=$("$EMIT_HEX" -E tests/parser/const_hex.su 2>&1) || {
   echo "const hex FAIL: -E const_hex.su"
   exit 1
 }
