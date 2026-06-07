@@ -695,7 +695,7 @@ jobs:
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         shell: msys2 {0}
-        timeout-minutes: 12
+        timeout-minutes: 30
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
