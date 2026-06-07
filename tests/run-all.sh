@@ -230,7 +230,10 @@ run run-preprocess.sh
 # 自举测试不执行：run-su-pipeline / run-su-multi-file / run-asm / run-without-c / run-bootstrap-verify 已全部排除
 run run-vector.sh
 # asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shu-c）仅验 C 流水线语义，见 test_su / linux-asm-smoke
+# 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_su 仍验 .su 语义）。
 if [ -z "${RUN_ALL_USE_C:-}" ]; then
+case "$(uname -m 2>/dev/null)" in
+  x86_64|amd64)
 run run-asm-binop-var.sh
 run run-asm-binop-block-var.sh
 run run-asm-binop-cfg-merge.sh
@@ -249,6 +252,11 @@ run run-asm-assign-index-block.sh
 run run-asm-assign-index-param.sh
 run run-asm-binop-div-index.sh
 run run-asm-cmp-index-binop.sh
+;;
+  *)
+    echo "run-all: skip asm disasm gates on $(uname -m 2>/dev/null || echo unknown)"
+    ;;
+esac
 fi
 # core/std 与标准库
 run run-fmt.sh
