@@ -26,15 +26,19 @@ case "${SHU##*/}" in
     if [ -x "$_hello_shu_dir/shu-c" ]; then HELLO_COMPILE_SHU="$_hello_shu_dir/shu-c"; fi
     ;;
 esac
-# bootstrap seed 默认 asm 后端在 ARM64 等会链入 x86_64 宿主 .o；hello 门禁用 C 后端出可执行文件。
-# shu-c 已是 C 前端，勿传 -backend（C-only 构建不识别该选项）。
+# bootstrap seed 默认 asm 后端在 ARM64 等会链入 x86_64 宿主 .o；非 x86_64 可执行链接优先 shu-c。
 case "$(uname -m 2>/dev/null)" in
   x86_64|amd64) ;;
   *)
-    case "${HELLO_COMPILE_SHU##*/}" in
-      shu-c|shu_asm) ;;
-      *) HELLO_BACKEND="-backend c" ;;
-    esac
+    if [ -x ./compiler/shu-c ]; then
+      HELLO_COMPILE_SHU=./compiler/shu-c
+      HELLO_BACKEND=""
+    else
+      case "${HELLO_COMPILE_SHU##*/}" in
+        shu-c|shu_asm) ;;
+        *) HELLO_BACKEND="-backend c" ;;
+      esac
+    fi
     ;;
 esac
 if [ -n "${RUN_ALL_USE_C:-}" ]; then
