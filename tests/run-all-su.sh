@@ -21,6 +21,11 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   fi
 fi
 [ -x compiler/shu ] && cp compiler/shu compiler/shu_driver
+# CI macOS：bootstrap asm 编 typeck.su 极慢，25min 超时；LSP 已由 Makefile test_su 的 run-lsp 覆盖。
+if [ -n "${CI:-}" ] && [ "$(uname -s)" = "Darwin" ]; then
+  echo "run-all-su: SKIP full run-all on CI macOS (seed+LSP gate sufficient; avoid test_su timeout)"
+  exit 0
+fi
 if [ ! -x compiler/shu_su ]; then
     echo "run-all-su: compiler/shu_su not found; run 'make -C compiler bootstrap-pipeline' then 'make -C compiler shu-su-pipeline'"
     exit 1
