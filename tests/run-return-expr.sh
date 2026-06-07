@@ -6,8 +6,11 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 SHU=${SHU:-./compiler/shu}
+# shellcheck source=lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+LINK_SHU="$RUN_SHU"
 
-$SHU tests/return-expr/explicit.su -o /tmp/shu_return_explicit 2>&1
+$LINK_SHU tests/return-expr/explicit.su -o /tmp/shu_return_explicit 2>&1
 exitcode=0
 /tmp/shu_return_explicit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (explicit return), got $exitcode"; exit 1; }
