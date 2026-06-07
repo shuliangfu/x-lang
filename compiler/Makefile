@@ -583,7 +583,7 @@ src/lsp/lsp_state.o: src/lsp/lsp_state.c
 lsp_gen.c: $(SHU_C) src/lsp/lsp.su
 	@if [ -f $(SHU_SU) ]; then \
 	  echo "lsp_gen.c: ./$(SHU_SU) -su -E ..." >&2; \
-	  if ./$(SHU_SU) -su -E $(LSP_SU_E_DIRS) -E-extern src/lsp/lsp.su > $@ 2>/dev/null && grep -q typeck_lsp_main $@; then \
+	  if ./$(SHU_SU) -su -E $(LSP_SU_E_DIRS) -E-extern src/lsp/lsp.su > $@ 2>/dev/null && grep -q typeck_lsp_main_impl $@; then \
 	    : ; \
 	  else \
 	    echo "lsp_gen.c: shu-su failed, fallback to shu-c -E -E-extern" >&2; \
