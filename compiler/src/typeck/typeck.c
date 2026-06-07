@@ -259,7 +259,15 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
         }
         return 0;
     }
-    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_SLICE || a->kind == AST_TYPE_LINEAR || a->kind == AST_TYPE_VECTOR)
+    if (a->kind == AST_TYPE_SLICE) {
+        if (!type_equal(a->elem_type, b->elem_type))
+            return 0;
+        /* M-3：同元素类型但域标签不同（[]i32<ra> vs []i32<rb>）视为不等。 */
+        if (a->region_label && b->region_label)
+            return strcmp(a->region_label, b->region_label) == 0;
+        return 1;
+    }
+    if (a->kind == AST_TYPE_PTR || a->kind == AST_TYPE_LINEAR || a->kind == AST_TYPE_VECTOR)
         return type_equal(a->elem_type, b->elem_type);
     if (a->kind == AST_TYPE_ARRAY)
         return a->array_size == b->array_size && type_equal(a->elem_type, b->elem_type);
@@ -270,7 +278,11 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
  * let 初值：较小整数类型向较宽整数类型隐式拓宽（如 u8→u32、i32→i64）。
  */
 static int typeck_integer_widen_ok(enum ASTTypeKind dest, enum ASTTypeKind src) {
-    if (dest == src) return 1;
+    /* 同 kind 仅整数类型可隐式拓宽；slice 等同 kind 但域标签不同须保留 init 类型供 M-3 检查。 */
+    if (dest == src) {
+        return dest == AST_TYPE_I32 || dest == AST_TYPE_I64 || dest == AST_TYPE_U8
+            || dest == AST_TYPE_U32 || dest == AST_TYPE_U64 || dest == AST_TYPE_USIZE;
+    }
     if (src == AST_TYPE_U8)
         return dest == AST_TYPE_U32 || dest == AST_TYPE_U64 || dest == AST_TYPE_USIZE || dest == AST_TYPE_I32;
     if (src == AST_TYPE_I32)
@@ -1526,6 +1538,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (!rt && lt)
                 ((struct ASTExpr *)e->value.binop.right)->resolved_type = lt;  /* 子块中右端可能未解析到类型，用左端补 */
             rt = e->value.binop.right->resolved_type;
+            if (!typeck_fill_only && typeck_check_slice_region_assign(e, lt, rt) != 0)
+                return -1;
             if (!lt || !rt || !type_equal(lt, rt)) {
                 /* 允许 0..255 整数字面量赋给 u8（与函数实参一致，便于 out_buf[i] = 10 等） */
                 int allow_u8_lit = 0;
@@ -1556,8 +1570,6 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     }
                 }
             }
-            if (!typeck_fill_only && typeck_check_slice_region_assign(e, lt, rt) != 0)
-                return -1;
             ((struct ASTExpr *)e)->resolved_type = lt;
             return 0;
         }
@@ -1571,6 +1583,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (!rt && lt)
                 ((struct ASTExpr *)e->value.binop.right)->resolved_type = lt;
             rt = e->value.binop.right->resolved_type;
+            if (!typeck_fill_only && typeck_check_slice_region_assign(e, lt, rt) != 0)
+                return -1;
             if (!lt || !rt || !type_equal(lt, rt)) {
                 int allow_u8_lit = 0;
                 if (lt && lt->kind == AST_TYPE_U8 && e->value.binop.right->kind == AST_EXPR_LIT) {
@@ -2081,6 +2095,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     if (typeck_expr_sym(e->value.call.args[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
                     const struct ASTType *arg_type = e->value.call.args[i]->resolved_type;
                     const struct ASTType *param_type = func->params[i].type;
+                    if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
+                        return -1;
                     if (!arg_type || !param_type || !type_equal_subst(param_type, arg_type,
                             func->generic_param_names, e->value.call.type_args, e->value.call.num_type_args)) {
                         const struct ASTType *exp_ty = get_substituted_return_type(param_type,
@@ -2092,9 +2108,6 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                             i + 1, callee_name ? callee_name : "", ebuf, fbuf);
                         return -1;
                     }
-                    arg_type = e->value.call.args[i]->resolved_type;
-                    if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
-                        return -1;
                 }
                 if (func->return_type) {
                     const struct ASTType *rt = func->return_type;
@@ -2119,6 +2132,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 if (typeck_expr_sym(e->value.call.args[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
                 const struct ASTType *arg_type = e->value.call.args[i]->resolved_type;
                 const struct ASTType *param_type = func->params[i].type;
+                if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
+                    return -1;
                 int ok = (arg_type && param_type && type_equal(arg_type, param_type));
                 /* 允许非负整数字面量传给 u32 参数（C 会隐式转换） */
                 if (!ok && param_type && param_type->kind == AST_TYPE_U32
@@ -2195,9 +2210,6 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         i + 1, callee_name ? callee_name : "", ebuf, fbuf);
                     return -1;
                 }
-                arg_type = e->value.call.args[i]->resolved_type;
-                if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
-                    return -1;
             }
             if (func->return_type) {
                 const struct ASTType *rt = func->return_type;
@@ -2557,6 +2569,12 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             }
         }
         (void)typeck_coerce_let_int_lit(b->let_decls[i].type, (struct ASTExpr *)b->let_decls[i].init);
+        /* slice 域检查须在 integer widen 之前：同 kind slice 拓宽会覆盖 init->resolved_type 导致域标签丢失。 */
+        if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
+            && typeck_check_slice_region_assign(b->let_decls[i].init, b->let_decls[i].type,
+                b->let_decls[i].init->resolved_type) != 0) {
+            return -1;
+        }
         if (b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
             && typeck_integer_widen_ok(b->let_decls[i].type->kind, b->let_decls[i].init->resolved_type->kind)) {
             ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
@@ -2570,11 +2588,6 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             type_to_string_buf(b->let_decls[i].type, ebuf, sizeof(ebuf));
             type_to_string_buf(b->let_decls[i].init->resolved_type, fbuf, sizeof(fbuf));
             TYPECK_ERR_AT(0, 0, "let type mismatch: expected %s, found %s", ebuf, fbuf);
-            return -1;
-        }
-        if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
-            && typeck_check_slice_region_assign(b->let_decls[i].init, b->let_decls[i].type,
-                b->let_decls[i].init->resolved_type) != 0) {
             return -1;
         }
         fold_expr((struct ASTExpr *)b->let_decls[i].init, names, const_values, n_consts, const_start, parent_n_consts);
