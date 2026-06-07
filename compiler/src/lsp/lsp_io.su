@@ -13,8 +13,8 @@ import std.heap;
 /** 文档变更时使诊断缓存失效；由 lsp_diag.c 提供。 */
 extern function lsp_diag_invalidate_cache(): void;
 
-/** 单条消息 body 安全上限（64MB），与 lsp.su 中 LSP_BODY_CAP 一致。 */
-let LSP_BODY_SAFETY_CAP: i32 = 67108864;
+/** 单条消息 body 安全上限（1MiB），与 lsp.su 中 LSP_BODY_CAP 一致。 */
+let LSP_BODY_SAFETY_CAP: i32 = 1048576;
 
 /** leftover 从 state_buf 起始存放；长度放在 buffer 末尾，避免与可能相邻的
 * out_buf 等重叠被零写。 */
@@ -92,14 +92,10 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
   }
   if (content_len > to_copy) {
     let remain: i32 = content_len - to_copy;
-    let r: i32 = std.io.read(h, &state_buf[0], remain as usize, 0 as u32);
+    /* 剩余 body 直读入 body_out，勿经 state_buf[0] 以免覆盖 leftover 区。 */
+    let r: i32 = std.io.read(h, &body_out[to_copy], remain as usize, 0 as u32);
     if (r != remain) {
       return -1;
-    }
-    let j2: i32 = 0;
-    while (j2 < remain) {
-      body_out[to_copy + j2] = state_buf[j2];
-      j2 = j2 + 1;
     }
   }
   let consumed: i32 = header_end + content_len;
