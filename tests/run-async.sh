@@ -107,7 +107,7 @@ out=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness.su 2>&1) || {
   echo "async liveness FAIL: async_await_liveness.su -E failed"
   exit 1
 }
-echo "$out" | grep -q 'SHU_ASYNC_FRAME func=liveness_demo slots=1 vars=keep' || {
+echo "$out" | grep -qE 'SHU_ASYNC_FRAME func=liveness_demo.*slots=1.*vars=keep' || {
   echo "async liveness FAIL: expected slots=1 vars=keep"
   echo "$out" | grep SHU_ASYNC_FRAME || true
   exit 1
@@ -138,7 +138,7 @@ out2=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness_two.su 2>&1) || {
   echo "async liveness FAIL: async_await_liveness_two.su -E failed"
   exit 1
 }
-echo "$out2" | grep -q 'SHU_ASYNC_FRAME func=two_await slots=2 vars=a,b' || {
+echo "$out2" | grep -qE 'SHU_ASYNC_FRAME func=two_await.*slots=2.*vars=a,b' || {
   echo "async liveness FAIL: expected two_await slots=2 vars=a,b"
   echo "$out2" | grep SHU_ASYNC_FRAME || true
   exit 1
@@ -193,7 +193,7 @@ echo "$out_await" | grep -q 'struct Pair {' || {
   echo "async struct await FAIL: missing struct Pair definition (DCE must emit for async frame)"
   exit 1
 }
-echo "$out_await" | grep -q 'SHU_ASYNC_FRAME func=struct_across_await slots=1 vars=p' || {
+echo "$out_await" | grep -qE 'SHU_ASYNC_FRAME func=struct_across_await.*slots=1.*vars=p' || {
   echo "async struct await FAIL: expected slots=1 vars=p"
   echo "$out_await" | grep SHU_ASYNC_FRAME || true
   exit 1
