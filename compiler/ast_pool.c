@@ -4681,6 +4681,7 @@ extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *modu
  * typeck 深栈：在 256MiB pthread 上执行，避免 Alpine/ARM64 默认栈在 diag 时 SIGSEGV。
  */
 extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
+extern int driver_is_large_stack_thread(void);
 
 typedef struct LspDiagParseTypeckArgs {
   struct ast_Module *module;
@@ -4716,6 +4717,9 @@ static void *lsp_diag_parse_typeck_thread_fn(void *arg) {
 
 int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
                                     int32_t source_len, struct ast_PipelineDepCtx *ctx) {
+  /* LSP 主循环已在 256MiB pthread 内：直接 typeck，避免嵌套大栈分配在 Alpine 上 OOM/SIGSEGV。 */
+  if (driver_is_large_stack_thread())
+    return lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
   LspDiagParseTypeckArgs args;
   args.module = module;
   args.arena = arena;
