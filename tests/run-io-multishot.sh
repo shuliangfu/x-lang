@@ -22,6 +22,7 @@ out=$(SHU_IO_URING_MULTISHOT_ACCEPT=1 /tmp/shu_io_multishot_accept_smoke 2>&1) |
   # ubuntu-22.04 等内核无 multishot accept（hits=0）时 SKIP，勿误报 Net perf 门禁 FAIL。
   if echo "$out" | grep -q "multishot hits=0"; then
     echo "io multishot: SKIP (kernel lacks io_uring multishot accept; need 6.0+)"
+    echo "io multishot accept OK"
     exit 0
   fi
   exit "$rc"
