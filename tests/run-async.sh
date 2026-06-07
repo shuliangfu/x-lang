@@ -385,11 +385,11 @@ echo "$out" | grep -q '__io_rd_slot' || {
   echo "async await IO dual FAIL: missing __io_rd_slot in frame"
   exit 1
 }
-echo "$out" | grep -c 'shu_async_run_seed_push_i32' | grep -q '^2$' || {
+echo "$out" | grep -o 'shu_async_run_seed_push_i32(' | wc -l | tr -d ' ' | grep -q '^2$' || {
   echo "async await IO dual FAIL: expected two run seed push"
   exit 1
 }
-echo "$out" | grep -c 'shu_async_sched_read_chunk' | grep -q '^2$' || {
+echo "$out" | grep -o 'shu_async_sched_read_chunk(' | wc -l | tr -d ' ' | grep -q '^2$' || {
   echo "async await IO dual FAIL: expected two sched_read_chunk calls"
   exit 1
 }
