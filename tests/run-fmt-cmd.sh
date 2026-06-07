@@ -41,7 +41,10 @@ if [ -n "$chk_out" ]; then
   exit 1
 fi
 chmod +x tests/run-fmt-check-cmd.sh 2>/dev/null || true
-SHU="$SHU" ./tests/run-fmt-check-cmd.sh
+if ! SHU="$SHU" ./tests/run-fmt-check-cmd.sh; then
+  echo "run-fmt-check-cmd failed (SHU=$SHU MSYSTEM=${MSYSTEM:-})" >&2
+  exit 1
+fi
 chmod +x tests/run-fmt-wrap.sh 2>/dev/null || true
 SHU="$SHU" ./tests/run-fmt-wrap.sh
 
