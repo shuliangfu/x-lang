@@ -12,9 +12,9 @@
 
 import lsp_io;
 
-/** 单条消息 body 安全上限（64MB）；顶层 let 须在任意 extern/function 之前，供
-* C 解析器正确识别。 */
-let LSP_BODY_CAP: i32 = 67108864;
+/** 单条消息 body 安全上限（1MiB）；顶层 let 须在任意 extern/function 之前，供
+* C 解析器正确识别。LSP 单条 JSON 远小于此；勿 per-message malloc 64MiB（Alpine CI OOM/SIGSEGV）。 */
+let LSP_BODY_CAP: i32 = 1048576;
 
 /** 读消息用的状态缓冲大小（4 + leftover 区）。 */
 let LSP_STATE_SIZE: i32 = 4 + 8192 * 2;
