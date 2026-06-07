@@ -96,7 +96,7 @@ for name, cmd in cases:
         sys.exit(1)
     cap = baseline.get(name)
     eff_cap = cap
-    if cap is not None and os.environ.get("CI") == "1":
+    if cap is not None and os.environ.get("CI", "").lower() in ("1", "true"):
         eff_cap = cap * 1.4
     status = "OK"
     if eff_cap is not None and med > eff_cap:
