@@ -12,6 +12,11 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 
 FMT_TMP="${TMPDIR:-/tmp}/shu_fmt_cmd_test.su"
+# MSYS2：固定 Unix 路径，避免 Windows 短路径/混用斜杠导致 shu 打不开临时文件。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*) FMT_TMP="/tmp/shu_fmt_cmd_test.su" ;;
+esac
+mkdir -p "$(dirname "$FMT_TMP")" 2>/dev/null || true
 # 故意错误缩进；fmt 写回后应打印 fmt OK 且 check 仍通过（须含分号）
 printf 'function main(): i32 {\nreturn 0;\n}\n' >"$FMT_TMP"
 set +e
