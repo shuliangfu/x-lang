@@ -214,8 +214,11 @@ echo "$out_await" | grep -q 'bytes=12 awaits=1' || {
 echo "async struct await liveness OK"
 
 echo "async CPS yield: SHU_ASYNC_YIELD=1 double poll ..."
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
-  SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_cps_yield.su -o /tmp/shu_async_cps_yield 2>&1 || {
+make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
+  || make -C compiler ../std/async/scheduler.o
+if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; then
+  # 须用 relink 后 shu（runtime 按需链 scheduler.o）；shu-c 链接路径缺 shu_async_cps_suspend。
+  SHU_ASYNC_YIELD=1 "$SHU" -L . tests/parser/async_cps_yield.su -o /tmp/shu_async_cps_yield 2>&1 || {
     echo "async CPS yield FAIL: compile async_cps_yield.su"
     exit 1
   }
