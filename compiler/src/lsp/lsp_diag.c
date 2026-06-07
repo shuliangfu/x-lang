@@ -33,6 +33,8 @@ extern void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_d
 extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
+/** bootstrap 链 pipeline 时返回真实 ctx 字节数；shu-c 弱符号回落瘦 struct。 */
+extern size_t lsp_diag_su_alloc_dep_ctx_size(void);
 
 /** 调试 LSP read_message 的 leftover 长度 n；LSP_READ_DEBUG 时打 stderr，便于确认 state 是否在两次调用间保留。 */
 void lsp_debug_u32(uint32_t n) {
@@ -347,10 +349,18 @@ void *lsp_diag_su_module_ptr(void) {
     return p;
 }
 
+/** 返回 LSP SU pipeline 用的 PipelineDepCtx 分配尺寸。 */
+static size_t lsp_diag_su_ctx_alloc_size(void) {
+    size_t sz = lsp_diag_su_alloc_dep_ctx_size();
+    if (sz > lsp_diag_pipeline_sizeof_dep_ctx())
+        return sz;
+    return lsp_diag_pipeline_sizeof_dep_ctx();
+}
+
 void *lsp_diag_su_ctx_ptr(void) {
     static void *p;
     if (!p)
-        p = calloc(1, lsp_diag_pipeline_sizeof_dep_ctx());
+        p = calloc(1, lsp_diag_su_ctx_alloc_size());
     return p;
 }
 
@@ -363,7 +373,7 @@ void lsp_diag_su_reset_parse_buffers(void) {
     if (m)
         memset(m, 0, lsp_diag_pipeline_sizeof_module());
     if (c)
-        memset(c, 0, lsp_diag_pipeline_sizeof_dep_ctx());
+        memset(c, 0, lsp_diag_su_ctx_alloc_size());
 }
 
 /** 将 msg 按 JSON 字符串转义写入 out，返回写入长度；out_cap 为 out 的容量。 */
