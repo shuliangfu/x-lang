@@ -24,6 +24,7 @@ extern int32_t shu_async_scheduler_drain(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 /** 单协程 read async 上下文（模拟 codegen 帧 + slot）。 */
 typedef struct {
@@ -144,8 +145,21 @@ int main(void) {
         return 5;
     }
 
+    /* Linux io_uring：须 poll CQE 再 drain（与 async_scheduler_io_poll_wake 一致；仅 wake_all 会 NOT_READY）。 */
+#if defined(__linux__)
+    {
+        unsigned polled = shu_io_poll_async_completions(500);
+        if (polled == 0) {
+            fprintf(stderr, "async_scheduler_io_read_multi_e2e: poll got 0 on Linux\n");
+            return 6;
+        }
+    }
+#else
     shu_async_io_wake_all();
-    (void)shu_async_scheduler_drain();
+#endif
+
+    r = shu_async_scheduler_drain();
+    (void)r;
 
     chk = check_task(&g_task_a, "task_a");
     if (chk != 0)
