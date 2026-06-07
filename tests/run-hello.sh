@@ -19,22 +19,38 @@ shu_cli_supports_su() {
 
 # check-7.2 的 shu_stage1/2 对 hello 走 -su 时 .su typeck 尚未全覆盖；有同目录 shu-c 时 hello 改由 C 前端编译，与默认全量回归一致。
 HELLO_COMPILE_SHU="$SHU"
+HELLO_BACKEND=""
 case "${SHU##*/}" in
   shu_stage1|shu_stage2)
     _hello_shu_dir=$(dirname "$SHU")
     if [ -x "$_hello_shu_dir/shu-c" ]; then HELLO_COMPILE_SHU="$_hello_shu_dir/shu-c"; fi
     ;;
 esac
+# bootstrap seed 默认 asm 后端在 ARM64 等会链入 x86_64 宿主 .o；hello 门禁用 C 后端出可执行文件。
+# shu-c 已是 C 前端，勿传 -backend（C-only 构建不识别该选项）。
+case "$(uname -m 2>/dev/null)" in
+  x86_64|amd64) ;;
+  *)
+    case "${HELLO_COMPILE_SHU##*/}" in
+      shu-c|shu_asm) ;;
+      *) HELLO_BACKEND="-backend c" ;;
+    esac
+    ;;
+esac
 if [ -n "${RUN_ALL_USE_C:-}" ]; then
   # run-all 默认 C 流水线
   make -C compiler -q all 2>/dev/null || make -C compiler all
-  "$HELLO_COMPILE_SHU" examples/hello.su -o /tmp/shu_hello
+  if [ -x ./compiler/shu-c ]; then
+    HELLO_COMPILE_SHU=./compiler/shu-c
+    HELLO_BACKEND=""
+  fi
+  $HELLO_COMPILE_SHU $HELLO_BACKEND examples/hello.su -o /tmp/shu_hello
 else
   if [[ "$HELLO_COMPILE_SHU" == *shu-c* ]] || ! shu_cli_supports_su "$HELLO_COMPILE_SHU"; then
-    "$HELLO_COMPILE_SHU" -L . examples/hello.su -o /tmp/shu_hello
+    $HELLO_COMPILE_SHU $HELLO_BACKEND -L . examples/hello.su -o /tmp/shu_hello
   else
     # -o 链接走 driver 全路径；显式 -su 在 shu_su 上对 import std.io 会 dep 预跑 rc=-7。与 run-all-su 一致带 -L .
-    "$HELLO_COMPILE_SHU" -L . examples/hello.su -o /tmp/shu_hello 1>/dev/null
+    $HELLO_COMPILE_SHU $HELLO_BACKEND -L . examples/hello.su -o /tmp/shu_hello 1>/dev/null
   fi
 fi
 out=$(/tmp/shu_hello)
