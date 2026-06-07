@@ -22,42 +22,42 @@ else
   EMIT_SHU="$TYPECK_SHU"
 fi
 
-neg_err=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_mismatch.su -o /tmp/shu_region_mismatch 2>&1) || true
+neg_err=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_mismatch.su 2>&1) || true
 echo "$neg_err" | grep -q "slice region mismatch" || {
   echo "region typeck FAIL: expected slice region mismatch in region_mismatch.su" >&2
   echo "$neg_err" >&2
   exit 1
 }
 
-neg_escape=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_block_escape.su -o /tmp/shu_region_escape 2>&1) || true
+neg_escape=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_block_escape.su 2>&1) || true
 echo "$neg_escape" | grep -q "slice region mismatch" || {
   echo "region typeck FAIL: expected slice region mismatch in region_block_escape.su" >&2
   echo "$neg_escape" >&2
   exit 1
 }
 
-neg_assign=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_assign_escape.su -o /tmp/shu_region_assign_escape 2>&1) || true
+neg_assign=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_assign_escape.su 2>&1) || true
 echo "$neg_assign" | grep -q "slice region escape" || {
   echo "region typeck FAIL: expected slice region escape in region_assign_escape.su" >&2
   echo "$neg_assign" >&2
   exit 1
 }
 
-neg_ret=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_return_escape.su -o /tmp/shu_region_return_escape 2>&1) || true
+neg_ret=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_return_escape.su 2>&1) || true
 echo "$neg_ret" | grep -q "slice region escape" || {
   echo "region typeck FAIL: expected slice region escape in region_return_escape.su" >&2
   echo "$neg_ret" >&2
   exit 1
 }
 
-neg_call=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_call_mismatch.su -o /tmp/shu_region_call_mismatch 2>&1) || true
+neg_call=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_call_mismatch.su 2>&1) || true
 echo "$neg_call" | grep -q "slice region mismatch" || {
   echo "region typeck FAIL: expected slice region mismatch in region_call_mismatch.su" >&2
   echo "$neg_call" >&2
   exit 1
 }
 
-neg_call_esc=$("$TYPECK_SHU" tests/typeck/slice_lifetime/region_call_escape.su -o /tmp/shu_region_call_escape 2>&1) || true
+neg_call_esc=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/region_call_escape.su 2>&1) || true
 echo "$neg_call_esc" | grep -q "slice region escape" || {
   echo "region typeck FAIL: expected slice region escape in region_call_escape.su" >&2
   echo "$neg_call_esc" >&2
@@ -112,14 +112,14 @@ echo "$pos_call" | grep -q "return 0" || {
   exit 1
 }
 
-neg_rptr_esc=$("$TYPECK_SHU" tests/typeck/slice_lifetime/read_ptr_region_escape.su -o /tmp/shu_read_ptr_escape 2>&1) || true
+neg_rptr_esc=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/read_ptr_region_escape.su 2>&1) || true
 echo "$neg_rptr_esc" | grep -q "slice region escape" || {
   echo "region typeck FAIL: expected slice region escape in read_ptr_region_escape.su" >&2
   echo "$neg_rptr_esc" >&2
   exit 1
 }
 
-neg_rptr_mis=$("$TYPECK_SHU" tests/typeck/slice_lifetime/read_ptr_region_mismatch.su -o /tmp/shu_read_ptr_mismatch 2>&1) || true
+neg_rptr_mis=$("$TYPECK_SHU" check tests/typeck/slice_lifetime/read_ptr_region_mismatch.su 2>&1) || true
 echo "$neg_rptr_mis" | grep -q "slice region mismatch" || {
   echo "region typeck FAIL: expected slice region mismatch in read_ptr_region_mismatch.su" >&2
   echo "$neg_rptr_mis" >&2
