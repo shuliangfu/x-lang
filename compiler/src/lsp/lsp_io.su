@@ -153,13 +153,17 @@ function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32):
   return val;
 }
 
-/** 向 fd（1=stdout）写 ptr[0..count-1]；返回写入字节数，-1 错误。 */
+/** 向 fd（1=stdout）写 ptr[0..count-1]；短写时循环直至写完或出错（pipe 大 body 在 ARM64 等会 partial write）。 */
 function write_fd(fd: i32, ptr: *u8, count: usize): isize {
   let h: usize = 1 as usize;
   if (fd != 1) { return (-1) as isize; }
-  let r: i32 = std.io.write(h, ptr, count, 0 as u32);
-  if (r < 0) { return (-1) as isize; }
-  return r as isize;
+  let off: usize = 0 as usize;
+  while (off < count) {
+    let r: i32 = std.io.write(h, &ptr[off], count - off, 0 as u32);
+    if (r <= 0) { return (-1) as isize; }
+    off = off + (r as usize);
+  }
+  return count as isize;
 }
 
 /** 从 body 中找 "text":" 并取其后 JSON 字符串到 out_buf（做 \", \\, \n, \r, \t
