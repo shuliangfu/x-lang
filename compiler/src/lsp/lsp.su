@@ -28,6 +28,9 @@ let LSP_FORMAT_RESP_CAP: i32 = 262144;
 /** read_message 状态区：定义在 lsp_state.c，避免栈上大数组。 */
 extern function lsp_state_buf_ptr(): *u8;
 
+/** 完整 write(2) 循环写 fd；定义在 lsp_state.c，LSP 响应不走 io_uring。 */
+extern function lsp_write_all(fd: i32, ptr: *u8, len: i32): i32;
+
 /** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
 extern function lsp_build_initialize_result(id_val: i32, out_buf: *u8, out_cap: i32): i32;
 /** 对 source 跑 .su pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC
@@ -464,13 +467,13 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
   k = k + 1;
   header[k] = 10;
   k = k + 1;
-  let w: isize = lsp_io.write_fd(fd, header, k as usize);
-  if (w < 0 || (w as i32) != k) {
+  let w: i32 = lsp_write_all(fd, header, k);
+  if (w != 0) {
     return -1;
   }
   if (body_len > 0) {
-    let w2: isize = lsp_io.write_fd(fd, body, body_len as usize);
-    if (w2 < 0 || (w2 as i32) != body_len) {
+    let w2: i32 = lsp_write_all(fd, body, body_len);
+    if (w2 != 0) {
       return -1;
     }
   }
