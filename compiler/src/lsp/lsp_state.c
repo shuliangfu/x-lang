@@ -5,6 +5,8 @@
  */
 #include <stddef.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <errno.h>
 
 /** 由 lsp.su 导出（function lsp_main_impl）；本文件 wrapper 再导出 typeck_lsp_main 供 main.su 调用。 */
 extern int32_t typeck_lsp_main_impl(void);
@@ -40,4 +42,33 @@ int32_t typeck_lsp_main(void) {
 /** 供 lsp.su read_message 使用，避免 lsp_main 栈上再放 16KiB state（与 g_lsp_state_buf 同缓冲）。 */
 uint8_t *lsp_state_buf_ptr(void) {
     return g_lsp_state_buf;
+}
+
+/**
+ * 向 fd 完整写入 buf[0..len)；短写时循环直至写完或出错。
+ * LSP stdout 走 libc write，绕过 std.io/io_uring（Linux ARM64 pipe 上曾丢 Content-Length 头）。
+ * 成功返回 0，失败返回 -1。
+ */
+int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len) {
+    int32_t off = 0;
+    if (fd < 0 || !buf) {
+        return -1;
+    }
+    if (len <= 0) {
+        return 0;
+    }
+    while (off < len) {
+        ssize_t n = write(fd, buf + (size_t)off, (size_t)(len - off));
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        if (n == 0) {
+            return -1;
+        }
+        off += (int32_t)n;
+    }
+    return 0;
 }
