@@ -575,9 +575,10 @@ function lsp_main_impl(): i32 {
       if (sid < 0) {
         sid = 1;
       }
-      let out_len: i32 = lsp_build_initialize_result(sid, out_buf, 4096);
+      /* 用 diag_ptr 而非栈上 out_buf，避免与后续 formatting 大响应共用栈导致 ARM64 输出损坏。 */
+      let out_len: i32 = lsp_build_initialize_result(sid, diag_ptr, LSP_DIAG_RESP_CAP);
       if (out_len > 0) {
-        lsp_send_response(stdout_fd, out_buf, out_len);
+        lsp_send_response(stdout_fd, diag_ptr, out_len);
       }
       lsp_io.lsp_free(body_ptr);
       continue;
