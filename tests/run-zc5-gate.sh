@@ -81,7 +81,18 @@ fi
 echo "zc5: splice typeck OK"
 
 RUN_SHU="$CHECK_SHU"
-if [ -n "$SHU_ABS" ] && zc5_native_exe "$SHU_ABS"; then
+# -o 链接 fs/net 须 shu-c/shu；shu_asm 缺 fs_read_c 等 C 互操作符号。
+LINK_SHU=""
+for cand in ./compiler/shu-c ./compiler/shu; do
+  case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
+  if zc5_native_exe "$abs"; then
+    LINK_SHU="$abs"
+    break
+  fi
+done
+if [ -n "$LINK_SHU" ]; then
+  RUN_SHU="$LINK_SHU"
+elif [ -n "$SHU_ABS" ] && zc5_native_exe "$SHU_ABS"; then
   RUN_SHU="$SHU_ABS"
 fi
 
