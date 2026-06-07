@@ -4678,9 +4678,22 @@ extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *modu
 
 /**
  * LSP 全路径 C glue：set_main_c + load/sync + pipeline_typeck_parsed_module_c（typeck 失败 -3）。
+ * typeck 深栈：在 256MiB pthread 上执行，避免 Alpine/ARM64 默认栈在 diag 时 SIGSEGV。
  */
-int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
-                                    int32_t source_len, struct ast_PipelineDepCtx *ctx) {
+extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
+
+typedef struct LspDiagParseTypeckArgs {
+  struct ast_Module *module;
+  struct ast_ASTArena *arena;
+  uint8_t *source_data;
+  int32_t source_len;
+  struct ast_PipelineDepCtx *ctx;
+  int32_t result;
+} LspDiagParseTypeckArgs;
+
+static int32_t lsp_diag_parse_typeck_buf_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                            uint8_t *source_data, int32_t source_len,
+                                            struct ast_PipelineDepCtx *ctx) {
   int32_t parse_rc;
   int32_t load_rc;
 
@@ -4693,6 +4706,27 @@ int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTAre
   if (load_rc != 0)
     return load_rc;
   return pipeline_typeck_parsed_module_c(module, arena, ctx, 0 - 3);
+}
+
+static void *lsp_diag_parse_typeck_thread_fn(void *arg) {
+  LspDiagParseTypeckArgs *a = (LspDiagParseTypeckArgs *)arg;
+  a->result = lsp_diag_parse_typeck_buf_impl(a->module, a->arena, a->source_data, a->source_len, a->ctx);
+  return NULL;
+}
+
+int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
+                                    int32_t source_len, struct ast_PipelineDepCtx *ctx) {
+  LspDiagParseTypeckArgs args;
+  args.module = module;
+  args.arena = arena;
+  args.source_data = source_data;
+  args.source_len = source_len;
+  args.ctx = ctx;
+  args.result = -99;
+  driver_run_on_large_stack_pthread(lsp_diag_parse_typeck_thread_fn, &args);
+  if (args.result == -99)
+    return lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  return args.result;
 }
 
 /**
