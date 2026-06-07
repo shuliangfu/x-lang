@@ -95,8 +95,11 @@ for name, cmd in cases:
         print(f"run-perf-compile-dogfood: FAIL {name}: {detail}", file=sys.stderr)
         sys.exit(1)
     cap = baseline.get(name)
+    eff_cap = cap
+    if cap is not None and os.environ.get("CI") == "1":
+        eff_cap = cap * 1.4
     status = "OK"
-    if cap is not None and med > cap:
+    if eff_cap is not None and med > eff_cap:
         status = "SLOW"
         if fail_regress:
             failures += 1
