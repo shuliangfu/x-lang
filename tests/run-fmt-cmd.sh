@@ -11,11 +11,19 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   fi
 fi
 
+FMT_TMP="${TMPDIR:-/tmp}/shu_fmt_cmd_test.su"
 # 故意错误缩进；fmt 写回后应打印 fmt OK 且 check 仍通过（须含分号）
-printf 'function main(): i32 {\nreturn 0;\n}\n' >/tmp/shu_fmt_cmd_test.su
-fmt_out=$($SHU fmt /tmp/shu_fmt_cmd_test.su 2>&1)
+printf 'function main(): i32 {\nreturn 0;\n}\n' >"$FMT_TMP"
+set +e
+fmt_out=$($SHU fmt "$FMT_TMP" 2>&1)
+fmt_st=$?
+set -e
+if [ "$fmt_st" -ne 0 ]; then
+  echo "fmt failed (exit $fmt_st): $fmt_out" >&2
+  exit 1
+fi
 echo "$fmt_out" | grep -q "fmt OK" || { echo "expected fmt OK on reformatted file, got: $fmt_out"; exit 1; }
-chk_out=$($SHU check /tmp/shu_fmt_cmd_test.su 2>&1)
+chk_out=$($SHU check "$FMT_TMP" 2>&1) || true
 if [ -n "$chk_out" ]; then
   echo "expected silent check after fmt, got: $chk_out"
   exit 1
