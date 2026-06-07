@@ -16,6 +16,12 @@ else
   exit 1
 fi
 
+# relink 后 shu 的 -E 仅 parse/typeck 摘要；须 grep C/SHU_ASYNC_FRAME 的烟测统一走 shu-c。
+EMIT_SHU=./compiler/shu-c
+if [ ! -x "$EMIT_SHU" ]; then
+  EMIT_SHU="$SHU"
+fi
+
 "$SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
 rc=$(/tmp/shu_async_switch; echo $?)
 [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
@@ -96,8 +102,8 @@ fi
 echo "await syntax OK"
 
 echo "async liveness A3: SHU_ASYNC_FRAME in -E output ..."
-SHU=${SHU:-./compiler/shu-c}
-out=$($SHU -E tests/parser/async_await_liveness.su 2>&1) || {
+LIVENESS_EMIT="$EMIT_SHU"
+out=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness.su 2>&1) || {
   echo "async liveness FAIL: async_await_liveness.su -E failed"
   exit 1
 }
@@ -128,7 +134,7 @@ echo "$out" | grep 'SHU_ASYNC_FRAME func=liveness_demo' | grep -q 'dead' && {
   exit 1
 }
 
-out2=$($SHU -E tests/parser/async_await_liveness_two.su 2>&1) || {
+out2=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness_two.su 2>&1) || {
   echo "async liveness FAIL: async_await_liveness_two.su -E failed"
   exit 1
 }
@@ -179,7 +185,7 @@ echo "$out" | grep -q 'static __shu_async_frame_liveness_demo __shu_frame' || {
 }
 
 echo "async liveness WPO-S3: struct Pair across await (-E) ..."
-out_await=$($SHU -E tests/wpo/stack_promote_await.su 2>&1) || {
+out_await=$("$EMIT_SHU" -E tests/wpo/stack_promote_await.su 2>&1) || {
   echo "async struct await FAIL: stack_promote_await.su -E failed"
   exit 1
 }
@@ -296,7 +302,7 @@ rc=$(/tmp/shu_async_scheduler_io_await_flag; echo $?)
 echo "async scheduler IO-A5 await flag OK"
 
 echo "async await IO: await read() codegen (shu_async_cps_suspend_io) ..."
-out=$($SHU -E tests/parser/async_await_io.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_await_io.su 2>&1) || {
   echo "async await IO FAIL: -E async_await_io.su"
   exit 1
 }
@@ -323,7 +329,7 @@ echo "$out" | grep -q 'SHU_ASYNC_CPS switch=1' || {
 echo "async await IO OK"
 
 echo "async await IO write: await write() codegen ..."
-out=$($SHU -E tests/parser/async_await_io_write.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_await_io_write.su 2>&1) || {
   echo "async await IO write FAIL: -E async_await_io_write.su"
   exit 1
 }
@@ -338,7 +344,7 @@ echo "$out" | grep -q 'shu_io_complete_write_async' || {
 echo "async await IO write OK"
 
 echo "async await IO read_fd: await read_fd() codegen ..."
-out=$($SHU -E tests/parser/async_await_read_fd.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_await_read_fd.su 2>&1) || {
   echo "async await IO read_fd FAIL: -E async_await_read_fd.su"
   exit 1
 }
@@ -353,7 +359,7 @@ echo "$out" | grep -q '(size_t)(unsigned)(' || {
 echo "async await IO read_fd OK"
 
 echo "async await IO write_fd: await write_fd() codegen ..."
-out=$($SHU -E tests/parser/async_await_write_fd.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_await_write_fd.su 2>&1) || {
   echo "async await IO write_fd FAIL: -E async_await_write_fd.su"
   exit 1
 }
@@ -368,7 +374,7 @@ echo "$out" | grep -q '(size_t)(unsigned)(' || {
 echo "async await IO write_fd OK"
 
 echo "async await IO dual: two run read_chunk(fd) + __io_rd_slot ..."
-out=$($SHU -E tests/parser/async_await_io_dual.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_await_io_dual.su 2>&1) || {
   echo "async await IO dual FAIL: -E async_await_io_dual.su"
   exit 1
 }
@@ -461,7 +467,7 @@ else
 fi
 
 echo "async scheduler drain: run + SHU_ASYNC_YIELD=1 ..."
-out=$($SHU -E tests/parser/async_scheduler_drain.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/async_scheduler_drain.su 2>&1) || {
   echo "async scheduler drain FAIL: -E async_scheduler_drain.su"
   exit 1
 }
@@ -490,7 +496,7 @@ else
 fi
 
 echo "run async syntax: run yield_demo() codegen + typeck ..."
-out=$($SHU -E tests/parser/run_async.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/run_async.su 2>&1) || {
   echo "run async FAIL: -E run_async.su"
   exit 1
 }
@@ -507,7 +513,7 @@ fi
 echo "run async syntax OK"
 
 echo "run async v1: run async_fn(i32) seed + codegen ..."
-out=$($SHU -E tests/parser/run_async_arg.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/run_async_arg.su 2>&1) || {
   echo "run async v1 FAIL: -E run_async_arg.su"
   exit 1
 }
@@ -543,7 +549,7 @@ fi
 echo "run async v1 OK"
 
 echo "run async v2: run async_fn(i32, i32) seed queue + codegen ..."
-out=$($SHU -E tests/parser/run_async_arg2.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/run_async_arg2.su 2>&1) || {
   echo "run async v2 FAIL: -E run_async_arg2.su"
   exit 1
 }
@@ -593,7 +599,7 @@ fi
 echo "run async v2 OK"
 
 echo "run async v3: u32/i64 seed + codegen ..."
-out=$($SHU -E tests/parser/run_async_u32.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/run_async_u32.su 2>&1) || {
   echo "run async v3 FAIL: -E run_async_u32.su"
   exit 1
 }
@@ -605,7 +611,7 @@ echo "$out" | grep -q 'shu_async_run_seed_take_u32' || {
   echo "run async v3 FAIL: missing take_u32 in async entry"
   exit 1
 }
-out2=$($SHU -E tests/parser/run_async_i64.su 2>&1) || {
+out2=$("$EMIT_SHU" -E tests/parser/run_async_i64.su 2>&1) || {
   echo "run async v3 FAIL: -E run_async_i64.su"
   exit 1
 }
@@ -646,7 +652,7 @@ fi
 echo "run async v3 OK"
 
 echo "run async v4: usize seed + codegen ..."
-out=$($SHU -E tests/parser/run_async_usize.su 2>&1) || {
+out=$("$EMIT_SHU" -E tests/parser/run_async_usize.su 2>&1) || {
   echo "run async v4 FAIL: -E run_async_usize.su"
   exit 1
 }
@@ -781,7 +787,7 @@ else
 fi
 
 echo "async spawn v4: spawn async_fn + drain_until_idle codegen (import std.async) ..."
-out=$($SHU -L . -E tests/parser/async_run_io_dual_parallel.su 2>&1) || {
+out=$("$EMIT_SHU" -L . -E tests/parser/async_run_io_dual_parallel.su 2>&1) || {
   echo "async spawn v4 FAIL: -E async_run_io_dual_parallel.su"
   exit 1
 }
