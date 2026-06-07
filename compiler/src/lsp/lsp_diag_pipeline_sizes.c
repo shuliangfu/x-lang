@@ -86,6 +86,16 @@ size_t lsp_diag_pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena)
 size_t lsp_diag_pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
 size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 
+/**
+ * shu-c / 无 pipeline_su 时的弱占位：返回 0 表示用瘦 struct 尺寸。
+ * bootstrap-driver 链 lsp_diag_pipeline_ctx.o 时由强符号覆盖为 pipeline_sizeof_dep_ctx()。
+ */
+#if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
+size_t lsp_diag_su_alloc_dep_ctx_size(void) { return 0; }
+#else
+__attribute__((weak)) size_t lsp_diag_su_alloc_dep_ctx_size(void) { return 0; }
+#endif
+
 /** shu-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
