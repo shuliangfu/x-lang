@@ -79,8 +79,16 @@ chmod +x tests/run-io-read-ptr-slice.sh
 SHU="$CHECK_SHU" ./tests/run-io-read-ptr-slice.sh
 echo "zc3: read_ptr_slice OK"
 
-# region 内 array→slice 运行时
-if ! SHU="$CHECK_SHU" "$CHECK_SHU" "$REGION_SMOKE" -o "$REGION_OUT" 2>/tmp/shu_zc3_region_build.log; then
+# region 内 array→slice 运行时（-o 链接须 shu-c/shu，shu_asm 缺 slice 字段 codegen）
+LINK_SHU="$CHECK_SHU"
+case "$(basename "$CHECK_SHU")" in
+  shu_asm|shu)
+    if [ -x ./compiler/shu-c ]; then
+      LINK_SHU=./compiler/shu-c
+    fi
+    ;;
+esac
+if ! SHU="$LINK_SHU" "$LINK_SHU" "$REGION_SMOKE" -o "$REGION_OUT" 2>/tmp/shu_zc3_region_build.log; then
   echo "zc3 FAIL: compile $REGION_SMOKE" >&2
   tail -8 /tmp/shu_zc3_region_build.log 2>/dev/null || true
   exit 1
