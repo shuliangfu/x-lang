@@ -10,6 +10,12 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
 SHU="${SHU:-./compiler/shu}"
+# CI make all 产出 C-only shu；dogfood 编译耗时统一用 shu-c，与 run-perf-io/run-perf-baseline 一致。
+PERF_COMPILE_SHU="$SHU"
+if [ -x ./compiler/shu-c ]; then
+  PERF_COMPILE_SHU=./compiler/shu-c
+fi
+SHU="$PERF_COMPILE_SHU"
 RUNS="${SHU_PERF_COMPILE_RUNS:-3}"
 BASELINE="${SHU_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 FAIL_REGRESS=0
