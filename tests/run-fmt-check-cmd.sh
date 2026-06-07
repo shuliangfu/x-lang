@@ -43,9 +43,9 @@ echo "$bad_out" | grep -qiE 'not formatted|needs format|would reformat' || {
   echo "expected summary listing unformatted files, got: $bad_out"
   exit 1
 }
-# MSYS2 路径可能是 /tmp/... 或混合形式；匹配文件名即可。
-echo "$bad_out" | grep -q "shu_fmt_check_bad.su" || {
-  echo "expected path in fmt --check summary"
+# MSYS2 路径可能是 /tmp/...、D:/a/... 或混合形式；匹配 basename 即可。
+echo "$bad_out" | grep -qE 'shu_fmt_check_bad\.su|shu_fmt_check_bad' || {
+  echo "expected path in fmt --check summary, got: $bad_out"
   exit 1
 }
 

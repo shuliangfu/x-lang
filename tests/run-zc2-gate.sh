@@ -90,7 +90,18 @@ SHU="$CHECK_SHU" ./tests/run-io-read-ptr-slice.sh
 echo "zc2: read_ptr_slice regression OK"
 
 RUN_SHU="$CHECK_SHU"
-if [ -n "$SHU_ABS" ] && zc2_native_exe "$SHU_ABS"; then
+# -o 链接依赖 std/io 内 read_ptr_*；shu_asm 实验链可能缺这些符号，编译/链接优先 shu-c/shu。
+LINK_SHU=""
+for cand in ./compiler/shu-c ./compiler/shu; do
+  case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
+  if zc2_native_exe "$abs"; then
+    LINK_SHU="$abs"
+    break
+  fi
+done
+if [ -n "$LINK_SHU" ]; then
+  RUN_SHU="$LINK_SHU"
+elif [ -n "$SHU_ABS" ] && zc2_native_exe "$SHU_ABS"; then
   RUN_SHU="$SHU_ABS"
 fi
 

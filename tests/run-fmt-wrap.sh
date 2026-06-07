@@ -4,6 +4,14 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 SHU=${SHU:-./compiler/shu}
+# MSYS2：与 run-fmt-cmd.sh 一致，fmt 回归优先 seed shu。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*)
+    if [ -x ./compiler/shu ]; then
+      SHU=./compiler/shu
+    fi
+    ;;
+esac
 run_one_case() {
   local CASE=$1
   local TMP=$2

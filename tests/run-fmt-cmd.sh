@@ -3,6 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 SHU=${SHU:-./compiler/shu}
+# MSYS2：fmt 子命令在 shu-c 路径下偶发异常，CI test_c 仍走 shu-c 但 fmt 回归优先 seed shu。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*)
+    if [ -x ./compiler/shu ]; then
+      SHU=./compiler/shu
+    fi
+    ;;
+esac
 if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ]; then
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
