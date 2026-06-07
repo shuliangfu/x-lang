@@ -19,6 +19,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# CI：跳过 second pass 与全量 typeck 预检，避免 Token/Lexer 布局刷屏导致 runner OOM（1h+ lost communication）。
+if [ -n "${CI:-}" ] && [ "${SHU_ASM_CI_SKIP_FAST:-0}" != "1" ]; then
+  export SHU_ASM_FORCE_SKIP_TYPECK="${SHU_ASM_FORCE_SKIP_TYPECK:-1}"
+  export SHU_ASM_QUIET="${SHU_ASM_QUIET:-1}"
+  export SHU_ASM_CI_SKIP_SECOND_PASS=1
+fi
+
 # 调试 env 勿泄漏进 build_asm：SHU_ASM_START_FUNC>=模块 func 数时 emit 循环全跳过，仅剩 8B 空 __text 桩（B-strict PTEXT 门禁失败）。
 unset SHU_ASM_START_FUNC 2>/dev/null || true
 
@@ -78,7 +85,7 @@ emit_asm_text_stub_o() {
 # 仅保留 emit 仍会宿主 Abort 的特大模块走 SKIP+桩；其余默认 C 预检 + 真 emit（见 pipeline_should_skip_su_typeck）。
 asm_out_needs_skip_typeck() {
   case "$1" in
-    typeck.o|parser.o|backend.o|arm64_enc.o|x86_64_enc.o|riscv64_enc.o)
+    typeck.o|parser.o|backend.o|arm64_enc.o|x86_64_enc.o|riscv64_enc.o|lexer.o|pipeline.o|codegen.o|lsp.o|main.o)
       return 0
       ;;
     *)
@@ -186,6 +193,10 @@ ld_partial_export() {
 
 # 实验链第一遍链接后：用新 shu_asm + 最新 pipeline_glue_standalone 重编 pipeline.o（避免鸡生蛋 4B 桩）。
 rebuild_pipeline_o_second_pass() {
+  if [ -n "${SHU_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
+    echo "build_shu_asm: pipeline.o second pass skipped (CI fast)"
+    return 0
+  fi
   if [ ! -x ./shu_asm ]; then
     echo "build_shu_asm: second pass skipped (no ./shu_asm)"
     return 1
@@ -225,6 +236,10 @@ rebuild_pipeline_o_second_pass() {
 
 # 第二遍：用 bootstrap shu_asm（experimental 链，含 pipeline_su.o）重编大模块；须在 strict 重链覆盖 shu_asm 之前执行。
 rebuild_typeck_parser_backend_second_pass() {
+  if [ -n "${SHU_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
+    echo "build_shu_asm: typeck/parser/backend second pass skipped (CI fast)"
+    return 0
+  fi
   # 第二遍编译器：显式参数 > ./shu_asm（strict 产物）> ${SHU} > experimental；勿用过期 seed ./shu。
   local comp=""
   if [ -n "${1:-}" ] && [ -x "${1}" ]; then
@@ -276,6 +291,10 @@ rebuild_typeck_parser_backend_second_pass() {
 
 # M8a：parser 支持 Module.sub.Type 后，须用已链入新 parser 的编译器重编首遍仅解析到首个函数的模块（arm64_enc 等）。
 rebuild_m8a_parser_dependent_modules_second_pass() {
+  if [ -n "${SHU_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
+    echo "build_shu_asm: M8a second pass skipped (CI fast)"
+    return 0
+  fi
   local comp="${SHU_ASM_SECOND_PASS_COMPILER:-./shu_asm}"
   if [ -n "${1:-}" ] && [ -x "${1}" ]; then
     comp="$1"
