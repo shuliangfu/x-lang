@@ -24,6 +24,7 @@ extern int32_t shu_async_scheduler_drain(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 /** 单协程 write async 上下文。 */
 typedef struct {
@@ -150,8 +151,20 @@ int main(void) {
         return 4;
     }
 
+#if defined(__linux__)
+    {
+        unsigned polled = shu_io_poll_async_completions(500);
+        if (polled == 0) {
+            fprintf(stderr, "async_scheduler_io_write_multi_e2e: poll got 0 on Linux\n");
+            return 5;
+        }
+    }
+#else
     shu_async_io_wake_all();
-    (void)shu_async_scheduler_drain();
+#endif
+
+    r = shu_async_scheduler_drain();
+    (void)r;
 
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
