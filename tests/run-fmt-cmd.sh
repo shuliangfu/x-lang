@@ -7,7 +7,7 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ]; then
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
   else
-    make -C compiler -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    make -C compiler -q 2>/dev/null || make -C compiler all
   fi
 fi
 
