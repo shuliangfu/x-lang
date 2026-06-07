@@ -10,6 +10,12 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/fs/fs.o ../std/net/net.o -q 2>/dev/null || make -C compiler ../std/fs/fs.o ../std/net/net.o
 
+# CI make all 产出 C-only shu；perf 编译统一用 shu-c，避免 -backend 在 C-only shu 上报错。
+PERF_COMPILE_SHU=./compiler/shu
+if [ -x ./compiler/shu-c ]; then
+  PERF_COMPILE_SHU=./compiler/shu-c
+fi
+
 BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
 BENCH_WRITE_FILE="tests/bench/.io_write_bench_tmp"
 BENCH_MB="${SHU_IO_BENCH_MB:-16}"
@@ -100,7 +106,7 @@ compile_shu_sendfile() {
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
       tests/bench/zero_copy_sendfile.su >"/tmp/bench_io_sendfile.su"
-  if ! ./compiler/shu -L . "/tmp/bench_io_sendfile.su" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
+  if ! $PERF_COMPILE_SHU -L . "/tmp/bench_io_sendfile.su" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
     cat /tmp/bench_io_compile.log >&2
     return 1
   fi
@@ -217,17 +223,7 @@ bench_io_sendfile_case() {
     fi
   fi
 
-  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    cap=$(io_baseline_cap "$name")
-    if [ -n "$cap" ]; then
-      if awk -v shu="$SHU_ASM_MED" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
-        echo "io perf baseline OK: ${name} ${SHU_ASM_MED}s <= cap ${cap}s"
-      else
-        echo "io perf baseline FAIL: ${name} ${SHU_ASM_MED}s > cap ${cap}s" >&2
-        exit 1
-      fi
-    fi
-  fi
+  check_io_baseline_regress "$name" "$SHU_ASM_MED" "nan"
 
   IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
 }
@@ -238,7 +234,7 @@ compile_shu_splice() {
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
       tests/bench/zero_copy_splice.su >"/tmp/bench_io_splice.su"
-  if ! ./compiler/shu -L . "/tmp/bench_io_splice.su" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
+  if ! $PERF_COMPILE_SHU -L . "/tmp/bench_io_splice.su" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
     cat /tmp/bench_io_splice_compile.log >&2
     return 1
   fi
@@ -291,17 +287,7 @@ bench_io_splice_case() {
   printf '| Shu (default asm) | %s |\n' "$SHU_ASM_MED"
   printf '\n'
 
-  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    cap=$(io_baseline_cap "$name")
-    if [ -n "$cap" ]; then
-      if awk -v shu="$SHU_ASM_MED" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
-        echo "io perf baseline OK: ${name} ${SHU_ASM_MED}s <= cap ${cap}s"
-      else
-        echo "io perf baseline FAIL: ${name} ${SHU_ASM_MED}s > cap ${cap}s" >&2
-        exit 1
-      fi
-    fi
-  fi
+  check_io_baseline_regress "$name" "$SHU_ASM_MED" "nan"
 
   IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
 }
@@ -321,6 +307,32 @@ fs_sendfile_supported() {
 io_baseline_cap() {
   local name="$1"
   awk -F'\t' -v n="$name" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHU_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
+}
+
+# 门禁：Shu median（asm 或 c）须 ≤ baseline cap。
+check_io_baseline_regress() {
+  local name="$1"
+  local shu_asm_med="$2"
+  local shu_c_med="$3"
+  local med_gate cap
+  if [ "$PERF_FAIL_REGRESS" -ne 1 ]; then
+    return 0
+  fi
+  med_gate="$shu_asm_med"
+  if [ "$med_gate" = "nan" ] && [ "$shu_c_med" != "nan" ]; then
+    med_gate="$shu_c_med"
+  fi
+  if [ "$med_gate" = "nan" ]; then
+    return 0
+  fi
+  cap=$(io_baseline_cap "$name")
+  [ -z "$cap" ] && return 0
+  if awk -v shu="$med_gate" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
+    echo "io perf baseline OK: ${name} ${med_gate}s <= cap ${cap}s"
+  else
+    echo "io perf baseline FAIL: ${name} ${med_gate}s > cap ${cap}s" >&2
+    exit 1
+  fi
 }
 
 # 生成确定性 16MiB（字节 i%256），供 mmap 扫描；优先块写入（勿逐字节 16M 次 syscall）。
@@ -367,17 +379,21 @@ bench_io_case() {
     ensure_io_mmap_bench_file
   fi
 
-  ./compiler/shu -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
+  $PERF_COMPILE_SHU -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHU_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
     echo "Shu (default asm) ${name} median real: ${SHU_ASM_MED}s"
   fi
 
-  if ./compiler/shu -L . "$su" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
+  if [ "$PERF_COMPILE_SHU" != "./compiler/shu-c" ] \
+    && $PERF_COMPILE_SHU -L . "$su" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
+    && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHU_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
     echo "Shu (-backend c) ${name} median real: ${SHU_C_MED}s"
+  elif [ "$PERF_COMPILE_SHU" = "./compiler/shu-c" ] && [ "$SHU_ASM_MED" != "nan" ]; then
+    SHU_C_MED="$SHU_ASM_MED"
   fi
 
   if [ -x compiler/shu_asm ]; then
@@ -423,17 +439,7 @@ bench_io_case() {
     fi
   fi
 
-  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    cap=$(io_baseline_cap "$name")
-    if [ -n "$cap" ]; then
-      if awk -v shu="$SHU_ASM_MED" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
-        echo "io perf baseline OK: ${name} ${SHU_ASM_MED}s <= cap ${cap}s"
-      else
-        echo "io perf baseline FAIL: ${name} ${SHU_ASM_MED}s > cap ${cap}s" >&2
-        exit 1
-      fi
-    fi
-  fi
+  check_io_baseline_regress "$name" "$SHU_ASM_MED" "$SHU_C_MED"
 
   IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
 }
