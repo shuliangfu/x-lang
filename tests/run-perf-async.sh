@@ -8,6 +8,16 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
+# 与 run-async.sh 一致：优先 shu（runtime 按需链 scheduler.o）
+if [ -x ./compiler/shu ]; then
+  SHU=./compiler/shu
+elif [ -x ./compiler/shu-c ]; then
+  SHU=./compiler/shu-c
+else
+  echo "run-perf-async FAIL: no compiler/shu or compiler/shu-c" >&2
+  exit 1
+fi
+
 RUNS=3
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
@@ -58,7 +68,7 @@ link_with_scheduler() {
   local su="$1"
   local out="$2"
   rm -f "$out"
-  if ! ./compiler/shu -L . "$su" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$SHU" -L . "$su" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi
@@ -80,7 +90,7 @@ bench_async_case() {
       return 1
     fi
   else
-    if ! ./compiler/shu -L . "$su" -o "$exe" >/tmp/async_compile.log 2>&1; then
+    if ! "$SHU" -L . "$su" -o "$exe" >/tmp/async_compile.log 2>&1; then
       cat /tmp/async_compile.log >&2
       return 1
     fi
