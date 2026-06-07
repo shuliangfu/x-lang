@@ -607,7 +607,7 @@ lsp_io_std_heap_su.o: lsp_io_std_heap_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_su.o
 
 # bootstrap-driver-seed / relink-shu 共用：lsp_io / lsp 生成 C → .o
-lsp_io_su.o: lsp_io_gen.c
+lsp_io_su.o: lsp_io_gen.c src/lsp/lsp_io.su
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -c lsp_io_gen.c -o lsp_io_su.o
 
 lsp_su.o: lsp_gen.c
