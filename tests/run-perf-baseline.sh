@@ -6,6 +6,12 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
+# CI make all 产出 C-only shu；perf 编译统一用 shu-c。
+PERF_COMPILE_SHU=./compiler/shu
+if [ -x ./compiler/shu-c ]; then
+  PERF_COMPILE_SHU=./compiler/shu-c
+fi
+
 PERF_SU="tests/perf-baseline/main.su"
 OUT="/tmp/shu_perf_baseline"
 RUNS=3
@@ -52,15 +58,19 @@ bench_case() {
 
   echo "=== tests/bench/${name} ==="
 
-  ./compiler/shu "$su" -o "/tmp/bench_shu_${tag}" 2>&1
+  $PERF_COMPILE_SHU "$su" -o "/tmp/bench_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_shu_${tag}" ]; then
     SHU_ASM_MED=$(median_real "/tmp/bench_shu_${tag}")
     echo "Shu (default asm) ${name} median real: ${SHU_ASM_MED}s"
   fi
 
-  if ./compiler/shu "$su" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 && [ -x "/tmp/bench_shu_c_${tag}" ]; then
+  if [ "$PERF_COMPILE_SHU" != "./compiler/shu-c" ] \
+    && $PERF_COMPILE_SHU "$su" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
+    && [ -x "/tmp/bench_shu_c_${tag}" ]; then
     SHU_C_MED=$(median_real "/tmp/bench_shu_c_${tag}")
     echo "Shu (-backend c) ${name} median real: ${SHU_C_MED}s"
+  elif [ "$PERF_COMPILE_SHU" = "./compiler/shu-c" ] && [ "$SHU_ASM_MED" != "nan" ]; then
+    SHU_C_MED="$SHU_ASM_MED"
   fi
 
   if [ -x compiler/shu_asm ]; then
@@ -106,7 +116,7 @@ bench_case() {
 }
 
 echo "=== 性能基线（Shulang）==="
-./compiler/shu "$PERF_SU" -o "$OUT" 2>&1
+$PERF_COMPILE_SHU "$PERF_SU" -o "$OUT" 2>&1
 if [ ! -f "$OUT" ]; then
   echo "编译失败，无产物" >&2
   exit 1
