@@ -16,8 +16,14 @@ else
 fi
 
 # relink 后 ./compiler/shu 的 -E 仅 parse/typeck 摘要；正例 C emit 用 shu-c 佐证。
-if [ "$TYPECK_SHU" = "./compiler/shu" ] || [ "$TYPECK_SHU" = "./compiler/shu_asm" ]; then
-  EMIT_SHU=./compiler/shu-c
+# CHECK_SHU 可能是绝对路径（zc gate 传入），用 basename 识别 seed/asm 编译器。
+_typeck_base=$(basename "$TYPECK_SHU")
+if [ "$_typeck_base" = "shu" ] || [ "$_typeck_base" = "shu_asm" ]; then
+  if [ -x ./compiler/shu-c ]; then
+    EMIT_SHU=./compiler/shu-c
+  else
+    EMIT_SHU="$TYPECK_SHU"
+  fi
 else
   EMIT_SHU="$TYPECK_SHU"
 fi
