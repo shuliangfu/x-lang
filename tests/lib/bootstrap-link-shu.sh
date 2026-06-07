@@ -4,6 +4,12 @@
 
 # 默认与 SHU 相同；run-all 会 export SHULANG_LINK_SHU=./compiler/shu-c。
 RUN_SHU="${SHULANG_LINK_SHU:-${SHU:-./compiler/shu}}"
-if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -x ./compiler/shu-c ]; then
-  RUN_SHU=./compiler/shu-c
-fi
+# 非 x86_64 bootstrap：-o 链接优先 shu-c（seed asm 跨 arch 不可用）。
+case "$(uname -m 2>/dev/null)" in
+  x86_64|amd64) ;;
+  *)
+    if [ -x ./compiler/shu-c ] && [ -z "${SHULANG_LINK_SHU:-}" ]; then
+      SHULANG_LINK_SHU=./compiler/shu-c
+    fi
+    ;;
+esac

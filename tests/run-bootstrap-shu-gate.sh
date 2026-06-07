@@ -19,6 +19,16 @@ if [ ! -x "$SHU" ]; then
 fi
 
 export SHU
+# 非 x86_64：可执行 -o 链接用 shu-c，seed shu 仍负责 typeck/check。
+case "$(uname -m 2>/dev/null)" in
+  x86_64|amd64) ;;
+  *)
+    if [ -x ./compiler/shu-c ]; then
+      export SHULANG_LINK_SHU=./compiler/shu-c
+    fi
+    ;;
+esac
+export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
 ./tests/run-hello.sh
 ./tests/run-while.sh
 ./tests/run-typeck.sh
