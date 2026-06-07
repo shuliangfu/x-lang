@@ -45,6 +45,14 @@ struct ast_PipelineDepCtx {
 };
 
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
+extern size_t pipeline_sizeof_dep_ctx(void);
+
+/**
+ * bootstrap-driver 专用：LSP ctx 须与 ast.su PipelineDepCtx（4MiB×2 内嵌缓冲）同尺寸。
+ */
+size_t lsp_diag_su_alloc_dep_ctx_size(void) {
+  return pipeline_sizeof_dep_ctx();
+}
 
 /**
  * 填充 PipelineDepCtx 的 entry_dir 与 libRoots sidecar（供 .su resolve_path_su 使用）。
