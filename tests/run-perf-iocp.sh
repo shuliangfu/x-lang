@@ -31,6 +31,15 @@ extract_real_sec() {
     | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
 }
 
+# 用 date 差分测 wall time；MSYS2 上 bash time 常无 real 行导致 nan。
+iocp_bench_wall_sec() {
+  local start end
+  start=$(date +%s.%N 2>/dev/null || date +%s)
+  SHU_IOCP_BENCH_ROUNDS="$ROUNDS" "$OUT" >/dev/null
+  end=$(date +%s.%N 2>/dev/null || date +%s)
+  awk -v s="$start" -v e="$end" 'BEGIN { if (e > s) print e - s; else print "nan" }'
+}
+
 iocp_baseline_cap() {
   local name="$1"
   awk -F'\t' -v c="$name" '$1==c && NF>=2 { print $2; exit }' "$BASELINE" 2>/dev/null || true
@@ -75,6 +84,9 @@ i=0
 while [ "$i" -lt "$RUNS" ]; do
   i=$((i + 1))
   v=$( ( SHU_IOCP_BENCH_ROUNDS="$ROUNDS" time "$OUT" >/dev/null ) 2>&1 | extract_real_sec)
+  if [ -z "$v" ] || [ "$v" = "nan" ]; then
+    v=$(iocp_bench_wall_sec)
+  fi
   vals=$(printf '%s\n%s' "$vals" "$v")
 done
 med=$(printf '%s\n' "$vals" | sed '/^$/d' | sort -n | awk '{
