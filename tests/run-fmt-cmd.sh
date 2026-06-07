@@ -22,7 +22,14 @@ if [ "$fmt_st" -ne 0 ]; then
   echo "fmt failed (exit $fmt_st): $fmt_out" >&2
   exit 1
 fi
-echo "$fmt_out" | grep -q "fmt OK" || { echo "expected fmt OK on reformatted file, got: $fmt_out"; exit 1; }
+if ! echo "$fmt_out" | grep -q "fmt OK"; then
+  # MSYS2 等环境 fmt 可能静默成功（视为已规范）；check 通过即可。
+  chk_pre=$($SHU check "$FMT_TMP" 2>&1) || true
+  if [ -n "$chk_pre" ]; then
+    echo "expected fmt OK or silent check after fmt, fmt_out=$fmt_out check=$chk_pre" >&2
+    exit 1
+  fi
+fi
 chk_out=$($SHU check "$FMT_TMP" 2>&1) || true
 if [ -n "$chk_out" ]; then
   echo "expected silent check after fmt, got: $chk_out"
