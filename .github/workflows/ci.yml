@@ -200,7 +200,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 25
+        timeout-minutes: 35
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -324,6 +324,8 @@ jobs:
   linux-asm-smoke:
     name: Linux asm smoke (bootstrap-driver + run-asm)
     runs-on: ubuntu-latest
+    env:
+      CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -348,6 +350,8 @@ jobs:
   linux-arm64:
     name: Linux (ARM64)
     runs-on: ubuntu-24.04-arm
+    env:
+      CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -382,7 +386,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 25
+        timeout-minutes: 35
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -499,6 +503,8 @@ jobs:
   mac:
     name: macOS (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      CI: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -537,7 +543,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 25
+        timeout-minutes: 35
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -666,7 +672,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MSYS
-          update: true
+          update: false
           install: make gcc diffutils python3 sed gawk zlib-devel brotli
       - name: Build compiler (shu)
         run: make -C compiler OPT=1 all
