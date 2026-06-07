@@ -142,6 +142,16 @@ int32_t driver_typeck_force_c_enabled(void) {
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
+/** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内（避免 LSP 等嵌套再分配 256MiB 栈导致 Alpine OOM/SIGSEGV）。 */
+static _Thread_local int g_driver_on_large_stack_thread;
+
+/**
+ * 供 ast_pool / pipeline glue 查询：LSP 主循环已在大栈线程上时，typeck 勿再 spawn 嵌套 pthread。
+ */
+int driver_is_large_stack_thread(void) {
+    return g_driver_on_large_stack_thread;
+}
+
 /**
  * 大模块 .su pipeline（parse/typeck/codegen）栈帧深；macOS 默认栈约 512KiB 易 segfault(139)。
  * run_compiler_c / run_compiler_su_path / driver_run_asm_backend 均在进入 pipeline 前调用。
@@ -2354,6 +2364,28 @@ static void *pipeline_run_su_thread_fn(void *arg) {
     return NULL;
 }
 
+/** pthread 入口：标记大栈线程并抬高 soft limit 后执行用户 fn。 */
+static void *driver_large_stack_thread_trampoline(void *v) {
+    typedef struct {
+        void *(*fn)(void *);
+        void *arg;
+    } DriverLargeStackCall;
+    DriverLargeStackCall *c = (DriverLargeStackCall *)v;
+    g_driver_on_large_stack_thread = 1;
+    driver_bump_stack_limit_if_needed();
+    void *r = c->fn(c->arg);
+    g_driver_on_large_stack_thread = 0;
+    return r;
+}
+
+/** 在当前线程直接执行 fn(arg)，并临时标记/恢复 g_driver_on_large_stack_thread。 */
+static void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
+    g_driver_on_large_stack_thread = 1;
+    driver_bump_stack_limit_if_needed();
+    fn(arg);
+    g_driver_on_large_stack_thread = 0;
+}
+
 /**
  * 在 256MiB 栈 pthread 上执行 fn(arg)；SHU_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，C typeck / asm_codegen_elf_o 深递归须与大 pipeline 同路径。
@@ -2364,20 +2396,30 @@ static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     void *stk = NULL;
     size_t stack_sz = (size_t)256 * 1024 * 1024;
     const char *no_large = getenv("SHU_PIPELINE_NO_LARGE_STACK");
-    driver_bump_stack_limit_if_needed();
-    if (no_large != NULL && no_large[0] != '\0' && no_large[0] != '0') {
+    typedef struct {
+        void *(*fn)(void *);
+        void *arg;
+    } DriverLargeStackCall;
+    DriverLargeStackCall call = { fn, arg };
+    /* LSP 主循环已在大栈 pthread 内：diag/definition 的 typeck 直接复用当前栈，勿嵌套 256MiB 分配。 */
+    if (g_driver_on_large_stack_thread) {
         fn(arg);
         return;
     }
+    driver_bump_stack_limit_if_needed();
+    if (no_large != NULL && no_large[0] != '\0' && no_large[0] != '0') {
+        driver_run_fn_on_current_large_stack(fn, arg);
+        return;
+    }
     if (pthread_attr_init(&attr) != 0) {
-        fn(arg);
+        driver_run_fn_on_current_large_stack(fn, arg);
         return;
     }
     (void)pthread_attr_setguardsize(&attr, 0);
     if (posix_memalign(&stk, (size_t)65536, stack_sz) != 0)
         stk = NULL;
     if (stk != NULL && pthread_attr_setstack(&attr, stk, stack_sz) == 0) {
-        if (pthread_create(&tid, &attr, fn, arg) == 0) {
+        if (pthread_create(&tid, &attr, driver_large_stack_thread_trampoline, &call) == 0) {
             pthread_join(tid, NULL);
             pthread_attr_destroy(&attr);
             free(stk);
@@ -2387,17 +2429,17 @@ static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_attr_destroy(&attr);
     free(stk);
     if (pthread_attr_init(&attr) != 0) {
-        fn(arg);
+        driver_run_fn_on_current_large_stack(fn, arg);
         return;
     }
     if (pthread_attr_setstacksize(&attr, stack_sz) != 0) {
         pthread_attr_destroy(&attr);
-        fn(arg);
+        driver_run_fn_on_current_large_stack(fn, arg);
         return;
     }
-    if (pthread_create(&tid, &attr, fn, arg) != 0) {
+    if (pthread_create(&tid, &attr, driver_large_stack_thread_trampoline, &call) != 0) {
         pthread_attr_destroy(&attr);
-        fn(arg);
+        driver_run_fn_on_current_large_stack(fn, arg);
         return;
     }
     pthread_join(tid, NULL);
