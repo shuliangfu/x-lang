@@ -549,6 +549,10 @@ src/lsp/lsp_diag.o: src/lsp/lsp_diag.c src/lsp/lsp_diag.h
 src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
+# bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；Cygwin 无 weak，须省略 sizes 内占位符号。
+src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.c
+	$(CC) $(CFLAGS) -DSHU_LSP_PIPELINE_CTX_LINKED -I. -Iinclude -Isrc -c -o $@ $<
+
 src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
@@ -696,13 +700,13 @@ ifeq ($(SHULANG_SKIP_SUBSCRIPT_MAKE),1)
 bootstrap-driver-seed:
 	@test -x '$(TARGET)' || $(MAKE) bootstrap-driver-seed SHULANG_SKIP_SUBSCRIPT_MAKE= SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
 else
-bootstrap-driver-seed: $(SHU_C) build-seed-asm-host $(USER_ASM_LINK) pipeline_su.o parser_su.o lexer_su.o lexer_su_link_alias.o typeck_su.o codegen_su.o typeck_su_link_alias.o codegen_su_link_alias.o driver_su.o preprocess_su.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/su_seed_bridge.o src/std_fs_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_su_alias.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
+bootstrap-driver-seed: $(SHU_C) build-seed-asm-host $(USER_ASM_LINK) pipeline_su.o parser_su.o lexer_su.o lexer_su_link_alias.o typeck_su.o codegen_su.o typeck_su_link_alias.o codegen_su_link_alias.o driver_su.o preprocess_su.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/su_seed_bridge.o src/std_fs_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_su_alias.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
 	@# gen_driver 的 pipeline_su.o partial 可能缺 pipeline_asm_block_*；链 USER_ASM 前强制从 pipeline_gen.c 重编完整 TU。
 	@$(MAKE) pipeline_su.o PIPELINE_SU_FORCE_COMPILE=1
 	$(MAKE) -B src/runtime_driver.o src/preprocess_for_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 	$(MAKE) lsp_io_su.o lsp_su.o lsp_diag_su.o
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c src/lsp/lsp_diag_su_alias.c -o src/lsp/lsp_diag_su_alias.o
-	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET) $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o pipeline_bootstrap_orchestration.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
+	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET) $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o pipeline_bootstrap_orchestration.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
 	cp -f $(TARGET) shu-su
 	@echo "bootstrap-driver-seed OK (seed 已链 shu-c -E asm 后端)"
 endif
@@ -722,7 +726,7 @@ RELINK_SHU_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) \
   lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
   lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o \
   $(DRIVER_SUBCMD_OBJS) _stubs_driver.o \
-  src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o \
+  src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o \
   ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o
 
@@ -731,7 +735,7 @@ RELINK_SHU_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) \
 relink-shu: $(SHU_C) $(RELINK_SHU_PREREQS)
 	$(MAKE) driver_fmt_su.o driver_check_su.o
 	@$(MAKE) pipeline_su.o PIPELINE_SU_FORCE_COMPILE=1
-	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET) $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o pipeline_bootstrap_orchestration.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
+	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET) $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o pipeline_bootstrap_orchestration.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
 	@echo "relink-shu OK"
 
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
@@ -754,7 +758,7 @@ regen-lsp-gens-su:
 # 仅重链 ./shu-su；pipeline/driver/preprocess 的 .su 变更会经对应 *_su.o 目标触发重编后再链接。
 shu-su: build-seed-asm-host src/asm/user_asm_seed_bridge.o $(DRIVER_SEED_OBJS) pipeline_su.o driver_su.o preprocess_su.o
 	@test -f driver_su.o && test -f lsp_su.o && test -f lsp_diag_su.o && test -f src/lsp/lsp_diag_su_alias.o && test -f lsp_io_su.o && test -f preprocess_su.o && test -f lsp_io_std_heap_su.o && test -f driver_fmt_su.o && test -f driver_check_su.o && test -f driver_test_su.o && test -f driver_compile_su.o && test -f driver_build_su.o && test -f driver_run_su.o && test -f _stubs_driver.o || (echo "缺少 driver_su.o 等，请先: make bootstrap-driver-seed" && exit 1)
-	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o $@ $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
+	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o $@ $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
 	@echo "shu-su OK"
 
 # Stage2：shu-su 用 -su -E-extern 生成 _gen2.c 并链出 shu-su2，与 shu-su 行为对比（脚本内会 make shu-su / bootstrap-driver-seed）
@@ -864,7 +868,7 @@ bootstrap-self: bootstrap-driver-seed
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -c lsp_io_gen.c -o lsp_io_su.o && \
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_su.o && \
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_su.o && \
-	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
+	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
 	rm -f /tmp/out_self /tmp/out_self.bin && \
 	./$(TARGET)_stage2 ../tests/return-value/main.su -o /tmp/out_self && \
 	ft=`file -b /tmp/out_self 2>/dev/null || true`; BIN=/tmp/out_self; \
