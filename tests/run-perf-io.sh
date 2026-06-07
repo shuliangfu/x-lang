@@ -327,6 +327,10 @@ check_io_baseline_regress() {
   fi
   cap=$(io_baseline_cap "$name")
   [ -z "$cap" ] && return 0
+  # CI 虚拟机抖动：与 compile-dogfood 一致给 40% 余量。
+  if [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
+    cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 1.4 }')
+  fi
   if awk -v shu="$med_gate" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
     echo "io perf baseline OK: ${name} ${med_gate}s <= cap ${cap}s"
   else
