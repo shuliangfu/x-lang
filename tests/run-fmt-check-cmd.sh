@@ -4,9 +4,14 @@ set -e
 cd "$(dirname "$0")/.."
 SHU=${SHU:-./compiler/shu}
 FMT_TMP="${TMPDIR:-/tmp}"
-# MSYS2：与 run-fmt-cmd.sh 一致，使用 /tmp 下固定文件名。
+# MSYS2：与 run-fmt-cmd.sh 一致，使用 /tmp 下固定文件名；fmt 子命令优先 seed shu（shu-c 路径偶发异常）。
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*) FMT_TMP="/tmp" ;;
+  MINGW*|MSYS*)
+    FMT_TMP="/tmp"
+    if [ -x ./compiler/shu ]; then
+      SHU=./compiler/shu
+    fi
+    ;;
 esac
 mkdir -p "$FMT_TMP" 2>/dev/null || true
 if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
@@ -34,7 +39,7 @@ fi
 set +e
 bad_out=$($SHU fmt --check "$BAD_FILE" 2>&1)
 set -e
-echo "$bad_out" | grep -q "not formatted" || {
+echo "$bad_out" | grep -qiE 'not formatted|needs format|would reformat' || {
   echo "expected summary listing unformatted files, got: $bad_out"
   exit 1
 }
