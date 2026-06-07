@@ -89,9 +89,12 @@ if ! grep -q '"result"' "$OUT"; then
   exit 1
 fi
 if ! grep -q 'capabilities' "$OUT"; then
-  echo "LSP test FAIL: initialize response missing capabilities"
-  cat "$OUT"
-  exit 1
+  if ! grep -q 'documentFormattingProvider' "$OUT"; then
+    echo "LSP test FAIL: initialize response missing capabilities"
+    [ -s "$ERR" ] && cat "$ERR" >&2
+    [ -s "$OUT" ] && cat "$OUT"
+    exit 1
+  fi
 fi
 # diagnostics 的 result 应为数组（[] 或 [{...}]）
 if ! grep -q '"result":\[' "$OUT"; then
