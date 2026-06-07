@@ -12,6 +12,9 @@
 
 import lsp_io;
 
+/** 进入 LSP 主循环前抬高栈上限（Alpine 默认 8MB 易在 parse/typeck/format 时 SIGSEGV）。 */
+extern function driver_bump_stack_limit(): void;
+
 /** 单条消息 body 安全上限（64MB）；顶层 let 须在任意 extern/function 之前，供
 * C 解析器正确识别。 */
 let LSP_BODY_CAP: i32 = 67108864;
@@ -480,6 +483,7 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
 /** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
 * 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
 function lsp_main(): i32 {
+  driver_bump_stack_limit();
   let stdin_fd: i32 = 0;
   let stdout_fd: i32 = 1;
   let line_buf: [256]u8 = [];
