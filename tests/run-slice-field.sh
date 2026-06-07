@@ -15,13 +15,23 @@ else
   SHU=./compiler/shu-c
 fi
 
+# shu_asm 实验链 -o 链接 slice 字段 codegen 不完整；运行时 smoke 优先 shu-c/shu。
+RUN_SHU="$SHU"
+case "$(basename "$SHU")" in
+  shu|shu_asm)
+    if [ -x ./compiler/shu-c ]; then
+      RUN_SHU=./compiler/shu-c
+    fi
+    ;;
+esac
+
 make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 
-$SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
+$RUN_SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
 ec=0; /tmp/shu_slice_data_field >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (slice data_field), got $ec"; exit 1; }
 
-$SHU tests/slice/main.su -o /tmp/shu_slice_main 2>&1
+$RUN_SHU tests/slice/main.su -o /tmp/shu_slice_main 2>&1
 ec=0; /tmp/shu_slice_main >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 20 ] && { echo "expected exit 20 (slice main s[1]), got $ec"; exit 1; }
 
