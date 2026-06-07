@@ -27,7 +27,7 @@ zc2_native_exe() {
 
 if [ -z "$SHU_ABS" ] || ! zc2_native_exe "$SHU_ABS"; then
   SHU_ABS=""
-  for cand in ./compiler/shu-c ./compiler/shu ./compiler/shu_asm; do
+  for cand in ./compiler/shu ./compiler/shu_asm ./compiler/shu-c; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if zc2_native_exe "$abs"; then
       SHU_ABS="$abs"
