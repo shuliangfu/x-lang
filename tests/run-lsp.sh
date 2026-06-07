@@ -57,6 +57,8 @@ trap "rm -f $OUT $ERR $LSP_IN" EXIT
 } >"$LSP_IN"
 # 调试 stdin 每次 read 的请求/返回字节数：LSP_READ_DEBUG=1 时 LSP 的 stderr 会打 io_read 日志
 # timeout 为 GNU coreutils，macOS 默认无；无 timeout 时直接运行，避免 exit 127
+# Alpine 等默认栈约 8MB，LSP parse/typeck 易 SIGSEGV(139)；与 build_shu_asm 一致抬高 soft limit。
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 LSP_EC=0
 if command -v timeout >/dev/null 2>&1; then
   LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" timeout 5 "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
