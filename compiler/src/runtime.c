@@ -2404,6 +2404,11 @@ static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_attr_destroy(&attr);
 }
 
+/** 对外暴露：在 256MiB 栈 pthread 上执行 fn(arg)；LSP 主循环等深栈场景使用。 */
+void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
+    driver_run_thread_on_large_stack(fn, arg);
+}
+
 /**
  * 在 64MiB 栈的 pthread 上调用 pipeline_run_su_pipeline；失败时回退到当前线程直接调用。
  * 大模块（typeck/parser）经 .su 编译后栈帧极深，setrlimit 无法突破 macOS RLIMIT_STACK 硬顶时需此路径。
