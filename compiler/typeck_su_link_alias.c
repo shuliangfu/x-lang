@@ -51,10 +51,17 @@ __attribute__((weak)) int32_t check_expr_impl(struct ast_Module *module, struct 
   return pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/** typeck_su 导出名 → glue addr_of；build_asm 已导出裸符号时 weak 被覆盖。 */
+/** typeck_su 导出名 → glue addr_of；build_asm 已导出裸符号时 weak 被覆盖。
+ * Cygwin/MSYS：weak 别名不可靠，bootstrap 链须强符号转发。 */
+#if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
+int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t elem_ref) {
+  return typeck_find_or_alloc_ptr_type_ref(arena, elem_ref);
+}
+#else
 __attribute__((weak)) int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t elem_ref) {
   return typeck_find_or_alloc_ptr_type_ref(arena, elem_ref);
 }
+#endif
 
 /** WPO-S3：bootstrap 链 typeck_su.o 链接期弱 stub；shu_asm 链 ast_pool 强符号覆盖。 */
 __attribute__((weak)) void pipeline_typeck_set_active_ctx_c(struct ast_Module *module,
