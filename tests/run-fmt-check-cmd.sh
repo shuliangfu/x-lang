@@ -4,6 +4,11 @@ set -e
 cd "$(dirname "$0")/.."
 SHU=${SHU:-./compiler/shu}
 FMT_TMP="${TMPDIR:-/tmp}"
+# MSYS2：与 run-fmt-cmd.sh 一致，使用 /tmp 下固定文件名。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*) FMT_TMP="/tmp" ;;
+esac
+mkdir -p "$FMT_TMP" 2>/dev/null || true
 if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || make -C compiler shu
 fi
