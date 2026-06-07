@@ -89,7 +89,9 @@ size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_Pipelin
 /**
  * shu-c / 无 pipeline_su 时的弱占位：返回 0 表示用瘦 struct 尺寸。
  * bootstrap-driver 链 lsp_diag_pipeline_ctx.o 时由强符号覆盖为 pipeline_sizeof_dep_ctx()。
+ * SHU_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
  */
+#ifndef SHU_LSP_PIPELINE_CTX_LINKED
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 size_t lsp_diag_su_alloc_dep_ctx_size(void) { return 0; }
 #else
@@ -109,3 +111,4 @@ __attribute__((weak)) void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, cons
     (void)lib_roots;
     (void)n_lib_roots;
 }
+#endif /* !SHU_LSP_PIPELINE_CTX_LINKED */
