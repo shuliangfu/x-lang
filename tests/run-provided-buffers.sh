@@ -36,6 +36,11 @@ if "$OUT"; then
   echo "provided buffers smoke OK"
 else
   rc=$?
+  # 内核/io_uring 无 PROVIDE_BUFFERS（如部分 GitHub ubuntu 22.04）时烟测 exit 3，CI 应 SKIP 而非 FAIL。
+  if [ "$rc" -eq 3 ]; then
+    echo "provided buffers smoke SKIP (io_register_provided_buffers unavailable; need Linux 5.19+ provide)"
+    exit 0
+  fi
   echo "provided buffers smoke FAIL exit=$rc" >&2
   exit "$rc"
 fi
