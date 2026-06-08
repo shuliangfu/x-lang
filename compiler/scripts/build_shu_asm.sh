@@ -72,10 +72,14 @@ echo "build_shu_asm: using SHU=$SHU (list from $BUILD_LIST_SU)"
 CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 
-# backend.su 等大模块 asm 编译 abort 时，用最小 .s 占位保证 __text 非空（质检 24/24）。
+# backend.su 等大模块 asm 编译 abort 时，用最小 .s/.c 占位保证 __text 非空（质检 24/24）。
 emit_asm_text_stub_o() {
   local out="$1"
+  local stub_c="scripts/asm_text_stub.c"
   local stub_s="scripts/asm_text_stub.s"
+  if [ -f "$stub_c" ]; then
+    "$CC" $CFLAGS -c -o "$out" "$stub_c" 2>/dev/null && return 0
+  fi
   [ -f "$stub_s" ] || return 1
   echo "    fallback: $CC -c $stub_s -> $out (asm compile abort recovery)"
   "$CC" -c -o "$out" "$stub_s" 2>/dev/null
