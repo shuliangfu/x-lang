@@ -12,12 +12,6 @@ if [ "$(uname -s)" = "Linux" ]; then
   SHU_IO_CC_LIBS="-luring -lpthread"
 fi
 
-# run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
-_run_async_arg_count_rejected() {
-  $SHU -L . "$1" -o /tmp/shu_run_async_arg_err 2>&1 \
-    | grep -qE "argument count must match|expects [0-9]+ arguments, got"
-}
-
 # 选用可执行编译器：shu（seed）优先；缺失时 shu-c（本地 mixed ELF 环境常见）
 if [ -x ./compiler/shu ]; then
   SHU=./compiler/shu
@@ -27,6 +21,18 @@ else
   echo "async smoke FAIL: no compiler/shu or compiler/shu-c" >&2
   exit 1
 fi
+
+# relink 后 seed shu 的 SU codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHU 对齐用 shu-c。
+COMPILE_SHU="$SHU"
+if [ -x ./compiler/shu-c ]; then
+  COMPILE_SHU=./compiler/shu-c
+fi
+
+# run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
+_run_async_arg_count_rejected() {
+  "$COMPILE_SHU" -L . "$1" -o /tmp/shu_run_async_arg_err 2>&1 \
+    | grep -qE "argument count must match|expects [0-9]+ arguments, got"
+}
 
 # relink 后 shu 的 -E 仅 parse/typeck 摘要；须 grep C/SHU_ASYNC_FRAME 的烟测统一走 shu-c。
 EMIT_SHU=./compiler/shu-c
@@ -496,7 +502,7 @@ echo "$out" | grep -q '__shu_frame.__phase = 0' || {
 }
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
   # 部分平台 shu 链 run+drain 仍可能崩溃；-E 烟测已通过，run 失败则 skip（CI 不 grep drain run OK）。
-  if SHU_ASYNC_YIELD=1 "$SHU" -L . tests/parser/async_scheduler_drain.su -o /tmp/shu_async_sched_drain 2>/tmp/shu_async_sched_drain.log; then
+  if SHU_ASYNC_YIELD=1 "$COMPILE_SHU" -L . tests/parser/async_scheduler_drain.su -o /tmp/shu_async_sched_drain 2>/tmp/shu_async_sched_drain.log; then
     if file /tmp/shu_async_sched_drain 2>/dev/null | grep -q "executable"; then
       rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_sched_drain; echo $?)
       [ "$rc" = "0" ] || { echo "async scheduler drain FAIL: expected exit 0, got $rc"; exit 1; }
@@ -520,7 +526,7 @@ echo "$out" | grep -q 'shu_async_sched_yield_demo()' || {
   echo "run async FAIL: expected shu_async_sched_yield_demo() in -E"
   exit 1
 }
-if ./compiler/shu -L . tests/parser/run_async_sync_err.su -o /tmp/shu_run_async_err 2>&1 | grep -q "run.*not allowed inside async"; then
+if "$COMPILE_SHU" -L . tests/parser/run_async_sync_err.su -o /tmp/shu_run_async_err 2>&1 | grep -q "run.*not allowed inside async"; then
   : # 预期 typeck 报错
 else
   echo "run async FAIL: run inside async should be rejected"
@@ -548,7 +554,7 @@ else
   exit 1
 fi
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
-  ./compiler/shu -L . tests/parser/run_async_arg.su -o /tmp/shu_run_async_arg 2>&1 || {
+  "$COMPILE_SHU" -L . tests/parser/run_async_arg.su -o /tmp/shu_run_async_arg 2>&1 || {
     echo "run async v1 FAIL: compile run_async_arg.su"
     exit 1
   }
@@ -598,7 +604,7 @@ else
   exit 1
 fi
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
-  ./compiler/shu -L . tests/parser/run_async_arg2.su -o /tmp/shu_run_async_arg2 2>&1 || {
+  "$COMPILE_SHU" -L . tests/parser/run_async_arg2.su -o /tmp/shu_run_async_arg2 2>&1 || {
     echo "run async v2 FAIL: compile run_async_arg2.su"
     exit 1
   }
@@ -639,14 +645,14 @@ echo "$out2" | grep -q 'shu_async_run_seed_take_i64' || {
   echo "run async v3 FAIL: missing take_i64"
   exit 1
 }
-if $SHU -L . tests/parser/run_async_type_err.su -o /tmp/shu_run_async_type_err 2>&1 | grep -q "type mismatch"; then
+if "$COMPILE_SHU" -L . tests/parser/run_async_type_err.su -o /tmp/shu_run_async_type_err 2>&1 | grep -q "type mismatch"; then
   : # 预期 typeck 报错
 else
   echo "run async v3 FAIL: i32 arg to u32 param should be rejected"
   exit 1
 fi
-if [ -x ./compiler/shu ]; then
-  ./compiler/shu -L . tests/parser/run_async_u32.su -o /tmp/shu_run_async_u32 2>&1 || {
+if [ -x "$COMPILE_SHU" ]; then
+  "$COMPILE_SHU" -L . tests/parser/run_async_u32.su -o /tmp/shu_run_async_u32 2>&1 || {
     echo "run async v3 FAIL: compile run_async_u32.su"
     exit 1
   }
@@ -655,7 +661,7 @@ if [ -x ./compiler/shu ]; then
     [ "$rc" = "0" ] || { echo "run async v3 FAIL: run_async_u32 exit=$rc"; exit 1; }
     echo "run async v3 run_async_u32 OK"
   fi
-  ./compiler/shu -L . tests/parser/run_async_i64.su -o /tmp/shu_run_async_i64 2>&1 || {
+  "$COMPILE_SHU" -L . tests/parser/run_async_i64.su -o /tmp/shu_run_async_i64 2>&1 || {
     echo "run async v3 FAIL: compile run_async_i64.su"
     exit 1
   }
@@ -680,8 +686,8 @@ echo "$out" | grep -q 'shu_async_run_seed_take_usize' || {
   echo "run async v4 FAIL: missing take_usize in async entry"
   exit 1
 }
-if [ -x ./compiler/shu ]; then
-  ./compiler/shu -L . tests/parser/run_async_usize.su -o /tmp/shu_run_async_usize 2>&1 || {
+if [ -x "$COMPILE_SHU" ]; then
+  "$COMPILE_SHU" -L . tests/parser/run_async_usize.su -o /tmp/shu_run_async_usize 2>&1 || {
     echo "run async v4 FAIL: compile run_async_usize.su"
     exit 1
   }
