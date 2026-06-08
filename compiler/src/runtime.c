@@ -530,7 +530,7 @@ static const char *get_std_runtime_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
     if (realpath("std/runtime/runtime.o", resolved) != NULL) return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 28) != NULL) { size_t L = strlen(cwd); if (L + 28 <= sizeof(cwd)) { memcpy(cwd + L, "/std/runtime/runtime.o", 24); cwd[L+24] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 28) != NULL) { size_t L = strlen(cwd); if (L + 28 <= sizeof(cwd)) { memcpy(cwd + L, "/std/runtime/runtime.o", sizeof("/std/runtime/runtime.o")); if (realpath(cwd, resolved) != NULL) return resolved; } } }
     if (!argv0 || !argv0[0]) return buf;
     { const char *last_slash = strrchr(argv0, '/'); int n = last_slash ? (int)(last_slash - argv0) : 0;
       if (last_slash && n + 26 < (int)sizeof(buf)) { memcpy(buf, argv0, (size_t)n); buf[n] = '\0'; strcat(buf, "/../std/runtime/runtime.o"); if (realpath(buf, resolved) != NULL) return resolved; }
@@ -847,7 +847,7 @@ static const char *get_std_channel_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
     if (realpath("std/channel/channel.o", resolved) != NULL) return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 26) != NULL) { size_t L = strlen(cwd); if (L + 26 <= sizeof(cwd)) { memcpy(cwd + L, "/std/channel/channel.o", 25); cwd[L+25] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 26) != NULL) { size_t L = strlen(cwd); if (L + 26 <= sizeof(cwd)) { memcpy(cwd + L, "/std/channel/channel.o", sizeof("/std/channel/channel.o")); if (realpath(cwd, resolved) != NULL) return resolved; } } }
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
         char *last = strrchr(buf, '/');
         if (last && (size_t)(last - buf) + 26 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/channel/channel.o"); if (realpath(buf, resolved) != NULL) return resolved; }
@@ -860,7 +860,7 @@ static const char *get_std_backtrace_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
     if (realpath("std/backtrace/backtrace.o", resolved) != NULL) return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 30) != NULL) { size_t L = strlen(cwd); if (L + 30 <= sizeof(cwd)) { memcpy(cwd + L, "/std/backtrace/backtrace.o", 29); cwd[L+29] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 30) != NULL) { size_t L = strlen(cwd); if (L + 30 <= sizeof(cwd)) { memcpy(cwd + L, "/std/backtrace/backtrace.o", sizeof("/std/backtrace/backtrace.o")); if (realpath(cwd, resolved) != NULL) return resolved; } } }
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
         char *last = strrchr(buf, '/');
         if (last && (size_t)(last - buf) + 28 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/backtrace/backtrace.o"); if (realpath(buf, resolved) != NULL) return resolved; }
