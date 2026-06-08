@@ -12,8 +12,21 @@
 
 extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
 extern int32_t shu_io_complete_read_async(void);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 #define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+
+/** Linux io_uring：complete 返回 NOT_READY 时先 poll CQE 再重试。 */
+static int32_t io_read_async_complete_with_poll(void) {
+    int32_t n = shu_io_complete_read_async();
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(500);
+#endif
+        n = shu_io_complete_read_async();
+    }
+    return n;
+}
 
 /**
  * 入口：pipe + submit/complete 读路径。
@@ -39,11 +52,7 @@ int main(void) {
         return 3;
     }
 
-    n = shu_io_complete_read_async();
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-        /* Linux uring：CQE 可能尚未就绪，再 poll 一次（烟测环境通常已就绪） */
-        n = shu_io_complete_read_async();
-    }
+    n = io_read_async_complete_with_poll();
     (void)close(fds[0]);
 
     if (n != 3) {
