@@ -21,6 +21,7 @@ extern int32_t shu_io_complete_read_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
@@ -145,21 +146,9 @@ int main(void) {
         return 5;
     }
 
-    /* Linux io_uring：须 poll CQE 再 drain（与 async_scheduler_io_poll_wake 一致；仅 wake_all 会 NOT_READY）。 */
-#if defined(__linux__)
-    {
-        unsigned polled = shu_io_poll_async_completions(500);
-        if (polled == 0) {
-            fprintf(stderr, "async_scheduler_io_read_multi_e2e: poll got 0 on Linux\n");
-            return 6;
-        }
-    }
-#else
-    shu_async_io_wake_all();
-#endif
-
-    r = shu_async_scheduler_drain();
-    (void)r;
+    /* Linux io_uring：双 task 须 poll+drain 直至 idle（单次 drain 易 task_a len=-2）。 */
+    (void)shu_io_poll_async_completions(500);
+    (void)shu_async_run_drain_until_idle();
 
     chk = check_task(&g_task_a, "task_a");
     if (chk != 0)
