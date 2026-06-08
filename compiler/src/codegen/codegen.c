@@ -2841,7 +2841,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         }
         case AST_EXPR_SPAWN: {
-            /* IO-A5 v4：spawn async_fn(...) → push seed + task_submit(coro)；不 reset seed 队列 */
+            /* IO-A5 v4：spawn async_fn(...) → reset + push seed(s) + task_submit；每次 spawn 独立 seed 队列。 */
             const struct ASTExpr *op = e->value.unary.operand;
             const struct ASTFunc *af;
             int ai;
@@ -2851,16 +2851,13 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             if (!af->name || !af->is_async)
                 return -1;
             if (op->value.call.num_args > 0) {
+                fprintf(out, "(shu_async_run_seed_reset()");
                 for (ai = 0; ai < op->value.call.num_args; ai++) {
                     const struct ASTExpr *a = op->value.call.args[ai];
                     const struct ASTType *pty = (ai < af->num_params) ? af->params[ai].type : NULL;
                     if (!a)
                         return -1;
-                    if (ai == 0)
-                        fprintf(out, "(");
-                    else
-                        fprintf(out, ", ");
-                    fprintf(out, "%s(", codegen_run_seed_push_fn(pty));
+                    fprintf(out, ", %s(", codegen_run_seed_push_fn(pty));
                     if (codegen_expr(a, out) != 0) return -1;
                     fprintf(out, ")");
                 }
