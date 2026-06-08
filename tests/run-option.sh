@@ -10,13 +10,20 @@ SHU=${SHU:-./compiler/shu}
 # shellcheck source=lib/bootstrap-link-shu.sh
 . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
 
-# bootstrap seed：typeck 走 .su pipeline（check）；-o 链接用 shu-c（seed 全链路 -o 在 ubuntu 易 SIGSEGV）。
+# bootstrap / shu_asm：typeck 走 $SHU（check）；-o 链接用 shu-c（seed/shu_asm 全链路 -o 在 ubuntu 易 SIGSEGV）。
 LINK_SHU="$RUN_SHU"
+_option_split=0
 if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ]; then
+  _option_split=1
+fi
+case "${SHU:-}" in
+  *shu_asm*) _option_split=1 ;;
+esac
+if [ "$_option_split" = "1" ]; then
   chk_out=$($SHU check -L . tests/option/main.su 2>&1) || chk_rc=$?
   chk_rc=${chk_rc:-0}
   if [ "$chk_rc" -ne 0 ]; then
-    echo "option: check failed on bootstrap shu (exit $chk_rc)" >&2
+    echo "option: check failed on $SHU (exit $chk_rc)" >&2
     echo "$chk_out"
     exit "$chk_rc"
   fi
