@@ -146,16 +146,18 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     exit 1
   fi
   chmod +x "tests/$script"
-  # cfg-merge：x86 CI 上 shu_asm 编译 if/while 汇合用例已知 SIGSEGV（与 run-asm-73-gate 一致）。
-  if [ "$script" = "run-asm-binop-cfg-merge.sh" ]; then
-    case "$(uname -m 2>/dev/null)" in
-      arm64|aarch64) ;;
-      *)
-        echo "run-all-bstrict: $script (skip on $(uname -m 2>/dev/null); aarch64 covers CFG merge gate)"
-        continue
-        ;;
-    esac
-  fi
+  # aarch64 asm 7.3 细粒度门禁（cfg-merge / assign-index / otool mov x2）：x86 CI 由 asm-73 核心子集覆盖。
+  case "$script" in
+    run-asm-binop-cfg-merge.sh|run-asm-assign-index-*|run-asm-cmp-index-binop.sh)
+      case "$(uname -m 2>/dev/null)" in
+        arm64|aarch64) ;;
+        *)
+          echo "run-all-bstrict: $script (skip on $(uname -m 2>/dev/null); aarch64 asm 7.3 gate)"
+          continue
+          ;;
+      esac
+      ;;
+  esac
   echo "run-all-bstrict: $script ..."
   # asm 白名单须 asm-capable 编译器 -o；refresh 后 shu 为 seed 链，experimental 仍保留真 asm。
   script_shu="$SHU"
