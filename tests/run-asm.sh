@@ -14,10 +14,16 @@ if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${SHU_CI_FORCE
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
-# 优先使用 bootstrap-driver 的 shu（支持 -backend asm 且 -o xxx.o 直接出 ELF）
-make -C compiler bootstrap-driver 2>/dev/null || true
-make -C compiler bootstrap-pipeline 2>/dev/null || true
-make -C compiler shu-su-pipeline 2>/dev/null || true
+# CI asm-smoke job 已 bootstrap-driver-seed；勿重跑 bootstrap-driver（会全量 build_shu_asm 12min+ 超时）。
+if [ ! -x compiler/shu ]; then
+  make -C compiler bootstrap-driver-seed 2>/dev/null || true
+  make -C compiler bootstrap-pipeline 2>/dev/null || true
+  make -C compiler shu-su-pipeline 2>/dev/null || true
+elif [ -z "${CI:-}" ]; then
+  make -C compiler bootstrap-driver 2>/dev/null || true
+  make -C compiler bootstrap-pipeline 2>/dev/null || true
+  make -C compiler shu-su-pipeline 2>/dev/null || true
+fi
 if [ -x compiler/shu ]; then SHU=./compiler/shu; elif [ -x compiler/shu_su ]; then SHU=./compiler/shu_su; else SHU=./compiler/shu; fi
 [ -x "$SHU" ] || { echo "compiler/shu not found"; exit 1; }
 
