@@ -336,10 +336,10 @@ jobs:
         env:
           CC: cc
       - name: Produce asm-capable shu (Goal 2)
-        run: make -C compiler bootstrap-driver
+        run: make -C compiler bootstrap-driver-seed
         env:
           CC: cc
-        timeout-minutes: 15
+        timeout-minutes: 12
       - name: Run asm regression script (forces CI path)
         run: SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh
         timeout-minutes: 12
@@ -385,16 +385,22 @@ jobs:
         run: make -C compiler test_su
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
+        if: runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         timeout-minutes: 45
         env:
           CI: "1"
+      - name: Goal 2 asm skipped (ARM64; ubuntu x64 CI covers build_shu_asm)
+        if: runner.arch != 'X64'
+        run: echo "build_shu_asm skipped on ARM64 (45min+; ubuntu x64 Linux CI covers Goal 2)"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        if: runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         timeout-minutes: 3
         env:
           CI: "1"
       - name: S2 typeck.o gate (P3)
+        if: runner.arch == 'X64'
         run: |
           chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
           SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
@@ -403,8 +409,12 @@ jobs:
           grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
         timeout-minutes: 3
       - name: shu_asm smoke (return-value + bootstrap gate)
+        if: runner.arch == 'X64'
         run: cd compiler && ./scripts/run_shu_asm_smoke.sh
         timeout-minutes: 8
+      - name: shu_asm gates skipped (ARM64; ubuntu x64 CI covers shu_asm)
+        if: runner.arch != 'X64'
+        run: echo "shu_asm S2/smoke/WPO/bstrict skipped on ARM64 (ubuntu x64 CI covers)"
       - name: DOD-S1/S2/S3 SoA/AoS bench (correctness + L1 perf, shu_asm)
         if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
@@ -446,6 +456,7 @@ jobs:
           grep -q 'coldstart OK' /tmp/coldstart_fs.log
         timeout-minutes: 3
       - name: WPO-S2 smoke + bench (const call fold)
+        if: runner.arch == 'X64'
         run: |
           chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh
           ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
@@ -469,6 +480,7 @@ jobs:
           grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
         timeout-minutes: 8
       - name: WPO-S3 gate (struct stack promote + await asm/yield)
+        if: runner.arch == 'X64'
         run: |
           make -C compiler ../std/async/scheduler.o
           chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
@@ -478,6 +490,7 @@ jobs:
           grep -q 'wpo-s3 await_yield asm OK' /tmp/wpo_s3.log
         timeout-minutes: 6
       - name: WPO-S4 gate (PGO-Lite .text.hot/unlikely + call-depth emit)
+        if: runner.arch == 'X64'
         run: |
           chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
           SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
@@ -485,11 +498,13 @@ jobs:
           grep -q 'wpo-s4: .text.hot order OK' /tmp/wpo_s4.log
         timeout-minutes: 10
       - name: B-strict bootstrap + gates (M3-c)
+        if: runner.arch == 'X64'
         run: |
           chmod +x tests/run-bootstrap-bstrict-ci.sh
           ./tests/run-bootstrap-bstrict-ci.sh
         timeout-minutes: 25
       - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
+        if: runner.arch == 'X64'
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
       - name: Dump failure logs (on failure)
