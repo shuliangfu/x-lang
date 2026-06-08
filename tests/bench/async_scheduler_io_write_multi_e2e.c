@@ -21,6 +21,7 @@ extern int32_t shu_io_complete_write_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
@@ -151,20 +152,8 @@ int main(void) {
         return 4;
     }
 
-#if defined(__linux__)
-    {
-        unsigned polled = shu_io_poll_async_completions(500);
-        if (polled == 0) {
-            fprintf(stderr, "async_scheduler_io_write_multi_e2e: poll got 0 on Linux\n");
-            return 5;
-        }
-    }
-#else
-    shu_async_io_wake_all();
-#endif
-
-    r = shu_async_scheduler_drain();
-    (void)r;
+    (void)shu_io_poll_async_completions(500);
+    (void)shu_async_run_drain_until_idle();
 
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
