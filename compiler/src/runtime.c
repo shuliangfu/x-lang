@@ -1188,6 +1188,28 @@ static int freestanding_o_needs_undef_sym(const char *o_path, const char *sym) {
     return 0;
 }
 
+/**
+ * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
+ */
+static int generated_c_needs_async_scheduler(const char *c_path) {
+    FILE *fp;
+    char buf[4096];
+    if (!c_path || !c_path[0])
+        return 0;
+    fp = fopen(c_path, "r");
+    if (!fp)
+        return 0;
+    while (fgets(buf, sizeof buf, fp)) {
+        if (strstr(buf, "shu_async_run_i32") || strstr(buf, "shu_async_cps_suspend")
+            || strstr(buf, "shu_async_task_submit") || strstr(buf, "shu_async_run_seed_")) {
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
 /** 用户模块是否引用 shulang_sys_write（按需链 freestanding_io.o）。 */
 static int freestanding_user_o_needs_io(const char *user_o) {
     return freestanding_o_needs_undef_sym(user_o, "shulang_sys_write");
@@ -3466,7 +3488,7 @@ static char *read_file(const char *path, size_t *out_len) {
  * include_root：可选，仓库根目录，用于 -I 以便生成 .c 能 #include std/fs、path、map、error 等 ABI 头；NULL 或空则不传 -I。
  * 返回值：0 表示 cc 执行成功且退出码为 0；-1 表示参数非法、fork/exec 失败或 cc 非零退出。
  */
-static int invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *test_o, const char *include_root) {
+static int invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
@@ -3563,6 +3585,12 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o);
+        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, async_scheduler_o)) {
+#if defined(__linux__)
+            if (i < argv_cap - 1)
+                argv[i++] = (char *)"-pthread";
+#endif
+        }
 #if defined(__linux__) || defined(__APPLE__)
         /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
         if ((asm_link_obj_skip_missing(thread_o) || asm_link_obj_skip_missing(sync_o) ||
@@ -4753,7 +4781,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *http_o = get_std_http_o_path(argv[0]);
         const char *tar_o = get_std_tar_o_path(argv[0]);
         const char *test_o = get_std_test_o_path(argv[0]);
-        int cc_ok = invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]));
+        const char *async_scheduler_o = NULL;
+        if (generated_c_needs_async_scheduler(tmp_c))
+            async_scheduler_o = get_std_async_scheduler_o_path(argv[0]);
+        int cc_ok = invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), async_scheduler_o);
         unlink(tmp_c);
         while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
         ast_module_free(mod);
@@ -5148,7 +5179,7 @@ int run_compiler_su_path(int argc, char **argv) {
             const char *http_o = get_std_http_o_path(argv[0]);
             const char *tar_o = get_std_tar_o_path(argv[0]);
             const char *test_o = get_std_test_o_path(argv[0]);
-            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]));
+            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
                 fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
             } else if (!getenv("SHULANG_KEEP_C")) {
@@ -7531,7 +7562,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *http_o = get_std_http_o_path(argv[0]);
                 const char *tar_o = get_std_tar_o_path(argv[0]);
                 const char *test_o = get_std_test_o_path(argv[0]);
-                int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]));
+                int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
                 if (cc_ret != 0)
                     fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
                 else if (!getenv("SHULANG_KEEP_C"))
@@ -7910,7 +7941,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *http_o = get_std_http_o_path(argv[0]);
             const char *tar_o = get_std_tar_o_path(argv[0]);
             const char *test_o = get_std_test_o_path(argv[0]);
-            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]));
+            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
                 fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
             } else if (!getenv("SHULANG_KEEP_C")) {
