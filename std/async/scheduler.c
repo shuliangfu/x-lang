@@ -544,6 +544,7 @@ int32_t shu_async_scheduler_drain(void) {
  */
 int32_t shu_async_run_drain_until_idle(void) {
     int32_t sum = 0;
+    unsigned stall = 0;
     for (;;) {
         int32_t batch = 0;
         uint32_t n = shu_async_worker_count();
@@ -553,9 +554,15 @@ int32_t shu_async_run_drain_until_idle(void) {
         sum += batch;
         if (shu_async_scheduler_pending() == 0 && shu_async_io_waiters_pending() == 0)
             return sum;
-        if (shu_io_poll_async_completions(50) > 0)
+        if (shu_io_poll_async_completions(50) > 0) {
+            stall = 0;
             continue;
+        }
         shu_async_io_wake_all();
+        stall++;
+        /* 防止 IO NOT_READY 重入时 poll=0/wake_all 死循环（CI 烟测有界退出）。 */
+        if (stall >= 8192u)
+            return sum;
     }
 }
 
