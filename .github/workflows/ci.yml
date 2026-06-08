@@ -552,6 +552,7 @@ jobs:
         env:
           CI: "1"
       - name: S2 typeck.o gate (P3)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
           SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
@@ -559,6 +560,9 @@ jobs:
           SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
           grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
         timeout-minutes: 3
+      - name: S2 typeck gate skipped (macOS; ubuntu CI covers build_asm/typeck.o)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "s2 typeck gate skipped on macOS (build_asm stub CI path; see ubuntu CI)"
       - name: shu_asm smoke (return-value + bootstrap gate)
         run: cd compiler && ./scripts/run_shu_asm_smoke.sh
         timeout-minutes: 8
@@ -733,6 +737,7 @@ jobs:
         env:
           CI: "1"
       - name: S2 typeck.o gate (P3)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
           SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
@@ -741,6 +746,12 @@ jobs:
           grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
         shell: msys2 {0}
         timeout-minutes: 3
+        env:
+          CI: "1"
+      - name: S2 typeck gate skipped (Windows; ubuntu CI covers build_asm/typeck.o)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "s2 typeck gate skipped on Windows (build_asm stub CI path; see ubuntu CI)"
+        shell: msys2 {0}
         env:
           CI: "1"
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)
