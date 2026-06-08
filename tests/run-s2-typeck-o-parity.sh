@@ -48,18 +48,52 @@ print(real)
 PY
 }
 
-func_insn_count() {
+# 符号 .text 体积（字节）：readelf/nm -S，跨平台；7-insn SKIP 桩通常 <48B。
+sym_text_bytes() {
   python3 - "$1" "$2" <<'PY'
-import subprocess, re, sys
+import subprocess, sys
 path, name = sys.argv[1], sys.argv[2]
-nxt = r"(?=^[0-9a-f]+ <_?[^+>]+>:\n|\Z)"
-text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
-m = re.search(rf"^[0-9a-f]+ <_?{re.escape(name)}>:\n((?:.*\n)*?)" + nxt, text, re.M)
-if not m:
-    print(0)
-else:
-    ins = [ln for ln in m.group(1).splitlines() if ln.strip() and not ln.endswith(":")]
-    print(len(ins))
+targets = {name, f"_{name}"}
+
+def parse_nm_size(line):
+    parts = line.split()
+    if len(parts) < 4 or parts[-1] not in targets:
+        return 0
+    # GNU: addr dec hex type name；Darwin: addr hex type name
+    for tok in parts[1:-2]:
+        if tok in "TtWwDd":
+            break
+        try:
+            v = int(tok, 16) if any(c in "abcdefABCDEF" for c in tok) else int(tok, 10)
+        except ValueError:
+            continue
+        if v > 0:
+            return v
+    return 0
+
+try:
+    out = subprocess.check_output(["readelf", "-s", path], text=True, stderr=subprocess.DEVNULL)
+    for line in out.splitlines():
+        if " FUNC " not in line:
+            continue
+        parts = line.split()
+        if len(parts) >= 8 and parts[7] in targets:
+            print(int(parts[2]))
+            sys.exit(0)
+except (FileNotFoundError, subprocess.CalledProcessError):
+    pass
+for cmd in (["nm", "-S", path], ["nm", "--print-size", path]):
+    try:
+        out = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        continue
+    best = 0
+    for line in out.splitlines():
+        best = max(best, parse_nm_size(line))
+    if best > 0:
+        print(best)
+        sys.exit(0)
+print(0)
 PY
 }
 
@@ -101,14 +135,14 @@ else
   echo "s2 parity: pipeline_type_* glue refs whitelist OK"
 fi
 
-# ── 3) check_* mega 须为真 emit（非 7-insn 桩）；typeck_su_ast 为薄入口，验 typeck_su_ast_impl ──
-for entry in check_expr_impl:7 check_block_impl:10 typeck_su_ast_impl:10; do
+# ── 3) check_* mega 须为真 emit（7-insn 桩 ~32B）；用符号 Size 代替 objdump insn 计数 ──
+for entry in check_expr_impl_mega:128 check_block_impl:128 typeck_su_ast_impl:64; do
   name="${entry%%:*}"
   need="${entry##*:}"
-  n=$(func_insn_count "$TYPECK_O" "$name")
-  echo "s2 parity: ${name} insns=${n} (min=${need})"
+  n=$(sym_text_bytes "$TYPECK_O" "$name")
+  echo "s2 parity: ${name} size=${n}B (min=${need}B)"
   if [ "${n:-0}" -lt "${need}" ] 2>/dev/null; then
-    parity_fail "${name} insns ${n} < ${need}"
+    parity_fail "${name} size ${n}B < ${need}B"
   fi
 done
 
