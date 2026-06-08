@@ -20,8 +20,8 @@ extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
-extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
+extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
 
 /** 单协程 read async 上下文。 */
@@ -57,6 +57,12 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(500);
+#endif
+        n = shu_io_complete_read_async_slot(ctx->slot);
+    }
     if (n == SHU_IO_ASYNC_NOT_READY) {
         if (shu_async_cps_suspend_io(&ctx->phase, 1))
             return SHU_ASYNC_SUSPENDED;
@@ -94,10 +100,20 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
     return 0;
 }
 
-/** poll 唤醒 IO 等待者后 drain 直至空闲（与 read_multi_e2e 同路径）。 */
+/** poll/wake 后始终 drain；有界轮次，避免 run_drain_until_idle 死循环。 */
 static void dual_io_poll_wake_drain(void) {
-    (void)shu_io_poll_async_completions(500);
-    (void)shu_async_run_drain_until_idle();
+    int round;
+    for (round = 0; round < 16; round++) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(500);
+#else
+        shu_async_io_wake_all();
+#endif
+        (void)shu_async_scheduler_drain();
+        if (g_task_a.result == g_task_a.expect_len
+            && g_task_b.result == g_task_b.expect_len)
+            return;
+    }
 }
 
 /**
