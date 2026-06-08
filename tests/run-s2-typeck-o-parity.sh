@@ -25,6 +25,7 @@ text_section_size() {
   perl -e 'print hex(shift)' "$hex" 2>/dev/null || echo 0
 }
 
+# 统计 .o 中指令数 >10 的函数；ELF 符号无 leading _，Mach-O 有 _（与 run-s2-typeck-gate.sh 一致）
 count_real_asm_funcs() {
   python3 - "$1" <<'PY'
 import subprocess, re, sys
@@ -35,7 +36,7 @@ except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-for m in re.finditer(r"^[0-9a-f]+ <(_[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_|\Z)", text, re.M):
+for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
     insns = [ln for ln in m.group(2).splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:
         real += 1
@@ -48,7 +49,7 @@ func_insn_count() {
 import subprocess, re, sys
 path, name = sys.argv[1], sys.argv[2]
 text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
-m = re.search(rf"^[0-9a-f]+ <_{re.escape(name)}>:\n((?:.*\n)*?)(?=^[0-9a-f]+ <_|\Z)", text, re.M)
+m = re.search(rf"^[0-9a-f]+ <_?{re.escape(name)}>:\n((?:.*\n)*?)(?=^[0-9a-f]+ <_?|\Z)", text, re.M)
 if not m:
     print(0)
 else:
@@ -80,15 +81,15 @@ if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
 fi
 
 # ── 2) 禁止回退到 pipeline_type_ensure_by_kind_ord（已由 SU ensure_* + init_* glue 替代）──
-if nm "$TYPECK_O" 2>/dev/null | grep -q ' _pipeline_type_ensure_by_kind_ord$'; then
-  parity_fail "typeck.o references _pipeline_type_ensure_by_kind_ord (dep_return regression)"
+if nm "$TYPECK_O" 2>/dev/null | grep -qE ' (_)?pipeline_type_ensure_by_kind_ord$'; then
+  parity_fail "typeck.o references pipeline_type_ensure_by_kind_ord (dep_return regression)"
 else
-  echo "s2 parity: no _pipeline_type_ensure_by_kind_ord in typeck.o OK"
+  echo "s2 parity: no pipeline_type_ensure_by_kind_ord in typeck.o OK"
 fi
 
 # 允许的 pool 只读/写入 glue（链接期由 pipeline_glue.c 提供）
 ALLOW_GLUE='pipeline_type_kind_ord_at|pipeline_type_elem_ref_at|pipeline_type_array_size_at|pipeline_type_named_name_into|pipeline_type_init_primitive_kind_at|pipeline_type_init_named_at|pipeline_type_init_compound_kind_at'
-unexpected=$(nm "$TYPECK_O" 2>/dev/null | awk '/ U _pipeline_type_/ {print $2}' | sed 's/^_//' | grep -Ev "^(${ALLOW_GLUE})$" || true)
+unexpected=$(nm "$TYPECK_O" 2>/dev/null | awk '/ U (_)?pipeline_type_/ {print $2}' | sed 's/^_//' | grep -Ev "^(${ALLOW_GLUE})$" || true)
 if [ -n "$unexpected" ]; then
   parity_fail "unexpected _pipeline_type_* refs: $(echo "$unexpected" | tr '\n' ' ')"
 else
@@ -118,7 +119,7 @@ if [ "${psz:-0}" -lt 8192 ] 2>/dev/null; then
 fi
 
 for sym in typeck_struct_layout_metrics typeck_merge_dep_struct_layouts_into_entry ensure_struct_layout_from_struct_lit; do
-  if ! nm "$PARTIAL" 2>/dev/null | grep -q "_${sym}\$"; then
+  if ! nm "$PARTIAL" 2>/dev/null | grep -qE "(_)?${sym}\$"; then
     parity_fail "layout partial missing symbol $sym"
   fi
 done
