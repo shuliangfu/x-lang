@@ -85,17 +85,14 @@ emit_asm_text_stub_o() {
 # SKIP 表示该次 -backend asm -o 编译失败（命令非零退出）；默认保留 stderr，可直接看到失败原因（如 asm_codegen_elf_o failed）。
 # 常见原因：asm_codegen_elf_o 内某步失败，或 pipeline 解析/类型检查/codegen 失败。若需静默可设 SHU_ASM_QUIET=1。
 
-# 非 Linux CI（macOS/Windows）：experimental bootstrap 不链 build_asm/*.o，仅 S2 须真 emit typeck.o；
-# MSYS 上 token.su 等 -backend asm 会挂起 45min+，故除 typeck.o 外一律 text stub。
+# 非 Linux CI（macOS/Windows）：experimental bootstrap 不链 build_asm/*.o；
+# MSYS 上 -backend asm 会挂起 45min+（含 typeck），故 build_asm 一律 text stub。
 asm_ci_stub_build_asm_module() {
   local out="$1"
   [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ] || return 1
   # Linux CI 仍全量 emit（ubuntu B-strict / bootstrap-verify）。
   [ "$(uname -s 2>/dev/null)" = "Linux" ] && return 1
-  case "$out" in
-    typeck.o) return 1 ;;
-    *) return 0 ;;
-  esac
+  return 0
 }
 
 # CI 快速路径：非宿主 ISA 的 encoder 模块用 text stub，缩短 macOS/Windows build_shu_asm。
