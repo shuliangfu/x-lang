@@ -344,6 +344,54 @@ rebuild_typeck_parser_backend_second_pass() {
   [ "$ok" -eq 1 ]
 }
 
+# CI / experimental-only：S2 gate 要求 build_asm/typeck.o __text≥68264；首遍 SKIP_TYPECK 仅 ~165B 桩，须单独 EMIT_HEAVY。
+# 不受 SHU_ASM_CI_SKIP_SECOND_PASS 影响（仅重编 typeck.o，比全量 second pass 快）。
+rebuild_typeck_o_emit_heavy_s2() {
+  local comp="${1:-./shu_asm.experimental}"
+  local out="$BUILD_DIR/typeck.o"
+  local src="src/typeck/typeck.su"
+  local tmp="$BUILD_DIR/typeck.emit_heavy_s2.o"
+  local cur_txt new_txt min_gate=68264
+  local baseline="../../tests/baseline/s2-typeck-o.tsv"
+
+  if [ -f "$baseline" ]; then
+    min_gate=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$baseline" 2>/dev/null)
+    [ -z "$min_gate" ] && min_gate=68264
+  fi
+  if [ ! -x "$comp" ]; then
+    comp="./shu_asm"
+  fi
+  if [ ! -x "$comp" ]; then
+    echo "build_shu_asm: typeck EMIT_HEAVY S2 — no shu_asm compiler" >&2
+    return 1
+  fi
+  cur_txt=$(asm_o_text_bytes "$out" 2>/dev/null || echo 0)
+  if [ "${cur_txt:-0}" -ge "$min_gate" ] 2>/dev/null; then
+    echo "build_shu_asm: typeck.o already S2-ready (__text=${cur_txt}B >= ${min_gate})"
+    return 0
+  fi
+  echo "build_shu_asm: S2 typeck — EMIT_HEAVY recompile typeck.o with $comp (was __text=${cur_txt}B) ..."
+  ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+  rm -f "$tmp"
+  if ! env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 \
+    SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
+    "$comp" -backend asm -o "$tmp" $LIBROOT "$src"; then
+    rm -f "$tmp" 2>/dev/null || true
+    echo "build_shu_asm: typeck.o EMIT_HEAVY compile failed" >&2
+    return 1
+  fi
+  new_txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
+  if [ "${new_txt:-0}" -lt "$min_gate" ] 2>/dev/null; then
+    rm -f "$tmp" 2>/dev/null || true
+    echo "build_shu_asm: typeck.o EMIT_HEAVY __text=${new_txt}B < S2 min ${min_gate}" >&2
+    return 1
+  fi
+  mv -f "$tmp" "$out"
+  ensure_typeck_asm_layout_partial_obj || true
+  echo "build_shu_asm: typeck.o EMIT_HEAVY S2 OK (__text=${new_txt}B)"
+  return 0
+}
+
 # M8a：parser 支持 Module.sub.Type 后，须用已链入新 parser 的编译器重编首遍仅解析到首个函数的模块（arm64_enc 等）。
 rebuild_m8a_parser_dependent_modules_second_pass() {
   if [ -n "${SHU_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
@@ -2560,6 +2608,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           LINK_MODE=asm_only_experimental
           if [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ]; then
             echo "build_shu_asm: CI fast — keep asm_only_experimental bootstrap (skip strict relink + gen_driver)"
+            if ! rebuild_typeck_o_emit_heavy_s2 "./shu_asm.experimental"; then
+              shu_asm_bstrict_fail "typeck.o EMIT_HEAVY required for S2 gate after CI experimental bootstrap"
+            fi
           else
           # 第二遍：bootstrap shu_asm 重编 pipeline/typeck/parser/backend，再 strict 重链（无 pipeline_su.o）。
           SECOND_PASS_OK=0
@@ -3062,6 +3113,22 @@ if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ "$LINK_MODE" = "asm_only_str
 fi
 if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ "$LINK_MODE" = "asm_only_experimental" ]; then
   echo "build_shu_asm: B-strict OK (experimental bootstrap) — LINK_MODE=asm_only_experimental, final link uses pipeline_su.o partial not pipeline_gen.c"
+fi
+
+# CI：experimental 链成功后仍须 typeck.o EMIT_HEAVY（S2 gate）；兜底若上文未跑或仍为小桩。
+if [ "$LINK_OK" -eq 1 ] && [ -n "${CI:-}" ]; then
+  _s2_comp="./shu_asm.experimental"
+  [ -x "$_s2_comp" ] || _s2_comp="./shu_asm"
+  if [ -x "$_s2_comp" ]; then
+    _s2_txt=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo 0)
+    if [ "${_s2_txt:-0}" -lt 68264 ] 2>/dev/null; then
+      rebuild_typeck_o_emit_heavy_s2 "$_s2_comp" || {
+        if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
+          shu_asm_bstrict_fail "typeck.o EMIT_HEAVY S2 fallback failed (__text=${_s2_txt}B)"
+        fi
+      }
+    fi
+  fi
 fi
 
 if [ "$ASM_READY" -eq 1 ] && [ "$LINK_OK" -ne 1 ]; then
