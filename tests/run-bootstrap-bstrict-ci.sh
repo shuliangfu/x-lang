@@ -10,7 +10,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-ulimit -s 16384 2>/dev/null || true
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
   echo "bootstrap-bstrict-ci: seed shu missing; run: make -C compiler OPT=1 all" >&2
