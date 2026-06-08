@@ -2149,6 +2149,19 @@ ensure_asm_driver_seed_c_objs() {
   "$CC" $CFLAGS -c -o "$SEED_DIR/lsp_state.o" src/lsp/lsp_state.c
 }
 
+# experimental / strict 链：lsp_state.o 依赖 typeck_lsp_main_impl（lsp.su -E → lsp_su.o）；勿拉整包 gen_driver。
+ensure_asm_experimental_lsp_objs() {
+  GEN_DIR="$BUILD_DIR/gen_driver"
+  mkdir -p "$GEN_DIR"
+  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
+    ensure_asm_gen_driver_su_objs
+    return 0
+  fi
+  echo "build_shu_asm: ensure lsp_su.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl) ..."
+  make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_su.o lsp_io_su.o lsp_io_std_heap_su.o
+  cp -f lsp_su.o lsp_io_su.o lsp_io_std_heap_su.o "$GEN_DIR/"
+}
+
 # ast_pool.c 白名单在 pipeline_su.o（#include pipeline_glue.c）内；PIPELINE_SU_DEPS（含 backend/arm64_enc）变更后须 bootstrap-pipeline → pipeline_su.o。
 ensure_pipeline_su_o_fresh() {
   local need=0
@@ -2487,6 +2500,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         ensure_asm_driver_seed_c_objs
         # B-strict：companion 已提供 preprocess_su.o / driver_*_su.o；勿再 ensure_asm_gen_driver_su_objs（冗余 -E gen_driver/pipeline_gen.c）。
         ensure_asm_bootstrap_su_companion_objs
+        ensure_asm_experimental_lsp_objs
         ensure_ast_pool_l5_bridge_obj
         if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
           make pipeline_bootstrap_orchestration.o
@@ -2528,6 +2542,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           "$SEED_O/ast_seed.o" \
           parser_su.o lexer_su.o typeck_su.o codegen_su.o \
           lexer_su_link_alias.o typeck_su_link_alias.o codegen_su_link_alias.o \
+          "$GEN_O/lsp_su.o" \
+          "$GEN_O/lsp_io_su.o" \
+          "$GEN_O/lsp_io_std_heap_su.o" \
           "$SEED_O/lsp_diag.o" \
           "$SEED_O/lsp_state.o" \
           src/lsp/lsp_diag_pipeline_sizes.o \
@@ -2725,6 +2742,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
               fi
               ensure_asm_bootstrap_su_companion_objs
+              ensure_asm_experimental_lsp_objs
               ensure_runtime_driver_asm_strict_obj
               rebuild_main_o_for_cli || true
               rebuild_driver_compile_emit_heavy_and_link || true
@@ -2751,6 +2769,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 "$SEED_O/preprocess.o" \
                 $ST_SEED_PARSER_TCK \
                 $ST_STRICT_COMPANIONS \
+                "$BUILD_DIR/gen_driver/lsp_su.o" \
+                "$BUILD_DIR/gen_driver/lsp_io_su.o" \
+                "$BUILD_DIR/gen_driver/lsp_io_std_heap_su.o" \
                 "$SEED_O/lsp_diag.o" \
                 "$SEED_O/lsp_state.o" \
                 src/lsp/lsp_diag_pipeline_sizes.o \
@@ -2792,6 +2813,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   "$SEED_O/async_cps_codegen.o" \
                   "$SEED_O/lexer.o" \
                   "$SEED_O/ast_seed.o" \
+                  "$BUILD_DIR/gen_driver/lsp_su.o" \
+                  "$BUILD_DIR/gen_driver/lsp_io_su.o" \
+                  "$BUILD_DIR/gen_driver/lsp_io_std_heap_su.o" \
                   "$SEED_O/lsp_diag.o" \
                   "$SEED_O/lsp_state.o" \
                   src/lsp/lsp_diag_pipeline_sizes.o \
