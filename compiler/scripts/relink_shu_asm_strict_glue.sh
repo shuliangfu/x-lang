@@ -651,6 +651,23 @@ else
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
 fi
 ensure_asm_backend_compat_stubs_obj
+# lsp_state.o 依赖 typeck_lsp_main_impl（lsp.su -E → lsp_su.o）；与 build_shu_asm ensure_asm_experimental_lsp_objs 一致。
+ensure_strict_glue_lsp_objs() {
+  GEN_DIR="$BUILD_DIR/gen_driver"
+  mkdir -p "$GEN_DIR"
+  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
+    echo "relink_shu_asm_strict_glue: warn: cannot make lsp_su.o (no Makefile/make)" >&2
+    return 1
+  fi
+  echo "relink_shu_asm_strict_glue: ensure lsp_su.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl) ..."
+  make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_su.o lsp_io_su.o lsp_io_std_heap_su.o
+  cp -f lsp_su.o lsp_io_su.o lsp_io_std_heap_su.o "$GEN_DIR/"
+}
+ensure_strict_glue_lsp_objs || true
+ST_LSP_SU_OBJS=""
+if [ -f "$BUILD_DIR/gen_driver/lsp_su.o" ]; then
+  ST_LSP_SU_OBJS="$BUILD_DIR/gen_driver/lsp_su.o $BUILD_DIR/gen_driver/lsp_io_su.o $BUILD_DIR/gen_driver/lsp_io_std_heap_su.o"
+fi
 ensure_simd_glue_link_objs
 ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
 if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
@@ -713,6 +730,7 @@ set +e
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \
   "$SEED_O/lsp_diag.o" \
+  $ST_LSP_SU_OBJS \
   "$SEED_O/lsp_state.o" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o \
