@@ -136,6 +136,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   if [ ! -f "$PO" ] || [ ! -s "$PO" ]; then
     return 1
   fi
+  rebuild_pipeline_o_wpo_strict_helpers_if_needed || true
   if [ ! -f "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; }; then
     nm "$PO" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
@@ -150,6 +151,10 @@ ensure_pipeline_o_strict_link_partial_obj() {
       fi
     fi
     echo "  nm pipeline.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') symbols, minus parse/typecheck/impl entry)"
+  fi
+  if [ ! -s "$SYMS" ]; then
+    echo "  pipeline_strict_link: 0 symbols after WPO subtract — cannot build partial" >&2
+    return 1
   fi
   if [ ! -f "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
@@ -404,6 +409,41 @@ if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-}" != "0" ] && asm_backend_wpo_strict
   echo "relink_shu_asm_strict_glue: STRICT_LINK_BUILD_ASM_BACKEND_WPO=1 (backend_wpo.o reach OK)"
 fi
 
+# WPO strict 链：pipeline_wpo.o 依赖 resolve_path_* 等 helper；CI 跳过 pipeline second pass 时 build_asm/pipeline.o 与 wpo 符号重叠、partial 为空。
+rebuild_pipeline_o_wpo_strict_helpers_if_needed() {
+  local po="$BUILD_DIR/pipeline.o"
+  local comp tmp pt
+  [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] || return 0
+  asm_pipeline_wpo_strict_reach_ok || return 0
+  [ -f "$po" ] || return 1
+  if nm "$po" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+    return 0
+  fi
+  tmp="$BUILD_DIR/pipeline.wpo_strict_helpers.o"
+  for comp in ./shu_asm.experimental ./shu_asm ./shu ./shu-su; do
+    [ -x "$comp" ] || continue
+    echo "relink_shu_asm_strict_glue: rebuild pipeline.o EMIT_HEAVY for WPO helpers via $comp ..."
+    ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+    rm -f "$tmp" 2>/dev/null || true
+    if env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 \
+      SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
+      "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src \
+      src/pipeline/pipeline.su 2>/dev/null; then
+      pt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
+      if [ "$pt" -gt 512 ] 2>/dev/null \
+        && nm "$tmp" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+        mv -f "$tmp" "$po"
+        rm -f "$BUILD_DIR/pipeline_strict_link_partial.o" "$BUILD_DIR/pipeline_strict_link_export.txt" 2>/dev/null || true
+        echo "relink_shu_asm_strict_glue: pipeline.o WPO helpers OK (__text=${pt}B)"
+        return 0
+      fi
+    fi
+    rm -f "$tmp" 2>/dev/null || true
+  done
+  echo "relink_shu_asm_strict_glue: warn: pipeline.o WPO helper rebuild failed" >&2
+  return 1
+}
+
 # S5 WPO strict 链：pipeline_wpo.o + glue 入口/typecheck emit 别名（替代 C orchestration partial）。
 ensure_pipeline_wpo_strict_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/pipeline_wpo_strict_link_alias.o"
@@ -641,8 +681,15 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
     "$CC" $TRAMP_CFLAGS -c -o "$TRAMP_O" src/asm/pipeline_run_bootstrap_trampoline.c
   fi
 }
+ST_WPO_ALIAS=""
+if ensure_pipeline_wpo_strict_link_alias_obj; then
+  ST_WPO_ALIAS="$BUILD_DIR/pipeline_wpo_strict_link_alias.o"
+fi
 ST_RUNTIME_PARTIAL=""
-if [ -f "$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o" ]; then
+if [ -n "$ST_WPO_ALIAS" ]; then
+  # pipeline_wpo_strict_link_alias 已提供 pipeline_run_su_pipeline_impl；勿链 trampoline（multiple definition）。
+  ST_RUNTIME_PARTIAL=""
+elif [ -f "$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o" ]; then
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o"
 elif echo " $ASM_TRY_OBJS " | grep -q ' pipeline_asm_orchestration_partial.o '; then
   ST_RUNTIME_PARTIAL=""
@@ -706,10 +753,6 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   fi
   [ -f runtime_panic.o ] && ST_RUNTIME_PANIC="runtime_panic.o"
   ST_PIPELINE_LIBS="-luring -lpthread -lm -lc"
-fi
-ST_WPO_ALIAS=""
-if ensure_pipeline_wpo_strict_link_alias_obj; then
-  ST_WPO_ALIAS="$BUILD_DIR/pipeline_wpo_strict_link_alias.o"
 fi
 set +e
 "$CC" ${CFLAGS} -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -o shu_asm.strict_glue \
