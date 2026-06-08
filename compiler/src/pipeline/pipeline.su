@@ -608,10 +608,7 @@ function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTA
     return -1;
   }
   let n_imports: i32 = parser_get_module_num_imports(module);
-  if (pipeline_dep_ctx_asm_entry_module_only(ctx) != 0 && pipeline_driver_asm_build_skip_typeck() != 0) {
-    pipeline_dep_ctx_set_ndep(ctx, 0);
-    return 0;
-  }
+  /** build_shu_asm SKIP_TYPECK：仍须 load/merge direct dep 的 struct layout（LexerResult→Token/Lexer），仅跳过 .su typeck。 */
   if (pipeline_dep_ctx_ndep(ctx) == 0) {
     if (n_imports > 0) {
       let i: i32 = 0;
