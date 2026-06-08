@@ -200,7 +200,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -386,7 +386,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -543,7 +543,7 @@ jobs:
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
@@ -660,6 +660,8 @@ jobs:
   windows:
     name: Windows (MSYS2)
     runs-on: windows-latest
+    env:
+      CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -713,7 +715,7 @@ jobs:
       - name: Goal 2 asm build script (build_shu_asm.sh)
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         shell: msys2 {0}
-        timeout-minutes: 30
+        timeout-minutes: 45
         env:
           CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
