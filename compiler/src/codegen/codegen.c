@@ -492,7 +492,8 @@ static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct
     if (codegen_expr(args[2], out) != 0) return -1;
     fprintf(out, ", (size_t)(unsigned)(");
     if (codegen_expr(args[0], out) != 0) return -1;
-    fprintf(out, ")) < 0) {\n");
+    /* 多一个 ) 闭合 submit_read_async(，再一个 ) 闭合 if (( 赋值分组 */
+    fprintf(out, "))) < 0) {\n");
     fprintf(out, "%s  %s = -1;\n", p, var_name);
     fprintf(out, "%s} else {\n", p);
     for (i = 0; i < layout->live.n; i++) {
@@ -543,7 +544,8 @@ static int codegen_async_cps_await_write_fd(AsyncCpsCodegenCtx *ctx, const struc
     if (codegen_expr(args[2], out) != 0) return -1;
     fprintf(out, ", (size_t)(unsigned)(");
     if (codegen_expr(args[0], out) != 0) return -1;
-    fprintf(out, ")) < 0) {\n");
+    /* 多一个 ) 闭合 submit_write_async(，再一个 ) 闭合 if (( 赋值分组 */
+    fprintf(out, "))) < 0) {\n");
     fprintf(out, "%s  %s = -1;\n", p, var_name);
     fprintf(out, "%s} else {\n", p);
     for (i = 0; i < layout->live.n; i++) {
