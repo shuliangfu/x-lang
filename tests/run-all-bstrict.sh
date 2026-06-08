@@ -159,6 +159,14 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       fi
       script_link=./compiler/shu-c
       ;;
+    *)
+      # 仍直接用 $SHU -o 且未 source bootstrap-link-shu 的脚本：refresh 后 seed shu asm 不可用。
+      if [ -x ./compiler/shu-c ] && grep -qE '[[:space:]]-o[[:space:]]' "tests/$script" \
+         && ! grep -q 'bootstrap-link-shu' "tests/$script"; then
+        script_shu=./compiler/shu-c
+        script_link=./compiler/shu-c
+      fi
+      ;;
   esac
   attempt=1
   while [ "$attempt" -le 3 ]; do
