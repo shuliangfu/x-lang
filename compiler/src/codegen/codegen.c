@@ -513,6 +513,9 @@ static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct
         fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
     }
     fprintf(out, "%s%s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n", p, var_name);
+    /* IO resume 后 CQE 可能尚未收割；与 async_run_i32_io_stdin 烟测对齐 retry。 */
+    fprintf(out, "%sif (%s == (int32_t)SHU_IO_ASYNC_NOT_READY) %s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n",
+        p, var_name, var_name);
     return 0;
 }
 
@@ -5362,24 +5365,30 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         && (strncmp(f->name, "size_of_", 8) == 0 || strncmp(f->name, "align_of_", 9) == 0))
         fprintf(out, "inline ");
     fprintf(out, "%s %s(", cret, fname);
-    for (int i = 0; i < f->num_params; i++) {
-        if (i) fprintf(out, ", ");
-        /* std.io.driver 的 register/submit_read/submit_write 首参 ptrdiff_t、第二参 timeout_ms 与 submit_register_fixed_buffers_buf 第二参 nr 为 uint32_t，与 preamble 一致。 */
-        const struct ASTType *param_override = NULL;
-        if (f->name) {
-            int is_io_driver = (codegen_library_prefix && strcmp(codegen_library_prefix, "std_io_driver_") == 0)
-                || (codegen_library_import_path && (strcmp(codegen_library_import_path, "std.io.driver") == 0
-                    || strcmp(codegen_library_import_path, "std/io/driver") == 0));
-            if (is_io_driver)
-                param_override = codegen_io_driver_param_override(codegen_library_import_path ? codegen_library_import_path : "std.io.driver", f->name, i);
+    if (has_async_frame)
+        fprintf(out, "void");
+    else {
+        for (int i = 0; i < f->num_params; i++) {
+            if (i) fprintf(out, ", ");
+            /* std.io.driver 的 register/submit_read/submit_write 首参 ptrdiff_t、第二参 timeout_ms 与 submit_register_fixed_buffers_buf 第二参 nr 为 uint32_t，与 preamble 一致。 */
+            const struct ASTType *param_override = NULL;
+            if (f->name) {
+                int is_io_driver = (codegen_library_prefix && strcmp(codegen_library_prefix, "std_io_driver_") == 0)
+                    || (codegen_library_import_path && (strcmp(codegen_library_import_path, "std.io.driver") == 0
+                        || strcmp(codegen_library_import_path, "std/io/driver") == 0));
+                if (is_io_driver)
+                    param_override = codegen_io_driver_param_override(codegen_library_import_path ? codegen_library_import_path : "std.io.driver", f->name, i);
+            }
+            codegen_emit_param(&f->params[i], out, param_override, i);
         }
-        codegen_emit_param(&f->params[i], out, param_override, i);
     }
     fprintf(out, ") {\n");
     /* A3：帧布局注释 + 帧局部占位（sync stub；CPS 后续分段读写 __shu_frame）。 */
     if (has_async_frame) {
         async_liveness_emit_codegen_comment(f, &async_layout, out);
         async_liveness_emit_frame_local(f, &async_layout, out);
+        if (f->num_params > 0)
+            async_cps_codegen_emit_param_statics(f, out);
         async_cps_codegen_begin(&async_cps_ctx, f, &async_layout, out);
         codegen_async_cps_ctx = async_cps_ctx;
         codegen_async_cps_active = 1;
@@ -6540,9 +6549,13 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0 || f->is_extern || !f->body) continue;
         if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
         fprintf(out, "static inline %s %s(", c_type_str(f->return_type), f->name ? f->name : "");
-        for (int j = 0; j < f->num_params; j++) {
-            if (j) fprintf(out, ", ");
-            codegen_emit_param(&f->params[j], out, NULL, j);
+        if (async_cps_func_uses_void_entry(f, m))
+            fprintf(out, "void");
+        else {
+            for (int j = 0; j < f->num_params; j++) {
+                if (j) fprintf(out, ", ");
+                codegen_emit_param(&f->params[j], out, NULL, j);
+            }
         }
         fprintf(out, ");\n");
     }
