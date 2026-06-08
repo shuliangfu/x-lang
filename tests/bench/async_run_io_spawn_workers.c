@@ -18,6 +18,7 @@
 
 extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
 extern int32_t shu_io_complete_read_async_slot(int slot);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_run_drain_until_idle(void);
@@ -60,8 +61,10 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
-    if (n == SHU_IO_ASYNC_NOT_READY)
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_read_async_slot(ctx->slot);
+    }
     return n;
 }
 

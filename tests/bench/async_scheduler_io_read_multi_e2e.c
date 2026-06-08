@@ -64,6 +64,12 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
         (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_read_async_slot(ctx->slot);
     }
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        /* 本 slot CQE 尚未就绪：re-suspend，由主循环下轮 poll+wake+drain 再试。 */
+        if (shu_async_cps_suspend_io(&ctx->phase, 1))
+            return SHU_ASYNC_SUSPENDED;
+        return SHU_ASYNC_SUSPENDED;
+    }
     ctx->result = n;
     return n;
 }
@@ -97,11 +103,11 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * Linux io_uring：poll CQE → wake → drain；最多两轮（与 io_read_async_multi 语义一致）。
+ * Linux io_uring：多轮 poll+wake+drain 直至双 task 完成（每轮可完成 0~2 个 CQE）。
  */
 static void dual_io_poll_wake_drain(void) {
     int round;
-    for (round = 0; round < 2; round++) {
+    for (round = 0; round < 8; round++) {
         (void)shu_io_poll_async_completions(500);
         shu_async_io_wake_all();
         (void)shu_async_scheduler_drain();

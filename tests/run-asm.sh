@@ -47,6 +47,13 @@ if [ "$EC" -ne 0 ]; then
   exit 0
 fi
 
+# bootstrap-driver-seed 的 shu 可能只 emit parse/typeck 摘要而无 .text；完整 asm 由 ubuntu matrix build_shu_asm 覆盖
+if grep -q 'typeck OK' "$OUT_S" && ! grep -q '\.text' "$OUT_S"; then
+  echo "run-asm SKIP (seed shu has no stdout asm backend; ubuntu x64 CI covers build_shu_asm)"
+  rm -f "$OUT_S"
+  exit 0
+fi
+
 # 若输出是 C（无 pipeline 时 C driver 可能忽略 -backend asm），则跳过
 if grep -q '^#include' "$OUT_S"; then
   echo "run-asm SKIP (shu built without -su pipeline; -backend asm not used)"

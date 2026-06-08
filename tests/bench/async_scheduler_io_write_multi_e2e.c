@@ -61,6 +61,11 @@ static int32_t io_write_task_impl(io_write_ctx_t *ctx) {
         (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_write_async_slot(ctx->slot);
     }
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        if (shu_async_cps_suspend_io(&ctx->phase, 1))
+            return SHU_ASYNC_SUSPENDED;
+        return SHU_ASYNC_SUSPENDED;
+    }
     ctx->result = n;
     return n;
 }
@@ -102,10 +107,10 @@ static int check_writeback(const io_write_ctx_t *ctx, const char *label) {
     return 0;
 }
 
-/** poll + wake + drain，最多两轮。 */
+/** 多轮 poll+wake+drain 直至双 task 完成。 */
 static void dual_io_poll_wake_drain(void) {
     int round;
-    for (round = 0; round < 2; round++) {
+    for (round = 0; round < 8; round++) {
         (void)shu_io_poll_async_completions(500);
         shu_async_io_wake_all();
         (void)shu_async_scheduler_drain();
