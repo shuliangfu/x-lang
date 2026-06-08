@@ -1,7 +1,7 @@
 /**
  * tests/bench/async_run_io_spawn_parallel.c — IO-A5 v5 spawn 并行 IO + drain_until_idle
  *
- * 模拟 .su：queue_reset → push seed + submit ×2 → shu_async_run_drain_until_idle。
+ * 模拟 .su：queue_reset → submit ×2（各任务 ctx 预设 fd）→ drain_until_idle。
  * 双 pipe 并行 in-flight read async，校验总字节 2+3=5。
  *
  * 编译：cc -std=c11 -o async_run_io_spawn_parallel \
@@ -48,8 +48,7 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
     if (!ctx)
         return -1;
     if (ctx->step == 0) {
-        if (shu_async_run_seed_valid())
-            ctx->read_fd = shu_async_run_seed_take_i32();
+        /* fd 由 main 预设；勿用全局 seed FIFO（并行 submit 时易抢错 fd）。 */
         ctx->step = 1;
         ctx->phase = 0;
         ctx->slot = shu_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
@@ -101,14 +100,14 @@ int main(void) {
 
     memset(&g_ctx_a, 0, sizeof(g_ctx_a));
     memset(&g_ctx_b, 0, sizeof(g_ctx_b));
+    g_ctx_a.read_fd = fds_a[0];
+    g_ctx_b.read_fd = fds_b[0];
 
     shu_async_queue_reset();
-    shu_async_run_seed_push_i32(fds_a[0]);
     if (shu_async_task_submit(io_spawn_read_a) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit a failed\n");
         return 3;
     }
-    shu_async_run_seed_push_i32(fds_b[0]);
     if (shu_async_task_submit(io_spawn_read_b) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit b failed\n");
         return 4;
