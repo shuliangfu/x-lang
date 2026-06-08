@@ -24,7 +24,8 @@ export SHU=./compiler/shu
 export SHULANG_SKIP_SUBSCRIPT_MAKE=1
 export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
 export SHULANG_BSTRICT_RUN_ALL=1
-export SHULANG_LINK_SHU=./compiler/shu
+# refresh 后 shu/shu_asm 为 seed 链；-o 链接用 shu-c（与 run-option/run-pool-limits 分流一致）。
+export SHULANG_LINK_SHU=./compiler/shu-c
 # shu_asm 无 -o 烟测与 -o 连续调用偶发 SIGSEGV；白名单仅验 -o/check，跳过烟测。
 export SHU_SKIP_PARSE_SMOKE=1
 
