@@ -22,9 +22,11 @@ extern int32_t shu_io_complete_read_async(void);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 static int g_read_fd;
 static uint8_t g_buf[16];
@@ -46,8 +48,11 @@ static int32_t io_read_task(void) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async();
-    if (n == SHU_IO_ASYNC_NOT_READY)
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        if (shu_async_cps_suspend_io(&g_phase, 1))
+            return SHU_ASYNC_SUSPENDED;
         n = shu_io_complete_read_async();
+    }
     g_result = n;
     return n;
 }
@@ -95,8 +100,8 @@ int main(void) {
         return 5;
     }
 
-    shu_async_io_wake_all();
-    r = shu_async_scheduler_drain();
+    (void)shu_io_poll_async_completions(500);
+    r = shu_async_run_drain_until_idle();
     if (r != 3) {
         fprintf(stderr, "async_scheduler_io_read_e2e: second drain got %d want 3\n", (int)r);
         return 6;
