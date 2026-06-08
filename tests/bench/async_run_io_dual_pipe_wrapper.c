@@ -28,7 +28,9 @@ static int setup_pipe_on_fd(int target_fd, const char *payload, int payload_len)
         (void)close(fds[0]);
         return -3;
     }
-    (void)close(fds[0]);
+    /* dup2 后 read 端已在 target_fd；若 fds[0]==target_fd 则不可 close（会关掉注入的 fd）。 */
+    if (fds[0] != target_fd)
+        (void)close(fds[0]);
     return 0;
 }
 
