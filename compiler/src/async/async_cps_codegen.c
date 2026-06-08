@@ -10,11 +10,11 @@
 
 static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target);
 
-/** 表达式是否含 run target==async_fn 的调用。 */
+/** 表达式是否含 run/spawn target==async_fn 的调用。 */
 static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
     if (!e || !target)
         return 0;
-    if (e->kind == AST_EXPR_RUN) {
+    if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
         const struct ASTExpr *op = e->value.unary.operand;
         if (op && op->kind == AST_EXPR_CALL && op->value.call.resolved_callee_func == target)
             return 1;
@@ -81,7 +81,7 @@ static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFu
     }
 }
 
-/** 块内是否含 run target 调用。 */
+/** 块内是否含 run/spawn target 调用。 */
 static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
     if (!b || !target)
         return 0;
@@ -103,6 +103,7 @@ static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFun
     return 0;
 }
 
+/** 模块内是否有 run/spawn async_fn() 引用（供 DCE/WPO 保留协程体）。 */
 int async_cps_module_references_run_async(const struct ASTModule *m, const struct ASTFunc *async_fn) {
     if (!m || !async_fn)
         return 0;
