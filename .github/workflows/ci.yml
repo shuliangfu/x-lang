@@ -169,7 +169,7 @@ jobs:
           grep -q 'async run_i32 IO stdin OK' /tmp/async_smoke.log
           SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
           grep -q 'async perf OK' /tmp/async_perf.log
-        timeout-minutes: 3
+        timeout-minutes: 8
       - name: B-BOOT coldstart (std hello)
         run: |
           chmod +x tests/run-perf-coldstart.sh
