@@ -810,9 +810,9 @@ else
   echo "async run dual pipe: skip (build io.o/scheduler.o)"
 fi
 
-echo "async spawn v4: spawn async_fn + drain_until_idle codegen (import std.async) ..."
-out=$("$EMIT_SHU" -L . -E tests/parser/async_run_io_dual_parallel.su 2>&1) || {
-  echo "async spawn v4 FAIL: -E async_run_io_dual_parallel.su"
+echo "async spawn v4: spawn async_fn + drain_until_idle codegen ..."
+out=$("$EMIT_SHU" -L . -E tests/parser/async_spawn_v4_smoke.su 2>&1) || {
+  echo "async spawn v4 FAIL: -E async_spawn_v4_smoke.su"
   exit 1
 }
 echo "$out" | grep -q 'shu_async_queue_reset' || {
