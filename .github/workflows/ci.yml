@@ -344,7 +344,12 @@ jobs:
         run: SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh
         timeout-minutes: 12
       - name: shu_asm smoke (return-value)
-        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
+        run: |
+          if [ ! -x compiler/shu_asm ]; then
+            echo "shu_asm smoke SKIP (no shu_asm on asm-smoke job; ubuntu x64 CI covers build_shu_asm)"
+            exit 0
+          fi
+          cd compiler && ./scripts/run_shu_asm_smoke.sh
         timeout-minutes: 8
 
   linux-arm64:
