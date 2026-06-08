@@ -60,12 +60,10 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
-    while (n == SHU_IO_ASYNC_NOT_READY) {
-#if defined(__linux__)
-        (void)shu_io_poll_async_completions(50);
-#else
-        shu_async_io_wake_all();
-#endif
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        /* 双 task 并行时 CQE 可能尚未轮到本 slot；重新 suspend 由 run_drain_until_idle 唤醒。 */
+        if (shu_async_cps_suspend_io(&ctx->phase, 1))
+            return SHU_ASYNC_SUSPENDED;
         n = shu_io_complete_read_async_slot(ctx->slot);
     }
     ctx->result = n;
