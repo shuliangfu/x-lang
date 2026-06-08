@@ -10973,7 +10973,9 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
     current = current + gap;
     fsize = glue_type_size_simple(module, arena, ftr, depth);
     if (fsize <= 0) {
-      driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      /** build_shu_asm SKIP_TYPECK：layout 热路径勿刷屏（LexerResult 等已 parse-only merge dep 后仍偶发失败）。 */
+      if (driver_asm_build_skip_typeck() == 0)
+        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
       return -1;
     }
     current = current + fsize;
