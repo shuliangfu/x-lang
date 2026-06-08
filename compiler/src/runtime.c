@@ -6256,6 +6256,69 @@ static int merge_deps_path_already_out(const char *path, char *out_paths[], int 
 }
 
 /**
+ * build_shu_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
+ * 供 parse-only 填 dep struct layout；避免 collect_deps_transitive 耗时/失败，且 LexerResult 等跨模块 layout 可 merge。
+ * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
+ */
+static int load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *out_n) {
+    int32_t n_imports = parser_get_module_num_imports(module);
+    int mi = 0;
+
+    *out_n = 0;
+    if (n_imports <= 0)
+        return 0;
+    for (int i = 0; i < n_imports && i < 32 && mi < MAX_ALL_DEPS; i++) {
+        uint8_t path_buf[64];
+        char path_c[65];
+        size_t k = 0;
+        char resolved[PATH_MAX];
+        size_t raw_len = 0;
+        size_t prep_len = 0;
+        char *raw;
+        char *prep;
+
+        parser_get_module_import_path(module, i, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k] && k < 64) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
+        raw = read_file(resolved, &raw_len);
+        if (!raw) {
+            fprintf(stderr, "shu: cannot open direct import '%s' (tried %s)\n", path_c, resolved);
+            goto fail_partial;
+        }
+        prep = preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+        free(raw);
+        if (!prep) {
+            fprintf(stderr, "shu: preprocess failed for direct import '%s'\n", path_c);
+            goto fail_partial;
+        }
+        dep_sources[mi] = prep;
+        dep_lens[mi] = prep_len;
+        dep_paths[mi] = strdup(path_c);
+        if (!dep_paths[mi]) {
+            free(prep);
+            goto fail_partial;
+        }
+        mi++;
+    }
+    *out_n = mi;
+    return 0;
+fail_partial:
+    while (mi > 0) {
+        mi--;
+        free(dep_sources[mi]);
+        free(dep_paths[mi]);
+    }
+    *out_n = 0;
+    return 1;
+}
+
+/**
  * 将 collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf 使用的 dep 列表：
  * 前 n_imports 项与入口模块 import 槽 \c module.import_paths[i] 严格对齐（typeck WHOLE import / binding 依赖 dep_modules[i]）；
  * 其余项按 closure 顺序追加传递依赖（如 std.io.driver、std.io.core），供 asm_codegen_elf_o 编入同一 .o。
@@ -6631,11 +6694,20 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      */
     const int skip_dep_file_load =
         asm_entry_module_only_from_env() && driver_asm_build_skip_typeck() != 0;
-    if (n_imports_entry > 0 && n_imports_entry <= 32 && !skip_dep_file_load) {
-        char *cls[MAX_ALL_DEPS];
-        size_t clens[MAX_ALL_DEPS];
-        char *cpaths[MAX_ALL_DEPS];
-        int n_closure = 0;
+    if (n_imports_entry > 0 && n_imports_entry <= 32) {
+        if (skip_dep_file_load) {
+            if (load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines,
+                    dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
+            }
+        } else {
+            char *cls[MAX_ALL_DEPS];
+            size_t clens[MAX_ALL_DEPS];
+            char *cpaths[MAX_ALL_DEPS];
+            int n_closure = 0;
             if (collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
                     ndefines, cls, clens, cpaths, &n_closure) != 0) {
                 free(arena);
@@ -6656,16 +6728,17 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 cpaths[o] = tp;
             }
             if (merge_direct_then_transitive_deps(module, n_imports_entry, cls, clens, cpaths, n_closure, dep_sources,
-                dep_lens, dep_paths, &n_deps) != 0) {
-            while (n_closure > 0) {
-                n_closure--;
-                free(cls[n_closure]);
-                free(cpaths[n_closure]);
+                    dep_lens, dep_paths, &n_deps) != 0) {
+                while (n_closure > 0) {
+                    n_closure--;
+                    free(cls[n_closure]);
+                    free(cpaths[n_closure]);
+                }
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
             }
-            free(arena);
-            free(module);
-            free(src);
-            return 1;
         }
     }
     memset(arena, 0, arena_sz);
@@ -6818,8 +6891,32 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.su）。
      */
     if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() != 0) {
-        for (j = 0; j < n_deps; j++)
+        for (j = 0; j < n_deps; j++) {
+            if (pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+                    dep_lens[j]) != 0) {
+                fprintf(stderr, "shu: asm layout dep parse-only failed for '%s'\n",
+                    dep_paths[j] ? dep_paths[j] : "?");
+                free(out_buf);
+                pipeline_dep_ctx_heap_destroy(pctx);
+                for (int k = 0; k < n_deps; k++) {
+                    free(dep_arenas[k]);
+                    free(dep_modules[k]);
+                }
+                while (n_deps > 0) {
+                    n_deps--;
+                    free(dep_sources[n_deps]);
+                    free(dep_paths[n_deps]);
+                }
+                driver_asm_fclose_asm_out(asm_out);
+                if (elf_ctx_ptr)
+                    free(elf_ctx_ptr);
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
+            }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
+        }
     } else {
         for (j = 0; j < n_deps; j++) {
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
