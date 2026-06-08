@@ -2,8 +2,23 @@
 # asm 7.3：块内连续 VAR binop 复用 rbx 右操作数槽；return 四～十四元链验 x10–x15 spill。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/wpo-main-disasm.sh
+. tests/lib/wpo-main-disasm.sh
 make -C compiler -q 2>/dev/null || make -C compiler
 SHU=${SHU:-./compiler/shu}
+
+# x10/x11 spill 与 ldur 门禁仅 arm64 宿主（otool/objdump 反汇编为 AArch64 指令形态）。
+asm_disasm_gate_host() {
+  case "$(uname -m 2>/dev/null)" in
+    arm64|aarch64) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# 提取 _main 反汇编（macOS otool / Linux objdump）。
+asm_main_disasm() {
+  wpo_main_asm "$1" 2>/dev/null || true
+}
 
 run_one() {
   local src="$1"
@@ -19,12 +34,15 @@ run_one() {
     echo "run-asm-binop-block-var FAIL: $tag expected exit $want, got $exitcode"
     exit 1
   fi
-  if otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  local main_asm b_ldur a_ldur
+  main_asm=$(asm_main_disasm "$out")
+  if echo "$main_asm" | grep -q 'sub.*sp, sp, #0x10'; then
     echo "run-asm-binop-block-var FAIL: $tag still uses stack push for binop"
     exit 1
   fi
-  local main_asm b_ldur a_ldur
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
   b_ldur=$(echo "$main_asm" | grep -cE 'ldur[[:space:]]+x1,.*#-0x18' || true)
   a_ldur=$(echo "$main_asm" | grep -cE 'ldur[[:space:]]+x0,.*#-0x10' || true)
   if [ "$b_ldur" -gt "$max_b_ldur" ]; then
@@ -42,7 +60,10 @@ check_x10_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x10, x|mov[[:space:]]+x0, x10|mov[[:space:]]+x1, x10'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x10 spill/reload in _main"
     exit 1
@@ -54,7 +75,10 @@ check_spill_x10_or_x11() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x1[01], x|mov[[:space:]]+x0, x1[01]|mov[[:space:]]+x1, x1[01]'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x10/x11 spill/reload in _main"
     exit 1
@@ -66,7 +90,10 @@ check_x11_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x11, x|mov[[:space:]]+x0, x11|mov[[:space:]]+x1, x11'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x11 spill/reload in _main"
     exit 1
@@ -78,7 +105,10 @@ check_no_spill_roundtrip_mov() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | perl -0777 -ne 'exit 1 if /mov\s+x1[0-5],\s+x[01]\n\s*mov\s+x[01],\s+x1[0-5]/ || /mov\s+x[01],\s+x1[0-5]\n\s*mov\s+x1[0-5],\s+x[01]/'; then
     echo "run-asm-binop-block-var FAIL: $tag has redundant spill round-trip mov (peephole miss)"
     exit 1
@@ -90,7 +120,10 @@ check_x15_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x15, x|mov[[:space:]]+x0, x15|mov[[:space:]]+x1, x15'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x15 spill/reload in _main"
     exit 1
@@ -102,7 +135,10 @@ check_x14_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x14, x|mov[[:space:]]+x0, x14|mov[[:space:]]+x1, x14'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x14 spill/reload in _main"
     exit 1
@@ -114,7 +150,10 @@ check_x13_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x13, x|mov[[:space:]]+x0, x13|mov[[:space:]]+x1, x13'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x13 spill/reload in _main"
     exit 1
@@ -126,7 +165,10 @@ check_x12_spill() {
   local out="$1"
   local tag="$2"
   local main_asm
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
+  main_asm=$(asm_main_disasm "$out")
   if ! echo "$main_asm" | grep -qE 'mov[[:space:]]+x12, x|mov[[:space:]]+x0, x12|mov[[:space:]]+x1, x12'; then
     echo "run-asm-binop-block-var FAIL: $tag missing x12 spill/reload in _main"
     exit 1
