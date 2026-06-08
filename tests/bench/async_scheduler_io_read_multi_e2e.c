@@ -58,11 +58,13 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
         if (shu_async_cps_suspend_io(&ctx->phase, 1))
             return SHU_ASYNC_SUSPENDED;
     }
-    for (;;) {
+    n = shu_io_complete_read_async_slot(ctx->slot);
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        /* Linux io_uring：双 slot 须 poll 后再 retry complete（与 io_read_async_multi 一致）。 */
+        (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_read_async_slot(ctx->slot);
-        if (n != SHU_IO_ASYNC_NOT_READY)
-            break;
-        /* CQE 尚未轮到本 slot：re-suspend，由主循环 poll+drain 再次唤醒。 */
+    }
+    if (n == SHU_IO_ASYNC_NOT_READY) {
         if (shu_async_cps_suspend_io(&ctx->phase, 1))
             return SHU_ASYNC_SUSPENDED;
     }
@@ -99,21 +101,20 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * 双 task 完成驱动：poll + wake_all + drain 有界循环（禁止空队列早退，避免 result 仍为 -99）。
- * 返回 0 成功，-1 超时未完成。
+ * 双 task 完成驱动：poll + wake_all + drain，最多 8 轮。
+ * 返回 0 成功，-1 未完成。
  */
 static int dual_poll_drain_until_done(void) {
     int round;
-    (void)shu_io_poll_async_completions(500);
-    for (round = 0; round < 64; round++) {
+    for (round = 0; round < 8; round++) {
+        (void)shu_io_poll_async_completions(500);
         if (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len)
             return 0;
         if (shu_async_io_waiters_pending() > 0)
             shu_async_io_wake_all();
         (void)shu_async_scheduler_drain();
-        (void)shu_io_poll_async_completions(100);
     }
-    return -1;
+    return (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len) ? 0 : -1;
 }
 
 /**
