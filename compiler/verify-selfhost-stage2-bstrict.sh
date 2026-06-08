@@ -43,38 +43,57 @@ ls -lh ./shu_asm2 | awk '{print "  stage2:", $5}'
 ROOT="$(cd .. && pwd)"
 MAIN_WPO_TIMEOUT="${SHU_WPO_MAIN_ASM_TIMEOUT:-180}"
 
+# 与 build_shu_asm.sh 一致：main.su -backend asm 须 LIBROOT。
+LIBROOT=""
+if [ -f src/asm/asm_build_list.su ]; then
+  TAB=$(printf '\t')
+  LIBROOT=$(grep '^// LIBROOT:' src/asm/asm_build_list.su | sed "s|^// LIBROOT:${TAB}||")
+fi
+[ -z "$LIBROOT" ] && LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+
 # main.su EMIT_HEAVY 须大栈（与 rebuild_main_o_for_cli / run_shu_asm_smoke 一致）。
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 # Step 2b：用 gen2/gen1 编译器重编 build_asm/main.o（WPO DCE）；build_shu_asm 内 post-strict 可能 SIGSEGV。
 echo ""
 echo "── Step 2b: WPO main.o recompile（shu_asm2 → stage1 fallback）──"
+stage2_main_o_text_bytes() {
+  local o="$1"
+  local hex
+  hex=$(objdump -h "$o" 2>/dev/null | awk '$2 == "__text" { print $3; exit }')
+  if [ -z "$hex" ]; then
+    hex=$(objdump -h "$o" 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
+  fi
+  if [ -z "$hex" ]; then
+    echo 0
+    return
+  fi
+  perl -e 'print hex(shift)' "$hex" 2>/dev/null || echo 0
+}
 stage2_rebuild_main_o_wpo() {
   local comp="$1"
   local wpo_arg="$2"
   local emit_heavy="${3:-0}"
   local tmp="build_asm/main.stage2_wpo.o"
-  local hex=""
   local txt=""
   rm -f "$tmp" 2>/dev/null || true
   if [ -n "$wpo_arg" ]; then
     if ! timeout "$MAIN_WPO_TIMEOUT" env -u SHU_ASM_START_FUNC \
       SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
       SHU_ASM_WPO_DCE="$wpo_arg" \
-      "$comp" -backend asm -o "$tmp" src/main.su >/dev/null 2>&1; then
+      "$comp" -backend asm -o "$tmp" $LIBROOT src/main.su >/dev/null 2>&1; then
       return 1
     fi
   elif ! timeout "$MAIN_WPO_TIMEOUT" env -u SHU_ASM_START_FUNC \
     SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
-    "$comp" -backend asm -o "$tmp" src/main.su >/dev/null 2>&1; then
+    "$comp" -backend asm -o "$tmp" $LIBROOT src/main.su >/dev/null 2>&1; then
     return 1
   fi
-  hex=$(objdump -h "$tmp" 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
-  txt=$(perl -e 'print hex(shift)' "$hex" 2>/dev/null || echo 0)
+  txt=$(stage2_main_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   if [ "$txt" = "0" ]; then
     return 1
   fi
-  if ! nm "$tmp" 2>/dev/null | grep -q ' entry$'; then
+  if ! nm "$tmp" 2>/dev/null | grep -qE '(_)?entry$'; then
     return 1
   fi
   if [ -z "$wpo_arg" ] && [ "$txt" -gt 768 ] 2>/dev/null; then
@@ -91,8 +110,7 @@ for comp in ./shu_asm2 ./shu_asm.experimental ./shu_asm_stage1 ./shu_asm; do
   [ -x "$comp" ] || continue
   if stage2_rebuild_main_o_wpo "$comp" "" 0; then
     MAIN_WPO_OK=1
-    hex=$(objdump -h build_asm/main.o 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
-    txt=$(perl -e 'print hex(shift)' "$hex" 2>/dev/null || echo 9999)
+    txt=$(stage2_main_o_text_bytes build_asm/main.o 2>/dev/null || echo 9999)
     if [ "$txt" -le 768 ] 2>/dev/null; then
       MAIN_WPO_COMPRESSED=1
     fi
