@@ -60,8 +60,14 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
-    if (n == SHU_IO_ASYNC_NOT_READY)
+    while (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(50);
+#else
+        shu_async_io_wake_all();
+#endif
         n = shu_io_complete_read_async_slot(ctx->slot);
+    }
     ctx->result = n;
     return n;
 }
