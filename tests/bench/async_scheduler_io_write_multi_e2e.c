@@ -19,9 +19,8 @@ extern int32_t shu_io_complete_write_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
-extern void shu_async_io_wake_all(void);
-extern void shu_async_io_wake(unsigned n);
 extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
@@ -104,23 +103,10 @@ static int check_writeback(const io_write_ctx_t *ctx, const char *label) {
     return 0;
 }
 
-/** poll 后逐个 wake(1)+drain。 */
+/** poll 唤醒 IO 等待者后 drain 直至空闲（与 read_multi_e2e 同路径）。 */
 static void dual_io_poll_wake_drain(void) {
-    int round;
-    for (round = 0; round < 16; round++) {
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_a.result != g_task_a.payload_len && shu_async_io_waiters_pending() > 0) {
-            shu_async_io_wake(1);
-            (void)shu_async_scheduler_drain();
-        }
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_b.result != g_task_b.payload_len && shu_async_io_waiters_pending() > 0) {
-            shu_async_io_wake(1);
-            (void)shu_async_scheduler_drain();
-        }
-        if (g_task_a.result == g_task_a.payload_len && g_task_b.result == g_task_b.payload_len)
-            return;
-    }
+    (void)shu_io_poll_async_completions(500);
+    (void)shu_async_run_drain_until_idle();
 }
 
 /**
