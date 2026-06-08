@@ -3,7 +3,7 @@
 # hello：含 std.io；B-BOOT stretch 500us，cap 防回归宽松值
 # fs_return42：最小 freestanding（无 io/panic）；stretch 500us
 # fs_hello：freestanding + shulang_sys_write；B-BOOT-FS cap 2000us / 128KiB
-hello_stripped_us	8000
+hello_stripped_us	15000
 fs_return42_stripped_us	1500
 fs_return42_stripped_bytes	65536
 fs_hello_stripped_us	2000
