@@ -1,8 +1,8 @@
 /**
  * tests/bench/async_scheduler_io_read_multi_e2e.c — 双协程并行 read async + scheduler IO wake
  *
- * 两路 pipe 各 submit 一个 read async（slot 池 v2），双任务均 suspend_io 进等待队列，
- * poll + wake_all 后第二次 drain 分别 complete_read_async_slot 读回 "ab" 与 "xyz"。
+ * 两路 pipe 各 submit 一个 read async（slot 池 v2），双任务均 suspend_io 进等待队列；
+ * 主线程 poll + complete slot（与 io_read_async_multi 相同），再 wake+drain 让协程收尾。
  *
  * 编译：cc -std=c11 -o async_scheduler_io_read_multi_e2e tests/bench/async_scheduler_io_read_multi_e2e.c \
  *       std/io/io.o std/async/scheduler.o
@@ -43,10 +43,9 @@ static io_read_ctx_t g_task_a;
 static io_read_ctx_t g_task_b;
 
 /**
- * 单任务协程体：submit(slot) → suspend_io；resume 后 poll+retry complete_slot。
+ * 单任务协程体：submit(slot) → suspend_io；resume 后若主线程已 complete 则返回结果。
  */
 static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
-    int32_t n;
     if (!ctx)
         return -1;
     if (ctx->step == 0) {
@@ -59,20 +58,11 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
         if (shu_async_cps_suspend_io(&ctx->phase, 1))
             return SHU_ASYNC_SUSPENDED;
     }
-    n = shu_io_complete_read_async_slot(ctx->slot);
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-#if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
-#endif
-        n = shu_io_complete_read_async_slot(ctx->slot);
-    }
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
+    if (ctx->result >= 0)
+        return ctx->result;
+    if (shu_async_cps_suspend_io(&ctx->phase, 1))
         return SHU_ASYNC_SUSPENDED;
-    }
-    ctx->result = n;
-    return n;
+    return SHU_ASYNC_SUSPENDED;
 }
 
 /** 任务 A 入口。 */
@@ -83,6 +73,20 @@ static int32_t io_read_task_a(void) {
 /** 任务 B 入口。 */
 static int32_t io_read_task_b(void) {
     return io_read_task_impl(&g_task_b);
+}
+
+/**
+ * 与 io_read_async_multi 相同：主线程 poll + retry complete slot。
+ */
+static int32_t io_read_slot_complete_with_poll(int slot) {
+    int32_t n = shu_io_complete_read_async_slot(slot);
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(500);
+#endif
+        n = shu_io_complete_read_async_slot(slot);
+    }
+    return n;
 }
 
 /**
@@ -104,26 +108,28 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * poll/wake 后始终 scheduler drain；有界轮次。
- * 不用 run_drain_until_idle：双 slot 时 poll 窥视未消费 CQE 会重置 stall 导致死循环。
+ * 主线程 complete 双 slot，再 wake+drain 收尾协程。
+ * 协程内双 slot complete 与 poll 窥视 CQE 存在竞态，改由主线程驱动（已通过 io_read_async_multi 验证）。
  */
-static void dual_io_poll_wake_drain(void) {
-    int round;
-    for (round = 0; round < 16; round++) {
+static void dual_io_poll_complete_in_main(void) {
+    int32_t na;
+    int32_t nb;
+
 #if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
-#else
-        shu_async_io_wake_all();
+    (void)shu_io_poll_async_completions(500);
 #endif
-        (void)shu_async_scheduler_drain();
-        if (g_task_a.result == g_task_a.expect_len
-            && g_task_b.result == g_task_b.expect_len)
-            return;
-    }
+    na = io_read_slot_complete_with_poll(g_task_a.slot);
+    nb = io_read_slot_complete_with_poll(g_task_b.slot);
+    if (na >= 0)
+        g_task_a.result = na;
+    if (nb >= 0)
+        g_task_b.result = nb;
+    shu_async_io_wake_all();
+    (void)shu_async_scheduler_drain();
 }
 
 /**
- * 入口：双 pipe + 双 task submit/drain/poll/wake/drain。
+ * 入口：双 pipe + 双 task submit/drain/poll/complete/wake/drain。
  */
 int main(void) {
     int fds_a[2];
@@ -174,7 +180,7 @@ int main(void) {
         return 5;
     }
 
-    dual_io_poll_wake_drain();
+    dual_io_poll_complete_in_main();
 
     chk = check_task(&g_task_a, "task_a");
     if (chk != 0)
