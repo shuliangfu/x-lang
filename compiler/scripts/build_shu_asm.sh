@@ -24,7 +24,10 @@ if [ -n "${CI:-}" ] && [ "${SHU_ASM_CI_SKIP_FAST:-0}" != "1" ]; then
   export SHU_ASM_FORCE_SKIP_TYPECK="${SHU_ASM_FORCE_SKIP_TYPECK:-1}"
   export SHU_ASM_QUIET="${SHU_ASM_QUIET:-1}"
   export SHU_ASM_CI_SKIP_SECOND_PASS=1
-  export SHU_ASM_EXPERIMENTAL_SKIP_GEN="${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-1}"
+  # B-strict SKIP_GEN 仅 Linux CI；macOS/Windows experimental 链常缺 LSP/typeck 符号，失败时 gen_driver。
+  if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+    export SHU_ASM_EXPERIMENTAL_SKIP_GEN="${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-1}"
+  fi
   # macOS/Windows CI：experimental bootstrap 成功后即停，勿再 strict 重链（30–60min+ 易超时）。
   export SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY=1
 fi
