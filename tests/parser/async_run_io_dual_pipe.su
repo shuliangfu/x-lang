@@ -11,9 +11,12 @@ async function read_chunk(fd: i32): i32 {
 
 function main(): i32 {
   let n1: i32 = run read_chunk(3);
+  if (n1 != 2) {
+    return 11;
+  }
   let n2: i32 = run read_chunk(4);
-  if (n1 + n2 != 5) {
-    return 1;
+  if (n2 != 3) {
+    return 12;
   }
   return 0;
 }
