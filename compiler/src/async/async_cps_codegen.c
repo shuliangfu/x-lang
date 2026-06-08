@@ -116,6 +116,29 @@ int async_cps_module_references_run_async(const struct ASTModule *m, const struc
     return 0;
 }
 
+/** async CPS 协程是否经 void (*)(void) 调度（含 await 帧时 true）。 */
+int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModule *m) {
+    AsyncFrameLayout layout;
+    if (!f || !m || !f->is_async || !async_liveness_func_has_await(f))
+        return 0;
+    return async_liveness_layout_func_module(f, m, &layout) == 0 && layout.num_awaits > 0;
+}
+
+/** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */
+void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
+    if (!f || !out)
+        return;
+    for (int pi = 0; pi < f->num_params; pi++) {
+        char cty[96];
+        const char *pname = f->params[pi].name;
+        const struct ASTType *pty = f->params[pi].type;
+        if (!pname || !pname[0] || !pty)
+            continue;
+        async_liveness_type_to_c_buf(pty, cty, sizeof(cty));
+        fprintf(out, "  static %s %s;\n", cty, pname);
+    }
+}
+
 /** 块内 used let 全部 hoist 到 switch 之前（A3 v0 线性函数）。 */
 static void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
     const struct ASTBlock *b = f && f->body ? f->body : NULL;
