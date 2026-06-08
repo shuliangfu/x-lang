@@ -66,7 +66,7 @@ fi
 RUN_FAILED_COUNT=0
 RUN_FAILED_SCRIPTS=""
 RUN_BSTRICT_SKIP_COUNT=0
-# bootstrap seed 下：typeck/check 与已验 -o 绿了的 run-*.sh 用 seed；其余 -o 仍走 shu-c（避免未覆盖用例 SIGSEGV）。
+# bootstrap seed 下：typeck/check/lexer/preprocess 用 seed；其余 -o 走 shu-c（L5 白名单仅 B-strict/shu_asm 门禁用）。
 # L5 白名单增量与三链矩阵：tests/docs/run-all-l5-whitelist.md
 # 白名单脚本列表（run_shu_for_script / SHULANG_BSTRICT_RUN_ALL 门禁共用）。
 run_all_l5_whitelist_case() {
@@ -79,13 +79,26 @@ run_all_l5_whitelist_case() {
 }
 run_shu_for_script() {
     local script="$1"
+    # bootstrap seed（非 B-strict）：仅 typeck/check/lexer/preprocess 用 seed；其余 -o 一律 shu-c（ubuntu seed asm 全链路易 SIGSEGV/ld 失败）。
+    if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -z "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
+        case "$script" in
+          run-typeck.sh|run-check.sh|run-lexer.sh|run-preprocess.sh)
+            echo "$SHU"
+            return 0
+            ;;
+          *)
+            echo "./compiler/shu-c"
+            return 0
+            ;;
+        esac
+    fi
     # 非 x86_64 bootstrap：可执行 -o 优先 shu-c；typeck/check/lexer 仍用 seed SHU 验 .su 流水线。
     case "$(uname -m 2>/dev/null)" in
       x86_64|amd64) ;;
       *)
         if [ -x ./compiler/shu-c ] && { [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] || [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ]; }; then
             case "$script" in
-              run-typeck.sh|run-check.sh|run-lexer.sh) ;;
+              run-typeck.sh|run-check.sh|run-lexer.sh|run-preprocess.sh) ;;
               *)
                 echo "./compiler/shu-c"
                 return 0
@@ -96,14 +109,6 @@ run_shu_for_script() {
     esac
     # B-strict：白名单脚本一律用 SHU（shu_asm），其余仍 shu-c（与 L4 拓扑相同，仅编译器二进制不同）。
     if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
-        if run_all_l5_whitelist_case "$script"; then
-            echo "$SHU"
-            return 0
-        fi
-        echo "./compiler/shu-c"
-        return 0
-    fi
-    if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -x ./compiler/shu-c ]; then
         if run_all_l5_whitelist_case "$script"; then
             echo "$SHU"
             return 0
