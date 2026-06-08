@@ -59,13 +59,10 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
-    while (n == SHU_IO_ASYNC_NOT_READY) {
+    if (n == SHU_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
         (void)shu_io_poll_async_completions(500);
 #endif
-        /* 尚无 CQE 时 re-suspend，避免 drain 将 NOT_READY 当作任务返回值累加。 */
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
         n = shu_io_complete_read_async_slot(ctx->slot);
     }
     return n;
