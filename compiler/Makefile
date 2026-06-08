@@ -734,6 +734,7 @@ RELINK_SHU_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) \
 .PHONY: relink-shu refresh-shu-asm-gate
 relink-shu: $(SHU_C) $(RELINK_SHU_PREREQS)
 	$(MAKE) driver_fmt_su.o driver_check_su.o
+	@$(MAKE) -B src/runtime_driver.o src/async/async_cps_codegen.o
 	@$(MAKE) pipeline_su.o PIPELINE_SU_FORCE_COMPILE=1
 	$(CC) $(CFLAGS) -DSHU_USE_SU_DRIVER -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET) $(DRIVER_SEED_OBJS) driver_su.o pipeline_su.o pipeline_bootstrap_orchestration.o lsp_su.o lsp_diag_su.o src/lsp/lsp_diag_su_alias.o lsp_io_su.o preprocess_su.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
 	@echo "relink-shu OK"
