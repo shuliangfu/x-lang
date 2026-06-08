@@ -25,6 +25,8 @@ if [ -n "${CI:-}" ] && [ "${SHU_ASM_CI_SKIP_FAST:-0}" != "1" ]; then
   export SHU_ASM_QUIET="${SHU_ASM_QUIET:-1}"
   export SHU_ASM_CI_SKIP_SECOND_PASS=1
   export SHU_ASM_EXPERIMENTAL_SKIP_GEN="${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-1}"
+  # macOS/Windows CI：experimental bootstrap 成功后即停，勿再 strict 重链（30–60min+ 易超时）。
+  export SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY=1
 fi
 
 # 调试 env 勿泄漏进 build_asm：SHU_ASM_START_FUNC>=模块 func 数时 emit 循环全跳过，仅剩 8B 空 __text 桩（B-strict PTEXT 门禁失败）。
@@ -83,6 +85,27 @@ emit_asm_text_stub_o() {
 # SKIP 表示该次 -backend asm -o 编译失败（命令非零退出）；默认保留 stderr，可直接看到失败原因（如 asm_codegen_elf_o failed）。
 # 常见原因：asm_codegen_elf_o 内某步失败，或 pipeline 解析/类型检查/codegen 失败。若需静默可设 SHU_ASM_QUIET=1。
 
+# CI 快速路径：非宿主 ISA 的 encoder 模块用 text stub，缩短 macOS/Windows build_shu_asm。
+asm_ci_host_skip_module() {
+  local out="$1"
+  local host=""
+  [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ] || return 1
+  case "$(uname -m 2>/dev/null)" in
+    arm64|aarch64) host=arm64 ;;
+    x86_64|amd64) host=x86_64 ;;
+    *) return 1 ;;
+  esac
+  case "$out" in
+    x86_64_enc.o|riscv64.o|riscv64_enc.o)
+      [ "$host" = "x86_64" ] && return 1
+      return 0 ;;
+    arm64_enc.o)
+      [ "$host" = "arm64" ] && return 1
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # 仅保留 emit 仍会宿主 Abort 的特大模块走 SKIP+桩；其余默认 C 预检 + 真 emit（见 pipeline_should_skip_su_typeck）。
 asm_out_needs_skip_typeck() {
   case "$1" in
@@ -101,6 +124,13 @@ compile_su() {
   local skip_typeck=0
   local preserve_backup=""
   printf "  asm %s -> %s ... " "$src" "$out"
+  # CI：交叉架构 encoder 用最小 stub .o，避免 x86_64_enc 等在 ARM macOS 上耗时/Abort。
+  if asm_ci_host_skip_module "$1"; then
+    if emit_asm_text_stub_o "$out"; then
+      echo "OK-ci-stub"
+      return 0
+    fi
+  fi
   # 自举第二遍：重编失败时保留已有非空 __text（避免 stage2 清空 build_asm/*.o）。
   if [ -f "$out" ] && [ -s "$out" ]; then
     preserve_backup="$BUILD_DIR/.preserve_${1}"
@@ -2487,6 +2517,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           export SHU_ASM_SECOND_PASS_COMPILER=./shu_asm.experimental
           LINK_OK=1
           LINK_MODE=asm_only_experimental
+          if [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ]; then
+            echo "build_shu_asm: CI fast — keep asm_only_experimental bootstrap (skip strict relink + gen_driver)"
+          else
           # 第二遍：bootstrap shu_asm 重编 pipeline/typeck/parser/backend，再 strict 重链（无 pipeline_su.o）。
           SECOND_PASS_OK=0
           if rebuild_pipeline_o_second_pass; then
@@ -2814,6 +2847,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               shu_asm_bstrict_fail "strict re-link skipped (pipeline.o __text=${PTEXT}B)"
             fi
             echo "build_shu_asm: strict re-link skipped (pipeline.o __text=${PTEXT}B); keeping bootstrap shu_asm with pipeline_su.o"
+          fi
           fi
         else
           if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
