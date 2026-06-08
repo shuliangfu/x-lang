@@ -64,10 +64,6 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
         (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_read_async_slot(ctx->slot);
     }
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
-    }
     return n;
 }
 
