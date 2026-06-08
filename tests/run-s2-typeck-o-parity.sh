@@ -96,8 +96,8 @@ else
   echo "s2 parity: pipeline_type_* glue refs whitelist OK"
 fi
 
-# ── 3) check_* mega 须为真 emit（非 7-insn 桩）──
-for entry in check_expr_impl:7 check_block_impl:10 typeck_su_ast:10; do
+# ── 3) check_* mega 须为真 emit（非 7-insn 桩）；ELF objdump 计数可能比 Mach-O 少 1 条 ──
+for entry in check_expr_impl:7 check_block_impl:9 typeck_su_ast:10; do
   name="${entry%%:*}"
   need="${entry##*:}"
   n=$(func_insn_count "$TYPECK_O" "$name")
