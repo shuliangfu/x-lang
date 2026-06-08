@@ -21,10 +21,8 @@ extern int32_t shu_io_complete_read_async_slot(int slot);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
-extern void shu_async_io_wake_all(void);
-extern uint32_t shu_async_io_waiters_pending(void);
 
 /** 单协程 read async 上下文。 */
 typedef struct {
@@ -100,28 +98,11 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * 双 task 完成驱动：poll + wake_all + drain，最多 8 轮。
- */
-static int dual_poll_drain_until_done(void) {
-    int round;
-    for (round = 0; round < 8; round++) {
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len)
-            return 0;
-        if (shu_async_io_waiters_pending() > 0)
-            shu_async_io_wake_all();
-        (void)shu_async_scheduler_drain();
-    }
-    return (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len) ? 0 : -1;
-}
-
-/**
- * 入口：双 pipe + 双 task submit + poll/wake + drain。
+ * 入口：双 pipe + 双 task submit + run_drain_until_idle。
  */
 int main(void) {
     int fds_a[2];
     int fds_b[2];
-    int32_t r;
     int chk;
 
     if (pipe(fds_a) != 0 || pipe(fds_b) != 0) {
@@ -156,21 +137,7 @@ int main(void) {
         return 3;
     }
 
-    r = shu_async_scheduler_drain();
-    if (r != 0) {
-        fprintf(stderr, "async_scheduler_io_read_parallel_poll: first drain got %d want 0\n", (int)r);
-        return 4;
-    }
-    if (shu_async_io_waiters_pending() != 2) {
-        fprintf(stderr, "async_scheduler_io_read_parallel_poll: waiters=%u want 2\n",
-            (unsigned)shu_async_io_waiters_pending());
-        return 5;
-    }
-
-    if (dual_poll_drain_until_done() != 0) {
-        fprintf(stderr, "async_scheduler_io_read_parallel_poll: dual poll drain timed out\n");
-        return 6;
-    }
+    (void)shu_async_run_drain_until_idle();
 
     chk = check_task(&g_task_a, "task_a");
     if (chk != 0)

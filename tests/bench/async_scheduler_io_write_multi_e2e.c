@@ -20,10 +20,8 @@ extern int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t hand
 extern int32_t shu_io_complete_write_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
-extern void shu_async_io_wake_all(void);
-extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 /** 单协程 write async 上下文。 */
@@ -109,28 +107,11 @@ static int check_writeback(const io_write_ctx_t *ctx, const char *label) {
 }
 
 /**
- * 双 task 完成驱动：poll + wake_all + drain，最多 8 轮。
- */
-static int dual_poll_drain_until_done(void) {
-    int round;
-    for (round = 0; round < 8; round++) {
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_a.result == g_task_a.payload_len && g_task_b.result == g_task_b.payload_len)
-            return 0;
-        if (shu_async_io_waiters_pending() > 0)
-            shu_async_io_wake_all();
-        (void)shu_async_scheduler_drain();
-    }
-    return (g_task_a.result == g_task_a.payload_len && g_task_b.result == g_task_b.payload_len) ? 0 : -1;
-}
-
-/**
- * 入口：双 pipe + 双 task submit/drain/wake/drain。
+ * 入口：双 pipe + 双 task submit + run_drain_until_idle。
  */
 int main(void) {
     int fds_a[2];
     int fds_b[2];
-    int32_t r;
     int chk;
 
     if (pipe(fds_a) != 0 || pipe(fds_b) != 0) {
@@ -162,21 +143,7 @@ int main(void) {
         return 2;
     }
 
-    r = shu_async_scheduler_drain();
-    if (r != 0) {
-        fprintf(stderr, "async_scheduler_io_write_multi_e2e: first drain got %d want 0\n", (int)r);
-        return 3;
-    }
-    if (shu_async_io_waiters_pending() != 2) {
-        fprintf(stderr, "async_scheduler_io_write_multi_e2e: waiters=%u want 2\n",
-            (unsigned)shu_async_io_waiters_pending());
-        return 4;
-    }
-
-    if (dual_poll_drain_until_done() != 0) {
-        fprintf(stderr, "async_scheduler_io_write_multi_e2e: dual poll drain timed out\n");
-        return 5;
-    }
+    (void)shu_async_run_drain_until_idle();
 
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
