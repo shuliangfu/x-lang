@@ -560,8 +560,8 @@ int32_t shu_async_run_drain_until_idle(void) {
         }
         shu_async_io_wake_all();
         stall++;
-        /* 防止 IO NOT_READY 重入时 poll=0/wake_all 死循环（CI 烟测有界退出）。 */
-        if (stall >= 8192u)
+        /* 有界退出：poll=0 且仅 wake_all 时最多 64 轮（避免 CI 8min 挂死）。 */
+        if (stall >= 64u)
             return sum;
     }
 }
