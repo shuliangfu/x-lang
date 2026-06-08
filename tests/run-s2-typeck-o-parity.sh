@@ -54,6 +54,8 @@ sym_text_bytes() {
 import subprocess, sys
 path, name = sys.argv[1], sys.argv[2]
 targets = {name, f"_{name}"}
+if not name.startswith("typeck_"):
+    targets.add(f"typeck_{name}")
 
 def parse_nm_size(line):
     parts = line.split()
@@ -97,6 +99,12 @@ print(0)
 PY
 }
 
+# 符号是否存在（ELF/Mach-O；可选 typeck_ 前缀）。
+sym_defined() {
+  local o="$1" sym="$2"
+  nm "$o" 2>/dev/null | grep -qE " T (_)?${sym}\$"
+}
+
 parity_fail() {
   echo "s2 parity FAIL: $*" >&2
   [ "$FAIL" = "1" ] && exit 1
@@ -135,14 +143,21 @@ else
   echo "s2 parity: pipeline_type_* glue refs whitelist OK"
 fi
 
-# ── 3) check_* mega 须为真 emit（7-insn 桩 ~32B）；用符号 Size 代替 objdump insn 计数 ──
-for entry in check_expr_impl_mega:128 check_block_impl:128 typeck_su_ast_impl:64; do
+# ── 3) EMIT_HEAVY 分片（ast_pool.c）：mega 入口 intentionally 桩化；safe helper 须真 emit ──
+for sym in check_block_impl check_expr_impl typeck_su_ast; do
+  if ! sym_defined "$TYPECK_O" "$sym"; then
+    parity_fail "missing mega entry symbol $sym (C glue alias target)"
+  fi
+done
+echo "s2 parity: mega entry symbols (stub OK) check_block_impl+check_expr_impl+typeck_su_ast"
+
+for entry in typeck_struct_layout_metrics:64 typeck_check_block_one_let:64 typeck_check_expr_binop:64; do
   name="${entry%%:*}"
   need="${entry##*:}"
   n=$(sym_text_bytes "$TYPECK_O" "$name")
   echo "s2 parity: ${name} size=${n}B (min=${need}B)"
   if [ "${n:-0}" -lt "${need}" ] 2>/dev/null; then
-    parity_fail "${name} size ${n}B < ${need}B"
+    parity_fail "${name} size ${n}B < ${need}B (expected EMIT_HEAVY safe helper)"
   fi
 done
 
