@@ -18,17 +18,20 @@ MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$
 MIN_REAL=${MIN_REAL:-0}
 
 # 统计 .o 中指令数 >10 的函数（排除统一 ret0 桩 prologue）
+# 统计 .o 中指令数 >10 的函数；忽略 objdump <sym+0xN> 内联标签（GNU ELF 否则截断 ~9 insn）
 count_real_asm_funcs() {
   python3 - "$1" <<'PY'
 import subprocess, re, sys
 path = sys.argv[1]
+head = r"^[0-9a-f]+ <(_?[^+>]+)>:\n"
+nxt = r"(?=^[0-9a-f]+ <_?[^+>]+>:\n|\Z)"
 try:
     text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
 except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
+for m in re.finditer(head + r"((?:.*\n)*?)" + nxt, text, re.M):
     body = m.group(2)
     insns = [ln for ln in body.splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:

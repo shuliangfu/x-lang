@@ -25,18 +25,22 @@ text_section_size() {
   perl -e 'print hex(shift)' "$hex" 2>/dev/null || echo 0
 }
 
-# 统计 .o 中指令数 >10 的函数；ELF 符号无 leading _，Mach-O 有 _（与 run-s2-typeck-gate.sh 一致）
+# GNU objdump 在函数体内会插入 <sym+0xN> 标签；须忽略带 '+' 的标签，否则 insn 计数被截断为 ~9。
+# ELF 无 leading _，Mach-O 有 _。
+# 统计 .o 中指令数 >10 的函数（排除统一 ret0 桩 prologue）
 count_real_asm_funcs() {
   python3 - "$1" <<'PY'
 import subprocess, re, sys
 path = sys.argv[1]
+head = r"^[0-9a-f]+ <(_?[^+>]+)>:\n"
+nxt = r"(?=^[0-9a-f]+ <_?[^+>]+>:\n|\Z)"
 try:
     text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
 except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
+for m in re.finditer(head + r"((?:.*\n)*?)" + nxt, text, re.M):
     insns = [ln for ln in m.group(2).splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:
         real += 1
@@ -48,8 +52,9 @@ func_insn_count() {
   python3 - "$1" "$2" <<'PY'
 import subprocess, re, sys
 path, name = sys.argv[1], sys.argv[2]
+nxt = r"(?=^[0-9a-f]+ <_?[^+>]+>:\n|\Z)"
 text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
-m = re.search(rf"^[0-9a-f]+ <_?{re.escape(name)}>:\n((?:.*\n)*?)(?=^[0-9a-f]+ <_?|\Z)", text, re.M)
+m = re.search(rf"^[0-9a-f]+ <_?{re.escape(name)}>:\n((?:.*\n)*?)" + nxt, text, re.M)
 if not m:
     print(0)
 else:
@@ -96,8 +101,8 @@ else
   echo "s2 parity: pipeline_type_* glue refs whitelist OK"
 fi
 
-# ── 3) check_* mega 须为真 emit（非 7-insn 桩）；typeck_su_ast 为薄入口（~7 insn），验 typeck_su_ast_impl ──
-for entry in check_expr_impl:7 check_block_impl:9 typeck_su_ast_impl:10; do
+# ── 3) check_* mega 须为真 emit（非 7-insn 桩）；typeck_su_ast 为薄入口，验 typeck_su_ast_impl ──
+for entry in check_expr_impl:7 check_block_impl:10 typeck_su_ast_impl:10; do
   name="${entry%%:*}"
   need="${entry##*:}"
   n=$(func_insn_count "$TYPECK_O" "$name")
@@ -129,20 +134,21 @@ echo "s2 parity: layout partial export symbols OK"
 if [ -f compiler/typeck_su.o ]; then
   SU_PARTIAL="compiler/build_asm/typeck_su_no_layout_partial.o"
   SU_SYMS="compiler/build_asm/typeck_su_no_layout_export.txt"
-  nm compiler/typeck_su.o 2>/dev/null | awk '/ T _typeck_/ {print $3}' | \
-    grep -v '_typeck_struct_layout_metrics$' | \
-    grep -v '_typeck_validate_struct_layouts_zero_padding$' | \
-    grep -v '_typeck_merge_dep_struct_layouts_into_entry$' | \
-    grep -v '_typeck_find_layout_idx_by_type_name$' >"$SU_SYMS" || true
+  nm compiler/typeck_su.o 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
+    grep -v '^typeck_struct_layout_metrics$' | \
+    grep -v '^typeck_validate_struct_layouts_zero_padding$' | \
+    grep -v '^typeck_merge_dep_struct_layouts_into_entry$' | \
+    grep -v '^typeck_find_layout_idx_by_type_name$' | \
+    sed 's/^/_/' >"$SU_SYMS" || true
   if [ -s "$SU_SYMS" ]; then
     echo "s2 parity: ld -r typeck_su.o -> $SU_PARTIAL (no layout dupes)"
-    if ld -r -exported_symbols_list "$SU_SYMS" -o "$SU_PARTIAL" compiler/typeck_su.o 2>"${SU_PARTIAL}.err"; then
+    if s2_ld_partial_export "$SU_SYMS" "$SU_PARTIAL" compiler/typeck_su.o 2>"${SU_PARTIAL}.err"; then
       echo "s2 parity: typeck_su_no_layout_partial OK"
     else
       parity_fail "typeck_su_no_layout partial failed (see ${SU_PARTIAL}.err)"
     fi
   else
-    echo "s2 parity: skip typeck_su_no_layout (no _typeck_ exports in typeck_su.o)"
+    echo "s2 parity: skip typeck_su_no_layout (no typeck_ exports in typeck_su.o)"
   fi
 else
   echo "s2 parity: skip typeck_su.o checks (compiler/typeck_su.o missing)"
