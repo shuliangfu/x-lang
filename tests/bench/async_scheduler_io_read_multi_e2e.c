@@ -25,7 +25,6 @@ extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
 extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
-extern uint32_t shu_async_scheduler_pending(void);
 
 /** 单协程 read async 上下文（模拟 codegen 帧 + slot）。 */
 typedef struct {
@@ -100,20 +99,21 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * 双 task 完成驱动：poll + drain 有界循环（避免 run_drain_until_idle 在 re-suspend 下挂死）。
+ * 双 task 完成驱动：poll + wake_all + drain 有界循环（禁止空队列早退，避免 result 仍为 -99）。
+ * 返回 0 成功，-1 超时未完成。
  */
-static void dual_poll_drain_until_done(void) {
+static int dual_poll_drain_until_done(void) {
     int round;
-    for (round = 0; round < 128; round++) {
-        unsigned polled = shu_io_poll_async_completions(100);
-        (void)shu_async_scheduler_drain();
+    (void)shu_io_poll_async_completions(500);
+    for (round = 0; round < 64; round++) {
         if (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len)
-            return;
-        if (shu_async_scheduler_pending() == 0 && shu_async_io_waiters_pending() == 0)
-            return;
-        if (polled == 0 && shu_async_io_waiters_pending() > 0)
+            return 0;
+        if (shu_async_io_waiters_pending() > 0)
             shu_async_io_wake_all();
+        (void)shu_async_scheduler_drain();
+        (void)shu_io_poll_async_completions(100);
     }
+    return -1;
 }
 
 /**
@@ -168,8 +168,11 @@ int main(void) {
         return 5;
     }
 
-    /* Linux io_uring：双 task 须多轮 poll+drain（单次 drain 易 NOT_READY；run_drain_until_idle 会挂死）。 */
-    dual_poll_drain_until_done();
+    /* Linux io_uring：双 task 须多轮 poll+wake+drain（禁止 run_drain_until_idle 挂死）。 */
+    if (dual_poll_drain_until_done() != 0) {
+        fprintf(stderr, "async_scheduler_io_read_multi_e2e: dual poll drain timed out\n");
+        return 6;
+    }
 
     chk = check_task(&g_task_a, "task_a");
     if (chk != 0)
