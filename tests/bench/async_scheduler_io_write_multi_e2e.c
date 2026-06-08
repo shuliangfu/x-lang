@@ -2,11 +2,9 @@
  * tests/bench/async_scheduler_io_write_multi_e2e.c — 双协程并行 write async + scheduler IO wake
  *
  * 两路 pipe 各 submit 一个 write async（slot 池 v2），双任务 suspend_io 后进等待队列，
- * wake_all 后 complete_write_async_slot 写入 "ab" 与 "xyz"。
- *
- * 编译：cc -std=c11 -o async_scheduler_io_write_multi_e2e \
- *   tests/bench/async_scheduler_io_write_multi_e2e.c std/io/io.o std/async/scheduler.o
+ * poll + wake_all 后 complete_write_async_slot 写入 "ab" 与 "xyz"。
  */
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,8 +18,10 @@ extern int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t hand
 extern int32_t shu_io_complete_write_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_run_drain_until_idle(void);
+extern int32_t shu_async_scheduler_drain(void);
 extern void shu_async_queue_reset(void);
+extern void shu_async_io_wake_all(void);
+extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 /** 单协程 write async 上下文。 */
@@ -40,7 +40,7 @@ static io_write_ctx_t g_task_a;
 static io_write_ctx_t g_task_b;
 
 /**
- * 单任务协程体：submit(slot) → suspend_io；resume 后 complete_slot。
+ * 单任务协程体：submit(slot) → suspend_io；resume 后 poll+retry complete_slot。
  */
 static int32_t io_write_task_impl(io_write_ctx_t *ctx) {
     int32_t n;
@@ -60,10 +60,6 @@ static int32_t io_write_task_impl(io_write_ctx_t *ctx) {
     if (n == SHU_IO_ASYNC_NOT_READY) {
         (void)shu_io_poll_async_completions(500);
         n = shu_io_complete_write_async_slot(ctx->slot);
-    }
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
     }
     ctx->result = n;
     return n;
@@ -106,12 +102,25 @@ static int check_writeback(const io_write_ctx_t *ctx, const char *label) {
     return 0;
 }
 
+/** poll + wake + drain，最多两轮。 */
+static void dual_io_poll_wake_drain(void) {
+    int round;
+    for (round = 0; round < 2; round++) {
+        (void)shu_io_poll_async_completions(500);
+        shu_async_io_wake_all();
+        (void)shu_async_scheduler_drain();
+        if (g_task_a.result == g_task_a.payload_len && g_task_b.result == g_task_b.payload_len)
+            return;
+    }
+}
+
 /**
- * 入口：双 pipe + 双 task submit + run_drain_until_idle。
+ * 入口：双 pipe + 双 task submit + poll/wake/drain。
  */
 int main(void) {
     int fds_a[2];
     int fds_b[2];
+    int32_t r;
     int chk;
 
     if (pipe(fds_a) != 0 || pipe(fds_b) != 0) {
@@ -143,7 +152,18 @@ int main(void) {
         return 2;
     }
 
-    (void)shu_async_run_drain_until_idle();
+    r = shu_async_scheduler_drain();
+    if (r != 0) {
+        fprintf(stderr, "async_scheduler_io_write_multi_e2e: first drain got %d want 0\n", (int)r);
+        return 3;
+    }
+    if (shu_async_io_waiters_pending() != 2) {
+        fprintf(stderr, "async_scheduler_io_write_multi_e2e: waiters=%u want 2\n",
+            (unsigned)shu_async_io_waiters_pending());
+        return 4;
+    }
+
+    dual_io_poll_wake_drain();
 
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
