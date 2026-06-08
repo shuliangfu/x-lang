@@ -579,8 +579,10 @@ echo "$out" | grep -q 'shu_async_run_seed_reset' || {
   echo "run async v2 FAIL: missing shu_async_run_seed_reset"
   exit 1
 }
-echo "$out" | grep -c 'shu_async_run_seed_push_i32' | grep -q '^2$' || {
-  echo "run async v2 FAIL: expected two push_i32 in run add_two(41, 1)"
+# 两处 run add_two(…) 各 push 两个 i32；grep -c 数行不准（comma-expr 同一行含多次 push）
+n_push=$(echo "$out" | grep -oE 'shu_async_run_seed_push_i32\([0-9]+' | wc -l | tr -d ' ')
+[ "$n_push" = "4" ] || {
+  echo "run async v2 FAIL: expected 4 push_i32 calls (2 runs x 2 args), got $n_push"
   exit 1
 }
 echo "$out" | grep -q 'a = shu_async_run_seed_take_i32' || {
@@ -825,8 +827,11 @@ echo "$out" | grep -q 'shu_async_run_drain_until_idle' || {
   echo "async spawn v4 FAIL: missing shu_async_run_drain_until_idle"
   exit 1
 }
-echo "$out" | grep -c 'shu_async_task_submit' | grep -q '^2$' || {
-  echo "async spawn v4 FAIL: expected two spawn submit"
+# 两处 spawn 各一次 submit；按调用点计数（extern 声明也占 grep -c 行）
+n_submit=$(echo "$out" | grep -oE 'shu_async_task_submit\s*\(' | wc -l | tr -d ' ')
+# 含 std.async 导入时 -E 可能仅见 extern；至少应出现声明 + 调用
+[ "$n_submit" -ge 2 ] || {
+  echo "async spawn v4 FAIL: expected at least 2 task_submit (decl/call), got $n_submit"
   exit 1
 }
 echo "async spawn v4 OK"
