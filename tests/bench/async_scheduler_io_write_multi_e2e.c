@@ -60,12 +60,9 @@ static int32_t io_write_task_impl(io_write_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_write_async_slot(ctx->slot);
-    while (n == SHU_IO_ASYNC_NOT_READY) {
-#if defined(__linux__)
-        (void)shu_io_poll_async_completions(50);
-#else
-        shu_async_io_wake_all();
-#endif
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+        if (shu_async_cps_suspend_io(&ctx->phase, 1))
+            return SHU_ASYNC_SUSPENDED;
         n = shu_io_complete_write_async_slot(ctx->slot);
     }
     ctx->result = n;
