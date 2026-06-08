@@ -47,7 +47,12 @@ echo "bootstrap-bstrict-ci: run-shu-asm-gate ..."
 SHU=./compiler/shu_asm ./tests/run-shu-asm-gate.sh
 
 echo "bootstrap-bstrict-ci: asm compute gate (binop + vector + call-inline) ..."
-SHU=./compiler/shu_asm ./tests/run-asm-73-gate.sh
+# refresh-shu-asm-gate 已将 shu_asm 覆写为 seed shu（C 链）；asm 烟测须 experimental/strict asm 产物。
+ASM_COMPUTE_SHU="./compiler/shu_asm.experimental"
+if [ ! -x "$ASM_COMPUTE_SHU" ]; then
+  ASM_COMPUTE_SHU="./compiler/shu_asm"
+fi
+SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
 
 echo "bootstrap-bstrict-ci: run-all-bstrict (replace seed, whitelist) ..."
 export SHU_BSTRICT_SKIP_BUILD=1
