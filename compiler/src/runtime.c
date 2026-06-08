@@ -1149,6 +1149,29 @@ static int shu_ld_freestanding_enabled(void) {
     return e && e[0] && e[0] != '0';
 }
 
+/**
+ * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
+ * 全平台可用：仅扫描文本，不依赖 nm（Windows invoke_cc 亦需此判定）。
+ */
+static int generated_c_needs_async_scheduler(const char *c_path) {
+    FILE *fp;
+    char buf[4096];
+    if (!c_path || !c_path[0])
+        return 0;
+    fp = fopen(c_path, "r");
+    if (!fp)
+        return 0;
+    while (fgets(buf, sizeof buf, fp)) {
+        if (strstr(buf, "shu_async_run_i32") || strstr(buf, "shu_async_cps_suspend")
+            || strstr(buf, "shu_async_task_submit") || strstr(buf, "shu_async_run_seed_")) {
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
 #if defined(__linux__) || defined(__APPLE__)
 /**
  * 扫描用户 .o 的 nm 未定义符号表；若引用 sym 则返回 1。
@@ -1185,28 +1208,6 @@ static int freestanding_o_needs_undef_sym(const char *o_path, const char *sym) {
         }
     }
     pclose(fp);
-    return 0;
-}
-
-/**
- * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
- */
-static int generated_c_needs_async_scheduler(const char *c_path) {
-    FILE *fp;
-    char buf[4096];
-    if (!c_path || !c_path[0])
-        return 0;
-    fp = fopen(c_path, "r");
-    if (!fp)
-        return 0;
-    while (fgets(buf, sizeof buf, fp)) {
-        if (strstr(buf, "shu_async_run_i32") || strstr(buf, "shu_async_cps_suspend")
-            || strstr(buf, "shu_async_task_submit") || strstr(buf, "shu_async_run_seed_")) {
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
     return 0;
 }
 
