@@ -850,11 +850,8 @@ echo "async spawn parallel IO: push+submit x2 + drain_until_idle (C harness) ...
 if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_io_spawn_parallel \
   tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
   rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_spawn_parallel; echo $?)
-  if [ "$rc" = "0" ]; then
-    echo "async spawn parallel IO OK"
-  else
-    echo "async spawn parallel IO WARN: exit=$rc (async linux full + IO parallel poll cover spawn IO)"
-  fi
+  [ "$rc" = "0" ] || { echo "async spawn parallel IO FAIL: exit=$rc"; exit 1; }
+  echo "async spawn parallel IO OK"
 else
   echo "async spawn parallel IO: skip (build io.o/scheduler.o)"
 fi
