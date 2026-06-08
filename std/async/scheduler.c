@@ -558,7 +558,17 @@ int32_t shu_async_run_drain_until_idle(void) {
             stall = 0;
             continue;
         }
+        /*
+         * Linux io_uring：无 CQE 时勿 wake IO 等待者，否则 resume 后 complete 得 NOT_READY
+         * 会被当作任务结束（累加 -2），spawn 并行 drain 出现 total=1/-2。
+         * macOS 同步 complete 路径仍依赖 wake_all 推进。
+         */
+#if !defined(__linux__)
         shu_async_io_wake_all();
+#else
+        if (shu_async_io_waiters_pending() == 0)
+            shu_async_io_wake_all();
+#endif
         stall++;
         /* 有界退出：poll=0 且仅 wake_all 时最多 64 轮（避免 CI 8min 挂死）。 */
         if (stall >= 64u)
