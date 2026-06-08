@@ -71,4 +71,10 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
 /** 模块内是否有 run async_fn() 引用（供 DCE/WPO 保留协程体）。 */
 int async_cps_module_references_run_async(const struct ASTModule *m, const struct ASTFunc *async_fn);
 
+/** async CPS 协程是否经 void (*)(void) 调度（含 await 帧时 true）。 */
+int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModule *m);
+
+/** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */
+void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out);
+
 #endif
