@@ -542,11 +542,16 @@ jobs:
         run: make -C compiler test_su
         timeout-minutes: 25
       - name: Goal 2 asm build script (build_shu_asm.sh)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         timeout-minutes: 45
         env:
           CI: "1"
+      - name: Goal 2 asm skipped (macOS; ubuntu CI covers build_shu_asm)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "build_shu_asm skipped on macOS (Darwin asm link pending; ubuntu x64 CI covers Goal 2)"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         timeout-minutes: 3
         env:
@@ -564,8 +569,12 @@ jobs:
         if: runner.os != 'Linux' || runner.arch != 'X64'
         run: echo "s2 typeck gate skipped on macOS (build_asm stub CI path; see ubuntu CI)"
       - name: shu_asm smoke (return-value + bootstrap gate)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: cd compiler && ./scripts/run_shu_asm_smoke.sh
         timeout-minutes: 8
+      - name: shu_asm smoke skipped (macOS; ubuntu CI covers shu_asm)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "shu_asm smoke skipped on macOS (no shu_asm on this job; ubuntu x64 CI covers smoke)"
       - name: DOD-S1/S2/S3 SoA/AoS bench (correctness + L1 perf, shu_asm)
         if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
@@ -725,12 +734,20 @@ jobs:
         env:
           CI: "1"
       - name: Goal 2 asm build script (build_shu_asm.sh)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
         shell: msys2 {0}
         timeout-minutes: 45
         env:
           CI: "1"
+      - name: Goal 2 asm skipped (Windows; ubuntu CI covers build_shu_asm)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "build_shu_asm skipped on Windows (MSYS asm link pending; ubuntu x64 CI covers Goal 2)"
+        shell: msys2 {0}
+        env:
+          CI: "1"
       - name: Asm object code section sizes (Mach-O __text / ELF .text)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
         shell: msys2 {0}
         timeout-minutes: 3
