@@ -735,6 +735,7 @@ void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
     fprintf(out, "extern int shu_async_task_submit(int32_t (*fn)(void));\n");
     fprintf(out, "extern int32_t shu_async_run_drain_until_idle(void);\n");
     fprintf(out, "extern void shu_async_queue_reset(void);\n");
+    fprintf(out, "extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);\n");
     fprintf(out, "#define SHU_ASYNC_SUSPENDED ((int32_t)0x41535700)\n");
     fprintf(out, "#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)\n");
     fprintf(out, "#endif\n");
