@@ -49,8 +49,7 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
     if (!ctx)
         return -1;
     if (ctx->step == 0) {
-        if (shu_async_run_seed_valid())
-            ctx->read_fd = shu_async_run_seed_take_i32();
+        /* fd 由 main 预设；勿用全局 seed FIFO（并行 worker 时 seed 非线程安全）。 */
         ctx->step = 1;
         ctx->phase = 0;
         ctx->slot = shu_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
@@ -61,8 +60,12 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
             return SHU_ASYNC_SUSPENDED;
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
-    if (n == SHU_IO_ASYNC_NOT_READY) {
+    while (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
         (void)shu_io_poll_async_completions(500);
+#endif
+        if (shu_async_cps_suspend_io(&ctx->phase, 1))
+            return SHU_ASYNC_SUSPENDED;
         n = shu_io_complete_read_async_slot(ctx->slot);
     }
     return n;
@@ -109,14 +112,14 @@ int main(void) {
 
     memset(&g_ctx_a, 0, sizeof(g_ctx_a));
     memset(&g_ctx_b, 0, sizeof(g_ctx_b));
+    g_ctx_a.read_fd = fds_a[0];
+    g_ctx_b.read_fd = fds_b[0];
 
     shu_async_queue_reset();
-    shu_async_run_seed_push_i32(fds_a[0]);
     if (shu_async_task_submit(io_spawn_read_a) != 0) {
         fprintf(stderr, "async_run_io_spawn_workers: submit a failed\n");
         return 4;
     }
-    shu_async_run_seed_push_i32(fds_b[0]);
     if (shu_async_task_submit(io_spawn_read_b) != 0) {
         fprintf(stderr, "async_run_io_spawn_workers: submit b failed\n");
         return 5;
