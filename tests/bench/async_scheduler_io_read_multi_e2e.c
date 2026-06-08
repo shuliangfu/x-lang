@@ -22,9 +22,8 @@ extern int32_t shu_io_complete_read_async_slot(int slot);
 extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
 extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
+extern int32_t shu_async_run_drain_until_idle(void);
 extern void shu_async_queue_reset(void);
-extern void shu_async_io_wake_all(void);
-extern void shu_async_io_wake(unsigned n);
 extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
@@ -99,24 +98,12 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * Linux io_uring：poll 后逐个 wake(1)+drain，避免双 task 同轮争抢 CQE。
+ * Linux io_uring：poll 窥视 CQE 并唤醒 IO 等待者，再 drain 直至空闲。
+ * poll 会把任务移入就绪环（waiters=0），须始终 drain，不能仅 waiters>0 时 drain。
  */
 static void dual_io_poll_wake_drain(void) {
-    int round;
-    for (round = 0; round < 16; round++) {
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_a.result != g_task_a.expect_len && shu_async_io_waiters_pending() > 0) {
-            shu_async_io_wake(1);
-            (void)shu_async_scheduler_drain();
-        }
-        (void)shu_io_poll_async_completions(500);
-        if (g_task_b.result != g_task_b.expect_len && shu_async_io_waiters_pending() > 0) {
-            shu_async_io_wake(1);
-            (void)shu_async_scheduler_drain();
-        }
-        if (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len)
-            return;
-    }
+    (void)shu_io_poll_async_completions(500);
+    (void)shu_async_run_drain_until_idle();
 }
 
 /**
