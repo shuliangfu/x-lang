@@ -15,7 +15,7 @@
  *   connect/accept 成功后自动 io_uring_prefetch_fd（SQPOLL fixed files 槽预热）。
  *   SHU_IO_URING_RING_ENTRIES — ring 深度（64..4096，默认 512）。
  *   SHU_IO_ASYNC_SLOTS — IO-A5 read/write async 并行槽数（1..32，默认 8）。
- *   IO-A5 v3：shu_io_poll_async_completions 窥视/等待 CQE 并唤醒 async scheduler。
+ *   IO-A5 v3：shu_io_poll_async_completions 收割 CQE 至 slot 并唤醒 async scheduler。
  */
 
 /* Linux io_uring：须在任意 #include 之前定义，否则 liburing 缺 cpu_set_t/loff_t（Alpine/musl）。 */
@@ -1037,6 +1037,8 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
 /** read async 单槽状态。 */
 typedef struct {
     int pending;
+    int reaped;       /* poll 路径已收割 CQE，待 complete 取结果 */
+    int32_t reaped_res;
     size_t handle;
     uint8_t *ptr;
     size_t len;
@@ -1045,6 +1047,8 @@ typedef struct {
 /** write async 单槽状态。 */
 typedef struct {
     int pending;
+    int reaped;
+    int32_t reaped_res;
     size_t handle;
     const uint8_t *ptr;
     size_t len;
@@ -1097,8 +1101,8 @@ static int shu_io_write_udata_to_slot(uintptr_t u) {
 }
 
 /**
- * IO-A5 v3：窥视/等待 async read/write CQE（不消费），就绪后 shu_async_io_completions_ready 唤醒。
- * timeout_ms=0 仅 peek；>0 无 CQE 时 wait_cqe_timeout。返回就绪 async 完成数（未 seen）。
+ * IO-A5 v3：窥视/等待 async read/write CQE，收割至 slot 后唤醒 scheduler。
+ * timeout_ms=0 仅 peek；>0 无 CQE 时 wait_cqe_timeout。返回本次收割的 async 完成数。
  */
 unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
 #if defined(__linux__)
@@ -1124,9 +1128,30 @@ unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
     }
     async_n = 0;
     for (i = 0; i < got; i++) {
-        uintptr_t u = (uintptr_t)io_uring_cqe_get_data(cqe_ptrs[i]);
-        if (shu_io_read_udata_to_slot(u) >= 0 || shu_io_write_udata_to_slot(u) >= 0)
-            async_n++;
+        struct io_uring_cqe *cqe_i = cqe_ptrs[i];
+        uintptr_t u = (uintptr_t)io_uring_cqe_get_data(cqe_i);
+        int rs = shu_io_read_udata_to_slot(u);
+        int ws;
+        if (rs >= 0) {
+            shu_io_read_async_slot_t *st = &shu_io_read_slots[rs];
+            if (st->pending && !st->reaped) {
+                st->reaped = 1;
+                st->reaped_res = (int32_t)cqe_i->res;
+                io_uring_cqe_seen(ring, cqe_i);
+                async_n++;
+            }
+            continue;
+        }
+        ws = shu_io_write_udata_to_slot(u);
+        if (ws >= 0) {
+            shu_io_write_async_slot_t *st = &shu_io_write_slots[ws];
+            if (st->pending && !st->reaped) {
+                st->reaped = 1;
+                st->reaped_res = (int32_t)cqe_i->res;
+                io_uring_cqe_seen(ring, cqe_i);
+                async_n++;
+            }
+        }
     }
     if (async_n > 0)
         shu_io_async_notify_cq(async_n);
@@ -1142,7 +1167,7 @@ static int shu_io_read_slot_alloc(void) {
     int cap = shu_io_async_slot_count();
     int i;
     for (i = 0; i < cap; i++) {
-        if (!shu_io_read_slots[i].pending)
+        if (!shu_io_read_slots[i].pending && !shu_io_read_slots[i].reaped)
             return i;
     }
     return -1;
@@ -1153,7 +1178,7 @@ static int shu_io_write_slot_alloc(void) {
     int cap = shu_io_async_slot_count();
     int i;
     for (i = 0; i < cap; i++) {
-        if (!shu_io_write_slots[i].pending)
+        if (!shu_io_write_slots[i].pending && !shu_io_write_slots[i].reaped)
             return i;
     }
     return -1;
@@ -1195,6 +1220,7 @@ int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
         if (io_uring_submit(ring) < 0)
             return -1;
         shu_io_read_slots[slot].pending = 1;
+        shu_io_read_slots[slot].reaped = 0;
         shu_io_read_slots[slot].handle = handle;
         shu_io_read_slots[slot].ptr = ptr;
         shu_io_read_slots[slot].len = len;
@@ -1202,6 +1228,7 @@ int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
     }
 #else
     shu_io_read_slots[slot].pending = 1;
+    shu_io_read_slots[slot].reaped = 0;
     shu_io_read_slots[slot].handle = handle;
     shu_io_read_slots[slot].ptr = ptr;
     shu_io_read_slots[slot].len = len;
@@ -1217,6 +1244,12 @@ int32_t shu_io_complete_read_async_slot(int slot) {
     if (slot < 0 || slot >= shu_io_async_slot_count())
         return -1;
     st = &shu_io_read_slots[slot];
+    if (st->reaped) {
+        int32_t out = st->reaped_res >= 0 ? st->reaped_res : -1;
+        st->reaped = 0;
+        st->pending = 0;
+        return out;
+    }
     if (!st->pending)
         return -1;
 #if defined(__linux__)
@@ -1241,6 +1274,7 @@ int32_t shu_io_complete_read_async_slot(int slot) {
             io_uring_cqe_seen(ring, cqe);
             shu_io_async_notify_cq(1);
             st->pending = 0;
+            st->reaped = 0;
             return res >= 0 ? res : -1;
         }
         return (int32_t)-2;
@@ -1421,6 +1455,7 @@ int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
         if (io_uring_submit(ring) < 0)
             return -1;
         shu_io_write_slots[slot].pending = 1;
+        shu_io_write_slots[slot].reaped = 0;
         shu_io_write_slots[slot].handle = handle;
         shu_io_write_slots[slot].ptr = ptr;
         shu_io_write_slots[slot].len = len;
@@ -1428,6 +1463,7 @@ int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
     }
 #else
     shu_io_write_slots[slot].pending = 1;
+    shu_io_write_slots[slot].reaped = 0;
     shu_io_write_slots[slot].handle = handle;
     shu_io_write_slots[slot].ptr = ptr;
     shu_io_write_slots[slot].len = len;
@@ -1443,6 +1479,12 @@ int32_t shu_io_complete_write_async_slot(int slot) {
     if (slot < 0 || slot >= shu_io_async_slot_count())
         return -1;
     st = &shu_io_write_slots[slot];
+    if (st->reaped) {
+        int32_t out = st->reaped_res >= 0 ? st->reaped_res : -1;
+        st->reaped = 0;
+        st->pending = 0;
+        return out;
+    }
     if (!st->pending)
         return -1;
 #if defined(__linux__)
@@ -1467,6 +1509,7 @@ int32_t shu_io_complete_write_async_slot(int slot) {
             io_uring_cqe_seen(ring, cqe);
             shu_io_async_notify_cq(1);
             st->pending = 0;
+            st->reaped = 0;
             return res >= 0 ? res : -1;
         }
         return (int32_t)-2;
