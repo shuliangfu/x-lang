@@ -121,6 +121,15 @@ run_shu_for_script() {
 run() {
     local script="$1"
     local run_shu
+    # CI Linux：run-asm-* 依赖 macOS otool 验 arm64 spill；asm 由 asm-smoke / build_shu_asm job 覆盖。
+    if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${SHU_CI_FORCE_ASM:-}" ]; then
+        case "$script" in
+          run-asm*.sh|run-enum-asm.sh)
+            echo "run-all SKIP (CI: $script; asm otool gates need macOS or SHU_CI_FORCE_ASM=1)"
+            return 0
+            ;;
+        esac
+    fi
     run_shu=$(run_shu_for_script "$script")
     if [ ! -f "tests/$script" ]; then
         echo "run-all FAIL: missing tests/$script" >&2
