@@ -17,6 +17,9 @@ export SHU
 export SHU_SKIP_PARSE_SMOKE=1
 export SHULANG_BSTRICT_RUN_ALL=1
 export SHULANG_SKIP_SUBSCRIPT_MAKE=1
+# 子脚本 -o 链接：check/typeck 仍用 $SHU（shu_asm）；可执行链接用 shu-c（ubuntu 全链路 -o 易 SIGSEGV）。
+export SHULANG_LINK_SHU=./compiler/shu-c
+make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
 ulimit -s 16384 2>/dev/null || true
 
 echo "run-shu-asm-gate: hello (import std.io) ..."
