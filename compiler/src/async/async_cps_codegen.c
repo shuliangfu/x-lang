@@ -317,7 +317,7 @@ void async_cps_codegen_emit_sched_wrapper(const struct ASTFunc *f, const char *c
     fprintf(out, "extern int32_t shu_async_run_i32(int32_t (*fn)(void));\n");
     fprintf(out, "#endif\n");
     fprintf(out, "int32_t shu_async_sched_%s(void) {\n", f->name);
-    fprintf(out, "  return shu_async_run_i32(%s);\n", c_fname);
+    fprintf(out, "  return shu_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
     fprintf(out, "}\n");
 }
 
