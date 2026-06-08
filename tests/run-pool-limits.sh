@@ -5,13 +5,17 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHU=${SHU:-./compiler/shu}
+# shellcheck source=lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+# -o 链接：bootstrap/shu_asm gate 经 SHULANG_LINK_SHU 走 shu-c（asm 大模块 fn259 等易 ld 失败）。
+COMPILE_SHU="$RUN_SHU"
 TMPDIR=${TMPDIR:-/tmp}
 GEN_DIR="$TMPDIR/shu_pool_limits_gen"
 mkdir -p "$GEN_DIR"
 
 run_expect_exit() {
   local src="$1" expect="$2" label="$3"
-  $SHU "$src" -o "$GEN_DIR/out_${label}" 2>&1
+  $COMPILE_SHU "$src" -o "$GEN_DIR/out_${label}" 2>&1
   local ec=0
   "$GEN_DIR/out_${label}" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne "$expect" ]; then
@@ -97,7 +101,7 @@ while [ "$i" -le "$DEPTH" ]; do
   i=$((i + 1))
 done
 # shellcheck disable=SC2086
-$SHU $DEFS "$GEN_DIR/deep_if_nest.su" -o "$GEN_DIR/out_deep_if" 2>&1
+$COMPILE_SHU $DEFS "$GEN_DIR/deep_if_nest.su" -o "$GEN_DIR/out_deep_if" 2>&1
 ec=0
 "$GEN_DIR/out_deep_if" >/dev/null 2>&1 || ec=$?
 if [ "$ec" -ne 40 ]; then
