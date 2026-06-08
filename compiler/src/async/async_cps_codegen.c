@@ -137,32 +137,43 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     ctx->phase_next = 1;
     ctx->switch_open = 0;
     emit_hoisted_lets(f, out);
+    /* run v3/v4：新 run 有 seed 时在 switch 前重置 phase 并注入实参（静态帧跨多次 run）。 */
+    {
+        int has_seed_param = 0;
+        for (int pi = 0; pi < f->num_params; pi++) {
+            const struct ASTType *pty = f->params[pi].type;
+            if (!f->params[pi].name || !pty)
+                continue;
+            if (pty->kind == AST_TYPE_I32 || pty->kind == AST_TYPE_U32
+                || pty->kind == AST_TYPE_I64 || pty->kind == AST_TYPE_USIZE)
+                has_seed_param = 1;
+        }
+        if (has_seed_param) {
+            fprintf(out, "  if (shu_async_run_seed_valid()) {\n");
+            fprintf(out, "    __shu_frame.__phase = 0;\n");
+            for (int pi = 0; pi < f->num_params; pi++) {
+                const char *pname;
+                const struct ASTType *pty;
+                if (!f->params[pi].name || !f->params[pi].type)
+                    continue;
+                pname = f->params[pi].name;
+                pty = f->params[pi].type;
+                if (pty->kind == AST_TYPE_U32)
+                    fprintf(out, "    %s = shu_async_run_seed_take_u32();\n", pname);
+                else if (pty->kind == AST_TYPE_I64)
+                    fprintf(out, "    %s = shu_async_run_seed_take_i64();\n", pname);
+                else if (pty->kind == AST_TYPE_USIZE)
+                    fprintf(out, "    %s = shu_async_run_seed_take_usize();\n", pname);
+                else if (pty->kind == AST_TYPE_I32)
+                    fprintf(out, "    %s = shu_async_run_seed_take_i32();\n", pname);
+            }
+            fprintf(out, "  }\n");
+        }
+    }
     fprintf(out, "  /* SHU_ASYNC_CPS switch=1 awaits=%d */\n", layout->num_awaits);
     fprintf(out, "  switch (__shu_frame.__phase) {\n");
     fprintf(out, "  default:\n");
     fprintf(out, "  case 0:\n");
-    /* run v3：各 seed 支持形参按类型从队列注入（phase 0 首次进入）。 */
-    for (int pi = 0; pi < f->num_params; pi++) {
-        const char *pname;
-        const struct ASTType *pty;
-        if (!f->params[pi].name || !f->params[pi].type)
-            continue;
-        pname = f->params[pi].name;
-        pty = f->params[pi].type;
-        if (pty->kind != AST_TYPE_I32 && pty->kind != AST_TYPE_U32 && pty->kind != AST_TYPE_I64
-            && pty->kind != AST_TYPE_USIZE)
-            continue;
-        fprintf(out, "    if (__shu_frame.__phase == 0 && shu_async_run_seed_valid()) {\n");
-        if (pty->kind == AST_TYPE_U32)
-            fprintf(out, "      %s = shu_async_run_seed_take_u32();\n", pname);
-        else if (pty->kind == AST_TYPE_I64)
-            fprintf(out, "      %s = shu_async_run_seed_take_i64();\n", pname);
-        else if (pty->kind == AST_TYPE_USIZE)
-            fprintf(out, "      %s = shu_async_run_seed_take_usize();\n", pname);
-        else
-            fprintf(out, "      %s = shu_async_run_seed_take_i32();\n", pname);
-        fprintf(out, "    }\n");
-    }
     ctx->switch_open = 1;
 }
 
