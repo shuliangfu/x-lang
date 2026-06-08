@@ -12,6 +12,12 @@ if [ "$(uname -s)" = "Linux" ]; then
   SHU_IO_CC_LIBS="-luring -lpthread"
 fi
 
+# run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
+_run_async_arg_count_rejected() {
+  $SHU -L . "$1" -o /tmp/shu_run_async_arg_err 2>&1 \
+    | grep -qE "argument count must match|expects [0-9]+ arguments, got"
+}
+
 # 选用可执行编译器：shu（seed）优先；缺失时 shu-c（本地 mixed ELF 环境常见）
 if [ -x ./compiler/shu ]; then
   SHU=./compiler/shu
@@ -535,7 +541,7 @@ echo "$out" | grep -q 'shu_async_run_seed_take_i32' || {
   echo "run async v1 FAIL: missing seed take in async entry"
   exit 1
 }
-if $SHU -L . tests/parser/run_async_arg_err.su -o /tmp/shu_run_async_arg_err 2>&1 | grep -q "argument count must match"; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg_err.su; then
   : # 预期 typeck 报错：两实参对一形参
 else
   echo "run async v1 FAIL: run arg count mismatch should be rejected"
@@ -579,13 +585,13 @@ echo "$out" | grep -q 'b = shu_async_run_seed_take_i32' || {
   echo "run async v2 FAIL: missing seed take for param b"
   exit 1
 }
-if $SHU -L . tests/parser/run_async_arg2_err.su -o /tmp/shu_run_async_arg2_err 2>&1 | grep -q "argument count must match"; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg2_err.su; then
   : # 预期 typeck 报错
 else
   echo "run async v2 FAIL: run with one arg to two-param fn should be rejected"
   exit 1
 fi
-if $SHU -L . tests/parser/run_async_arg3_err.su -o /tmp/shu_run_async_arg3_err 2>&1 | grep -q "argument count must match"; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg3_err.su; then
   : # 预期 typeck 报错
 else
   echo "run async v2 FAIL: run with three args to one-param fn should be rejected"
