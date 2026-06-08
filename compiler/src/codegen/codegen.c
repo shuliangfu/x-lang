@@ -513,9 +513,13 @@ static int codegen_async_cps_await_read_fd(AsyncCpsCodegenCtx *ctx, const struct
         fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
     }
     fprintf(out, "%s%s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n", p, var_name);
-    /* IO resume 后 CQE 可能尚未收割；与 async_run_i32_io_stdin 烟测对齐 retry。 */
-    fprintf(out, "%sif (%s == (int32_t)SHU_IO_ASYNC_NOT_READY) %s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n",
-        p, var_name, var_name);
+    /* IO resume 后 CQE 可能尚未收割；poll + retry（与 io_read_async_multi 烟测对齐）。 */
+    fprintf(out, "%sif (%s == (int32_t)SHU_IO_ASYNC_NOT_READY) {\n", p, var_name);
+    fprintf(out, "%s#if defined(__linux__)\n", p);
+    fprintf(out, "%s  (void)shu_io_poll_async_completions(500);\n", p);
+    fprintf(out, "%s#endif\n", p);
+    fprintf(out, "%s  %s = shu_io_complete_read_async_slot(__shu_frame.__io_rd_slot);\n", p, var_name);
+    fprintf(out, "%s}\n", p);
     return 0;
 }
 
@@ -2841,7 +2845,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         }
         case AST_EXPR_SPAWN: {
-            /* IO-A5 v4：spawn async_fn(...) → reset + push seed(s) + task_submit；每次 spawn 独立 seed 队列。 */
+            /* IO-A5 v4：spawn async_fn(...) → push seed(s) + task_submit；多 spawn 共享 FIFO，按 submit 顺序取 seed。 */
             const struct ASTExpr *op = e->value.unary.operand;
             const struct ASTFunc *af;
             int ai;
@@ -2851,13 +2855,16 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             if (!af->name || !af->is_async)
                 return -1;
             if (op->value.call.num_args > 0) {
-                fprintf(out, "(shu_async_run_seed_reset()");
                 for (ai = 0; ai < op->value.call.num_args; ai++) {
                     const struct ASTExpr *a = op->value.call.args[ai];
                     const struct ASTType *pty = (ai < af->num_params) ? af->params[ai].type : NULL;
                     if (!a)
                         return -1;
-                    fprintf(out, ", %s(", codegen_run_seed_push_fn(pty));
+                    if (ai == 0)
+                        fprintf(out, "(");
+                    else
+                        fprintf(out, ", ");
+                    fprintf(out, "%s(", codegen_run_seed_push_fn(pty));
                     if (codegen_expr(a, out) != 0) return -1;
                     fprintf(out, ")");
                 }
