@@ -12,8 +12,21 @@
 
 extern int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);
 extern int32_t shu_io_complete_write_async_slot(int slot);
+extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
 #define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+
+/** Linux：双 slot submit 后 poll 再 complete，避免 CQE 未就绪。 */
+static int32_t io_write_slot_complete_with_poll(int slot) {
+    int32_t n = shu_io_complete_write_async_slot(slot);
+    if (n == SHU_IO_ASYNC_NOT_READY) {
+#if defined(__linux__)
+        (void)shu_io_poll_async_completions(500);
+#endif
+        n = shu_io_complete_write_async_slot(slot);
+    }
+    return n;
+}
 
 /**
  * 入口：双 pipe 并行 write async submit + slot complete。
@@ -44,12 +57,8 @@ int main(void) {
         return 2;
     }
 
-    na = shu_io_complete_write_async_slot(slot_a);
-    if (na == SHU_IO_ASYNC_NOT_READY)
-        na = shu_io_complete_write_async_slot(slot_a);
-    nb = shu_io_complete_write_async_slot(slot_b);
-    if (nb == SHU_IO_ASYNC_NOT_READY)
-        nb = shu_io_complete_write_async_slot(slot_b);
+    na = io_write_slot_complete_with_poll(slot_a);
+    nb = io_write_slot_complete_with_poll(slot_b);
 
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
