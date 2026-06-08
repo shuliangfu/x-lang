@@ -147,9 +147,22 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   fi
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
+  # asm 白名单须 asm-capable 编译器 -o；refresh 后 shu 为 seed 链，experimental 仍保留真 asm。
+  script_shu="$SHU"
+  script_link="${SHULANG_LINK_SHU:-}"
+  case "$script" in
+    run-asm-*.sh)
+      if [ -x ./compiler/shu_asm.experimental ]; then
+        script_shu=./compiler/shu_asm.experimental
+      elif [ -x ./compiler/shu_asm ]; then
+        script_shu=./compiler/shu_asm
+      fi
+      script_link=./compiler/shu-c
+      ;;
+  esac
   attempt=1
   while [ "$attempt" -le 3 ]; do
-    if SHU="$SHU" ./tests/"$script"; then
+    if SHU="$script_shu" SHULANG_LINK_SHU="$script_link" ./tests/"$script"; then
       break
     fi
     if [ "$attempt" -ge 3 ]; then
