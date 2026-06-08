@@ -24,6 +24,7 @@ extern int shu_async_task_submit(int32_t (*fn)(void));
 extern int32_t shu_async_scheduler_drain(void);
 extern void shu_async_queue_reset(void);
 extern void shu_async_io_wake_all(void);
+extern void shu_async_io_wake(unsigned n);
 extern uint32_t shu_async_io_waiters_pending(void);
 extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
 
@@ -61,11 +62,6 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
     }
     n = shu_io_complete_read_async_slot(ctx->slot);
     if (n == SHU_IO_ASYNC_NOT_READY) {
-        (void)shu_io_poll_async_completions(500);
-        n = shu_io_complete_read_async_slot(ctx->slot);
-    }
-    if (n == SHU_IO_ASYNC_NOT_READY) {
-        /* 本 slot CQE 尚未就绪：re-suspend，由主循环下轮 poll+wake+drain 再试。 */
         if (shu_async_cps_suspend_io(&ctx->phase, 1))
             return SHU_ASYNC_SUSPENDED;
         return SHU_ASYNC_SUSPENDED;
@@ -103,14 +99,21 @@ static int check_task(const io_read_ctx_t *ctx, const char *label) {
 }
 
 /**
- * Linux io_uring：多轮 poll+wake+drain 直至双 task 完成（每轮可完成 0~2 个 CQE）。
+ * Linux io_uring：poll 后逐个 wake(1)+drain，避免双 task 同轮争抢 CQE。
  */
 static void dual_io_poll_wake_drain(void) {
     int round;
-    for (round = 0; round < 8; round++) {
+    for (round = 0; round < 16; round++) {
         (void)shu_io_poll_async_completions(500);
-        shu_async_io_wake_all();
-        (void)shu_async_scheduler_drain();
+        if (g_task_a.result != g_task_a.expect_len && shu_async_io_waiters_pending() > 0) {
+            shu_async_io_wake(1);
+            (void)shu_async_scheduler_drain();
+        }
+        (void)shu_io_poll_async_completions(500);
+        if (g_task_b.result != g_task_b.expect_len && shu_async_io_waiters_pending() > 0) {
+            shu_async_io_wake(1);
+            (void)shu_async_scheduler_drain();
+        }
         if (g_task_a.result == g_task_a.expect_len && g_task_b.result == g_task_b.expect_len)
             return;
     }
