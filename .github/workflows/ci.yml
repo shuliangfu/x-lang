@@ -603,6 +603,7 @@ jobs:
           grep -q 'coldstart OK' /tmp/coldstart_fs.log
         timeout-minutes: 3
       - name: WPO-S2 smoke + bench (const call fold)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh
           ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
@@ -626,6 +627,7 @@ jobs:
           grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
         timeout-minutes: 8
       - name: WPO-S3 gate (struct stack promote + await asm/yield)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           make -C compiler ../std/async/scheduler.o
           chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
@@ -635,6 +637,7 @@ jobs:
           grep -q 'wpo-s3 await_yield asm OK' /tmp/wpo_s3.log
         timeout-minutes: 6
       - name: WPO-S4 gate (PGO-Lite .text.hot/unlikely + call-depth emit)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
           SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
@@ -642,13 +645,18 @@ jobs:
           grep -q 'wpo-s4: .text.hot order OK' /tmp/wpo_s4.log
         timeout-minutes: 10
       - name: B-strict bootstrap + gates (M3-c)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           chmod +x tests/run-bootstrap-bstrict-ci.sh
           ./tests/run-bootstrap-bstrict-ci.sh
         timeout-minutes: 25
       - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: make -C compiler bootstrap-verify
         timeout-minutes: 25
+      - name: Bootstrap verify skipped (macOS; ubuntu CI covers bstrict)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "bootstrap-verify skipped on macOS (experimental shu_asm CI path; see ubuntu CI)"
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
@@ -736,9 +744,16 @@ jobs:
         env:
           CI: "1"
       - name: Bootstrap verify (shu1 -> shu2, both run run-all)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: make -C compiler bootstrap-verify
         shell: msys2 {0}
         timeout-minutes: 25
+        env:
+          CI: "1"
+      - name: Bootstrap verify skipped (Windows; ubuntu CI covers bstrict)
+        if: runner.os != 'Linux' || runner.arch != 'X64'
+        run: echo "bootstrap-verify skipped on Windows (experimental shu_asm CI path; see ubuntu CI)"
+        shell: msys2 {0}
         env:
           CI: "1"
       - name: Dump failure logs (on failure)
