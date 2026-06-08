@@ -7,7 +7,7 @@ dead_multi_min_text_save_bytes	48
 dead_multi_min_text_save_pct	8
 main_min_text_save_pct	3
 build_asm_min_text_save_pct	1
-build_asm_min_text_save_bytes	50000
+build_asm_min_text_save_bytes	12000
 # WPO A/B 快路径 proxy（dce_off 参考值；MON/DON/PON/TON 取自 build_asm 树）
 main_dce_off_text	1304
 driver_dce_off_text	7637
