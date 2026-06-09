@@ -26,8 +26,10 @@ export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
 export SHULANG_BSTRICT_RUN_ALL=1
 # refresh 后 shu/shu_asm 为 seed 链；-o 链接用 shu-c（与 run-option/run-pool-limits 分流一致）。
 export SHULANG_LINK_SHU=./compiler/shu-c
-# shu_asm 无 -o 烟测与 -o 连续调用偶发 SIGSEGV；白名单仅验 -o/check，跳过烟测。
-export SHU_SKIP_PARSE_SMOKE=1
+# CI 全量（SHU_CI_NO_SKIP=1）须跑 parse 烟测；本地可 SHU_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
+if [ -z "${SHU_CI_NO_SKIP:-}" ]; then
+  export SHU_SKIP_PARSE_SMOKE=1
+fi
 
 # 与 run-shu-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
 BSTRICT_SCRIPTS=(
@@ -146,18 +148,6 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     exit 1
   fi
   chmod +x "tests/$script"
-  # aarch64 asm 7.3 细粒度门禁（cfg-merge / assign-index / otool mov x2）：x86 CI 由 asm-73 核心子集覆盖。
-  case "$script" in
-    run-asm-binop-cfg-merge.sh|run-asm-assign-index-*|run-asm-cmp-index-binop.sh)
-      case "$(uname -m 2>/dev/null)" in
-        arm64|aarch64) ;;
-        *)
-          echo "run-all-bstrict: $script (skip on $(uname -m 2>/dev/null); aarch64 asm 7.3 gate)"
-          continue
-          ;;
-      esac
-      ;;
-  esac
   echo "run-all-bstrict: $script ..."
   # asm 白名单须 asm-capable 编译器 -o；refresh 后 shu 为 seed 链，experimental 仍保留真 asm。
   script_shu="$SHU"
