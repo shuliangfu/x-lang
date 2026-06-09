@@ -117,12 +117,10 @@ int async_cps_module_references_run_async(const struct ASTModule *m, const struc
     return 0;
 }
 
-/** async CPS 协程是否经 void (*)(void) 调度（含 await 帧时 true）。 */
+/** async CPS 协程是否经 void (*)(void) 调度（须 CPS 帧时 true）。 */
 int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModule *m) {
-    AsyncFrameLayout layout;
-    if (!f || !m || !f->is_async || !async_liveness_func_has_await(f))
-        return 0;
-    return async_liveness_layout_func_module(f, m, &layout) == 0 && layout.num_awaits > 0;
+    (void)m;
+    return f && f->is_async && async_liveness_func_needs_cps_frame(f);
 }
 
 /** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */

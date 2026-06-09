@@ -5363,7 +5363,7 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     AsyncFrameLayout async_layout;
     AsyncCpsCodegenCtx async_cps_ctx;
     int has_async_frame = 0;
-    if (f->is_async && async_liveness_func_has_await(f)) {
+    if (f->is_async && async_liveness_func_needs_cps_frame(f)) {
         if (async_liveness_layout_func_module(f, m, &async_layout) == 0) {
             async_liveness_emit_frame_typedef(f, &async_layout, out);
             has_async_frame = 1;
