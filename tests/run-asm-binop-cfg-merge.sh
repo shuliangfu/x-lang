@@ -2,8 +2,25 @@
 # asm 7.3：if/while/for 汇合 live ∪；嵌套/混合/多轮/break/continue；ldur b 门禁。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/wpo-main-disasm.sh
+. tests/lib/wpo-main-disasm.sh
 make -C compiler -q 2>/dev/null || make -C compiler
 SHU=${SHU:-./compiler/shu}
+
+ulimit -s 16384 2>/dev/null || true
+
+# ldur / AArch64 形态反汇编门禁仅 arm64 宿主（与 run-asm-binop-block-var.sh 一致）。
+asm_disasm_gate_host() {
+  case "$(uname -m 2>/dev/null)" in
+    arm64|aarch64) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# 提取 _main 反汇编（macOS otool / Linux objdump）。
+asm_main_disasm() {
+  wpo_main_asm "$1" 2>/dev/null || true
+}
 
 run_one() {
   local src="$1"
@@ -27,8 +44,11 @@ run_one_ldur_b() {
   local tag="$4"
   local max_b_ldur="$5"
   run_one "$src" "$out" "$want" "$tag"
+  if ! asm_disasm_gate_host; then
+    return 0
+  fi
   local main_asm b_ldur
-  main_asm=$(otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
+  main_asm=$(asm_main_disasm "$out")
   b_ldur=$(echo "$main_asm" | grep -cE 'ldur[[:space:]]+x1,.*#-0x18' || true)
   if [ "$b_ldur" -gt "$max_b_ldur" ]; then
     echo "run-asm-binop-cfg-merge FAIL: $tag ldur x1 [b] count $b_ldur > $max_b_ldur (selective merge?)"
@@ -78,12 +98,14 @@ run_one tests/asm/binop_if_while_return_fourteen_add.su /tmp/shu_asm_binop_if_wh
 run_one tests/asm/binop_if_phi_return_fourteen_add.su /tmp/shu_asm_binop_if_phi_ret_fourteen 105 "if phi both-def a + fourteen-var return"
 run_one tests/asm/binop_while_phi_return_fourteen_add.su /tmp/shu_asm_binop_while_phi_ret_fourteen 105 "while loop phi a+=1 + fourteen-var return"
 # 7.3：十四元 return（final_expr VAR≥12）须走栈帧 spill；φ 用例仅验 exit（双支写 a 后长链仍正确）。
-for tag_bin in /tmp/shu_asm_binop_if_ret_fourteen /tmp/shu_asm_binop_while_ret_fourteen /tmp/shu_asm_binop_for_ret_fourteen /tmp/shu_asm_binop_if_while_ret_fourteen; do
-  main_asm=$(otool -tv "$tag_bin" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p')
-  if ! echo "$main_asm" | grep -q 'sub.*sp, sp, #0x10'; then
-    echo "run-asm-binop-cfg-merge FAIL: $tag_bin missing cfg stack spill push"
-    exit 1
-  fi
-done
+if asm_disasm_gate_host; then
+  for tag_bin in /tmp/shu_asm_binop_if_ret_fourteen /tmp/shu_asm_binop_while_ret_fourteen /tmp/shu_asm_binop_for_ret_fourteen /tmp/shu_asm_binop_if_while_ret_fourteen; do
+    main_asm=$(asm_main_disasm "$tag_bin")
+    if ! echo "$main_asm" | grep -q 'sub.*sp, sp, #0x10'; then
+      echo "run-asm-binop-cfg-merge FAIL: $tag_bin missing cfg stack spill push"
+      exit 1
+    fi
+  done
+fi
 
 echo "asm binop cfg merge OK"

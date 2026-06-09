@@ -11,7 +11,7 @@ IMAGE="${1:-all}"
 run_one() {
   local img="$1"
   echo "===== Docker CI: $img ====="
-  docker run --rm -e CI=1 -e SHU_CC_EXTRA="-std=gnu11" \
+  docker run --rm -e CI=1 -e SHU_CI_DOCKER=1 -e SHU_CC_EXTRA="-std=gnu11" \
     -v "$SRC:/src" -w /src \
     "$img" \
     sh -c '

@@ -12,6 +12,11 @@ cd "$(dirname "$0")/.."
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
+# Docker 容器探测（与 run-ci-full-suite.sh ci_is_docker 一致）。
+bootstrap_ci_is_docker() {
+  [ -f /.dockerenv ] || [ -n "${SHU_CI_DOCKER:-}" ]
+}
+
 if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
   echo "bootstrap-bstrict-ci: seed shu missing; run: make -C compiler OPT=1 all" >&2
   exit 127
@@ -52,7 +57,11 @@ ASM_COMPUTE_SHU="./compiler/shu_asm.experimental"
 if [ ! -x "$ASM_COMPUTE_SHU" ]; then
   ASM_COMPUTE_SHU="./compiler/shu_asm"
 fi
-SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
+if bootstrap_ci_is_docker; then
+  echo "bootstrap-bstrict-ci: Docker — asm-73 compute gate N/A (native linux GHA job covers; experimental SIGSEGV in container)"
+else
+  SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
+fi
 
 echo "bootstrap-bstrict-ci: run-all-bstrict (replace seed, whitelist) ..."
 export SHU_BSTRICT_SKIP_BUILD=1
