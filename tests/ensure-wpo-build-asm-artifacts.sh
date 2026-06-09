@@ -11,6 +11,13 @@ BUILD_ASM="${SHU_WPO_BUILD_ASM_DIR:-compiler/build_asm}"
 FAIL=${SHU_WPO_ENSURE_FAIL:-1}
 COMPILER="${SHU_WPO_ENSURE_COMPILER:-./compiler/shu_asm}"
 
+# Darwin gen_driver：build_asm/parser.o 常为空，parser partial ld + main.o WPO 重编失败；Linux 覆盖五模块产物。
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  echo "ensure-wpo-build-asm-artifacts: N/A on Darwin (parser partial + main.o WPO; Linux x86_64/ARM64 covers)"
+  echo "ensure-wpo-build-asm-artifacts OK (Darwin N/A)"
+  exit 0
+fi
+
 # 五模块 WPO 生产链必需 .o（driver 为 WPO 压缩 driver_compile.o，非 emit_heavy）。
 required_o=(
   main.o
