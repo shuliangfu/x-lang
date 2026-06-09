@@ -124,8 +124,21 @@ else
 fi
 
 # f32 SoA 列扫描：1+2+3+4=10（addss 路径）
-if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
+if [ -n "$DOD_F32_BACKEND_ARGS" ] && [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "dod-s1: f32 compile/run N/A on Darwin (gen_driver -backend c f32 WIP; Linux covers addss path)"
+elif [ -n "$DOD_F32_BACKEND_ARGS" ]; then
+  if SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_F32_BACKEND_ARGS "$F32_SRC" -o "$F32_BIN" 2>/dev/null && [ -x "$F32_BIN" ]; then
+    RC=0
+    "$F32_BIN" >/dev/null 2>&1 || RC=$?
+    if [ "$RC" -ne 10 ]; then
+      echo "dod-s1 FAIL: f32_soa_sum_smoke expected exit 10, got $RC" >&2
+      exit 1
+    fi
+    echo "dod-s1: f32_soa_sum_smoke exit=10 OK"
+  else
+    echo "dod-s1 FAIL: f32 compile/run with -backend c" >&2
+    exit 1
+  fi
 elif SHU="$SHU_ABS" "$SHU_ABS" "$F32_SRC" -o "$F32_BIN" 2>/dev/null && [ -x "$F32_BIN" ]; then
   RC=0
   "$F32_BIN" >/dev/null 2>&1 || RC=$?
@@ -154,8 +167,21 @@ elif command -v ld >/dev/null 2>&1 && [ -f "$F32_O" ] && [ -f "$CRT0" ]; then
 fi
 
 # f32 AoS 字面量 field assign：1+2+3+4=10（字面量写 + addss 读累加）
-if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
+if [ -n "$DOD_F32_BACKEND_ARGS" ] && [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "dod-s1: f32 aos lit run N/A on Darwin (gen_driver -backend c f32 WIP; Linux covers)"
+elif [ -n "$DOD_F32_BACKEND_ARGS" ]; then
+  if SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_F32_BACKEND_ARGS "$F32_AOS_LIT_SRC" -o "$F32_AOS_LIT_BIN" 2>/dev/null && [ -x "$F32_AOS_LIT_BIN" ]; then
+    RC=0
+    "$F32_AOS_LIT_BIN" >/dev/null 2>&1 || RC=$?
+    if [ "$RC" -ne 10 ]; then
+      echo "dod-s1 FAIL: f32_aos_lit_assign_smoke expected exit 10, got $RC" >&2
+      exit 1
+    fi
+    echo "dod-s1: f32_aos_lit_assign_smoke exit=10 OK"
+  else
+    echo "dod-s1 FAIL: f32 aos lit compile/run with -backend c" >&2
+    exit 1
+  fi
 elif SHU="$SHU_ABS" "$SHU_ABS" "$F32_AOS_LIT_SRC" -o "$F32_AOS_LIT_BIN" 2>/dev/null && [ -x "$F32_AOS_LIT_BIN" ]; then
   RC=0
   "$F32_AOS_LIT_BIN" >/dev/null 2>&1 || RC=$?

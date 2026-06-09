@@ -133,7 +133,7 @@ if ! SHU="$SHU_ABS" "$SHU_ABS" "$PEEL64_SMOKE_SRC" -o "$PEEL64_SMOKE_O"; then
 fi
 
 if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
-  echo "simd-s3: skip f32 .o compile on Darwin (-backend c exe link below)"
+  echo "simd-s3: skip f32 .o compile (-backend c exe link below)"
 else
   if ! SHU="$SHU_ABS" "$SHU_ABS" "$F32_SOA_SUM_SRC" -o "$F32_SOA_SUM_O"; then
     echo "simd-s3 FAIL: compile $F32_SOA_SUM_SRC" >&2
@@ -295,7 +295,7 @@ simd_s3_run_f32_expect() {
     link_shu="$SIMD_S3_EXE_SHU"
     backend_args="$DOD_F32_BACKEND_ARGS"
   fi
-  if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
+  if [ -n "$DOD_F32_BACKEND_ARGS" ] && [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
     echo "simd-s3: $label run N/A on Darwin (gen_driver -backend c f32 WIP; Linux covers)"
     return 0
   fi
