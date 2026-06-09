@@ -33,6 +33,12 @@ typedef struct AsyncFrameLayout {
 /** 函数体是否含 await（用于决定是否 emit 帧类型）。 */
 int async_liveness_func_has_await(const struct ASTFunc *f);
 
+/**
+ * 是否须 CPS void 入口 + 协程帧（IO await 或多段 await）。
+ * 单次标量 sync-stub await（如 return await n + 1）保留 C 形参，供 main 直调。
+ */
+int async_liveness_func_needs_cps_frame(const struct ASTFunc *f);
+
 /** 表达式是否含 await（供 CPS codegen 判定分段点）。 */
 int async_liveness_expr_has_await(const struct ASTExpr *e);
 

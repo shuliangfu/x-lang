@@ -621,6 +621,17 @@ int async_liveness_func_has_await(const struct ASTFunc *f) {
     return f && f->is_async && f->body && block_has_await(f->body);
 }
 
+/** 是否须 CPS 帧：IO await 或多段 await；单次 sync-stub 标量 await 走普通 C 签名。 */
+int async_liveness_func_needs_cps_frame(const struct ASTFunc *f) {
+    if (!f || !f->is_async || !f->body || !block_has_await(f->body))
+        return 0;
+    if (block_has_io_read_await(f->body) || block_has_io_write_await(f->body))
+        return 1;
+    if (block_count_await(f->body) > 1)
+        return 1;
+    return 0;
+}
+
 int async_liveness_expr_has_await(const struct ASTExpr *e) {
     return expr_has_await(e);
 }
