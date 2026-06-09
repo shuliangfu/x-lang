@@ -23,6 +23,13 @@ if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
 fi
 
 echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build shu_asm) ..."
+# strict 重链会覆盖 shu；cfg-merge 在 GHA 上对 strict shu_asm 偶发 SIGSEGV，保留 seed 作 -o 回退。
+if [ -x compiler/shu-su ]; then
+  cp -f compiler/shu-su compiler/shu_asm73_seed
+elif [ -x compiler/shu ]; then
+  cp -f compiler/shu compiler/shu_asm73_seed
+fi
+export ASM73_FALLBACK_SHU=./compiler/shu_asm73_seed
 # CI fast 仅保留 asm_only_experimental（pipeline_su partial），cfg-merge 编译会 SIGSEGV；
 # bstrict 验收须 strict 第二遍重链（asm_only_strict）。
 if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
@@ -73,6 +80,7 @@ fi
 if bootstrap_ci_is_docker; then
   echo "bootstrap-bstrict-ci: Docker — asm-73 compute gate N/A (native linux GHA job covers; experimental SIGSEGV in container)"
 else
+  export ASM73_FALLBACK_SHU="${ASM73_FALLBACK_SHU:-./compiler/shu_asm73_seed}"
   SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
 fi
 
