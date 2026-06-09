@@ -4,6 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
+ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 make -C compiler -q 2>/dev/null || make -C compiler
 
 GRAPH="/tmp/shu_wpo_const_spec.json"
@@ -25,7 +26,11 @@ perl compiler/scripts/wpo_dce.pl /tmp/shu_wpo_dead_fn_v2.json --expect-dead dead
 # WPO-S2 asm：常量实参 call fold（须 shu_asm）
 if [ -x ./compiler/shu_asm ]; then
   OUT=/tmp/shu_wpo_const_spec_fold
-  ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT" 2>/dev/null
+  if ! ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT" 2>/tmp/wpo_s2_fold_build.log; then
+    echo "wpo-s2 asm FAIL: const_spec_fold compile failed"
+    tail -8 /tmp/wpo_s2_fold_build.log 2>/dev/null || true
+    exit 1
+  fi
   EX=0
   "$OUT" >/dev/null 2>&1 || EX=$?
   if [ "$EX" -ne 0 ]; then
@@ -46,7 +51,11 @@ if [ -x ./compiler/shu_asm ]; then
 
   # WPO-S2 monomorphize：SHU_WPO_MONO=1 生成 scale__wpo_1024_64 thunk，_main bl 单态符号
   OUT_MONO=/tmp/shu_wpo_const_spec_mono
-  SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT_MONO" 2>/dev/null
+  if ! SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT_MONO" 2>/tmp/wpo_s2_mono_build.log; then
+    echo "wpo-s2 asm FAIL: const_spec_fold mono compile failed"
+    tail -8 /tmp/wpo_s2_mono_build.log 2>/dev/null || true
+    exit 1
+  fi
   EXM=0
   "$OUT_MONO" >/dev/null 2>&1 || EXM=$?
   if [ "$EXM" -ne 0 ]; then
@@ -76,7 +85,11 @@ if [ -x ./compiler/shu_asm ]; then
 
   # WPO-S2 vec 特化：lane0(vec_add4([const],[const])) fold
   OUT_VEC=/tmp/shu_wpo_vec_const_spec_fold
-  ./compiler/shu_asm tests/wpo/vec_const_spec_fold.su -o "$OUT_VEC" 2>/dev/null
+  if ! ./compiler/shu_asm tests/wpo/vec_const_spec_fold.su -o "$OUT_VEC" 2>/tmp/wpo_s2_vec_build.log; then
+    echo "wpo-s2 asm FAIL: vec_const_spec_fold compile failed"
+    tail -8 /tmp/wpo_s2_vec_build.log 2>/dev/null || true
+    exit 1
+  fi
   EXV=0
   "$OUT_VEC" >/dev/null 2>&1 || EXV=$?
   if [ "$EXV" -ne 0 ]; then
@@ -97,7 +110,11 @@ if [ -x ./compiler/shu_asm ]; then
 
   # WPO-S2 vec mono：SHU_WPO_MONO=1 → lane0__wpo_1_2_3_4_10_20_30_40 thunk
   OUT_VEC_MONO=/tmp/shu_wpo_vec_const_spec_mono
-  SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/vec_const_spec_mono.su -o "$OUT_VEC_MONO" 2>/dev/null
+  if ! SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/vec_const_spec_mono.su -o "$OUT_VEC_MONO" 2>/tmp/wpo_s2_vec_mono_build.log; then
+    echo "wpo-s2 asm FAIL: vec_const_spec_mono compile failed"
+    tail -8 /tmp/wpo_s2_vec_mono_build.log 2>/dev/null || true
+    exit 1
+  fi
   EXVM=0
   "$OUT_VEC_MONO" >/dev/null 2>&1 || EXVM=$?
   if [ "$EXVM" -ne 0 ]; then
