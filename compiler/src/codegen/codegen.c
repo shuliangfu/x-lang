@@ -3938,6 +3938,8 @@ int32_t codegen_su_emit_call_mono_full(uint8_t *out, uint8_t *expr) { return cod
 /** 阶段 8.1 块内 DCE 前向声明：收集块内被引用变量名、判断是否在 used 集合中。 */
 static void collect_var_names_from_block(const struct ASTBlock *b, const char **out, int *n, int max);
 static int is_var_used(const char *name, const char **used, int n_used);
+static int let_init_has_side_effects(const struct ASTExpr *init);
+static int codegen_emit_unused_let_side_effect(FILE *out, const char *pad, const struct ASTExpr *linit);
 
 /**
  * 按逆序生成执行本块所有 defer 块的 C 代码（块退出时执行）。
@@ -4060,7 +4062,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 if (idx >= b->num_lets) break;
                 char name_place_l[32];
                 const char *name = (b->let_decls[idx].name && b->let_decls[idx].name[0]) ? b->let_decls[idx].name : (snprintf(name_place_l, sizeof(name_place_l), "_l%d", idx), name_place_l);
-                if (!is_var_used(name, used_buf, n_used)) break;
+                if (!is_var_used(name, used_buf, n_used)) {
+                    int side = codegen_emit_unused_let_side_effect(out, pad, b->let_decls[idx].init);
+                    if (side < 0) return -1;
+                    break;
+                }
                 const struct ASTType *ty = b->let_decls[idx].type;
                 const struct ASTExpr *linit = b->let_decls[idx].init;
                 const struct ASTType *ety = codegen_emit_type(ty);
@@ -4229,7 +4235,10 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         for (int i = 0; i < n_early; i++) {
             char let_place_early[32];
             const char *name = (b->let_decls[i].name && b->let_decls[i].name[0] && (unsigned char)b->let_decls[i].name[0] > ' ') ? b->let_decls[i].name : (snprintf(let_place_early, sizeof(let_place_early), "_l%d", i), let_place_early);
-            if (!is_var_used(name, used_buf, n_used)) continue;
+            if (!is_var_used(name, used_buf, n_used)) {
+                if (codegen_emit_unused_let_side_effect(out, pad, b->let_decls[i].init) < 0) return -1;
+                continue;
+            }
             const struct ASTType *ty = b->let_decls[i].type;
             const struct ASTExpr *linit = b->let_decls[i].init;
             const struct ASTType *ety = codegen_emit_type(ty);
@@ -4281,7 +4290,10 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
             for (int i = b->num_early_lets; i < b->num_lets; i++) {
                 char let_place_late[32];
                 const char *name = (b->let_decls[i].name && b->let_decls[i].name[0] && (unsigned char)b->let_decls[i].name[0] > ' ') ? b->let_decls[i].name : (snprintf(let_place_late, sizeof(let_place_late), "_l%d", i), let_place_late);
-                if (!is_var_used(name, used_buf, n_used)) continue;
+                if (!is_var_used(name, used_buf, n_used)) {
+                    if (codegen_emit_unused_let_side_effect(out, pad, b->let_decls[i].init) < 0) return -1;
+                    continue;
+                }
                 const struct ASTType *ty = b->let_decls[i].type;
                 const struct ASTExpr *linit_i = b->let_decls[i].init;
                 const struct ASTType *ety = codegen_emit_type(ty);
@@ -4376,7 +4388,10 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 for (int i = b->num_early_lets; i < b->num_lets; i++) {
                     char let_place_alt[32];
                     const char *name = (b->let_decls[i].name && b->let_decls[i].name[0] && (unsigned char)b->let_decls[i].name[0] > ' ') ? b->let_decls[i].name : (snprintf(let_place_alt, sizeof(let_place_alt), "_l%d", i), let_place_alt);
-                    if (!is_var_used(name, used_buf, n_used)) continue;
+                    if (!is_var_used(name, used_buf, n_used)) {
+                        if (codegen_emit_unused_let_side_effect(out, pad, b->let_decls[i].init) < 0) return -1;
+                        continue;
+                    }
                     const struct ASTType *ty = b->let_decls[i].type;
                     const struct ASTExpr *linit_alt = b->let_decls[i].init;
                     const struct ASTType *ety = codegen_emit_type(ty);
@@ -4989,7 +5004,10 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
     for (int i = 0; i < b->num_lets; i++) {
         char name_place_l[32];
         const char *name = (b->let_decls[i].name && b->let_decls[i].name[0]) ? b->let_decls[i].name : (snprintf(name_place_l, sizeof(name_place_l), "_l%d", i), name_place_l);
-        if (!is_var_used(name, used_buf, n_used)) continue;
+        if (!is_var_used(name, used_buf, n_used)) {
+            if (codegen_emit_unused_let_side_effect(out, pad, b->let_decls[i].init) < 0) return -1;
+            continue;
+        }
         const struct ASTType *ty = b->let_decls[i].type;
         const struct ASTExpr *linit = b->let_decls[i].init;
         const struct ASTType *ety = codegen_emit_type(ty);
@@ -5828,6 +5846,37 @@ static int is_var_used(const char *name, const char **used, int n_used) {
     if (!name || !used) return 1;
     for (int i = 0; i < n_used; i++) if (used[i] && strcmp(used[i], name) == 0) return 1;
     return 0;
+}
+
+/**
+ * let 初值是否含须保留的副作用（调用/run/spawn/await 等）。
+ * 块内 DCE 跳过未引用 let 时，仍须 emit 为 (void)(init)，否则 async_switch 等烟测丢计数。
+ */
+static int let_init_has_side_effects(const struct ASTExpr *init) {
+    if (!init) return 0;
+    switch (init->kind) {
+        case AST_EXPR_CALL:
+        case AST_EXPR_METHOD_CALL:
+        case AST_EXPR_SPAWN:
+        case AST_EXPR_RUN:
+        case AST_EXPR_AWAIT:
+        case AST_EXPR_PANIC:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * 未引用的 let：init 有副作用时输出 (void)(init);。
+ * 返回 1 已处理，0 无副作用可跳过，-1 失败。
+ */
+static int codegen_emit_unused_let_side_effect(FILE *out, const char *pad, const struct ASTExpr *linit) {
+    if (!let_init_has_side_effects(linit)) return 0;
+    fprintf(out, "%s(void)(", pad);
+    if (codegen_expr(linit, out) != 0) return -1;
+    fprintf(out, ");\n");
+    return 1;
 }
 
 /** .su 用原语：块中第 idx 条 const 是否被引用（1=是 0=否），.su 据此决定是否输出。 */
