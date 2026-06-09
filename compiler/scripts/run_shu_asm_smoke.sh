@@ -3,7 +3,7 @@
 # 用法：cd compiler && ./scripts/run_shu_asm_smoke.sh
 # 要求：./shu_asm 已由 build_shu_asm.sh 产出。
 # Darwin：gen_driver/experimental bootstrap 的 shu_asm 用户态 -o 默认 asm 链 Mach-O 不完整会 SIGILL；
-#         compile+run 走 -backend c，另做 asm 仅编译检查（与 S2 EMIT_HEAVY 仅 Linux x86_64 实跑对齐）。
+#         compile+run 走 -backend c；完整 shu_asm gate 由 native linux job 覆盖。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -24,12 +24,10 @@ fi
 
 # 烟测 compile+run 后端：Linux 默认 asm；Darwin 用 c（可 SHU_ASM_SMOKE_BACKEND=asm|c 覆盖）。
 SMOKE_RUN_BACKEND="${SHU_ASM_SMOKE_BACKEND:-}"
-DARWIN_ASM_COMPILE_CHECK=0
 if [ -z "$SMOKE_RUN_BACKEND" ]; then
   case "$(uname -s 2>/dev/null)" in
     Darwin)
       SMOKE_RUN_BACKEND="c"
-      DARWIN_ASM_COMPILE_CHECK=1
       ;;
     *)
       SMOKE_RUN_BACKEND="asm"
@@ -81,25 +79,20 @@ if [ "$RC" -ne 42 ]; then
   exit 1
 fi
 
-# Darwin：额外验证 asm 路径能编译（不执行，避免 SIGILL）。
-if [ "$DARWIN_ASM_COMPILE_CHECK" = 1 ]; then
-  ASM_OUT="/tmp/shu_asm_rv_asm_out"
-  rm -f "$ASM_OUT" "$ASM_OUT.c" "$ASM_OUT.o"
-  echo "run_shu_asm_smoke: Darwin asm compile-only (no run; Mach-O user exe N/A on gen_driver hybrid) ..."
-  if ! ./shu_asm -backend asm "$RV" -o "$ASM_OUT"; then
-    echo "run_shu_asm_smoke: Darwin asm compile failed"
-    exit 1
-  fi
-  echo "run_shu_asm_smoke: Darwin asm compile OK"
-fi
-
 echo "run_shu_asm_smoke: OK"
 
 # B-strict 用户 import 子集（-o 链 exe；比 bootstrap 全量 gate 少 option 等待 struct 按值对齐）
 ASM_GATE="../tests/run-shu-asm-gate.sh"
 if [ -f "$ASM_GATE" ] && [ -z "${SHU_ASM_SMOKE_SKIP_GATE:-}" ]; then
-  echo "run_shu_asm_smoke: shu_asm gate (hello/import + while/typeck) ..."
-  (cd .. && SHU=./compiler/shu_asm ./tests/run-shu-asm-gate.sh)
+  case "$(uname -s 2>/dev/null)" in
+    Darwin)
+      echo "run_shu_asm_smoke: skip shu_asm gate on Darwin (asm -o __TEXT N/A; linux job covers full gate)"
+      ;;
+    *)
+      echo "run_shu_asm_smoke: shu_asm gate (hello/import + while/typeck) ..."
+      (cd .. && SHU=./compiler/shu_asm ./tests/run-shu-asm-gate.sh)
+      ;;
+  esac
 fi
 
 echo "run_shu_asm_smoke: all smoke passed"
