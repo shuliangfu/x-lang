@@ -326,6 +326,9 @@ fi
 echo "── shu_asm smoke ──"
 cd compiler && ./scripts/run_shu_asm_smoke.sh
 cd ..
+if ci_is_darwin; then
+  echo "ci-full-suite: shu_asm smoke on Darwin uses -backend c for run (asm user exe N/A on gen_driver hybrid)"
+fi
 
 # ARM64 宿主（Linux/macOS）：DOD SoA + cache-line + Neon strip（不含 x86 f32-xmm）。
 ci_run_dod_arm64_subset() {

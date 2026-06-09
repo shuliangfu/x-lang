@@ -2,6 +2,8 @@
 # run_shu_asm_smoke.sh — shu_asm 烟囱测试（不覆盖 ./shu）
 # 用法：cd compiler && ./scripts/run_shu_asm_smoke.sh
 # 要求：./shu_asm 已由 build_shu_asm.sh 产出。
+# Darwin：gen_driver/experimental bootstrap 的 shu_asm 用户态 -o 默认 asm 链 Mach-O 不完整会 SIGILL；
+#         compile+run 走 -backend c，另做 asm 仅编译检查（与 S2 EMIT_HEAVY 仅 Linux x86_64 实跑对齐）。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -20,11 +22,34 @@ if [ ! -f "$RV" ]; then
   exit 1
 fi
 
-echo "run_shu_asm_smoke: compile+run return-value (expect exit 42) ..."
+# 烟测 compile+run 后端：Linux 默认 asm；Darwin 用 c（可 SHU_ASM_SMOKE_BACKEND=asm|c 覆盖）。
+SMOKE_RUN_BACKEND="${SHU_ASM_SMOKE_BACKEND:-}"
+DARWIN_ASM_COMPILE_CHECK=0
+if [ -z "$SMOKE_RUN_BACKEND" ]; then
+  case "$(uname -s 2>/dev/null)" in
+    Darwin)
+      SMOKE_RUN_BACKEND="c"
+      DARWIN_ASM_COMPILE_CHECK=1
+      ;;
+    *)
+      SMOKE_RUN_BACKEND="asm"
+      ;;
+  esac
+fi
+
+SMOKE_BACKEND_ARGS=""
+if [ "$SMOKE_RUN_BACKEND" = "c" ]; then
+  SMOKE_BACKEND_ARGS="-backend c"
+elif [ "$SMOKE_RUN_BACKEND" = "asm" ]; then
+  SMOKE_BACKEND_ARGS="-backend asm"
+fi
+
+echo "run_shu_asm_smoke: compile+run return-value (expect exit 42, backend=${SMOKE_RUN_BACKEND}) ..."
 OUT="/tmp/shu_asm_rv_out"
 rm -f "$OUT" "$OUT.c" "$OUT.o"
 set +e
-./shu_asm "$RV" -o "$OUT"
+# shellcheck disable=SC2086
+./shu_asm $SMOKE_BACKEND_ARGS "$RV" -o "$OUT"
 RC=$?
 set -e
 if [ "$RC" -ne 0 ]; then
@@ -55,6 +80,19 @@ if [ "$RC" -ne 42 ]; then
   echo "run_shu_asm_smoke: FAIL (exit $RC, expected 42)"
   exit 1
 fi
+
+# Darwin：额外验证 asm 路径能编译（不执行，避免 SIGILL）。
+if [ "$DARWIN_ASM_COMPILE_CHECK" = 1 ]; then
+  ASM_OUT="/tmp/shu_asm_rv_asm_out"
+  rm -f "$ASM_OUT" "$ASM_OUT.c" "$ASM_OUT.o"
+  echo "run_shu_asm_smoke: Darwin asm compile-only (no run; Mach-O user exe N/A on gen_driver hybrid) ..."
+  if ! ./shu_asm -backend asm "$RV" -o "$ASM_OUT"; then
+    echo "run_shu_asm_smoke: Darwin asm compile failed"
+    exit 1
+  fi
+  echo "run_shu_asm_smoke: Darwin asm compile OK"
+fi
+
 echo "run_shu_asm_smoke: OK"
 
 # B-strict 用户 import 子集（-o 链 exe；比 bootstrap 全量 gate 少 option 等待 struct 按值对齐）
