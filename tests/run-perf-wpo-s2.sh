@@ -44,6 +44,13 @@ if [ ! -x "$SHU" ]; then
   exit 0
 fi
 
+# Darwin gen_driver：asm 用户 exe 链 __TEXT r-x / 运行 SIGILL；fold ratio bench 由 Linux 覆盖。
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  echo "run-perf-wpo-s2: N/A on Darwin (asm user exe ld/run; Linux x86_64/ARM64 covers)"
+  echo "wpo-s2 perf OK (Darwin N/A)"
+  exit 0
+fi
+
 # 生成带可调 limit 的临时 bench 源（vec 期望和 11×limit 同步替换）
 prepare_wpo_bench_sources() {
   local lim="$WPO_S2_LIMIT"
