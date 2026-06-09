@@ -7,6 +7,8 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/dod-host-backend.sh
+source "$(dirname "$0")/lib/dod-host-backend.sh"
 
 SHU_BIN="${SHU:-}"
 case "$SHU_BIN" in
@@ -78,7 +80,17 @@ if [ -z "$SHU_ABS" ] || ! dod_native_exe "$SHU_ABS"; then
   exit 0
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" -L . "$ARENA_SRC" -o "$ARENA_OUT"; then
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    echo "dod-cl-s2: compile/run N/A on Darwin (import + gen_driver hybrid; Linux covers)"
+    echo "dod-cl-s2 gate OK"
+    exit 0
+    ;;
+esac
+
+DOD_EXE_SHU="$(dod_host_exe_shu "$SHU_ABS")"
+
+if ! SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_GATE_BACKEND_ARGS -L . "$ARENA_SRC" -o "$ARENA_OUT"; then
   echo "dod-cl-s2 FAIL: compile $ARENA_SRC" >&2
   exit 1
 fi
