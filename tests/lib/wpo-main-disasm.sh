@@ -67,3 +67,20 @@ wpo_nm_has_sym() {
   [ -n "$obj" ] && [ -f "$obj" ] || return 1
   nm "$obj" 2>/dev/null | awk '{print $NF}' | grep -qE "^_?${sym}$"
 }
+
+# WPO-S2 asm 烟测 -o 路径：Darwin 链用户 exe 会 __TEXT r-x ld 失败，改 .o 做 disasm。
+wpo_s2_asm_out_path() {
+  local base="$1"
+  case "$(uname -s 2>/dev/null)" in
+    Darwin) printf '%s.o' "$base" ;;
+    *) printf '%s' "$base" ;;
+  esac
+}
+
+# Darwin 上 .o 烟测不跑可执行（Mach-O 用户 exe 不可靠）。
+wpo_s2_darwin_skip_exe_run() {
+  case "$(uname -s 2>/dev/null)" in
+    Darwin) return 0 ;;
+    *) return 1 ;;
+  esac
+}
