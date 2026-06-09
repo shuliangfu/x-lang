@@ -2,8 +2,8 @@
  * Freestanding / 弱化 libc 路线见 compiler/docs/SELFHOST.md §6 与 src/asm/runtime_panic_x86_64.s（若存在）。 */
 #include <stdlib.h>
 
-/** Linux ld：标记非可执行栈，消除 missing .note.GNU-stack 链接警告。 */
-#if defined(__GNUC__) && (defined(__linux__) || defined(__APPLE__))
+/** Linux ld：标记非可执行栈，消除 missing .note.GNU-stack 链接警告（macOS 勿用 %progbits 语法）。 */
+#if defined(__GNUC__) && defined(__linux__)
 __asm__(".section .note.GNU-stack,\"\",%progbits");
 #endif
 
