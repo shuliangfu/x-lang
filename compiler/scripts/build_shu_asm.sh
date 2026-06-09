@@ -102,6 +102,13 @@ asm_ci_stub_build_asm_module() {
   return 0
 }
 
+# MSYS/macOS CI：typeck.su EMIT_HEAVY 会挂起；S2 __text 门禁仅 Linux x64 实跑。
+asm_ci_skip_typeck_emit_heavy() {
+  [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ] || return 1
+  [ "$(uname -s 2>/dev/null)" = "Linux" ] && return 1
+  return 0
+}
+
 # CI 快速路径：非宿主 ISA 的 encoder 模块用 text stub，缩短 macOS/Windows build_shu_asm。
 asm_ci_host_skip_module() {
   local out="$1"
@@ -2608,7 +2615,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           LINK_MODE=asm_only_experimental
           if [ -n "${SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ]; then
             echo "build_shu_asm: CI fast — keep asm_only_experimental bootstrap (skip strict relink + gen_driver)"
-            if ! rebuild_typeck_o_emit_heavy_s2 "./shu_asm.experimental"; then
+            if asm_ci_skip_typeck_emit_heavy; then
+              echo "build_shu_asm: CI fast — skip typeck EMIT_HEAVY on $(uname -s) (S2 gate Linux-only)"
+            elif ! rebuild_typeck_o_emit_heavy_s2 "./shu_asm.experimental"; then
               shu_asm_bstrict_fail "typeck.o EMIT_HEAVY required for S2 gate after CI experimental bootstrap"
             fi
           else
@@ -3121,7 +3130,9 @@ if [ "$LINK_OK" -eq 1 ] && [ -n "${CI:-}" ]; then
   [ -x "$_s2_comp" ] || _s2_comp="./shu_asm"
   if [ -x "$_s2_comp" ]; then
     _s2_txt=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo 0)
-    if [ "${_s2_txt:-0}" -lt 68264 ] 2>/dev/null; then
+    if asm_ci_skip_typeck_emit_heavy; then
+      echo "build_shu_asm: skip typeck EMIT_HEAVY S2 fallback on $(uname -s) (__text=${_s2_txt}B stub OK)"
+    elif [ "${_s2_txt:-0}" -lt 68264 ] 2>/dev/null; then
       rebuild_typeck_o_emit_heavy_s2 "$_s2_comp" || {
         if [ -n "${SHU_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
           shu_asm_bstrict_fail "typeck.o EMIT_HEAVY S2 fallback failed (__text=${_s2_txt}B)"
