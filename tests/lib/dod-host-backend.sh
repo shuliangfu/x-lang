@@ -42,5 +42,10 @@ dod_host_exe_shu() {
   printf '%s' "$seed"
 }
 
+# f32 可执行烟测是否在 -backend c 路径上记 N/A（gen_driver f32 C 后端 WIP；Linux x86_64 asm 仍跑）。
+dod_host_f32_run_na() {
+  [ -n "$(dod_host_f32_backend_args)" ]
+}
+
 DOD_F32_BACKEND_ARGS="$(dod_host_f32_backend_args)"
 DOD_GATE_BACKEND_ARGS="$(dod_host_gate_backend_args)"

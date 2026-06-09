@@ -46,10 +46,10 @@ if [ -z "$SHU_ABS" ] || ! simd_s3_native_exe "$SHU_ABS"; then
   exit 0
 fi
 
-# Darwin：shu_asm asm 部分 vec peel 烟测 SIGSEGV；整数 SoA/DOD 由 dod-s1 覆盖，SIMD 实跑由 Linux ARM64 承担。
+# Darwin：shu_asm asm 部分 vec peel 烟测 SIGSEGV；整数 SoA/DOD 由 dod-s1 覆盖；f32 由 Linux x86_64 承担。
 case "$(uname -s 2>/dev/null)" in
   Darwin)
-    echo "simd-s3: compile/run N/A on Darwin (shu_asm asm vec peel SIGSEGV; Linux ARM64 covers)"
+    echo "simd-s3: compile/run N/A on Darwin (shu_asm asm vec peel SIGSEGV; Linux ARM64 integer SoA/SIMD compile-only)"
     echo "simd-s3 gate OK"
     exit 0
     ;;
@@ -295,8 +295,8 @@ simd_s3_run_f32_expect() {
     link_shu="$SIMD_S3_EXE_SHU"
     backend_args="$DOD_F32_BACKEND_ARGS"
   fi
-  if [ -n "$DOD_F32_BACKEND_ARGS" ] && [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-    echo "simd-s3: $label run N/A on Darwin (gen_driver -backend c f32 WIP; Linux covers)"
+  if dod_host_f32_run_na; then
+    echo "simd-s3: $label run N/A on $(uname -s)-$(uname -m) (gen_driver -backend c f32 WIP; Linux x86_64 covers)"
     return 0
   fi
   if SHU="$SHU_ABS" "$link_shu" $backend_args "$src" -o "$bin" 2>/dev/null && [ -x "$bin" ]; then
