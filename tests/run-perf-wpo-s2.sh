@@ -36,6 +36,10 @@ DO_BENCH=0
 [ "${SHU_PERF_FAIL_ON_WPO_S2_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
 
 if [ ! -x "$SHU" ]; then
+  if [ -n "${SHU_CI_NO_SKIP:-}" ]; then
+    echo "run-perf-wpo-s2 FAIL: need executable $SHU for WPO-S2 asm fold bench" >&2
+    exit 1
+  fi
   echo "run-perf-wpo-s2: skip (need $SHU for WPO-S2 asm fold bench)"
   exit 0
 fi
