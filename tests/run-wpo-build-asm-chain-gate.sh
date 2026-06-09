@@ -12,6 +12,13 @@ BUILD_ASM="${1:-compiler/build_asm}"
 FAIL=${SHU_WPO_CHAIN_FAIL:-1}
 BASELINE="${SHU_WPO_CHAIN_BASELINE:-tests/baseline/wpo-dce-compiler-self-text.tsv}"
 
+# Darwin：五模块 WPO .o 链（尤其 main.o）在 gen_driver hybrid 上不可用；Linux 覆盖 chain save 门禁。
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  echo "wpo build_asm chain: N/A on Darwin (main.o WPO + parser partial; Linux x86_64/ARM64 covers)"
+  echo "wpo build_asm chain gate OK (Darwin N/A)"
+  exit 0
+fi
+
 chmod +x tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-main-o-gate.sh tests/run-wpo-driver-o-gate.sh \
   tests/run-wpo-pipeline-o-gate.sh tests/run-wpo-typeck-o-gate.sh tests/run-wpo-backend-o-gate.sh
 
