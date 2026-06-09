@@ -1,6 +1,5 @@
 # Shulang CI: multi-platform build, C test suite, and self-host (.su) tests
-# Linux (multi-version), Linux ARM64, macOS (multi-version), Windows, Docker multi-distro (Alpine/Debian).
-# Build: shu (C compiler). 各平台：test_c / test_su / run-bootstrap-bstrict-ci（M3-c）/ bootstrap-verify（语义自举）。
+# 全平台统一跑 tests/run-ci-full-suite.sh；仅 freestanding/DOD perf/io_uring 等按宿主在脚本内分支。
 
 name: CI
 
@@ -14,6 +13,9 @@ jobs:
   linux:
     name: Linux (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    env:
+      CI: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -43,272 +45,11 @@ jobs:
             echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
             exit 1
           fi
-      - name: Run C test suite (make test_c)
-        run: make -C compiler test_c
-        timeout-minutes: 45
-      - name: M-3 slice region typeck (prototype)
+      - name: Full CI test suite
         run: |
-          chmod +x tests/run-typeck-region.sh
-          ./tests/run-typeck-region.sh | tee /tmp/typeck_region.log
-          grep -q 'region typeck OK' /tmp/typeck_region.log
-        timeout-minutes: 3
-      - name: Migrate SU gen gate (parser/typeck/codegen .su → .o)
-        run: |
-          chmod +x tests/run-migrate-su-gen-gate.sh
-          ./tests/run-migrate-su-gen-gate.sh | tee /tmp/migrate_su_gen.log
-          grep -q 'migrate su gen gate OK' /tmp/migrate_su_gen.log
-        timeout-minutes: 10
-      - name: M-4 Linear(T) move typeck (prototype)
-        run: |
-          chmod +x tests/run-typeck-linear.sh
-          ./tests/run-typeck-linear.sh | tee /tmp/typeck_linear.log
-          grep -q 'linear typeck OK' /tmp/typeck_linear.log
-        timeout-minutes: 3
-      - name: M-5 read_ptr_slice runtime smoke (codegen slice field access)
-        run: |
-          chmod +x tests/run-io-read-ptr-slice.sh
-          ./tests/run-io-read-ptr-slice.sh | tee /tmp/io_read_ptr_slice.log
-          grep -q 'io read_ptr_slice OK' /tmp/io_read_ptr_slice.log
-        timeout-minutes: 5
-      - name: Slice array-to-slice field access smoke (ZC-3)
-        run: |
-          chmod +x tests/run-slice-field.sh tests/run-slice.sh
-          ./tests/run-slice-field.sh | tee /tmp/slice_field.log
-          grep -q 'slice field OK' /tmp/slice_field.log
-          ./tests/run-slice.sh | tee /tmp/slice_full.log
-          grep -q 'slice test OK' /tmp/slice_full.log
-        timeout-minutes: 5
-      - name: core.option/result stdlib import smoke
-        run: |
-          chmod +x tests/run-stdlib-import.sh
-          ./tests/run-stdlib-import.sh | tee /tmp/stdlib_import.log
-          grep -q 'stdlib-import test OK' /tmp/stdlib_import.log
-        timeout-minutes: 3
-      - name: Install Zig (perf baseline -O2对照)
-        run: sudo apt-get install -y -qq zig || true
-      - name: Perf baseline bench (Shu / C / Zig)
-        run: |
-          SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
-          grep -q 'perf baseline OK' /tmp/perf_bench.log
-        timeout-minutes: 5
-      - name: IO perf bench (Shu / C / Zig, L1)
-        run: |
-          chmod +x tests/run-perf-io.sh
-          SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
-          grep -q 'io perf OK' /tmp/perf_io.log
-        timeout-minutes: 8
-      - name: Net perf bench (accept_many + echo, L0)
-        run: |
-          chmod +x tests/run-zc1-gate.sh tests/run-io-multishot.sh
-          ./tests/run-zc1-gate.sh --perf | tee /tmp/perf_net.log
-          ./tests/run-io-multishot.sh | tee /tmp/io_multishot.log
-          grep -q 'io multishot accept OK' /tmp/io_multishot.log
-        timeout-minutes: 8
-      - name: Compile dogfood (P3 fixed -o/check timing)
-        run: |
-          chmod +x tests/run-perf-compile-dogfood.sh
-          SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
-          grep -q 'compile dogfood OK' /tmp/compile_dogfood.log
-        timeout-minutes: 3
-      - name: Refresh shu_asm gate (parser/lexer .su → shu_asm)
-        run: |
-          chmod +x tests/run-refresh-shu-asm-gate.sh
-          ./tests/run-refresh-shu-asm-gate.sh | tee /tmp/refresh_asm_gate.log
-          grep -q 'refresh shu asm gate OK' /tmp/refresh_asm_gate.log
-          grep -q 'region typeck OK' /tmp/refresh_asm_gate.log
-          grep -q 'linear typeck OK' /tmp/refresh_asm_gate.log
-        timeout-minutes: 15
-      - name: ZC gates (ZC-1/2/3/4/5 Linux shu_asm)
-        run: |
-          chmod +x tests/run-zc-gates.sh
-          SHU=./compiler/shu_asm ./tests/run-zc-gates.sh | tee /tmp/zc_gates.log
-          grep -q 'zc gates OK' /tmp/zc_gates.log
-          grep -qE 'ZC-1 gate OK' /tmp/zc_gates.log
-          grep -q 'zc2 gate OK' /tmp/zc_gates.log
-          grep -q 'zc3 gate OK' /tmp/zc_gates.log
-          grep -q 'zc4 gate OK' /tmp/zc_gates.log
-          grep -q 'zc5 gate OK' /tmp/zc_gates.log
-        timeout-minutes: 12
-      - name: Async coop smoke + B-ASYNC bench (P2 A1/A2)
-        run: |
-          chmod +x tests/run-async.sh tests/run-perf-async.sh
-          ./tests/run-async.sh | tee /tmp/async_smoke.log
-          grep -q 'async smoke OK' /tmp/async_smoke.log
-          grep -q 'async import std.async OK' /tmp/async_smoke.log
-          grep -q 'const hex OK' /tmp/async_smoke.log
-          grep -q 'async gate OK' /tmp/async_smoke.log
-          grep -q 'run async syntax OK' /tmp/async_smoke.log
-          grep -q 'run async v1 OK' /tmp/async_smoke.log
-          grep -q 'run async v2 OK' /tmp/async_smoke.log
-          grep -q 'run async v3 OK' /tmp/async_smoke.log
-          grep -q 'run async v4 OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO-A5 OK' /tmp/async_smoke.log
-          grep -q 'async await IO OK' /tmp/async_smoke.log
-          grep -q 'async await IO write OK' /tmp/async_smoke.log
-          grep -q 'io write async OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO read e2e OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO-A5 poll wake OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO read multi e2e OK' /tmp/async_smoke.log
-          grep -q 'async scheduler workers OK' /tmp/async_smoke.log
-          grep -q 'async scheduler worker affinity OK' /tmp/async_smoke.log
-          grep -q 'async await IO read_fd OK' /tmp/async_smoke.log
-          grep -q 'async await IO write_fd OK' /tmp/async_smoke.log
-          grep -q 'io read async multi OK' /tmp/async_smoke.log
-          grep -q 'async await IO dual OK' /tmp/async_smoke.log
-          grep -q 'io write async multi OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO write multi e2e OK' /tmp/async_smoke.log
-          grep -q 'async linux full OK' /tmp/async_smoke.log
-          grep -q 'async linux full async_run_io_stdin OK' /tmp/async_smoke.log
-          grep -q 'async linux full async_run_io_dual_pipe OK' /tmp/async_smoke.log
-          grep -q 'async linux full async_run_io_dual_parallel OK' /tmp/async_smoke.log
-          grep -q 'async spawn v4 OK' /tmp/async_smoke.log
-          grep -q 'async scheduler IO parallel poll OK' /tmp/async_smoke.log
-          grep -q 'async spawn parallel IO OK' /tmp/async_smoke.log
-          grep -q 'async spawn workers IO OK' /tmp/async_smoke.log
-          grep -q 'async run dual pipe OK' /tmp/async_smoke.log
-          grep -q 'async run_i32 IO stdin OK' /tmp/async_smoke.log
-          SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
-          grep -q 'async perf OK' /tmp/async_perf.log
-        timeout-minutes: 8
-      - name: B-BOOT coldstart (std hello)
-        run: |
-          chmod +x tests/run-perf-coldstart.sh
-          SHU_COLDSTART_STD_ONLY=1 SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 \
-            ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart.log
-          grep -q 'coldstart OK' /tmp/coldstart.log
-        timeout-minutes: 3
-      - name: WPO-S1 call graph smoke (P3)
-        run: |
-          chmod +x tests/run-wpo-s1.sh tests/run-wpo-compiler-self.sh tests/run-wpo-dce-emit.sh compiler/scripts/wpo_dce.pl
-          ./tests/run-wpo-s1.sh | tee /tmp/wpo_s1.log
-          grep -q 'wpo-s1 smoke OK' /tmp/wpo_s1.log
-          ./tests/run-wpo-compiler-self.sh | tee /tmp/wpo_compiler_self.log
-          grep -q 'wpo compiler self OK' /tmp/wpo_compiler_self.log
-          ./tests/run-wpo-dce-emit.sh | tee /tmp/wpo_dce_emit.log
-          grep -q 'wpo dce emit OK' /tmp/wpo_dce_emit.log
-        timeout-minutes: 3
-      - name: Bootstrap driver seed gate (hello + while + typeck)
-        run: ./tests/run-bootstrap-shu-gate.sh
-        timeout-minutes: 12
-      - name: Bootstrap run-all (M1 seed + shu-c link分流)
-        run: |
-          make -C compiler bootstrap-driver-seed
-          SHU=./compiler/shu SHULANG_RUN_ALL_BOOTSTRAP_SHU=1 ./tests/run-all.sh
-        timeout-minutes: 25
-      - name: Run .su test suite (make test_su)
-        run: make -C compiler test_su
-        timeout-minutes: 25
-      - name: Goal 2 asm build script (build_shu_asm.sh)
-        run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 45
-        env:
-          CI: "1"
-      - name: Asm object code section sizes (Mach-O __text / ELF .text)
-        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
-        timeout-minutes: 3
-        env:
-          CI: "1"
-      - name: S2 typeck.o gate (P3)
-        run: |
-          chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
-          SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-          grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-          SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-          grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
-        timeout-minutes: 3
-      - name: shu_asm smoke (return-value + bootstrap gate)
-        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
-        timeout-minutes: 8
-      - name: DOD-S1/S2/S3 SoA/AoS bench (correctness + L1 perf, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          KVER=$(uname -r)
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq linux-tools-common "linux-tools-${KVER}" "linux-cloud-tools-${KVER}" linux-tools-generic 2>/dev/null || \
-            sudo apt-get install -y -qq linux-tools-common linux-tools-generic || true
-          sudo sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
-          chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
-          SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1=1 ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
-          grep -q 'SoA exit=16' /tmp/dod_soa_perf.log
-          grep -q 'AoS exit=16' /tmp/dod_soa_perf.log
-          grep -qE 'dod-soa L1 miss OK|dod-soa L1 miss SKIP' /tmp/dod_soa_perf.log
-          grep -q 'dod-soa gate OK' /tmp/dod_soa_perf.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
-          grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-          grep -q 'f32_soa_sum_smoke exit=10 OK' /tmp/dod_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
-          grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-          chmod +x tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
-          grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-          grep -q 'disasm tail@64 hint OK' /tmp/dod_cl_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
-          grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-          chmod +x tests/run-simd-s3-gate.sh tests/run-f32-xmm-gates.sh
-          SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
-          grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-          grep -q 'f32_soa_sum_strip_smoke exit=10 OK' /tmp/simd_s3.log
-          SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
-          grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
-          grep -q 'abi-f32-xmm gate OK' /tmp/f32_xmm_gates.log
-          grep -q 'CLI -legacy-f32-abi exit=6 OK' /tmp/f32_xmm_gates.log
-          grep -q 'vec3f_soa_push xmm disasm OK' /tmp/f32_xmm_gates.log
-        timeout-minutes: 8
-      - name: S4 freestanding coldstart (B-BOOT-FS, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-perf-coldstart.sh
-          SHU=./compiler/shu_asm SHU_COLDSTART_FREESTANDING_ONLY=1 \
-            SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart_fs.log
-          grep -q 'coldstart OK' /tmp/coldstart_fs.log
-        timeout-minutes: 3
-      - name: WPO-S2 smoke + bench (const call fold)
-        run: |
-          chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh
-          ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
-          grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
-          ./tests/run-wpo-dce-asm.sh | tee /tmp/wpo_dce_asm.log
-          grep -q 'wpo asm dce OK' /tmp/wpo_dce_asm.log
-          chmod +x tests/run-perf-wpo-dce-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
-          grep -q 'wpo dce text OK' /tmp/wpo_dce_text.log
-          chmod +x tests/run-perf-wpo-dce-compiler-self-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
-          grep -q 'wpo compiler self text OK' /tmp/wpo_compiler_self_text.log
-          chmod +x tests/run-perf-wpo-dce-shu-asm-text.sh tests/run-wpo-build-asm-chain-gate.sh tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-strict-link-gate.sh tests/run-wpo-pipeline-reach-gate.sh tests/run-wpo-typeck-reach-gate.sh tests/run-wpo-backend-reach-gate.sh compiler/scripts/relink_shu_asm_strict_glue.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text.log
-          grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text.log
-          ./tests/run-wpo-build-asm-chain-gate.sh | tee /tmp/wpo_chain_gate.log
-          grep -q 'wpo build_asm chain gate OK' /tmp/wpo_chain_gate.log
-          SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log
-          grep -q 'run-wpo-strict-link-gate OK' /tmp/wpo_strict_link_gate.log
-          SHU=./compiler/shu_asm SHU_WPO_S2_COMPILE_ONLY=1 SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
-          grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
-        timeout-minutes: 8
-      - name: WPO-S3 gate (struct stack promote + await asm/yield)
-        run: |
-          make -C compiler ../std/async/scheduler.o
-          chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
-          SHU=./compiler/shu_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
-          grep -q 'wpo-s3 gate OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await asm OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await_yield asm OK' /tmp/wpo_s3.log
-        timeout-minutes: 6
-      - name: WPO-S4 gate (PGO-Lite .text.hot/unlikely + call-depth emit)
-        run: |
-          chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
-          SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
-          grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
-          grep -q 'wpo-s4: .text.hot order OK' /tmp/wpo_s4.log
-        timeout-minutes: 10
-      - name: B-strict bootstrap + gates (M3-c)
-        run: |
-          chmod +x tests/run-bootstrap-bstrict-ci.sh
-          ./tests/run-bootstrap-bstrict-ci.sh
-        timeout-minutes: 25
-      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
-        run: make -C compiler bootstrap-verify
-        timeout-minutes: 25
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
@@ -349,7 +90,7 @@ jobs:
       - name: shu_asm smoke (return-value)
         run: |
           if [ ! -x compiler/shu_asm ]; then
-            echo "shu_asm smoke SKIP (no shu_asm on asm-smoke job; ubuntu x64 CI covers build_shu_asm)"
+            echo "shu_asm smoke SKIP (no shu_asm on asm-smoke job; full suite covers build_shu_asm)"
             exit 0
           fi
           cd compiler && ./scripts/run_shu_asm_smoke.sh
@@ -358,6 +99,7 @@ jobs:
   linux-arm64:
     name: Linux (ARM64)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
     env:
       CI: "1"
     steps:
@@ -383,141 +125,11 @@ jobs:
             echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
             exit 1
           fi
-      - name: Run C test suite (make test_c)
-        run: make -C compiler test_c
-        timeout-minutes: 45
-      - name: Bootstrap driver seed gate (hello + while + typeck)
-        run: ./tests/run-bootstrap-shu-gate.sh
-        timeout-minutes: 12
-      - name: Run .su test suite (make test_su)
-        run: make -C compiler test_su
-        timeout-minutes: 25
-      - name: Goal 2 asm build script (build_shu_asm.sh)
-        if: runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 45
-        env:
-          CI: "1"
-      - name: Goal 2 asm skipped (ARM64; ubuntu x64 CI covers build_shu_asm)
-        if: runner.arch != 'X64'
-        run: echo "build_shu_asm skipped on ARM64 (45min+; ubuntu x64 Linux CI covers Goal 2)"
-      - name: Asm object code section sizes (Mach-O __text / ELF .text)
-        if: runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
-        timeout-minutes: 3
-        env:
-          CI: "1"
-      - name: S2 typeck.o gate (P3)
-        if: runner.arch == 'X64'
+      - name: Full CI test suite
         run: |
-          chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
-          SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-          grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-          SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-          grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
-        timeout-minutes: 3
-      - name: shu_asm smoke (return-value + bootstrap gate)
-        if: runner.arch == 'X64'
-        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
-        timeout-minutes: 8
-      - name: shu_asm gates skipped (ARM64; ubuntu x64 CI covers shu_asm)
-        if: runner.arch != 'X64'
-        run: echo "shu_asm S2/smoke/WPO/bstrict skipped on ARM64 (ubuntu x64 CI covers)"
-      - name: DOD-S1/S2/S3 SoA/AoS bench (correctness + L1 perf, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          KVER=$(uname -r)
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq linux-tools-common "linux-tools-${KVER}" "linux-cloud-tools-${KVER}" linux-tools-generic 2>/dev/null || \
-            sudo apt-get install -y -qq linux-tools-common linux-tools-generic || true
-          sudo sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
-          chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
-          SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1=1 ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
-          grep -q 'SoA exit=16' /tmp/dod_soa_perf.log
-          grep -q 'AoS exit=16' /tmp/dod_soa_perf.log
-          grep -qE 'dod-soa L1 miss OK|dod-soa L1 miss SKIP' /tmp/dod_soa_perf.log
-          grep -q 'dod-soa gate OK' /tmp/dod_soa_perf.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
-          grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-          grep -q 'f32_soa_sum_smoke exit=10 OK' /tmp/dod_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
-          grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-          chmod +x tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
-          grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-          grep -q 'disasm tail@64 hint OK' /tmp/dod_cl_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
-          grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-          chmod +x tests/run-simd-s3-gate.sh tests/run-f32-xmm-gates.sh
-          SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
-          grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-          grep -q 'f32_soa_sum_strip_smoke exit=10 OK' /tmp/simd_s3.log
-          SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
-          grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
-          grep -q 'abi-f32-xmm gate OK' /tmp/f32_xmm_gates.log
-          grep -q 'CLI -legacy-f32-abi exit=6 OK' /tmp/f32_xmm_gates.log
-          grep -q 'vec3f_soa_push xmm disasm OK' /tmp/f32_xmm_gates.log
-        timeout-minutes: 8
-      - name: S4 freestanding coldstart (B-BOOT-FS, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-perf-coldstart.sh
-          SHU=./compiler/shu_asm SHU_COLDSTART_FREESTANDING_ONLY=1 \
-            SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart_fs.log
-          grep -q 'coldstart OK' /tmp/coldstart_fs.log
-        timeout-minutes: 3
-      - name: WPO-S2 smoke + bench (const call fold)
-        if: runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh
-          ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
-          grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
-          ./tests/run-wpo-dce-asm.sh | tee /tmp/wpo_dce_asm.log
-          grep -q 'wpo asm dce OK' /tmp/wpo_dce_asm.log
-          chmod +x tests/run-perf-wpo-dce-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
-          grep -q 'wpo dce text OK' /tmp/wpo_dce_text.log
-          chmod +x tests/run-perf-wpo-dce-compiler-self-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
-          grep -q 'wpo compiler self text OK' /tmp/wpo_compiler_self_text.log
-          chmod +x tests/run-perf-wpo-dce-shu-asm-text.sh tests/run-wpo-build-asm-chain-gate.sh tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-strict-link-gate.sh tests/run-wpo-pipeline-reach-gate.sh tests/run-wpo-typeck-reach-gate.sh tests/run-wpo-backend-reach-gate.sh compiler/scripts/relink_shu_asm_strict_glue.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text.log
-          grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text.log
-          ./tests/run-wpo-build-asm-chain-gate.sh | tee /tmp/wpo_chain_gate.log
-          grep -q 'wpo build_asm chain gate OK' /tmp/wpo_chain_gate.log
-          SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log
-          grep -q 'run-wpo-strict-link-gate OK' /tmp/wpo_strict_link_gate.log
-          SHU=./compiler/shu_asm SHU_WPO_S2_COMPILE_ONLY=1 SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
-          grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
-        timeout-minutes: 8
-      - name: WPO-S3 gate (struct stack promote + await asm/yield)
-        if: runner.arch == 'X64'
-        run: |
-          make -C compiler ../std/async/scheduler.o
-          chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
-          SHU=./compiler/shu_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
-          grep -q 'wpo-s3 gate OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await asm OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await_yield asm OK' /tmp/wpo_s3.log
-        timeout-minutes: 6
-      - name: WPO-S4 gate (PGO-Lite .text.hot/unlikely + call-depth emit)
-        if: runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
-          SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
-          grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
-          grep -q 'wpo-s4: .text.hot order OK' /tmp/wpo_s4.log
-        timeout-minutes: 10
-      - name: B-strict bootstrap + gates (M3-c)
-        if: runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-bootstrap-bstrict-ci.sh
-          ./tests/run-bootstrap-bstrict-ci.sh
-        timeout-minutes: 25
-      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
-        if: runner.arch == 'X64'
-        run: make -C compiler bootstrap-verify
-        timeout-minutes: 25
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
@@ -529,6 +141,7 @@ jobs:
   mac:
     name: macOS (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
     env:
       CI: "1"
     strategy:
@@ -538,8 +151,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - name: Install dependencies (brotli for std/compress .br)
-        run: brew list brotli >/dev/null 2>&1 || brew install brotli
+      - name: Install dependencies (brotli + zig for perf baseline)
+        run: brew list brotli >/dev/null 2>&1 || brew install brotli; brew list zig >/dev/null 2>&1 || brew install zig
       - name: Show job env (debug)
         run: |
           echo "Runner OS: $RUNNER_OS | ${{ matrix.os }}"
@@ -558,147 +171,11 @@ jobs:
             echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
             exit 1
           fi
-      - name: Run C test suite (make test_c)
-        run: make -C compiler test_c
-        timeout-minutes: 45
-      - name: Bootstrap driver seed gate (hello + while + typeck)
-        run: ./tests/run-bootstrap-shu-gate.sh
-        timeout-minutes: 12
-      - name: Run .su test suite (make test_su)
-        run: make -C compiler test_su
-        timeout-minutes: 25
-      - name: Goal 2 asm build script (build_shu_asm.sh)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        timeout-minutes: 45
-        env:
-          CI: "1"
-      - name: Goal 2 asm skipped (macOS; ubuntu CI covers build_shu_asm)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "build_shu_asm skipped on macOS (Darwin asm link pending; ubuntu x64 CI covers Goal 2)"
-      - name: Asm object code section sizes (Mach-O __text / ELF .text)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
-        timeout-minutes: 3
-        env:
-          CI: "1"
-      - name: S2 typeck.o gate (P3)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
+      - name: Full CI test suite
         run: |
-          chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
-          SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-          grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-          SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-          grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
-        timeout-minutes: 3
-      - name: S2 typeck gate skipped (macOS; ubuntu CI covers build_asm/typeck.o)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "s2 typeck gate skipped on macOS (build_asm stub CI path; see ubuntu CI)"
-      - name: shu_asm smoke (return-value + bootstrap gate)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: cd compiler && ./scripts/run_shu_asm_smoke.sh
-        timeout-minutes: 8
-      - name: shu_asm smoke skipped (macOS; ubuntu CI covers shu_asm)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "shu_asm smoke skipped on macOS (no shu_asm on this job; ubuntu x64 CI covers smoke)"
-      - name: DOD-S1/S2/S3 SoA/AoS bench (correctness + L1 perf, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          KVER=$(uname -r)
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq linux-tools-common "linux-tools-${KVER}" "linux-cloud-tools-${KVER}" linux-tools-generic 2>/dev/null || \
-            sudo apt-get install -y -qq linux-tools-common linux-tools-generic || true
-          sudo sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
-          chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
-          SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1=1 ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
-          grep -q 'SoA exit=16' /tmp/dod_soa_perf.log
-          grep -q 'AoS exit=16' /tmp/dod_soa_perf.log
-          grep -qE 'dod-soa L1 miss OK|dod-soa L1 miss SKIP' /tmp/dod_soa_perf.log
-          grep -q 'dod-soa gate OK' /tmp/dod_soa_perf.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
-          grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-          grep -q 'f32_soa_sum_smoke exit=10 OK' /tmp/dod_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
-          grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-          chmod +x tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
-          grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-          grep -q 'disasm tail@64 hint OK' /tmp/dod_cl_s1.log
-          SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
-          grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-          chmod +x tests/run-simd-s3-gate.sh tests/run-f32-xmm-gates.sh
-          SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
-          grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-          grep -q 'f32_soa_sum_strip_smoke exit=10 OK' /tmp/simd_s3.log
-          SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
-          grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
-          grep -q 'abi-f32-xmm gate OK' /tmp/f32_xmm_gates.log
-          grep -q 'CLI -legacy-f32-abi exit=6 OK' /tmp/f32_xmm_gates.log
-          grep -q 'vec3f_soa_push xmm disasm OK' /tmp/f32_xmm_gates.log
-        timeout-minutes: 8
-      - name: S4 freestanding coldstart (B-BOOT-FS, shu_asm)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-perf-coldstart.sh
-          SHU=./compiler/shu_asm SHU_COLDSTART_FREESTANDING_ONLY=1 \
-            SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart_fs.log
-          grep -q 'coldstart OK' /tmp/coldstart_fs.log
-        timeout-minutes: 3
-      - name: WPO-S2 smoke + bench (const call fold)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh
-          ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
-          grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
-          ./tests/run-wpo-dce-asm.sh | tee /tmp/wpo_dce_asm.log
-          grep -q 'wpo asm dce OK' /tmp/wpo_dce_asm.log
-          chmod +x tests/run-perf-wpo-dce-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
-          grep -q 'wpo dce text OK' /tmp/wpo_dce_text.log
-          chmod +x tests/run-perf-wpo-dce-compiler-self-text.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
-          grep -q 'wpo compiler self text OK' /tmp/wpo_compiler_self_text.log
-          chmod +x tests/run-perf-wpo-dce-shu-asm-text.sh tests/run-wpo-build-asm-chain-gate.sh tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-strict-link-gate.sh tests/run-wpo-pipeline-reach-gate.sh tests/run-wpo-typeck-reach-gate.sh tests/run-wpo-backend-reach-gate.sh compiler/scripts/relink_shu_asm_strict_glue.sh
-          SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text.log
-          grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text.log
-          ./tests/run-wpo-build-asm-chain-gate.sh | tee /tmp/wpo_chain_gate.log
-          grep -q 'wpo build_asm chain gate OK' /tmp/wpo_chain_gate.log
-          SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log
-          grep -q 'run-wpo-strict-link-gate OK' /tmp/wpo_strict_link_gate.log
-          SHU=./compiler/shu_asm SHU_WPO_S2_COMPILE_ONLY=1 SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
-          grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
-        timeout-minutes: 8
-      - name: WPO-S3 gate (struct stack promote + await asm/yield)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          make -C compiler ../std/async/scheduler.o
-          chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
-          SHU=./compiler/shu_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
-          grep -q 'wpo-s3 gate OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await asm OK' /tmp/wpo_s3.log
-          grep -q 'wpo-s3 await_yield asm OK' /tmp/wpo_s3.log
-        timeout-minutes: 6
-      - name: WPO-S4 gate (PGO-Lite .text.hot/unlikely + call-depth emit)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
-          SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
-          grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
-          grep -q 'wpo-s4: .text.hot order OK' /tmp/wpo_s4.log
-        timeout-minutes: 10
-      - name: B-strict bootstrap + gates (M3-c)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-bootstrap-bstrict-ci.sh
-          ./tests/run-bootstrap-bstrict-ci.sh
-        timeout-minutes: 25
-      - name: Bootstrap verify (shu1 -> shu2 semantic self-host)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: make -C compiler bootstrap-verify
-        timeout-minutes: 25
-      - name: Bootstrap verify skipped (macOS; ubuntu CI covers bstrict)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "bootstrap-verify skipped on macOS (experimental shu_asm CI path; see ubuntu CI)"
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
@@ -710,8 +187,12 @@ jobs:
   windows:
     name: Windows (MSYS2)
     runs-on: windows-latest
+    timeout-minutes: 180
     env:
       CI: "1"
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -725,10 +206,9 @@ jobs:
         with:
           msystem: MSYS
           update: false
-          install: make gcc diffutils python3 sed gawk zlib-devel brotli
+          install: make gcc diffutils python3 sed gawk zlib-devel brotli zig
       - name: Build compiler (shu)
         run: make -C compiler OPT=1 all
-        shell: msys2 {0}
         env:
           CC: gcc
       - name: Verify compiler/shu was built
@@ -741,78 +221,11 @@ jobs:
             echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
             exit 1
           fi
-        shell: msys2 {0}
-      - name: IO-A6 IOCP smoke + pipe batch perf (Windows)
+      - name: Full CI test suite
         run: |
-          chmod +x tests/run-iocp-gate.sh tests/run-perf-iocp.sh
-          SHU_IOCP_RUNS=1 SHU_IOCP_BENCH_ROUNDS=32768 ./tests/run-iocp-gate.sh --perf | tee /tmp/iocp_gate.log
-        shell: msys2 {0}
-        timeout-minutes: 5
-        env:
-          CI: "1"
-      - name: Run C test suite (make test_c)
-        run: make -C compiler test_c
-        shell: msys2 {0}
-        timeout-minutes: 45
-        env:
-          CI: "1"
-      - name: Run .su test suite (make test_su)
-        run: make -C compiler test_su
-        shell: msys2 {0}
-        timeout-minutes: 25
-        env:
-          CI: "1"
-      - name: Goal 2 asm build script (build_shu_asm.sh)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
-        shell: msys2 {0}
-        timeout-minutes: 45
-        env:
-          CI: "1"
-      - name: Goal 2 asm skipped (Windows; ubuntu CI covers build_shu_asm)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "build_shu_asm skipped on Windows (MSYS asm link pending; ubuntu x64 CI covers Goal 2)"
-        shell: msys2 {0}
-        env:
-          CI: "1"
-      - name: Asm object code section sizes (Mach-O __text / ELF .text)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
-        shell: msys2 {0}
-        timeout-minutes: 3
-        env:
-          CI: "1"
-      - name: S2 typeck.o gate (P3)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
-          SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-          grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-          SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-          grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
-        shell: msys2 {0}
-        timeout-minutes: 3
-        env:
-          CI: "1"
-      - name: S2 typeck gate skipped (Windows; ubuntu CI covers build_asm/typeck.o)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "s2 typeck gate skipped on Windows (build_asm stub CI path; see ubuntu CI)"
-        shell: msys2 {0}
-        env:
-          CI: "1"
-      - name: Bootstrap verify (shu1 -> shu2, both run run-all)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: make -C compiler bootstrap-verify
-        shell: msys2 {0}
-        timeout-minutes: 25
-        env:
-          CI: "1"
-      - name: Bootstrap verify skipped (Windows; ubuntu CI covers bstrict)
-        if: runner.os != 'Linux' || runner.arch != 'X64'
-        run: echo "bootstrap-verify skipped on Windows (experimental shu_asm CI path; see ubuntu CI)"
-        shell: msys2 {0}
-        env:
-          CI: "1"
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
@@ -821,10 +234,7 @@ jobs:
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
-        shell: msys2 {0}
 
-  # 当 run-option 段错误时，用 ASan 构建并复现以获取崩溃位置（可选，不阻塞主流程）
-  # 仅 shu 用 ASan 编译；std/*.o 用普通 CFLAGS，避免链接生成的 option 二进制时出现未定义 __asan_* 符号
   linux-option-asan:
     name: Linux (ASan repro run-option)
     runs-on: ubuntu-22.04
@@ -867,10 +277,10 @@ jobs:
           echo "Job: Docker ${{ matrix.image }}"
           uname -a
           pwd
-      - name: Build and test in ${{ matrix.image }}
-        timeout-minutes: 60
+      - name: Build and full test in ${{ matrix.image }}
+        timeout-minutes: 180
         run: |
-          docker run --rm -e CI=1 -e SHU_CC_EXTRA="-std=gnu11" \
+          docker run --rm -e CI=1 -e SHU_CI_FULL_SUITE=1 -e SHU_CC_EXTRA="-std=gnu11" \
             -v "${{ github.workspace }}:/src" -w /src \
             ${{ matrix.image }} \
             sh -c '
@@ -882,14 +292,6 @@ jobs:
               export SHU_CC_EXTRA="-std=gnu11" &&
               make -C compiler clean &&
               make -C compiler OPT=1 all &&
-              make -C compiler test_c &&
-              make -C compiler test_su &&
-              echo "docker-distro: bootstrap-verify skipped (heavy bstrict build; covered by ubuntu CI)" &&
-              chmod +x tests/run-freestanding-hello.sh &&
-              SHU=./compiler/shu_asm ./tests/run-freestanding-hello.sh 2>&1 | tee /tmp/freestanding_docker.log &&
-              if grep -q "musl crt0 syscall link smoke" /tmp/freestanding_docker.log; then
-                echo "docker-distro: WARN freestanding used musl fallback (Alpine 目标：SHU=shu_asm 仍不可用时回退)"
-              elif grep -q "run-freestanding-hello OK" /tmp/freestanding_docker.log; then
-                echo "docker-distro: freestanding full asm OK (SHU=shu_asm -freestanding -backend asm)"
-              fi
+              chmod +x tests/run-ci-full-suite.sh &&
+              ./tests/run-ci-full-suite.sh
             '
