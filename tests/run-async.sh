@@ -32,15 +32,15 @@ async_is_windows_msys() {
   return 1
 }
 
-# 非 Linux x86_64 的 -o 烟测：Win→shu-c；macOS/ARM64→seed shu -backend c；x86_64 Linux→seed asm。
+# 非 Linux x86_64 的 -o 烟测：优先 shu-c（DCE 已保留副作用 let；Win 避免 seed -backend c 挂起）。
 async_host_compile_o() {
   local src="$1"
   local out="$2"
   shift 2
   if async_is_linux_x64_asm; then
     "$SHU" -L . "$@" "$src" -o "$out"
-  elif async_is_windows_msys; then
-    "$COMPILE_SHU" -L . "$@" "$src" -o "$out"
+  elif [ -x ./compiler/shu-c ]; then
+    ./compiler/shu-c -L . "$@" "$src" -o "$out"
   elif [ -x ./compiler/shu ]; then
     ./compiler/shu -L . "$@" "$src" -backend c -o "$out"
   else
@@ -104,8 +104,8 @@ _run_async_arg_count_rejected() {
 
 if async_is_linux_x64_asm; then
   echo "async_switch: compile+run (seed asm) ..."
-elif async_is_windows_msys; then
-  echo "async_switch: compile+run (${COMPILE_SHU##*/} Windows) ..."
+elif [ -x ./compiler/shu-c ]; then
+  echo "async_switch: compile+run (shu-c) ..."
 elif [ -x ./compiler/shu ]; then
   echo "async_switch: compile+run (seed shu -backend c) ..."
 else
