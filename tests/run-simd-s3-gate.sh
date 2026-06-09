@@ -46,14 +46,12 @@ if [ -z "$SHU_ABS" ] || ! simd_s3_native_exe "$SHU_ABS"; then
   exit 0
 fi
 
-# Darwin：shu_asm asm 部分 vec peel 烟测 SIGSEGV；整数 SoA/DOD 由 dod-s1 覆盖；f32 由 Linux x86_64 承担。
-case "$(uname -s 2>/dev/null)" in
-  Darwin)
-    echo "simd-s3: compile/run N/A on Darwin (shu_asm asm vec peel SIGSEGV; Linux ARM64 integer SoA/SIMD compile-only)"
-    echo "simd-s3 gate OK"
-    exit 0
-    ;;
-esac
+# Darwin / Linux ARM64 lite：refresh shu_asm asm vec peel 编译器 SIGSEGV；整数 SoA 由 dod-s1 覆盖，SIMD 实锤由 x86_64 承担。
+if dod_host_simd_s3_run_na; then
+  echo "simd-s3: compile/run N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm vec peel SIGSEGV; Linux x86_64 covers)"
+  echo "simd-s3 gate OK"
+  exit 0
+fi
 
 SIMD_S3_EXE_SHU="$(dod_host_exe_shu "$SHU_ABS")"
 
@@ -133,7 +131,7 @@ if ! SHU="$SHU_ABS" "$SHU_ABS" "$PEEL64_SMOKE_SRC" -o "$PEEL64_SMOKE_O"; then
 fi
 
 if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
-  echo "simd-s3: skip f32 .o compile (-backend c exe link below)"
+  echo "simd-s3: skip f32 .o compile (f32 exe run N/A on $(uname -s)-$(uname -m); x86_64 covers)"
 else
   if ! SHU="$SHU_ABS" "$SHU_ABS" "$F32_SOA_SUM_SRC" -o "$F32_SOA_SUM_O"; then
     echo "simd-s3 FAIL: compile $F32_SOA_SUM_SRC" >&2

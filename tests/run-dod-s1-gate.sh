@@ -95,8 +95,8 @@ if [ -z "$DOD_F32_BACKEND_ARGS" ]; then
   fi
 fi
 
-# 链接并运行：Darwin 用 -backend c；Linux 等优先 shu_asm asm 全量链。
-if SHU="$SHU_ABS" "$SHU_ABS" $DOD_GATE_BACKEND_ARGS "$SMOKE_SRC" -o "$SMOKE_BIN" 2>/dev/null && [ -x "$SMOKE_BIN" ]; then
+# 链接并运行：Darwin/ARM64 lite 用 shu-c；Linux x86_64 用 shu_asm -backend asm。
+if SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_GATE_BACKEND_ARGS "$SMOKE_SRC" -o "$SMOKE_BIN" 2>/dev/null && [ -x "$SMOKE_BIN" ]; then
   RC="$("$SMOKE_BIN" 2>/dev/null; echo $?)"
   RC="${RC##*$'\n'}"
   if [ "$RC" = "8" ]; then

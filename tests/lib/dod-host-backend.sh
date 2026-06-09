@@ -55,5 +55,13 @@ dod_host_f32_run_na() {
   [ -n "$(dod_host_f32_backend_args)" ]
 }
 
+# SIMD-S3 hw vec peel：refresh shu_asm 默认 asm 在 Darwin/Linux ARM64 上编译器 SIGSEGV；x86_64 承担。
+dod_host_simd_s3_run_na() {
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-*|Linux-aarch64|Linux-arm64) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 DOD_F32_BACKEND_ARGS="$(dod_host_f32_backend_args)"
 DOD_GATE_BACKEND_ARGS="$(dod_host_gate_backend_args)"
