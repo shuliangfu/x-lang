@@ -19,6 +19,13 @@ if [ ! -x "$SHU" ]; then
 fi
 
 export SHU
+# MSYS2：-o 链接一律 shu-c（seed shu -o 挂起）；子脚本内勿再 make bootstrap-driver-seed。
+if [ -n "${MSYSTEM:-}" ] || case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*) true ;; *) false ;; esac; then
+  if [ -x ./compiler/shu-c ]; then
+    export SHULANG_LINK_SHU=./compiler/shu-c
+  fi
+fi
+export SHULANG_SKIP_SUBSCRIPT_MAKE=1
 # 非 x86_64：可执行 -o 链接用 shu-c，seed shu 仍负责 typeck/check。
 case "$(uname -m 2>/dev/null)" in
   x86_64|amd64) ;;
