@@ -39,6 +39,10 @@ echo "=== ZC-1: provided buffers smoke ==="
 ./tests/run-provided-buffers.sh | tee /tmp/zc1_smoke.log
 
 if grep -q "provided buffers smoke SKIP" /tmp/zc1_smoke.log; then
+  if [ -n "${SHU_CI_NO_SKIP:-}" ] && [ "$(uname -s)" = "Linux" ]; then
+    echo "ZC-1 gate FAIL: provided buffers skipped on Linux (SHU_CI_NO_SKIP=1)" >&2
+    exit 1
+  fi
   echo "ZC-1 gate SKIP (io_uring unavailable; e.g. Mac Docker linuxkit → defer to GitHub CI ubuntu)"
   if [ "$DO_PERF" -eq 1 ]; then
     exit 0
@@ -48,9 +52,8 @@ if grep -q "provided buffers smoke SKIP" /tmp/zc1_smoke.log; then
 fi
 
 if grep -q "provided buffers smoke FAIL" /tmp/zc1_smoke.log; then
-  echo "ZC-1 gate SKIP (provided buffers unavailable on this runner)" >&2
-  echo "ZC-1 gate OK (smoke skipped)"
-  exit 0
+  echo "ZC-1 gate FAIL (provided buffers smoke failed)" >&2
+  exit 1
 fi
 
 grep -q "provided buffers smoke OK" /tmp/zc1_smoke.log
