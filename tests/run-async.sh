@@ -60,10 +60,12 @@ if [ -x ./compiler/shu-c ]; then
   COMPILE_SHU=./compiler/shu-c
 fi
 
-# async_switch -o：Linux x86_64 用 seed asm；其它平台 shu-c（无 -backend，shu-c 不支持该选项）。
+# async_switch -o：Linux x86_64 用 seed asm；其它平台 seed shu -backend c（SU pipeline codegen，i64 计数正确；shu-c 纯 C 前端会 exit=5）。
 async_switch_compile_o() {
   if async_is_linux_x64_asm; then
     "$SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
+  elif [ -x ./compiler/shu ]; then
+    ./compiler/shu -L . tests/bench/async_switch.su -backend c -o /tmp/shu_async_switch
   else
     "$COMPILE_SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
   fi
@@ -83,8 +85,10 @@ _run_async_arg_count_rejected() {
 
 if async_is_linux_x64_asm; then
   echo "async_switch: compile+run (seed asm) ..."
+elif [ -x ./compiler/shu ]; then
+  echo "async_switch: compile+run (seed shu -backend c) ..."
 else
-  echo "async_switch: compile+run (${COMPILE_SHU##*/} C frontend) ..."
+  echo "async_switch: compile+run (${COMPILE_SHU##*/} fallback) ..."
 fi
 async_switch_compile_o
 [ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
