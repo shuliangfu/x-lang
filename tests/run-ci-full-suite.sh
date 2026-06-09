@@ -349,7 +349,7 @@ grep -q 'wpo dce emit OK' /tmp/wpo_dce_emit.log
 
 echo "── bootstrap seed gate ──"
 if ci_is_windows_msys_ci_lite; then
-  SKIP_BOOTSTRAP_DRIVER_SEED=1 ./tests/run-bootstrap-shu-gate.sh
+  echo "ci-full-suite: bootstrap seed gate N/A on Windows MSYS2 (C test suite smoke already ran bootstrap-shu-gate)"
 else
   ./tests/run-bootstrap-shu-gate.sh
 fi
