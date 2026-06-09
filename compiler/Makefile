@@ -928,6 +928,7 @@ pipeline_gen.c: bootstrap-pipeline
 shu-su-pipeline: bootstrap-pipeline migrate-su-objs $(PIPELINE_SU_BASE_OBJS) pipeline_su.o $(PIPELINE_SU_FRONTEND_OBJS) $(PIPELINE_SU_SUPPORT_OBJS) ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o
 	@# gen_driver 副本可能缺 pipeline_asm_block_*；与 bootstrap-driver-seed 一致强制从 pipeline_gen.c 重编。
 	@$(MAKE) pipeline_su.o PIPELINE_SU_FORCE_COMPILE=1
+	@$(MAKE) migrate-su-objs $(PIPELINE_SU_SATELLITE_OBJS) pipeline_bootstrap_orchestration.o build-seed-asm-host
 	@$(MAKE) -B src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 	$(CC) $(CFLAGS) -DSHU_USE_SU_PIPELINE -DSHU_USE_SU_TYPECK -DSHU_USE_SU_CODEGEN -o $(TARGET)_su $(PIPELINE_SU_BASE_OBJS) pipeline_su.o $(PIPELINE_SU_FRONTEND_OBJS) $(PIPELINE_SU_LINK_OBJS) ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o $(PIPELINE_LIBS)
 	@echo "shu_su built; use ./shu_su -su -E <file.su> to test .su pipeline"
