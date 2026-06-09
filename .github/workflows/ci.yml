@@ -282,7 +282,7 @@ jobs:
       - name: Build and full test in ${{ matrix.image }}
         timeout-minutes: 180
         run: |
-          docker run --rm -e CI=1 -e SHU_CI_FULL_SUITE=1 -e SHU_CC_EXTRA="-std=gnu11" \
+          docker run --rm -e CI=1 -e SHU_CI_FULL_SUITE=1 -e SHU_CI_DOCKER=1 -e SHU_CC_EXTRA="-std=gnu11" \
             -v "${{ github.workspace }}:/src" -w /src \
             ${{ matrix.image }} \
             sh -c '

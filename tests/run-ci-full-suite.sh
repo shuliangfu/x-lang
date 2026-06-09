@@ -45,6 +45,11 @@ ci_is_x86_64_host() {
   return 1
 }
 
+# 是否在 Docker 容器内（perf stat / L1 miss 通常不可用，记 N/A）。
+ci_is_docker() {
+  [ -f /.dockerenv ] || [ -n "${SHU_CI_DOCKER:-}" ]
+}
+
 # 是否为 Windows MSYS2 环境。
 ci_is_windows_msys() {
   if [ -n "${MSYSTEM:-}" ]; then
@@ -360,17 +365,29 @@ ci_run_dod_x86_correctness() {
 }
 
 if ci_is_linux && ci_is_x86_64_host; then
-  echo "── DOD SoA/AoS (Linux x86_64) ──"
+  DOD_SOA_REQUIRE_L1=1
+  if ci_is_docker; then
+    echo "── DOD SoA/AoS (Linux x86_64, Docker: L1 perf N/A) ──"
+    DOD_SOA_REQUIRE_L1=0
+  else
+    echo "── DOD SoA/AoS (Linux x86_64) ──"
+  fi
   KVER=$(uname -r)
   ci_apt_get update -qq 2>/dev/null || true
   ci_apt_get install -y -qq linux-tools-common "linux-tools-${KVER}" "linux-cloud-tools-${KVER}" linux-tools-generic 2>/dev/null || \
     ci_apt_get install -y -qq linux-tools-common linux-tools-generic 2>/dev/null || true
-  sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
+  if [ "$DOD_SOA_REQUIRE_L1" = "1" ]; then
+    sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
+  fi
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
-  SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1=1 ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
+  SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1="$DOD_SOA_REQUIRE_L1" ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
   grep -q 'SoA exit=16' /tmp/dod_soa_perf.log
   grep -q 'AoS exit=16' /tmp/dod_soa_perf.log
-  grep -q 'dod-soa L1 miss OK' /tmp/dod_soa_perf.log
+  if [ "$DOD_SOA_REQUIRE_L1" = "1" ]; then
+    grep -q 'dod-soa L1 miss OK' /tmp/dod_soa_perf.log
+  else
+    echo "dod-soa L1 perf N/A (Docker container)"
+  fi
   grep -q 'dod-soa gate OK' /tmp/dod_soa_perf.log
   SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
   grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
