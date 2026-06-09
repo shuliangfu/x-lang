@@ -632,6 +632,9 @@ int async_liveness_func_needs_cps_frame(const struct ASTFunc *f) {
         return 1;
     if (block_count_await(f->body) > 1)
         return 1;
+    /** 含 let/loop 的 await 须 CPS（yield_demo、liveness_demo）；无则为 return-await 直返 stub。 */
+    if (f->body->num_lets > 0 || f->body->num_loops > 0 || f->body->num_for_loops > 0)
+        return 1;
     if (async_liveness_layout_func_module(f, NULL, &layout) != 0)
         return 0;
     if (layout.live.n <= 0)
