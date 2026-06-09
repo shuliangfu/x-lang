@@ -7029,7 +7029,7 @@ static void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const GlueBlo
   if (!peak_live || glue_asm73_linear_nso <= 0 || glue_asm73_interf_n <= 0)
     return;
   peak = peak_live->n;
-  /** cfg 父块 peak 在 final_expr；2～3 元块仍须 Chaitin，否则 cfg 前向 + 空着色表不稳定。 */
+  /** cfg 父块 peak 在 final_expr；单变量块不着色。 */
   if (peak < 2)
     return;
   n = glue_asm73_interf_n;
@@ -8068,6 +8068,12 @@ static int32_t glue_assign_lhs_f32_type_ref_elf_c(struct ast_ASTArena *arena, st
   return 0;
 }
 
+/** assign/复合赋值 rhs→rax；定义见 glue_emit_binop_add_rax_rbx_elf_c 之后。 */
+static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t assign_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
+
 /**
  * assign 右值 emit：左值 f32 + 浮点字面量走 imm32（与 CALL widen f64 区分）。
  */
@@ -8126,13 +8132,13 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       if (load_sz <= 0)
         load_sz = 4;
       /** arm64 rbx=x1：须先 emit 右值→rax，再 lea/load 基址→x1，避免 AND 等写 w1 覆盖基址。 */
-      if (glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0)
+      if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
         return -1;
       if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
         return -1;
       return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
     }
-    if (glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0)
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
@@ -8154,7 +8160,7 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     if (base_ref <= 0 || idx_ref <= 0)
       return -1;
     /** arm64 rbx=x1：先 emit 右值→rax，再 INDEX 址→rbx（字面量/变量下标直路径免 x2）。 */
-    if (glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0) {
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0) {
       glue_index_assign_addr_cache_clear();
       return -1;
     }
@@ -8227,7 +8233,7 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       return -1;
     /** 写 a 前失效 a 的槽命中，避免 rhs 仍用旧缓存。 */
     glue_binop_var_slot_cache_invalidate_slot(off);
-    if (glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0)
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     {
       int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
@@ -9610,7 +9616,7 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   if (glue_expr_is_su_as_cast_at_c(arena, expr_ref))
     return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-  if (ko == 28)
+  if (glue_expr_kind_is_assign_like_ord(ko))
     return pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   if (ko == 20)
     return pipeline_asm_emit_logand_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
@@ -10109,6 +10115,70 @@ static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+}
+
+/**
+ * assign/复合赋值：将待写入 lhs 的值装入 rax（plain 为 rhs；a+=10 为 lhs+rhs）。
+ * 避免 EXPR_*_ASSIGN 落 backend_emit_expr_elf_slow 与 rec 互递归 SIGSEGV。
+ */
+static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t assign_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ako;
+  int32_t vr;
+  if (!arena || !elf_ctx || !ctx || assign_expr_ref <= 0 || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  ako = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
+  if (ako == 28)
+    return glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == -1)
+    return -1;
+  if (vr == -2) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  switch (ako) {
+  case 29:
+    return glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 30:
+    return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+  case 31:
+    return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+  case 32:
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  case 33:
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_rem_mod_arch(elf_ctx, ta);
+  case 34:
+    return backend_enc_and_rbx_rax_arch(elf_ctx, ta);
+  case 35:
+    return backend_enc_or_rbx_rax_arch(elf_ctx, ta);
+  case 36:
+    return backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+  case 37:
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  case 38:
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+  default:
+    return -1;
+  }
 }
 
 static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -12148,7 +12218,16 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   if (glue_block_live_cfg_parent && !saved_cfg_color_active) {
     /** 仅最外层 cfg 父块重算 Chaitin；嵌套 if+while 子块勿 wipe 父块着色表。 */
     glue_block_compute_cfg_peak_live_and_color(arena, ctx, block_ref, slot_base, nconst, nlet);
-    glue_asm73_cfg_coloring_active = 1;
+    /**
+     * final_expr peak < 4：cfg 前向 next-use 在 emit 中不稳定；本块改线性 live+pin，着色表仍供 then/else 继承。
+     */
+    if (glue_asm73_cfg_peak_live.n >= 4)
+      glue_asm73_cfg_coloring_active = 1;
+    else {
+      glue_asm73_cfg_coloring_active = 0;
+      glue_block_compute_linear_live_in(arena, ctx, block_ref, slot_base, nconst, nlet);
+      glue_asm73_compute_spill_color_pins();
+    }
   } else if (saved_cfg_color_active) {
     /** cfg 子块（含内层 while/for）：继承父块着色与 final_expr 阈值，不重算 Chaitin。 */
     glue_asm73_cfg_coloring_active = 1;
@@ -12253,9 +12332,6 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
             pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, idx, init_ref, ctx);
             } else {
             int32_t ix_init;
-            if (getenv("SHU_ASM_EMIT_TRACE"))
-              fprintf(stderr, "shu: block let init br=%d idx=%d ref=%d ko=%d\n", (int)block_ref, (int)idx,
-                      (int)init_ref, (int)pipeline_expr_kind_ord_at(arena, init_ref));
             ix_init = glue_try_block_let_index_init_from_assign_cache_elf_c(arena, elf_ctx, ctx, init_ref, ta);
             if (ix_init < 0)
               return -1;
