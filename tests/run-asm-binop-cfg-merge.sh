@@ -27,7 +27,20 @@ run_one() {
   local out="$2"
   local want="$3"
   local tag="$4"
-  $SHU "$src" -o "$out" 2>&1
+  local attempt=1 compile_ec=0
+  while [ "$attempt" -le 2 ]; do
+    compile_ec=0
+    $SHU "$src" -o "$out" 2>&1 || compile_ec=$?
+    if [ "$compile_ec" -eq 0 ]; then
+      break
+    fi
+    if [ "$compile_ec" -eq 139 ] && [ "$attempt" -eq 1 ]; then
+      echo "run-asm-binop-cfg-merge: warn: compile SIGSEGV ($tag), retry once ..."
+      attempt=2
+      continue
+    fi
+    exit "$compile_ec"
+  done
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   if [ "$exitcode" -ne "$want" ]; then

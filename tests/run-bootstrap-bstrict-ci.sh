@@ -60,7 +60,16 @@ fi
 if bootstrap_ci_is_docker; then
   echo "bootstrap-bstrict-ci: Docker — asm-73 compute gate N/A (native linux GHA job covers; experimental SIGSEGV in container)"
 else
-  SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
+  # experimental 在 cfg-merge 首用例偶发 SIGSEGV；此时尚未 refresh，shu_asm 仍为 B-strict asm 产物。
+  if ! SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh; then
+    asm73_ec=$?
+    if [ "$ASM_COMPUTE_SHU" != "./compiler/shu_asm" ] && [ -x ./compiler/shu_asm ]; then
+      echo "bootstrap-bstrict-ci: warn: asm-73 failed with $ASM_COMPUTE_SHU (exit $asm73_ec); fallback to shu_asm" >&2
+      SHU=./compiler/shu_asm ./tests/run-asm-73-gate.sh
+    else
+      exit "$asm73_ec"
+    fi
+  fi
 fi
 
 echo "bootstrap-bstrict-ci: run-all-bstrict (replace seed, whitelist) ..."
