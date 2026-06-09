@@ -15,15 +15,9 @@ else
   SHU=./compiler/shu-c
 fi
 
-# shu_asm 实验链 -o 链接 slice 字段 codegen 不完整；运行时 smoke 优先 shu-c/shu。
-RUN_SHU="$SHU"
-case "$(basename "$SHU")" in
-  shu|shu_asm)
-    if [ -x ./compiler/shu-c ]; then
-      RUN_SHU=./compiler/shu-c
-    fi
-    ;;
-esac
+# shu_asm 实验链 -o 链接 slice 字段 codegen 不完整；非 x86_64 须 shu-c 避免 asm x86_64 .o。
+# shellcheck source=lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
 
 make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 

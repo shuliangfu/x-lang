@@ -163,6 +163,7 @@ ci_run_zc_gates_no_zc1() {
 echo "ci-full-suite: host=$(ci_host_os)/$(ci_host_arch) CI=${CI:-}"
 if ci_is_linux_arm64_ci_lite; then
   echo "ci-full-suite: Linux ARM64 lite path (Neon DOD/SIMD; x86_64 covers run-all-su/build_shu_asm/WPO chain)"
+  export SHULANG_LINK_SHU=./compiler/shu-c
 fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true

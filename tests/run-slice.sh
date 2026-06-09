@@ -14,18 +14,22 @@ else
   SHU=./compiler/shu-c
 fi
 
+# 非 x86_64：seed shu -o 可能走 asm 产出 x86_64 .o，链接 EM:62 失败；可执行链用 shu-c。
+# shellcheck source=lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+
 make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 
-$SHU tests/slice/main.su -o /tmp/shu_slice 2>&1
+$RUN_SHU tests/slice/main.su -o /tmp/shu_slice 2>&1
 exitcode=0; /tmp/shu_slice >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 20 ] && { echo "expected 20 (slice s[1]), got $exitcode"; exit 1; }
 
-$SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
+$RUN_SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
 exitcode=0; /tmp/shu_slice_data_field >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (data_field), got $exitcode"; exit 1; }
 
 # core.slice + core.option 全链（Linux CI 有完整链接环境）
-$SHU -L . tests/slice/length.su -o /tmp/shu_slice_length 2>&1
+$RUN_SHU -L . tests/slice/length.su -o /tmp/shu_slice_length 2>&1
 exitcode=0; /tmp/shu_slice_length >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (len_i32), got $exitcode"; exit 1; }
 

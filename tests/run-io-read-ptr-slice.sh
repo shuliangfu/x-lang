@@ -15,15 +15,19 @@ else
   SHU=./compiler/shu-c
 fi
 
+# 非 x86_64：-o 链接用 shu-c，避免 seed asm 产出 x86_64 ELF（EM:62）在 ARM64 上 ld 失败。
+# shellcheck source=lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+
 make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../std/io/io.o
 
-$SHU -L . tests/io/read_ptr_slice.su -o /tmp/shu_io_read_ptr_slice 2>&1
+$RUN_SHU -L . tests/io/read_ptr_slice.su -o /tmp/shu_io_read_ptr_slice 2>&1
 echo -n "AB" | /tmp/shu_io_read_ptr_slice
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
 
-$SHU -L . tests/io/read_ptr_slice_param.su -o /tmp/shu_io_read_ptr_slice_param 2>&1
+$RUN_SHU -L . tests/io/read_ptr_slice_param.su -o /tmp/shu_io_read_ptr_slice_param 2>&1
 echo -n "AB" | /tmp/shu_io_read_ptr_slice_param
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param local/param field), got $ec"; exit 1; }
