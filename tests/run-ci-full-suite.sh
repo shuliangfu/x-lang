@@ -278,10 +278,10 @@ fi
 
 echo "── compile dogfood ──"
 chmod +x tests/run-perf-compile-dogfood.sh
-if ci_is_linux; then
+if ci_is_linux && ! ci_is_docker; then
   SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
 else
-  # macOS/Windows：跑 timing 烟测；基线仅校准于 Linux x64。
+  # macOS/Windows/Docker：跑 timing 烟测；perf 回归门禁由 native Linux x86_64 承担。
   ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
 fi
 grep -q 'compile dogfood OK' /tmp/compile_dogfood.log
