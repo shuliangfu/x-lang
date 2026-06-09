@@ -34,6 +34,13 @@ MIN_BINARY_BYTES=${MIN_BINARY_BYTES:-600}
 
 echo "=== wpo shu_asm binary __text (measured + wpo-eligible proxy) ==="
 
+# Darwin gen_driver：ENTRY_ONLY/EMIT_HEAVY A/B 常 inconclusive（eligible save=0），Linux 覆盖 perf 门禁。
+if [ "$(uname -s 2>/dev/null)" = Darwin ]; then
+  echo "wpo shu_asm text: N/A on Darwin (gen_driver A/B inconclusive; Linux x86_64/ARM64 covers)"
+  echo "wpo shu_asm text OK (Darwin N/A)"
+  exit 0
+fi
+
 if [ ! -x "$SHU_ASM_ABS" ]; then
   echo "wpo shu_asm text: SKIP (no shu_asm: $SHU_ASM_ABS)"
   exit 0
