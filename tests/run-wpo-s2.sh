@@ -25,17 +25,23 @@ perl compiler/scripts/wpo_dce.pl /tmp/shu_wpo_dead_fn_v2.json --expect-dead dead
 
 # WPO-S2 asm：常量实参 call fold（须 shu_asm）
 if [ -x ./compiler/shu_asm ]; then
-  OUT=/tmp/shu_wpo_const_spec_fold
+  if wpo_s2_darwin_skip_exe_run; then
+    echo "wpo-s2: Darwin asm uses -o .o disasm (user exe ld __TEXT N/A)"
+  fi
+
+  OUT=$(wpo_s2_asm_out_path /tmp/shu_wpo_const_spec_fold)
   if ! ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT" 2>/tmp/wpo_s2_fold_build.log; then
     echo "wpo-s2 asm FAIL: const_spec_fold compile failed"
     tail -8 /tmp/wpo_s2_fold_build.log 2>/dev/null || true
     exit 1
   fi
-  EX=0
-  "$OUT" >/dev/null 2>&1 || EX=$?
-  if [ "$EX" -ne 0 ]; then
-    echo "wpo-s2 asm FAIL: const_spec_fold expected exit 0, got $EX"
-    exit 1
+  if ! wpo_s2_darwin_skip_exe_run; then
+    EX=0
+    "$OUT" >/dev/null 2>&1 || EX=$?
+    if [ "$EX" -ne 0 ]; then
+      echo "wpo-s2 asm FAIL: const_spec_fold expected exit 0, got $EX"
+      exit 1
+    fi
   fi
   MAIN_ASM=$(wpo_main_asm "$OUT" || true)
   if [ -z "$MAIN_ASM" ]; then
@@ -50,17 +56,19 @@ if [ -x ./compiler/shu_asm ]; then
   echo "wpo-s2 asm fold OK (_main no bl _scale, exit 0)"
 
   # WPO-S2 monomorphize：SHU_WPO_MONO=1 生成 scale__wpo_1024_64 thunk，_main bl 单态符号
-  OUT_MONO=/tmp/shu_wpo_const_spec_mono
+  OUT_MONO=$(wpo_s2_asm_out_path /tmp/shu_wpo_const_spec_mono)
   if ! SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/const_spec_fold.su -o "$OUT_MONO" 2>/tmp/wpo_s2_mono_build.log; then
     echo "wpo-s2 asm FAIL: const_spec_fold mono compile failed"
     tail -8 /tmp/wpo_s2_mono_build.log 2>/dev/null || true
     exit 1
   fi
-  EXM=0
-  "$OUT_MONO" >/dev/null 2>&1 || EXM=$?
-  if [ "$EXM" -ne 0 ]; then
-    echo "wpo-s2 asm FAIL: const_spec_fold mono expected exit 0, got $EXM"
-    exit 1
+  if ! wpo_s2_darwin_skip_exe_run; then
+    EXM=0
+    "$OUT_MONO" >/dev/null 2>&1 || EXM=$?
+    if [ "$EXM" -ne 0 ]; then
+      echo "wpo-s2 asm FAIL: const_spec_fold mono expected exit 0, got $EXM"
+      exit 1
+    fi
   fi
   if ! nm "$OUT_MONO" 2>/dev/null | grep -q 'scale__wpo_1024_64'; then
     echo "wpo-s2 asm FAIL: missing mono symbol scale__wpo_1024_64"
@@ -73,28 +81,36 @@ if [ -x ./compiler/shu_asm ]; then
     exit 1
   fi
   if ! wpo_main_calls_pat "$OUT_MONO" 'scale__wpo_1024_64'; then
-    echo "wpo-s2 asm FAIL: _main expected bl scale__wpo_1024_64"
-    echo "$MAIN_MONO" | grep -E 'bl|call|scale' || true
-    exit 1
+    # Darwin .o：otool 的 bl 常为 PC-relative 无符号；nm 已确认 mono 符号即可。
+    if wpo_s2_darwin_skip_exe_run && nm "$OUT_MONO" 2>/dev/null | grep -q 'scale__wpo_1024_64'; then
+      echo "wpo-s2 asm mono OK (Darwin .o: nm scale__wpo_1024_64; bl sym N/A in disasm)"
+    else
+      echo "wpo-s2 asm FAIL: _main expected bl scale__wpo_1024_64"
+      echo "$MAIN_MONO" | grep -E 'bl|call|scale' || true
+      exit 1
+    fi
+  else
+    if wpo_main_calls_pat "$OUT_MONO" '_scale([^_a-zA-Z0-9]|$)|[[:space:]]_scale([^_a-zA-Z0-9]|$)'; then
+      echo "wpo-s2 asm FAIL: _main should not bl generic _scale in mono mode"
+      exit 1
+    fi
+    echo "wpo-s2 asm mono OK (scale__wpo_1024_64 thunk + _main bl mono sym)"
   fi
-  if wpo_main_calls_pat "$OUT_MONO" '_scale([^_a-zA-Z0-9]|$)|[[:space:]]_scale([^_a-zA-Z0-9]|$)'; then
-    echo "wpo-s2 asm FAIL: _main should not bl generic _scale in mono mode"
-    exit 1
-  fi
-  echo "wpo-s2 asm mono OK (scale__wpo_1024_64 thunk + _main bl mono sym)"
 
   # WPO-S2 vec 特化：lane0(vec_add4([const],[const])) fold
-  OUT_VEC=/tmp/shu_wpo_vec_const_spec_fold
+  OUT_VEC=$(wpo_s2_asm_out_path /tmp/shu_wpo_vec_const_spec_fold)
   if ! ./compiler/shu_asm tests/wpo/vec_const_spec_fold.su -o "$OUT_VEC" 2>/tmp/wpo_s2_vec_build.log; then
     echo "wpo-s2 asm FAIL: vec_const_spec_fold compile failed"
     tail -8 /tmp/wpo_s2_vec_build.log 2>/dev/null || true
     exit 1
   fi
-  EXV=0
-  "$OUT_VEC" >/dev/null 2>&1 || EXV=$?
-  if [ "$EXV" -ne 0 ]; then
-    echo "wpo-s2 asm FAIL: vec_const_spec_fold expected exit 0, got $EXV"
-    exit 1
+  if ! wpo_s2_darwin_skip_exe_run; then
+    EXV=0
+    "$OUT_VEC" >/dev/null 2>&1 || EXV=$?
+    if [ "$EXV" -ne 0 ]; then
+      echo "wpo-s2 asm FAIL: vec_const_spec_fold expected exit 0, got $EXV"
+      exit 1
+    fi
   fi
   MAIN_VEC=$(wpo_main_asm "$OUT_VEC" || true)
   if [ -z "$MAIN_VEC" ]; then
@@ -109,17 +125,19 @@ if [ -x ./compiler/shu_asm ]; then
   echo "wpo-s2 asm vec fold OK (_main no bl vec_add4/lane0, exit 0)"
 
   # WPO-S2 vec mono：SHU_WPO_MONO=1 → lane0__wpo_1_2_3_4_10_20_30_40 thunk
-  OUT_VEC_MONO=/tmp/shu_wpo_vec_const_spec_mono
+  OUT_VEC_MONO=$(wpo_s2_asm_out_path /tmp/shu_wpo_vec_const_spec_mono)
   if ! SHU_WPO_MONO=1 ./compiler/shu_asm tests/wpo/vec_const_spec_mono.su -o "$OUT_VEC_MONO" 2>/tmp/wpo_s2_vec_mono_build.log; then
     echo "wpo-s2 asm FAIL: vec_const_spec_mono compile failed"
     tail -8 /tmp/wpo_s2_vec_mono_build.log 2>/dev/null || true
     exit 1
   fi
-  EXVM=0
-  "$OUT_VEC_MONO" >/dev/null 2>&1 || EXVM=$?
-  if [ "$EXVM" -ne 0 ]; then
-    echo "wpo-s2 asm FAIL: vec_const_spec_mono expected exit 0, got $EXVM"
-    exit 1
+  if ! wpo_s2_darwin_skip_exe_run; then
+    EXVM=0
+    "$OUT_VEC_MONO" >/dev/null 2>&1 || EXVM=$?
+    if [ "$EXVM" -ne 0 ]; then
+      echo "wpo-s2 asm FAIL: vec_const_spec_mono expected exit 0, got $EXVM"
+      exit 1
+    fi
   fi
   if ! nm "$OUT_VEC_MONO" 2>/dev/null | grep -q 'lane0__wpo_1_2_3_4_10_20_30_40'; then
     echo "wpo-s2 asm FAIL: missing vec mono symbol lane0__wpo_1_2_3_4_10_20_30_40"
@@ -132,15 +150,19 @@ if [ -x ./compiler/shu_asm ]; then
     exit 1
   fi
   if ! wpo_main_calls_pat "$OUT_VEC_MONO" 'lane0__wpo_1_2_3_4_10_20_30_40'; then
-    echo "wpo-s2 asm FAIL: _main expected bl lane0__wpo_1_2_3_4_10_20_30_40"
-    echo "$MAIN_VEC_MONO" | grep -E 'bl|call|lane0' || true
-    exit 1
-  fi
-  if wpo_main_calls_pat "$OUT_VEC_MONO" 'lane0([^_a-zA-Z0-9]|$)|vec_add4'; then
+    if wpo_s2_darwin_skip_exe_run && nm "$OUT_VEC_MONO" 2>/dev/null | grep -q 'lane0__wpo_1_2_3_4_10_20_30_40'; then
+      echo "wpo-s2 asm vec mono OK (Darwin .o: nm lane0__wpo_*; bl sym N/A in disasm)"
+    else
+      echo "wpo-s2 asm FAIL: _main expected bl lane0__wpo_1_2_3_4_10_20_30_40"
+      echo "$MAIN_VEC_MONO" | grep -E 'bl|call|lane0' || true
+      exit 1
+    fi
+  elif wpo_main_calls_pat "$OUT_VEC_MONO" 'lane0([^_a-zA-Z0-9]|$)|vec_add4'; then
     echo "wpo-s2 asm FAIL: _main should not bl generic lane0/vec_add4 in vec mono mode"
     exit 1
+  else
+    echo "wpo-s2 asm vec mono OK (lane0__wpo_* thunk + _main bl mono sym)"
   fi
-  echo "wpo-s2 asm vec mono OK (lane0__wpo_* thunk + _main bl mono sym)"
 fi
 
 echo "wpo-s2 smoke OK"
