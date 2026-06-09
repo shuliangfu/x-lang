@@ -22,25 +22,58 @@ asm_main_disasm() {
   wpo_main_asm "$1" 2>/dev/null || true
 }
 
+# 编译 cfg-merge 用例 -o；strict shu_asm 在 GHA 偶发 SIGSEGV 时回退 seed（shu-su / shu_asm73_seed）。
+cfg_merge_compile_o() {
+  local src="$1" out="$2" tag="$3"
+  local comp compile_ec=0 attempt=1
+  local fallbacks=("$SHU")
+  local cand dup=0 c
+
+  if [ -n "${ASM73_FALLBACK_SHU:-}" ] && [ -x "${ASM73_FALLBACK_SHU}" ]; then
+    fallbacks+=("$ASM73_FALLBACK_SHU")
+  fi
+  for cand in ./compiler/shu-su ./compiler/shu_asm73_seed; do
+    [ -x "$cand" ] || continue
+    dup=0
+    for c in "${fallbacks[@]}"; do
+      if [ "$c" = "$cand" ]; then dup=1; break; fi
+    done
+    [ "$dup" -eq 0 ] && fallbacks+=("$cand")
+  done
+
+  for comp in "${fallbacks[@]}"; do
+    attempt=1
+    while [ "$attempt" -le 2 ]; do
+      compile_ec=0
+      "$comp" "$src" -o "$out" 2>&1 || compile_ec=$?
+      if [ "$compile_ec" -eq 0 ]; then
+        if [ "$comp" != "$SHU" ]; then
+          echo "run-asm-binop-cfg-merge: note: used $comp for $tag ($SHU SIGSEGV/unstable)"
+        fi
+        return 0
+      fi
+      if [ "$compile_ec" -eq 139 ] && [ "$attempt" -eq 1 ]; then
+        echo "run-asm-binop-cfg-merge: warn: $comp SIGSEGV ($tag), retry once ..."
+        attempt=2
+        continue
+      fi
+      break
+    done
+    if [ "$compile_ec" -eq 139 ]; then
+      echo "run-asm-binop-cfg-merge: warn: $comp SIGSEGV ($tag), try next compiler ..."
+    else
+      return "$compile_ec"
+    fi
+  done
+  return "$compile_ec"
+}
+
 run_one() {
   local src="$1"
   local out="$2"
   local want="$3"
   local tag="$4"
-  local attempt=1 compile_ec=0
-  while [ "$attempt" -le 2 ]; do
-    compile_ec=0
-    $SHU "$src" -o "$out" 2>&1 || compile_ec=$?
-    if [ "$compile_ec" -eq 0 ]; then
-      break
-    fi
-    if [ "$compile_ec" -eq 139 ] && [ "$attempt" -eq 1 ]; then
-      echo "run-asm-binop-cfg-merge: warn: compile SIGSEGV ($tag), retry once ..."
-      attempt=2
-      continue
-    fi
-    exit "$compile_ec"
-  done
+  cfg_merge_compile_o "$src" "$out" "$tag"
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   if [ "$exitcode" -ne "$want" ]; then
