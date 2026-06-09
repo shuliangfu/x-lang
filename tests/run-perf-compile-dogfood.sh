@@ -97,7 +97,11 @@ for name, cmd in cases:
     cap = baseline.get(name)
     eff_cap = cap
     if cap is not None and os.environ.get("CI", "").lower() in ("1", "true"):
-        eff_cap = cap * 1.4
+        ci_mult = 1.4
+        # Alpine/musl Docker：check_backend 等比 glibc 慢 ~1.45×，单独放宽。
+        if os.path.isfile("/.dockerenv") or os.environ.get("SHU_CI_DOCKER"):
+            ci_mult = 1.65
+        eff_cap = cap * ci_mult
     status = "OK"
     if eff_cap is not None and med > eff_cap:
         status = "SLOW"
