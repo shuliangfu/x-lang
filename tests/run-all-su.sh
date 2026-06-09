@@ -9,6 +9,11 @@ cd "$(dirname "$0")/.."
 export SHULANG_SKIP_SUBSCRIPT_MAKE="${SHULANG_SKIP_SUBSCRIPT_MAKE:-1}"
 # 先确保 shu、shu-c 及全部 std .o、runtime_panic.o 存在（make clean 后 run-all 里编译 -o 会链这些 .o）
 make -C compiler -q all 2>/dev/null || make -C compiler all
+# CI 全量：必须构建 shu_su 并跑完整 run-all。
+if [ -n "${SHU_CI_NO_SKIP:-}" ] || [ -n "${CI:-}" ]; then
+  make -C compiler bootstrap-pipeline
+  make -C compiler shu-su-pipeline
+fi
 if [ ! -x compiler/shu_su ]; then
   make -C compiler bootstrap-pipeline 2>/dev/null || true
   make -C compiler shu-su-pipeline 2>/dev/null || true
@@ -21,17 +26,13 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   fi
 fi
 [ -x compiler/shu ] && cp compiler/shu compiler/shu_driver
-# CI：LSP 烟测已覆盖 bootstrap seed；无 shu_su 或 macOS 上跳过全量 run-all（避免超时）。
-if [ -n "${CI:-}" ]; then
-  if [ "$(uname -s)" = "Darwin" ] || [ ! -x compiler/shu_su ]; then
-    echo "run-all-su: SKIP on CI (LSP gate sufficient; shu_su executable=$([ -x compiler/shu_su ] && echo yes || echo no))"
-    exit 0
-  fi
-fi
-# 保留本地开发：无 shu_su 时报错指引。
 if [ ! -x compiler/shu_su ]; then
-  echo "run-all-su: compiler/shu_su not found; run 'make -C compiler bootstrap-pipeline' then 'make -C compiler shu-su-pipeline'"
-  exit 1
+  if [ -n "${SHU_CI_NO_SKIP:-}" ] || [ -n "${CI:-}" ]; then
+    echo "run-all-su FAIL: compiler/shu_su not built (required in CI)" >&2
+    exit 1
+  fi
+  echo "run-all-su: skip (no shu_su; local dev — run make -C compiler shu-su-pipeline)"
+  exit 0
 fi
 echo "run-all-su: running full test suite with SHU=compiler/shu_su (.su pipeline compiler)"
 SHU=compiler/shu_su ./tests/run-all.sh
