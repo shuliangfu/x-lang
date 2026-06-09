@@ -27,6 +27,8 @@ echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build shu_asm) ..."
 # bstrict 验收须 strict 第二遍重链（asm_only_strict）。
 if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   export SHU_ASM_CI_SKIP_FAST=1
+  # strict 链 smoke 与 ci-full-suite 前段 run_shu_asm_smoke 重复；asm-73 cfg-merge 为实质验收。
+  export SHU_ASM_SKIP_STRICT_SMOKE=1
   echo "bootstrap-bstrict-ci: SHU_ASM_CI_SKIP_FAST=1 (strict relink for asm-73 cfg-merge)"
 fi
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
