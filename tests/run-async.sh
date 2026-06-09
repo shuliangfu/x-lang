@@ -12,6 +12,35 @@ if [ "$(uname -s)" = "Linux" ]; then
   SHU_IO_CC_LIBS="-luring -lpthread"
 fi
 
+# musl/Alpine/Docker：async C harness 中 setenv 须 POSIX 宏。
+SHU_ASYNC_CC=(cc -std=gnu11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L)
+
+# Windows MSYS：async_switch -o 编译会挂起，跳过 -o 烟测（scheduler C harness 仍跑）。
+async_is_windows_msys() {
+  if [ -n "${MSYSTEM:-}" ]; then return 0; fi
+  case "$(uname -s)" in MINGW*|MSYS*) return 0 ;; esac
+  return 1
+}
+
+# Linux 内核/Docker 无 io_uring：io_uring harness 记 N/A 而非 FAIL。
+async_io_uring_unavailable() {
+  [ "$(uname -s)" != "Linux" ] && return 0
+  # shellcheck source=tests/lib/io-uring-probe.sh
+  . "$(dirname "$0")/lib/io-uring-probe.sh"
+  io_uring_available && return 1
+  return 0
+}
+
+# 若 io_uring 不可用则打印 N/A 并返回 0（跳过）；否则返回 1（继续跑 harness）。
+async_io_uring_skip_na() {
+  local name="$1"
+  if async_io_uring_unavailable; then
+    echo "$name N/A (io_uring unavailable on this kernel)"
+    return 0
+  fi
+  return 1
+}
+
 # 选用可执行编译器：外部已设 SHU（如 CI 传入 shu-c）时保留；否则 shu（seed）优先，缺失时 shu-c。
 if [ -z "${SHU:-}" ]; then
   if [ -x ./compiler/shu ]; then
@@ -52,24 +81,28 @@ if [ ! -x "$EMIT_SHU" ]; then
   EMIT_SHU="$SHU"
 fi
 
-"$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
-if [ -n "$SMOKE_LINK_BACKEND" ]; then
-  # 非 x86_64 Linux：-backend c 计数烟测已知偏差；仅验 -o 链接成功。
-  [ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
-  echo "async_switch compile OK (run skipped on $(uname -s)-$(uname -m 2>/dev/null))"
+if async_is_windows_msys; then
+  echo "async_switch compile SKIP (Windows MSYS: -o smoke deferred)"
+  echo "async_switch_sched SKIP (Windows MSYS: scheduler jmp requires Linux x86_64 seed asm)"
 else
-  rc=$(/tmp/shu_async_switch; echo $?)
-  [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
-fi
+  "$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
+  if [ -n "$SMOKE_LINK_BACKEND" ]; then
+    # 非 x86_64 Linux：-backend c 计数烟测已知偏差；仅验 -o 链接成功。
+    [ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
+    echo "async_switch compile OK (run skipped on $(uname -s)-$(uname -m 2>/dev/null))"
+  else
+    rc=$(/tmp/shu_async_switch; echo $?)
+    [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
+  fi
 
-# scheduler.c：runtime 按 shu_async_coop_pingpong_jmp 未定义符号自动链 scheduler.o
-# -backend asm 仅 Linux x86_64 seed 链；其它平台 scheduler jmp 烟测 N/A。
-if [ -n "$SMOKE_LINK_BACKEND" ]; then
-  echo "async_switch_sched SKIP (scheduler jmp requires Linux x86_64 seed asm)"
-else
-  "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
-  rc=$(/tmp/shu_async_sched; echo $?)
-  [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
+  # scheduler.c：runtime 按 shu_async_coop_pingpong_jmp 未定义符号自动链 scheduler.o
+  if [ -n "$SMOKE_LINK_BACKEND" ]; then
+    echo "async_switch_sched SKIP (scheduler jmp requires Linux x86_64 seed asm)"
+  else
+    "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
+    rc=$(/tmp/shu_async_sched; echo $?)
+    [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
+  fi
 fi
 
 # import std.async + coop_pingpong_jmp（优先 shu seed+parser_su；未 refresh 时回退 shu-c）
@@ -286,7 +319,7 @@ else
 fi
 
 echo "async scheduler A4: task queue drain (C harness) ..."
-cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_queue \
+"${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_queue \
   tests/bench/async_scheduler_queue.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler A4 FAIL: build async_scheduler_queue.c"
   exit 1
@@ -296,7 +329,7 @@ rc=$(/tmp/shu_async_scheduler_queue; echo $?)
 echo "async scheduler A4 OK"
 
 echo "async scheduler MPSC: dual-thread submit + drain ..."
-if cc -std=c11 -Wall -Wextra -pthread -o /tmp/shu_async_scheduler_mpsc \
+if "${SHU_ASYNC_CC[@]}" -pthread -o /tmp/shu_async_scheduler_mpsc \
   tests/bench/async_scheduler_mpsc.c std/async/scheduler.o 2>/dev/null; then
   rc=$(/tmp/shu_async_scheduler_mpsc; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler MPSC FAIL: exit=$rc"; exit 1; }
@@ -306,7 +339,7 @@ else
 fi
 
 echo "async scheduler workers: per-worker ring + dual consumer drain ..."
-if SHU_ASYNC_WORKERS=2 cc -std=c11 -Wall -Wextra -pthread -o /tmp/shu_async_scheduler_workers \
+if SHU_ASYNC_WORKERS=2 "${SHU_ASYNC_CC[@]}" -pthread -o /tmp/shu_async_scheduler_workers \
   tests/bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
   rc=$(/tmp/shu_async_scheduler_workers; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler workers FAIL: exit=$rc"; exit 1; }
@@ -316,7 +349,7 @@ else
 fi
 
 echo "async scheduler worker affinity: SHU_ASYNC_AFFINITY=1 + workers drain ..."
-if SHU_ASYNC_WORKERS=2 SHU_ASYNC_AFFINITY=1 cc -std=c11 -Wall -Wextra -pthread -o /tmp/shu_async_scheduler_workers_aff \
+if SHU_ASYNC_WORKERS=2 SHU_ASYNC_AFFINITY=1 "${SHU_ASYNC_CC[@]}" -pthread -o /tmp/shu_async_scheduler_workers_aff \
   tests/bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
   rc=$(SHU_ASYNC_WORKERS=2 SHU_ASYNC_AFFINITY=1 /tmp/shu_async_scheduler_workers_aff; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler worker affinity FAIL: exit=$rc"; exit 1; }
@@ -326,7 +359,7 @@ else
 fi
 
 echo "async scheduler IO-A5: io wait queue + wake ..."
-cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_wake \
+"${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_wake \
   tests/bench/async_scheduler_io_wake.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler IO-A5 FAIL: build async_scheduler_io_wake.c"
   exit 1
@@ -336,7 +369,7 @@ rc=$(/tmp/shu_async_scheduler_io_wake; echo $?)
 echo "async scheduler IO-A5 OK"
 
 echo "async scheduler IO-A5: suspend_io flag without SHU_ASYNC_IO_WAIT ..."
-cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_await_flag \
+"${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_await_flag \
   tests/bench/async_scheduler_io_await_flag.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler IO-A5 await flag FAIL: build async_scheduler_io_await_flag.c"
   exit 1
@@ -440,74 +473,93 @@ echo "$out" | grep -q 'complete_read_async_slot(__shu_frame.__io_rd_slot)' || {
 }
 echo "async await IO dual OK"
 
+# io_uring harness 链 std/io/io.o；probe 通过时先确保 io.o 已编译。
+if ! async_io_uring_unavailable; then
+  make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+fi
+
 echo "io read async: submit_read_async + complete (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_io_read_async \
-  tests/bench/io_read_async.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_io_read_async; echo $?)
-  [ "$rc" = "0" ] || { echo "io read async FAIL: exit=$rc"; exit 1; }
-  echo "io read async OK"
-else
-  echo "io read async: skip (build io.o or platform)"
+if ! async_io_uring_skip_na "io read async"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_io_read_async \
+    tests/bench/io_read_async.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_io_read_async; echo $?)
+    [ "$rc" = "0" ] || { echo "io read async FAIL: exit=$rc"; exit 1; }
+    echo "io read async OK"
+  else
+    echo "io read async: skip (build io.o or platform)"
+  fi
 fi
 
 echo "io read async multi: dual in-flight submit + slot complete ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_io_read_async_multi \
-  tests/bench/io_read_async_multi.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_io_read_async_multi; echo $?)
-  [ "$rc" = "0" ] || { echo "io read async multi FAIL: exit=$rc"; exit 1; }
-  echo "io read async multi OK"
-else
-  echo "io read async multi: skip (build io.o or platform)"
+if ! async_io_uring_skip_na "io read async multi"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_io_read_async_multi \
+    tests/bench/io_read_async_multi.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_io_read_async_multi; echo $?)
+    [ "$rc" = "0" ] || { echo "io read async multi FAIL: exit=$rc"; exit 1; }
+    echo "io read async multi OK"
+  else
+    echo "io read async multi: skip (build io.o or platform)"
+  fi
 fi
 
 echo "io write async: submit_write_async + complete (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_io_write_async \
-  tests/bench/io_write_async.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_io_write_async; echo $?)
-  [ "$rc" = "0" ] || { echo "io write async FAIL: exit=$rc"; exit 1; }
-  echo "io write async OK"
-else
-  echo "io write async: skip (build io.o or platform)"
+if ! async_io_uring_skip_na "io write async"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_io_write_async \
+    tests/bench/io_write_async.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_io_write_async; echo $?)
+    [ "$rc" = "0" ] || { echo "io write async FAIL: exit=$rc"; exit 1; }
+    echo "io write async OK"
+  else
+    echo "io write async: skip (build io.o or platform)"
+  fi
 fi
 
 echo "io write async multi: dual in-flight submit + slot complete ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_io_write_async_multi \
-  tests/bench/io_write_async_multi.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_io_write_async_multi; echo $?)
-  [ "$rc" = "0" ] || { echo "io write async multi FAIL: exit=$rc"; exit 1; }
-  echo "io write async multi OK"
-else
-  echo "io write async multi: skip (build io.o or platform)"
+if ! async_io_uring_skip_na "io write async multi"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_io_write_async_multi \
+    tests/bench/io_write_async_multi.c std/io/io.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_io_write_async_multi; echo $?)
+    [ "$rc" = "0" ] || { echo "io write async multi FAIL: exit=$rc"; exit 1; }
+    echo "io write async multi OK"
+  else
+    echo "io write async multi: skip (build io.o or platform)"
+  fi
 fi
 
 echo "async scheduler IO read e2e: submit + suspend_io + wake + complete ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_read_e2e \
-  tests/bench/async_scheduler_io_read_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_async_scheduler_io_read_e2e; echo $?)
-  [ "$rc" = "0" ] || { echo "async scheduler IO read e2e FAIL: exit=$rc"; exit 1; }
-  echo "async scheduler IO read e2e OK"
-else
-  echo "async scheduler IO read e2e: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async scheduler IO read e2e"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_read_e2e \
+    tests/bench/async_scheduler_io_read_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_async_scheduler_io_read_e2e; echo $?)
+    [ "$rc" = "0" ] || { echo "async scheduler IO read e2e FAIL: exit=$rc"; exit 1; }
+    echo "async scheduler IO read e2e OK"
+  else
+    echo "async scheduler IO read e2e: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async scheduler IO read multi e2e: dual task + slot pool + wake ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_read_multi_e2e \
-  tests/bench/async_scheduler_io_read_multi_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_async_scheduler_io_read_multi_e2e; echo $?)
-  [ "$rc" = "0" ] || { echo "async scheduler IO read multi e2e FAIL: exit=$rc"; exit 1; }
-  echo "async scheduler IO read multi e2e OK"
-else
-  echo "async scheduler IO read multi e2e: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async scheduler IO read multi e2e"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_read_multi_e2e \
+    tests/bench/async_scheduler_io_read_multi_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_async_scheduler_io_read_multi_e2e; echo $?)
+    [ "$rc" = "0" ] || { echo "async scheduler IO read multi e2e FAIL: exit=$rc"; exit 1; }
+    echo "async scheduler IO read multi e2e OK"
+  else
+    echo "async scheduler IO read multi e2e: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async scheduler IO write multi e2e: dual task + slot pool + wake ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_write_multi_e2e \
-  tests/bench/async_scheduler_io_write_multi_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_async_scheduler_io_write_multi_e2e; echo $?)
-  [ "$rc" = "0" ] || { echo "async scheduler IO write multi e2e FAIL: exit=$rc"; exit 1; }
-  echo "async scheduler IO write multi e2e OK"
-else
-  echo "async scheduler IO write multi e2e: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async scheduler IO write multi e2e"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_write_multi_e2e \
+    tests/bench/async_scheduler_io_write_multi_e2e.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_async_scheduler_io_write_multi_e2e; echo $?)
+    [ "$rc" = "0" ] || { echo "async scheduler IO write multi e2e FAIL: exit=$rc"; exit 1; }
+    echo "async scheduler IO write multi e2e OK"
+  else
+    echo "async scheduler IO write multi e2e: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async scheduler drain: run + SHU_ASYNC_YIELD=1 ..."
@@ -725,7 +777,7 @@ fi
 echo "run async v4 OK"
 
 echo "async run seed: shu_async_run_seed_* (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_seed \
+if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_seed \
   tests/bench/async_run_seed.c std/async/scheduler.o 2>&1; then
   rc=$(/tmp/shu_async_run_seed; echo $?)
   [ "$rc" = "0" ] || { echo "async run seed FAIL: exit=$rc"; exit 1; }
@@ -736,8 +788,16 @@ fi
 
 echo "async linux full: .su link + run (run v1/v2 + IO stdin/pipe/spawn) ..."
 if [ -x ./compiler/shu-c ]; then
-  make -C compiler ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
-    || make -C compiler ../std/io/io.o ../std/async/scheduler.o
+  ASYNC_LINUX_FULL_IO=1
+  if async_io_uring_unavailable; then
+    echo "async linux full: IO run N/A (io_uring unavailable on this kernel)"
+    ASYNC_LINUX_FULL_IO=0
+    make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
+      || make -C compiler ../std/async/scheduler.o
+  else
+    make -C compiler ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
+      || make -C compiler ../std/io/io.o ../std/async/scheduler.o
+  fi
 
   ./compiler/shu-c -L . tests/parser/run_async_arg.su -o /tmp/shu_run_async_arg_full 2>&1 || {
     echo "async linux full FAIL: compile run_async_arg.su"
@@ -763,50 +823,52 @@ if [ -x ./compiler/shu-c ]; then
     echo "async linux full: skip run_async_arg2 run (not executable)"
   fi
 
-  SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_stdin.su -o /tmp/shu_async_run_io_stdin 2>&1 || {
-    echo "async linux full FAIL: compile async_run_io_stdin.su"
-    exit 1
-  }
-  if file /tmp/shu_async_run_io_stdin 2>/dev/null | grep -q "executable"; then
-    rc=$(printf 'abcd' | SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_stdin; echo $?)
-    [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_stdin exit=$rc want 0"; exit 1; }
-    echo "async linux full async_run_io_stdin OK"
-  else
-    echo "async linux full: skip async_run_io_stdin run (not executable)"
-  fi
-
-  SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_dual_pipe.su -o /tmp/shu_async_run_io_dual_pipe 2>&1 || {
-    echo "async linux full FAIL: compile async_run_io_dual_pipe.su"
-    exit 1
-  }
-  if file /tmp/shu_async_run_io_dual_pipe 2>/dev/null | grep -q "executable"; then
-    if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_io_dual_pipe_wrapper \
-      tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
-      rc=$(/tmp/shu_async_run_io_dual_pipe_wrapper /tmp/shu_async_run_io_dual_pipe; echo $?)
-      [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_pipe exit=$rc want 0"; exit 1; }
-      echo "async linux full async_run_io_dual_pipe OK"
+  if [ "$ASYNC_LINUX_FULL_IO" = "1" ]; then
+    SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_stdin.su -o /tmp/shu_async_run_io_stdin 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_stdin.su"
+      exit 1
+    }
+    if file /tmp/shu_async_run_io_stdin 2>/dev/null | grep -q "executable"; then
+      rc=$(printf 'abcd' | SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_stdin; echo $?)
+      [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_stdin exit=$rc want 0"; exit 1; }
+      echo "async linux full async_run_io_stdin OK"
     else
-      echo "async linux full: skip async_run_io_dual_pipe run (wrapper build failed)"
+      echo "async linux full: skip async_run_io_stdin run (not executable)"
     fi
-  else
-    echo "async linux full: skip async_run_io_dual_pipe run (not executable)"
-  fi
 
-  SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_dual_parallel.su -o /tmp/shu_async_run_io_dual_parallel 2>&1 || {
-    echo "async linux full FAIL: compile async_run_io_dual_parallel.su"
-    exit 1
-  }
-  if file /tmp/shu_async_run_io_dual_parallel 2>/dev/null | grep -q "executable"; then
-    if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_io_dual_pipe_wrapper \
-      tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
-      rc=$(/tmp/shu_async_run_io_dual_pipe_wrapper /tmp/shu_async_run_io_dual_parallel; echo $?)
-      [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_parallel exit=$rc want 0"; exit 1; }
-      echo "async linux full async_run_io_dual_parallel OK"
+    SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_dual_pipe.su -o /tmp/shu_async_run_io_dual_pipe 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_dual_pipe.su"
+      exit 1
+    }
+    if file /tmp/shu_async_run_io_dual_pipe 2>/dev/null | grep -q "executable"; then
+      if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_io_dual_pipe_wrapper \
+        tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
+        rc=$(/tmp/shu_async_run_io_dual_pipe_wrapper /tmp/shu_async_run_io_dual_pipe; echo $?)
+        [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_pipe exit=$rc want 0"; exit 1; }
+        echo "async linux full async_run_io_dual_pipe OK"
+      else
+        echo "async linux full: skip async_run_io_dual_pipe run (wrapper build failed)"
+      fi
     else
-      echo "async linux full: skip async_run_io_dual_parallel run (wrapper build failed)"
+      echo "async linux full: skip async_run_io_dual_pipe run (not executable)"
     fi
-  else
-    echo "async linux full: skip async_run_io_dual_parallel run (not executable)"
+
+    SHU_ASYNC_YIELD=1 ./compiler/shu-c -L . tests/parser/async_run_io_dual_parallel.su -o /tmp/shu_async_run_io_dual_parallel 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_dual_parallel.su"
+      exit 1
+    }
+    if file /tmp/shu_async_run_io_dual_parallel 2>/dev/null | grep -q "executable"; then
+      if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_io_dual_pipe_wrapper \
+        tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
+        rc=$(/tmp/shu_async_run_io_dual_pipe_wrapper /tmp/shu_async_run_io_dual_parallel; echo $?)
+        [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_parallel exit=$rc want 0"; exit 1; }
+        echo "async linux full async_run_io_dual_parallel OK"
+      else
+        echo "async linux full: skip async_run_io_dual_parallel run (wrapper build failed)"
+      fi
+    else
+      echo "async linux full: skip async_run_io_dual_parallel run (not executable)"
+    fi
   fi
 else
   echo "async linux full: skip (no compiler/shu-c)"
@@ -814,23 +876,27 @@ fi
 echo "async linux full OK"
 
 echo "async scheduler IO-A5 poll wake: shu_io_poll_async_completions + drain ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_poll_wake \
-  tests/bench/async_scheduler_io_poll_wake.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_async_scheduler_io_poll_wake; echo $?)
-  [ "$rc" = "0" ] || { echo "async scheduler IO-A5 poll wake FAIL: exit=$rc"; exit 1; }
-  echo "async scheduler IO-A5 poll wake OK"
-else
-  echo "async scheduler IO-A5 poll wake: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async scheduler IO-A5 poll wake"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_poll_wake \
+    tests/bench/async_scheduler_io_poll_wake.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_async_scheduler_io_poll_wake; echo $?)
+    [ "$rc" = "0" ] || { echo "async scheduler IO-A5 poll wake FAIL: exit=$rc"; exit 1; }
+    echo "async scheduler IO-A5 poll wake OK"
+  else
+    echo "async scheduler IO-A5 poll wake: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async run dual pipe: two run_i32 + dual pipe (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_io_dual_pipe \
-  tests/bench/async_run_io_dual_pipe.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_dual_pipe; echo $?)
-  [ "$rc" = "0" ] || { echo "async run dual pipe FAIL: exit=$rc"; exit 1; }
-  echo "async run dual pipe OK"
-else
-  echo "async run dual pipe: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async run dual pipe"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_io_dual_pipe \
+    tests/bench/async_run_io_dual_pipe.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_dual_pipe; echo $?)
+    [ "$rc" = "0" ] || { echo "async run dual pipe FAIL: exit=$rc"; exit 1; }
+    echo "async run dual pipe OK"
+  else
+    echo "async run dual pipe: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async spawn v4: spawn async_fn + drain_until_idle codegen ..."
@@ -860,43 +926,51 @@ n_submit=$(echo "$out" | grep -oE 'shu_async_task_submit\s*\(' | wc -l | tr -d '
 echo "async spawn v4 OK"
 
 echo "async scheduler IO parallel poll: dual task + poll wake ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_scheduler_io_parallel_poll \
-  tests/bench/async_scheduler_io_read_parallel_poll.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(/tmp/shu_async_scheduler_io_parallel_poll; echo $?)
-  [ "$rc" = "0" ] || { echo "async scheduler IO parallel poll FAIL: exit=$rc"; exit 1; }
-  echo "async scheduler IO parallel poll OK"
-else
-  echo "async scheduler IO parallel poll: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async scheduler IO parallel poll"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_scheduler_io_parallel_poll \
+    tests/bench/async_scheduler_io_read_parallel_poll.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(/tmp/shu_async_scheduler_io_parallel_poll; echo $?)
+    [ "$rc" = "0" ] || { echo "async scheduler IO parallel poll FAIL: exit=$rc"; exit 1; }
+    echo "async scheduler IO parallel poll OK"
+  else
+    echo "async scheduler IO parallel poll: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async spawn parallel IO: push+submit x2 + drain_until_idle (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_io_spawn_parallel \
-  tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_spawn_parallel; echo $?)
-  [ "$rc" = "0" ] || { echo "async spawn parallel IO FAIL: exit=$rc"; exit 1; }
-  echo "async spawn parallel IO OK"
-else
-  echo "async spawn parallel IO: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async spawn parallel IO"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_io_spawn_parallel \
+    tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(SHU_ASYNC_YIELD=1 /tmp/shu_async_run_io_spawn_parallel; echo $?)
+    [ "$rc" = "0" ] || { echo "async spawn parallel IO FAIL: exit=$rc"; exit 1; }
+    echo "async spawn parallel IO OK"
+  else
+    echo "async spawn parallel IO: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async spawn workers IO: SHU_ASYNC_WORKERS=2 + spawn parallel drain ..."
-if SHU_ASYNC_WORKERS=2 cc -std=c11 -Wall -Wextra -pthread -o /tmp/shu_async_run_io_spawn_workers \
-  tests/bench/async_run_io_spawn_workers.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(SHU_ASYNC_YIELD=1 SHU_ASYNC_WORKERS=2 /tmp/shu_async_run_io_spawn_workers; echo $?)
-  [ "$rc" = "0" ] || { echo "async spawn workers IO FAIL: exit=$rc"; exit 1; }
-  echo "async spawn workers IO OK"
-else
-  echo "async spawn workers IO: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async spawn workers IO"; then
+  if SHU_ASYNC_WORKERS=2 "${SHU_ASYNC_CC[@]}" -pthread -o /tmp/shu_async_run_io_spawn_workers \
+    tests/bench/async_run_io_spawn_workers.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(SHU_ASYNC_YIELD=1 SHU_ASYNC_WORKERS=2 /tmp/shu_async_run_io_spawn_workers; echo $?)
+    [ "$rc" = "0" ] || { echo "async spawn workers IO FAIL: exit=$rc"; exit 1; }
+    echo "async spawn workers IO OK"
+  else
+    echo "async spawn workers IO: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async run_i32 IO stdin: run_i32 + wake/drain loop (C harness) ..."
-if cc -std=c11 -Wall -Wextra -o /tmp/shu_async_run_i32_io_stdin \
-  tests/bench/async_run_i32_io_stdin.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
-  rc=$(printf 'abcd' | SHU_ASYNC_YIELD=1 /tmp/shu_async_run_i32_io_stdin; echo $?)
-  [ "$rc" = "0" ] || { echo "async run_i32 IO stdin FAIL: exit=$rc"; exit 1; }
-  echo "async run_i32 IO stdin OK"
-else
-  echo "async run_i32 IO stdin: skip (build io.o/scheduler.o)"
+if ! async_io_uring_skip_na "async run_i32 IO stdin"; then
+  if "${SHU_ASYNC_CC[@]}" -o /tmp/shu_async_run_i32_io_stdin \
+    tests/bench/async_run_i32_io_stdin.c std/io/io.o std/async/scheduler.o $SHU_IO_CC_LIBS 2>&1; then
+    rc=$(printf 'abcd' | SHU_ASYNC_YIELD=1 /tmp/shu_async_run_i32_io_stdin; echo $?)
+    [ "$rc" = "0" ] || { echo "async run_i32 IO stdin FAIL: exit=$rc"; exit 1; }
+    echo "async run_i32 IO stdin OK"
+  else
+    echo "async run_i32 IO stdin: skip (build io.o/scheduler.o)"
+  fi
 fi
 
 echo "async gate OK"
