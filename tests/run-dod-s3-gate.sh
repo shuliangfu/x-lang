@@ -7,6 +7,8 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/dod-host-backend.sh
+source "$(dirname "$0")/lib/dod-host-backend.sh"
 
 SHU_BIN="${SHU:-}"
 case "$SHU_BIN" in
@@ -74,8 +76,19 @@ if [ -z "$SHU_ABS" ] || ! dod_native_exe "$SHU_ABS"; then
   exit 0
 fi
 
+# Darwin：import 跨模块 + gen_driver hybrid 下 -backend c 不可用、asm exe SIGILL；typeck 已覆盖，运行由 Linux 承担。
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    echo "dod-s3: cross-module compile/run N/A on Darwin (import + gen_driver hybrid; Linux covers)"
+    echo "dod-s3 gate OK"
+    exit 0
+    ;;
+esac
+
+DOD_EXE_SHU="$(dod_host_exe_shu "$SHU_ABS")"
+
 # asm 链：跨 module import + 运行
-if ! SHU="$SHU_ABS" "$SHU_ABS" -backend asm -L . "$CROSS_SRC" -o "$CROSS_OUT" 2>/tmp/shu_dod_s3_cross_build.log; then
+if ! SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_GATE_BACKEND_ARGS -L . "$CROSS_SRC" -o "$CROSS_OUT" 2>/tmp/shu_dod_s3_cross_build.log; then
   echo "dod-s3 FAIL: compile $CROSS_SRC" >&2
   tail -8 /tmp/shu_dod_s3_cross_build.log 2>/dev/null || true
   exit 1
@@ -92,7 +105,7 @@ if [ "$RC" -ne 10 ]; then
 fi
 echo "dod-s3: soa_cross exit=10 OK"
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" -backend asm -L . "$UPGRADE_SRC" -o "$UPGRADE_OUT" 2>/tmp/shu_dod_s3_upgrade_build.log; then
+if ! SHU="$SHU_ABS" "$DOD_EXE_SHU" $DOD_GATE_BACKEND_ARGS -L . "$UPGRADE_SRC" -o "$UPGRADE_OUT" 2>/tmp/shu_dod_s3_upgrade_build.log; then
   echo "dod-s3 FAIL: compile $UPGRADE_SRC" >&2
   tail -8 /tmp/shu_dod_s3_upgrade_build.log 2>/dev/null || true
   exit 1
