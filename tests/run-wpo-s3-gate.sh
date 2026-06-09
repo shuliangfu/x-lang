@@ -20,7 +20,7 @@ fi
 if [ -n "$SHU_ASM_BIN" ]; then
   if [ "$(uname -s)" = "Linux" ]; then
     SHU_ASM_NATIVE=1
-  elif file "$SHU_ASM_BIN" 2>/dev/null | grep -q "Mach-O"; then
+  elif [ "$(uname -s)" != "Darwin" ] && file "$SHU_ASM_BIN" 2>/dev/null | grep -q "Mach-O"; then
     SHU_ASM_NATIVE=1
   fi
 fi
@@ -206,7 +206,11 @@ if [ "$SHU_ASM_NATIVE" = "1" ]; then
   fi
   echo "wpo-s3 await_yield asm OK (struct frame preserved across suspend, exit 0)"
 else
-  echo "wpo-s3 asm smoke SKIP (no shu_asm; use docker ubuntu-wpo-s2)"
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "wpo-s3 asm smoke N/A on Darwin (user exe ld/run; Linux x86_64/ARM64 covers)"
+  else
+    echo "wpo-s3 asm smoke SKIP (no shu_asm; use docker ubuntu-wpo-s2)"
+  fi
 fi
 
 echo "wpo-s3 gate OK"
