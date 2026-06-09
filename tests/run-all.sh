@@ -137,6 +137,7 @@ run() {
     fi
     chmod +x "tests/$script"
     if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
+        echo "run-all: → $script"
         s=0; SHU="$run_shu" ./tests/$script || s=$?
         if [ "$s" -ne 0 ]; then
             # B-strict 全量：非白名单走 shu-c，失败仅记 SKIP（L5 只门禁 shu_asm 白名单）。

@@ -176,7 +176,15 @@ fi
 
 # ── C / 原型 typeck ───────────────────────────────────────────────────────
 echo "── C test suite ──"
-make -C compiler test_c
+if ci_is_linux_arm64_ci_lite; then
+  # 全量 run-all-c 在 ARM64 上 >100min 且 run-net accept(0) 曾永久阻塞；烟测 + x86_64 全量覆盖。
+  make -C compiler -q all 2>/dev/null || make -C compiler all
+  chmod +x tests/run-bootstrap-shu-gate.sh
+  SKIP_BOOTSTRAP_DRIVER_SEED=1 ./tests/run-bootstrap-shu-gate.sh
+  echo "Test C OK (Linux ARM64 smoke; ubuntu x86_64 covers run-all-c)"
+else
+  make -C compiler test_c
+fi
 
 echo "── M-3 region typeck ──"
 chmod +x tests/run-typeck-region.sh

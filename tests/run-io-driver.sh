@@ -3,7 +3,7 @@
 # 执行前自动构建 compiler/shu 及全部 std/**.o（Makefile all = TARGET + STD_AND_PANIC_O），make clean 后单独跑本脚本也可链入。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler all
+make -C compiler -q 2>/dev/null || make -C compiler
 SHU=${SHU:-./compiler/shu}
 
 $SHU -L . tests/io-driver/main.su -o /tmp/shu_io_driver 2>&1
