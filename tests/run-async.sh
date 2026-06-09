@@ -15,12 +15,37 @@ fi
 # musl/Alpine/Docker：async C harness 中 setenv 须 POSIX 宏。
 SHU_ASYNC_CC=(cc -std=gnu11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L)
 
-# 仅 Linux x86_64 走 seed asm -o；其它平台用 shu-c -o（C 前端，避免 seed PE/Mach-O 挂起）。
+# 仅 Linux x86_64 走 seed asm -o；其它平台按 async_host_compile_o 策略。
 async_is_linux_x64_asm() {
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Linux-x86_64|Linux-amd64) return 0 ;;
   esac
   return 1
+}
+
+# Windows MSYS2：seed shu -backend c 编译会挂起，须走 shu-c。
+async_is_windows_msys() {
+  if [ -n "${MSYSTEM:-}" ]; then return 0; fi
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*) return 0 ;;
+  esac
+  return 1
+}
+
+# 非 Linux x86_64 的 -o 烟测：Win→shu-c；macOS/ARM64→seed shu -backend c；x86_64 Linux→seed asm。
+async_host_compile_o() {
+  local src="$1"
+  local out="$2"
+  shift 2
+  if async_is_linux_x64_asm; then
+    "$SHU" -L . "$@" "$src" -o "$out"
+  elif async_is_windows_msys; then
+    "$COMPILE_SHU" -L . "$@" "$src" -o "$out"
+  elif [ -x ./compiler/shu ]; then
+    ./compiler/shu -L . "$@" "$src" -backend c -o "$out"
+  else
+    "$COMPILE_SHU" -L . "$@" "$src" -o "$out"
+  fi
 }
 
 # Linux 内核/Docker 无 io_uring：io_uring harness 记 N/A 而非 FAIL。
@@ -60,15 +85,9 @@ if [ -x ./compiler/shu-c ]; then
   COMPILE_SHU=./compiler/shu-c
 fi
 
-# async_switch -o：Linux x86_64 用 seed asm；其它平台 seed shu -backend c（SU pipeline codegen，i64 计数正确；shu-c 纯 C 前端会 exit=5）。
+# async_switch -o：见 async_host_compile_o（Win shu-c / macOS -backend c / Linux x86_64 asm）。
 async_switch_compile_o() {
-  if async_is_linux_x64_asm; then
-    "$SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
-  elif [ -x ./compiler/shu ]; then
-    ./compiler/shu -L . tests/bench/async_switch.su -backend c -o /tmp/shu_async_switch
-  else
-    "$COMPILE_SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
-  fi
+  async_host_compile_o tests/bench/async_switch.su /tmp/shu_async_switch
 }
 
 # relink 后 shu 的 -E 仅 parse/typeck 摘要；须 grep C/SHU_ASYNC_FRAME 的烟测统一走 shu-c。
@@ -85,6 +104,8 @@ _run_async_arg_count_rejected() {
 
 if async_is_linux_x64_asm; then
   echo "async_switch: compile+run (seed asm) ..."
+elif async_is_windows_msys; then
+  echo "async_switch: compile+run (${COMPILE_SHU##*/} Windows) ..."
 elif [ -x ./compiler/shu ]; then
   echo "async_switch: compile+run (seed shu -backend c) ..."
 else
@@ -123,7 +144,7 @@ rc=$(/tmp/shu_async_mod_import; echo $?)
 echo "async smoke OK"
 
 echo "async syntax: async function parse + compile ..."
-"$SHU" -L . tests/parser/async_function.su -o /tmp/shu_async_fn_syntax 2>&1 || {
+async_host_compile_o tests/parser/async_function.su /tmp/shu_async_fn_syntax 2>&1 || {
   echo "async syntax FAIL: async_function.su should compile"
   exit 1
 }
@@ -163,14 +184,14 @@ echo "$out" | grep -q '1095980800' || {
 echo "const hex OK"
 
 echo "await syntax: async function + await compile + run ..."
-"$SHU" -L . tests/parser/await_async.su -o /tmp/shu_await_async 2>&1 || {
+async_host_compile_o tests/parser/await_async.su /tmp/shu_await_async 2>&1 || {
   echo "await syntax FAIL: await_async.su should compile"
   exit 1
 }
 rc=$(/tmp/shu_await_async; echo $?)
 [ "$rc" = "42" ] || { echo "await syntax FAIL: expected exit 42, got $rc"; exit 1; }
 
-if "$SHU" -L . tests/parser/await_sync_err.su -o /tmp/shu_await_sync_err 2>&1 | grep -q "await.*only allowed inside async function"; then
+if "$COMPILE_SHU" -L . tests/parser/await_sync_err.su -o /tmp/shu_await_sync_err 2>&1 | grep -q "await.*only allowed inside async function"; then
   : # 预期 typeck 报错
 else
   echo "await syntax FAIL: await in sync function should be rejected"
@@ -295,7 +316,7 @@ make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
   || make -C compiler ../std/async/scheduler.o
 if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; then
   # 须用 relink 后 shu（runtime 按需链 scheduler.o）；shu-c 链接路径缺 shu_async_cps_suspend。
-  SHU_ASYNC_YIELD=1 "$SHU" -L . tests/parser/async_cps_yield.su -o /tmp/shu_async_cps_yield 2>&1 || {
+  SHU_ASYNC_YIELD=1 async_host_compile_o tests/parser/async_cps_yield.su /tmp/shu_async_cps_yield 2>&1 || {
     echo "async CPS yield FAIL: compile async_cps_yield.su"
     exit 1
   }
@@ -306,7 +327,7 @@ if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; the
   else
     echo "async CPS yield: skip run (link/platform)"
   fi
-  SHU_ASYNC_YIELD=1 "$SHU" -L . tests/wpo/stack_promote_await_yield.su -o /tmp/shu_wpo_await_yield 2>&1 || {
+  SHU_ASYNC_YIELD=1 async_host_compile_o tests/wpo/stack_promote_await_yield.su /tmp/shu_wpo_await_yield 2>&1 || {
     echo "async struct await yield FAIL: compile stack_promote_await_yield.su"
     exit 1
   }
