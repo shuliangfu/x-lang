@@ -621,14 +621,32 @@ int async_liveness_func_has_await(const struct ASTFunc *f) {
     return f && f->is_async && f->body && block_has_await(f->body);
 }
 
-/** 是否须 CPS 帧：IO await 或多段 await；单次 sync-stub 标量 await 走普通 C 签名。 */
+/** 是否须 CPS 帧：IO/多 await，或跨 await 存活非形参 let；仅形参 live 的 sync-stub 直返保留 C 签名。 */
 int async_liveness_func_needs_cps_frame(const struct ASTFunc *f) {
+    AsyncFrameLayout layout;
+    int i;
+    int pi;
     if (!f || !f->is_async || !f->body || !block_has_await(f->body))
         return 0;
     if (block_has_io_read_await(f->body) || block_has_io_write_await(f->body))
         return 1;
     if (block_count_await(f->body) > 1)
         return 1;
+    if (async_liveness_layout_func_module(f, NULL, &layout) != 0)
+        return 0;
+    if (layout.live.n <= 0)
+        return 0;
+    for (i = 0; i < layout.live.n; i++) {
+        int is_param = 0;
+        for (pi = 0; pi < f->num_params; pi++) {
+            if (f->params[pi].name && strcmp(f->params[pi].name, layout.live.names[i]) == 0) {
+                is_param = 1;
+                break;
+            }
+        }
+        if (!is_param)
+            return 1;
+    }
     return 0;
 }
 
