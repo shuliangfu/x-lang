@@ -22,8 +22,14 @@ if [ ! -x compiler/shu ]; then
   exit 127
 fi
 
-echo "run-bootstrap-bstrict-linux: make bootstrap-driver-crt0 ..."
-make -C compiler bootstrap-driver-crt0
+# bootstrap-bstrict-ci 已用 asm_only_strict shu_asm 跑完白名单；勿再 bootstrap-driver-crt0
+# 覆盖 shu_asm（crt0/full_asm 链常缺符号或 SIGSEGV，与 B-strict 验收正交）。
+if [ -n "${SHU_BSTRICT_SKIP_BUILD:-}" ] && [ -x compiler/shu_asm ]; then
+  echo "run-bootstrap-bstrict-linux: reuse bstrict shu_asm (SHU_BSTRICT_SKIP_BUILD=1, skip crt0 rebuild)"
+else
+  echo "run-bootstrap-bstrict-linux: make bootstrap-driver-crt0 ..."
+  make -C compiler bootstrap-driver-crt0
+fi
 
 if [ ! -x compiler/shu_asm ]; then
   echo "run-bootstrap-bstrict-linux: compiler/shu_asm missing after crt0 build" >&2
