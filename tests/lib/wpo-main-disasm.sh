@@ -59,3 +59,11 @@ wpo_main_no_calls_pat() {
   fi
   return 0
 }
+
+# nm 符号表是否含 sym（Mach-O 为 _sym，ELF 为 sym）。
+wpo_nm_has_sym() {
+  local obj="$1"
+  local sym="$2"
+  [ -n "$obj" ] && [ -f "$obj" ] || return 1
+  nm "$obj" 2>/dev/null | awk '{print $NF}' | grep -qE "^_?${sym}$"
+}
