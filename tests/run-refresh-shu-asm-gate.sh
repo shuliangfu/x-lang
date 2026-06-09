@@ -5,9 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-if [ "$(uname -s)" != "Linux" ]; then
-  echo "refresh shu asm gate SKIP (non-Linux; mixed ELF/Mach-O 本地勿 relink)"
+if [ "$(uname -s)" != "Linux" ] && [ -z "${CI:-}" ]; then
+  echo "refresh shu asm gate SKIP (local non-Linux only; CI always runs single-platform relink)"
   exit 0
+fi
+if [ "$(uname -s)" != "Linux" ] && [ -n "${CI:-}" ]; then
+  echo "refresh shu asm gate: CI non-Linux — Mach-O/PE single-platform relink"
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler OPT=1
