@@ -23,10 +23,21 @@ if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
 fi
 
 echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build shu_asm) ..."
+# CI fast 仅保留 asm_only_experimental（pipeline_su partial），cfg-merge 编译会 SIGSEGV；
+# bstrict 验收须 strict 第二遍重链（asm_only_strict）。
+if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
+  export SHU_ASM_CI_SKIP_FAST=1
+  echo "bootstrap-bstrict-ci: SHU_ASM_CI_SKIP_FAST=1 (strict relink for asm-73 cfg-merge)"
+fi
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
 
 if ! grep -qE 'Target-B-strict|B-strict OK|LINK_MODE=asm_only_strict' /tmp/build_bstrict.log; then
-  echo "bootstrap-bstrict-ci: expected Target-B-strict / B-strict OK in build log" >&2
+  echo "bootstrap-bstrict-ci: expected Target-B-strict / B-strict OK / asm_only_strict in build log" >&2
+  exit 1
+fi
+if grep -qE 'LINK_MODE=asm_only_experimental' /tmp/build_bstrict.log \
+  && ! grep -qE 'LINK_MODE=asm_only_strict' /tmp/build_bstrict.log; then
+  echo "bootstrap-bstrict-ci: asm_only_experimental only — cfg-merge asm-73 requires strict relink" >&2
   exit 1
 fi
 if grep -qE '(^|[[:space:]])cc -c (\\.\\./)?pipeline_gen\\.c([[:space:]]|$)' /tmp/build_bstrict.log; then
@@ -52,24 +63,15 @@ echo "bootstrap-bstrict-ci: run-shu-asm-gate ..."
 SHU=./compiler/shu_asm ./tests/run-shu-asm-gate.sh
 
 echo "bootstrap-bstrict-ci: asm compute gate (binop + vector + call-inline) ..."
-# refresh-shu-asm-gate 已将 shu_asm 覆写为 seed shu（C 链）；asm 烟测须 experimental/strict asm 产物。
-ASM_COMPUTE_SHU="./compiler/shu_asm.experimental"
-if [ ! -x "$ASM_COMPUTE_SHU" ]; then
-  ASM_COMPUTE_SHU="./compiler/shu_asm"
+# asm-73 须 strict shu_asm；experimental 为 bootstrap 中间产物（pipeline_su partial），cfg-merge 会 SIGSEGV。
+ASM_COMPUTE_SHU="./compiler/shu_asm"
+if [ ! -x "$ASM_COMPUTE_SHU" ] && [ -x ./compiler/shu_asm.experimental ]; then
+  ASM_COMPUTE_SHU="./compiler/shu_asm.experimental"
 fi
 if bootstrap_ci_is_docker; then
   echo "bootstrap-bstrict-ci: Docker — asm-73 compute gate N/A (native linux GHA job covers; experimental SIGSEGV in container)"
 else
-  # experimental 在 cfg-merge 首用例偶发 SIGSEGV；此时尚未 refresh，shu_asm 仍为 B-strict asm 产物。
-  if ! SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh; then
-    asm73_ec=$?
-    if [ "$ASM_COMPUTE_SHU" != "./compiler/shu_asm" ] && [ -x ./compiler/shu_asm ]; then
-      echo "bootstrap-bstrict-ci: warn: asm-73 failed with $ASM_COMPUTE_SHU (exit $asm73_ec); fallback to shu_asm" >&2
-      SHU=./compiler/shu_asm ./tests/run-asm-73-gate.sh
-    else
-      exit "$asm73_ec"
-    fi
-  fi
+  SHU="$ASM_COMPUTE_SHU" ./tests/run-asm-73-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: run-all-bstrict (replace seed, whitelist) ..."
