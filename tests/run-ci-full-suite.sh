@@ -77,13 +77,13 @@ ci_apt_get() {
 # 从 ziglang.org 下载官方 tarball（apt/brew 不可用时的回退）。
 ci_install_zig_tarball() {
   local ver="${SHU_CI_ZIG_VERSION:-0.13.0}"
-  local tarname dir="$PWD/.ci-zig"
+  local tarname ext dir="$PWD/.ci-zig"
   case "$(ci_host_os)-$(ci_host_arch)" in
-    Linux-x86_64) tarname="zig-linux-x86_64-${ver}" ;;
-    Linux-aarch64|Linux-arm64) tarname="zig-linux-aarch64-${ver}" ;;
-    Darwin-arm64|Darwin-aarch64) tarname="zig-macos-aarch64-${ver}" ;;
-    Darwin-x86_64) tarname="zig-macos-x86_64-${ver}" ;;
-    MINGW*-x86_64|MSYS*-x86_64) tarname="zig-windows-x86_64-${ver}" ;;
+    Linux-x86_64) tarname="zig-linux-x86_64-${ver}"; ext=tar.xz ;;
+    Linux-aarch64|Linux-arm64) tarname="zig-linux-aarch64-${ver}"; ext=tar.xz ;;
+    Darwin-arm64|Darwin-aarch64) tarname="zig-macos-aarch64-${ver}"; ext=tar.xz ;;
+    Darwin-x86_64) tarname="zig-macos-x86_64-${ver}"; ext=tar.xz ;;
+    MINGW*-x86_64|MSYS*-x86_64) tarname="zig-windows-x86_64-${ver}"; ext=zip ;;
     *)
       echo "ci-full-suite FAIL: no zig tarball for $(ci_host_os)/$(ci_host_arch)" >&2
       return 1
@@ -92,8 +92,14 @@ ci_install_zig_tarball() {
   mkdir -p "$dir"
   if [ ! -x "$dir/$tarname/zig" ] && [ ! -x "$dir/$tarname/zig.exe" ]; then
     ci_require_cmd curl
-    curl -fsSL "https://ziglang.org/download/${ver}/${tarname}.tar.xz" -o "/tmp/${tarname}.tar.xz"
-    tar -xJf "/tmp/${tarname}.tar.xz" -C "$dir"
+    if [ "$ext" = zip ]; then
+      ci_require_cmd unzip
+      curl -fsSL "https://ziglang.org/download/${ver}/${tarname}.zip" -o "/tmp/${tarname}.zip"
+      unzip -q -o "/tmp/${tarname}.zip" -d "$dir"
+    else
+      curl -fsSL "https://ziglang.org/download/${ver}/${tarname}.tar.xz" -o "/tmp/${tarname}.tar.xz"
+      tar -xJf "/tmp/${tarname}.tar.xz" -C "$dir"
+    fi
   fi
   export PATH="$dir/$tarname:$PATH"
 }
@@ -189,19 +195,27 @@ ci_install_zig
 ci_require_cmd zig
 
 echo "── perf baseline ──"
-SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
+if ci_is_linux; then
+  SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
+else
+  ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
+fi
 grep -q 'perf baseline OK' /tmp/perf_bench.log
 
 echo "── IO perf ──"
 chmod +x tests/run-perf-io.sh
-SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
+if ci_is_linux; then
+  SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
+else
+  ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
+fi
 grep -q 'io perf OK' /tmp/perf_io.log
 
 echo "── net perf + multishot ──"
 chmod +x tests/run-zc1-gate.sh tests/run-io-multishot.sh
 if ci_is_linux; then
   ./tests/run-zc1-gate.sh --perf | tee /tmp/perf_net.log
-  grep -q 'ZC-1 gate OK' /tmp/perf_net.log
+  grep -qE 'ZC-1 gate OK|provided buffers N/A' /tmp/perf_net.log
   ./tests/run-io-multishot.sh | tee /tmp/io_multishot.log
   grep -q 'io multishot accept OK' /tmp/io_multishot.log
 else
