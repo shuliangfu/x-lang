@@ -72,11 +72,27 @@ print(f"{med:.1f}")
 PY
 }
 
-# 从 baseline tsv 读取某 metric 的上限（第二列）
+# 从 baseline tsv 读取某 metric 的上限（第二列）；非 Linux x86_64 宿主对 hello 冷启动放宽。
 baseline_cap() {
   local key="$1"
   [ -f "$BASELINE" ] || return 0
-  awk -F'\t' -v k="$key" '$1==k{print $2; exit}' "$BASELINE"
+  local cap
+  cap=$(awk -F'\t' -v k="$key" '$1==k{print $2; exit}' "$BASELINE")
+  [ -n "$cap" ] || return 0
+  case "$key" in
+    hello_stripped_us)
+      case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*)
+          # GHA Windows 冷启动中位数约为 Linux 的 1.2–1.4×。
+          cap=$(awk -v c="$cap" 'BEGIN { printf "%.0f", c * 1.35 }')
+          ;;
+        Darwin)
+          cap=$(awk -v c="$cap" 'BEGIN { printf "%.0f", c * 1.25 }')
+          ;;
+      esac
+      ;;
+  esac
+  echo "$cap"
 }
 
 # 门禁：实测 value 须 ≤ cap（用于 us 与 bytes）

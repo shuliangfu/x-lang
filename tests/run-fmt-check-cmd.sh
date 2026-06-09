@@ -23,6 +23,17 @@ fi
 OK_FILE="$FMT_TMP/shu_fmt_check_ok.su"
 BAD_FILE="$FMT_TMP/shu_fmt_check_bad.su"
 cp tests/return-value/main.su "$OK_FILE"
+# MSYS2：cp 后内容可能与 fmt 规范形不一致（CRLF/单行）；先 fmt 写回再测 --check。
+if [ "$_IS_MSYS" -eq 1 ]; then
+  set +e
+  $SHU fmt "$OK_FILE" >/dev/null 2>&1
+  fmt_norm_st=$?
+  set -e
+  if [ "$fmt_norm_st" -ne 0 ]; then
+    echo "fmt normalize failed before --check on MSYS (SHU=$SHU file=$OK_FILE)" >&2
+    exit 1
+  fi
+fi
 set +e
 $SHU fmt --check "$OK_FILE" >/dev/null 2>&1
 ok_st=$?
