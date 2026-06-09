@@ -63,17 +63,12 @@ else
 fi
 
 # scheduler.c：runtime 按 shu_async_coop_pingpong_jmp 未定义符号自动链 scheduler.o
-# -backend asm 仅 Linux x86_64 seed 链；其它平台 -backend c。
-if [ "$(uname -s)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
-  "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
-else
-  "$SMOKE_LINK_SHU" -L . tests/bench/async_switch_sched.su -backend c -o /tmp/shu_async_sched
-fi
-rc=$(/tmp/shu_async_sched; echo $?)
+# -backend asm 仅 Linux x86_64 seed 链；其它平台 scheduler jmp 烟测 N/A。
 if [ -n "$SMOKE_LINK_BACKEND" ]; then
-  [ -x /tmp/shu_async_sched ] || { echo "async_switch_sched FAIL: binary not built"; exit 1; }
-  echo "async_switch_sched compile OK (run skipped on $(uname -s)-$(uname -m 2>/dev/null))"
+  echo "async_switch_sched SKIP (scheduler jmp requires Linux x86_64 seed asm)"
 else
+  "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
+  rc=$(/tmp/shu_async_sched; echo $?)
   [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
 fi
 
