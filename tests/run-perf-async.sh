@@ -8,15 +8,41 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-# 与 run-async.sh 一致：优先 shu（runtime 按需链 scheduler.o）
-if [ -x ./compiler/shu ]; then
-  SHU=./compiler/shu
-elif [ -x ./compiler/shu-c ]; then
-  SHU=./compiler/shu-c
-else
-  echo "run-perf-async FAIL: no compiler/shu or compiler/shu-c" >&2
-  exit 1
+# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 shu-c）时保留；否则 shu 优先。
+if [ -z "${SHU:-}" ]; then
+  if [ -x ./compiler/shu ]; then
+    SHU=./compiler/shu
+  elif [ -x ./compiler/shu-c ]; then
+    SHU=./compiler/shu-c
+  else
+    echo "run-perf-async FAIL: no compiler/shu or compiler/shu-c" >&2
+    exit 1
+  fi
 fi
+
+# Linux x86_64 可用 seed asm；其它平台 shu-c/-backend c（Darwin asm 链接 __TEXT 非 r-x）。
+perf_async_is_linux_x64_asm() {
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Linux-x86_64|Linux-amd64) return 0 ;;
+  esac
+  return 1
+}
+
+# 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shu-c 或 seed -backend c。
+perf_async_compile_bench() {
+  local su="$1"
+  local out="$2"
+  rm -f "$out"
+  if perf_async_is_linux_x64_asm; then
+    "$SHU" -L . "$su" -o "$out"
+  elif [ -x ./compiler/shu-c ]; then
+    ./compiler/shu-c -L . "$su" -o "$out"
+  elif [ -x ./compiler/shu ]; then
+    ./compiler/shu -L . "$su" -backend c -o "$out"
+  else
+    "$SHU" -L . "$su" -o "$out"
+  fi
+}
 
 RUNS=3
 DO_BENCH=0
@@ -90,7 +116,7 @@ bench_async_case() {
       return 1
     fi
   else
-    if ! "$SHU" -L . "$su" -o "$exe" >/tmp/async_compile.log 2>&1; then
+    if ! perf_async_compile_bench "$su" "$exe" >/tmp/async_compile.log 2>&1; then
       cat /tmp/async_compile.log >&2
       return 1
     fi
@@ -115,7 +141,12 @@ if [ "$DO_BENCH" -eq 0 ]; then
 fi
 
 bench_async_case async_switch tests/bench/async_switch.su
-bench_async_case async_switch_jmp tests/bench/async_switch_sched.su
+# scheduler jmp 烟测仅 Linux x86_64 seed asm；macOS/ARM64/Windows 记 N/A。
+if perf_async_is_linux_x64_asm; then
+  bench_async_case async_switch_jmp tests/bench/async_switch_sched.su
+else
+  echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
+fi
 
 if [ "${SHU_PERF_UPDATE_ASYNC_BASELINE:-0}" = "1" ]; then
   echo "# async 1M ping-pong 中位数上限（秒）；门禁：median ≤ cap" >tests/baseline/async-perf.tsv
