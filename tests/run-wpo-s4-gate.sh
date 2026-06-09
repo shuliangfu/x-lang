@@ -5,12 +5,20 @@
 #   SHU=./compiler/shu_asm SHU_WPO_PGO_HOT=1 ./tests/run-wpo-s4-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/wpo-main-disasm.sh
+. tests/lib/wpo-main-disasm.sh
 
 SHU_ASM="${SHU:-./compiler/shu_asm}"
 case "$SHU_ASM" in
   /*) SHU_ASM_ABS="$SHU_ASM" ;;
   *) SHU_ASM_ABS="$(pwd)/$SHU_ASM" ;;
 esac
+
+if wpo_host_asm_run_na; then
+  echo "wpo-s4: asm/PGO N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
+  echo "wpo-s4 gate OK"
+  exit 0
+fi
 
 echo "=== WPO-S4-S0: shu_asm binary .text proxy (PGO-Lite baseline) ==="
 

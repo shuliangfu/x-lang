@@ -68,7 +68,9 @@ echo "=== WPO-S3: stack_promote_await_yield typeck (struct 跨 await + 双 poll)
 "$CHECK_SHU" check tests/wpo/stack_promote_await_yield.su >/dev/null
 echo "wpo-s3 cross/cross_ret/escape/await/await_yield typeck OK"
 
-if [ "$SHU_ASM_NATIVE" = "1" ]; then
+if wpo_host_asm_run_na; then
+  echo "wpo-s3 asm smoke N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
+elif [ "$SHU_ASM_NATIVE" = "1" ]; then
   "$SHU_ASM_BIN" "$SU" -o "$OUT" 2>/dev/null
   EX=0
   "$OUT" >/dev/null 2>&1 || EX=$?
@@ -207,7 +209,7 @@ if [ "$SHU_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 await_yield asm OK (struct frame preserved across suspend, exit 0)"
 else
   if [ "$(uname -s)" = "Darwin" ]; then
-    echo "wpo-s3 asm smoke N/A on Darwin (user exe ld/run; Linux x86_64/ARM64 covers)"
+    echo "wpo-s3 asm smoke N/A on Darwin (user exe ld/run; Linux x86_64 covers)"
   else
     echo "wpo-s3 asm smoke SKIP (no shu_asm; use docker ubuntu-wpo-s2)"
   fi

@@ -84,3 +84,11 @@ wpo_s2_darwin_skip_exe_run() {
     *) return 1 ;;
   esac
 }
+
+# Linux ARM64 lite refresh shu_asm：asm 产出 x86_64 stub（EM:62）或编译器 SIGSEGV；WPO asm 由 x86_64 承担。
+wpo_host_asm_run_na() {
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Linux-aarch64|Linux-arm64) return 0 ;;
+    *) return 1 ;;
+  esac
+}

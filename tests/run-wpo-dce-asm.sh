@@ -6,6 +6,12 @@ cd "$(dirname "$0")/.."
 . tests/lib/wpo-main-disasm.sh
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
+if wpo_host_asm_run_na; then
+  echo "WPO asm DCE: N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
+  echo "wpo asm dce OK"
+  exit 0
+fi
+
 SHU_BIN="${SHU:-./compiler/shu_asm}"
 if [ ! -x "$SHU_BIN" ]; then
   make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c

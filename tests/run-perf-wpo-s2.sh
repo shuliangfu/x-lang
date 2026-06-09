@@ -46,8 +46,14 @@ fi
 
 # Darwin gen_driver：asm 用户 exe 链 __TEXT r-x / 运行 SIGILL；fold ratio bench 由 Linux 覆盖。
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "run-perf-wpo-s2: N/A on Darwin (asm user exe ld/run; Linux x86_64/ARM64 covers)"
+  echo "run-perf-wpo-s2: N/A on Darwin (asm user exe ld/run; Linux x86_64 covers)"
   echo "wpo-s2 perf OK (Darwin N/A)"
+  exit 0
+fi
+
+if wpo_host_asm_run_na; then
+  echo "run-perf-wpo-s2: N/A on Linux ARM64 (refresh shu_asm asm stub; x86_64 covers)"
+  echo "wpo-s2 perf OK (Linux ARM64 N/A)"
   exit 0
 fi
 

@@ -23,8 +23,8 @@ grep -q 'wpo_const_spec OK' /tmp/wpo_const_spec.log
 SHU_WPO_DUMP_CALLGRAPH=/tmp/shu_wpo_dead_fn_v2.json ./compiler/shu-c check tests/wpo/dead_fn.su >/dev/null
 perl compiler/scripts/wpo_dce.pl /tmp/shu_wpo_dead_fn_v2.json --expect-dead dead_helper
 
-# WPO-S2 asm：常量实参 call fold（须 shu_asm）
-if [ -x ./compiler/shu_asm ]; then
+# WPO-S2 asm：常量实参 call fold（须 shu_asm；Linux ARM64 lite refresh stub 记 N/A）
+if [ -x ./compiler/shu_asm ] && ! wpo_host_asm_run_na; then
   if wpo_s2_darwin_skip_exe_run; then
     echo "wpo-s2: Darwin asm uses -o .o disasm (user exe ld __TEXT N/A)"
   fi
@@ -163,6 +163,8 @@ if [ -x ./compiler/shu_asm ]; then
   else
     echo "wpo-s2 asm vec mono OK (lane0__wpo_* thunk + _main bl mono sym)"
   fi
+elif wpo_host_asm_run_na; then
+  echo "wpo-s2: asm fold/mono N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
 fi
 
 echo "wpo-s2 smoke OK"

@@ -483,6 +483,9 @@ chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh \
   tests/run-wpo-backend-reach-gate.sh tests/run-wpo-s3-gate.sh tests/run-wpo-s4-gate.sh \
   tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh tests/lib/wpo-ab-proxy.sh \
   compiler/scripts/relink_shu_asm_strict_glue.sh
+if ci_is_linux_arm64_ci_lite; then
+  echo "ci-full-suite: WPO asm gates N/A on Linux ARM64 (refresh shu_asm x86_64 stub; x86_64 covers full WPO)"
+fi
 ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
 grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
 ./tests/run-wpo-dce-asm.sh | tee /tmp/wpo_dce_asm.log

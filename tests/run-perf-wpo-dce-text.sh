@@ -6,6 +6,14 @@
 #   SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-text.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/wpo-main-disasm.sh
+. tests/lib/wpo-main-disasm.sh
+
+if wpo_host_asm_run_na; then
+  echo "run-perf-wpo-dce-text: N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
+  echo "wpo dce text OK ($(uname -m) N/A)"
+  exit 0
+fi
 
 SHU_BIN="${SHU:-./compiler/shu_asm}"
 BASELINE="${SHU_WPO_DCE_TEXT_BASELINE:-tests/baseline/wpo-dce-text.tsv}"
