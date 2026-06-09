@@ -15,10 +15,11 @@ fi
 # musl/Alpine/Docker：async C harness 中 setenv 须 POSIX 宏。
 SHU_ASYNC_CC=(cc -std=gnu11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L)
 
-# Windows MSYS：async_switch -o 编译会挂起，跳过 -o 烟测（scheduler C harness 仍跑）。
-async_is_windows_msys() {
-  if [ -n "${MSYSTEM:-}" ]; then return 0; fi
-  case "$(uname -s)" in MINGW*|MSYS*) return 0 ;; esac
+# 仅 Linux x86_64 走 seed asm -o；Windows/macOS/Docker 等用 shu-c -backend c 实跑（禁止 silent SKIP）。
+async_is_linux_x64_asm() {
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Linux-x86_64|Linux-amd64) return 0 ;;
+  esac
   return 1
 }
 
@@ -59,15 +60,15 @@ if [ -x ./compiler/shu-c ]; then
   COMPILE_SHU=./compiler/shu-c
 fi
 
-# 烟测 -o：x86_64 Linux 用 seed asm（async_switch 计数正确）；其它平台 seed + -backend c。
+# 烟测 -o：Linux x86_64 用 seed asm；其它平台 shu-c -backend c（避免 seed PE/Mach-O 挂起）。
 SMOKE_LINK_SHU="$SHU"
 SMOKE_LINK_BACKEND=""
-case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Linux-x86_64|Linux-amd64) ;;
-  *)
-    SMOKE_LINK_BACKEND="-backend c"
-    ;;
-esac
+if ! async_is_linux_x64_asm; then
+  SMOKE_LINK_BACKEND="-backend c"
+  if [ -x ./compiler/shu-c ]; then
+    SMOKE_LINK_SHU=./compiler/shu-c
+  fi
+fi
 
 # run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
 _run_async_arg_count_rejected() {
@@ -81,33 +82,28 @@ if [ ! -x "$EMIT_SHU" ]; then
   EMIT_SHU="$SHU"
 fi
 
-if async_is_windows_msys; then
-  echo "async_switch compile SKIP (Windows MSYS: -o smoke deferred)"
-  echo "async_switch_sched SKIP (Windows MSYS: scheduler jmp requires Linux x86_64 seed asm)"
-else
-  "$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
-  if [ -n "$SMOKE_LINK_BACKEND" ]; then
-    # 非 x86_64 Linux：-backend c 计数烟测已知偏差；仅验 -o 链接成功。
-    [ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
-    echo "async_switch compile OK (run skipped on $(uname -s)-$(uname -m 2>/dev/null))"
-  else
-    rc=$(/tmp/shu_async_switch; echo $?)
-    [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
-  fi
+echo "async_switch: compile+run (${SMOKE_LINK_SHU##*/} ${SMOKE_LINK_BACKEND:-seed asm}) ..."
+"$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
+[ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
+rc=$(/tmp/shu_async_switch; echo $?)
+[ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
+echo "async_switch OK"
 
-  # scheduler.c：runtime 按 shu_async_coop_pingpong_jmp 未定义符号自动链 scheduler.o
-  if [ -n "$SMOKE_LINK_BACKEND" ]; then
-    echo "async_switch_sched SKIP (scheduler jmp requires Linux x86_64 seed asm)"
-  else
-    "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
-    rc=$(/tmp/shu_async_sched; echo $?)
-    [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
-  fi
+# scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；其它平台 N/A（非 SKIP）。
+if async_is_linux_x64_asm; then
+  "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
+  rc=$(/tmp/shu_async_sched; echo $?)
+  [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
+  echo "async_switch_sched OK"
+else
+  echo "async_switch_sched N/A (scheduler jmp requires Linux x86_64 seed asm)"
 fi
 
-# import std.async + coop_pingpong_jmp（优先 shu seed+parser_su；未 refresh 时回退 shu-c）
+# import std.async + coop_pingpong_jmp：非 Linux x86_64 优先 shu-c，避免 seed -o 挂起。
 SHU_IMPORT=${SHU_IMPORT:-$SHU}
-if ! "$SHU_IMPORT" -L . -E tests/parser/import_std_async.su >/dev/null 2>&1; then
+if ! async_is_linux_x64_asm && [ -x ./compiler/shu-c ]; then
+  SHU_IMPORT=./compiler/shu-c
+elif ! "$SHU_IMPORT" -L . -E tests/parser/import_std_async.su >/dev/null 2>&1; then
   SHU_IMPORT=./compiler/shu-c
 fi
 "$SHU_IMPORT" -L . tests/bench/async_mod_import.su -o /tmp/shu_async_mod_import 2>&1 || {
