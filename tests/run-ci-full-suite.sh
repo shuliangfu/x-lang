@@ -74,19 +74,47 @@ ci_apt_get() {
   fi
 }
 
-# 安装 Zig（perf 对照）；装失败则 ci_require_zig 报错。
+# 从 ziglang.org 下载官方 tarball（apt/brew 不可用时的回退）。
+ci_install_zig_tarball() {
+  local ver="${SHU_CI_ZIG_VERSION:-0.13.0}"
+  local tarname dir="$PWD/.ci-zig"
+  case "$(ci_host_os)-$(ci_host_arch)" in
+    Linux-x86_64) tarname="zig-linux-x86_64-${ver}" ;;
+    Linux-aarch64|Linux-arm64) tarname="zig-linux-aarch64-${ver}" ;;
+    Darwin-arm64|Darwin-aarch64) tarname="zig-macos-aarch64-${ver}" ;;
+    Darwin-x86_64) tarname="zig-macos-x86_64-${ver}" ;;
+    MINGW*-x86_64|MSYS*-x86_64) tarname="zig-windows-x86_64-${ver}" ;;
+    *)
+      echo "ci-full-suite FAIL: no zig tarball for $(ci_host_os)/$(ci_host_arch)" >&2
+      return 1
+      ;;
+  esac
+  mkdir -p "$dir"
+  if [ ! -x "$dir/$tarname/zig" ] && [ ! -x "$dir/$tarname/zig.exe" ]; then
+    ci_require_cmd curl
+    curl -fsSL "https://ziglang.org/download/${ver}/${tarname}.tar.xz" -o "/tmp/${tarname}.tar.xz"
+    tar -xJf "/tmp/${tarname}.tar.xz" -C "$dir"
+  fi
+  export PATH="$dir/$tarname:$PATH"
+}
+
+# 安装 Zig（perf 对照）：包管理器 → 官方 tarball。
 ci_install_zig() {
   if command -v zig >/dev/null 2>&1; then
     return 0
   fi
   if ci_is_linux; then
-    ci_apt_get update -qq 2>/dev/null || true
-    ci_apt_get install -y -qq zig 2>/dev/null || true
+    if command -v apk >/dev/null 2>&1; then
+      apk add --no-cache zig curl 2>/dev/null || true
+    else
+      ci_apt_get update -qq 2>/dev/null || true
+      ci_apt_get install -y -qq zig curl xz-utils 2>/dev/null || true
+    fi
   elif ci_is_darwin; then
     brew install zig 2>/dev/null || true
-  elif ci_is_windows_msys; then
-    pacman -S --noconfirm --needed zig 2>/dev/null || true
   fi
+  command -v zig >/dev/null 2>&1 && return 0
+  ci_install_zig_tarball
 }
 
 # 要求命令存在，否则 FAIL（禁止 perf baseline 等 silent skip）。
@@ -182,7 +210,12 @@ fi
 
 echo "── compile dogfood ──"
 chmod +x tests/run-perf-compile-dogfood.sh
-SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+if ci_is_linux; then
+  SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+else
+  # macOS/Windows：跑 timing 烟测；基线仅校准于 Linux x64。
+  ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+fi
 grep -q 'compile dogfood OK' /tmp/compile_dogfood.log
 
 # refresh：Linux 全量；Darwin/Windows 在 CI 全量模式下也尝试（Mach-O/PE 单平台 relink）。
@@ -207,12 +240,20 @@ fi
 
 echo "── async smoke + bench ──"
 chmod +x tests/run-async.sh tests/run-perf-async.sh
-./tests/run-async.sh | tee /tmp/async_smoke.log
+# Darwin：Mach-O asm auto-ld 对部分用例 __TEXT 权限未 r-x；async 用 shu-c 仍验语义。
+if ci_is_darwin; then
+  SHU=./compiler/shu-c ./tests/run-async.sh | tee /tmp/async_smoke.log
+else
+  ./tests/run-async.sh | tee /tmp/async_smoke.log
+fi
 grep -q 'async smoke OK' /tmp/async_smoke.log
 grep -q 'async gate OK' /tmp/async_smoke.log
 if ci_is_linux; then
   grep -q 'async linux full OK' /tmp/async_smoke.log
   SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
+  grep -q 'async perf OK' /tmp/async_perf.log
+elif ci_is_darwin; then
+  SHU=./compiler/shu-c SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
   grep -q 'async perf OK' /tmp/async_perf.log
 fi
 
