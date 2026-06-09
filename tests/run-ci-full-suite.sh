@@ -334,7 +334,7 @@ fi
 ci_run_dod_arm64_subset() {
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s3-gate.sh \
     tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh \
-    tests/run-simd-s3-gate.sh tests/lib/dod-native-exe.sh
+    tests/run-simd-s3-gate.sh tests/lib/dod-native-exe.sh tests/lib/dod-host-backend.sh
   SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
   grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
   SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
@@ -345,7 +345,11 @@ ci_run_dod_arm64_subset() {
   grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
   SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
   grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-  grep -q 'f32_soa_sum_strip_smoke exit=10 OK' /tmp/simd_s3.log
+  if ci_is_linux && ci_is_arm64_host; then
+    grep -q 'f32_soa_sum_strip_smoke exit=10 OK' /tmp/simd_s3.log
+  elif ci_is_darwin && ci_is_arm64_host; then
+    echo "ci-full-suite: simd-s3 f32 strip run N/A on Darwin (Linux ARM64 covers)"
+  fi
 }
 
 # x86_64 宿主 DOD 正确性（无 Linux perf stat）：Windows / Intel macOS。
