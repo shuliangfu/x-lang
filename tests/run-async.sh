@@ -25,22 +25,20 @@ if [ -z "${SHU:-}" ]; then
 fi
 
 # relink 后 seed shu 的 SU codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHU 对齐用 shu-c。
-# Darwin / 非 x86_64 Linux：seed asm 为 x86_64，-o 烟测统一走 shu-c（-backend c）。
 COMPILE_SHU="$SHU"
 if [ -x ./compiler/shu-c ]; then
   COMPILE_SHU=./compiler/shu-c
 fi
+
+# 烟测 -o：x86_64 Linux 用 seed asm（async_switch 计数正确）；其它平台 seed + -backend c。
+SMOKE_LINK_SHU="$SHU"
+SMOKE_LINK_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Darwin-*|Linux-aarch64|Linux-arm64)
-    if [ -x ./compiler/shu-c ]; then
-      SHU=./compiler/shu-c
-      COMPILE_SHU=./compiler/shu-c
-    fi
+  Linux-x86_64|Linux-amd64) ;;
+  *)
+    SMOKE_LINK_BACKEND="-backend c"
     ;;
 esac
-
-# 烟测 -o 链接：优先 COMPILE_SHU（C 后端），避免 Mach-O / 跨架构 seed asm 链接失败。
-SMOKE_LINK_SHU="$COMPILE_SHU"
 
 # run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
 _run_async_arg_count_rejected() {
@@ -54,13 +52,13 @@ if [ ! -x "$EMIT_SHU" ]; then
   EMIT_SHU="$SHU"
 fi
 
-"$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
+"$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
 rc=$(/tmp/shu_async_switch; echo $?)
 [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
 
 # scheduler.c：runtime 按 shu_async_coop_pingpong_jmp 未定义符号自动链 scheduler.o
-# -backend asm 仅 Linux x86_64 seed 链支持；其它平台用 C 后端烟测调度器符号解析。
-if [ "$(uname -s)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ "$SMOKE_LINK_SHU" != "./compiler/shu-c" ]; then
+# -backend asm 仅 Linux x86_64 seed 链；其它平台 -backend c。
+if [ "$(uname -s)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
   "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
 else
   "$SMOKE_LINK_SHU" -L . tests/bench/async_switch_sched.su -backend c -o /tmp/shu_async_sched

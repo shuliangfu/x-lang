@@ -254,12 +254,7 @@ fi
 
 echo "── async smoke + bench ──"
 chmod +x tests/run-async.sh tests/run-perf-async.sh
-# Darwin / ARM64 Linux：seed asm 为 x86_64 或 Mach-O 权限问题；-o 烟测走 shu-c。
-if ci_is_darwin || ci_is_arm64_host; then
-  SHU=./compiler/shu-c ./tests/run-async.sh | tee /tmp/async_smoke.log
-else
-  ./tests/run-async.sh | tee /tmp/async_smoke.log
-fi
+./tests/run-async.sh | tee /tmp/async_smoke.log
 grep -q 'async smoke OK' /tmp/async_smoke.log
 grep -q 'async gate OK' /tmp/async_smoke.log
 if ci_is_linux; then
