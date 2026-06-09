@@ -611,7 +611,8 @@ function enc_rsub_ecx_edx(ctx: *ElfCodegenCtx): i32 {
 
 /** subl %ebx, %edx + movl %edx, %ebx（rbx = secondary - rbx，读路径 i-(j+k)）。 */
 function enc_rsub_ebx_edx(ctx: *ElfCodegenCtx): i32 {
-  let sub: [2]u8 = [41, 211];
+  /** 0x29 0xDA = subl %ebx,%edx（勿用 0xD3，与 enc_sub_ebx_edx 的 ebx-=edx 相同会误成 i 下标）。 */
+  let sub: [2]u8 = [41, 218];
   if (platform.elf.append_elf_bytes(ctx, sub, 2) != 0) { return -1; }
   let mov: [2]u8 = [137, 211];
   return platform.elf.append_elf_bytes(ctx, mov, 2);
