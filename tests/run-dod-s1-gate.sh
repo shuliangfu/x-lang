@@ -50,9 +50,12 @@ if [ -z "$SHU_ABS" ] || ! dod_native_exe "$SHU_ABS"; then
 fi
 
 DOD_EXE_SHU="$(dod_host_exe_shu "$SHU_ABS")"
-case "$(uname -s 2>/dev/null)" in
-  Darwin)
-    echo "dod-s1: Darwin f32 compile/run via -backend c (shu_asm asm f32 ELF .o N/A on gen_driver hybrid)"
+case "$(uname -s)-$(uname -m 2>/dev/null)" in
+  Darwin-*)
+    echo "dod-s1: Darwin -o link via shu-c (seed asm/import path; x86_64 covers asm disasm)"
+    ;;
+  Linux-aarch64|Linux-arm64)
+    echo "dod-s1: Linux ARM64 -o link via shu-c (refresh shu_asm lite)"
     ;;
 esac
 

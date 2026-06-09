@@ -450,7 +450,7 @@ if ci_is_linux && ci_is_x86_64_host; then
   SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
   grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
 elif ci_is_linux && ci_is_arm64_host; then
-  echo "── DOD/SIMD (Linux ARM64, -backend c; refresh shu_asm asm stub) ──"
+  echo "── DOD/SIMD (Linux ARM64, shu-c -o link; refresh shu_asm typeck) ──"
   ci_run_dod_arm64_subset
 elif ci_is_darwin && ci_is_arm64_host; then
   echo "── DOD/SIMD (macOS ARM64) ──"

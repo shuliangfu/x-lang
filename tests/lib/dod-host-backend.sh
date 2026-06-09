@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # DOD/SIMD 门禁：按宿主 OS/架构选择 compile/run 后端。
-# Darwin / Linux ARM64（refresh shu_asm 无本机 asm）：-backend c，避免 asm 产出 x86_64 ELF（EM:62）。
+# Darwin / Linux ARM64（refresh shu_asm lite）：-o 可执行走 shu-c（无 -backend；import 时 seed exec shu-c 会原样传 argv）。
 # Linux x86_64：-backend asm（Neon/SSE 实锤由各自 job 承担）。
 # 用法：source tests/lib/dod-host-backend.sh 后读取 DOD_F32_BACKEND_ARGS、DOD_GATE_BACKEND_ARGS、DOD_EXE_SHU。
 
@@ -24,11 +24,11 @@ dod_host_f32_backend_args() {
   esac
 }
 
-# 返回 WPO/asm 门禁用的后端。
+# 返回 WPO/asm 门禁用的后端；shu-c 路径勿传 -backend（import exec shu-c 会原样转发 argv）。
 dod_host_gate_backend_args() {
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-*|Linux-aarch64|Linux-arm64)
-      printf '%s' '-backend c'
+      printf '%s' ''
       ;;
     *)
       printf '%s' '-backend asm'
@@ -36,9 +36,17 @@ dod_host_gate_backend_args() {
   esac
 }
 
-# 返回用于 -o 可执行链接的编译器（Darwin 须 shu_asm + -backend c；其它用传入 shu_asm/shu）。
+# 返回用于 -o 可执行链接的编译器；Darwin/ARM64 lite 用 shu-c，避免 seed asm EM:62 与 -backend 传给 shu-c 失败。
 dod_host_exe_shu() {
   local seed="${1:-./compiler/shu_asm}"
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-*|Linux-aarch64|Linux-arm64)
+      if [ -x ./compiler/shu-c ]; then
+        printf '%s' './compiler/shu-c'
+        return
+      fi
+      ;;
+  esac
   printf '%s' "$seed"
 }
 
