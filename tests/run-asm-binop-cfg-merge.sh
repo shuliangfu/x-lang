@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHU=${SHU:-./compiler/shu}
 
-ulimit -s 16384 2>/dev/null || true
+ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 # ldur / AArch64 形态反汇编门禁仅 arm64 宿主（与 run-asm-binop-block-var.sh 一致）。
 asm_disasm_gate_host() {

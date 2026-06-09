@@ -83,8 +83,8 @@ baseline_cap() {
     hello_stripped_us)
       case "$(uname -s 2>/dev/null)" in
         MINGW*|MSYS*)
-          # GHA Windows 冷启动中位数约为 Linux 的 1.2–1.4×。
-          cap=$(awk -v c="$cap" 'BEGIN { printf "%.0f", c * 1.35 }')
+          # GHA Windows 冷启动中位数约为 Linux 的 1.2–1.4×（2026-06 实测 ~20500us）。
+          cap=$(awk -v c="$cap" 'BEGIN { printf "%.0f", c * 1.40 }')
           ;;
         Darwin)
           cap=$(awk -v c="$cap" 'BEGIN { printf "%.0f", c * 1.25 }')
