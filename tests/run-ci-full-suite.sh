@@ -309,10 +309,14 @@ cd ..
 
 echo "── S2 typeck gate ──"
 chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
-SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
-grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
-grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
+if ci_is_linux && ci_is_x86_64_host; then
+  SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
+  grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
+  SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
+  grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
+else
+  echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_os)/$(ci_host_arch) (EMIT_HEAVY Linux x86_64 only)"
+fi
 
 echo "── shu_asm smoke ──"
 cd compiler && ./scripts/run_shu_asm_smoke.sh
@@ -438,10 +442,14 @@ SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/w
 grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
 
 echo "── B-strict bootstrap + gates ──"
-chmod +x tests/run-bootstrap-bstrict-ci.sh
-./tests/run-bootstrap-bstrict-ci.sh
+if ci_is_linux && ci_is_x86_64_host; then
+  chmod +x tests/run-bootstrap-bstrict-ci.sh
+  ./tests/run-bootstrap-bstrict-ci.sh
 
-echo "── bootstrap-verify ──"
-make -C compiler bootstrap-verify
+  echo "── bootstrap-verify ──"
+  make -C compiler bootstrap-verify
+else
+  echo "ci-full-suite: bootstrap-bstrict/verify N/A on $(ci_host_os)/$(ci_host_arch) (B-strict primary path Linux x86_64)"
+fi
 
 echo "ci-full-suite OK (host=$(ci_host_os)/$(ci_host_arch))"
