@@ -50,6 +50,24 @@ ci_is_docker() {
   [ -f /.dockerenv ] || [ -n "${SHU_CI_DOCKER:-}" ]
 }
 
+# Linux：探测 perf L1 事件是否可用（GHA 内核/linux-tools 不匹配时返回 1）。
+ci_linux_perf_l1_probe_ok() {
+  local perf_bin out loads misses
+  [ "$(ci_host_os)" = "Linux" ] || return 1
+  perf_bin=$(command -v perf 2>/dev/null || true)
+  if [ -z "$perf_bin" ] || [ ! -x "$perf_bin" ]; then
+    for perf_bin in /usr/lib/linux-tools/*/perf; do
+      [ -x "$perf_bin" ] && break
+    done
+  fi
+  [ -n "$perf_bin" ] && [ -x "$perf_bin" ] || return 1
+  sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
+  out=$("$perf_bin" stat -x, -e L1-dcache-loads,L1-dcache-load-misses -- true 2>&1 || true)
+  loads=$(echo "$out" | awk -F, '/L1-dcache-loads/ && $1 ~ /^[0-9]/ { gsub(/,/,"",$1); print $1; exit }')
+  misses=$(echo "$out" | awk -F, '/L1-dcache-load-misses/ && $1 ~ /^[0-9]/ { gsub(/,/,"",$1); print $1; exit }')
+  [ -n "$loads" ] && [ -n "$misses" ] && [ "$loads" != "0" ]
+}
+
 # Linux ARM64 CI 精简路径：全量 run-all-su + build_shu_asm 易超 170min；Neon DOD/SIMD 烟测保留，完整回归由 x86_64 承担。
 ci_is_linux_arm64_ci_lite() {
   ci_is_linux && ci_is_arm64_host
@@ -424,7 +442,11 @@ if ci_is_linux && ci_is_x86_64_host; then
   ci_apt_get install -y -qq linux-tools-common "linux-tools-${KVER}" "linux-cloud-tools-${KVER}" linux-tools-generic 2>/dev/null || \
     ci_apt_get install -y -qq linux-tools-common linux-tools-generic 2>/dev/null || true
   if [ "$DOD_SOA_REQUIRE_L1" = "1" ]; then
-    sysctl -w kernel.perf_event_paranoid=1 2>/dev/null || true
+    sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
+    if ! ci_linux_perf_l1_probe_ok; then
+      echo "ci-full-suite: DOD L1 perf probe failed; correctness-only (perf N/A on this runner)"
+      DOD_SOA_REQUIRE_L1=0
+    fi
   fi
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
   SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1="$DOD_SOA_REQUIRE_L1" ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
