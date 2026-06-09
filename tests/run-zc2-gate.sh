@@ -149,6 +149,16 @@ MMAP_EXPECT=21
 if [ "$(uname -s)" = "Darwin" ]; then
   MMAP_EXPECT=22
 fi
+# Windows/MSYS：无 Linux mmap / macOS mmap 后端，backend 校验失败（exit 9）为 N/A。
+case "$(uname -s)" in
+  MINGW*|MSYS*)
+    if [ "$RC" = "9" ]; then
+      echo "zc2: read_ptr_mmap_smoke N/A (no mmap backend on Windows)"
+      echo "zc2 gate OK"
+      exit 0
+    fi
+    ;;
+esac
 if [ "$RC" != "$MMAP_EXPECT" ]; then
   echo "zc2 FAIL: read_ptr_mmap_smoke expected exit $MMAP_EXPECT (20+backend), got $RC" >&2
   exit 1

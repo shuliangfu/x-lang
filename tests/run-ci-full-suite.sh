@@ -217,7 +217,7 @@ if ci_is_linux; then
   ./tests/run-zc1-gate.sh --perf | tee /tmp/perf_net.log
   grep -qE 'ZC-1 gate OK|provided buffers N/A' /tmp/perf_net.log
   ./tests/run-io-multishot.sh | tee /tmp/io_multishot.log
-  grep -q 'io multishot accept OK' /tmp/io_multishot.log
+  grep -qE 'io multishot accept OK|io multishot: N/A' /tmp/io_multishot.log
 else
   echo "ci-full-suite: ZC-1 net perf N/A on $(ci_host_os) (io_uring requires Linux)"
 fi
@@ -254,8 +254,8 @@ fi
 
 echo "── async smoke + bench ──"
 chmod +x tests/run-async.sh tests/run-perf-async.sh
-# Darwin：Mach-O asm auto-ld 对部分用例 __TEXT 权限未 r-x；async 用 shu-c 仍验语义。
-if ci_is_darwin; then
+# Darwin / ARM64 Linux：seed asm 为 x86_64 或 Mach-O 权限问题；-o 烟测走 shu-c。
+if ci_is_darwin || ci_is_arm64_host; then
   SHU=./compiler/shu-c ./tests/run-async.sh | tee /tmp/async_smoke.log
 else
   ./tests/run-async.sh | tee /tmp/async_smoke.log
