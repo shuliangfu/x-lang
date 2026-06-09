@@ -4,6 +4,7 @@ function main(): i32 {
   let b: i32 = 2;
   for ( ; a < 5 ; ) {
     if (a == 2) {
+      a += 1;
       continue;
     }
     if (a == 4) {
