@@ -17,3 +17,10 @@ RUN_SHU="${SHULANG_LINK_SHU:-${SHU:-./compiler/shu}}"
 if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -z "${SHULANG_LINK_SHU:-}" ] && [ -x ./compiler/shu-c ]; then
   RUN_SHU=./compiler/shu-c
 fi
+# shu/shu_asm：slice .length 等 -o codegen 不完整；refresh shu_asm 在非 x86_64 上 asm 产出 EM:62。
+# 未显式 SHULANG_LINK_SHU 时，-o 可执行链接一律 shu-c（ZC-3 / Docker / run-all 一致）。
+if [ -x ./compiler/shu-c ] && [ -z "${SHULANG_LINK_SHU:-}" ]; then
+  case "$(basename "${SHU:-}")" in
+    shu|shu_asm) RUN_SHU=./compiler/shu-c ;;
+  esac
+fi

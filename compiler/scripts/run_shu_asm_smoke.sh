@@ -22,11 +22,11 @@ if [ ! -f "$RV" ]; then
   exit 1
 fi
 
-# 烟测 compile+run 后端：Linux 默认 asm；Darwin 用 c（可 SHU_ASM_SMOKE_BACKEND=asm|c 覆盖）。
+# 烟测 compile+run 后端：Linux x86_64 默认 asm；Darwin / Linux ARM64 用 c（asm 链 EM:62 或 Mach-O 不完整）。
 SMOKE_RUN_BACKEND="${SHU_ASM_SMOKE_BACKEND:-}"
 if [ -z "$SMOKE_RUN_BACKEND" ]; then
-  case "$(uname -s 2>/dev/null)" in
-    Darwin)
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-*|Linux-aarch64|Linux-arm64)
       SMOKE_RUN_BACKEND="c"
       ;;
     *)
@@ -84,9 +84,12 @@ echo "run_shu_asm_smoke: OK"
 # B-strict 用户 import 子集（-o 链 exe；比 bootstrap 全量 gate 少 option 等待 struct 按值对齐）
 ASM_GATE="../tests/run-shu-asm-gate.sh"
 if [ -f "$ASM_GATE" ] && [ -z "${SHU_ASM_SMOKE_SKIP_GATE:-}" ]; then
-  case "$(uname -s 2>/dev/null)" in
-    Darwin)
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-*)
       echo "run_shu_asm_smoke: skip shu_asm gate on Darwin (asm -o __TEXT N/A; linux job covers full gate)"
+      ;;
+    Linux-aarch64|Linux-arm64)
+      echo "run_shu_asm_smoke: skip shu_asm gate on Linux ARM64 (refresh shu_asm asm stub; x86_64 covers)"
       ;;
     *)
       echo "run_shu_asm_smoke: shu_asm gate (hello/import + while/typeck) ..."

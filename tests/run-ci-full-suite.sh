@@ -361,6 +361,9 @@ else
 fi
 
 echo "── shu_asm smoke ──"
+if ci_is_linux_arm64_ci_lite; then
+  echo "ci-full-suite: shu_asm smoke on Linux ARM64 uses -backend c (full asm smoke: ubuntu x86_64)"
+fi
 cd compiler && ./scripts/run_shu_asm_smoke.sh
 cd ..
 if ci_is_darwin; then
