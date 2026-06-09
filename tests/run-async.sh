@@ -15,7 +15,7 @@ fi
 # musl/Alpine/Docker：async C harness 中 setenv 须 POSIX 宏。
 SHU_ASYNC_CC=(cc -std=gnu11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L)
 
-# 仅 Linux x86_64 走 seed asm -o；Windows/macOS/Docker 等用 shu-c -backend c 实跑（禁止 silent SKIP）。
+# 仅 Linux x86_64 走 seed asm -o；其它平台用 shu-c -o（C 前端，避免 seed PE/Mach-O 挂起）。
 async_is_linux_x64_asm() {
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Linux-x86_64|Linux-amd64) return 0 ;;
@@ -60,20 +60,13 @@ if [ -x ./compiler/shu-c ]; then
   COMPILE_SHU=./compiler/shu-c
 fi
 
-# 烟测 -o：Linux x86_64 用 seed asm；其它平台 shu-c -backend c（避免 seed PE/Mach-O 挂起）。
-SMOKE_LINK_SHU="$SHU"
-SMOKE_LINK_BACKEND=""
-if ! async_is_linux_x64_asm; then
-  SMOKE_LINK_BACKEND="-backend c"
-  if [ -x ./compiler/shu-c ]; then
-    SMOKE_LINK_SHU=./compiler/shu-c
+# async_switch -o：Linux x86_64 用 seed asm；其它平台 shu-c（无 -backend，shu-c 不支持该选项）。
+async_switch_compile_o() {
+  if async_is_linux_x64_asm; then
+    "$SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
+  else
+    "$COMPILE_SHU" -L . tests/bench/async_switch.su -o /tmp/shu_async_switch
   fi
-fi
-
-# run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
-_run_async_arg_count_rejected() {
-  "$COMPILE_SHU" -L . "$1" -o /tmp/shu_run_async_arg_err 2>&1 \
-    | grep -qE "argument count must match|expects [0-9]+ arguments, got"
 }
 
 # relink 后 shu 的 -E 仅 parse/typeck 摘要；须 grep C/SHU_ASYNC_FRAME 的烟测统一走 shu-c。
@@ -82,8 +75,18 @@ if [ ! -x "$EMIT_SHU" ]; then
   EMIT_SHU="$SHU"
 fi
 
-echo "async_switch: compile+run (${SMOKE_LINK_SHU##*/} ${SMOKE_LINK_BACKEND:-seed asm}) ..."
-"$SMOKE_LINK_SHU" -L . tests/bench/async_switch.su $SMOKE_LINK_BACKEND -o /tmp/shu_async_switch
+# run/spawn 实参个数不匹配：call typeck 或 run v4 专用报错均可。
+_run_async_arg_count_rejected() {
+  "$COMPILE_SHU" -L . "$1" -o /tmp/shu_run_async_arg_err 2>&1 \
+    | grep -qE "argument count must match|expects [0-9]+ arguments, got"
+}
+
+if async_is_linux_x64_asm; then
+  echo "async_switch: compile+run (seed asm) ..."
+else
+  echo "async_switch: compile+run (${COMPILE_SHU##*/} C frontend) ..."
+fi
+async_switch_compile_o
 [ -x /tmp/shu_async_switch ] || { echo "async_switch FAIL: binary not built"; exit 1; }
 rc=$(/tmp/shu_async_switch; echo $?)
 [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
