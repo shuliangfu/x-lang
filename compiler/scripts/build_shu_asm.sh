@@ -2146,6 +2146,10 @@ ensure_asm_bootstrap_su_companion_objs() {
     ./scripts/build_seed_asm_host.sh
   fi
   ensure_bstrict_seed_support_objs
+  ensure_ast_pool_l5_bridge_obj
+  if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
+    make pipeline_bootstrap_orchestration.o
+  fi
 }
 
 # 与 Makefile USER_ASM_SEED_OBJS 对齐：pipeline_glue / partial 引用的 enc/call 分派 TU。
@@ -2153,6 +2157,9 @@ BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_su.o 引用 std_fs_shim / try_inline 分派等。
 GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o $BUILD_DIR/su_seed_bridge.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+
+# gen_driver 回退链：pipeline_su.o / runtime_driver 须 parser/lexer/codegen SU + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
+GEN_DRIVER_SU_PIPELINE_COMPANIONS="parser_su.o lexer_su.o codegen_su.o lexer_su_link_alias.o codegen_su_link_alias.o driver_build_su.o driver_run_su.o driver_compile_su.o driver_emit_su.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-shu 对齐：pipeline_su.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
@@ -3018,6 +3025,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         "$GEN_O/preprocess_su.o" \
         $GEN_DRIVER_TYPECK_COMPANIONS \
         $GEN_DRIVER_BSTRICT_COMPANIONS \
+        $GEN_DRIVER_SU_PIPELINE_COMPANIONS \
         "$GEN_O/lsp_su.o" \
         "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
         "$BUILD_DIR/lsp_codegen_extern.o" \
@@ -3080,6 +3088,7 @@ else
     "$GEN_O/preprocess_su.o" \
     $GEN_DRIVER_TYPECK_COMPANIONS \
     $GEN_DRIVER_BSTRICT_COMPANIONS \
+    $GEN_DRIVER_SU_PIPELINE_COMPANIONS \
     "$GEN_O/lsp_su.o" \
     "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
     "$BUILD_DIR/lsp_codegen_extern.o" \
