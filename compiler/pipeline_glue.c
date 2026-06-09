@@ -7029,7 +7029,8 @@ static void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const GlueBlo
   if (!peak_live || glue_asm73_linear_nso <= 0 || glue_asm73_interf_n <= 0)
     return;
   peak = peak_live->n;
-  if (peak < 4)
+  /** cfg 父块 peak 在 final_expr；2～3 元块仍须 Chaitin，否则 cfg 前向 + 空着色表不稳定。 */
+  if (peak < 2)
     return;
   n = glue_asm73_interf_n;
   for (i = 0; i < n; i++) {
@@ -7108,7 +7109,7 @@ static void glue_asm73_compute_spill_color_pins(void) {
       peak_i = i;
     }
   }
-  if (peak < 4)
+  if (peak < 2)
     return;
   glue_asm73_compute_spill_color_chaitin(peak_i, &glue_block_live_at_stmt[peak_i]);
 }
@@ -12151,6 +12152,11 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   } else if (saved_cfg_color_active) {
     /** cfg 子块（含内层 while/for）：继承父块着色与 final_expr 阈值，不重算 Chaitin。 */
     glue_asm73_cfg_coloring_active = 1;
+    /**
+     * 线性 then/else 体：须本块 live_at_stmt；否则 before_stmt 误读父 cfg 块槽位 SIGSEGV。
+     */
+    if (!glue_block_live_cfg_parent)
+      glue_block_compute_linear_live_in(arena, ctx, block_ref, slot_base, nconst, nlet);
   } else {
     glue_asm73_cfg_coloring_active = 0;
     glue_block_compute_linear_live_in(arena, ctx, block_ref, slot_base, nconst, nlet);
