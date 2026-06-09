@@ -15,8 +15,18 @@ esac
 
 zc4_native_exe() {
   local f="$1"
+  local os arch
   [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+  os="$(uname -s 2>/dev/null || echo unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  # Docker slim / Alpine 常无 file(1)；可 exec 即视为本机 native。
+  if ! command -v file >/dev/null 2>&1; then
+    case "$os" in
+      Linux|Darwin) return 0 ;;
+      *) return 0 ;;
+    esac
+  fi
+  case "${os}-${arch}" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
     Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
     Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
@@ -39,23 +49,6 @@ zc4_pick_native_shu() {
 }
 
 CHECK_SHU="$(zc4_pick_native_shu ./compiler/shu-c ./compiler/shu ./compiler/shu_asm)" || CHECK_SHU=""
-# 编译/运行：import std.string/heap 时 shu_asm co-emit 暂缺 .su 符号，须 shu-c（CI 可 SHU=shu_asm 跑 typeck 上下文）
-RUN_SHU="$(zc4_pick_native_shu ./compiler/shu-c ./compiler/shu)" || RUN_SHU=""
-if [ -z "$RUN_SHU" ]; then
-  RUN_SHU="$(zc4_pick_native_shu ./compiler/shu_asm)" || RUN_SHU="$CHECK_SHU"
-fi
-if [ -n "$SHU_ABS" ] && zc4_native_exe "$SHU_ABS" ] && [ -z "${SHU_ZC4_FORCE_COMPILE_ASM:-}" ]; then
-  case "$SHU_ABS" in *shu_asm*) ;; *) RUN_SHU="$SHU_ABS" ;; esac
-fi
-
-OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
-mkdir -p "$OUT_DIR"
-SUBVIEW_OUT="$OUT_DIR/shu_zc4_subview"
-CONCAT_OUT="$OUT_DIR/shu_zc4_arena_concat"
-SSO_OUT="$OUT_DIR/shu_zc4_stack_str"
-rm -f "$SUBVIEW_OUT" "$CONCAT_OUT" "$SSO_OUT"
-
-echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
 
 if [ -z "$CHECK_SHU" ]; then
   if make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null; then
@@ -69,6 +62,25 @@ if [ -z "$CHECK_SHU" ]; then
   echo "zc4 gate SKIP (no working shu-c/shu)"
   exit 0
 fi
+
+# 编译/运行：import std.string/heap 时 shu_asm co-emit 暂缺 .su 符号，须 shu-c（CI 可 SHU=shu_asm 跑 typeck 上下文）
+RUN_SHU="$(zc4_pick_native_shu ./compiler/shu-c ./compiler/shu)" || RUN_SHU=""
+if [ -z "$RUN_SHU" ]; then
+  RUN_SHU="$(zc4_pick_native_shu ./compiler/shu_asm)" || RUN_SHU="$CHECK_SHU"
+fi
+if [ -n "$SHU_ABS" ] && zc4_native_exe "$SHU_ABS" ] && [ -z "${SHU_ZC4_FORCE_COMPILE_ASM:-}" ]; then
+  case "$SHU_ABS" in *shu_asm*) ;; *) RUN_SHU="$SHU_ABS" ;; esac
+fi
+[ -n "$RUN_SHU" ] || RUN_SHU="$CHECK_SHU"
+
+OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
+mkdir -p "$OUT_DIR"
+SUBVIEW_OUT="$OUT_DIR/shu_zc4_subview"
+CONCAT_OUT="$OUT_DIR/shu_zc4_arena_concat"
+SSO_OUT="$OUT_DIR/shu_zc4_stack_str"
+rm -f "$SUBVIEW_OUT" "$CONCAT_OUT" "$SSO_OUT"
+
+echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
 
 # 确保 C 运行时 object 含 ptr_at 与 Arena64
 # shellcheck source=lib/build-std-c-o.sh
