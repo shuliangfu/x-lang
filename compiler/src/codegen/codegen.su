@@ -1242,8 +1242,8 @@ function emit_type_kind(out: *CodegenOutBuf, kind: TypeKind): i32 {
     return emit_bytes_9(out, s, 8);
   }
   if (kind == TypeKind.TYPE_F32) {
-    let s: [5]u8 = [102, 108, 111, 97, 0];
-    return emit_bytes_5(out, s, 4);
+    let s: [6]u8 = [102, 108, 111, 97, 116, 0];
+    return emit_bytes_6(out, s, 5);
   }
   if (kind == TypeKind.TYPE_F64) {
     let s: [7]u8 = [100, 111, 117, 98, 108, 101, 0];
@@ -1345,9 +1345,9 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     return w;
   }
   if (kind == TypeKind.TYPE_F32) {
-    let s: [5]u8 = [102, 108, 111, 97, 0];
+    let s: [6]u8 = [102, 108, 111, 97, 116, 0];
     let i: i32 = 0;
-    while (i < 4) {
+    while (i < 5) {
       if (w >= cap - 1) {
         return -1;
       }
