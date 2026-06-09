@@ -34,7 +34,10 @@ fi
 if [ -f compiler/build_asm/.asm_text_quality ]; then
   Q=$(cat compiler/build_asm/.asm_text_quality)
   if [ "$Q" != "1" ]; then
-    if [ -n "${CI:-}" ]; then
+    if [ -n "${SHU_CI_NO_SKIP:-}" ]; then
+      echo "run-bootstrap-bstrict-linux: FAIL build_asm/.asm_text_quality=$Q (expected 1 for full_asm)" >&2
+      exit 1
+    elif [ -n "${CI:-}" ]; then
       echo "run-bootstrap-bstrict-linux: warn: .asm_text_quality=$Q on CI (experimental-only); skip full_asm gate"
     else
       echo "run-bootstrap-bstrict-linux: build_asm/.asm_text_quality=$Q (expected 1 for full_asm)" >&2
