@@ -28,6 +28,8 @@ cfg_merge_compile_o() {
   local comp compile_ec=0 attempt=1
   local fallbacks=("$SHU")
   local cand dup=0 c
+  local compile_log
+  local compile_timeout="${CFG_MERGE_COMPILE_TIMEOUT:-180}"
 
   if [ -n "${ASM73_FALLBACK_SHU:-}" ] && [ -x "${ASM73_FALLBACK_SHU}" ]; then
     fallbacks+=("$ASM73_FALLBACK_SHU")
@@ -45,7 +47,19 @@ cfg_merge_compile_o() {
     attempt=1
     while [ "$attempt" -le 2 ]; do
       compile_ec=0
-      "$comp" "$src" -o "$out" 2>&1 || compile_ec=$?
+      compile_log=$(mktemp)
+      if command -v timeout >/dev/null 2>&1; then
+        timeout "$compile_timeout" "$comp" "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
+      else
+        "$comp" "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
+      fi
+      if [ "$compile_ec" -eq 124 ]; then
+        echo "run-asm-binop-cfg-merge: FAIL: $tag compile timeout (${compile_timeout}s) via $comp" >&2
+        rm -f "$compile_log"
+        return 124
+      fi
+      grep -vE 'missing \.note\.GNU-stack|NOTE: This behaviour is deprecated' "$compile_log" >&2 || true
+      rm -f "$compile_log"
       if [ "$compile_ec" -eq 0 ]; then
         if [ "$comp" != "$SHU" ]; then
           echo "run-asm-binop-cfg-merge: note: used $comp for $tag ($SHU SIGSEGV/unstable)"
@@ -73,13 +87,25 @@ run_one() {
   local out="$2"
   local want="$3"
   local tag="$4"
+  local run_timeout="${CFG_MERGE_RUN_TIMEOUT:-30}"
+  echo "run-asm-binop-cfg-merge: [$tag] compile ..."
   cfg_merge_compile_o "$src" "$out" "$tag"
   local exitcode=0
-  "$out" >/dev/null 2>&1 || exitcode=$?
+  echo "run-asm-binop-cfg-merge: [$tag] run (want exit $want) ..."
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$run_timeout" "$out" >/dev/null 2>&1 || exitcode=$?
+    if [ "$exitcode" -eq 124 ]; then
+      echo "run-asm-binop-cfg-merge FAIL: $tag run timeout (${run_timeout}s)"
+      exit 1
+    fi
+  else
+    "$out" >/dev/null 2>&1 || exitcode=$?
+  fi
   if [ "$exitcode" -ne "$want" ]; then
     echo "run-asm-binop-cfg-merge FAIL: $tag expected exit $want, got $exitcode"
     exit 1
   fi
+  echo "run-asm-binop-cfg-merge: [$tag] OK"
 }
 
 # 可选：检查 main 内 b 槽 ldur 次数上限（b 栈偏移 #-0x18，与 binop_block 用例一致）。
