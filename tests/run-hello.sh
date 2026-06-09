@@ -20,6 +20,16 @@ shu_cli_supports_su() {
 # check-7.2 的 shu_stage1/2 对 hello 走 -su 时 .su typeck 尚未全覆盖；有同目录 shu-c 时 hello 改由 C 前端编译，与默认全量回归一致。
 HELLO_COMPILE_SHU="$SHU"
 HELLO_BACKEND=""
+# MSYS2：seed -o 挂起；与 bootstrap-link-shu / run-async 一致走 shu-c。
+if [ -n "${MSYSTEM:-}" ] || case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*) true ;; *) false ;; esac; then
+  if [ -x ./compiler/shu-c ]; then
+    HELLO_COMPILE_SHU=./compiler/shu-c
+    HELLO_BACKEND=""
+  fi
+elif [ -n "${SHULANG_LINK_SHU:-}" ] && [ -x "${SHULANG_LINK_SHU}" ]; then
+  HELLO_COMPILE_SHU="${SHULANG_LINK_SHU}"
+  HELLO_BACKEND=""
+fi
 case "${SHU##*/}" in
   shu_stage1|shu_stage2)
     _hello_shu_dir=$(dirname "$SHU")
