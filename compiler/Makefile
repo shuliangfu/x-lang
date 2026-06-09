@@ -246,6 +246,9 @@ src/main_su.o: src/main.c
 	$(CC) $(CFLAGS) -DSHU_USE_SU_PIPELINE -c -o $@ $<
 
 PIPELINE_OBJS = src/main_su.o src/runtime_su.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o
+# shu_su：pipeline_su.o 编排 typeck_su/codegen_su（非 C typeck.o/codegen.o）。
+PIPELINE_SU_BASE_OBJS = src/main_su.o src/runtime_su.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o
+PIPELINE_SU_FRONTEND_OBJS = typeck_su.o codegen_su.o typeck_su_link_alias.o codegen_su_link_alias.o
 
 # shu-su-pipeline 链接了 ../std/io/io.o；Linux 下 io.c 使用 io_uring，需 -luring -lpthread（见 std/io/io.c 头注释）
 PIPELINE_LIBS :=
@@ -914,8 +917,8 @@ pipeline_gen.c: bootstrap-pipeline
 # 链接带 -su 流水线的 shu（需 main_su.o 用 -DSHU_USE_SU_PIPELINE 编译，否则 -su -E 不生效）
 # shu-su-pipeline 链接了 ../std/io/io.o；lsp_diag_pipeline_sizes.o 提供 lsp_diag 与 pipeline 间结构体 sizeof；
 # _stubs_driver.o 提供 asm_driver_*（fmt/check/test 仅 bootstrap-driver-seed / shu-su 全驱动链需要 DRIVER_SUBCMD_OBJS）
-shu-su-pipeline: $(PIPELINE_OBJS) pipeline_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o
-	$(CC) $(CFLAGS) -o $(TARGET)_su $(PIPELINE_OBJS) pipeline_su.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o $(PIPELINE_LIBS)
+shu-su-pipeline: bootstrap-pipeline migrate-su-objs $(PIPELINE_SU_BASE_OBJS) pipeline_su.o $(PIPELINE_SU_FRONTEND_OBJS) ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o
+	$(CC) $(CFLAGS) -o $(TARGET)_su $(PIPELINE_SU_BASE_OBJS) pipeline_su.o $(PIPELINE_SU_FRONTEND_OBJS) ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o _stubs_driver.o $(PIPELINE_LIBS)
 	@echo "shu_su built; use ./shu_su -su -E <file.su> to test .su pipeline"
 
 # 4.5（.su 流水线编译 compiler 自身）：用 shu_su 的 -su -E 生成 typeck.su / codegen.su 对应的 C，再由 cc 链接得到新的 shu_su_stage2。
