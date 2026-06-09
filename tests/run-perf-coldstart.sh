@@ -29,6 +29,26 @@ STD_ONLY="${SHU_COLDSTART_STD_ONLY:-0}"
 
 SHU_BIN="${SHU:-./compiler/shu}"
 
+# std hello 编译：Linux x86_64 用 seed asm；Darwin 等须 shu-c（asm 链接 __TEXT 非 r-x）。
+coldstart_compile_std() {
+  local src="$1"
+  local out="$2"
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Linux-x86_64|Linux-amd64)
+      "$SHU_BIN" -L . "$src" -o "$out"
+      ;;
+    *)
+      if [ -x ./compiler/shu-c ]; then
+        ./compiler/shu-c -L . "$src" -o "$out"
+      elif [ -x ./compiler/shu ]; then
+        ./compiler/shu -L . "$src" -backend c -o "$out"
+      else
+        "$SHU_BIN" -L . "$src" -o "$out"
+      fi
+      ;;
+  esac
+}
+
 # 用 perf_counter 测进程启动+执行；单位微秒；第三参为期望 exit code（默认 0）
 measure_median_us() {
   local exe="$1"
@@ -162,7 +182,7 @@ FS_SIZE=""
 
 # ── std hello（含 std.io，动态链接）──
 if [ "$FS_ONLY" != "1" ]; then
-  "$SHU_BIN" -L . "$HELLO_SRC" -o "$OUT"
+  coldstart_compile_std "$HELLO_SRC" "$OUT"
   strip "$OUT" 2>/dev/null || true
   [ -x "$OUT" ] || { echo "coldstart: failed to build $OUT"; exit 1; }
 
