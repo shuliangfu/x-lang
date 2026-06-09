@@ -250,8 +250,9 @@ PIPELINE_OBJS = src/main_su.o src/runtime_su.o src/preprocess.o src/lexer/lexer.
 PIPELINE_SU_BASE_OBJS = src/main_su.o src/runtime_su.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o
 PIPELINE_SU_FRONTEND_OBJS = typeck_su.o codegen_su.o typeck_su_link_alias.o codegen_su_link_alias.o
 # parser_su / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_su/runtime_su 外的链接依赖）。
+# fmt_check_cmd.o（非 _driver）：runtime_su 无 SHU_USE_SU_DRIVER，fmt/check 走 run_compiler_c 桩，避免缺 driver_run_compiler_full。
 PIPELINE_SU_SATELLITE_OBJS = lexer_su.o lexer_su_link_alias.o preprocess_su.o \
-  src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o \
+  src/driver/fmt_check_cmd.o src/driver/target_cpu.o \
   src/asm/simd_enc.o src/asm/simd_loop.o \
   src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/std_fs_shim.o $(AST_POOL_L5_BRIDGE_O) src/lsp/lsp_codegen_extern.o
