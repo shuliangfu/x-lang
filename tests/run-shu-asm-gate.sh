@@ -22,9 +22,13 @@ export SHULANG_LINK_SHU=./compiler/shu-c
 make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
 ulimit -s 16384 2>/dev/null || true
 
+# shellcheck source=tests/lib/bootstrap-link-shu.sh
+. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+
 echo "run-shu-asm-gate: hello (import std.io) ..."
 rm -f /tmp/shu_asm_gate_hello
-"$SHU" -L . examples/hello.su -o /tmp/shu_asm_gate_hello
+# -o 链接：Darwin/non-x86_64 走 RUN_SHU（shu-c）；typeck 仍由 $SHU（shu_asm）承担。
+"$RUN_SHU" -L . examples/hello.su -o /tmp/shu_asm_gate_hello
 /tmp/shu_asm_gate_hello | grep -q "Hello World" || {
   echo "run-shu-asm-gate: hello expected Hello World" >&2
   exit 1
