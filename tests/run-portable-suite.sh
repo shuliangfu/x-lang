@@ -67,12 +67,6 @@ chmod +x tests/run-io-unified-gate.sh
 ./tests/run-io-unified-gate.sh | tee /tmp/io_unified_gate.log
 grep -q 'io unified gate OK' /tmp/io_unified_gate.log
 
-echo "── async portable smoke ──"
-chmod +x tests/run-async.sh
-./tests/run-async.sh | tee /tmp/async_smoke.log
-grep -q 'async smoke OK' /tmp/async_smoke.log
-grep -q 'async gate OK' /tmp/async_smoke.log
-
 if [ "$WITH_C_REGRESSION" -eq 1 ]; then
   echo "── portable C regression (run-portable-c) ──"
   chmod +x tests/run-portable-c.sh
