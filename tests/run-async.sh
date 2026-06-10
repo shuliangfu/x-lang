@@ -117,12 +117,20 @@ rc=$(/tmp/shu_async_switch; echo $?)
 [ "$rc" = "0" ] || { echo "async_switch failed exit=$rc"; exit 1; }
 echo "async_switch OK"
 
-# scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；其它平台 N/A（非 SKIP）。
+# scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；seed 未 bootstrap 时 N/A（Tier P 早于 bootstrap-driver-seed）。
 if async_is_linux_x64_asm; then
-  "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched
-  rc=$(/tmp/shu_async_sched; echo $?)
-  [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
-  echo "async_switch_sched OK"
+  sched_log=/tmp/async_switch_sched_compile.log
+  if "$SHU" -L . tests/bench/async_switch_sched.su -backend asm -o /tmp/shu_async_sched >"$sched_log" 2>&1; then
+    rc=$(/tmp/shu_async_sched; echo $?)
+    [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
+    echo "async_switch_sched OK"
+  elif grep -qE 'not available|bootstrap-driver' "$sched_log" 2>/dev/null; then
+    echo "async_switch_sched N/A (asm backend not in $SHU yet)"
+  else
+    cat "$sched_log" >&2
+    echo "async_switch_sched FAIL: compile" >&2
+    exit 1
+  fi
 else
   echo "async_switch_sched N/A (scheduler jmp requires Linux x86_64 seed asm)"
 fi
