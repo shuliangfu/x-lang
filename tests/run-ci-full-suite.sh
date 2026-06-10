@@ -377,8 +377,12 @@ ci_run_dod_x86_correctness() {
   grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
   SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
   grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-  SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
-  grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
+  if ci_is_windows_msys; then
+    echo "ci-full-suite: f32-xmm gates N/A on Windows MSYS2 (f32 SSE codegen; Linux x86_64 covers)"
+  else
+    SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
+    grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
+  fi
 }
 
 if ci_is_linux && ci_is_x86_64_host; then
