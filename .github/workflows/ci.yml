@@ -1,5 +1,5 @@
 # Shulang CI: multi-platform build, C test suite, and self-host (.su) tests
-# 全平台统一跑 tests/run-ci-full-suite.sh；仅 freestanding/DOD perf/io_uring 等按宿主在脚本内分支。
+# 全平台统一跑 tests/run-ci-full-suite.sh（Tier P 便携 + Tier B DOD/IO + Tier A asm/bstrict 按平台）。
 
 name: CI
 
@@ -225,9 +225,7 @@ jobs:
         run: |
           chmod +x tests/run-ci-full-suite.sh
           ./tests/run-ci-full-suite.sh
-        env:
-          SHU_CI_SKIP_HEAVY: "1"
-        timeout-minutes: 45
+        timeout-minutes: 120
       - name: Dump failure logs (on failure)
         if: failure()
         run: |
