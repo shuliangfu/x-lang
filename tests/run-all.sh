@@ -5,6 +5,17 @@
 
 set -e
 cd "$(dirname "$0")/.."
+
+# RUN_ALL_PORTABLE=1：全平台可移植子集（shu-c、无 asm/自举）；供 run-portable-c.sh / lite CI 使用。
+if [ -n "${RUN_ALL_PORTABLE:-}" ]; then
+    export RUN_ALL_USE_C=1
+    export SHULANG_SKIP_SUBSCRIPT_MAKE=1
+    make -C compiler -q all 2>/dev/null || make -C compiler all
+    if [ -x ./compiler/shu-c ]; then
+        export SHU=./compiler/shu-c
+    fi
+fi
+
 if [ -n "$SHU" ]; then
     export SHU
     export RUN_ALL_USE_C=
@@ -121,6 +132,15 @@ run_shu_for_script() {
 run() {
     local script="$1"
     local run_shu
+    # 便携模式：跳过 x86/asm 专测（全平台同一套 std/语言回归）。
+    if [ -n "${RUN_ALL_PORTABLE:-}" ]; then
+        case "$script" in
+          run-asm*.sh|run-enum-asm.sh)
+            echo "run-all SKIP (portable: $script)"
+            return 0
+            ;;
+        esac
+    fi
     # CI Linux：run-asm-* 依赖 macOS otool 验 arm64 spill；asm 由 asm-smoke / build_shu_asm job 覆盖。
     if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${SHU_CI_FORCE_ASM:-}" ]; then
         case "$script" in
@@ -246,7 +266,8 @@ run run-preprocess.sh
 run run-vector.sh
 # asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shu-c）仅验 C 流水线语义，见 test_su / linux-asm-smoke
 # 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_su 仍验 .su 语义）。
-if [ -z "${RUN_ALL_USE_C:-}" ]; then
+# RUN_ALL_PORTABLE：便携全平台回归不含 asm 专测。
+if [ -z "${RUN_ALL_USE_C:-}" ] && [ -z "${RUN_ALL_PORTABLE:-}" ]; then
 case "$(uname -m 2>/dev/null)" in
   x86_64|amd64)
 run run-asm-binop-var.sh
