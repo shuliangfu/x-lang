@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CI 全平台统一测试入口：平台支持的能力必须实跑，禁止 silent SKIP（SHU_CI_NO_SKIP=1）。
 # 用法（仓库根）：CI=1 ./tests/run-ci-full-suite.sh
-# 环境：SHU_CI_SKIP_HEAVY=1 — 仅本地快速烟测，跳过 build_shu_asm / bootstrap-verify。
+# 环境：SHU_CI_SKIP_TIER_A=1 或 SHU_CI_SKIP_HEAVY=1 — 跳过 Tier A（build_shu_asm/bstrict），仍跑 Tier P/B。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -10,45 +10,8 @@ export CI="${CI:-1}"
 export SHU_CI_FULL_SUITE="${SHU_CI_FULL_SUITE:-1}"
 export SHU_CI_NO_SKIP="${SHU_CI_NO_SKIP:-1}"
 
-# ── 宿主探测 ─────────────────────────────────────────────────────────────
-ci_host_os() { uname -s 2>/dev/null || echo Unknown; }
-ci_host_arch() { uname -m 2>/dev/null || echo unknown; }
-
-# 是否为 Linux x86_64（crt0 / freestanding / DOD perf 等）。
-ci_is_linux_x64() {
-  ci_is_linux && ci_is_x86_64_host
-}
-
-# 是否为 Linux（含 ARM64；DOD  correctness 可跑，perf stat 视内核而定）。
-ci_is_linux() {
-  [ "$(ci_host_os)" = "Linux" ]
-}
-
-# 是否为 macOS（Mach-O asm 链、无 io_uring）。
-ci_is_darwin() {
-  [ "$(ci_host_os)" = "Darwin" ]
-}
-
-# 是否为 ARM64/AArch64 宿主（Neon SIMD、AArch64 asm spill 门禁等）。
-ci_is_arm64_host() {
-  case "$(ci_host_arch)" in
-    arm64|aarch64) return 0 ;;
-  esac
-  return 1
-}
-
-# 是否为 x86_64 宿主（SSE f32-xmm、Linux freestanding crt0 等）。
-ci_is_x86_64_host() {
-  case "$(ci_host_arch)" in
-    x86_64|amd64) return 0 ;;
-  esac
-  return 1
-}
-
-# 是否在 Docker 容器内（perf stat / L1 miss 通常不可用，记 N/A）。
-ci_is_docker() {
-  [ -f /.dockerenv ] || [ -n "${SHU_CI_DOCKER:-}" ]
-}
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
 # Linux：探测 perf L1 事件是否可用（GHA 内核/linux-tools 不匹配时返回 1）。
 ci_linux_perf_l1_probe_ok() {
@@ -73,19 +36,19 @@ ci_is_linux_arm64_ci_lite() {
   ci_is_linux && ci_is_arm64_host
 }
 
-# Windows MSYS2 CI 精简路径：全量 run-all-c / bootstrap run-all 易挂起或 >45min；IOCP + 烟测 + DOD 正确性由本 job 承担。
+# Windows MSYS2 CI 精简路径：全量 run-all-c / bootstrap run-all 易挂起；Tier P 便携回归 + Tier B DOD 实跑。
 ci_is_windows_msys_ci_lite() {
   ci_is_windows_msys && ci_is_x86_64_host
 }
 
-# 是否为 Windows MSYS2 环境。
-ci_is_windows_msys() {
-  if [ -n "${MSYSTEM:-}" ]; then
+# 是否为 Tier A 重门禁可跳过（lite 平台或 SHU_CI_SKIP_TIER_A / 旧名 SHU_CI_SKIP_HEAVY）。
+ci_skip_tier_a() {
+  if [ -n "${SHU_CI_SKIP_TIER_A:-}" ] || [ -n "${SHU_CI_SKIP_HEAVY:-}" ]; then
     return 0
   fi
-  case "$(ci_host_os)" in
-    MINGW*|MSYS*) return 0 ;;
-  esac
+  if ci_is_linux_arm64_ci_lite || ci_is_windows_msys_ci_lite; then
+    return 0
+  fi
   return 1
 }
 
@@ -183,66 +146,33 @@ ci_run_zc_gates_no_zc1() {
   echo "zc gates OK (ZC-1 N/A: io_uring requires Linux)"
 }
 
-echo "ci-full-suite: host=$(ci_host_os)/$(ci_host_arch) CI=${CI:-}"
+echo "ci-full-suite: host=$(ci_host_summary) CI=${CI:-}"
 if ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: Linux ARM64 lite path (Neon DOD/SIMD; x86_64 covers run-all-su/build_shu_asm/WPO chain)"
+  echo "ci-full-suite: Linux ARM64 — Tier P portable + Tier B; Tier A asm/bstrict by x86_64"
   export SHULANG_LINK_SHU=./compiler/shu-c
 elif ci_is_windows_msys_ci_lite; then
-  echo "ci-full-suite: Windows MSYS2 lite path (IOCP + smoke + DOD; Linux x86_64 covers run-all-c/bootstrap run-all)"
+  echo "ci-full-suite: Windows MSYS2 — Tier P portable + Tier B; Tier A asm/bstrict by x86_64"
   export SHULANG_LINK_SHU=./compiler/shu-c
 fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-# ── Windows 专属：IOCP 门禁 ─────────────────────────────────────────────
-if ci_is_windows_msys; then
-  echo "── IO-A6 IOCP (Windows MSYS2) ──"
-  chmod +x tests/run-iocp-gate.sh tests/run-perf-iocp.sh
-  SHU_IOCP_RUNS=1 SHU_IOCP_BENCH_ROUNDS=32768 ./tests/run-iocp-gate.sh --perf | tee /tmp/iocp_gate.log
-fi
+# ── Tier P：全平台统一便携测试（同一套 .su / shu-c，平台能力自动 N/A） ───
+echo "── Tier P portable suite ──"
+chmod +x tests/run-portable-suite.sh
+./tests/run-portable-suite.sh | tee /tmp/portable_suite.log
+grep -q 'run-portable-suite OK' /tmp/portable_suite.log
 
 # ── C / 原型 typeck ───────────────────────────────────────────────────────
 echo "── C test suite ──"
-if ci_is_linux_arm64_ci_lite; then
-  # 全量 run-all-c 在 ARM64 上 >100min 且 run-net accept(0) 曾永久阻塞；烟测 + x86_64 全量覆盖。
-  make -C compiler -q all 2>/dev/null || make -C compiler all
-  chmod +x tests/run-bootstrap-shu-gate.sh
-  SKIP_BOOTSTRAP_DRIVER_SEED=1 ./tests/run-bootstrap-shu-gate.sh
-  echo "Test C OK (Linux ARM64 smoke; ubuntu x86_64 covers run-all-c)"
-elif ci_is_windows_msys_ci_lite; then
-  # 全量 run-all-c 在 MSYS2 上 run-net accept / seed -backend c 编译易永久挂起；烟测 + Linux x86_64 全量覆盖。
-  make -C compiler -q all 2>/dev/null || make -C compiler all
-  chmod +x tests/run-bootstrap-shu-gate.sh
-  SKIP_BOOTSTRAP_DRIVER_SEED=1 ./tests/run-bootstrap-shu-gate.sh
-  echo "Test C OK (Windows MSYS2 smoke; Linux x86_64 covers run-all-c)"
+if ci_is_linux_arm64_ci_lite || ci_is_windows_msys_ci_lite; then
+  chmod +x tests/run-portable-c.sh
+  ./tests/run-portable-c.sh | tee /tmp/portable_c.log
+  grep -q 'run-portable-c OK' /tmp/portable_c.log
+  echo "Test C OK (portable regression; ubuntu x86_64 covers full run-all-c)"
 else
   make -C compiler test_c
 fi
-
-echo "── M-3 region typeck ──"
-chmod +x tests/run-typeck-region.sh
-ci_run_grep /tmp/typeck_region.log 'region typeck OK' ./tests/run-typeck-region.sh
-
-echo "── migrate SU gen gate ──"
-chmod +x tests/run-migrate-su-gen-gate.sh
-ci_run_grep /tmp/migrate_su_gen.log 'migrate su gen gate OK' ./tests/run-migrate-su-gen-gate.sh
-
-echo "── M-4 linear typeck ──"
-chmod +x tests/run-typeck-linear.sh
-ci_run_grep /tmp/typeck_linear.log 'linear typeck OK' ./tests/run-typeck-linear.sh
-
-echo "── M-5 read_ptr_slice ──"
-chmod +x tests/run-io-read-ptr-slice.sh
-ci_run_grep /tmp/io_read_ptr_slice.log 'io read_ptr_slice OK' ./tests/run-io-read-ptr-slice.sh
-
-echo "── ZC-3 slice field ──"
-chmod +x tests/run-slice-field.sh tests/run-slice.sh
-ci_run_grep /tmp/slice_field.log 'slice field OK' ./tests/run-slice-field.sh
-ci_run_grep /tmp/slice_full.log 'slice test OK' ./tests/run-slice.sh
-
-echo "── stdlib import ──"
-chmod +x tests/run-stdlib-import.sh
-ci_run_grep /tmp/stdlib_import.log 'stdlib-import test OK' ./tests/run-stdlib-import.sh
 
 # ── Perf（全平台须 Zig 对照，禁止 skip） ─────────────────────────────────
 ci_install_zig
@@ -256,25 +186,14 @@ else
 fi
 grep -q 'perf baseline OK' /tmp/perf_bench.log
 
-echo "── IO perf ──"
-chmod +x tests/run-perf-io.sh
+echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .su) ──"
+chmod +x tests/run-io-unified-gate.sh
 if ci_is_linux; then
-  SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
+  SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
 else
-  ./tests/run-perf-io.sh --bench | tee /tmp/perf_io.log
+  ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
 fi
-grep -q 'io perf OK' /tmp/perf_io.log
-
-echo "── net perf + multishot ──"
-chmod +x tests/run-zc1-gate.sh tests/run-io-multishot.sh
-if ci_is_linux; then
-  ./tests/run-zc1-gate.sh --perf | tee /tmp/perf_net.log
-  grep -qE 'ZC-1 gate OK|provided buffers N/A' /tmp/perf_net.log
-  ./tests/run-io-multishot.sh | tee /tmp/io_multishot.log
-  grep -qE 'io multishot accept OK|io multishot: N/A' /tmp/io_multishot.log
-else
-  echo "ci-full-suite: ZC-1 net perf N/A on $(ci_host_os) (io_uring requires Linux)"
-fi
+grep -q 'io unified gate OK' /tmp/io_unified_perf.log
 
 echo "── compile dogfood ──"
 chmod +x tests/run-perf-compile-dogfood.sh
@@ -318,11 +237,8 @@ else
   grep -q 'zc gates OK' /tmp/zc_gates.log
 fi
 
-echo "── async smoke + bench ──"
-chmod +x tests/run-async.sh tests/run-perf-async.sh
-./tests/run-async.sh | tee /tmp/async_smoke.log
-grep -q 'async smoke OK' /tmp/async_smoke.log
-grep -q 'async gate OK' /tmp/async_smoke.log
+echo "── async bench (linux/darwin perf) ──"
+chmod +x tests/run-perf-async.sh
 if ci_is_linux; then
   grep -q 'async linux full OK' /tmp/async_smoke.log
   SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
@@ -378,27 +294,17 @@ else
   make -C compiler test_su
 fi
 
-if [ -n "${SHU_CI_SKIP_HEAVY:-}" ]; then
-  echo "ci-full-suite: SHU_CI_SKIP_HEAVY=1 — skip asm/WPO/bstrict/verify"
-  echo "ci-full-suite OK (light path)"
-  exit 0
-fi
-
-# ── Goal 2 asm + 后续重门禁（全平台） ───────────────────────────────────
-echo "── build_shu_asm (Goal 2) ──"
-if ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: build_shu_asm N/A on Linux ARM64 (refresh shu_asm for DOD/SIMD; x86_64 covers full self-host)"
+# ── Tier A 边界：lite 平台跳过 build_shu_asm/bstrict，仍跑 Tier B（DOD/WPO-S2 等） ──
+if ci_skip_tier_a; then
+  echo "ci-full-suite: Tier A build_shu_asm/bstrict deferred ($(ci_host_summary); ubuntu x86_64 covers)"
   ci_require_shu_asm
 else
+  echo "── build_shu_asm (Goal 2) ──"
   cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
   cd ..
   [ -x compiler/shu_asm ] || { echo "ci-full-suite FAIL: shu_asm missing after build_shu_asm" >&2; exit 1; }
-fi
 
-echo "── asm .o quality ──"
-if ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: asm .o quality N/A on Linux ARM64 (no full build_shu_asm; x86_64 covers)"
-else
+  echo "── asm .o quality ──"
   cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
   cd ..
 fi
@@ -411,7 +317,7 @@ if ci_is_linux && ci_is_x86_64_host; then
   SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
   grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
 else
-  echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_os)/$(ci_host_arch) (EMIT_HEAVY Linux x86_64 only)"
+  echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 only)"
 fi
 
 echo "── shu_asm smoke ──"
@@ -541,8 +447,8 @@ chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh \
   tests/run-wpo-backend-reach-gate.sh tests/run-wpo-s3-gate.sh tests/run-wpo-s4-gate.sh \
   tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh tests/lib/wpo-ab-proxy.sh \
   compiler/scripts/relink_shu_asm_strict_glue.sh
-if ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: WPO asm gates N/A on Linux ARM64 (refresh shu_asm x86_64 stub; x86_64 covers full WPO)"
+if ci_skip_tier_a; then
+  echo "ci-full-suite: WPO asm gates N/A (Tier A skipped; x86_64 covers full WPO)"
 fi
 ./tests/run-wpo-s2.sh | tee /tmp/wpo_s2.log
 grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
@@ -550,8 +456,8 @@ grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
 grep -q 'wpo asm dce OK' /tmp/wpo_dce_asm.log
 SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
 grep -q 'wpo dce text OK' /tmp/wpo_dce_text.log
-if ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: wpo compiler-self / shu_asm text / build_asm chain / strict-link N/A on Linux ARM64 (x86_64 covers)"
+if ci_skip_tier_a; then
+  echo "ci-full-suite: wpo compiler-self / shu_asm text / build_asm chain / strict-link N/A (Tier A skipped)"
   echo "wpo compiler self text OK (Linux ARM64 N/A)" | tee /tmp/wpo_compiler_self_text.log
   echo "wpo shu_asm text OK (Linux ARM64 N/A)" | tee /tmp/wpo_shu_asm_text.log
   echo "wpo build_asm chain gate OK (Linux ARM64 N/A)" | tee /tmp/wpo_chain_gate.log
@@ -583,7 +489,9 @@ SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/w
 grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
 
 echo "── B-strict bootstrap + gates ──"
-if ci_is_linux && ci_is_x86_64_host; then
+if ci_skip_tier_a; then
+  echo "ci-full-suite: bootstrap-bstrict-ci N/A (Tier A skipped on $(ci_host_summary))"
+elif ci_is_linux && ci_is_x86_64_host; then
   if ci_is_docker; then
     # Docker 容器：shu_asm.experimental 在 cfg-merge 等 asm 烟测偶发 SIGSEGV；完整 bstrict 由 native linux job 覆盖。
     echo "ci-full-suite: bootstrap-bstrict-ci N/A in Docker (native linux ubuntu job covers)"
