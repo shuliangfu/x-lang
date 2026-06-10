@@ -57,6 +57,9 @@ case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Linux-aarch64|Linux-arm64)
     echo "dod-s1: Linux ARM64 -o link via shu-c (refresh shu_asm lite)"
     ;;
+  MINGW*|MSYS*)
+    echo "dod-s1: Windows MSYS2 -o link via shu-c (f32 asm N/A; Linux x86_64 covers)"
+    ;;
 esac
 
 if ! SHU="$SHU_ABS" "$SHU_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
