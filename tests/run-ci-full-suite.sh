@@ -237,8 +237,13 @@ else
   grep -q 'zc gates OK' /tmp/zc_gates.log
 fi
 
-echo "── async bench (linux/darwin perf) ──"
-chmod +x tests/run-perf-async.sh
+echo "── async smoke + bench ──"
+chmod +x tests/run-async.sh tests/run-perf-async.sh
+./tests/run-async.sh | tee /tmp/async_smoke.log
+grep -q 'async smoke OK' /tmp/async_smoke.log
+grep -q 'async gate OK' /tmp/async_smoke.log
+
+echo "── async perf ──"
 if ci_is_linux; then
   grep -q 'async linux full OK' /tmp/async_smoke.log
   SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
@@ -321,12 +326,17 @@ else
 fi
 
 echo "── shu_asm smoke ──"
-if ci_is_linux_arm64_ci_lite; then
+if ci_skip_tier_a; then
+  echo "ci-full-suite: shu_asm smoke N/A (Tier A skipped; stub shu_asm lacks asm backend on $(ci_host_summary))"
+elif ci_is_linux_arm64_ci_lite; then
   echo "ci-full-suite: shu_asm smoke on Linux ARM64 uses -backend c (full asm smoke: ubuntu x86_64)"
+  cd compiler && ./scripts/run_shu_asm_smoke.sh
+  cd ..
+else
+  cd compiler && ./scripts/run_shu_asm_smoke.sh
+  cd ..
 fi
-cd compiler && ./scripts/run_shu_asm_smoke.sh
-cd ..
-if ci_is_darwin; then
+if ci_is_darwin && ! ci_skip_tier_a; then
   echo "ci-full-suite: shu_asm smoke on Darwin uses -backend c for run (asm user exe N/A on gen_driver hybrid)"
 fi
 
