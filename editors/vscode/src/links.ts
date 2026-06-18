@@ -2,9 +2,8 @@
  * Shulang DocumentLinkProvider — 将 `import` 模块路径转成可跳转文件 URI
  *
  * 解析语法：
- * - `import path;`
- * - `const name = import path;`
- * - `const { a, b } = import path;`
+ * - `const name = import("path");`
+ * - `const { a, b } = import("path");`
  *
  * 路径解析委托 importResolve.ts，与 shu 编译器 lib_roots + entry_dir 规则一致。
  * 无法解析时不生成链接，避免出现「链接目标已丢失」。
@@ -106,23 +105,17 @@ type ImportOccurrence = {
   end: number;
 };
 
-/** 扫描文档中所有 import 路径出现位置 */
+/** 扫描文档中所有 import("path") 路径出现位置 */
 function gatherImportOccurrences(documentText: string): ImportOccurrence[] {
-  const re = /\bimport\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*;/g;
+  const re = /\bimport\s*\(\s*"([^"]+)"\s*\)/g;
 
   const out: ImportOccurrence[] = [];
   let match: RegExpExecArray | null;
   while ((match = re.exec(documentText))) {
     const full = match[0];
     const dotted = match[1];
-    const kwRel = full.indexOf('import');
-    const kwAbs = match.index + kwRel;
-    const startPath = match.index + full.indexOf(dotted);
+    const startPath = match.index + full.indexOf('"') + 1;
     const endPathExclusive = startPath + dotted.length;
-
-    if (isMaskedBeforeIndex(documentText, kwAbs)) {
-      continue;
-    }
 
     let maskedPath = false;
     for (let p = startPath; p < endPathExclusive; p++) {

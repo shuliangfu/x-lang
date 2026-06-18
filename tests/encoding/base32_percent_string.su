@@ -1,0 +1,53 @@
+// STD-127：Base32 / percent / URL-Base64 与 std.string 互操作烟测
+const encoding = import("std.encoding");
+const string = import("std.string");
+
+/** 比较 String 与期望 ASCII 字节序列。 */
+function str_bytes_eq(s: *String, expect: *u8, len: i32): bool {
+  if (string.string_len_ptr(s) != len) { return false; }
+  let p: *u8 = string.string_data_ptr(s);
+  let i: i32 = 0;
+  while (i < len) {
+    if (p[i] != expect[i]) { return false; }
+    i = i + 1;
+  }
+  return true;
+}
+
+function main(): i32 {
+  let raw: [3]u8 = [102, 111, 111];
+  let b32_expect: [8]u8 = [77, 90, 88, 87, 54, 61, 61, 61];
+  let b32_out: String = string.string_new();
+  if (encode_base32_string(&raw[0], 3, &b32_out) != 0) { return 1; }
+  if (!str_bytes_eq(&b32_out, &b32_expect[0], 8)) { return 2; }
+  let dec: [8]u8 = [];
+  let bv: StrView = string_view_from_string(&b32_out);
+  let dn: i32 = decode_base32_string(bv, &dec[0], 8);
+  if (dn != 3) { return 3; }
+  let j: i32 = 0;
+  while (j < 3) {
+    if (dec[j] != raw[j]) { return 4; }
+    j = j + 1;
+  }
+  let plain: [3]u8 = [97, 32, 98];
+  let pct_buf: [16]u8 = [];
+  let pn: i32 = percent_encode(&plain[0], 3, &pct_buf[0], 16);
+  if (pn != 5) { return 5; }
+  let out_plain: [8]u8 = [];
+  let pd: i32 = percent_decode(&pct_buf[0], pn, &out_plain[0], 8);
+  if (pd != 3 || out_plain[0] != 97 || out_plain[1] != 32 || out_plain[2] != 98) { return 6; }
+  let url_raw: [3]u8 = [102, 111, 111];
+  let url_out: String = string.string_new();
+  if (encode_url_base64_string(&url_raw[0], 3, &url_out) != 0) { return 7; }
+  let url_dec: [8]u8 = [];
+  let uv: StrView = string_view_from_string(&url_out);
+  let un: i32 = decode_url_base64_string(uv, &url_dec[0], 8);
+  if (un != 3) { return 8; }
+  let k: i32 = 0;
+  while (k < 3) {
+    if (url_dec[k] != url_raw[k]) { return 9; }
+    k = k + 1;
+  }
+  if (encoding_extra_smoke() != 0) { return 10; }
+  return 0;
+}

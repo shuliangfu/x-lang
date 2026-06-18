@@ -1,0 +1,22 @@
+# PLAN-002 Phase 3 第二批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave2-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave2-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave2-v1.md
+task_index	section	## 4. 第二批待办索引	analysis/phase3-roadmap-wave2-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave2-v1.md
+task_boot021	task	BOOT-021	NEXT.md	mega7 promote
+task_comp015	task	COMP-015	NEXT.md	WPO prod
+task_std063	task	STD-063	NEXT.md	elf deep
+task_plan002	task	PLAN-002	NEXT.md	wave2 定版
+gate_boot021	gate_ref	run-boot-021-mega7-promote-gate.sh	tests/run-boot-021-mega7-promote-gate.sh	BOOT-021
+gate_comp015	gate_ref	run-comp-wpo-prod-gate.sh	tests/run-comp-wpo-prod-gate.sh	COMP-015
+gate_std063	gate_ref	run-std-elf-deep-gate.sh	tests/run-std-elf-deep-gate.sh	STD-063
+cross_plan001	cross_ref	PLAN-001	analysis/phase3-roadmap-v1.md	首批
+cross_q4	cross_ref	2026-Q4	analysis/doc-public-roadmap-v1.md	Q4
+cross_next	file	NEXT.md	NEXT.md	§2.13
+lib	script	lib/phase3-roadmap-wave2.sh	tests/lib/phase3-roadmap-wave2.sh
+gate	script	run-phase3-roadmap-wave2-gate.sh	tests/run-phase3-roadmap-wave2-gate.sh

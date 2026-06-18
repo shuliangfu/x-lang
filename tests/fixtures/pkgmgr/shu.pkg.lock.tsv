@@ -1,0 +1,7 @@
+# shu.pkg.lock v1 — generated from shu.pkg.tsv
+# lock_version	1
+meta	lock_version	1	-	-
+meta	name	demo-app	-	-
+lib_root	.	.	-	-
+locked	core.mem	bundled	core/mem/mod.su	1ef3863a58e1133c2663412b3daecf43b96b2bbabe659b981adeab74620aa8f8
+locked	core.types	bundled	core/types/mod.su	fbf2fce82fbfefba6787f05c06ce70805440070082f7080085eda296048aef7a

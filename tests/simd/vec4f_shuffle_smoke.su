@@ -1,9 +1,9 @@
 // SIMD-S4 烟测：Vec4f comptime shuffle → pshufd（反转 4 lane）。
-import std.simd;
+const simd = import("std.simd");
 
 function main(): i32 {
   let v: Vec4f = [1.0, 2.0, 3.0, 4.0];
-  let r: Vec4f = vec4f_shuffle(v, [3, 2, 1, 0]);
+  let r: Vec4f = simd.vec4f_shuffle(v, [3, 2, 1, 0]);
   let _unused: Vec4f = r - r;
   return 0;
 }

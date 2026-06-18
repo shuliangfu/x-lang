@@ -1,0 +1,6 @@
+# STD-118 trace hooks 向量
+# 列：case_id	input	expect	notes
+hook_io_span	io.read	io.read	span 名
+hook_net_span	net.connect	net.connect	span 名
+hook_async_span	async.drain	async.drain	span 名
+hook_passthrough	no trace in ctx	passthrough	无 trace 透传

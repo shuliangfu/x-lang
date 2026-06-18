@@ -7,7 +7,7 @@
 // .o」路径下填充 ElfCodegenCtx。
 //
 
-import codegen;
+const codegen = import("codegen");
 
 /** elf.su：大 struct 字段写入 sidecar（ast_pool.c）；键 = *ElfCodegenCtx 转 *u8。 */
 extern function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len:
@@ -35,6 +35,7 @@ extern function pipeline_elf_ctx_sym_shndx_at(ctx: *u8, idx: i32): i32;
 extern function pipeline_elf_pgo_hot_enabled(): i32;
 extern function pipeline_elf_ctx_set_emit_hot(ctx: *u8, hot: i32): void;
 extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+extern function pipeline_elf_ctx_code_data_ptr(ctx: *u8): *u8;
 extern function pipeline_elf_write_o_pgo_to_buf(ctx: *u8, out: *CodegenOutBuf): i32;
 /** 诊断：elf_resolve_patches 找不到目标标签时打印补丁名。 */
 extern function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, name_len: i32): void;
@@ -83,21 +84,21 @@ struct ElfSymEntry {
 * 行为与旧嵌套 ElfCodeBuf 等价（code_len + code_data[0..len-1]）；符号名见
 * sym_name_data + elf_sym_name_ptr。
 */
-struct ElfCodegenCtx {
+allow(padding) struct ElfCodegenCtx {
   code_len: i32;
   /**
   * 多函数 + 分支/循环标签；asm_codegen_elf_o 将各 dep 与入口编入同一
   * .text，累计标签/补丁/重定位易超过旧上限 512/2048。
-  * 与下行 patches/relocs/syms/reloc_sym_names 行数保持一致（内联 4096，与 ast_pool.c PIPELINE_ELF_CTX_TABLE_CAP 同步）。
+  * 与下行 patches/relocs/syms/reloc_sym_names 行数保持一致（内联 16384，与 ast_pool.c PIPELINE_ELF_CTX_TABLE_CAP 同步）。
   */
-  labels: [4096]ElfLabelEntry;
+  labels: [16384]ElfLabelEntry;
   num_labels: i32;
-  patches: [4096]ElfPatchEntry;
+  patches: [16384]ElfPatchEntry;
   num_patches: i32;
-  relocs: [4096]ElfRelocEntry;
-  reloc_sym_names: [4096][64]u8;
+  relocs: [16384]ElfRelocEntry;
+  reloc_sym_names: [16384][64]u8;
   num_relocs: i32;
-  syms: [4096]ElfSymEntry;
+  syms: [16384]ElfSymEntry;
   num_syms: i32;
   /** sym_name_data 中已写入的符号名字节总数；与 num_syms 一起在 elf_ctx_reset
   * 中清零。 */
@@ -121,14 +122,12 @@ struct ElfCodegenCtx {
   code_hot_len: i32;
   /** 当前 emit 目标：0=.text，非 0=.text.hot（须 SHU_WPO_PGO_HOT=1）。 */
   emit_hot: i32;
-  /** 已编码机器码字节；容量 8MiB，与 CodegenOutBuf 上限一致（文本与 .o
-  * 输出共享同一输出缓冲语义）。 */
-  code_data: [8388608]u8;
+  /** 已编码机器码字节；与 ast_pool.c PIPELINE_ELF_CTX_CODE_BUF_CAP 同步。 */
+  code_data: [8716288]u8;
   /** PGO-Lite 热路径机器码缓冲（1MiB；大程序热段仍主要由 WPO reach 控制）。 */
   code_hot_data: [1048576]u8;
-  /** 导出符号名字节扁平池；与 syms[i] 顺序一致，第 i 个符号名起始于
-  * elf_sym_name_ptr(ctx, i)。 */
-  sym_name_data: [32768]u8;
+  /** 导出符号名字节池；1379 func EMIT_HEAVY 须 >32768（约 48KiB 名字总量）。 */
+  sym_name_data: [131072]u8;
 }
 
 /** 将 i32 截断为 u8（低 8 位；与同义写法 val & 255 一致）。
@@ -277,7 +276,7 @@ function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
 * name_len 与历史行为一致，实际最多拷贝 64 字节入池。
 */
 function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
-  if (ctx.num_syms >= 4096) {
+  if (ctx.num_syms >= 16384) {
     return -1;
   }
   let copy_len: i32 = name_len;
@@ -287,7 +286,7 @@ function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32)
   if (copy_len < 0) {
     copy_len = 0;
   }
-  if (ctx.sym_name_len + copy_len > 32768) {
+  if (ctx.sym_name_len + copy_len > 131072) {
     return -1;
   }
   let k: i32 = 0;
@@ -418,7 +417,7 @@ function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
 function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  while (i < n && out.len < 8388608) {
+  while (i < n && out.len < 9437184) {
     out.data[out.len] = ptr[i];
     out.len = out.len + 1;
     i = i + 1;
@@ -440,8 +439,9 @@ function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   let s: i32 = 0;
   /** 外部 call（如 shulang_panic_）须写入 UND symtab 项，reloc 不可使用 sym index 0。 */
   let num_undef: i32 = 0;
-  let undef_names: [32][64]u8 = [];
-  let undef_lens: [32]i32 = [];
+  /** 与 ast_pool.c PIPELINE_ELF_UNDEF_SYM_CAP 同步（parser thin delegate ~101 glue）。 */
+  let undef_names: [256][64]u8 = [];
+  let undef_lens: [256]i32 = [];
   let r0: i32 = 0;
   while (r0 < ctx.num_relocs) {
     if (elf_reloc_target_is_defined(ctx, r0) == 0) {
@@ -457,7 +457,7 @@ function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
         }
         u0 = u0 + 1;
       }
-      if (dup == 0 && num_undef < 32) {
+      if (dup == 0 && num_undef < 256) {
         elf_copy_u8_n(&undef_names[num_undef][0], &r_sym_buf0[0], rlen0);
         undef_lens[num_undef] = rlen0;
         num_undef = num_undef + 1;
@@ -519,7 +519,11 @@ function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (elf_append(out, ehdr, 64) != 0) {
     return -1;
   }
-  if (elf_append(out, &ctx.code_data[0], code_len) != 0) {
+  let code_ptr: *u8 = pipeline_elf_ctx_code_data_ptr(ctx as *u8);
+  if (code_ptr == 0 as *u8) {
+    return -1;
+  }
+  if (elf_append(out, code_ptr, code_len) != 0) {
     return -1;
   }
   let zero_byte: [1]u8 = [];

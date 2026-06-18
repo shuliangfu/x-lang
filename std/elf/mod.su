@@ -3,7 +3,6 @@
 // 【文件职责】占位；编译器/工具链用时可按需实现
 // std.elf、std.coff、std.macho。
 // 【依赖】core。当前无 C 实现，仅占位。
-/** 占位：当前未实现，返回 0。 */
-function placeholder(): i32 {
-  return 0;
-}
+
+/** ELF 模块是否已实现；当前 0 表示桩。 */
+function elf_is_implemented(): i32 { return 0; }

@@ -1,0 +1,23 @@
+# STD-086 std.config manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	10
+read_path	section	## 1. 阅读路径	analysis/std-config-v1.md
+api_doc	section	## 2. API	analysis/std-config-v1.md
+verify	section	## 3. Gate	analysis/std-config-v1.md
+api_new	api	config_new	std/config/mod.su	创建
+api_free	api	config_free	std/config/mod.su	释放
+api_clear	api	config_clear	std/config/mod.su	清空
+api_toml_buf	api	load_toml_buf	std/config/mod.su	内存TOML
+api_toml_file	api	load_toml_file	std/config/mod.su	文件TOML
+api_env	api	load_env_prefix	std/config/mod.su	ENV前缀
+api_merge	api	merge	std/config/mod.su	合并
+api_set	api	set_string	std/config/mod.su	设置
+api_get_str	api	get_string	std/config/mod.su	字符串
+api_get_i32	api	get_i32	std/config/mod.su	整数
+api_get_bool	api	get_bool	std/config/mod.su	布尔
+symbol_smoke	symbol	config_smoke_c	std/config/config.c	C烟测
+impl_c	file	std/config/config.c	std/config/config.c
+smoke_su	smoke	tests/std-config/layer_smoke.su	.su烟测
+vectors	file	tests/baseline/std-config-vectors.tsv	向量
+lib	script	lib/std-config.sh	tests/lib/std-config.sh
+gate	script	run-std-config-gate.sh	tests/run-std-config-gate.sh

@@ -8,6 +8,6 @@
 | `escape` | 将字段写成带引号的 CSV 单元 |
 | `unescape` | 将引号字段 raw 内容中的 `""` 还原为 `"` |
 
-`csv.c` 为历史 C 实现，**新代码不依赖**；用户程序仅 `import std.csv` 即可，无需链入 `csv.o`（若 driver 仍链入则为无害冗余）。
+`csv.c` 为历史 C 实现，**新代码不依赖**；用户程序仅 `import("std.csv")` 即可，无需链入 `csv.o`（若 driver 仍链入则为无害冗余）。
 
 **测试**：`SHU=./compiler/shu-c ./tests/run-csv.sh` 或 `SHU=./compiler/shu ./tests/run-csv.sh`（2026-05-27 seed 重链后全绿）。

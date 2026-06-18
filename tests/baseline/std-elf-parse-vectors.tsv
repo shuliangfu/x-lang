@@ -1,0 +1,8 @@
+# STD-058 ELF64 parse gold vectors
+# 列：field	expect_dec	notes
+machine	62	EM_X86_64
+type	1	ET_REL
+shnum	3	sections
+shoff	64	Shdr offset
+text_sec_size	4	.text
+shstrtab_type	3	SHT_STRTAB

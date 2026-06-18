@@ -1,0 +1,12 @@
+# STD-140 std.path extreme vectors
+# 列：case_id	op	input_desc	expect_desc	notes
+multi_slash	clean	//a///b	/a/b	连续斜杠
+trail_slash	clean	/foo/bar/	/foo/bar	尾随斜杠
+rel_dotdot	clean	foo/./bar/../baz	foo//baz	v1 双分隔符 artifact
+root_dotdot	clean	/..	/	根上卷
+mixed_sep	clean	a\\b	a/b	混合反斜杠
+four_dot_seg	clean	x/..../y	x/..../y	非 dotdot
+resolve_abs	ref	abs ref 忽略 base	/abs/path	path_resolve
+hidden_ext	ext	.gitignore	ext=0	隐藏文件
+dual_ext	stem	file.tar.gz	stem+ext	path_extension_and_stem
+win_abs	pattern	C:\User	is_abs=1	盘符识别

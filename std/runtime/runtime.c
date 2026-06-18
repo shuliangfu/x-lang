@@ -9,6 +9,12 @@
  */
 
 extern void shulang_panic_(int has_msg, int msg_val);
+extern void shulang_crash_evidence_collect_c(int has_msg, int msg_val);
+
+/** STD-028：panic 钩子收集（转发弱符号）。 */
+void runtime_crash_evidence_collect_c(int has_msg, int msg_val) {
+  shulang_crash_evidence_collect_c(has_msg, msg_val);
+}
 
 /** 无参 panic：终止程序（noreturn）。对标 Rust panic!()、Zig @panic。 */
 void runtime_panic(void) {

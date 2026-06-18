@@ -1,0 +1,8 @@
+// 解构 import as 别名：仅函数重命名（避免与本地同名符号冲突）。
+const { print_str as io_out } = import("std.io");
+
+function main(): i32 {
+  let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
+  let n: i32 = io_out(&msg[0], 12);
+  return if (n >= 0) { 0 } else { 1 };
+}

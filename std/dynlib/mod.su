@@ -5,6 +5,7 @@
 extern function dynlib_open_c(path: *u8): *u8;
 extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
 extern function dynlib_close_c(lib: *u8): void;
+extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
 function open(path: *u8): *u8 {
   return dynlib_open_c(path);
@@ -16,4 +17,8 @@ function sym(lib: *u8, name: *u8): *u8 {
 /** 关闭动态库。 */
 function close(lib: *u8): void {
   dynlib_close_c(lib);
+}
+/** 复制最近一次 open/sym 失败诊断到 buf；返回写入字节数，无内容返回 0（STD-096）。 */
+function last_error(buf: *u8, cap: i32): i32 {
+  return dynlib_last_error_copy_c(buf, cap);
 }

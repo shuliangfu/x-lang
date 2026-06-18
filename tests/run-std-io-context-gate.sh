@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# STD-091：std.io ↔ std.context read_ctx/write_ctx 联动门禁
+set -e
+cd "$(dirname "$0")/.."
+
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
+
+MOD_SU="std/io/mod.su"
+SMOKE="tests/io/context_read_write.su"
+PREFIX="shu: [SHU_STD091_IO_CTX]"
+
+stdlib_cm_native_shu() {
+  local f="$1"
+  [ -n "$f" ] && [ -x "$f" ] || return 1
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
+    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
+    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
+    *) return 0 ;;
+  esac
+}
+
+echo "=== STD-091: io-context manifest ==="
+for f in "$MOD_SU" "$SMOKE"; do
+  if [ ! -f "$f" ]; then
+    echo "io-context gate FAIL: missing $f" >&2
+    exit 1
+  fi
+done
+for sym in timeout_ms_for_context read_ctx write_ctx IO_CTX_MS_CANCELLED IO_CTX_MS_EXPIRED; do
+  case "$sym" in
+    IO_CTX_MS_*)
+      if ! grep -qF "const ${sym}:" "$MOD_SU" 2>/dev/null; then
+        echo "io-context gate FAIL: missing const $sym" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      if ! grep -qE "function ${sym}\\(" "$MOD_SU" 2>/dev/null; then
+        echo "io-context gate FAIL: missing api $sym" >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
+echo "io-context manifest OK"
+
+# shellcheck source=tests/lib/build-std-c-o.sh
+. tests/lib/build-std-c-o.sh
+ensure_std_c_o ../std/context/context.o
+ensure_std_c_o ../std/time/time.o
+
+SHU_BIN=""
+if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+  :
+elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+  :
+fi
+
+SU_OK=0
+SKIP=0
+if [ -n "$SHU_BIN" ]; then
+  echo "=== STD-091: smoke (SHU=$SHU_BIN) ==="
+  if ! "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+    echo "io-context gate FAIL: typeck $SMOKE" >&2
+    exit 1
+  fi
+  exe="/tmp/shu_std091_io_ctx_$$"
+  if ! "$SHU_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+    echo "io-context gate FAIL: compile $SMOKE" >&2
+    exit 1
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  ec=$?
+  set -e
+  rm -f "$exe"
+  if [ "$ec" -ne 0 ]; then
+    echo "io-context gate FAIL: run exit=$ec" >&2
+    exit 1
+  fi
+  SU_OK=1
+else
+  echo "io-context gate SKIP .su (no native shu)" >&2
+  SKIP=1
+fi
+
+echo "${PREFIX} status=ok su=${SU_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "std-io-context gate OK"

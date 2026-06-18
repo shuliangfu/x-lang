@@ -1,0 +1,18 @@
+# STD-076 std.url manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	6
+read_path	section	## 1. 阅读路径	analysis/std-url-v1.md
+api_doc	section	## 2. API	analysis/std-url-v1.md
+verify	section	## 3. Gate	analysis/std-url-v1.md
+api_parse	api	parse	std/url/mod.su	解析
+api_build	api	build	std/url/mod.su	组装
+api_stringify	api	stringify	std/url/mod.su	序列化
+api_qenc	api	query_encode	std/url/mod.su	编码
+api_qdec	api	query_decode	std/url/mod.su	解码
+api_resolve	api	resolve	std/url/mod.su	resolve
+symbol_smoke	symbol	url_smoke_c	std/url/url.c	C烟测
+impl_c	file	std/url/url.c	std/url/url.c
+smoke_su	smoke	tests/std-url/roundtrip.su	.su烟测
+vectors	file	tests/baseline/std-url-vectors.tsv	向量
+lib	script	lib/std-url.sh	tests/lib/std-url.sh
+gate	script	run-std-url-gate.sh	tests/run-std-url-gate.sh

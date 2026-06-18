@@ -1,0 +1,14 @@
+/**
+ * Cookbook MAP-01：Map_u64_i32 insert/get/remove 基本路径（STD-013）。
+ */
+const map = import("std.map");
+
+function main(): i32 {
+  let mu: Map_u64_i32 = map.map_u64_i32_new();
+  if (map.map_u64_i32_with_capacity(&mu, 4) != 0) { return 1; }
+  if (map.map_u64_i32_insert(&mu, 1000 as u64, 10) != 0) { return 2; }
+  if (map.map_u64_i32_get(mu, 1000 as u64, 0) != 10) { return 3; }
+  if (map.map_u64_i32_remove(&mu, 1000 as u64) != 1) { return 4; }
+  map.map_u64_i32_deinit(&mu);
+  return 0;
+}

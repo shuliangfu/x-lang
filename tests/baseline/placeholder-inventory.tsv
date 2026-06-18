@@ -1,0 +1,7 @@
+# STD-168 placeholder() 清单 manifest
+# 列：item_id	kind	anchor	notes
+# max_count	6
+doc	file	analysis/placeholder-inventory-v1.md	STD-168
+gate	script	run-placeholder-inventory-gate.sh	gate
+lib	script	tests/lib/placeholder-inventory.sh	helper
+smoke_ref	file	tests/stdlib-import/main.su	core.types 烟测

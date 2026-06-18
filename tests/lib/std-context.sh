@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# std-context.sh — STD-071 manifest 与烟测辅助
+
+STD_CONTEXT_PREFIX="${SHU_STD_CONTEXT_PREFIX:-shu: [SHU_STD_CONTEXT]}"
+
+# 遍历 manifest 校验 symbol/file/smoke。
+std_context_symbols_ok() {
+  local mod_su="$1"
+  local ctx_c="$2"
+  local tsv="$3"
+  local miss=0
+  local item_id kind anchor mod_path
+  while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
+    [ -z "${item_id:-}" ] && continue
+    case "$item_id" in \#*|min_*) continue ;; esac
+    case "$kind" in
+      api)
+        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+          echo "std-context FAIL: missing api '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      symbol)
+        local path="$mod_path"
+        if [ "$path" = "std/context/context.c" ]; then path="$ctx_c"; fi
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-context FAIL: missing '$anchor' in $path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke)
+        if [ ! -f "$anchor" ]; then
+          echo "std-context FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+    esac
+  done < "$tsv"
+  echo "$miss"
+  [ "$miss" -eq 0 ]
+}
+
+# C 烟测：context.o + time.o。
+std_context_run_c_smoke() {
+  local ctx_c="$1"
+  local out="/tmp/shu_std_context_$$"
+  local ctx_o time_o
+  ctx_o="$(dirname "$ctx_c")/context.o"
+  time_o="std/time/time.o"
+  if [ ! -f "$ctx_o" ]; then
+    echo "std-context FAIL: missing $ctx_o" >&2
+    return 1
+  fi
+  if [ ! -f "$time_o" ]; then
+    make -C compiler ../std/time/time.o >/dev/null 2>&1 || true
+  fi
+  if ! cc -std=c11 -O1 -o "$out" "$ctx_o" "$time_o" 2>/dev/null; then
+    echo "std-context FAIL: compile c smoke" >&2
+    return 1
+  fi
+  set +e
+  "$out" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$out"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-context FAIL: c smoke exit=$ec" >&2
+    return 1
+  fi
+  return 0
+}
+
+# 编译并运行 .su 烟测。
+std_context_run_smoke() {
+  local shu="$1"
+  local src="$2"
+  local tag="${3:-ctx}"
+  local exe="/tmp/shu_std_context_${tag}_$$"
+  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    echo "std-context FAIL: compile $src" >&2
+    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    rm -f "$exe"
+    return 1
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-context FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
+}
+
+std_context_emit_report() {
+  local status="$1"
+  local c_ok="$2"
+  local su_ok="$3"
+  local skip="$4"
+  echo "${STD_CONTEXT_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip}"
+}

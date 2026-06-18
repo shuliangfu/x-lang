@@ -21,9 +21,9 @@ A4 预览：atomic MPSC 就绪 ring；**A4 v2** `SHU_ASYNC_WORKERS=N` per-worker
 
 含 `await` 的 async 函数 emit **`shu_async_sched_<name>()`**；sync 用 **`run async_fn(...)`**（v4 seed：**i32 / u32 / i64 / usize**，最多 8 个；**usize** 用于 IO handle/fd）。
 
-链接：`import std.async` 且调用 `coop_pingpong*` 时，runtime 扫描用户 `.o` 的 `nm -u`，按需链入 `std/async/scheduler.o`（无需手工 `cc ... scheduler.o`）。`async` 为语言关键字时 parser 仍允许 `import std.async` 路径段。
+链接：`import("std.async")` 且调用 `coop_pingpong*` 时，runtime 扫描用户 `.o` 的 `nm -u`，按需链入 `std/async/scheduler.o`（无需手工 `cc ... scheduler.o`）。`async` 为语言关键字时 parser 仍允许 `import("std.async")` 路径段。
 
-IO-A4 multishot accept：`run-io-multishot.sh`（Linux + liburing）；`.su` 双 pipe 全链路：`async_run_io_dual_pipe.su` + wrapper。IO-A5 v3：`shu_io_poll_async_completions` + `run_i32` 自动 poll/wake。IO-A5 v4：**`spawn async_fn(args)`** 非阻塞 submit + **`shu_async_run_drain_until_idle()`**（`.su` 双协程并行：`async_run_io_dual_parallel.su`，**`import std.async`**）。IO-A5 v5：**`shu_async_spawn_i32`** C 侧 spawn 等价 + **`async_run_io_spawn_parallel.c`** / **`async_run_io_spawn_workers.c`**（`SHU_ASYNC_WORKERS=2`）。
+IO-A4 multishot accept：`run-io-multishot.sh`（Linux + liburing）；`.su` 双 pipe 全链路：`async_run_io_dual_pipe.su` + wrapper。IO-A5 v3：`shu_io_poll_async_completions` + `run_i32` 自动 poll/wake。IO-A5 v4：**`spawn async_fn(args)`** 非阻塞 submit + **`shu_async_run_drain_until_idle()`**（`.su` 双协程并行：`async_run_io_dual_parallel.su`，**`import("std.async")`**）。IO-A5 v5：**`shu_async_spawn_i32`** C 侧 spawn 等价 + **`async_run_io_spawn_parallel.c`** / **`async_run_io_spawn_workers.c`**（`SHU_ASYNC_WORKERS=2`）。
 
 ## 验收
 

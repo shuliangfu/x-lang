@@ -1,0 +1,90 @@
+// std.url — URL 解析、构建、query 编解码与 resolve（STD-076）
+//
+// 【文件职责】
+// parse/build/stringify；query encode/decode（percent）；
+// 相对 URL resolve；IPv6 bracket host。
+//
+// 【对标】RFC 3986、Go net/url、Rust url crate。
+
+/** URL 组件（固定缓冲；零拷贝 slice 由 len 界定）。 */
+allow(padding) struct Url {
+  scheme_len: i32;
+  host_len: i32;
+  port_len: i32;
+  path_len: i32;
+  query_len: i32;
+  fragment_len: i32;
+  scheme: [32]u8;
+  host: [256]u8;
+  port: [8]u8;
+  path: [512]u8;
+  query: [512]u8;
+  fragment: [256]u8;
+}
+
+extern function url_parse_c(url: *u8, len: i32, out: *Url): i32;
+extern function url_build_c(u: *Url, out: *u8, out_cap: i32): i32;
+extern function url_query_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i32;
+extern function url_host_to_ipv6_c(host: *u8, host_len: i32, out_16: *u8): i32;
+extern function url_format_ipv6_host_c(addr_16: *u8, out: *u8, out_cap: i32): i32;
+extern function url_host_is_ipv6_c(host: *u8, host_len: i32): i32;
+extern function url_ipv6_host_smoke_c(): i32;
+
+/** 解析 URL；0 成功，-1 失败。 */
+function parse(url: *u8, len: i32, out: *Url): i32 {
+  if (out == 0) { return -1; }
+  return url_parse_c(url, len, out);
+}
+
+/** 从组件组装 URL；返回写入长度，失败 -1。 */
+function build(u: Url, out: *u8, out_cap: i32): i32 {
+  return url_build_c(&u, out, out_cap);
+}
+
+/** 同 build：序列化为字符串。 */
+function stringify(u: Url, out: *u8, out_cap: i32): i32 {
+  return url_build_c(&u, out, out_cap);
+}
+
+/** query 值 percent 编码；返回写入长度。 */
+function query_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  return url_query_encode_c(src, src_len, out, out_cap);
+}
+
+/** query 值 percent 解码；返回写入长度。 */
+function query_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  return url_query_decode_c(src, src_len, out, out_cap);
+}
+
+/** 相对 ref 解析到 base；结果写入 out；0 成功。 */
+function resolve(base: Url, ref: *u8, ref_len: i32, out: *Url): i32 {
+  if (out == 0) { return -1; }
+  return url_resolve_c(&base, ref, ref_len, out);
+}
+
+/**
+ * 将 Url.host 文本（无方括号）解析为 16 字节 IPv6。
+ * 与 std.net Ipv6Addr.b0 起始布局一致，可传 &addr.b0 给 connect_ipv6。
+ * 成功 0，失败 -1。
+ */
+function host_to_ipv6(host: *u8, host_len: i32, out_16: *u8): i32 {
+  return url_host_to_ipv6_c(host, host_len, out_16);
+}
+
+/** 16 字节 IPv6 格式化为 host 文本（无方括号）；返回长度，失败 -1。 */
+function format_ipv6_host(addr_16: *u8, out: *u8, out_cap: i32): i32 {
+  return url_format_ipv6_host_c(addr_16, out, out_cap);
+}
+
+/** host 是否为 IPv6 文本；1 是，0 否。 */
+function host_is_ipv6(host: *u8, host_len: i32): i32 {
+  return url_host_is_ipv6_c(host, host_len);
+}
+
+/** STD-134 C 金样：IPv6 bracket 与 host 字节互转。 */
+function ipv6_host_smoke(): i32 {
+  return url_ipv6_host_smoke_c();
+}
+

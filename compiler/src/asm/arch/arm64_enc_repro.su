@@ -1,8 +1,8 @@
-import platform.elf;
+const elf = import("platform.elf");
 
 extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
-function enc_a(ctx: *platform.elf.ElfCodegenCtx, val: i32): i32 {
+function enc_a(ctx: *ElfCodegenCtx, val: i32): i32 {
   return 0;
 }
 

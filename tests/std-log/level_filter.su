@@ -1,0 +1,14 @@
+// STD-053：set_min_level 过滤低级别日志
+const log = import("std.log");
+
+function main(): i32 {
+  log.set_min_level(log.level_warn());
+  let msg: [4]u8 = [116, 101, 115, 116];
+  if (log.log(log.level_info(), &msg[0], 4) != 0) {
+    return 1;
+  }
+  if (log.log(log.level_error(), &msg[0], 4) != 0) {
+    return 2;
+  }
+  return 0;
+}

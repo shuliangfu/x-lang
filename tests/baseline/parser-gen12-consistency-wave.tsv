@@ -1,0 +1,6 @@
+# BOOT-025 parser gen1/gen2 一致性波次矩阵
+# 列：consist_id	hook	role	notes
+# min_rows	3
+consist_stage2	run-stage2-bstrict-gate.sh	lead	gen1→gen2 bstrict
+consist_dogfood	run-bootstrap-stage2-dogfood-parser-typeck.sh	wave	parser/typeck
+consist_boot024	run-boot-024-parser-bootstrap-emit-gate.sh	ref	C2 父波次

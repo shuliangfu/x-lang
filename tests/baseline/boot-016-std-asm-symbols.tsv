@@ -1,0 +1,22 @@
+# BOOT-016 shu_asm std 符号完整性 manifest（Top-12）
+# 列：item_id	kind	obj_rel	anchor_symbol	getter	notes
+# min_top_n	12
+section_goal	section	## 1. 目标	shu_asm Top-N
+section_gate	section	## 4. Gate	boot-016 gate
+section_runtime	section	## 2. runtime.c 路径	asm_ld_append
+std_io	std_obj	std/io/io.o	io_read	get_io_o_path	STD-001
+std_fs	std_obj	std/fs/fs.o	fs_open_read_c	get_std_fs_o_path	STD-001
+std_heap	std_obj	std/heap/heap.o	heap_alloc_c	get_std_heap_o_path	BOOT-015
+std_process	std_obj	std/process/process.o	process_getpid_c	get_std_process_o_path	STD-023
+std_string	std_obj	std/string/string.o	shulang_string_memcmp_c	get_std_string_o_path	STD-016
+std_path	std_obj	std/path/path.o	path_sep_c	get_std_path_o_path	STD-021
+std_runtime	std_obj	std/runtime/runtime.o	runtime_panic	get_std_runtime_o_path	panic
+std_env	std_obj	std/env/env.o	env_iter_count_c	get_std_env_o_path	STD-025
+std_json	std_obj	std/json/json.o	json_skip_value_c	get_std_json_o_path	STD-034
+std_net	std_obj	std/net/net.o	net_tcp_listen_c	get_std_net_o_path	STD-002
+std_sync	std_obj	std/sync/sync.o	sync_mutex_new_c	get_std_sync_o_path	STD-045
+std_channel	std_obj	std/channel/channel.o	channel_i32_bounded_c	get_std_channel_o_path	STD-044
+cross_link_contract	cross_ref	tests/baseline/boot-std-link-contract.tsv	BOOT-014	契约
+cross_runtime	cross_ref	compiler/src/runtime.c	asm_ld_append_std_objs	链接
+doc	file	boot-016-std-asm-symbols-v1.md	analysis/boot-016-std-asm-symbols-v1.md	RFC
+gate	script	run-boot-016-std-asm-symbols-gate.sh	tests/run-boot-016-std-asm-symbols-gate.sh	manifest

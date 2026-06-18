@@ -1,18 +1,17 @@
-// 测试 std.process：spawn_simple(program)、waitpid(pid)
+// 测试 std.process：process.spawn_simple(program)、process.waitpid(pid)
 //
 // 【文件职责】本文件为 std.process 子进程创建与等待的回归测试。
 // 【测试目的】确认 spawn_simple 与 waitpid 得到退出码 0。macOS 用
 // /usr/bin/true，否则用 /bin/true（Alpine/Linux）。
-// 【覆盖 API】spawn_simple(program: *u8): i32、waitpid(pid: i32): i32。
+// 【覆盖 API】process.spawn_simple(program: *u8): i32、process.waitpid(pid: i32): i32。
 // 【预期结果】退出码 0 表示通过；1 表示 spawn_simple 失败；2 表示 waitpid
 // 得到的 status≠0。Windows 上无 true，run-process.sh 会 SKIP。
 // 【运行方式】./tests/run-process.sh
 //
 // 支持三种导入方式（本文件用第 2 种演示）：
-//   1) import std.process; — 整模块，spawn_simple / waitpid / getenv 等直接可用
-//   2) const process = import std.process; — 绑定模块名，用 process.getenv / process.spawn_simple 等
-//   3) const { getenv } = import std.process; — 仅引入 getenv，其它名不可用
-const process = import std.process;
+//   1) const process = import("std.process"); — 绑定模块，用 process.getenv / process.spawn_simple 等
+//   2) const { getenv } = import("std.process"); — 解构，仅引入 getenv，其它名不可用
+const process = import("std.process");
 
 function run_true(path: *u8): i32 {
   let pid: i32 = process.spawn_simple(path);

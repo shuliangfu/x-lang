@@ -1,0 +1,79 @@
+// STD-111：std.sync 调试锁诊断烟测（锁序 + 递归 + 快照）
+const sync = import("std.sync");
+
+function main(): i32 {
+  let m1: *u8 = sync.mutex_new();
+  let m2: *u8 = sync.mutex_new();
+  let snap: [96]u8 = [];
+  if (m1 == 0 as *u8 || m2 == 0 as *u8) {
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 1;
+  }
+  lock_diag_clear();
+  lock_diag_set_enabled(1);
+  if (lock_diag_mutex_set_id(m1, 1) != 0 || lock_diag_mutex_set_id(m2, 2) != 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 2;
+  }
+  if (sync.mutex_lock(m1) != 0 || sync.mutex_lock(m2) != 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 3;
+  }
+  if (sync.mutex_unlock(m2) != 0 || sync.mutex_unlock(m1) != 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 4;
+  }
+  if (sync.mutex_lock(m2) != 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 5;
+  }
+  if (sync.mutex_lock(m1) != -1 || lock_diag_last_err() != lock_diag_err_order()) {
+    sync.mutex_unlock(m2);
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 6;
+  }
+  sync.mutex_unlock(m2);
+  if (sync.mutex_lock(m1) != 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 7;
+  }
+  if (sync.mutex_lock(m1) != -1 || lock_diag_last_err() != lock_diag_err_recursive()) {
+    sync.mutex_unlock(m1);
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 8;
+  }
+  sync.mutex_unlock(m1);
+  if (lock_diag_snapshot(&snap[0], 96) <= 0) {
+    lock_diag_set_enabled(0);
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 9;
+  }
+  lock_diag_set_enabled(0);
+  if (sync.mutex_lock(m1) != 0 || sync.mutex_unlock(m1) != 0) {
+    sync.mutex_free(m1);
+    sync.mutex_free(m2);
+    return 10;
+  }
+  sync.mutex_free(m1);
+  sync.mutex_free(m2);
+  if (lock_diag_smoke() != 0) {
+    return 11;
+  }
+  return 0;
+}

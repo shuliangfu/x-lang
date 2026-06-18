@@ -1,0 +1,24 @@
+# STD-073 std.codec manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	10
+read_path	section	## 1. 阅读路径	analysis/std-codec-v1.md
+api_doc	section	## 2. API	analysis/std-codec-v1.md
+verify	section	## 3. Gate	analysis/std-codec-v1.md
+api_encoder_new	api	encoder_new	std/codec/mod.su	编码器
+api_decoder_new	api	decoder_new	std/codec/mod.su	解码器
+api_encoder_encode	api	encoder_encode	std/codec/mod.su	块编
+api_decoder_decode	api	decoder_decode	std/codec/mod.su	块解
+api_block_encode	api	block_encode	std/codec/mod.su	块门面
+api_block_decode	api	block_decode	std/codec/mod.su	块门面
+api_encode_bytes	api	encode_into_bytes	std/codec/mod.su	bytes
+api_decode_bytes	api	decode_from_bytes	std/codec/mod.su	bytes
+api_stream_init	api	stream_codec_init_gzip	std/codec/mod.su	流
+api_stream_proc	api	stream_codec_process	std/codec/mod.su	流
+api_adapter_hex	api	adapter_hex_encode	std/codec/mod.su	hex
+api_adapter_b64	api	adapter_base64_encode	std/codec/mod.su	b64
+api_adapter_gzip	api	adapter_gzip_encode	std/codec/mod.su	gzip
+impl_su	file	std/codec/mod.su	std/codec/mod.su
+smoke_su	smoke	tests/std-codec/roundtrip.su	round-trip
+vectors	file	tests/baseline/std-codec-vectors.tsv	向量
+lib	script	lib/std-codec.sh	tests/lib/std-codec.sh
+gate	script	run-std-codec-gate.sh	tests/run-std-codec-gate.sh

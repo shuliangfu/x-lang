@@ -1,0 +1,15 @@
+// STD-164：TcpConnPool idle 复用烟测（不发起真实 connect）
+const net = import("std.net");
+
+function main(): i32 {
+  let pool: TcpConnPool = net.tcp_pool_new(0, 0);
+  if (pool.has_idle != 0) { return 1; }
+  pool.idle_fd = 42;
+  pool.has_idle = 1;
+  let fd: i32 = net.tcp_pool_acquire(&pool, 0);
+  if (fd != 42) { return 2; }
+  if (net.tcp_pool_release(&pool, 99) != 0) { return 3; }
+  if (pool.has_idle == 0 || pool.idle_fd != 99) { return 4; }
+  net.tcp_pool_drain(&pool);
+  return 0;
+}

@@ -1,0 +1,21 @@
+# STD-012 标准库示例工程 manifest
+# 列：item_id	kind	anchor	notes
+# min_examples	30
+read_path	section	## 1. 阅读路径	15min
+layout	section	## 2. 目录布局	examples + catalog
+cookbook	section	## 3. Cookbook 子集	DOC-001
+catalog	section	## 4. 全量目录	std-examples-catalog.tsv
+verify	section	## 5. 验证与门禁	gate
+index_hello	example_index	ex_hello	hello
+index_cb_io	example_index	ex_cb_io_batch	cookbook IO
+index_io_smoke	example_index	ex_io_batch_smoke	io smoke
+index_net	example_index	ex_net_main	net
+index_zc	example_index	ex_cb_zc_arena	zc
+index_async	example_index	ex_cb_async_import	async
+catalog_file	file	tests/baseline/std-examples-catalog.tsv	35+ 行
+lib	script	lib/std-examples.sh	check 库
+runner	script	run-std-examples.sh	索引输出
+gate	script	run-std-examples-gate.sh	manifest 门禁
+cross_doc001	cross_ref	analysis/doc-stdlib-cookbook-v1.md	Cookbook
+cross_cookbook	cross_ref	tests/baseline/doc-stdlib-cookbook.tsv	12 食谱
+hook_doc_cb	hook_script	run-doc-stdlib-cookbook-gate.sh	DOC-001

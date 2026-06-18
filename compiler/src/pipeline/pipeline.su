@@ -4,14 +4,14 @@
 // 依赖：ast、parser（parse_into、get_module_num_imports、get_module_import_path）、typeck、codegen、std.fs。
 // 与 C 关系：6.1 resolve/read/preprocess 全在 .su（std.fs + preprocess_su_buf）；parse 入口 buf+len→[]u8 仍由 pipeline_glue.c（pipeline_source_slice / parser_slice_from_buf）提供，因语言暂无 ptr+len 直接构造 []T。
 
-import ast;
-import lexer;
-import parser;
-import typeck;
-import codegen;
-import std.fs;
-import preprocess;
-import asm;
+const ast = import("ast");
+const lexer = import("lexer");
+const parser = import("parser");
+const typeck = import("typeck");
+const codegen = import("codegen");
+const fs = import("std.fs");
+const preprocess = import("preprocess");
+const asm = import("asm");
 
 /** C 按需提供第 i 个依赖的 arena/module 缓冲；pipeline 在解析 import 前取回并写入 dep 动态池，避免 arena 槽为空导致 ast_arena_init 写空指针。 */
 extern function driver_dep_arena_buf(i: i32): *u8;
@@ -85,7 +85,7 @@ extern function pipeline_parse_scalars_main_idx_get(): i32;
 /** parse 失败诊断 / ParseIntoResult 构造（C glue；勿 SU 多实参/按值 return）。 */
 extern function pipeline_parse_fail_diag_scalars_c(module: *Module, arena: *ASTArena): void;
 extern function pipeline_parse_into_with_init_result_c(): ParseIntoResult;
-/** entry parse 重活 C glue（strict 链 4+ 实参 CALL emit 易错序；单行 bl→C）。 */
+/** entry parse 重活已 SU emit（pipeline_parse_set_main_from_buf + 诊断）；C glue 保留 strict 回退。 */
 extern function run_su_pipeline_parse_entry_do_parse_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
 
 /** strict 链 entry parse 前 reset（ast_pool.c）；勿与 parser_parse_into_init 叠加（runtime 预 init → body_ref=0）。 */
@@ -178,7 +178,7 @@ function resolve_path_probe_dot_su_and_mod(ctx: *PipelineDepCtx, off: i32): i32 
     pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 115);
     pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 117);
     pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 0);
-    let fd: i32 = fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+    let fd: i32 = fs.fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
     if (fd >= 0) {
       fs_posix_close_c(fd);
       return 0;
@@ -192,7 +192,7 @@ function resolve_path_probe_dot_su_and_mod(ctx: *PipelineDepCtx, off: i32): i32 
       pipeline_dep_ctx_set_path_buf_byte(ctx, off + 5, 115);
       pipeline_dep_ctx_set_path_buf_byte(ctx, off + 6, 117);
       pipeline_dep_ctx_set_path_buf_byte(ctx, off + 7, 0);
-      let fd_mod: i32 = fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+      let fd_mod: i32 = fs.fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
       if (fd_mod >= 0) {
         fs_posix_close_c(fd_mod);
         return 0;
@@ -227,7 +227,7 @@ function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i
     pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 1, 115);
     pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 2, 117);
     pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 3, 0);
-    let fd_dir: i32 = fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+    let fd_dir: i32 = fs.fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
     if (fd_dir >= 0) {
       fs_posix_close_c(fd_dir);
       return 0;
@@ -335,7 +335,7 @@ extern function pipeline_bind_import_dep_buffers(ctx: *PipelineDepCtx, import_id
 /** 6.1：将 ctx.path_buf 指向的文件读入 ctx.loaded_buf；EMIT_HEAVY SU 真 emit（open/close SU，read glue）。 */
 function read_file_su(ctx: *PipelineDepCtx): i32 {
   let path_ptr: *u8 = pipeline_dep_ctx_path_buf_ptr(ctx);
-  let fd: i32 = fs_open_read(path_ptr);
+  let fd: i32 = fs.fs_open_read(path_ptr);
   if (fd < 0) {
     return -1;
   }
@@ -672,6 +672,10 @@ extern function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, aren
 extern function driver_diagnostic_typeck_fail(): void;
 /** C 诊断：codegen 前打印 module.num_funcs、out_buf.len，便于排查 -su -E 多文件 dep 产出为空。由 runtime.c 实现。 */
 extern function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void;
+/** OBS-001：编译阶段耗时；phase 0=parse(+dep load) 1=typeck 2=codegen；SHU_COMPILE_PHASE_TIMING=1 时 stderr 汇总。 */
+extern function driver_compile_phase_timing_begin(phase: i32): void;
+extern function driver_compile_phase_timing_end(phase: i32): void;
+extern function driver_compile_phase_timing_flush(): void;
 /** module.num_funcs glue 读（before_codegen 诊断用）。 */
 extern function pipeline_module_num_funcs(module: *Module): i32;
 /** 重置 CodegenOutBuf.len；避免 SU emit 直接写 out_buf.len 字段。 */
@@ -698,10 +702,24 @@ extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
 extern function pipeline_dep_ctx_entry_already_parsed(ctx: *PipelineDepCtx): i32;
 
 /**
- * entry 尚未解析：parse + set_main + 收尾诊断；单行委托 C glue（勿 SU 4 实参 CALL）。
+ * entry 尚未解析：parse + set_main + 收尾诊断（EMIT_HEAVY SU 真 emit；勿 4 实参 bl→C glue）。
  */
 function run_su_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  return run_su_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
+    return -1;
+  }
+  if (source_len > 2147483647 as usize) {
+    return -1;
+  }
+  let len_i32: i32 = source_len as i32;
+  driver_diagnostic_source_len(len_i32);
+  let parse_rc: i32 = pipeline_parse_set_main_from_buf(module, arena, source_data, len_i32);
+  if (parse_rc != 0) {
+    return parse_rc;
+  }
+  driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+  driver_diagnostic_entry_module(module, arena);
+  return 0;
 }
 
 /**
@@ -856,21 +874,32 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
   if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
     return -1;
   }
+  driver_compile_phase_timing_begin(0);
   if (run_su_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
     return -2;
   }
   let load_rc: i32 = pipeline_load_and_sync_direct_import_deps(module, arena, ctx);
   if (load_rc != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
     return load_rc;
   }
+  driver_compile_phase_timing_end(0);
+  driver_compile_phase_timing_begin(1);
   let tc_rc: i32 = run_su_pipeline_typecheck_entry(module, arena, ctx);
+  driver_compile_phase_timing_end(1);
   if (tc_rc != 0) {
+    driver_compile_phase_timing_flush();
     return tc_rc;
   }
   if (driver_check_only_get() != 0) {
+    driver_compile_phase_timing_flush();
     return 0;
   }
   if (driver_su_pipeline_skip_codegen_get() != 0) {
+    driver_compile_phase_timing_flush();
     return 0;
   }
   codegen_out_buf_set_len(out_buf, 0);
@@ -879,11 +908,18 @@ function run_su_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u
   if (pipeline_dep_ctx_asm_entry_module_only(ctx) != 0) {
     skip_asm_dep_codegen = 1;
   }
+  driver_compile_phase_timing_begin(2);
   if (run_su_pipeline_codegen_deps(module, arena, out_buf, ctx, skip_asm_dep_codegen) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
     return -6;
   }
   if (run_su_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
     return -6;
   }
+  driver_compile_phase_timing_end(2);
+  driver_compile_phase_timing_flush();
   return 0;
 }

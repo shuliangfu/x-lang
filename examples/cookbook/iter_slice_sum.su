@@ -1,0 +1,22 @@
+/**
+ * Cookbook ITER-01：用 core.iterator 遍历 []i32 求和（CORE-006）。
+ */
+const iterator = import("core.iterator");
+const option = import("core.option");
+
+function main(): i32 {
+  let data: [4]i32 = [1, 2, 3, 4];
+  let s: []i32 = data;
+  let it: SliceIter_i32 = iterator.iter_i32(s);
+  let sum: i32 = 0;
+  let done: bool = false;
+  while (!done) {
+    let o: Option_i32 = iterator.next_i32(&it);
+    if (option.is_none_i32(o)) {
+      done = true;
+    } else {
+      sum = sum + option.unwrap_or_i32(o, 0);
+    }
+  }
+  return sum;
+}

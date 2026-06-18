@@ -1,5 +1,5 @@
 // SIMD-S4 烟测：@shuffle / @select 语法糖 → simd_shuffle/simd_select 内联。
-import std.simd;
+const simd = import("std.simd");
 
 function main(): i32 {
   let v: Vec8i = [0, 1, 2, 3, 4, 5, 6, 7];

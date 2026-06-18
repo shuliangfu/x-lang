@@ -1,0 +1,63 @@
+// STD-086：std.config 分层 TOML + merge + 类型化读取烟测
+const config = import("std.config");
+
+function main(): i32 {
+  let zero: i64 = 0;
+  let cfg: Config = config.config_new();
+  let cli: Config = config.config_new();
+  let raw: [96]u8 = [
+    112, 111, 114, 116, 32, 61, 32, 56, 48, 56, 48, 10,
+    104, 111, 115, 116, 32, 61, 32, 34, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 10,
+    100, 101, 98, 117, 103, 32, 61, 32, 102, 97, 108, 115, 101, 10,
+    10,
+    91, 100, 98, 93, 10,
+    117, 114, 108, 32, 61, 32, 34, 115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 34, 10
+  ];
+  let k_port: [4]u8 = [112, 111, 114, 116];
+  let k_host: [4]u8 = [104, 111, 115, 116];
+  let k_dbg: [5]u8 = [100, 101, 98, 117, 103];
+  let k_url: [6]u8 = [100, 98, 46, 117, 114, 108];
+  let v_9090: [4]u8 = [57, 48, 57, 48];
+  let host: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let port: i32 = 0;
+  let dbg: i32 = 0;
+
+  if (cfg.handle == zero || cli.handle == zero) {
+    return 1;
+  }
+  if (config.load_toml_buf(&cfg, &raw[0], 86, 1) != config.config_err_ok()) {
+    return 2;
+  }
+  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.config_err_ok() || port != 8080) {
+    return 3;
+  }
+  if (config.get_string(&cfg, &k_host[0], 4, &host[0], 32) <= 0) {
+    return 4;
+  }
+  if (host[0] != 108 || host[5] != 104) {
+    return 5;
+  }
+  if (config.get_string(&cfg, &k_url[0], 6, &host[0], 32) <= 0) {
+    return 6;
+  }
+  if (config.get_bool(&cfg, &k_dbg[0], 5, &dbg) != config.config_err_ok() || dbg != 0) {
+    return 7;
+  }
+  if (config.set_string(&cli, &k_port[0], 4, &v_9090[0], 4) != config.config_err_ok()) {
+    return 8;
+  }
+  if (config.merge(&cfg, &cli, 1) != config.config_err_ok()) {
+    return 9;
+  }
+  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.config_err_ok() || port != 9090) {
+    return 10;
+  }
+  config.config_clear(&cfg);
+  if (cfg.handle == zero) {
+    return 11;
+  }
+  config.config_free(&cli);
+  config.config_free(&cfg);
+  return 0;
+}

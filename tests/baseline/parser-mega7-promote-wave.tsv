@@ -1,0 +1,10 @@
+# BOOT-021 parser mega7 晋升波次 runnable 矩阵
+# 列：promote_id	mega_fn	phase	hook	notes
+# min_rows	7
+promote_b1	parse_body_lets_into	B1	run-parser-mega7-promote-wave.sh	最小循环
+promote_b2	parse_block_into	B2	run-parser-mega7-promote-wave.sh	依赖 B1
+promote_b3	parse_expr_into	B3	run-parser-mega7-promote-wave.sh	expr 链
+promote_b4	parse_one_function_impl	B4	run-parser-mega7-promote-wave.sh	one func
+promote_b5	parse_into	B5	run-parser-mega7-promote-wave.sh	import
+promote_b6	parse_into_buf	B6	run-parser-mega7-promote-wave.sh	buf
+promote_b7	parse	B7	run-parser-mega7-promote-wave.sh	顶层

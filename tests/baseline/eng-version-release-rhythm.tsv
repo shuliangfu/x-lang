@@ -1,0 +1,17 @@
+# ENG-005 版本号与发布节奏 manifest
+# 列：item_id	kind	anchor	notes
+# min_channels	3
+version_file	file	VERSION	权威 SemVer 基线
+vscode_pkg	file	editors/vscode/package.json	须与 VERSION 同步
+channel_matrix	template	tests/templates/eng-version-channel-matrix.txt	alpha/beta/stable
+semver_pattern	field	MAJOR.MINOR.PATCH	文档锚点
+channel_alpha	section	alpha	每周/按需
+channel_beta	section	beta	双周/里程碑
+channel_stable	section	stable	季度/P0
+cadence_field	field	节奏	发布节奏
+lib	script	lib/eng-version-release-rhythm.sh	解析/校验
+gate	script	run-eng-version-release-rhythm-gate.sh	manifest 门禁
+cross_eng004	cross_ref	analysis/eng-branch-release-gate-v1.md	ENG-004 发布
+tag_alpha	sample_tag	v0.1.0-alpha.1	渠道烟测
+tag_beta	sample_tag	v0.1.0-beta.1	渠道烟测
+tag_stable	sample_tag	v1.0.0	渠道烟测

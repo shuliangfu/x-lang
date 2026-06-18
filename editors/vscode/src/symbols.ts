@@ -21,7 +21,7 @@ export class ShulangDocumentSymbolProvider implements vscode.DocumentSymbolProvi
     const structRegex = /^\s*(?:allow\(padding\)\s+)?struct\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
     const enumRegex = /^\s*enum\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
     const traitRegex = /^\s*trait\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
-    const importRegex = /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*;/;
+    const importRegex = /^\s*const\s+(?:\{[^}]+\}|\w+)\s*=\s*import\s*\(\s*"([^"]+)"\s*\)\s*;/;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];

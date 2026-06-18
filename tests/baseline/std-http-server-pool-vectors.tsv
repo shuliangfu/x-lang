@@ -1,0 +1,4 @@
+# STD-107 金样向量
+# 列：vector_id	expect_substr	notes
+serve_one_200	200 OK	serve_one 响应
+pool_reuse	connect_count=1	两次 GET 仅一次 connect

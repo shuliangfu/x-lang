@@ -1,0 +1,17 @@
+# DOC-010 2026-Q4 路线图刷新 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 阅读路径	analysis/doc-public-roadmap-q4-v1.md
+change_summary	section	## 2. Q4 变更摘要	analysis/doc-public-roadmap-q4-v1.md
+anchor_q4	anchor	2026-Q4	analysis/doc-public-roadmap-v1.md	当季版本
+anchor_phase3	anchor	Phase 3	analysis/doc-public-roadmap-v1.md	§4 亮点
+anchor_vscode	anchor	0.2.0	analysis/doc-public-roadmap-v1.md	TOOL-009
+anchor_boot020	anchor	BOOT-020	analysis/doc-public-roadmap-v1.md	mega7
+cross_roadmap	cross_ref	DOC-005	analysis/doc-public-roadmap-v1.md	DOC-005
+cross_next	cross_ref	§2.12	NEXT.md	Phase 3 首批
+cross_doc009	cross_ref	DOC-009	analysis/doc-public-roadmap-q3-v1.md	Q3 刷新
+cross_plan001	cross_ref	PLAN-001	analysis/phase3-roadmap-v1.md	路线图
+template	file	tests/templates/doc-public-roadmap-quarter.txt	tests/templates/doc-public-roadmap-quarter.txt	Q4 checklist
+manifest_doc005	file	tests/baseline/doc-public-roadmap.tsv	tests/baseline/doc-public-roadmap.tsv	quarter_anchor
+hook_doc005	hook_script	run-doc-public-roadmap-gate.sh	tests/run-doc-public-roadmap-gate.sh	DOC-005 gate
+lib	script	lib/doc-public-roadmap-q4.sh	tests/lib/doc-public-roadmap-q4.sh
+gate	script	run-doc-public-roadmap-q4-gate.sh	tests/run-doc-public-roadmap-q4-gate.sh

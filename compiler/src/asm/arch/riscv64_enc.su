@@ -6,27 +6,27 @@
 // 依赖：elf（ElfCodegenCtx、append_elf_bytes、elf_add_label、elf_add_patch_with_bits、elf_add_
 // reloc、elf_add_sym、elf_to_u8）。
 
-import platform.elf;
+const elf = import("platform.elf");
 
 /** 向 ctx 追加 4 字节小端 u32（一条 RISC-V 指令）。 */
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
   let buf: [4]u8 = [];
-  buf[0] = platform.elf.elf_u32_byte_at(val, 0);
-  buf[1] = platform.elf.elf_u32_byte_at(val, 1);
-  buf[2] = platform.elf.elf_u32_byte_at(val, 2);
-  buf[3] = platform.elf.elf_u32_byte_at(val, 3);
-  return platform.elf.append_elf_bytes(ctx, buf, 4);
+  buf[0] = elf.elf_u32_byte_at(val, 0);
+  buf[1] = elf.elf_u32_byte_at(val, 1);
+  buf[2] = elf.elf_u32_byte_at(val, 2);
+  buf[3] = elf.elf_u32_byte_at(val, 3);
+  return elf.append_elf_bytes(ctx, buf, 4);
 }
 
 /** 标签：记录 label 与符号；is_func 非 0 时记入 sym（先 4 字节对齐入口）。
 */
 function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32): i32 {
   if (is_func != 0) {
-    if (platform.elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
+    if (elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
   }
-  if (platform.elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
+  if (elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
-    return platform.elf.elf_add_sym(ctx, name, name_len, platform.elf.elf_section_code_len(ctx));
+    return elf.elf_add_sym(ctx, name, name_len, elf.elf_section_code_len(ctx));
   }
   return 0;
 }
@@ -531,8 +531,8 @@ function enc_mov_rbx_to_rax(ctx: *ElfCodegenCtx): i32 {
 function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (0 << 12) | (10 << 15) | (0 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
 /** 相等跳转：sub a0,a1,a0 后 a0 为 0 时跳，与 enc_jz 相同。match 臂比较用。 */
@@ -544,24 +544,24 @@ function enc_jeq(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
 function enc_jge(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (5 << 12) | (11 << 15) | (10 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
 /** bnez a0, label。B-type 13 位 patch。 */
 function enc_jnz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (1 << 12) | (10 << 15) | (0 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
 /** j label。jal x0, 0；J-type 21 位 patch。 */
 function enc_jmp(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 111 | (0 << 7)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 21);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 21);
 }
 
 /** mv a(k), a0。k=0 no-op；k=1..7 发 addi a(k), a0, 0（a0-a7 = x10-x17）。 */
@@ -591,5 +591,5 @@ function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   }
   if (enc_u32_le(ctx, 111 | (1 << 7)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  return platform.elf.elf_add_reloc(ctx, at, &name[0], name_len);
+  return elf.elf_add_reloc(ctx, at, &name[0], name_len);
 }

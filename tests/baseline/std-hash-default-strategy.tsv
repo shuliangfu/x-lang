@@ -1,0 +1,7 @@
+# STD-148 std.hash 默认策略向量
+# 列：use_case	recommended	const_id	env_override	notes
+map_set_default	SipHash	HASHER_SIPHASH	siphash	对抗哈希洪水
+internal_dedup	xxHash64	HASHER_XXHASH	xxhash	非对抗快速
+legacy_fast	FNV-1a64	HASHER_AHASH	ahash	占位 aHash
+tier_s_stable	hash_start	SipHash	-	不变 API
+one_shot_fast	hash_xxhash64	xxHash64	-	一次性

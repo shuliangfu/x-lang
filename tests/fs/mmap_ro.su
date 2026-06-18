@@ -1,26 +1,26 @@
 // 测试 std.fs：fs_mmap_ro、fs_munmap（极速读大文件）
 // 先写工作区内临时文件再 mmap 只读，避免 CI 上 /tmp 行为差异导致失败。
-import std.fs;
+const fs = import("std.fs");
 
 function main(): i32 {
   // 路径 "tests/fs/.mmap_ro_tmp"（相对 run-fs.sh 的 cwd 即 repo 根）
   let path: [32]u8 =
   [116,101,115,116,115,47,102,115,47,46,109,109,97,112,95,114,111,46,116,109,112,0,0,0,0,0,0,0,0,0,0
   ,0];
-  let fd: i32 = fs_open_write(&path[0]);
+  let fd: i32 = fs.fs_open_write(&path[0]);
   if (fd < 0) { return 1; }
   let buf: [4]u8 = [88, 89, 90, 10];
-  let n: isize = fs_write(fd, &buf[0], 4);
-  if (fs_sync(fd) != 0) { fs_close(fd); return 2; }
-  fs_close(fd);
+  let n: isize = fs.fs_write(fd, &buf[0], 4);
+  if (fs.fs_sync(fd) != 0) { fs.fs_close(fd); return 2; }
+  fs.fs_close(fd);
   if (n != 4) { return 2; }
   let size: usize = 0;
-  let ptr: *u8 = fs_mmap_ro(&path[0], &size);
+  let ptr: *u8 = fs.fs_mmap_ro(&path[0], &size);
   if (ptr == 0) { return 3; }
   if (size != 4) { return 4; }
   if (ptr[0] != 88) { return 5; }
   if (ptr[1] != 89) { return 6; }
-  let r: i32 = fs_munmap(ptr, size);
+  let r: i32 = fs.fs_munmap(ptr, size);
   if (r != 0) { return 7; }
   return 0;
 }

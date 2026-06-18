@@ -1,0 +1,172 @@
+// std.cache — LRU/TTL 缓存与通用对象池（STD-087）
+//
+// 【文件职责】
+// i64 键值 LRU 缓存（容量淘汰 + TTL 惰性过期）；通用资源池
+// acquire/release/health；命中率/池统计；供 sqlite/net 等上层复用。
+//
+// 【对标】Go groupcache 子集、Java Caffeine 最小路径、HikariCP 池语义简化版。
+// 单调时钟在 cache.c 中链入 std/time/time.o。
+
+/** LRU 缓存句柄。 */
+allow(padding) struct LruCache {
+  handle: i64;
+}
+
+/** 通用对象池句柄（i64 资源 ID）。 */
+allow(padding) struct ObjPool {
+  handle: i64;
+}
+
+/** 缓存/池统计快照。 */
+allow(padding) struct CacheStats {
+  hits: i64;
+  misses: i64;
+  evictions: i64;
+  size: i32;
+}
+
+/** 对象池统计快照。 */
+allow(padding) struct PoolStats {
+  idle: i32;
+  in_use: i32;
+  unhealthy: i32;
+  acquires: i64;
+}
+
+/** 成功。 */
+function cache_err_ok(): i32 { return 0; }
+/** 空指针/非法句柄。 */
+function cache_err_null(): i32 { return -1; }
+/** 未命中或无可用资源。 */
+function cache_err_not_found(): i32 { return -2; }
+/** 容量已满。 */
+function cache_err_full(): i32 { return -3; }
+/** 参数非法或重复。 */
+function cache_err_invalid(): i32 { return -4; }
+
+extern function cache_lru_create_c(capacity: i32): i64;
+extern function cache_lru_free_c(handle: i64): void;
+extern function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32;
+extern function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32;
+extern function cache_lru_remove_c(handle: i64, key: i64): i32;
+extern function cache_lru_purge_expired_c(handle: i64): i32;
+extern function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void;
+
+extern function cache_pool_create_c(max_slots: i32): i64;
+extern function cache_pool_free_c(handle: i64): void;
+extern function cache_pool_add_c(handle: i64, resource: i64): i32;
+extern function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32;
+extern function cache_pool_release_c(handle: i64, resource: i64): i32;
+extern function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32;
+extern function cache_pool_idle_c(handle: i64): i32;
+extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void;
+
+/** 创建 LRU 缓存；capacity 默认上限 64。 */
+function lru_new(capacity: i32): LruCache {
+  let h: i64 = cache_lru_create_c(capacity);
+  return LruCache { handle: h };
+}
+
+/** 释放 LRU 缓存。 */
+function lru_free(c: *LruCache): void {
+  let zero: i64 = 0;
+  if (c == 0) { return; }
+  if (c.handle != zero) {
+    cache_lru_free_c(c.handle);
+    c.handle = zero;
+  }
+}
+
+/** LRU 读取；未命中返回 cache_err_not_found()。 */
+function lru_get(c: *LruCache, key: i64, out: *i64): i32 {
+  let zero: i64 = 0;
+  if (c == 0 || c.handle == zero || out == 0) { return cache_err_null(); }
+  return cache_lru_get_c(c.handle, key, out);
+}
+
+/** LRU 写入；ttl_ns=0 表示永不过期。 */
+function lru_put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
+  let zero: i64 = 0;
+  if (c == 0 || c.handle == zero) { return cache_err_null(); }
+  return cache_lru_put_c(c.handle, key, value, ttl_ns);
+}
+
+/** 删除键。 */
+function lru_remove(c: *LruCache, key: i64): i32 {
+  let zero: i64 = 0;
+  if (c == 0 || c.handle == zero) { return cache_err_null(); }
+  return cache_lru_remove_c(c.handle, key);
+}
+
+/** 惰性清理过期条目；返回删除数。 */
+function lru_purge_expired(c: *LruCache): i32 {
+  let zero: i64 = 0;
+  if (c == 0 || c.handle == zero) { return cache_err_null(); }
+  return cache_lru_purge_expired_c(c.handle);
+}
+
+/** 读取 LRU 统计。 */
+function lru_stats(c: *LruCache, out: *CacheStats): void {
+  let zero: i64 = 0;
+  if (c == 0 || c.handle == zero || out == 0) { return; }
+  cache_lru_stats_c(c.handle, &out.hits, &out.misses, &out.evictions, &out.size);
+}
+
+/** 创建对象池。 */
+function pool_new(max_slots: i32): ObjPool {
+  let h: i64 = cache_pool_create_c(max_slots);
+  return ObjPool { handle: h };
+}
+
+/** 释放对象池。 */
+function pool_free(p: *ObjPool): void {
+  let zero: i64 = 0;
+  if (p == 0) { return; }
+  if (p.handle != zero) {
+    cache_pool_free_c(p.handle);
+    p.handle = zero;
+  }
+}
+
+/** 注册空闲资源到池。 */
+function pool_add(p: *ObjPool, resource: i64): i32 {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero || resource == zero) { return cache_err_null(); }
+  return cache_pool_add_c(p.handle, resource);
+}
+
+/** 获取空闲健康资源。 */
+function pool_acquire(p: *ObjPool, out: *i64): i32 {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero || out == 0) { return cache_err_null(); }
+  return cache_pool_acquire_c(p.handle, out);
+}
+
+/** 归还资源；不健康资源会被丢弃。 */
+function pool_release(p: *ObjPool, resource: i64): i32 {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero || resource == zero) { return cache_err_null(); }
+  return cache_pool_release_c(p.handle, resource);
+}
+
+/** 标记资源不健康。 */
+function pool_mark_unhealthy(p: *ObjPool, resource: i64): i32 {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero || resource == zero) { return cache_err_null(); }
+  return cache_pool_mark_unhealthy_c(p.handle, resource);
+}
+
+/** 当前空闲资源数。 */
+function pool_idle(p: *ObjPool): i32 {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero) { return cache_err_null(); }
+  return cache_pool_idle_c(p.handle);
+}
+
+/** 读取对象池统计。 */
+function pool_stats(p: *ObjPool, out: *PoolStats): void {
+  let zero: i64 = 0;
+  if (p == 0 || p.handle == zero || out == 0) { return; }
+  cache_pool_stats_c(p.handle, &out.idle, &out.in_use, &out.unhealthy, &out.acquires);
+}
+

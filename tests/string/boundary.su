@@ -1,0 +1,43 @@
+// TST-001：std.string 边界烟测（StrView 钳制 / String 容量 / compare）
+//
+// 【文件职责】≥8 边界 case；栈缓冲，无堆分配。
+// 【运行方式】tests/run-tst-001-boundary-gate.sh
+const string = import("std.string");
+
+function main(): i32 {
+  let buf: [8]u8 = [97, 98, 99, 100, 101, 102, 103, 0];
+  let full: StrView = string.string_view(&buf[0], 7);
+  // case 1：空视图
+  if (string.string_view_is_empty(string.string_view(&buf[0], 0)) != 1) { return 1; }
+  // case 2：subview 正常切片
+  let mid: StrView = string.string_view_subview(full, 2, 3);
+  if (string.string_view_len(mid) != 3) { return 2; }
+  // case 3：subview 越界 off 钳制为空
+  let empty: StrView = string.string_view_subview(full, 99, 1);
+  if (string.string_view_is_empty(empty) != 1) { return 3; }
+  // case 4：subview len 钳制到尾部
+  let tail: StrView = string.string_view_subview(full, 5, 99);
+  if (string.string_view_len(tail) != 2) { return 4; }
+  // case 5：string_capacity
+  if (string.string_capacity() != 256) { return 5; }
+  // case 6：string_new 空串
+  let s: String = string.string_new();
+  if (string.string_len(s) != 0) { return 6; }
+  // case 7：append 后 compare 相等
+  let s2: String = s;
+  if (string.string_append_char(&s2, 120) != 0) { return 7; }
+  let xb: [1]u8 = [120];
+  let xs: String = string.string_from_slice(&xb[0], 1);
+  if (string.string_compare(s2, xs) != 0) { return 8; }
+  // case 8：starts_with 失败
+  let yz: [2]u8 = [121, 122];
+  if (string.string_starts_with(s2, &yz[0], 2) != 0) { return 9; }
+  // case 9：find_char 未找到
+  if (string.string_find_char(s2, 121) != -1) { return 10; }
+  // case 10：string_view_eq
+  let v1: StrView = string.string_view(&buf[0], 2);
+  let ab: [2]u8 = [97, 98];
+  let v2: StrView = string.string_view(&ab[0], 2);
+  if (string.string_view_eq(v1, v2) != 1) { return 11; }
+  return 0;
+}

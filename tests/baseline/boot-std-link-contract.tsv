@@ -1,0 +1,50 @@
+# BOOT-014 std 模块链接契约 manifest
+# 列：item_id	kind	getter	obj_rel	trigger	ld_flag	notes
+min_always	33
+min_on_demand	2
+io	std_always	get_io_o_path	std/io/io.o	-	-	F4
+asm_stubs	compiler	get_runtime_asm_io_stubs_o_path	runtime_asm_io_stubs.o	-	-	ASM IO
+fs	std_always	get_std_fs_o_path	std/fs/fs.o	-	-	
+process	std_always	get_std_process_o_path	std/process/process.o	-	-	
+string	std_always	get_std_string_o_path	std/string/string.o	-	-	
+heap	std_always	get_std_heap_o_path	std/heap/heap.o	-	-	
+path	std_always	get_std_path_o_path	std/path/path.o	-	-	
+runtime	std_always	get_std_runtime_o_path	std/runtime/runtime.o	-	-	
+panic	compiler	get_runtime_panic_o_path	runtime_panic.o	-	-	
+net	std_always	get_std_net_o_path	std/net/net.o	-	-	have_net
+thread	std_always	get_std_thread_o_path	std/thread/thread.o	-	-lpthread	have_thread
+time	std_always	get_std_time_o_path	std/time/time.o	-	-	
+random	std_always	get_std_random_o_path	std/random/random.o	-	-	
+env	std_always	get_std_env_o_path	std/env/env.o	-	-	
+sync	std_always	get_std_sync_o_path	std/sync/sync.o	-	-lpthread	have_sync
+encoding	std_always	get_std_encoding_o_path	std/encoding/encoding.o	-	-	
+base64	std_always	get_std_base64_o_path	std/base64/base64.o	-	-	
+crypto	std_always	get_std_crypto_o_path	std/crypto/crypto.o	-	-	
+log	std_always	get_std_log_o_path	std/log/log.o	-	-	
+atomic	std_always	get_std_atomic_o_path	std/atomic/atomic.o	-	-	
+channel	std_always	get_std_channel_o_path	std/channel/channel.o	-	-lpthread	have_channel
+backtrace	std_always	get_std_backtrace_o_path	std/backtrace/backtrace.o	-	-	
+hash	std_always	get_std_hash_o_path	std/hash/hash.o	-	-	
+math	std_always	get_std_math_o_path	std/math/math.o	-	-lm	have_math
+sort	std_always	get_std_sort_o_path	std/sort/sort.o	-	-	
+ffi	std_always	get_std_ffi_o_path	std/ffi/ffi.o	-	-	
+json	std_always	get_std_json_o_path	std/json/json.o	-	-	
+csv	std_always	get_std_csv_o_path	std/csv/csv.o	-	-	
+regex	std_always	get_std_regex_o_path	std/regex/regex.o	-	-	
+compress	std_always	get_std_compress_o_path	std/compress/compress.o	-	-lz	have_compress
+unicode	std_always	get_std_unicode_o_path	std/unicode/unicode.o	-	-	
+dynlib	std_always	get_std_dynlib_o_path	std/dynlib/dynlib.o	-	-ldl	have_dynlib
+http	std_always	get_std_http_o_path	std/http/http.o	-	-	
+tar	std_always	get_std_tar_o_path	std/tar/tar.o	-	-	
+test	std_always	get_std_test_o_path	std/test/test.o	-	-	
+async_sched	std_on_demand	get_std_async_scheduler_o_path	std/async/scheduler.o	shu_async_run_i32	-	nm on_demand
+core_mem	std_on_demand	get_core_mem_o_path	core/mem/mem.o	mem_compiler_fence_c	-	nm on_demand
+freestanding_io	freestanding	get_freestanding_io_o_path	compiler/freestanding_io.o	shulang_sys_write	-	Linux x86_64
+freestanding_panic	freestanding	-	compiler/runtime_panic.o	shulang_panic_	-	nm panic
+c_async_on_demand	c_backend	generated_c_needs_async_scheduler	std/async/scheduler.o	shu_async_cps_suspend	-	invoke_cc C
+c_core_mem_on_demand	c_backend	generated_c_needs_core_mem	core/mem/mem.o	mem_compiler_fence_c	-	invoke_cc C
+hook_json	smoke	tests/json/object_array_parse.su	std/json/json.o	-	-	link smoke
+hook_async	smoke	tests/async/await_scheduler_mod.su	std/async/scheduler.o	-	-	on_demand smoke
+hook_core_mem	smoke	tests/core-mem/volatile_fence.su	core/mem/mem.o	-	-	on_demand smoke
+doc	file	analysis/boot-std-link-contract-v1.md	analysis/boot-std-link-contract-v1.md	-	-	RFC
+gate	script	run-boot-std-link-contract-gate.sh	tests/run-boot-std-link-contract-gate.sh	-	-	manifest

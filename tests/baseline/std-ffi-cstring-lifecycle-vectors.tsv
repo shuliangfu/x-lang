@@ -1,0 +1,5 @@
+# STD-055 金样向量
+# 列：vector_id	expect_code	notes
+try_ok	0	cstring_try_new 成功 FFI_OK
+invalid_len	-2	len<0
+cstr_null	-1	cstr_len(null)

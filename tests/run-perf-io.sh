@@ -10,6 +10,10 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/fs/fs.o ../std/net/net.o -q 2>/dev/null || make -C compiler ../std/fs/fs.o ../std/net/net.o
 
+# PERF-001：Zig 对标基线共享工具
+# shellcheck source=tests/lib/zig-baseline.sh
+. "$(dirname "$0")/lib/zig-baseline.sh"
+
 # CI make all 产出 C-only shu；perf 编译统一用 shu-c，避免 -backend 在 C-only shu 上报错。
 PERF_COMPILE_SHU=./compiler/shu
 if [ -x ./compiler/shu-c ]; then
@@ -32,19 +36,6 @@ IO_CASE_MEDS=""
 # 从 time 输出提取 real 秒数
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
-}
-
-# 编译 Zig 对照二进制：apt 旧版用 -O2，0.13+ 用 -O ReleaseFast
-zig_build_exe_o2() {
-  local zig_src="$1"
-  local out="$2"
-  if zig build-exe -O2 "$zig_src" -femit-bin="$out" 2>/dev/null && [ -x "$out" ]; then
-    return 0
-  fi
-  if zig build-exe -O ReleaseFast "$zig_src" -femit-bin="$out" 2>/dev/null && [ -x "$out" ]; then
-    return 0
-  fi
-  return 1
 }
 
 median_real() {
@@ -382,6 +373,9 @@ bench_io_case() {
   if [ "$name" = "io_batch_readv" ]; then
     ensure_io_mmap_bench_file
   fi
+  if [ "$name" = "io_random_pread" ]; then
+    ensure_io_mmap_bench_file
+  fi
 
   $PERF_COMPILE_SHU -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
@@ -451,7 +445,7 @@ bench_io_case() {
 ensure_io_mmap_bench_file
 
 if [ "$DO_BENCH" -eq 0 ]; then
-  echo "run-perf-io: use --bench to run io_mmap_throughput + io_batch_readv + io_write_throughput + zero_copy_sendfile + zero_copy_splice"
+  echo "run-perf-io: use --bench to run io_mmap_throughput + io_batch_readv + io_random_pread + io_write_throughput + zero_copy_sendfile + zero_copy_splice"
   exit 0
 fi
 
@@ -460,6 +454,9 @@ bench_io_case io_mmap_throughput tests/bench/io_mmap_throughput "${BENCH_MB}MiB 
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
 bench_io_case io_batch_readv tests/bench/io_batch_readv "${BENCH_MB}MiB read_batch_fd 4×4KiB×1024"
+rm -f "$BENCH_MMAP_FILE"
+ensure_io_mmap_bench_file
+bench_io_case io_random_pread tests/bench/io_random_pread "${BENCH_MB}MiB fs_pread random 4KiB×1024"
 rm -f "$BENCH_MMAP_FILE"
 bench_io_case io_write_throughput tests/bench/io_write_throughput "${BENCH_MB}MiB write (4KiB×4096)"
 rm -f "$BENCH_WRITE_FILE"
@@ -484,12 +481,12 @@ if [ "${SHU_PERF_UPDATE_BASELINE:-0}" = "1" ]; then
   {
     echo "# shu io bench 中位数上限（秒）；门禁：实测 median ≤ 本列值"
     echo "# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench"
-    for c in io_mmap_throughput io_batch_readv io_write_throughput zero_copy_sendfile zero_copy_splice; do
+    for c in io_mmap_throughput io_batch_readv io_random_pread io_write_throughput zero_copy_sendfile zero_copy_splice; do
       if grep -q "^${c}	" "${BASELINE}.body" 2>/dev/null; then
         grep "^${c}	" "${BASELINE}.body"
       fi
     done
-    awk -F'\t' 'NF>=2 { print }' "${BASELINE}.body" | grep -v -E '^(io_mmap_throughput|io_batch_readv|io_write_throughput|zero_copy_sendfile|zero_copy_splice)	' || true
+    awk -F'\t' 'NF>=2 { print }' "${BASELINE}.body" | grep -v -E '^(io_mmap_throughput|io_batch_readv|io_random_pread|io_write_throughput|zero_copy_sendfile|zero_copy_splice)	' || true
   } >"$BASELINE"
   rm -f "${BASELINE}.body"
   echo "run-perf-io: updated $BASELINE"

@@ -1,0 +1,18 @@
+# BOOT-021 mega7 B1–B7 晋升波次 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_promote_rows	7
+# min_delta_pass	8192
+section_goal	section	## 1. 目标	B1-B7 runnable
+promote_matrix	section	## 2. 晋升矩阵	promote_b1
+wave_section	section	## 3. Runnable 波次	run-parser-mega7-promote-wave
+gate_section	section	## 4. Gate	run-boot-021-mega7-promote-gate
+hook_wave	hook_gate	run-parser-mega7-promote-wave.sh	7-target bisect
+hook_sweep	hook_ref	run-parser-mega-bisect-sweep-gate.sh	全量 sweep
+bisect_baseline	file	tests/baseline/parser-mega-bisect.tsv	delta 8192
+mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	B1-B7
+wave_tsv	file	tests/baseline/parser-mega7-promote-wave.tsv	7 rows
+parent_boot020	cross_ref	analysis/boot-020-mega7-milestone-v1.md	里程碑
+parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 B
+doc	file	boot-021-mega7-promote-v1.md	analysis/boot-021-mega7-promote-v1.md	RFC
+lib	script	lib/boot-021-mega7-promote.sh	tests/lib/boot-021-mega7-promote.sh
+gate	script	run-boot-021-mega7-promote-gate.sh	tests/run-boot-021-mega7-promote-gate.sh

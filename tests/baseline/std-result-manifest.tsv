@@ -1,0 +1,18 @@
+# STD-081 std.result manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	8
+read_path	section	## 1. 阅读路径	analysis/std-option-result-v1.md
+api_doc	section	## 2. API	analysis/std-option-result-v1.md
+api_ok	api	ok_i32	std/result/mod.su	构造
+api_err	api	err_i32	std/result/mod.su	构造
+api_is_ok	api	is_ok_i32	std/result/mod.su	判定
+api_map	api	result_map_i32	std/result/mod.su	组合
+api_and_then	api	result_and_then_i32	std/result/mod.su	组合
+api_or_else	api	result_or_else_i32	std/result/mod.su	组合
+api_from_err	api	result_from_error_code	std/result/mod.su	error桥
+api_from_val	api	result_from_value_i32	std/result/mod.su	error桥
+api_err_code	api	result_err_code	std/result/mod.su	提取码
+impl_su	file	std/result/mod.su	std/result/mod.su
+smoke_su	smoke	tests/std-option-result/roundtrip.su	round-trip
+lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
+gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh

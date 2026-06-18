@@ -1,0 +1,17 @@
+# STD-120 std.db compat manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	5
+read_path	section	## 1. 阅读路径	analysis/std-db-compat-v1.md
+api_doc	section	## 2. 迁移说明	analysis/std-db-compat-v1.md
+verify	section	## 3. Gate	analysis/std-db-compat-v1.md
+api_deprecated	api	db_is_deprecated	std/db/mod.su	废弃标记
+api_open	api	open	std/db/mod.su	转发 open
+api_exec	api	exec	std/db/mod.su	转发 exec
+api_close	api	close	std/db/mod.su	转发 close
+api_changes	api	changes	std/db/mod.su	转发 changes
+impl_su	file	std/db/mod.su	std/db/mod.su
+impl_readme	file	std/db/README.md	std/db/README.md
+smoke_su	smoke	tests/std-db/compat_smoke.su	兼容烟测
+vectors	file	tests/baseline/std-db-compat-vectors.tsv	向量
+lib	script	lib/std-db-compat.sh	tests/lib/std-db-compat.sh
+gate	script	run-std-db-compat-gate.sh	tests/run-std-db-compat-gate.sh

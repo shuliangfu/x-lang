@@ -1,0 +1,17 @@
+# DOC-012 2027-Q2 路线图刷新 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 阅读路径	analysis/doc-public-roadmap-q2-v1.md
+change_summary	section	## 2. Q2 变更摘要	analysis/doc-public-roadmap-q2-v1.md
+anchor_q2	anchor	2027-Q2	analysis/doc-public-roadmap-v1.md	当季版本
+anchor_wave3	anchor	BOOT-022	analysis/doc-public-roadmap-v1.md	§4 亮点
+anchor_riscv	anchor	COMP-016	analysis/doc-public-roadmap-v1.md	riscv64
+anchor_elf_phdr	anchor	STD-064	analysis/doc-public-roadmap-v1.md	elf phdr
+cross_roadmap	cross_ref	DOC-005	analysis/doc-public-roadmap-v1.md	DOC-005
+cross_next	cross_ref	§2.14	NEXT.md	Phase 3 第三批
+cross_doc011	cross_ref	DOC-011	analysis/doc-public-roadmap-q1-v1.md	Q1 刷新
+cross_plan003	cross_ref	PLAN-003	analysis/phase3-roadmap-wave3-v1.md	wave3
+template	file	tests/templates/doc-public-roadmap-quarter.txt	tests/templates/doc-public-roadmap-quarter.txt	Q2 checklist
+manifest_doc005	file	tests/baseline/doc-public-roadmap.tsv	tests/baseline/doc-public-roadmap.tsv	quarter_anchor
+hook_doc005	hook_script	run-doc-public-roadmap-gate.sh	tests/run-doc-public-roadmap-gate.sh	DOC-005 gate
+lib	script	lib/doc-public-roadmap-q2.sh	tests/lib/doc-public-roadmap-q2.sh
+gate	script	run-doc-public-roadmap-q2-gate.sh	tests/run-doc-public-roadmap-q2-gate.sh

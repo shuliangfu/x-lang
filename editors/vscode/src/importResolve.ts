@@ -45,6 +45,19 @@ function collectCandidates(
   entryDir?: vscode.Uri
 ): vscode.Uri[] {
   const out: vscode.Uri[] = [];
+  const isFilePath =
+    importPath.includes('/') || importPath.endsWith('.su');
+
+  if (isFilePath) {
+    if (importPath.startsWith('/')) {
+      out.push(vscode.Uri.file(importPath));
+    } else if (entryDir) {
+      out.push(vscode.Uri.joinPath(entryDir, importPath));
+    }
+    out.push(vscode.Uri.joinPath(libRoot, importPath));
+    return out;
+  }
+
   const hasDot = importPath.includes('.');
 
   if (hasDot) {

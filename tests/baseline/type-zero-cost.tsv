@@ -1,0 +1,24 @@
+# TYPE-005 zero-cost abstraction manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	4
+read_path	section	## 1. 阅读路径	analysis/type-zero-cost-v1.md	-	15min
+layers	section	## 2. 检查层 Z1–Z6	type-zero-cost.tsv	-	abstraction
+bench	section	## 3. 基准矩阵	type-zero-cost-bench.tsv	-	bench
+cases	section	## 4. Golden 用例	analysis/type-zero-cost-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/type-zero-cost-v1.md	-	gate
+layer_z1	layers	Z1-linear-abi	analysis/type-linear-v1-rfc.md	linear	ABI
+layer_z2	layers	Z2-generic-mono	analysis/lang-generic-v1.md	generic	monomorph
+layer_z3	layers	Z3-struct-byval	tests/bench/struct_param.su	struct	bcmp
+layer_z4	layers	Z4-region-zero	analysis/type-region-v1-rfc.md	region	compile
+layer_z5	layers	Z5-call-depth	tests/bench/call_boundary.su	call	bcmp
+layer_z6	layers	Z6-mem-hotpath	tests/bench/mem_copy.su	mem	bcmp
+sym_linear	symbol	AST_TYPE_LINEAR	compiler/src/codegen/codegen.c	codegen	unwrap
+sym_mono	symbol	codegen_one_mono_instance	compiler/src/codegen/codegen.c	generic	单态化
+case_linear	case	case_linear	tests/typeck/linear/move_ok.su	typeck	Linear
+case_generic	case	case_generic	tests/bench/generic_id_i32.su	compile	mono
+case_region	case	case_region	tests/typeck/slice_lifetime/region_same_ok.su	region	ok
+case_loop	case	case_loop	tests/bench/loop_i32.su	bcmp	loop
+case_bcmp	hook_ref	run-bcmp-gate.sh	tests/run-bcmp-gate.sh	bcmp	CI
+gate	script	run-type-zero-cost-gate.sh	tests/run-type-zero-cost-gate.sh	-	manifest
+hook_zc	hook_script	run-type-zero-cost.sh	run-type-zero-cost.sh	-	烟测

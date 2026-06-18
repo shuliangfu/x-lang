@@ -1,0 +1,21 @@
+# PLAN-009 Phase 3 第九批路线图 manifest（草稿）
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	0
+# draft	1
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave9-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave9-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave9-v1.md
+task_index	section	## 4. 第九批待办索引	analysis/phase3-roadmap-wave9-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave9-v1.md
+task_boot028	task	BOOT-028	NEXT.md	C6 CI 矩阵
+gate_boot028	gate_ref	run-boot-028-shu-asm2-ci-matrix-gate.sh	tests/run-boot-028-shu-asm2-ci-matrix-gate.sh	BOOT-028
+task_comp022	task	COMP-022	NEXT.md	incr bench
+task_std070	task	STD-070	NEXT.md	stmt cache
+task_plan009	task	PLAN-009	NEXT.md	wave9 定版
+cross_plan008	cross_ref	PLAN-008	analysis/phase3-roadmap-wave8-v1.md	第八批
+cross_2028q4	cross_ref	2028-Q4	NEXT.md	§2.20 预览
+cross_next	file	NEXT.md	NEXT.md	§2.20
+lib	script	lib/phase3-roadmap-wave9.sh	tests/lib/phase3-roadmap-wave9.sh
+gate	script	run-phase3-roadmap-wave9-gate.sh	tests/run-phase3-roadmap-wave9-gate.sh

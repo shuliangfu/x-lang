@@ -1,0 +1,7 @@
+# STD-149 std.math fenv 平台能力向量
+# 列：platform_match	expect_available	notes
+Darwin	1	dladdr/fenv macOS
+Linux	1	glibc fenv.h
+Windows	0	stub NOT_IMPL v1
+Android	0	无 SHU_MATH_HAVE_FENV
+freestanding	0	无 libm fenv

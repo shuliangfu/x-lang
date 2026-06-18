@@ -31,6 +31,8 @@ run_one() {
 }
 
 run_one "main" "tests/time/main.su" || exit 1
+run_one "bench_timer" "tests/time/bench_timer.su" || exit 1
+run_one "format_timezone" "tests/time/format_timezone.su" || exit 1
 
 echo "time test OK (all)"
 rm -f /tmp/shu_time_$$_*

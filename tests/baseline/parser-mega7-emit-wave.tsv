@@ -1,0 +1,11 @@
+# BOOT-022 parser mega7 emit 晋升波次矩阵
+# 列：emit_id	mega_fn	role	hook	notes
+# min_rows	7
+# emit_lead	parse_body_lets_into
+emit_b1	parse_body_lets_into	lead	run-parser-mega7-emit-wave.sh	B1 首探
+emit_b2	parse_block_into	wave	run-parser-mega7-emit-wave.sh	B2
+emit_b3	parse_expr_into	wave	run-parser-mega7-emit-wave.sh	B3
+emit_b4	parse_one_function_impl	wave	run-parser-mega7-emit-wave.sh	B4
+emit_b5	parse_into	wave	run-parser-mega7-emit-wave.sh	B5
+emit_b6	parse_into_buf	wave	run-parser-mega7-emit-wave.sh	B6
+emit_b7	parse	wave	run-parser-mega7-emit-wave.sh	B7

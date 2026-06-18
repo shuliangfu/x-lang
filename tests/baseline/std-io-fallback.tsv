@@ -1,0 +1,26 @@
+# STD-026 std.io 非 Linux 回退矩阵 manifest
+# 列：item_id	kind	doc_anchor	code_anchor	src	notes
+min_matrix_rows	meta	12	-	-	12 rows
+section_matrix	section	## 3. 三平台 read/write 矩阵	-	analysis/std-io-fallback-v1.md	RFC
+section_macos	section	### 3.1 macOS 特例	-	analysis/std-io-fallback-v1.md	§3.1
+section_win	section	### 3.2 Windows 特例	-	analysis/std-io-fallback-v1.md	§3.2
+readme_link	readme	std-io-fallback-v1.md	-	std/io/README.md	链接
+code_header	code	-	io_uring（Linux）/ kqueue（macOS）/ IOCP（Windows）	std/io/io.c	文件头
+linux_read	matrix	io_uring_prep_read	FALLBACK_READ	std/io/io.c	io_read
+macos_read	matrix	kqueue	kq_get	std/io/io.c	io_read
+win_read	matrix	IOCP	GetQueuedCompletionStatus	std/io/io.c	io_read
+macos_batch	matrix	readv	io_readv_all	std/io/io.c	io_read_batch
+win_batch	matrix	GetQueuedCompletionStatusEx	ReadFile	std/io/io.c	io_read_batch
+linux_provided	matrix	IORING_OP_PROVIDE	io_uring_prep_provide_buffers	std/io/io.c	provided
+macos_async	matrix	read_async	io_read((int)st->handle	std/io/io.c	complete sync
+macos_read_ptr	matrix	dispatch_data	io_read_ptr_try_dispatch_data	std/io/io.c	read_ptr
+linux_read_ptr	matrix	mmap	io_read_ptr_try_mmap	std/io/io.c	read_ptr
+macos_wait	matrix	EVFILT_READ	EVFILT_READ	std/io/io.c	io_wait_readable
+win_wait	matrix	FD_SET	FD_SET	std/io/io.c	io_wait_readable
+linux_wait	matrix	poll	poll(pfd	std/io/io.c	io_wait_readable
+api_read_fd	symbol	-	read_fd	std/io/mod.su	API
+api_read_batch	symbol	-	read_batch_fd	std/io/mod.su	API
+test_smoke	file	-	fallback_matrix.su	tests/io/fallback_matrix.su	烟测
+runner	script	-	run-io.sh	tests/run-io.sh	回归
+doc	file	-	std-io-fallback-v1.md	analysis/std-io-fallback-v1.md	RFC
+gate	script	-	run-std-io-fallback-gate.sh	tests/run-std-io-fallback-gate.sh	manifest

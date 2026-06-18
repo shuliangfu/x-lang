@@ -1,0 +1,9 @@
+# std.channel Tier-S stable public API (import std.channel)
+channel_i32_bounded
+channel_i32_unbounded
+channel_i32_send
+channel_i32_recv
+channel_i32_try_send
+channel_i32_try_recv
+channel_i32_close
+channel_i32_free

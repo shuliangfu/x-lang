@@ -1,5 +1,5 @@
 /**
- * simd_enc.c — SIMD-S3：x86 SSE paddd/psubd/pmulld、AVX2 vp*、addps/mulps 等硬件向量编码。
+ * simd_enc.c — SIMD-S3/S4：x86 SSE/AVX2 与 arm64 NEON 硬件向量编码（shuffle/select/add/…）。
  *
  * 栈布局与 pipeline_glue 向量 lane 一致：lane0 在 fp-slot_off，整向量低址为 slot_off-(lanes-1)*esz。
  */
@@ -10,13 +10,24 @@
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
-/** 向量块在 [rbp+disp] 的 disp（little-endian 写入指令）。 */
+/** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
 static int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
-    int32_t base_off;
-    if (lanes <= 0 || esz <= 0)
+    (void)lanes;
+    (void)esz;
+    if (slot_off < 0)
         return 0;
-    base_off = slot_off - (lanes - 1) * esz;
-    return -base_off;
+    return -slot_off;
+}
+
+/**
+ * arm64 128-bit 半幅 lea 正偏移（sub x29,#off 用）。
+ * slot_off 为 lane0 距 fp 的字节距；lane 序号增大时地址升高、#off 减小，
+ * 故 half1 = slot_off - 16（非 +16）；与 let 向量 init 的 [base+lane*esz] 一致。
+ */
+static int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
+    if (slot_off < 0 || esz <= 0 || half < 0)
+        return slot_off;
+    return slot_off - half * 4 * esz;
 }
 
 static int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
@@ -326,6 +337,8 @@ static int32_t simd_x86_movups_xmm0_to_rbx_rax4(struct platform_elf_ElfCodegenCt
 
 extern int32_t backend_enc_load_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                               int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                int32_t ta);
 
@@ -401,6 +414,89 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
     return -1;
 }
 
+/** 向指令流追加 little-endian u32 机器字（arm64 NEON 等）。 */
+static int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+    uint8_t b[4];
+    b[0] = (uint8_t)(word & 0xffU);
+    b[1] = (uint8_t)((word >> 8) & 0xffU);
+    b[2] = (uint8_t)((word >> 16) & 0xffU);
+    b[3] = (uint8_t)((word >> 24) & 0xffU);
+    return simd_append(elf_ctx, b, 4);
+}
+
+/**
+ * arm64 NEON：INS V1.S[dst_lane], V0.S[src_lane]（V0 源 / V1 目的，Rn=0 Rd=1）。
+ * 低 16 位须为 0x401（clang -c 烟测）；误写 |1 会被 otool 解成 EXT，shuffle 结果错误。
+ */
+static uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
+  return (uint32_t)(0x6E040000U | ((dst_lane & 3) << 19) | ((src_lane & 3) << 13) | 0x401U);
+}
+
+/**
+ * arm64 NEON：128-bit comptime shuffle（pshufd 同 imm8 语义，4 lane）。
+ * lea_src/lea_dst 为 sub x0,x29,#off 的正字节偏移（与 simd_rbp_disp32 一致）。
+ */
+static int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_src,
+                                              int32_t lea_dst, int32_t imm8, int32_t ta) {
+    int32_t li;
+    int32_t src_lane;
+
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_src, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c407800U) != 0) /* ld1 {v0.4s}, [x0] */
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4ea01c01U) != 0) /* mov v1.16b, v0.16b */
+        return -1;
+    for (li = 0; li < 4; li++) {
+        src_lane = (imm8 >> (li * 2)) & 3;
+        if (simd_append_u32_le(elf_ctx, simd_arm64_ins_v1_from_v0_s(li, src_lane)) != 0)
+            return -1;
+    }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c007801U) != 0) /* st1 {v1.4s}, [x0] */
+        return -1;
+    return 0;
+}
+
+/**
+ * arm64 NEON：128-bit 向量 select（mask lane > 0 取 a，否则 b）。
+ * is_f32!=0 用 fcmgt，否则 cmgt.s #0。
+ */
+static int32_t simd_arm64_select_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_mask,
+                                       int32_t lea_a, int32_t lea_b, int32_t lea_dst, int32_t is_f32,
+                                       int32_t ta) {
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c407800U) != 0) /* ld1 {v0.4s}, [x0] mask */
+        return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c407801U) != 0) /* ld1 {v1.4s}, [x0] a */
+        return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c407802U) != 0) /* ld1 {v2.4s}, [x0] b */
+        return -1;
+    if (is_f32) {
+        if (simd_append_u32_le(elf_ctx, 0x4ea0c803U) != 0) /* fcmgt v3.4s, v0.4s, #0 */
+            return -1;
+        if (simd_append_u32_le(elf_ctx, 0x6ea21c23U) != 0) /* bit v3.16b, v1.16b, v2.16b */
+            return -1;
+    } else {
+        if (simd_append_u32_le(elf_ctx, 0x4ea08803U) != 0) /* cmgt v3.4s, v0.4s, #0 */
+            return -1;
+        /* i32：cmgt 谓词须用 bsl（非 bit）；bit 在 cmgt 后 lane 结果错误 */
+        if (simd_append_u32_le(elf_ctx, 0x6e621c23U) != 0) /* bsl v3.16b, v1.16b, v2.16b */
+            return -1;
+    }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta) != 0)
+        return -1;
+    if (simd_append_u32_le(elf_ctx, 0x4c007803U) != 0) /* st1 {v3.4s}, [x0] */
+        return -1;
+    return 0;
+}
+
 /** x86：pshufd xmm0, xmm0, imm8（66 0F 70 C0 imm8）。 */
 static int32_t simd_x86_pshufd_xmm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm8) {
     static const uint8_t prefix[4] = {0x66, 0x0f, 0x70, 0xc0};
@@ -428,10 +524,30 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     int32_t dd;
     if (!elf_ctx || slot_off_src < 0 || slot_off_dst < 0)
         return -1;
-    if (ta != 0)
-        return -1;
     ds = simd_rbp_disp32(slot_off_src, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
+    if (ta == 1) {
+        if ((cpu_features & SHU_CPU_FEAT_NEON) == 0)
+            return -1;
+        ds = simd_arm64_rbp_lea_off_128half(slot_off_src, 0, 4);
+        dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
+        if (lanes == 4)
+            return simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds, dd, imm8, ta);
+        if (lanes == 8) {
+            int32_t ds1;
+            int32_t dd1;
+            ds1 = simd_arm64_rbp_lea_off_128half(slot_off_src, 1, 4);
+            dd1 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, 4);
+            if (simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds, dd, imm8, ta) != 0)
+                return -1;
+            if (simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds1, dd1, imm8, ta) != 0)
+                return -1;
+            return 0;
+        }
+        return -1;
+    }
+    if (ta != 0)
+        return -1;
     if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, ds) != 0)
             return -1;
@@ -659,12 +775,38 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
 
     if (!elf_ctx || slot_off_mask < 0 || slot_off_a < 0 || slot_off_b < 0 || slot_off_dst < 0)
         return -1;
-    if (ta != 0)
-        return -1;
     dm = simd_rbp_disp32(slot_off_mask, lanes, 4);
     da = simd_rbp_disp32(slot_off_a, lanes, 4);
     db = simd_rbp_disp32(slot_off_b, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
+    if (ta == 1) {
+        if ((cpu_features & SHU_CPU_FEAT_NEON) == 0)
+            return -1;
+        dm = simd_arm64_rbp_lea_off_128half(slot_off_mask, 0, 4);
+        da = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
+        db = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
+        dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
+        if (lanes == 4)
+            return simd_arm64_select_128_rbp(elf_ctx, dm, da, db, dd, is_f32, ta);
+        if (lanes == 8) {
+            int32_t dm1;
+            int32_t da1;
+            int32_t db1;
+            int32_t dd1;
+            dm1 = simd_arm64_rbp_lea_off_128half(slot_off_mask, 1, 4);
+            da1 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, 4);
+            db1 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, 4);
+            dd1 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, 4);
+            if (simd_arm64_select_128_rbp(elf_ctx, dm, da, db, dd, is_f32, ta) != 0)
+                return -1;
+            if (simd_arm64_select_128_rbp(elf_ctx, dm1, da1, db1, dd1, is_f32, ta) != 0)
+                return -1;
+            return 0;
+        }
+        return -1;
+    }
+    if (ta != 0)
+        return -1;
     if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0)
             return -1;

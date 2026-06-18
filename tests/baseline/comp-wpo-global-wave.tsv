@@ -1,0 +1,19 @@
+# COMP-019 WPO global tier 扩面 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_global_hooks	5
+section_goal	section	## 1. 目标	全局 tier
+matrix	section	## 2. 全局矩阵	comp-wpo.tsv
+gate_section	section	## 3. Gate	run-comp-wpo-global-gate
+parent_tsv	cross_ref	tests/baseline/comp-wpo.tsv	COMP-004
+parent_default	cross_ref	tests/baseline/comp-wpo-default-wave.tsv	COMP-017
+parent_doc	cross_ref	analysis/comp-wpo-default-v1.md	COMP-017
+baseline_typeck	cross_ref	tests/baseline/wpo-typeck-o.tsv	typeck_wpo.o
+baseline_pipeline	cross_ref	tests/baseline/wpo-pipeline-o.tsv	pipeline_wpo.o
+baseline_strict	cross_ref	tests/baseline/wpo-strict-glue-text.tsv	strict_glue
+hook_typeck_o	hook_gate	run-wpo-typeck-o-gate.sh	global_typeck_o
+hook_pipeline_o	hook_gate	run-wpo-pipeline-o-gate.sh	global_pipeline_o
+hook_strict_glue_text	hook_gate	run-wpo-strict-glue-text-gate.sh	global_strict_glue_text
+hook_stretch	hook_gate	run-wpo-stretch-gate.sh	global_stretch
+hook_optin	hook_gate	run-pipeline-wpo-optin-smoke.sh	global_optin
+lib	script	lib/comp-wpo-global.sh	tests/lib/comp-wpo-global.sh
+gate	script	run-comp-wpo-global-gate.sh	tests/run-comp-wpo-global-gate.sh

@@ -1,0 +1,12 @@
+# DOC-005 对外路线图季度刷新 checklist
+# quarter: 2027-Q4
+# last_updated: 2026-06-18
+#
+# 每季度第 1 周执行：
+# 1. 将 quarter 与 doc-public-roadmap-v1.md 文首「当季版本」对齐
+# 2. 从 NEXT.md 汇总当季 ✅ 项写入「## 4. 已交付亮点」
+# 3. 将剩余 🟡/⚪ 高优先级项写入「## 5. 下季预览」
+# 4. 更新 last_updated 日期
+# 5. ./tests/run-doc-public-roadmap.sh
+# 6. ./tests/run-doc-public-roadmap-gate.sh
+# 7. ./tests/run-doc-public-roadmap-q4-2027-gate.sh（DOC-014 Q4 2027 刷新）

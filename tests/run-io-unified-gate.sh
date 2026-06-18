@@ -102,7 +102,12 @@ fi
 echo "=== IO unified: perf baseline (run-perf-io) ==="
 chmod +x tests/run-perf-io.sh
 if ci_is_linux; then
-  SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/io_unified_perf.log
+  # 默认 regression；CI 原生 Linux x86_64 可经 env 追加 SHU_PERF_FAIL_ON_IO_ZIG=1（L1 ≥ Zig）
+  IO_PERF_REGRESS="${SHU_PERF_FAIL_ON_IO_REGRESSION:-1}"
+  IO_PERF_ZIG="${SHU_PERF_FAIL_ON_IO_ZIG:-0}"
+  SHU_PERF_FAIL_ON_IO_REGRESSION="$IO_PERF_REGRESS" \
+    SHU_PERF_FAIL_ON_IO_ZIG="$IO_PERF_ZIG" \
+    ./tests/run-perf-io.sh --bench | tee /tmp/io_unified_perf.log
 else
   ./tests/run-perf-io.sh --bench | tee /tmp/io_unified_perf.log
 fi
@@ -111,8 +116,20 @@ grep -q 'io perf OK' /tmp/io_unified_perf.log
 if ci_is_linux && ci_io_uring_available; then
   echo "=== IO unified: ZC-1 net perf (Linux io_uring) ==="
   chmod +x tests/run-zc1-gate.sh
-  ./tests/run-zc1-gate.sh --perf | tee /tmp/io_unified_zc1_perf.log
+  ZC1_ENV="SHU_PERF_FAIL_ON_NET_REGRESSION=1 SHU_PERF_FAIL_ON_ZC1=1"
+  if [ -n "${SHU_CI_REQUIRE_ZC1:-}" ]; then
+    ZC1_ENV="${ZC1_ENV} SHU_CI_REQUIRE_ZC1=1"
+  fi
+  # shellcheck disable=SC2086
+  env ${ZC1_ENV} ./tests/run-zc1-gate.sh --perf | tee /tmp/io_unified_zc1_perf.log
   grep -qE 'ZC-1 gate OK|provided buffers N/A' /tmp/io_unified_zc1_perf.log
+  grep -q 'ZC-1 provided vs batch OK' /tmp/io_unified_zc1_perf.log || {
+    if [ -n "${SHU_CI_REQUIRE_ZC1:-}" ]; then
+      echo "run-io-unified-gate FAIL: ZC-1 -10% required (SHU_CI_REQUIRE_ZC1=1)" >&2
+      exit 1
+    fi
+    echo "io ZC-1 perf stretch N/A (no -10% on this runner)"
+  }
 else
   echo "io ZC-1 perf N/A ($(ci_host_summary))"
 fi

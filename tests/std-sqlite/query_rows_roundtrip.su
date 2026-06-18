@@ -1,0 +1,56 @@
+// STD-066：内存库 query_rows 行迭代烟测（须 sqlite-o + -lsqlite3 链接）
+const sqlite = import("std.sqlite");
+
+function main(): i32 {
+  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let sql_create: [27]u8 = [
+    67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107,
+    32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0
+  ];
+  let sql_ins1: [29]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 41, 59, 0
+  ];
+  let sql_ins2: [29]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 41, 59, 0
+  ];
+  let sql_all: [17]u8 = [
+    83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 59, 0
+  ];
+  let sql_filter: [27]u8 = [
+    83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32,
+    87, 72, 69, 82, 69, 32, 107, 61, 49, 59, 0
+  ];
+  let c: DbConn = sqlite.open(&mem[0]);
+  let rows: i32 = 0;
+  if (c.handle == 0) {
+    return 1;
+  }
+  if (sqlite.exec(c, &sql_create[0]) != 0) {
+    sqlite.close(c);
+    return 2;
+  }
+  if (sqlite.exec(c, &sql_ins1[0]) != 0) {
+    sqlite.close(c);
+    return 3;
+  }
+  if (sqlite.exec(c, &sql_ins2[0]) != 0) {
+    sqlite.close(c);
+    return 4;
+  }
+  rows = sqlite.query_rows(c, &sql_all[0]);
+  if (rows != 2) {
+    sqlite.close(c);
+    return 5;
+  }
+  rows = sqlite.query_rows(c, &sql_filter[0]);
+  if (rows != 1) {
+    sqlite.close(c);
+    return 6;
+  }
+  if (sqlite.close(c) != 0) {
+    return 7;
+  }
+  return 0;
+}

@@ -29,6 +29,12 @@ MIN_ELIGIBLE_BYTES=$(awk -F'\t' '$1=="min_wpo_eligible_save_bytes" && $1 !~ /^#/
 MIN_ELIGIBLE_BYTES=${MIN_ELIGIBLE_BYTES:-600}
 MIN_BINARY_PCT=$(awk -F'\t' '$1=="min_binary_proxy_save_pct" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_BINARY_PCT=${MIN_BINARY_PCT:-0.3}
+# stretch -3%：全链 strict bstrict 后手动/专用 job 启用（CI-fast 仅 ~0.8% proxy）
+if [ "${SHU_WPO_STRETCH_3PCT:-0}" = "1" ]; then
+  MIN_BINARY_PCT=3.0
+  MIN_BINARY_BYTES=12000
+  MIN_ELIGIBLE_BYTES=12000
+fi
 MIN_BINARY_BYTES=$(awk -F'\t' '$1=="min_binary_proxy_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_BINARY_BYTES=${MIN_BINARY_BYTES:-600}
 

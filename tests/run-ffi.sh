@@ -5,6 +5,15 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/ffi/ffi.o
+SHU="${SHU:-}"
+if [ -z "$SHU" ]; then
+  for cand in ./compiler/shu-c ./compiler/shu; do
+    if [ -x "$cand" ]; then
+      SHU="$cand"
+      break
+    fi
+  done
+fi
 SHU="${SHU:-./compiler/shu}"
 exe="/tmp/shu_ffi_$$"
 if ! $SHU -L . tests/ffi/main.su -o "$exe" 2>&1; then echo "ffi test: compile failed"; rm -f "$exe"; exit 1; fi

@@ -1,0 +1,57 @@
+// STD-139：std.codec 缓冲复用烟测 — 同一 Bytes 连续 encode 保留 cap
+const codec = import("std.codec");
+const bytes = import("std.bytes");
+
+function main(): i32 {
+  let src_big: [5]u8 = [10, 20, 30, 40, 50];
+  let src_small: [3]u8 = [1, 2, 3];
+  let b: Bytes = bytes.bytes_new();
+  let e: Encoder = codec.encoder_new(codec.codec_kind_hex());
+
+  // 第一次编码较大 payload：分配 cap（10 个 hex 字符）
+  if (codec.encode_into_bytes(e, &src_big[0], 5, &b) != 10) {
+    bytes.bytes_deinit(&b);
+    return 1;
+  }
+  let cap_after_first: i32 = bytes.bytes_capacity(b);
+  if (cap_after_first < 10) {
+    bytes.bytes_deinit(&b);
+    return 2;
+  }
+
+  // 第二次编码较小 payload：应复用 cap（need=6 < cap，不 shrink）
+  if (codec.encode_into_bytes(e, &src_small[0], 3, &b) != 6) {
+    bytes.bytes_deinit(&b);
+    return 3;
+  }
+  if (bytes.bytes_capacity(b) != cap_after_first) {
+    bytes.bytes_deinit(&b);
+    return 4;
+  }
+  if (bytes.bytes_len(b) != 6) {
+    bytes.bytes_deinit(&b);
+    return 5;
+  }
+
+  // 解码验证第二次 payload
+  let d: Decoder = codec.decoder_new(codec.codec_kind_hex());
+  let decoded: Bytes = bytes.bytes_new();
+  if (codec.decode_from_bytes(d, b, &decoded) != 3) {
+    bytes.bytes_deinit(&b);
+    bytes.bytes_deinit(&decoded);
+    return 6;
+  }
+  let i: i32 = 0;
+  while (i < 3) {
+    if (decoded.ptr[i] != src_small[i]) {
+      bytes.bytes_deinit(&b);
+      bytes.bytes_deinit(&decoded);
+      return 7;
+    }
+    i = i + 1;
+  }
+
+  bytes.bytes_deinit(&b);
+  bytes.bytes_deinit(&decoded);
+  return 0;
+}

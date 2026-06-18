@@ -1,4 +1,4 @@
-/** 内联 escape 探针（不 import std.csv） */
+/** 内联 escape 探针（不 import("std.csv")） */
 function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   if (buf_cap < 2) {
     return -1;

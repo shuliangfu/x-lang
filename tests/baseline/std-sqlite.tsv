@@ -1,0 +1,21 @@
+# STD-057 std.sqlite SQLite3 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	4
+read_path	section	## 1. 阅读路径	15min
+sqlite_doc	section	## 2. SQLite3 后端（v1）	sqlite3_open
+error_doc	section	## 3. 错误码	DB_ERR_EXEC
+verify	section	## 5. 门禁	gate
+api_exec	api	exec	std/sqlite/mod.su	执行
+api_changes	api	changes	std/sqlite/mod.su	影响行
+api_backend	api	backend_name	std/sqlite/mod.su	后端名
+api_close	api	close	std/sqlite/mod.su	关闭
+const_err_exec	const	DB_ERR_EXEC	std/sqlite/mod.su	-3
+symbol_open_c	symbol	db_open_c	std/sqlite/sqlite.c	打开
+symbol_exec_c	symbol	db_exec_c	std/sqlite/sqlite.c	执行
+symbol_smoke_c	symbol	db_sqlite_exec_smoke_c	std/sqlite/sqlite.c	C 烟测
+impl_c	file	std/sqlite/sqlite.c	std/sqlite/sqlite.c	实现
+smoke_c	file	tests/std-sqlite/exec_roundtrip_ok.c	C 入口
+smoke_su	smoke	tests/std-sqlite/exec_roundtrip.su	.su 往返
+lib	script	lib/std-sqlite-gate.sh	tests/lib/std-sqlite-gate.sh
+gate	script	run-std-sqlite-gate.sh	tests/run-std-sqlite-gate.sh
+cross_std010	cross_ref	analysis/std-sqlite-prereq-v1.md	STD-010

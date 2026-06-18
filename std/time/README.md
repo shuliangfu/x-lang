@@ -50,7 +50,7 @@
 ## 构建与链接
 
 - 编译 time.o：`make -C compiler ../std/time/time.o`（或 `make -C compiler all`）。
-- 用户 `import std.time` 且 `-o exe` 时，编译器自动链入 `std/time/time.o`。
+- 用户 `import("std.time")` 且 `-o exe` 时，编译器自动链入 `std/time/time.o`。
 
 ## 测试
 

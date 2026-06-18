@@ -1,0 +1,52 @@
+// STD-045：RwLock/Condvar 单线程 + C 层竞争烟测
+const sync = import("std.sync");
+
+function main(): i32 {
+  let rw: *u8 = rwlock_new();
+  if (rw == 0 as *u8) {
+    return 1;
+  }
+  if (rwlock_write_lock(rw) != 0) {
+    rwlock_free(rw);
+    return 2;
+  }
+  if (rwlock_write_unlock(rw) != 0) {
+    rwlock_free(rw);
+    return 3;
+  }
+  if (rwlock_read_lock(rw) != 0) {
+    rwlock_free(rw);
+    return 4;
+  }
+  if (rwlock_read_unlock(rw) != 0) {
+    rwlock_free(rw);
+    return 5;
+  }
+  rwlock_free(rw);
+  let cv: *u8 = condvar_new();
+  let mu: *u8 = sync.mutex_new();
+  if (cv == 0 as *u8 || mu == 0 as *u8) {
+    condvar_free(cv);
+    sync.mutex_free(mu);
+    return 6;
+  }
+  if (sync.mutex_lock(mu) != 0) {
+    condvar_free(cv);
+    sync.mutex_free(mu);
+    return 7;
+  }
+  if (sync.mutex_unlock(mu) != 0) {
+    condvar_free(cv);
+    sync.mutex_free(mu);
+    return 8;
+  }
+  condvar_free(cv);
+  sync.mutex_free(mu);
+  if (rwlock_contention_smoke() != 0) {
+    return 9;
+  }
+  if (condvar_contention_smoke() != 0) {
+    return 10;
+  }
+  return 0;
+}

@@ -10,6 +10,8 @@ extern function compress_gzip_compress_c(in: *u8, in_len: i32, out: *u8, out_cap
 extern function compress_gzip_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
 extern function compress_brotli_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
 extern function compress_brotli_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
 function deflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return compress_deflate_c(in, in_len, out, out_cap);
 }
@@ -32,4 +34,12 @@ function brotli_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
 /** 解压 Brotli 流，返回写入字节数，失败 -1。 */
 function brotli_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return compress_brotli_decompress_c(in, in_len, out, out_cap);
+}
+/** 压缩为 zstd 帧，返回写入字节数，失败 -1。 */
+function zstd_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  return compress_zstd_compress_c(in, in_len, out, out_cap);
+}
+/** 解压 zstd 帧，返回写入字节数，失败 -1。 */
+function zstd_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  return compress_zstd_decompress_c(in, in_len, out, out_cap);
 }

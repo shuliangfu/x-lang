@@ -18,7 +18,8 @@ fi
 # shellcheck source=lib/bootstrap-link-shu.sh
 . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
 
-make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
+make -C compiler -q ../std/process/process.o ../core/slice/slice.o 2>/dev/null \
+  || make -C compiler ../std/process/process.o ../core/slice/slice.o
 
 $RUN_SHU tests/slice/main.su -o /tmp/shu_slice 2>&1
 exitcode=0; /tmp/shu_slice >/dev/null 2>&1 || exitcode=$?
@@ -32,6 +33,11 @@ exitcode=0; /tmp/shu_slice_data_field >/dev/null 2>&1 || exitcode=$?
 $RUN_SHU -L . tests/slice/length.su -o /tmp/shu_slice_length 2>&1
 exitcode=0; /tmp/shu_slice_length >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (len_i32), got $exitcode"; exit 1; }
+
+# CORE-004：subslice / split_at / chunks
+$RUN_SHU -L . tests/slice/subslice_split_chunks.su -o /tmp/shu_slice_subsplit 2>&1
+exitcode=0; /tmp/shu_slice_subsplit >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (subslice_split_chunks), got $exitcode"; exit 1; }
 
 # 边界：对非数组/切片取下标，应报 subscript base must be array, slice or pointer
 err=$($SHU tests/slice/subscript_not_slice.su -o /tmp/shu_slice_fail 2>&1) || true

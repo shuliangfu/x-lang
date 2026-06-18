@@ -1,0 +1,23 @@
+# TOOL-007 包管理器 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_rules	6
+# min_packages	11
+read_path	section	## 1. 阅读路径	analysis/tool-pkgmgr-v1.md	-	15min
+principles	section	## 2. 设计原则 K1–K6	tool-pkgmgr.tsv	-	design
+manifest_fmt	section	## 3. `shu.pkg.tsv` 原型格式	analysis/tool-pkgmgr-v1.md	-	tsv
+catalog	section	## 4. 包目录	tool-pkgmgr-catalog.tsv	-	bundled
+verify	section	## 7. 验证与门禁	analysis/tool-pkgmgr-v1.md	-	gate
+rule_k1	rules	K1-package-id	analysis/tool-pkgmgr-v1.md	id	import path
+rule_k2	rules	K2-lib-roots	analysis/tool-pkgmgr-v1.md	roots	-L
+rule_k3	rules	K3-manifest	analysis/tool-pkgmgr-v1.md	tsv	shu.pkg.tsv
+rule_k4	rules	K4-bundled-tier	analysis/tool-pkgmgr-v1.md	bundled	core/std
+rule_k5	rules	K5-resolve-proto	analysis/tool-pkgmgr-v1.md	script	shu-deps-resolve
+rule_k6	rules	K6-local-only	analysis/tool-pkgmgr-v1.md	local	no network
+sym_resolve	symbol	resolve_import_file_path_multi	compiler/src/runtime.c	driver	multi root
+fixture_pkg	file	tests/fixtures/pkgmgr/shu.pkg.tsv	tests/fixtures/pkgmgr/shu.pkg.tsv	demo	manifest
+fixture_main	file	tests/fixtures/pkgmgr/main.su	tests/fixtures/pkgmgr/main.su	demo	app
+catalog_file	file	tests/baseline/tool-pkgmgr-catalog.tsv	tests/baseline/tool-pkgmgr-catalog.tsv	bundled	11 core
+lib	script	lib/tool-pkgmgr.sh	tests/lib/tool-pkgmgr.sh	-	共享库
+proto	script	shu-deps-resolve.sh	scripts/shu-deps-resolve.sh	cli	原型
+gate	script	run-tool-pkgmgr-gate.sh	tests/run-tool-pkgmgr-gate.sh	-	manifest
+hook_resolve	hook_script	run-pkgmgr-resolve.sh	run-pkgmgr-resolve.sh	-	烟测

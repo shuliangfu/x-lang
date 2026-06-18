@@ -30,3 +30,10 @@ function ascii_is_lower(c: u8): i32 { return encoding_ascii_is_lower_c(c); }
 function ascii_is_upper(c: u8): i32 { return encoding_ascii_is_upper_c(c); }
 function ascii_to_lower(c: u8): u8 { return encoding_ascii_to_lower_c(c); }
 function ascii_to_upper(c: u8): u8 { return encoding_ascii_to_upper_c(c); }
+
+extern function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+
+/** 原始字节缓冲 hex 编码（小写）；返回写入字符数或 -1（STD-040）。 */
+function hex_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  return encoding_hex_encode_c(src, src_len, out, out_cap);
+}

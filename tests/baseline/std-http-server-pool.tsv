@@ -1,0 +1,20 @@
+# STD-107 std.http server + client pool manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	5
+read_path	section	## 1. 阅读路径	15min
+server_api	section	## 2. Server 循环	serve_one
+pool_api	section	## 3. Client 连接池	client_pool_get
+verify	section	## 4. 验证与门禁	gate
+api_listen	api	listen_on	std/http/mod.su	listen
+api_serve	api	serve_one	std/http/mod.su	accept+respond
+api_pool_create	api	client_pool_create	std/http/mod.su	创建池
+api_pool_destroy	api	client_pool_destroy	std/http/mod.su	销毁池
+api_pool_get	api	client_pool_get	std/http/mod.su	池化 GET
+symbol_listen_c	symbol	http_listen_c	std/http/http_server_pool.inc.c	C listen
+symbol_serve_c	symbol	http_serve_one_c	std/http/http_server_pool.inc.c	C serve
+symbol_pool_c	symbol	http_client_pool_get_c	std/http/http_server_pool.inc.c	C pool GET
+symbol_smoke_c	symbol	http_server_pool_smoke_c	std/http/http_server_pool.inc.c	C 烟测
+smoke_c	file	tests/http/server_pool_smoke_ok.c	C 入口
+smoke_su	smoke	tests/http/server_pool.su	.su 烟测
+lib	script	lib/std-http-server-pool.sh	tests/lib/std-http-server-pool.sh
+gate	script	run-std-http-server-pool-gate.sh	tests/run-std-http-server-pool-gate.sh

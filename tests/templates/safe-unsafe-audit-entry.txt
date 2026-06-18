@@ -1,0 +1,4 @@
+# SAFE-003：新增 unsafe 审计行模板（复制到 safe-unsafe-audit.tsv）
+# scope: tier-u | tier-e
+# symbol: 与 safe-unsafe-api.tsv 或 safe-unsafe-extern.tsv 一致
+tier-u	SymbolName	stdlib	One-line rationale: caller owns buffer lifetime	reviewer-handle	2026-06-17

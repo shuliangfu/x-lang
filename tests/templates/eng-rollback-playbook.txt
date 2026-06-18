@@ -1,0 +1,30 @@
+# ENG-006 应急回滚 playbook（incident 时按序执行）
+# SLA 总预算：30 分钟
+
+## 0. 判定（T0–T5，≤5 min）
+- [ ] 确认坏版本：tag 名 / merge commit / CI job URL
+- [ ] 选择路径：R1 tag 回滚 | R2 main revert | R3 baseline only
+- [ ] 通知：冻结 main 新合并直至 smoke 绿
+
+## R1 — tag 工具链回滚（T5–T15，≤10 min）
+- [ ] `git tag -l 'v*' --sort=-v:refname` 选定上一好 tag
+- [ ] `git checkout <good_tag>`（或 `git switch --detach <good_tag>`）
+- [ ] `make -C compiler OPT=1 all`
+
+## R2 — main revert（T5–T15，≤10 min）
+- [ ] `git revert -m 1 <bad_commit>` 并 push main
+- [ ] `./tests/run-eng-release-precheck.sh`
+
+## R3 — baseline 回滚（可与 R1/R2 并行）
+- [ ] 恢复 `tests/baseline/*.tsv` 与 `perf-baseline-registry.tsv`
+- [ ] `./tests/run-eng-baseline-governance-gate.sh`
+
+## 烟测（T15–T25，≤10 min）
+- [ ] `./tests/run-portable-suite.sh`
+- [ ] `./tests/run-bootstrap-bstrict-ci.sh`（Linux 主编译机）
+- [ ] `./tests/run-eng-release-precheck.sh`
+
+## 收尾（T25–T30，≤5 min）
+- [ ] 记录 incident：原因、tag/commit、恢复时间点
+- [ ] 如需重新发布：走 ENG-004 + ENG-005 checklist
+- [ ] 解除 main 合并冻结

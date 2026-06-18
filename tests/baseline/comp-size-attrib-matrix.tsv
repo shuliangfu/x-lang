@@ -1,0 +1,11 @@
+# COMP-010 size attribution artifact matrix
+# 列：artifact_id	kind	path	policy	notes
+# min_artifacts	8
+art_shu_asm	exec	compiler/shu_asm	optional	stripped in B-SIZE
+art_shu_c	exec	compiler/shu-c	required	seed binary
+art_pipeline_o	object	compiler/build_asm/pipeline.o	optional	__text
+art_parser_o	object	compiler/build_asm/parser.o	optional	__text
+art_typeck_o	object	compiler/build_asm/typeck.o	optional	__text
+art_backend_o	object	compiler/build_asm/backend.o	optional	__text
+art_driver_o	object	compiler/build_asm/driver_compile.o	optional	__text
+art_build_asm_rollup	rollup	compiler/build_asm	optional	sum *.o

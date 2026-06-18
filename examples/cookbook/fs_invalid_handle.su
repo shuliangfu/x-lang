@@ -1,0 +1,10 @@
+/**
+ * Cookbook FS-01：fs_invalid_handle 哨兵值（STD-001 配套）。
+ */
+const fs = import("std.fs");
+
+function main(): i32 {
+  let h: i32 = fs.fs_invalid_handle();
+  if (h != -1) { return 1; }
+  return 0;
+}

@@ -53,6 +53,10 @@ if grep -qE '(^|[[:space:]])cc -c (\\.\\./)?pipeline_gen\\.c([[:space:]]|$)' /tm
   echo "bootstrap-bstrict-ci: B-strict link must not compile pipeline_gen.c" >&2
   exit 1
 fi
+if grep -q 'installed shu_asm.experimental as shu_asm (fallback OK)' /tmp/build_bstrict.log; then
+  echo "bootstrap-bstrict-ci: experimental fallback in build log — strict smoke must pass natively" >&2
+  exit 1
+fi
 if grep -qE 'full_asm|M11 OK' /tmp/build_bstrict.log; then
   echo "bootstrap-bstrict-ci: full_asm topology confirmed"
 else
@@ -67,6 +71,10 @@ if [ ! -x compiler/shu_asm ]; then
   echo "bootstrap-bstrict-ci: compiler/shu_asm not built" >&2
   exit 1
 fi
+
+echo "bootstrap-bstrict-ci: strict smoke gate (no experimental fallback) ..."
+chmod +x tests/run-strict-smoke-gate.sh
+BUILD_LOG=/tmp/build_bstrict.log ./tests/run-strict-smoke-gate.sh
 
 echo "bootstrap-bstrict-ci: run-shu-asm-gate ..."
 SHU=./compiler/shu_asm ./tests/run-shu-asm-gate.sh
@@ -97,12 +105,14 @@ chmod +x tests/run-freestanding-hello.sh
 ./tests/run-freestanding-hello.sh
 
 echo "bootstrap-bstrict-ci: M5 B-strict Stage2 (shu_asm -> shu_asm2) ..."
-# CI：gen2 shu_asm2 在 -o 链入路径偶发/稳定 SIGSEGV（stage1 已验收）；勿阻塞 bstrict 白名单。
-if [ -n "${CI:-}" ] && [ -z "${SHU_CI_FORCE_STAGE2:-}" ]; then
-  echo "bootstrap-bstrict-ci: skip stage2 on CI (set SHU_CI_FORCE_STAGE2=1 to run)"
+# gen2 round2 对齐 gen1 链拓扑（driver_compile_su、无 typeck/backend WPO）；Linux 硬门禁。
+if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+  echo "bootstrap-bstrict-ci: skip stage2 (non-Linux)"
+elif [ -n "${SHU_CI_SKIP_STAGE2:-}" ]; then
+  echo "bootstrap-bstrict-ci: skip stage2 (SHU_CI_SKIP_STAGE2=1)"
 else
-  chmod +x tests/run-bootstrap-stage2-bstrict.sh compiler/verify-selfhost-stage2-bstrict.sh
-  ./tests/run-bootstrap-stage2-bstrict.sh
+  chmod +x tests/run-stage2-bstrict-gate.sh compiler/verify-selfhost-stage2-bstrict.sh
+  SHU_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-stage2-bstrict-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: ensure WPO build_asm artifacts (五模块) ..."
@@ -119,4 +129,61 @@ chmod +x tests/run-wpo-strict-link-gate.sh tests/run-wpo-pipeline-reach-gate.sh 
   compiler/scripts/relink_shu_asm_strict_glue.sh
 SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
 
-echo "bootstrap-bstrict-ci OK (B-strict audited + gate + asm-73 + whitelist + linux crt0 + freestanding + stage2 + wpo gates + strict link)"
+echo "bootstrap-bstrict-ci: strict_glue measured .text A/B (pipeline WPO helpers) ..."
+chmod +x tests/run-wpo-strict-glue-text-gate.sh tests/lib/wpo-ab-proxy.sh
+SHU_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+
+echo "bootstrap-bstrict-ci: parser su strict gate ..."
+chmod +x tests/run-parser-su-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
+SHU_PARSER_SU_STRICT_FAIL=1 ./tests/run-parser-su-strict-gate.sh
+./tests/run-parser-experimental-emit-gate.sh
+
+echo "bootstrap-bstrict-ci: parser second pass gate ..."
+chmod +x tests/run-parser-second-pass-gate.sh tests/run-parser-thin-glue-symbol-integrity-gate.sh
+SHU_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
+SHU_PARSER_SECOND_PASS_COMPILER=compiler/shu_asm \
+  SHU_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
+  SHU_PARSER_SECOND_PASS_FAIL=1 \
+  SHU_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
+  ./tests/run-parser-second-pass-gate.sh
+SHU_PARSER_SECOND_PASS_COMPILER=compiler/shu_asm \
+  SHU_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
+  SHU_PARSER_SECOND_PASS_WPO_DCE=1 \
+  SHU_PARSER_SECOND_PASS_FAIL=1 \
+  SHU_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
+  ./tests/run-parser-second-pass-gate.sh
+
+echo "bootstrap-bstrict-ci: parser parse bootstrap gate ..."
+chmod +x tests/run-parser-parse-bootstrap-gate.sh tests/run-parser-parse-bootstrap-link-smoke.sh \
+  tests/run-parser-parse-bootstrap-su-emit-gate.sh tests/run-parser-parse-bootstrap-bisect-gate.sh \
+  tests/run-parser-mega-bisect-gate.sh
+SHU_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
+SHU_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
+SHU_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
+./tests/run-parser-mega-bisect-gate.sh || true
+chmod +x tests/run-parser-mega-bisect-sweep-gate.sh
+./tests/run-parser-mega-bisect-sweep-gate.sh || true
+./tests/run-parser-parse-bootstrap-su-emit-gate.sh || true
+
+echo "bootstrap-bstrict-ci: parser parse count baseline ..."
+chmod +x tests/run-parser-parse-count-gate.sh
+SHU_PARSER_PARSE_COUNT_FAIL=1 SHU_PARSER_PARSE_COUNT_TARGET=466 SHU=./compiler/shu_asm \
+  ./tests/run-parser-parse-count-gate.sh
+
+echo "bootstrap-bstrict-ci: DOD-CL-S1 struct layout smoke ..."
+chmod +x tests/run-dod-cl-s1-gate.sh
+SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh
+
+echo "bootstrap-bstrict-ci: pipeline WPO full link smoke (track-only) ..."
+chmod +x tests/run-pipeline-wpo-full-link-smoke.sh
+./tests/run-pipeline-wpo-full-link-smoke.sh
+
+echo "bootstrap-bstrict-ci: pipeline WPO opt-in smoke (track-only) ..."
+chmod +x tests/run-pipeline-wpo-optin-smoke.sh
+./tests/run-pipeline-wpo-optin-smoke.sh || true
+
+echo "bootstrap-bstrict-ci: typeck WPO helpers smoke ..."
+chmod +x tests/run-typeck-wpo-optin-smoke.sh
+./tests/run-typeck-wpo-optin-smoke.sh
+
+echo "bootstrap-bstrict-ci OK (B-strict audited + gate + asm-73 + whitelist + linux crt0 + freestanding + stage2 + wpo gates + strict link + strict_glue text A/B)"

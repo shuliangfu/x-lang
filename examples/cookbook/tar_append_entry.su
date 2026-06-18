@@ -1,0 +1,15 @@
+/**
+ * Cookbook TAR-01：append_entry 构建 UStar 归档条目（STD-038）。
+ */
+const tar = import("std.tar");
+
+function main(): i32 {
+  let arc: [512]u8 = [];
+  let off: i32 = 0;
+  /** "a.txt" */
+  let name: [5]u8 = [97, 46, 116, 120, 116];
+  let data: [1]u8 = [120];
+  if (tar.append_entry(&arc[0], 512, &off, &name[0], 5, &data[0], 1, 0) != 0) { return 1; }
+  if (off <= 0) { return 2; }
+  return 0;
+}

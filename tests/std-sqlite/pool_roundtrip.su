@@ -1,0 +1,72 @@
+// STD-084：内存库连接池 acquire/release 烟测
+const sqlite = import("std.sqlite");
+
+function main(): i32 {
+  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let sql_create: [27]u8 = [
+    67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107,
+    32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0
+  ];
+  let sql_insert: [30]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 55, 41, 59, 0
+  ];
+  let pool: DbPool = sqlite.pool_open(&mem[0], 1);
+  let c1: DbConn = DbConn { handle: 0 };
+  let c2: DbConn = DbConn { handle: 0 };
+  let c3: DbConn = DbConn { handle: 0 };
+
+  if (pool.handle == 0) { return 1; }
+  c1 = sqlite.pool_acquire(pool);
+  if (c1.handle == 0) {
+    sqlite.pool_close(pool);
+    return 2;
+  }
+  if (sqlite.exec(c1, &sql_create[0]) != 0) {
+    sqlite.pool_release(pool, c1);
+    sqlite.pool_close(pool);
+    return 3;
+  }
+  if (sqlite.pool_release(pool, c1) != 0) {
+    sqlite.pool_close(pool);
+    return 4;
+  }
+  if (sqlite.pool_idle(pool) != 1) {
+    sqlite.pool_close(pool);
+    return 5;
+  }
+  c2 = sqlite.pool_acquire(pool);
+  if (c2.handle == 0 || c2.handle != c1.handle) {
+    sqlite.pool_close(pool);
+    return 6;
+  }
+  if (sqlite.exec(c2, &sql_insert[0]) != 0) {
+    sqlite.pool_release(pool, c2);
+    sqlite.pool_close(pool);
+    return 7;
+  }
+  if (sqlite.pool_release(pool, c2) != 0) {
+    sqlite.pool_close(pool);
+    return 8;
+  }
+  c3 = sqlite.pool_acquire(pool);
+  if (c3.handle == 0) {
+    sqlite.pool_close(pool);
+    return 9;
+  }
+  let c4: DbConn = sqlite.pool_acquire(pool);
+  if (c4.handle != 0) {
+    sqlite.pool_release(pool, c3);
+    sqlite.pool_release(pool, c4);
+    sqlite.pool_close(pool);
+    return 10;
+  }
+  if (sqlite.pool_release(pool, c3) != 0) {
+    sqlite.pool_close(pool);
+    return 11;
+  }
+  if (sqlite.pool_close(pool) != 0) {
+    return 12;
+  }
+  return 0;
+}

@@ -1,0 +1,15 @@
+# PERF-011 月度 Shu vs Zig 历史（ahead_pct = (1 - shu/zig)×100，正数表示 Shu 更快）
+# 列：month	case_id	shu_sec	zig_sec	ahead_pct
+# 更新：SHU_ZIG_STRATEGY_RECORD=1 ./tests/run-perf-zig-strategy-dashboard.sh --record
+2026-05	loop_i32	0.0082	0.0101	18.8
+2026-05	mem_copy	0.0115	0.0138	16.7
+2026-05	struct_param	0.0098	0.0112	12.5
+2026-05	call_boundary	0.0105	0.0120	12.5
+2026-05	io_mmap_throughput	0.0120	0.0145	17.2
+2026-05	net_echo_throughput	0.160	0.175	8.6
+2026-06	loop_i32	0.0079	0.0101	21.8
+2026-06	mem_copy	0.0110	0.0138	20.3
+2026-06	struct_param	0.0095	0.0112	15.2
+2026-06	call_boundary	0.0101	0.0120	15.8
+2026-06	io_mmap_throughput	0.0115	0.0145	20.7
+2026-06	net_echo_throughput	0.155	0.175	11.4

@@ -1,0 +1,10 @@
+# EXC-002 panic/abort 边界烟测矩阵
+# Format: case_id<TAB>script<TAB>policy<TAB>expected_exit<TAB>notes
+# policy: run = 编译并运行；hook = 调用已有 run-*.sh
+recoverable_result	recoverable_result.su	run	0	Layer A unwrap_or
+layer_c_recoverable	layer_c_recoverable.su	run	0	Layer C fs 失败
+runtime_ready	runtime_ready.su	run	0	std.runtime ready
+expect_or_panic_ok	expect_or_panic_ok.su	run	0	expect 必成功路径
+result_suite	run-result.sh	hook	0	core.result 回归
+error_suite	run-error.sh	hook	0	std.error 回归
+panic_abort	run-panic.sh	hook	0	panic 编译+非零退出

@@ -1,0 +1,13 @@
+# STD-158 跨模块错误语义 manifest
+# 列：item_id	kind	anchor	notes
+# min_symbols	6
+symbol_sem_class	symbol	error_semantic_class	std/error/mod.su
+symbol_is_timeout	symbol	error_is_timeout	std/error/mod.su
+symbol_is_cancelled	symbol	error_is_cancelled	std/error/mod.su
+symbol_is_not_found	symbol	error_is_not_found	std/error/mod.su
+symbol_recommend_retry	symbol	error_recommend_retry	std/error/mod.su
+symbol_sem_timeout	symbol	error_sem_timeout	std/error/mod.su
+doc	file	analysis/std-error-semantics-v1.md	STD-158
+gate	script	tests/run-std-error-semantics-gate.sh	gate
+smoke	run	tests/std/error_semantics_smoke.su	烟测
+recipe_err02	recipe	examples/cookbook/error_semantic_class.su	ERR-02

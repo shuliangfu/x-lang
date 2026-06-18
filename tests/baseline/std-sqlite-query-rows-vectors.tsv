@@ -1,0 +1,4 @@
+# STD-066 query_rows 行迭代向量
+# 列：step_id	sql_ascii	expect_rows	notes
+rows_all	SELECT k FROM t;	2	全表
+rows_filter	SELECT k FROM t WHERE k=1;	1	过滤

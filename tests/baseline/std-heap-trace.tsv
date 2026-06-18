@@ -1,0 +1,12 @@
+# STD-017 std.heap SHU_HEAP_TRACE manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_trace_apis	3
+trace_enabled	symbol	heap_trace_enabled	std/heap/mod.su
+trace_stats	symbol	heap_trace_stats	std/heap/mod.su
+trace_reset	symbol	heap_trace_reset	std/heap/mod.su
+stats_struct	symbol	HeapTraceStats	std/heap/mod.su
+c_impl	symbol	heap_trace_enabled_c	std/heap/heap.c	SHU_HEAP_TRACE
+env_var	anchor	SHU_HEAP_TRACE	analysis/std-heap-trace-v1.md	RFC
+test_smoke	file	tests/heap/trace_stats.su		烟测
+doc	file	std-heap-trace-v1.md	analysis/std-heap-trace-v1.md	RFC
+gate	script	run-std-heap-trace-gate.sh	tests/run-std-heap-trace-gate.sh	manifest

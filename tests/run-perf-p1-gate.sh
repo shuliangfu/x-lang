@@ -11,6 +11,10 @@ echo "=== perf P1 gate: compute baseline (Zig) ==="
 SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_p1_baseline.log
 grep -q 'perf baseline OK' /tmp/perf_p1_baseline.log
 
+echo "=== perf P1 gate: B-CMP (Shu -O3 codegen-fair vs C -O3, 1.0×) ==="
+chmod +x tests/run-bcmp-gate.sh
+./tests/run-bcmp-gate.sh | tee /tmp/perf_p1_bcmp.log
+
 echo "=== perf P1 gate: IO (Zig + regression) ==="
 SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_p1_io.log
 grep -q 'io perf OK' /tmp/perf_p1_io.log
@@ -32,8 +36,9 @@ else
   grep -q 'net perf OK' /tmp/perf_p1_net.log
 fi
 
-echo "=== perf P1 gate: compile dogfood ==="
-SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/perf_p1_dogfood.log
-grep -q 'compile dogfood OK' /tmp/perf_p1_dogfood.log
+echo "=== perf P1 gate: compile dogfood (PERF-004) ==="
+chmod +x tests/run-perf-compile-dogfood-gate.sh
+./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/perf_p1_dogfood.log
+grep -qE 'compile dogfood OK|perf-compile-dogfood gate OK' /tmp/perf_p1_dogfood.log
 
 echo "perf P1 gate OK (baseline + io + net + compile dogfood)"

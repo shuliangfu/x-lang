@@ -180,7 +180,13 @@ ci_require_cmd zig
 
 echo "── perf baseline ──"
 if ci_is_linux; then
-  SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
+  PERF_BASELINE_ENV="SHU_PERF_FAIL_ON_ZIG=1"
+  # L2 B-CMP：GHA 原生 ubuntu 须 Shu -O3 不劣于 C-O3（1.0×）；stretch 0.95× 见 run-bcmp-stretch-gate.sh
+  if ci_is_linux_x64 && ! ci_is_docker; then
+    PERF_BASELINE_ENV="${PERF_BASELINE_ENV} SHU_PERF_FAIL_ON_C_O3=1 SHU_PERF_C_O3_RATIO=1.0"
+  fi
+  # shellcheck disable=SC2086
+  env ${PERF_BASELINE_ENV} ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
 else
   ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
 fi
@@ -189,21 +195,26 @@ grep -q 'perf baseline OK' /tmp/perf_bench.log
 echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .su) ──"
 chmod +x tests/run-io-unified-gate.sh
 if ci_is_linux; then
-  SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
+  IO_UNIFIED_ENV="SHU_PERF_FAIL_ON_IO_REGRESSION=1"
+  # L1 ≥ Zig + ZC-1 -10%：GHA 原生 ubuntu 须实锤；Docker Desktop 无 io_uring 时不硬门禁。
+  if ci_is_linux_x64 && ! ci_is_docker; then
+    IO_UNIFIED_ENV="${IO_UNIFIED_ENV} SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_CI_REQUIRE_ZC1=1"
+  fi
+  # shellcheck disable=SC2086
+  env ${IO_UNIFIED_ENV} ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
 else
   ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
 fi
 grep -q 'io unified gate OK' /tmp/io_unified_perf.log
 
-echo "── compile dogfood ──"
-chmod +x tests/run-perf-compile-dogfood.sh
+echo "── compile dogfood (PERF-004) ──"
+chmod +x tests/run-perf-compile-dogfood-gate.sh tests/run-perf-compile-dogfood.sh
 if ci_is_linux && ! ci_is_docker; then
-  SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+  ./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/compile_dogfood.log
 else
-  # macOS/Windows/Docker：跑 timing 烟测；perf 回归门禁由 native Linux x86_64 承担。
-  ./tests/run-perf-compile-dogfood.sh | tee /tmp/compile_dogfood.log
+  SHU_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/compile_dogfood.log
 fi
-grep -q 'compile dogfood OK' /tmp/compile_dogfood.log
+grep -qE 'compile dogfood OK|perf-compile-dogfood gate OK' /tmp/compile_dogfood.log
 
 # refresh：Linux 全量；Darwin/Windows 在 CI 全量模式下也尝试（Mach-O/PE 单平台 relink）。
 echo "── refresh shu_asm gate ──"
@@ -226,11 +237,23 @@ grep -q 'region typeck OK' /tmp/refresh_asm_gate.log
 grep -q 'linear typeck OK' /tmp/refresh_asm_gate.log
 ci_require_shu_asm
 
+echo "── M-6 sanitize=address gate ──"
+chmod +x tests/run-sanitize-gate.sh
+./tests/run-sanitize-gate.sh | tee /tmp/sanitize_gate.log
+grep -q 'sanitize gate OK' /tmp/sanitize_gate.log
+
 # ── ZC gates（Linux 含 ZC-1 io_uring；其它平台跑 ZC-2..5） ─────────────
 echo "── ZC gates ──"
 if ci_is_linux; then
   chmod +x tests/run-zc-gates.sh
-  SHU=./compiler/shu_asm ./tests/run-zc-gates.sh | tee /tmp/zc_gates.log
+  # 原生 Linux x86_64 GHA：strace 须实锤 splice；Docker Desktop ptrace 失效时由 gate 内 SKIP。
+  if ci_is_linux_x64 && ! ci_is_docker; then
+    export SHU_ZC5_REQUIRE_STRACE=1
+    export SHU_CI_REQUIRE_ZC1=1
+    SHU=./compiler/shu_asm ./tests/run-zc-gates.sh --perf | tee /tmp/zc_gates.log
+  else
+    SHU=./compiler/shu_asm ./tests/run-zc-gates.sh | tee /tmp/zc_gates.log
+  fi
   grep -q 'zc gates OK' /tmp/zc_gates.log
 else
   ci_run_zc_gates_no_zc1 | tee /tmp/zc_gates.log
@@ -312,6 +335,11 @@ else
   echo "── asm .o quality ──"
   cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
   cd ..
+
+  echo "── B-SIZE shu_asm stripped (advisory, ENG-002) ──"
+  chmod +x tests/run-size-shu-asm-gate.sh
+  ./tests/run-size-shu-asm-gate.sh | tee /tmp/size_shu_asm.log
+  grep -qE 'size gate OK|size gate WARN|size gate SKIP' /tmp/size_shu_asm.log
 fi
 
 echo "── S2 typeck gate ──"
@@ -323,6 +351,18 @@ if ci_is_linux && ci_is_x86_64_host; then
   grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
 else
   echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 only)"
+fi
+
+echo "── S3 pipeline gate ──"
+chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
+if ci_is_linux && ci_is_x86_64_host && ! ci_skip_tier_a && [ -x compiler/shu_asm ]; then
+  # CI fast 跳过 pipeline 第二遍时 build_asm/pipeline.o 为 ~1KiB 桩；门禁前 EMIT_HEAVY 同步。
+  ./tests/run-s3-pipeline-sync-build-o.sh | tee /tmp/s3_pipeline_sync.log
+  SHU_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
+  grep -q 's3 pipeline gate OK' /tmp/s3_pipeline_gate.log
+else
+  ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
+  grep -qE 's3 pipeline gate OK|check only' /tmp/s3_pipeline_gate.log
 fi
 
 echo "── shu_asm smoke ──"
@@ -477,10 +517,19 @@ if ci_skip_tier_a; then
   echo "wpo build_asm chain gate OK (Linux ARM64 N/A)" | tee /tmp/wpo_chain_gate.log
   echo "run-wpo-strict-link-gate OK (Linux ARM64 N/A)" | tee /tmp/wpo_strict_link_gate.log
 else
+  # refresh 路径 proxy 仅 ~0.84%；须先 ensure 五模块 WPO .o 再测 shu_asm text（~4.65% stretch）。
+  SHU_WPO_ENSURE_FAIL=1 SHU_WPO_ENSURE_COMPILER=./compiler/shu_asm ./tests/ensure-wpo-build-asm-artifacts.sh | tee /tmp/wpo_ensure.log
+  grep -q 'ensure-wpo-build-asm-artifacts OK' /tmp/wpo_ensure.log
   SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
   grep -q 'wpo compiler self text OK' /tmp/wpo_compiler_self_text.log
   SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text.log
   grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text.log
+  # stretch -3%：strict bstrict 全链（非 CI-fast）时可选
+  if [ "${SHU_WPO_STRETCH_3PCT:-0}" = "1" ]; then
+    SHU=./compiler/shu_asm SHU_WPO_STRETCH_3PCT=1 SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 \
+      ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text_3pct.log
+    grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text_3pct.log
+  fi
   ./tests/run-wpo-build-asm-chain-gate.sh | tee /tmp/wpo_chain_gate.log
   grep -q 'wpo build_asm chain gate OK' /tmp/wpo_chain_gate.log
   SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log

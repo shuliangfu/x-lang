@@ -1,0 +1,16 @@
+# TYPE-004 Shu → C type mapping（FFI bridge）
+# 列：shu_type	c_type	extern_ok	notes
+# min_mappings	12
+i32	int32_t	yes	scalar
+u32	uint32_t	yes	scalar
+i64	int64_t	yes	scalar
+u64	uint64_t	yes	scalar
+u8	uint8_t	yes	scalar
+bool	int	yes	0/1
+f32	float	yes	xmm ABI
+f64	double	yes	scalar
+usize	size_t	yes	scalar
+isize	ptrdiff_t	yes	scalar
+ptr_star	<T>*	yes	recursive c_type_to_buf
+ptr_u8_bridge	uint8_t *	yes	void pointer interop
+slice_arr	struct shulang_slice_*	no	codegen only

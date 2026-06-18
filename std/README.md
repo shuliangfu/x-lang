@@ -2,7 +2,7 @@
 
 **标准库的 std 层**：依赖操作系统或运行时（进程、文件、网络等），在 core 之上提供统一 API。
 
-- **用途**：用户通过 `import std.xxx` 引用；编译器解析到本目录下对应模块（如 `std/io/mod.su`）。
+- **用途**：用户通过 `import("std.xxx")` 引用；编译器解析到本目录下对应模块（如 `std/io/mod.su`）。
 - **内容**：按模块单文件或子目录（runtime、process、io、fs、path、string、fmt、vec、map、thread、sync、time、net 等）。
 - **原则**：内部按目标平台条件编译，**用户只写一套 API**；按需链接，未用模块不进入二进制。嵌入式可用最小 std 子集或仅 core。
 
@@ -111,7 +111,21 @@ runtime、io、io-driver、mem、fs、process、path、heap、string、vec、map
 
 ---
 
-## 五、参考
+## 五、关键 API 锚点（DOC-007 / Cookbook 同步）
+
+| 锚点 | 模块 | 说明 |
+|------|------|------|
+| **std.sqlite** | std/sqlite/ | `sqlite_is_available`、按需 `-lsqlite3` |
+| **scheduler.c** | std/async/ | 异步调度 C 层（async C） |
+| **spawn_simple** | std/process/ | 最小 spawn 烟测路径 |
+| **resolve_ex** | std/net/ | STD-029 可诊断 DNS（`resolve_err_*`） |
+| **env_iter** | std/env/ | STD-025 环境变量/参数迭代 |
+| **panic_hook_collect** | std/runtime/ | STD-028 panic 崩溃证据收集 |
+| **NEXT.md** | 根目录 | Phase 2 路线图与 gate 清单 |
+
+---
+
+## 六、参考
 
 - 优先级与全量清单：`analysis/std标准库全量清单与优先级.md`（P0～P4、对标 Zig/Rust）。
 - 各子目录下的 `README.md`（若有）描述该模块 API、编译与平台说明。

@@ -1,0 +1,6 @@
+# STD-150 std.sort 比较器策略向量
+# 列：use_case	api	cmp_fn	notes
+primitive_asc	sort_i32	-	不稳定升序
+stable_dup	sort_stable_i32	-	稳定升序
+custom_order	sort_i32_cmp	cmp_i32_desc_fn	降序
+key_payload	sort_stable_by_key	cmp_key_i32_fn	仅 key 字段

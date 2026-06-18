@@ -9,8 +9,8 @@
 // elf_name_eq_arr_to_pool）。
 //
 
-import codegen;
-import platform.elf;
+const codegen = import("codegen");
+const elf = import("platform.elf");
 
 /** sidecar reloc glue（定义在 ast_pool.c）。 */
 extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
@@ -31,7 +31,7 @@ function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
 
 /** 将 PE/COFF x86_64 可重定位 .obj 写入 out；调用前需已执行
 * elf_resolve_patches。仅支持 ctx.e_machine == 62。返回写入字节数，失败 -1。 */
-function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (ctx.e_machine != 62) {
     return -1;
   }
@@ -56,22 +56,22 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   out.len = 0;
   
   let fh: [20]u8 = [];
-  fh[0] = platform.elf.elf_to_u8(100);
-  fh[1] = platform.elf.elf_to_u8(134);
-  fh[2] = platform.elf.elf_to_u8(1);
-  fh[3] = platform.elf.elf_to_u8(0);
-  fh[4] = platform.elf.elf_to_u8(0);
-  fh[5] = platform.elf.elf_to_u8(0);
-  fh[6] = platform.elf.elf_to_u8(0);
-  fh[7] = platform.elf.elf_to_u8(0);
-  fh[8] = platform.elf.elf_to_u8(ptr_sym);
-  fh[9] = platform.elf.elf_to_u8(ptr_sym >> 8);
-  fh[10] = platform.elf.elf_to_u8(ptr_sym >> 16);
-  fh[11] = platform.elf.elf_to_u8(ptr_sym >> 24);
-  fh[12] = platform.elf.elf_to_u8(num_coff_syms);
-  fh[13] = platform.elf.elf_to_u8(num_coff_syms >> 8);
-  fh[14] = platform.elf.elf_to_u8(num_coff_syms >> 16);
-  fh[15] = platform.elf.elf_to_u8(num_coff_syms >> 24);
+  fh[0] = elf.elf_to_u8(100);
+  fh[1] = elf.elf_to_u8(134);
+  fh[2] = elf.elf_to_u8(1);
+  fh[3] = elf.elf_to_u8(0);
+  fh[4] = elf.elf_to_u8(0);
+  fh[5] = elf.elf_to_u8(0);
+  fh[6] = elf.elf_to_u8(0);
+  fh[7] = elf.elf_to_u8(0);
+  fh[8] = elf.elf_to_u8(ptr_sym);
+  fh[9] = elf.elf_to_u8(ptr_sym >> 8);
+  fh[10] = elf.elf_to_u8(ptr_sym >> 16);
+  fh[11] = elf.elf_to_u8(ptr_sym >> 24);
+  fh[12] = elf.elf_to_u8(num_coff_syms);
+  fh[13] = elf.elf_to_u8(num_coff_syms >> 8);
+  fh[14] = elf.elf_to_u8(num_coff_syms >> 16);
+  fh[15] = elf.elf_to_u8(num_coff_syms >> 24);
   fh[16] = 0;
   fh[17] = 0;
   fh[18] = 0;
@@ -95,24 +95,24 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   sh[13] = 0;
   sh[14] = 0;
   sh[15] = 0;
-  sh[16] = platform.elf.elf_to_u8(align4);
-  sh[17] = platform.elf.elf_to_u8(align4 >> 8);
-  sh[18] = platform.elf.elf_to_u8(align4 >> 16);
-  sh[19] = platform.elf.elf_to_u8(align4 >> 24);
-  sh[20] = platform.elf.elf_to_u8(ptr_raw);
-  sh[21] = platform.elf.elf_to_u8(ptr_raw >> 8);
-  sh[22] = platform.elf.elf_to_u8(ptr_raw >> 16);
-  sh[23] = platform.elf.elf_to_u8(ptr_raw >> 24);
-  sh[24] = platform.elf.elf_to_u8(ptr_reloc);
-  sh[25] = platform.elf.elf_to_u8(ptr_reloc >> 8);
-  sh[26] = platform.elf.elf_to_u8(ptr_reloc >> 16);
-  sh[27] = platform.elf.elf_to_u8(ptr_reloc >> 24);
+  sh[16] = elf.elf_to_u8(align4);
+  sh[17] = elf.elf_to_u8(align4 >> 8);
+  sh[18] = elf.elf_to_u8(align4 >> 16);
+  sh[19] = elf.elf_to_u8(align4 >> 24);
+  sh[20] = elf.elf_to_u8(ptr_raw);
+  sh[21] = elf.elf_to_u8(ptr_raw >> 8);
+  sh[22] = elf.elf_to_u8(ptr_raw >> 16);
+  sh[23] = elf.elf_to_u8(ptr_raw >> 24);
+  sh[24] = elf.elf_to_u8(ptr_reloc);
+  sh[25] = elf.elf_to_u8(ptr_reloc >> 8);
+  sh[26] = elf.elf_to_u8(ptr_reloc >> 16);
+  sh[27] = elf.elf_to_u8(ptr_reloc >> 24);
   sh[28] = 0;
   sh[29] = 0;
   sh[30] = 0;
   sh[31] = 0;
-  sh[32] = platform.elf.elf_to_u8(num_relocs);
-  sh[33] = platform.elf.elf_to_u8(num_relocs >> 8);
+  sh[32] = elf.elf_to_u8(num_relocs);
+  sh[33] = elf.elf_to_u8(num_relocs >> 8);
   sh[34] = 0;
   sh[35] = 0;
   sh[36] = 32;
@@ -138,22 +138,22 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, r, &r_sym_buf[0]);
     while (m < num_syms) {
       /** COFF 符号索引解析须用 reloc_sym_names（与 elf_add_reloc 写入一致）。 */
-      if (platform.elf.elf_name_eq_arr_to_pool(r_sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
-      platform.elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+      if (elf.elf_name_eq_arr_to_pool(r_sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
+      elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = 2 + m;
         break;
       }
       m = m + 1;
     }
     let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, r);
-    rel[0] = platform.elf.elf_to_u8(roff);
-    rel[1] = platform.elf.elf_to_u8(roff >> 8);
-    rel[2] = platform.elf.elf_to_u8(roff >> 16);
-    rel[3] = platform.elf.elf_to_u8(roff >> 24);
-    rel[4] = platform.elf.elf_to_u8(sym_idx);
-    rel[5] = platform.elf.elf_to_u8(sym_idx >> 8);
-    rel[6] = platform.elf.elf_to_u8(sym_idx >> 16);
-    rel[7] = platform.elf.elf_to_u8(sym_idx >> 24);
+    rel[0] = elf.elf_to_u8(roff);
+    rel[1] = elf.elf_to_u8(roff >> 8);
+    rel[2] = elf.elf_to_u8(roff >> 16);
+    rel[3] = elf.elf_to_u8(roff >> 24);
+    rel[4] = elf.elf_to_u8(sym_idx);
+    rel[5] = elf.elf_to_u8(sym_idx >> 8);
+    rel[6] = elf.elf_to_u8(sym_idx >> 16);
+    rel[7] = elf.elf_to_u8(sym_idx >> 24);
     rel[8] = 4;
     rel[9] = 0;
     if (coff_append(out, rel, 10) != 0) { return -1; }
@@ -167,12 +167,12 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   sym_sec[15] = 1;
   if (coff_append(out, sym_sec, 18) != 0) { return -1; }
   let aux: [18]u8 = [];
-  aux[0] = platform.elf.elf_to_u8(align4);
-  aux[1] = platform.elf.elf_to_u8(align4 >> 8);
-  aux[2] = platform.elf.elf_to_u8(align4 >> 16);
-  aux[3] = platform.elf.elf_to_u8(align4 >> 24);
-  aux[4] = platform.elf.elf_to_u8(num_relocs);
-  aux[5] = platform.elf.elf_to_u8(num_relocs >> 8);
+  aux[0] = elf.elf_to_u8(align4);
+  aux[1] = elf.elf_to_u8(align4 >> 8);
+  aux[2] = elf.elf_to_u8(align4 >> 16);
+  aux[3] = elf.elf_to_u8(align4 >> 24);
+  aux[4] = elf.elf_to_u8(num_relocs);
+  aux[5] = elf.elf_to_u8(num_relocs >> 8);
   aux[14] = 1;
   aux[15] = 0;
   if (coff_append(out, aux, 18) != 0) { return -1; }
@@ -185,14 +185,14 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
     ent[1] = 0;
     ent[2] = 0;
     ent[3] = 0;
-    ent[4] = platform.elf.elf_to_u8(str_off);
-    ent[5] = platform.elf.elf_to_u8(str_off >> 8);
-    ent[6] = platform.elf.elf_to_u8(str_off >> 16);
-    ent[7] = platform.elf.elf_to_u8(str_off >> 24);
-    ent[8] = platform.elf.elf_to_u8(ctx.syms[s].offset);
-    ent[9] = platform.elf.elf_to_u8(ctx.syms[s].offset >> 8);
-    ent[10] = platform.elf.elf_to_u8(ctx.syms[s].offset >> 16);
-    ent[11] = platform.elf.elf_to_u8(ctx.syms[s].offset >> 24);
+    ent[4] = elf.elf_to_u8(str_off);
+    ent[5] = elf.elf_to_u8(str_off >> 8);
+    ent[6] = elf.elf_to_u8(str_off >> 16);
+    ent[7] = elf.elf_to_u8(str_off >> 24);
+    ent[8] = elf.elf_to_u8(ctx.syms[s].offset);
+    ent[9] = elf.elf_to_u8(ctx.syms[s].offset >> 8);
+    ent[10] = elf.elf_to_u8(ctx.syms[s].offset >> 16);
+    ent[11] = elf.elf_to_u8(ctx.syms[s].offset >> 24);
     ent[12] = 1;
     ent[13] = 0;
     ent[14] = 32;
@@ -205,14 +205,14 @@ function write_coff_o_to_buf(ctx: *platform.elf.ElfCodegenCtx, out: *CodegenOutB
   }
   
   let str_size: [4]u8 = [];
-  str_size[0] = platform.elf.elf_to_u8(strtab_used);
-  str_size[1] = platform.elf.elf_to_u8(strtab_used >> 8);
-  str_size[2] = platform.elf.elf_to_u8(strtab_used >> 16);
-  str_size[3] = platform.elf.elf_to_u8(strtab_used >> 24);
+  str_size[0] = elf.elf_to_u8(strtab_used);
+  str_size[1] = elf.elf_to_u8(strtab_used >> 8);
+  str_size[2] = elf.elf_to_u8(strtab_used >> 16);
+  str_size[3] = elf.elf_to_u8(strtab_used >> 24);
   if (coff_append(out, str_size, 4) != 0) { return -1; }
   s = 0;
   while (s < num_syms) {
-    if (coff_append(out, platform.elf.elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) {
+    if (coff_append(out, elf.elf_sym_name_ptr(ctx, s), ctx.syms[s].name_len) != 0) {
       return -1; }
     if (coff_append(out, zero, 1) != 0) { return -1; }
     s = s + 1;

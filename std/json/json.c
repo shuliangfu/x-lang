@@ -123,22 +123,56 @@ int32_t json_parse_string_c(const uint8_t *ptr, int32_t len, uint8_t *out, int32
 }
 
 /** 将 ptr[0..len] 按 JSON 字符串转义写入 buf（含前后引号）；返回写入长度，不足 -1。 */
-int32_t json_escape_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
-  if (!ptr || !buf || buf_cap < 2) return -1;
+/** 转义字符串内容（不含外围引号）。 */
+static int32_t json_escape_inner_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
   int32_t i = 0;
-  buf[i++] = '"';
-  for (int32_t j = 0; j < len && i < buf_cap - 1; j++) {
+  if (!ptr || !buf || buf_cap <= 0) return -1;
+  for (int32_t j = 0; j < len && i < buf_cap; j++) {
     uint8_t c = ptr[j];
-    if (c == '"') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = '"'; }
-    else if (c == '\\') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = '\\'; }
-    else if (c == '\n') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = 'n'; }
-    else if (c == '\r') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = 'r'; }
-    else if (c == '\t') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = 't'; }
-    else if (c == '\b') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = 'b'; }
-    else if (c == '\f') { if (i + 2 > buf_cap) return -1; buf[i++] = '\\'; buf[i++] = 'f'; }
-    else buf[i++] = c;
+    if (c == '"') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = '"';
+    } else if (c == '\\') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = '\\';
+    } else if (c == '\n') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = 'n';
+    } else if (c == '\r') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = 'r';
+    } else if (c == '\t') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = 't';
+    } else if (c == '\b') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = 'b';
+    } else if (c == '\f') {
+      if (i + 2 > buf_cap) return -1;
+      buf[i++] = '\\';
+      buf[i++] = 'f';
+    } else {
+      buf[i++] = c;
+    }
   }
-  if (i >= buf_cap - 1) return -1;
+  return i;
+}
+
+int32_t json_escape_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
+  int32_t i = 0;
+  int32_t n;
+  if (!ptr || !buf || buf_cap < 2) return -1;
+  buf[i++] = '"';
+  n = json_escape_inner_c(ptr, len, buf + i, buf_cap - i - 1);
+  if (n < 0) return -1;
+  i += n;
+  if (i >= buf_cap) return -1;
   buf[i++] = '"';
   return i;
 }
@@ -221,4 +255,409 @@ int32_t json_append_number_c(uint8_t *buf, int32_t buf_cap, double val) {
     while (en-- && i < buf_cap) buf[i++] = ed[en];
   }
   return i;
+}
+
+/** JSON 游标：增量解析 flat object（供 std.schema 使用）。 */
+typedef struct json_cursor {
+  const uint8_t *ptr;
+  int32_t len;
+  int32_t off;
+} json_cursor_t;
+
+/** 跳过 JSON 空白。 */
+static void json_cursor_skip_ws(json_cursor_t *cur) {
+  if (!cur) return;
+  while (cur->off < cur->len) {
+    uint8_t c = cur->ptr[cur->off];
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') cur->off++;
+    else break;
+  }
+}
+
+/** 跳过单个 JSON 值并前进 off；失败返回 -1。 */
+static int32_t json_cursor_skip_value_impl(json_cursor_t *cur) {
+  int32_t consumed = 0;
+  int32_t dummy = 0;
+  double dv = 0.0;
+  if (!cur || cur->off >= cur->len) return -1;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len) return -1;
+  const uint8_t *p = cur->ptr + cur->off;
+  int32_t rem = cur->len - cur->off;
+  uint8_t c = p[0];
+  if (c == '"') {
+    int32_t i = 1;
+    while (i < rem) {
+      if (p[i] == '\\') { i += 2; continue; }
+      if (p[i] == '"') { cur->off += i + 1; return 0; }
+      i++;
+    }
+    return -1;
+  }
+  if (c == '{') {
+    cur->off++;
+    json_cursor_skip_ws(cur);
+    if (cur->off < cur->len && cur->ptr[cur->off] == '}') { cur->off++; return 0; }
+    for (;;) {
+      if (json_cursor_skip_value_impl(cur) != 0) return -1;
+      json_cursor_skip_ws(cur);
+      if (cur->off >= cur->len || cur->ptr[cur->off] != ':') return -1;
+      cur->off++;
+      if (json_cursor_skip_value_impl(cur) != 0) return -1;
+      json_cursor_skip_ws(cur);
+      if (cur->off >= cur->len) return -1;
+      c = cur->ptr[cur->off];
+      if (c == '}') { cur->off++; return 0; }
+      if (c != ',') return -1;
+      cur->off++;
+    }
+  }
+  if (c == '[') {
+    cur->off++;
+    json_cursor_skip_ws(cur);
+    if (cur->off < cur->len && cur->ptr[cur->off] == ']') { cur->off++; return 0; }
+    for (;;) {
+      if (json_cursor_skip_value_impl(cur) != 0) return -1;
+      json_cursor_skip_ws(cur);
+      if (cur->off >= cur->len) return -1;
+      c = cur->ptr[cur->off];
+      if (c == ']') { cur->off++; return 0; }
+      if (c != ',') return -1;
+      cur->off++;
+    }
+  }
+  if (c == 'n' && json_parse_null_c(p, rem, &consumed)) { cur->off += consumed; return 0; }
+  if (json_parse_bool_c(p, rem, &dummy, &consumed)) { cur->off += consumed; return 0; }
+  if (json_parse_number_c(p, rem, &dv, &consumed) == 0) { cur->off += consumed; return 0; }
+  return -1;
+}
+
+/** 初始化游标。 */
+void json_cursor_init_c(json_cursor_t *cur, const uint8_t *ptr, int32_t len) {
+  if (!cur) return;
+  cur->ptr = ptr;
+  cur->len = len;
+  cur->off = 0;
+}
+
+/** 进入 JSON object；期望 leading `{`。 */
+int32_t json_cursor_enter_object_c(json_cursor_t *cur) {
+  if (!cur) return -1;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len || cur->ptr[cur->off] != '{') return -1;
+  cur->off++;
+  json_cursor_skip_ws(cur);
+  return 0;
+}
+
+/** 读取下一 object 键；成功 1，结束 0，错误 -1。off 停在 value 起始。 */
+int32_t json_cursor_object_next_c(json_cursor_t *cur, uint8_t *key_buf, int32_t key_cap,
+                                  int32_t *key_len) {
+  int32_t consumed = 0;
+  int32_t kl;
+  if (!cur || !key_buf || key_cap <= 0) return -1;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len) return -1;
+  if (cur->ptr[cur->off] == '}') { cur->off++; return 0; }
+  if (cur->off > 0 && cur->ptr[cur->off] == ',') cur->off++;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len || cur->ptr[cur->off] != '"') return -1;
+  kl = json_parse_string_c(cur->ptr + cur->off, cur->len - cur->off, key_buf, key_cap, &consumed);
+  if (kl < 0) return -1;
+  key_buf[kl] = '\0';
+  if (key_len) *key_len = kl;
+  cur->off += consumed;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len || cur->ptr[cur->off] != ':') return -1;
+  cur->off++;
+  json_cursor_skip_ws(cur);
+  return 1;
+}
+
+/** 跳过当前 value。 */
+int32_t json_cursor_skip_value_c(json_cursor_t *cur) {
+  return json_cursor_skip_value_impl(cur);
+}
+
+/** 从缓冲起点跳过单个 JSON 值；写 *consumed 并返回 0，失败 -1。 */
+int32_t json_skip_value_c(const uint8_t *ptr, int32_t len, int32_t *consumed) {
+  json_cursor_t cur;
+  if (!ptr || len < 0) return -1;
+  json_cursor_init_c(&cur, ptr, len);
+  if (json_cursor_skip_value_c(&cur) != 0) return -1;
+  if (consumed) *consumed = cur.off;
+  return 0;
+}
+
+/** 零拷贝视图：含转义时 *out_len = JSON_VIEW_NEEDS_COPY 并返回 NULL。 */
+#define JSON_VIEW_NEEDS_COPY (-2)
+#define JSON_DECODE_MISSING (-3)
+
+const uint8_t *json_parse_string_view_c(const uint8_t *ptr, int32_t len, int32_t *out_len,
+                                        int32_t *consumed) {
+  int32_t i;
+  if (!ptr || len < 2 || ptr[0] != '"' || !out_len || !consumed) return NULL;
+  for (i = 1; i < len; i++) {
+    if (ptr[i] == '\\') {
+      *out_len = JSON_VIEW_NEEDS_COPY;
+      *consumed = 0;
+      return NULL;
+    }
+    if (ptr[i] == '"') {
+      *out_len = i - 1;
+      *consumed = i + 1;
+      return ptr + 1;
+    }
+  }
+  return NULL;
+}
+
+/** 进入 JSON array；期望 leading `[`。 */
+int32_t json_cursor_enter_array_c(json_cursor_t *cur) {
+  if (!cur) return -1;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len || cur->ptr[cur->off] != '[') return -1;
+  cur->off++;
+  json_cursor_skip_ws(cur);
+  return 0;
+}
+
+/** 数组内是否还有元素：1 有，0 已到 `]`（并消费 `]`），错误 -1。 */
+int32_t json_cursor_array_has_elem_c(json_cursor_t *cur) {
+  if (!cur) return -1;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len) return -1;
+  if (cur->ptr[cur->off] == ']') {
+    cur->off++;
+    return 0;
+  }
+  if (cur->ptr[cur->off] == ',') {
+    cur->off++;
+    json_cursor_skip_ws(cur);
+    if (cur->off >= cur->len) return -1;
+    if (cur->ptr[cur->off] == ']') {
+      cur->off++;
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/** 游标处 JSON 值种类：1 string 2 number 3 object 4 array 5 null 6 bool，未知 0。 */
+int32_t json_cursor_value_type_c(json_cursor_t *cur) {
+  if (!cur || cur->off >= cur->len) return 0;
+  json_cursor_skip_ws(cur);
+  if (cur->off >= cur->len) return 0;
+  {
+    uint8_t c = cur->ptr[cur->off];
+    if (c == '"') return 1;
+    if (c == '{') return 3;
+    if (c == '[') return 4;
+    if (c == 'n') return 5;
+    if (c == 't' || c == 'f') return 6;
+    if (c == '-' || (c >= '0' && c <= '9')) return 2;
+  }
+  return 0;
+}
+
+/** 在 ptr 起点解码 i32；成功 0 并写 consumed/out。 */
+int32_t json_decode_i32_at_c(const uint8_t *ptr, int32_t len, int32_t *consumed, int32_t *out) {
+  double dv = 0.0;
+  int32_t con = 0;
+  if (!ptr || !consumed || !out) return -1;
+  if (json_parse_number_c(ptr, len, &dv, &con) != 0) return -1;
+  *consumed = con;
+  *out = (int32_t)dv;
+  return 0;
+}
+
+/** 在 ptr 起点解码 bool；成功 0。 */
+int32_t json_decode_bool_at_c(const uint8_t *ptr, int32_t len, int32_t *consumed, int32_t *out) {
+  int32_t con = 0;
+  if (!ptr || !consumed || !out) return -1;
+  if (!json_parse_bool_c(ptr, len, out, &con)) return -1;
+  *consumed = con;
+  return 0;
+}
+
+/** 在 ptr 起点解码 string 到 out；成功 0 并写 out_len/consumed。 */
+int32_t json_decode_string_at_c(const uint8_t *ptr, int32_t len, uint8_t *out, int32_t out_cap,
+                                int32_t *out_len, int32_t *consumed) {
+  int32_t con = 0;
+  int32_t n;
+  if (!ptr || !out || !out_len || !consumed) return -1;
+  n = json_parse_string_c(ptr, len, out, out_cap, &con);
+  if (n < 0) return -1;
+  *out_len = n;
+  *consumed = con;
+  return 0;
+}
+
+/** 比较 key_buf 与 key[0..key_len)。 */
+static int32_t json_key_eq(const uint8_t *key_buf, int32_t key_len, const uint8_t *key,
+                           int32_t want_len) {
+  if (key_len != want_len) return 0;
+  if (want_len <= 0) return 1;
+  return memcmp(key_buf, key, (size_t)want_len) == 0 ? 1 : 0;
+}
+
+/** object 内按 key 解码 i32；缺键 JSON_DECODE_MISSING。 */
+int32_t json_object_decode_i32_c(json_cursor_t *cur, const uint8_t *key, int32_t key_len,
+                                 int32_t *out) {
+  json_cursor_t scan;
+  uint8_t kbuf[64];
+  int32_t kl = 0;
+  int32_t nr = 0;
+  if (!cur || !key || !out) return -1;
+  scan = *cur;
+  if (json_cursor_enter_object_c(&scan) != 0) return -1;
+  while ((nr = json_cursor_object_next_c(&scan, kbuf, (int32_t)sizeof kbuf, &kl)) == 1) {
+    if (json_key_eq(kbuf, kl, key, key_len)) {
+      return json_decode_i32_at_c(scan.ptr + scan.off, scan.len - scan.off, &kl, out);
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) return -1;
+  }
+  if (nr < 0) return -1;
+  return JSON_DECODE_MISSING;
+}
+
+/** object 内按 key 解码 bool；缺键 JSON_DECODE_MISSING。 */
+int32_t json_object_decode_bool_c(json_cursor_t *cur, const uint8_t *key, int32_t key_len,
+                                  int32_t *out) {
+  json_cursor_t scan;
+  uint8_t kbuf[64];
+  int32_t kl = 0;
+  int32_t nr = 0;
+  if (!cur || !key || !out) return -1;
+  scan = *cur;
+  if (json_cursor_enter_object_c(&scan) != 0) return -1;
+  while ((nr = json_cursor_object_next_c(&scan, kbuf, (int32_t)sizeof kbuf, &kl)) == 1) {
+    if (json_key_eq(kbuf, kl, key, key_len)) {
+      return json_decode_bool_at_c(scan.ptr + scan.off, scan.len - scan.off, &kl, out);
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) return -1;
+  }
+  if (nr < 0) return -1;
+  return JSON_DECODE_MISSING;
+}
+
+/** object 内按 key 解码 string；缺键 JSON_DECODE_MISSING。 */
+int32_t json_object_decode_string_c(json_cursor_t *cur, const uint8_t *key, int32_t key_len,
+                                    uint8_t *out, int32_t out_cap, int32_t *out_len) {
+  json_cursor_t scan;
+  uint8_t kbuf[64];
+  int32_t kl = 0;
+  int32_t nr = 0;
+  int32_t con = 0;
+  if (!cur || !key || !out || !out_len) return -1;
+  scan = *cur;
+  if (json_cursor_enter_object_c(&scan) != 0) return -1;
+  while ((nr = json_cursor_object_next_c(&scan, kbuf, (int32_t)sizeof kbuf, &kl)) == 1) {
+    if (json_key_eq(kbuf, kl, key, key_len)) {
+      if (json_decode_string_at_c(scan.ptr + scan.off, scan.len - scan.off, out, out_cap, out_len,
+                                  &con) != 0)
+        return -1;
+      return 0;
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) return -1;
+  }
+  if (nr < 0) return -1;
+  return JSON_DECODE_MISSING;
+}
+
+/** 类型化 decode C 烟测：{"age":30,"ok":true,"name":"alice"}。 */
+int32_t json_typed_decode_smoke_c(void) {
+  static const uint8_t doc[] =
+      "{\"age\":30,\"ok\":true,\"name\":\"alice\"}";
+  json_cursor_t cur;
+  int32_t age = 0;
+  int32_t ok = 0;
+  int32_t name_len = 0;
+  uint8_t name[16];
+  json_cursor_init_c(&cur, doc, (int32_t)(sizeof doc - 1));
+  if (json_object_decode_i32_c(&cur, (const uint8_t *)"age", 3, &age) != 0 || age != 30) return -1;
+  json_cursor_init_c(&cur, doc, (int32_t)(sizeof doc - 1));
+  if (json_object_decode_bool_c(&cur, (const uint8_t *)"ok", 2, &ok) != 0 || ok != 1) return -1;
+  json_cursor_init_c(&cur, doc, (int32_t)(sizeof doc - 1));
+  if (json_object_decode_string_c(&cur, (const uint8_t *)"name", 4, name, 16, &name_len) != 0 ||
+      name_len != 5)
+    return -1;
+  json_cursor_init_c(&cur, doc, (int32_t)(sizeof doc - 1));
+  if (json_object_decode_i32_c(&cur, (const uint8_t *)"xxx", 3, &age) != JSON_DECODE_MISSING)
+    return -1;
+  return 0;
+}
+
+/** 在 buf[off] 写入 `{`；返回写入字节数。 */
+int32_t json_append_object_c(uint8_t *buf, int32_t cap, int32_t off) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  buf[off] = '{';
+  return 1;
+}
+
+/** 在 buf[off] 写入 `}`。 */
+int32_t json_append_object_end_c(uint8_t *buf, int32_t cap, int32_t off) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  buf[off] = '}';
+  return 1;
+}
+
+/** 在 buf[off] 写入 `[`。 */
+int32_t json_append_array_c(uint8_t *buf, int32_t cap, int32_t off) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  buf[off] = '[';
+  return 1;
+}
+
+/** 在 buf[off] 写入 `]`。 */
+int32_t json_append_array_end_c(uint8_t *buf, int32_t cap, int32_t off) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  buf[off] = ']';
+  return 1;
+}
+
+/** 在 buf[off] 写入 `,`。 */
+int32_t json_append_comma_c(uint8_t *buf, int32_t cap, int32_t off) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  buf[off] = ',';
+  return 1;
+}
+
+/** 在 buf[off] 写入 `"key":`。 */
+int32_t json_append_key_c(uint8_t *buf, int32_t cap, int32_t off, const uint8_t *key,
+                          int32_t key_len) {
+  int32_t i = off;
+  int32_t n;
+  if (!buf || !key || key_len < 0 || off < 0) return -1;
+  if (i >= cap) return -1;
+  buf[i++] = '"';
+  n = json_escape_inner_c(key, key_len, buf + i, cap - i);
+  if (n < 0) return -1;
+  i += n;
+  if (i + 1 >= cap) return -1;
+  buf[i++] = '"';
+  buf[i++] = ':';
+  return i - off;
+}
+
+/** 在 buf[off] 写入 `"value"`。 */
+int32_t json_append_string_value_c(uint8_t *buf, int32_t cap, int32_t off, const uint8_t *val,
+                                   int32_t val_len) {
+  int32_t i = off;
+  int32_t n;
+  if (!buf || !val || val_len < 0 || off < 0) return -1;
+  if (i >= cap) return -1;
+  buf[i++] = '"';
+  n = json_escape_inner_c(val, val_len, buf + i, cap - i);
+  if (n < 0) return -1;
+  i += n;
+  if (i >= cap) return -1;
+  buf[i++] = '"';
+  return i - off;
+}
+
+/** 在 buf[off] 写入 number；返回写入字节数。 */
+int32_t json_append_number_at_c(uint8_t *buf, int32_t cap, int32_t off, double val) {
+  if (!buf || off < 0 || off >= cap) return -1;
+  return json_append_number_c(buf + off, cap - off, val);
 }

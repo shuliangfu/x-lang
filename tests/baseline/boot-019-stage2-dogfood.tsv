@@ -1,0 +1,23 @@
+# BOOT-019 Stage2 parser/typeck dogfood manifest
+# 列：item_id	kind	anchor	notes
+# min_smoke	6
+section_goal	section	## 1. 目标	bootstrap-verify 扩面
+section_subset	section	## 2. bootstrap-verify 子集	parser typeck
+section_gate	section	## 4. Gate	boot-019 gate
+smoke_parser_semi	smoke	tests/parser/semicolon_required.su	分号正例
+smoke_parser_two	smoke	tests/parser/two_functions.su	多函数
+smoke_parser_bin	smoke	tests/parser/binary_expr_return.su	二元表达式
+smoke_typeck_option	smoke	tests/option/main.su	Option 类型族
+smoke_typeck_result	smoke	tests/result/main.su	Result 类型族
+smoke_typeck_generic	smoke	tests/generic/main.su	泛型 id
+hook_runner	hook_script	run-bootstrap-stage2-dogfood-parser-typeck.sh	subset runner
+hook_parser	hook_script	run-parser.sh	parser regression
+hook_typeck	hook_script	run-typeck.sh	typeck regression
+hook_option	hook_script	run-option.sh	option regression
+hook_result	hook_script	run-result.sh	result regression
+hook_generic	hook_script	run-generic.sh	generic regression
+cross_check72	cross_ref	compiler/Makefile	check-7.2-bstrict integration
+cross_bootstrap_gate	cross_ref	tests/run-bootstrap-shu-gate.sh	driver gate
+cross_boot015	cross_ref	analysis/boot-015-semantic-smoke-v1.md	BOOT-015 子集
+doc	file	boot-019-stage2-dogfood-v1.md	analysis/boot-019-stage2-dogfood-v1.md	RFC
+gate	script	run-boot-019-stage2-dogfood-gate.sh	tests/run-boot-019-stage2-dogfood-gate.sh	manifest

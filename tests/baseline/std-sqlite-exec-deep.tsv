@@ -1,0 +1,18 @@
+# STD-065 std.sqlite exec 深化 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tx_apis	3
+read_path	section	## 1. 目标	analysis/std-sqlite-exec-deep-v1.md
+tx_doc	section	## 2. 事务 Exec API（深化）	begin_tx
+vectors_doc	section	## 3. 金样向量	tx_begin
+verify	section	## 4. Gate	gate
+api_begin_tx	api	begin_tx	std/sqlite/mod.su	事务开始
+api_commit	api	commit	std/sqlite/mod.su	提交
+api_rollback	api	rollback	std/sqlite/mod.su	回滚
+symbol_tx_smoke_c	symbol	db_sqlite_tx_exec_smoke_c	std/sqlite/sqlite.c	事务烟测
+impl_c	file	std/sqlite/sqlite.c	std/sqlite/sqlite.c	实现
+smoke_c	file	tests/std-sqlite/exec_tx_roundtrip_ok.c	C 入口
+smoke_su	smoke	tests/std-sqlite/exec_tx_roundtrip.su	.su 往返
+vectors	file	tests/baseline/std-sqlite-exec-deep-vectors.tsv	向量
+lib	script	lib/std-sqlite-exec-deep.sh	tests/lib/std-sqlite-exec-deep.sh
+gate	script	run-std-sqlite-exec-deep-gate.sh	tests/run-std-sqlite-exec-deep-gate.sh
+cross_std057	cross_ref	analysis/std-sqlite-v1.md	STD-057

@@ -1,0 +1,8 @@
+# STD-073 std.codec round-trip 向量
+# 列：case_id	op	input	expected	notes
+hex_round	hex	[72,105]	6869	hex 往返
+b64_round	b64	[1,2,3]	AQID	base64 往返
+gzip_round	gzip	hello	hello	gzip 块往返（zlib 可用时）
+json_esc	json_escape	a"b	\"a\"b\"	JSON 转义
+csv_esc	csv_escape	a,b	"a,b"	CSV 引号
+bytes_bridge	encode_into_bytes	abc	len=3	bytes 桥接

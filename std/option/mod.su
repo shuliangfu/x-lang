@@ -1,0 +1,72 @@
+// std.option — core.option 用户友好重导出与组合子（STD-080）
+//
+// 【文件职责】
+// 重导出 Option 类型族与 eager 组合子；与 std.result 互转辅助。
+// 不重复 core 语义，仅提供 std 层统一 import 入口。
+//
+// 【对标】Rust std::option、Zig optional 便捷 API。
+
+const option = import("core.option");
+const result = import("core.result");
+
+/** 构造无值 Option_i32。 */
+function none_i32(): Option_i32 { return option.none_i32(); }
+
+/** 构造有值 Option_i32。 */
+function some_i32(x: i32): Option_i32 { return option.some_i32(x); }
+
+/** 有值返回值，否则 default。 */
+function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
+  return option.unwrap_or_i32(opt, default_val);
+}
+
+/** 是否为 Some。 */
+function is_some_i32(opt: Option_i32): bool { return option.is_some_i32(opt); }
+
+/** 是否为 None。 */
+function is_none_i32(opt: Option_i32): bool { return option.is_none_i32(opt); }
+
+/** eager map：有值则 some(mapped)，否则 none。 */
+function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
+  if (option.is_some_i32(opt)) {
+    return option.some_i32(mapped);
+  }
+  return option.none_i32();
+}
+
+/** eager and_then：有值则 next，否则 none。 */
+function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
+  if (option.is_some_i32(opt)) {
+    return next;
+  }
+  return option.none_i32();
+}
+
+/** 取第一个 Some，否则 other。 */
+function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
+  return option.or_i32(opt, other);
+}
+
+/** Result 成功转 Some(value)，失败转 None。 */
+function option_from_result_i32(r: Result_i32): Option_i32 {
+  if (result.is_ok_i32(r)) {
+    return option.some_i32(r.value);
+  }
+  return option.none_i32();
+}
+
+/** Result_u8 成功转 Some，失败转 None。 */
+function option_from_result_u8(r: Result_u8): Option_u8 {
+  if (is_ok_u8(r)) {
+    return option.some_u8(r.value);
+  }
+  return option.none_u8();
+}
+
+/** Option 有值转 Ok，None 转 Err(err_if_none)。 */
+function option_to_result_i32(opt: Option_i32, err_if_none: i32): Result_i32 {
+  if (option.is_some_i32(opt)) {
+    return result.ok_i32(opt.value);
+  }
+  return result.err_i32(err_if_none);
+}

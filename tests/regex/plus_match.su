@@ -1,0 +1,14 @@
+// STD-065：`a+b` 至少一次
+const regex = import("std.regex");
+
+function main(): i32 {
+  let pat: [3]u8 = [97, 43, 98];
+  let re: *u8 = regex.compile(&pat[0], 3);
+  if (re == 0) { return 1; }
+  let hay: [3]u8 = [97, 97, 98];
+  if (regex.regex_match(re, &hay[0], 3) != 0) { regex.free(re); return 2; }
+  let hay2: [1]u8 = [98];
+  if (regex.regex_match(re, &hay2[0], 1) == 0) { regex.free(re); return 3; }
+  regex.free(re);
+  return 0;
+}

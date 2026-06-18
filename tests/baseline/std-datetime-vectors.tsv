@@ -1,0 +1,7 @@
+# STD-074 std.datetime 金样向量
+# 列：case_id	input	expected	notes
+rfc3339_z	2020-01-02T03:04:05Z	sec=1577934245	UTC Z
+rfc3339_nano	2020-01-02T03:04:05.123456789Z	nsec=123456789	纳秒
+offset_plus08	2020-01-02T11:04:05+08:00	sec=1577934245	偏移归 UTC
+duration_add	+1s	nsec roll	进位
+fields_utc	1577934245	2020-01-02	日历分解

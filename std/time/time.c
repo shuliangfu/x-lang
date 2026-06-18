@@ -18,6 +18,8 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -129,4 +131,60 @@ void time_sleep_sec_c(int32_t s) {
 /** 时间差（纳秒）：to_ns - from_ns。纯算术、无 syscall；链接时 -flto 可内联消除调用开销。 */
 int64_t time_duration_ns_c(int64_t from_ns, int64_t to_ns) {
     return to_ns - from_ns;
+}
+
+/** 将当前 UTC 墙钟格式化为 RFC3339（末尾 Z）；返回写入长度，失败 -1。 */
+int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap) {
+    time_t now;
+    struct tm tm;
+    int n;
+#if defined(_WIN32) || defined(_WIN64)
+    if (!buf || cap <= 0) return -1;
+    now = time(NULL);
+    if (gmtime_s(&tm, &now) != 0) return -1;
+#else
+    if (!buf || cap <= 0) return -1;
+    now = time(NULL);
+    if (gmtime_r(&now, &tm) == NULL) return -1;
+#endif
+    n = snprintf((char *)buf, (size_t)cap, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                 tm.tm_hour, tm.tm_min, tm.tm_sec);
+    if (n <= 0 || n >= cap) return -1;
+    return n;
+}
+
+/** 本地时区相对 UTC 的偏移（分钟；东为正）。 */
+int32_t time_wall_local_offset_min_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    TIME_ZONE_INFORMATION tzi;
+    DWORD r = GetTimeZoneInformation(&tzi);
+    (void)r;
+    return -(int32_t)tzi.Bias;
+#else
+    time_t now = time(NULL);
+    struct tm local_tm;
+    struct tm gmt_tm;
+    time_t local_sec;
+    time_t gmt_sec;
+    if (localtime_r(&now, &local_tm) == NULL) return 0;
+    if (gmtime_r(&now, &gmt_tm) == NULL) return 0;
+    local_tm.tm_isdst = 0;
+    gmt_tm.tm_isdst = 0;
+    local_sec = mktime(&local_tm);
+    gmt_sec = mktime(&gmt_tm);
+    if (local_sec == (time_t)-1 || gmt_sec == (time_t)-1) return 0;
+    return (int32_t)((local_sec - gmt_sec) / 60);
+#endif
+}
+
+/** 烟测：format + offset 基本可用；0 成功。 */
+int32_t time_format_timezone_smoke_c(void) {
+    uint8_t buf[32];
+    int32_t n = time_format_wall_rfc3339_c(buf, 32);
+    int32_t off = time_wall_local_offset_min_c();
+    if (n < 20) return 1;
+    if (buf[n - 1] != 'Z') return 2;
+    if (off < -840 || off > 840) return 3;
+    return 0;
 }

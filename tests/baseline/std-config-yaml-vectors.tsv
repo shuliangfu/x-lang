@@ -1,0 +1,5 @@
+# STD-119 YAML 向量
+# 列：case_id	input	expect	notes
+yaml_port	port: 8080	port=8080	根级 i32
+yaml_section	db.url	sqlite://mem	缩进 section
+yaml_bool	debug: false	debug=0	bool 解析

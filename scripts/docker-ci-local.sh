@@ -166,6 +166,28 @@ run_ubuntu_wpo_s4() {
 }
 
 # ZC-1 Provided Buffers perf + 全栈 ZC gates（Linux io_uring；Mac Docker linuxkit 无 io_uring → ZC-1 SKIP）
+# WPO stretch -3%（bootstrap-driver-bstrict + build_asm 齐全后）
+run_ubuntu_wpo_stretch() {
+  echo "===== Docker CI: ubuntu-wpo-stretch (bstrict + WPO 3% + B-CMP-ASM, linux/amd64) ====="
+  docker run --rm --platform linux/amd64 -e CI=1 -e SHU_CI_DOCKER=1 -e SHU_CC_EXTRA="-std=gnu11" \
+    -v "$SRC:/src" -w /src \
+    ubuntu:22.04 \
+    sh -c '
+      apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev lsof file pkg-config binutils >/dev/null &&
+      export SHU_CC_EXTRA="-std=gnu11" &&
+      ulimit -s 65532 2>/dev/null || true &&
+      make -C compiler OPT=1 all &&
+      test -x compiler/shu_asm || make -C compiler bootstrap-driver-bstrict &&
+      chmod +x tests/run-wpo-full-chain-gate.sh tests/run-bcmp-gate.sh tests/run-wpo-strict-glue-text-gate.sh &&
+      ./tests/run-wpo-full-chain-gate.sh &&
+      chmod +x tests/run-wpo-stretch-gate.sh tests/run-bcmp-gate.sh &&
+      SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh &&
+      ./tests/run-wpo-stretch-gate.sh &&
+      ./tests/run-bcmp-gate.sh &&
+      SHU_PERF_BCMP_ASM=1 ./tests/run-bcmp-gate.sh || true
+    '
+}
+
 run_ubuntu_net_zc1() {
   echo "===== Docker CI: ubuntu-net-zc1 (run-zc-gates --perf, linux/amd64) ====="
   docker run --rm --platform linux/amd64 -e CI=1 -e SHU_CC_EXTRA="-std=gnu11" \
@@ -218,6 +240,9 @@ case "$IMAGE" in
   ubuntu-wpo-s4-full)
     run_ubuntu_wpo_s4_full
     ;;
+  ubuntu-wpo-stretch)
+    run_ubuntu_wpo_stretch
+    ;;
   ubuntu-net-zc1)
     run_ubuntu_net_zc1
     ;;
@@ -227,7 +252,7 @@ case "$IMAGE" in
     run_one ubuntu:22.04
     ;;
   *)
-    echo "Usage: $0 [alpine|debian|ubuntu|ubuntu-gates|ubuntu-zc-gates|ubuntu-wpo-s2|ubuntu-wpo-s3|ubuntu-wpo-s3-full|ubuntu-wpo-s4|ubuntu-wpo-s4-full|ubuntu-net-zc1|all]" >&2
+    echo "Usage: $0 [alpine|debian|ubuntu|ubuntu-gates|ubuntu-zc-gates|ubuntu-wpo-s2|ubuntu-wpo-s3|ubuntu-wpo-s3-full|ubuntu-wpo-s4|ubuntu-wpo-s4-full|ubuntu-wpo-stretch|ubuntu-net-zc1|all]" >&2
     exit 1
     ;;
 esac

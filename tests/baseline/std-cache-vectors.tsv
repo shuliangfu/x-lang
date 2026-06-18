@@ -1,0 +1,6 @@
+# STD-087 std.cache 向量
+# case_id	op	expect_notes
+lru_evict	cap=2 put 1,2,3 key1 gone	OK
+lru_hit	get existing increments hits	OK
+pool_roundtrip	add acquire release idle restored	OK
+pool_unhealthy	mark unhealthy release drops slot	OK

@@ -1,0 +1,21 @@
+# PERF-008 syscall 批处理优化 manifest
+# 列：item_id	kind	anchor	notes
+# min_cases	4
+output_prefix	bracket_component	SHU_SYSCALL_BATCH	stderr 前缀
+field_case	output_field	case=	用例 id
+field_io_total	output_field	io_total=	syscall 合计
+field_ref	output_field	ref_case=	对照 case
+case_io_batch	case	io_batch_readv	readv batch
+case_io_chunked	case	io_read_chunked	单 read 对照
+case_zc_splice	case	zero_copy_splice	ZC-5 splice
+case_zc_rw	case	zero_copy_readwrite	read+write 对照
+cap_io_batch	cap_row	io_batch_readv	1100 readv
+cap_zc_splice	cap_row	zero_copy_splice	min_splice=1
+baseline	file	tests/baseline/syscall-batch-perf.tsv	syscall cap 表
+lib	script	lib/perf-syscall-batch.sh	strace 统计库
+hook_runner	script	run-perf-syscall-batch.sh	统一 runner
+hook_zc5	hook_script	run-zc5-gate.sh	ZC-5 emit
+gate	script	run-perf-syscall-batch-gate.sh	manifest 门禁
+cross_zc5	cross_ref	tests/run-zc5-gate.sh	ZC-5 正确性
+cross_io	cross_ref	tests/run-perf-io.sh	IO perf
+cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志

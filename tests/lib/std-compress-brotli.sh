@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# std-compress-brotli.sh — STD-125 manifest 与烟测辅助
+
+STD_COMPRESS_BROTLI_PREFIX="${SHU_STD125_COMPRESS_BROTLI_PREFIX:-shu: [SHU_STD125_COMPRESS_BROTLI]}"
+
+std_compress_brotli_symbols_ok() {
+  local mod_su="$1"
+  local compress_c="$2"
+  local tsv="$3"
+  local miss=0
+  local item_id kind anchor mod_path
+  while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
+    [ -z "${item_id:-}" ] && continue
+    case "$item_id" in \#*|min_*) continue ;; esac
+    case "$kind" in
+      api)
+        grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null || miss=$((miss + 1))
+        ;;
+      symbol)
+        local path="$mod_path"
+        [ "$path" = "std/compress/compress.c" ] && path="$compress_c"
+        grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
+        ;;
+      target)
+        grep -qF "$anchor" "${mod_path:-compiler/Makefile}" 2>/dev/null || miss=$((miss + 1))
+        ;;
+      file|smoke)
+        [ -f "$anchor" ] || miss=$((miss + 1))
+        ;;
+    esac
+  done < "$tsv"
+  echo "$miss"
+  [ "$miss" -eq 0 ]
+}
+
+# 尝试 rebuild compress.o with Brotli；成功 echo 1，失败 echo 0。
+std_compress_brotli_try_build() {
+  if (cd compiler && make compress-o-brotli 2>/dev/null); then
+    return 0
+  fi
+  return 1
+}
+
+std_compress_brotli_run_c_smoke() {
+  local compress_o="$1"
+  local out="/tmp/shu_std_compress_brotli_c_$$"
+  if ! cc -std=c11 -O1 -o "$out" tests/std-compress/brotli_smoke_ok.c "$compress_o" -lbrotlienc -lbrotlidec 2>/dev/null; then
+    return 2
+  fi
+  set +e
+  "$out" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$out"
+  [ "$ec" -eq 0 ]
+}
+
+std_compress_brotli_run_su_smoke() {
+  local shu="$1"
+  local src="$2"
+  local exe="/tmp/shu_std_compress_brotli_su_$$"
+  "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe"
+  [ "$ec" -eq 0 ]
+}
+
+std_compress_brotli_emit_report() {
+  echo "${STD_COMPRESS_BROTLI_PREFIX} status=$1 brotli=$2 skip=$3"
+}

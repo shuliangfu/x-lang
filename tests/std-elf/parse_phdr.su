@@ -1,0 +1,52 @@
+// STD-064：ELF64 program header 烟测（金样 120 字节嵌入）
+const elf = import("std.elf");
+
+function main(): i32 {
+  let blob: [120]u8 = [
+    127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 56, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+    0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    4, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0,
+    0, 16, 0, 0, 0, 0, 0, 0,
+  ];
+  let hdr: Elf64Hdr = Elf64Hdr {
+    e_type: 0,
+    machine: 0,
+    entry: 0,
+    phoff: 0,
+    phnum: 0,
+    shnum: 0,
+    shoff: 0,
+    shstrndx: 0,
+  };
+  let ph: Elf64Phdr = Elf64Phdr {
+    p_type: 0,
+    p_flags: 0,
+    offset: 0,
+    vaddr: 0,
+    filesz: 0,
+    memsz: 0,
+  };
+  if (parse_hdr(&blob[0], 120, &hdr) != 0) {
+    return 1;
+  }
+  if (hdr.e_type != 2) {
+    return 2;
+  }
+  if (hdr.phnum != 1 || hdr.phoff != 64) {
+    return 3;
+  }
+  if (read_phdr(&blob[0], 120, &hdr, 0, &ph) != 0) {
+    return 4;
+  }
+  if (ph.p_type != 1) {
+    return 5;
+  }
+  if (ph.offset != 256) {
+    return 6;
+  }
+  return 0;
+}

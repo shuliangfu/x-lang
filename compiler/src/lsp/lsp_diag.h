@@ -36,8 +36,13 @@ void lsp_diag_prepare_pipeline_ctx(void *ctx_void);
 /** 文档变更时由 lsp_io 调用，使模块与诊断缓存失效，避免旧模块指向已释放的文档缓冲。 */
 void lsp_diag_invalidate_cache(void);
 
-/** 追加一条诊断：line/col 为 1-based；severity 1=Error 2=Warning；msg 以 NUL 结尾。 */
+/** 追加一条诊断：line/col 为 1-based；severity 1=Error 2=Warning 3=Information。 */
 void lsp_diag_add(int line, int col, int severity, const char *msg);
+
+/**
+ * 统计当前收集器中 severity 等于给定值的诊断条数（用于 shu check CI profile）。
+ */
+int lsp_diag_count_severity(int severity);
 
 /**
  * 将当前收集的诊断打印到 stderr（deno / rustc 风格：path:line:col - error: msg）。

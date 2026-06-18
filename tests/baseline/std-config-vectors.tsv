@@ -1,0 +1,8 @@
+# STD-086 std.config 向量
+# case_id	op	expect_notes
+toml_flat	port=8080 host=localhost	OK
+toml_section	[db] url=sqlite://mem → db.url	OK
+env_override	SHU_CFG_debug=true overrides false	OK
+merge_cli	merge port=9090	OK
+get_i32	port 8080/9090	OK
+get_bool	debug true after env	OK

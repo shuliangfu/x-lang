@@ -1,4 +1,4 @@
-import std.io;
+const io = import("std.io");
 
 function main(): i32 {
   return 0;

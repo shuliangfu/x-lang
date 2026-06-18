@@ -55,8 +55,89 @@ static char *s_file_list[DRIVER_FMT_MAX_FILES];
 static int s_n_files;
 
 /** check 默认 -L：cwd；用户未传 -L 时按路径追加（见 check_argv_append_default_libs_for_path）。 */
-static char s_check_lib_bufs[4][512];
+static char s_check_lib_bufs[8][512];
+static int s_n_check_lib_bufs;
 static int s_user_passed_L;
+
+/**
+ * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
+ */
+static void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
+    char core_path[560];
+    char std_path[560];
+    struct stat st;
+    int i;
+
+    if (s_user_passed_L || *n >= 58 || !dir || !dir[0])
+        return;
+    snprintf(core_path, sizeof core_path, "%s/core", dir);
+    snprintf(std_path, sizeof std_path, "%s/std", dir);
+    if (stat(core_path, &st) != 0 || !S_ISDIR(st.st_mode))
+        return;
+    if (stat(std_path, &st) != 0 || !S_ISDIR(st.st_mode))
+        return;
+    for (i = 0; i < s_n_check_lib_bufs; i++) {
+        if (strcmp(s_check_lib_bufs[i], dir) == 0)
+            return;
+    }
+    if (s_n_check_lib_bufs >= 8)
+        return;
+    snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", dir);
+    check_argv[(*n)++] = "-L";
+    check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
+}
+
+/**
+ * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
+ */
+static void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
+    char start[512];
+    char cur[512];
+    char parent[512];
+    int depth;
+
+    if (s_user_passed_L || *n >= 58)
+        return;
+    if (!path || !path[0]) {
+        if (getcwd(start, sizeof start))
+            check_try_append_lib_root(check_argv, n, start);
+        return;
+    }
+    if (path[0] == '/') {
+        snprintf(start, sizeof start, "%s", path);
+    } else {
+        if (!getcwd(start, sizeof start))
+            return;
+        size_t sl = strlen(start);
+        snprintf(start + sl, sizeof start - sl, "/%s", path);
+    }
+    /* 取目录部分 */
+    {
+        char *slash = strrchr(start, '/');
+        if (slash && slash != start)
+            *slash = '\0';
+        else if (slash == start)
+            start[1] = '\0';
+    }
+    snprintf(cur, sizeof cur, "%s", start);
+    for (depth = 0; depth < 8; depth++) {
+        check_try_append_lib_root(check_argv, n, cur);
+        if (strcmp(cur, "/") == 0)
+            break;
+        snprintf(parent, sizeof parent, "%s", cur);
+        {
+            char *slash = strrchr(parent, '/');
+            if (!slash)
+                break;
+            if (slash == parent)
+                strcpy(cur, "/");
+            else {
+                *slash = '\0';
+                snprintf(cur, sizeof cur, "%s", parent);
+            }
+        }
+    }
+}
 
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
@@ -64,6 +145,7 @@ static int s_user_passed_L;
 static void check_init_user_lib_flags(int argc, char **argv, int path_start) {
     int i;
     s_user_passed_L = 0;
+    s_n_check_lib_bufs = 0;
     for (i = path_start; i < argc; i++) {
         if (argv[i] && strcmp(argv[i], "-L") == 0) {
             s_user_passed_L = 1;
@@ -77,31 +159,40 @@ static void check_init_user_lib_flags(int argc, char **argv, int path_start) {
  * 始终注入仓库根；compiler/src 下文件再追加 compiler/src 库根（裸 import lexer/token）。
  */
 static void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
+    char cwd_buf[512];
     char cs[560];
     struct stat st;
 
     if (s_user_passed_L || *n >= 58)
         return;
-    if (!getcwd(s_check_lib_bufs[0], sizeof s_check_lib_bufs[0]))
+    check_append_repo_lib_roots(path, check_argv, n);
+    if (!getcwd(cwd_buf, sizeof cwd_buf))
         return;
-    check_argv[(*n)++] = "-L";
-    check_argv[(*n)++] = s_check_lib_bufs[0];
+    check_try_append_lib_root(check_argv, n, cwd_buf);
     if (path && strstr(path, "compiler/src/") && *n < 56) {
-        snprintf(cs, sizeof cs, "%s/compiler/src", s_check_lib_bufs[0]);
+        snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
-            snprintf(s_check_lib_bufs[1], sizeof s_check_lib_bufs[0], "%s", cs);
+            snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", cs);
             check_argv[(*n)++] = "-L";
-            check_argv[(*n)++] = s_check_lib_bufs[1];
+            check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
         }
         if (strstr(path, "compiler/src/asm/") && *n < 56) {
-            snprintf(cs, sizeof cs, "%s/compiler/src/asm", s_check_lib_bufs[0]);
+            snprintf(cs, sizeof cs, "%s/compiler/src/asm", cwd_buf);
             if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
-                snprintf(s_check_lib_bufs[2], sizeof s_check_lib_bufs[0], "%s", cs);
+                snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", cs);
                 check_argv[(*n)++] = "-L";
-                check_argv[(*n)++] = s_check_lib_bufs[2];
+                check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
             }
         }
     }
+}
+
+/**
+ * SHU_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
+ */
+static int check_lint_fail_on_warnings(void) {
+    const char *v = getenv("SHU_LINT_CI_FAIL_ON");
+    return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
 
 /**
@@ -412,6 +503,9 @@ static int check_one_file(const char *path, int argc, char **argv) {
     lsp_diag_collect_begin();
     driver_check_set_current_file(path);
 
+    /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
+    s_n_check_lib_bufs = 0;
+
     check_argv[n++] = argv[0];
 #ifdef SHU_USE_SU_PIPELINE
     check_argv[n++] = "check";
@@ -436,9 +530,14 @@ static int check_one_file(const char *path, int argc, char **argv) {
     rc = fmt_check_invoke_compile(n, check_argv);
     driver_check_only_set(0);
 
-    if (rc != 0) {
-        if (lsp_diag_print_stderr_human(path) == 0)
-            fprintf(stderr, "check failed: %s\n", path);
+    {
+        int nd = lsp_diag_print_stderr_human(path);
+        if (rc != 0) {
+            if (nd == 0)
+                fprintf(stderr, "check failed: %s\n", path);
+        } else if (check_lint_fail_on_warnings() && lsp_diag_count_severity(2) > 0) {
+            rc = 1;
+        }
     }
 
     lsp_diag_collect_end();

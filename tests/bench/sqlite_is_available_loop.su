@@ -1,0 +1,15 @@
+/**
+ * PERF-170：sqlite_is_available 热路径循环烟测（stub/真实库均适用）。
+ */
+const sqlite = import("std.sqlite");
+
+function main(): i32 {
+  let acc: i32 = 0;
+  let i: i32 = 0;
+  while (i < 100000) {
+    acc = acc + sqlite.sqlite_is_available();
+    i = i + 1;
+  }
+  if (acc < 0) { return 1; }
+  return 0;
+}

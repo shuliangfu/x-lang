@@ -1,0 +1,28 @@
+# STBL-004 import std.* 与 -L 布局 manifest
+# 列：item_id	kind	anchor	expected	notes
+# min_resolve	12
+read_path	section	## 1. 阅读路径	-	15min
+import_rules	section	## 2. import 解析规则	-	dotted
+lib_layout	section	## 3. `-L` 库根布局	-	bundled
+physical_map	section	## 4. 物理路径映射（Tier-S 样例）	-	tier-s
+abi_link	section	## 5. C `.o` 按需链接（ABI）	-	extern
+tool_cross	section	## 6. TOOL-007/008 联动	-	pkgmgr
+verify	section	## 7. 验证与门禁	-	gate
+resolve_std.io	resolve	std.io	std/io/mod.su	mod.su
+resolve_std.fs	resolve	std.fs	std/fs/mod.su	mod.su
+resolve_std.net	resolve	std.net	std/net/mod.su	mod.su
+resolve_std.path	resolve	std.path	std/path/mod.su	mod.su
+resolve_std.string	resolve	std.string	std/string/mod.su	mod.su
+resolve_std.http	resolve	std.http	std/http/mod.su	mod.su
+resolve_std.json	resolve	std.json	std/json/mod.su	mod.su
+resolve_std.process	resolve	std.process	std/process/mod.su	mod.su
+resolve_std.heap	resolve	std.heap	std/heap/mod.su	mod.su
+resolve_std.error	resolve	std.error	std/error/mod.su	mod.su
+resolve_core.types	resolve	core.types	core/types/mod.su	core
+resolve_core.mem	resolve	core.mem	core/mem/mod.su	core
+cross_tool007	cross_ref	analysis/tool-pkgmgr-v1.md	TOOL-007	K1-K6
+cross_tool008	cross_ref	tests/baseline/tool-deps-lock.tsv	TOOL-008	lock
+cross_stbl001	cross_ref	tests/baseline/stbl-tier-s-registry.tsv	STBL-001	tier-s
+smoke	smoke	tests/import-std-layout/check_imports.su	multi	typeck
+lib	script	tests/lib/stbl-import-std-layout.sh	shared	-
+gate	script	tests/run-stbl-004-import-std-layout-gate.sh	manifest	-

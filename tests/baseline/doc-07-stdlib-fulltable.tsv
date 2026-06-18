@@ -1,0 +1,68 @@
+# DOC-007 docs/07 标准库全表 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_readme_anchors	43
+# min_doc_anchors	43
+forbidden_1	forbidden	std 模块（示例）	docs07	DOC-007 后禁止
+forbidden_2	forbidden	std.vector	docs07	统一 std.vec
+forbidden_3	forbidden	std.error` 等	docs07	含糊列举
+section_tier1	section	## std 已完善	docs07	STBL-002 §一
+section_tier2	section	## std 部分完善	docs07	STBL-002 §二
+section_tier3	section	## std 预研 / 占位	docs07	STBL-002 §三
+section_gov	section	## 治理与 Cookbook	docs07	gates
+anchor_runtime	anchor	std.runtime	both
+anchor_io	anchor	std.io	both
+anchor_mem	anchor	std.mem	both
+anchor_fs	anchor	std.fs	both
+anchor_path	anchor	std.path	both
+anchor_process	anchor	std.process	both
+anchor_heap	anchor	std.heap	both
+anchor_string	anchor	std.string	both
+anchor_vec	anchor	std.vec	both
+anchor_map	anchor	std.map	both
+anchor_set	anchor	std.set	both
+anchor_queue	anchor	std.queue	both
+anchor_error	anchor	std.error	both
+anchor_net	anchor	std.net	both
+anchor_thread	anchor	std.thread	both
+anchor_time	anchor	std.time	both
+anchor_random	anchor	std.random	both
+anchor_env	anchor	std.env	both
+anchor_fmt	anchor	std.fmt	both
+anchor_sync	anchor	std.sync	both
+anchor_encoding	anchor	std.encoding	both
+anchor_base64	anchor	std.base64	both
+anchor_crypto	anchor	std.crypto	both
+anchor_log	anchor	std.log	both
+anchor_test	anchor	std.test	both
+anchor_atomic	anchor	std.atomic	both
+anchor_channel	anchor	std.channel	both
+anchor_backtrace	anchor	std.backtrace	both
+anchor_hash	anchor	std.hash	both
+anchor_math	anchor	std.math	both
+anchor_sort	anchor	std.sort	both
+anchor_ffi	anchor	std.ffi	both
+anchor_json	anchor	std.json	both
+anchor_csv	anchor	std.csv	both
+anchor_compress	anchor	std.compress	both
+anchor_unicode	anchor	std.unicode	both
+anchor_dynlib	anchor	std.dynlib	both
+anchor_http	anchor	std.http	both
+anchor_tar	anchor	std.tar	both
+anchor_async	anchor	std.async	both
+anchor_regex	anchor	std.regex	both
+anchor_simd	anchor	std.simd	both
+anchor_db	anchor	std.sqlite	both
+anchor_elf	anchor	std.elf	both
+anchor_scheduler	anchor	scheduler.c	both	async C
+anchor_spawn	anchor	spawn_simple	both	process
+anchor_resolve	anchor	resolve_ex	both	STD-029
+anchor_env_iter	anchor	env_iter	both	STD-025
+anchor_panic_hook	anchor	panic_hook_collect	both	STD-028
+anchor_stbl_gate	anchor	run-stbl-readme-sync-gate	docs07	STBL-002
+anchor_doc07_gate	anchor	run-doc-07-stdlib-fulltable-gate	docs07	DOC-007
+anchor_cookbook	anchor	run-doc-cookbook-expand-gate	docs07	DOC-006
+anchor_next	anchor	NEXT.md	both	Phase 2
+readme_file	file	std/README.md	std/README.md	权威状态
+doc07_file	file	docs/07-内置与标准库.md	docs/07-内置与标准库.md	用户文档
+doc	file	doc-07-stdlib-fulltable-v1.md	analysis/doc-07-stdlib-fulltable-v1.md	RFC
+gate	script	run-doc-07-stdlib-fulltable-gate.sh	tests/run-doc-07-stdlib-fulltable-gate.sh	manifest

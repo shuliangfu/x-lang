@@ -10,6 +10,34 @@
 struct platform_elf_ElfCodegenCtx;
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
+                                              int32_t imm_bits);
+
+/**
+ * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.su enc_jle/enc_jl 一致）。
+ * 供 pipeline_glue LCG 计数循环；bootstrap partial.o 未导出 enc_jle/enc_jl 时用 C 路由。
+ */
+static int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+                                           uint8_t *label, int32_t label_len) {
+  uint8_t buf[6];
+  int32_t rel32_at;
+  if (!elf_ctx || !label || label_len <= 0)
+    return -1;
+  buf[0] = 0x0F;
+  buf[1] = opcode2;
+  buf[2] = 0;
+  buf[3] = 0;
+  buf[4] = 0;
+  buf[5] = 0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 6) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+  if (pipeline_elf_ctx_ensure_label((uint8_t *)elf_ctx, label, label_len) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_patch((uint8_t *)elf_ctx, rel32_at, label, label_len, 32);
+}
 
 /** x86_64 cdqe；定义见本文件末尾。 */
 int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -780,12 +808,33 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 /**
- * x86：movl 取 i32 lane；其它 arch / 8B lane 走 movq。
+ * arm64：LDUR w0, [x29, #-offset]（f32/i32 单向量 lane load）。
+ */
+static int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  int32_t simm9;
+  int32_t u9;
+  int32_t base;
+  uint32_t insn;
+  if (!elf_ctx || offset < 0)
+    return -1;
+  simm9 = 0 - offset;
+  if (simm9 < -256)
+    simm9 = -256;
+  u9 = simm9 & 511;
+  base = -130023424 - 1073741824;
+  insn = (uint32_t)base | ((uint32_t)u9 << 12) | (29u << 5);
+  return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
+}
+
+/**
+ * x86：movl 取 i32 lane；arm64 f32/i32 lane 用 LDUR w0；其它走 64-bit load。
  */
 int32_t backend_enc_load_rbp_lane_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                               int32_t esz, int32_t ta) {
   if (ta == 0 && esz == 4)
     return arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx, offset);
+  if (ta == 1 && esz == 4)
+    return arm64_enc_load_w0_from_rbp_c(elf_ctx, offset);
   return backend_enc_load_rbp_to_rax_arch(elf_ctx, offset, ta);
 }
 
@@ -800,9 +849,28 @@ int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx 
 }
 
 /**
- * x86：movl %eax, -off(%rbp)（f32 局部 let/assign store）。
+ * arm64：STUR w0, [x29, #-offset]（f32 局部 let/assign；勿 64 位 str x0 覆盖相邻 4B 槽）。
+ */
+static int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  int32_t simm9;
+  int32_t u9;
+  uint32_t insn;
+  if (!elf_ctx || offset < 0)
+    return -1;
+  simm9 = 0 - offset;
+  if (simm9 < -256)
+    simm9 = -256;
+  u9 = simm9 & 511;
+  insn = 0xB8000000u | ((uint32_t)u9 << 12) | (29u << 5);
+  return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
+}
+
+/**
+ * x86：movl %eax, -off(%rbp)（f32 局部 let/assign store）；arm64 走 STUR w0。
  */
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
+  if (ta == 1)
+    return arm64_enc_store_w0_to_rbp_c(elf_ctx, offset);
   if (ta != 0 || !elf_ctx)
     return -1;
   {
@@ -1293,6 +1361,24 @@ int32_t backend_enc_jge_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t
   if (ta == 2)
     return arch_riscv64_enc_enc_jge(elf_ctx, label, label_len);
   return arch_x86_64_enc_enc_jge(elf_ctx, label, label_len);
+}
+
+/**
+ * ta 分派：enc_jle_arch（x86 0F 8E；LCG while 回跳，其它 arch 暂不支持）。
+ */
+int32_t backend_enc_jle_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return backend_enc_x86_jcc_rel32_c(elf_ctx, 0x8E, label, label_len);
+}
+
+/**
+ * ta 分派：enc_jl_arch（x86 0F 8C；LCG 2×/4× 展开回跳，其它 arch 暂不支持）。
+ */
+int32_t backend_enc_jl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return backend_enc_x86_jcc_rel32_c(elf_ctx, 0x8C, label, label_len);
 }
 
 /**

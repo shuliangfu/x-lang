@@ -1,0 +1,44 @@
+// STD-071：std.context cancel/deadline/value bag 烟测
+const context = import("std.context");
+
+function main(): i32 {
+  let bg: Context = context.background();
+  if (context.is_cancelled(bg) != 0) {
+    return 1;
+  }
+  let child: Context = context.with_cancel(bg);
+  if (child.handle == 0) {
+    return 2;
+  }
+  if (context.is_cancelled(child) != 0) {
+    context.free(child);
+    return 3;
+  }
+  context.cancel(child);
+  if (context.is_cancelled(child) == 0) {
+    context.free(child);
+    return 4;
+  }
+  context.free(child);
+  let timed: Context = context.with_timeout(bg, 500000000 as i64);
+  if (timed.handle == 0) {
+    return 5;
+  }
+  let rem: i64 = context.remaining_ns(timed);
+  if (rem <= 0 || rem > 500000000) {
+    context.free(timed);
+    return 6;
+  }
+  let key: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let out: i64 = 0;
+  if (context.set_value(timed, &key[0], 99) != 0) {
+    context.free(timed);
+    return 7;
+  }
+  if (context.get_value(timed, &key[0], &out) == 0 || out != 99) {
+    context.free(timed);
+    return 8;
+  }
+  context.free(timed);
+  return 0;
+}

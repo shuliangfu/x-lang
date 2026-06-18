@@ -25,14 +25,14 @@
 
 ## 与 std.io 联合极致压榨
 
-**std.fs 已内置 import std.io**，用户侧**仅需 `import std.fs`** 即可使用下列 fd 接口，走 io_uring/readv 极致压榨（无需再写 `import std.io`）：
+**std.fs 已内置 import("std.io")**，用户侧**仅需 `import("std.fs")`** 即可使用下列 fd 接口，走 io_uring/readv 极致压榨（无需再写 `import("std.io")`）：
 
 - **单次大块**：`read_fd(fd, ptr, len)` / `write_fd(fd, ptr, len)`，推荐 `len ≥ fs_read_chunk()`。
 - **多段批量**：`read_batch_fd(fd, p0, l0, p1, l1, p2, l2, p3, l3, n)` / `write_batch_fd(fd, ...)`，一次 submit 最多 4 段。
 - **handle 转换**：`handle_from_fd(fd)` 将 fd 转为 io handle，可与 std.io 其它 API 配合。
 
 ```text
-import std.fs;
+import("std.fs");
 
 let fd: i32 = fs_open_read(path);
 if fd >= 0 {
@@ -60,7 +60,7 @@ if fd >= 0 {
 - **mmap**：fs_mmap_ro、fs_mmap_rw、fs_munmap（Linux 含 madvise；Windows CreateFileMapping/MapViewOfFile）。
 - **高性能**：fs_open_read_direct + fs_direct_align（Linux O_DIRECT / macOS F_NOCACHE / Windows FILE_FLAG_NO_BUFFERING）、fs_readv2/fs_writev2、fs_readv4/fs_writev4、fs_copy_file_range（Linux 零拷贝；macOS/Windows 读+写回退）、fs_sendfile、fs_fallocate、fs_sync_range（Windows 为 no-op）、fadvise（仅 Linux）。
 - **错误码**：fs_last_error() 返回上次失败时的平台错误码（errno / GetLastError），便于细粒度诊断。
-- **与 std.io 联合**：read_fd、write_fd、read_batch_fd、write_batch_fd、handle_from_fd，用户仅 `import std.fs` 即可。
+- **与 std.io 联合**：read_fd、write_fd、read_batch_fd、write_batch_fd、handle_from_fd，用户仅 `import("std.fs")` 即可。
 
 **可选补充已全部落地**：macOS copy_file_range 读+写回退、macOS open_read_direct（F_NOCACHE）、fs_open_append/fs_open_create、fs_last_error、fs_readv4/fs_writev4 均已实现。
 

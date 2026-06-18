@@ -1,10 +1,11 @@
-// loop_i32.su — 性能基线：十亿次累加，测生成代码质量
+// loop_i32.su — 性能基线：累加循环（LCG 混合 s，Shu/C 均须真跑循环）
 function main(): i32 {
-  let n: i32 = 1000000000;
+  let n: i32 = 100000000;
   let s: i32 = 0;
   let i: i32 = 0;
   while (i < n) {
-    s = s + 1;
+    let t: i32 = i * 1103515245 + 12345;
+    s = s ^ t;
     i = i + 1;
   }
   return s;

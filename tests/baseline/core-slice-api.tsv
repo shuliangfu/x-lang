@@ -1,0 +1,27 @@
+# CORE-004 切片 API manifest
+# 列：item_id	kind	anchor	notes
+min_subslice_apis	2
+subslice_i32	symbol	subslice_i32	core/slice/mod.su
+subslice_u8	symbol	subslice_u8	core/slice/mod.su
+split_i32	symbol	split_at_i32	core/slice/mod.su
+split_u8	symbol	split_at_u8	core/slice/mod.su
+chunk_i32	symbol	chunk_i32	core/slice/mod.su
+chunk_u8	symbol	chunk_u8	core/slice/mod.su
+chunks_len_i32	symbol	chunks_len_i32	core/slice/mod.su
+chunks_len_u8	symbol	chunks_len_u8	core/slice/mod.su
+is_empty_i32	symbol	is_empty_i32	core/slice/mod.su
+first_i32	symbol	first_i32	core/slice/mod.su
+len_u64	symbol	len_u64	core/slice/mod.su
+get_u64	symbol	get_u64	core/slice/mod.su
+first_u64	symbol	first_u64	core/slice/mod.su
+subslice_u64	symbol	subslice_u64	core/slice/mod.su
+split_u64	symbol	split_at_u64	core/slice/mod.su
+chunk_u64	symbol	chunk_u64	core/slice/mod.su
+chunks_len_u64	symbol	chunks_len_u64	core/slice/mod.su
+struct_split_u64	symbol	Split_u64	core/slice/mod.su
+struct_split_u8	symbol	Split_u8	core/slice/mod.su
+option_u64	symbol	Option_u64	core/option/mod.su
+test_smoke	file	tests/slice/subslice_split_chunks.su	烟测
+doc	file	core-slice-api-v1.md	analysis/core-slice-api-v1.md	RFC
+doc_generic	file	core-slice-generic-v1.md	analysis/core-slice-generic-v1.md	CORE-157
+gate	script	run-core-slice-api-gate.sh	tests/run-core-slice-api-gate.sh	manifest

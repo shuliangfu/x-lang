@@ -113,7 +113,8 @@ typedef enum TokenKind {
     TOKEN_BANG,     /**< ! 逻辑非（一元） */
     TOKEN_QUESTION, /**< ? 三元运算符 cond ? then : else */
     TOKEN_AS,       /**< as 类型转换 expr as type */
-    TOKEN_AT        /**< @ SIMD comptime builtin 前缀（@shuffle / @select） */
+    TOKEN_AT,       /**< @ SIMD comptime builtin 前缀（@shuffle / @select） */
+    TOKEN_STRING    /**< 字符串字面量（import("path") 路径等） */
 } TokenKind;
 
 /** 单个 Token：类型 + 源码位置 + 可选值（字面量/标识符） */

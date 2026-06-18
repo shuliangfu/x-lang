@@ -1,0 +1,19 @@
+# STD-153 std.simd 自动向量化策略 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	2
+read_path	section	## 1. 阅读路径	15min
+strategy	section	## 2. 策略表	recommend_simd_path
+perf	section	## 3. 跨平台性能验收	dot
+verify	section	## 4. Gate	gate
+api_hw_available	api	hw_available	std/simd/mod.su	HW 探测
+api_recommend	api	recommend_simd_path	std/simd/mod.su	策略推荐
+symbol_hw_c	symbol	simd_hw_available_c	std/simd/simd.c	C HW
+symbol_path_c	symbol	simd_recommend_path_c	std/simd/simd.c	C 策略
+symbol_smoke_c	symbol	simd_autovec_smoke_c	std/simd/simd.c	C 烟测
+symbol_scalar	symbol	SIMD_PATH_SCALAR	std/simd/mod.su	常量
+smoke_su	smoke	tests/std-simd/autovec_strategy.su	策略烟测
+smoke_c	smoke	tests/std-simd/autovec_strategy_ok.c	C 入口
+perf_dot	script	tests/run-perf-simd-dot.sh	dot bench
+perf_ss	script	tests/run-perf-simd-shuffle-select.sh	shuffle bench
+lib	script	tests/lib/std-simd-autovec-strategy.sh	helper
+gate	script	tests/run-std-simd-autovec-strategy-gate.sh	gate

@@ -1,0 +1,5 @@
+# STD-078 std.metrics 向量（case_id	op	expect_notes）
+case_counter_inc	counter_inc(3)+snapshot=3	3
+case_gauge_set	gauge_set(100)	100
+case_hist_observe	hist observe 7 in bucket le=10	count>=1
+case_export_prefix	export contains requests_total	requests_total

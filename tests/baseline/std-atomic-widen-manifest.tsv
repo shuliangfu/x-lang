@@ -1,0 +1,13 @@
+# STD-146 std.atomic 16/64 扩展 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 目标	analysis/std-atomic-widen-v1.md
+api_doc	section	## 2. 16/64 API	analysis/std-atomic-widen-v1.md
+api_load_i16	api	load_i16	std/atomic/mod.su	i16 load
+api_compare_i64	api	compare_exchange_i64	std/atomic/mod.su	i64 CAS
+api_fetch_u64	api	fetch_add_u64	std/atomic/mod.su	u64 fetch
+sym_i16_c	symbol	atomic_load_i16_c	std/atomic/atomic.c	C i16
+sym_ce_u64_c	symbol	atomic_compare_exchange_u64_c	std/atomic/atomic.c	C u64 CAS
+smoke_su	smoke	tests/atomic/widen_16_64.su	烟测
+gate_base	gate	tests/run-std-atomic-ordering-gate.sh	STD-046
+lib	script	tests/lib/std-atomic-widen.sh	lib
+gate	script	tests/run-std-atomic-widen-gate.sh	gate

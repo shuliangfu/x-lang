@@ -35,6 +35,24 @@ __attribute__((weak)) unsigned shu_io_poll_async_completions(unsigned timeout_ms
     (void)timeout_ms;
     return 0;
 }
+/** STD-090：未链 context.o 时取消检测桩（始终未取消）。 */
+__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t handle) {
+    (void)handle;
+    return 0;
+}
+__attribute__((weak)) int64_t ctx_background_c(void) {
+    return 0;
+}
+__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t parent) {
+    (void)parent;
+    return 0;
+}
+__attribute__((weak)) void ctx_cancel_c(int64_t handle) {
+    (void)handle;
+}
+__attribute__((weak)) void ctx_free_c(int64_t handle) {
+    (void)handle;
+}
 #endif
 
 /** 就绪队列容量（2 的幂便于取模；保留 1 空槽区分满/空）。 */
@@ -154,9 +172,60 @@ void shu_async_run_seed_push_usize(size_t v) {
  * IO-A5 v5：push 单 i32 seed 并 submit 协程体（spawn 语义；不 reset 队列/seed 队列外状态）。
  * 返回 shu_async_task_submit 结果：0 成功，-1 失败。
  */
+/** spawn 时 Context 已取消（与 std.context CTX_CANCELLED 对齐）。 */
+#define SHU_ASYNC_ERR_CTX_SUBMIT_ABORT ((int32_t)-2)
+/** drain 检测到 Context 已取消（task_group_join 识别 -3）。 */
+#define SHU_ASYNC_ERR_CTX_ABORT ((int32_t)-3)
+
+/** 绑定 Context 栈深度上限（嵌套 bind/unbind）。 */
+#define SHU_ASYNC_CTX_SLOTS 8
+
+/** 当前异步运行时绑定的 Context 句柄栈（无 malloc；STD-090/093）。 */
+static int64_t ctx_slots[SHU_ASYNC_CTX_SLOTS];
+static int ctx_slots_depth;
+
+/** 烟测：spawn 任务期望继承的 Context 句柄（仅 shu_async_spawn_ctx_smoke_c 使用）。 */
+static int64_t shu_async_spawn_ctx_expected;
+
+/** std.context：沿链检测取消（链 context.o 时强符号覆盖 weak 桩）。 */
+extern int32_t ctx_is_cancelled_c(int64_t handle);
+
+/** 检测栈顶绑定 Context 是否已取消；无绑定返回 0。 */
+static int shu_async_bound_ctx_cancelled(void) {
+    int64_t h;
+    if (ctx_slots_depth <= 0)
+        return 0;
+    h = ctx_slots[ctx_slots_depth - 1];
+    if (h == 0)
+        return 0;
+    return ctx_is_cancelled_c(h) != 0;
+}
+
+/** 绑定 Context 供后续 spawn/drain 取消传播（STD-090）。 */
+void shu_async_bind_context_c(int64_t ctx_handle) {
+    if (ctx_slots_depth >= SHU_ASYNC_CTX_SLOTS)
+        return;
+    ctx_slots[ctx_slots_depth++] = ctx_handle;
+}
+
+/** 弹出最近一次 bind（STD-090）。 */
+void shu_async_unbind_context_c(void) {
+    if (ctx_slots_depth > 0)
+        ctx_slots_depth--;
+}
+
+/** 返回栈顶绑定的 Context 句柄；未绑定返回 0。 */
+int64_t shu_async_current_context_c(void) {
+    if (ctx_slots_depth <= 0)
+        return 0;
+    return ctx_slots[ctx_slots_depth - 1];
+}
+
 int shu_async_spawn_i32(int32_t (*fn)(void), int32_t seed) {
     if (!fn)
         return -1;
+    if (shu_async_bound_ctx_cancelled())
+        return SHU_ASYNC_ERR_CTX_SUBMIT_ABORT;
     shu_async_run_seed_push_i32(seed);
     return shu_async_task_submit(fn);
 }
@@ -466,6 +535,18 @@ int shu_async_task_submit(shu_async_task_fn_t fn) {
     return shu_async_task_submit_to(w, fn);
 }
 
+/**
+ * 提交任务并绑定 Context（STD-093）；ctx 已取消时返回 SHU_ASYNC_ERR_CTX_SUBMIT_ABORT。
+ */
+int shu_async_task_submit_with_ctx(shu_async_task_fn_t fn, int64_t ctx_handle) {
+    if (!fn)
+        return -1;
+    if (ctx_handle != 0 && ctx_is_cancelled_c(ctx_handle))
+        return SHU_ASYNC_ERR_CTX_SUBMIT_ABORT;
+    shu_async_bind_context_c(ctx_handle);
+    return shu_async_task_submit(fn);
+}
+
 /** SHU_ASYNC_AFFINITY=1 时 worker drain 尝试绑核。 */
 static int shu_async_affinity_enabled(void) {
     const char *e = getenv("SHU_ASYNC_AFFINITY");
@@ -488,7 +569,11 @@ static int32_t shu_async_drain_queue(shu_async_task_queue_t *q, uint32_t worker_
     int32_t last = 0;
     shu_async_maybe_bind_worker(worker_id);
     shu_async_tls_worker = worker_id;
+    if (shu_async_bound_ctx_cancelled())
+        return SHU_ASYNC_ERR_CTX_ABORT;
     for (;;) {
+        if (shu_async_bound_ctx_cancelled())
+            return SHU_ASYNC_ERR_CTX_ABORT;
         uint32_t h = (uint32_t)atomic_load_explicit(&q->head, memory_order_acquire);
         uint32_t t = (uint32_t)atomic_load_explicit(&q->tail, memory_order_acquire);
         shu_async_task_fn_t fn;
@@ -549,8 +634,11 @@ int32_t shu_async_run_drain_until_idle(void) {
         int32_t batch = 0;
         uint32_t n = shu_async_worker_count();
         uint32_t w;
-        for (w = 0; w < n; w++)
-            (void)shu_async_drain_queue(&shu_async_worker_q[w], w, &batch);
+        for (w = 0; w < n; w++) {
+            int32_t dr = shu_async_drain_queue(&shu_async_worker_q[w], w, &batch);
+            if (dr == SHU_ASYNC_ERR_CTX_ABORT)
+                return SHU_ASYNC_ERR_CTX_ABORT;
+        }
         sum += batch;
         if (shu_async_scheduler_pending() == 0 && shu_async_io_waiters_pending() == 0)
             return sum;
@@ -591,6 +679,69 @@ int32_t shu_async_run_i32(int32_t (*fn)(void)) {
     if (shu_async_task_submit(fn) != 0)
         return 0;
     return shu_async_run_drain_until_idle();
+}
+
+/** spawn 烟测 echo 任务：校验继承 Context 并返回 seed*10。 */
+static int32_t shu_async_spawn_ctx_echo_task(void) {
+    int32_t seed = 0;
+    if (shu_async_run_seed_valid())
+        seed = shu_async_run_seed_take_i32();
+    if (shu_async_spawn_ctx_expected != 0 &&
+        shu_async_current_context_c() != shu_async_spawn_ctx_expected)
+        return -99;
+    return seed * 10;
+}
+
+/**
+ * STD-093 C 烟测：bind_context + spawn 自动继承 + 取消传播。
+ * 0 通过；非 0 失败码。
+ */
+int32_t shu_async_spawn_ctx_smoke_c(void) {
+    extern int64_t ctx_background_c(void);
+    extern int64_t ctx_with_cancel_c(int64_t parent);
+    extern void ctx_cancel_c(int64_t handle);
+    extern void ctx_free_c(int64_t handle);
+    int64_t bg;
+    int64_t child;
+    int64_t live;
+    int32_t total;
+
+    bg = ctx_background_c();
+    child = ctx_with_cancel_c(bg);
+    live = ctx_with_cancel_c(bg);
+    if (bg == 0 || child == 0 || live == 0)
+        return 10;
+
+    shu_async_queue_reset();
+    shu_async_run_seed_reset();
+    shu_async_bind_context_c(child);
+    ctx_cancel_c(child);
+    if (shu_async_spawn_i32(shu_async_spawn_ctx_echo_task, 1) != SHU_ASYNC_ERR_CTX_SUBMIT_ABORT) {
+        ctx_free_c(child);
+        ctx_free_c(live);
+        return 1;
+    }
+
+    shu_async_queue_reset();
+    shu_async_run_seed_reset();
+    shu_async_bind_context_c(live);
+    shu_async_spawn_ctx_expected = live;
+    if (shu_async_spawn_i32(shu_async_spawn_ctx_echo_task, 2) != 0) {
+        ctx_free_c(child);
+        ctx_free_c(live);
+        return 2;
+    }
+    total = shu_async_run_drain_until_idle();
+    shu_async_spawn_ctx_expected = 0;
+    if (total != 20) {
+        ctx_free_c(child);
+        ctx_free_c(live);
+        return 3;
+    }
+
+    ctx_free_c(child);
+    ctx_free_c(live);
+    return 0;
 }
 
 /** asm CPS 帧槽数量（WPO-S3；按 fn_id 哈希，无 malloc）。 */

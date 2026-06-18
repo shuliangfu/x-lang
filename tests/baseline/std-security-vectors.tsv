@@ -1,0 +1,5 @@
+# STD-079 std.security 向量
+# case_id	op	expect_notes
+hkdf_rfc5869_tc1	HKDF-SHA256 IKM=22x0x0b salt=13 info=10 L=42	OKM prefix 3cb25f25faac
+secure_zero	secure_zero 8 bytes	all zero
+ct_compare	ct_compare equal/unequal	1/0

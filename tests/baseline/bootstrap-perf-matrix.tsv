@@ -1,0 +1,14 @@
+# BOOT-012 自举性能回归矩阵
+# 列：case_id	tier	ci_hard	hook	notes
+# min_bootstrap_compiler_cases	3
+check_parser	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	parser.su check 中位数
+check_typeck	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	typeck.su check 中位数
+check_backend	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	backend.su check 中位数
+loop_i32	microbench	yes	run-perf-compile-dogfood-gate.sh	codegen loop bench
+mem_copy	microbench	yes	run-perf-compile-dogfood-gate.sh	mem copy bench
+struct_param	microbench	yes	run-perf-compile-dogfood-gate.sh	struct ABI bench
+call_boundary	microbench	yes	run-perf-compile-dogfood-gate.sh	call boundary bench
+perf_main	microbench	yes	run-perf-compile-dogfood-gate.sh	perf-baseline main
+ci_pr_entry	ci_entry	yes	run-ci-full-suite.sh	GHA ci.yml PR/push
+ci_nightly_entry	ci_entry	yes	run-ci-full-suite.sh	ci-nightly.yml cron
+pre_push_p0	local	yes	run-pre-push-p0.sh	本地 push 前 perf P1

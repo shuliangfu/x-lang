@@ -1,0 +1,24 @@
+# CORE-015 core README / docs/07 同步 manifest
+# 列：item_id	kind	anchor	target	notes
+min_readme_anchors	13
+min_doc_anchors	13
+forbidden_1	forbidden	格式化占位	docs07	CORE-010 后禁止
+forbidden_2	forbidden	主要为占位	docs07	CORE-009 后禁止
+forbidden_3	forbidden	阶段 7 扩展清单	readme	Phase 2 表替代
+anchor_types	anchor	core.types	both
+anchor_mem	anchor	core.mem	both
+anchor_option	anchor	core.option	both
+anchor_result	anchor	core.result	both
+anchor_slice	anchor	core.slice	both
+anchor_fmt	anchor	core.fmt	both
+anchor_builtin	anchor	core.builtin	both
+anchor_debug	anchor	core.debug	both
+anchor_cmp	anchor	core.cmp	both
+anchor_iterator	anchor	core.iterator	both
+anchor_str	anchor	core.str	both
+anchor_gate	anchor	run-core-api-gate	both	CORE-014
+anchor_next	anchor	NEXT.md	both	Phase 2
+readme_file	file	core/README.md	core/README.md	权威状态
+doc_file	file	docs/07-内置与标准库.md	docs/07-内置与标准库.md	用户文档
+doc	file	core-readme-sync-v1.md	analysis/core-readme-sync-v1.md	RFC
+gate	script	run-core-readme-sync-gate.sh	tests/run-core-readme-sync-gate.sh	manifest

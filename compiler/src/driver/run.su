@@ -4,7 +4,7 @@
 // 注：cmd_run 内用 `if (rc == 0)` 再执行 exec；`if (rc != 0) return` 与 import ast
 // 同编时 typeck 会误报 check_block（compiler 限制）。
 
-import ast;
+const ast = import("ast");
 /** C 侧 runtime.c：fork+exec 运行编译产物（须写全 C 链接名，-E-extern
 * 不追加模块前缀）。 */
 extern function driver_exec_compiled(argc: i32, argv: *u8): i32;

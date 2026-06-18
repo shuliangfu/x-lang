@@ -1,0 +1,12 @@
+# STD-143 std.test 可执行 bench/fuzz manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 目标	analysis/std-test-executable-v1.md
+api_doc	section	## 2. 可执行 API	analysis/std-test-executable-v1.md
+api_bench_noop	api	bench_run_noop	std/test/mod.su	STD-143
+api_fuzz_noop	api	fuzz_run_noop	std/test/mod.su	STD-143
+symbol_bench_noop	symbol	test_bench_run_noop_c	std/test/test.c	C
+symbol_fuzz_noop	symbol	test_fuzz_run_noop_c	std/test/test.c	C
+smoke_exec	smoke	tests/std-test/bench_fuzz_exec.su	端到端
+gate_base	gate	tests/run-std-test-bench-fuzz-gate.sh	STD-054
+lib	script	tests/lib/std-test-executable.sh	lib
+gate	script	tests/run-std-test-executable-gate.sh	gate

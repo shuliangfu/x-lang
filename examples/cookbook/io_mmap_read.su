@@ -1,0 +1,26 @@
+/**
+ * Cookbook IO-03：read_ptr mmap 绝对视图读文件（ZC-2 入门）。
+ */
+const fs = import("std.fs");
+const io = import("std.io");
+
+function main(): i32 {
+  /** "/tmp/shu_cookbook_mmap\0" — 24 字节含 NUL */
+  let path: [23]u8 =
+  [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
+  95, 109, 109, 97, 112, 0];
+  let payload: [4]u8 = [9, 8, 7, 6];
+  let fd_w: i32 = fs.fs_open_write(&path[0]);
+  if (fd_w < 0) { return 1; }
+  if (fs.fs_write(fd_w, &payload[0], 4 as usize) != 4) { fs.fs_close(fd_w); return 2; }
+  if (fs.fs_close(fd_w) != 0) { return 3; }
+  let fd_r: i32 = fs.fs_open_read(&path[0]);
+  if (fd_r < 0) { return 4; }
+  let handle: usize = io.handle_from_fd(fd_r, 0);
+  let p: *u8 = io.read_ptr(handle, 0 as u32);
+  if (p == 0 as *u8) { fs.fs_close(fd_r); return 5; }
+  if (io.read_ptr_len() != 4) { fs.fs_close(fd_r); return 6; }
+  if (p[0] != 9 || p[3] != 6) { fs.fs_close(fd_r); return 7; }
+  if (fs.fs_close(fd_r) != 0) { return 8; }
+  return 0;
+}

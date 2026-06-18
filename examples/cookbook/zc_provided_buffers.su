@@ -1,0 +1,12 @@
+/**
+ * Cookbook ZC-03：provided buffers 注册（Linux io_uring ZC-1 入门）。
+ */
+const io = import("std.io");
+
+function main(): i32 {
+  let rc: i32 = io.register_provided_buffers(2, 1024);
+  if (rc == 1) {
+    io.unregister_provided_buffers();
+  }
+  return 0;
+}

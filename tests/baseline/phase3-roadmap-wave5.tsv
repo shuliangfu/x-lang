@@ -1,0 +1,22 @@
+# PLAN-005 Phase 3 第五批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave5-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave5-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave5-v1.md
+task_index	section	## 4. 第五批待办索引	analysis/phase3-roadmap-wave5-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave5-v1.md
+task_boot024	task	BOOT-024	NEXT.md	bootstrap emit
+task_comp018	task	COMP-018	NEXT.md	qemu
+task_std066	task	STD-066	NEXT.md	query_rows
+task_plan005	task	PLAN-005	NEXT.md	wave5 定版
+gate_boot024	gate_ref	run-boot-024-parser-bootstrap-emit-gate.sh	tests/run-boot-024-parser-bootstrap-emit-gate.sh	BOOT-024
+gate_comp018	gate_ref	run-comp-riscv64-qemu-gate.sh	tests/run-comp-riscv64-qemu-gate.sh	COMP-018
+gate_std066	gate_ref	run-std-sqlite-query-rows-gate.sh	tests/run-std-sqlite-query-rows-gate.sh	STD-066
+cross_plan004	cross_ref	PLAN-004	analysis/phase3-roadmap-wave4-v1.md	第四批
+cross_q4	cross_ref	Q4	analysis/doc-public-roadmap-v1.md	Q4 预览索引
+cross_next	file	NEXT.md	NEXT.md	§2.16
+lib	script	lib/phase3-roadmap-wave5.sh	tests/lib/phase3-roadmap-wave5.sh
+gate	script	run-phase3-roadmap-wave5-gate.sh	tests/run-phase3-roadmap-wave5-gate.sh

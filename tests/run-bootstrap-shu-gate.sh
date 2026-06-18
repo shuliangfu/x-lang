@@ -63,7 +63,13 @@ if [ -z "${BOOTSTRAP_GATE_MINIMAL:-}" ]; then
   if [ -f ./tests/run-return-expr.sh ]; then
     ./tests/run-return-expr.sh
   fi
-  echo "bootstrap shu gate OK (hello + while + typeck + option + import + compound-assign + multi-file + struct/return)"
+  if [ -f ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh ]; then
+    ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh
+  fi
+  if [ -f ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh ]; then
+    ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh
+  fi
+  echo "bootstrap shu gate OK (hello + while + typeck + option + import + compound-assign + multi-file + struct/return + vec/map/heap + parser/typeck dogfood)"
 else
   echo "bootstrap shu gate OK (hello + while + typeck; BOOTSTRAP_GATE_MINIMAL=1)"
 fi

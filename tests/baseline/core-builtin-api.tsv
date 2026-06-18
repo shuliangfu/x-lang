@@ -1,0 +1,5 @@
+# core.builtin Tier-S stable public API (import core.builtin)
+clz_u32
+ctz_u32
+popcount_u32
+copy

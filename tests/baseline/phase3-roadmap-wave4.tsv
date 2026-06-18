@@ -1,0 +1,22 @@
+# PLAN-004 Phase 3 第四批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave4-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave4-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave4-v1.md
+task_index	section	## 4. 第四批待办索引	analysis/phase3-roadmap-wave4-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave4-v1.md
+task_boot023	task	BOOT-023	NEXT.md	full emit
+task_comp017	task	COMP-017	NEXT.md	wpo default
+task_std065	task	STD-065	NEXT.md	db exec
+task_plan004	task	PLAN-004	NEXT.md	wave4 定版
+gate_boot023	gate_ref	run-boot-023-mega7-full-emit-gate.sh	tests/run-boot-023-mega7-full-emit-gate.sh	BOOT-023
+gate_comp017	gate_ref	run-comp-wpo-default-gate.sh	tests/run-comp-wpo-default-gate.sh	COMP-017
+gate_std065	gate_ref	run-std-sqlite-exec-deep-gate.sh	tests/run-std-sqlite-exec-deep-gate.sh	STD-065
+cross_plan003	cross_ref	PLAN-003	analysis/phase3-roadmap-wave3-v1.md	第三批
+cross_q3	cross_ref	Q3	analysis/doc-public-roadmap-v1.md	Q3 预览索引
+cross_next	file	NEXT.md	NEXT.md	§2.15
+lib	script	lib/phase3-roadmap-wave4.sh	tests/lib/phase3-roadmap-wave4.sh
+gate	script	run-phase3-roadmap-wave4-gate.sh	tests/run-phase3-roadmap-wave4-gate.sh

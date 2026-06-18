@@ -1,0 +1,19 @@
+# STD-111 std.sync lock diag manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	8
+read_path	section	## 1. 阅读路径	15min
+diag_api	section	## 2. 诊断语义	lock_diag_set_enabled
+verify	section	## 4. 验证与门禁	gate
+api_set_enabled	api	lock_diag_set_enabled	std/sync/mod.su	开关
+api_is_enabled	api	lock_diag_is_enabled	std/sync/mod.su	状态
+api_set_id	api	lock_diag_mutex_set_id	std/sync/mod.su	锁序 id
+api_last_err	api	lock_diag_last_err	std/sync/mod.su	最近错误
+api_clear	api	lock_diag_clear	std/sync/mod.su	清空
+api_snapshot	api	lock_diag_snapshot	std/sync/mod.su	快照
+api_smoke	api	lock_diag_smoke	std/sync/mod.su	C 烟测
+api_err_order	api	lock_diag_err_order	std/sync/mod.su	锁序错误码
+symbol_smoke_c	symbol	sync_lock_diag_smoke_c	std/sync/sync.c	C 烟测
+smoke_c	file	tests/sync/lock_diag_smoke_ok.c	C 入口
+smoke_su	smoke	tests/sync/lock_diag.su	.su 烟测
+lib	script	lib/std-sync-lock-diag.sh	tests/lib/std-sync-lock-diag.sh
+gate	script	run-std-sync-lock-diag-gate.sh	tests/run-std-sync-lock-diag-gate.sh

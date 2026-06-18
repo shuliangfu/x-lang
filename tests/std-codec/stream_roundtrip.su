@@ -1,0 +1,140 @@
+// STD-110：std.codec compress/base64 流式适配烟测（块 + 流双路径）
+const codec = import("std.codec");
+
+/** 比较两段字节是否相等；1 相等，0 不等。 */
+function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  if (a_len != b_len) { return 0; }
+  let i: i32 = 0;
+  while (i < a_len) {
+    if (a[i] != b[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** base64 流式经 codec 适配器分块往返。 */
+function test_base64_stream(): i32 {
+  let plain: [5]u8 = [104, 101, 108, 108, 111];
+  let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let st: [256]u8 = [];
+  let cap: i32 = codec.stream_codec_state_bytes();
+  if (cap > 256) { return 1; }
+  if (codec.adapter_base64_stream_init(&sc, &st[0], 256, 0, 1) != 0) { return 2; }
+  let enc: [16]u8 = [];
+  let consumed: i32 = 0;
+  let n1: i32 = codec.adapter_base64_stream_process(sc, &plain[0], 2, &enc[0], 16, 0, &consumed);
+  if (n1 < 0 || consumed != 2) { return 3; }
+  let n2: i32 = codec.adapter_base64_stream_process(sc, &plain[2], 3, &enc[n1], 16 - n1, 1, &consumed);
+  if (n2 < 0 || consumed != 3) { return 4; }
+  let enc_len: i32 = n1 + n2;
+  if (enc_len != 8) { return 5; }
+  if (codec.adapter_base64_stream_end(sc) != 0) { return 6; }
+
+  let sc2: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let st2: [256]u8 = [];
+  if (codec.adapter_base64_stream_init(&sc2, &st2[0], 256, 0, 0) != 0) { return 7; }
+  let dec: [8]u8 = [];
+  let dn: i32 = codec.adapter_base64_stream_process(sc2, &enc[0], 4, &dec[0], 8, 0, &consumed);
+  if (dn < 0 || consumed != 4) { return 8; }
+  dn = dn + codec.adapter_base64_stream_process(sc2, &enc[4], enc_len - 4, &dec[dn], 8 - dn, 1, &consumed);
+  if (dn != 5) { return 9; }
+  if (bytes_eq(&plain[0], 5, &dec[0], 5) == 0) { return 10; }
+  codec.adapter_base64_stream_end(sc2);
+  return 0;
+}
+
+/** gzip 流式经 codec 适配器往返；未链 zlib 时 init 失败仍 exit 0。 */
+function test_gzip_stream(): i32 {
+  let raw: [12]u8 = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33];
+  let raw_len: i32 = 12;
+  let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let st_c: [256]u8 = [];
+  let cap: i32 = codec.stream_codec_state_bytes();
+  if (cap <= 0 || cap > 256) { return 99; }
+  if (codec.adapter_compress_stream_init(&sc, &st_c[0], cap, codec.stream_mode_compress()) != 0) {
+    return 0;
+  }
+  let comp: [512]u8 = [];
+  let comp_len: i32 = 0;
+  let scratch: [128]u8 = [];
+  let off: i32 = 0;
+  let chunk: i32 = 4;
+  while (off < raw_len) {
+    let take: i32 = chunk;
+    if (off + take > raw_len) { take = raw_len - off; }
+    let is_last: i32 = 0;
+    if (off + take >= raw_len) { is_last = 1; }
+    let pending: i32 = take;
+    let pin: i32 = off;
+    while (pending > 0) {
+      let consumed: i32 = 0;
+      let n: i32 = codec.adapter_compress_stream_process(sc, &raw[pin], pending, &scratch[0], 128, 0, &consumed);
+      if (n < 0) { codec.adapter_compress_stream_end(sc); return 1; }
+      let j: i32 = 0;
+      while (j < n) {
+        if (comp_len >= 512) { codec.adapter_compress_stream_end(sc); return 2; }
+        comp[comp_len] = scratch[j];
+        comp_len = comp_len + 1;
+        j = j + 1;
+      }
+      if (consumed <= 0) { break; }
+      pin = pin + consumed;
+      pending = pending - consumed;
+    }
+    if (is_last != 0) {
+      let drain: i32 = 1;
+      while (drain != 0) {
+        let consumed2: i32 = 0;
+        let n2: i32 = codec.adapter_compress_stream_process(sc, &raw[0], 0, &scratch[0], 128, 1, &consumed2);
+        if (n2 < 0) { drain = 0; break; }
+        let k: i32 = 0;
+        while (k < n2) {
+          if (comp_len >= 512) { codec.adapter_compress_stream_end(sc); return 3; }
+          comp[comp_len] = scratch[k];
+          comp_len = comp_len + 1;
+          k = k + 1;
+        }
+        if (n2 == 0 && consumed2 == 0) { drain = 0; }
+      }
+    }
+    off = off + take;
+  }
+  codec.adapter_compress_stream_end(sc);
+  if (comp_len <= 0) { return 4; }
+
+  let sc_d: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
+  let st_d: [256]u8 = [];
+  if (codec.adapter_compress_stream_init(&sc_d, &st_d[0], cap, codec.stream_mode_decompress()) != 0) { return 5; }
+  let dec: [256]u8 = [];
+  let dec_len: i32 = 0;
+  let cin: i32 = 0;
+  let dchunk: i32 = 5;
+  while (cin < comp_len) {
+    let dtake: i32 = dchunk;
+    if (cin + dtake > comp_len) { dtake = comp_len - cin; }
+    let dconsumed: i32 = 0;
+    let dn: i32 = codec.adapter_compress_stream_process(sc_d, &comp[cin], dtake, &scratch[0], 128, 0, &dconsumed);
+    if (dn < 0) { codec.adapter_compress_stream_end(sc_d); return 6; }
+    let m: i32 = 0;
+    while (m < dn) {
+      if (dec_len >= 256) { codec.adapter_compress_stream_end(sc_d); return 7; }
+      dec[dec_len] = scratch[m];
+      dec_len = dec_len + 1;
+      m = m + 1;
+    }
+    if (dconsumed <= 0) { break; }
+    cin = cin + dconsumed;
+  }
+  codec.adapter_compress_stream_end(sc_d);
+  if (dec_len != raw_len) { return 8; }
+  if (bytes_eq(&raw[0], raw_len, &dec[0], dec_len) == 0) { return 9; }
+  return 0;
+}
+
+function main(): i32 {
+  let r: i32 = test_base64_stream();
+  if (r != 0) { return 100 + r; }
+  r = test_gzip_stream();
+  if (r != 0 && r != 99) { return 200 + r; }
+  return 0;
+}

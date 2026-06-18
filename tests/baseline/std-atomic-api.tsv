@@ -1,0 +1,9 @@
+# std.atomic Tier-S stable public API (import std.atomic)
+load_i32
+store_i32
+compare_exchange_i32
+fetch_add_i32
+load_u32
+store_u32
+compare_exchange_u32
+load_i64

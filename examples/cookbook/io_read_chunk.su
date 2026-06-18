@@ -1,0 +1,29 @@
+/**
+ * Cookbook IO-02：fs_read 大块顺序读并求和（无 mmap）。
+ */
+const fs = import("std.fs");
+
+function main(): i32 {
+  /** "/tmp/shu_cookbook_io_chunk\0" — 27 字节含 NUL */
+  let path: [27]u8 =
+  [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
+  95, 105, 111, 95, 99, 104, 117, 110, 107, 0];
+  let payload: [8]u8 = [10, 20, 30, 40, 50, 60, 70, 80];
+  let buf: [8]u8 = [];
+  let fd_w: i32 = fs.fs_open_write(&path[0]);
+  if (fd_w < 0) { return 1; }
+  if (fs.fs_write(fd_w, &payload[0], 8) != 8) { fs.fs_close(fd_w); return 2; }
+  if (fs.fs_close(fd_w) != 0) { return 3; }
+  let fd: i32 = fs.fs_open_read(&path[0]);
+  if (fd < 0) { return 4; }
+  let nr: isize = fs.fs_read(fd, &buf[0], 8);
+  if (nr != 8) { fs.fs_close(fd); return 5; }
+  let sum: i32 = 0;
+  let i: i32 = 0;
+  while (i < 8) {
+    sum = sum + (buf[i] as i32);
+    i = i + 1;
+  }
+  if (fs.fs_close(fd) != 0) { return 6; }
+  return sum & 255;
+}

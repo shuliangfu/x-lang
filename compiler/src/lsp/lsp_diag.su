@@ -9,7 +9,7 @@
 //
 // 约束：ctx 由 lsp_diag_prepare_pipeline_ctx 填入 libRoots/entry_dir；pipeline 内装载 direct import deps 后 typeck。
 
-import ast;
+const ast = import("ast");
 
 /** 与 pipeline.su 经 -E 导出名 pipeline_lsp_diag_parse_typeck_buf 一致；仅用 extern
 * 引用，避免 import pipeline。 */
@@ -127,7 +127,7 @@ function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i32): i3
   }
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast_arena_expr_get(arena, ei);
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.line == line_1 && e.col == col_1) {
       if (e.resolved_type_ref != 0) {
         return e.resolved_type_ref;
@@ -170,7 +170,7 @@ out_cap: i32): i32 {
   if (type_ref == 0) { return 0; }
   /* 取 type 池中节点，按 kind 逐字写入 out_buf（纯 ASCII 拼接，不递归）。 */
   if (type_ref <= 0 || type_ref > arena.num_types) { return 0; }
-  let ty: Type = ast_arena_type_get(arena, type_ref);
+  let ty: Type = ast.ast_arena_type_get(arena, type_ref);
   let k: i32 = 0;
   if (ty.kind == TypeKind.TYPE_I32 && out_cap >= 4) {
     out_buf[0] = 105; out_buf[1] = 51; out_buf[2] = 50; return 3;
@@ -234,7 +234,7 @@ max_refs: i32): i32 {
   let count: i32 = 0;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs && count < max_refs) {
-    let e: Expr = ast_arena_expr_get(arena, ei);
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.kind == ExprKind.EXPR_CALL && e.call_resolved_func_index == func_index && e.line > 0) {
       out_lines[count] = e.line;
       out_cols[count] = e.col;
@@ -278,7 +278,7 @@ function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0
   let func_index: i32 = -1;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast_arena_expr_get(arena, ei);
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.line == line_1 && e.col == col_1 && e.kind == ExprKind.EXPR_CALL &&
     e.call_resolved_func_index >= 0) {
       func_index = e.call_resolved_func_index;
@@ -454,7 +454,7 @@ function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0
   let func_index: i32 = -1;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast_arena_expr_get(arena, ei);
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.line == line_1 && e.col == col_1 && e.kind == ExprKind.EXPR_CALL &&
     e.call_resolved_func_index >= 0) {
       func_index = e.call_resolved_func_index;
@@ -490,7 +490,7 @@ function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, out_cap: 
   /* 遍历 arena 中所有表达式 */
   let ei: i32 = 1;
   while (ei <= arena.num_exprs && count + 5 <= out_cap) {
-    let e: Expr = ast_arena_expr_get(arena, ei);
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.line <= 0 || e.col <= 0) { ei = ei + 1; continue; }
     let line0: i32 = e.line - 1; /* 0-based */
     let start0: i32 = e.col - 1;

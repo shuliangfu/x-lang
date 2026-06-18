@@ -1,8 +1,41 @@
 // std.http — 最小 HTTP 客户端/服务（P4 可选；占位）
 //
-// 【文件职责】get 等占位；后续可基于 std.net、std.io 实现。
+// 【文件职责】get 等占位；chunked 解码与状态行解析（STD-032/033）；后续可基于 std.net、std.io 实现。
 // 【依赖】std.net、std.io；与 std/http/http.c 同属一模块。
 extern function http_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern function http_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32;
+extern function http_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32;
+extern function http_has_chunked_encoding_c(buf: *u8, len: i32): i32;
+extern function http_has_keep_alive_c(buf: *u8, len: i32): i32;
+extern function http_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32;
+
 function get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_get_c(url, url_len, out_buf, out_cap);
+}
+
+/** 解析 HTTP 状态行（如 HTTP/1.1 204 ...）；成功 0 并写 status code。 */
+function parse_status_line(line: *u8, len: i32, out_code: *i32): i32 {
+  return http_parse_status_line_c(line, len, out_code);
+}
+
+/** 响应头结束后的 body 起始偏移；失败 -1。 */
+function headers_body_offset(buf: *u8, len: i32, out_off: *i32): i32 {
+  return http_headers_body_offset_c(buf, len, out_off);
+}
+
+/** 是否含 Transfer-Encoding: chunked。 */
+function has_chunked_encoding(buf: *u8, len: i32): bool {
+  if (http_has_chunked_encoding_c(buf, len) != 0) { return true; }
+  return false;
+}
+
+/** 是否含 Connection: keep-alive。 */
+function has_keep_alive(buf: *u8, len: i32): bool {
+  if (http_has_keep_alive_c(buf, len) != 0) { return true; }
+  return false;
+}
+
+/** 解码 chunked body；返回拼接后字节数，失败 -1。 */
+function decode_chunked_body(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
+  return http_decode_chunked_body_c(buf, len, hdr_end, out_body, out_cap);
 }

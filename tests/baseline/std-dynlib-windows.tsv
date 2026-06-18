@@ -1,0 +1,22 @@
+# STD-027 std.dynlib Windows LoadLibrary manifest
+# 列：item_id	kind	doc_anchor	code_anchor	src	notes
+min_symbols	3
+win_open	code	-	LoadLibraryA	std/dynlib/dynlib.c	Windows open
+win_open_w	code	-	LoadLibraryW	std/dynlib/dynlib.c	STD-097 UTF-8 回退
+win_norm	code	-	dynlib_win_normalize_path	std/dynlib/dynlib.c	STD-097 /→\\
+win_sym	code	-	GetProcAddress	std/dynlib/dynlib.c	Windows sym
+win_close	code	-	FreeLibrary	std/dynlib/dynlib.c	Windows close
+posix_open	code	-	dlopen	std/dynlib/dynlib.c	POSIX open
+posix_sym	code	-	dlsym	std/dynlib/dynlib.c	POSIX sym
+api_open	symbol	-	open	std/dynlib/mod.su	用户 API
+api_sym	symbol	-	sym	std/dynlib/mod.su	用户 API
+api_close	symbol	-	close	std/dynlib/mod.su	用户 API
+section_win	section	LoadLibraryA	-	analysis/std-dynlib-windows-v1.md	§3
+section_posix	section	dlopen(RTLD_NOW)	-	analysis/std-dynlib-windows-v1.md	POSIX
+test_null	file	-	main.su	tests/dynlib/main.su	open null
+test_osc	file	-	open_sym_close.su	tests/dynlib/open_sym_close.su	open/sym/close
+test_win_path	file	-	win_path.su	tests/dynlib/win_path.su	STD-097 typeck
+test_win_path_c	file	-	win_path_smoke.c	tests/dynlib/win_path_smoke.c	STD-097 C 烟测
+runner	script	-	run-dynlib.sh	tests/run-dynlib.sh	回归
+doc	file	-	std-dynlib-windows-v1.md	analysis/std-dynlib-windows-v1.md	RFC
+gate	script	-	run-std-dynlib-windows-gate.sh	tests/run-std-dynlib-windows-gate.sh	manifest

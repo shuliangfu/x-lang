@@ -17,4 +17,12 @@ $SHU -L . tests/path/extension_stem_abs_clean.su -o /tmp/shu_path_ext 2>&1
 exitcode=0; /tmp/shu_path_ext >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (path_extension/stem/is_absolute/sep/clean), got $exitcode"; exit 1; }
 
+$SHU -L . tests/path/resolve.su -o /tmp/shu_path_resolve 2>&1
+exitcode=0; /tmp/shu_path_resolve >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (path_resolve), got $exitcode"; exit 1; }
+
+$SHU -L . tests/path/extreme_clean.su -o /tmp/shu_path_extreme 2>&1
+exitcode=0; /tmp/shu_path_extreme >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (path extreme_clean STD-140), got $exitcode"; exit 1; }
+
 echo "path test OK"

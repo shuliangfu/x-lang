@@ -1,0 +1,7 @@
+# LANG-003 generic prototype catalog
+# 列：capability	pipeline	status	notes
+# min_capabilities	4
+mono_local	shu|shu-c	done	tests/generic/main.su
+typeck_arity	shu|shu-c	done	wrong_type_args.su
+mono_import	shu-c	done	multi-file-generic
+bench_loop	shu|shu-c	prototype	generic_id_i32.su

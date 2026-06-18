@@ -1,7 +1,7 @@
 // net_echo_throughput.su — N2：TcpStream batch 读写 echo 吞吐（client 侧，与 run-perf-net.sh 配套）
 // 4×4KiB×1024 轮 ≈ 16MiB 发 + 16MiB 收；stream_*_batch(n=4) 一次 readv/writev。
-import std.net;
-import std.process;
+const net = import("std.net");
+const process = import("std.process");
 
 /** 解析十进制 u32 端口（NUL 结尾）；非法返回 default_port。 */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
@@ -22,7 +22,7 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 /** 写 4×4KiB；失败返回负值。 */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nw: i32 = stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nw: i32 = net.stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nw != need) { return -1; }
   return nw;
 }
@@ -30,7 +30,7 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
 /** 读 4×4KiB；失败返回负值。 */
 function echo_read_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nr: i32 = stream_read_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nr: i32 = net.stream_read_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nr != need) { return -1; }
   return nr;
 }
@@ -38,14 +38,14 @@ function echo_read_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg:
 function main(): i32 {
   /** 与 net_echo_throughput_server.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
   let echo_port: u32 = 38457;
-  if (args_count() >= 2) {
-    echo_port = bench_parse_port(arg(1), echo_port);
+  if (process.args_count() >= 2) {
+    echo_port = bench_parse_port(process.arg(1), echo_port);
   }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   /** timeout=0：阻塞 connect，bulk echo 快路径。 */
-  let stream: TcpStream = connect_blocking(addr, echo_port, 0);
+  let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }
   let b0: [4096]u8 = [];
   let b1: [4096]u8 = [];
@@ -62,8 +62,8 @@ function main(): i32 {
       b3[bi] = ((round + bi + 3) & 255) as u8;
       bi = bi + 1;
     }
-    if (echo_write_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { close_stream(stream); return 2; }
-    if (echo_read_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { close_stream(stream); return 3; }
+    if (echo_write_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { net.close_stream(stream); return 2; }
+    if (echo_read_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { net.close_stream(stream); return 3; }
     bi = 0;
     while (bi < 4096) {
       sum = sum + (b0[bi] as i32);
@@ -74,6 +74,6 @@ function main(): i32 {
     }
     round = round + 1;
   }
-  if (close_stream(stream) != 0) { return 4; }
+  if (net.close_stream(stream) != 0) { return 4; }
   return sum & 255;
 }

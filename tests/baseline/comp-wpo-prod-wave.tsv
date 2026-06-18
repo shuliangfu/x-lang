@@ -1,0 +1,18 @@
+# COMP-015 WPO 生产波次 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_prod_hooks	5
+section_goal	section	## 1. 目标	生产 tier
+matrix	section	## 2. 生产矩阵	comp-wpo.tsv
+gate_section	section	## 3. Gate	run-comp-wpo-prod-gate
+parent_tsv	cross_ref	tests/baseline/comp-wpo.tsv	COMP-004
+parent_doc	cross_ref	analysis/comp-wpo-v1.md	COMP-004
+baseline_typeck	cross_ref	tests/baseline/wpo-typeck-o.tsv	typeck_wpo.o
+baseline_pipeline	cross_ref	tests/baseline/wpo-pipeline-o.tsv	pipeline_wpo.o
+baseline_strict	cross_ref	tests/baseline/wpo-strict-glue-text.tsv	strict_glue
+hook_dce	hook_gate	run-wpo-dce-emit.sh	prod_dce
+hook_reach_typeck	hook_gate	run-wpo-typeck-reach-gate.sh	prod_reach_typeck
+hook_reach_pipeline	hook_gate	run-wpo-pipeline-reach-gate.sh	prod_reach_pipeline
+hook_chain	hook_gate	run-wpo-build-asm-chain-gate.sh	prod_chain
+hook_strict	hook_gate	run-wpo-strict-link-gate.sh	prod_strict
+lib	script	lib/comp-wpo-prod.sh	tests/lib/comp-wpo-prod.sh
+gate	script	run-comp-wpo-prod-gate.sh	tests/run-comp-wpo-prod-gate.sh

@@ -33,4 +33,4 @@
 
 ## 依赖
 
-- `import std.heap`；链接时需 `std/heap/heap.o`（含 map_i32_i32_find_c）。
+- `import("std.heap")`；链接时需 `std/heap/heap.o`（含 map_i32_i32_find_c）。

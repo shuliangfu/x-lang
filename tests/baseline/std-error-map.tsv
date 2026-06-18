@@ -1,0 +1,25 @@
+# STD-020 std.error 错误码映射与 last_error manifest
+# 列：item_id	kind	anchor	mod_path	src	notes
+min_modules	meta	8	-	-	-	8 modules
+lookup_code_base	symbol	error_code_to_module_base	std/error/mod.su	std/error/mod.su	码→base
+lookup_tag_base	symbol	error_mod_tag_from_base	std/error/mod.su	std/error/mod.su	base→tag
+lookup_base_tag	symbol	error_mod_base_from_tag	std/error/mod.su	std/error/mod.su	tag→base
+lookup_sidecar	symbol	error_module_sidecar_kind	std/error/mod.su	std/error/mod.su	侧车种类
+sidecar_none	symbol	error_sidecar_none	std/error/mod.su	std/error/mod.su	无侧车
+sidecar_errno	symbol	error_sidecar_errno_i32	std/error/mod.su	std/error/mod.su	errno i32
+sidecar_db	symbol	error_sidecar_db_struct	std/error/mod.su	std/error/mod.su	DbError
+mod_io	module	std.io	error_base_io	std/io/mod.su	std/io/mod.su	Layer C -1
+mod_fs	module	std.fs	error_base_fs	std/fs/mod.su	std/fs/mod.su	fs_last_error
+mod_net	module	std.net	error_base_net	std/net/mod.su	std/net/mod.su	无侧车 v1
+mod_async	module	std.async	error_base_async	std/async/mod.su	std/async/mod.su	占位
+mod_coll	module	coll/heap	error_base_coll	std/heap/mod.su	std/heap/mod.su	-1=alloc
+mod_db	module	std.sqlite	-	std/sqlite/mod.su	std/sqlite/mod.su	last_error DbError
+mod_process	module	std.process	-	std/process/mod.su	std/process/mod.su	Layer C -1
+mod_http	module	std.http	-	std/http/mod.su	std/http/mod.su	Layer C -1
+mod_json	module	std.json	-	std/json/mod.su	std/json/mod.su	本地负码
+sidecar_fs	sidecar	fs_last_error	std/fs/mod.su	std/fs/mod.su	errno_i32
+sidecar_db	sidecar	last_error	std/sqlite/mod.su	std/sqlite/mod.su	db_struct
+test_smoke	file	error_map_smoke.su	tests/std/error_map_smoke.su	tests/std/error_map_smoke.su	烟测
+doc	file	std-error-map-v1.md	analysis/std-error-map-v1.md	analysis/std-error-map-v1.md	RFC
+unify_doc	file	std-error-unify-v1.md	analysis/std-error-unify-v1.md	analysis/std-error-unify-v1.md	STD-011
+gate	script	run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	manifest

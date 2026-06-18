@@ -17,6 +17,7 @@
 
 struct ast_Module;
 struct ast_ASTArena;
+struct ast_PipelineDepCtx;
 
 /** typeck 布局 metrics：strict 链由 typeck_su.o / typeck_asm_layout_partial.o 导出，glue 不重复 wrapper。 */
 
@@ -56,4 +57,46 @@ extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTAren
 
 void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
+}
+
+/** ast_pool.c 提供 C 实现；glue_standalone 勿 undefined 调 pipeline.su 薄 bl。 */
+extern int32_t pipeline_should_skip_su_typeck_c(struct ast_PipelineDepCtx *ctx);
+
+int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx) {
+  return pipeline_should_skip_su_typeck_c(ctx);
+}
+
+/**
+ * weak：strict 链无 pipeline.o / pipeline_su.o 时 LSP 路径可链接；
+ * 强符号由 pipeline_su.o 或 build_asm/pipeline.o 覆盖。
+ */
+__attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module,
+                                                                        struct ast_ASTArena *arena,
+                                                                        struct ast_PipelineDepCtx *ctx) {
+  (void)module;
+  (void)arena;
+  (void)ctx;
+  return 0;
+}
+
+/** weak：orchestration partial 在无 build_asm/pipeline.o 时仍可链接。 */
+__attribute__((weak)) int32_t run_su_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                           struct codegen_CodegenOutBuf *out_buf,
+                                                           struct ast_PipelineDepCtx *ctx, int32_t skip_asm_dep_codegen) {
+  (void)module;
+  (void)arena;
+  (void)out_buf;
+  (void)ctx;
+  (void)skip_asm_dep_codegen;
+  return 0;
+}
+
+__attribute__((weak)) int32_t run_su_pipeline_codegen_entry(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                            struct codegen_CodegenOutBuf *out_buf,
+                                                            struct ast_PipelineDepCtx *ctx) {
+  (void)module;
+  (void)arena;
+  (void)out_buf;
+  (void)ctx;
+  return 0;
 }

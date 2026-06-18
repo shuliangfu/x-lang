@@ -1,0 +1,7 @@
+# ENG-001：性能 baseline 变更 PR checklist（复制到 PR 描述）
+- [ ] 仅改 tests/baseline/*perf*.tsv 中与本次优化/环境相关的 case
+- [ ] 使用 registry 中 update_env 重录（或说明为何手调）
+- [ ] 已 bump tests/baseline/perf-baseline-registry.tsv 对应 version（v1.YYYY-MM-DD）
+- [ ] 已跑对应 gate_script（见 registry）
+- [ ] 已跑 ./tests/run-eng-baseline-governance-gate.sh
+- [ ] PR 说明：变更原因、host、Shu/Zig 版本、median 前后对比

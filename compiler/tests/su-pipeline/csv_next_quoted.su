@@ -1,5 +1,5 @@
 // 探针：next_field 引号字段 "a,b",c（经 C 探针，避免第三段定长数组错址）
-import std.csv;
+const csv = import("std.csv");
 
 function main(): i32 {
   let st: i32 = 0;

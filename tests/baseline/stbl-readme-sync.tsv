@@ -1,0 +1,17 @@
+# STBL-002 std/README 同步 manifest
+# 列：item_id	kind	anchor	notes
+min_anchors	7
+forbidden_1	forbidden	spawn/exec/管道为 P3	过时 process
+forbidden_2	forbidden	std.async` | 仅占位	过时 async
+forbidden_3	forbidden	无 `tests/http/`	过时 http
+forbidden_4	forbidden	无 `run-tar.sh`	过时 tar
+anchor_scheduler	anchor	scheduler.c	async C 实现
+anchor_spawn	anchor	spawn_simple	process API
+anchor_http	anchor	run-http.sh	http 烟测
+anchor_tar	anchor	run-tar.sh	tar 烟测
+anchor_db	anchor	std.sqlite	db 模块
+anchor_next	anchor	NEXT.md	Phase 2
+anchor_check_matrix	anchor	run-stdlib-check-matrix	BOOT-013
+doc	file	stbl-readme-sync-v1.md	analysis/stbl-readme-sync-v1.md	RFC
+readme	file	std/README.md	std/README.md	权威状态
+gate	script	run-stbl-readme-sync-gate.sh	tests/run-stbl-readme-sync-gate.sh	manifest

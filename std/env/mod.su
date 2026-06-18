@@ -6,7 +6,7 @@
 // 友好；当前工作目录建议用 std.process.getcwd。
 //
 // 【所属模块/组件】
-// 标准库 std.env；用户通过 import std.env 使用。依赖 core；与 std/env/env.c
+// 标准库 std.env；用户通过 import("std.env") 使用。依赖 core；与 std/env/env.c
 // 同属一模块。
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
 extern function env_getenv_ptr_c(key: *u8, key_len: i32, out_len: *i32): *u8;
@@ -53,4 +53,65 @@ function unsetenv(name: *u8): i32 {
 * temp_dir()。 */
 function temp_dir(out: *u8, cap: i32): i32 {
   return env_temp_dir_c(out, cap);
+}
+
+extern function env_iter_count_c(): i32;
+extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
+extern function args_iter_count_c(): i32;
+extern function args_iter_at_c(i: i32): *u8;
+
+/** 环境变量遍历状态：index 为下一次 env_iter_at_c 下标。 */
+struct EnvIter {
+  index: i32;
+}
+
+/** 命令行参数遍历状态。 */
+struct ArgsIter {
+  index: i32;
+}
+
+/** 创建环境变量迭代器（从 0 开始）。 */
+function env_iter(): EnvIter {
+  return EnvIter { index: 0 };
+}
+
+/** 当前进程环境变量条目数。 */
+function env_iter_count(): i32 {
+  return env_iter_count_c();
+}
+
+/** 读取下一环境变量；成功 1，结束 0，错误 -1。缓冲不足时跳过该条目。 */
+function env_iter_next(it: *EnvIter, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
+  loop {
+    let r: i32 = env_iter_at_c(it.index, key_out, key_cap, val_out, val_cap);
+    if (r == 1) {
+      it.index = it.index + 1;
+      return 1;
+    }
+    if (r == 0) { return 0; }
+    if (r < 0) {
+      it.index = it.index + 1;
+      continue;
+    }
+    return -1;
+  }
+  return 0;
+}
+
+/** 创建命令行参数迭代器。 */
+function args_iter(): ArgsIter {
+  return ArgsIter { index: 0 };
+}
+
+/** 命令行参数个数（含 argv[0]）。 */
+function args_iter_count(): i32 {
+  return args_iter_count_c();
+}
+
+/** 读取下一 argv 指针；结束返回 0。 */
+function args_iter_next(it: *ArgsIter): *u8 {
+  if (it.index >= args_iter_count_c()) { return 0; }
+  let p: *u8 = args_iter_at_c(it.index);
+  it.index = it.index + 1;
+  return p;
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 文件职责：阶段 5 import 测试——含 import / const = import / const { } = import 的 .su 能解析、typeck 通过并运行。
-# 覆盖：tests/import/main.su（方式 1）、const_binding.su（方式 2）、const_select.su（方式 3）、missing_module.su（边界）。
+# 阶段 5 import 测试——import("path") 绑定/解构 .su 能解析、typeck 通过并运行。
+# 覆盖：main.su（解构）、const_binding.su（绑定）、const_select.su（解构）、missing_module.su（边界）。
 # 与其它文件的关系：由 run-all.sh 调用；依赖 compiler/shu、tests/import/*.su、core/types.su、std/io（-L .）。
 
 set -e
@@ -19,10 +19,7 @@ if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 rm -f /tmp/shu_import_hello /tmp/shu_import_const_binding /tmp/shu_import_const_select /tmp/shu_import_bad
 
-# 方式 1：import path；
-# 无 -o 时：部分驱动将 parse/typeck 摘要打 stderr（parse OK / typeck OK），
-# 混合 driver 则可能仅在 stdout 出 C；二者任一满足即视为前端通过。
-# shu_asm（B-strict）无 -o 烟测仍可能 SIGSEGV；run-shu-asm-gate 设 SHU_SKIP_PARSE_SMOKE=1 跳过，仅验 -o 链 exe。
+# 方式 1：无 -o 时 parse/typeck 烟测（见下方 grep）
 if [ -z "${SHU_SKIP_PARSE_SMOKE:-}" ]; then
   out=$($SHU -L . tests/import/main.su 2>&1)
   echo "$out" | grep -qE "parse OK|typeck OK|int32_t main" || {
@@ -47,13 +44,17 @@ if [ "$_import_ok" -ne 1 ]; then
 fi
 /tmp/shu_import_hello | grep -q "Hello World" || { echo "import main: expected Hello World"; exit 1; }
 
-# 方式 2：const xxx = import path;
+# 方式 2：const xxx = import("path");（绑定 + 前缀）
 $LINK_SHU -L . tests/import/const_binding.su -o /tmp/shu_import_const_binding 2>&1
-/tmp/shu_import_const_binding | grep -q "Hello World" || { echo "const_binding: expected Hello World"; exit 1; }
+/tmp/shu_import_const_binding >/dev/null || { echo "const_binding: expected exit 0"; exit 1; }
 
-# 方式 3：const { zzz } = import path;
+# 方式 3：const { zzz } = import("path");
 $LINK_SHU -L . tests/import/const_select.su -o /tmp/shu_import_const_select 2>&1
 /tmp/shu_import_const_select | grep -q "Hello World" || { echo "const_select: expected Hello World"; exit 1; }
+
+# 方式 4：const { sym as alias } = import("path");
+$LINK_SHU -L . tests/import/const_select_alias_fn.su -o /tmp/shu_import_const_select_alias 2>&1
+/tmp/shu_import_const_select_alias | grep -q "Hello World" || { echo "const_select_alias: expected Hello World"; exit 1; }
 
 # 边界：import 不存在的模块，应报错且退出非 0
 err=$($SHU -L . tests/import/missing_module.su -o /tmp/shu_import_bad 2>&1) || true

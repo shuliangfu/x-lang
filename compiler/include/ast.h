@@ -37,16 +37,23 @@ typedef enum ASTTypeKind {
     AST_TYPE_VECTOR, /**< 向量类型如 i32x4；elem_type 为元素类型，array_size 为 lane 数（文档 §10，先用 struct 模拟） */
     AST_TYPE_F32,    /**< 32 位浮点（文档阶段 8+ 可选） */
     AST_TYPE_F64,    /**< 64 位浮点 */
-    AST_TYPE_VOID    /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
+    AST_TYPE_VOID,   /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
+    AST_TYPE_UNION   /**< 联合类型 T | U | …；union_members 存各成员，零运行时 tag，调用点单态化 */
 } ASTTypeKind;
 
-/** 类型节点：内建/具名/指针/数组/切片等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */
+/** 联合类型成员最大个数（parser/typeck 一致） */
+#define AST_TYPE_UNION_MAX 8
+
+/** 类型节点：内建/具名/指针/数组/切片/联合等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */
 typedef struct ASTType {
     ASTTypeKind kind;
     const char *name;  /**< 对于 AST_TYPE_NAMED 为 strdup 的类型名，其它种类可为 NULL */
     struct ASTType *elem_type;  /**< 对于 AST_TYPE_PTR / AST_TYPE_ARRAY 为元素类型，其它为 NULL */
     int array_size;    /**< 对于 AST_TYPE_ARRAY 为编译期常量长度 N，其它为 0 */
     const char *region_label;  /**< M-3：仅 AST_TYPE_SLICE；域标签（[]T<label>），NULL 表示未绑定域 */
+    /** AST_TYPE_UNION：成员类型数组（parser 分配，ast_type_free 逐项释放后 free 本数组） */
+    struct ASTType **union_members;
+    int union_count;   /**< union_members 有效长度，至少 2 */
 } ASTType;
 
 /** 表达式节点类型：字面量、变量引用、二元运算、一元运算 */
@@ -398,7 +405,7 @@ typedef struct ASTImplBlock {
 /** 单态化实例：泛型函数 + 类型实参，由 typeck 登记、codegen 按实例生成 C（阶段 7.1）。type_args 与数组由 ast_module_free 释放。 */
 typedef struct ASTMonoInstance {
     struct ASTFunc *template;     /**< 泛型函数模板（来自 mod->funcs） */
-    struct ASTType **type_args;  /**< 类型实参数组，长度 num_type_args */
+    struct ASTType **type_args;  /**< 泛型类型实参数组，长度 num_type_args */
     int num_type_args;
 } ASTMonoInstance;
 
@@ -422,8 +429,10 @@ typedef struct ASTModule {
     int *import_kinds;
     /** import_kinds[i]==AST_IMPORT_KIND_BINDING 时为绑定名(如 "process")，否则 NULL；由 parser 分配，ast_module_free 释放 */
     char **import_binding_names;
-    /** import_kinds[i]==AST_IMPORT_KIND_SELECT 时为选取名数组(如 ["getenv"])，否则 NULL；由 ast_module_free 释放 */
+    /** import_kinds[i]==AST_IMPORT_KIND_SELECT 时为源模块符号名数组(如 ["print_str"])，否则 NULL；由 ast_module_free 释放 */
     char ***import_select_names;
+    /** import_kinds[i]==AST_IMPORT_KIND_SELECT 时为本地绑定名数组(如 ["io_out"])；无 as 时为 NULL 表示与 import_select_names 同名；由 ast_module_free 释放 */
+    char ***import_select_aliases;
     /** import_kinds[i]==AST_IMPORT_KIND_SELECT 时为选取名个数 */
     int *import_select_counts;
     /** 顶层 let 声明（let name: Type = expr;），与 const/import 同级；由 parser 分配，ast_module_free 释放 */

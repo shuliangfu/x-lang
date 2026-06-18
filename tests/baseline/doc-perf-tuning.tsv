@@ -1,0 +1,23 @@
+# DOC-003 性能调优手册 manifest
+# 列：item_id	kind	anchor	notes
+# min_sections	7
+# min_cross_refs	6
+read_path	section	## 1. 阅读路径	50min
+dimensions	section	## 2. 性能维度	A–E
+compile_flow	section	## 3. 编译调优实战流程	OBS-001
+io_net_flow	section	## 4. IO/NET 运行时调优流程	PERF-002/003
+bootstrap_diag	section	## 5. 自举与 CI 诊断	BOOT-004
+baseline_gov	section	## 6. Baseline 治理	ENG-001
+cmd_cheatsheet	section	## 7. 调优命令速查	速查表
+self_check	section	## 9. 自检（5 题）	quiz
+cross_obs	cross_ref	analysis/obs-compile-phase-timing-v1.md	OBS-001
+cross_io	cross_ref	analysis/perf-io-zig-v1.md	PERF-002
+cross_net	cross_ref	analysis/perf-net-zig-v1.md	PERF-003
+cross_zig	cross_ref	analysis/perf-zig-baseline-v1.md	PERF-001
+cross_eng	cross_ref	analysis/eng-baseline-governance-v1.md	ENG-001
+cross_zc	cross_ref	analysis/zc-semantics-v1.md	ZC-006
+hook_compile_timing	hook_script	run-obs-compile-phase-timing-gate.sh	OBS-001
+hook_compile_dogfood	hook_script	run-perf-compile-dogfood-gate.sh	PERF-004
+hook_io	hook_script	run-perf-io-zig-gate.sh	PERF-002
+hook_baseline_gov	hook_script	run-eng-baseline-governance-gate.sh	ENG-001
+registry_ref	file	tests/baseline/perf-baseline-registry.tsv	baseline 索引

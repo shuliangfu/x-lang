@@ -1,0 +1,96 @@
+// STD-140：std.path 极端路径规范化烟测（path_clean / resolve / extension 边界）
+const path = import("std.path");
+
+/** 比较两段等长字节；相等返回 1。 */
+function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  if (a_len != b_len) { return 0; }
+  let i: i32 = 0;
+  while (i < a_len) {
+    if (a[i] != b[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 校验 path_clean 输出与期望一致；失败返回非 0 错误码。 */
+function check_clean(src_path: *u8, path_len: i32, expect: *u8, expect_len: i32, err: i32): i32 {
+  let out: [128]u8 = [];
+  let n: i32 = path.path_clean(src_path, path_len, &out[0], 128);
+  if (n != expect_len) { return err; }
+  if (bytes_eq(&out[0], n, expect, expect_len) == 0) { return err + 1; }
+  return 0;
+}
+
+function main(): i32 {
+  let out: [128]u8 = [];
+  let n: i32 = 0;
+  let ec: i32 = 0;
+
+  // 连续斜杠折叠：//a///b -> /a/b
+  let multi_slash: [8]u8 = [47, 47, 97, 47, 47, 47, 98, 0];
+  let expect_ab: [4]u8 = [47, 97, 47, 98];
+  ec = check_clean(&multi_slash[0], 7, &expect_ab[0], 4, 10);
+  if (ec != 0) { return ec; }
+
+  // 尾随斜杠：/foo/bar/ -> /foo/bar
+  let trail: [9]u8 = [47, 102, 111, 111, 47, 98, 97, 114, 47];
+  let expect_foo_bar: [8]u8 = [47, 102, 111, 111, 47, 98, 97, 114];
+  ec = check_clean(&trail[0], 9, &expect_foo_bar[0], 8, 20);
+  if (ec != 0) { return ec; }
+
+  // 相对路径 ./ 与 .. 消段：v1 在 pop 后可能留下双分隔符 foo//baz
+  let rel_dots: [16]u8 = [
+    102, 111, 111, 47, 46, 47, 98, 97, 114, 47, 46, 46, 47, 98, 97, 122
+  ];
+  let expect_foo_baz: [8]u8 = [102, 111, 111, 47, 47, 98, 97, 122];
+  ec = check_clean(&rel_dots[0], 16, &expect_foo_baz[0], 8, 30);
+  if (ec != 0) { return ec; }
+
+  // 根路径 /.. -> /
+  let root_up: [3]u8 = [47, 46, 46];
+  let expect_root: [1]u8 = [47];
+  ec = check_clean(&root_up[0], 3, &expect_root[0], 1, 40);
+  if (ec != 0) { return ec; }
+
+  // 混合反斜杠：a\\b -> a/b（POSIX 主分隔符为 /）
+  let mixed_sep: [4]u8 = [97, 92, 92, 98];
+  let expect_mixed: [3]u8 = [97, 47, 98];
+  ec = check_clean(&mixed_sep[0], 4, &expect_mixed[0], 3, 50);
+  if (ec != 0) { return ec; }
+
+  // 四连点段名（非 dotdot）：x/..../y
+  let four_dot: [8]u8 = [120, 47, 46, 46, 46, 46, 47, 121];
+  let expect_four: [8]u8 = [120, 47, 46, 46, 46, 46, 47, 121];
+  ec = check_clean(&four_dot[0], 8, &expect_four[0], 8, 60);
+  if (ec != 0) { return ec; }
+
+  // path_resolve：绝对 ref 忽略 base
+  let base: [4]u8 = [47, 97, 47, 98];
+  let abs_ref: [5]u8 = [47, 120, 47, 121, 122];
+  n = path.path_resolve(&out[0], 128, &base[0], 4, &abs_ref[0], 5);
+  if (n != 5) { return 70; }
+  if (out[0] != 47 || out[4] != 122) { return 71; }
+
+  // path_extension：隐藏文件 .gitignore 无扩展名
+  let hidden: [10]u8 = [46, 103, 105, 116, 105, 103, 110, 111, 114, 101];
+  let ext_buf: [8]u8 = [];
+  n = path.path_extension(&hidden[0], 10, &ext_buf[0], 8);
+  if (n != 0) { return 80; }
+
+  // path_extension_and_stem：file.tar.gz
+  let tarball: [12]u8 = [102, 105, 108, 101, 46, 116, 97, 114, 46, 103, 122, 0];
+  let ext2: [8]u8 = [];
+  let stem2: [8]u8 = [];
+  let combo: i32 = path.path_extension_and_stem(&tarball[0], 11, &ext2[0], 8, &stem2[0], 8);
+  if (combo < 0) { return 90; }
+  let stem_len: i32 = (combo >> 16) & 65535;
+  let ext_len: i32 = combo & 65535;
+  if (stem_len != 8 || ext_len != 3) { return 91; }
+  if (stem2[7] != 114 || ext2[0] != 46 || ext2[2] != 122) { return 92; }
+
+  // Windows 盘符绝对路径识别（字节模式，全平台一致）
+  let win_abs: [6]u8 = [67, 58, 92, 85, 115, 101];
+  if (path.path_is_absolute(&win_abs[0], 6) != 1) { return 100; }
+
+  return 0;
+}

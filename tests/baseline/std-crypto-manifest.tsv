@@ -1,0 +1,29 @@
+# STD-006 std.crypto 最小安全集 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+min_apis	5
+min_layers	3
+read_path	section	## 1. 阅读路径	analysis/std-crypto-min-v1.md	-	10min
+layers_doc	section	## 2. 安全层 K1–K3	analysis/std-crypto-min-v1.md	-	K1-K3
+verify	section	## 4. Gate 与 report	analysis/std-crypto-min-v1.md	-	gate
+layer_k1	layers	K1-hash	analysis/std-crypto-min-v1.md	v1	SHA/HMAC
+layer_k2	layers	K2-rand	analysis/std-crypto-min-v1.md	v1	CSPRNG
+layer_k3	layers	K3-sig	analysis/std-crypto-min-v1.md	v1	MAC
+api_mem_eq	api	mem_eq	std/crypto/mod.su	core	常量时间比较
+api_sha256	api	sha256	std/crypto/mod.su	core	32B 摘要
+api_hmac	api	hmac_sha256	std/crypto/mod.su	core	HMAC
+api_mac_sign	api	mac_sign	std/crypto/mod.su	core	MAC 签名
+api_mac_verify	api	mac_verify	std/crypto/mod.su	core	MAC 校验
+api_rand_fill	api	fill_bytes	std/random/mod.su	core	CSPRNG
+impl_crypto_c	file	std/crypto/crypto.c	std/crypto/crypto.c	impl	SHA/HMAC C
+impl_random_c	file	std/random/random.c	std/random/random.c	impl	OS CSPRNG
+vectors	file	std-crypto-vectors.tsv	tests/baseline/std-crypto-vectors.tsv	-	golden
+lib	script	lib/std-crypto.sh	tests/lib/std-crypto.sh	-	共享库
+gate	script	run-std-crypto-gate.sh	tests/run-std-crypto-gate.sh	-	manifest
+hook_crypto	hook_script	run-crypto.sh	tests/run-crypto.sh	-	回归
+hook_random	hook_script	run-random.sh	tests/run-random.sh	-	回归
+smoke_sha256_abc	smoke	tests/std-crypto/sha256_abc.su	tests/std-crypto/sha256_abc.su	-	FIPS abc
+smoke_hmac	smoke	tests/std-crypto/hmac_key_msg.su	tests/std-crypto/hmac_key_msg.su	-	HMAC golden
+smoke_mac	smoke	tests/std-crypto/mac_verify_smoke.su	tests/std-crypto/mac_verify_smoke.su	-	MAC 闭环
+smoke_mem_eq	smoke	tests/std-crypto/mem_eq_ct.su	tests/std-crypto/mem_eq_ct.su	-	mem_eq
+smoke_rand	smoke	tests/std-crypto/rand_fill_smoke.su	tests/std-crypto/rand_fill_smoke.su	-	fill_bytes
+cross_readme	cross_ref	std/crypto/README.md	std/crypto/README.md	-	README

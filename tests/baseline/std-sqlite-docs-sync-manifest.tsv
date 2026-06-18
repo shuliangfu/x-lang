@@ -1,0 +1,18 @@
+# STD-154 std.sqlite 文档统一 manifest
+# 列：item_id	kind	anchor	target	notes
+read_path	section	## 1. 目标	analysis/std-sqlite-docs-sync-v1.md
+keywords	section	## 2. docs/07 必含关键字	analysis/std-sqlite-docs-sync-v1.md
+forbid	section	## 3. 禁止项	analysis/std-sqlite-docs-sync-v1.md
+verify	section	## 4. Gate	gate
+kw_sqlite	keyword	std.sqlite	docs07	主模块名
+kw_prepare	keyword	prepare_cached	docs07	STD-070
+kw_pool	keyword	pool_acquire	docs07	STD-084
+kw_not_impl	keyword	DB_NOT_IMPL	docs07	stub
+kw_stub_target	keyword	sqlite-o-stub	docs07	构建
+kw_gate	keyword	run-std-sqlite-gate.sh	docs07	gate
+kw_deprecated	keyword	import std.db	docs07	deprecated 脚注
+doc07_main	keyword	## std 已完善	docs07	主表区
+doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
+readme_sqlite	file	std/sqlite/README.md	readme	模块 README
+readme_std	file	std/README.md	readme	std 索引
+gate	script	run-std-sqlite-docs-sync-gate.sh	tests	gate

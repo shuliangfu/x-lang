@@ -1,0 +1,13 @@
+# PERF-169 每周性能基线汇总 manifest
+# 列：item_id	kind	anchor	notes
+# min_pillars	4
+pillar_simd	pillar	SIMD	STD-153 autovec + shuffle/select
+pillar_io	pillar	IO	PERF-002 io-perf
+pillar_net	pillar	NET	PERF-003 + PERF-009 net-zc
+pillar_db	pillar	DB	PERF-170 sqlite stub loop
+gate_simd	gate_script	run-std-simd-autovec-strategy-gate.sh	SIMD
+gate_io	gate_script	run-perf-io-zig-gate.sh	IO
+gate_net_zc	gate_script	run-perf-net-zc-gate.sh	NET
+gate_net	gate_script	run-perf-net-zig-gate.sh	NET
+gate_db	gate_script	run-perf-sqlite-gate.sh	DB
+hook_weekly	gate_script	run-perf-weekly-gate.sh	汇总

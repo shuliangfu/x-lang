@@ -1,0 +1,9 @@
+# TST-001 P0 边界测试波次 1 manifest
+# 列：item_id	kind	path	min_cases	module	notes
+min_cases_per_mod	8
+io	boundary	tests/io/boundary.su	9	std.io	handle/零长写
+fs	boundary	tests/fs/boundary.su	10	std.fs	invalid/读写/pread
+net	boundary	tests/net/boundary.su	10	std.net	地址/bind/listen
+string	boundary	tests/string/boundary.su	10	std.string	StrView/String
+doc	file	analysis/tst-001-boundary-wave1-v1.md	-	-	RFC
+gate	script	tests/run-tst-001-boundary-gate.sh	tests/run-tst-001-boundary-gate.sh	-	manifest

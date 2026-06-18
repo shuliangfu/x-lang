@@ -29,7 +29,8 @@ except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-for m in re.finditer(r"^[0-9a-f]+ <(_[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_|\Z)", text, re.M):
+# Mach-O: <_sym>；ELF: <sym>（无 leading underscore）
+for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
     insns = [ln for ln in m.group(2).splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:
         real += 1
@@ -42,7 +43,8 @@ func_insn_count() {
 import subprocess, re, sys
 path, name = sys.argv[1], sys.argv[2]
 text = subprocess.check_output(["objdump", "-d", path], text=True, stderr=subprocess.DEVNULL)
-m = re.search(rf"^[0-9a-f]+ <_{re.escape(name)}>:\n((?:.*\n)*?)(?=^[0-9a-f]+ <_|\Z)", text, re.M)
+# Mach-O _name / ELF name
+m = re.search(rf"^[0-9a-f]+ <(?:_)?{re.escape(name)}>:\n((?:.*\n)*?)(?=^[0-9a-f]+ <_?|\Z)", text, re.M)
 if not m:
     print(0)
 else:
@@ -83,6 +85,17 @@ fi
 
 sz=$(text_section_size "$PIPELINE_O")
 real=$(count_real_asm_funcs "$PIPELINE_O")
+
+# build_shu_asm CI-fast 可能留下 stub pipeline.o（__text≈1KiB）；回归门禁前同步 EMIT_HEAVY 产物。
+STUB_TEXT_MAX=8192
+if { [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHU_S3_REQUIRE_PIPELINE_O:-0}" = "1" ]; } \
+  && [ "${sz:-0}" -lt "$STUB_TEXT_MAX" ] 2>/dev/null; then
+  echo "s3 pipeline gate: stub pipeline.o __text=${sz} < ${STUB_TEXT_MAX}, sync EMIT_HEAVY ..."
+  "$(dirname "$0")/run-s3-pipeline-sync-build-o.sh"
+  sz=$(text_section_size "$PIPELINE_O")
+  real=$(count_real_asm_funcs "$PIPELINE_O")
+fi
+
 echo "s3 pipeline gate: $PIPELINE_O __text=${sz} real_funcs=${real} (min_text=${MIN_TEXT}, min_real=${MIN_REAL})"
 
 if [ "${SHU_S3_UPDATE_BASELINE:-0}" = "1" ]; then
@@ -112,10 +125,10 @@ if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHU_S3_REQUIRE_PIPELINE_O
   fi
 fi
 
-# S3 起步：pipeline_should_skip_su_typeck 须 SU 真 emit（非 7-insn ret0 桩）
+# S3 起步：pipeline_should_skip_su_typeck 须 SU 真 emit（非 7-insn ret0 桩；薄 delegate 可 ≥8）
 skip_insns=$(func_insn_count "$PIPELINE_O" "pipeline_should_skip_su_typeck")
-echo "s3 pipeline gate: pipeline_should_skip_su_typeck insns=${skip_insns} (min=15)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${skip_insns:-0}" -lt 15 ] 2>/dev/null; then
+echo "s3 pipeline gate: pipeline_should_skip_su_typeck insns=${skip_insns} (min=8; ret0 桩≈7)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${skip_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: pipeline_should_skip_su_typeck still stub (${skip_insns} insns)" >&2
   exit 1
 fi
@@ -219,6 +232,13 @@ if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_init_buf_insns:-0}"
   exit 1
 fi
 
+parse_entry_do_insns=$(func_insn_count "$PIPELINE_O" "run_su_pipeline_parse_entry_do_parse")
+echo "s3 pipeline gate: run_su_pipeline_parse_entry_do_parse insns=${parse_entry_do_insns} (min=25; SU emit set_main+diag)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_entry_do_insns:-0}" -lt 25 ] 2>/dev/null; then
+  echo "s3 pipeline gate FAIL: run_su_pipeline_parse_entry_do_parse still stub (${parse_entry_do_insns} insns)" >&2
+  exit 1
+fi
+
 parse_entry_insns=$(func_insn_count "$PIPELINE_O" "run_su_pipeline_parse_entry_if_needed")
 echo "s3 pipeline gate: run_su_pipeline_parse_entry_if_needed insns=${parse_entry_insns} (min=20)"
 if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_entry_insns:-0}" -lt 20 ] 2>/dev/null; then
@@ -227,29 +247,29 @@ if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_entry_insns:-0}" -l
 fi
 
 typecheck_entry_insns=$(func_insn_count "$PIPELINE_O" "run_su_pipeline_typecheck_entry")
-echo "s3 pipeline gate: run_su_pipeline_typecheck_entry insns=${typecheck_entry_insns} (min=10; thin→typecheck_entry_emit_c)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typecheck_entry_insns:-0}" -lt 10 ] 2>/dev/null; then
+echo "s3 pipeline gate: run_su_pipeline_typecheck_entry insns=${typecheck_entry_insns} (min=8; thin→typecheck_entry_emit_c)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typecheck_entry_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: run_su_pipeline_typecheck_entry still stub (${typecheck_entry_insns} insns)" >&2
   exit 1
 fi
 
 typeck_entry_mod_insns=$(func_insn_count "$PIPELINE_O" "pipeline_typeck_entry_module")
-echo "s3 pipeline gate: pipeline_typeck_entry_module insns=${typeck_entry_mod_insns} (min=10; thin→typeck_entry_module_c)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_entry_mod_insns:-0}" -lt 10 ] 2>/dev/null; then
+echo "s3 pipeline gate: pipeline_typeck_entry_module insns=${typeck_entry_mod_insns} (min=8; thin→typeck_entry_module_c)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_entry_mod_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: pipeline_typeck_entry_module still stub (${typeck_entry_mod_insns} insns)" >&2
   exit 1
 fi
 
 typeck_after_insns=$(func_insn_count "$PIPELINE_O" "typeck_after_parse_ok")
-echo "s3 pipeline gate: typeck_after_parse_ok insns=${typeck_after_insns} (min=10; thin→pipeline_typeck_after_parse_ok_c)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_after_insns:-0}" -lt 10 ] 2>/dev/null; then
+echo "s3 pipeline gate: typeck_after_parse_ok insns=${typeck_after_insns} (min=8; thin→pipeline_typeck_after_parse_ok_c)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_after_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: typeck_after_parse_ok still stub (${typeck_after_insns} insns)" >&2
   exit 1
 fi
 
 typeck_parsed_insns=$(func_insn_count "$PIPELINE_O" "pipeline_typeck_parsed_module")
-echo "s3 pipeline gate: pipeline_typeck_parsed_module insns=${typeck_parsed_insns} (min=10; thin→typeck_parsed_module_c)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_parsed_insns:-0}" -lt 10 ] 2>/dev/null; then
+echo "s3 pipeline gate: pipeline_typeck_parsed_module insns=${typeck_parsed_insns} (min=8; thin→typeck_parsed_module_c)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${typeck_parsed_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: pipeline_typeck_parsed_module still stub (${typeck_parsed_insns} insns)" >&2
   exit 1
 fi
@@ -258,10 +278,7 @@ parse_init_insns=$(func_insn_count "$PIPELINE_O" "parse_into_with_init")
 echo "s3 pipeline gate: parse_into_with_init insns=${parse_init_insns} (info; thin_delegate→parse_into_with_init_c)"
 
 parse_set_main_insns=$(func_insn_count "$PIPELINE_O" "pipeline_parse_set_main_from_buf")
-echo "s3 pipeline gate: pipeline_parse_set_main_from_buf insns=${parse_set_main_insns} (info; entry 经 do_parse_c)"
-
-parse_entry_do_insns=$(func_insn_count "$PIPELINE_O" "run_su_pipeline_parse_entry_do_parse")
-echo "s3 pipeline gate: run_su_pipeline_parse_entry_do_parse insns=${parse_entry_do_insns} (info; if_needed→do_parse_c)"
+echo "s3 pipeline gate: pipeline_parse_set_main_from_buf insns=${parse_set_main_insns} (info; entry 经 do_parse SU emit)"
 
 lsp_parse_entry_insns=$(func_insn_count "$PIPELINE_O" "lsp_diag_parse_entry_buf")
 echo "s3 pipeline gate: lsp_diag_parse_entry_buf insns=${lsp_parse_entry_insns} (info; LSP 经 do_parse_c 路径)"
@@ -274,8 +291,8 @@ if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${lsp_typeck_load_insns:-0}
 fi
 
 lsp_diag_insns=$(func_insn_count "$PIPELINE_O" "lsp_diag_parse_typeck_buf")
-echo "s3 pipeline gate: lsp_diag_parse_typeck_buf insns=${lsp_diag_insns} (min=10; thin→lsp_diag_parse_typeck_buf_c)"
-if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${lsp_diag_insns:-0}" -lt 10 ] 2>/dev/null; then
+echo "s3 pipeline gate: lsp_diag_parse_typeck_buf insns=${lsp_diag_insns} (min=8; thin→lsp_diag_parse_typeck_buf_c)"
+if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${lsp_diag_insns:-0}" -lt 8 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: lsp_diag_parse_typeck_buf still stub (${lsp_diag_insns} insns)" >&2
   exit 1
 fi

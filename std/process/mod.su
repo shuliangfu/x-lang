@@ -15,11 +15,11 @@
 // process.o。
 //
 // 【所属模块/组件】
-// 标准库 std.process；用户通过 import std.process 使用。依赖 core 无；与
+// 标准库 std.process；用户通过 import("std.process") 使用。依赖 core 无；与
 // std/process/process.c、std/process/README.md 同属一模块。
 //
 // 【与其它文件的关系】
-// - 被依赖：任何 import std.process 的用户代码；compiler 在 -o exe 时自动链入
+// - 被依赖：任何 import("std.process") 的用户代码；compiler 在 -o exe 时自动链入
 // std/process/process.o。
 // - 依赖：无其它 .su 模块；通过 extern 调用 process_*_c 系列 C 函数（定义在
 // process.c）。

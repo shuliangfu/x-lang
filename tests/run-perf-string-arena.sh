@@ -6,6 +6,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# shellcheck source=tests/lib/perf-alloc-hotspot.sh
+. "$(dirname "$0")/lib/perf-alloc-hotspot.sh"
+
 # 与 run-zc4-gate.sh 一致：默认 shu-c；SHU=shu_asm 时仍用 shu-c 链 import std（co-emit 待补）
 SHU_BIN="${SHU:-}"
 str_arena_native_exe() {
@@ -75,20 +78,21 @@ if [ "$RC" != "$EXPECT_N" ]; then
   exit 1
 fi
 
-# Linux 可选：strace 确认无 malloc（仅 arena init 的 posix_memalign）
-if [ "$(uname -s)" = "Linux" ] && command -v strace >/dev/null 2>&1; then
-  strace_out="$(mktemp /tmp/shu_str_arena_strace.XXXXXX)"
-  RC=0
-  strace -e trace=memory -o "$strace_out" "$BENCH_EXE" >/dev/null 2>&1 || RC=$?
-  if [ "$RC" = "$EXPECT_N" ]; then
-    if grep -qE 'malloc\(|calloc\(|realloc\(' "$strace_out" 2>/dev/null; then
-      echo "string-arena perf WARN: strace saw heap alloc (unexpected for arena-only path)" >&2
-      grep -E 'malloc|calloc|realloc' "$strace_out" 2>/dev/null | head -3 >&2 || true
+# Linux 可选：strace 确认无 malloc（仅 arena init 的 posix_memalign）+ PERF-007 emit
+if perf_ah_strace_probe_ok; then
+  strace_rc=0
+  perf_ah_strace_heap_counts "$BENCH_EXE" "$EXPECT_N" || strace_rc=$?
+  if [ "$strace_rc" -eq 0 ]; then
+    ah_ok=$(perf_ah_within_caps string_arena_concat "$perf_ah_malloc" "$perf_ah_calloc" "$perf_ah_realloc")
+    perf_ah_read_caps string_arena_concat || true
+    perf_ah_report_emit string_arena_concat "$perf_ah_malloc" "$perf_ah_calloc" "$perf_ah_realloc" \
+      "${perf_ah_cap_malloc:-0}" "${perf_ah_cap_calloc:-0}" "${perf_ah_cap_realloc:-0}" "$ah_ok"
+    if [ "$ah_ok" = "1" ]; then
+      echo "string-arena: strace zero heap alloc OK"
     else
-      echo "string-arena: strace zero malloc OK"
+      echo "string-arena perf WARN: strace heap alloc exceeds cap (malloc=${perf_ah_malloc} calloc=${perf_ah_calloc} realloc=${perf_ah_realloc})" >&2
     fi
   fi
-  rm -f "$strace_out"
 fi
 
 echo "string-arena perf OK"

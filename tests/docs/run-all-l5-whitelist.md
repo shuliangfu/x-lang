@@ -15,7 +15,7 @@ CI=1 SHU=./compiler/shu SHULANG_LINK_SHU=./compiler/shu ./tests/run-all.sh   # a
 | run-lexer.sh | ✅ | ✅ | — | ✅ | typeck 子集 |
 | run-typeck.sh | ✅ | ✅ | — | ✅ | |
 | run-check.sh | ✅ | ✅ | — | ✅ | |
-| run-hello.sh | ✅ | ✅ | — | ✅ | import std.io |
+| run-hello.sh | ✅ | ✅ | — | ✅ | import("std.io") |
 | run-import.sh | ✅ | ✅ | — | ✅ | 偶发重试见 gate |
 | run-stdlib-import.sh | ✅ | ✅ | — | ✅ | 勿在注释写 `placeholder<T>` |
 | run-while.sh | ✅ | ✅ | — | ✅ | |

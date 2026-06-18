@@ -1,0 +1,22 @@
+# PERF-011 超越 Zig 战略看板 manifest
+# 列：item_id	kind	anchor	notes
+# min_cases	6
+# min_history_months	2
+output_prefix	bracket_component	SHU_ZIG_STRATEGY	stderr 前缀
+field_case	output_field	case=	用例 id
+field_ahead	output_field	ahead_pct=	领先 Zig %
+field_trend	output_field	trend=	sparkline
+case_loop	case	loop_i32	P0
+case_mem	case	mem_copy	P0
+case_struct	case	struct_param	P0
+case_call	case	call_boundary	P0
+case_io	case	io_mmap_throughput	IO
+case_net	case	net_echo_throughput	NET
+cases	file	tests/baseline/zig-strategy-cases.tsv	看板 case
+history	file	tests/baseline/zig-strategy-history.tsv	月度趋势
+lib	script	lib/zig-strategy-dashboard.sh	看板库
+runner	script	run-perf-zig-strategy-dashboard.sh	采集+趋势
+gate	script	run-perf-zig-strategy-dashboard-gate.sh	manifest 门禁
+cross_zig	cross_ref	tests/baseline/zig-perf.tsv	PERF-001
+cross_zig_gate	cross_ref	tests/run-zig-baseline-gate.sh	基线门禁
+cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志

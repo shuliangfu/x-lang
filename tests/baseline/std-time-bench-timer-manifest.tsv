@@ -1,0 +1,10 @@
+# STD-133 std.time benchmark timer manifest
+min_apis	6
+struct_timer	symbol	Timer	std/time/mod.su
+api_start	api	timer_start	std/time/mod.su
+api_reset	api	timer_reset	std/time/mod.su
+api_elapsed_ns	api	timer_elapsed_ns	std/time/mod.su
+api_elapsed_ms	api	timer_elapsed_ms	std/time/mod.su
+api_lap	api	timer_lap_ns	std/time/mod.su
+smoke_su	smoke	tests/time/bench_timer.su
+gate	script	run-std-time-bench-timer-gate.sh	tests/run-std-time-bench-timer-gate.sh

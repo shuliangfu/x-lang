@@ -6,7 +6,7 @@
 // erve、deinit。
 //
 // 【依赖】std.heap。
-import std.heap;
+const heap = import("std.heap");
 /** 双端队列：data 堆分配，cap 容量，len 元素个数，head
 * 为队首下标（0..cap-1）。 */
 allow(padding) struct Queue_i32 {
@@ -28,7 +28,7 @@ function queue_i32_with_capacity(q: *Queue_i32, capacity: i32): i32 {
     q.head = 0;
     return 0;
   }
-  let p: *i32 = alloc_i32(capacity);
+  let p: *i32 = heap.alloc_i32(capacity);
   if (p == 0) { return -1; }
   q.data = p;
   q.cap = capacity;
@@ -46,14 +46,14 @@ function queue_i32_at(q: Queue_i32, i: i32): i32 {
 function queue_i32_grow(q: *Queue_i32): i32 {
   let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
   if (new_cap <= q.cap) { return 0; }
-  let p: *i32 = alloc_i32(new_cap);
+  let p: *i32 = heap.alloc_i32(new_cap);
   if (p == 0) { return -1; }
   let i: i32 = 0;
   while (i < q.len) {
     p[i] = q.data[queue_i32_at(*q, i)];
     i = i + 1;
   }
-  if (q.data != 0) { free_i32(q.data); }
+  if (q.data != 0) { heap.free_i32(q.data); }
   q.data = p;
   q.cap = new_cap;
   q.head = 0;
@@ -111,14 +111,14 @@ function queue_i32_clear(q: *Queue_i32): void {
 /** 确保容量至少 new_cap；失败返回 -1。 */
 function queue_i32_reserve(q: *Queue_i32, new_cap: i32): i32 {
   if (new_cap <= q.cap) { return 0; }
-  let p: *i32 = alloc_i32(new_cap);
+  let p: *i32 = heap.alloc_i32(new_cap);
   if (p == 0) { return -1; }
   let i: i32 = 0;
   while (i < q.len) {
     p[i] = q.data[queue_i32_at(*q, i)];
     i = i + 1;
   }
-  if (q.data != 0) { free_i32(q.data); }
+  if (q.data != 0) { heap.free_i32(q.data); }
   q.data = p;
   q.cap = new_cap;
   q.head = 0;
@@ -126,7 +126,75 @@ function queue_i32_reserve(q: *Queue_i32, new_cap: i32): i32 {
 }
 /** 释放；调用后不可再用。 */
 function queue_i32_deinit(q: *Queue_i32): void {
-  if (q.data != 0) { free_i32(q.data); q.data = 0; }
+  if (q.data != 0) { heap.free_i32(q.data); q.data = 0; }
+  q.cap = 0;
+  q.len = 0;
+  q.head = 0;
+}
+
+// ——— Queue_u8（STD-163） ———
+/** u8 双端队列。 */
+allow(padding) struct Queue_u8 {
+  data: *u8;
+  cap: i32;
+  len: i32;
+  head: i32;
+}
+
+/** 新建空 Queue_u8。 */
+function queue_u8_new(): Queue_u8 {
+  return Queue_u8 { data: 0, cap: 0, len: 0, head: 0 };
+}
+
+/** Queue_u8 逻辑下标转物理下标。 */
+function queue_u8_at(q: Queue_u8, i: i32): i32 {
+  let idx: i32 = q.head + i;
+  if (idx >= q.cap) { idx = idx - q.cap; }
+  return idx;
+}
+
+/** Queue_u8 扩容；失败 -1。 */
+function queue_u8_grow(q: *Queue_u8): i32 {
+  let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
+  let p: *u8 = heap.alloc_u8(new_cap);
+  if (p == 0) { return -1; }
+  let i: i32 = 0;
+  while (i < q.len) {
+    p[i] = q.data[queue_u8_at(*q, i)];
+    i = i + 1;
+  }
+  if (q.data != 0) { heap.free_u8(q.data); }
+  q.data = p;
+  q.cap = new_cap;
+  q.head = 0;
+  return 0;
+}
+
+/** 队尾插入 u8；失败 -1。 */
+function queue_u8_push_back(q: *Queue_u8, x: u8): i32 {
+  if (q.len >= q.cap && queue_u8_grow(q) != 0) { return -1; }
+  let tail: i32 = queue_u8_at(*q, q.len);
+  q.data[tail] = x;
+  q.len = q.len + 1;
+  return 0;
+}
+
+/** 队首弹出 u8；空队列返回 0。 */
+function queue_u8_pop_front(q: *Queue_u8): u8 {
+  if (q.len <= 0) { return 0; }
+  let x: u8 = q.data[q.head];
+  q.head = q.head + 1;
+  if (q.head >= q.cap) { q.head = 0; }
+  q.len = q.len - 1;
+  return x;
+}
+
+/** Queue_u8 元素个数。 */
+function queue_u8_len(q: Queue_u8): i32 { return q.len; }
+
+/** 释放 Queue_u8。 */
+function queue_u8_deinit(q: *Queue_u8): void {
+  if (q.data != 0) { heap.free_u8(q.data); q.data = 0; }
   q.cap = 0;
   q.len = 0;
   q.head = 0;

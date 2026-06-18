@@ -1,0 +1,7 @@
+# STD-076 std.url 金样向量
+# 列：case_id	input	expected	notes
+http_parse	http://example.com:8080/path?q=1#frag	组件拆解	标准
+ipv6_bracket	http://[::1]:8080/	host=::1	IPv6
+query_enc	a b	a%20b	percent
+resolve_rel	base+../baz	/foo/baz	相对路径
+build_round	parse→build	一致	往返

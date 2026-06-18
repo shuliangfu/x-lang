@@ -1,0 +1,17 @@
+// tests/std/error_map_smoke.su — STD-020：错误码→模块 base 与 last_error 侧车种类烟测
+const err = import("std.error");
+
+function main(): i32 {
+  let base_io: i32 = error_code_to_module_base(io_err_timeout());
+  if (base_io != error_base_io()) { return 1; }
+  if (error_mod_tag_from_base(base_io) != error_mod_tag_io()) { return 2; }
+  if (error_mod_base_from_tag(error_mod_tag_io()) != error_base_io()) { return 3; }
+  let base_fs: i32 = error_code_to_module_base(fs_err_not_found());
+  if (base_fs != error_base_fs()) { return 4; }
+  if (error_module_sidecar_kind(error_mod_tag_fs()) != error_sidecar_errno_i32()) { return 5; }
+  if (error_module_sidecar_kind(error_mod_tag_db()) != error_sidecar_db_struct()) { return 6; }
+  if (error_module_sidecar_kind(error_mod_tag_io()) != error_sidecar_none()) { return 7; }
+  if (error_code_to_module_base(error_code_invalid()) != 0) { return 8; }
+  if (error_mod_base_from_tag(error_mod_tag_db()) != 0) { return 9; }
+  return 0;
+}

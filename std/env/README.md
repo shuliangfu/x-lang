@@ -46,5 +46,5 @@
 ## 构建与测试
 
 - 编译：`make -C compiler ../std/env/env.o`（或 `make -C compiler all`）。
-- 用户 `import std.env` 且 `-o exe` 时自动链入 `std/env/env.o`。
+- 用户 `import("std.env")` 且 `-o exe` 时自动链入 `std/env/env.o`。
 - 测试：`./tests/run-env.sh`。

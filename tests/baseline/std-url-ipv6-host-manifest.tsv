@@ -1,0 +1,9 @@
+# STD-134 std.url IPv6 host manifest
+min_apis	4
+api_host_to_ipv6	api	host_to_ipv6	std/url/mod.su
+api_format	api	format_ipv6_host	std/url/mod.su
+api_is_ipv6	api	host_is_ipv6	std/url/mod.su
+api_smoke	api	ipv6_host_smoke	std/url/mod.su
+symbol_smoke_c	symbol	url_ipv6_host_smoke_c	std/url/url.c
+smoke_su	smoke	tests/std-url/ipv6_host.su
+gate	script	run-std-url-ipv6-host-gate.sh	tests/run-std-url-ipv6-host-gate.sh

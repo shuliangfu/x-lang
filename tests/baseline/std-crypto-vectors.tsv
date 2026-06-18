@@ -1,0 +1,4 @@
+# STD-006 std.crypto 向量（golden digest）
+# Format: vector_id<TAB>kind<TAB>notes
+vec_sha256_abc	sha256	crypto.c golden abc
+vec_hmac_key_msg	hmac	key 1,2,3,4 msg=msg

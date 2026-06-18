@@ -1,0 +1,14 @@
+# COMP-012 riscv64 regression matrix
+# 列：case_id	sample	check_kind	expect	policy	notes
+# min_cases	11
+case_riscv_min	riscv64_min.su	asm_text_elf	.text,main,ret	required	COMP-012 min
+case_main	main.su	asm_text	.text,main,ret	required	run-asm
+case_expr	expr.su	asm_text	.text,main,ret	required	run-asm
+case_local	local.su	asm_text	.text,main,ret	required	run-asm
+case_elf_main	main.su	elf_o	ELF_relocatable	linux_hard	-o .o
+case_run_asm	run-asm.sh	hook_ref	riscv64_section	doc	既有段
+case_wave_binop	binop_return_four_add.su	asm_text	.text,main,ret	wave	COMP-016 加链
+case_wave_cfg	binop_if_plus_eq_merge.su	asm_text	.text,main,ret	wave	COMP-016 cfg
+case_wave_index	binop_field_index_fast.su	asm_text	.text,main,ret	wave	COMP-016 index
+case_qemu_min	riscv64_min.su	qemu_run	exit_42	qemu	COMP-018 min
+case_qemu_binop	binop_return_four_add.su	qemu_run	exit_10	qemu	COMP-018 binop

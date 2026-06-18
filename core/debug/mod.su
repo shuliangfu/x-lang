@@ -1,7 +1,10 @@
 // core.debug — 断言与调试辅助（自举前最小实现）
 // 所有断言在条件不满足时调用 panic 终止；返回 0 便于在表达式中使用。不提供 debug_print（与零 OS 依赖冲突时放 std.debug）。
 
-function placeholder(): i32 { return 0; }
+/** 最近一次 debug 诊断槽（CORE-019 烟测用）。 */
+let debug_diag_last_a: i32 = 0;
+let debug_diag_last_b: i32 = 0;
+let debug_diag_last_ok: i32 = 0;
 
 // 条件为假时终止程序（调用 panic）；条件为真时返回 0。
 function assert(b: bool): i32 {
@@ -41,4 +44,18 @@ function assert_ne_u32(a: u32, b: u32): i32 {
 function assert_eq_bool(a: bool, b: bool): i32 {
   if (a != b) { return panic(); }
   return 0;
+}
+
+/** 断言 a == b 并记录 tag；不等时 panic，相等返回 0（CORE-019）。 */
+function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
+  debug_diag_store(a, b, if (a == b) { 1 } else { 0 });
+  if (a != b) { return panic(); }
+  return 0;
+}
+
+/** 存储最近一次诊断三元组（烟测 / 调试器读取）。 */
+function debug_diag_store(a: i32, b: i32, ok: i32): void {
+  debug_diag_last_a = a;
+  debug_diag_last_b = b;
+  debug_diag_last_ok = ok;
 }

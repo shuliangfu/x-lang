@@ -1,0 +1,8 @@
+// LANG-007 U3：extern 声明 C 符号，FFI 边界由调用方保证类型/ABI
+extern function putchar(c: i32): i32;
+
+/** 入口：输出 'A'，返回 putchar 结果（非零即成功路径）。 */
+function main(): i32 {
+  let n: i32 = putchar(65);
+  return if (n >= 0) { 0 } else { 1 };
+}

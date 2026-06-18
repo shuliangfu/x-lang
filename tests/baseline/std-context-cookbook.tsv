@@ -1,0 +1,10 @@
+# STD-156 std.context Cookbook manifest
+# 列：item_id	kind	anchor	notes
+# min_recipes	1
+recipe_ctx01	recipe	examples/cookbook/context_cancel_deadline.su	CTX-01 cancel+timeout
+doc	file	analysis/std-context-cookbook-v1.md	STD-156
+gate	script	tests/run-std-context-cookbook-gate.sh	gate
+cookbook_ref	cross_ref	analysis/doc-cookbook-expand-v1.md	§15 CTX-01
+symbol_cancel	symbol	cancel	std/context/mod.su
+symbol_timeout	symbol	with_timeout	std/context/mod.su
+symbol_remaining	symbol	remaining_ns	std/context/mod.su

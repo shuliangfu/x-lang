@@ -1,0 +1,8 @@
+# std.fs cross-platform smoke matrix (STD-003)
+# Format: case_id<TAB>script<TAB>linux<TAB>macos<TAB>windows<TAB>notes
+# Policy: must=exit0 required; skip=不跑; optional=跑但失败仅 WARN
+core_rw	crossplatform_core.su	must	must	must	open/read/write/pread/mmap/readv/io_fd
+fs_suite	run-fs.sh	must	must	must	existing run-fs.sh wrapper
+splice_smoke	splice_smoke.su	must	skip	skip	Linux ZC-5 pipe splice
+readv_buf	readv_writev_buf.su	must	must	must	fs_readv_buf/fs_writev_buf
+win_path_smoke	windows_path_smoke.su	skip	skip	must	STD-022 backslash CreateFile path

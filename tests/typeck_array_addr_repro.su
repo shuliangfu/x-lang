@@ -1,5 +1,5 @@
 // Minimal repro: let [64]u8 = [], &buf[0], recursive call
-import ast;
+const ast = import("ast");
 
 extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
 extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;

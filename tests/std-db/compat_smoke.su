@@ -1,0 +1,38 @@
+// STD-120：import("std.db") 兼容层烟测（转发 std.sqlite）
+const db = import("std.db");
+
+function main(): i32 {
+  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let sql_create: [27]u8 = [
+    67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107,
+    32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0
+  ];
+  let sql_insert: [30]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 55, 41, 59, 0
+  ];
+  let c: DbConn = db.open(&mem[0]);
+
+  if (db.db_is_deprecated() != 1) {
+    return 1;
+  }
+  if (c.handle == 0) {
+    return 2;
+  }
+  if (db.exec(c, &sql_create[0]) != 0) {
+    db.close(c);
+    return 3;
+  }
+  if (db.exec(c, &sql_insert[0]) != 0) {
+    db.close(c);
+    return 4;
+  }
+  if (db.changes(c) != 1) {
+    db.close(c);
+    return 5;
+  }
+  if (db.close(c) != 0) {
+    return 6;
+  }
+  return 0;
+}

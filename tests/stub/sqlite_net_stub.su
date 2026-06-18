@@ -1,0 +1,13 @@
+// STD-167：sqlite/net stub 可用性烟测
+const sqlite = import("std.sqlite");
+const net = import("std.net");
+
+function main(): i32 {
+  let sa: i32 = sqlite.sqlite_is_available();
+  if (sa != 0 && sa != 1) { return 1; }
+  let tn: bool = net.tls_is_available();
+  if (tn) {
+    let _: *u8 = net.tls_backend_name();
+  }
+  return 0;
+}

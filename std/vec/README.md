@@ -50,4 +50,4 @@ Vec_u8 接口对称：`vec_u8_*`。
 
 ## 依赖
 
-- `import std.heap`；链接时需 `std/heap/heap.o`。
+- `import("std.heap")`；链接时需 `std/heap/heap.o`。

@@ -1,0 +1,5 @@
+# STD-116 std.json typed decode 金样
+# 列：case_id	doc_snippet	field	expected	notes
+age_i32	{"age":30}	age	30	object i32
+ok_bool	{"ok":true}	ok	1	object bool
+name_str	{"name":"alice"}	name	alice	object string

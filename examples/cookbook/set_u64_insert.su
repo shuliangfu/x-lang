@@ -1,0 +1,14 @@
+/**
+ * Cookbook SET-01：Set_u64 insert/contains/remove 基本路径（STD-015）。
+ */
+const set = import("std.set");
+
+function main(): i32 {
+  let su: Set_u64 = set.set_u64_new();
+  if (set.set_u64_with_capacity(&su, 4) != 0) { return 1; }
+  if (set.set_u64_insert(&su, 1000 as u64) != 0) { return 2; }
+  if (set.set_u64_contains(su, 1000 as u64) != 1) { return 3; }
+  if (set.set_u64_remove(&su, 1000 as u64) != 1) { return 4; }
+  set.set_u64_deinit(&su);
+  return 0;
+}

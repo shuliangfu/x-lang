@@ -1,0 +1,18 @@
+# STD-106 std.log rotate + async manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	3
+read_path	section	## 1. 阅读路径	15min
+rotate_api	section	## 2. 轮转语义	set_rotate_limit
+async_api	section	## 3. 异步缓冲	set_async_enabled
+verify	section	## 4. 验证与门禁	gate
+api_rotate	api	set_rotate_limit	std/log/mod.su	轮转
+api_async_en	api	set_async_enabled	std/log/mod.su	异步开
+api_async_flush	api	async_flush	std/log/mod.su	刷盘
+symbol_rotate_c	symbol	log_set_rotate_c	std/log/log.c	C 轮转
+symbol_async_c	symbol	log_set_async_enabled_c	std/log/log.c	C 异步
+symbol_flush_c	symbol	log_async_flush_c	std/log/log.c	C 刷盘
+symbol_smoke_c	symbol	log_rotate_async_smoke_c	std/log/log.c	C 烟测
+smoke_c	file	tests/std-log/rotate_async_smoke_ok.c	C 入口
+smoke_su	smoke	tests/std-log/rotate_async.su	.su 烟测
+lib	script	lib/std-log-rotate-async.sh	tests/lib/std-log-rotate-async.sh
+gate	script	run-std-log-rotate-async-gate.sh	tests/run-std-log-rotate-async-gate.sh

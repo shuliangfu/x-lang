@@ -1,0 +1,23 @@
+# LANG-005 ABI stability manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	2
+read_path	section	## 1. 阅读路径	analysis/lang-abi-stability-v1.md	-	15min
+layers	section	## 2. 承诺层 A1–A6	lang-abi-stability.tsv	-	abi
+levels	section	## 3. 兼容级别表	lang-abi-compat-levels.tsv	-	release
+cases	section	## 4. Golden 用例	analysis/lang-abi-stability-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/lang-abi-stability-v1.md	-	gate
+layer_a1	layers	A1-scalar-layout	analysis/lang-abi-stability-v1.md	stable	标量
+layer_a2	layers	A2-slice-abi	tests/abi/layout_abi.c	slice	16B
+layer_a3	layers	A3-struct-pack	compiler/src/typeck/typeck.c	padding	隐式填充
+layer_a4	layers	A4-calling-convention	analysis/lang-abi-stability-v1.md	SysV	平台C
+layer_a5	layers	A5-f32-xmm	compiler/docs/F32_XMM_ABI.md	transitional	xmm
+layer_a6	layers	A6-stdlib-abi	std/fs/fs_abi.h	stable	头文件
+sym_padding	symbol	implicit padding	compiler/src/typeck/typeck.c	typeck	struct
+case_layout	case	case_layout	tests/abi/layout_abi.c	stable	cc
+case_slice	case	case_slice	tests/abi/layout_abi.c	slice	offsetof
+case_f32	case	case_f32_xmm	tests/abi/f32_call_xmm_smoke.su	xmm	6
+doc_f32	docs	SHU_ABI_F32_XMM	compiler/docs/F32_XMM_ABI.md	xmm	细则
+gate	script	run-lang-abi-stability-gate.sh	tests/run-lang-abi-stability-gate.sh	-	manifest
+hook_abi	hook_script	run-lang-abi-stability.sh	run-lang-abi-stability.sh	-	烟测
+hook_layout	hook_script	run-abi-layout.sh	run-abi-layout.sh	-	C断言

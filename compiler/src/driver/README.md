@@ -15,7 +15,7 @@
 | `shu file.su` | 无子命令时：与 **`shu run file.su`** 相同（编译并运行）。 |
 | `shu fmt [path...]` | **已实现**（对标 `deno fmt`）：无路径时递归当前目录 `*.su`；**仅在实际写回时**打印 `fmt OK: path`，已规范文件无输出；`SHU_FMT_VERBOSE=1` 可打印统计。 |
 | `shu fmt --check [path...]` | **已实现**（对标 `deno fmt --check`）：不写回；全通过时**无输出** exit 0；否则列出未格式化文件并 exit 1。支持 `--fail-fast`、`--ignore=子串`。 |
-| `shu check [path...]` | **已实现**（对标 `deno check`）：**无路径时递归当前目录 `*.su`**；多文件/目录；**全通过时无输出**；失败为 `path:line:col - error: msg`；支持 `-L`、`--ignore=`、`--fail-fast`。 |
+| `shu check [path...]` | **已实现**（对标 `deno check`）：**无路径时递归产品目录**（`compiler/src`、`core`、`std`、`examples`）；多文件/目录；**全通过时无输出**；失败为 `path:line:col - error: msg`；warning/info 为 `- warning:` / `- info:`；支持 `-L`、`--ignore=`、`--fail-fast`；`SHU_PAD_FIELDS`/`SHU_HOT_REORDER`/`SHU_UNUSED_HINT` 环境开关；`SHU_LINT_CI_FAIL_ON=warn` 令 warning 也失败。 |
 | `shu test [script.sh]` | **已实现**：[`test.su`](test.su) 定义 `cmd_test` → `driver_cmd_test`；默认执行 `tests/run-all.sh`，可指定脚本路径。 |
 
 **模块前缀约定**：`src/driver/*.su` 内函数名不要重复写 `driver_` 前缀（例如 `cmd_check` → `driver_cmd_check`）。**例外**：根目录另有 `build.su` 时，`src/driver/build.su` 的模块前缀为 `build_`（`cmd_build` → `build_cmd_build`），`main.su` 须 `extern build_cmd_build`。C 侧 `extern` 须写全链接名（如 `driver_exec_compiled`）。

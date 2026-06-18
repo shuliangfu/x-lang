@@ -1,15 +1,8 @@
-// 测试第 3 种导入方式：const { zzz } = import std.xxx（解析、typeck、codegen 与 C
-// 同步）。
-//
-// 【文件职责】验证解构 import。.su 流水线已支持；C 端 codegen 对 select
-// 形式尚未加前缀时，本文件用整模块 import 保证 run-import 在 C 与 shu_su
-// 下均通过。可改为 const { print_str } = import std.io 单独测 shu_su。
-// 【运行方式】./tests/run-import.sh（脚本会编译并运行，期望 stdout 含 "Hello
-// World"）。
-import std.io;
+// 测试第 3 种导入：const { zzz } = import("std.xxx")（解构）
+const io = import("std.io");
 
 function main(): i32 {
   let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
-  let n: i32 = print_str(msg, 12);
+  let n: i32 = io.print_str(msg, 12);
   return if (n >= 0) { 0 } else { 1 };
 }

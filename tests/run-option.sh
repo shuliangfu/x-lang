@@ -34,7 +34,7 @@ fi
 
 $LINK_SHU -L . tests/option/main.su -o /tmp/shu_option 2>&1
 exitcode=0; /tmp/shu_option >/dev/null 2>&1 || exitcode=$?
-# 10+42+7 + unwrap_or_u8(some_u8(3),0)=3 + unwrap_or_u8(none_u8(),5)=5 → 59+3+5=67
-[ "$exitcode" -ne 67 ] && { echo "expected exit 67, got $exitcode"; exit 1; }
+# 10+42+7 + unwrap_or_u8(some_u8(3),0)=3 + unwrap_or_u8(none_u8(),5)=5 + map/and_then/generic/ptr extra=35 → 102
+[ "$exitcode" -ne 102 ] && { echo "expected exit 102, got $exitcode"; exit 1; }
 
 echo "option test OK"

@@ -2,10 +2,10 @@
 // 符号前缀 driver_：run_su_emit_su → driver_run_su_emit_su，dispatch_su_emit_to_c →
 // driver_dispatch_su_emit_to_c
 
-import ast;
-import codegen;
+const ast = import("ast");
+const codegen = import("codegen");
 
-/** POSIX 读写原语（链 ../std/fs/fs.o）；勿 import std.fs，-E-extern 不会内联 fs_read
+/** POSIX 读写原语（链 ../std/fs/fs.o）；勿 import("std.fs")，-E-extern 不会内联 fs_read
 * 符号名。 */
 extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;

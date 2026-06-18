@@ -1,0 +1,16 @@
+# STBL-003 模块变更 RFC 模板 manifest
+# 列：item_id	kind	anchor	notes
+min_sections	7
+template	file	analysis/std-change-rfc-template.md	权威模板
+meta_doc	file	analysis/stbl-change-rfc-template-v1.md	STBL-003 RFC
+section_meta	anchor	## 0. 元数据（必填）	模板
+section_api	anchor	## 2. API 面（API）	API
+section_abi	anchor	## 3. ABI 与链接（ABI）	ABI
+section_zc	anchor	## 4. 零拷贝语义（ZC）	ZC
+section_error	anchor	## 5. 错误码与 Result（错误码）	错误码
+section_test	anchor	## 6. 测试与门禁	测试
+section_docs	anchor	## 7. 文档同步清单	文档
+example_csv	ref	analysis/std-csv-row-v1.md	填写示例
+example_zc	ref	analysis/std-json-zc-v1.md	ZC 示例
+lib	script	lib/stbl-change-rfc-template.sh	tests/lib/stbl-change-rfc-template.sh
+gate	script	run-stbl-003-change-rfc-template-gate.sh	tests/run-stbl-003-change-rfc-template-gate.sh

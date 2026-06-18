@@ -17,12 +17,12 @@
 //   fs_pipe_splice（ZC-5：pipe+splice 代理，Linux 无 userspace copy）。
 //   - 大文件写：fs_fallocate 预分配；fs_sync_range
 // 范围刷盘不阻塞，重叠写+刷盘。
-//   - 与 std.io 联合：本模块已 import std.io，用户仅 import std.fs 即可用
+//   - 与 std.io 联合：本模块已 import("std.io")，用户仅 import("std.fs") 即可用
 // read_fd/write_fd/read_batch_fd/write_batch_fd 走 io_uring/readv 极致压榨。
-import std.io;
-import std.io.driver;
+const io = import("std.io");
+const driver = import("std.io.driver");
 // 与 POSIX open/read/write/close 一致；链接时需 -lc。其余由 std/fs/fs.c 提供。
-// fs_readv_buf/fs_writev_buf 的 bufs 与 std.io.driver.Buffer ABI
+// fs_readv_buf/fs_writev_buf 的 bufs 与 Buffer ABI
 // 一致（ptr+len+handle），可传 Buffer 数组首地址。
 extern function open(path: *u8, flags: i32, mode: i32): i32;
 /** 只读打开（fs.c）；asm 用户程序跳过 std.fs emit 时由 fs.o 提供。 */
@@ -59,7 +59,6 @@ p3: *u8, l3: usize): i64;
 struct FsIovecBuf { ptr: *u8; len: usize; handle: usize }
 extern function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64;
 extern function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64;
-function placeholder(): i32 { return 0; }
 function fs_invalid_handle(): i32 { return -1; }
 /** 推荐大块读单次字节数（1MiB），极致压榨时用此大小循环 fs_read。 */
 function fs_read_chunk(): usize { return 1048576; }
@@ -153,7 +152,7 @@ l3: usize): i64 {
   return fs_writev4_c(fd, p0, l0, p1, l1, p2, l2, p3, l3);
 }
 /** 与 Zig/Rust 对齐：按「指针+段数」分散读；bufs 指向至少 n 个
-* FsIovecBuf（ptr/len 有效，与 std.io.driver.Buffer ABI 一致），n 为
+* FsIovecBuf（ptr/len 有效，与 Buffer ABI 一致），n 为
 * 1..16。返回总字节数，0=EOF，-1=错误。 */
 function fs_readv_buf(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
   return fs_readv_buf_c(fd, bufs, n);
@@ -174,46 +173,46 @@ function fs_mmap_rw(path: *u8, out_size: *usize): *u8 { return fs_mmap_rw_c(path
 /** 解除 mmap；ptr 与 size 须为 fs_mmap_ro/fs_mmap_rw 的返回值与 *out_size。返回 0
 * 成功，-1 失败。 */
 function fs_munmap(ptr: *u8, size: usize): i32 { return fs_munmap_c(ptr, size); }
-// ——— 与 std.io 联合：用户仅 import std.fs 即可用下列 fd 接口，走
-// io_uring/readv 极致压榨（无需再 import std.io） ———
+// ——— 与 std.io 联合：用户仅 import("std.fs") 即可用下列 fd 接口，走
+// io_uring/readv 极致压榨（无需再 import("std.io")） ———
 /** 将 fd 转为 io handle；与 read_fd/write_fd/read_batch_fd/write_batch_fd 配套。 */
 /** 与 std.io 一致，第二参 unused，调用处传 0。 */
 function handle_from_fd(fd: i32, _unused: i32): usize { return (fd as usize); }
 /** 从 fd 单次大块读（走 std.io，Linux 下 io_uring）；推荐 len ≥
 * fs_read_chunk()。返回读入字节数，0=EOF，-1=错误。 */
 function read_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return read_into(handle_from_fd(fd, 0), ptr, len, 0);
+  return io.read_into(io.handle_from_fd(fd, 0), ptr, len, 0 as u32);
 }
 /** 向 fd 单次大块写（走 std.io，Linux 下
 * io_uring）。返回写入字节数，-1=错误。 */
 function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return write_from(handle_from_fd(fd, 0), ptr, len, 0);
+  return io.write_from(io.handle_from_fd(fd, 0), ptr, len, 0 as u32);
 }
 /** 从 fd 批量读：一次 submit 最多 4 段，n 为段数 1..4；走
 * io_uring/readv。返回总字节数，-1=错误。 */
 function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3:
 *u8, l3: usize, n: i32): i32 {
-  let h: usize = handle_from_fd(fd, 0);
+  let h: usize = io.handle_from_fd(fd, 0);
   let bufs: [4]Buffer = [
   Buffer { ptr: p0, len: l0, handle: h },
   Buffer { ptr: p1, len: l1, handle: h },
   Buffer { ptr: p2, len: l2, handle: h },
   Buffer { ptr: p3, len: l3, handle: h }
   ];
-  return submit_read_batch(bufs, n, 0);
+  return driver.submit_read_batch(bufs, n, 0 as u32);
 }
 /** 向 fd 批量写：一次 submit 最多 4 段，n 为段数 1..4；走
 * io_uring/writev。返回总字节数，-1=错误。 */
 function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3:
 *u8, l3: usize, n: i32): i32 {
-  let h: usize = handle_from_fd(fd, 0);
+  let h: usize = io.handle_from_fd(fd, 0);
   let bufs: [4]Buffer = [
   Buffer { ptr: p0, len: l0, handle: h },
   Buffer { ptr: p1, len: l1, handle: h },
   Buffer { ptr: p2, len: l2, handle: h },
   Buffer { ptr: p3, len: l3, handle: h }
   ];
-  return submit_write_batch(bufs, n, 0);
+  return driver.submit_write_batch(bufs, n, 0 as u32);
 }
 /** 探测 path（NUL 结尾）是否可读打开；pipeline import 解析与 -L
 * 路径探测用。可读返回 1，否则 0。 */

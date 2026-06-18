@@ -1,17 +1,26 @@
-/* mem_copy.c — 与 tests/bench/mem_copy.su 等价的 C 参照（fill + sum 两遍扫描） */
+/* mem_copy.c — 与 tests/bench/mem_copy.su 对齐（while 两遍扫描 × rounds，无 I/O） */
 #include <stdint.h>
-#include <stdio.h>
 
 int main(void) {
-  enum { n = 4096 };
+  enum { n = 4096, rounds = 8192 };
   uint8_t buf[n];
-  int i;
-  int j;
-  int sum = 0;
-  for (i = 0; i < n; i++)
-    buf[i] = (uint8_t)i;
-  for (j = 0; j < n; j++)
-    sum += (int)buf[j];
-  printf("%d\n", sum);
-  return 0;
+  int32_t r;
+  int32_t i;
+  int32_t j;
+  int32_t sum = 0;
+  r = 0;
+  while (r < rounds) {
+    i = 0;
+    while (i < n) {
+      buf[i] = (uint8_t)i;
+      i = i + 1;
+    }
+    j = 0;
+    while (j < n) {
+      sum += (int32_t)buf[j];
+      j = j + 1;
+    }
+    r = r + 1;
+  }
+  return (int)sum;
 }

@@ -1,0 +1,9 @@
+# CORE-010 core.fmt usize/isize/指针 manifest
+# 列：item_id	kind	anchor	notes
+min_fmt_apis	3
+fmt_usize	symbol	fmt_usize_to_buf	core/fmt/mod.su
+fmt_isize	symbol	fmt_isize_to_buf	core/fmt/mod.su
+fmt_ptr	symbol	fmt_ptr_to_buf	core/fmt/mod.su
+test_smoke	file	tests/fmt/widths.su	边界烟测
+doc	file	core-fmt-widths-v1.md	analysis/core-fmt-widths-v1.md	RFC
+gate	script	run-core-fmt-widths-gate.sh	tests/run-core-fmt-widths-gate.sh	manifest

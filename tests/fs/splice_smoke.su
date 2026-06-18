@@ -2,7 +2,7 @@
  * ZC-5 smoke：fs_pipe_splice 文件→文件（经内核 pipe 中转）。
  * 写入 /tmp/fs_splice_in → splice → /tmp/fs_splice_out → 读回校验；exit 0。
  */
-import std.fs;
+const fs = import("std.fs");
 
 function main(): i32 {
   /** "/tmp/fs_splice_in\0" */
@@ -14,36 +14,36 @@ function main(): i32 {
   let payload: [16]u8 =
   [90, 67, 53, 32, 115, 112, 108, 105, 99, 101, 32, 79, 75, 10, 0, 0];
   let pay_len: usize = 14 as usize;
-  let fd_w: i32 = fs_open_write(&path_in[0]);
+  let fd_w: i32 = fs.fs_open_write(&path_in[0]);
   if (fd_w < 0) { return 1; }
-  let nw: isize = fs_write(fd_w, &payload[0], pay_len);
-  if (fs_sync(fd_w) != 0) {
-    fs_close(fd_w);
+  let nw: isize = fs.fs_write(fd_w, &payload[0], pay_len);
+  if (fs.fs_sync(fd_w) != 0) {
+    fs.fs_close(fd_w);
     return 2;
   }
-  fs_close(fd_w);
+  fs.fs_close(fd_w);
   if (nw != (pay_len as isize)) { return 3; }
-  let fd_in: i32 = fs_open_read(&path_in[0]);
+  let fd_in: i32 = fs.fs_open_read(&path_in[0]);
   if (fd_in < 0) { return 4; }
-  let fd_out: i32 = fs_open_write(&path_out[0]);
+  let fd_out: i32 = fs.fs_open_write(&path_out[0]);
   if (fd_out < 0) {
-    fs_close(fd_in);
+    fs.fs_close(fd_in);
     return 5;
   }
-  let copied: i64 = fs_pipe_splice(fd_in, fd_out, pay_len);
-  if (fs_sync(fd_out) != 0) {
-    fs_close(fd_in);
-    fs_close(fd_out);
+  let copied: i64 = fs.fs_pipe_splice(fd_in, fd_out, pay_len);
+  if (fs.fs_sync(fd_out) != 0) {
+    fs.fs_close(fd_in);
+    fs.fs_close(fd_out);
     return 6;
   }
-  fs_close(fd_in);
-  fs_close(fd_out);
+  fs.fs_close(fd_in);
+  fs.fs_close(fd_out);
   if (copied != (pay_len as i64)) { return 7; }
-  let fd_r: i32 = fs_open_read(&path_out[0]);
+  let fd_r: i32 = fs.fs_open_read(&path_out[0]);
   if (fd_r < 0) { return 8; }
   let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let nr: isize = fs_read(fd_r, &buf[0], pay_len);
-  fs_close(fd_r);
+  let nr: isize = fs.fs_read(fd_r, &buf[0], pay_len);
+  fs.fs_close(fd_r);
   if (nr != (pay_len as isize)) { return 9; }
   let i: i32 = 0;
   while (i < 14) {

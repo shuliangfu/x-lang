@@ -1,0 +1,13 @@
+# std.heap Tier-S stable public API (import std.heap)
+# One symbol per line; STBL-001 registry gate greps std/heap/mod.su
+alloc
+free
+realloc
+alloc_zeroed
+alloc_aligned
+arena64_init
+arena64_alloc
+arena64_deinit
+heap_trace_enabled
+heap_trace_stats
+heap_trace_reset

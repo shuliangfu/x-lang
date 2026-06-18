@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libbrotli-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
       - name: Build shu and shu-c
         run: make -C compiler OPT=1 all
       - name: Run verify-selfhost-stage2.sh
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libbrotli-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
       - name: Build seed shu
         run: make -C compiler OPT=1 all
       - name: Run verify-selfhost-stage2-bstrict.sh

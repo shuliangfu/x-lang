@@ -1,0 +1,25 @@
+# EXC-003 错误码分层 manifest
+# 列：item_id	kind	symbol_or_anchor	src	notes
+# min_items	12
+layer_L	doc_anchor	## 2. 三层模型	analysis/exc-error-code-layer-v1.md	Language
+layer_B	doc_anchor	## 4. 区间表	analysis/exc-error-code-layer-v1.md	Library
+layer_S	doc_anchor	## 3. 命名规范	analysis/exc-error-code-layer-v1.md	System 侧车
+naming_global	naming_rule	error_code_	std/error/mod.su	L 层前缀
+naming_module	naming_rule	_err_	std/error/mod.su	B 层后缀
+naming_base	naming_rule	error_base_	std/error/mod.su	段起点
+global_ok	symbol	error_ok	std/error/mod.su	0
+global_alloc	symbol	error_code_alloc_fail	std/error/mod.su	-1
+global_invalid	symbol	error_code_invalid	std/error/mod.su	-2
+global_not_found	symbol	error_code_not_found	std/error/mod.su	-3
+global_range_fn	symbol	error_code_in_global_range	std/error/mod.su	L 判定
+module_span_fn	symbol	error_code_in_module_span	std/error/mod.su	B 判定
+platform_errno_fn	symbol	error_code_is_platform_errno	std/error/mod.su	S 判定
+base_io	symbol	error_base_io	std/error/mod.su	-1000
+base_fs	symbol	error_base_fs	std/error/mod.su	-1100
+base_net	symbol	error_base_net	std/error/mod.su	-1200
+base_async	symbol	error_base_async	std/error/mod.su	-1300
+base_coll	symbol	error_base_coll	std/error/mod.su	-1400
+io_timeout	symbol	io_err_timeout	std/error/mod.su	-1001
+fs_not_found	symbol	fs_err_not_found	std/error/mod.su	-1101
+sidecar_fs	symbol	fs_last_error	std/fs/mod.su	S 层侧车
+smoke_case	run	error_code_layer.su	tests/exc/error_code_layer.su	区间烟测

@@ -1,0 +1,24 @@
+# STD-168 docs/07 全面审计 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_keywords	18
+kw_core018	keyword	bswap_u32	docs07	CORE-018
+kw_core019	keyword	debug_assert_eq_i32_diag	docs07	CORE-019
+kw_core020	keyword	iter_u64_from_buf	docs07	CORE-020
+kw_core157	keyword	is_empty_i32	docs07	CORE-157 slice
+kw_std156	keyword	context_cancel_deadline	docs07	STD-156 CTX-01
+kw_std158	keyword	error_semantic_class	docs07	STD-158
+kw_std159	keyword	runtime_diag_enabled	docs07	STD-159
+kw_std160	keyword	string_view_case_fold	docs07	STD-160
+kw_std161	keyword	vec_u16_push	docs07	STD-161
+kw_std162	keyword	map_i32_i32_iter_next	docs07	STD-162
+kw_std163	keyword	queue_u8_push_back	docs07	STD-163
+kw_std164	keyword	tcp_pool_new	docs07	STD-164
+kw_std165	keyword	thread_pool_stats	docs07	STD-165
+kw_std166	keyword	format_template_1_i32	docs07	STD-166
+kw_std167	keyword	sqlite_is_available	docs07	STD-167
+kw_yellow	keyword	run-next-yellow-clear-gate.sh	docs07	NEXT-YELLOW
+kw_ctx01	keyword	CTX-01	docs07	cookbook
+kw_err02	keyword	ERR-02	docs07	cookbook
+doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
+audit_doc	file	analysis/doc-07-comprehensive-audit-v1.md	analysis	STD-168
+gate	script	run-doc-07-comprehensive-audit-gate.sh	tests/run-doc-07-comprehensive-audit-gate.sh	gate

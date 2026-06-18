@@ -269,14 +269,14 @@ int32_t ast_placeholder() {
 }
 __attribute__((weak)) void ast_expr_layout_prime_call_resolved() {
   struct ast_Expr _tail = (struct ast_Expr){ .kind = ((enum ast_ExprKind)(0)), .resolved_type_ref = 0, .line = 0, .col = 0, .as_operand_ref = 0, .as_target_type_ref = 0, .call_resolved_func_index = (-1), .call_resolved_dep_index = (-1) };
-  (void)(((_tail).call_resolved_func_index = (-1)));
+  ((_tail).call_resolved_func_index = ((-1)));
 }
 void ast_arena_init(struct ast_ASTArena * arena) {
   (void)(ast_expr_layout_prime_call_resolved());
-  (void)(((arena)->num_types = 0));
-  (void)(((arena)->num_exprs = 0));
-  (void)(((arena)->num_blocks = 0));
-  (void)(((arena)->num_funcs = 0));
+  ((arena)->num_types = (0));
+  ((arena)->num_exprs = (0));
+  ((arena)->num_blocks = (0));
+  ((arena)->num_funcs = (0));
 }
 int32_t ast_arena_type_alloc(struct ast_ASTArena * arena) {
   int32_t ref = pipeline_arena_type_alloc(arena);
@@ -297,8 +297,8 @@ int32_t ast_arena_block_alloc(struct ast_ASTArena * arena) {
   return ref;
 }
 __attribute__((weak)) void ast_expr_init_match_enum(struct ast_Expr * e) {
-  (void)(((e)->match_arm_base = 0));
-  (void)(((e)->enum_variant_tag = 0));
+  ((e)->match_arm_base = (0));
+  ((e)->enum_variant_tag = (0));
 }
 __attribute__((weak)) void ast_expr_init_call_resolve(struct ast_ASTArena * arena, int32_t expr_ref) {
   (void)(pipeline_expr_init_call_resolve_at_ref(arena, expr_ref));
@@ -313,7 +313,7 @@ int ast_name_bytes_equal(uint8_t * a_nm, int32_t a_len, uint8_t * b_nm, int32_t 
   while (j < a_len) {
     (void)(({ int __tmp = 0; if ((a_nm)[j] != (b_nm)[j]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
   return 1;
 }
@@ -450,54 +450,54 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
   int32_t i = 0;
   (void)(({ int32_t __tmp = 0; if (block_ref <= 0 || block_ref > (arena)->num_blocks) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = block_ref, 0))));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = parent_ref, 0))));
-  (void)((sp = sp + 1));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = block_ref, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = parent_ref, 0)));
+  ++sp;
   while (sp > 0) {
-    (void)((sp = sp - 1));
-    (void)((cur = (sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_blk)[0]) : (stack_blk)[sp])));
-    (void)((par = (sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_par)[0]) : (stack_par)[sp])));
+    (sp = (sp - 1));
+    (cur = ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_blk)[0]) : (stack_blk)[sp])));
+    (par = ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_par)[0]) : (stack_par)[sp])));
     (void)(({ int32_t __tmp = 0; if (cur <= 0 || cur > (arena)->num_blocks) {   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (par != 0) {   struct ast_Block b_head;
   b_head = pipeline_arena_block_get_copy(arena, cur);
-  __tmp = ({ int32_t __tmp = 0; if ((b_head).parent_block_ref == 0) {   (void)(((b_head).parent_block_ref = par));
+  __tmp = ({ int32_t __tmp = 0; if ((b_head).parent_block_ref == 0) {   ((b_head).parent_block_ref = (par));
   (void)(ast_arena_block_set(arena, cur, b_head));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     struct ast_Block b;
     b = pipeline_arena_block_get_copy(arena, cur);
-    (void)((i = 0));
+    (i = (0));
     while (i < (b).num_loops) {
-      (void)((wb = ast_block_while_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (wb > 0 && sp < 256) {   (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0))));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0))));
-  (void)((sp = sp + 1));
+      (wb = (ast_block_while_body_ref(arena, cur, i)));
+      (void)(({ int32_t __tmp = 0; if (wb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+  ++sp;
  } else (__tmp = 0) ; __tmp; }));
-      (void)((i = i + 1));
+      ++i;
     }
-    (void)((i = 0));
+    (i = (0));
     while (i < (b).num_for_loops) {
-      (void)((fb = ast_block_for_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (fb > 0 && sp < 256) {   (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0))));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0))));
-  (void)((sp = sp + 1));
+      (fb = (ast_block_for_body_ref(arena, cur, i)));
+      (void)(({ int32_t __tmp = 0; if (fb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+  ++sp;
  } else (__tmp = 0) ; __tmp; }));
-      (void)((i = i + 1));
+      ++i;
     }
-    (void)((i = 0));
+    (i = (0));
     while (i < (b).num_if_stmts) {
-      (void)((tb = ast_block_if_then_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (tb > 0 && sp < 256) {   (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0))));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0))));
-  (void)((sp = sp + 1));
+      (tb = (ast_block_if_then_body_ref(arena, cur, i)));
+      (void)(({ int32_t __tmp = 0; if (tb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+  ++sp;
  } else (__tmp = 0) ; __tmp; }));
-      (void)((eb = ast_block_if_else_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (eb > 0 && sp < 256) {   (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0))));
-  (void)(((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0))));
-  (void)((sp = sp + 1));
+      (eb = (ast_block_if_else_body_ref(arena, cur, i)));
+      (void)(({ int32_t __tmp = 0; if (eb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+  ++sp;
  } else (__tmp = 0) ; __tmp; }));
-      (void)((i = i + 1));
+      ++i;
     }
   }
 }

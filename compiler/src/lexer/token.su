@@ -115,6 +115,8 @@ enum TokenKind {
   TOKEN_AS,
   /** @ SIMD comptime builtin（@shuffle / @select） */
   TOKEN_AT,
+  /** 字符串字面量 import("path") 等 */
+  TOKEN_STRING,
 }
 
 // 单个 Token：类型 + 源码位置 + 字面量/标识符（.su 无

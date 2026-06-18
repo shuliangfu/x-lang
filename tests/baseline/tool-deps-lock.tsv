@@ -1,0 +1,22 @@
+# TOOL-008 依赖锁定 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_rules	6
+# min_locked	2
+read_path	section	## 1. 阅读路径	analysis/tool-deps-lock-v1.md	-	15min
+rules	section	## 2. 锁定契约 L1–L6	tool-deps-lock.tsv	-	lock
+lock_fmt	section	## 3. `shu.pkg.lock.tsv` 格式	analysis/tool-deps-lock-v1.md	-	tsv
+verify	section	## 6. 验证与门禁	analysis/tool-deps-lock-v1.md	-	gate
+rule_l1	rules	L1-lock-file	analysis/tool-deps-lock-v1.md	file	shu.pkg.lock.tsv
+rule_l2	rules	L2-content-digest	analysis/tool-deps-lock-v1.md	sha256	digest
+rule_l3	rules	L3-relpath	analysis/tool-deps-lock-v1.md	relpath	repo相对
+rule_l4	rules	L4-gen-lock	analysis/tool-deps-lock-v1.md	script	shu-deps-lock
+rule_l5	rules	L5-verify-lock	analysis/tool-deps-lock-v1.md	script	shu-deps-verify
+rule_l6	rules	L6-replay	analysis/tool-deps-lock-v1.md	replay	reproducible
+fixture_pkg	file	tests/fixtures/pkgmgr/shu.pkg.tsv	tests/fixtures/pkgmgr/shu.pkg.tsv	demo	manifest
+fixture_lock	file	tests/fixtures/pkgmgr/shu.pkg.lock.tsv	tests/fixtures/pkgmgr/shu.pkg.lock.tsv	demo	lock
+cross_pkgmgr	cross_ref	analysis/tool-pkgmgr-v1.md	TOOL-007	联动
+lib	script	lib/tool-deps-lock.sh	tests/lib/tool-deps-lock.sh	-	共享库
+proto_lock	script	shu-deps-lock.sh	scripts/shu-deps-lock.sh	gen	生成锁
+proto_verify	script	shu-deps-verify.sh	scripts/shu-deps-verify.sh	verify	校验
+gate	script	run-tool-deps-lock-gate.sh	tests/run-tool-deps-lock-gate.sh	-	manifest
+hook_lock	hook_script	run-deps-lock.sh	run-deps-lock.sh	-	replay 烟测

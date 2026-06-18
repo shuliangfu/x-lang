@@ -1,0 +1,21 @@
+# STD-071 std.context manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	10
+read_path	section	## 1. 阅读路径	analysis/std-context-v1.md
+api_doc	section	## 2. API	analysis/std-context-v1.md
+verify	section	## 3. Gate	analysis/std-context-v1.md
+api_background	api	background	std/context/mod.su	根
+api_with_cancel	api	with_cancel	std/context/mod.su	派生
+api_with_deadline	api	with_deadline	std/context/mod.su	deadline
+api_with_timeout	api	with_timeout	std/context/mod.su	timeout
+api_cancel	api	cancel	std/context/mod.su	取消
+api_is_cancelled	api	is_cancelled	std/context/mod.su	检测
+api_deadline	api	deadline_ns	std/context/mod.su	deadline
+api_remaining	api	remaining_ns	std/context/mod.su	剩余
+api_set_value	api	set_value	std/context/mod.su	bag
+api_get_value	api	get_value	std/context/mod.su	bag
+symbol_smoke	symbol	ctx_smoke_c	std/context/context.c	C烟测
+impl_c	file	std/context/context.c	std/context/context.c
+smoke_su	smoke	tests/std-context/cancel_smoke.su	.su烟测
+lib	script	lib/std-context.sh	tests/lib/std-context.sh
+gate	script	run-std-context-gate.sh	tests/run-std-context-gate.sh

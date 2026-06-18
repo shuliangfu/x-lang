@@ -1,0 +1,29 @@
+// CORE-005 烟测：Ordering + cmp_i32 / cmp_u8 / cmp_ptr + then/reverse
+const cmp = import("core.cmp");
+
+function main(): i32 {
+  let o_lt: Ordering = cmp.cmp_i32(1, 2);
+  let o_eq: Ordering = cmp.cmp_i32(5, 5);
+  let o_gt: Ordering = cmp.cmp_i32(9, 3);
+  if (!cmp.is_lt(o_lt)) { return 1; }
+  if (!cmp.is_eq(o_eq)) { return 2; }
+  if (!cmp.is_gt(o_gt)) { return 3; }
+
+  let ou: Ordering = cmp.cmp_u8(255 as u8, 0 as u8);
+  if (!cmp.is_gt(ou)) { return 4; }
+
+  let a: [3]u8 = [10, 20, 30];
+  let p0: *u8 = &a[0];
+  let p1: *u8 = &a[1];
+  if (!cmp.is_lt(cmp.cmp_ptr(p0, p1))) { return 5; }
+  if (!cmp.is_eq(cmp.cmp_ptr(p0, p0))) { return 6; }
+
+  let chain: Ordering = cmp.then(cmp.ordering_equal(), cmp.ordering_greater());
+  if (!cmp.is_gt(chain)) { return 7; }
+  if (!cmp.is_gt(cmp.reverse(cmp.ordering_less()))) { return 8; }
+
+  let from: Ordering = cmp.ordering_from_i32(-1);
+  if (!cmp.is_lt(from)) { return 9; }
+
+  return 0;
+}

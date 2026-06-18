@@ -1,0 +1,14 @@
+# std.env Tier-S stable public API (import std.env)
+getenv
+getenv_ptr
+getenv_z
+getenv_exists
+setenv
+unsetenv
+temp_dir
+env_iter
+env_iter_count
+env_iter_next
+args_iter
+args_iter_count
+args_iter_next

@@ -25,6 +25,35 @@
 #define SHU_HTTP_ERRNO errno
 #endif
 
+#include "http_chunked.inc.c"
+
+/** 解析 HTTP/1.x 状态行中的三位状态码；成功 0，失败 -1（STD-032）。 */
+int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_code) {
+  int32_t i = 0;
+  int32_t code = 0;
+  int32_t digits = 0;
+  if (!line || !out_code || len < 12)
+    return -1;
+  if (line[0] != 'H' || line[1] != 'T' || line[2] != 'T' || line[3] != 'P')
+    return -1;
+  while (i < len && line[i] != ' ')
+    i++;
+  if (i >= len)
+    return -1;
+  i++;
+  while (i < len && line[i] == ' ')
+    i++;
+  while (i < len && line[i] >= '0' && line[i] <= '9') {
+    code = code * 10 + (line[i] - '0');
+    digits++;
+    i++;
+  }
+  if (digits != 3)
+    return -1;
+  *out_code = code;
+  return 0;
+}
+
 /* 最大 host/path 长度，请求行+头约 2K 足够 */
 #define SHU_HTTP_HOST_MAX  256
 #define SHU_HTTP_PATH_MAX  2048

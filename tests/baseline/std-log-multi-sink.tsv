@@ -1,0 +1,22 @@
+# STD-053 std.log multi-sink manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	6
+read_path	section	## 1. 阅读路径	15min
+api_doc	section	## 2. API	SINK_STDERR
+cookbook	section	## 3. Cookbook	log_structured_kv
+verify	section	## 5. 门禁	gate
+api_min	api	set_min_level	std/log/mod.su	过滤
+api_log	api	log	std/log/mod.su	人类行
+api_struct	api	log_structured_kv	std/log/mod.su	结构化
+api_mask	api	set_sink_mask	std/log/mod.su	掩码
+api_file	api	set_file_sink	std/log/mod.su	文件
+api_close	api	close_file_sink	std/log/mod.su	关闭
+const_stderr	const	SINK_STDERR	std/log/mod.su	1
+const_file	const	SINK_FILE	std/log/mod.su	2
+symbol_mask_c	symbol	log_set_sink_mask_c	std/log/log.c	C 掩码
+symbol_file_c	symbol	log_set_file_sink_c	std/log/log.c	C 文件
+symbol_smoke_c	symbol	log_multi_sink_smoke_c	std/log/log.c	C 烟测
+smoke_c	file	tests/std-log/multi_sink_ok.c	C 入口
+smoke_level	smoke	tests/std-log/level_filter.su	级别
+lib	script	lib/std-log-multi-sink.sh	tests/lib/std-log-multi-sink.sh
+gate	script	run-std-log-multi-sink-gate.sh	tests/run-std-log-multi-sink-gate.sh

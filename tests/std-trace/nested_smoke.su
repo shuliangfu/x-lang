@@ -1,0 +1,52 @@
+// STD-088：std.trace 嵌套 span + context 传播 + text 导出烟测
+const trace = import("std.trace");
+const context = import("std.context");
+
+function main(): i32 {
+  let zero: i64 = 0;
+  let tr: Trace = trace.trace_new();
+  let ctx: Context = context.background();
+  let tr2: Trace = Trace { handle: zero };
+  let root: Span = Span { id: zero };
+  let child: Span = Span { id: zero };
+  let n_root: [4]u8 = [114, 111, 111, 116];
+  let n_child: [5]u8 = [99, 104, 105, 108, 100];
+  let out: [256]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = 0;
+  let cnt: i32 = 0;
+
+  if (tr.handle == zero) { return 1; }
+  if (trace.attach_to_context(ctx, tr) != 0) { return 2; }
+  tr2 = trace.from_context(ctx);
+  if (tr2.handle != tr.handle) { return 3; }
+
+  root = trace.span_start(&tr, zero, &n_root[0], 4);
+  if (root.id == zero) { return 4; }
+  child = trace.span_start_child(&tr, &n_child[0], 5);
+  if (child.id == zero || child.id == root.id) { return 5; }
+  if (trace.span_end(&tr, child) != trace.trace_err_ok()) { return 6; }
+  if (trace.span_end(&tr, root) != trace.trace_err_ok()) { return 7; }
+  cnt = trace.span_count(&tr);
+  if (cnt != 2) { return 8; }
+  n = trace.export_text(&tr, &out[0], 256);
+  if (n <= 0) { return 9; }
+  if (out[0] != 116) { return 10; }
+  trace.trace_free(&tr);
+  context.free(ctx);
+  return 0;
+}

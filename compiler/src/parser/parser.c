@@ -461,6 +461,9 @@ static void parse_slice_region_label(Parser *p, ASTType *ty) {
     advance(p);
 }
 
+/** LANG-009：泛型 struct 具体实例名 mangling（定义见 parse_type_name 之后）。 */
+static int parser_append_type_inst_mangle(Parser *p, char *buf, size_t cap);
+
 /**
  * 解析类型名称（内建/标识符类型名、裸指针 *T；* 后递归解析元素类型）。
  * 参数：p 解析器状态，当前 Token 须为类型起始（* 或内建关键字或标识符）。返回值：成功返回新分配的 ASTType*，失败返回 NULL 且已报错。
@@ -698,6 +701,23 @@ static ASTType *parse_type_name(Parser *p) {
                 fprintf(stderr, "parse: out of memory\n");
                 return NULL;
             }
+            /* LANG-009：Option<i32> 等具体实例 mangling 为 Option_i32 */
+            if (peek(p)->kind == TOKEN_LT) {
+                char mbuf[256];
+                (void)snprintf(mbuf, sizeof(mbuf), "%s", ty->name);
+                if (parser_append_type_inst_mangle(p, mbuf, sizeof(mbuf)) != 0) {
+                    free(ty->name);
+                    free(ty);
+                    return NULL;
+                }
+                free(ty->name);
+                ty->name = strdup(mbuf);
+                if (!ty->name) {
+                    free(ty);
+                    fprintf(stderr, "parse: out of memory\n");
+                    return NULL;
+                }
+            }
             return ty;
         }
             /* fallthrough */
@@ -707,6 +727,154 @@ static ASTType *parse_type_name(Parser *p) {
             return NULL;
     }
     return NULL; /* unreachable when TOKEN_IDENT falls through via break */
+}
+
+/**
+ * 解析完整类型注解（含联合 T | U | V）；单类型由 parse_type_name 解析，| 在类型上下文连接成员。
+ * 用于形参、let/const、返回值等；*T / []T 内部仍用 parse_type_name，避免 *i32 | *u64 歧义。
+ */
+static ASTType *parse_type(Parser *p) {
+    ASTType *first = parse_type_name(p);
+    if (!first) return NULL;
+    if (!peek(p) || peek(p)->kind != TOKEN_PIPE)
+        return first;
+    ASTType *members[AST_TYPE_UNION_MAX];
+    int n = 0;
+    members[n++] = first;
+    while (peek(p) && peek(p)->kind == TOKEN_PIPE) {
+        advance(p);
+        if (n >= AST_TYPE_UNION_MAX) {
+            fail(p, "union type has too many members");
+            for (int i = 0; i < n; i++) ast_type_free(members[i]);
+            return NULL;
+        }
+        ASTType *m = parse_type_name(p);
+        if (!m) {
+            for (int i = 0; i < n; i++) ast_type_free(members[i]);
+            return NULL;
+        }
+        members[n++] = m;
+    }
+    ASTType *u = (ASTType *)malloc(sizeof(ASTType));
+    if (!u) {
+        for (int i = 0; i < n; i++) ast_type_free(members[i]);
+        fprintf(stderr, "parse: out of memory\n");
+        return NULL;
+    }
+    u->kind = AST_TYPE_UNION;
+    u->name = NULL;
+    u->elem_type = NULL;
+    u->array_size = 0;
+    u->region_label = NULL;
+    u->union_count = n;
+    u->union_members = (ASTType **)malloc((size_t)n * sizeof(ASTType *));
+    if (!u->union_members) {
+        free(u);
+        for (int i = 0; i < n; i++) ast_type_free(members[i]);
+        fprintf(stderr, "parse: out of memory\n");
+        return NULL;
+    }
+    for (int i = 0; i < n; i++)
+        u->union_members[i] = members[i];
+    return u;
+}
+
+/**
+ * LANG-009/010：将单个具体类型实参追加为 mangling 后缀（如 _i32、_ptr_u8）。
+ * 参数：buf 已有基础名；arg 类型 AST；cap 缓冲上限。
+ * 返回值：0 成功，-1 失败。
+ */
+static int parser_append_one_type_mangle_suffix(char *buf, size_t cap, const ASTType *arg) {
+    size_t len;
+    if (!buf || !arg || cap < 8)
+        return -1;
+    len = strlen(buf);
+    if (len + 12 >= cap)
+        return -1;
+    switch (arg->kind) {
+        case AST_TYPE_I32:
+            (void)strncat(buf, "_i32", cap - len - 1);
+            break;
+        case AST_TYPE_U8:
+            (void)strncat(buf, "_u8", cap - len - 1);
+            break;
+        case AST_TYPE_BOOL:
+            (void)strncat(buf, "_bool", cap - len - 1);
+            break;
+        case AST_TYPE_PTR:
+            (void)strncat(buf, "_ptr", cap - len - 1);
+            len = strlen(buf);
+            if (arg->elem_type && arg->elem_type->kind == AST_TYPE_U8 && len + 4 < cap)
+                (void)strncat(buf, "_u8", cap - len - 1);
+            break;
+        default:
+            return -1;
+    }
+    return 0;
+}
+
+#define PARSER_MAX_TYPE_INST_ARGS 4
+
+/**
+ * LANG-009/010/CORE-016：解析 <T> 或 <T,E,...> 并追加 mangling 后缀到 buf。
+ * Option<i32> → Option_i32；Result<i32,i32> → Result_i32（E=i32 压缩，对齐类型族）。
+ * 调用前 buf 须含基础类型名；成功返回 0。
+ */
+static int parser_append_type_inst_mangle(Parser *p, char *buf, size_t cap) {
+    ASTType *args[PARSER_MAX_TYPE_INST_ARGS];
+    int n_args = 0;
+    int i;
+    int result_e_i32_condensed = 0;
+    if (!p || !buf || cap < 8 || peek(p)->kind != TOKEN_LT)
+        return 0;
+    advance(p);
+    for (;;) {
+        if (n_args >= PARSER_MAX_TYPE_INST_ARGS) {
+            fail(p, "too many type arguments in <...> instantiation");
+            return -1;
+        }
+        args[n_args] = parse_type_name(p);
+        if (!args[n_args]) {
+            fail(p, "expected type in <...> instantiation");
+            return -1;
+        }
+        n_args++;
+        if (peek(p)->kind == TOKEN_COMMA) {
+            advance(p);
+            continue;
+        }
+        if (peek(p)->kind == TOKEN_GT) {
+            advance(p);
+            break;
+        }
+        fail(p, "expected ',' or '>' after type argument");
+        for (i = 0; i < n_args; i++)
+            ast_type_free(args[i]);
+        return -1;
+    }
+    /* CORE-016：Result<T,E=i32> 与 Result_i32/Result_u8 类型族同名 */
+    if (strcmp(buf, "Result") == 0 && n_args == 2 && args[1]->kind == AST_TYPE_I32)
+        result_e_i32_condensed = 1;
+    if (result_e_i32_condensed) {
+        if (parser_append_one_type_mangle_suffix(buf, cap, args[0]) != 0) {
+            for (i = 0; i < n_args; i++)
+                ast_type_free(args[i]);
+            fail(p, "unsupported type in Result<T,i32> instantiation (v1: i32/u8/bool/*u8)");
+            return -1;
+        }
+    } else {
+        for (i = 0; i < n_args; i++) {
+            if (parser_append_one_type_mangle_suffix(buf, cap, args[i]) != 0) {
+                for (int j = 0; j < n_args; j++)
+                    ast_type_free(args[j]);
+                fail(p, "unsupported type in struct instantiation (v1: i32/u8/bool/*u8)");
+                return -1;
+            }
+        }
+    }
+    for (i = 0; i < n_args; i++)
+        ast_type_free(args[i]);
+    return 0;
 }
 
 /**
@@ -1127,6 +1295,21 @@ static ASTExpr *parse_primary(Parser *p) {
             fail(p, "invalid identifier");
             return NULL;
         }
+        /* LANG-009：Option<i32> { ... } / 类型名 Option<i32>（首字母大写约定） */
+        if (name[0] >= 'A' && name[0] <= 'Z' && peek(p)->kind == TOKEN_LT) {
+            char mbuf[256];
+            (void)snprintf(mbuf, sizeof(mbuf), "%s", name);
+            if (parser_append_type_inst_mangle(p, mbuf, sizeof(mbuf)) != 0) {
+                free(name);
+                return NULL;
+            }
+            free(name);
+            name = strdup(mbuf);
+            if (!name) {
+                fprintf(stderr, "parse: out of memory\n");
+                return NULL;
+            }
+        }
         /* 枚举值用 Name.Variant（. 语法），见 parse_postfix 的 field_access；此处仅处理标识符或结构体字面量 */
         /* 仅当首字母大写（类型名约定）且下一 token 为 { 时解析为结构体字面量，避免 if ok { } 中的 ok 被误判 */
         if (peek(p)->kind == TOKEN_LBRACE && name[0] >= 'A' && name[0] <= 'Z') {
@@ -1325,7 +1508,7 @@ static ASTExpr *parse_primary(Parser *p) {
 static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
     while (peek(p) && peek(p)->kind == TOKEN_AS) {
         advance(p);
-        ASTType *ty = parse_type_name(p);
+        ASTType *ty = parse_type(p);
         if (!ty) {
             ast_expr_free(left);
             return NULL;
@@ -2075,75 +2258,33 @@ static ASTExpr *parse_expr(Parser *p) {
 #define MAX_EXPR_STMTS 512
 
 /**
- * import 路径段长度：IDENT/I32 或关键字 async（std.async 模块名）。
- * 返回字节数；非法 token 返回 -1。
+ * 解析 import("path")：当前 Token 须为 '('；返回 strdup 的路径字符串。
  */
-static int import_path_segment_len(const Token *t) {
-    if (!t)
-        return -1;
-    if (t->kind == TOKEN_IDENT && t->ident_len > 0)
-        return t->ident_len;
-    if (t->kind == TOKEN_I32)
-        return 3;
-    if (t->kind == TOKEN_ASYNC)
-        return 5;
-    return -1;
-}
-
-/**
- * 将 import 路径段写入 buf（调用方保证 buf 至少 seg_len 字节）。
- */
-static void import_path_segment_copy(const Token *t, char *buf, int seg_len) {
-    if (!t || !buf || seg_len <= 0)
-        return;
-    if (t->kind == TOKEN_IDENT && t->value.ident && t->ident_len > 0)
-        memcpy(buf, t->value.ident, (size_t)t->ident_len);
-    else if (t->kind == TOKEN_I32)
-        memcpy(buf, "i32", 3);
-    else if (t->kind == TOKEN_ASYNC)
-        memcpy(buf, "async", 5);
-}
-
-/**
- * 解析单条 import 路径：IDENT 或 I32 后接零个或多个 . IDENT/I32/async，拼成 "std.async" 形式。
- * 参数：p 解析器状态；当前 Token 须为路径起始。返回值：成功返回 strdup 的字符串，调用方须 free；失败返回 NULL 且已 fail。
- * 错误与边界：路径过长（≥256）或非法 token 序列时失败。副作用：成功时 advance 消耗整条路径。
- */
-static char *parse_import_path(Parser *p) {
-    char buf[256];
-    int off = 0;
-    const Token *t = peek(p);
-    int seg_len = import_path_segment_len(t);
-    if (seg_len <= 0) {
-        fail(p, "expected identifier in import path");
+static char *parse_import_call_path(Parser *p) {
+    if (peek(p)->kind != TOKEN_LPAREN) {
+        fail(p, "expected '(' after import");
         return NULL;
     }
-    if (off + seg_len >= (int)sizeof(buf)) {
-        fail(p, "import path too long");
-        return NULL;
-    }
-    import_path_segment_copy(t, buf + off, seg_len);
-    off += seg_len;
     advance(p);
-    while (peek(p)->kind == TOKEN_DOT) {
-        advance(p);
-        buf[off++] = '.';
-        t = peek(p);
-        seg_len = import_path_segment_len(t);
-        if (seg_len <= 0) {
-            fail(p, "expected identifier after '.' in import path");
-            return NULL;
-        }
-        if (off + seg_len >= (int)sizeof(buf)) {
-            fail(p, "import path too long");
-            return NULL;
-        }
-        import_path_segment_copy(t, buf + off, seg_len);
-        off += seg_len;
-        advance(p);
+    if (peek(p)->kind != TOKEN_STRING) {
+        fail(p, "expected string literal in import(\"path\")");
+        return NULL;
     }
-    buf[off] = '\0';
-    return strdup(buf);
+    const Token *t = peek(p);
+    char *path = (t->ident_len > 0 && t->value.ident)
+        ? strndup(t->value.ident, (size_t)t->ident_len) : NULL;
+    if (!path) {
+        fail(p, "import path string empty");
+        return NULL;
+    }
+    advance(p);
+    if (peek(p)->kind != TOKEN_RPAREN) {
+        free(path);
+        fail(p, "expected ')' after import path string");
+        return NULL;
+    }
+    advance(p);
+    return path;
 }
 
 /**
@@ -2261,7 +2402,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
             return NULL;
         }
         advance(p);
-        ASTType *ty = parse_type_name(p);
+        ASTType *ty = parse_type(p);
         if (!ty) {
             free(fname);
             free(name);
@@ -2403,7 +2544,7 @@ static ASTTraitMethod *parse_trait_method_sig(Parser *p) {
     advance(p);
     if (peek(p)->kind != TOKEN_COLON) { free(name); fail(p, "expected ':' for return type in trait method"); return NULL; }
     advance(p);
-    ASTType *ret = parse_type_name(p);
+    ASTType *ret = parse_type(p);
     if (!ret) { free(name); return NULL; }
     if (peek(p)->kind != TOKEN_SEMICOLON) { free(name); ast_type_free(ret); fail(p, "expected ';' after trait method"); return NULL; }
     advance(p);
@@ -2544,7 +2685,7 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
             return NULL;
         }
         advance(p);
-        ASTType *pty = parse_type_name(p);
+        ASTType *pty = parse_type(p);
         if (!pty) {
             free(pname); free(meth_name);
             for (int j = 0; j < num_params; j++) { free((void *)params[j].name); ast_type_free(params[j].type); }
@@ -2571,7 +2712,7 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
         return NULL;
     }
     advance(p);
-    ASTType *ret = parse_type_name(p);
+    ASTType *ret = parse_type(p);
     if (!ret) {
         free(meth_name);
         for (int j = 0; j < num_params; j++) { free((void *)params[j].name); ast_type_free(params[j].type); }
@@ -2743,7 +2884,7 @@ static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
         advance(p);
         if (!name) { ast_block_free(b); return -1; }
         ASTType *type = NULL;
-        if (peek(p)->kind == TOKEN_COLON) { advance(p); type = parse_type_name(p); if (!type) { free(name); ast_block_free(b); return -1; } }
+        if (peek(p)->kind == TOKEN_COLON) { advance(p); type = parse_type(p); if (!type) { free(name); ast_block_free(b); return -1; } }
         if (peek(p)->kind != TOKEN_ASSIGN) { free(name); if (type) free((void *)type); fail(p, "expected '=' in const"); ast_block_free(b); return -1; }
         advance(p);
         ASTExpr *init = parse_expr(p);
@@ -2764,7 +2905,7 @@ static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
         if (!name) { ast_block_free(b); return -1; }
         if (peek(p)->kind != TOKEN_COLON) { free(name); fail(p, "expected ':' and type in let"); ast_block_free(b); return -1; }
         advance(p);
-        ASTType *type = parse_type_name(p);
+        ASTType *type = parse_type(p);
         if (!type) { free(name); ast_block_free(b); return -1; }
         if (peek(p)->kind != TOKEN_ASSIGN) { free(name); free((void *)type); fail(p, "expected '=' in let"); ast_block_free(b); return -1; }
         advance(p);
@@ -3036,7 +3177,7 @@ parse_for_start:
                     return NULL;
                 }
                 advance(p);
-                ASTType *type = parse_type_name(p);
+                ASTType *type = parse_type(p);
                 if (!type) {
                     free(name);
                     ast_block_free(b);
@@ -3510,7 +3651,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
             return NULL;
         }
         advance(p);
-        params[num_params].type = parse_type_name(p);
+        params[num_params].type = parse_type(p);
         if (!params[num_params].type) {
             free(name);
             if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
@@ -3550,7 +3691,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
         return NULL;
     }
     advance(p);
-    ASTType *return_type = parse_type_name(p);
+    ASTType *return_type = parse_type(p);
     if (!return_type) {
         free(name);
         if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
@@ -3651,6 +3792,7 @@ int parse(Lexer *lex, ASTModule **out) {
     mod->import_kinds = NULL;
     mod->import_binding_names = NULL;
     mod->import_select_names = NULL;
+    mod->import_select_aliases = NULL;
     mod->import_select_counts = NULL;
     mod->top_level_lets = NULL;
     mod->num_top_level_lets = 0;
@@ -3668,56 +3810,29 @@ int parse(Lexer *lex, ASTModule **out) {
     mod->mono_instances = NULL;
     mod->num_mono_instances = 0;
 
-    /* [ import path ; | const IDENT = import path ; | const { IDENT, ... } = import path ; ]* */
+    /* [ const IDENT = import("path") ; | const { IDENT [, IDENT as IDENT ...] } = import("path") ; ]* */
     char *import_list[MAX_IMPORTS];
     int kind_list[MAX_IMPORTS];
     char *binding_list[MAX_IMPORTS];
     char **select_names_list[MAX_IMPORTS];
+    char **select_aliases_list[MAX_IMPORTS];
     int select_count_list[MAX_IMPORTS];
     int nimports = 0;
 #define FREE_IMPORT_AUX do { \
         for (int _ii = 0; _ii < nimports; _ii++) { \
             if (kind_list[_ii] == AST_IMPORT_KIND_BINDING && binding_list[_ii]) free(binding_list[_ii]); \
             if (kind_list[_ii] == AST_IMPORT_KIND_SELECT && select_names_list[_ii]) { \
-                for (int _jj = 0; _jj < select_count_list[_ii]; _jj++) if (select_names_list[_ii][_jj]) free(select_names_list[_ii][_jj]); \
+                for (int _jj = 0; _jj < select_count_list[_ii]; _jj++) { \
+                    if (select_names_list[_ii][_jj]) free(select_names_list[_ii][_jj]); \
+                    if (select_aliases_list[_ii] && select_aliases_list[_ii][_jj]) free(select_aliases_list[_ii][_jj]); \
+                } \
                 free(select_names_list[_ii]); \
+                if (select_aliases_list[_ii]) free(select_aliases_list[_ii]); \
             } \
         } \
     } while (0)
     while (1) {
-        if (peek(&prs)->kind == TOKEN_IMPORT) {
-            advance(&prs);
-            char *path = parse_import_path(&prs);
-            if (!path) {
-                while (nimports--) free(import_list[nimports]);
-                FREE_IMPORT_AUX;
-                free(mod);
-                return -1;
-            }
-            if (peek(&prs)->kind != TOKEN_SEMICOLON) {
-                free(path);
-                fail(&prs, "expected ';' after import path");
-                while (nimports--) free(import_list[nimports]);
-                FREE_IMPORT_AUX;
-                free(mod);
-                return -1;
-            }
-            advance(&prs);
-            if (nimports >= MAX_IMPORTS) {
-                free(path);
-                fail(&prs, "too many imports");
-                while (nimports--) free(import_list[nimports]);
-                FREE_IMPORT_AUX;
-                free(mod);
-                return -1;
-            }
-            import_list[nimports] = path;
-            kind_list[nimports] = AST_IMPORT_KIND_WHOLE;
-            binding_list[nimports] = NULL;
-            select_names_list[nimports] = NULL;
-            select_count_list[nimports] = 0;
-            nimports++;
-        } else if (peek(&prs)->kind == TOKEN_CONST) {
+        if (peek(&prs)->kind == TOKEN_CONST) {
             /* 仅当确定为 const x = import 或 const { } = import 时才 consume const，否则 break 交给后续顶层循环处理普通 const */
             if (peek_next(&prs)->kind == TOKEN_IDENT && peek_next_next(&prs)->kind == TOKEN_ASSIGN) {
                 advance(&prs); /* const */
@@ -3731,14 +3846,14 @@ int parse(Lexer *lex, ASTModule **out) {
                 advance(&prs); advance(&prs); /* IDENT = */
                 if (peek(&prs)->kind != TOKEN_IMPORT) {
                     free(name);
-                    fail(&prs, "expected const x = import path");
+                    fail(&prs, "expected const x = import(\"path\")");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
                     return -1;
                 }
                 advance(&prs); /* import */
-                char *path = parse_import_path(&prs);
+                char *path = parse_import_call_path(&prs);
                 if (!path) {
                     free(name);
                     while (nimports--) free(import_list[nimports]);
@@ -3748,7 +3863,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 }
                 if (peek(&prs)->kind != TOKEN_SEMICOLON) {
                     free(name); free(path);
-                    fail(&prs, "expected ';' after const x = import path");
+                    fail(&prs, "expected ';' after const x = import(\"path\")");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -3767,17 +3882,19 @@ int parse(Lexer *lex, ASTModule **out) {
                 kind_list[nimports] = AST_IMPORT_KIND_BINDING;
                 binding_list[nimports] = name;
                 select_names_list[nimports] = NULL;
+                select_aliases_list[nimports] = NULL;
                 select_count_list[nimports] = 0;
                 nimports++;
                 } else if (peek_next(&prs)->kind == TOKEN_LBRACE) {
-                /* const { IDENT, ... } = import path ; */
+                /* const { IDENT [, IDENT as IDENT ...] } = import path ; */
                 advance(&prs); advance(&prs); /* const { */
                 char *sel_names[32];
+                char *sel_aliases[32];
                 int nsel = 0;
                 for (;;) {
                     if (peek(&prs)->kind != TOKEN_IDENT && peek(&prs)->kind != TOKEN_I32) {
                         fail(&prs, "expected identifier in const { ... } = import");
-                        while (nsel--) free(sel_names[nsel]);
+                        while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                         while (nimports--) free(import_list[nimports]);
                         FREE_IMPORT_AUX;
                         free(mod);
@@ -3788,18 +3905,59 @@ int parse(Lexer *lex, ASTModule **out) {
                         : (peek(&prs)->kind == TOKEN_I32 ? strdup("i32") : NULL);
                     if (!n || nsel >= 32) {
                         if (n) free(n);
-                        while (nsel--) free(sel_names[nsel]);
+                        while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                         while (nimports--) free(import_list[nimports]);
                         FREE_IMPORT_AUX;
                         free(mod);
                         return -1;
                     }
-                    sel_names[nsel++] = n;
                     advance(&prs);
+                    char *alias = NULL;
+                    if (peek(&prs)->kind == TOKEN_AS) {
+                        advance(&prs);
+                        if (peek(&prs)->kind != TOKEN_IDENT || peek(&prs)->ident_len <= 0 || !peek(&prs)->value.ident) {
+                            free(n);
+                            fail(&prs, "expected identifier after 'as' in const { ... } = import");
+                            while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
+                            while (nimports--) free(import_list[nimports]);
+                            FREE_IMPORT_AUX;
+                            free(mod);
+                            return -1;
+                        }
+                        alias = strndup(peek(&prs)->value.ident, (size_t)peek(&prs)->ident_len);
+                        if (!alias) {
+                            free(n);
+                            while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
+                            while (nimports--) free(import_list[nimports]);
+                            FREE_IMPORT_AUX;
+                            free(mod);
+                            return -1;
+                        }
+                        advance(&prs);
+                    }
+                    {
+                        const char *local = alias ? alias : n;
+                        for (int di = 0; di < nsel; di++) {
+                            const char *prev = sel_aliases[di] ? sel_aliases[di] : sel_names[di];
+                            if (prev && strcmp(prev, local) == 0) {
+                                free(n);
+                                if (alias) free(alias);
+                                fail(&prs, "duplicate import select binding in const { ... } = import");
+                                while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
+                                while (nimports--) free(import_list[nimports]);
+                                FREE_IMPORT_AUX;
+                                free(mod);
+                                return -1;
+                            }
+                        }
+                    }
+                    sel_names[nsel] = n;
+                    sel_aliases[nsel] = alias;
+                    nsel++;
                     if (peek(&prs)->kind == TOKEN_COMMA) { advance(&prs); continue; }
                     if (peek(&prs)->kind == TOKEN_RBRACE) break;
                     fail(&prs, "expected ',' or '}' in const { ... } = import");
-                    while (nsel--) free(sel_names[nsel]);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -3807,7 +3965,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 }
                 advance(&prs);
                 if (peek(&prs)->kind != TOKEN_ASSIGN) {
-                    while (nsel--) free(sel_names[nsel]);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     fail(&prs, "expected '=' after const { ... }");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
@@ -3816,7 +3974,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 }
                 advance(&prs);
                 if (peek(&prs)->kind != TOKEN_IMPORT) {
-                    while (nsel--) free(sel_names[nsel]);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     fail(&prs, "expected import after const { ... } =");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
@@ -3824,9 +3982,9 @@ int parse(Lexer *lex, ASTModule **out) {
                     return -1;
                 }
                 advance(&prs);
-                char *path = parse_import_path(&prs);
+                char *path = parse_import_call_path(&prs);
                 if (!path) {
-                    while (nsel--) free(sel_names[nsel]);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -3834,8 +3992,8 @@ int parse(Lexer *lex, ASTModule **out) {
                 }
                 if (peek(&prs)->kind != TOKEN_SEMICOLON) {
                     free(path);
-                    while (nsel--) free(sel_names[nsel]);
-                    fail(&prs, "expected ';' after const { ... } = import path");
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
+                    fail(&prs, "expected ';' after const { ... } = import(\"path\")");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -3844,7 +4002,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 advance(&prs);
                 if (nimports >= MAX_IMPORTS) {
                     free(path);
-                    while (nsel--) free(sel_names[nsel]);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     fail(&prs, "too many imports");
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
@@ -3852,20 +4010,27 @@ int parse(Lexer *lex, ASTModule **out) {
                     return -1;
                 }
                 char **sarr = (char **)malloc((size_t)nsel * sizeof(char *));
-                if (!sarr) {
+                char **aarr = (char **)malloc((size_t)nsel * sizeof(char *));
+                if (!sarr || !aarr) {
                     free(path);
-                    while (nsel--) free(sel_names[nsel]);
+                    if (sarr) free(sarr);
+                    if (aarr) free(aarr);
+                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
                     fprintf(stderr, "parse: out of memory\n");
                     return -1;
                 }
-                for (int i = 0; i < nsel; i++) sarr[i] = sel_names[i];
+                for (int i = 0; i < nsel; i++) {
+                    sarr[i] = sel_names[i];
+                    aarr[i] = sel_aliases[i];
+                }
                 import_list[nimports] = path;
                 kind_list[nimports] = AST_IMPORT_KIND_SELECT;
                 binding_list[nimports] = NULL;
                 select_names_list[nimports] = sarr;
+                select_aliases_list[nimports] = aarr;
                 select_count_list[nimports] = nsel;
                 nimports++;
                 } else {
@@ -3921,7 +4086,7 @@ int parse(Lexer *lex, ASTModule **out) {
             return -1;
         }
         advance(&prs);
-        ASTType *let_type = parse_type_name(&prs);
+        ASTType *let_type = parse_type(&prs);
         if (!let_type) {
             free(let_name);
             while (nimports--) free(import_list[nimports]);
@@ -4165,7 +4330,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 goto cleanup_funcs_fail;
             }
             advance(&prs);
-            ASTType *let_type = parse_type_name(&prs);
+            ASTType *let_type = parse_type(&prs);
             if (!let_type) {
                 free(let_name);
                 goto cleanup_funcs_fail;
@@ -4227,7 +4392,7 @@ int parse(Lexer *lex, ASTModule **out) {
                 goto cleanup_funcs_fail;
             }
             advance(&prs);
-            ASTType *const_type = parse_type_name(&prs);
+            ASTType *const_type = parse_type(&prs);
             if (!const_type) {
                 free(const_name);
                 goto cleanup_funcs_fail;
@@ -4599,19 +4764,25 @@ cleanup_funcs_fail:
         mod->import_kinds = (int *)malloc((size_t)nimports * sizeof(int));
         mod->import_binding_names = (char **)malloc((size_t)nimports * sizeof(char *));
         mod->import_select_names = (char ***)malloc((size_t)nimports * sizeof(char **));
+        mod->import_select_aliases = (char ***)malloc((size_t)nimports * sizeof(char **));
         mod->import_select_counts = (int *)malloc((size_t)nimports * sizeof(int));
-        if (!mod->import_paths || !mod->import_kinds || !mod->import_binding_names || !mod->import_select_names || !mod->import_select_counts) {
+        if (!mod->import_paths || !mod->import_kinds || !mod->import_binding_names || !mod->import_select_names || !mod->import_select_aliases || !mod->import_select_counts) {
             if (mod->import_paths) free(mod->import_paths);
             if (mod->import_kinds) free(mod->import_kinds);
             if (mod->import_binding_names) free(mod->import_binding_names);
             if (mod->import_select_names) free(mod->import_select_names);
+            if (mod->import_select_aliases) free(mod->import_select_aliases);
             if (mod->import_select_counts) free(mod->import_select_counts);
             for (int fi = 0; fi < nimports; fi++) {
                 free(import_list[fi]);
                 if (kind_list[fi] == AST_IMPORT_KIND_BINDING && binding_list[fi]) free(binding_list[fi]);
                 if (kind_list[fi] == AST_IMPORT_KIND_SELECT && select_names_list[fi]) {
-                    for (int fj = 0; fj < select_count_list[fi]; fj++) if (select_names_list[fi][fj]) free(select_names_list[fi][fj]);
+                    for (int fj = 0; fj < select_count_list[fi]; fj++) {
+                        if (select_names_list[fi][fj]) free(select_names_list[fi][fj]);
+                        if (select_aliases_list[fi] && select_aliases_list[fi][fj]) free(select_aliases_list[fi][fj]);
+                    }
                     free(select_names_list[fi]);
+                    if (select_aliases_list[fi]) free(select_aliases_list[fi]);
                 }
             }
             if (mod->struct_defs) {
@@ -4653,6 +4824,7 @@ cleanup_funcs_fail:
             mod->import_kinds[i] = kind_list[i];
             mod->import_binding_names[i] = binding_list[i];
             mod->import_select_names[i] = select_names_list[i];
+            mod->import_select_aliases[i] = select_aliases_list[i];
             mod->import_select_counts[i] = select_count_list[i];
         }
         mod->num_imports = nimports;

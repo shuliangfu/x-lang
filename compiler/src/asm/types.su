@@ -5,7 +5,7 @@
 // 依赖：codegen（与 pipeline 共用 CodegenOutBuf，保证 asm
 // 输出写入同一缓冲区）。
 
-import codegen;
+const codegen = import("codegen");
 
 /** 当前支持的目标架构；pipeline 或 driver 按 -target 选择，backend
 * 据此分派到对应 emit 实现。 */

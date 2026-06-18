@@ -3,4 +3,5 @@
 net_accept_many	0.22
 net_echo_throughput	0.18
 net_echo_throughput_provided	0.18
+net_mixed_conns_requests	0.35
 net_udp_many	0.22

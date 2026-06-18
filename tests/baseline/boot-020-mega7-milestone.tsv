@@ -1,0 +1,17 @@
+# BOOT-020 mega7 parser 替换里程碑 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_slice_done	15
+section_goal	section	## 1. 里程碑目标	thin glue 全绿
+section_gates	section	## 3. 门禁矩阵	symbol mega7
+hook_symbol_integrity	hook_gate	run-parser-thin-glue-symbol-integrity-gate.sh	Linux nm 符号
+hook_mega7_manifest	hook_gate	run-comp-parser-mega7-gate.sh	COMP-001 矩阵
+hook_second_pass	hook_gate	run-parser-second-pass-gate.sh	second-pass 烟测
+baseline_symbols	file	tests/baseline/parser-thin-glue-symbols.tsv	thin glue 基线
+thin_src	file	compiler/src/asm/parser_asm_thin_c.c	glue 源
+mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	COMP-001
+mega7_plan	cross_ref	analysis/comp-parser-mega7-v1.md	COMP-001 RFC
+mega7_gap	cross_ref	analysis/boot-mega7-gap.md	BOOT-009
+cross_boot018	cross_ref	analysis/boot-018-parser-std-decouple-v1.md	解耦策略
+cross_boot019	cross_ref	analysis/boot-019-stage2-dogfood-v1.md	Stage2 dogfood
+doc	file	boot-020-mega7-milestone-v1.md	analysis/boot-020-mega7-milestone-v1.md	RFC
+gate	script	run-boot-020-mega7-milestone-gate.sh	tests/run-boot-020-mega7-milestone-gate.sh	manifest

@@ -1,0 +1,24 @@
+// TST-004：std.channel ASAN 夜跑用例（有界 send/recv/close/free）。
+//
+// 【文件职责】在 -fsanitize=address 下验证 channel 生命周期无泄漏。
+// 【运行方式】tests/run-tst-004-std-sanitize-nightly.sh
+// Windows stub 时 channel 创建失败仍返回 0（与 tests/channel/main.su 一致）。
+const channel = import("std.channel");
+const debug = import("core.debug");
+
+function main(): i32 {
+  let ch: *u8 = channel.channel_i32_bounded(2);
+  if (ch == 0) {
+    return 0;
+  }
+  debug.assert_eq_i32(channel.channel_i32_send(ch, 10), 0);
+  debug.assert_eq_i32(channel.channel_i32_send(ch, 20), 0);
+  let v: i32 = 0;
+  debug.assert_eq_i32(channel.channel_i32_recv(ch, &v), 0);
+  debug.assert_eq_i32(v, 10);
+  debug.assert_eq_i32(channel.channel_i32_recv(ch, &v), 0);
+  debug.assert_eq_i32(v, 20);
+  channel.channel_i32_close(ch);
+  channel.channel_i32_free(ch);
+  return 0;
+}

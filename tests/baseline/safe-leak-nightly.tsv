@@ -1,0 +1,18 @@
+# SAFE-005 泄漏检测夜跑 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_cases	3
+read_path	section	## 1. 阅读路径	analysis/safe-leak-nightly-v1.md	-	15min
+asan	section	## 2. ASAN/LSAN 策略	analysis/safe-leak-nightly-v1.md	-	detect_leaks
+cases	section	## 3. 夜跑用例矩阵	safe-leak-nightly.tsv	-	no_leak
+report	section	## 4. 报告格式	analysis/safe-leak-nightly-v1.md	-	SHU_LEAK_NIGHTLY
+schedule	section	## 5. 调度与门禁	analysis/safe-leak-nightly-v1.md	-	ci-nightly
+case_heap	case	no_leak_heap	tests/leak/no_leak_heap.su	heap	alloc+free
+case_ffi	case	no_leak_ffi	tests/leak/no_leak_ffi.su	ffi	cstring
+case_arena	case	no_leak_arena	tests/leak/no_leak_arena.su	arena	arena64_deinit
+probe	file	leak_probe.c	tests/leak/leak_probe.c	probe	故意泄漏
+lib	script	lib/safe-leak.sh	tests/lib/safe-leak.sh	-	共享库
+runner	script	run-safe-leak-nightly.sh	tests/run-safe-leak-nightly.sh	-	夜跑
+gate	script	run-safe-leak-nightly-gate.sh	tests/run-safe-leak-nightly-gate.sh	-	manifest
+workflow	hook	ci-nightly.yml	.github/workflows/ci-nightly.yml	-	ENG-003
+cross_sanitize	cross_ref	tests/run-sanitize-gate.sh	SAFE-001	M-6
+cross_ffi	cross_ref	tests/run-safe-ffi-contract-gate.sh	SAFE-004	契约

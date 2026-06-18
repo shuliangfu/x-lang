@@ -1,0 +1,27 @@
+// STD-055：cstring_try_new 错误码与 owned 生命周期
+const ffi = import("std.ffi");
+
+function main(): i32 {
+  let src: [3]u8 = [97, 98, 99];
+  let owned: usize = 0;
+  let ec: i32 = cstring_try_new(&src[0], 3, &owned);
+  if (ec != 0) {
+    return 1;
+  }
+  let p: *u8 = owned as *u8;
+  if (ffi.cstr_len(p) != 3) {
+    cstring_destroy(p);
+    return 2;
+  }
+  cstring_destroy(p);
+
+  let bad: usize = 0;
+  let ec2: i32 = cstring_try_new(&src[0], 0 - 1, &bad);
+  if (ec2 != (0 - 2)) {
+    return 3;
+  }
+  if (bad != 0) {
+    return 4;
+  }
+  return 0;
+}

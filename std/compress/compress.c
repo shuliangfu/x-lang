@@ -17,6 +17,10 @@
 #include <brotli/decode.h>
 #endif
 
+#ifdef SHU_USE_ZSTD
+#include <zstd.h>
+#endif
+
 /** 压缩：zlib 格式写入 out，返回写入字节数，失败或未启用 zlib 返回 -1。 */
 int32_t compress_deflate_c(const uint8_t *in, int32_t in_len, uint8_t *out, int32_t out_cap) {
 #ifdef SHU_USE_ZLIB
@@ -146,3 +150,49 @@ int32_t compress_brotli_decompress_c(const uint8_t *in, int32_t in_len, uint8_t 
   return -1;
 #endif
 }
+
+/* ---------- zstd：需 SHU_USE_ZSTD 与 -lzstd ---------- */
+
+/** 压缩为 zstd 帧，返回写入字节数，失败或未启用 zstd 返回 -1。 */
+int32_t compress_zstd_compress_c(const uint8_t *in, int32_t in_len, uint8_t *out, int32_t out_cap) {
+#ifdef SHU_USE_ZSTD
+  size_t n;
+  if (!in || !out || in_len < 0 || out_cap <= 0) return -1;
+  n = ZSTD_compress(out, (size_t)out_cap, in, (size_t)in_len, ZSTD_CLEVEL_DEFAULT);
+  if (ZSTD_isError(n)) return -1;
+  return (int32_t)n;
+#else
+  (void)in;
+  (void)in_len;
+  (void)out;
+  (void)out_cap;
+  return -1;
+#endif
+}
+
+/** 解压 zstd 帧，返回写入字节数，失败或未启用 zstd 返回 -1。 */
+int32_t compress_zstd_decompress_c(const uint8_t *in, int32_t in_len, uint8_t *out, int32_t out_cap) {
+#ifdef SHU_USE_ZSTD
+  size_t n;
+  if (!in || !out || in_len < 0 || out_cap <= 0) return -1;
+  n = ZSTD_decompress(out, (size_t)out_cap, in, (size_t)in_len);
+  if (ZSTD_isError(n)) return -1;
+  return (int32_t)n;
+#else
+  (void)in;
+  (void)in_len;
+  (void)out;
+  (void)out_cap;
+  return -1;
+#endif
+}
+
+#ifdef SHU_USE_ZLIB
+/** 链接 marker：runtime 据此追加 -lz（无 marker 时仍可用 nm 检测 U _compress2）。 */
+const char shu_compress_zlib_marker = 1;
+#endif
+
+#ifdef SHU_USE_ZSTD
+/** 链接 marker：runtime 据此追加 -lzstd（zlib-only 的 compress.o 勿链 zstd）。 */
+const char shu_compress_zstd_marker = 1;
+#endif

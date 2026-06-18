@@ -1,0 +1,59 @@
+// STD-112：std.heap Allocator trait + Vec_u8 接入烟测
+const heap = import("std.heap");
+const vec = import("std.vec");
+
+function main(): i32 {
+  let al: Allocator = allocator_heap();
+  let v: Vec_u8 = vec.vec_u8_new();
+  if (vec_u8_with_allocator(&v, al, 4) != 0) {
+    return 1;
+  }
+  if (vec_u8_push_with_allocator(&v, al, 65) != 0) {
+    vec_u8_deinit_with_allocator(&v, al);
+    return 2;
+  }
+  if (vec_u8_push_with_allocator(&v, al, 66) != 0) {
+    vec_u8_deinit_with_allocator(&v, al);
+    return 3;
+  }
+  if (vec.vec_u8_len(v) != 2) {
+    vec_u8_deinit_with_allocator(&v, al);
+    return 4;
+  }
+  if (v.ptr[0] != 65 || v.ptr[1] != 66) {
+    vec_u8_deinit_with_allocator(&v, al);
+    return 5;
+  }
+  vec_u8_deinit_with_allocator(&v, al);
+
+  let ar: Arena64 = heap.arena64_empty();
+  if (heap.arena64_init(&ar, 512 as usize) != 0) {
+    return 6;
+  }
+  let al2: Allocator = allocator_from_arena(&ar);
+  let p: *u8 = allocator_alloc(al2, 16 as usize);
+  if (p == 0 as *u8) {
+    heap.arena64_deinit(&ar);
+    return 7;
+  }
+  p[0] = 67;
+  allocator_free(al2, p);
+  let v2: Vec_u8 = vec.vec_u8_new();
+  if (vec_u8_with_allocator(&v2, al2, 8) != 0) {
+    heap.arena64_deinit(&ar);
+    return 8;
+  }
+  if (vec_u8_push_with_allocator(&v2, al2, 68) != 0) {
+    vec_u8_deinit_with_allocator(&v2, al2);
+    heap.arena64_deinit(&ar);
+    return 9;
+  }
+  if (vec.vec_u8_len(v2) != 1 || v2.ptr[0] != 68) {
+    vec_u8_deinit_with_allocator(&v2, al2);
+    heap.arena64_deinit(&ar);
+    return 10;
+  }
+  vec_u8_deinit_with_allocator(&v2, al2);
+  heap.arena64_deinit(&ar);
+  return 0;
+}

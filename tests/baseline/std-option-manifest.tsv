@@ -1,0 +1,18 @@
+# STD-080 std.option manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	8
+read_path	section	## 1. 阅读路径	analysis/std-option-result-v1.md
+api_doc	section	## 2. API	analysis/std-option-result-v1.md
+api_none	api	none_i32	std/option/mod.su	构造
+api_some	api	some_i32	std/option/mod.su	构造
+api_unwrap	api	unwrap_or_i32	std/option/mod.su	解包
+api_is_some	api	is_some_i32	std/option/mod.su	判定
+api_map	api	map_i32	std/option/mod.su	组合
+api_and_then	api	and_then_i32	std/option/mod.su	组合
+api_or	api	or_i32	std/option/mod.su	组合
+api_from_result	api	option_from_result_i32	std/option/mod.su	互转
+api_to_result	api	option_to_result_i32	std/option/mod.su	互转
+impl_su	file	std/option/mod.su	std/option/mod.su
+smoke_su	smoke	tests/std-option-result/roundtrip.su	round-trip
+lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
+gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh

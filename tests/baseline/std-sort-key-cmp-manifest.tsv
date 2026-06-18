@@ -1,0 +1,16 @@
+# STD-150 std.sort key 比较器 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 目标	analysis/std-sort-key-cmp-v1.md
+strategy_doc	section	## 2. 比较器策略表	analysis/std-sort-key-cmp-v1.md
+api_sort_by_key	api	sort_stable_by_key	std/sort/mod.su	key 稳定
+api_cmp_key	api	cmp_key_i32_fn	std/sort/mod.su	key 比较器
+api_cmp_asc	api	cmp_i32_asc_fn	std/sort/mod.su	升序 fn
+struct_keytag	struct	KeyTag	std/sort/mod.su	key+tag
+symbol_key_tag_c	symbol	sort_stable_key_tag_c	std/sort/sort.c	C key 排序
+symbol_key_smoke	symbol	sort_key_cmp_smoke_c	std/sort/sort.c	C 烟测
+vectors_tsv	file	tests/baseline/std-sort-key-cmp.tsv	策略向量
+smoke_su	smoke	tests/std-sort/key_stable.su	.su 烟测
+smoke_c	smoke	tests/std-sort/key_cmp_ok.c	C 烟测
+gate_base	gate	tests/run-std-sort-stable-cmp-gate.sh	STD-060
+lib	script	tests/lib/std-sort-key-cmp.sh	lib
+gate	script	tests/run-std-sort-key-cmp-gate.sh	gate

@@ -1,0 +1,5 @@
+# STD-059 fenv gold vectors
+# 列：step_id	action	mask	expect_bit	notes
+invalid_op	0/0	1	1	FE_INVALID
+clear_inv	feclearexcept	1	0	cleared
+raise_ovf	feraiseexcept	4	4	FE_OVERFLOW

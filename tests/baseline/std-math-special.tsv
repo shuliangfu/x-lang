@@ -1,0 +1,18 @@
+# STD-115 std.math special functions manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	5
+read_path	section	## 1. 阅读路径	15min
+special_api	section	## 2. 特殊函数	erf
+verify	section	## 4. 验证与门禁	gate
+api_erf	api	erf	std/math/mod.su	误差函数
+api_erfc	api	erfc	std/math/mod.su	互补误差
+api_log1p	api	log1p	std/math/mod.su	log(1+x)
+api_expm1	api	expm1	std/math/mod.su	exp(x)-1
+api_smoke	api	special_smoke	std/math/mod.su	C 烟测
+symbol_erf_c	symbol	math_erf_c	std/math/math.c	C 实现
+symbol_smoke_c	symbol	math_special_smoke_c	std/math/math.c	C 烟测
+vectors	vectors	tests/baseline/std-math-special-vectors.tsv	金样
+smoke_c	file	tests/std-math/special_smoke_ok.c	C 入口
+smoke_su	smoke	tests/std-math/special_funcs.su	.su 烟测
+lib	script	lib/std-math-special.sh	tests/lib/std-math-special.sh
+gate	script	run-std-math-special-gate.sh	tests/run-std-math-special-gate.sh

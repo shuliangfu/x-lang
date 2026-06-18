@@ -1,0 +1,25 @@
+# PLAN-001 Phase 3 路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	10
+# min_sections	5
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-v1.md
+task_index	section	## 4. 首批待办索引	analysis/phase3-roadmap-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-v1.md
+task_lang009	task	LANG-009	NEXT.md	Option T
+task_lang010	task	LANG-010	NEXT.md	Result T E
+task_core016	task	CORE-016	NEXT.md	core 统一
+task_boot019	task	BOOT-019	NEXT.md	Stage2 dogfood
+task_boot020	task	BOOT-020	NEXT.md	mega7 里程碑
+task_comp013	task	COMP-013	NEXT.md	regalloc
+task_comp014	task	COMP-014	NEXT.md	isel
+task_std061	task	STD-061	NEXT.md	simd
+task_std062	task	STD-062	NEXT.md	regex
+task_tool009	task	TOOL-009	NEXT.md	vscode
+task_plan001	task	PLAN-001	NEXT.md	路线图定版
+cross_q4	cross_ref	2026-Q4	analysis/doc-public-roadmap-v1.md	Q4 预览
+cross_boot018	cross_ref	BOOT-018	analysis/boot-018-parser-std-decouple-v1.md	解耦
+cross_next	file	NEXT.md	NEXT.md	§2.12
+lib	script	lib/phase3-roadmap.sh	tests/lib/phase3-roadmap.sh
+gate	script	run-phase3-roadmap-gate.sh	tests/run-phase3-roadmap-gate.sh

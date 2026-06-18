@@ -1,0 +1,20 @@
+# STD-042 std.async IO + CPS suspend manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_syms	4
+read_path	section	## 1. 阅读路径	15min
+model	section	## 2. 三层统一模型	poll_async_completions
+io_align	section	## 3. std.io async API 对齐表	read_async
+codegen	section	## 4. language await IO	async_await_io
+facade	section	## 5. std.async 新增门面	cps_suspend_io
+verify	section	## 6. 验证与门禁	gate
+symbol_cps_io	symbol	cps_suspend_io	std/async/mod.su	IO suspend
+symbol_poll_io	symbol	poll_io_completions	std/async/mod.su	poll 门面
+symbol_poll_io_c	symbol	poll_async_completions	std/io/mod.su	std.io poll
+symbol_io_not_ready	symbol	IO_ASYNC_NOT_READY	std/io/mod.su	-2 常量
+symbol_suspend_c	symbol	shu_async_cps_suspend_io	std/async/scheduler.c	C IO suspend
+symbol_poll_c	symbol	shu_io_poll_async_completions	std/io/io.c	C poll
+smoke_align	smoke	tests/async/io_cps_align.su	门面对齐
+emit_await_io	file	tests/parser/async_await_io.su	emit 烟测
+doc	file	analysis/std-async-io-cps-v1.md	RFC
+lib	script	lib/std-async-io-cps.sh	tests/lib/std-async-io-cps.sh
+gate	script	run-std-async-io-cps-gate.sh	tests/run-std-async-io-cps-gate.sh

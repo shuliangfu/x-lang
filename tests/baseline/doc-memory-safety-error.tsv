@@ -1,0 +1,26 @@
+# DOC-004 内存安全与异常处理 manifest
+# 列：item_id	kind	anchor	notes
+# min_sections	8
+# min_cross_refs	6
+read_path	section	## 1. 阅读路径	45min 路径
+safe_subset	section	## 2. 默认安全子集	S0
+unsafe_escape	section	## 3. 何时使用 unsafe 逃逸	U1-U3
+error_handling	section	## 4. 错误处理：Layer 与错误码	EXC-001/003
+panic_boundary	section	## 5. panic 边界	R1-R4
+best_practices	section	## 6. 最佳实践清单	DO/DON'T
+examples_index	section	## 7. 示例与门禁索引	烟测
+self_check	section	## 9. 自检（5 题）	quiz
+cross_lang_unsafe	cross_ref	analysis/lang-unsafe-v1-rfc.md	LANG-007
+cross_exc_result	cross_ref	analysis/exc-result-error-v1-rfc.md	EXC-001
+cross_exc_panic	cross_ref	analysis/exc-panic-abort-v1-rfc.md	EXC-002
+cross_exc_code	cross_ref	analysis/exc-error-code-layer-v1.md	EXC-003
+cross_safe_api	cross_ref	analysis/safe-unsafe-api-v1.md	SAFE-002
+cross_safe_audit	cross_ref	analysis/safe-unsafe-audit-v1.md	SAFE-003
+example_recoverable	example	tests/exc/recoverable_result.su	Layer A
+example_layer_c	example	tests/exc/layer_c_recoverable.su	Layer C
+example_code_layer	example	tests/exc/error_code_layer.su	EXC-003
+example_padding_ok	example	tests/unsafe/allow_padding_ok.su	U1
+example_raw_ptr	example	tests/unsafe/raw_ptr_null.su	U2
+hook_exc_panic	hook_script	run-exc-panic-abort-gate.sh	EXC-002
+hook_exc_code	hook_script	run-exc-error-code-layer-gate.sh	EXC-003
+hook_lang_unsafe	hook_script	run-lang-unsafe-gate.sh	LANG-007

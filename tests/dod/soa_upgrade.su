@@ -3,7 +3,7 @@
  * merge + WPO unify 须将 entry layout 升档为 SoA，arr[i].field 仍正确。
  * 期望：3+7=10。
  */
-import soa_cross_lib;
+const soa_cross_lib = import("soa_cross_lib");
 
 /** 入口 module AoS 占位（字段与 lib Particle 一致）；WPO 须统一为 SoA。 */
 struct Particle {

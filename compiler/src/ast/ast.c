@@ -154,6 +154,11 @@ void ast_type_free(ASTType *t) {
         free((void *)t->region_label);
     if (t->kind == AST_TYPE_NAMED && t->name)
         free((void *)t->name);
+    if (t->kind == AST_TYPE_UNION && t->union_members) {
+        for (int i = 0; i < t->union_count; i++)
+            ast_type_free(t->union_members[i]);
+        free(t->union_members);
+    }
     free(t);
 }
 
@@ -356,6 +361,17 @@ void ast_module_free(ASTModule *m) {
         }
         free(m->import_select_names);
         m->import_select_names = NULL;
+    }
+    if (m->import_select_aliases && m->import_select_counts) {
+        for (int i = 0; i < num_imports; i++) {
+            if (m->import_select_aliases[i]) {
+                for (int j = 0; j < m->import_select_counts[i]; j++)
+                    if (m->import_select_aliases[i][j]) free(m->import_select_aliases[i][j]);
+                free(m->import_select_aliases[i]);
+            }
+        }
+        free(m->import_select_aliases);
+        m->import_select_aliases = NULL;
     }
     if (m->import_select_counts) {
         free(m->import_select_counts);

@@ -1,0 +1,17 @@
+# STD-011 标准库错误码统一矩阵
+# 列：module_id	exc_layer	base_fn	sidecar_fn	src	tier	notes
+# min_modules	6
+std.io	Layer C+B	error_base_io	-	std/io/mod.su	core	read/write -1；B 层 io_err_*
+std.fs	Layer C+B	error_base_fs	fs_last_error	std/fs/mod.su	core	fs_* -1 + errno 侧车
+std.net	Layer C+B	error_base_net	-	std/net/mod.su	core	net_err_generic -1200
+std.async	Layer B	error_base_async	-	std/async/mod.su	core	async_err_generic 占位
+std.coll	Layer C	error_base_coll	-	std/vec/mod.su	coll	-1 = error_code_alloc_fail
+std.heap	Layer C	error_base_coll	-	std/heap/mod.su	coll	alloc -1
+global_codes	Layer L	error_code_alloc_fail	-	std/error/mod.su	global	-1/-2/-3
+sidecar_fs	System	-	fs_last_error	std/fs/mod.su	system	S 层 errno
+symbol_io_err	symbol	io_err_timeout	std/error/mod.su	-	B 层 io
+symbol_fs_err	symbol	fs_err_not_found	std/error/mod.su	-	B 层 fs
+symbol_net_err	symbol	net_err_generic	std/error/mod.su	-	B 层 net
+symbol_async_err	symbol	async_err_generic	std/error/mod.su	-	B 层 async
+symbol_coll_err	symbol	coll_err_generic	std/error/mod.su	-	B 层 coll
+smoke_case	run	-	-	tests/std/error_unify_smoke.su	-	段内校验

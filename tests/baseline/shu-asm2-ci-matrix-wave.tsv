@@ -1,0 +1,7 @@
+# BOOT-028 shu_asm2 CI 波次矩阵
+# 列：c6_id	hook	role	notes
+# min_rows	4
+c6_smoke	run-shu-asm2-cross-smoke.sh	lead	双平台 rv=42
+c6_boot027	run-boot-027-shu-asm2-cross-gate.sh	ref	C5 父波次
+c6_cross	run-bootstrap-crossplatform-gate.sh	matrix	BOOT-011
+c6_eng_ci	run-eng-crossplatform-ci-gate.sh	ref	ENG-003 CI

@@ -1,0 +1,6 @@
+# STD-115 std.math special 金样向量
+# 列：case_id	input_x	expected	notes
+erf_zero	0.0	0.0	erf(0)
+erf_one	1.0	0.8427007929497149	erf(1)
+log1p_zero	0.0	0.0	log1p(0)
+expm1_zero	0.0	0.0	expm1(0)

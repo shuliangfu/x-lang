@@ -1,6 +1,7 @@
 # Shulang 自举与「完全自举」约定
 
-本文档固定**验收命令**、**目标分层（A/B/C）**与**当前链接拓扑**，避免口头「自举」与实现漂移。更细的 asm 能力表见 [src/asm/README.md](../src/asm/README.md) §十一。
+> **新人 1 小时全景**：[`analysis/doc-selfhost-architecture-v1.md`](../../analysis/doc-selfhost-architecture-v1.md)（DOC-002）  
+> 本文档固定**验收命令**、**目标分层（A/B/C）**与**当前链接拓扑**，避免口头「自举」与实现漂移。更细的 asm 能力表见 [src/asm/README.md](../src/asm/README.md) §十一。
 
 ---
 
@@ -78,13 +79,13 @@
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.su` 中 `let_type_refs`）。
 - **macOS arm64 实测（2026-05）**：`check_asm_o_quality.sh` → **24/24** 非空；`make bootstrap-driver-bstrict` → **`LINK_MODE=asm_only_strict`** + **`full_asm`**（M11），最终链无 `pipeline_gen.c`。B-hybrid 仅作 `bootstrap-driver-hybrid` 回退。
 - **实验链 `SHU_ASM_EXPERIMENTAL_SKIP_GEN=1`**（2026-05-23 起演进）：Darwin 上 **两阶段**——① **bootstrap 首遍**链 `pipeline_su.o`（`-E-extern` 瘦 TU）+ `parser_su.o`/`typeck_su.o`/`codegen_su.o`/`lexer_su.o` + `seed_host/asm_backend_partial.o` + C seed（**不**并 `build_asm/*.o`，避免 `__shu_asm_mod_stub` 重复）；② **第二遍**用 bootstrap `shu_asm` 重编 `pipeline.o`/`typeck.o`/`parser.o`/`backend.o`，再 **strict 重链**（`run_bootstrap_trampoline` + `strict_core partial`，**无** `pipeline_su.o`）。验收：`SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 ./scripts/build_shu_asm.sh` → `LINK_MODE=asm_only_strict` + `run_shu_asm_smoke.sh`。
-- **B-strict 下一跳**：**pipeline.su** 第二遍 ✅（`#10–#52` 索引桩 + 小入口 skip 短路修复）；**typeck/backend** EMIT_HEAVY 第二遍（2026-06：`typeck.su` 78 func 须走瘦模块 `#0–35` 分支，见 `ast_pool.c` `num_funcs>=75`）；**perf** 循环优化（见 `analysis/perf-vs-zig-baseline.md`）。
+- **B-strict 下一跳**：**pipeline.su** 第二遍 ✅；**typeck/backend** EMIT_HEAVY 第二遍 ✅；**parser**（2026-06-10）：`driver_run_asm_backend` 首遍 parse 保留 module（勿 memset 后 strict 重 parse）；**305 func** 进 module（`run-parser-parse-count-gate.sh` MIN=150）；`build_asm/parser.o` 第二遍 __text 93B/4509B（EMIT_HEAVY）；真 parse 机码仍在 **`parser_su.o`** tail。
 - **dep 预跑 lib_root 回归（2026-05-22）**：`runtime_one_ctx_for_dep_prerun` 曾调用 `ast_pipeline_dep_ctx_reset` 抹掉 `pipeline_fill_ctx_path_buffers` 写入的 lib_root sidecar，导致 dep 预跑 `resolve_path_su` **rc=-7**、多数 `build_asm/*.o` EMPTY；已改为仅 `ast_pipeline_dep_ctx_set_ndep(0)` 且先 reset 再 fill。
 - **Darwin asm-only 链剩余阻塞（2026-05-21 实测）**：
   1. **大模块 parse 截断**：如 `typeck.su` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
   2. **跨模块符号名**：`backend.o` 引用 `arch_arm64_*`，而 `arm64.o` 导出 `_arch_arm64_*` 或 `append_byte` 等待定。
   3. Linux 仍可在上述问题解决后试全量 `build_asm/*.o` 实验链；成功时打印 `Target-B-experimental`。**B-partial（crt0）** 仅在 **Linux** 且 crt0 链接成功时成立。
-- **bootstrap shu 双轨（2026-05-22）**：`parser.su` stmt_order 用 `out.num_lets`；`codegen.su` 发射 break/continue；`typeck.su` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import std.io `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-su` 全绿；**bootstrap `shu`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shu_su` 有差异，待 10.4.2 收窄 runtime。
+- **bootstrap shu 双轨（2026-05-22）**：`parser.su` stmt_order 用 `out.num_lets`；`codegen.su` 发射 break/continue；`typeck.su` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import("std.io") `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-su` 全绿；**bootstrap `shu`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shu_su` 有差异，待 10.4.2 收窄 runtime。
 
 ### 4.2 run-all 自举层级（L3 / L4 / L5）
 

@@ -1,0 +1,67 @@
+# STD-012 标准库示例目录（可运行 / 可 typeck）
+# 列：example_id	category	path	tier	notes
+# tier: cookbook | core | stdlib
+# 更新：新增示例须同步本表 + analysis/std-examples-v1.md
+ex_hello	hello	examples/hello.su	core	Hello World
+ex_cb_io_batch	io	examples/cookbook/io_batch_rw.su	cookbook	IO-01 batch
+ex_cb_io_chunk	io	examples/cookbook/io_read_chunk.su	cookbook	IO-02 read
+ex_cb_io_mmap	io	examples/cookbook/io_mmap_read.su	cookbook	IO-03 mmap
+ex_cb_net_listen	net	examples/cookbook/net_listen_bind.su	cookbook	NET-01 listen
+ex_cb_net_udp	net	examples/cookbook/net_udp_bind.su	cookbook	NET-02 udp
+ex_cb_net_stream	net	examples/cookbook/net_stream_write.su	cookbook	NET-03 stream
+ex_cb_zc_arena	zc	examples/cookbook/zc_arena_concat.su	cookbook	ZC-01 arena
+ex_cb_zc_view	zc	examples/cookbook/zc_read_ptr_slice.su	cookbook	ZC-02 read_ptr
+ex_cb_zc_provided	zc	examples/cookbook/zc_provided_buffers.su	cookbook	ZC-03 provided
+ex_cb_async_import	async	examples/cookbook/async_mod_import.su	cookbook	ASYNC-01
+ex_cb_async_drain	async	examples/cookbook/async_drain_idle.su	cookbook	ASYNC-02
+ex_cb_async_channel	async	examples/cookbook/async_channel_ping.su	cookbook	ASYNC-03
+ex_cb_iter_slice	core	examples/cookbook/iter_slice_sum.su	cookbook	ITER-01
+ex_cb_map	map	examples/cookbook/map_u64_get.su	cookbook	MAP-01
+ex_cb_vec	vec	examples/cookbook/vec_i32_push.su	cookbook	VEC-01
+ex_cb_set	set	examples/cookbook/set_u64_insert.su	cookbook	SET-01
+ex_cb_strview	string	examples/cookbook/strview_subview.su	cookbook	STR-01
+ex_cb_heap	heap	examples/cookbook/heap_trace_reset.su	cookbook	HEAP-01
+ex_cb_fmt	fmt	examples/cookbook/fmt_two_fields.su	cookbook	FMT-01
+ex_cb_error	error	examples/cookbook/error_module_base.su	cookbook	ERR-01
+ex_cb_env	env	examples/cookbook/env_args_iter.su	cookbook	ENV-01
+ex_cb_path	path	examples/cookbook/path_join_basename.su	cookbook	PATH-01
+ex_cb_fs	fs	examples/cookbook/fs_invalid_handle.su	cookbook	FS-01
+ex_cb_process	process	examples/cookbook/process_getpid.su	cookbook	PROC-01
+ex_cb_dynlib	dynlib	examples/cookbook/dynlib_open_sym.su	cookbook	DYN-01
+ex_cb_runtime	runtime	examples/cookbook/runtime_panic_hook.su	cookbook	RT-01
+ex_cb_json	json	examples/cookbook/json_object_parse.su	cookbook	JSON-01
+ex_cb_csv	csv	examples/cookbook/csv_write_row.su	cookbook	CSV-01
+ex_cb_unicode	unicode	examples/cookbook/unicode_nfc_smoke.su	cookbook	UNI-01
+ex_cb_tar	tar	examples/cookbook/tar_append_entry.su	cookbook	TAR-01
+ex_cb_compress	compress	examples/cookbook/compress_gzip_roundtrip.su	cookbook	CMP-01
+ex_cb_encoding	encoding	examples/cookbook/encoding_hex_encode.su	cookbook	ENC-01
+ex_cb_http	http	examples/cookbook/http_parse_status.su	cookbook	HTTP-01
+ex_cb_http_chunked	http	examples/cookbook/http_chunked_decode.su	cookbook	HTTP-02 STD-033
+ex_cb_net_resolve	net	examples/cookbook/net_resolve_invalid.su	cookbook	NET-04
+ex_cb_io_fallback	io	examples/cookbook/io_fallback_read.su	cookbook	IO-04
+ex_io_main	io	tests/io/main.su	stdlib	std.io 烟测
+ex_io_batch_smoke	io	tests/io/batch_rw_smoke.su	stdlib	batch 环回
+ex_io_mmap_smoke	zc	tests/io/read_ptr_mmap_smoke.su	stdlib	ZC-2 mmap
+ex_net_main	net	tests/net/main.su	stdlib	listen
+ex_fs_main	fs	tests/fs/main.su	stdlib	读写
+ex_fs_splice	fs	tests/fs/splice_smoke.su	stdlib	ZC-5 splice
+ex_channel	channel	tests/channel/main.su	stdlib	channel i32
+ex_heap	heap	tests/heap/main.su	stdlib	Arena64
+ex_json	json	tests/json/main.su	stdlib	JSON
+ex_log	log	tests/log/main.su	stdlib	结构化日志
+ex_process	process	tests/process/main.su	stdlib	spawn
+ex_thread	thread	tests/thread/main.su	stdlib	线程
+ex_hash	hash	tests/hash/main.su	stdlib	哈希
+ex_crypto	crypto	tests/crypto/main.su	stdlib	加密
+ex_path	path	tests/path/main.su	stdlib	路径
+ex_time	time	tests/time/main.su	stdlib	时间
+ex_error	error	tests/error/main.su	stdlib	错误码
+ex_result	result	tests/result/main.su	stdlib	Result
+ex_string_arena	string	tests/string/arena_concat_smoke.su	stdlib	ZC-4 view
+ex_async_import	async	tests/bench/async_mod_import.su	stdlib	import async
+ex_stdtest	std	tests/stdtest/main.su	stdlib	综合
+ex_vec	vec	tests/vec/main.su	stdlib	向量
+ex_map	map	tests/map/main.su	stdlib	映射
+ex_http	http	tests/http/main.su	stdlib	HTTP
+ex_exc_recover	exc	tests/exc/recoverable_result.su	stdlib	Layer A
+ex_dod_arena	heap	tests/dod/cl_arena64_smoke.su	stdlib	对齐 bump

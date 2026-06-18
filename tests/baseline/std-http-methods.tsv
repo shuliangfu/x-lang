@@ -1,0 +1,17 @@
+# STD-032 std.http POST/HEAD 与状态行解析 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	3
+read_path	section	## 1. 阅读路径	15min
+client_api	section	## 2. 客户端 API	post head parse_status_line
+status_parse	section	## 3. 状态行解析	HTTP/x.y CODE
+verify	section	## 4. 验证与门禁	gate
+api_post	api	post	std/http/mod.su	HTTP POST
+api_head	api	head	std/http/mod.su	HTTP HEAD
+api_parse	api	parse_status_line	std/http/mod.su	状态码解析
+symbol_post_c	symbol	http_post_c	std/http/http.c	C POST
+symbol_head_c	symbol	http_head_c	std/http/http.c	C HEAD
+symbol_parse_c	symbol	http_parse_status_line_c	std/http/http.c	C 解析
+impl_c	file	std/http/http.c	http_request_ex_c
+smoke_methods	smoke	tests/http/methods_status.su	离线+可选网络
+hook_http	hook_script	run-http.sh	GET 烟测
+cross_std009	cross_ref	tests/baseline/std-http-manifest.tsv	STD-009 GET/server

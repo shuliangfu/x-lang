@@ -8,6 +8,24 @@
 //
 // 底层拼写：f32x4 / i32x8 与 Vec4f / Vec8i 等价（parser + asm 后端）。
 
+extern function simd_hw_available_c(): i32;
+extern function simd_recommend_path_c(): i32;
+
+/** lane-scalar 回退路径常量（与 simd.c SIMD_PATH_SCALAR 一致）。 */
+function SIMD_PATH_SCALAR(): i32 { return 0; }
+/** 硬件向量 emit 路径常量（与 simd.c SIMD_PATH_HW 一致）。 */
+function SIMD_PATH_HW(): i32 { return 1; }
+
+/** 宿主是否具备已知 SIMD 能力（1/0）。 */
+function hw_available(): i32 {
+  return simd_hw_available_c();
+}
+
+/** STD-153：推荐向量化路径（0=scalar，1=hw）。 */
+function recommend_simd_path(): i32 {
+  return simd_recommend_path_c();
+}
+
 /** Vec8i 逐 lane 加法（当前 lane-scalar emit；SIMD-S3 起可矢量化）。 */
 function vec8i_add(a: Vec8i, b: Vec8i): Vec8i {
   return a + b;
@@ -78,7 +96,7 @@ function simd_select(mask: Vec8i, a: Vec8i, b: Vec8i): Vec8i {
   return r;
 }
 
-/** 占位：模块加载 smoke（import std.simd 链）。 */
+/** 占位：模块加载 smoke（import("std.simd") 链）。 */
 function simd_placeholder(): i32 {
   return 0;
 }

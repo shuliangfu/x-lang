@@ -1,0 +1,15 @@
+# TOOL-002 CI linter profile（默认 ci-default）
+# 列：profile_id	rule_id	tier	ci_fail	env_gate	notes
+# min_rows	6
+ci-default	L1-type-error	error	yes	-	typeck 阻断
+ci-default	L2-parse-error	error	yes	-	parse 阻断
+ci-default	L3-pad-fields	warn	no	SHU_PAD_FIELDS=1	布局伪共享
+ci-default	L4-hot-reorder	warn	no	SHU_HOT_REORDER=1	热字段 hint
+ci-default	L5-fmt-style	info	no	-	TOOL-001 fmt --check
+ci-default	L6-unused-hint	info	no	-	预留 v1.1
+ci-strict	L1-type-error	error	yes	-	同 default
+ci-strict	L2-parse-error	error	yes	-	同 default
+ci-strict	L3-pad-fields	warn	yes	SHU_PAD_FIELDS=1	strict 升档
+ci-strict	L4-hot-reorder	warn	yes	SHU_HOT_REORDER=1	strict 升档
+ci-strict	L5-fmt-style	info	no	-	fmt 仍 info
+ci-strict	L6-unused-hint	info	no	-	预留

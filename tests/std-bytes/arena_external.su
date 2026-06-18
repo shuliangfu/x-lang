@@ -1,0 +1,49 @@
+// tests/std-bytes/arena_external.su — STD-155 Arena 外部绑定 + append 烟测
+//
+// 【文件职责】验证 bytes_from_external 在 Arena64 slab 上 append，deinit 不释放 arena。
+const bytes = import("std.bytes");
+const heap = import("std.heap");
+
+function main(): i32 {
+  let arena: Arena64 = heap.arena64_empty();
+  if (heap.arena64_init(&arena, 256 as usize) != 0) {
+    return 1;
+  }
+
+  let slab: *u8 = heap.arena64_alloc(&arena, 64 as usize, 8 as usize);
+  if (slab == 0) {
+    heap.arena64_deinit(&arena);
+    return 2;
+  }
+
+  let b: Bytes = bytes.bytes_from_external(slab, 0, 64);
+  if (bytes.bytes_is_owned(b) != 0) {
+    heap.arena64_deinit(&arena);
+    return 3;
+  }
+  if (bytes.recommend_bytes_alloc_arena() != 0) {
+    heap.arena64_deinit(&arena);
+    return 4;
+  }
+
+  let data: [3]u8 = [1, 2, 3];
+  if (bytes.bytes_append_slice(&b, &data[0], 3) != 0) {
+    heap.arena64_deinit(&arena);
+    return 5;
+  }
+  if (bytes.bytes_len(b) != 3) {
+    heap.arena64_deinit(&arena);
+    return 6;
+  }
+
+  /* 外部绑定：deinit 不应破坏 arena chunk */
+  bytes.bytes_deinit(&b);
+  let slab2: *u8 = heap.arena64_alloc(&arena, 8 as usize, 8 as usize);
+  if (slab2 == 0) {
+    heap.arena64_deinit(&arena);
+    return 7;
+  }
+
+  heap.arena64_deinit(&arena);
+  return 0;
+}

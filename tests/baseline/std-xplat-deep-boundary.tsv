@@ -1,0 +1,18 @@
+# STD-138 三平台深度边界向量注册表
+# 列：case_id	kind	path	linux	macos	windows	notes
+min_rows	10
+min_smoke_cases	6
+deep_smoke	smoke	tests/xplat/deep_boundary.su	must	must	must	聚合烟测
+env_encoding	smoke	tests/env/platform_encoding.su	must	must	must	STD-132
+time_format	smoke	tests/time/format_timezone.su	must	must	must	STD-137
+io_fallback	gate	tests/run-std-io-fallback-gate.sh	must	must	must	STD-026
+fs_xplat	matrix	tests/baseline/std-fs-crossplatform.tsv	must	must	must	STD-003
+path_fs_win	gate	tests/run-std-path-fs-windows-gate.sh	must	must	must	STD-021/022
+dynlib_win	gate	tests/run-std-dynlib-windows-gate.sh	optional	optional	must	STD-027
+env_iter	gate	tests/run-std-env-iter-gate.sh	must	must	must	STD-025
+tst001	gate	tests/run-tst-001-boundary-gate.sh	must	must	must	TST-001
+tst002	gate	tests/run-tst-002-boundary-gate.sh	must	must	must	TST-002
+eng_ci	gate	tests/run-eng-crossplatform-ci-gate.sh	must	must	must	ENG-003
+regex_xplat	matrix	tests/baseline/std-regex-xplat.tsv	must	must	must	STD-051
+process_xplat	smoke	tests/process/xplat_behavior.su	must	must	must	STD-142
+process_xplat_gate	gate	tests/run-std-process-xplat-gate.sh	must	must	must	STD-142

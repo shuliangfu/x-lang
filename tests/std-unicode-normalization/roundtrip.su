@@ -1,0 +1,39 @@
+// STD-082：std.unicode NFD/NFKC/NFKD round-trip 烟测
+const unicode = import("std.unicode");
+
+/** 比较 buf 前 n 字节与 expect（最多 4 字节）。 */
+function bytes_eq4(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len: i32): i32 {
+  if (n != expect_len) { return 0; }
+  if (expect_len > 0 && buf[0] != e0) { return 0; }
+  if (expect_len > 1 && buf[1] != e1) { return 0; }
+  if (expect_len > 2 && buf[2] != e2) { return 0; }
+  if (expect_len > 3 && buf[3] != e3) { return 0; }
+  return 1;
+}
+
+function main(): i32 {
+  let decomposed: [3]u8 = [101, 204, 129];
+  let composed: [2]u8 = [195, 169];
+  let out: [8]u8 = [];
+  let n: i32 = 0;
+
+  if (norm_form_nfc() != 1) { return 1; }
+  if (norm_form_nfd() != 2) { return 2; }
+
+  n = nfc_buf(&decomposed[0], 3, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 3; }
+
+  n = nfd_buf(&composed[0], 2, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 101, 204, 129, 0, 3) == 0) { return 4; }
+
+  n = nfkc_buf(&decomposed[0], 3, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 5; }
+
+  n = nfkd_buf(&composed[0], 2, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 101, 204, 129, 0, 3) == 0) { return 6; }
+
+  n = nfc_buf(&out[0], n, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 7; }
+
+  return 0;
+}

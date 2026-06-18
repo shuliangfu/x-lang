@@ -1,0 +1,6 @@
+# STD-057 exec roundtrip vectors
+# 列：step_id	sql_ascii	expect_code	expect_changes	notes
+open_memory	:memory:	0	0	handle nonzero
+create_table	CREATE TABLE t(k INTEGER);	0	0	DDL
+insert_row	INSERT INTO t(k) VALUES (42);	0	1	DML
+close		0	0	DB_OK

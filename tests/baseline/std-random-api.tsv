@@ -1,0 +1,6 @@
+# std.random Tier-S stable public API (import std.random)
+fill_bytes
+u32
+u64
+range_u32
+bool

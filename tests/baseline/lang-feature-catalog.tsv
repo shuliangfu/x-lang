@@ -1,0 +1,6 @@
+# LANG-001 feature gate 符号目录
+# 列：symbol	tier	notes
+# min_symbols	3
+SHU_EDITION_2024	stable	默认稳定语法
+SHU_EDITION_2025	experimental	实验 edition opt-in
+SHU_FEATURE_MATCH_STMT	experimental	match 灰度样例

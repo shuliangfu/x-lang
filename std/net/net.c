@@ -884,8 +884,75 @@ uint32_t net_resolve_ipv4_c(const char *hostname) {
     if (res->ai_family == AF_INET && res->ai_addr && res->ai_addrlen >= sizeof(struct sockaddr_in)) {
         addr_u32 = ntohl(((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr);
     }
+  if (res) freeaddrinfo(res);
+  return addr_u32;
+}
+
+/** 将 getaddrinfo 错误映射为 STD-029 resolve_err_* 常量。 */
+static int32_t net_map_gai_error(int err) {
+#if defined(EAI_NONAME)
+  if (err == EAI_NONAME) return 1;
+#endif
+#if defined(EAI_NODATA)
+  if (err == EAI_NODATA) return 2;
+#endif
+#if defined(EAI_AGAIN)
+  if (err == EAI_AGAIN) return 3;
+#endif
+  (void)err;
+  return 4;
+}
+
+/**
+ * 可诊断 IPv4 DNS：成功返回 0 并写 *out_addr；失败返回 -1 并写 *out_err（resolve_err_*）。
+ */
+int32_t net_resolve_ipv4_ex_c(const char *hostname, uint32_t *out_addr, int32_t *out_err) {
+#if defined(_WIN32) || defined(_WIN64)
+  static int wsa_done;
+  if (!wsa_done) {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+      if (out_addr) *out_addr = 0;
+      if (out_err) *out_err = 4;
+      return -1;
+    }
+    wsa_done = 1;
+  }
+#endif
+  struct addrinfo hints;
+  struct addrinfo *res = NULL;
+  int ga;
+  uint32_t addr_u32 = 0;
+  if (!hostname) {
+    if (out_addr) *out_addr = 0;
+    if (out_err) *out_err = 4;
+    return -1;
+  }
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+#ifdef AI_ADDRCONFIG
+  hints.ai_flags = AI_ADDRCONFIG;
+#endif
+  ga = getaddrinfo(hostname, NULL, &hints, &res);
+  if (ga != 0 || !res) {
+    if (out_addr) *out_addr = 0;
+    if (out_err) *out_err = net_map_gai_error(ga);
     if (res) freeaddrinfo(res);
-    return addr_u32;
+    return -1;
+  }
+  if (res->ai_family == AF_INET && res->ai_addr && res->ai_addrlen >= sizeof(struct sockaddr_in)) {
+    addr_u32 = ntohl(((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr);
+  }
+  if (res) freeaddrinfo(res);
+  if (addr_u32 == 0) {
+    if (out_addr) *out_addr = 0;
+    if (out_err) *out_err = 2;
+    return -1;
+  }
+  if (out_addr) *out_addr = addr_u32;
+  if (out_err) *out_err = 0;
+  return 0;
 }
 
 /** std.io 批量读写（io.o）；TcpStream 首参 fd 与 AAPCS64 x0 低 32 位一致。 */

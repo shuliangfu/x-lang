@@ -37,6 +37,7 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <pthread.h>
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -71,6 +72,20 @@ int32_t driver_check_only_get(void) { return driver_check_only_flag ? 1 : 0; }
 static int driver_freestanding_flag;
 void driver_freestanding_set(int32_t v) { driver_freestanding_flag = (v != 0); }
 int32_t driver_freestanding_get(void) { return driver_freestanding_flag ? 1 : 0; }
+
+/** M-6：`-fsanitize=address` / SHU_SANITIZE_ADDRESS=1 时强制数组/切片 INDEX 边界检查（仅 debug 插桩）。 */
+static int driver_sanitize_address_flag;
+void driver_sanitize_address_set(int32_t v) { driver_sanitize_address_flag = (v != 0); }
+int32_t driver_sanitize_address_get(void) {
+    if (driver_sanitize_address_flag)
+        return 1;
+    {
+        const char *e = getenv("SHU_SANITIZE_ADDRESS");
+        if (e && e[0] && e[0] != '0')
+            return 1;
+    }
+    return 0;
+}
 
 static int driver_fmt_check_only_flag;
 /** shu fmt --check：仅校验格式，不写回；需 reform 时返回 1。 */
@@ -524,6 +539,20 @@ static const char *get_std_heap_o_path(const char *argv0) {
     return buf;
 }
 
+/** std.path 平台分隔符（std/path/path.o）；优先 cwd。 */
+static const char *get_std_path_o_path(const char *argv0) {
+    static char buf[512];
+    static char resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/path/path.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/path/path.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (!argv0 || !argv0[0]) return buf;
+    { const char *last_slash = strrchr(argv0, '/'); int n = last_slash ? (int)(last_slash - argv0) : 0;
+      if (last_slash && n + 22 < (int)sizeof(buf)) { memcpy(buf, argv0, (size_t)n); buf[n] = '\0'; strcat(buf, "/../std/path/path.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+      else if (!last_slash && 22 < (int)sizeof(buf)) { buf[0] = '.'; buf[1] = '\0'; strcat(buf, "/../std/path/path.o"); if (realpath(buf, resolved) != NULL) return resolved; } }
+    return buf;
+}
+
 /** std.runtime panic/abort（std/runtime/runtime.o）；优先 cwd。 */
 static const char *get_std_runtime_o_path(const char *argv0) {
     static char buf[512];
@@ -920,6 +949,32 @@ static const char *get_std_ffi_o_path(const char *argv0) {
     return buf;
 }
 
+/** 根据 cwd 或 argv[0] 得到 std/sqlite/sqlite.o 路径；优先 cwd。链接时需 -lsqlite3（SQLite 构建）。 */
+static const char *get_std_sqlite_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/sqlite/sqlite.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/std/sqlite/sqlite.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/sqlite/sqlite.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** 根据 cwd 或 argv[0] 得到 std/elf/elf.o 路径；优先 cwd。 */
+static const char *get_std_elf_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/elf/elf.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 18) != NULL) { size_t L = strlen(cwd); if (L + 18 <= sizeof(cwd)) { memcpy(cwd + L, "/std/elf/elf.o", 14); cwd[L+14] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 20 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/elf/elf.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
 /** P4 std 模块 .o 路径（按需链接）；优先 cwd 以兼容多工作区。 */
 static const char *get_std_json_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
@@ -1006,6 +1061,161 @@ static const char *get_std_tar_o_path(const char *argv0) {
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
         char *last = strrchr(buf, '/');
         if (last && (size_t)(last - buf) + 20 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/tar/tar.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+/** std.simd（std/simd/simd.o）；STD-153 策略探测符号。 */
+static const char *get_std_simd_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/simd/simd.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/std/simd/simd.o", 16); cwd[L+16] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/simd/simd.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.context（std/context/context.o）；依赖 std/time/time.o 的单调时钟符号。 */
+static const char *get_std_context_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/context/context.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 24) != NULL) { size_t L = strlen(cwd); if (L + 24 <= sizeof(cwd)) { memcpy(cwd + L, "/std/context/context.o", 22); cwd[L+22] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 26 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/context/context.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.datetime（std/datetime/datetime.o）；依赖 std/time/time.o 墙钟符号。 */
+static const char *get_std_datetime_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/datetime/datetime.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 26) != NULL) { size_t L = strlen(cwd); if (L + 26 <= sizeof(cwd)) { memcpy(cwd + L, "/std/datetime/datetime.o", 24); cwd[L+24] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 28 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/datetime/datetime.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.uuid（std/uuid/uuid.o）；依赖 std/random/random.o、std/time/time.o。 */
+static const char *get_std_uuid_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/uuid/uuid.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/uuid/uuid.o", 16); cwd[L+16] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 24 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/uuid/uuid.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.url（std/url/url.o）。 */
+static const char *get_std_url_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/url/url.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 18) != NULL) { size_t L = strlen(cwd); if (L + 18 <= sizeof(cwd)) { memcpy(cwd + L, "/std/url/url.o", 12); cwd[L+12] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 20 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/url/url.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.cli（std/cli/cli.o）。 */
+static const char *get_std_cli_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/cli/cli.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 18) != NULL) { size_t L = strlen(cwd); if (L + 18 <= sizeof(cwd)) { memcpy(cwd + L, "/std/cli/cli.o", 12); cwd[L+12] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 20 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/cli/cli.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.security（std/security/security.o）。 */
+static const char *get_std_security_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/security/security.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 26) != NULL) { size_t L = strlen(cwd); if (L + 26 <= sizeof(cwd)) { memcpy(cwd + L, "/std/security/security.o", 22); cwd[L+22] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 28 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/security/security.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.config（std/config/config.o）；依赖 std/env/env.o 的 env_iter 符号。 */
+static const char *get_std_config_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/config/config.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 24) != NULL) { size_t L = strlen(cwd); if (L + 24 <= sizeof(cwd)) { memcpy(cwd + L, "/std/config/config.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 26 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/config/config.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.cache（std/cache/cache.o）；依赖 std/time/time.o 的单调时钟符号。 */
+static const char *get_std_cache_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/cache/cache.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/cache/cache.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 24 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/cache/cache.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.trace（std/trace/trace.o）；依赖 std/time/time.o + std/random/random.o。 */
+static const char *get_std_trace_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/trace/trace.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/trace/trace.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 24 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/trace/trace.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.task（std/task/task.o）；依赖 scheduler + context + time。 */
+static const char *get_std_task_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/task/task.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/std/task/task.o", 16); cwd[L+16] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/task/task.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** std.schema（std/schema/schema.o）；依赖 json + csv。 */
+static const char *get_std_schema_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/schema/schema.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/schema/schema.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 24 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/schema/schema.o"); if (realpath(buf, resolved) != NULL) return resolved; }
     }
     return buf;
 }
@@ -1172,6 +1382,128 @@ static int generated_c_needs_async_scheduler(const char *c_path) {
     return 0;
 }
 
+/**
+ * 生成的 .c 是否引用 core.builtin 位运算 C 实现（按需链 core/builtin/builtin.o）。
+ */
+static int generated_c_needs_core_builtin(const char *c_path) {
+    FILE *fp;
+    char buf[4096];
+    if (!c_path || !c_path[0])
+        return 0;
+    fp = fopen(c_path, "r");
+    if (!fp)
+        return 0;
+    while (fgets(buf, sizeof buf, fp)) {
+        if (strstr(buf, "shulang_builtin_clz_u32") || strstr(buf, "shulang_builtin_ctz_u32")
+            || strstr(buf, "shulang_builtin_popcount_u32")
+            || strstr(buf, "shulang_builtin_bswap_u32") || strstr(buf, "shulang_builtin_rotl_u32")
+            || strstr(buf, "shulang_builtin_rotr_u32")) {
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+/** 扫描生成 C 是否引用 core.mem volatile/fence 符号（按需链 core/mem/mem.o）。 */
+static int generated_c_needs_core_mem(const char *c_path) {
+    FILE *fp;
+    char buf[4096];
+    if (!c_path || !c_path[0])
+        return 0;
+    fp = fopen(c_path, "r");
+    if (!fp)
+        return 0;
+    while (fgets(buf, sizeof buf, fp)) {
+        if (strstr(buf, "mem_volatile_") || strstr(buf, "mem_fence_") || strstr(buf, "mem_compiler_fence")) {
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+/** 扫描生成 C 是否引用 core.slice C 辅助符号（按需链 core/slice/slice.o）。 */
+static int generated_c_needs_core_slice(const char *c_path) {
+    FILE *fp;
+    char buf[4096];
+    if (!c_path || !c_path[0])
+        return 0;
+    fp = fopen(c_path, "r");
+    if (!fp)
+        return 0;
+    while (fgets(buf, sizeof buf, fp)) {
+        if (strstr(buf, "core_subslice_") || (strstr(buf, "core_slice_") && strstr(buf, "_from_ptr_c"))) {
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+/** 根据仓库根或 cwd 得到 core/builtin/builtin.o 路径。 */
+static const char *get_core_builtin_o_path(const char *repo_root) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (repo_root && repo_root[0]) {
+        (void)snprintf(buf, sizeof buf, "%s/core/builtin/builtin.o", repo_root);
+        if (realpath(buf, resolved) != NULL)
+            return resolved;
+    }
+    if (realpath("core/builtin/builtin.o", resolved) != NULL)
+        return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 24) != NULL) { size_t L = strlen(cwd); if (L + 24 <= sizeof(cwd)) { memcpy(cwd + L, "/core/builtin/builtin.o", 22); cwd[L+22] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    return buf;
+}
+
+/** core/builtin/builtin_abi.h 绝对路径；供 invoke_cc -include。 */
+static const char *get_core_builtin_abi_h_path(const char *repo_root) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (repo_root && repo_root[0]) {
+        (void)snprintf(buf, sizeof buf, "%s/core/builtin/builtin_abi.h", repo_root);
+        if (realpath(buf, resolved) != NULL)
+            return resolved;
+    }
+    if (realpath("core/builtin/builtin_abi.h", resolved) != NULL)
+        return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 28) != NULL) { size_t L = strlen(cwd); if (L + 28 <= sizeof(cwd)) { memcpy(cwd + L, "/core/builtin/builtin_abi.h", 26); cwd[L+26] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    return buf;
+}
+
+/** 根据仓库根或 cwd 得到 core/mem/mem.o 路径（CORE-017 volatile/fence）。 */
+static const char *get_core_mem_o_path(const char *repo_root) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (repo_root && repo_root[0]) {
+        (void)snprintf(buf, sizeof buf, "%s/core/mem/mem.o", repo_root);
+        if (realpath(buf, resolved) != NULL)
+            return resolved;
+    }
+    if (realpath("core/mem/mem.o", resolved) != NULL)
+        return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/core/mem/mem.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    return buf;
+}
+
+/** 根据仓库根或 cwd 得到 core/slice/slice.o 路径（CORE-004 subslice/chunks）。 */
+static const char *get_core_slice_o_path(const char *repo_root) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (repo_root && repo_root[0]) {
+        (void)snprintf(buf, sizeof buf, "%s/core/slice/slice.o", repo_root);
+        if (realpath(buf, resolved) != NULL)
+            return resolved;
+    }
+    if (realpath("core/slice/slice.o", resolved) != NULL)
+        return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/core/slice/slice.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    return buf;
+}
+
 #if defined(__linux__) || defined(__APPLE__)
 /**
  * 扫描用户 .o 的 nm 未定义符号表；若引用 sym 则返回 1。
@@ -1296,6 +1628,38 @@ static int asm_user_o_needs_async_scheduler(const char *user_o) {
     return 0;
 }
 
+/** 用户是否引用 core.mem volatile/fence（按需链 core/mem/mem.o）。 */
+static int asm_user_o_needs_core_mem(const char *user_o) {
+    if (freestanding_o_needs_undef_sym(user_o, "mem_compiler_fence_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "mem_volatile_load_u8_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "mem_volatile_load_u16_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "mem_volatile_load_u32_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "mem_fence_acquire_c"))
+        return 1;
+    return 0;
+}
+
+/** 用户是否引用 core.slice C 辅助（按需链 core/slice/slice.o）。 */
+static int asm_user_o_needs_core_slice(const char *user_o) {
+    if (freestanding_o_needs_undef_sym(user_o, "core_subslice_i32_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "core_subslice_u8_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "core_subslice_u64_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c"))
+        return 1;
+    if (freestanding_o_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c"))
+        return 1;
+    return 0;
+}
+
 /**
  * 用户 .o 是否仍有未定义外部符号（nm -u 非空）。
  * 自包含模块（如 return-value）可仅 gcc 链 user.o + -lc，避免 Alpine/musl 上全量 std/*.o 链接挂起。
@@ -1358,7 +1722,7 @@ static const char *asm_link_obj_skip_missing(const char *path) {
 }
 
 /** invoke_cc 子进程 realpath 缓冲池：不可共用单块 static，否则多次 push 后 argv 中旧槽指向最后被覆盖的路径。 */
-#define INVOKE_CC_ABS_POOL_SZ 40
+#define INVOKE_CC_ABS_POOL_SZ 80
 
 /**
  * invoke_cc 子进程：仅当 path 指向已存在的 .o 时追加到 argv（可选 realpath）。
@@ -1383,6 +1747,247 @@ static int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const
 #endif
     argv[(*ia)++] = (char *)use;
     return 1;
+}
+
+/**
+ * task.o 链入时须同时链入 scheduler.o；若调用方未显式传入则从 task_o 路径推导。
+ */
+static const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler) {
+    static char derived[PATH_MAX];
+    static char cwd_buf[PATH_MAX];
+    const char *from = "std/task/task.o";
+    const char *to = "std/async/scheduler.o";
+    char *pos;
+    if (explicit_scheduler && explicit_scheduler[0])
+        return explicit_scheduler;
+    if (!task_o || !task_o[0])
+        return NULL;
+    if (strlen(task_o) >= sizeof(derived))
+        return NULL;
+    memcpy(derived, task_o, strlen(task_o) + 1);
+    pos = strstr(derived, from);
+    if (pos) {
+        size_t tail = strlen(pos + strlen(from));
+        memmove(pos + strlen(to), pos + strlen(from), tail + 1);
+        memcpy(pos, to, strlen(to));
+        if (access(derived, F_OK) == 0)
+            return derived;
+    }
+    cwd_buf[0] = '\0';
+    if (realpath("std/async/scheduler.o", cwd_buf) != NULL)
+        return cwd_buf;
+    return NULL;
+}
+
+/**
+ * 检测 net.o 是否导出 TLS 后端 marker 符号（openssl / mbedtls）。
+ */
+static int net_o_exports_marker(const char *net_o, const char *marker) {
+    char cmd[PATH_MAX + 96];
+    FILE *fp;
+    char line[512];
+    const char *use = net_o;
+    static char resolved[PATH_MAX];
+    if (!net_o || !net_o[0] || !marker || !marker[0])
+        return 0;
+#if !defined(_WIN32) && !defined(_WIN64)
+    if (realpath(net_o, resolved) != NULL)
+        use = resolved;
+#endif
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
+        return 0;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 0;
+    while (fgets(line, sizeof line, fp)) {
+        if (strstr(line, marker) != NULL) {
+            pclose(fp);
+            return 1;
+        }
+    }
+    pclose(fp);
+    return 0;
+}
+
+/**
+ * 检测 .o 是否含未定义符号 sym（nm 行含 " U " 与 sym 子串）。
+ */
+static int obj_o_has_undef_sym(const char *obj_o, const char *sym) {
+    char cmd[PATH_MAX + 96];
+    FILE *fp;
+    char line[512];
+    const char *use = obj_o;
+    static char resolved[PATH_MAX];
+    if (!obj_o || !obj_o[0] || !sym || !sym[0])
+        return 0;
+#if !defined(_WIN32) && !defined(_WIN64)
+    if (realpath(obj_o, resolved) != NULL)
+        use = resolved;
+#endif
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
+        return 0;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 0;
+    while (fgets(line, sizeof line, fp)) {
+        if (strstr(line, " U ") != NULL && strstr(line, sym) != NULL) {
+            pclose(fp);
+            return 1;
+        }
+    }
+    pclose(fp);
+    return 0;
+}
+
+/** compress.o 是否依赖 libz（marker 或 zlib 未定义符号）。 */
+static int compress_o_needs_zlib(const char *compress_o) {
+    if (!compress_o || !compress_o[0])
+        return 0;
+    if (net_o_exports_marker(compress_o, "shu_compress_zlib_marker"))
+        return 1;
+    return obj_o_has_undef_sym(compress_o, "_compress2")
+        || obj_o_has_undef_sym(compress_o, "_deflate")
+        || obj_o_has_undef_sym(compress_o, "_inflate")
+        || obj_o_has_undef_sym(compress_o, "_uncompress");
+}
+
+/** compress.o 是否依赖 libzstd（marker 或 ZSTD 未定义符号）。 */
+static int compress_o_needs_zstd(const char *compress_o) {
+    if (!compress_o || !compress_o[0])
+        return 0;
+    if (net_o_exports_marker(compress_o, "shu_compress_zstd_marker"))
+        return 1;
+    return obj_o_has_undef_sym(compress_o, "ZSTD_") || obj_o_has_undef_sym(compress_o, "_ZSTD");
+}
+
+/** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
+static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
+#if defined(__APPLE__)
+    if (*la < max_la - 1)
+        argv[(*la)++] = "-L/opt/homebrew/lib";
+    if (*la < max_la - 1)
+        argv[(*la)++] = "-L/usr/local/lib";
+#else
+    (void)argv;
+    (void)la;
+    (void)max_la;
+#endif
+}
+
+/** ASM 链接：按 compress.o 实际依赖追加 -lz / -lzstd。 */
+static void asm_ld_append_compress_libs(const char *compress_o, const char **argv, int *la, int max_la) {
+    if (!compress_o || !compress_o[0] || !argv || !la)
+        return;
+    if (compress_o_needs_zlib(compress_o)) {
+        ld_append_brew_lib_paths(argv, la, max_la);
+        if (*la < max_la - 1)
+            argv[(*la)++] = "-lz";
+    }
+    if (compress_o_needs_zstd(compress_o)) {
+        ld_append_brew_lib_paths(argv, la, max_la);
+        if (*la < max_la - 1)
+            argv[(*la)++] = "-lzstd";
+    }
+}
+
+/** invoke_cc 链接：按 compress.o 实际依赖追加 -lz / -lzstd。 */
+static void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o) {
+    if (!compress_o || !compress_o[0] || !argv || !i || *i >= argv_cap - 1)
+        return;
+    if (compress_o_needs_zlib(compress_o)) {
+        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lz";
+    }
+    if (compress_o_needs_zstd(compress_o)) {
+        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lzstd";
+    }
+}
+
+/**
+ * 若 net.o 仍为 TLS 桩且 SHU_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
+ * SHU_NET_TLS：stub | openssl | mbedtls | auto（默认 auto）。
+ */
+static void ensure_std_net_o_auto_tls(const char *repo_root) {
+    char cmd[640];
+    char resolved[PATH_MAX];
+    const char *mode;
+    if (!repo_root || !repo_root[0])
+        return;
+    mode = getenv("SHU_NET_TLS");
+    if (!mode || !mode[0])
+        return;
+    if (strcmp(mode, "stub") == 0) {
+        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-stub >/dev/null 2>&1", repo_root);
+        (void)system(cmd);
+        return;
+    }
+    snprintf(cmd, sizeof(cmd), "%s/std/net/net.o", repo_root);
+    if (realpath(cmd, resolved) == NULL && realpath("std/net/net.o", resolved) == NULL)
+        return;
+    if (net_o_exports_marker(resolved, "shu_net_tls_openssl_marker") ||
+        net_o_exports_marker(resolved, "shu_net_tls_mbedtls_marker"))
+        return;
+    if (strcmp(mode, "openssl") == 0) {
+        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-openssl >/dev/null 2>&1", repo_root);
+        (void)system(cmd);
+        return;
+    }
+    if (strcmp(mode, "mbedtls") == 0) {
+        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-mbedtls >/dev/null 2>&1", repo_root);
+        (void)system(cmd);
+        return;
+    }
+    if (strcmp(mode, "auto") != 0)
+        return;
+    snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-openssl >/dev/null 2>&1", repo_root);
+    if (system(cmd) != 0) {
+        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-mbedtls >/dev/null 2>&1", repo_root);
+        (void)system(cmd);
+    }
+}
+
+/**
+ * net.o 为 OpenSSL/mbedTLS 后端时追加对应 -L/-l 链接参数；返回 1 表示已追加。
+ */
+static int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o) {
+    static char hb_ssl_lib[72] = "-L/opt/homebrew/opt/openssl/lib";
+    static char hb_mb_lib[72] = "-L/opt/homebrew/opt/mbedtls/lib";
+    const char *use = net_o;
+    static char resolved[PATH_MAX];
+    if (!net_o || !net_o[0] || !i || *i >= argv_cap - 1)
+        return 0;
+#if !defined(_WIN32) && !defined(_WIN64)
+    if (realpath(net_o, resolved) != NULL)
+        use = resolved;
+#endif
+    if (net_o_exports_marker(use, "shu_net_tls_openssl_marker")) {
+#if defined(__APPLE__)
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = hb_ssl_lib;
+#endif
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lssl";
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lcrypto";
+        return 1;
+    }
+    if (net_o_exports_marker(use, "shu_net_tls_mbedtls_marker")) {
+#if defined(__APPLE__)
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = hb_mb_lib;
+#endif
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lmbedtls";
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lmbedx509";
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lmbedcrypto";
+        return 1;
+    }
+    return 0;
 }
 
 #if defined(SHU_USE_SU_PIPELINE) || defined(SHU_USE_SU_DRIVER)
@@ -1666,6 +2271,8 @@ typedef struct ShuAsmLdStdLinkFlags {
     int have_math;
     int have_compress;
     int have_dynlib;
+    int have_sqlite;
+    int have_elf;
 } ShuAsmLdStdLinkFlags;
 
 /** 将 path 复制到 bank 下一槽（path 常为栈上 snprintf 结果）；成功返回持久指针；满则返回 NULL。 */
@@ -1736,13 +2343,27 @@ static void asm_ld_append_on_demand_user_objs(const char *link_argv0, const char
     const char *p;
     if (!user_o || !user_o[0] || !la || *la >= max_la - 1)
         return;
-    if (!asm_user_o_needs_async_scheduler(user_o))
-        return;
-    p = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
-    if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
-    if (p && *la < max_la - 1)
-        argv[(*la)++] = p;
+    if (asm_user_o_needs_async_scheduler(user_o)) {
+        p = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
+        if (!p && bank)
+            p = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+        if (p && *la < max_la - 1)
+            argv[(*la)++] = p;
+    }
+    if (asm_user_o_needs_core_mem(user_o)) {
+        p = asm_link_obj_skip_missing(get_core_mem_o_path(NULL));
+        if (!p && bank)
+            p = shu_asm_ld_try_under_lib_roots("core/mem/mem.o", lib_roots, n_lib_roots, bank);
+        if (p && *la < max_la - 1)
+            argv[(*la)++] = p;
+    }
+    if (asm_user_o_needs_core_slice(user_o)) {
+        p = asm_link_obj_skip_missing(get_core_slice_o_path(NULL));
+        if (!p && bank)
+            p = shu_asm_ld_try_under_lib_roots("core/slice/slice.o", lib_roots, n_lib_roots, bank);
+        if (p && *la < max_la - 1)
+            argv[(*la)++] = p;
+    }
 #else
     (void)link_argv0;
     (void)user_o;
@@ -1800,6 +2421,12 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
     p = asm_link_obj_skip_missing(get_std_heap_o_path(link_argv0));
     if (!p && bank)
         p = shu_asm_ld_try_under_lib_roots("std/heap/heap.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_path_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/path/path.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
@@ -1927,6 +2554,22 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
+    p = asm_link_obj_skip_missing(get_std_sqlite_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/sqlite/sqlite.o", lib_roots, n_lib_roots, bank);
+    if (p) {
+        if (*la < max_la - 1) argv[(*la)++] = p;
+        if (flags) flags->have_sqlite = 1;
+    }
+
+    p = asm_link_obj_skip_missing(get_std_elf_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/elf/elf.o", lib_roots, n_lib_roots, bank);
+    if (p) {
+        if (*la < max_la - 1) argv[(*la)++] = p;
+        if (flags) flags->have_elf = 1;
+    }
+
     p = asm_link_obj_skip_missing(get_std_json_o_path(link_argv0));
     if (!p && bank)
         p = shu_asm_ld_try_under_lib_roots("std/json/json.o", lib_roots, n_lib_roots, bank);
@@ -1979,6 +2622,90 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
+    p = asm_link_obj_skip_missing(get_std_simd_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/simd/simd.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_context_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/context/context.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_datetime_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/datetime/datetime.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_uuid_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/uuid/uuid.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_url_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/url/url.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_cli_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/cli/cli.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_security_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/security/security.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_config_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/config/config.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_cache_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/cache/cache.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_trace_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/trace/trace.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_task_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/task/task.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1) {
+        const char *task_o = p;
+        argv[(*la)++] = p;
+        /* task.o 依赖 scheduler；与 invoke_cc 中 scheduler_o_for_task_link 对齐 */
+        {
+            const char *sched = scheduler_o_for_task_link(task_o, NULL);
+            if (!sched)
+                sched = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
+            if (!sched && bank)
+                sched = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+            if (sched && *la < max_la - 1)
+                argv[(*la)++] = sched;
+        }
+    }
+
+    p = asm_link_obj_skip_missing(get_std_schema_o_path(link_argv0));
+    if (!p && bank)
+        p = shu_asm_ld_try_under_lib_roots("std/schema/schema.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
     p = asm_link_obj_skip_missing(get_std_test_o_path(link_argv0));
     if (!p && bank)
         p = shu_asm_ld_try_under_lib_roots("std/test/test.o", lib_roots, n_lib_roots, bank);
@@ -2023,8 +2750,10 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
             if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
-            if (ldflags.have_compress && la < SHU_LD_ARGV_CAP - 1)
-                argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if (ldflags.have_sqlite && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
             if (need_pt && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-pthread";
             /* clang 已隐式链接 libSystem，勿再传 -lSystem，否则 ld 报 duplicate libraries */
@@ -2044,8 +2773,10 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
             if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
-            if (ldflags.have_compress && la < SHU_LD_ARGV_CAP - 1)
-                argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if (ldflags.have_sqlite && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
             if (need_pt && la < SHU_LD_ARGV_CAP - 1)
                 argv[la++] = "-pthread";
             if (la < SHU_LD_ARGV_CAP - 1)
@@ -2168,7 +2899,10 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-luring";
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
             if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
-            if ((ldflags.have_compress) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
 #if defined(__linux__)
             if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
@@ -2176,14 +2910,20 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
         } else if (ldflags.have_net && need_pt) {
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
             if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
-            if ((ldflags.have_compress) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
 #if defined(__linux__)
             if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else if (ldflags.have_net) {
             if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
-            if ((ldflags.have_compress) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
 #if defined(__linux__)
             if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
@@ -2191,14 +2931,20 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
         } else if (need_pt) {
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
             if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
-            if ((ldflags.have_compress) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
 #if defined(__linux__)
             if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
             if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else {
             if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
-            if ((ldflags.have_compress) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lz";
+            if (ldflags.have_compress)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                argv[la++] = "-lsqlite3";
 #if defined(__linux__)
             if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
@@ -2742,7 +3488,7 @@ static int invoke_ld(const char *o_path, const char *exe_path, const char *targe
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
 /* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..len-1] 写到 FILE* */
-#define SU_CODEGEN_OUTBUF_CAP (8 * 1024 * 1024)
+#define SU_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
     unsigned char data[SU_CODEGEN_OUTBUF_CAP];
     int32_t len;
@@ -3076,10 +3822,60 @@ static void get_entry_dir(const char *input_path, char *entry_dir, size_t size) 
 }
 
 /**
+ * 判断 import 字符串是否为文件路径（相对/绝对/.su），而非逻辑模块名 std.io。
+ */
+static int import_path_is_file_path(const char *import_path) {
+    if (!import_path || !import_path[0])
+        return 0;
+    if (import_path[0] == '/' || import_path[0] == '.')
+        return 1;
+    if (strchr(import_path, '/') != NULL)
+        return 1;
+    size_t n = strlen(import_path);
+    if (n >= 3 && strcmp(import_path + n - 3, ".su") == 0)
+        return 1;
+    return 0;
+}
+
+/**
+ * 将相对/绝对文件路径解析为可打开的 .su 路径（相对 entry_dir）。
+ */
+static void resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+    char tmp[1024];
+    if (import_path[0] == '/') {
+        (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
+    } else if (entry_dir && entry_dir[0]) {
+        (void)snprintf(tmp, sizeof(tmp), "%s/%s", entry_dir, import_path);
+    } else {
+        (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
+    }
+#if defined(_POSIX_VERSION) || defined(__APPLE__)
+    {
+        char resolved[1024];
+        if (realpath(tmp, resolved) != NULL) {
+            (void)snprintf(path, path_size, "%s", resolved);
+            return;
+        }
+    }
+#endif
+    (void)snprintf(path, path_size, "%s", tmp);
+}
+
+/**
  * 解析 import 路径到实际 .su 文件路径：依次在 lib_roots[0..n_lib_roots-1] 下查找；先试单文件再试 mod.su；若均无且为单段路径则试 entry_dir（多文件 7.3）。支持多 -L（9.1 联调 std+lexer）。
- * 参数：lib_roots 库根数组；n_lib_roots 个数；entry_dir 入口所在目录（可为 NULL 或 ""）；import_path 如 "foo" 或 "core.types"；path 输出；path_size 缓冲区大小。
+ * 参数：lib_roots 库根数组；n_lib_roots 个数；entry_dir 入口所在目录（可为 NULL 或 ""）；import_path 如 "foo" 或 "core.types" 或 "../lib/helper.su"；path 输出；path_size 缓冲区大小。
  */
 static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+    if (import_path_is_file_path(import_path)) {
+        resolve_file_import_path(entry_dir, import_path, path, path_size);
+        if (access(path, R_OK) == 0)
+            return;
+        if (import_path[0] != '/') {
+            (void)snprintf(path, path_size, "%s", import_path);
+            if (access(path, R_OK) == 0)
+                return;
+        }
+    }
     for (int r = 0; r < n_lib_roots; r++) {
         const char *lib_root = lib_roots[r] && lib_roots[r][0] ? lib_roots[r] : ".";
         import_path_to_file_path(lib_root, import_path, path, path_size);
@@ -3394,6 +4190,7 @@ static const char *token_kind_str(TokenKind k) {
         case TOKEN_VOID:    return "VOID";
         case TOKEN_INT:     return "INT";
         case TOKEN_FLOAT:   return "FLOAT";
+        case TOKEN_STRING:  return "STRING";
         case TOKEN_LPAREN:  return "LPAREN";
         case TOKEN_RPAREN:  return "RPAREN";
         case TOKEN_LBRACE:  return "LBRACE";
@@ -3489,10 +4286,12 @@ static char *read_file(const char *path, size_t *out_len) {
  * include_root：可选，仓库根目录，用于 -I 以便生成 .c 能 #include std/fs、path、map、error 等 ABI 头；NULL 或空则不传 -I。
  * 返回值：0 表示 cc 执行成功且退出码为 0；-1 表示参数非法、fork/exec 失败或 cc 非零退出。
  */
-static int invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
+static int invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
+    if (include_root && include_root[0])
+        ensure_std_net_o_auto_tls(include_root);
     pid_t pid = fork();
     if (pid < 0) {
         perror("shu: fork");
@@ -3500,9 +4299,9 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
     }
     if (pid == 0) {
         /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHU_CC_EXTRA(至多 8) + NULL */
-        char *argv[MAX_C_FILES + 35];
+        char *argv[MAX_C_FILES + 48];
         int i = 0;
-        const int argv_cap = MAX_C_FILES + 35;
+        const int argv_cap = MAX_C_FILES + 48;
         argv[i++] = (char *)"cc";
         /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
         argv[i++] = (char *)"-std=gnu11";
@@ -3530,6 +4329,33 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         }
         for (int j = 0; j < n && i < MAX_C_FILES + 8; j++)
             argv[i++] = (char *)c_paths[j];
+        {
+            int needs_core_builtin = 0;
+            int needs_core_mem = 0;
+            int needs_core_slice = 0;
+            for (int j = 0; j < n; j++) {
+                if (generated_c_needs_core_builtin(c_paths[j]))
+                    needs_core_builtin = 1;
+                if (generated_c_needs_core_mem(c_paths[j]))
+                    needs_core_mem = 1;
+                if (generated_c_needs_core_slice(c_paths[j]))
+                    needs_core_slice = 1;
+            }
+            if (needs_core_builtin) {
+                const char *abi_h = get_core_builtin_abi_h_path(include_root);
+                if (abi_h && abi_h[0]) {
+                    if (i < argv_cap - 2) {
+                        argv[i++] = (char *)"-include";
+                        argv[i++] = (char *)abi_h;
+                    }
+                }
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_core_builtin_o_path(include_root));
+            }
+            if (needs_core_mem)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_core_mem_o_path(include_root));
+            if (needs_core_slice)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_core_slice_o_path(include_root));
+        }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, io_o)) {
 #if defined(__linux__)
             if (i < argv_cap - 1)
@@ -3546,9 +4372,11 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, string_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, path_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o);
+        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o))
+            (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o)) {
@@ -3571,11 +4399,14 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             argv[i++] = (char *)"-lm";
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, sort_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
+        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, db_o) && i < argv_cap - 1)
+            argv[i++] = (char *)"-lsqlite3";
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, json_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, csv_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o) && i < argv_cap - 1)
-            argv[i++] = (char *)"-lz";
+        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
+            invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, unicode_o);
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, dynlib_o)) {
 #if defined(__linux__)
@@ -3585,12 +4416,34 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, async_scheduler_o)) {
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cli_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, security_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, config_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cache_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, trace_o);
+        {
+            int task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
+            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
+            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o);
+            if (task_linked) {
+                const char *sched = scheduler_o_for_task_link(task_o, async_scheduler_o);
+                if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched)) {
 #if defined(__linux__)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-pthread";
+                    if (i < argv_cap - 1)
+                        argv[i++] = (char *)"-pthread";
 #endif
+                }
+            } else if (invoke_cc_argv_push_existing(argv, &i, argv_cap, async_scheduler_o)) {
+#if defined(__linux__)
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-pthread";
+#endif
+            }
         }
 #if defined(__linux__) || defined(__APPLE__)
         /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
@@ -3822,6 +4675,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-flto") == 0) {
             use_lto = 1;
+        } else if (strcmp(argv[i], "-fsanitize=address") == 0) {
+            driver_sanitize_address_set(1);
+        } else if (strcmp(argv[i], "-freestanding") == 0) {
+            driver_freestanding_set(1);
+        } else if (strcmp(argv[i], "-legacy-f32-abi") == 0) {
+            setenv("SHU_ABI_F32_XMM", "0", 1);
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
@@ -4754,6 +5613,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *process_o = get_std_process_o_path(argv[0]);
         const char *string_o = get_std_string_o_path(argv[0]);
         const char *heap_o = get_std_heap_o_path(argv[0]);
+        const char *path_o = get_std_path_o_path(argv[0]);
         const char *runtime_o = get_std_runtime_o_path(argv[0]);
         const char *runtime_panic_o = get_runtime_panic_o_path(argv[0]);
         const char *net_o = get_std_net_o_path(argv[0]);
@@ -4773,6 +5633,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *math_o = get_std_math_o_path(argv[0]);
         const char *sort_o = get_std_sort_o_path(argv[0]);
         const char *ffi_o = get_std_ffi_o_path(argv[0]);
+        const char *db_o = get_std_sqlite_o_path(argv[0]);
+        const char *elf_o = get_std_elf_o_path(argv[0]);
         const char *json_o = get_std_json_o_path(argv[0]);
         const char *csv_o = get_std_csv_o_path(argv[0]);
         const char *regex_o = get_std_regex_o_path(argv[0]);
@@ -4781,11 +5643,23 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *dynlib_o = get_std_dynlib_o_path(argv[0]);
         const char *http_o = get_std_http_o_path(argv[0]);
         const char *tar_o = get_std_tar_o_path(argv[0]);
+        const char *simd_o = get_std_simd_o_path(argv[0]);
+        const char *context_o = get_std_context_o_path(argv[0]);
+        const char *datetime_o = get_std_datetime_o_path(argv[0]);
+        const char *uuid_o = get_std_uuid_o_path(argv[0]);
+        const char *url_o = get_std_url_o_path(argv[0]);
+        const char *cli_o = get_std_cli_o_path(argv[0]);
+        const char *security_o = get_std_security_o_path(argv[0]);
+        const char *config_o = get_std_config_o_path(argv[0]);
+        const char *cache_o = get_std_cache_o_path(argv[0]);
+        const char *trace_o = get_std_trace_o_path(argv[0]);
+        const char *task_o = get_std_task_o_path(argv[0]);
+        const char *schema_o = get_std_schema_o_path(argv[0]);
         const char *test_o = get_std_test_o_path(argv[0]);
         const char *async_scheduler_o = NULL;
         if (generated_c_needs_async_scheduler(tmp_c))
             async_scheduler_o = get_std_async_scheduler_o_path(argv[0]);
-        int cc_ok = invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), async_scheduler_o);
+        int cc_ok = invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), async_scheduler_o);
         unlink(tmp_c);
         while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
         ast_module_free(mod);
@@ -5152,6 +6026,7 @@ int run_compiler_su_path(int argc, char **argv) {
             const char *process_o = get_std_process_o_path(argv[0]);
             const char *string_o = get_std_string_o_path(argv[0]);
             const char *heap_o = get_std_heap_o_path(argv[0]);
+            const char *path_o = get_std_path_o_path(argv[0]);
             const char *runtime_o = get_std_runtime_o_path(argv[0]);
             const char *runtime_panic_o = get_runtime_panic_o_path(argv[0]);
             const char *net_o = get_std_net_o_path(argv[0]);
@@ -5171,6 +6046,8 @@ int run_compiler_su_path(int argc, char **argv) {
             const char *math_o = get_std_math_o_path(argv[0]);
             const char *sort_o = get_std_sort_o_path(argv[0]);
             const char *ffi_o = get_std_ffi_o_path(argv[0]);
+            const char *db_o = get_std_sqlite_o_path(argv[0]);
+            const char *elf_o = get_std_elf_o_path(argv[0]);
             const char *json_o = get_std_json_o_path(argv[0]);
             const char *csv_o = get_std_csv_o_path(argv[0]);
             const char *regex_o = get_std_regex_o_path(argv[0]);
@@ -5179,8 +6056,20 @@ int run_compiler_su_path(int argc, char **argv) {
             const char *dynlib_o = get_std_dynlib_o_path(argv[0]);
             const char *http_o = get_std_http_o_path(argv[0]);
             const char *tar_o = get_std_tar_o_path(argv[0]);
+            const char *simd_o = get_std_simd_o_path(argv[0]);
+            const char *context_o = get_std_context_o_path(argv[0]);
+            const char *datetime_o = get_std_datetime_o_path(argv[0]);
+            const char *uuid_o = get_std_uuid_o_path(argv[0]);
+            const char *url_o = get_std_url_o_path(argv[0]);
+            const char *cli_o = get_std_cli_o_path(argv[0]);
+            const char *security_o = get_std_security_o_path(argv[0]);
+            const char *config_o = get_std_config_o_path(argv[0]);
+            const char *cache_o = get_std_cache_o_path(argv[0]);
+            const char *trace_o = get_std_trace_o_path(argv[0]);
+            const char *task_o = get_std_task_o_path(argv[0]);
+            const char *schema_o = get_std_schema_o_path(argv[0]);
             const char *test_o = get_std_test_o_path(argv[0]);
-            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
+            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
                 fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
             } else if (!getenv("SHULANG_KEEP_C")) {
@@ -5691,6 +6580,54 @@ void driver_diagnostic_pipe_marker(int32_t id) {
         fprintf(stderr, "shu: [SHU_DEBUG_PIPE] pipe_marker=%d\n", (int)id);
 }
 
+/** OBS-001：编译阶段耗时埋点；phase 0=parse(+dep load) 1=typeck 2=codegen。 */
+#define SHU_COMPILE_PHASE_MAX 3
+
+static double g_compile_phase_acc_ms[SHU_COMPILE_PHASE_MAX];
+static double g_compile_phase_start_sec[SHU_COMPILE_PHASE_MAX];
+static int g_compile_phase_active[SHU_COMPILE_PHASE_MAX];
+
+/** 是否启用 SHU_COMPILE_PHASE_TIMING=1 阶段计时。 */
+static int compile_phase_timing_enabled(void) {
+    return getenv("SHU_COMPILE_PHASE_TIMING") != NULL;
+}
+
+/** 单调 wall-clock 秒（gettimeofday，跨 Linux/macOS）。 */
+static double compile_phase_now_sec(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
+}
+
+/** 标记阶段开始；由 pipeline.su run_su_pipeline_impl 调用。 */
+void driver_compile_phase_timing_begin(int32_t phase) {
+    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHU_COMPILE_PHASE_MAX)
+        return;
+    g_compile_phase_start_sec[phase] = compile_phase_now_sec();
+    g_compile_phase_active[phase] = 1;
+}
+
+/** 累加阶段耗时（毫秒）；可多次 begin/end 同 phase 时叠加。 */
+void driver_compile_phase_timing_end(int32_t phase) {
+    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHU_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
+        return;
+    g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
+    g_compile_phase_active[phase] = 0;
+}
+
+/** 打印一行汇总并清零；check-only 跳过 codegen 时仍输出 parse/typeck。 */
+void driver_compile_phase_timing_flush(void) {
+    if (!compile_phase_timing_enabled())
+        return;
+    double total = g_compile_phase_acc_ms[0] + g_compile_phase_acc_ms[1] + g_compile_phase_acc_ms[2];
+    fprintf(stderr,
+            "shu: [SHU_COMPILE_PHASE_TIMING] parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f\n",
+            g_compile_phase_acc_ms[0], g_compile_phase_acc_ms[1], g_compile_phase_acc_ms[2], total);
+    fflush(stderr);
+    memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
+    memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
+}
+
 /** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */
 void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
     (void)j;
@@ -5858,22 +6795,45 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
  * 须在 #if SHU_USE_SU_PIPELINE 外：C 前端 typeck.o（shu-c）也调用。 */
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
                                                        int32_t f0_len, const uint8_t *f1, int32_t f1_len) {
-    fprintf(stderr,
-            "warning: -pad-fields: struct '%.*s' fields '%.*s' and '%.*s' share a 64-byte cache line; "
-            "consider align(64) to avoid false sharing\n",
-            (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
-            (int)(f0_len > 0 ? f0_len : 0), (const char *)(f0 ? f0 : (const uint8_t *)""),
-            (int)(f1_len > 0 ? f1_len : 0), (const char *)(f1 ? f1 : (const uint8_t *)""));
+    char msg[384];
+    snprintf(msg, sizeof msg,
+             "warning: -pad-fields: struct '%.*s' fields '%.*s' and '%.*s' share a 64-byte cache line; "
+             "consider align(64) to avoid false sharing",
+             (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
+             (int)(f0_len > 0 ? f0_len : 0), (const char *)(f0 ? f0 : (const uint8_t *)""),
+             (int)(f1_len > 0 ? f1_len : 0), (const char *)(f1 ? f1 : (const uint8_t *)""));
+    if (lsp_diag_enabled)
+        lsp_diag_add(1, 1, 2, msg);
+    else
+        fprintf(stderr, "%s\n", msg);
 }
 
 /** DOD-CL-S2 -hot-reorder：热标量字段宜置大字段之前；C 前端 typeck.o 亦调用。 */
 void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
                                               int32_t hot_len, const uint8_t *cold, int32_t cold_len) {
-    fprintf(stderr,
-            "warning: -hot-reorder: struct '%.*s': consider moving hot field '%.*s' before '%.*s'\n",
-            (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
-            (int)(hot_len > 0 ? hot_len : 0), (const char *)(hot ? hot : (const uint8_t *)""),
-            (int)(cold_len > 0 ? cold_len : 0), (const char *)(cold ? cold : (const uint8_t *)""));
+    char msg[256];
+    snprintf(msg, sizeof msg,
+             "warning: -hot-reorder: struct '%.*s': consider moving hot field '%.*s' before '%.*s'",
+             (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
+             (int)(hot_len > 0 ? hot_len : 0), (const char *)(hot ? hot : (const uint8_t *)""),
+             (int)(cold_len > 0 ? cold_len : 0), (const char *)(cold ? cold : (const uint8_t *)""));
+    if (lsp_diag_enabled)
+        lsp_diag_add(1, 1, 2, msg);
+    else
+        fprintf(stderr, "%s\n", msg);
+}
+
+/** L6-unused-hint：未使用的 let/const/import 绑定（SHU_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
+void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len) {
+    char msg[160];
+    int ln = (line > 0) ? (int)line : 1;
+    int cl = (col > 0) ? (int)col : 1;
+    snprintf(msg, sizeof msg, "unused binding '%.*s'",
+             (int)(name_len > 0 ? name_len : 0), (const char *)(name ? name : (const uint8_t *)""));
+    if (lsp_diag_enabled)
+        lsp_diag_add(ln, cl, 3, msg);
+    else
+        fprintf(stderr, "info: %s\n", msg);
 }
 
 #ifdef SHU_USE_SU_DRIVER
@@ -6679,6 +7639,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         return 1;
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
+    driver_set_pipeline_entry_source_len(src_len);
+    if (getenv("SHU_DEBUG_PIPE"))
+        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] driver_first_parse num_funcs=%d src_len=%zu\n",
+            driver_get_module_num_funcs(module), src_len);
     int32_t n_imports_entry = parser_get_module_num_imports(module);
     char entry_dir_buf[512];
     get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
@@ -6741,9 +7705,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
         }
     }
-    memset(arena, 0, arena_sz);
-    memset(module, 0, module_sz);
-    parser_parse_into_init(module, arena);
+    /*
+     * 入口已在上方 parser_parse_into_buf 解析（driver_first_parse）；勿再 memset module/arena，
+     * 否则 pipeline 二次 strict parse 大模块仅 ~4 func（parser.su）；见 run-parser-parse-count-gate.sh。
+     */
     typeck_ndep = 0;
     FILE *asm_out = NULL;
     int emit_elf_o = 0;
@@ -7010,7 +7975,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
     codegen_set_dep_slots_for_su_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
     codegen_set_preamble_has_core_option_result(1);
-    pctx->entry_already_parsed = 0;
+    /**
+     * 入口已在上方 parser_parse_into_buf 解析进 module/arena；pipeline 内勿 pipeline_strict_parse_into_init 重 parse
+     * （大模块 parser.su 二次 parse 仅 ~4 func，见 run-parser-parse-count-gate.sh）。
+     */
+    pctx->entry_already_parsed = 1;
     int ec = 0;
     {
         /* === SHU_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
@@ -7254,12 +8223,14 @@ typedef struct DriverCompileParsed {
  */
 /** 预处理后源码是否含顶层 import（seed asm 对这类入口 SU parse 易 0 func，改走 C 前端）。 */
 static int driver_source_has_top_level_import(const char *src, size_t src_len) {
-    if (!src || src_len < 7)
+    if (!src || src_len < 9)
         return 0;
     const char *p = src;
     const char *end = src + src_len;
-    while (p + 7 <= end) {
-        if (memcmp(p, "import ", 7) == 0)
+    while (p + 9 <= end) {
+        if (memcmp(p, "import(\"", 8) == 0)
+            return 1;
+        if (memcmp(p, "= import(", 9) == 0)
             return 1;
         p++;
     }
@@ -7632,6 +8603,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *process_o = get_std_process_o_path(argv[0]);
                 const char *string_o = get_std_string_o_path(argv[0]);
                 const char *heap_o = get_std_heap_o_path(argv[0]);
+                const char *path_o = get_std_path_o_path(argv[0]);
                 const char *runtime_o = get_std_runtime_o_path(argv[0]);
                 const char *runtime_panic_o = get_runtime_panic_o_path(argv[0]);
                 const char *net_o = get_std_net_o_path(argv[0]);
@@ -7651,6 +8623,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *math_o = get_std_math_o_path(argv[0]);
                 const char *sort_o = get_std_sort_o_path(argv[0]);
                 const char *ffi_o = get_std_ffi_o_path(argv[0]);
+                const char *db_o = get_std_sqlite_o_path(argv[0]);
+                const char *elf_o = get_std_elf_o_path(argv[0]);
                 const char *json_o = get_std_json_o_path(argv[0]);
                 const char *csv_o = get_std_csv_o_path(argv[0]);
                 const char *regex_o = get_std_regex_o_path(argv[0]);
@@ -7659,8 +8633,20 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *dynlib_o = get_std_dynlib_o_path(argv[0]);
                 const char *http_o = get_std_http_o_path(argv[0]);
                 const char *tar_o = get_std_tar_o_path(argv[0]);
+                const char *simd_o = get_std_simd_o_path(argv[0]);
+                const char *context_o = get_std_context_o_path(argv[0]);
+                const char *datetime_o = get_std_datetime_o_path(argv[0]);
+                const char *uuid_o = get_std_uuid_o_path(argv[0]);
+                const char *url_o = get_std_url_o_path(argv[0]);
+                const char *cli_o = get_std_cli_o_path(argv[0]);
+                const char *security_o = get_std_security_o_path(argv[0]);
+                const char *config_o = get_std_config_o_path(argv[0]);
+                const char *cache_o = get_std_cache_o_path(argv[0]);
+                const char *trace_o = get_std_trace_o_path(argv[0]);
+                const char *task_o = get_std_task_o_path(argv[0]);
+                const char *schema_o = get_std_schema_o_path(argv[0]);
                 const char *test_o = get_std_test_o_path(argv[0]);
-                int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
+                int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
                 if (cc_ret != 0)
                     fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
                 else if (!getenv("SHULANG_KEEP_C"))
@@ -8011,6 +8997,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *process_o = get_std_process_o_path(argv[0]);
             const char *string_o = get_std_string_o_path(argv[0]);
             const char *heap_o = get_std_heap_o_path(argv[0]);
+            const char *path_o = get_std_path_o_path(argv[0]);
             const char *runtime_o = get_std_runtime_o_path(argv[0]);
             const char *runtime_panic_o = get_runtime_panic_o_path(argv[0]);
             const char *net_o = get_std_net_o_path(argv[0]);
@@ -8030,6 +9017,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *math_o = get_std_math_o_path(argv[0]);
             const char *sort_o = get_std_sort_o_path(argv[0]);
             const char *ffi_o = get_std_ffi_o_path(argv[0]);
+            const char *db_o = get_std_sqlite_o_path(argv[0]);
+            const char *elf_o = get_std_elf_o_path(argv[0]);
             const char *json_o = get_std_json_o_path(argv[0]);
             const char *csv_o = get_std_csv_o_path(argv[0]);
             const char *regex_o = get_std_regex_o_path(argv[0]);
@@ -8038,8 +9027,20 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *dynlib_o = get_std_dynlib_o_path(argv[0]);
             const char *http_o = get_std_http_o_path(argv[0]);
             const char *tar_o = get_std_tar_o_path(argv[0]);
+            const char *simd_o = get_std_simd_o_path(argv[0]);
+            const char *context_o = get_std_context_o_path(argv[0]);
+            const char *datetime_o = get_std_datetime_o_path(argv[0]);
+            const char *uuid_o = get_std_uuid_o_path(argv[0]);
+            const char *url_o = get_std_url_o_path(argv[0]);
+            const char *cli_o = get_std_cli_o_path(argv[0]);
+            const char *security_o = get_std_security_o_path(argv[0]);
+            const char *config_o = get_std_config_o_path(argv[0]);
+            const char *cache_o = get_std_cache_o_path(argv[0]);
+            const char *trace_o = get_std_trace_o_path(argv[0]);
+            const char *task_o = get_std_task_o_path(argv[0]);
+            const char *schema_o = get_std_schema_o_path(argv[0]);
             const char *test_o = get_std_test_o_path(argv[0]);
-            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, test_o, get_repo_root(argv[0]), NULL);
+            int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
                 fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
             } else if (!getenv("SHULANG_KEEP_C")) {
@@ -8225,6 +9226,7 @@ int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t
 /** `-freestanding` / argv 解析 glue：前置声明（parse_argv_step_c 早于本 TU 内定义；GCC 禁止隐式声明）。 */
 void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
 void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_argv_set_sanitize_address_c(void);
 void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
 
 /**
@@ -8275,6 +9277,9 @@ static int drv_eq_minus_freestanding(const char *buf, int len) {
 }
 static int drv_eq_legacy_f32_abi(const char *buf, int len) {
     return len == 15 && !memcmp(buf, "-legacy-f32-abi", 15);
+}
+static int drv_eq_fsanitize_address(const char *buf, int len) {
+    return len == 18 && !memcmp(buf, "-fsanitize=address", 18);
 }
 static int drv_eq_minus_backend(const char *buf, int len) {
     return len == 8 && !memcmp(buf, "-backend", 8);
@@ -8345,6 +9350,10 @@ static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompile
     }
     if (drv_eq_legacy_f32_abi(arg_buf, len)) {
         driver_compile_argv_set_legacy_f32_abi_c();
+        return i + 1;
+    }
+    if (drv_eq_fsanitize_address(arg_buf, len)) {
+        driver_sanitize_address_set(1);
         return i + 1;
     }
     if (drv_eq_minus_backend(arg_buf, len) && i + 1 < argc) {
@@ -8538,6 +9547,11 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
 /** `-legacy-f32-abi`：等价 SHU_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
 void driver_compile_argv_set_legacy_f32_abi_c(void) {
     setenv("SHU_ABI_F32_XMM", "0", 1);
+}
+
+/** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关闭，零开销）。 */
+void driver_compile_argv_set_sanitize_address_c(void) {
+    driver_sanitize_address_set(1);
 }
 
 /** -backend <asm|c>：更新 use_asm_backend/backend_asm_explicit。 */

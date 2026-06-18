@@ -2,53 +2,53 @@
  * ZC-4 smoke：StackStr（SSO_STACK）栈内联 + stack_str_view 零拷贝 + arena concat。
  * 全程无 heap_alloc；exit 0。
  */
-import std.string;
-import std.heap;
+const string = import("std.string");
+const heap = import("std.heap");
 
 function main(): i32 {
-  let ss: StackStr = stack_str_new();
+  let ss: StackStr = string.stack_str_new();
   let src: [5]u8 = [104, 101, 108, 108, 111];
-  if (stack_str_from_slice(&ss, &src[0], 5) != 0) {
+  if (string.stack_str_from_slice(&ss, &src[0], 5) != 0) {
     return 1;
   }
-  if (stack_str_len(&ss) != 5) {
+  if (string.stack_str_len(&ss) != 5) {
     return 2;
   }
-  let v: StrView = stack_str_view(&ss);
+  let v: StrView = string.stack_str_view(&ss);
   let hello: [5]u8 = [104, 101, 108, 108, 111];
-  let exp: StrView = string_view(&hello[0], 5);
-  if (string_view_eq(v, exp) != 1) {
+  let exp: StrView = string.string_view(&hello[0], 5);
+  if (string.string_view_eq(v, exp) != 1) {
     return 3;
   }
-  if (stack_str_append_char(&ss, 33) != 0) {
+  if (string.stack_str_append_char(&ss, 33) != 0) {
     return 4;
   }
-  let v2: StrView = stack_str_view(&ss);
-  if (string_view_len(v2) != 6) {
+  let v2: StrView = string.stack_str_view(&ss);
+  if (string.string_view_len(v2) != 6) {
     return 5;
   }
-  if (string_view_get(v2, 5) != 33) {
+  if (string.string_view_get(v2, 5) != 33) {
     return 6;
   }
-  let arena: Arena64 = arena64_empty();
-  if (arena64_init(&arena, 512) != 0) {
+  let arena: Arena64 = heap.arena64_empty();
+  if (heap.arena64_init(&arena, 512) != 0) {
     return 7;
   }
   let world: [6]u8 = [32, 119, 111, 114, 108, 100];
-  let vw: StrView = string_view(&world[0], 6);
-  let joined: StrView = string_view_concat_arena(&arena, v2, vw);
-  if (string_view_len(joined) != 12) {
-    arena64_deinit(&arena);
+  let vw: StrView = string.string_view(&world[0], 6);
+  let joined: StrView = string.string_view_concat_arena(&arena, v2, vw);
+  if (string.string_view_len(joined) != 12) {
+    heap.arena64_deinit(&arena);
     return 8;
   }
-  if (string_view_get(joined, 5) != 33) {
-    arena64_deinit(&arena);
+  if (string.string_view_get(joined, 5) != 33) {
+    heap.arena64_deinit(&arena);
     return 9;
   }
-  if (string_view_get(joined, 6) != 32) {
-    arena64_deinit(&arena);
+  if (string.string_view_get(joined, 6) != 32) {
+    heap.arena64_deinit(&arena);
     return 10;
   }
-  arena64_deinit(&arena);
+  heap.arena64_deinit(&arena);
   return 0;
 }

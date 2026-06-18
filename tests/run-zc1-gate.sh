@@ -39,6 +39,10 @@ echo "=== ZC-1: provided buffers smoke ==="
 ./tests/run-provided-buffers.sh | tee /tmp/zc1_smoke.log
 
 if grep -q "provided buffers smoke N/A" /tmp/zc1_smoke.log; then
+  if [ -n "${SHU_CI_REQUIRE_ZC1:-}" ] && [ "$(uname -s)" = "Linux" ]; then
+    echo "ZC-1 gate FAIL: provided buffers N/A on Linux (SHU_CI_REQUIRE_ZC1=1)" >&2
+    exit 1
+  fi
   echo "ZC-1 gate OK (provided buffers N/A on this runner)"
   if [ "$DO_PERF" -eq 1 ]; then
     exit 0

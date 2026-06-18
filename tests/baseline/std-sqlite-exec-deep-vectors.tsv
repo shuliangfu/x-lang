@@ -1,0 +1,6 @@
+# STD-065 exec tx roundtrip vectors
+# 列：step_id	action	expect_code	expect_changes	notes
+tx_begin	begin_tx	0	0	BEGIN IMMEDIATE
+tx_insert	exec INSERT	0	1	DML in tx
+tx_commit	commit	0	1	persist
+tx_rollback	begin+rollback	0	0	ROLLBACK path

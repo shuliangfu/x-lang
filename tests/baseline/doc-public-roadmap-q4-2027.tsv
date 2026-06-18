@@ -1,0 +1,17 @@
+# DOC-014 2027-Q4 路线图刷新 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 阅读路径	analysis/doc-public-roadmap-q4-2027-v1.md
+change_summary	section	## 2. Q4 变更摘要	analysis/doc-public-roadmap-q4-2027-v1.md
+anchor_q4	anchor	2027-Q4	analysis/doc-public-roadmap-v1.md	当季版本
+anchor_wave5	anchor	BOOT-024	analysis/doc-public-roadmap-v1.md	§4 亮点
+anchor_qemu	anchor	COMP-018	analysis/doc-public-roadmap-v1.md	riscv64 QEMU
+anchor_query_rows	anchor	STD-066	analysis/doc-public-roadmap-v1.md	query_rows
+cross_roadmap	cross_ref	DOC-005	analysis/doc-public-roadmap-v1.md	DOC-005
+cross_next	cross_ref	§2.16	NEXT.md	Phase 3 第五批
+cross_doc013	cross_ref	DOC-013	analysis/doc-public-roadmap-q3-v1.md	Q3 刷新
+cross_plan005	cross_ref	PLAN-005	analysis/phase3-roadmap-wave5-v1.md	wave5
+template	file	tests/templates/doc-public-roadmap-quarter.txt	tests/templates/doc-public-roadmap-quarter.txt	Q4 checklist
+manifest_doc005	file	tests/baseline/doc-public-roadmap.tsv	tests/baseline/doc-public-roadmap.tsv	quarter_anchor
+hook_doc005	hook_script	run-doc-public-roadmap-gate.sh	tests/run-doc-public-roadmap-gate.sh	DOC-005 gate
+lib	script	lib/doc-public-roadmap-q4-2027.sh	tests/lib/doc-public-roadmap-q4-2027.sh
+gate	script	run-doc-public-roadmap-q4-2027-gate.sh	tests/run-doc-public-roadmap-q4-2027-gate.sh

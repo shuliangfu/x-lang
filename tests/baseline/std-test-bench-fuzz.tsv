@@ -1,0 +1,21 @@
+# STD-054 std.test bench/fuzz manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	5
+read_path	section	## 1. 阅读路径	15min
+bench_api	section	## 2. bench 占位 API	bench_run
+fuzz_api	section	## 3. fuzz 占位 API	fuzz_seed
+verify	section	## 5. 门禁	gate
+api_bench_run	api	bench_run	std/test/mod.su	计时
+api_bench_report	api	bench_report	std/test/mod.su	报告
+api_fuzz_seed	api	fuzz_seed	std/test/mod.su	种子
+api_fuzz_next	api	fuzz_next	std/test/mod.su	PRNG
+api_fuzz_run	api	fuzz_run	std/test/mod.su	runner
+symbol_bench_c	symbol	test_bench_run_c	std/test/test.c	C bench
+symbol_fuzz_c	symbol	test_fuzz_run_c	std/test/test.c	C fuzz
+symbol_smoke_c	symbol	test_bench_fuzz_smoke_c	std/test/test.c	C 烟测
+smoke_c	file	tests/std-test/bench_fuzz_ok.c	C 入口
+smoke_bench	smoke	tests/std-test/bench_smoke.su	bench_report
+smoke_fuzz	smoke	tests/std-test/fuzz_smoke.su	fuzz_next
+smoke_regress	smoke	tests/stdtest/main.su	expect 回归
+lib	script	lib/std-test-bench-fuzz.sh	tests/lib/std-test-bench-fuzz.sh
+gate	script	run-std-test-bench-fuzz-gate.sh	tests/run-std-test-bench-fuzz-gate.sh

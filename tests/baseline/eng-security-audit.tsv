@@ -1,0 +1,19 @@
+# ENG-007 安全扫描与依赖审计 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+min_tracks	4
+read_path	section	## 1. 阅读路径	analysis/eng-security-audit-v1.md	-	10min
+tracks	section	## 2. 审计轨 T1–T4	analysis/eng-security-audit-v1.md	-	四轨
+inventory	section	## 3. 依赖清单	analysis/eng-security-audit-v1.md	-	清单
+report	section	## 4. 报告格式	analysis/eng-security-audit-v1.md	-	SHU_SECURITY_AUDIT
+schedule	section	## 5. 调度与门禁	analysis/eng-security-audit-v1.md	-	periodic
+track_t1	track	T1-deps-inventory	analysis/eng-security-audit-v1.md	inventory	清单锚点
+track_t2	track	T2-npm-audit	analysis/eng-security-audit-v1.md	npm	npm audit
+track_t3	track	T3-secret-probe	analysis/eng-security-audit-v1.md	secret	密钥探测
+track_t4	track	T4-report	analysis/eng-security-audit-v1.md	report	SHU_SECURITY_AUDIT
+inventory_file	template	eng-security-audit-inventory.txt	tests/templates/eng-security-audit-inventory.txt	-	依赖清单
+lib	script	lib/eng-security-audit.sh	tests/lib/eng-security-audit.sh	-	共享库
+runner	script	run-eng-security-audit.sh	tests/run-eng-security-audit.sh	-	周期 runner
+gate	script	run-eng-security-audit-gate.sh	tests/run-eng-security-audit-gate.sh	-	manifest
+workflow	hook	ci-nightly.yml	.github/workflows/ci-nightly.yml	-	夜跑
+cross_safe003	cross_ref	analysis/safe-unsafe-audit-v1.md	SAFE-003	unsafe 审计
+cross_tool008	cross_ref	tests/baseline/tool-deps-lock.tsv	TOOL-008	lockfile

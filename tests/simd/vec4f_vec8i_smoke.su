@@ -1,14 +1,14 @@
 // SIMD-S2 烟测：Vec4f / Vec8i 类型解析 + lane 运算 + asm 栈槽 emit。
-import std.simd;
+const simd = import("std.simd");
 
 function main(): i32 {
-  let vi: Vec8i = vec8i_splat(1);
-  let vj: Vec8i = vec8i_splat(2);
-  let vk: Vec8i = vec8i_add(vi, vj);
-  let vf: Vec4f = vec4f_splat(1.0);
-  let vg: Vec4f = vec4f_splat(2.0);
-  let vh: Vec4f = vec4f_add(vf, vg);
+  let vi: Vec8i = simd.vec8i_splat(1);
+  let vj: Vec8i = simd.vec8i_splat(2);
+  let vk: Vec8i = simd.vec8i_add(vi, vj);
+  let vf: Vec4f = simd.vec4f_splat(1.0);
+  let vg: Vec4f = simd.vec4f_splat(2.0);
+  let vh: Vec4f = simd.vec4f_add(vf, vg);
   let _unused: Vec8i = vk - vk;
   let _unused2: Vec4f = vh - vh;
-  return simd_placeholder();
+  return simd.simd_placeholder();
 }

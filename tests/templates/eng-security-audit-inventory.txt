@@ -1,0 +1,12 @@
+# ENG-007 已知外部依赖清单（v1）
+# 列：category	name	anchor_file	anchor_token	notes
+# gate/runner 校验 name 出现在 anchor_file 且含 anchor_token
+npm	vscode-languageclient	editors/vscode/package.json	vscode-languageclient	LSP 客户端
+npm	typescript	editors/vscode/package.json	typescript	扩展编译
+npm	@types/node	editors/vscode/package.json	@types/node	dev 类型
+npm	@types/vscode	editors/vscode/package.json	@types/vscode	dev 类型
+native	pthread	compiler/src/runtime.c	-lpthread	Unix 线程
+native	z	compiler/src/runtime.c	-lz	zlib 压缩
+native	zstd	compiler/src/runtime.c	-lzstd	std.compress
+native	uring	compiler/Makefile	-luring	Linux io_uring
+native	math	compiler/src/runtime.c	-lm	数学库

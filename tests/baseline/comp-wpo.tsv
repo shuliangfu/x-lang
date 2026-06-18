@@ -1,0 +1,44 @@
+# COMP-004 WPO v1 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_stages	6
+# min_cases	4
+# min_prod_hooks	5
+# min_default_hooks	5
+# min_global_hooks	5
+read_path	section	## 1. 阅读路径	analysis/comp-wpo-v1.md	-	20min
+stages	section	## 2. 阶段 W1–W6	comp-wpo.tsv	-	wpo
+prototype	section	## 3. 原型目录	comp-wpo-prototype.tsv	-	prototype
+cases	section	## 4. Golden 用例	analysis/comp-wpo-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/comp-wpo-v1.md	-	gate
+stage_w1	stages	W1-reach-dce	compiler/src/codegen/codegen.c	dce	reach
+stage_w2	stages	W2-callgraph-s1	compiler/scripts/wpo_dce.pl	s1	JSON
+stage_w3	stages	W3-const-spec-s2	compiler/scripts/wpo_const_spec.pl	s2	fold
+stage_w4	stages	W4-stack-promote-s3	tests/run-wpo-s3-gate.sh	s3	asm
+stage_w5	stages	W5-pgo-s4	tests/run-wpo-s4-gate.sh	s4	hot
+stage_w6	stages	W6-optin-prototype	tests/run-pipeline-wpo-optin-smoke.sh	optin	prototype
+sym_reach	symbol	codegen_wpo_reach_compute	compiler/src/codegen/codegen.c	wpo	构建
+sym_dump	symbol	SHU_WPO_DUMP_CALLGRAPH	compiler/src/runtime.c	env	导出
+case_dead	case	case_dead_fn	tests/wpo/dead_fn.su	dce	-E
+case_user	case	case_dead_user	tests/wpo/dead_user.su	import	7
+case_if	case	case_if_reach	tests/wpo/if_block_reach.su	branch	reach
+case_const	case	case_const_spec	tests/wpo/const_spec.su	s2	v2
+hook_dce	hook_script	run-wpo-dce-emit.sh	run-wpo-dce-emit.sh	-	DCE
+hook_s1	hook_script	run-wpo-s1.sh	run-wpo-s1.sh	-	graph
+hook_full	hook_ref	run-wpo-full-chain-gate.sh	tests/run-wpo-full-chain-gate.sh	Linux	全链
+prod_dce	hook_prod	run-wpo-dce-emit.sh	run-wpo-dce-emit.sh	prod	DCE 持续烟测
+prod_reach_typeck	hook_prod	run-wpo-typeck-reach-gate.sh	run-wpo-typeck-reach-gate.sh	prod	typeck reach
+prod_reach_pipeline	hook_prod	run-wpo-pipeline-reach-gate.sh	run-wpo-pipeline-reach-gate.sh	prod	pipeline reach
+prod_chain	hook_prod	run-wpo-build-asm-chain-gate.sh	run-wpo-build-asm-chain-gate.sh	prod	build_asm 五模块
+prod_strict	hook_prod	run-wpo-strict-link-gate.sh	run-wpo-strict-link-gate.sh	prod	strict_glue 链
+default_backend_reach	hook_default	run-wpo-backend-reach-gate.sh	run-wpo-backend-reach-gate.sh	default	backend reach
+default_backend_o	hook_default	run-wpo-backend-o-gate.sh	run-wpo-backend-o-gate.sh	default	backend .text
+default_main_o	hook_default	run-wpo-main-o-gate.sh	run-wpo-main-o-gate.sh	default	main .text
+default_driver_o	hook_default	run-wpo-driver-o-gate.sh	run-wpo-driver-o-gate.sh	default	driver .text
+default_full_chain	hook_default	run-wpo-full-chain-gate.sh	run-wpo-full-chain-gate.sh	default	全链 gate
+global_typeck_o	hook_global	run-wpo-typeck-o-gate.sh	run-wpo-typeck-o-gate.sh	global	typeck .text
+global_pipeline_o	hook_global	run-wpo-pipeline-o-gate.sh	run-wpo-pipeline-o-gate.sh	global	pipeline .text
+global_strict_glue_text	hook_global	run-wpo-strict-glue-text-gate.sh	run-wpo-strict-glue-text-gate.sh	global	strict_glue .text
+global_stretch	hook_global	run-wpo-stretch-gate.sh	run-wpo-stretch-gate.sh	global	stretch ≥3%
+global_optin	hook_global	run-pipeline-wpo-optin-smoke.sh	run-pipeline-wpo-optin-smoke.sh	global	opt-in 烟测
+gate	script	run-comp-wpo-gate.sh	tests/run-comp-wpo-gate.sh	-	manifest
+hook_comp	hook_script	run-comp-wpo.sh	run-comp-wpo.sh	-	烟测

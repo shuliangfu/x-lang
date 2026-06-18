@@ -1,0 +1,17 @@
+/**
+ * Cookbook FMT-02：std.fmt format_2 / format_3 多字段拼接（函数重载）。
+ */
+const fmt = import("std.fmt");
+
+function main(): i32 {
+  let buf: [64]u8 = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ];
+  if (fmt.format_2(buf, 64, 10, 20) != 4) { return 1; }
+  if (fmt.format_2(buf, 64, 1 as usize, 2 as usize) != 2) { return 2; }
+  if (fmt.format_3(buf, 64, 1, 2, 3) != 3) { return 3; }
+  return 0;
+}

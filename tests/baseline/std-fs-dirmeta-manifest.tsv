@@ -1,0 +1,22 @@
+# STD-123 std.fs dir/meta manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	10
+read_path	section	## 1. 阅读路径	analysis/std-fs-dirmeta-v1.md
+api_doc	section	## 2. 目录/元数据 API	analysis/std-fs-dirmeta-v1.md
+verify	section	## 3. Gate	analysis/std-fs-dirmeta-v1.md
+api_stat	api	fs_stat	std/fs/mod.su	stat
+api_chmod	api	fs_chmod	std/fs/mod.su	chmod
+api_mkdir	api	fs_mkdir	std/fs/mod.su	mkdir
+api_unlink	api	fs_unlink	std/fs/mod.su	unlink
+api_rmdir	api	fs_rmdir	std/fs/mod.su	rmdir
+api_dir_open	api	fs_dir_open	std/fs/mod.su	opendir
+api_dir_read	api	fs_dir_read	std/fs/mod.su	readdir
+api_dir_close	api	fs_dir_close	std/fs/mod.su	closedir
+api_mode_file	api	fs_mode_file_default	std/fs/mod.su	0644
+api_mode_dir	api	fs_mode_dir_default	std/fs/mod.su	0755
+symbol_stat_c	symbol	fs_stat_c	std/fs/fs.c	C stat
+symbol_dir_open_c	symbol	fs_dir_open_c	std/fs/fs.c	C opendir
+smoke_su	smoke	tests/fs/dirmeta_roundtrip.su	.su烟测
+smoke_c	smoke	tests/fs/dirmeta_smoke_ok.c	C烟测
+lib	script	lib/std-fs-dirmeta.sh	tests/lib/std-fs-dirmeta.sh
+gate	script	run-std-fs-dirmeta-gate.sh	tests/run-std-fs-dirmeta-gate.sh

@@ -10,7 +10,7 @@
 // semanticTokens、rename、shutdown、exit、$/cancelRequest、workspace/didChangeConfiguration。
 // 高性能：诊断有文档哈希缓存（不变则跳过重解析）。
 
-import lsp_io;
+const lsp_io = import("lsp_io");
 
 /** 单条消息 body 安全上限（1MiB）；顶层 let 须在任意 extern/function 之前，供
 * C 解析器正确识别。LSP 单条 JSON 远小于此；勿 per-message malloc 64MiB（Alpine CI OOM/SIGSEGV）。 */

@@ -66,13 +66,35 @@ PREPROCESS_SU_DEPS = src/preprocess/preprocess.su
 ../std/heap/heap.o: ../std/heap/heap.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# std.path：平台主分隔符 path_sep_c（std/path/path.c）；供 std.path path_sep() 使用。
+../std/path/path.o: ../std/path/path.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 # std.runtime：panic/abort 对接 shulang_panic_（std/runtime/runtime.c）；链接时需与 runtime_panic.o 同链。
 ../std/runtime/runtime.o: ../std/runtime/runtime.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # std.net：TCP socket（std/net/net.c）；链接用户程序时由 runtime.c 链入 ../std/net/net.o。
+# TLS：net-o-openssl 启用 SHU_NET_USE_OPENSSL（OpenSSL 头路径自动回退 Homebrew）。
 ../std/net/net.o: ../std/net/net.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+net-o-openssl: ../std/net/net.c
+	@if $(CC) $(CFLAGS) -DSHU_NET_USE_OPENSSL -c -o ../std/net/net.o $< 2>/dev/null; then \
+	  echo "net-o-openssl: system OpenSSL"; \
+	else \
+	  $(CC) $(CFLAGS) -I/opt/homebrew/opt/openssl/include -DSHU_NET_USE_OPENSSL -c -o ../std/net/net.o $<; \
+	fi
+
+net-o-stub: ../std/net/net.c
+	$(CC) $(CFLAGS) -c -o ../std/net/net.o ../std/net/net.c
+
+net-o-mbedtls: ../std/net/net.c
+	@if $(CC) $(CFLAGS) -DSHU_NET_USE_MBEDTLS -I/opt/homebrew/opt/mbedtls/include -c -o ../std/net/net.o $< 2>/dev/null; then \
+	  echo "net-o-mbedtls: homebrew mbedtls"; \
+	else \
+	  $(CC) $(CFLAGS) -DSHU_NET_USE_MBEDTLS -c -o ../std/net/net.o $<; \
+	fi
 
 # std.thread：线程（std/thread/thread.c）；链接时由 runtime.c 链入 ../std/thread/thread.o，Unix 需 -lpthread。
 ../std/thread/thread.o: ../std/thread/thread.c
@@ -96,6 +118,8 @@ PREPROCESS_SU_DEPS = src/preprocess/preprocess.su
 
 # std.sync：互斥锁（std/sync/sync.c）；链接用户程序时由 runtime.c 链入 ../std/sync/sync.o；Unix 需 -lpthread。
 ../std/sync/sync.o: ../std/sync/sync.c
+# std.queue：STD-048 并发烟测（std/queue/queue.c）；Unix 需 -lpthread。
+../std/queue/queue.o: ../std/queue/queue.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # std.encoding：UTF-8/ASCII（std/encoding/encoding.c）
@@ -142,8 +166,75 @@ PREPROCESS_SU_DEPS = src/preprocess/preprocess.su
 ../std/sort/sort.o: ../std/sort/sort.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# core.builtin：位运算热路径（core/builtin/builtin.c）；按需链入（CORE-009）。
+../core/builtin/builtin.o: ../core/builtin/builtin.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# core.mem：volatile/fence（core/mem/mem.c）；按需链入（CORE-017）。
+../core/mem/mem.o: ../core/mem/mem.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# core.slice：subslice 视图构造（core/slice/slice.c）；按需链入（CORE-004/157）。
+../core/slice/slice.o: ../core/slice/slice.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 # std.ffi：C 字符串互操作（std/ffi/ffi.c）；链接时由 runtime.c 链入。
 ../std/ffi/ffi.o: ../std/ffi/ffi.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.context：取消/超时/deadline 传播（std/context/context.c）；链接时由 runtime.c 链入。
+../std/context/context.o: ../std/context/context.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.datetime：RFC3339/DateTime/Duration（std/datetime/datetime.c）；依赖 std/time/time.o。
+../std/datetime/datetime.o: ../std/datetime/datetime.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.uuid：UUID v4/v7（std/uuid/uuid.c）；依赖 random.o + time.o。
+../std/uuid/uuid.o: ../std/uuid/uuid.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.url：URL parse/build/query（std/url/url.c）。
+../std/url/url.o: ../std/url/url.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.cli：命令行解析（std/cli/cli.c）。
+../std/cli/cli.o: ../std/cli/cli.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.security：HKDF / secure_zero / mlock（std/security/security.c）。
+../std/security/security.o: ../std/security/security.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.config：分层配置 TOML/ENV（std/config/config.c）；依赖 std/env/env.o。
+../std/config/config.o: ../std/config/config.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.cache：LRU/TTL 缓存与对象池（std/cache/cache.c）；依赖 std/time/time.o。
+../std/cache/cache.o: ../std/cache/cache.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.trace：Span 追踪（std/trace/trace.c）；依赖 std/time + std/random。
+../std/trace/trace.o: ../std/trace/trace.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.task：TaskGroup/JoinSet（std/task/task.c）；依赖 scheduler + context + time。
+../std/task/task.o: ../std/task/task.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.schema：typed decode/validate（std/schema/schema.c）；依赖 json + csv。
+../std/schema/schema.o: ../std/schema/schema.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# std.sqlite：默认 SQLite3 后端（std/sqlite/sqlite.c）；无 libsqlite3 时用 sqlite-o-stub。
+../std/sqlite/sqlite.o: ../std/sqlite/sqlite.c
+	$(CC) $(CFLAGS) -DSHU_DB_USE_SQLITE3 -c -o $@ $<
+sqlite-o: ../std/sqlite/sqlite.o
+sqlite-o-stub: ../std/sqlite/sqlite.c
+	$(CC) $(CFLAGS) -c -o ../std/sqlite/sqlite.o ../std/sqlite/sqlite.c
+
+# std.elf：ELF64 只读解析（std/elf/elf.c）；链接时由 runtime.c 链入。
+../std/elf/elf.o: ../std/elf/elf.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # P4 std 模块（按需链接）
@@ -158,6 +249,15 @@ PREPROCESS_SU_DEPS = src/preprocess/preprocess.su
 # 可选：启用 zlib 的 compress.o，用于 tests/run-compress.sh 测试 gzip
 compress-o-zlib: ../std/compress/compress.c
 	$(CC) $(CFLAGS) -DSHU_USE_ZLIB -c -o ../std/compress/compress.o ../std/compress/compress.c
+# 可选：启用 zlib + zstd，用于 STD-007 gzip/zstd 往返烟测
+compress-o-zlib-zstd: ../std/compress/compress.c
+	$(CC) $(CFLAGS) -DSHU_USE_ZLIB -DSHU_USE_ZSTD -c -o ../std/compress/compress.o ../std/compress/compress.c
+# 可选：启用 Brotli（STD-125）；链接时加 -lbrotlienc -lbrotlidec
+compress-o-brotli: ../std/compress/compress.c
+	$(CC) $(CFLAGS) -DSHU_USE_BROTLI -c -o ../std/compress/compress.o ../std/compress/compress.c
+# 可选：zlib + zstd + Brotli 全格式（STD-125 推荐矩阵）
+compress-o-zlib-zstd-brotli: ../std/compress/compress.c
+	$(CC) $(CFLAGS) -DSHU_USE_ZLIB -DSHU_USE_ZSTD -DSHU_USE_BROTLI -c -o ../std/compress/compress.o ../std/compress/compress.c
 ../std/unicode/unicode.o: ../std/unicode/unicode.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 ../std/dynlib/dynlib.o: ../std/dynlib/dynlib.c
@@ -166,9 +266,11 @@ compress-o-zlib: ../std/compress/compress.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 ../std/tar/tar.o: ../std/tar/tar.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+../std/simd/simd.o: ../std/simd/simd.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 # 测试与 shu 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
-STD_AND_PANIC_O = ../std/io/io.o ../std/fs/fs.o ../std/process/process.o ../std/string/string.o ../std/heap/heap.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o
+STD_AND_PANIC_O = ../std/io/io.o ../std/fs/fs.o ../std/process/process.o ../std/string/string.o ../std/heap/heap.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 STD_AND_PANIC_O += crt0_user.o freestanding_io.o
@@ -399,7 +501,11 @@ parser_gen.c: $(SHU_C) ast_gen2.c src/parser/parser.su
 	perl -i -ne 'print unless /^struct shulang_slice_uint8_t/ && $$seen++' $@ 2>/dev/null || true
 	perl scripts/fix_slim_arena_gen_c.pl $@
 	perl scripts/fix_parser_pool_access_gen_c.pl $@
-	@grep -q 'parser_copy_module_import_path64' $@ || (echo "parser_gen.c: missing parser_copy_module_import_path64 (need shu-su -su -E)" >&2; exit 1)
+	@if ! grep -q 'parser_copy_module_import_path64' $@; then \
+	  echo "parser_gen.c: inject extern parser_copy_module_import_path64 (parser_asm_link_alias/thin_c)" >&2; \
+	  printf '%s\n' '/* pipeline extern parser_copy_module_import_path64 (thin parser_gen TU) */' \
+	    'extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);' >> $@; \
+	fi
 	@echo "parser_gen.c: from parser.su (-E-extern, full TU via shu-su -su)"
 parser_su.o: parser_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Dstd_io_driver_driver_read_ptr_len=shu_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shu_io_read_ptr -c parser_gen.c -o parser_su.o
@@ -443,11 +549,16 @@ lexer_su_link_alias.o: lexer_su_link_alias.c
 # seed shu 用户程序 -backend asm：shu-c -E 编出的 backend/peephole/platform + user_asm_seed_bridge（无 weak 桩、无 C 回退）
 USER_ASM_SEED_HOST_DIR = build_asm/seed_host
 USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
-USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o
+USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o
 USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_OBJS)
 
 .PHONY: build-seed-asm-host
 # partial export 须先 nm dispatch .o 剔除重复符号；冷启动时 dispatch 可能尚未编译。
+.PHONY: parser-legacy-text-o
+parser-legacy-text-o:
+	@chmod +x scripts/extract_parser_legacy_text.sh 2>/dev/null || true
+	@./scripts/extract_parser_legacy_text.sh
+
 build-seed-asm-host: src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o
 	@chmod +x scripts/build_seed_asm_host.sh 2>/dev/null || true
 	@./scripts/build_seed_asm_host.sh
@@ -474,6 +585,17 @@ src/asm/backend_call_dispatch.o: src/asm/backend_call_dispatch.c
 
 src/asm/pipeline_abi_f32_xmm.o: src/asm/pipeline_abi_f32_xmm.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+# parser EMIT_HEAVY thin delegate C 目标：bootstrap shu 须链入，extern bl 白名单 emit 才不 segfault。
+# 全量 parser_su.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
+PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
+PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_SU_SYMBOLS
+parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c
+	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ $<
+
+# pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shu 与 experimental bootstrap 共用）。
+parser_asm_link_alias.o: src/asm/parser_asm_link_alias.c
+	$(CC) $(CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
 src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -594,6 +716,10 @@ lsp_io_gen.c: $(SHU_C) src/lsp/lsp_io.su
 # LSP 模块：main.su 依赖 lsp，需单独 -E 生成 lsp_gen.c；-E-extern 使 lsp_io、std.io、std.heap 仅生成 extern，由 lsp_io_su.o 与 io.o/heap.o 提供。
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
 src/lsp/lsp_state.o: src/lsp/lsp_state.c
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+# lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供。
+src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
 lsp_gen.c: $(SHU_C) src/lsp/lsp.su
@@ -900,10 +1026,12 @@ check-7.2: bootstrap-self
 	  SHU="$$CDIR/$$ST" ./tests/run-return-value.sh && \
 	  SHU="$$CDIR/$$ST" ./tests/run-hello.sh && \
 	  SHU="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	  SHU="$$CDIR/$$ST" ./tests/run-typeck.sh || \
+	  SHU="$$CDIR/$$ST" ./tests/run-typeck.sh && \
+	  SHU="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
+	  SHU="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
 	  (echo "check-7.2 FAIL: $$ST"; exit 1); \
 	done && \
-	echo "check-7.2 OK (both stages: return-value, hello, lexer, typeck smoke)"
+	echo "check-7.2 OK (both stages: return-value, hello, lexer, typeck, vec/map/heap + parser/typeck dogfood)"
 
 # 9.1 自举：纯 .su 流水线（parse_into → typeck_su_ast → codegen_su_ast）；生成 pipeline_gen.c 便于联调；-L 与 pipeline 依赖一致。
 # 必须用 $(SHU_C) 做 -E：C 解析器(parser.c) 会按源码顺序填充 stmt_order，codegen 按序输出；若用 $(TARGET) 走 .su 解析则 stmt_order 仅有 const+let 导致声明被提到函数首、顺序错乱。
@@ -956,10 +1084,12 @@ check-7.2-bstrict: bootstrap-driver-bstrict
 	  test -x "$$CDIR/$$ST" || { echo "check-7.2-bstrict: $$ST missing"; exit 1; }; \
 	  cd "$$ROOT" && \
 	  SHU="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	  SHU="$$CDIR/$$ST" ./tests/run-typeck.sh || \
+	  SHU="$$CDIR/$$ST" ./tests/run-typeck.sh && \
+	  SHU="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
+	  SHU="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
 	  (echo "check-7.2-bstrict FAIL: $$ST"; exit 1); \
 	done && \
-	echo "check-7.2-bstrict OK (shu_asm gen1/gen2: stage2 + lexer + typeck)"
+	echo "check-7.2-bstrict OK (shu_asm gen1/gen2: stage2 + lexer + typeck + vec/map/heap + parser/typeck dogfood)"
 
 bootstrap-verify-bstrict: check-7.2-bstrict
 	@echo "bootstrap-verify-bstrict OK"

@@ -1,0 +1,19 @@
+# BOOT-022 mega7 emit 晋升 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_promote_emit	1
+# min_emit_rows	7
+# min_delta_pass	8192
+section_goal	section	## 1. 目标	emit 晋升
+emit_matrix	section	## 2. Emit 晋升矩阵	emit_b1
+wave_section	section	## 3. Emit 波次	run-parser-mega7-emit-wave
+gate_section	section	## 4. Gate	run-boot-022-mega7-emit-gate
+hook_emit_wave	hook_gate	run-parser-mega7-emit-wave.sh	B1 lead + 7
+hook_parent	hook_ref	run-boot-021-mega7-promote-gate.sh	BOOT-021
+bisect_baseline	file	tests/baseline/parser-mega-bisect.tsv	delta 8192
+mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	B1 emit_target
+wave_tsv	file	tests/baseline/parser-mega7-emit-wave.tsv	7 rows
+parent_boot021	cross_ref	analysis/boot-021-mega7-promote-v1.md	runnable
+parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 B2
+doc	file	boot-022-mega7-emit-v1.md	analysis/boot-022-mega7-emit-v1.md	RFC
+lib	script	lib/boot-022-mega7-emit.sh	tests/lib/boot-022-mega7-emit.sh
+gate	script	run-boot-022-mega7-emit-gate.sh	tests/run-boot-022-mega7-emit-gate.sh

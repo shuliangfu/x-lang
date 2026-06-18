@@ -1,0 +1,21 @@
+// STD-077：std.cli 选项/usage 烟测
+const cli = import("std.cli");
+
+function main(): i32 {
+  let help: [6]u8 = [45, 45, 104, 101, 108, 112];
+  let hshort: [2]u8 = [45, 104];
+  let verbose: [9]u8 = [45, 45, 118, 101, 114, 98, 111, 115, 101];
+  let vname: [7]u8 = [118, 101, 114, 98, 111, 115, 101];
+  let prog: [4]u8 = [116, 111, 111, 108];
+  let desc: [4]u8 = [100, 101, 109, 111];
+  let out: [128]u8 = [];
+  let n: i32 = 0;
+
+  if (cli.is_help(&help[0], 6) == 0) { return 1; }
+  if (cli.match_long(&verbose[0], 9, &vname[0], 7) == 0) { return 2; }
+  if (cli.match_short(&hshort[0], 2, 104) == 0) { return 3; }
+  n = cli.write_usage(&prog[0], 4, &desc[0], 4, &out[0], 128);
+  if (n <= 0) { return 4; }
+  if (cli.cli_err_help() != 1) { return 5; }
+  return 0;
+}

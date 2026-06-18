@@ -1,0 +1,13 @@
+// STD-042：std.async IO 门面与 drain 路径烟测（IO_ASYNC_NOT_READY=-2 见 std.io）
+const async_mod = import("std.async");
+
+function main(): i32 {
+  let phase: i32 = 0;
+  if (async_mod.cps_suspend_io(&phase, 2) != 0) { return 1; }
+  if (phase != 2) { return 2; }
+  async_mod.poll_io_completions(0);
+  if (async_mod.io_waiters_pending() != 0 as u32) { return 3; }
+  async_mod.scheduler_reset();
+  async_mod.drain_until_idle();
+  return 0;
+}

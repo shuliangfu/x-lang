@@ -1,0 +1,6 @@
+# STD-089 std.task 向量
+# case_id	op	expect_notes
+group_join	spawn 2 echo tasks join total=50	OK
+leak_check	pending before join returns LEAK	OK
+join_set	single spawn join total=40	OK
+supervise	retry echo seed=5 total=50	OK

@@ -142,3 +142,18 @@ ENC_PURE int32_t encoding_ascii_is_lower_c(uint8_t c) { return (c >= 'a' && c <=
 ENC_PURE int32_t encoding_ascii_is_upper_c(uint8_t c) { return (c >= 'A' && c <= 'Z') ? 1 : 0; }
 ENC_PURE uint8_t encoding_ascii_to_lower_c(uint8_t c) { return (c >= 'A' && c <= 'Z') ? (uint8_t)(c + 32) : c; }
 ENC_PURE uint8_t encoding_ascii_to_upper_c(uint8_t c) { return (c >= 'a' && c <= 'z') ? (uint8_t)(c - 32) : c; }
+
+/** 小写 hex 编码；返回写入字节数（src_len*2），容量不足或非法参数返回 -1。 */
+int32_t encoding_hex_encode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  static const char hex[] = "0123456789abcdef";
+  int32_t i;
+  if (!src || !out || src_len < 0)
+    return -1;
+  if (out_cap < src_len * 2)
+    return -1;
+  for (i = 0; i < src_len; i++) {
+    out[i * 2] = (uint8_t)hex[(src[i] >> 4) & 0x0f];
+    out[i * 2 + 1] = (uint8_t)hex[src[i] & 0x0f];
+  }
+  return src_len * 2;
+}

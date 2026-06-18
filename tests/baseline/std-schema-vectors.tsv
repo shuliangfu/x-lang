@@ -1,0 +1,6 @@
+# STD-090 std.schema 向量（v1 烟测引用）
+case_id	input_kind	expect	notes
+json_ok	json	alice:30:true	完整 JSON 对象
+csv_ok	csv	bob:25:false	CSV 单行三列
+json_missing	json_err	age	缺必填字段 age
+type_err	json_type	active	类型不匹配

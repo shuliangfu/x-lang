@@ -70,7 +70,7 @@ void lsp_diag_add(int line, int col, int severity, const char *msg) {
     LspDiagEntryStub *e = &s_diag[s_diag_count++];
     e->line = line;
     e->col = col;
-    e->severity = (severity == 2) ? 2 : 1;
+    e->severity = (severity == 2) ? 2 : ((severity == 3) ? 3 : 1);
     if (msg) {
         size_t n = 0;
         while (n < LSP_MSG_MAX && msg[n] != '\0') {
@@ -81,6 +81,14 @@ void lsp_diag_add(int line, int col, int severity, const char *msg) {
     } else {
         e->msg[0] = '\0';
     }
+}
+
+int lsp_diag_count_severity(int severity) {
+    int i, n = 0;
+    for (i = 0; i < s_diag_count; i++)
+        if (s_diag[i].severity == severity)
+            n++;
+    return n;
 }
 
 void lsp_diag_collect_begin(void) {

@@ -1,0 +1,51 @@
+// STD-074：std.datetime RFC3339 / Duration / 字段 round-trip 烟测
+const datetime = import("std.datetime");
+
+function main(): i32 {
+  let raw: [20]u8 = [50, 48, 50, 48, 45, 48, 49, 45, 48, 50, 84, 48, 51, 58, 48, 52, 58, 48, 53, 90];
+  let t: DateTime = DateTime { sec: 0, nsec: 0 };
+  let off: i32 = 0;
+  if (datetime.parse_rfc3339(&raw[0], 20, &t, &off) != 0) {
+    return 1;
+  }
+  if (t.sec != 1577934245 || t.nsec != 0 || off != 0) {
+    return 2;
+  }
+
+  let out: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  if (datetime.format_rfc3339(t, &out[0], 32) != 20) {
+    return 3;
+  }
+
+  let f: DateFields = datetime.to_utc_fields(t);
+  if (f.year != 2020 || f.month != 1 || f.day != 2) {
+    return 4;
+  }
+  if (f.hour != 3 || f.minute != 4 || f.second != 5) {
+    return 5;
+  }
+
+  let d: Duration = datetime.duration_from_sec(1);
+  let t2: DateTime = datetime.add_duration(t, d);
+  if (t2.sec != 1577934246) {
+    return 6;
+  }
+
+  let delta: Duration = datetime.duration_between(t, t2);
+  if (delta.ns != 1000000000) {
+    return 7;
+  }
+
+  let lo: i32 = datetime.local_offset_min();
+  if (lo < -840 || lo > 840) {
+    return 8;
+  }
+
+  let rebuilt: DateTime = datetime.from_utc_fields(f);
+  if (datetime.compare(rebuilt, t) != 0) {
+    return 9;
+  }
+
+  return 0;
+}

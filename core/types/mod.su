@@ -8,6 +8,8 @@ function placeholder(): i32 { return 0; }
 function size_of_i32(): i32 { return 4; }
 function size_of_bool(): i32 { return 1; }
 function size_of_u8(): i32 { return 1; }
+function size_of_i16(): i32 { return 2; }
+function size_of_u16(): i32 { return 2; }
 function size_of_u32(): i32 { return 4; }
 function size_of_u64(): i32 { return 8; }
 function size_of_i64(): i32 { return 8; }
@@ -24,6 +26,8 @@ function align_of_pointer(): i32 { return 8; }
 function align_of_i32(): i32 { return 4; }
 function align_of_bool(): i32 { return 1; }
 function align_of_u8(): i32 { return 1; }
+function align_of_i16(): i32 { return 2; }
+function align_of_u16(): i32 { return 2; }
 function align_of_u32(): i32 { return 4; }
 function align_of_u64(): i32 { return 8; }
 function align_of_i64(): i32 { return 8; }

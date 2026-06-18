@@ -1,0 +1,99 @@
+# ENG-003：Linux / macOS / Windows 核心链路夜跑
+# PR 矩阵见 ci.yml；本 workflow 每日 schedule + 手动 workflow_dispatch。
+# 统一入口：tests/run-ci-full-suite.sh（Tier P 全平台 + Tier B；Tier A 按平台 lite/full）。
+
+name: CI Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  nightly-linux:
+    name: Nightly Linux (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      CI: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev strace curl xz-utils
+      - name: Build compiler
+        run: make -C compiler OPT=1 all
+        env:
+          CC: cc
+      - name: Full CI test suite
+        run: |
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
+      - name: SAFE-005 leak nightly (Linux ASAN)
+        run: |
+          chmod +x tests/run-safe-leak-nightly.sh tests/lib/safe-leak.sh
+          SHU_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh | tee /tmp/safe_leak_nightly.log
+          grep -q 'SHU_LEAK_NIGHTLY' /tmp/safe_leak_nightly.log
+        timeout-minutes: 15
+      - name: SAFE-006 race detect experimental (Linux TSAN)
+        run: |
+          chmod +x tests/run-safe-race-detect.sh tests/lib/safe-race.sh
+          SHU_RACE_PROBE=1 ./tests/run-safe-race-detect.sh | tee /tmp/safe_race_detect.log
+          grep -q 'SHU_RACE_DETECT' /tmp/safe_race_detect.log
+        timeout-minutes: 10
+      - name: ENG-007 security audit (Linux periodic)
+        run: |
+          chmod +x tests/run-eng-security-audit.sh tests/lib/eng-security-audit.sh
+          SHU_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh | tee /tmp/eng_security_audit.log
+          grep -q 'SHU_SECURITY_AUDIT' /tmp/eng_security_audit.log
+        timeout-minutes: 10
+
+  nightly-macos:
+    name: Nightly macOS
+    runs-on: macos-latest
+    timeout-minutes: 180
+    env:
+      CI: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        run: brew list brotli >/dev/null 2>&1 || brew install brotli; brew list zig >/dev/null 2>&1 || brew install zig
+      - name: Build compiler
+        run: make -C compiler OPT=1 all
+        env:
+          CC: cc
+      - name: Full CI test suite
+        run: |
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 170
+
+  nightly-windows:
+    name: Nightly Windows (MSYS2)
+    runs-on: windows-latest
+    timeout-minutes: 180
+    env:
+      CI: "1"
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          update: false
+          install: make gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
+      - name: Build compiler
+        run: make -C compiler OPT=1 all
+        env:
+          CC: gcc
+      - name: Full CI test suite
+        run: |
+          chmod +x tests/run-ci-full-suite.sh
+          ./tests/run-ci-full-suite.sh
+        timeout-minutes: 120

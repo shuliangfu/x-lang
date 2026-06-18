@@ -1,0 +1,20 @@
+# ENG-006 回滚与应急 manifest
+# 列：item_id	kind	anchor	notes
+# min_sections	4
+# sla_minutes	30
+output_prefix	field	shu: [SHU_ROLLBACK_DRILL]	演练前缀
+sla_budget	field	30 分钟	SLA 锚点
+section_triage	section	T0–T5	判定 5min
+section_tag_rb	section	R1 — 发布 tag	工具链回滚
+section_main_revert	section	R2 — main	热修 revert
+section_baseline_rb	section	R3 — 性能 baseline	baseline 回滚
+section_smoke	section	30 分钟内烟测	烟测清单
+playbook	template	tests/templates/eng-rollback-playbook.txt	操作手册
+drill	script	run-eng-rollback-drill.sh	干跑演练
+gate	script	run-eng-rollback-emergency-gate.sh	manifest 门禁
+lib	script	lib/eng-rollback-emergency.sh	共享函数
+hook_portable	smoke_hook	run-portable-suite.sh	Tier P
+hook_bstrict	smoke_hook	run-bootstrap-bstrict-ci.sh	B-strict
+hook_precheck	smoke_hook	run-eng-release-precheck.sh	发布预检
+cross_eng004	cross_ref	analysis/eng-branch-release-gate-v1.md
+cross_eng005	cross_ref	analysis/eng-version-release-rhythm-v1.md

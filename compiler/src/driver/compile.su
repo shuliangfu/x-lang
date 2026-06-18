@@ -4,7 +4,7 @@
 // C 侧保留 read_file、invoke_cc、driver_run_asm_backend 等原语；本模块负责
 // -o/-L/-backend/-target/-O/-freestanding 解析。
 
-import ast;
+const ast = import("ast");
 
 /** 与 main.su DriverSuEmitState 字段布局兼容的编译参数块（sidecar 键为
 &state）。 */
@@ -56,6 +56,8 @@ extern function driver_compile_argv_set_use_lto_c(state: *DriverCompileState): v
 extern function driver_compile_argv_set_use_freestanding_c(state: *DriverCompileState): void;
 /** `-legacy-f32-abi`：等价 SHU_ABI_F32_XMM=0（legacy f64 widen + cvtsd2ss）。 */
 extern function driver_compile_argv_set_legacy_f32_abi_c(): void;
+/** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关）。 */
+extern function driver_compile_argv_set_sanitize_address_c(): void;
 extern function driver_compile_argv_apply_backend_next_c(state: *DriverCompileState, argc: i32, argv: *u8, i: i32, arg_buf: *u8, arg_cap: i32): void;
 extern function driver_compile_argv_apply_target_next_c(state: *DriverCompileState, argc: i32, argv: *u8, i: i32): void;
 /** `-target-cpu`：下一 argv 写入 target_cpu_buf/target_len/parse_saw_target_cpu。 */
@@ -266,6 +268,17 @@ function eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
   return 0;
 }
 
+/** 比较 buf 与 "-fsanitize=address"（18 字节）；M-6 debug 边界插桩。 */
+function eq_fsanitize_address(buf: *u8, len: i32): i32 {
+  if (len == 18 && buf[0] == 45 && buf[1] == 102 && buf[2] == 115 && buf[3] == 97 && buf[4] == 110 &&
+  buf[5] == 105 && buf[6] == 116 && buf[7] == 105 && buf[8] == 122 && buf[9] == 101 && buf[10] == 61 &&
+  buf[11] == 97 && buf[12] == 100 && buf[13] == 100 && buf[14] == 114 && buf[15] == 101 && buf[16] == 115 &&
+  buf[17] == 115) {
+    return 1;
+  }
+  return 0;
+}
+
 function eq_asm_word(buf: *u8, len: i32): i32 {
   if (len == 3 && buf[0] == 97 && buf[1] == 115 && buf[2] == 109) {
     return 1;
@@ -345,6 +358,10 @@ function driver_compile_parse_argv_step(
   }
   if (eq_legacy_f32_abi(arg_buf, len) != 0) {
     driver_compile_argv_set_legacy_f32_abi_c();
+    return i + 1;
+  }
+  if (eq_fsanitize_address(arg_buf, len) != 0) {
+    driver_compile_argv_set_sanitize_address_c();
     return i + 1;
   }
   if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {

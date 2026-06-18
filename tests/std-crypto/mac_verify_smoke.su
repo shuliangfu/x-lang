@@ -1,0 +1,13 @@
+// STD-006：mac_sign + mac_verify 签验闭环
+const crypto = import("std.crypto");
+
+function main(): i32 {
+  let key: [8]u8 = [115, 101, 99, 114, 101, 116, 33, 0];
+  let msg: [5]u8 = [104, 101, 108, 108, 111];
+  let tag: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  mac_sign(&key[0], 7, &msg[0], 5, &tag[0]);
+  if (mac_verify(&key[0], 7, &msg[0], 5, &tag[0]) != 1) { return 1; }
+  tag[0] = tag[0] ^ 1;
+  if (mac_verify(&key[0], 7, &msg[0], 5, &tag[0]) != 0) { return 2; }
+  return 0;
+}

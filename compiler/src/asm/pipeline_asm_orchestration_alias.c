@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 struct ast_Module;
 struct ast_ASTArena;
@@ -28,6 +29,9 @@ extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *
 extern int32_t pipeline_module_num_funcs(struct ast_Module *module);
 extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
 extern void driver_diagnostic_entry_module(struct ast_Module *module, struct ast_ASTArena *arena);
+extern void driver_diagnostic_source_len(int32_t len);
+extern int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *data,
+                                                  int32_t len);
 extern void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len);
 extern int32_t driver_check_only_get(void);
 extern int32_t driver_su_pipeline_skip_codegen_get(void);
@@ -70,11 +74,24 @@ struct parser_ParseIntoResult parse_into_with_init_buf(struct ast_ASTArena *aren
   return parse_into_with_init_buf_impl(arena, module, data, len);
 }
 
-/** pipeline.su run_su_pipeline_parse_entry_do_parse；委托 ast_pool C glue。 */
+/** pipeline.su run_su_pipeline_parse_entry_do_parse；与 SU emit 一致（set_main + 诊断）。 */
 int32_t run_su_pipeline_parse_entry_do_parse(struct ast_Module *module, struct ast_ASTArena *arena,
                                              uint8_t *source_data, size_t source_len,
                                              struct ast_PipelineDepCtx *ctx) {
-  return run_su_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  int32_t len_i32;
+  int32_t parse_rc;
+  if (!module || !arena || !ctx || !source_data)
+    return -1;
+  if (source_len > (size_t)INT32_MAX)
+    return -1;
+  len_i32 = (int32_t)source_len;
+  driver_diagnostic_source_len(len_i32);
+  parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, len_i32);
+  if (parse_rc != 0)
+    return parse_rc;
+  driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+  driver_diagnostic_entry_module(module, arena);
+  return 0;
 }
 
 /** pipeline.su run_su_pipeline_parse_entry_if_needed；勿链 pipeline.o 内 broken parse stub。 */

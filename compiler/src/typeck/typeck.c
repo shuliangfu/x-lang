@@ -57,9 +57,12 @@ static struct ASTType static_type_f32 = { AST_TYPE_F32, NULL, NULL, 0 };
 static struct ASTType static_type_bool = { AST_TYPE_BOOL, NULL, NULL, 0 };
 /** 切片 .length 字段类型（与 C 侧 size_t 对应） */
 static struct ASTType static_type_usize = { AST_TYPE_USIZE, NULL, NULL, 0 };
-/** u8 与 *u8，用于切片 []u8 的 .data 字段类型（与 C 侧 elem* data 一致） */
+/** u8/i32/u64 与 *u8/*i32/*u64，用于切片 .data 字段类型（与 C 侧 elem* data 一致） */
 static struct ASTType static_type_u8 = { AST_TYPE_U8, NULL, NULL, 0 };
+static struct ASTType static_type_u64 = { AST_TYPE_U64, NULL, NULL, 0 };
 static struct ASTType static_type_ptr_u8 = { AST_TYPE_PTR, NULL, &static_type_u8, 0 };
+static struct ASTType static_type_ptr_i32 = { AST_TYPE_PTR, NULL, &static_type_i32, 0 };
+static struct ASTType static_type_ptr_u64 = { AST_TYPE_PTR, NULL, &static_type_u64, 0 };
 /** M-5：read_ptr_slice 等零拷贝读 API 的 TLS buf 域标签（与 typeck 自动绑定一致）。 */
 static struct ASTType static_type_slice_u8_io_read_ptr = {
     AST_TYPE_SLICE, NULL, &static_type_u8, 0, "io_read_ptr"
@@ -77,16 +80,54 @@ static int typeck_is_read_ptr_slice_producer(const char *name) {
 /** 当前 typeck 的依赖模块列表（与 m->import_paths 顺序一致），供 CALL 跨模块解析；由 typeck_module 设置。 */
 static struct ASTModule **typeck_dep_mods;
 static int typeck_num_deps;
+/** 当前 typeck 的主模块（供 find_*_with_deps 解析 import 解构 as 别名）。 */
+static const struct ASTModule *typeck_current_mod;
 
-/** 判断第 j 个 import 是否导出符号 name：WHOLE 导出全部，BINDING 不导出（仅绑定名为模块引用），SELECT 仅导出列表中的名。 */
+/* LANG-009/010：泛型 struct 单态化物化（typeck_generic_struct.c 以 include 方式链入） */
+#include "typeck_generic_struct.c"
+
+/**
+ * import 解构第 j 条第 k 个条目的本地绑定名：有 as 别名则用别名，否则与 import_select_names[j][k] 相同。
+ */
+static const char *import_select_local_name(const struct ASTModule *m, int j, int k) {
+    if (!m || j < 0 || j >= m->num_imports || !m->import_select_names || !m->import_select_counts)
+        return NULL;
+    if (k < 0 || k >= m->import_select_counts[j])
+        return NULL;
+    if (m->import_select_aliases && m->import_select_aliases[j] && m->import_select_aliases[j][k])
+        return m->import_select_aliases[j][k];
+    return m->import_select_names[j][k];
+}
+
+/**
+ * 将解构 import 的本地裸名 local_name 映射到第 j 条 import 在依赖模块中的源符号名；无匹配返回 NULL。
+ */
+static const char *import_select_source_for_local(const struct ASTModule *m, int j, const char *local_name) {
+    if (!m || !local_name || j < 0 || j >= m->num_imports)
+        return NULL;
+    if (!m->import_kinds || m->import_kinds[j] != AST_IMPORT_KIND_SELECT)
+        return NULL;
+    if (!m->import_select_names || !m->import_select_counts)
+        return NULL;
+    for (int k = 0; k < m->import_select_counts[j]; k++) {
+        const char *loc = import_select_local_name(m, j, k);
+        if (loc && strcmp(loc, local_name) == 0)
+            return m->import_select_names[j][k];
+    }
+    return NULL;
+}
+
+/** 判断第 j 个 import 是否导出符号 name：WHOLE 导出全部，BINDING 不导出（仅绑定名为模块引用），SELECT 仅导出列表中的本地名（含 as 别名）。 */
 static int import_exports_name(const struct ASTModule *m, int j, const char *name) {
     if (!m || !name || j < 0 || j >= m->num_imports) return 0;
     if (!m->import_kinds) return 1; /* 旧 AST 无 import_kinds，视为整模块 */
     if (m->import_kinds[j] == AST_IMPORT_KIND_WHOLE) return 1;
     if (m->import_kinds[j] == AST_IMPORT_KIND_BINDING) return 0;
     if (m->import_kinds[j] == AST_IMPORT_KIND_SELECT && m->import_select_names && m->import_select_counts) {
-        for (int k = 0; k < m->import_select_counts[j]; k++)
-            if (m->import_select_names[j][k] && strcmp(m->import_select_names[j][k], name) == 0) return 1;
+        for (int k = 0; k < m->import_select_counts[j]; k++) {
+            const char *loc = import_select_local_name(m, j, k);
+            if (loc && strcmp(loc, name) == 0) return 1;
+        }
     }
     return 0;
 }
@@ -103,6 +144,9 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     const int *parent_const_values, int parent_n_consts, int inside_loop,
     struct ASTStructDef **struct_defs, int num_structs, struct ASTEnumDef **enum_defs, int num_enums, const struct ASTModule *m,
     const struct ASTType *func_return_type, const char *scope_region);
+
+/** 前向声明：块是否含隐式 return（联合单态化体检查用）。 */
+static int block_has_implicit_return(const struct ASTBlock *b);
 
 /** run v4：seed 支持的标量形参/实参类型（usize 用于 IO handle / fd）。 */
 static int typeck_run_seed_scalar_kind(int kind) {
@@ -142,6 +186,17 @@ static const struct ASTStructDef *find_struct_def_with_deps(struct ASTStructDef 
         sd = find_struct_def(dm->struct_defs, dm->num_structs, name);
         if (sd) return sd;
     }
+    /* import 解构 as 别名：本地 IoBuf → 依赖模块 Buffer */
+    if (typeck_current_mod) {
+        for (int j = 0; j < typeck_current_mod->num_imports && j < typeck_num_deps; j++) {
+            const char *src = import_select_source_for_local(typeck_current_mod, j, name);
+            if (!src) continue;
+            struct ASTModule *dm = typeck_dep_mods[j];
+            if (!dm || !dm->struct_defs) continue;
+            sd = find_struct_def(dm->struct_defs, dm->num_structs, src);
+            if (sd) return sd;
+        }
+    }
     /* 限定名 platform.elf.ElfCodegenCtx：依赖里只存短名 ElfCodegenCtx，用最后一段再查 */
     const char *tail = strrchr(name, '.');
     if (tail && tail[1]) {
@@ -180,6 +235,17 @@ static const struct ASTEnumDef *find_enum_def_with_deps(struct ASTEnumDef **defs
         ed = find_enum_def(dm->enum_defs, dm->num_enums, name);
         if (ed) return ed;
     }
+    /* import 解构 as 别名：本地别名 → 依赖模块源枚举名 */
+    if (typeck_current_mod) {
+        for (int j = 0; j < typeck_current_mod->num_imports && j < typeck_num_deps; j++) {
+            const char *src = import_select_source_for_local(typeck_current_mod, j, name);
+            if (!src) continue;
+            struct ASTModule *dm = typeck_dep_mods[j];
+            if (!dm || !dm->enum_defs) continue;
+            ed = find_enum_def(dm->enum_defs, dm->num_enums, src);
+            if (ed) return ed;
+        }
+    }
     return NULL;
 }
 
@@ -206,6 +272,264 @@ static int import_path_has_prefix(const char *path, const char *name) {
     if (strlen(path) < nlen) return 0;
     if (strncmp(path, name, nlen) != 0) return 0;
     return (path[nlen] == '\0' || path[nlen] == '.');
+}
+
+/**
+ * 判断模块引用名 name 是否对应第 j 个 import（绑定名、完整路径或路径尾段）。
+ * 用于 const mod = import("std.io"); mod.fn() 中 mod 与 dep 槽对齐。
+ */
+static int import_module_ref_matches(const struct ASTModule *m, int j, const char *name) {
+    if (!m || !name || j < 0 || j >= m->num_imports || !m->import_paths || !m->import_paths[j])
+        return 0;
+    const char *path = m->import_paths[j];
+    if (strcmp(path, name) == 0)
+        return 1;
+    if (m->import_kinds && m->import_kinds[j] == AST_IMPORT_KIND_BINDING
+        && m->import_binding_names && m->import_binding_names[j]
+        && strcmp(m->import_binding_names[j], name) == 0)
+        return 1;
+    return import_path_matches(path, name);
+}
+
+/** L6-unused-hint：SHU_UNUSED_HINT=1 时报告未使用绑定/变量（info，不阻断 check）。 */
+extern void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+
+#define TYPECK_MAX_USED_NAMES 256
+static const char *typeck_used_names[TYPECK_MAX_USED_NAMES];
+static int typeck_used_n;
+
+/** 重置当前函数/模块 usage 集合。 */
+static void typeck_used_names_reset(void) {
+    typeck_used_n = 0;
+}
+
+/** 记录标识符 name 已被使用（去重）。 */
+static void typeck_used_names_add(const char *name) {
+    int i;
+    if (!name || !name[0])
+        return;
+    for (i = 0; i < typeck_used_n; i++)
+        if (typeck_used_names[i] && strcmp(typeck_used_names[i], name) == 0)
+            return;
+    if (typeck_used_n < TYPECK_MAX_USED_NAMES)
+        typeck_used_names[typeck_used_n++] = name;
+}
+
+/** 名称是否以 '_' 开头（约定为刻意 unused，跳过 L6）。 */
+static int typeck_name_is_underscore(const char *name) {
+    return name && name[0] == '_';
+}
+
+/** 遍历块内所有表达式语句与 final_expr，供 L6 usage 收集。 */
+static void typeck_used_names_walk_block_exprs(const struct ASTBlock *b);
+
+/** 递归遍历表达式，收集 VAR 引用名。 */
+static void typeck_used_names_walk_expr(const struct ASTExpr *e) {
+    int i;
+    if (!e)
+        return;
+    switch (e->kind) {
+    case AST_EXPR_VAR:
+        typeck_used_names_add(e->value.var.name);
+        return;
+    case AST_EXPR_FIELD_ACCESS:
+        typeck_used_names_walk_expr(e->value.field_access.base);
+        return;
+    case AST_EXPR_CALL:
+        typeck_used_names_walk_expr(e->value.call.callee);
+        for (i = 0; i < e->value.call.num_args; i++)
+            typeck_used_names_walk_expr(e->value.call.args[i]);
+        return;
+    case AST_EXPR_METHOD_CALL:
+        typeck_used_names_walk_expr(e->value.method_call.base);
+        for (i = 0; i < e->value.method_call.num_args; i++)
+            typeck_used_names_walk_expr(e->value.method_call.args[i]);
+        return;
+    case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV:
+    case AST_EXPR_MOD: case AST_EXPR_SHL: case AST_EXPR_SHR:
+    case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
+    case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE:
+    case AST_EXPR_GT: case AST_EXPR_GE: case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
+        typeck_used_names_walk_expr(e->value.binop.left);
+        typeck_used_names_walk_expr(e->value.binop.right);
+        return;
+    case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
+        typeck_used_names_walk_expr(e->value.unary.operand);
+        return;
+    case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
+        typeck_used_names_walk_expr(e->value.unary.operand);
+        return;
+    case AST_EXPR_AS:
+        typeck_used_names_walk_expr(e->value.as_type.operand);
+        return;
+    case AST_EXPR_INDEX:
+        typeck_used_names_walk_expr(e->value.index.base);
+        typeck_used_names_walk_expr(e->value.index.index_expr);
+        return;
+    case AST_EXPR_ARRAY_LIT:
+        for (i = 0; i < e->value.array_lit.num_elems; i++)
+            typeck_used_names_walk_expr(e->value.array_lit.elems[i]);
+        return;
+    case AST_EXPR_STRUCT_LIT:
+        for (i = 0; i < e->value.struct_lit.num_fields; i++)
+            typeck_used_names_walk_expr(e->value.struct_lit.inits[i]);
+        return;
+    case AST_EXPR_IF:
+        typeck_used_names_walk_expr(e->value.if_expr.cond);
+        typeck_used_names_walk_expr(e->value.if_expr.then_expr);
+        typeck_used_names_walk_expr(e->value.if_expr.else_expr);
+        return;
+    case AST_EXPR_TERNARY:
+        typeck_used_names_walk_expr(e->value.if_expr.cond);
+        typeck_used_names_walk_expr(e->value.if_expr.then_expr);
+        typeck_used_names_walk_expr(e->value.if_expr.else_expr);
+        return;
+    case AST_EXPR_MATCH:
+        typeck_used_names_walk_expr(e->value.match_expr.matched_expr);
+        for (i = 0; i < e->value.match_expr.num_arms; i++)
+            typeck_used_names_walk_expr(e->value.match_expr.arms[i].result);
+        return;
+    case AST_EXPR_ASSIGN:
+    case AST_EXPR_ADD_ASSIGN: case AST_EXPR_SUB_ASSIGN: case AST_EXPR_MUL_ASSIGN:
+    case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
+    case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
+    case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
+        typeck_used_names_walk_expr(e->value.binop.left);
+        typeck_used_names_walk_expr(e->value.binop.right);
+        return;
+    case AST_EXPR_BLOCK:
+        if (e->value.block)
+            typeck_used_names_walk_block_exprs(e->value.block);
+        return;
+    default:
+        return;
+    }
+}
+
+/** 遍历块内所有表达式语句与 final_expr，供 L6 usage 收集。 */
+static void typeck_used_names_walk_block_exprs(const struct ASTBlock *b) {
+    int i;
+    if (!b)
+        return;
+    for (i = 0; i < b->num_expr_stmts; i++)
+        typeck_used_names_walk_expr(b->expr_stmts[i]);
+    for (i = 0; i < b->num_labeled_stmts; i++) {
+        if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
+            typeck_used_names_walk_expr(b->labeled_stmts[i].u.return_expr);
+    }
+    for (i = 0; i < b->num_loops; i++) {
+        typeck_used_names_walk_expr(b->loops[i].cond);
+        typeck_used_names_walk_block_exprs(b->loops[i].body);
+    }
+    for (i = 0; i < b->num_for_loops; i++) {
+        typeck_used_names_walk_expr(b->for_loops[i].init);
+        typeck_used_names_walk_expr(b->for_loops[i].cond);
+        typeck_used_names_walk_expr(b->for_loops[i].step);
+        typeck_used_names_walk_block_exprs(b->for_loops[i].body);
+    }
+    for (i = 0; i < b->num_defers; i++)
+        typeck_used_names_walk_block_exprs(b->defer_blocks[i]);
+    for (i = 0; i < b->num_regions; i++)
+        typeck_used_names_walk_block_exprs(b->regions[i].body);
+    if (b->final_expr)
+        typeck_used_names_walk_expr(b->final_expr);
+}
+
+/** 判断 name 是否在 usage 集合中。 */
+static int typeck_used_names_has(const char *name) {
+    int i;
+    for (i = 0; i < typeck_used_n; i++)
+        if (typeck_used_names[i] && name && strcmp(typeck_used_names[i], name) == 0)
+            return 1;
+    return 0;
+}
+
+/** 递归检查块内 let/const 是否未使用；line/col 取自 init 表达式位置。 */
+static void typeck_unused_hints_block_lets(const struct ASTBlock *b) {
+    int i;
+    if (!b)
+        return;
+    for (i = 0; i < b->num_lets; i++) {
+        const char *nm = b->let_decls[i].name;
+        int ln = (b->let_decls[i].init && b->let_decls[i].init->line > 0) ? b->let_decls[i].init->line : 1;
+        int cl = (b->let_decls[i].init && b->let_decls[i].init->col > 0) ? b->let_decls[i].init->col : 1;
+        if (nm && !typeck_name_is_underscore(nm) && !typeck_used_names_has(nm))
+            driver_diagnostic_hint_unused_binding(ln, cl, (const uint8_t *)nm, (int32_t)strlen(nm));
+    }
+    for (i = 0; i < b->num_consts; i++) {
+        const char *nm = b->const_decls[i].name;
+        int ln = (b->const_decls[i].init && b->const_decls[i].init->line > 0) ? b->const_decls[i].init->line : 1;
+        int cl = (b->const_decls[i].init && b->const_decls[i].init->col > 0) ? b->const_decls[i].init->col : 1;
+        if (nm && !typeck_name_is_underscore(nm) && !typeck_used_names_has(nm))
+            driver_diagnostic_hint_unused_binding(ln, cl, (const uint8_t *)nm, (int32_t)strlen(nm));
+    }
+    for (i = 0; i < b->num_loops; i++)
+        typeck_unused_hints_block_lets(b->loops[i].body);
+    for (i = 0; i < b->num_for_loops; i++)
+        typeck_unused_hints_block_lets(b->for_loops[i].body);
+    for (i = 0; i < b->num_defers; i++)
+        typeck_unused_hints_block_lets(b->defer_blocks[i]);
+    for (i = 0; i < b->num_regions; i++)
+        typeck_unused_hints_block_lets(b->regions[i].body);
+}
+
+/** 对单函数体做 L6 未使用 let/const 检查。 */
+static void typeck_unused_hints_func(const struct ASTFunc *f) {
+    if (!f || !f->body)
+        return;
+    typeck_used_names_reset();
+    typeck_used_names_walk_block_exprs(f->body);
+    typeck_unused_hints_block_lets(f->body);
+}
+
+/** 模块级：未使用的 import 绑定/解构符号与顶层 let/const（SHU_UNUSED_HINT=1）。 */
+static void typeck_unused_hints_module(const struct ASTModule *m) {
+    const char *uh;
+    int i, j, k, fi;
+    if (!m)
+        return;
+    uh = getenv("SHU_UNUSED_HINT");
+    if (!uh || uh[0] != '1' || uh[1] != '\0')
+        return;
+
+    typeck_used_names_reset();
+    for (fi = 0; fi < m->num_funcs; fi++)
+        if (m->funcs[fi] && m->funcs[fi]->body)
+            typeck_used_names_walk_block_exprs(m->funcs[fi]->body);
+    for (i = 0; i < m->num_impl_blocks && m->impl_blocks; i++)
+        for (j = 0; j < m->impl_blocks[i]->num_funcs; j++)
+            if (m->impl_blocks[i]->funcs[j] && m->impl_blocks[i]->funcs[j]->body)
+                typeck_used_names_walk_block_exprs(m->impl_blocks[i]->funcs[j]->body);
+
+    for (i = 0; i < m->num_imports; i++) {
+        if (m->import_kinds && m->import_kinds[i] == AST_IMPORT_KIND_BINDING
+            && m->import_binding_names && m->import_binding_names[i]) {
+            const char *bn = m->import_binding_names[i];
+            if (!typeck_name_is_underscore(bn) && !typeck_used_names_has(bn))
+                driver_diagnostic_hint_unused_binding(1, 1, (const uint8_t *)bn, (int32_t)strlen(bn));
+        }
+        if (m->import_kinds && m->import_kinds[i] == AST_IMPORT_KIND_SELECT
+            && m->import_select_names && m->import_select_counts) {
+            for (k = 0; k < m->import_select_counts[i]; k++) {
+                const char *sn = import_select_local_name(m, i, k);
+                if (sn && !typeck_name_is_underscore(sn) && !typeck_used_names_has(sn))
+                    driver_diagnostic_hint_unused_binding(1, 1, (const uint8_t *)sn, (int32_t)strlen(sn));
+            }
+        }
+    }
+    for (i = 0; m->top_level_lets && i < m->num_top_level_lets; i++) {
+        const char *nm = m->top_level_lets[i].name;
+        int ln = (m->top_level_lets[i].init && m->top_level_lets[i].init->line > 0) ? m->top_level_lets[i].init->line : 1;
+        int cl = (m->top_level_lets[i].init && m->top_level_lets[i].init->col > 0) ? m->top_level_lets[i].init->col : 1;
+        if (nm && !typeck_name_is_underscore(nm) && !typeck_used_names_has(nm))
+            driver_diagnostic_hint_unused_binding(ln, cl, (const uint8_t *)nm, (int32_t)strlen(nm));
+    }
+
+    for (fi = 0; fi < m->num_funcs; fi++)
+        typeck_unused_hints_func(m->funcs[fi]);
+    for (i = 0; i < m->num_impl_blocks && m->impl_blocks; i++)
+        for (j = 0; j < m->impl_blocks[i]->num_funcs; j++)
+            typeck_unused_hints_func(m->impl_blocks[i]->funcs[j]);
 }
 
 /**
@@ -271,6 +595,14 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
         return type_equal(a->elem_type, b->elem_type);
     if (a->kind == AST_TYPE_ARRAY)
         return a->array_size == b->array_size && type_equal(a->elem_type, b->elem_type);
+    if (a->kind == AST_TYPE_UNION && b->kind == AST_TYPE_UNION) {
+        if (a->union_count != b->union_count) return 0;
+        for (int i = 0; i < a->union_count; i++)
+            if (!type_equal(a->union_members[i], b->union_members[i])) return 0;
+        return 1;
+    }
+    if (a->kind == AST_TYPE_UNION || b->kind == AST_TYPE_UNION)
+        return 0;
     return 1;
 }
 
@@ -289,6 +621,129 @@ static int typeck_integer_widen_ok(enum ASTTypeKind dest, enum ASTTypeKind src) 
         return dest == AST_TYPE_I64 || dest == AST_TYPE_U32 || dest == AST_TYPE_USIZE;
     if (src == AST_TYPE_U32 && dest == AST_TYPE_U64)
         return 1;
+    return 0;
+}
+
+/**
+ * 实参是否可赋给形参（含联合成员匹配与既有隐式转换规则）。
+ * arg_expr 可为 NULL（跳过仅依赖字面量的规则）。
+ */
+static int type_assignable_to(const struct ASTType *actual, const struct ASTType *formal,
+    const struct ASTExpr *arg_expr) {
+    if (!formal) return actual == NULL;
+    /* 取址实参：ADDR_OF 无 resolved_type，须按 operand 与 formal 元素类型匹配（含 &buf[i]）。 */
+    if (formal->kind == AST_TYPE_PTR && formal->elem_type && arg_expr && arg_expr->kind == AST_EXPR_ADDR_OF) {
+        const struct ASTExpr *operand = arg_expr->value.unary.operand;
+        if (operand && operand->resolved_type) {
+            if (type_equal(formal->elem_type, operand->resolved_type)) return 1;
+            if (operand->resolved_type->kind == AST_TYPE_ARRAY && operand->resolved_type->elem_type
+                && type_equal(formal->elem_type, operand->resolved_type->elem_type))
+                return 1;
+        }
+        return 0;
+    }
+    /** resolved_type 未填时仍可按表达式形态匹配（overload 实参 typecheck 在 CALL 分派前常无类型）。 */
+    if (!actual && arg_expr) {
+        if (formal->kind == AST_TYPE_SLICE && formal->elem_type && formal->elem_type->kind == AST_TYPE_U8
+            && arg_expr->kind == AST_EXPR_ARRAY_LIT)
+            return 1;
+        if (formal->kind == AST_TYPE_VECTOR && arg_expr->kind == AST_EXPR_ARRAY_LIT
+            && arg_expr->value.array_lit.num_elems == formal->array_size)
+            return 1;
+        if (formal->kind == AST_TYPE_ARRAY && arg_expr->kind == AST_EXPR_ARRAY_LIT
+            && arg_expr->value.array_lit.num_elems == formal->array_size)
+            return 1;
+        if (formal->kind == AST_TYPE_U32 && arg_expr->kind == AST_EXPR_LIT && arg_expr->value.int_val >= 0)
+            return 1;
+        if (formal->kind == AST_TYPE_USIZE && arg_expr->kind == AST_EXPR_LIT && arg_expr->value.int_val >= 0)
+            return 1;
+        if (formal->kind == AST_TYPE_I64 && arg_expr->kind == AST_EXPR_LIT)
+            return 1;
+        if (formal->kind == AST_TYPE_U8 && arg_expr->kind == AST_EXPR_LIT) {
+            int v = arg_expr->value.int_val;
+            if (v >= 0 && v <= 255) return 1;
+        }
+        return 0;
+    }
+    if (!actual) return 0;
+    if (formal->kind == AST_TYPE_UNION) {
+        for (int i = 0; i < formal->union_count; i++)
+            if (type_assignable_to(actual, formal->union_members[i], arg_expr)) return 1;
+        return 0;
+    }
+    if (type_equal(actual, formal)) return 1;
+    if (formal->kind == AST_TYPE_U32 && arg_expr && arg_expr->kind == AST_EXPR_LIT
+        && arg_expr->value.int_val >= 0)
+        return 1;
+    if (formal->kind == AST_TYPE_USIZE && arg_expr && arg_expr->kind == AST_EXPR_LIT
+        && arg_expr->value.int_val >= 0)
+        return 1;
+    if (formal->kind == AST_TYPE_I64 && arg_expr && arg_expr->kind == AST_EXPR_LIT)
+        return 1;
+    if (formal->kind == AST_TYPE_U8 && arg_expr && arg_expr->kind == AST_EXPR_LIT) {
+        int v = arg_expr->value.int_val;
+        if (v >= 0 && v <= 255) return 1;
+    }
+    if (formal->kind == AST_TYPE_F32 && actual->kind == AST_TYPE_F64
+        && arg_expr && arg_expr->kind == AST_EXPR_FLOAT_LIT)
+        return 1;
+    if (formal->kind == AST_TYPE_SLICE && formal->elem_type && formal->elem_type->kind == AST_TYPE_U8
+        && arg_expr && arg_expr->kind == AST_EXPR_ARRAY_LIT)
+        return 1;
+    if (formal->kind == AST_TYPE_VECTOR && arg_expr && arg_expr->kind == AST_EXPR_ARRAY_LIT
+        && arg_expr->value.array_lit.num_elems == formal->array_size)
+        return 1;
+    if (formal->kind == AST_TYPE_ARRAY && arg_expr && arg_expr->kind == AST_EXPR_ARRAY_LIT
+        && arg_expr->value.array_lit.num_elems == formal->array_size)
+        return 1;
+    if (formal->kind == AST_TYPE_PTR && actual->kind == AST_TYPE_ARRAY
+        && formal->elem_type && actual->elem_type && type_equal(formal->elem_type, actual->elem_type))
+        return 1;
+    if (formal->kind == AST_TYPE_PTR && formal->elem_type && formal->elem_type->kind == AST_TYPE_U8
+        && actual->kind == AST_TYPE_PTR)
+        return 1;
+    if (typeck_integer_widen_ok(formal->kind, actual->kind))
+        return 1;
+    return 0;
+}
+
+/** let 注解为联合时 symtab 存初值具体类型，否则存声明类型。 */
+static const struct ASTType *typeck_let_symtab_type(const struct ASTType *decl, const struct ASTExpr *init) {
+    if (decl && decl->kind == AST_TYPE_UNION && init && init->resolved_type)
+        return init->resolved_type;
+    if (decl) return decl;
+    if (init && init->resolved_type) return init->resolved_type;
+    return NULL;
+}
+
+/** let 初值是否与声明类型兼容（含联合成员匹配）。 */
+/**
+ * 结构体字面量的 resolved_type 名：import as 别名时保留用户写的本地名（IoBuf），否则用定义名（Buffer）。
+ */
+static const char *struct_lit_resolved_type_name(const struct ASTStructDef *sd, const char *lit_struct_name) {
+    if (lit_struct_name && sd && sd->name && strcmp(lit_struct_name, sd->name) != 0)
+        return lit_struct_name;
+    if (sd && sd->name)
+        return sd->name;
+    return lit_struct_name;
+}
+
+static int typeck_let_init_matches(const struct ASTType *decl, const struct ASTExpr *init) {
+    if (!decl || !init || !init->resolved_type) return 1;
+    if (decl->kind == AST_TYPE_UNION)
+        return type_assignable_to(init->resolved_type, decl, init);
+    if (type_equal(decl, init->resolved_type)) return 1;
+    /* import 解构 as：声明 IoBuf、初值 Buffer（或反之）时视为同一结构体 */
+    if (typeck_current_mod && decl->kind == AST_TYPE_NAMED && init->resolved_type->kind == AST_TYPE_NAMED
+        && decl->name && init->resolved_type->name && strcmp(decl->name, init->resolved_type->name) != 0) {
+        for (int j = 0; j < typeck_current_mod->num_imports; j++) {
+            const char *src = import_select_source_for_local(typeck_current_mod, j, decl->name);
+            if (src && strcmp(src, init->resolved_type->name) == 0) return 1;
+            src = import_select_source_for_local(typeck_current_mod, j, init->resolved_type->name);
+            if (src && strcmp(src, decl->name) == 0) return 1;
+        }
+    }
+    if (decl->kind == AST_TYPE_F32 && init->resolved_type->kind == AST_TYPE_F64) return 1;
     return 0;
 }
 
@@ -449,6 +904,17 @@ static void type_to_string_buf(const struct ASTType *ty, char *buf, size_t size)
         (void)snprintf(buf, size, "Linear(%s)", inner[0] ? inner : "?");
         return;
     }
+    if (ty->kind == AST_TYPE_UNION && ty->union_members && ty->union_count > 0) {
+        size_t off = 0;
+        for (int i = 0; i < ty->union_count && off + 1 < size; i++) {
+            char part[48];
+            type_to_string_buf(ty->union_members[i], part, sizeof(part));
+            if (i > 0)
+                off += (size_t)snprintf(buf + off, size - off, " | ");
+            off += (size_t)snprintf(buf + off, size - off, "%s", part[0] ? part : "?");
+        }
+        return;
+    }
     if (base && base[0])
         (void)snprintf(buf, size, "%s", base);
     else
@@ -568,6 +1034,7 @@ static int type_align_of(const struct ASTType *ty, struct ASTStructDef **struct_
             /* 自举：NAMED "i32" 等按内建类型给对齐 */
             if (ty->name && (strcmp(ty->name, "i32") == 0 || strcmp(ty->name, "u32") == 0 || strcmp(ty->name, "bool") == 0)) return 4;
             if (ty->name && strcmp(ty->name, "u8") == 0) return 1;
+            if (ty->name && (strcmp(ty->name, "i16") == 0 || strcmp(ty->name, "u16") == 0)) return 2; /* CORE-013 */
             if (ty->name && (strcmp(ty->name, "i64") == 0 || strcmp(ty->name, "u64") == 0 || strcmp(ty->name, "f64") == 0)) return 8;
             if (ty->name && strcmp(ty->name, "f32") == 0) return 4;
             return 1;
@@ -608,6 +1075,7 @@ static int type_size_of(const struct ASTType *ty, struct ASTStructDef **struct_d
             if (ty->name && strcmp(ty->name, "u32") == 0) return 4;
             if (ty->name && strcmp(ty->name, "bool") == 0) return 4;
             if (ty->name && strcmp(ty->name, "u8") == 0) return 1;
+            if (ty->name && (strcmp(ty->name, "i16") == 0 || strcmp(ty->name, "u16") == 0)) return 2; /* CORE-013 */
             if (ty->name && strcmp(ty->name, "i64") == 0) return 8;
             if (ty->name && strcmp(ty->name, "u64") == 0) return 8;
             if (ty->name && strcmp(ty->name, "f64") == 0) return 8;
@@ -628,6 +1096,8 @@ static int compute_struct_layouts(struct ASTStructDef **struct_defs, int num_str
     for (int idx = 0; idx < num_structs; idx++) {
         struct ASTStructDef *sd = struct_defs[idx];
         if (!sd || !sd->fields || sd->num_fields <= 0) continue;
+        /* LANG-009：泛型 struct 模板不参与布局，由单态化实例承担。 */
+        if (sd->num_generic_params > 0) continue;
         int current_offset = 0;
         int max_align = 1;
         if (sd->packed) {
@@ -1180,7 +1650,155 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
 }
 
 /**
- * 对单棵表达式做类型检查；VAR 须在符号表 names[0..n) 中已定义；break/continue 仅允许在循环体内；FIELD_ACCESS/STRUCT_LIT/ARRAY_LIT/INDEX 须与类型一致；CALL 须在模块函数表中找到并参数匹配。
+ * 计算非泛型候选 overload 与已 typecheck 实参的匹配得分；不匹配返回 -1，精确匹配得分更高。
+ */
+static int typeck_overload_match_score_args(const struct ASTFunc *f, int num_args, struct ASTExpr **args) {
+    if (!f || f->num_generic_params > 0 || !args) return -1;
+    if (f->num_params != num_args) return -1;
+    int score = 0;
+    for (int i = 0; i < f->num_params; i++) {
+        const struct ASTExpr *arg_e = args[i];
+        const struct ASTType *arg = arg_e ? arg_e->resolved_type : NULL;
+        const struct ASTType *param = f->params[i].type;
+        if (!type_assignable_to(arg, param, arg_e)) return -1;
+        if (arg && param && type_equal(arg, param)) score += 1000;
+        else score += 1;
+    }
+    return score;
+}
+
+static int typeck_overload_match_score(const struct ASTFunc *f, const struct ASTExpr *call) {
+    if (!call || call->kind != AST_EXPR_CALL) return -1;
+    return typeck_overload_match_score_args(f, call->value.call.num_args, call->value.call.args);
+}
+
+/**
+ * 在模块 mod 中按名称与实参类型选取唯一 overload；ambiguous / 未找到时返回 -1。
+ */
+static int typeck_pick_overload_in_module_ex(const struct ASTModule *mod, const char *name,
+    int num_args, struct ASTExpr **args, struct ASTExpr *err_node, struct ASTFunc **out) {
+    struct ASTFunc *best = NULL;
+    int best_score = -1;
+    int n_at_best = 0;
+    if (!mod || !name || !args || !out) return -1;
+    for (int i = 0; i < mod->num_funcs; i++) {
+        struct ASTFunc *cand = mod->funcs[i];
+        if (!cand || !cand->name || strcmp(cand->name, name) != 0) continue;
+        int sc = typeck_overload_match_score_args(cand, num_args, args);
+        if (sc < 0) continue;
+        if (sc > best_score) {
+            best = cand;
+            best_score = sc;
+            n_at_best = 1;
+        } else if (sc == best_score) {
+            n_at_best++;
+        }
+    }
+    if (!best) return -1;
+    if (n_at_best > 1) {
+        TYPECK_ERR(err_node, "ambiguous call to overloaded function '%s'", name);
+        return -1;
+    }
+    *out = best;
+    return 0;
+}
+
+static int typeck_pick_overload_in_module(const struct ASTModule *mod, const char *name,
+    struct ASTExpr *call, struct ASTFunc **out) {
+    if (!call || call->kind != AST_EXPR_CALL) return -1;
+    return typeck_pick_overload_in_module_ex(mod, name, call->value.call.num_args,
+        call->value.call.args, call, out);
+}
+
+/**
+ * 在模块 mod 中按名称查找泛型函数模板（num_generic_params > 0）。
+ */
+static int typeck_find_generic_func_in_module(const struct ASTModule *mod, const char *name,
+    struct ASTFunc **out) {
+    if (!mod || !name || !out) return -1;
+    for (int i = 0; i < mod->num_funcs; i++) {
+        struct ASTFunc *cand = mod->funcs[i];
+        if (!cand || !cand->name || strcmp(cand->name, name) != 0) continue;
+        if (cand->num_generic_params > 0) {
+            *out = cand;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/**
+ * 按名称 + 实参匹配唯一非泛型函数（binding import 回退、单候选解析）。
+ */
+static int typeck_find_func_in_module_by_name(const struct ASTModule *mod, const char *name,
+    int num_args, struct ASTExpr **args, struct ASTFunc **out) {
+    struct ASTFunc *best = NULL;
+    int n_match = 0;
+    if (!mod || !name || !args || !out) return -1;
+    for (int i = 0; i < mod->num_funcs; i++) {
+        struct ASTFunc *cand = mod->funcs[i];
+        if (!cand || !cand->name || strcmp(cand->name, name) != 0) continue;
+        if (cand->num_generic_params > 0) continue;
+        if (typeck_overload_match_score_args(cand, num_args, args) < 0) continue;
+        best = cand;
+        n_match++;
+        if (n_match > 1) return -1;
+    }
+    if (!best) return -1;
+    *out = best;
+    return 0;
+}
+
+/**
+ * 泛型解析失败后：binding import 依赖模块内按名称查找泛型模板。
+ */
+static int typeck_find_generic_func_in_binding_deps(const struct ASTModule *m, const char *name,
+    struct ASTFunc **out, int *from_dep) {
+    if (!m || !name || !out || !typeck_dep_mods) return -1;
+    for (int j = 0; j < typeck_num_deps && j < m->num_imports; j++) {
+        struct ASTModule *dm = typeck_dep_mods[j];
+        const char *dep_fn = name;
+        int ok_binding = (m->import_kinds && m->import_kinds[j] == AST_IMPORT_KIND_BINDING);
+        if (!ok_binding && !import_exports_name(m, j, name)) continue;
+        if (!ok_binding) {
+            const char *src = import_select_source_for_local(m, j, name);
+            if (src) dep_fn = src;
+        }
+        if (!dm) continue;
+        if (typeck_find_generic_func_in_module(dm, dep_fn, out) == 0) {
+            if (from_dep) *from_dep = j;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/**
+ * overload 解析失败后：binding import 依赖模块内按名称查找（如 const foo = import("foo"); bar()）。
+ */
+static int typeck_find_func_in_binding_deps(const struct ASTModule *m, const char *name,
+    int num_args, struct ASTExpr **args, struct ASTFunc **out, int *from_dep) {
+    if (!m || !name || !args || !out || !typeck_dep_mods) return -1;
+    for (int j = 0; j < typeck_num_deps && j < m->num_imports; j++) {
+        struct ASTModule *dm = typeck_dep_mods[j];
+        const char *dep_fn = name;
+        int ok_binding = (m->import_kinds && m->import_kinds[j] == AST_IMPORT_KIND_BINDING);
+        if (!ok_binding && !import_exports_name(m, j, name)) continue;
+        if (!ok_binding) {
+            const char *src = import_select_source_for_local(m, j, name);
+            if (src) dep_fn = src;
+        }
+        if (!dm) continue;
+        if (typeck_find_func_in_module_by_name(dm, dep_fn, num_args, args, out) == 0) {
+            if (from_dep) *from_dep = j;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/**
+ * 对单棵表达式做类型检查；VAR 须在符号表 names[0..n) 中已定义；break/continue 仅允许在循环体内；FIELD_ACCESS/STRUCT_LIT/ARRAY_LIT/INDEX 须与类型一致；CALL 须在模块函数表中找到并参数匹配（支持 overload）。
  * 参数：type_ptrs 与 names 平行，存各符号的 ASTType*；m 为当前模块，用于 CALL 查找函数签名，可为 NULL。
  * 返回值：0 通过，-1 非法并已写 stderr。
  */
@@ -1244,7 +1862,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (m && m->import_paths && name) {
                 for (int j = 0; j < m->num_imports; j++) {
                     if (!m->import_paths[j]) continue;
-                    if (import_path_matches(m->import_paths[j], name)) return 0;
+                    if (import_module_ref_matches(m, j, name)) return 0;
                     if (import_path_has_prefix(m->import_paths[j], name)) return 0;
                 }
             }
@@ -1647,7 +2265,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     path_buf[path_len] = '\0';
                     const char *fn_name = e->value.field_access.field_name;
                     for (int j = 0; j < m->num_imports && j < typeck_num_deps; j++) {
-                        if (!m->import_paths[j] || strcmp(m->import_paths[j], path_buf) != 0) continue;
+                        if (!import_module_ref_matches(m, j, path_buf)) continue;
                         struct ASTModule *dm = typeck_dep_mods[j];
                         if (!dm || !dm->funcs) continue;
                         for (int i = 0; i < dm->num_funcs; i++) {
@@ -1697,7 +2315,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     path_buf2[path_len2] = '\0';
                     const char *fn_name = e->value.field_access.field_name;
                     for (int j = 0; j < m->num_imports && j < typeck_num_deps; j++) {
-                        if (!m->import_paths[j] || strcmp(m->import_paths[j], path_buf2) != 0) continue;
+                        if (!import_module_ref_matches(m, j, path_buf2)) continue;
                         struct ASTModule *dm = typeck_dep_mods[j];
                         if (!dm || !dm->funcs) continue;
                         for (int i = 0; i < dm->num_funcs; i++) {
@@ -1739,12 +2357,20 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         TYPECK_ERR(e, "slice .data requires resolved slice type");
                         return -1;
                     }
-                    /* 当前仅支持 []u8.data → *u8；其它 elem_type 可后续扩展 static_type_ptr_* */
+                    /* []u8.data → *u8；[]i32.data → *i32；[]u64.data → *u64（CORE-004/157 subslice） */
                     if (base_type->elem_type->kind == AST_TYPE_U8) {
                         ((struct ASTExpr *)e)->resolved_type = &static_type_ptr_u8;
                         return 0;
                     }
-                    TYPECK_ERR(e, "slice .data currently only supported for []u8");
+                    if (base_type->elem_type->kind == AST_TYPE_I32) {
+                        ((struct ASTExpr *)e)->resolved_type = &static_type_ptr_i32;
+                        return 0;
+                    }
+                    if (base_type->elem_type->kind == AST_TYPE_U64) {
+                        ((struct ASTExpr *)e)->resolved_type = &static_type_ptr_u64;
+                        return 0;
+                    }
+                    TYPECK_ERR(e, "slice .data currently only supported for []u8, []i32 and []u64");
                     return -1;
                 }
                 TYPECK_ERR(e, "slice only has fields 'length' and 'data'");
@@ -1836,16 +2462,17 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         return -1;
                     }
                     if (sd->name) {
+                        const char *ty_name = struct_lit_resolved_type_name(sd, e->value.struct_lit.struct_name);
                         int ci;
                         for (ci = 0; ci < struct_lit_type_n; ci++)
-                            if (struct_lit_type_names[ci] && strcmp(struct_lit_type_names[ci], sd->name) == 0) break;
+                            if (struct_lit_type_names[ci] && ty_name && strcmp(struct_lit_type_names[ci], ty_name) == 0) break;
                         if (ci >= struct_lit_type_n && struct_lit_type_n < MAX_STRUCT_LIT_TYPES) {
                             ci = struct_lit_type_n++;
                             struct_lit_type_cache[ci].kind = AST_TYPE_NAMED;
-                            struct_lit_type_cache[ci].name = sd->name;
+                            struct_lit_type_cache[ci].name = ty_name;
                             struct_lit_type_cache[ci].elem_type = NULL;
                             struct_lit_type_cache[ci].array_size = 0;
-                            struct_lit_type_names[ci] = sd->name;
+                            struct_lit_type_names[ci] = ty_name;
                         }
                         if (ci < struct_lit_type_n)
                             ((struct ASTExpr *)e)->resolved_type = &struct_lit_type_cache[ci];
@@ -1891,16 +2518,17 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             }
             /* 为结构体字面量本身设 resolved_type（AST_TYPE_NAMED），供 if-expr/嵌套 else 推断 __tmp 类型，从源头消除 int __tmp 却赋 (struct X){0} 的补丁 */
             if (sd->name) {
+                const char *ty_name = struct_lit_resolved_type_name(sd, e->value.struct_lit.struct_name);
                 int ci;
                 for (ci = 0; ci < struct_lit_type_n; ci++)
-                    if (struct_lit_type_names[ci] && strcmp(struct_lit_type_names[ci], sd->name) == 0) break;
+                    if (struct_lit_type_names[ci] && ty_name && strcmp(struct_lit_type_names[ci], ty_name) == 0) break;
                 if (ci >= struct_lit_type_n && struct_lit_type_n < MAX_STRUCT_LIT_TYPES) {
                     ci = struct_lit_type_n++;
                     struct_lit_type_cache[ci].kind = AST_TYPE_NAMED;
-                    struct_lit_type_cache[ci].name = sd->name;
+                    struct_lit_type_cache[ci].name = ty_name;
                     struct_lit_type_cache[ci].elem_type = NULL;
                     struct_lit_type_cache[ci].array_size = 0;
-                    struct_lit_type_names[ci] = sd->name;
+                    struct_lit_type_names[ci] = ty_name;
                 }
                 if (ci < struct_lit_type_n)
                     ((struct ASTExpr *)e)->resolved_type = &struct_lit_type_cache[ci];
@@ -1972,9 +2600,15 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
         }
         case AST_EXPR_CALL: {
             const char *callee_name = NULL;
-            const struct ASTFunc *func = NULL;
-            int from_dep = -1;  /* 若 >=0 表示在 typeck_dep_mods[from_dep] 中找到 */
-            /* 支持 module.func 或 arch.x86_64.func 形式：callee 为 FIELD_ACCESS(base, func_name) 时从 import 解析，base 可为 VAR 或嵌套 */
+            struct ASTFunc *func = NULL;
+            int from_dep = -1;
+            struct ASTModule *func_mod = (struct ASTModule *)m;
+            /* 先 typecheck 实参，供 overload 按类型选取 */
+            for (int ai = 0; ai < e->value.call.num_args; ai++) {
+                if (typeck_expr_sym(e->value.call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                    return -1;
+            }
+            /* module.func：在依赖模块内 overload / 泛型解析 */
             if (e->value.call.callee->kind == AST_EXPR_FIELD_ACCESS
                 && e->value.call.callee->value.field_access.base
                 && e->value.call.callee->value.field_access.field_name
@@ -1983,50 +2617,72 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 int call_path_len = expr_to_import_path(e->value.call.callee->value.field_access.base, call_path_buf, sizeof(call_path_buf));
                 if (call_path_len >= 0) {
                     call_path_buf[call_path_len] = '\0';
-                    const char *fn_name = e->value.call.callee->value.field_access.field_name;
+                    callee_name = e->value.call.callee->value.field_access.field_name;
                     for (int j = 0; j < m->num_imports && j < typeck_num_deps; j++) {
-                        if (!m->import_paths[j] || !import_path_matches(m->import_paths[j], call_path_buf)) continue; /* 支持短名/绑定名匹配 */
+                        if (!import_module_ref_matches(m, j, call_path_buf)) continue;
                         struct ASTModule *dm = typeck_dep_mods[j];
-                        if (!dm || !dm->funcs) continue;
-                        for (int i = 0; i < dm->num_funcs; i++) {
-                            if (!dm->funcs[i]) continue;
-                            if (dm->funcs[i]->name && strcmp(dm->funcs[i]->name, fn_name) == 0) {
-                                func = dm->funcs[i];
+                        if (!dm) continue;
+                        if (e->value.call.num_type_args > 0) {
+                            if (typeck_find_generic_func_in_module(dm, callee_name, &func) == 0) {
                                 from_dep = j;
-                                callee_name = fn_name;
+                                func_mod = dm;
                                 break;
                             }
-                        }
-                        if (func) break;
-                    }
-                }
-            }
-            if (!func && e->value.call.callee->kind == AST_EXPR_VAR) {
-                callee_name = e->value.call.callee->value.var.name;
-                if (m && m->funcs) {
-                    for (int i = 0; i < m->num_funcs; i++) {
-                        if (!m->funcs[i]) continue;
-                        if (m->funcs[i]->name && callee_name && strcmp(m->funcs[i]->name, callee_name) == 0) {
-                            func = m->funcs[i];
+                        } else if (typeck_pick_overload_in_module(dm, callee_name, (struct ASTExpr *)e, &func) == 0) {
+                            from_dep = j;
+                            func_mod = dm;
                             break;
                         }
                     }
                 }
-                if (!func && typeck_dep_mods && typeck_num_deps > 0) {
-                    for (int j = 0; j < typeck_num_deps; j++) {
-                        if (!import_exports_name(m, j, callee_name)) continue; /* SELECT 仅导出列表中的名；BINDING 不导出 */
-                        struct ASTModule *dm = typeck_dep_mods[j];
-                        if (!dm || !dm->funcs) continue;
-                        for (int i = 0; i < dm->num_funcs; i++) {
-                            if (!dm->funcs[i]) continue;
-                            if (dm->funcs[i]->name && callee_name && strcmp(dm->funcs[i]->name, callee_name) == 0) {
-                                func = dm->funcs[i];
+            }
+            /* 普通函数名：本模块 → 依赖模块 overload / 泛型解析 */
+            if (!func && e->value.call.callee->kind == AST_EXPR_VAR) {
+                callee_name = e->value.call.callee->value.var.name;
+                if (e->value.call.num_type_args > 0) {
+                    if (m && typeck_find_generic_func_in_module(m, callee_name, &func) != 0)
+                        func = NULL;
+                    if (!func && typeck_dep_mods && typeck_num_deps > 0) {
+                        for (int j = 0; j < typeck_num_deps; j++) {
+                            if (!import_exports_name(m, j, callee_name)) continue;
+                            struct ASTModule *dm = typeck_dep_mods[j];
+                            if (!dm) continue;
+                            const char *dep_fn = callee_name;
+                            const char *src = import_select_source_for_local(m, j, callee_name);
+                            if (src) dep_fn = src;
+                            if (typeck_find_generic_func_in_module(dm, dep_fn, &func) == 0) {
                                 from_dep = j;
+                                func_mod = dm;
                                 break;
                             }
                         }
-                        if (func) break;
                     }
+                    if (!func && m)
+                        typeck_find_generic_func_in_binding_deps(m, callee_name, &func, &from_dep);
+                } else {
+                    if (m && typeck_pick_overload_in_module(m, callee_name, (struct ASTExpr *)e, &func) != 0)
+                        func = NULL;
+                    if (!func && m && typeck_find_func_in_module_by_name(m, callee_name,
+                            e->value.call.num_args, e->value.call.args, &func) != 0)
+                        func = NULL;
+                    if (!func && typeck_dep_mods && typeck_num_deps > 0) {
+                        for (int j = 0; j < typeck_num_deps; j++) {
+                            if (!import_exports_name(m, j, callee_name)) continue;
+                            struct ASTModule *dm = typeck_dep_mods[j];
+                            if (!dm) continue;
+                            const char *dep_fn = callee_name;
+                            const char *src = import_select_source_for_local(m, j, callee_name);
+                            if (src) dep_fn = src;
+                            if (typeck_pick_overload_in_module(dm, dep_fn, (struct ASTExpr *)e, &func) == 0) {
+                                from_dep = j;
+                                func_mod = dm;
+                                break;
+                            }
+                        }
+                    }
+                    if (!func && m)
+                        typeck_find_func_in_binding_deps(m, callee_name, e->value.call.num_args,
+                            e->value.call.args, &func, &from_dep);
                 }
             }
             if (!func) {
@@ -2034,13 +2690,17 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     TYPECK_ERR(e, "call callee must be a function name");
                     return -1;
                 }
-                TYPECK_ERR(e, "unknown function '%s'", callee_name ? callee_name : "");
+                if (e->value.call.num_type_args > 0) {
+                    TYPECK_ERR(e, "generic function '%s' not found", callee_name ? callee_name : "");
+                } else {
+                    TYPECK_ERR(e, "no matching overload for '%s'", callee_name ? callee_name : "");
+                }
                 return -1;
             }
-            /* 本模块与 import 调用均登记 resolved_callee_func，供阶段 8.1 DCE 可达性分析使用 */
-            ((struct ASTExpr *)e)->value.call.resolved_callee_func = (struct ASTFunc *)func;
+            ((struct ASTExpr *)e)->value.call.resolved_callee_func = func;
             if (from_dep >= 0)
                 ((struct ASTExpr *)e)->value.call.resolved_import_path = m->import_paths[from_dep];
+            (void)func_mod;
             /* 泛型调用 f<Type>(args)：要求函数为泛型、类型实参个数一致，登记单态化实例并做代入后类型检查 */
             if (e->value.call.num_type_args > 0) {
                 if (func->num_generic_params == 0) {
@@ -2051,6 +2711,21 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     TYPECK_ERR(e, "generic function '%s' expects %d type arguments, got %d",
                         callee_name, func->num_generic_params, e->value.call.num_type_args);
                     return -1;
+                }
+                /* CORE-001：size_of<T>() / align_of<T>() 编译期布局查询（无值实参）。 */
+                if (callee_name && e->value.call.num_type_args == 1 && e->value.call.num_args == 0
+                    && e->value.call.type_args && e->value.call.type_args[0]
+                    && (strcmp(callee_name, "size_of") == 0 || strcmp(callee_name, "align_of") == 0)) {
+                    const struct ASTType *ty = e->value.call.type_args[0];
+                    int layout_val = (strcmp(callee_name, "size_of") == 0)
+                        ? type_size_of(ty, struct_defs, num_structs, enum_defs, num_enums)
+                        : type_align_of(ty, struct_defs, num_structs, enum_defs, num_enums);
+                    if (layout_val <= 0) {
+                        TYPECK_ERR(e, "'%s' does not support the given type argument", callee_name);
+                        return -1;
+                    }
+                    ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
+                    return 0;
                 }
                 /* 在对应模块中登记 (template, type_args)：本模块调用则登记到 m，从 import 调用则登记到 dep（供 codegen 生成单态化体） */
                 {
@@ -2129,7 +2804,6 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 return -1;
             }
             for (int i = 0; i < e->value.call.num_args; i++) {
-                if (typeck_expr_sym(e->value.call.args[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
                 const struct ASTType *arg_type = e->value.call.args[i]->resolved_type;
                 const struct ASTType *param_type = func->params[i].type;
                 if (!typeck_fill_only && typeck_check_slice_region_assign(e->value.call.args[i], param_type, arg_type) != 0)
@@ -2230,56 +2904,49 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 int meth_path_len = expr_to_import_path(e->value.method_call.base, meth_path_buf, sizeof(meth_path_buf));
                 if (meth_path_len >= 0) {
                     meth_path_buf[meth_path_len] = '\0';
+                    for (int ai = 0; ai < e->value.method_call.num_args; ai++) {
+                        if (typeck_expr_sym(e->value.method_call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                            return -1;
+                    }
                     for (int j = 0; j < m->num_imports && j < typeck_num_deps; j++) {
-                        /* 支持短名匹配：process.getenv 中 "process" 匹配 import_paths[j]=="std.process"（最后一段） */
-                        if (!m->import_paths[j] || !import_path_matches(m->import_paths[j], meth_path_buf)) continue;
+                        if (!import_module_ref_matches(m, j, meth_path_buf)) continue;
                         struct ASTModule *dm = typeck_dep_mods[j];
-                    if (!dm || !dm->funcs) continue;
-                    for (int i = 0; i < dm->num_funcs; i++) {
-                        if (!dm->funcs[i]) continue;
-                        if (dm->funcs[i]->name && strcmp(dm->funcs[i]->name, method_name) == 0) {
-                            struct ASTFunc *func = dm->funcs[i];
-                            if (e->value.method_call.num_args != func->num_params) {
-                                TYPECK_ERR(e, "function '%s' expects %d arguments, got %d",
-                                    method_name, func->num_params, e->value.method_call.num_args);
-                                typeck_err_loc(e);
-                                return -1;
-                            }
-                            for (int ai = 0; ai < e->value.method_call.num_args; ai++) {
-                                if (typeck_expr_sym(e->value.method_call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
-                                const struct ASTType *arg_type = e->value.method_call.args[ai]->resolved_type;
-                                const struct ASTType *param_type = func->params[ai].type;
-                                /* 取址 &expr 未填 resolved_type 时：若形参为 *T 且 operand 类型为 T，则补全为形参类型并接受 */
-                                if ((!arg_type || !type_equal(arg_type, param_type))
-                                    && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type
-                                    && e->value.method_call.args[ai]->kind == AST_EXPR_ADDR_OF
-                                    && e->value.method_call.args[ai]->value.unary.operand) {
-                                    const struct ASTExpr *operand = e->value.method_call.args[ai]->value.unary.operand;
-                                    if (operand->resolved_type && type_equal(param_type->elem_type, operand->resolved_type)) {
-                                        ((struct ASTExpr *)e->value.method_call.args[ai])->resolved_type = param_type;
-                                        arg_type = param_type;
-                                    }
-                                }
-                                /* 允许数组 [N]T 传给 *T 参数（数组到指针衰减，如 platform.elf.append_elf_bytes(ctx, buf, n)） */
-                                if ((!arg_type || !type_equal(arg_type, param_type))
-                                    && param_type && param_type->kind == AST_TYPE_PTR && arg_type && arg_type->kind == AST_TYPE_ARRAY
-                                    && param_type->elem_type && arg_type->elem_type && type_equal(param_type->elem_type, arg_type->elem_type)) {
+                        struct ASTFunc *func = NULL;
+                        if (!dm || typeck_pick_overload_in_module_ex(dm, method_name,
+                                e->value.method_call.num_args, e->value.method_call.args,
+                                (struct ASTExpr *)e, &func) != 0)
+                            continue;
+                        for (int ai = 0; ai < e->value.method_call.num_args; ai++) {
+                            const struct ASTType *arg_type = e->value.method_call.args[ai]->resolved_type;
+                            const struct ASTType *param_type = func->params[ai].type;
+                            if ((!arg_type || !type_assignable_to(arg_type, param_type, e->value.method_call.args[ai]))
+                                && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type
+                                && e->value.method_call.args[ai]->kind == AST_EXPR_ADDR_OF
+                                && e->value.method_call.args[ai]->value.unary.operand) {
+                                const struct ASTExpr *operand = e->value.method_call.args[ai]->value.unary.operand;
+                                if (operand->resolved_type && type_equal(param_type->elem_type, operand->resolved_type)) {
                                     ((struct ASTExpr *)e->value.method_call.args[ai])->resolved_type = param_type;
                                     arg_type = param_type;
                                 }
-                                if (!arg_type || !param_type || !type_equal(arg_type, param_type)) {
-                                    TYPECK_ERR(e->value.method_call.args[ai], "argument %d of '%s' type mismatch", ai + 1, method_name ? method_name : "");
-                                    return -1;
-                                }
                             }
-                            if (func->return_type)
-                                ((struct ASTExpr *)e)->resolved_type = func->return_type;
-                            ((struct ASTExpr *)e)->value.method_call.resolved_impl_func = func;
-                            ((struct ASTExpr *)e)->value.method_call.resolved_import_path = m->import_paths[j];
-                            return 0;
+                            if ((!arg_type || !type_assignable_to(arg_type, param_type, e->value.method_call.args[ai]))
+                                && param_type && param_type->kind == AST_TYPE_PTR && arg_type && arg_type->kind == AST_TYPE_ARRAY
+                                && param_type->elem_type && arg_type->elem_type
+                                && type_equal(param_type->elem_type, arg_type->elem_type)) {
+                                ((struct ASTExpr *)e->value.method_call.args[ai])->resolved_type = param_type;
+                                arg_type = param_type;
+                            }
+                            if (!arg_type || !param_type || !type_assignable_to(arg_type, param_type, e->value.method_call.args[ai])) {
+                                TYPECK_ERR(e->value.method_call.args[ai], "argument %d of '%s' type mismatch", ai + 1, method_name ? method_name : "");
+                                return -1;
+                            }
                         }
+                        if (func->return_type)
+                            ((struct ASTExpr *)e)->resolved_type = func->return_type;
+                        ((struct ASTExpr *)e)->value.method_call.resolved_impl_func = func;
+                        ((struct ASTExpr *)e)->value.method_call.resolved_import_path = m->import_paths[j];
+                        return 0;
                     }
-                }
                 }
             }
             if (!base_ty) {
@@ -2422,6 +3089,52 @@ static int typeck_coerce_array_var_to_slice_type(struct ASTExpr *init, const str
     }
     TYPECK_ERR_AT(0, 0, "slice init must be array variable with matching element type");
     return -1;
+}
+
+/**
+ * BCE：从循环条件 var < bound 推断 [0,bound) 值域，供体内 arr[var]/s[var] 省略 INDEX 边界检查。
+ * 支持 bound 为字面量、外层 const 变量或 slice.length。
+ */
+static void typeck_bce_push_lt_cond(const struct ASTExpr *cond,
+                                    const char *const *names, int n,
+                                    int const_start, int n_consts, const int *const_values)
+{
+    const struct ASTExpr *left;
+    const struct ASTExpr *right;
+    int j;
+
+    if (!cond || cond->kind != AST_EXPR_LT || bce_n >= MAX_BCE_RANGES)
+        return;
+    left = cond->value.binop.left;
+    right = cond->value.binop.right;
+    if (!left || left->kind != AST_EXPR_VAR || !left->value.var.name)
+        return;
+    bce_var_names[bce_n] = left->value.var.name;
+    if (right && right->kind == AST_EXPR_LIT) {
+        bce_bound_const[bce_n] = 1;
+        bce_bound_val[bce_n] = right->value.int_val;
+        bce_bound_base[bce_n] = NULL;
+        bce_n++;
+        return;
+    }
+    if (right && right->kind == AST_EXPR_VAR && right->value.var.name) {
+        for (j = 0; j < n && (!names[j] || strcmp(names[j], right->value.var.name) != 0); j++)
+            ;
+        if (j < n && j >= const_start && j < const_start + n_consts) {
+            bce_bound_const[bce_n] = 1;
+            bce_bound_val[bce_n] = const_values[j];
+            bce_bound_base[bce_n] = NULL;
+            bce_n++;
+        }
+        return;
+    }
+    if (right && right->kind == AST_EXPR_FIELD_ACCESS && right->value.field_access.field_name &&
+        strcmp(right->value.field_access.field_name, "length") == 0 && right->value.field_access.base) {
+        bce_bound_const[bce_n] = 0;
+        bce_bound_val[bce_n] = 0;
+        bce_bound_base[bce_n] = right->value.field_access.base;
+        bce_n++;
+    }
 }
 
 /**
@@ -2576,12 +3289,12 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             return -1;
         }
         if (b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
+            && b->let_decls[i].type->kind != AST_TYPE_UNION
             && typeck_integer_widen_ok(b->let_decls[i].type->kind, b->let_decls[i].init->resolved_type->kind)) {
             ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
         }
         if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
-            && !type_equal(b->let_decls[i].type, b->let_decls[i].init->resolved_type)
-            && !(b->let_decls[i].type->kind == AST_TYPE_F32 && b->let_decls[i].init->resolved_type->kind == AST_TYPE_F64)
+            && !typeck_let_init_matches(b->let_decls[i].type, b->let_decls[i].init)
             && !(b->let_decls[i].type->kind == AST_TYPE_LINEAR
                 && typeck_linear_accepts_inner(b->let_decls[i].type, b->let_decls[i].init->resolved_type))) {
             char ebuf[64], fbuf[64];
@@ -2612,7 +3325,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 return -1;
             }
         }
-        type_ptrs[n] = b->let_decls[i].type;
+        type_ptrs[n] = typeck_let_symtab_type(b->let_decls[i].type, b->let_decls[i].init);
         if (!type_ptrs[n] && b->let_decls[i].init && b->let_decls[i].init->resolved_type)
             type_ptrs[n] = b->let_decls[i].init->resolved_type;
         type_kinds[n] = type_ptrs[n] ? type_ptrs[n]->kind : AST_TYPE_I32;
@@ -2629,7 +3342,13 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 return -1;
             }
         }
-        if (typeck_block(b->loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
+        /* BCE 扩展：while (i < bound) 与 for 同，供体内 INDEX 消除边界检查 */
+        {
+            int saved_bce = bce_n;
+            typeck_bce_push_lt_cond(cond_while, names, n, const_start, n_consts, const_values);
+            if (typeck_block(b->loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
+            bce_n = saved_bce;
+        }
     }
     for (int i = 0; i < b->num_for_loops; i++) {
         if (b->for_loops[i].init && typeck_expr_sym(b->for_loops[i].init, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
@@ -2650,36 +3369,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
         /* BCE 扩展：从 for 条件 i < bound 推断循环变量值域 [0, bound)，供体内 INDEX 消除边界检查 */
         {
             int saved_bce = bce_n;
-            const struct ASTExpr *cond = b->for_loops[i].cond;
-            if (cond && cond->kind == AST_EXPR_LT && bce_n < MAX_BCE_RANGES) {
-                const struct ASTExpr *left = cond->value.binop.left;
-                const struct ASTExpr *right = cond->value.binop.right;
-                if (left && left->kind == AST_EXPR_VAR && left->value.var.name) {
-                    bce_var_names[bce_n] = left->value.var.name;
-                    if (right->kind == AST_EXPR_LIT) {
-                        bce_bound_const[bce_n] = 1;
-                        bce_bound_val[bce_n] = right->value.int_val;
-                        bce_bound_base[bce_n] = NULL;
-                        bce_n++;
-                    } else if (right->kind == AST_EXPR_VAR && right->value.var.name) {
-                        int j;
-                        for (j = 0; j < n && (!names[j] || strcmp(names[j], right->value.var.name) != 0); j++) ;
-                        if (j < n && j >= const_start && j < const_start + n_consts) {
-                            bce_bound_const[bce_n] = 1;
-                            bce_bound_val[bce_n] = const_values[j];
-                            bce_bound_base[bce_n] = NULL;
-                            bce_n++;
-                        }
-                    } else if (right->kind == AST_EXPR_FIELD_ACCESS && right->value.field_access.field_name &&
-                               strcmp(right->value.field_access.field_name, "length") == 0 &&
-                               right->value.field_access.base) {
-                        bce_bound_const[bce_n] = 0;
-                        bce_bound_val[bce_n] = 0;
-                        bce_bound_base[bce_n] = right->value.field_access.base;
-                        bce_n++;
-                    }
-                }
-            }
+            typeck_bce_push_lt_cond(b->for_loops[i].cond, names, n, const_start, n_consts, const_values);
             if (typeck_block(b->for_loops[i].body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, 1, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
             bce_n = saved_bce;
         }
@@ -2980,6 +3670,15 @@ int typeck_one_function(struct ASTModule *m, struct ASTModule **dep_mods, int nu
     int layout_ndeps = (all_dep_mods && n_all_deps > 0) ? n_all_deps : num_deps;
     typeck_dep_mods = layout_deps;
     typeck_num_deps = layout_ndeps;
+    if (layout_deps && layout_ndeps > 0) {
+        for (int j = 0; j < layout_ndeps; j++) {
+            if (!layout_deps[j]) continue;
+            if (typeck_materialize_generic_structs(layout_deps[j]) != 0)
+                return -1;
+        }
+    }
+    if (typeck_materialize_generic_structs(m) != 0)
+        return -1;
     if (layout_deps && layout_ndeps > 0) {
         for (int j = 0; j < layout_ndeps; j++) {
             if (!layout_deps[j]) continue;
@@ -3314,12 +4013,23 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
         TYPECK_ERR_AT(0, 0, "null module");
         return -1;
     }
+    typeck_current_mod = m;
     /* 布局阶段使用全部传递依赖（若有），以便依赖内结构体引用其他依赖类型时能解析（如 parser 的 OneFuncResult.next_lex: Lexer） */
     struct ASTModule **layout_deps = (all_dep_mods && n_all_deps > 0) ? all_dep_mods : dep_mods;
     int layout_ndeps = (all_dep_mods && n_all_deps > 0) ? n_all_deps : num_deps;
     typeck_dep_mods = layout_deps;
     typeck_num_deps = layout_ndeps;
-    /* 先为所有依赖模块计算结构体布局（按 layout_deps 顺序，保证拓扑序如 lexer 在 parser 前） */
+    /* 先物化各依赖与主模块（主模块使用处可触发在依赖内单态化，LANG-010） */
+    if (layout_deps && layout_ndeps > 0) {
+        for (int j = 0; j < layout_ndeps; j++) {
+            if (!layout_deps[j]) continue;
+            if (typeck_materialize_generic_structs(layout_deps[j]) != 0)
+                return -1;
+        }
+    }
+    if (typeck_materialize_generic_structs(m) != 0)
+        return -1;
+    /* 物化完成后再统一计算布局（含依赖内跨模块生成的单态 struct） */
     if (layout_deps && layout_ndeps > 0) {
         for (int j = 0; j < layout_ndeps; j++) {
             if (!layout_deps[j]) continue;
@@ -3328,7 +4038,6 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
                 return -1;
         }
     }
-    /* 本模块结构体布局（库模块也计算，供入口模块引用；§11.1） */
     if (m->struct_defs && m->num_structs > 0 && compute_struct_layouts(m->struct_defs, m->num_structs, m->enum_defs, m->num_enums) != 0)
         return -1;
     /* 后续 CALL 解析等仍用直接依赖 dep_mods */
@@ -3350,14 +4059,17 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
             if (typeck_expr_sym(m->top_level_lets[i].init, tl_names, tl_type_kinds, tl_type_names, tl_n, tl_type_ptrs, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m) != 0)
                 return -1;
             if (m->top_level_lets[i].type && m->top_level_lets[i].init->resolved_type
-                && !type_equal(m->top_level_lets[i].type, m->top_level_lets[i].init->resolved_type)) {
+                && !typeck_let_init_matches(m->top_level_lets[i].type, m->top_level_lets[i].init)
+                && !(m->top_level_lets[i].type->kind == AST_TYPE_LINEAR
+                    && typeck_linear_accepts_inner(m->top_level_lets[i].type, m->top_level_lets[i].init->resolved_type))) {
                 TYPECK_ERR_AT(0, 0, "top-level let init type mismatch");
                 return -1;
             }
             tl_names[tl_n] = m->top_level_lets[i].name;
-            tl_type_kinds[tl_n] = m->top_level_lets[i].type ? m->top_level_lets[i].type->kind : AST_TYPE_I32;
-            tl_type_names[tl_n] = (m->top_level_lets[i].type && m->top_level_lets[i].type->kind == AST_TYPE_NAMED) ? m->top_level_lets[i].type->name : NULL;
-            tl_type_ptrs[tl_n] = m->top_level_lets[i].type;
+            tl_type_ptrs[tl_n] = typeck_let_symtab_type(m->top_level_lets[i].type, m->top_level_lets[i].init);
+            if (!tl_type_ptrs[tl_n]) tl_type_ptrs[tl_n] = m->top_level_lets[i].type;
+            tl_type_kinds[tl_n] = tl_type_ptrs[tl_n] ? tl_type_ptrs[tl_n]->kind : AST_TYPE_I32;
+            tl_type_names[tl_n] = (tl_type_ptrs[tl_n] && tl_type_ptrs[tl_n]->kind == AST_TYPE_NAMED) ? tl_type_ptrs[tl_n]->name : NULL;
             tl_n++;
         }
     }
@@ -3569,6 +4281,7 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
     /* WPO-S3：post-typeck struct 栈指针逃逸（与 pipeline_typeck_scan_module_struct_stack_escape_c 对齐）。 */
     if (typeck_wpo3_scan_module_struct_stack_escape(m) != 0)
         return -1;
+    typeck_unused_hints_module(m);
     return 0;
 }
 

@@ -2,13 +2,13 @@
 // 已提供：copy、unreachable、abort、min/max、clz/ctz/popcount（u32）、placeholder；不新增 extern，保持 core 零 OS 依赖。
 // 与编译器内建对齐后，可改为 extern 或编译器识别符号，以产生单指令/ libcall 优化。
 
-import core.mem;
+const mem = import("core.mem");
 
 // ——— 占位与测试用 ———
 function placeholder(): i32 { return 0; }
 
 // ——— 内存与终止 ———
-function copy(dst: *u8, src: *u8, n: usize): void { mem_copy(dst, src, n); }
+function copy(dst: *u8, src: *u8, n: usize): void { mem.mem_copy(dst, src, n); }
 function unreachable(): void { panic(); }
 function abort(): void { panic(); }
 
@@ -44,4 +44,27 @@ function popcount_u32(x: u32): i32 {
     t = t >> 1;
   }
   return c;
+}
+
+/** 32 位字节序交换（CORE-018）。 */
+function bswap_u32(x: u32): u32 {
+  let b0: u32 = (x >> 24) & 255;
+  let b1: u32 = (x >> 16) & 255;
+  let b2: u32 = (x >> 8) & 255;
+  let b3: u32 = x & 255;
+  return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+}
+
+/** 32 位循环左移；count 取模 32（CORE-018）。 */
+function rotl_u32(x: u32, count: u32): u32 {
+  let c: u32 = count % 32;
+  if (c == 0) { return x; }
+  return (x << c) | (x >> (32 - c));
+}
+
+/** 32 位循环右移；count 取模 32（CORE-018）。 */
+function rotr_u32(x: u32, count: u32): u32 {
+  let c: u32 = count % 32;
+  if (c == 0) { return x; }
+  return (x >> c) | (x << (32 - c));
 }

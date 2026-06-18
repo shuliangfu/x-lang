@@ -1,0 +1,5 @@
+# STD-147 std.backtrace 跨平台符号质量向量
+# 列：vector_id	platform_match	min_gold	min_resolved	min_total	notes
+darwin_dladdr	Darwin	1	1	1	dladdr + export_dynamic
+linux_dladdr	Linux	1	1	1	glibc execinfo + rdynamic
+win_dbghelp	MINGW|MSYS|CYGWIN|Windows	1	1	1	DbgHelp SymFromAddr

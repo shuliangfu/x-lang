@@ -1,0 +1,48 @@
+// STD-079：std.security HKDF / ct_compare / secure_zero 烟测
+const security = import("std.security");
+
+/** 比较两段字节是否相等；1 相等。 */
+function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  let i: i32 = 0;
+  if (a_len != b_len) { return 0; }
+  while (i < a_len) {
+    if (a[i] != b[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+function main(): i32 {
+  let ikm: [22]u8 = [
+    11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+    11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+    11, 11
+  ];
+  let salt: [13]u8 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  let info: [10]u8 = [240, 241, 242, 243, 244, 245, 246, 247, 248, 249];
+  let expect: [42]u8 = [
+    60, 178, 95, 37, 250, 172, 213, 122, 144, 67, 79, 100, 208, 54, 47, 42,
+    45, 45, 10, 144, 207, 26, 90, 76, 93, 176, 45, 86, 236, 196, 197, 191,
+    52, 0, 114, 8, 213, 184, 135, 24, 88, 101
+  ];
+  let okm: [42]u8 = [];
+  let secret: [16]u8 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+  let sb: SensitiveBuf = SensitiveBuf { ptr: 0, len: 0, locked: 0 };
+  let a: [4]u8 = [1, 2, 3, 4];
+  let b: [4]u8 = [1, 2, 3, 4];
+  let c: [4]u8 = [1, 2, 3, 5];
+
+  if (security.hkdf_sha256(&salt[0], 13, &ikm[0], 22, &info[0], 10, &okm[0], 42) != security.security_err_ok()) {
+    return 1;
+  }
+  if (bytes_eq(&okm[0], 42, &expect[0], 42) == 0) { return 2; }
+
+  if (security.ct_compare(&a[0], &b[0], 4) != 1) { return 3; }
+  if (security.ct_compare(&a[0], &c[0], 4) != 0) { return 4; }
+
+  if (security.sensitive_buf_init(&sb, &secret[0], 16, 0) != security.security_err_ok()) { return 5; }
+  security.sensitive_buf_wipe(&sb);
+  if (secret[0] != 0 || secret[15] != 0) { return 6; }
+
+  return 0;
+}

@@ -1,0 +1,18 @@
+# STD-013/014 map/vec 扩展 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_map_types	2
+min_vec_types	2
+map_u64	symbol	Map_u64_i32	std/map/mod.su
+map_str	symbol	Map_str_i32	std/map/mod.su
+map_insert	symbol	map_u64_i32_insert	std/map/mod.su
+map_remove	symbol	map_str_i32_remove	std/map/mod.su
+vec_u64	symbol	Vec_u64	std/vec/mod.su
+vec_f64	symbol	Vec_f64	std/vec/mod.su
+vec_append	symbol	vec_u64_append_slice	std/vec/mod.su
+vec_from	symbol	vec_f64_from_slice	std/vec/mod.su
+heap_u64	symbol	alloc_u64	std/heap/mod.su
+heap_f64	symbol	alloc_f64	std/heap/mod.su
+test_map	file	tests/map/boundary.su		烟测
+test_vec	file	tests/vec/append_roundtrip.su		烟测
+doc	file	std-map-vec-extend-v1.md	analysis/std-map-vec-extend-v1.md	RFC
+gate	script	run-std-map-vec-extend-gate.sh	tests/run-std-map-vec-extend-gate.sh	manifest

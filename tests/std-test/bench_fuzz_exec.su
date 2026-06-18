@@ -1,0 +1,21 @@
+// STD-143：std.test 可执行 bench/fuzz 烟测
+const test = import("std.test");
+
+function main(): i32 {
+  // fuzz 种子可复现
+  let st: u32 = fuzz_seed();
+  let a: u32 = fuzz_next(&st);
+  let b: u32 = fuzz_next(&st);
+  if (a == 0 || b == 0) { return 1; }
+  let st2: u32 = fuzz_seed();
+  if (fuzz_next(&st2) != a) { return 2; }
+  if (fuzz_next(&st2) != b) { return 3; }
+  // bench 真实计时 + 报告
+  let ns: i64 = bench_run_noop(64);
+  if (ns < 0) { return 4; }
+  let name: [4]u8 = [108, 111, 111, 112];
+  if (bench_report(&name[0], 4, ns) != 0) { return 5; }
+  // fuzz runner 可执行
+  if (fuzz_run_noop(32) != 0) { return 6; }
+  return 0;
+}

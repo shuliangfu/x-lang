@@ -13,7 +13,6 @@
 // + 一次拷贝，路径通常很短，已接近最优。同时需要 extension 与 stem 时用
 // path_extension_and_stem 可少一次 last_slash 与 last_dot 扫描。
 // 占位函数，表示本模块已可 import。
-function placeholder(): i32 { return 0; }
 /** 空路径长度 0；与 path_join 等配合使用。 */
 function path_empty_len(): i32 { return 0; }
 /** 当前平台路径分隔符（POSIX '/'=47；对标 Zig sep、Go filepath.Separator）。 */
@@ -84,11 +83,25 @@ function path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   }
   return i;
 }
-/** 是否绝对路径（POSIX：首字节为 '/'；对标 Rust is_absolute、Go IsAbs、Zig
-* isAbsolute）。返回 1 是，0 否。 */
+/** 是否绝对路径（POSIX '/'；Windows UNC `\\` 或 `C:\`/`C:/` 盘符根）。返回 1 是，0 否。 */
 function path_is_absolute(path: *u8, path_len: i32): i32 {
   if (path_len <= 0) { return 0; }
   if (path[0] == 47) { return 1; }
+  /** UNC：\\server\share */
+  if (path_len >= 2 && path[0] == 92 && path[1] == 92) { return 1; }
+  /** 盘符根：C:\ 或 C:/（C:foo 为相对，不算绝对） */
+  if (path_len >= 3 && path[1] == 58) {
+    let c0: u8 = path[0];
+    if ((c0 >= 65 && c0 <= 90) || (c0 >= 97 && c0 <= 122)) {
+      if (path[2] == 92 || path[2] == 47) { return 1; }
+    }
+  }
+  return 0;
+}
+/** 是否为路径分隔符（'/' 或 '\\'）。 */
+function path_is_sep(c: u8): i32 {
+  if (c == 47) { return 1; }
+  if (c == 92) { return 1; }
   return 0;
 }
 // 在 path[start..start+len) 中找最后一个 '.' 的下标（相对 start），不存在返回
@@ -184,12 +197,11 @@ function path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let at_start: i32 = 1;
   let started_with_slash: i32 = 0;
   while (i < path_len && out_len < out_max) {
-    if (path[i] == 47) {
+    if (path_is_sep(path[i]) != 0) {
       if (at_start != 0 && out_len == 0) { started_with_slash = 1; }
       if (at_start == 0) {
         out[out_len] = 47;
         out_len = out_len + 1;
-        if (nseg < 63) { seg_starts[nseg] = out_len; nseg = nseg + 1; }
         at_start = 1;
       }
       i = i + 1;
@@ -197,7 +209,7 @@ function path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
     }
     at_start = 0;
     let seg_begin: i32 = i;
-    while (i < path_len && path[i] != 47) { i = i + 1; }
+    while (i < path_len && path_is_sep(path[i]) == 0) { i = i + 1; }
     let seg_len: i32 = i - seg_begin;
     if (seg_len == 0) { continue; }
     if (seg_len == 1 && path[seg_begin] == 46) { continue; }
@@ -228,3 +240,21 @@ function path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   if (out_len > 1 && out[out_len - 1] == 47) { out_len = out_len - 1; }
   return out_len;
 }
+/**
+ * 相对路径解析：ref 为绝对路径时直接 path_clean(ref)；
+ * 否则取 base 的 dirname，与 ref 拼接后 path_clean。
+ * 对标 Go filepath.Join(base, ref) 在 base 为文件路径时的语义。
+ */
+function path_resolve(out: *u8, out_max: i32, base: *u8, base_len: i32, ref: *u8, ref_len: i32): i32 {
+  if (ref_len > 0 && path_is_absolute(ref, ref_len) != 0) {
+    return path_clean(ref, ref_len, out, out_max);
+  }
+  let dir_buf: [256]u8 = [];
+  let dir_len: i32 = path_dirname(base, base_len, &dir_buf[0], 256);
+  let tmp: [512]u8 = [];
+  let jlen: i32 = path_join(&tmp[0], 512, &dir_buf[0], dir_len, ref, ref_len);
+  if (jlen < 0) { return -1; }
+  return path_clean(&tmp[0], jlen, out, out_max);
+}
+/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+function path_module_anchor(): i32 { return 0; }

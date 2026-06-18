@@ -1,0 +1,29 @@
+/**
+ * Cookbook HTTP-02：chunked 响应解码与 keep-alive 检测（STD-033）。
+ */
+const http = import("std.http");
+
+function main(): i32 {
+  /** 合成 HTTP/1.1 chunked + keep-alive 响应（金样见 std-http-chunked-v1.md §3） */
+  let resp: [86]u8 = [
+    72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
+    84, 114, 97, 110, 115, 102, 101, 114, 45, 69, 110, 99, 111, 100, 105, 110, 103, 58, 32, 99, 104, 117, 110, 107, 101, 100, 13, 10,
+    67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 13, 10,
+    13, 10,
+    53, 13, 10, 104, 101, 108, 108, 111, 13, 10, 48, 13, 10, 13, 10
+  ];
+  let resp_len: i32 = 86;
+
+  if (!http.has_chunked_encoding(&resp[0], resp_len)) { return 1; }
+  if (!http.has_keep_alive(&resp[0], resp_len)) { return 2; }
+
+  let hdr_end: i32 = 0;
+  if (http.headers_body_offset(&resp[0], resp_len, &hdr_end) != 0) { return 3; }
+
+  let body: [8]u8 = [];
+  let body_len: i32 = http.decode_chunked_body(&resp[0], resp_len, hdr_end, &body[0], 8);
+  if (body_len != 5) { return 4; }
+  if (body[0] != 104 || body[4] != 111) { return 5; }
+
+  return 0;
+}

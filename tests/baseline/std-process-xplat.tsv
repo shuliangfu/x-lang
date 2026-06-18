@@ -1,0 +1,13 @@
+# STD-142 std.process 跨平台行为向量
+# 列：case_id	op	desc	expect_notes
+pid_pos	getpid	>0	全平台
+ppid_range	getppid	>=-1	Windows=-1
+getcwd_buf	getcwd	len>0	缓冲路径
+getcwd_ptr	getcwd_ptr	非空	零拷贝
+self_exe	self_exe_path	len>0	可执行路径
+pipe_create	pipe	rd/wr>=0	POSIX/Win CreatePipe
+chdir_dot	chdir(".")	0	往返 cwd
+spawn_true	spawn_simple+waitpid	exit=0	POSIX /bin/true；Win skip
+spawn_io_inherit	spawn_io	fd=-1 继承	STD-023
+win_cmd	spawn_wait_win	cmd /c exit 0	STD-024 Windows
+pipe_echo	spawn_pipe_echo	pipe 重定向	STD-023 金样

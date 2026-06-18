@@ -1,0 +1,16 @@
+# STD-142 std.process xplat manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 目标	analysis/std-process-xplat-v1.md
+matrix	section	## 2. 行为矩阵	analysis/std-process-xplat-v1.md
+api_spawn_io	api	spawn_io	std/process/mod.su	STD-023
+api_waitpid	api	waitpid	std/process/mod.su	等待
+api_pipe	api	pipe	std/process/mod.su	管道
+vectors	file	tests/baseline/std-process-xplat.tsv	向量
+smoke_su	smoke	tests/process/xplat_behavior.su	聚合烟测
+smoke_boundary	smoke	tests/process/boundary.su	TST-002
+smoke_win	smoke	tests/process/spawn_wait_win.su	STD-024
+smoke_pipe	smoke	tests/process/spawn_pipe_echo.su	STD-023
+gate_pps	gate	tests/run-std-process-pipe-spawn-gate.sh	委托
+gate_process	gate	tests/run-process.sh	委托
+lib	script	tests/lib/std-process-xplat.sh	lib
+gate	script	tests/run-std-process-xplat-gate.sh	gate

@@ -5,7 +5,7 @@
 // 占位函数，表示本模块已可 import。
 function placeholder(): i32 { return 0; }
 
-// ——— 对齐查询（与 core.types 对称，供仅 import core.mem 的调用方使用） ———
+// ——— 对齐查询（与 core.types 对称，供仅 import("core.mem") 的调用方使用） ———
 function align_of_i32(): i32 { return 4; }
 function align_of_bool(): i32 { return 1; }
 function align_of_u8(): i32 { return 1; }
@@ -94,4 +94,66 @@ function align_down(addr: usize, alignment: usize): usize {
     return addr;
   }
   return (addr / alignment) * alignment;
+}
+
+// ——— volatile 读写与内存栅栏（CORE-017；实现见 core/mem/mem.c） ———
+extern function mem_volatile_load_u8_c(ptr: *u8): u8;
+extern function mem_volatile_store_u8_c(ptr: *u8, val: u8): void;
+extern function mem_volatile_load_u16_c(ptr: *u8): u16;
+extern function mem_volatile_store_u16_c(ptr: *u8, val: u16): void;
+extern function mem_volatile_load_u32_c(ptr: *u8): u32;
+extern function mem_volatile_store_u32_c(ptr: *u8, val: u32): void;
+extern function mem_compiler_fence_c(): void;
+extern function mem_fence_acquire_c(): void;
+extern function mem_fence_release_c(): void;
+extern function mem_fence_seq_cst_c(): void;
+
+/** volatile 读 u8。 */
+function volatile_load_u8(ptr: *u8): u8 {
+  return mem_volatile_load_u8_c(ptr);
+}
+
+/** volatile 写 u8。 */
+function volatile_store_u8(ptr: *u8, val: u8): void {
+  mem_volatile_store_u8_c(ptr, val);
+}
+
+/** volatile 读 u16；ptr 须 2 字节对齐。 */
+function volatile_load_u16(ptr: *u8): u16 {
+  return mem_volatile_load_u16_c(ptr);
+}
+
+/** volatile 写 u16。 */
+function volatile_store_u16(ptr: *u8, val: u16): void {
+  mem_volatile_store_u16_c(ptr, val);
+}
+
+/** volatile 读 u32；ptr 须 4 字节对齐。 */
+function volatile_load_u32(ptr: *u8): u32 {
+  return mem_volatile_load_u32_c(ptr);
+}
+
+/** volatile 写 u32。 */
+function volatile_store_u32(ptr: *u8, val: u32): void {
+  mem_volatile_store_u32_c(ptr, val);
+}
+
+/** 编译器级栅栏。 */
+function compiler_fence(): void {
+  mem_compiler_fence_c();
+}
+
+/** 线程 acquire 栅栏。 */
+function fence_acquire(): void {
+  mem_fence_acquire_c();
+}
+
+/** 线程 release 栅栏。 */
+function fence_release(): void {
+  mem_fence_release_c();
+}
+
+/** 线程 seq_cst 全序栅栏。 */
+function fence_seq_cst(): void {
+  mem_fence_seq_cst_c();
 }

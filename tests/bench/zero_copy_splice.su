@@ -1,8 +1,8 @@
 // zero_copy_splice.su — ZC-5：fs_pipe_splice 文件→socket（pipe+splice 代理）
 // 与 zero_copy_sendfile.su 共用 sink；纳入 run-perf-io.sh --bench（Linux，io-perf.tsv cap 0.35s）。
-import std.fs;
-import std.net;
-import std.process;
+const fs = import("std.fs");
+const net = import("std.net");
+const process = import("std.process");
 
 /** 解析十进制 u32 端口（NUL 结尾 ASCII）；非法字符返回 default_port。 */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
@@ -27,17 +27,17 @@ function main(): i32 {
   98, 101, 110, 99, 104, 95,
   116, 109, 112, 0];
   let sink_port: u32 = 38459 as u32;
-  if (args_count() >= 2) {
-    sink_port = bench_parse_port(arg(1), sink_port);
+  if (process.args_count() >= 2) {
+    sink_port = bench_parse_port(process.arg(1), sink_port);
   }
   let bench_bytes: usize = 16777216 as usize;
   let chunk: usize = 1048576 as usize;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let file_fd: i32 = fs_open_read(&path[0]);
+  let file_fd: i32 = fs.fs_open_read(&path[0]);
   if (file_fd < 0) { return 1; }
-  let stream: TcpStream = connect_blocking(addr, sink_port, 0);
+  let stream: TcpStream = net.connect_blocking(addr, sink_port, 0);
   if (stream.fd < 0) {
-    fs_close(file_fd);
+    fs.fs_close(file_fd);
     return 2;
   }
   let sent: usize = 0 as usize;
@@ -45,18 +45,18 @@ function main(): i32 {
     let left: usize = bench_bytes - sent;
     let ask: usize = chunk;
     if (left < ask) { ask = left; }
-    let n: i64 = fs_pipe_splice(file_fd, stream.fd, ask);
+    let n: i64 = fs.fs_pipe_splice(file_fd, stream.fd, ask);
     if (n <= 0) {
-      close_stream(stream);
-      fs_close(file_fd);
+      net.close_stream(stream);
+      fs.fs_close(file_fd);
       return 3;
     }
     sent = sent + (n as usize);
   }
-  if (close_stream(stream) != 0) {
-    fs_close(file_fd);
+  if (net.close_stream(stream) != 0) {
+    fs.fs_close(file_fd);
     return 4;
   }
-  if (fs_close(file_fd) != 0) { return 5; }
+  if (fs.fs_close(file_fd) != 0) { return 5; }
   return (sent as i32) & 255;
 }

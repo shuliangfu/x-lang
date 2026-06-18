@@ -1,0 +1,26 @@
+# BOOT-003 自举失败最小复现矩阵
+# Format: case_id<TAB>stage<TAB>hook_script<TAB>platform<TAB>notes
+# platform: any | linux | !docker
+# hook_script: tests/ 下相对路径；run-bootstrap-repro.sh 负责 chmod + 环境
+verify_semantic	link/run	run-bootstrap-verify.sh	any	两代 shu 语义自举
+boot015_semantic_smoke	link/run	run-bootstrap-semantic-smoke-vec-map-heap.sh	any	vec/map/heap 子集
+boot019_stage2_dogfood	link/run	run-bootstrap-stage2-dogfood-parser-typeck.sh	any	parser/typeck 子集
+boot020_mega7_milestone	parser	run-boot-020-mega7-milestone-gate.sh	any	thin glue + mega7 里程碑
+boot016_std_symbols	build	run-boot-016-std-asm-symbols-gate.sh	any	Top-12 std .o nm
+boot018_decouple	manifest	run-boot-018-parser-std-decouple-gate.sh	any	parser/std 双轨
+bstrict_build	build	run-bootstrap-repro-build.sh	any	make bootstrap-driver-bstrict 隔离
+strict_smoke	build	run-strict-smoke-gate.sh	any	B-strict 无 experimental fallback
+shu_asm_gate	compile	run-shu-asm-gate.sh	any	shu_asm 编用户 .su
+asm_73	compile	run-asm-73-gate.sh	!docker	asm binop/cfg-merge（Docker 内 SKIP）
+run_all_bstrict	run	run-all-bstrict.sh	any	B-strict 白名单 107 项
+boot025_stage2_gen12	selfhost	run-boot-025-parser-gen12-consistency-gate.sh	linux	BOOT-025 gen1/gen2 C3
+boot026_su_c4	selfhost	run-boot-026-parser-c4-bootstrap-gate.sh	linux	BOOT-026 C4 SU bootstrap
+boot027_shu_asm2_cross	selfhost	run-boot-027-shu-asm2-cross-gate.sh	linux	BOOT-027 C5 shu_asm2
+boot028_shu_asm2_ci_matrix	selfhost	run-boot-028-shu-asm2-ci-matrix-gate.sh	any	BOOT-028 C6 CI 矩阵
+stage2_bstrict	selfhost	run-stage2-bstrict-gate.sh	linux	gen1 shu_asm → gen2
+parser_second_pass	parser	run-parser-second-pass-gate.sh	any	second-pass emit 硬门禁
+parser_symbol_integrity	parser	run-parser-thin-glue-symbol-integrity-gate.sh	any	thin glue 符号完整性
+parser_mega_bisect	parser	run-parser-mega-bisect-gate.sh	any	mega 7 bisect delta
+parser_parse_count	parser	run-parser-parse-count-gate.sh	any	parse func 计数 baseline
+wpo_strict_link	wpo	run-wpo-strict-link-gate.sh	any	WPO strict_glue 链接
+full_ci	all	run-bootstrap-bstrict-ci.sh	any	完整 B-strict CI 链

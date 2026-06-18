@@ -1,0 +1,17 @@
+# STD-068 std.sqlite row_col_text manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_text_apis	1
+read_path	section	## 1. 目标	analysis/std-sqlite-row-col-text-v1.md
+api_doc	section	## 2. row_col_text API（v1）	row_col_text
+vectors_doc	section	## 3. 金样向量	text_row1
+verify	section	## 4. Gate	gate
+api_row_col_text	api	row_col_text	std/sqlite/mod.su	文本列
+symbol_col_text_c	symbol	db_row_col_text_c	std/sqlite/sqlite.c	列读
+symbol_text_smoke_c	symbol	db_sqlite_row_col_text_smoke_c	std/sqlite/sqlite.c	烟测
+impl_c	file	std/sqlite/sqlite.c	std/sqlite/sqlite.c	实现
+smoke_c	file	tests/std-sqlite/row_col_text_roundtrip_ok.c	C 入口
+smoke_su	smoke	tests/std-sqlite/row_col_text_roundtrip.su	.su 往返
+vectors	file	tests/baseline/std-sqlite-row-col-text-vectors.tsv	向量
+lib	script	lib/std-sqlite-row-col-text.sh	tests/lib/std-sqlite-row-col-text.sh
+gate	script	run-std-sqlite-row-col-text-gate.sh	tests/run-std-sqlite-row-col-text-gate.sh
+cross_std067	cross_ref	analysis/std-sqlite-next-row-v1.md	STD-067

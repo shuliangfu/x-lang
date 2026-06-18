@@ -1,0 +1,17 @@
+# STD-058 std.elf ELF64 parse manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	3
+read_path	section	## 1. 阅读路径	15min
+api_doc	section	## 2. API（只读）	parse_hdr
+verify	section	## 5. 门禁	gate
+api_parse	api	parse_hdr	std/elf/mod.su	Ehdr
+api_shdr	api	read_section	std/elf/mod.su	Shdr
+api_name	api	sec_name	std/elf/mod.su	节名
+const_machine	const	ELF_MACHINE_X86_64	std/elf/mod.su	62
+symbol_parse_c	symbol	elf64_parse_hdr_c	std/elf/elf.c	C 解析
+symbol_smoke_c	symbol	elf64_parse_smoke_c	std/elf/elf.c	C 烟测
+fixture	file	tests/baseline/fixtures/elf64_min_reloc.bin	金样
+smoke_c	file	tests/std-elf/parse_smoke_ok.c	C 入口
+smoke_su	smoke	tests/std-elf/parse_hdr.su	Ehdr 烟测
+lib	script	lib/std-elf-parse.sh	tests/lib/std-elf-parse.sh
+gate	script	run-std-elf-parse-gate.sh	tests/run-std-elf-parse-gate.sh

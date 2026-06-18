@@ -1,0 +1,21 @@
+# ZC-008 每日零拷贝指标历史
+# 列：date	metric_id	value	status	notes
+# 更新：SHU_ZC_DASHBOARD_RECORD=1 ./tests/run-zc-dashboard.sh --record
+2026-06-16	metric_zc5_splice	20	green	baseline cap
+2026-06-16	metric_zc5_read	30	green	baseline cap
+2026-06-16	metric_zc_rw_read	300	green	ref cap
+2026-06-16	metric_batch_readv	1100	green	batch cap
+2026-06-16	metric_net_provided	1500000000	green	cycles/MiB cap
+2026-06-16	metric_net_batch	1800000000	green	batch cap
+2026-06-16	metric_io_sendfile	0.20	green	time cap
+2026-06-16	metric_gate_zc1	pass	pass	manifest
+2026-06-16	metric_gate_zc5	pass	pass	manifest
+2026-06-17	metric_zc5_splice	20	green	baseline cap
+2026-06-17	metric_zc5_read	30	green	baseline cap
+2026-06-17	metric_zc_rw_read	300	green	ref cap
+2026-06-17	metric_batch_readv	1100	green	batch cap
+2026-06-17	metric_net_provided	1500000000	green	cycles/MiB cap
+2026-06-17	metric_net_batch	1800000000	green	batch cap
+2026-06-17	metric_io_sendfile	0.20	green	time cap
+2026-06-17	metric_gate_zc1	pass	pass	manifest
+2026-06-17	metric_gate_zc5	pass	pass	manifest

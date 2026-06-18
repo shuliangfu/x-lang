@@ -1,0 +1,5 @@
+# STD-068 row_col_text 文本列向量
+# 列：step_id	sql_ascii	expect_text	expect_status	notes
+text_row1	SELECT name FROM t ORDER BY k;	alpha	DB_ROW_OK	首行
+text_row2	SELECT name FROM t ORDER BY k;	beta	DB_ROW_OK	次行
+text_done	SELECT name FROM t ORDER BY k;	-	DB_ROW_DONE	耗尽

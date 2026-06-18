@@ -1,0 +1,22 @@
+# PLAN-003 Phase 3 第三批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave3-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave3-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave3-v1.md
+task_index	section	## 4. 第三批待办索引	analysis/phase3-roadmap-wave3-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave3-v1.md
+task_boot022	task	BOOT-022	NEXT.md	emit 晋升
+task_comp016	task	COMP-016	NEXT.md	riscv wave
+task_std064	task	STD-064	NEXT.md	elf phdr
+task_plan003	task	PLAN-003	NEXT.md	wave3 定版
+gate_boot022	gate_ref	run-boot-022-mega7-emit-gate.sh	tests/run-boot-022-mega7-emit-gate.sh	BOOT-022
+gate_comp016	gate_ref	run-comp-riscv64-wave-gate.sh	tests/run-comp-riscv64-wave-gate.sh	COMP-016
+gate_std064	gate_ref	run-std-elf-phdr-gate.sh	tests/run-std-elf-phdr-gate.sh	STD-064
+cross_plan002	cross_ref	PLAN-002	analysis/phase3-roadmap-wave2-v1.md	第二批
+cross_q1	cross_ref	2027-Q1	analysis/doc-public-roadmap-v1.md	Q1
+cross_next	file	NEXT.md	NEXT.md	§2.14
+lib	script	lib/phase3-roadmap-wave3.sh	tests/lib/phase3-roadmap-wave3.sh
+gate	script	run-phase3-roadmap-wave3-gate.sh	tests/run-phase3-roadmap-wave3-gate.sh

@@ -1,0 +1,44 @@
+// STD-048：SyncQueue_i32 单线程往返 + C 竞争烟测
+const queue = import("std.queue");
+
+function main(): i32 {
+  let sq: SyncQueue_i32 = sync_queue_i32_new();
+  if (sq.lock == 0 as *u8) {
+    return 1;
+  }
+  if (sync_queue_i32_push_back(&sq, 10) != 0) {
+    sync_queue_i32_deinit(&sq);
+    return 2;
+  }
+  if (sync_queue_i32_push_back(&sq, 20) != 0) {
+    sync_queue_i32_deinit(&sq);
+    return 3;
+  }
+  if (sync_queue_i32_len(sq) != 2) {
+    sync_queue_i32_deinit(&sq);
+    return 4;
+  }
+  let v: i32 = 0;
+  if (sync_queue_i32_try_pop_front(&sq, &v) != 0) {
+    sync_queue_i32_deinit(&sq);
+    return 5;
+  }
+  if (v != 10) {
+    sync_queue_i32_deinit(&sq);
+    return 6;
+  }
+  if (sync_queue_i32_try_pop_front(&sq, &v) != 0) {
+    sync_queue_i32_deinit(&sq);
+    return 7;
+  }
+  if (v != 20) {
+    sync_queue_i32_deinit(&sq);
+    return 8;
+  }
+  if (sync_queue_i32_is_empty(sq) != 1) {
+    sync_queue_i32_deinit(&sq);
+    return 9;
+  }
+  sync_queue_i32_deinit(&sq);
+  return 0;
+}

@@ -1,0 +1,10 @@
+# parser mega bisect sweep (linux/amd64 experimental shu_asm)
+baseline_text	25651
+min_delta_pass	8192
+parse_into_buf	0	25651	0	stub
+parse_into	0	25651	0	stub
+parse	0	25651	0	stub
+parse_one_function_impl	0	25651	0	stub
+parse_expr_into	0	25651	0	stub
+parse_block_into	0	25651	0	stub
+parse_body_lets_into	0	25651	0	stub

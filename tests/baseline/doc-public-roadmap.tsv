@@ -1,0 +1,24 @@
+# DOC-005 对外路线图 manifest
+# 列：item_id	kind	anchor	notes
+# min_sections	8
+# min_cross_refs	5
+# quarter_anchor	2027-Q4
+read_path	section	## 1. 阅读路径	15min
+vision	section	## 2. 愿景与北极星	public
+current_quarter	section	## 3. 当季主题与里程碑	2027-Q4
+completed	section	## 4. 已交付亮点	Q4 摘要
+upcoming	section	## 5. 下季预览	2028-Q1
+update_process	section	## 6. 季度更新流程	quarterly
+doc_index	section	## 7. 深度资料索引	索引
+self_check	section	## 8. 自检	quiz
+report	section	## 9. 报告格式	SHU_DOC_ROADMAP
+cross_docs_readme	cross_ref	docs/README.md	语言参考
+cross_selfhost	cross_ref	analysis/doc-selfhost-architecture-v1.md	DOC-002
+cross_perf	cross_ref	analysis/perf-zig-baseline-v1.md	PERF-001
+cross_zc	cross_ref	analysis/zc-semantics-v1.md	ZC-006
+cross_memsafe	cross_ref	analysis/doc-memory-safety-error-v1.md	DOC-004
+internal_trace	file	NEXT.md	内部深度表
+quarter_template	template	tests/templates/doc-public-roadmap-quarter.txt	季度 checklist
+lib	script	lib/doc-public-roadmap.sh	共享库
+runner	script	run-doc-public-roadmap.sh	周期 runner
+gate	script	run-doc-public-roadmap-gate.sh	manifest

@@ -1,0 +1,7 @@
+// SAFE-007：手动触发崩溃证据包（不 panic）。
+const backtrace = import("std.backtrace");
+
+function main(): i32 {
+  collect_crash_evidence(1, 4242);
+  return 0;
+}

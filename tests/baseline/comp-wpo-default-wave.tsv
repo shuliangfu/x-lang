@@ -1,0 +1,16 @@
+# COMP-017 WPO default tier 扩面 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_default_hooks	5
+section_goal	section	## 1. 目标	默认 tier
+matrix	section	## 2. 默认矩阵	comp-wpo.tsv
+gate_section	section	## 3. Gate	run-comp-wpo-default-gate
+parent_tsv	cross_ref	tests/baseline/comp-wpo.tsv	COMP-004
+parent_prod	cross_ref	tests/baseline/comp-wpo-prod-wave.tsv	COMP-015
+parent_doc	cross_ref	analysis/comp-wpo-prod-v1.md	COMP-015
+hook_backend_reach	hook_gate	run-wpo-backend-reach-gate.sh	default_backend_reach
+hook_backend_o	hook_gate	run-wpo-backend-o-gate.sh	default_backend_o
+hook_main_o	hook_gate	run-wpo-main-o-gate.sh	default_main_o
+hook_driver_o	hook_gate	run-wpo-driver-o-gate.sh	default_driver_o
+hook_full_chain	hook_gate	run-wpo-full-chain-gate.sh	default_full_chain
+lib	script	lib/comp-wpo-default.sh	tests/lib/comp-wpo-default.sh
+gate	script	run-comp-wpo-default-gate.sh	tests/run-comp-wpo-default-gate.sh

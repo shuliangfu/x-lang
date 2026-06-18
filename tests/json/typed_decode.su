@@ -1,0 +1,48 @@
+// STD-116：std.json 类型化 decode 烟测
+const json = import("std.json");
+
+function main(): i32 {
+  let doc: [36]u8 = [
+    123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44,
+    34, 97, 103, 101, 34, 58, 51, 48, 44, 34, 111, 107, 34, 58, 116, 114,
+    117, 101, 125, 0];
+  let doc_len: i32 = 35;
+  let cur: json.JsonCursor = json.cursor_init(&doc[0], doc_len);
+  let age: i32 = 0;
+  let ok: i32 = 0;
+  let name: [16]u8 = [];
+  let name_len: i32 = 0;
+  let key_age: [3]u8 = [97, 103, 101];
+  let key_ok: [2]u8 = [111, 107];
+  let key_name: [4]u8 = [110, 97, 109, 101];
+  let key_miss: [3]u8 = [120, 120, 120];
+
+  if (json.object_decode_i32(&cur, &key_age[0], 3, &age) != 0) {
+    return 1;
+  }
+  if (age != 30) {
+    return 2;
+  }
+  cur = json.cursor_init(&doc[0], doc_len);
+  if (json.object_decode_bool(&cur, &key_ok[0], 2, &ok) != 0) {
+    return 3;
+  }
+  if (ok != 1) {
+    return 4;
+  }
+  cur = json.cursor_init(&doc[0], doc_len);
+  if (json.object_decode_string(&cur, &key_name[0], 4, &name[0], 16, &name_len) != 0) {
+    return 5;
+  }
+  if (name_len != 5) {
+    return 6;
+  }
+  cur = json.cursor_init(&doc[0], doc_len);
+  if (json.object_decode_i32(&cur, &key_miss[0], 3, &age) != json.json_decode_missing()) {
+    return 7;
+  }
+  if (json.typed_decode_smoke() != 0) {
+    return 8;
+  }
+  return 0;
+}

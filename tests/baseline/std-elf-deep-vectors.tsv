@@ -1,0 +1,6 @@
+# STD-063 ELF64 deep section gold vectors
+# 列：field	expect_dec	notes
+find_text_idx	1	.text section index
+text_byte0	144	0x90 nop
+shstrtab_idx	2	SHT_STRTAB by index
+shstrtab_type	3	SHT_STRTAB

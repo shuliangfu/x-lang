@@ -8,7 +8,7 @@
 
 /** 单行块注释包裹的短说明。 */
 
-import core.option;
+const option = import("core.option");
 
 // ——— 应用代码：分号链（应优先在 ; 后折行，不得出现 refix[ 残骸） ———
 

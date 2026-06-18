@@ -1,0 +1,12 @@
+# core.fmt Tier-S stable public API (import core.fmt)
+fmt_i32_to_buf
+fmt_u64_to_buf
+fmt_i64_to_buf
+fmt_usize_to_buf
+fmt_isize_to_buf
+fmt_ptr_to_buf
+fmt_bool_to_buf
+fmt_f64_to_buf
+fmt_f64_to_buf_prec
+fmt_f64_is_nan
+fmt_f64_is_inf

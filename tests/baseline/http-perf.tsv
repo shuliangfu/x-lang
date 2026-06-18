@@ -1,0 +1,3 @@
+# STD-009 std.http 吞吐基线（秒）；门禁：median elapsed ≤ 本列
+# 更新：SHU_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
+http_get_bench	2.50

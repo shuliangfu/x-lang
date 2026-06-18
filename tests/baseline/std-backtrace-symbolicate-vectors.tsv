@@ -1,0 +1,4 @@
+# STD-052 已知帧金样向量
+# 列：vector_id	kind	anchor_substr	notes
+gold_anchor_direct	c_smoke	gold_anchor	backtrace_gold_anchor_c 直接符号化
+capture_symbolicate	su_smoke	symbolicate	capture 后至少 1 帧有符号

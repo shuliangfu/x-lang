@@ -1,0 +1,14 @@
+# STD-021/022 path/fs Windows manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_path_syms	3
+path_is_sep	symbol	path_is_sep	std/path/mod.su
+path_is_abs	symbol	path_is_absolute	std/path/mod.su
+path_sep_c	symbol	path_sep_c	std/path/mod.su
+win_abs	anchor	path_is_absolute	analysis/std-path-fs-windows-v1.md	RFC
+win_unc	anchor	UNC	analysis/std-path-fs-windows-v1.md	RFC
+win_fs_case	anchor	win_path_smoke	analysis/std-path-fs-windows-v1.md	RFC
+test_path_win	file	tests/path/windows_abs_join.su		烟测
+test_fs_win	file	tests/fs/windows_path_smoke.su		烟测
+path_c	file	std/path/path.c	std/path/path.c	C桥
+doc	file	analysis/std-path-fs-windows-v1.md	analysis/std-path-fs-windows-v1.md	RFC
+gate	script	run-std-path-fs-windows-gate.sh	tests/run-std-path-fs-windows-gate.sh	manifest

@@ -1,0 +1,20 @@
+# STD-029 std.net DNS 错误码与 IPv6 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	4
+read_path	section	## 1. 阅读路径	15min
+error_codes	section	## 2. 解析错误码	resolve_err_
+ipv4_api	section	## 3. IPv4 resolve_ex	resolve_ex
+ipv6_api	section	## 4. IPv6	ipv6
+verify	section	## 5. 验证与门禁	gate
+api_resolve_ex	api	resolve_ex	std/net/mod.su	可诊断 IPv4
+api_resolve_ipv6	api	resolve_ipv6	std/net/mod.su	IPv6 DNS
+api_ipv6_loopback	api	ipv6_loopback	std/net/mod.su	::1
+api_resolve_err	api	resolve_err_ok	std/net/mod.su	错误码
+symbol_v4_ex_c	symbol	net_resolve_ipv4_ex_c	std/net/net.c	C IPv4
+symbol_v6_ex_c	symbol	net_resolve_ipv6_ex_c	std/net/net.c	C IPv6
+smoke_resolve	smoke	tests/net/resolve_dns.su	DNS 烟测
+smoke_main	smoke	tests/net/main.su	listen
+hook_net	hook_script	run-net.sh	回归
+cross_std002	cross_ref	tests/baseline/std-net-api.tsv	STD-002
+lib	script	lib/std-net-dns.sh	tests/lib/std-net-dns.sh
+gate	script	run-std-net-dns-gate.sh	tests/run-std-net-dns-gate.sh

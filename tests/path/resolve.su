@@ -1,0 +1,32 @@
+// STD-101：std.path path_resolve(base + ref) 烟测
+const path = import("std.path");
+
+/** 比较 out[0..len) 与期望字节序列；相等返回 1。 */
+function bytes_eq(out: *u8, len: i32, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8): i32 {
+  if (len != 8) { return 0; }
+  if (out[0] != a || out[1] != b || out[2] != c || out[3] != d) { return 0; }
+  if (out[4] != e || out[5] != f || out[6] != g || out[7] != h) { return 0; }
+  return 1;
+}
+
+function main(): i32 {
+  let base: [15]u8 = [
+    47, 102, 111, 111, 47, 98, 97, 114, 47, 98, 97, 122, 46, 116, 120
+  ];
+  let rel: [6]u8 = [46, 46, 47, 113, 117, 120];
+  let abs_ref: [9]u8 = [47, 97, 98, 115, 47, 112, 97, 116, 104];
+  let out: [32]u8 = [];
+  let n: i32 = 0;
+
+  n = path.path_resolve(&out[0], 32, &base[0], 15, &rel[0], 6);
+  if (n != 8) { return 1; }
+  if (bytes_eq(&out[0], n, 47, 102, 111, 111, 47, 113, 117, 120) == 0) {
+    return 2;
+  }
+
+  n = path.path_resolve(&out[0], 32, &base[0], 15, &abs_ref[0], 9);
+  if (n != 9) { return 3; }
+  if (out[0] != 47 || out[8] != 104) { return 4; }
+
+  return 0;
+}

@@ -8,6 +8,8 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/perf-cache-miss.sh
+. tests/lib/perf-cache-miss.sh
 
 SHU_BIN="${SHU:-./compiler/shu_asm}"
 SOA_SRC="tests/bench/dod_soa_sum_x.su"
@@ -188,114 +190,28 @@ fi
 SOA_MISS="nan"
 AOS_MISS="nan"
 if [ "$(uname -s)" = "Linux" ]; then
-  # 解析 perf 可执行路径（GHA 常仅 linux-tools-* 目录下有 perf）。
-  perf_resolve_bin() {
-    if command -v perf >/dev/null 2>&1; then
-      command -v perf
-      return 0
-    fi
-    local p
-    for p in /usr/lib/linux-tools/*/perf; do
-      if [ -x "$p" ]; then
-        printf '%s' "$p"
-        return 0
-      fi
-    done
-    return 1
-  }
-
-  # perf stat -x, CSV：取 event 对应计数值。
-  perf_csv_event_count() {
-    local out="$1"
-    local event="$2"
-    echo "$out" | awk -F, -v ev="$event" '
-      index($0, ev) && $1 ~ /^[0-9][0-9,]*$/ {
-        gsub(/,/, "", $1)
-        print $1
-        exit
-      }
-    '
-  }
-
-  # 默认文本输出：取含 event 行中首个正整数（兼容「计数 事件」与「时间 计数 unit 事件」）。
-  perf_text_event_count() {
-    local out="$1"
-    local event="$2"
-    echo "$out" | awk -v ev="$event" '
-      index($0, ev) && $0 !~ /not supported|not counted|<not/ {
-        for (i = 1; i <= NF; i++) {
-          gsub(/,/, "", $i)
-          if ($i ~ /^[0-9]+$/ && $i + 0 > 0) {
-            print $i
-            exit
-          }
-        }
-      }
-    '
-  }
-
-  # 跑 perf stat 并解析 loads/misses；失败时 loads/misses 为空。
-  perf_stat_load_miss_pair() {
-    local perf_cmd="$1"
-    local exe="$2"
-    local ev_load="$3"
-    local ev_miss="$4"
-    local out loads misses
-    out=$("$perf_cmd" stat -x, -e "${ev_load},${ev_miss}" -- "$exe" 2>&1 || true)
-    if echo "$out" | grep -qiE 'Permission denied|perf_event_paranoid'; then
-      if command -v sudo >/dev/null 2>&1; then
-        out=$(sudo "$perf_cmd" stat -x, -e "${ev_load},${ev_miss}" -- "$exe" 2>&1 || true)
-      fi
-    fi
-    loads=$(perf_csv_event_count "$out" "$ev_load")
-    misses=$(perf_csv_event_count "$out" "$ev_miss")
-    if [ -z "$loads" ] || [ -z "$misses" ]; then
-      out=$("$perf_cmd" stat -e "${ev_load},${ev_miss}" -- "$exe" 2>&1 || true)
-      loads=$(perf_text_event_count "$out" "$ev_load")
-      misses=$(perf_text_event_count "$out" "$ev_miss")
-    fi
-    printf '%s %s' "$loads" "$misses"
-  }
-
-  # L1-dcache 优先；Docker/内核不匹配时回落 cache-references/misses（GHA ubuntu 原生可用 L1）。
-  perf_l1_miss_pct() {
-    local exe="$1"
-    local perf_cmd loads misses pct pair
-    perf_cmd="$(perf_resolve_bin)" || { echo "nan"; return; }
-    sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
-    pair=$(perf_stat_load_miss_pair "$perf_cmd" "$exe" "L1-dcache-loads" "L1-dcache-load-misses")
-    loads="${pair%% *}"
-    misses="${pair#* }"
-    if [ -z "$loads" ] || [ -z "$misses" ]; then
-      pair=$(perf_stat_load_miss_pair "$perf_cmd" "$exe" "cache-references" "cache-misses")
-      loads="${pair%% *}"
-      misses="${pair#* }"
-    fi
-    if [ -z "$loads" ] || [ -z "$misses" ] || [ "$loads" = "0" ]; then
-      echo "nan"
-      return
-    fi
-    pct=$(awk -v m="$misses" -v l="$loads" 'BEGIN { printf "%.4f", (m/l)*100.0 }')
-    echo "$pct"
-  }
-  if ! perf_cmd="$(perf_resolve_bin)"; then
+  if ! perf_cmd="$(perf_cm_resolve_bin)"; then
     echo "dod-soa: perf stat skipped (no perf binary)"
   else
-  SOA_MISS=$(perf_l1_miss_pct "$SOA_EXE")
-  AOS_MISS=$(perf_l1_miss_pct "$AOS_EXE")
+  SOA_MISS=$(perf_cm_l1_miss_pct "$SOA_EXE")
+  AOS_MISS=$(perf_cm_l1_miss_pct "$AOS_EXE")
   echo "SoA L1 miss rate: ${SOA_MISS}%"
   echo "AoS L1 miss rate: ${AOS_MISS}%"
+  soa_ok=0
   if [ "$SOA_MISS" != "nan" ]; then
     if awk -v s="$SOA_MISS" -v cap="$MAX_SOA_MISS_PCT" 'BEGIN { exit (s + 0 <= cap + 0.0001) ? 0 : 1 }'; then
       echo "dod-soa L1 miss OK (SoA <= ${MAX_SOA_MISS_PCT}%)"
+      soa_ok=1
     else
       echo "dod-soa L1 miss WARN: SoA ${SOA_MISS}% > cap ${MAX_SOA_MISS_PCT}%" >&2
       if [ "${SHU_DOD_SOA_FAIL:-0}" = "1" ]; then
         exit 1
       fi
     fi
+    perf_cm_report_emit "dod_soa_sum_x" "soa" "$SOA_MISS" "$MAX_SOA_MISS_PCT" "$soa_ok"
   fi
   if [ "$SOA_MISS" != "nan" ] && [ "$AOS_MISS" != "nan" ]; then
+    perf_cm_report_emit "dod_aos_sum_x" "aos" "$AOS_MISS" "$MAX_SOA_MISS_PCT" "0"
     if awk -v soa="$SOA_MISS" -v aos="$AOS_MISS" 'BEGIN { exit (soa < aos) ? 0 : 1 }'; then
       echo "dod-soa: SoA L1 miss < AoS (column scan wins)"
     else

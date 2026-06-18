@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# CORE-011：core.fmt f64 NaN/Inf 与精度策略门禁
+#
+# 用法：./tests/run-core-fmt-f64-special-gate.sh
+set -e
+cd "$(dirname "$0")/.."
+
+DOC="${SHU_CORE_FMT_F64_SPECIAL_DOC:-analysis/core-fmt-f64-special-v1.md}"
+MANIFEST="${SHU_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
+FMT_SU="core/fmt/mod.su"
+STD_FMT_SU="std/fmt/mod.su"
+LIB="tests/lib/core-fmt-f64-special.sh"
+SMOKE="tests/fmt/f64_special.su"
+MIN_SYMBOLS=6
+
+# shellcheck source=tests/lib/core-fmt-f64-special.sh
+. tests/lib/core-fmt-f64-special.sh
+
+native_shu() {
+  local f="$1"
+  [ -n "$f" ] && [ -x "$f" ] || return 1
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
+    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
+    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
+    *) return 0 ;;
+  esac
+}
+
+echo "=== CORE-011: f64 NaN/Inf/prec manifest ==="
+for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SU" "$STD_FMT_SU" "$SMOKE"; do
+  if [ ! -f "$f" ]; then
+    echo "core-fmt-f64-special gate FAIL: missing $f" >&2
+    exit 1
+  fi
+done
+
+while IFS=$'\t' read -r c1 c2 _rest; do
+  c1="${c1#\# }"
+  case "$c1" in
+    min_symbols) MIN_SYMBOLS="$c2" ;;
+  esac
+done < "$MANIFEST"
+
+for kw in NaN Inf fmt_f64_to_buf_prec FMT_F64_DEFAULT_PREC 截断; do
+  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
+    echo "core-fmt-f64-special gate FAIL: doc missing '$kw'" >&2
+    exit 1
+  fi
+done
+
+MISS=0
+SYM_N=0
+while IFS=$'\t' read -r item_id kind anchor _mod_path _notes; do
+  [ -z "${item_id:-}" ] && continue
+  case "$item_id" in \#*|min_*) continue ;; esac
+  case "$kind" in
+    section)
+      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
+        echo "core-fmt-f64-special FAIL: missing section '$anchor' ($item_id)" >&2
+        MISS=$((MISS + 1))
+      fi
+      ;;
+    symbol) SYM_N=$((SYM_N + 1)) ;;
+    smoke)
+      if ! grep -qF "$anchor" "$SMOKE" 2>/dev/null; then
+        echo "core-fmt-f64-special FAIL: smoke missing '$anchor' ($item_id)" >&2
+        MISS=$((MISS + 1))
+      fi
+      ;;
+  esac
+done < "$MANIFEST"
+
+if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
+  echo "core-fmt-f64-special gate FAIL: symbols=${SYM_N} miss=${MISS}" >&2
+  exit 1
+fi
+
+sym_miss="$(core_fmt_f64_special_symbols_ok "$FMT_SU" "$STD_FMT_SU" "$MANIFEST" || true)"
+if [ "${sym_miss:-0}" -gt 0 ]; then
+  core_fmt_f64_special_emit_report "fail" 0 1
+  exit 1
+fi
+echo "core-fmt-f64-special manifest OK (symbols=${SYM_N})"
+
+SKIP=1
+CHECK_OK=0
+SHU_BIN="${SHU:-}"
+if [ -z "$SHU_BIN" ]; then
+  for cand in ./compiler/shu-c ./compiler/shu; do
+    if native_shu "$cand"; then
+      SHU_BIN="$cand"
+      break
+    fi
+  done
+fi
+if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+    CHECK_OK=1
+    SKIP=0
+  else
+    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    core_fmt_f64_special_emit_report "fail" 0 0
+    exit 1
+  fi
+else
+  echo "core-fmt-f64-special gate SKIP typeck (no native shu)" >&2
+fi
+
+core_fmt_f64_special_emit_report "ok" "$CHECK_OK" "$SKIP"
+echo "core-fmt-f64-special gate OK"

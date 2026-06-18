@@ -116,3 +116,108 @@ int32_t tar_write_header_c(uint8_t *buf, int32_t buf_cap, const uint8_t *name, i
   buf[TAR_CHKSUM_OFF + 7] = ' ';
   return 0;
 }
+
+/** UStar 512 字节块对齐。 */
+static int32_t tar_pad512(int32_t n) {
+  int32_t r = n % 512;
+  if (r == 0) return 0;
+  return 512 - r;
+}
+
+/**
+ * 向归档缓冲追加一条 UStar 条目；is_dir=1 写目录（typeflag '5'），否则普通文件。
+ * 更新 *off_io；成功 0，失败 -1。
+ */
+int32_t tar_append_entry_c(uint8_t *buf, int32_t buf_cap, int32_t *off_io, const uint8_t *name,
+                            int32_t name_len, const uint8_t *data, int32_t data_len, int32_t is_dir) {
+  int32_t off;
+  int32_t file_size;
+  int32_t pad;
+  if (!buf || !off_io || !name || name_len < 0)
+    return -1;
+  off = *off_io;
+  if (off + 512 > buf_cap)
+    return -1;
+  file_size = is_dir ? 0 : data_len;
+  if (tar_write_header_c(buf + off, buf_cap - off, name, name_len, file_size) != 0)
+    return -1;
+  if (is_dir)
+    buf[off + TAR_TYPEFLAG_OFF] = '5';
+  off += 512;
+  if (!is_dir && data_len > 0) {
+    if (!data || off + data_len > buf_cap)
+      return -1;
+    memcpy(buf + off, data, (size_t)data_len);
+    off += data_len;
+    pad = tar_pad512(data_len);
+    if (off + pad > buf_cap)
+      return -1;
+    memset(buf + off, 0, (size_t)pad);
+    off += pad;
+  }
+  *off_io = off;
+  return 0;
+}
+
+/**
+ * 遍历下一条 tar 条目；成功 0，归档结束 1，错误 -1。
+ * type_out 为 typeflag 字节值（'0'=48 文件，'5'=53 目录）。
+ */
+int32_t tar_next_entry_c(const uint8_t *buf, int32_t buf_len, int32_t *pos_io, uint8_t *name_out,
+                         int32_t name_cap, int32_t *size_out, int32_t *type_out) {
+  int32_t pos;
+  int32_t sz;
+  int32_t blocks;
+  int32_t i;
+  int32_t all_zero;
+  if (!buf || !pos_io || !name_out || name_cap <= 0)
+    return -1;
+  pos = *pos_io;
+  if (pos + 512 > buf_len)
+    return 1;
+  all_zero = 1;
+  for (i = 0; i < 512; i++) {
+    if (buf[pos + i] != 0) {
+      all_zero = 0;
+      break;
+    }
+  }
+  if (all_zero)
+    return 1;
+  sz = 0;
+  if (tar_read_header_c(buf + pos, buf_len - pos, name_out, name_cap, &sz) != 0)
+    return -1;
+  if (type_out)
+    *type_out = (int32_t)buf[pos + TAR_TYPEFLAG_OFF];
+  if (size_out)
+    *size_out = sz;
+  pos += 512;
+  blocks = (sz + 511) / 512;
+  pos += blocks * 512;
+  *pos_io = pos;
+  return 0;
+}
+
+/** 从 entry_off（头起始）读取文件数据到 out；返回字节数，失败 -1。 */
+int32_t tar_read_entry_data_c(const uint8_t *buf, int32_t buf_len, int32_t entry_off, uint8_t *out,
+                              int32_t out_cap) {
+  int32_t sz;
+  int32_t data_off;
+  int32_t n;
+  uint8_t nm[4];
+  if (!buf || !out || entry_off < 0 || entry_off + 512 > buf_len)
+    return -1;
+  sz = 0;
+  if (tar_read_header_c(buf + entry_off, buf_len - entry_off, nm, 4, &sz) != 0)
+    return -1;
+  if (sz <= 0)
+    return 0;
+  data_off = entry_off + 512;
+  if (data_off + sz > buf_len)
+    return -1;
+  n = sz;
+  if (n > out_cap)
+    n = out_cap;
+  memcpy(out, buf + data_off, (size_t)n);
+  return n;
+}

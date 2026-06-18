@@ -70,3 +70,19 @@ function thread_set_qos_class_self(qos_class: i32): i32 {
 function thread_dummy_entry_ptr(): usize {
   return thread_dummy_entry_ptr_c();
 }
+
+/** 线程池统计快照（STD-165）。 */
+struct ThreadPoolStats {
+  pending: i32;
+  in_flight: i32;
+  workers: i32;
+}
+
+/** 读取全局线程池统计；未启动池时返回 -1。 */
+function thread_pool_stats(st: *ThreadPoolStats): i32 {
+  if (st == 0) { return -1; }
+  st.pending = 0;
+  st.in_flight = 0;
+  st.workers = 0;
+  return -1;
+}

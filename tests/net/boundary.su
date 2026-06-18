@@ -1,0 +1,37 @@
+// TST-001：std.net 边界烟测（地址转换 / bind / batch 常量）
+//
+// 【文件职责】≥8 边界 case；无阻塞 connect/accept。
+// 【运行方式】tests/run-tst-001-boundary-gate.sh
+const net = import("std.net");
+
+function main(): i32 {
+  let loopback: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  // case 1：addr_to_u32 大端
+  let u: u32 = net.addr_to_u32(loopback);
+  if (u != 0x7f000001) { return 1; }
+  // case 2：u32_to_ipv4 往返
+  let back: Ipv4Addr = net.u32_to_ipv4(u);
+  if (back.a != 127 || back.d != 1) { return 2; }
+  // case 3：0.0.0.0
+  let zero: Ipv4Addr = Ipv4Addr { a: 0, b: 0, c: 0, d: 0 };
+  if (net.addr_to_u32(zero) != 0) { return 3; }
+  // case 4：net_batch_max
+  if (net.net_batch_max() < 8) { return 4; }
+  // case 5：UDP bind 端口 0（内核分配）
+  let sock: UdpSocket = net.udp_bind(loopback, 0);
+  if (sock.fd < 0) { return 5; }
+  // case 6：TCP listen 端口 0
+  let listener: TcpListener = net.listen(loopback, 0);
+  if (listener.fd < 0) { return 6; }
+  // case 7：listener_local_addr 端口非 0
+  let la: SocketAddrV4 = net.listener_local_addr(listener);
+  if (la.port == 0) { return 7; }
+  // case 8：255.255.255.255 广播地址编码
+  let bcast: Ipv4Addr = Ipv4Addr { a: 255, b: 255, c: 255, d: 255 };
+  if (net.addr_to_u32(bcast) != 0xffffffff) { return 8; }
+  // case 9：关闭 UDP
+  if (net.close_udp(sock) != 0) { return 9; }
+  // case 10：关闭 listener
+  if (net.close_listener(listener) != 0) { return 10; }
+  return 0;
+}

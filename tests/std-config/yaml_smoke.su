@@ -1,0 +1,33 @@
+// STD-119：std.config YAML 可选后端烟测
+const config = import("std.config");
+
+function main(): i32 {
+  let zero: i64 = 0;
+  let cfg: Config = config.config_new();
+  let raw: [88]u8 = [
+    112, 111, 114, 116, 58, 32, 56, 48, 56, 48, 10,
+    104, 111, 115, 116, 58, 32, 108, 111, 99, 97, 108, 104, 111, 115, 116, 10,
+    100, 101, 98, 117, 103, 58, 32, 102, 97, 108, 115, 101, 10,
+    10,
+    100, 98, 58, 10,
+    32, 32, 117, 114, 108, 58, 32, 115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 10
+  ];
+  let k_port: [4]u8 = [112, 111, 114, 116];
+  let k_url: [6]u8 = [100, 98, 46, 117, 114, 108];
+  let k_dbg: [5]u8 = [100, 101, 98, 117, 103];
+  let host: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let port: i32 = 0;
+  let dbg: i32 = 0;
+
+  if (cfg.handle == zero) { return 1; }
+  if (config.config_backend_yaml() != 2) { return 2; }
+  if (config.load_yaml_buf(&cfg, &raw[0], 87, 1) != config.config_err_ok()) { return 3; }
+  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.config_err_ok() || port != 8080) { return 4; }
+  if (config.get_string(&cfg, &k_url[0], 6, &host[0], 32) <= 0) { return 5; }
+  if (host[0] != 115) { return 6; }
+  if (config.get_bool(&cfg, &k_dbg[0], 5, &dbg) != config.config_err_ok() || dbg != 0) { return 7; }
+  if (config.yaml_smoke() != 0) { return 8; }
+  config.config_free(&cfg);
+  return 0;
+}

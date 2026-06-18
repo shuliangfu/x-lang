@@ -45,6 +45,46 @@ extern function heap_arena64_deinit_c(a: *Arena64): void;
 * 使用，实现于 heap.c */
 extern function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32;
 
+/** STD-017：堆分配 trace 统计（SHU_HEAP_TRACE=1 时生效）。 */
+allow(padding) struct HeapTraceStats {
+  alloc_count: u64;
+  free_count: u64;
+  realloc_count: u64;
+  bytes_allocated: u64;
+}
+
+extern function heap_trace_enabled_c(): i32;
+extern function heap_trace_reset_c(): void;
+extern function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
+bytes_allocated: *u64): void;
+extern function heap_alloc_u64_c(count: i32): *u64;
+extern function heap_free_u64_c(ptr: *u64): void;
+
+/** trace 是否启用（1/0）。 */
+function heap_trace_enabled(): i32 {
+  return heap_trace_enabled_c();
+}
+
+/** 重置 trace 计数器。 */
+function heap_trace_reset(): void {
+  heap_trace_reset_c();
+}
+
+/** 读取 trace 统计到 st。 */
+function heap_trace_stats(st: *HeapTraceStats): void {
+  heap_trace_stats_c(&st.alloc_count, &st.free_count, &st.realloc_count, &st.bytes_allocated);
+}
+
+/** 分配 count 个 u64；失败 null。供 Map_u64 / Set_u64 使用。 */
+function alloc_u64(count: i32): *u64 {
+  return heap_alloc_u64_c(count);
+}
+
+/** 释放 alloc_u64 分配的 ptr。 */
+function free_u64(ptr: *u64): void {
+  heap_free_u64_c(ptr);
+}
+
 // ─── DOD-CL-S2：64B 对齐 chunk bump Arena API ───
 
 /** 未初始化 Arena64 占位；调用方须随后 arena64_init。 */
@@ -135,5 +175,5 @@ function copy_f32_at(dst: *f32, dst_offset: i32, src: *f32, count: i32): void {
 }
 /** 表示“分配大小 0”占位；保留兼容（测试用）。 */
 function alloc_size_zero(): i32 { return 0; }
-/** 占位，表示本模块可 import；保留兼容。 */
-function placeholder(): i32 { return 0; }
+/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+function heap_module_anchor(): i32 { return 0; }

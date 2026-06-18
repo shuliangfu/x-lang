@@ -1,0 +1,12 @@
+// SAFE-005：std.ffi cstring_new/free 无泄漏。
+const ffi = import("std.ffi");
+
+function main(): i32 {
+  let src: [3]u8 = [97, 98, 99];
+  let p: *u8 = ffi.cstring_new(&src[0], 3);
+  if (p == 0 as *u8) {
+    return 1;
+  }
+  ffi.cstring_free(p);
+  return 0;
+}

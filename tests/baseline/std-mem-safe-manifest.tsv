@@ -1,0 +1,12 @@
+# STD-144 std.mem 安全边界 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+read_path	section	## 1. 目标	analysis/std-mem-safe-v1.md
+api_doc	section	## 2. 有界 API	analysis/std-mem-safe-v1.md
+api_copy_bounded	api	copy_bounded	std/mem/mod.su	有界拷贝
+api_set_bounded	api	set_bounded	std/mem/mod.su	有界填充
+api_compare_bounded	api	compare_bounded	std/mem/mod.su	有界比较
+api_buffer_from	api	buffer_from	std/mem/mod.su	Buffer 构造
+smoke_su	smoke	tests/mem/mem_safe_boundary.su	烟测
+gate_base	gate	tests/run-std-mem-boundary-gate.sh	STD-018
+lib	script	tests/lib/std-mem-safe.sh	lib
+gate	script	tests/run-std-mem-safe-gate.sh	gate

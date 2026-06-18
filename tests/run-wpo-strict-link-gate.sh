@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：strict 链 WPO link 门禁（pipeline_wpo.o reach OK 时链入 shu_asm.strict_glue，替代 C orchestration partial）。
+# S5：strict 链 WPO link 门禁（pipeline_wpo helpers + C orchestration 链入 shu_asm.strict_glue）。
 # 用法：
 #   ./tests/run-wpo-strict-link-gate.sh
 #   SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
@@ -19,7 +19,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-echo "=== wpo strict link gate (pipeline_wpo.o in strict_glue) ==="
+echo "=== wpo strict link gate (pipeline_wpo helpers + C orchestration in strict_glue) ==="
 
 SHU_WPO_PIPELINE_REACH_FAIL="$FAIL" ./tests/run-wpo-pipeline-reach-gate.sh "$PIPE_WPO" || exit 1
 if [ -f compiler/build_asm/typeck_wpo.o ]; then
@@ -31,6 +31,8 @@ fi
 
 (
   cd compiler
+  export SHU_ASM_STRICT_LINK_PIPELINE_WPO=1
+  export SHU_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
   export STRICT_LINK_BUILD_ASM_PIPELINE=1
   export STRICT_LINK_BUILD_ASM_WPO=1
   export STRICT_LINK_BUILD_ASM_BACKEND_WPO=1
@@ -81,4 +83,4 @@ if [ "${SHU_WPO_STRICT_LINK_SMOKE_COMPILE:-0}" = "1" ]; then
   echo "run-wpo-strict-link-gate: smoke compile OK ($TEST_SU)"
 fi
 
-echo "run-wpo-strict-link-gate OK ($COMPILER links pipeline_wpo.o, orchestration defined)"
+echo "run-wpo-strict-link-gate OK ($COMPILER links pipeline_wpo helpers + C orchestration)"

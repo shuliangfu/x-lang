@@ -1,0 +1,7 @@
+# LANG-004 trait / interface typeck 规则目录
+# 列：rule_id	error_substr	pipeline	status	notes
+# min_rules	4
+no_impl	no impl for type	shu|shu-c	done	method_no_impl.su
+unknown_trait	impl for unknown trait	shu|shu-c	done	静态校验
+missing_method	missing method	shu|shu-c	done	impl_missing_method.su
+return_mismatch	return type mismatch	shu|shu-c	done	impl 签名对齐

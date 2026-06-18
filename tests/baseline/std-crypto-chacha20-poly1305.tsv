@@ -1,0 +1,9 @@
+# STD-113 std.crypto ChaCha20-Poly1305 manifest
+min_apis	3
+api_seal	api	chacha20_poly1305_seal	std/crypto/mod.su
+api_open	api	chacha20_poly1305_open	std/crypto/mod.su
+api_smoke	api	chacha20_poly1305_smoke	std/crypto/mod.su
+const_key	const	CHACHA20_POLY1305_KEY_LEN	std/crypto/mod.su
+symbol_seal_c	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.inc.c
+smoke_su	smoke	tests/std-crypto/chacha20_poly1305_roundtrip.su
+gate	script	run-std-crypto-chacha20-poly1305-gate.sh	tests/run-std-crypto-chacha20-poly1305-gate.sh

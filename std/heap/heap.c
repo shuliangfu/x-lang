@@ -14,16 +14,56 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
+/** SHU_HEAP_TRACE=1 时统计 alloc/free 次数与字节（STD-017）。 */
+static int32_t shu_heap_trace_on = -1;
+static uint64_t shu_heap_trace_alloc_count;
+static uint64_t shu_heap_trace_free_count;
+static uint64_t shu_heap_trace_realloc_count;
+static uint64_t shu_heap_trace_bytes;
+
+/** 懒加载环境变量 SHU_HEAP_TRACE。 */
+static int32_t heap_trace_is_on(void) {
+  const char *env;
+  if (shu_heap_trace_on >= 0)
+    return shu_heap_trace_on;
+  env = getenv("SHU_HEAP_TRACE");
+  shu_heap_trace_on = (env && env[0] == '1') ? 1 : 0;
+  return shu_heap_trace_on;
+}
+
+/** 分配成功时更新 trace 计数。 */
+static void heap_trace_note_alloc(size_t size) {
+  if (!heap_trace_is_on())
+    return;
+  shu_heap_trace_alloc_count++;
+  shu_heap_trace_bytes += (uint64_t)size;
+}
+
+/** free 时更新 trace 计数。 */
+static void heap_trace_note_free(void) {
+  if (!heap_trace_is_on())
+    return;
+  shu_heap_trace_free_count++;
+}
 
 /** 分配 size 字节，未初始化；失败返回 NULL。对应 Zig allocator.alloc、Rust alloc、Go 底层。 */
 void *heap_alloc_c(size_t size) {
+  void *p;
   if (size == 0) return NULL;
-  return malloc(size);
+  p = malloc(size);
+  if (p)
+    heap_trace_note_alloc(size);
+  return p;
 }
 
 /** 释放 ptr；ptr 可为 NULL（无操作）。 */
 void heap_free_c(void *ptr) {
-  if (ptr) free(ptr);
+  if (ptr) {
+    heap_trace_note_free();
+    free(ptr);
+  }
 }
 
 /** 分配 count 个 int32_t，未初始化；失败返回 NULL。供 std.vec Vec_i32 等使用。 */
@@ -257,4 +297,43 @@ void heap_arena64_deinit_c(heap_arena64_t *a) {
   a->chunk = NULL;
   a->cap = 0;
   a->off = 0;
+}
+
+/** 分配 count 个 uint64_t；失败 NULL（STD-013 Map_u64）。 */
+uint64_t *heap_alloc_u64_c(int32_t count) {
+  if (count <= 0)
+    return NULL;
+  return (uint64_t *)malloc((size_t)count * sizeof(uint64_t));
+}
+
+/** 释放 heap_alloc_u64_c 分配的 ptr。 */
+void heap_free_u64_c(uint64_t *ptr) {
+  if (ptr)
+    free(ptr);
+}
+
+/** STD-017：trace 是否启用（1/0）。 */
+int32_t heap_trace_enabled_c(void) {
+  return heap_trace_is_on();
+}
+
+/** STD-017：重置 trace 计数器。 */
+void heap_trace_reset_c(void) {
+  shu_heap_trace_alloc_count = 0;
+  shu_heap_trace_free_count = 0;
+  shu_heap_trace_realloc_count = 0;
+  shu_heap_trace_bytes = 0;
+}
+
+/** STD-017：读取 trace 统计到 C 结构体（与 HeapTraceStats ABI 一致）。 */
+void heap_trace_stats_c(uint64_t *alloc_count, uint64_t *free_count, uint64_t *realloc_count,
+                        uint64_t *bytes_allocated) {
+  if (alloc_count)
+    *alloc_count = shu_heap_trace_alloc_count;
+  if (free_count)
+    *free_count = shu_heap_trace_free_count;
+  if (realloc_count)
+    *realloc_count = shu_heap_trace_realloc_count;
+  if (bytes_allocated)
+    *bytes_allocated = shu_heap_trace_bytes;
 }

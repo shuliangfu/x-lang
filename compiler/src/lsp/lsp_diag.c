@@ -280,7 +280,7 @@ void lsp_diag_add(int line, int col, int severity, const char *msg) {
     LspDiagEntry *e = &s_diag[s_diag_count++];
     e->line = line;
     e->col = col;
-    e->severity = (severity == 2) ? 2 : 1;
+    e->severity = (severity == 2) ? 2 : ((severity == 3) ? 3 : 1);
     if (msg) {
         size_t n = 0;
         while (n < LSP_MSG_MAX && msg[n] != '\0') {
@@ -291,6 +291,14 @@ void lsp_diag_add(int line, int col, int severity, const char *msg) {
     } else {
         e->msg[0] = '\0';
     }
+}
+
+int lsp_diag_count_severity(int severity) {
+    int i, n = 0;
+    for (i = 0; i < s_diag_count; i++)
+        if (s_diag[i].severity == severity)
+            n++;
+    return n;
 }
 
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
@@ -326,7 +334,12 @@ int lsp_diag_print_stderr_human(const char *path) {
     if (!path)
         path = "?";
     for (i = 0; i < s_diag_count; i++) {
-        sev = (s_diag[i].severity == 2) ? "warning" : "error";
+        if (s_diag[i].severity == 2)
+            sev = "warning";
+        else if (s_diag[i].severity == 3)
+            sev = "info";
+        else
+            sev = "error";
         fprintf(stderr, "%s:%d:%d - %s: %s\n", path, s_diag[i].line, s_diag[i].col, sev, s_diag[i].msg);
         n++;
     }

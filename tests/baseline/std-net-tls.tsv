@@ -1,0 +1,30 @@
+# STD-030/083 std.net TLS manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	7
+read_path	section	## 1. 阅读路径	15min
+backend	section	## 2. 后端选型	openssl
+api_draft	section	## 3. API 草案	TlsStream
+optional_link	section	## 4. 可选链入	SHU_NET_USE
+verify	section	## 5. 验证与门禁	gate
+api_backend	api	tls_backend_name	std/net/mod.su	后端名
+api_available	api	tls_is_available	std/net/mod.su	可用性
+api_connect	api	tls_connect_client	std/net/mod.su	客户端握手
+api_read	api	tls_read	std/net/mod.su	读
+api_write	api	tls_write	std/net/mod.su	写
+api_close	api	tls_close	std/net/mod.su	关闭
+api_last_err	api	tls_last_error	std/net/mod.su	错误码
+const_not_impl	symbol	TLS_NOT_IMPL	std/net/mod.su	桩错误
+symbol_avail_c	symbol	net_tls_is_available_c	std/net/tls_stub.inc.c	C 层
+symbol_read_c	symbol	net_tls_read_c	std/net/tls_stub.inc.c	读
+symbol_openssl_inc	file	std/net/tls_openssl.inc.c	OpenSSL
+symbol_smoke_openssl	symbol	net_tls_openssl_smoke_c	std/net/tls_openssl.inc.c	烟测
+symbol_smoke_mb	symbol	net_tls_mbedtls_smoke_c	std/net/tls_mbedtls.inc.c	烟测
+symbol_mbedtls_inc	file	std/net/tls_mbedtls.inc.c	mbedTLS
+smoke_mbedtls_c	smoke	tests/net/tls_mbedtls_smoke_ok.c	mbedTLS烟测
+smoke_stub	smoke	tests/net/tls_stub.su	桩烟测
+smoke_runtime_link	smoke	tests/net/tls_runtime_link_smoke.su	runtime自动链入
+smoke_openssl_c	smoke	tests/net/tls_openssl_smoke_ok.c	OpenSSL烟测
+cross_std029	cross_ref	tests/baseline/std-net-dns.tsv	STD-029
+lib	script	lib/std-net-tls.sh	tests/lib/std-net-tls.sh
+gate	script	run-std-net-tls-gate.sh	tests/run-std-net-tls-gate.sh
+doc	file	analysis/std-net-tls-v1.md	analysis/std-net-tls-v1.md	RFC

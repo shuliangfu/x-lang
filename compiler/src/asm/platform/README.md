@@ -13,4 +13,4 @@
 ## 使用
 
 - **backend**、**asm.su**、**arch/*_enc.su** 通过 `import platform.elf`（及可选的 `platform.macho`、`platform.coff`）引用。
-- 出 .o 时由 asm.su 根据 `ctx.use_coff_o`、`ctx.use_macho_o` 选择 `platform.coff.write_coff_o_to_buf`、`platform.macho.write_macho_o_to_buf` 或 `platform.elf.write_elf_o_to_buf`。
+- 出 .o 时由 asm.su 根据 `ctx.use_coff_o`、`ctx.use_macho_o` 选择 `platform.coff.write_coff_o_to_buf`、`platform.macho.write_macho_o_to_buf` 或 `elf.write_elf_o_to_buf`。

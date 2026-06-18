@@ -240,3 +240,113 @@ int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
     }
 #endif
 }
+
+#if !defined(_WIN32) && !defined(_WIN64)
+extern char **environ;
+#endif
+
+extern int32_t process_args_count_c(void);
+extern uint8_t *process_arg_c(int32_t i);
+
+/** 统计当前进程环境变量条目数（POSIX environ / Windows GetEnvironmentStrings）。 */
+ENV_COLD
+int32_t env_iter_count_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    {
+        char *block = GetEnvironmentStringsA();
+        int32_t n = 0;
+        if (block == NULL) return 0;
+        for (const char *p = block; *p; ) {
+            if (*p != '=') n++;
+            while (*p) p++;
+            p++;
+        }
+        FreeEnvironmentStringsA(block);
+        return n;
+    }
+#else
+    {
+        int32_t n = 0;
+        if (environ == NULL) return 0;
+        while (environ[n] != NULL) n++;
+        return n;
+    }
+#endif
+}
+
+/** 将 environ[index] 拆为 key/value 写入 out 缓冲；成功返回 1，越界返回 0，错误返回 -1。 */
+ENV_COLD
+int32_t env_iter_at_c(int32_t index, uint8_t *key_out, int32_t key_cap,
+                      uint8_t *val_out, int32_t val_cap) {
+    const char *entry = NULL;
+    const char *eq;
+    int32_t key_len;
+    int32_t val_len;
+    if (index < 0 || key_out == NULL || val_out == NULL || key_cap <= 0 || val_cap <= 0)
+        return -1;
+#if defined(_WIN32) || defined(_WIN64)
+    {
+        char *block = GetEnvironmentStringsA();
+        int32_t cur = 0;
+        if (block == NULL) return -1;
+        for (const char *p = block; *p; ) {
+            if (*p != '=') {
+                if (cur == index) {
+                    entry = p;
+                    break;
+                }
+                cur++;
+            }
+            while (*p) p++;
+            p++;
+        }
+        if (entry == NULL) {
+            FreeEnvironmentStringsA(block);
+            return 0;
+        }
+        eq = strchr(entry, '=');
+        if (eq == NULL) {
+            FreeEnvironmentStringsA(block);
+            return -1;
+        }
+        key_len = (int32_t)(eq - entry);
+        val_len = (int32_t)strlen(eq + 1);
+        if (key_len + 1 > key_cap || val_len + 1 > val_cap) {
+            FreeEnvironmentStringsA(block);
+            return -1;
+        }
+        memcpy(key_out, entry, (size_t)key_len);
+        key_out[key_len] = '\0';
+        memcpy(val_out, eq + 1, (size_t)val_len);
+        val_out[val_len] = '\0';
+        FreeEnvironmentStringsA(block);
+        return 1;
+    }
+#else
+    {
+        if (environ == NULL) return 0;
+        entry = environ[index];
+        if (entry == NULL) return 0;
+        eq = strchr(entry, '=');
+        if (eq == NULL) return -1;
+        key_len = (int32_t)(eq - entry);
+        val_len = (int32_t)strlen(eq + 1);
+        if (key_len + 1 > key_cap || val_len + 1 > val_cap) return -1;
+        memcpy(key_out, entry, (size_t)key_len);
+        key_out[key_len] = '\0';
+        memcpy(val_out, eq + 1, (size_t)val_len);
+        val_out[val_len] = '\0';
+        return 1;
+    }
+#endif
+}
+
+/** args_iter 计数：委托 process argc。 */
+int32_t args_iter_count_c(void) {
+    return process_args_count_c();
+}
+
+/** args_iter 取第 i 个 argv 指针（NUL 结尾）；越界返回 NULL。 */
+uint8_t *args_iter_at_c(int32_t i) {
+    return process_arg_c(i);
+}

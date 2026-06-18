@@ -1,0 +1,8 @@
+# std.thread Tier-S stable public API (import std.thread)
+thread_self
+thread_create
+thread_create_with_stack
+thread_join
+thread_set_affinity_self
+thread_set_affinity
+thread_set_qos_class_self

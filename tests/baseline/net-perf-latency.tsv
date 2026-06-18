@@ -1,0 +1,3 @@
+# mixed bench P99 延迟上限（微秒）；门禁：实测 p99 ≤ 本列
+# 更新：SHU_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
+net_mixed_conns_requests_p99	12000

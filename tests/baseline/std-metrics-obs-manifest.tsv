@@ -1,0 +1,17 @@
+# STD-117 std.metrics 观测上下文 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	6
+read_path	section	## 1. 阅读路径	analysis/std-metrics-obs-v1.md
+api_doc	section	## 2. API	analysis/std-metrics-obs-v1.md
+verify	section	## 3. Gate	analysis/std-metrics-obs-v1.md
+api_from_trace	api	obs_ctx_from_trace	std/metrics/mod.su	从 trace 构建
+api_attach	api	obs_ctx_attach_context	std/metrics/mod.su	写入 context
+api_from_ctx	api	obs_ctx_from_context	std/metrics/mod.su	从 context 恢复
+api_log_kv	api	obs_ctx_format_log_kv	std/metrics/mod.su	log KV
+api_label	api	obs_ctx_apply_trace_label	std/metrics/mod.su	metrics label
+api_empty	api	obs_ctx_empty	std/metrics/mod.su	空上下文
+impl_su	file	std/metrics/mod.su	std/metrics/mod.su
+smoke_su	smoke	tests/std-metrics/obs_correlation.su	关联烟测
+vectors	file	tests/baseline/std-metrics-obs-vectors.tsv	向量
+lib	script	lib/std-metrics-obs.sh	tests/lib/std-metrics-obs.sh
+gate	script	run-std-metrics-obs-gate.sh	tests/run-std-metrics-obs-gate.sh

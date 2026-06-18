@@ -1,0 +1,19 @@
+# PERF-006 CPU cache miss 热点治理 manifest
+# 列：item_id	kind	anchor	notes
+# min_cases	2
+output_prefix	bracket_component	SHU_CACHE_MISS	stderr 前缀
+field_case	output_field	case=	用例 id
+field_layout	output_field	layout=	soa/aos
+field_miss	output_field	l1_miss_pct=	实测 miss%
+field_cap	output_field	cap_pct=	上限
+case_soa_i32	case	dod_soa_sum_x	soa 列扫描 i32
+case_f32_soa	case	dod_f32_soa_sum_x	f32 SoA
+cap_soa_i32	cap_row	dod_soa_sum_x	1.0
+cap_f32_soa	cap_row	dod_f32_soa_sum_x	1.5
+baseline	file	tests/baseline/cache-miss-perf.tsv	L1 cap 表
+lib	script	lib/perf-cache-miss.sh	perf L1 库
+hook_dod_perf	hook_script	run-perf-dod-soa.sh	DOD-S1 bench
+hook_dod_gate	hook_script	run-dod-s1-gate.sh	DOD-S1 正确性
+gate	script	run-perf-cache-miss-gate.sh	manifest 门禁
+cross_dod	cross_ref	std/vec/README.md	DOD-S2
+cross_obs003	cross_ref	analysis/obs-structured-log-v1.md

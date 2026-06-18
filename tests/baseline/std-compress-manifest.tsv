@@ -1,0 +1,24 @@
+# STD-007 std.compress manifest
+# 列：item_id	kind	anchor	src	tier	notes
+min_apis	4
+min_layers	4
+read_path	section	## 1. 阅读路径	analysis/std-compress-v1.md	-	10min
+layers_doc	section	## 2. 格式层 M1–M4	analysis/std-compress-v1.md	-	M1-M4
+verify	section	## 4. Gate 与 report	analysis/std-compress-v1.md	-	gate
+layer_m1	layers	M1-gzip	analysis/std-compress-v1.md	v1	gzip
+layer_m2	layers	M2-zstd	analysis/std-compress-v1.md	v1	zstd
+layer_m3	layers	M3-zlib	analysis/std-compress-v1.md	v1	deflate
+layer_m4	layers	M4-skip	analysis/std-compress-v1.md	v1	-1 skip
+api_gzip_c	api	gzip_compress	std/compress/mod.su	core	gzip 压
+api_gzip_d	api	gzip_decompress	std/compress/mod.su	core	gzip 解
+api_zstd_c	api	zstd_compress	std/compress/mod.su	core	zstd 压
+api_zstd_d	api	zstd_decompress	std/compress/mod.su	core	zstd 解
+impl_c	file	std/compress/compress.c	std/compress/compress.c	impl	C 实现
+make_zstd	target	compress-o-zlib-zstd	compiler/Makefile	v1	构建目标
+lib	script	lib/std-compress.sh	tests/lib/std-compress.sh	-	共享库
+gate	script	run-std-compress-gate.sh	tests/run-std-compress-gate.sh	-	manifest
+hook_compress	hook_script	run-compress.sh	tests/run-compress.sh	-	回归
+smoke_gzip	smoke	tests/std-compress/gzip_roundtrip.su	tests/std-compress/gzip_roundtrip.su	-	gzip 往返
+smoke_zstd	smoke	tests/std-compress/zstd_roundtrip.su	tests/std-compress/zstd_roundtrip.su	-	zstd 往返
+smoke_legacy	smoke	tests/compress/main.su	tests/compress/main.su	-	legacy
+cross_readme	cross_ref	std/compress/README.md	std/compress/README.md	-	README

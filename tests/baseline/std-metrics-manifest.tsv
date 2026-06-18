@@ -1,0 +1,22 @@
+# STD-078 std.metrics manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	10
+read_path	section	## 1. 阅读路径	analysis/std-metrics-v1.md
+api_doc	section	## 2. API	analysis/std-metrics-v1.md
+verify	section	## 3. Gate	analysis/std-metrics-v1.md
+api_counter_inc	api	counter_inc	std/metrics/mod.su	递增
+api_counter_snap	api	counter_snapshot	std/metrics/mod.su	快照
+api_gauge_set	api	gauge_set	std/metrics/mod.su	设置
+api_gauge_add	api	gauge_add	std/metrics/mod.su	加减
+api_hist_obs	api	histogram_observe	std/metrics/mod.su	观测
+api_reg_counter	api	registry_register_counter	std/metrics/mod.su	注册
+api_reg_gauge	api	registry_register_gauge	std/metrics/mod.su	注册
+api_reg_hist	api	registry_register_histogram	std/metrics/mod.su	注册
+api_export	api	export_prometheus	std/metrics/mod.su	导出
+api_label	api	label_set	std/metrics/mod.su	label
+api_err	api	metrics_err_ok	std/metrics/mod.su	错误码
+impl_su	file	std/metrics/mod.su	std/metrics/mod.su
+smoke_su	smoke	tests/std-metrics/roundtrip.su	round-trip
+vectors	file	tests/baseline/std-metrics-vectors.tsv	向量
+lib	script	lib/std-metrics.sh	tests/lib/std-metrics.sh
+gate	script	run-std-metrics-gate.sh	tests/run-std-metrics-gate.sh

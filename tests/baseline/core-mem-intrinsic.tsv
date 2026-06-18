@@ -1,0 +1,15 @@
+# CORE-008 core.mem intrinsic manifest
+# 列：item_id	kind	anchor	notes
+min_mappings	4
+mapping_copy	mapping	core_mem_mem_copy	__builtin_memcpy
+mapping_set	mapping	core_mem_mem_set	__builtin_memset
+mapping_move	mapping	core_mem_mem_move	__builtin_memmove
+mapping_compare	mapping	core_mem_mem_compare	__builtin_memcmp
+emit_probe	file	tests/mem/main.su	SHU_DEBUG_C -o 烟测
+emit_builtin_1	emit_grep	__builtin_memcpy	C emit
+emit_builtin_2	emit_grep	__builtin_memset	C emit
+emit_builtin_3	emit_grep	__builtin_memmove	C emit
+emit_builtin_4	emit_grep	__builtin_memcmp	C emit
+doc	file	core-mem-intrinsic-v1.md	analysis/core-mem-intrinsic-v1.md	RFC
+codegen	file	codegen.c	compiler/src/codegen/codegen.c	builtin_intrinsic_name
+gate	script	run-core-mem-intrinsic-gate.sh	tests/run-core-mem-intrinsic-gate.sh	manifest

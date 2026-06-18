@@ -1,0 +1,16 @@
+# COMP-014 isel P0 回归波次 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_p0_cases	4
+# min_p0_hooks	4
+read_path	section	## 1. 目标	analysis/comp-isel-p0-v1.md
+matrix	section	## 2. P0 回归矩阵	analysis/comp-isel-p0-v1.md
+gate_section	section	## 3. Gate	analysis/comp-isel-p0-v1.md
+parent_tsv	cross_ref	tests/baseline/comp-isel.tsv	COMP-006
+parent_bench	cross_ref	tests/baseline/comp-isel-bench.tsv	bench
+parent_doc	cross_ref	analysis/comp-isel-v1.md	COMP-006
+hook_field	hook_gate	run-asm-binop-field-index.sh	I7
+hook_nested	hook_gate	run-asm-binop-nested-var.sh	I8
+hook_div	hook_gate	run-asm-binop-div-index.sh	I5
+hook_cfg	hook_gate	run-asm-binop-cfg-merge.sh	I3
+lib	script	lib/comp-isel-p0.sh	tests/lib/comp-isel-p0.sh
+gate	script	run-comp-isel-p0-gate.sh	tests/run-comp-isel-p0-gate.sh

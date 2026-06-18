@@ -2663,6 +2663,9 @@ extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module 
                                                               struct ast_PipelineDepCtx *ctx);
 extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
 
+/** EMIT_HEAVY parser 模块判定（定义见本文件后部 static 实现）。 */
+static int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m);
+
 /**
  * M8-tail：`asm_codegen_ast_to_elf` 薄包装 C 委托；顶层 let hoist 后调 seed partial mega。
  */
@@ -2681,6 +2684,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
   pipeline_fill_soa_field_access_for_asm_emit(m, a);
+  if (getenv("SHU_ASM_DEBUG"))
+    fprintf(stderr, "shu: backend_asm_codegen fill done, calling seed_mega\n");
   glue_wpo_mono_reset_pending();
   /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
   pipeline_elf_label_mod_scope_begin_module();
@@ -2688,6 +2693,9 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_module(m);
   pipeline_asm_emit_set_arena(a);
   pipeline_asm_emit_set_elf_ctx(elf_ctx);
+  if (getenv("SHU_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
+    fprintf(stderr, "shu: seed_mega parser nfunc=%d elf_ctx=%p code_len=%d\n", (int)m->num_funcs, (void *)elf_ctx,
+            elf_ctx ? (int)elf_ctx->code_len : -1);
   rc = backend_asm_codegen_ast_to_elf_seed_mega(m, a, elf_ctx, pipeline_ctx);
   pipeline_asm_emit_set_elf_ctx(NULL);
   if (rc != 0)
@@ -4004,15 +4012,18 @@ int32_t pipeline_resolve_path_import_has_dot_c(uint8_t *import_path, int32_t pat
 /** CodegenOutBuf.len 读写（pipeline.su 避免 *CodegenOutBuf 字段 FIELD_ACCESS；layout 与 codegen.su 一致）。 */
 struct codegen_CodegenOutBuf;
 
+/** 与 codegen.su CodegenOutBuf.data 维度一致；len 紧跟 data 之后。 */
+#define PIPELINE_CODEGEN_OUTBUF_CAP 9437184
+
 int32_t codegen_out_buf_len(struct codegen_CodegenOutBuf *out) {
   if (!out)
     return 0;
-  return *(int32_t *)((uint8_t *)out + (ptrdiff_t)8388608);
+  return *(int32_t *)((uint8_t *)out + (ptrdiff_t)PIPELINE_CODEGEN_OUTBUF_CAP);
 }
 
 void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n) {
   if (out)
-    *(int32_t *)((uint8_t *)out + (ptrdiff_t)8388608) = n > 0 ? n : 0;
+    *(int32_t *)((uint8_t *)out + (ptrdiff_t)PIPELINE_CODEGEN_OUTBUF_CAP) = n > 0 ? n : 0;
 }
 
 /** ---------- PipelineDepCtx 源缓冲堆分配（根因：避免 ctx 内嵌 4MiB×2 撑爆栈/asm emit） ---------- */
@@ -5246,10 +5257,10 @@ int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
 }
 
 /** ElfCodegenCtx 标签/补丁/重定位/符号表行数；与 platform/elf.su 内联数组维度一致（改须全链 rebuild）。
- * typeck EMIT_HEAVY 真 emit 函数≈128 时 num_patches 触顶 2048；扩至 4096 后须 make bootstrap-driver-bstrict 全链 rebuild。 */
-#define PIPELINE_ELF_CTX_TABLE_CAP 4096
-/** 堆 sidecar 扩 reloc 总上限（内联 4096 + heap 8192）；typeck EMIT_HEAVY 真 emit≈131 时触顶 8192，预留至 12288。 */
-#define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 12288
+ * parser EMIT_HEAVY 真 emit 时 num_patches/labels 可上千；4096 与 elf.su 16384 漂移会导致 resolve_patches 失败。 */
+#define PIPELINE_ELF_CTX_TABLE_CAP 16384
+/** 堆 sidecar 扩 reloc 总上限（内联 16384 + heap 16384）。 */
+#define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 32768
 #define PIPELINE_ELF_CTX_RELOC_HEAP_CAP (PIPELINE_ELF_CTX_RELOC_TOTAL_CAP - PIPELINE_ELF_CTX_TABLE_CAP)
 
 /**
@@ -5335,7 +5346,8 @@ _Static_assert(sizeof(PipelineElfLabelEntry) == 72, "PipelineElfLabelEntry must 
 _Static_assert(sizeof(PipelineElfPatchEntry) == 76, "PipelineElfPatchEntry must match elf.su ElfPatchEntry");
 _Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.su ElfRelocEntry");
 _Static_assert(sizeof(PipelineElfSymEntry) == 76, "PipelineElfSymEntry must match elf.su ElfSymEntry");
-_Static_assert(kPipelineElfCtxCodeDataOff == 1212464, "PipelineElfCtxAccess prefix size drift vs elf.su");
+_Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
+               "PipelineElfCtxAccess prefix size drift vs elf.su");
 
 /** SHU_WPO_PGO_HOT=1 时启用 .text.hot 双段 emit。 */
 int32_t pipeline_elf_pgo_hot_enabled(void) {
@@ -5363,6 +5375,17 @@ int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes) {
     return 0;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
   return ctx->code_len + ctx->code_hot_len;
+}
+
+/** 当前 emit 段已写字节数（x86 call patch 的 rel32_at 须相对本段 code_len）。 */
+int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes) {
+  PipelineElfCtxAccess *ctx;
+  if (!ctx_bytes)
+    return 0;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (pipeline_elf_pgo_hot_enabled() != 0 && ctx->emit_hot != 0)
+    return ctx->code_hot_len;
+  return ctx->code_len;
 }
 
 /** PGO-Lite ELF 段索引（与 write_elf_o_pgo 中 shdr 顺序一致）。 */
@@ -5560,6 +5583,13 @@ int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
   return pipeline_elf_pgo_hot_enabled() ? PIPELINE_ELF_SHNX_TEXT_UNLIKELY : PIPELINE_ELF_SHNX_TEXT;
 }
 
+/** 返回 .text 机器码缓冲指针（glue 统一偏移；write_elf_o 须经此读，勿直接用 SU code_data[]）。 */
+uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return NULL;
+  return pipeline_elf_ctx_code_buf(ctx_bytes, PIPELINE_ELF_SHNX_TEXT);
+}
+
 /** 向 CodegenOutBuf 追加字节；layout 与 codegen.su 一致。 */
 static int32_t pipeline_elf_out_append(struct codegen_CodegenOutBuf *out, const uint8_t *p, int32_t n) {
   int32_t len;
@@ -5568,7 +5598,7 @@ static int32_t pipeline_elf_out_append(struct codegen_CodegenOutBuf *out, const 
   if (!out || !p || n < 0)
     return -1;
   len = codegen_out_buf_len(out);
-  if (len + n > (int32_t)PIPELINE_ELF_CTX_CODE_BUF_CAP)
+  if (len + n > (int32_t)PIPELINE_CODEGEN_OUTBUF_CAP)
     return -1;
   data = (uint8_t *)out;
   for (i = 0; i < n; i++)
@@ -5606,6 +5636,351 @@ static int32_t pipeline_elf_reloc_is_defined(PipelineElfCtxAccess *ctx, uint8_t 
       return 1;
   }
   return 0;
+}
+
+#define PIPELINE_ELF_UNDEF_SYM_CAP 256
+
+/**
+ * 标准单 .text ELF64 ET_REL .o 写出（非 PGO）；从 glue code_data 偏移读机器码。
+ * 替代 seed partial 内 write_elf_o_to_buf 对 SU code_data[] 的错误偏移读（导致 __text 全零）。
+ */
+int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
+  PipelineElfCtxAccess *ctx;
+  uint8_t *code;
+  int32_t code_len;
+  int32_t strtab_off;
+  int32_t num_undef;
+  uint8_t undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][64];
+  int32_t undef_lens[PIPELINE_ELF_UNDEF_SYM_CAP];
+  int32_t strtab_size;
+  int32_t symtab_ents;
+  int32_t symtab_size;
+  int32_t rela_size;
+  int32_t align4;
+  int32_t off_text;
+  int32_t off_strtab;
+  int32_t off_shstrtab;
+  int32_t off_symtab;
+  int32_t off_rela;
+  int32_t off_shdr;
+  static const uint8_t shstrtab_std[46] = {
+      0, '.', 't', 'e', 'x', 't', 0, '.', 's', 'y', 'm', 't', 'a', 'b', 0,
+      '.', 's', 't', 'r', 't', 'a', 'b', 0, '.', 's', 'h', 's', 't', 'r', 't', 'a', 'b', 0,
+      '.', 'r', 'e', 'l', 'a', '.', 't', 'e', 'x', 't', 0};
+  uint8_t ehdr[64];
+  uint8_t z0[1];
+  int32_t s;
+  int32_t r0;
+  int32_t r;
+  int32_t e_machine;
+  int32_t reloc_type;
+  uint8_t *sym_pool;
+
+  if (!ctx_bytes || !out)
+    return -1;
+  if (pipeline_elf_pgo_hot_enabled())
+    return pipeline_elf_write_o_pgo_to_buf(ctx_bytes, out);
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  code = pipeline_elf_ctx_code_data_ptr(ctx_bytes);
+  code_len = ctx->code_len;
+  e_machine = ctx->e_machine;
+  reloc_type = ctx->reloc_type_r_pc32;
+  num_undef = 0;
+  r0 = 0;
+  while (r0 < ctx->num_relocs) {
+    uint8_t rname[64];
+    int32_t rlen;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r0);
+    if (pipeline_elf_reloc_is_defined(ctx, ctx_bytes, r0, rname, rlen) == 0) {
+      int32_t u0;
+      int32_t dup;
+      dup = 0;
+      u0 = 0;
+      while (u0 < num_undef) {
+        if (undef_lens[u0] == rlen && rlen > 0 && memcmp(undef_names[u0], rname, (size_t)rlen) == 0) {
+          dup = 1;
+          break;
+        }
+        u0 = u0 + 1;
+      }
+      if (dup == 0 && num_undef < PIPELINE_ELF_UNDEF_SYM_CAP) {
+        if (rlen > 64)
+          rlen = 64;
+        if (rlen > 0)
+          memcpy(undef_names[num_undef], rname, (size_t)rlen);
+        undef_lens[num_undef] = rlen;
+        num_undef = num_undef + 1;
+      }
+    }
+    r0 = r0 + 1;
+  }
+  strtab_off = 1;
+  s = 0;
+  while (s < ctx->num_syms) {
+    strtab_off = strtab_off + ctx->syms[s].name_len + 1;
+    s = s + 1;
+  }
+  s = 0;
+  while (s < num_undef) {
+    strtab_off = strtab_off + undef_lens[s] + 1;
+    s = s + 1;
+  }
+  strtab_size = strtab_off;
+  symtab_ents = 1 + ctx->num_syms + num_undef;
+  symtab_size = symtab_ents * 24;
+  rela_size = ctx->num_relocs * 24;
+  align4 = (code_len + 3) & ~3;
+  off_text = 64;
+  off_strtab = off_text + align4;
+  off_shstrtab = off_strtab + strtab_size;
+  off_symtab = off_shstrtab + 46;
+  off_rela = off_symtab + symtab_size;
+  off_shdr = off_rela + rela_size;
+  memset(ehdr, 0, sizeof(ehdr));
+  ehdr[0] = 127;
+  ehdr[1] = 69;
+  ehdr[2] = 76;
+  ehdr[3] = 70;
+  ehdr[4] = 2;
+  ehdr[5] = 1;
+  ehdr[6] = 1;
+  ehdr[16] = 1;
+  ehdr[18] = (uint8_t)(e_machine & 255);
+  ehdr[19] = (uint8_t)((e_machine >> 8) & 255);
+  ehdr[32] = 64;
+  ehdr[40] = (uint8_t)(off_shdr & 255);
+  ehdr[41] = (uint8_t)((off_shdr >> 8) & 255);
+  ehdr[42] = (uint8_t)((off_shdr >> 16) & 255);
+  ehdr[43] = (uint8_t)((off_shdr >> 24) & 255);
+  ehdr[52] = 64;
+  ehdr[58] = 64;
+  ehdr[60] = 6;
+  ehdr[62] = 4;
+  codegen_out_buf_set_len(out, 0);
+  if (pipeline_elf_out_append(out, ehdr, 64) != 0)
+    return -1;
+  if (code_len > 0 && code && pipeline_elf_out_append(out, code, code_len) != 0)
+    return -1;
+  z0[0] = 0;
+  s = code_len;
+  while (s < align4) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  if (pipeline_elf_out_append(out, z0, 1) != 0)
+    return -1;
+  sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+  s = 0;
+  while (s < ctx->num_syms) {
+    int32_t nlen;
+    nlen = ctx->syms[s].name_len;
+    if (nlen > 0 && pipeline_elf_out_append(out, sym_pool + pipeline_elf_sym_name_off(ctx, s), nlen) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  s = 0;
+  while (s < num_undef) {
+    if (undef_lens[s] > 0 && pipeline_elf_out_append(out, undef_names[s], undef_lens[s]) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  if (pipeline_elf_out_append(out, shstrtab_std, 46) != 0)
+    return -1;
+  {
+    uint8_t sym_sect[24];
+    memset(sym_sect, 0, sizeof(sym_sect));
+    sym_sect[4] = 3;
+    sym_sect[6] = 1;
+    sym_sect[8] = (uint8_t)(code_len & 255);
+    sym_sect[9] = (uint8_t)((code_len >> 8) & 255);
+    sym_sect[10] = (uint8_t)((code_len >> 16) & 255);
+    sym_sect[11] = (uint8_t)((code_len >> 24) & 255);
+    if (pipeline_elf_out_append(out, sym_sect, 24) != 0)
+      return -1;
+  }
+  {
+    int32_t str_off;
+    str_off = 1;
+    s = 0;
+    while (s < ctx->num_syms) {
+      uint8_t ent[24];
+      memset(ent, 0, sizeof(ent));
+      ent[4] = 18;
+      ent[6] = 1;
+      ent[0] = (uint8_t)(str_off & 255);
+      ent[1] = (uint8_t)((str_off >> 8) & 255);
+      ent[2] = (uint8_t)((str_off >> 16) & 255);
+      ent[3] = (uint8_t)((str_off >> 24) & 255);
+      ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
+      ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
+      ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
+      ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      if (pipeline_elf_out_append(out, ent, 24) != 0)
+        return -1;
+      str_off = str_off + ctx->syms[s].name_len + 1;
+      s = s + 1;
+    }
+    s = 0;
+    while (s < num_undef) {
+      uint8_t uent[24];
+      memset(uent, 0, sizeof(uent));
+      uent[4] = 18;
+      uent[0] = (uint8_t)(str_off & 255);
+      uent[1] = (uint8_t)((str_off >> 8) & 255);
+      uent[2] = (uint8_t)((str_off >> 16) & 255);
+      uent[3] = (uint8_t)((str_off >> 24) & 255);
+      if (pipeline_elf_out_append(out, uent, 24) != 0)
+        return -1;
+      str_off = str_off + undef_lens[s] + 1;
+      s = s + 1;
+    }
+  }
+  r = 0;
+  while (r < ctx->num_relocs) {
+    int32_t sym_idx;
+    int32_t m;
+    int32_t u;
+    uint8_t r_sym_buf[64];
+    int32_t rlen;
+    uint8_t rela_buf[24];
+    int32_t roff;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    sym_idx = 0;
+    m = 0;
+    while (m < ctx->num_syms) {
+      int32_t off;
+      off = pipeline_elf_sym_name_off(ctx, m);
+      if (ctx->syms[m].name_len == rlen && rlen > 0 &&
+          memcmp(sym_pool + off, r_sym_buf, (size_t)rlen) == 0) {
+        sym_idx = m + 1;
+        break;
+      }
+      m = m + 1;
+    }
+    if (sym_idx == 0) {
+      u = 0;
+      while (u < num_undef) {
+        if (undef_lens[u] == rlen && rlen > 0 && memcmp(undef_names[u], r_sym_buf, (size_t)rlen) == 0) {
+          sym_idx = ctx->num_syms + 1 + u;
+          break;
+        }
+        u = u + 1;
+      }
+    }
+    memset(rela_buf, 0, sizeof(rela_buf));
+    rela_buf[16] = 252;
+    rela_buf[17] = 255;
+    rela_buf[18] = 255;
+    rela_buf[19] = 255;
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    rela_buf[0] = (uint8_t)(roff & 255);
+    rela_buf[1] = (uint8_t)((roff >> 8) & 255);
+    rela_buf[2] = (uint8_t)((roff >> 16) & 255);
+    rela_buf[3] = (uint8_t)((roff >> 24) & 255);
+    rela_buf[8] = (uint8_t)(reloc_type & 255);
+    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
+    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
+    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    rela_buf[12] = (uint8_t)(sym_idx & 255);
+    rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
+    rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
+    rela_buf[15] = (uint8_t)((sym_idx >> 24) & 255);
+    if (pipeline_elf_out_append(out, rela_buf, 24) != 0)
+      return -1;
+    r = r + 1;
+  }
+  {
+    uint8_t shdr0[64];
+    uint8_t shdr_text[64];
+    uint8_t shdr_sym[64];
+    uint8_t shdr_str[64];
+    uint8_t shdr_shstr[64];
+    uint8_t shdr_rela[64];
+    memset(shdr0, 0, sizeof(shdr0));
+    if (pipeline_elf_out_append(out, shdr0, 64) != 0)
+      return -1;
+    memset(shdr_text, 0, sizeof(shdr_text));
+    shdr_text[0] = 1;
+    shdr_text[4] = 1;
+    shdr_text[8] = 6;
+    shdr_text[24] = (uint8_t)(off_text & 255);
+    shdr_text[25] = (uint8_t)((off_text >> 8) & 255);
+    shdr_text[26] = (uint8_t)((off_text >> 16) & 255);
+    shdr_text[27] = (uint8_t)((off_text >> 24) & 255);
+    shdr_text[32] = (uint8_t)(code_len & 255);
+    shdr_text[33] = (uint8_t)((code_len >> 8) & 255);
+    shdr_text[34] = (uint8_t)((code_len >> 16) & 255);
+    shdr_text[35] = (uint8_t)((code_len >> 24) & 255);
+    if (pipeline_elf_out_append(out, shdr_text, 64) != 0)
+      return -1;
+    memset(shdr_sym, 0, sizeof(shdr_sym));
+    shdr_sym[0] = 8;
+    shdr_sym[4] = 2;
+    shdr_sym[24] = (uint8_t)(off_symtab & 255);
+    shdr_sym[25] = (uint8_t)((off_symtab >> 8) & 255);
+    shdr_sym[26] = (uint8_t)((off_symtab >> 16) & 255);
+    shdr_sym[27] = (uint8_t)((off_symtab >> 24) & 255);
+    shdr_sym[32] = (uint8_t)(symtab_size & 255);
+    shdr_sym[33] = (uint8_t)((symtab_size >> 8) & 255);
+    shdr_sym[34] = (uint8_t)((symtab_size >> 16) & 255);
+    shdr_sym[35] = (uint8_t)((symtab_size >> 24) & 255);
+    shdr_sym[40] = 3;
+    shdr_sym[44] = 1;
+    shdr_sym[56] = 24;
+    if (pipeline_elf_out_append(out, shdr_sym, 64) != 0)
+      return -1;
+    memset(shdr_str, 0, sizeof(shdr_str));
+    shdr_str[0] = 16;
+    shdr_str[4] = 3;
+    shdr_str[24] = (uint8_t)(off_strtab & 255);
+    shdr_str[25] = (uint8_t)((off_strtab >> 8) & 255);
+    shdr_str[26] = (uint8_t)((off_strtab >> 16) & 255);
+    shdr_str[27] = (uint8_t)((off_strtab >> 24) & 255);
+    shdr_str[32] = (uint8_t)(strtab_size & 255);
+    shdr_str[33] = (uint8_t)((strtab_size >> 8) & 255);
+    shdr_str[34] = (uint8_t)((strtab_size >> 16) & 255);
+    shdr_str[35] = (uint8_t)((strtab_size >> 24) & 255);
+    shdr_str[48] = 1;
+    if (pipeline_elf_out_append(out, shdr_str, 64) != 0)
+      return -1;
+    memset(shdr_shstr, 0, sizeof(shdr_shstr));
+    shdr_shstr[0] = 24;
+    shdr_shstr[4] = 3;
+    shdr_shstr[24] = (uint8_t)(off_shstrtab & 255);
+    shdr_shstr[25] = (uint8_t)((off_shstrtab >> 8) & 255);
+    shdr_shstr[26] = (uint8_t)((off_shstrtab >> 16) & 255);
+    shdr_shstr[27] = (uint8_t)((off_shstrtab >> 24) & 255);
+    shdr_shstr[32] = 46;
+    shdr_shstr[48] = 1;
+    if (pipeline_elf_out_append(out, shdr_shstr, 64) != 0)
+      return -1;
+    memset(shdr_rela, 0, sizeof(shdr_rela));
+    shdr_rela[0] = 34;
+    shdr_rela[4] = 4;
+    shdr_rela[8] = 2;
+    shdr_rela[16] = 64;
+    shdr_rela[24] = (uint8_t)(off_rela & 255);
+    shdr_rela[25] = (uint8_t)((off_rela >> 8) & 255);
+    shdr_rela[26] = (uint8_t)((off_rela >> 16) & 255);
+    shdr_rela[27] = (uint8_t)((off_rela >> 24) & 255);
+    shdr_rela[32] = (uint8_t)(rela_size & 255);
+    shdr_rela[33] = (uint8_t)((rela_size >> 8) & 255);
+    shdr_rela[34] = (uint8_t)((rela_size >> 16) & 255);
+    shdr_rela[35] = (uint8_t)((rela_size >> 24) & 255);
+    shdr_rela[40] = 2;
+    shdr_rela[44] = 1;
+    shdr_rela[56] = 24;
+    if (pipeline_elf_out_append(out, shdr_rela, 64) != 0)
+      return -1;
+  }
+  return codegen_out_buf_len(out);
 }
 
 /**
@@ -7789,8 +8164,10 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
       if (et) {
         if ((int32_t)et->kind == 2)
           esz = 1;
+        else if ((int32_t)et->kind == 14)
+          esz = 4;
         else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
-                 (int32_t)et->kind == 6 || (int32_t)et->kind == 14)
+                 (int32_t)et->kind == 6)
           esz = 8;
       }
     }
@@ -7801,10 +8178,10 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
       bytes = bytes + (8 - (bytes % 8));
     return bytes;
   }
-  /* TYPE_VECTOR ord==12；或 NAMED i32x4 等拼写（lex IDENT 回落）。 */
-  if (!asm_type_is_simd_vector_spelling(arena, type_ref) && pipeline_type_kind_ord_at(arena, type_ref) != 12)
+  /* TYPE_VECTOR ord==13；或 NAMED i32x4 等拼写（lex IDENT 回落）。 */
+  if (!asm_type_is_simd_vector_spelling(arena, type_ref) && pipeline_type_kind_ord_at(arena, type_ref) != 13)
     return 8;
-  if (pipeline_type_kind_ord_at(arena, type_ref) != 12) {
+  if (pipeline_type_kind_ord_at(arena, type_ref) != 13) {
     /** NAMED 拼写：lane 数由类型名 x4/x8/x16 或 Vec8i 推断。 */
     lanes = 4;
     if (t->name_len == 5 && t->name[4] == 56)
@@ -7829,8 +8206,10 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
     if (et) {
       if ((int32_t)et->kind == 2)
         esz = 1;
+      else if ((int32_t)et->kind == 14)
+        esz = 4;
       else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
-               (int32_t)et->kind == 6 || (int32_t)et->kind == 14)
+               (int32_t)et->kind == 6)
         esz = 8;
     }
   }
@@ -8040,8 +8419,10 @@ static int32_t asm_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t ty
     if (et) {
       if ((int32_t)et->kind == 2)
         esz = 1;
+      else if ((int32_t)et->kind == 14)
+        esz = 4;
       else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
-               (int32_t)et->kind == 6 || (int32_t)et->kind == 14)
+               (int32_t)et->kind == 6)
         esz = 8;
     }
   }
@@ -8284,9 +8665,47 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
   /**
    * parser.su 自举编 module 时勿 whitelist 真 emit（parse_into_init 等会 expr emit 失败）；
    * strict 链 parse_into_* 由 pipeline_su partial / C alias 提供。
+   * SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 编 parser_parse_bootstrap.o 须 parse_into* 真 emit。
    */
-  if (asm_module_is_parser_selfhost(m))
+  if (asm_module_is_parser_selfhost(m)) {
+    if (getenv("SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
+      static const struct {
+        const char *name;
+        int32_t len;
+      } k_boot_parse_minimal[] = {
+          {"parse_into_init", 15},
+          {"parse_into_set_main_index", 25},
+      };
+      static const struct {
+        const char *name;
+        int32_t len;
+      } k_boot_parse_full[] = {
+          {"parse_into_buf", 14},
+          {"parse_into", 10},
+          {"parse_into_init", 15},
+          {"parse_into_set_main_index", 25},
+          {"collect_imports_buf", 19},
+      };
+      const struct {
+        const char *name;
+        int32_t len;
+      } *k_boot_parse;
+      int32_t k_boot_n;
+      int32_t bi;
+      if (getenv("SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+        k_boot_parse = k_boot_parse_minimal;
+        k_boot_n = (int32_t)(sizeof(k_boot_parse_minimal) / sizeof(k_boot_parse_minimal[0]));
+      } else {
+        k_boot_parse = k_boot_parse_full;
+        k_boot_n = (int32_t)(sizeof(k_boot_parse_full) / sizeof(k_boot_parse_full[0]));
+      }
+      for (bi = 0; bi < k_boot_n; bi++) {
+        if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_boot_parse[bi].name, k_boot_parse[bi].len))
+          return 1;
+      }
+    }
     return 0;
+  }
   large_entry = driver_typeck_skip_large_entry();
   for (k = 0; k < (int32_t)(sizeof(k_keep) / sizeof(k_keep[0])); k++) {
     if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_keep[k].name, k_keep[k].len)) {
@@ -8388,6 +8807,15 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
   int32_t i;
   if (!m || m->num_funcs < 40)
     return 0;
+  /** parser.su ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_init", 15))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
+      return 0;
+  }
   if (pipeline_module_func_name_equal_at(m, 0, (uint8_t *)"type_kind_ordinal", 17))
     return 1;
   for (i = 0; i < m->num_funcs; i++) {
@@ -8494,9 +8922,9 @@ static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
   int32_t i;
   int32_t has_parse_marker;
   int32_t has_reset;
-  if (!m || m->num_funcs < 150 || m->num_funcs > 320)
+  if (!m || m->num_funcs < 150 || m->num_funcs > 1450)
     return 0;
-  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) || asm_module_is_pipeline_selfhost(m))
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m))
     return 0;
   has_parse_marker = 0;
   has_reset = 0;
@@ -8510,7 +8938,28 @@ static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
       has_parse_marker = 1;
   }
-  return has_reset != 0 && has_parse_marker != 0;
+  /** reset 已足够识别 parser.su；勿被 typeck ndef 启发式抢先（2026-06-14）。 */
+  if (has_reset != 0 && has_parse_marker == 0 && m->num_funcs >= 200)
+    has_parse_marker = 1;
+  if (has_reset == 0)
+    return 0;
+  if (asm_module_is_typeck_selfhost(m) && has_parse_marker == 0)
+    return 0;
+  return has_parse_marker != 0;
+}
+
+/** EMIT_HEAVY 第二遍：parser.su 识别（reset 计数器存在即可；marker 偶发缺失时仍走 parser 路径）。 */
+static int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m) {
+  int32_t i;
+  if (!m || m->num_funcs < 150 || m->num_funcs > 1450)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m))
+    return 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      return 1;
+  }
+  return asm_module_is_parser_selfhost(m);
 }
 
 /** 函数名前缀匹配（module func 池按字节比较）。 */
@@ -9140,11 +9589,594 @@ int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t 
   return 0;
 }
 
-/** M8-tail：parser.su 小 helper 薄包装 SU 名 → C 实现（parse_into_* mega 仍 ret0 桩）。 */
+/** M8-tail：parser.su 薄包装 SU 名 → parser_asm_thin_c.c *_glue 或 pipeline_glue *_c（EMIT_HEAVY bl 扩 __text）。
+ * slot_fallback / safe_helper 真 emit：collect_imports_buf / parse_one_function_library_buf 等。 */
 static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
+    {"collect_imports_buf", 19, "parser_collect_imports_buf_glue", 31},
+    {"advance_past_cond_rparen_into", 29, "parser_advance_past_cond_rparen_into_glue", 41},
+    {"advance_past_stmt_semicolon_into", 32, "parser_advance_past_stmt_semicolon_into_glue", 44},
+    {"alloc_pointee_type_ref_from_tok", 31, "parser_alloc_pointee_type_ref_from_tok_glue", 43},
+    {"append_block_lets_from_res", 26, "parser_append_block_lets_from_res_glue", 38},
+    {"body_skip_let_const_then_if_buf", 31, "parser_body_skip_let_const_then_if_buf_glue", 43},
+    {"body_skip_let_const_then_if", 27, "parser_body_skip_let_const_then_if_glue", 39},
+    {"body_skip_let_const_then_if_into", 32, "parser_body_skip_let_const_then_if_into_glue", 44},
+    {"collect_imports", 15, "parser_collect_imports_glue", 27},
+    {"copy_lex_from_import_into", 25, "parser_lex_copy_from_import_into_glue", 38},
+    {"consume_qualified_type_ident_name", 33, "parser_consume_qualified_type_ident_name_glue", 45},
+    {"diag_after_imports_then_structs", 31, "parser_diag_after_imports_then_structs_glue", 43},
+    {"diag_fail_at_token_kind", 23, "parser_diag_fail_at_token_kind_glue", 35},
+    {"diag_first_ident_len", 20, "parser_diag_first_ident_len_glue", 32},
+    {"diag_lex_after_imports", 22, "parser_diag_lex_after_imports_glue", 34},
+    {"diag_skip_let_const_buf", 23, "parser_diag_skip_let_const_buf_glue", 35},
+    {"diag_skip_let_const", 19, "parser_diag_skip_let_const_glue", 31},
+    {"diag_skip_let_const_into", 24, "parser_diag_skip_let_const_into_glue", 36},
+    {"expr_set_common_zeros", 21, "parser_expr_set_common_zeros_glue", 33},
+    {"fill_block_const_let_from_res", 29, "parser_fill_block_const_let_from_res_glue", 41},
+    {"finish_struct_lit_from_type_ident_into", 38, "parser_finish_struct_lit_from_type_ident_into_glue", 50},
+    {"first_token_kind", 16, "parser_first_token_kind_glue", 28},
+    {"lex_at_token_from_result", 24, "parser_lex_at_token_from_result_glue", 36},
+    {"lex_from_library", 16, "parser_lex_from_library_glue", 28},
+    {"lex_from_library_into", 21, "parser_lex_from_library_into_glue", 33},
+    {"lex_from_onefunc_next_into", 26, "parser_lex_from_onefunc_next_into_glue", 38},
+    {"lex_from_next_into", 18, "parser_lex_from_next_into_glue", 30},
+    {"lex_from_result_ptr_into", 24, "parser_lex_from_result_ptr_into_glue", 36},
+    {"lex_from_try_skip", 17, "parser_lex_from_try_skip_glue", 29},
+    {"lex_from_try_skip_into", 22, "parser_lex_from_try_skip_into_glue", 34},
+    {"module_append_enum_variants_and_skip_body_into", 46, "parser_module_append_enum_variants_and_skip_body_into_glue", 58},
+    {"parse_addsub_into", 17, "parser_parse_addsub_into_glue", 29},
+    {"parse_as_suffix_into", 20, "parser_parse_as_suffix_into_glue", 32},
+    {"parse_assign_into", 17, "parser_parse_assign_into_glue", 29},
+    {"parse_at_simd_builtin_into", 26, "parser_parse_at_simd_builtin_into_glue", 38},
+    {"parse_bitand_into", 17, "parser_parse_bitand_into_glue", 29},
+    {"parse_bitor_into", 16, "parser_parse_bitor_into_glue", 28},
+    {"parse_bitxor_into", 17, "parser_parse_bitxor_into_glue", 29},
+    {"parse_body_let_bracket_compound_init_ref", 40, "parser_parse_body_let_bracket_compound_init_ref_glue", 52},
+    {"parse_cast_into", 15, "parser_parse_cast_into_glue", 27},
+    {"parse_compare_into", 18, "parser_parse_compare_into_glue", 30},
+    {"parse_cond_expr_into", 20, "parser_parse_cond_expr_into_glue", 32},
+    {"parse_if_expr_into", 18, "parser_parse_if_expr_into_glue", 30},
+    {"parse_if_stmt_into", 18, "parser_parse_if_stmt_into_glue", 30},
+    {"parse_into_try_skip_allow_buf", 29, "parser_parse_into_try_skip_allow_buf_glue", 41},
+    {"parse_into_try_skip_allow", 25, "parser_parse_into_try_skip_allow_glue", 37},
+    {"parse_into_try_skip_allow_into_buf", 34, "parser_parse_into_try_skip_allow_into_buf_glue", 46},
+    {"parse_into_try_skip_allow_into", 30, "parser_parse_into_try_skip_allow_into_glue", 42},
+    {"parse_into_set_main_index", 25, "parser_parse_into_set_main_index_glue", 37},
+    {"parse_logand_into", 17, "parser_parse_logand_into_glue", 29},
+    {"parse_logor_into", 16, "parser_parse_logor_into_glue", 28},
+    {"parse_match_into", 16, "parser_parse_match_into_glue", 28},
+    {"parse_match_subject_into", 24, "parser_parse_match_subject_into_glue", 36},
+    {"parse_one_extern_and_add_into_buf", 33, "parser_parse_one_extern_and_add_into_buf_glue", 45},
+    {"parse_one_extern_and_add_into", 29, "parser_parse_one_extern_and_add_into_glue", 41},
+    {"parse_one_extern_skip_into", 26, "parser_parse_one_extern_skip_into_glue", 38},
+    {"parse_one_function_buf_into", 27, "parser_parse_one_function_buf_into_glue", 39},
+    {"parse_one_function_library", 26, "parser_parse_one_function_library_glue", 38},
+    {"parse_one_function_library_into", 31, "parser_parse_one_function_library_into_glue", 43},
+    {"parse_one_function_library_scan", 31, "parser_parse_one_function_library_scan_glue", 43},
+    {"parse_one_top_level_let_into", 28, "parser_parse_one_top_level_let_into_glue", 40},
+    {"parse_primary_into", 18, "parser_parse_primary_into_glue", 30},
+    {"parse_relcompare_into", 21, "parser_parse_relcompare_into_glue", 33},
+    {"parse_shift_into", 16, "parser_parse_shift_into_glue", 28},
+    {"parse_struct_record_layout_into", 31, "parser_parse_struct_record_layout_into_glue", 43},
+    {"parse_term_into", 15, "parser_parse_term_into_glue", 27},
+    {"parse_ternary_into", 18, "parser_parse_ternary_into_glue", 30},
+    {"parse_type_ref_for_arena_into", 29, "parser_parse_type_ref_for_arena_into_glue", 41},
+    {"parse_unary_into", 16, "parser_parse_unary_into_glue", 28},
+    {"parser_rewind_lex_for_following_stmt", 36, "parser_parser_rewind_lex_for_following_stmt_glue", 48},
+    {"parser_vector_type_ref_from_ident_spelling", 42, "parser_parser_vector_type_ref_from_ident_spelling_glue", 54},
+    {"skip_balanced_braces_buf", 24, "parser_skip_balanced_braces_buf_glue", 36},
+    {"skip_balanced_braces", 20, "parser_skip_balanced_braces_glue", 32},
+    {"skip_balanced_braces_into", 25, "parser_skip_balanced_braces_into_glue", 37},
+    {"skip_balanced_parens_buf", 24, "parser_skip_balanced_parens_buf_glue", 36},
+    {"skip_balanced_parens", 20, "parser_skip_balanced_parens_glue", 32},
+    {"skip_balanced_parens_into", 25, "parser_skip_balanced_parens_into_glue", 37},
+    {"skip_imports", 12, "parser_skip_imports_glue", 24},
+    {"skip_one_enum_buf", 17, "parser_skip_one_enum_buf_glue", 29},
+    {"skip_one_enum", 13, "parser_skip_one_enum_glue", 25},
+    {"skip_one_enum_into", 18, "parser_skip_one_enum_into_glue", 30},
+    {"skip_one_enum_into_buf", 22, "parser_skip_one_enum_into_buf_glue", 34},
+    {"skip_one_enum_register_into_buf", 31, "parser_skip_one_enum_register_into_buf_glue", 43},
+    {"skip_one_enum_register_into", 27, "parser_skip_one_enum_register_into_glue", 39},
+    {"skip_one_extern_buf", 19, "parser_skip_one_extern_buf_glue", 31},
+    {"skip_one_extern", 15, "parser_skip_one_extern_glue", 27},
+    {"skip_one_extern_into_buf", 24, "parser_skip_one_extern_into_buf_glue", 36},
+    {"skip_one_extern_into", 20, "parser_skip_one_extern_into_glue", 32},
+    {"skip_one_function_full_buf", 26, "parser_skip_one_function_full_buf_glue", 38},
+    {"skip_one_function_full", 22, "parser_skip_one_function_full_glue", 34},
+    {"skip_one_function_full_into_buf", 31, "parser_skip_one_function_full_into_buf_glue", 43},
+    {"skip_one_function_full_into", 27, "parser_skip_one_function_full_into_glue", 39},
+    {"skip_one_if_core_buf", 20, "parser_skip_one_if_core_buf_glue", 32},
+    {"skip_one_if_core", 16, "parser_skip_one_if_core_glue", 28},
+    {"skip_one_if_core_into", 21, "parser_skip_one_if_core_into_glue", 33},
+    {"skip_one_if_statement_buf", 25, "parser_skip_one_if_statement_buf_glue", 37},
+    {"skip_one_if_statement", 21, "parser_skip_one_if_statement_glue", 33},
+    {"skip_one_if_statement_into", 26, "parser_skip_one_if_statement_into_glue", 38},
+    {"skip_one_impl_buf", 17, "parser_skip_one_impl_buf_glue", 29},
+    {"skip_one_impl", 13, "parser_skip_one_impl_glue", 25},
+    {"skip_one_impl_into_buf", 22, "parser_skip_one_impl_into_buf_glue", 34},
+    {"skip_one_impl_into", 18, "parser_skip_one_impl_into_glue", 30},
+    {"skip_one_struct_buf", 19, "parser_skip_one_struct_buf_glue", 31},
+    {"skip_one_struct", 15, "parser_skip_one_struct_glue", 27},
+    {"skip_one_struct_into_buf", 24, "parser_skip_one_struct_into_buf_glue", 36},
+    {"skip_one_struct_into", 20, "parser_skip_one_struct_into_glue", 32},
+    {"skip_one_trait_buf", 18, "parser_skip_one_trait_buf_glue", 30},
+    {"skip_one_trait", 14, "parser_skip_one_trait_glue", 26},
+    {"skip_one_trait_into_buf", 23, "parser_skip_one_trait_into_buf_glue", 35},
+    {"skip_one_trait_into", 19, "parser_skip_one_trait_into_glue", 31},
+    {"struct_field_name_from_tok", 26, "parser_struct_field_name_from_tok_glue", 38},
+    {"parser_token_is_label_start", 27, "parser_token_is_label_start_glue", 32},
+    {"parser_should_wrap_func_tail_in_return", 38, "parser_should_wrap_func_tail_in_return_glue", 43},
     {"pipeline_module_reset_parse_counters", 36, "pipeline_module_reset_parse_counters_c", 38},
-    {"parse_into_set_main_index", 25, "pipeline_module_set_main_func_index", 35},
+    {"try_skip_allow_padding_struct_buf", 33, "parser_try_skip_allow_padding_struct_buf_glue", 45},
+    {"try_skip_allow_padding_struct", 29, "parser_try_skip_allow_padding_struct_glue", 41},
 };
+
+
+/** parser EMIT_HEAVY 第二遍：槽位 fallback 上限（>16 无增量；2026-06-14 提至 16）。 */
+#define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 16
+
+/** SHU_ASM_DEBUG=1 时打印 parser EMIT_HEAVY 真 emit 决策（定位 seed_mega SIGSEGV）。 */
+static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
+  uint8_t fn[64];
+  int32_t fl;
+  if (!getenv("SHU_ASM_DEBUG") || !m || fi < 0 || !why)
+    return;
+  fl = pipeline_module_func_name_len_at(m, fi);
+  pipeline_module_func_name_copy64(m, fi, fn);
+  fprintf(stderr, "shu: parser REAL_EMIT fi=%d fn=%.*s why=%s\n", fi, (int)(fl > 63 ? 63 : fl), fn, why);
+  fflush(stderr);
+}
+
+/** 调试/二分：SHU_PARSER_EMIT_HEAVY_BISECT_N=N 上限 func_index；STUB_ONLY=1 仅 delegate 桩。 */
+static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
+  const char *stub = getenv("SHU_PARSER_EMIT_HEAVY_STUB_ONLY");
+  char *end = NULL;
+  long v;
+  const char *e;
+  if (stub != NULL && stub[0] != '\0' && stub[0] != '0')
+    return 0;
+  e = getenv("SHU_PARSER_EMIT_HEAVY_BISECT_N");
+  if (!e || e[0] == '\0')
+    return 2147483647;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return 2147483647;
+  if (v > 2147483647L)
+    return 2147483647;
+  return (int32_t)v;
+}
+
+/** SHU_PARSER_EMIT_HEAVY_SLOT_MAX=N 覆盖槽位 fallback 上限（默认 8）。 */
+static int32_t asm_parser_emit_heavy_slot_max(void) {
+  const char *e = getenv("SHU_PARSER_EMIT_HEAVY_SLOT_MAX");
+  char *end = NULL;
+  long v;
+  if (!e || e[0] == '\0')
+    return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+  if (v > 512)
+    return 512;
+  return (int32_t)v;
+}
+
+/**
+ * SHU_ASM_PARSER_MEGA_BISECT=<name>：单项 mega 跳过 ret0 桩以 SU 真 emit（bisect 门禁用）。
+ */
+static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t func_index, const char *name,
+                                                int32_t len) {
+  const char *b;
+  size_t blen;
+  if (!m || func_index < 0 || !name || len <= 0)
+    return 0;
+  b = getenv("SHU_ASM_PARSER_MEGA_BISECT");
+  if (!b || b[0] == '\0')
+    return 0;
+  blen = strlen(b);
+  if ((int32_t)blen != len)
+    return 0;
+  if (memcmp(b, name, (size_t)len) != 0)
+    return 0;
+  return pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)name, len);
+}
+
+/**
+ * PARSE_BOOTSTRAP_EMIT 时 mega 入口是否允许 SU 真 emit；MINIMAL 仅 parse_into_init / set_main_index。
+ */
+static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int32_t func_index, const char *name,
+                                                      int32_t len) {
+  static const struct {
+    const char *name;
+    int32_t len;
+  } k_min[] = {
+      {"parse_into_init", 15},
+      {"parse_into_set_main_index", 25},
+  };
+  static const struct {
+    const char *name;
+    int32_t len;
+  } k_full[] = {
+      {"parse_into_buf", 14},
+      {"parse_into", 10},
+      {"parse_into_init", 15},
+      {"parse_into_set_main_index", 25},
+      {"collect_imports_buf", 19},
+  };
+  const struct {
+    const char *name;
+    int32_t len;
+  } *k;
+  int32_t kn;
+  int32_t i;
+  if (!m || func_index < 0 || getenv("SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
+    return 0;
+  if (!pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)name, len))
+    return 0;
+  if (getenv("SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+    k = k_min;
+    kn = (int32_t)(sizeof(k_min) / sizeof(k_min[0]));
+  } else {
+    k = k_full;
+    kn = (int32_t)(sizeof(k_full) / sizeof(k_full[0]));
+  }
+  for (i = 0; i < kn; i++) {
+    if (k[i].len == len && memcmp(k[i].name, name, (size_t)len) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * parser.su EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
+ * SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 重链用 ./shu 编 parser 真 parse_into*（仅 bootstrap .o，非 gate EMIT_HEAVY）。
+ */
+static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_MEGA_EQ(n, l)                                                                                           \
+  do {                                                                                                                 \
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, (n), (l)))                                                     \
+      break;                                                                                                           \
+    if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, (n), (l)))                                               \
+      break;                                                                                                           \
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)(n), (l)))                                        \
+      return 1;                                                                                                        \
+  } while (0)
+#define PARSER_MEGA_PFX(pfx, plen)                                                                                     \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, (pfx), (int32_t)(plen)))                                \
+      return 1;                                                                                                        \
+  } while (0)
+  PARSER_MEGA_EQ("parse_into_buf", 14);
+  PARSER_MEGA_EQ("parse_into", 10);
+  PARSER_MEGA_EQ("parse", 5);
+  PARSER_MEGA_EQ("parse_one_function_impl", 23);
+  PARSER_MEGA_EQ("parse_expr_into", 15);
+  PARSER_MEGA_EQ("parse_block_into", 16);
+  PARSER_MEGA_EQ("parse_body_lets_into", 20);
+  /** parse_at_simd_builtin / finish_struct_lit / leading_int_as glue 已迁 tier4c safe。 */
+  /** parse_if_* / parse_match_* glue 薄包装已迁 tier4 safe；勿 mega ret0 桩。 */
+  /** 表达式 precedence 链（parse_primary/addsub/…_into）走 thin delegate 或 SU 真 emit；勿 PFX mega ret0 桩。 */
+#undef PARSER_MEGA_EQ
+#undef PARSER_MEGA_PFX
+  return 0;
+}
+
+/**
+ * parser EMIT_HEAVY 第二遍：须 ret0 桩（SU 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
+ */
+static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_STUB_EQ(n, l)                                                                                           \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)(n), (l)))                                        \
+      return 1;                                                                                                        \
+  } while (0)
+#define PARSER_STUB_PFX(pfx, plen)                                                                                     \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, (pfx), (int32_t)(plen)))                                \
+      return 1;                                                                                                        \
+  } while (0)
+  PARSER_STUB_PFX("copy_onefunc_", 13);
+  PARSER_STUB_PFX("onefunc_", 8);
+  PARSER_STUB_PFX("set_onefunc_", 12);
+  PARSER_STUB_EQ("wrap_block_ref_as_expr", 22);
+  PARSER_STUB_EQ("parser_alloc_true_bool_lit", 26);
+  PARSER_STUB_EQ("parser_alloc_float_lit", 22);
+  PARSER_STUB_EQ("parser_expr_wrap_in_return", 26);
+  PARSER_STUB_EQ("try_skip_allow_padding_struct", 29);
+  PARSER_STUB_EQ("try_skip_allow_padding_struct_buf", 33);
+  /** parse_peek_function_name_buf 已迁 tier4 safe（单行 bl→glue SU emit OK）。 */
+  /** parser_token_is_label_start：勿入 safe_helper（单独即 elf_ec=-1）；仅 thin_delegate→glue。 */
+#undef PARSER_STUB_EQ
+#undef PARSER_STUB_PFX
+  return 0;
+}
+
+/**
+ * parser EMIT_HEAVY 第二遍：按名判定可安全 SU 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
+ */
+static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_SAFE_EQ(n, l)                                                                                           \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)(n), (l)))                                        \
+      return 1;                                                                                                        \
+  } while (0)
+  PARSER_SAFE_EQ("get_module_num_imports", 22);
+  PARSER_SAFE_EQ("expr_ref_is_assign_lvalue", 25);
+  PARSER_SAFE_EQ("copy_slice_to_name64", 20);
+  PARSER_SAFE_EQ("copy_slice_to_name64_at_end", 27);
+  PARSER_SAFE_EQ("copy_slice_to_param32", 21);
+  PARSER_SAFE_EQ("copy_slice_to_param32_at_end", 28);
+  PARSER_SAFE_EQ("copy_slice_to_name64_buf", 24);
+  PARSER_SAFE_EQ("copy_slice_to_name64_at_end_buf", 31);
+  PARSER_SAFE_EQ("copy_slice_to_param32_at_end_buf", 32);
+  PARSER_SAFE_EQ("copy_slice_to_param32_buf", 25);
+  PARSER_SAFE_EQ("get_module_import_path", 22);
+  PARSER_SAFE_EQ("copy_module_import_path64", 25);
+  PARSER_SAFE_EQ("parse_one_function_library_buf", 30);
+  PARSER_SAFE_EQ("parse_one_function_library_into_buf", 35);
+  PARSER_SAFE_EQ("parse_one_function_buf_into", 27);
+  PARSER_SAFE_EQ("parse_into_init", 15);
+  PARSER_SAFE_EQ("parse_one_function_library_into", 31);
+  PARSER_SAFE_EQ("pipeline_module_reset_parse_counters", 36);
+  PARSER_SAFE_EQ("extern_parse_set_fail", 21);
+  PARSER_SAFE_EQ("extern_parse_pool_ptr", 21);
+  PARSER_SAFE_EQ("onefunc_result_pool_ptr", 23);
+  PARSER_SAFE_EQ("set_onefunc_fail", 16);
+  /** LexerResult/CollectImportsResult 字段读：slice 路径须 glue bl（SU 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+  PARSER_SAFE_EQ("copy_lex_from_import_into", 25);
+  PARSER_SAFE_EQ("lex_from_next_into", 18);
+  PARSER_SAFE_EQ("lex_from_result_ptr_into", 24);
+  PARSER_SAFE_EQ("lex_from_onefunc_next_into", 26);
+  PARSER_SAFE_EQ("write_extern_params_to_pools", 28);
+  PARSER_SAFE_EQ("module_register_arena_func", 26);
+  PARSER_SAFE_EQ("is_pointee_type_token", 21);
+  PARSER_SAFE_EQ("compound_assign_token_to_expr_kind", 34);
+  PARSER_SAFE_EQ("import_path_dot_segment_copy", 28);
+  PARSER_SAFE_EQ("parser_alloc_vector_type_ref", 28);
+  /** tier4 selective SU emit：单行 bl→glue（alloc/wrap_in_return SU 真 emit → elf_ec=-1）。 */
+  PARSER_SAFE_EQ("parse_peek_function_name_buf", 28);
+  PARSER_SAFE_EQ("lexer_pos_before_run", 20);
+  PARSER_SAFE_EQ("parser_match_kw_immediately_before", 34);
+  PARSER_SAFE_EQ("import_path_dot_segment_len", 27);
+  PARSER_SAFE_EQ("is_compound_assign_token", 24);
+  PARSER_SAFE_EQ("struct_field_name_tok_kind", 26);
+  PARSER_SAFE_EQ("struct_field_continues_tok_kind", 31);
+  PARSER_SAFE_EQ("module_try_register_enum_name", 29);
+  PARSER_SAFE_EQ("struct_layout_name_exists_arr", 29);
+  PARSER_SAFE_EQ("struct_layout_first_name_match_idx", 34);
+  PARSER_SAFE_EQ("struct_layout_placeholder_idx", 29);
+  PARSER_SAFE_EQ("lexer_token_run_len", 19);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_into_buf", 50);
+  PARSER_SAFE_EQ("skip_balanced_parens_into_buf", 29);
+  PARSER_SAFE_EQ("skip_balanced_braces_into_buf", 29);
+  /** *_into_buf：parser_slice_from_buf + bl *_into（13al；勿 lexer_next_buf SU 深循环）。 */
+  PARSER_SAFE_EQ("skip_one_enum_into_buf", 22);
+  PARSER_SAFE_EQ("skip_one_struct_into_buf", 24);
+  PARSER_SAFE_EQ("skip_one_trait_into_buf", 23);
+  PARSER_SAFE_EQ("skip_one_impl_into_buf", 22);
+  PARSER_SAFE_EQ("skip_one_extern_into_buf", 24);
+  PARSER_SAFE_EQ("skip_one_function_full_into_buf", 31);
+  PARSER_SAFE_EQ("skip_one_enum_register_into_buf", 31);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_into_buf", 33);
+  /** *_buf：parser_slice_from_buf + bl slice 路径（13bc；深循环仍在 C glue）。 */
+  PARSER_SAFE_EQ("diag_skip_let_const_buf", 23);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_buf", 31);
+  PARSER_SAFE_EQ("skip_balanced_parens_buf", 24);
+  PARSER_SAFE_EQ("skip_balanced_braces_buf", 24);
+  PARSER_SAFE_EQ("skip_one_function_full_buf", 26);
+  PARSER_SAFE_EQ("skip_one_if_core_buf", 20);
+  PARSER_SAFE_EQ("skip_one_if_statement_buf", 25);
+  PARSER_SAFE_EQ("skip_one_enum_buf", 17);
+  PARSER_SAFE_EQ("skip_one_trait_buf", 18);
+  PARSER_SAFE_EQ("skip_one_impl_buf", 17);
+  PARSER_SAFE_EQ("skip_one_extern_buf", 19);
+  PARSER_SAFE_EQ("skip_one_struct_buf", 19);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_buf", 29);
+  PARSER_SAFE_EQ("try_skip_allow_padding_struct_buf", 33);
+  /** slice 兼容包装 / glue 单行桩（扩 __text 有限；勿 lexer_next_into SU 体）。 */
+  PARSER_SAFE_EQ("lex_from_library_into", 21);
+  PARSER_SAFE_EQ("lex_from_try_skip_into", 22);
+  PARSER_SAFE_EQ("lex_from_library", 16);
+  PARSER_SAFE_EQ("lex_from_try_skip", 17);
+  PARSER_SAFE_EQ("advance_past_stmt_semicolon_into", 32);
+  PARSER_SAFE_EQ("advance_past_cond_rparen_into", 29);
+  PARSER_SAFE_EQ("first_token_kind", 16);
+  PARSER_SAFE_EQ("diag_first_ident_len", 20);
+  PARSER_SAFE_EQ("parser_rewind_lex_for_following_stmt", 36);
+  PARSER_SAFE_EQ("lex_at_token_from_result", 24);
+  PARSER_SAFE_EQ("struct_field_name_from_tok", 26);
+  PARSER_SAFE_EQ("diag_skip_let_const_into", 24);
+  PARSER_SAFE_EQ("diag_skip_let_const", 19);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_into", 32);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if", 27);
+  PARSER_SAFE_EQ("skip_one_if_statement_into", 26);
+  PARSER_SAFE_EQ("skip_one_if_core_into", 21);
+  PARSER_SAFE_EQ("skip_one_if_statement", 21);
+  PARSER_SAFE_EQ("skip_one_if_core", 16);
+  PARSER_SAFE_EQ("skip_one_enum_into", 18);
+  PARSER_SAFE_EQ("skip_one_impl_into", 18);
+  PARSER_SAFE_EQ("skip_one_trait_into", 19);
+  PARSER_SAFE_EQ("skip_one_extern_into", 20);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_into", 30);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_into_buf", 34);
+  PARSER_SAFE_EQ("parse_into_set_main_index", 25);
+  PARSER_SAFE_EQ("diag_token_after_collect_imports", 32);
+  PARSER_SAFE_EQ("diag_parse_one_after_collect_imports", 36);
+  PARSER_SAFE_EQ("parse_one_function_ok_for_pipeline", 34);
+  PARSER_SAFE_EQ("skip_imports", 12);
+  PARSER_SAFE_EQ("skip_one_struct", 15);
+  PARSER_SAFE_EQ("skip_one_struct_into", 20);
+  PARSER_SAFE_EQ("parse_one_extern_skip_into", 26);
+  PARSER_SAFE_EQ("skip_one_enum", 13);
+  PARSER_SAFE_EQ("skip_one_trait", 14);
+  PARSER_SAFE_EQ("skip_one_impl", 13);
+  PARSER_SAFE_EQ("skip_one_extern", 15);
+  PARSER_SAFE_EQ("skip_one_function_full", 22);
+  PARSER_SAFE_EQ("collect_imports", 15);
+  PARSER_SAFE_EQ("consume_qualified_type_ident_name", 33);
+  PARSER_SAFE_EQ("expr_set_common_zeros", 21);
+  PARSER_SAFE_EQ("fill_block_const_let_from_res", 29);
+  PARSER_SAFE_EQ("append_block_lets_from_res", 26);
+  PARSER_SAFE_EQ("diag_after_imports_then_structs", 31);
+  PARSER_SAFE_EQ("diag_fail_at_token_kind", 23);
+  PARSER_SAFE_EQ("diag_lex_after_imports", 22);
+  PARSER_SAFE_EQ("skip_balanced_parens", 20);
+  PARSER_SAFE_EQ("skip_balanced_parens_into", 25);
+  PARSER_SAFE_EQ("skip_balanced_braces", 20);
+  PARSER_SAFE_EQ("skip_balanced_braces_into", 25);
+  /** tier3a（21 项）：slice 非 _buf；+1180B __text。 */
+  PARSER_SAFE_EQ("parse_primary_into", 18);
+  PARSER_SAFE_EQ("parse_unary_into", 16);
+  PARSER_SAFE_EQ("parse_cast_into", 15);
+  PARSER_SAFE_EQ("parse_term_into", 15);
+  PARSER_SAFE_EQ("parse_addsub_into", 17);
+  PARSER_SAFE_EQ("parse_shift_into", 16);
+  PARSER_SAFE_EQ("parse_relcompare_into", 21);
+  PARSER_SAFE_EQ("parse_compare_into", 18);
+  PARSER_SAFE_EQ("parse_bitand_into", 17);
+  PARSER_SAFE_EQ("parse_bitor_into", 16);
+  PARSER_SAFE_EQ("parse_bitxor_into", 17);
+  PARSER_SAFE_EQ("parse_logand_into", 17);
+  PARSER_SAFE_EQ("parse_logor_into", 16);
+  PARSER_SAFE_EQ("parse_ternary_into", 18);
+  PARSER_SAFE_EQ("parse_assign_into", 17);
+  PARSER_SAFE_EQ("parse_as_suffix_into", 20);
+  PARSER_SAFE_EQ("parse_one_function_library", 26);
+  PARSER_SAFE_EQ("parse_one_function_library_scan", 31);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow", 25);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_into", 29);
+  PARSER_SAFE_EQ("parse_one_top_level_let_into", 28);
+  /** tier3b（69 项）：跳过 parser_token_is_label_start（elf_ec=-1）；+936B __text。 */
+  PARSER_SAFE_EQ("parser_should_wrap_func_tail_in_return", 38);
+  PARSER_SAFE_EQ("skip_one_enum_register_into", 27);
+  PARSER_SAFE_EQ("skip_one_function_full_into", 27);
+  PARSER_SAFE_EQ("alloc_pointee_type_ref_from_tok", 31);
+  PARSER_SAFE_EQ("parse_struct_record_layout_into", 31);
+  PARSER_SAFE_EQ("parse_type_ref_for_arena_into", 29);
+  PARSER_SAFE_EQ("parse_cond_expr_into", 20);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_into", 46);
+  PARSER_SAFE_EQ("parse_body_let_bracket_compound_init_ref", 40);
+  PARSER_SAFE_EQ("parser_vector_type_ref_from_ident_spelling", 42);
+  PARSER_SAFE_EQ("collect_imports_buf", 19);
+  PARSER_SAFE_EQ("skip_imports_buf", 16);
+  PARSER_SAFE_EQ("diag_skip_let_const_into_buf", 28);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_into_buf", 36);
+  PARSER_SAFE_EQ("skip_one_if_core_into_buf", 25);
+  PARSER_SAFE_EQ("skip_one_if_statement_into_buf", 30);
+  PARSER_SAFE_EQ("first_token_kind_buf", 20);
+  PARSER_SAFE_EQ("diag_first_ident_len_buf", 24);
+  PARSER_SAFE_EQ("diag_lex_after_imports_buf", 26);
+  PARSER_SAFE_EQ("diag_after_imports_then_structs_buf", 35);
+  PARSER_SAFE_EQ("diag_fail_at_token_kind_buf", 27);
+  PARSER_SAFE_EQ("parse_one_extern_skip_into_buf", 30);
+  PARSER_SAFE_EQ("consume_qualified_type_ident_name_buf", 37);
+  PARSER_SAFE_EQ("advance_past_stmt_semicolon_into_buf", 36);
+  PARSER_SAFE_EQ("advance_past_cond_rparen_into_buf", 33);
+  PARSER_SAFE_EQ("parse_primary_into_buf", 22);
+  PARSER_SAFE_EQ("parse_unary_into_buf", 20);
+  PARSER_SAFE_EQ("parse_cast_into_buf", 19);
+  PARSER_SAFE_EQ("parse_term_into_buf", 19);
+  PARSER_SAFE_EQ("parse_addsub_into_buf", 21);
+  PARSER_SAFE_EQ("parse_shift_into_buf", 20);
+  PARSER_SAFE_EQ("parse_relcompare_into_buf", 25);
+  PARSER_SAFE_EQ("parse_compare_into_buf", 22);
+  PARSER_SAFE_EQ("parse_bitand_into_buf", 21);
+  PARSER_SAFE_EQ("parse_bitxor_into_buf", 21);
+  PARSER_SAFE_EQ("parse_bitor_into_buf", 20);
+  PARSER_SAFE_EQ("parse_logand_into_buf", 21);
+  PARSER_SAFE_EQ("parse_logor_into_buf", 20);
+  PARSER_SAFE_EQ("parse_ternary_into_buf", 22);
+  PARSER_SAFE_EQ("parse_assign_into_buf", 21);
+  PARSER_SAFE_EQ("parse_expr_into_buf", 19);
+  PARSER_SAFE_EQ("finish_struct_lit_from_type_ident_into_buf", 42);
+  PARSER_SAFE_EQ("parse_cond_expr_into_buf", 24);
+  PARSER_SAFE_EQ("parse_if_stmt_into_buf", 22);
+  /** tier4b：mega→safe glue 薄包装（if/match slice 路径）。 */
+  PARSER_SAFE_EQ("parse_if_stmt_into", 18);
+  PARSER_SAFE_EQ("parse_if_expr_into", 18);
+  PARSER_SAFE_EQ("parse_match_into", 16);
+  PARSER_SAFE_EQ("parse_match_subject_into", 24);
+  /** tier4c：mega→safe glue 薄包装（simd / struct_lit / leading_int_as）。 */
+  PARSER_SAFE_EQ("parse_at_simd_builtin_into", 26);
+  PARSER_SAFE_EQ("finish_struct_lit_from_type_ident_into", 38);
+  PARSER_SAFE_EQ("parse_expr_with_leading_int_as_into", 35);
+  PARSER_SAFE_EQ("parse_block_into_buf", 20);
+  PARSER_SAFE_EQ("parse_if_expr_into_buf", 22);
+  PARSER_SAFE_EQ("parse_match_subject_into_buf", 28);
+  PARSER_SAFE_EQ("parse_match_into_buf", 20);
+  PARSER_SAFE_EQ("parse_at_simd_builtin_into_buf", 30);
+  PARSER_SAFE_EQ("parse_as_suffix_into_buf", 24);
+  PARSER_SAFE_EQ("parse_type_ref_for_arena_into_buf", 33);
+  PARSER_SAFE_EQ("parse_body_let_bracket_compound_init_ref_buf", 44);
+  PARSER_SAFE_EQ("parse_struct_record_layout_into_buf", 35);
+  PARSER_SAFE_EQ("parse_one_function_library_scan_buf", 35);
+  PARSER_SAFE_EQ("alloc_pointee_type_ref_from_tok_buf", 35);
+  PARSER_SAFE_EQ("parser_vector_type_ref_from_ident_spelling_buf", 46);
+  PARSER_SAFE_EQ("parse_one_top_level_let_into_buf", 32);
+  PARSER_SAFE_EQ("import_path_dot_segment_copy_buf", 32);
+  PARSER_SAFE_EQ("parser_match_kw_immediately_before_buf", 38);
+  PARSER_SAFE_EQ("struct_field_name_from_tok_buf", 30);
+  PARSER_SAFE_EQ("parse_expr_with_leading_int_as_into_buf", 39);
+  PARSER_SAFE_EQ("skip_one_enum_register_buf", 26);
+  PARSER_SAFE_EQ("skip_balanced_parens_slice_into_buf", 35);
+  PARSER_SAFE_EQ("skip_balanced_braces_slice_into_buf", 35);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_slice_into_buf", 56);
+  PARSER_SAFE_EQ("parse_one_extern_skip_buf", 25);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_buf", 28);
+  PARSER_SAFE_EQ("parse_one_function_library_from_buf", 35);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_from_buf", 34);
+#undef PARSER_SAFE_EQ
+  return 0;
+}
+
+/** delegate 表内仍有 SU 体：强制真 emit（须先于 thin_delegate）；当前全禁（experimental emit SIGSEGV）。 */
+static int32_t asm_parser_emit_heavy_su_body_keep(struct ast_Module *m, int32_t func_index) {
+  (void)m;
+  (void)func_index;
+  return 0;
+#if 0
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_KEEP_EQ(n, l)                                                                                           \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)(n), (l)))                                        \
+      return 1;                                                                                                        \
+  } while (0)
+  PARSER_KEEP_EQ("struct_layout_first_name_match_idx", 34);
+  PARSER_KEEP_EQ("struct_layout_name_exists_arr", 29);
+  PARSER_KEEP_EQ("struct_layout_placeholder_idx", 29);
+#undef PARSER_KEEP_EQ
+  return 0;
+#endif
+}
+
+/** 槽位 fallback：小体 SU 真 emit（>ASM_EMIT_HEAVY_PARSER_SLOT_MAX 仍桩化）。 */
+static int32_t asm_parser_emit_heavy_slot_fallback_ok(struct ast_ASTArena *arena, int32_t body_ref, int32_t slots) {
+  (void)arena;
+  if (body_ref <= 0)
+    return 0;
+  return slots <= ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+}
+
+/** 查 func 是否在 k_asm_parser_thin_delegate 表（EMIT_HEAVY bl→C glue）。 */
+static int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t func_index) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].su_name,
+                                           k_asm_parser_thin_delegate[i].su_len))
+      return 1;
+  }
+  return 0;
+}
 
 /**
  * 查 parser 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
@@ -9153,8 +10185,9 @@ int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
                                                  int32_t out_cap, int32_t *out_len) {
   int32_t i;
   int32_t nrows;
-  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0 || !asm_module_is_parser_selfhost(m))
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
     return 0;
+  /** 表内均为 parser.su 符号；勿绑 asm_module_is_parser_selfhost（marker 偶发缺失时 delegate 仍须 bl）。 */
   nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
     if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].su_name,
@@ -9166,6 +10199,56 @@ int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
       *out_len = k_asm_parser_thin_delegate[i].c_len;
       return 1;
     }
+  }
+  return 0;
+}
+
+/**
+ * parser EMIT_HEAVY：同模块 SU 真 emit 调 skip/delegate 目标时重定向 bl glue（避免 U su 名）。
+ * 成功写 out/out_len 并返回 1。
+ */
+int32_t asm_parser_emit_heavy_resolve_call_to_glue(struct ast_Module *m, uint8_t *name, int32_t name_len,
+                                                    uint8_t *out, int32_t out_cap, int32_t *out_len) {
+  int32_t fi;
+  if (!m || !name || name_len <= 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  *out_len = 0;
+  if (!asm_module_is_parser_emit_heavy(m))
+    return 0;
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    if (pipeline_module_func_name_equal_at(m, fi, name, name_len) == 0)
+      continue;
+    if (asm_parser_m8_tail_thin_delegate_c_name(m, fi, out, out_cap, out_len) != 0)
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_module_reset_parse_counters", 36)) {
+      const char *c = "pipeline_module_reset_parse_counters_c";
+      int32_t n = 38;
+      if (n >= out_cap)
+        return 0;
+      memcpy(out, c, (size_t)n);
+      out[n] = 0;
+      *out_len = n;
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * parser EMIT_HEAVY：callee 为本模块已定义（非 extern）func 时返回 1。
+ * SU 真 emit 调 stub/同模块 helper 应 enc_call→patch，勿 elf_add_reloc 产生 unexpected U。
+ */
+int32_t asm_parser_emit_heavy_callee_is_same_module_local(struct ast_Module *m, uint8_t *name, int32_t name_len) {
+  int32_t fi;
+  if (!m || !name || name_len <= 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    if (pipeline_module_func_name_equal_at(m, fi, name, name_len) == 0)
+      continue;
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      return 0;
+    return 1;
   }
   return 0;
 }
@@ -9442,6 +10525,7 @@ void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_c
 static int32_t asm_module_is_compiler_selfhost(struct ast_Module *m) {
   return asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
          asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m) ||
+         asm_module_is_parser_emit_heavy(m) ||
          asm_module_is_driver_compile_selfhost(m) || asm_module_is_main_driver_selfhost(m);
 }
 
@@ -9501,6 +10585,40 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
     int32_t typeck_ndef = asm_module_is_typeck_selfhost(m) ? asm_module_num_defined_funcs(m) : 0;
     int32_t typeck_ord = asm_module_defined_func_ordinal(m, func_index);
     /**
+     * parser.su EMIT_HEAVY 第二遍：须先于 typeck ndef 启发式（parser ndef≈130 与 typeck 重叠）。
+     */
+    if (asm_module_is_parser_emit_heavy(m)) {
+      if (asm_skip_heavy_parser_mega_entry(m, func_index) != 0)
+        return 1;
+      /** STUB_ONLY / BISECT_N=0：仅 thin delegate 桩。 */
+      if (asm_parser_emit_heavy_bisect_max_index() == 0)
+        return 1;
+      /**
+       * safe_helper 须先于 force_stub：onefunc_result_pool_ptr 等被 onefunc_ 前缀误桩，
+       * 白名单内小 helper 仍须 SU 真 emit 扩 __text。
+       */
+      if (asm_parser_emit_heavy_safe_helper(m, func_index) != 0) {
+        asm_parser_emit_heavy_dbg_real(m, func_index, "safe_helper");
+        return 0;
+      }
+      if (asm_parser_emit_heavy_force_stub(m, func_index) != 0)
+        return 1;
+      /** thin delegate：薄包装 bl→C glue。 */
+      if (asm_parser_func_is_thin_delegate(m, func_index) != 0)
+        return 1;
+      if (func_index >= asm_parser_emit_heavy_bisect_max_index())
+        return 1;
+      body_ref = pipeline_module_func_body_ref_at(m, func_index);
+      if (!arena || body_ref <= 0)
+        return 1;
+      slots = asm_count_block_stack_slots(arena, body_ref);
+      if (slots > asm_parser_emit_heavy_slot_max())
+        return 1;
+      asm_parser_emit_heavy_dbg_real(m, func_index, "slot_fallback");
+      /** 槽位 fallback：≤SLOT_MAX 小函数 SU 真 emit（ExprKind 序已对齐 primary_slice）。 */
+      return 0;
+    }
+    /**
      * typeck.su 合并 glue 后 ~160–180 已定义 func：#0–89 glue 桩；#90–117 按名小 helper；
      * #118–159 check_* 桩；#160+ typeck_su_ast mega 桩（序号均按非 extern ordinal）。
      */
@@ -9524,7 +10642,8 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     }
     /** 瘦 typeck：safe_helper 白名单 + 槽位过关 SU 真 emit；上限随 block helper 扩容（2026-06 ndef≈130）。 */
-    if (typeck_ndef >= 75 && typeck_ndef <= 200 && !asm_module_is_backend_selfhost(m)) {
+    if (typeck_ndef >= 75 && typeck_ndef <= 200 && !asm_module_is_backend_selfhost(m) &&
+        !asm_module_is_parser_emit_heavy(m)) {
       int32_t body_ref_thin;
       int32_t slots_thin;
       if (typeck_ord < 0)
@@ -9571,11 +10690,6 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
         return 0;
       return 1;
     }
-    /**
-     * parser.su：parse_into_* mega 全桩；reset/set_main 等小 helper 经 k_asm_parser_thin_delegate bl→C。
-     */
-    if (asm_module_is_parser_selfhost(m))
-      return 1;
     /**
      * M8-tail：backend 薄包装 EMIT_HEAVY 仍 skip 桩 + bl→C（与 SKIP 首遍一致；勿真 emit 单行 SU）。
      */
@@ -9630,7 +10744,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       if (func_index >= asm_emit_heavy_abort_lo() && func_index <= asm_emit_heavy_abort_hi())
         return 1;
     } else if (m->num_funcs >= 160 && func_index >= 72 && !asm_module_is_backend_selfhost(m) &&
-               !asm_module_is_typeck_selfhost(m)) {
+               !asm_module_is_typeck_selfhost(m) && !asm_module_is_parser_emit_heavy(m)) {
       return 1;
     }
     body_ref = pipeline_module_func_body_ref_at(m, func_index);

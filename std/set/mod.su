@@ -6,7 +6,7 @@
 //
 // 【依赖】std.heap（alloc_i32/alloc_u8、free_i32/free_u8、map_i32_i32_find_c）。
 
-import std.heap;
+const heap = import("std.heap");
 
 /** 集合：keys/occupied 堆分配，cap 槽位，len 已用；调用方须在不用时 set_i32_deinit。 */
 allow(padding) struct Set_i32 {
@@ -25,7 +25,7 @@ function set_i32_slot(s: Set_i32, key: i32): i32 {
 
 /** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。复用 heap 的 map_i32_i32_find_c（仅用 keys/occupied）。 */
 function set_i32_find(s: Set_i32, key: i32): i32 {
-  return map_i32_i32_find_c(s.keys, s.occupied, s.cap, key);
+  return heap.map_i32_i32_find_c(s.keys, s.occupied, s.cap, key);
 }
 
 /** 新建空 Set_i32（cap 0，ptr 均为 null）。 */
@@ -42,11 +42,11 @@ function set_i32_with_capacity(s: *Set_i32, capacity: i32): i32 {
     s.len = 0;
     return 0;
   }
-  let k: *i32 = alloc_i32(capacity);
-  let o: *u8 = alloc_u8(capacity);
+  let k: *i32 = heap.alloc_i32(capacity);
+  let o: *u8 = heap.alloc_u8(capacity);
   if (k == 0 || o == 0) {
-    if (k != 0) { free_i32(k); }
-    if (o != 0) { free_u8(o); }
+    if (k != 0) { heap.free_i32(k); }
+    if (o != 0) { heap.free_u8(o); }
     return -1;
   }
   let i: i32 = 0;
@@ -77,8 +77,8 @@ function set_i32_grow(s: *Set_i32, new_cap: i32): i32 {
       i = i + 1;
     }
   }
-  free_i32(old_keys);
-  free_u8(old_occupied);
+  heap.free_i32(old_keys);
+  heap.free_u8(old_occupied);
   return 0;
 }
 
@@ -158,8 +158,151 @@ function set_i32_reserve(s: *Set_i32, new_cap: i32): i32 {
 
 /** 释放堆内存；调用后不可再使用。 */
 function set_i32_deinit(s: *Set_i32): void {
-  if (s.keys != 0) { free_i32(s.keys); s.keys = 0; }
-  if (s.occupied != 0) { free_u8(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap.free_i32(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
+  s.cap = 0;
+  s.len = 0;
+}
+
+// ——— Set_u64（STD-015） ———
+
+/** u64 集合。 */
+allow(padding) struct Set_u64 {
+  keys: *u64;
+  occupied: *u8;
+  cap: i32;
+  len: i32;
+}
+
+/** u64 key 槽位。 */
+function set_u64_slot(s: Set_u64, key: u64): i32 {
+  let cap_u: u64 = s.cap as u64;
+  let h: u64 = key % cap_u;
+  return h as i32;
+}
+
+/** 查找 u64 key 槽位。 */
+function set_u64_find(s: Set_u64, key: u64): i32 {
+  if (s.cap <= 0) { return -1; }
+  let start: i32 = set_u64_slot(s, key);
+  let i: i32 = start;
+  loop {
+    if (s.occupied[i] == 0) { return -1; }
+    if (s.keys[i] == key) { return i; }
+    i = i + 1;
+    if (i >= s.cap) { i = 0; }
+    if (i == start) { return -1; }
+  }
+  return -1;
+}
+
+/** 新建空 Set_u64。 */
+function set_u64_new(): Set_u64 {
+  return Set_u64 { keys: 0, occupied: 0, cap: 0, len: 0 };
+}
+
+/** 预分配 capacity 槽位。 */
+function set_u64_with_capacity(s: *Set_u64, capacity: i32): i32 {
+  if (capacity <= 0) {
+    s.keys = 0;
+    s.occupied = 0;
+    s.cap = 0;
+    s.len = 0;
+    return 0;
+  }
+  let k: *u64 = heap.alloc_u64(capacity);
+  let o: *u8 = heap.alloc_u8(capacity);
+  if (k == 0 || o == 0) {
+    if (k != 0) { heap.free_u64(k); }
+    if (o != 0) { heap.free_u8(o); }
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < capacity) {
+    o[i] = 0;
+    i = i + 1;
+  }
+  s.keys = k;
+  s.occupied = o;
+  s.cap = capacity;
+  s.len = 0;
+  return 0;
+}
+
+/** 扩容 rehash。 */
+function set_u64_grow(s: *Set_u64, new_cap: i32): i32 {
+  if (new_cap <= s.cap) { return 0; }
+  let old_keys: *u64 = s.keys;
+  let old_occupied: *u8 = s.occupied;
+  let old_cap: i32 = s.cap;
+  if (set_u64_with_capacity(s, new_cap) != 0) { return -1; }
+  let i: i32 = 0;
+  while (i < old_cap) {
+    if (old_occupied[i] != 0) {
+      let _: i32 = set_u64_insert(s, old_keys[i]);
+      i = i + 1;
+    } else {
+      i = i + 1;
+    }
+  }
+  heap.free_u64(old_keys);
+  heap.free_u8(old_occupied);
+  return 0;
+}
+
+/** 确保可再放 1 条。 */
+function set_u64_reserve_one(s: *Set_u64): i32 {
+  if (s.cap <= 0) {
+    return set_u64_with_capacity(s, 8);
+  }
+  if (s.len + 1 <= s.cap * 3 / 4) { return 0; }
+  return set_u64_grow(s, s.cap * 2);
+}
+
+/** 插入 u64 key。 */
+function set_u64_insert(s: *Set_u64, key: u64): i32 {
+  if (set_u64_reserve_one(s) != 0) { return -1; }
+  let start: i32 = set_u64_slot(*s, key);
+  let i: i32 = start;
+  loop {
+    if (s.occupied[i] == 0) {
+      s.keys[i] = key;
+      s.occupied[i] = 1;
+      s.len = s.len + 1;
+      return 0;
+    }
+    if (s.keys[i] == key) {
+      return 0;
+    }
+    i = i + 1;
+    if (i >= s.cap) { i = 0; }
+    if (i == start) {
+      if (set_u64_grow(s, s.cap * 2) != 0) { return -1; }
+      return set_u64_insert(s, key);
+    }
+  }
+  return -1;
+}
+
+/** 是否包含 u64 key。 */
+function set_u64_contains(s: Set_u64, key: u64): i32 {
+  if (set_u64_find(s, key) >= 0) { return 1; }
+  return 0;
+}
+
+/** 移除 u64 key。 */
+function set_u64_remove(s: *Set_u64, key: u64): i32 {
+  let idx: i32 = set_u64_find(*s, key);
+  if (idx < 0) { return 0; }
+  s.occupied[idx] = 0;
+  s.len = s.len - 1;
+  return 1;
+}
+
+/** 释放 Set_u64。 */
+function set_u64_deinit(s: *Set_u64): void {
+  if (s.keys != 0) { heap.free_u64(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }

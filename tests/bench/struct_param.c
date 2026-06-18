@@ -1,4 +1,4 @@
-/* struct_param.c — 与 tests/bench/struct_param.su 对齐 */
+/* struct_param.c — 与 tests/bench/struct_param.su 对齐（每轮更新 p 防 C -O3 常量折叠） */
 #include <stdint.h>
 
 typedef struct {
@@ -14,8 +14,10 @@ int main(void) {
   int32_t n = 100000000;
   int32_t s = 0;
   int32_t i = 0;
-  Pair p = {1, 2};
+  Pair p = {0, 0};
   while (i < n) {
+    p.a = i;
+    p.b = i + 1;
     s = s + add_pair(p);
     i = i + 1;
   }

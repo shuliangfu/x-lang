@@ -1,0 +1,21 @@
+# ZC-008 零拷贝指标仪表板 manifest
+# 列：item_id	kind	anchor	notes
+min_metrics	8
+min_history_days	2
+output_prefix	bracket_component	SHU_ZC_DASHBOARD	stderr 前缀
+field_metric	output_field	metric=	指标 id
+field_value	output_field	value=	当前值
+field_trend	output_field	trend=	sparkline
+layer_d1	layers	D1-gate	analysis/zc-dashboard-v1.md
+layer_d2	layers	D2-syscall	analysis/zc-dashboard-v1.md
+layer_d3	layers	D3-net	analysis/zc-dashboard-v1.md
+layer_d4	layers	D4-io	analysis/zc-dashboard-v1.md
+metrics	file	tests/baseline/zc-dashboard-metrics.tsv	指标定义
+history	file	tests/baseline/zc-dashboard-history.tsv	每日历史
+lib	script	lib/zc-dashboard.sh	看板库
+runner	script	run-zc-dashboard.sh	采集+趋势
+gate	script	run-zc-dashboard-gate.sh	manifest 门禁
+cross_zc006	cross_ref	analysis/zc-semantics-v1.md	ZC-006
+cross_syscall	cross_ref	tests/baseline/syscall-batch-perf.tsv	PERF-008
+cross_net	cross_ref	tests/baseline/net-zc-perf.tsv	PERF-009
+cross_zc_gates	cross_ref	tests/run-zc-gates.sh	ZC 统一 gate

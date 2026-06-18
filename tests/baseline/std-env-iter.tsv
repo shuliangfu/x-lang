@@ -1,0 +1,17 @@
+# STD-025 std.env env_iter / args_iter manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_iter_apis	4
+env_iter_struct	symbol	EnvIter	std/env/mod.su
+args_iter_struct	symbol	ArgsIter	std/env/mod.su
+env_iter_fn	symbol	env_iter	std/env/mod.su
+env_iter_next	symbol	env_iter_next	std/env/mod.su
+env_iter_count	symbol	env_iter_count	std/env/mod.su
+args_iter_fn	symbol	args_iter	std/env/mod.su
+args_iter_next	symbol	args_iter_next	std/env/mod.su
+args_iter_count	symbol	args_iter_count	std/env/mod.su
+c_iter_count	symbol	env_iter_count_c	std/env/env.c
+c_iter_at	symbol	env_iter_at_c	std/env/env.c
+test_smoke	file	env_iter.su	tests/env/env_iter.su	烟测
+runner	script	run-env.sh	tests/run-env.sh	回归
+doc	file	std-env-iter-v1.md	analysis/std-env-iter-v1.md	RFC
+gate	script	run-std-env-iter-gate.sh	tests/run-std-env-iter-gate.sh	manifest

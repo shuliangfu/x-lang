@@ -1,0 +1,5 @@
+# STD-088 std.trace 向量
+# case_id	op	expect_notes
+nested	root+child parent-child span ids	OK
+export_text	trace_id= + name=root/child lines	OK
+context_bag	attach_to_context/from_context roundtrip	OK

@@ -1,0 +1,45 @@
+/**
+ * Cookbook CTX-01：Context 取消、超时与父子传播（STD-156）。
+ *
+ * 演示 background → with_cancel / with_timeout → cancel / is_cancelled /
+ * remaining_ns / 键值 bag 的最小可运行路径。
+ */
+const context = import("std.context");
+
+function main(): i32 {
+  let root: Context = context.background();
+  if (context.is_cancelled(root) != 0) { return 1; }
+
+  // 可取消子上下文：父 cancel 后子链可见
+  let child: Context = context.with_cancel(root);
+  if (child.handle == 0) { return 2; }
+  context.cancel(child);
+  if (context.is_cancelled(child) == 0) {
+    context.free(child);
+    return 3;
+  }
+  context.free(child);
+
+  // 相对超时：remaining_ns 应在 (0, timeout] 内
+  let timed: Context = context.with_timeout(root, 200000000 as i64);
+  if (timed.handle == 0) { return 4; }
+  let rem: i64 = context.remaining_ns(timed);
+  if (rem <= 0 || rem > 200000000) {
+    context.free(timed);
+    return 5;
+  }
+
+  // 键值 bag：trace id 等元数据随 Context 传播
+  let key: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let out: i64 = 0;
+  if (context.set_value(timed, &key[0], 42) != 0) {
+    context.free(timed);
+    return 6;
+  }
+  if (context.get_value(timed, &key[0], &out) == 0 || out != 42) {
+    context.free(timed);
+    return 7;
+  }
+  context.free(timed);
+  return 0;
+}

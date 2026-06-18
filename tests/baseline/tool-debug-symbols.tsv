@@ -1,0 +1,24 @@
+# TOOL-005 调试符号 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_rules	6
+# min_cases	2
+read_path	section	## 1. 阅读路径	analysis/tool-debug-symbols-v1.md	-	15min
+rules	section	## 2. 契约 D1–D6	tool-debug-symbols.tsv	-	contract
+fixtures	section	## 3. Golden 用例与 report	analysis/tool-debug-symbols-v1.md	-	golden
+verify	section	## 6. 验证与门禁	analysis/tool-debug-symbols-v1.md	-	gate
+rule_d1	rules	D1-o0-no-strip	analysis/tool-debug-symbols-v1.md	build	strip
+rule_d2	rules	D2-o0-no-ndebug	analysis/tool-debug-symbols-v1.md	build	NDEBUG
+rule_d3	rules	D3-symtab-main	analysis/tool-debug-symbols-v1.md	symtab	nm main
+rule_d4	rules	D4-backtrace-capture	analysis/tool-debug-symbols-v1.md	stack	backtrace
+rule_d5	rules	D5-ast-line-col	analysis/tool-debug-symbols-v1.md	map	LSP line
+rule_d6	rules	D6-release-strip	analysis/tool-debug-symbols-v1.md	release	-O2 strip
+sym_strip	symbol	strip	compiler/src/runtime.c	D1	invoke_cc
+sym_ndebug	symbol	NDEBUG	compiler/src/runtime.c	D2	cc argv
+sym_backtrace	symbol	backtrace_capture_c	std/backtrace/backtrace.c	D4	capture
+sym_lsp_line	symbol	lsp_definition_at	compiler/src/lsp/lsp_diag.c	D5	line/col
+case_marker	case	symbols_marker	tests/debug/symbols_marker.su	debug	marker
+case_backtrace	case	main.su	tests/backtrace/main.su	stack	capture
+lib	script	lib/tool-debug-symbols.sh	tests/lib/tool-debug-symbols.sh	-	共享库
+gate	script	run-tool-debug-symbols-gate.sh	tests/run-tool-debug-symbols-gate.sh	-	manifest
+hook_symbols	hook_script	run-debug-symbols.sh	run-debug-symbols.sh	-	-O0 symtab
+hook_backtrace	hook_script	run-backtrace.sh	run-backtrace.sh	-	backtrace

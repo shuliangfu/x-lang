@@ -1,9 +1,9 @@
 // net_echo_throughput_provided.su — ZC-1：读路径 stream_read_batch_provided（IORING_OP_PROVIDE_BUFFERS）
 // 写路径仍 stream_write_batch；与 net_echo_throughput.su 同规模 4×4KiB×1024。
 // 读侧用 1×16KiB provided buffer（1 SQE），对齐 batch 的 1×readv SQE，公平对比零拷贝收益。
-import std.io;
-import std.net;
-import std.process;
+const io = import("std.io");
+const net = import("std.net");
+const process = import("std.process");
 
 /** 解析十进制 u32 端口（NUL 结尾）；非法返回 default_port。 */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
@@ -24,7 +24,7 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 /** 写 4×4KiB；失败返回负值。 */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nw: i32 = stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nw: i32 = net.stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nw != need) { return -1; }
   return nw;
 }
@@ -32,7 +32,7 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
 /** 读 16KiB（单 provided buffer，1 SQE）；失败返回负值。 */
 function echo_read_16k_provided(stream: TcpStream, bid: *u32, len: *u32): i32 {
   let need: i32 = 16384;
-  let nr: i32 = stream_read_batch_provided(stream, 1, 0, bid, len);
+  let nr: i32 = net.stream_read_batch_provided(stream, 1, 0, bid, len);
   if (nr != need) { return -1; }
   return nr;
 }
@@ -40,7 +40,7 @@ function echo_read_16k_provided(stream: TcpStream, bid: *u32, len: *u32): i32 {
 /** 对 provided 16KiB 做字节求和（校验路径触达零拷贝视图）。 */
 function echo_sum_provided_16k(b0: u32, l0: u32): i32 {
   let sum: i32 = 0;
-  let p0: *u8 = provided_buffer_ptr(b0);
+  let p0: *u8 = io.provided_buffer_ptr(b0);
   let i: i32 = 0;
   while (i < (l0 as i32)) {
     sum = sum + (p0[i] as i32);
@@ -51,15 +51,15 @@ function echo_sum_provided_16k(b0: u32, l0: u32): i32 {
 
 function main(): i32 {
   let echo_port: u32 = 38457;
-  if (args_count() >= 2) {
-    echo_port = bench_parse_port(arg(1), echo_port);
+  if (process.args_count() >= 2) {
+    echo_port = bench_parse_port(process.arg(1), echo_port);
   }
   /** 8×16KiB provided pool；单块容纳一轮 echo 读。 */
-  if (register_provided_buffers(8, 16384) != 1) { return 10; }
+  if (io.register_provided_buffers(8, 16384) != 1) { return 10; }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let stream: TcpStream = connect_blocking(addr, echo_port, 0);
+  let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }
   let b0: [4096]u8 = [];
   let b1: [4096]u8 = [];
@@ -78,12 +78,12 @@ function main(): i32 {
       b3[bi] = ((round + bi + 3) & 255) as u8;
       bi = bi + 1;
     }
-    if (echo_write_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { close_stream(stream); return 2; }
-    if (echo_read_16k_provided(stream, &bid, &blen) < 0) { close_stream(stream); return 3; }
+    if (echo_write_4(stream, &b0[0], &b1[0], &b2[0], &b3[0], seg) < 0) { net.close_stream(stream); return 2; }
+    if (echo_read_16k_provided(stream, &bid, &blen) < 0) { net.close_stream(stream); return 3; }
     sum = sum + echo_sum_provided_16k(bid, blen);
     round = round + 1;
   }
-  unregister_provided_buffers();
-  if (close_stream(stream) != 0) { return 4; }
+  io.unregister_provided_buffers();
+  if (net.close_stream(stream) != 0) { return 4; }
   return sum & 255;
 }

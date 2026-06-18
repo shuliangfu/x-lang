@@ -1,0 +1,8 @@
+# STD-153 跨平台 perf 阈值向量
+# 列：platform_match	min_dot_ratio	min_ss_ratio	notes
+Darwin-arm64	0.85	1.0	NEON dot/shuffle
+Darwin-x86_64	0.90	1.0	SSE/AVX
+Linux-x86_64	0.90	1.0	glibc x86_64
+Linux-aarch64	0.85	1.0	NEON
+Linux-arm64	0.85	1.0	alias
+*	0.0	0.0	未知宿主 skip perf hard fail

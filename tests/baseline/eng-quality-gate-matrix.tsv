@@ -1,0 +1,19 @@
+# ENG-002 质量/体积门禁矩阵
+# 列：gate_id	tier	ci_hard	gate_script	replaces	notes
+# min_quality_ci	8
+parser_symbol_integrity	Q	yes	run-parser-thin-glue-symbol-integrity-gate.sh	combined_audit_ratchet	BOOT-008 thin glue 符号
+parser_second_pass	Q	yes	run-parser-second-pass-gate.sh	parser_text_ratchet	__text 下限；audit 仅追踪
+strict_smoke	Q	yes	run-strict-smoke-gate.sh	experimental_fallback	B-strict 无 experimental 回退
+wpo_strict_link	Q	yes	run-wpo-strict-link-gate.sh		strict glue 链完整性
+asm_73_compute	Q	yes	run-asm-73-gate.sh		后端 binop/vector/call-inline
+bootstrap_bstrict	Q	yes	run-bootstrap-bstrict-ci.sh		自举主链验收
+comp_parser_mega7	Qp	portable	run-comp-parser-mega7-gate.sh		BOOT-018 解耦；Darwin SKIP hooks
+codegen_regression	Qp	portable	run-codegen-regression-gate.sh		COMP-003 正确性
+typeck_hotpath	Qp	portable	run-typeck-hotpath-gate.sh		COMP-002 热路径
+s2_typeck	Q	yes	run-s2-typeck-gate.sh		typeck.o 质量
+s3_pipeline	Q	yes	run-s3-pipeline-gate.sh		pipeline EMIT_HEAVY
+check_asm_o_quality	Q	yes	compiler/scripts/check_asm_o_quality.sh		.o 段质量
+shu_asm_size	S	no	run-size-shu-asm-gate.sh	B-SIZE_hard_fail	advisory ≤8MiB 追踪
+size_baseline	T	no	run-size-baseline.sh		可选体积 baseline
+parser_combined_audit	T	no	run-parser-second-pass-gate.sh	combined_bytes_ratchet	EMIT_HEAVY audit 指标 only
+wpo_glue_text_track	T	no	run-wpo-strict-glue-text-gate.sh		WPO .text A/B 追踪

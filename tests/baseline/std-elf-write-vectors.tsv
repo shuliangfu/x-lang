@@ -1,0 +1,5 @@
+# STD-121 ELF write 向量
+# 列：case_id	input	expect	notes
+write_et_rel	ET_REL text=4 bytes	shnum=3	e_type=1
+write_text_byte	0x90 first byte	0x90	round-trip read
+write_size	text_len=4	size=267	64+192+7+4

@@ -1,0 +1,30 @@
+// STD-105：xxHash64 烟测（金样 u64 低/高 16 位分段比较，避免大 hex 字面量）
+const hash = import("std.hash");
+
+/** 比较 u64 低 32 位。 */
+function u64_lo(v: u64): u32 {
+  return (v & 4294967295) as u32;
+}
+
+/** 比较 u64 高 32 位。 */
+function u64_hi(v: u64): u32 {
+  return ((v >> 32) & 4294967295) as u32;
+}
+
+function main(): i32 {
+  let buf: [3]u8 = [97, 98, 99];
+  let empty: u64 = hash_xxhash64(0 as *u8, 0);
+  let one: u64 = hash_xxhash64(&buf[0], 3);
+  let hx: *u8 = hash_start_algo(2);
+  let inc: u64 = 0;
+  if (u64_lo(empty) != 1373170073 as u32) { return 1; }
+  if (u64_hi(empty) != 4014398263 as u32) { return 2; }
+  if (u64_lo(one) != 2910259609 as u32) { return 3; }
+  if (u64_hi(one) != 1153182965 as u32) { return 4; }
+  if (hx == 0) { return 5; }
+  hash_write_bytes_algo(hx, &buf[0], 3);
+  inc = hash_finish_algo(hx);
+  hash_free_algo(hx);
+  if (inc != one) { return 6; }
+  return 0;
+}

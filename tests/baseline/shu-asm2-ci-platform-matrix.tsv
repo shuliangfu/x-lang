@@ -1,0 +1,6 @@
+# BOOT-028 shu_asm2 CI 平台矩阵
+# 列：case_id	gate_script	linux	macos	windows	ok_pattern	notes
+# min_linux_must	1
+# min_macos_must	1
+shu_asm2_cross_smoke	run-shu-asm2-cross-smoke.sh	must	must	skip	shu-asm2-cross-smoke OK|SKIP	rv=42 烟测
+boot027_parent	run-boot-027-shu-asm2-cross-gate.sh	manifest	manifest	skip	boot-027-shu-asm2-cross gate OK	C5 manifest

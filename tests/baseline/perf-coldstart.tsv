@@ -1,0 +1,24 @@
+# PERF-010 coldstart / first compile manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_metrics	5
+read_path	section	## 1. 阅读路径	analysis/perf-coldstart-v1.md	-	15min
+layers	section	## 2. 优化层 T1–T6	perf-coldstart.tsv	-	coldstart
+baseline	section	## 3. 基线矩阵	coldstart-perf.tsv	-	median
+env	section	## 4. 门禁环境	analysis/perf-coldstart-v1.md	-	regression
+verify	section	## 6. 验证与门禁	analysis/perf-coldstart-v1.md	-	gate
+layer_t1	layers	T1-exec-latency	examples/hello.su	exec	hello_stripped_us
+layer_t2	layers	T2-fs-min	tests/freestanding/return42/main.su	fs	min
+layer_t3	layers	T3-fs-io	tests/freestanding/hello/main.su	fs	syscall
+layer_t4	layers	T4-first-compile	tests/baseline/compile-dogfood.tsv	compile	PERF-004
+layer_t5	layers	T5-stripped-size	tests/baseline/coldstart-perf.tsv	bytes	cap
+layer_t6	layers	T6-ci-wire	tests/run-ci-full-suite.sh	ci	B-BOOT
+metric_hello	metric	hello_stripped_us	tests/baseline/coldstart-perf.tsv	us	15000
+metric_fs42_us	metric	fs_return42_stripped_us	tests/baseline/coldstart-perf.tsv	us	1500
+metric_fs42_sz	metric	fs_return42_stripped_bytes	tests/baseline/coldstart-perf.tsv	bytes	65536
+metric_fshello_us	metric	fs_hello_stripped_us	tests/baseline/coldstart-perf.tsv	us	2000
+metric_fshello_sz	metric	fs_hello_stripped_bytes	tests/baseline/coldstart-perf.tsv	bytes	131072
+hook_cold	hook_ref	run-perf-coldstart.sh	tests/run-perf-coldstart.sh	runner	median
+hook_dogfood	hook_ref	run-perf-compile-dogfood-gate.sh	tests/run-perf-compile-dogfood-gate.sh	compile	T4
+hook_registry	hook_ref	perf-baseline-registry.tsv	tests/baseline/perf-baseline-registry.tsv	coldstart	ENG-001
+gate	script	run-perf-coldstart-gate.sh	tests/run-perf-coldstart-gate.sh	-	manifest

@@ -1,0 +1,8 @@
+# STD-064 ELF64 phdr gold vectors
+# 列：field	expect_dec	notes
+type	2	ET_EXEC
+phnum	1	program headers
+phoff	64	Phdr offset
+p_type	1	PT_LOAD
+p_offset	256	0x100
+p_vaddr	4194304	0x400000

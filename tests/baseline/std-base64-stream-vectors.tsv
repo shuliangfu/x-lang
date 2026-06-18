@@ -1,0 +1,4 @@
+# STD-109 金样向量
+# 列：vector_id	expect_substr	notes
+hello_enc	aGVsbG8=	hello 标准编码
+stream_chunk	he+llo	分块流式与块 API 一致

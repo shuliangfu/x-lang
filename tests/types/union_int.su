@@ -1,0 +1,15 @@
+// 联合类型烟测：let 注解 i32 | i64 + format_2 重载
+const fmt = import("std.fmt");
+
+function main(): i32 {
+  let x: i32 | i64 = 42;
+  let y: u32 | u64 = 7 as u32;
+  if (x != 42) { return 1; }
+  let buf: [32]u8 = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ];
+  if (fmt.format_2(buf, 32, x, y) != 3) { return 2; }
+  if (fmt.format_2(buf, 32, 100 as i64, 200 as i64) != 6) { return 3; }
+  return 0;
+}

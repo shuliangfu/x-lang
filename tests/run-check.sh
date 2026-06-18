@@ -53,4 +53,7 @@ echo "$neg_out" | grep -qE " - error: |typeck error:|check failed" || {
 }
 echo "check reject type error OK"
 
+chmod +x tests/run-types-gate.sh 2>/dev/null || true
+./tests/run-types-gate.sh
+
 echo "check test OK"

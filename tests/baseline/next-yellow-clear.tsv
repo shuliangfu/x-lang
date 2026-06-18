@@ -1,0 +1,23 @@
+# NEXT-YELLOW 全量 🟡 清除 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_items	13
+core018_bswap	symbol	bswap_u32	core/builtin/mod.su	CORE-018
+core019_diag	symbol	debug_assert_eq_i32_diag	core/debug/mod.su	CORE-019
+core020_iter	symbol	iter_u64_from_buf	core/iterator/mod.su	CORE-020
+std159_runtime	symbol	runtime_diag_enabled	std/runtime/mod.su	STD-159
+std160_unicode	symbol	string_view_case_fold	std/string/mod.su	STD-160
+std161_vec	symbol	vec_u16_push	std/vec/mod.su	STD-161
+std162_map	symbol	map_i32_i32_iter_next	std/map/mod.su	STD-162
+std163_queue	symbol	queue_u8_push_back	std/queue/mod.su	STD-163
+std164_net	symbol	tcp_pool_new	std/net/mod.su	STD-164
+std165_thread	symbol	thread_pool_stats	std/thread/mod.su	STD-165
+std166_fmt	symbol	format_template_1_i32	std/fmt/mod.su	STD-166
+std167_sqlite	symbol	sqlite_is_available	std/sqlite/mod.su	STD-167
+doc	file	analysis/next-yellow-clear-v1.md	-	RFC
+gate	script	tests/run-next-yellow-clear-gate.sh	-	gate
+smoke_vec	smoke	tests/vec/u16_roundtrip.su	-	STD-161
+smoke_map	smoke	tests/map/iter_rehash.su	-	STD-162
+smoke_queue	smoke	tests/queue/u8_roundtrip.su	-	STD-163
+smoke_net	smoke	tests/net/tcp_pool_smoke.su	-	STD-164
+smoke_fmt	smoke	tests/fmt/template_smoke.su	-	STD-166
+smoke_stub	smoke	tests/stub/sqlite_net_stub.su	-	STD-167

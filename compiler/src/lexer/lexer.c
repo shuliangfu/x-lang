@@ -18,6 +18,7 @@ struct Lexer {
     const char *end;  /**< 源码结尾（不含 NUL） */
     int line;         /**< 当前行号，从 1 开始 */
     int col;          /**< 当前列号，从 1 开始 */
+    char str_buf[512]; /**< 最近一次 TOKEN_STRING 解码内容（NUL 结尾） */
 };
 
 /**
@@ -696,6 +697,41 @@ void lexer_next(Lexer *l, Token *out) {
         out->col = col;
         out->value.ident = NULL;
         out->ident_len = 0;
+        return;
+    }
+    if (c == '"') {
+        int line0 = l->line, col0 = l->col;
+        lexer_advance(l); /* opening " */
+        int off = 0;
+        while (l->src < l->end && lexer_peek(l) != '"') {
+            int ch = lexer_advance(l);
+            if (ch == '\\' && l->src < l->end) {
+                int esc = lexer_advance(l);
+                if (off + 1 >= (int)sizeof(l->str_buf)) break;
+                if (esc == 'n') l->str_buf[off++] = '\n';
+                else if (esc == 't') l->str_buf[off++] = '\t';
+                else if (esc == '\\' || esc == '"') l->str_buf[off++] = (char)esc;
+                else l->str_buf[off++] = (char)esc;
+                continue;
+            }
+            if (off + 1 >= (int)sizeof(l->str_buf)) break;
+            l->str_buf[off++] = (char)ch;
+        }
+        if (l->src >= l->end || lexer_peek(l) != '"') {
+            out->kind = TOKEN_EOF;
+            out->line = line0;
+            out->col = col0;
+            out->value.ident = NULL;
+            out->ident_len = 0;
+            return;
+        }
+        lexer_advance(l); /* closing " */
+        l->str_buf[off] = '\0';
+        out->kind = TOKEN_STRING;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = l->str_buf;
+        out->ident_len = off;
         return;
     }
     if (isalpha((unsigned char)c) || c == '_') {

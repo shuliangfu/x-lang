@@ -1,0 +1,12 @@
+/**
+ * LANG-001 golden：无 SHU_EDITION_2025 时走稳定路径 exit 0；启用 2025 时 exit 99。
+ */
+#if SHU_EDITION_2025
+function main(): i32 {
+  return 99;
+}
+#else
+function main(): i32 {
+  return 0;
+}
+#endif

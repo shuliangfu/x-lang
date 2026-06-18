@@ -1,0 +1,5 @@
+# STD-067 next_row 列值游标向量
+# 列：step_id	sql_ascii	expect_col0	expect_status	notes
+cursor_row1	SELECT k FROM t ORDER BY k;	1	DB_ROW_OK	首行
+cursor_row2	SELECT k FROM t ORDER BY k;	2	DB_ROW_OK	次行
+cursor_done	SELECT k FROM t ORDER BY k;	-	DB_ROW_DONE	耗尽

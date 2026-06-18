@@ -6,6 +6,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# shellcheck source=tests/lib/perf-syscall-batch.sh
+. "$(dirname "$0")/lib/perf-syscall-batch.sh"
+
 SHU_BIN="${SHU:-}"
 case "$SHU_BIN" in
   /*) SHU_ABS="$SHU_BIN" ;;
@@ -168,25 +171,54 @@ if [ "$RC" != "$EXPECT_RC" ]; then
 fi
 echo "zc5: zero_copy_splice 16MiB exit=$RC OK"
 
+# strace 实锤 splice：GHA 原生 Linux 须绿；Docker Desktop ptrace 常失效（仅见 +++ exited +++）。
+zc5_strace_captures_syscalls() {
+  local probe_out rc=1
+  command -v strace >/dev/null 2>&1 || return 1
+  probe_out="$(mktemp /tmp/shu_zc5_strace_probe.XXXXXX)"
+  strace -o "$probe_out" /bin/ls / >/dev/null 2>&1 || true
+  if grep -qE '^openat\(' "$probe_out" 2>/dev/null; then
+    rc=0
+  fi
+  rm -f "$probe_out"
+  return "$rc"
+}
+
 if command -v strace >/dev/null 2>&1; then
-  "$SINK_BIN" "$SINK_PORT" >/dev/null 2>&1 &
-  SINK_PID=$!
-  sleep 0.3
-  strace_out="$(mktemp /tmp/shu_zc5_strace.XXXXXX)"
-  RC=0
-  strace -e trace=splice,read,write -o "$strace_out" "$BENCH_OUT" "$SINK_PORT" >/dev/null 2>&1 || RC=$?
-  kill "$SINK_PID" 2>/dev/null || true
-  wait "$SINK_PID" 2>/dev/null || true
-  if [ "$RC" = "$EXPECT_RC" ]; then
-    if grep -q 'splice(' "$strace_out" 2>/dev/null; then
-      echo "zc5: strace splice syscall OK"
-    else
-      echo "zc5 FAIL: strace missing splice()" >&2
-      rm -f "$strace_out"
+  if ! zc5_strace_captures_syscalls; then
+    if [ "${SHU_ZC5_REQUIRE_STRACE:-0}" = "1" ]; then
+      echo "zc5 FAIL: strace probe failed (SHU_ZC5_REQUIRE_STRACE=1; need native Linux ptrace)" >&2
       exit 1
     fi
+    echo "zc5: strace splice SKIP (strace cannot capture syscalls on this runner; e.g. Mac Docker Desktop ptrace)"
+  else
+    "$SINK_BIN" "$SINK_PORT" >/dev/null 2>&1 &
+    SINK_PID=$!
+    sleep 0.3
+    strace_out="$(mktemp /tmp/shu_zc5_strace.XXXXXX)"
+    RC=0
+    strace -e trace=splice,read,write -o "$strace_out" "$BENCH_OUT" "$SINK_PORT" >/dev/null 2>&1 || RC=$?
+    kill "$SINK_PID" 2>/dev/null || true
+    wait "$SINK_PID" 2>/dev/null || true
+    if [ "$RC" = "$EXPECT_RC" ]; then
+      if grep -q 'splice(' "$strace_out" 2>/dev/null; then
+        echo "zc5: strace splice syscall OK"
+        perf_sb_count_from_strace_log "$strace_out"
+        sb_total=$(perf_sb_io_total "$perf_sb_read" "$perf_sb_write" "$perf_sb_readv" \
+          "$perf_sb_writev" "$perf_sb_splice" "$perf_sb_sendfile")
+        sb_ok=$(perf_sb_within_caps zero_copy_splice "$perf_sb_read" "$perf_sb_write" \
+          "$perf_sb_readv" "$perf_sb_writev" "$perf_sb_splice" "$perf_sb_sendfile")
+        perf_sb_report_emit zero_copy_splice "$perf_sb_read" "$perf_sb_write" "$perf_sb_readv" \
+          "$perf_sb_writev" "$perf_sb_splice" "$perf_sb_sendfile" "$sb_total" \
+          "zero_copy_readwrite" "-" "$sb_ok"
+      else
+        echo "zc5 FAIL: strace missing splice()" >&2
+        rm -f "$strace_out"
+        exit 1
+      fi
+    fi
+    rm -f "$strace_out"
   fi
-  rm -f "$strace_out"
 fi
 
 echo "zc5 gate OK"

@@ -1,2 +1,2 @@
-import foo;
+const foo = import("foo");
 function main(): i32 { return bar(); }

@@ -6,11 +6,11 @@
 // 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng。仅 CSPRNG，无 PRNG 引擎。
 //
 // 【所属模块/组件】
-// 标准库 std.random；用户通过 import std.random 使用。依赖 core；与
+// 标准库 std.random；用户通过 import("std.random") 使用。依赖 core；与
 // std/random/random.c 同属一模块。
 //
 // 【与其它文件的关系】
-// - 被依赖：任何 import std.random 的用户代码；compiler 在 -o exe 时自动链入
+// - 被依赖：任何 import("std.random") 的用户代码；compiler 在 -o exe 时自动链入
 // std/random/random.o。
 // - 依赖：无其它 .su 模块；通过 extern 调用 random_*_c 系列 C 函数（定义在
 // random.c）。
@@ -25,12 +25,12 @@ function fill_bytes(buf: *u8, len: i32): i32 {
 }
 /** 生成一个密码学安全的随机 u32；内部 fill 4
 * 字节后按本机字节序解释。对标 OsRng::next_u32。 */
-function u32(): u32 {
+function next_u32(): u32 {
   return random_u32_c();
 }
 /** 生成一个密码学安全的随机 u64；内部 fill 8
 * 字节后按本机字节序解释。对标 OsRng::next_u64。 */
-function u64(): u64 {
+function next_u64(): u64 {
   return random_u64_c();
 }
 /** 生成 [lo, hi] 闭区间内均匀分布的 u32（含两端）；拒绝采样法避免
@@ -54,6 +54,6 @@ function range_u32(lo: u32, hi: u32): u32 {
   return lo + (x % range);
 }
 /** 生成均匀随机布尔，返回 0 或 1。单次 u32 取低位。对标 gen_bool。 */
-function bool(): i32 {
+function gen_bool(): i32 {
   return (random_u32_c() & 1) as i32;
 }

@@ -1,5 +1,5 @@
 // asm_append_repro2.su — 仅 import asm.types（传递依赖 codegen）
-import asm.types;
+const types = import("asm.types");
 
 function f(out: *CodegenOutBuf): i32 {
   let nl: [1]u8 = [10];

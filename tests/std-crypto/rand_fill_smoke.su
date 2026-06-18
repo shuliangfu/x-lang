@@ -1,0 +1,15 @@
+// STD-006：std.random CSPRNG 与 std.crypto 安全集联动烟测
+const random = import("std.random");
+
+function main(): i32 {
+  let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  if (random.fill_bytes(&buf[0], 16) != 16) { return 1; }
+  let all_zero: i32 = 1;
+  let i: i32 = 0;
+  while (i < 16) {
+    if (buf[i] != 0) { all_zero = 0; }
+    i = i + 1;
+  }
+  if (all_zero == 1) { return 2; }
+  return 0;
+}

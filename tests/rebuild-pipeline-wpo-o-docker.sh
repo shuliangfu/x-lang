@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# S5：在 Linux amd64 Alpine 容器内重编 pipeline_wpo.o（ast_pool WPO reach 修复后须跑本脚本）。
-# strict_glue 的 ENTRY_MODULE_ONLY 路径已知 SIGSEGV；本脚本走 experimental（musl + liburing）。
+# S5：在 Linux amd64 容器内重编 pipeline_wpo.o（ast_pool WPO reach 修复后须跑本脚本）。
+# build_asm/*.su dogfood 用 shu_asm.experimental（含 pipeline_su.o）；用户编译用 strict_glue。
 # 用法（仓库根目录）：
 #   ./tests/rebuild-pipeline-wpo-o-docker.sh
 #   ./tests/rebuild-pipeline-wpo-o-docker.sh --full-bootstrap   # 全量 make + build_shu_asm（慢）

@@ -1,0 +1,19 @@
+# STD-109 std.base64 stream manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	5
+read_path	section	## 1. 阅读路径	15min
+stream_api	section	## 2. 流式语义	stream_enc_update
+verify	section	## 4. 验证与门禁	gate
+api_state_bytes	api	stream_state_bytes	std/base64/mod.su	状态大小
+api_enc_init	api	stream_enc_init	std/base64/mod.su	编码 init
+api_dec_init	api	stream_dec_init	std/base64/mod.su	解码 init
+api_enc_update	api	stream_enc_update	std/base64/mod.su	编码 update
+api_dec_update	api	stream_dec_update	std/base64/mod.su	解码 update
+symbol_state_c	symbol	base64_stream_state_bytes_c	std/base64/base64.c	C 状态
+symbol_enc_up_c	symbol	base64_stream_enc_update_c	std/base64/base64.c	C 编码
+symbol_dec_up_c	symbol	base64_stream_dec_update_c	std/base64/base64.c	C 解码
+symbol_smoke_c	symbol	base64_stream_smoke_c	std/base64/base64.c	C 烟测
+smoke_c	file	tests/std-base64/stream_smoke_ok.c	C 入口
+smoke_su	smoke	tests/std-base64/stream.su	.su 烟测
+lib	script	lib/std-base64-stream.sh	tests/lib/std-base64-stream.sh
+gate	script	run-std-base64-stream-gate.sh	tests/run-std-base64-stream-gate.sh

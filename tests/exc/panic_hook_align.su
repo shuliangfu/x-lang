@@ -1,0 +1,8 @@
+// tests/exc/panic_hook_align.su — STD-028：panic_hook_collect 与 EXC-002 runtime 对齐烟测
+const runtime = import("std.runtime");
+
+function main(): i32 {
+  if (runtime.runtime_ready() != 0) { return 1; }
+  runtime.panic_hook_collect(1, 42);
+  return 0;
+}

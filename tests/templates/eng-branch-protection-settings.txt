@@ -1,0 +1,11 @@
+# ENG-004：GitHub 分支保护建议（仓库 Settings → Branches → Branch protection rules）
+# 目标分支：main
+- [ ] Require a pull request before merging
+- [ ] Require approvals（建议 ≥ 1）
+- [ ] Require status checks to pass（linux / mac / windows 或 org 等价 job）
+- [ ] Require branches to be up to date before merging
+- [ ] Do not allow bypassing the above settings（除 break-glass 管理员）
+- [ ] Restrict who can push to matching branches
+- [ ] Block force pushes
+- [ ] Block deletions
+# dev 分支（可选较松）：Require status checks；允许 maintainer push

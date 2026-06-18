@@ -1,0 +1,21 @@
+# STD-009 std.http 服务器基准 manifest
+# 列：item_id	kind	anchor	notes
+# min_apis	2
+read_path	section	## 1. 阅读路径	15min
+server_api	section	## 2. 最小 server API	respond_get_ok
+bench	section	## 3. 基准用例	http_get_bench
+latency	section	## 4. 延迟指标	BENCH_P99_US
+verify	section	## 6. 验证与门禁	gate
+api_get	api	get	std/http/mod.su	客户端 GET
+api_respond	api	respond_get_ok	std/http/mod.su	server 200 OK
+impl_c	file	std/http/http.c	http_respond_get_ok_c
+bench_su	file	tests/bench/http_get_bench.su	64 GET
+bench_server	file	tests/bench/http_bench_server.c	sink
+baseline	file	tests/baseline/http-perf.tsv	吞吐 cap
+baseline_lat	file	tests/baseline/http-perf-latency.tsv	P99 cap
+lib	script	lib/perf-http.sh	解析库
+runner	script	run-perf-http.sh	bench runner
+gate	script	run-std-http-gate.sh	manifest
+hook_http	hook_script	run-http.sh	烟测
+smoke_main	smoke	tests/http/main.su	GET 烟测
+cross_std002	cross_ref	tests/baseline/std-net-api.tsv	STD-002

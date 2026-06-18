@@ -1,0 +1,7 @@
+# STD-129 std.set Set_i32 ops manifest
+min_apis	3
+api_union	api	set_i32_union_into	std/set/mod.su
+api_intersect	api	set_i32_intersect_into	std/set/mod.su
+api_difference	api	set_i32_difference_into	std/set/mod.su
+smoke_su	smoke	tests/set/ops.su
+gate	script	run-std-set-ops-gate.sh	tests/run-std-set-ops-gate.sh

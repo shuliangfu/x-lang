@@ -1,0 +1,25 @@
+# STD-070 std.sqlite stmt cache manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_stmt_apis	6
+read_path	section	## 1. 目标	analysis/std-sqlite-stmt-cache-v1.md
+api_doc	section	## 2. stmt API（v1）	analysis/std-sqlite-stmt-cache-v1.md
+vectors_doc	section	## 3. 金样向量	bind_insert
+verify	section	## 4. Gate	analysis/std-sqlite-stmt-cache-v1.md
+api_prepare	api	prepare	std/sqlite/mod.su	预编译
+api_cached	api	prepare_cached	std/sqlite/mod.su	缓存
+api_bind_i32	api	stmt_bind_i32	std/sqlite/mod.su	整型
+api_bind_text	api	stmt_bind_text	std/sqlite/mod.su	文本
+api_step	api	stmt_step	std/sqlite/mod.su	执行
+api_reset	api	stmt_reset	std/sqlite/mod.su	重置
+api_col	api	stmt_col_text	std/sqlite/mod.su	读列
+symbol_prepare_c	symbol	db_prepare_c	std/sqlite/sqlite.c	准备
+symbol_cached_c	symbol	db_prepare_cached_c	std/sqlite/sqlite.c	缓存
+symbol_bind_c	symbol	db_stmt_bind_i32_c	std/sqlite/sqlite.c	绑定
+symbol_smoke_c	symbol	db_sqlite_stmt_bind_smoke_c	std/sqlite/sqlite.c	烟测
+impl_c	file	std/sqlite/sqlite.c	std/sqlite/sqlite.c	实现
+smoke_c	file	tests/std-sqlite/stmt_bind_roundtrip_ok.c	C 入口
+smoke_su	smoke	tests/std-sqlite/stmt_bind_roundtrip.su	.su 往返
+vectors	file	tests/baseline/std-sqlite-stmt-cache-vectors.tsv	向量
+lib	script	lib/std-sqlite-stmt-cache.sh	tests/lib/std-sqlite-stmt-cache.sh
+gate	script	run-std-sqlite-stmt-cache-gate.sh	tests/run-std-sqlite-stmt-cache-gate.sh
+cross_std067	cross_ref	analysis/std-sqlite-next-row-v1.md	STD-067

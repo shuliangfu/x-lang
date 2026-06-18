@@ -1,0 +1,14 @@
+# ENG-003 跨平台 CI 平台矩阵
+# Format: platform_id<TAB>workflow_file<TAB>workflow_job<TAB>runner<TAB>entry_script<TAB>tier<TAB>notes
+# tier: full | lite | docker — 对应 run-ci-full-suite.sh 能力分级
+linux-x64-primary	ci.yml	linux	ubuntu-latest	run-ci-full-suite.sh	full	PR：Tier P+B+perf+Tier A
+linux-x64-latest	ci.yml	linux	ubuntu-latest	run-ci-full-suite.sh	full	matrix os ubuntu-latest
+linux-arm64	ci.yml	linux-arm64	ubuntu-24.04-arm	run-ci-full-suite.sh	lite	Tier A 由 x86_64 承担
+macos-14	ci.yml	mac	macos-14	run-ci-full-suite.sh	full	PR macOS matrix
+macos-latest	ci.yml	mac	macos-latest	run-ci-full-suite.sh	full	PR macOS matrix
+windows-msys	ci.yml	windows	windows-latest	run-ci-full-suite.sh	lite	MSYS2 Tier P+B
+docker-alpine	ci.yml	docker-distro	alpine:3.23	run-ci-full-suite.sh	docker	SHU_CI_DOCKER=1
+docker-debian	ci.yml	docker-distro	debian:bookworm-slim	run-ci-full-suite.sh	docker	SHU_CI_DOCKER=1
+nightly-linux	ci-nightly.yml	nightly-linux	ubuntu-latest	run-ci-full-suite.sh	full	ENG-003 夜跑主链
+nightly-macos	ci-nightly.yml	nightly-macos	macos-latest	run-ci-full-suite.sh	full	ENG-003 夜跑 macOS
+nightly-windows	ci-nightly.yml	nightly-windows	windows-latest	run-ci-full-suite.sh	lite	ENG-003 夜跑 Windows

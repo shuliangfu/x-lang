@@ -2,14 +2,14 @@
 // 有网络时校验 GET 返回 HTTP 响应头；无网络或失败时跳过仍通过（不把 CI
 // 绑死）。
 
-import std.http;
+const http = import("std.http");
 
 function main(): i32 {
   // 使用稳定、轻量的目标；无网络时 get 返回 -1，不判失败
   let url: [32]u8 = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
   109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let out_buf: [4096]u8 = [];
-  let n: i32 = get(&url[0], 19, &out_buf[0], 4096);
+  let n: i32 = http.get(&url[0], 19, &out_buf[0], 4096);
   if (n < 0) {
     return 0;
   }

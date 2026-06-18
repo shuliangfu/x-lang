@@ -1,0 +1,4 @@
+# STD-056 hasher switch gold vectors
+# 列：vector_id	input_hex	algo	expect_u64_hex	notes
+ahash_abc	616263	1	e71fa2190541574b	FNV-1a 64 on "abc"
+sip_ne_ahash	616263	0		distinct from ahash_abc

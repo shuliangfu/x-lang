@@ -1,0 +1,16 @@
+# PERF-005 perf flamegraph / Top-N 热点 manifest
+# 列：item_id	kind	anchor	notes
+# min_top_n	20
+# min_cases	2
+# output_prefix	shu: [SHU_PERF_FLAMEGRAPH]
+smoke_case	case_id	check_typeck	gate 烟测用例
+check_typeck	profile_case	check compiler/src/typeck/typeck.su	typeck dogfood（PERF-004）
+loop_i32_compile	profile_case	compile tests/bench/loop_i32.su -o /tmp/shu_fg_loop_i32	微基准编译
+check_parser	profile_case	check compiler/src/parser/parser.su	parser dogfood
+output_prefix	field	shu: [SHU_PERF_FLAMEGRAPH]	stderr 前缀
+report_header	field	case_id	rank	pct	symbol	TSV 列
+hook_runner	script	run-perf-flamegraph.sh	Top-N 生成器
+hook_gate	script	run-perf-flamegraph-gate.sh	manifest + 烟测
+cross_typeck	cross_ref	analysis/comp-typeck-hotpath-v1.md	COMP-002
+cross_dogfood	cross_ref	analysis/perf-compile-dogfood-v1.md	PERF-004
+cross_obs	cross_ref	analysis/obs-compile-phase-timing-v1.md	OBS-001

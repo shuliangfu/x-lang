@@ -1,0 +1,29 @@
+// STD-130：可复现 PRNG（SplitMix64）烟测
+const random = import("std.random");
+
+function main(): i32 {
+  let r1: Rng = rng_from_seed(0 as u64);
+  let r2: Rng = rng_from_seed(0 as u64);
+  let a: u64 = rng_next_u64(&r1);
+  let b: u64 = rng_next_u64(&r1);
+  if (rng_next_u64(&r2) != a) { return 1; }
+  if (rng_next_u64(&r2) != b) { return 2; }
+  let r3: Rng = rng_from_seed(1 as u64);
+  if (rng_next_u64(&r3) == a) { return 3; }
+  let r4: Rng = rng_from_seed(99 as u64);
+  let x: u32 = rng_range_u32(&r4, 10 as u32, 12 as u32);
+  if (x < (10 as u32) || x > (12 as u32)) { return 4; }
+  let r5: Rng = rng_from_seed(42 as u64);
+  let buf: [4]u8 = [];
+  rng_fill_bytes(&r5, &buf[0], 4);
+  let r6: Rng = rng_from_seed(42 as u64);
+  let buf2: [4]u8 = [];
+  rng_fill_bytes(&r6, &buf2[0], 4);
+  let i: i32 = 0;
+  while (i < 4) {
+    if (buf[i] != buf2[i]) { return 5; }
+    i = i + 1;
+  }
+  if (rng_smoke() != 0) { return 6; }
+  return 0;
+}

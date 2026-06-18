@@ -1,0 +1,25 @@
+# STD-018 std.mem / core.mem 职责边界 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_core_only	4
+# min_std_only	4
+section_matrix	section	## 2. 职责矩阵	docs
+section_guide	section	## 3. 选用指南	docs
+section_gate	section	## 5. Gate	docs
+forbidden_cross	forbidden	import core.mem	std/mem/mod.su	禁止双路径
+core_mem_copy	core_only	mem_copy	core/mem/mod.su	不重叠拷贝
+core_mem_move	core_only	mem_move	core/mem/mod.su	重叠拷贝
+core_mem_zero	core_only	mem_zero	core/mem/mod.su	清零
+core_align	core_only	align_up	core/mem/mod.su	对齐
+std_copy	std_only	copy	std/mem/mod.su	heap 路径
+std_set	std_only	set	std/mem/mod.su	heap_mem_set_c
+std_compare	std_only	compare	std/mem/mod.su	heap_mem_compare_c
+std_buffer	std_only	register_buffer	std/mem/mod.su	IO ABI
+impl_heap_ref	cross_ref	copy_u8_at	std/heap/mod.su	std.mem 拷贝实现
+impl_intrinsic	cross_ref	__builtin_memcpy	compiler/src/codegen/codegen.c	core 内建
+smoke_core	smoke	tests/mem/main.su	tests/mem/main.su	core 回归
+smoke_std	smoke	tests/mem/std_mem_boundary.su	tests/mem/std_mem_boundary.su	std 边界
+smoke_buffer	smoke	tests/mem/buffer.su	tests/mem/buffer.su	Buffer ABI
+runner_core	runner	tests/run-mem.sh	tests/run-mem.sh	core
+doc_readme	file	std/mem/README.md	std/mem/README.md	用户文档
+doc	file	analysis/std-mem-boundary-v1.md	analysis/std-mem-boundary-v1.md	RFC
+gate	script	tests/run-std-mem-boundary-gate.sh	tests/run-std-mem-boundary-gate.sh	manifest

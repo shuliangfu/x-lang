@@ -1,0 +1,22 @@
+# STD-038 std.tar 目录遍历与提取 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	5
+read_path	section	## 1. 阅读路径	15min
+traverse_api	section	## 2. 遍历 API	next_entry
+extract_api	section	## 3. 提取 API	read_entry_data
+build_api	section	## 4. 构建 API	append_entry
+verify	section	## 5. 验证与门禁	gate
+api_read_header	api	read_header	std/tar/mod.su	UStar 读头
+api_write_header	api	write_header	std/tar/mod.su	UStar 写头
+api_next_entry	api	next_entry	std/tar/mod.su	目录遍历
+api_read_entry_data	api	read_entry_data	std/tar/mod.su	文件提取
+api_append_entry	api	append_entry	std/tar/mod.su	追加条目
+symbol_next_c	symbol	tar_next_entry_c	std/tar/tar.c	C 遍历
+symbol_read_data_c	symbol	tar_read_entry_data_c	std/tar/tar.c	C 提取
+symbol_append_c	symbol	tar_append_entry_c	std/tar/tar.c	C 追加
+impl_c	file	std/tar/tar.c	ustar
+smoke_roundtrip	smoke	tests/tar/ustar_roundtrip.su	round-trip
+smoke_main	smoke	tests/tar/main.su	头读写
+hook_tar	hook_script	run-tar.sh	烟测
+lib	script	lib/std-tar-ustar.sh	tests/lib/std-tar-ustar.sh
+gate	script	run-std-tar-ustar-gate.sh	tests/run-std-tar-ustar-gate.sh

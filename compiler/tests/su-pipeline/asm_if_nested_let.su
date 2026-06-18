@@ -1,6 +1,6 @@
 // asm_if_nested_let.su — 复现 typeck_layout_init_struct_from_lit：while 体内 if 嵌套 let
 // fr
-import ast;
+const ast = import("ast");
 
 extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
 

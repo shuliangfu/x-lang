@@ -1,0 +1,16 @@
+/**
+ * Cookbook VEC-01：Vec_i32 push/pop/append_slice 基本路径（STD-014）。
+ */
+const vec = import("std.vec");
+
+function main(): i32 {
+  let v: Vec_i32 = vec.vec_i32_new();
+  if (vec.vec_i32_push(&v, 10) != 0) { return 1; }
+  if (vec.vec_i32_push(&v, 20) != 0) { return 2; }
+  if (vec.vec_i32_len(v) != 2) { return 3; }
+  if (vec.vec_i32_pop(&v) != 20) { return 4; }
+  let tail: [2]i32 = [30, 40];
+  if (vec.vec_i32_append_slice(&v, &tail[0], 2) != 0) { return 5; }
+  vec.vec_i32_deinit(&v);
+  return 0;
+}

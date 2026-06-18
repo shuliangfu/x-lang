@@ -12,7 +12,7 @@
 
 /** 与 runtime.c 中 codegen_CodegenOutBuf 布局一致。 */
 struct codegen_CodegenOutBuf {
-  unsigned char data[8 * 1024 * 1024];
+  unsigned char data[9 * 1024 * 1024];
   int32_t len;
 };
 

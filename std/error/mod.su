@@ -42,5 +42,119 @@ function error_is_err(e: Error): i32 {
   if (e.code != 0) { return 1; }
   return 0;
 }
-/** 占位；保留兼容。 */
-function placeholder(): i32 { return 0; }
+
+// ——— B 层模块错误码（STD-091/092 Context 联动；完整分层见 EXC-003） ———
+/** std.io 模块错误段起点。 */
+function error_base_io(): i32 { return -1000; }
+/** I/O 超时（Context deadline 或 wait 超时）。 */
+function io_err_timeout(): i32 { return -1001; }
+/** I/O 已取消（Context cancel）。 */
+function io_err_cancelled(): i32 { return -1002; }
+/** std.net 模块错误段起点。 */
+function error_base_net(): i32 { return -1200; }
+/** 网络操作超时。 */
+function net_err_timeout(): i32 { return -1201; }
+/** 网络操作已取消。 */
+function net_err_cancelled(): i32 { return -1202; }
+/** std.fs 模块错误段起点。 */
+function error_base_fs(): i32 { return -1100; }
+/** 文件/路径不存在。 */
+function fs_err_not_found(): i32 { return -1101; }
+
+// ——— STD-020：错误码 → 模块 base / 侧车种类 ———
+/** 模块标签：std.io。 */
+function error_mod_tag_io(): i32 { return 1; }
+/** 模块标签：std.fs。 */
+function error_mod_tag_fs(): i32 { return 2; }
+/** 模块标签：std.db（无 B 层 base v1）。 */
+function error_mod_tag_db(): i32 { return 3; }
+/** 侧车种类：无。 */
+function error_sidecar_none(): i32 { return 0; }
+/** 侧车种类：errno i32（如 fs_last_error）。 */
+function error_sidecar_errno_i32(): i32 { return 1; }
+/** 侧车种类：DbError 结构体。 */
+function error_sidecar_db_struct(): i32 { return 2; }
+
+/** 负码 → 所属 error_base_*；L 层/未知 → 0。 */
+function error_code_to_module_base(code: i32): i32 {
+  if (code == 0) { return 0; }
+  if (code <= error_base_io() && code > error_base_fs()) { return error_base_io(); }
+  if (code <= error_base_fs() && code > error_base_net()) { return error_base_fs(); }
+  if (code <= error_base_net() && code > error_base_net() - 100) { return error_base_net(); }
+  return 0;
+}
+
+/** base → 模块标签；未知 base → 0。 */
+function error_mod_tag_from_base(base: i32): i32 {
+  if (base == error_base_io()) { return error_mod_tag_io(); }
+  if (base == error_base_fs()) { return error_mod_tag_fs(); }
+  return 0;
+}
+
+/** 标签 → base；db 等无 B 层段 → 0。 */
+function error_mod_base_from_tag(tag: i32): i32 {
+  if (tag == error_mod_tag_io()) { return error_base_io(); }
+  if (tag == error_mod_tag_fs()) { return error_base_fs(); }
+  return 0;
+}
+
+/** 模块标签 → last_error 侧车种类。 */
+function error_module_sidecar_kind(tag: i32): i32 {
+  if (tag == error_mod_tag_io()) { return error_sidecar_none(); }
+  if (tag == error_mod_tag_fs()) { return error_sidecar_errno_i32(); }
+  if (tag == error_mod_tag_db()) { return error_sidecar_db_struct(); }
+  return error_sidecar_none();
+}
+
+// ——— STD-158：跨模块语义类 ———
+/** 语义类：无/未知。 */
+function error_sem_none(): i32 { return 0; }
+/** 语义类：超时。 */
+function error_sem_timeout(): i32 { return 1; }
+/** 语义类：取消。 */
+function error_sem_cancelled(): i32 { return 2; }
+/** 语义类：未找到。 */
+function error_sem_not_found(): i32 { return 3; }
+
+/** std.http 超时（映射 net 段）。 */
+function http_err_timeout(): i32 { return -1203; }
+/** std.http 取消（映射 net 段）。 */
+function http_err_cancelled(): i32 { return -1204; }
+
+/** 错误码 → 跨模块语义类。 */
+function error_semantic_class(code: i32): i32 {
+  if (code == io_err_timeout() || code == net_err_timeout() || code == http_err_timeout()) {
+    return error_sem_timeout();
+  }
+  if (code == io_err_cancelled() || code == net_err_cancelled() || code == http_err_cancelled()) {
+    return error_sem_cancelled();
+  }
+  if (code == fs_err_not_found() || code == error_code_not_found()) {
+    return error_sem_not_found();
+  }
+  return error_sem_none();
+}
+
+/** 是否为超时语义（1/0）。 */
+function error_is_timeout(code: i32): i32 {
+  if (error_semantic_class(code) == error_sem_timeout()) { return 1; }
+  return 0;
+}
+
+/** 是否为取消语义（1/0）。 */
+function error_is_cancelled(code: i32): i32 {
+  if (error_semantic_class(code) == error_sem_cancelled()) { return 1; }
+  return 0;
+}
+
+/** 是否为未找到语义（1/0）。 */
+function error_is_not_found(code: i32): i32 {
+  if (error_semantic_class(code) == error_sem_not_found()) { return 1; }
+  return 0;
+}
+
+/** v1：仅超时建议重试（1/0）。 */
+function error_recommend_retry(code: i32): i32 {
+  if (error_is_timeout(code) != 0) { return 1; }
+  return 0;
+}

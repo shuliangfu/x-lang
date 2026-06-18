@@ -1,0 +1,17 @@
+# STD-082 std.unicode normalization manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	6
+read_path	section	## 1. 阅读路径	analysis/std-unicode-normalization-v1.md
+api_doc	section	## 2. API	analysis/std-unicode-normalization-v1.md
+verify	section	## 3. Gate	analysis/std-unicode-normalization-v1.md
+api_nfd	api	nfd_buf	std/unicode/mod.su	NFD
+api_nfkc	api	nfkc_buf	std/unicode/mod.su	NFKC
+api_nfkd	api	nfkd_buf	std/unicode/mod.su	NFKD
+api_nfc	api	nfc_buf	std/unicode/mod.su	NFC
+api_form_nfd	api	norm_form_nfd	std/unicode/mod.su	NFD常量
+api_form_nfc	api	norm_form_nfc	std/unicode/mod.su	NFC常量
+symbol_nfd	symbol	unicode_nfd_buf_c	std/unicode/unicode.c	C NFD
+symbol_smoke	symbol	unicode_normalization_smoke_c	std/unicode/unicode.c	C烟测
+smoke_su	smoke	tests/std-unicode-normalization/roundtrip.su	.su烟测
+lib	script	lib/std-unicode-normalization.sh	tests/lib/std-unicode-normalization.sh
+gate	script	run-std-unicode-normalization-gate.sh	tests/run-std-unicode-normalization-gate.sh

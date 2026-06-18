@@ -12,7 +12,7 @@ struct ast_ASTArena;
 struct codegen_CodegenOutBuf;
 
 /** 与 codegen.su CodegenOutBuf 一致（8MiB + len）。 */
-#define SHU_CODEGEN_OUTBUF_CAP 8388608
+#define SHU_CODEGEN_OUTBUF_CAP 9437184
 typedef struct {
   uint8_t data[SHU_CODEGEN_OUTBUF_CAP];
   int32_t len;
@@ -145,44 +145,22 @@ __attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOut
   return append_asm_line(out, buf, 15 + n);
 }
 
-/** 与 elf.su ElfCodegenCtx 前缀一致，用于 code_data 追加（offset = sizeof 本 struct）；维度须同 PIPELINE_ELF_CTX_TABLE_CAP。 */
-#define SHU_ELF_CTX_TABLE_CAP 4096
-typedef struct {
-  int32_t code_len;
-  uint8_t labels[SHU_ELF_CTX_TABLE_CAP][72];
-  int32_t num_labels;
-  uint8_t patches[SHU_ELF_CTX_TABLE_CAP][76];
-  int32_t num_patches;
-  uint8_t relocs[SHU_ELF_CTX_TABLE_CAP][8];
-  uint8_t reloc_sym_names[SHU_ELF_CTX_TABLE_CAP][64];
-  int32_t num_relocs;
-  uint8_t syms[SHU_ELF_CTX_TABLE_CAP][72];
-  int32_t num_syms;
-  int32_t sym_name_len;
-  int32_t e_machine;
-  int32_t reloc_type_r_pc32;
-  int32_t current_frame_size;
-  int32_t macho_leading_underscore;
-} ShuElfCodegenCtxHeader;
+/** ast_pool.c：与 elf.su / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
-/** 向 ctx.code_data 追加 4 字节小端指令；与 elf.su append_elf_bytes 等价。 */
+/**
+ * 向 ctx.code_data 追加 4 字节小端指令；须经 pipeline_elf_ctx_append_bytes，
+ * 勿手算 code_data 偏移（前缀含 labels/patches 等大表，sizeof 小 header 会写错区导致 udf/SIGILL）。
+ */
 static int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
-  ShuElfCodegenCtxHeader *hdr;
-  int32_t len;
-  uint8_t *code;
+  uint8_t bytes[4];
   if (!elf_ctx)
     return -1;
-  hdr = (ShuElfCodegenCtxHeader *)elf_ctx;
-  len = hdr->code_len;
-  if (len < 0 || len + 4 > 8388608)
-    return -1;
-  code = (uint8_t *)elf_ctx + sizeof(ShuElfCodegenCtxHeader);
-  code[len] = (uint8_t)(word & 255u);
-  code[len + 1] = (uint8_t)((word >> 8) & 255u);
-  code[len + 2] = (uint8_t)((word >> 16) & 255u);
-  code[len + 3] = (uint8_t)((word >> 24) & 255u);
-  hdr->code_len = len + 4;
-  return 0;
+  bytes[0] = (uint8_t)(word & 255u);
+  bytes[1] = (uint8_t)((word >> 8) & 255u);
+  bytes[2] = (uint8_t)((word >> 16) & 255u);
+  bytes[3] = (uint8_t)((word >> 24) & 255u);
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, bytes, 4);
 }
 
 /**

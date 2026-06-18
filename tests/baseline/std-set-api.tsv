@@ -1,0 +1,19 @@
+# std.set Tier-S stable public API (import std.set)
+set_i32_new
+set_i32_insert
+set_i32_contains
+set_i32_remove
+set_i32_len
+set_i32_deinit
+set_u64_new
+set_u64_insert
+set_u64_contains
+set_u64_remove
+set_u64_len
+set_u64_deinit
+set_str_new
+set_str_insert
+set_str_contains
+set_str_remove
+set_str_len
+set_str_deinit

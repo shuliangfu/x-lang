@@ -27,7 +27,7 @@ simd_s4_native_exe() {
 
 if [ -z "$SHU_ABS" ] || ! simd_s4_native_exe "$SHU_ABS"; then
   SHU_ABS=""
-  for cand in ./compiler/shu_asm ./compiler/shu; do
+  for cand in ./compiler/shu ./compiler/shu_asm; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if simd_s4_native_exe "$abs"; then
       SHU_ABS="$abs"
@@ -135,7 +135,47 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     echo "simd-s4: objdump missing; compile-only OK"
   fi
 else
-  echo "simd-s4: non-x86_64 host; compile-only OK"
+  echo "simd-s4: non-x86_64 host ($ARCH)"
+  if command -v otool >/dev/null 2>&1; then
+    V4_DISAS="$(otool -tV "$VEC4F_O" 2>/dev/null || true)"
+    V8_DISAS="$(otool -tV "$VEC8I_O" 2>/dev/null || true)"
+    V8_SEL_DISAS="$(otool -tV "$VEC8I_SEL_O" 2>/dev/null || true)"
+    V4_SEL_DISAS="$(otool -tV "$VEC4F_SEL_O" 2>/dev/null || true)"
+    if echo "$V4_DISAS" | grep -qE 'mov\.s|ld1\.4s'; then
+      echo "simd-s4: vec4f_shuffle NEON ins/ld1 present"
+    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s4 FAIL: no NEON shuffle in $VEC4F_O" >&2
+      exit 1
+    else
+      echo "simd-s4 WARN: no NEON shuffle in vec4f smoke (rebuild shu_asm with simd_enc.o)"
+    fi
+    if echo "$V8_DISAS" | grep -qE 'mov\.s|ld1\.4s'; then
+      echo "simd-s4: vec8i_shuffle NEON ins/ld1 present"
+    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s4 FAIL: no NEON shuffle in $VEC8I_O" >&2
+      exit 1
+    else
+      echo "simd-s4 WARN: no NEON shuffle in vec8i smoke"
+    fi
+    if echo "$V8_SEL_DISAS" | grep -qE 'cmgt|bsl\.16b|bit\.16b'; then
+      echo "simd-s4: vec8i_select cmgt/bsl present"
+    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s4 FAIL: no cmgt/bsl in $VEC8I_SEL_O" >&2
+      exit 1
+    else
+      echo "simd-s4 WARN: no cmgt/bsl in vec8i select smoke"
+    fi
+    if echo "$V4_SEL_DISAS" | grep -qE 'fcmgt|bit\.16b'; then
+      echo "simd-s4: vec4f_select fcmgt/bit present"
+    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s4 FAIL: no fcmgt/bit in $VEC4F_SEL_O" >&2
+      exit 1
+    else
+      echo "simd-s4 WARN: no fcmgt/bit in vec4f select smoke"
+    fi
+  else
+    echo "simd-s4: compile-only OK (otool missing)"
+  fi
 fi
 
 echo "simd-s4 gate OK"

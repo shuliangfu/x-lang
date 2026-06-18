@@ -1,0 +1,34 @@
+// STD-133：std.time benchmark 计时器烟测
+//
+// 校验 elapsed / lap / reset 与 sleep 下限（宽松，兼容调度抖动）。
+const time = import("std.time");
+
+function main(): i32 {
+  let t: Timer = time.timer_start();
+  time.sleep_ms(50);
+  let ns: i64 = time.timer_elapsed_ns(t);
+  if (ns < 10000000) { return 1; }
+  let ms: i64 = time.timer_elapsed_ms(t);
+  if (ms < 10) { return 2; }
+  let us: i64 = time.timer_elapsed_us(t);
+  if (us < 10000) { return 3; }
+  let sec: i64 = time.timer_elapsed_sec(t);
+  if (sec < 0) { return 4; }
+
+  time.timer_reset(&t);
+  time.sleep_ms(30);
+  let after_reset: i64 = time.timer_elapsed_ns(t);
+  if (after_reset < 5000000) { return 5; }
+  if (after_reset > ns) { return 6; }
+
+  time.timer_reset(&t);
+  time.sleep_ms(20);
+  let lap1: i64 = time.timer_lap_ns(&t);
+  if (lap1 < 5000000) { return 7; }
+  time.sleep_ms(20);
+  let lap2: i64 = time.timer_lap_ns(&t);
+  if (lap2 < 5000000) { return 8; }
+  let tail: i64 = time.timer_elapsed_ns(t);
+  if (tail < 0) { return 9; }
+  return 0;
+}

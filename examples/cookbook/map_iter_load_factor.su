@@ -1,0 +1,15 @@
+/**
+ * Cookbook MAP-02：Map 迭代与 load_factor_pct（STD-162）。
+ */
+const map = import("std.map");
+
+function main(): i32 {
+  let m: Map_i32_i32 = map.map_i32_i32_new();
+  if (map.map_i32_i32_insert(&m, 1, 10) != 0) { return 1; }
+  if (map.map_i32_i32_load_factor_pct(m) <= 0) { return 2; }
+  let it: MapIter_i32_i32 = map.map_i32_i32_iter_init(m);
+  let item: MapIterItem_i32 = map.map_i32_i32_iter_next(&it);
+  if (item.ok == 0 || item.key != 1) { return 3; }
+  map.map_i32_i32_deinit(&m);
+  return 0;
+}

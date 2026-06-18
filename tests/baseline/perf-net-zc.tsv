@@ -1,0 +1,22 @@
+# PERF-009 网络收发零拷贝优化 manifest
+# 列：item_id	kind	anchor	notes
+# min_cases	3
+output_prefix	bracket_component	SHU_NET_ZC	stderr 前缀
+field_case	output_field	case=	用例 id
+field_cpm	output_field	cycles_per_mib=	CPU/MiB
+field_cap	output_field	cap_cycles_per_mib=	上限
+field_ref	output_field	ref_case=	零拷贝对照
+case_echo_provided	case	net_echo_throughput_provided	ZC-1 provided
+case_echo_batch	case	net_echo_throughput	batch 对照
+case_mixed	case	net_mixed_conns_requests	高并发
+cap_echo_provided	cap_row	net_echo_throughput_provided	1500000000
+cap_mixed	cap_row	net_mixed_conns_requests	2500000000
+baseline	file	tests/baseline/net-zc-perf.tsv	cycles/MiB cap
+lib	script	lib/perf-net-zc.sh	perf cycles 库
+hook_runner	script	run-perf-net-zc.sh	统一 runner
+hook_net_perf	hook_script	run-perf-net.sh	ZC-1 echo emit
+hook_zc1	hook_script	run-zc1-gate.sh	ZC-1 正确性
+gate	script	run-perf-net-zc-gate.sh	manifest 门禁
+cross_zc1	cross_ref	tests/run-zc1-gate.sh	provided buffers
+cross_perf003	cross_ref	tests/run-perf-net-zig-gate.sh	NET 吞吐
+cross_obs003	cross_ref	analysis/obs-structured-log-v1.md	结构化日志

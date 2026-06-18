@@ -1,0 +1,84 @@
+// STD-067：内存库 next_row 列值游标烟测（须 sqlite-o + -lsqlite3 链接）
+const sqlite = import("std.sqlite");
+
+function main(): i32 {
+  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let sql_create: [27]u8 = [
+    67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107,
+    32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0
+  ];
+  let sql_ins2: [29]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 41, 59, 0
+  ];
+  let sql_ins1: [29]u8 = [
+    73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41,
+    32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 41, 59, 0
+  ];
+  let sql_order: [28]u8 = [
+    83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32,
+    79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0
+  ];
+  let c: DbConn = sqlite.open(&mem[0]);
+  let cur: DbRowCursor = DbRowCursor { cursor: 0 };
+  let st: i32 = 0;
+  let v: i32 = 0;
+  if (c.handle == 0) {
+    return 1;
+  }
+  if (sqlite.exec(c, &sql_create[0]) != 0) {
+    sqlite.close(c);
+    return 2;
+  }
+  if (sqlite.exec(c, &sql_ins2[0]) != 0) {
+    sqlite.close(c);
+    return 3;
+  }
+  if (sqlite.exec(c, &sql_ins1[0]) != 0) {
+    sqlite.close(c);
+    return 4;
+  }
+  cur = sqlite.query_begin(c, &sql_order[0]);
+  if (cur.cursor == 0) {
+    sqlite.close(c);
+    return 5;
+  }
+  st = sqlite.next_row(cur);
+  if (st != DB_ROW_OK) {
+    sqlite.query_end(cur);
+    sqlite.close(c);
+    return 6;
+  }
+  v = sqlite.row_col_i32(cur, 0);
+  if (v != 1) {
+    sqlite.query_end(cur);
+    sqlite.close(c);
+    return 7;
+  }
+  st = sqlite.next_row(cur);
+  if (st != DB_ROW_OK) {
+    sqlite.query_end(cur);
+    sqlite.close(c);
+    return 8;
+  }
+  v = sqlite.row_col_i32(cur, 0);
+  if (v != 2) {
+    sqlite.query_end(cur);
+    sqlite.close(c);
+    return 9;
+  }
+  st = sqlite.next_row(cur);
+  if (st != DB_ROW_DONE) {
+    sqlite.query_end(cur);
+    sqlite.close(c);
+    return 10;
+  }
+  if (sqlite.query_end(cur) != 0) {
+    sqlite.close(c);
+    return 11;
+  }
+  if (sqlite.close(c) != 0) {
+    return 12;
+  }
+  return 0;
+}

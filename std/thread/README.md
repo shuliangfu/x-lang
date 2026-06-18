@@ -24,12 +24,12 @@
 ## 约定
 
 - **entry**：当前 .su 无函数指针，需传 C 函数地址（usize）；后续语言支持 `&fn` 后可直接传 .su 函数。
-- 链接：`import std.thread` 时链入 std/thread/thread.o；Unix 需 `-lpthread`，Windows 用 CreateThread。
+- 链接：`import("std.thread")` 时链入 std/thread/thread.o；Unix 需 `-lpthread`，Windows 用 CreateThread。
 
 ## 使用示例（测试用）
 
 ```su
-import std.thread;
+import("std.thread");
 function main(): i32 {
   let tid: i64 = thread_create(thread_dummy_entry_ptr(), 0);
   if (tid == 0) { return 1; }

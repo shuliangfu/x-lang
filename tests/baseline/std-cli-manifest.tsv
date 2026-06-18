@@ -1,0 +1,18 @@
+# STD-077 std.cli manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	6
+read_path	section	## 1. 阅读路径	analysis/std-cli-v1.md
+api_doc	section	## 2. API	analysis/std-cli-v1.md
+verify	section	## 3. Gate	analysis/std-cli-v1.md
+api_parse	api	parse_from_iter	std/cli/mod.su	解析
+api_help	api	is_help	std/cli/mod.su	help
+api_long	api	match_long	std/cli/mod.su	长选项
+api_short	api	match_short	std/cli/mod.su	短选项
+api_usage	api	write_usage	std/cli/mod.su	usage
+api_err	api	cli_err_ok	std/cli/mod.su	错误码
+symbol_smoke	symbol	cli_smoke_c	std/cli/cli.c	C烟测
+impl_c	file	std/cli/cli.c	std/cli/cli.c
+smoke_su	smoke	tests/std-cli/roundtrip.su	.su烟测
+cookbook	smoke	examples/cookbook/cli_subcommand.su	cookbook
+lib	script	lib/std-cli.sh	tests/lib/std-cli.sh
+gate	script	run-std-cli-gate.sh	tests/run-std-cli-gate.sh

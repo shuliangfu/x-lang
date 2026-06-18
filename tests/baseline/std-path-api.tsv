@@ -1,0 +1,10 @@
+# std.path Tier-S stable public API (import std.path)
+path_sep
+path_join
+path_dirname
+path_basename
+path_is_absolute
+path_clean
+path_resolve
+path_extension
+path_stem

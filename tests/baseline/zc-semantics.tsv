@@ -1,0 +1,27 @@
+# ZC-006 零拷贝语义 manifest
+# 列：item_id	kind	anchor	notes
+# min_sections	7
+# min_zc_tiers	5
+three_layers	section	## 1. 北极星与三层模型	L/B/K
+copy_definition	section	## 2. 「拷贝」定义	触发判定
+zc_map	section	## 3. ZC-1..5 能力地图	五层 gate
+copy_catalog	section	## 4. 拷贝触发点	API catalog
+lifecycle	section	## 5. 生命周期与 slice 域	TYPE-002
+decision_tree	section	## 6. API 选型决策树	规避
+self_check	section	## 9. PR 自检	quiz
+trigger_read_io	catalog_anchor	### 4.1 IO 读路径	read 拷贝
+trigger_write_io	catalog_anchor	### 4.2 IO 写路径	write 无二次拷贝
+trigger_fs	catalog_anchor	### 4.3 文件系统	mmap/sendfile
+trigger_string	catalog_anchor	### 4.4 字符串 / 容器	StrView vs String
+zc1_tier	zc_tier	ZC-1	run-zc1-gate.sh
+zc2_tier	zc_tier	ZC-2	run-zc2-gate.sh
+zc3_tier	zc_tier	ZC-3	run-zc3-gate.sh
+zc4_tier	zc_tier	ZC-4	run-zc4-gate.sh
+zc5_tier	zc_tier	ZC-5	run-zc5-gate.sh
+cross_type_region	cross_ref	analysis/type-region-v1-rfc.md	TYPE-002
+cross_io_mod	cross_ref	std/io/mod.su	生命周期注释
+cross_fs_readme	cross_ref	std/fs/README.md	mmap/sendfile
+example_read_ptr	example	tests/io/read_ptr.su	IO 烟测
+example_region	example	tests/slice/region_array_smoke.su	ZC-3
+example_strview	example	tests/string/view_zerocopy.su	ZC-4
+hook_zc_gates	hook_script	run-zc-gates.sh	统一门禁

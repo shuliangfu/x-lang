@@ -1,0 +1,16 @@
+// STD-052：capture → symbolicate 至少解析 1 帧符号
+const backtrace = import("std.backtrace");
+
+function main(): i32 {
+  let buf: [64]u8 = [];
+  let n: i32 = backtrace.capture(&buf[0], 8);
+  if (n <= 0) {
+    return 0;
+  }
+  let names: [1024]u8 = [];
+  let sym_n: i32 = backtrace.symbolicate(&buf[0], n, &buf[0], &names[0], n);
+  if (sym_n <= 0) {
+    return 1;
+  }
+  return 0;
+}

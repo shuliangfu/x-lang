@@ -1,0 +1,25 @@
+# COMP-008 link symbol conflict manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	6
+read_path	section	## 1. 阅读路径	analysis/comp-link-sym-v1.md	-	15min
+layers	section	## 2. 归因层 L1–L6	comp-link-sym.tsv	-	attribution
+cases	section	## 3. 冲突用例矩阵	comp-link-sym-cases.tsv	-	fixtures
+api	section	## 4. 分类器 API	analysis/comp-link-sym-v1.md	-	classify
+verify	section	## 6. 验证与门禁	analysis/comp-link-sym-v1.md	-	gate
+layer_l1	layers	L1-undefined	tests/baseline/comp-link-sym-patterns.tsv	undef	ld
+layer_l2	layers	L2-duplicate	tests/baseline/comp-link-sym-patterns.tsv	dup	ld
+layer_l3	layers	L3-platform	tests/baseline/comp-link-sym-patterns.tsv	platform	Mach-O/ELF
+layer_l4	layers	L4-object	tests/fixtures/comp-link-sym/duplicate_glue_typeck.log	object	.o路径
+layer_l5	layers	L5-known	compiler/scripts/relink_shu_asm_strict_glue.sh	known	typeck∩glue
+layer_l6	layers	L6-repro	tests/baseline/comp-link-sym-cases.tsv	repro	BOOT-003
+case_undef	case	case_undef_parser	tests/fixtures/comp-link-sym/undefined_parser.log	undef	parser
+case_dup_glue	case	case_dup_glue	tests/fixtures/comp-link-sym/duplicate_glue_typeck.log	dup	ast_pool
+case_dup_macho	case	case_dup_macho	tests/fixtures/comp-link-sym/duplicate_darwin.log	dup	main
+case_wpo	case	case_wpo_undef	tests/fixtures/comp-link-sym/undefined_wpo.log	wpo	strict
+case_failed	case	case_link_failed	tests/fixtures/comp-link-sym/linker_failed_generic.log	failed	generic
+case_parser	case	case_parser_dup	tests/fixtures/comp-link-sym/duplicate_parser_su.log	dup	parser
+hook_boot	hook_ref	run-bootstrap-stage-diag-gate.sh	tests/run-bootstrap-stage-diag-gate.sh	coarse	BOOT-004
+hook_wpo	hook_ref	run-wpo-strict-link-gate.sh	tests/run-wpo-strict-link-gate.sh	strict	WPO
+gate	script	run-comp-link-sym-gate.sh	tests/run-comp-link-sym-gate.sh	-	manifest
+hook_link	hook_script	run-comp-link-sym.sh	run-comp-link-sym.sh	-	烟测

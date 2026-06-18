@@ -1,0 +1,23 @@
+# LANG-004 trait/interface manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	3
+read_path	section	## 1. 阅读路径	analysis/lang-trait-v1.md	-	15min
+layers	section	## 2. 语义层 T1–T6	lang-trait.tsv	-	trait
+typeck	section	## 3. typeck 规则	lang-trait-typeck.tsv	-	constraint
+cases	section	## 4. Golden 用例	analysis/lang-trait-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/lang-trait-v1.md	-	gate
+layer_t1	layers	T1-syntax-trait	analysis/lang-trait-v1.md	syntax	trait
+layer_t2	layers	T2-syntax-impl	analysis/lang-trait-v1.md	impl	for
+layer_t3	layers	T3-typeck-impl-block	compiler/src/typeck/typeck.c	typeck	impl校验
+layer_t4	layers	T4-method-resolution	compiler/src/typeck/typeck.c	call	.method
+layer_t5	layers	T5-error-no-impl	analysis/lang-trait-v1.md	error	no impl
+layer_t6	layers	T6-self-dispatch	analysis/lang-trait-v1.md	self	首参
+sym_find_trait	symbol	find_trait_def	compiler/src/typeck/typeck.c	typeck	查找
+sym_method_call	symbol	no impl for type	compiler/src/typeck/typeck.c	typeck	方法
+case_call	case	case_method_call	tests/trait/main.su	stable	exit42
+case_no_impl	case	case_no_impl	tests/trait/method_no_impl.su	typeck	no impl
+case_missing	case	case_missing_method	tests/trait/impl_missing_method.su	typeck	missing
+gate	script	run-lang-trait-gate.sh	tests/run-lang-trait-gate.sh	-	manifest
+hook_trait	hook_script	run-lang-trait.sh	run-lang-trait.sh	-	烟测
+hook_minimal	hook_script	run-trait.sh	run-trait.sh	-	Double

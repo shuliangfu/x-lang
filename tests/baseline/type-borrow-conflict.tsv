@@ -1,0 +1,26 @@
+# TYPE-003 borrow conflict manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	6
+read_path	section	## 1. 阅读路径	analysis/type-borrow-conflict-v1.md	-	15min
+layers	section	## 2. 诊断层 B1–B6	type-borrow-conflict.tsv	-	borrow
+matrix	section	## 3. 用例矩阵	type-borrow-conflict-cases.tsv	-	conflict
+verify	section	## 5. 验证与门禁	analysis/type-borrow-conflict-v1.md	-	gate
+layer_b1	layers	B1-terminology	analysis/type-borrow-conflict-v1.md	borrow	术语
+layer_b2	layers	B2-ownership-linear	compiler/src/typeck/typeck.c	linear	move
+layer_b3	layers	B3-lifetime-region	compiler/src/typeck/typeck.c	region	escape
+layer_b4	layers	B4-diag-priority	compiler/src/typeck/typeck.c	priority	assign
+layer_b5	layers	B5-false-positive	analysis/type-borrow-conflict-v1.md	false	pos
+layer_b6	layers	B6-unified-cli	compiler/src/lsp/lsp_diag.c	cli	at
+sym_region_check	symbol	typeck_check_slice_region_assign	compiler/src/typeck/typeck.c	region	前置
+sym_linear	symbol	linear value used after move	compiler/src/typeck/typeck.c	linear	文案
+case_fp_region	case	fp_region_same	tests/typeck/slice_lifetime/region_same_ok.su	pos	ok
+case_fp_block	case	fp_region_block	tests/typeck/borrow/fp_region_block_reassign_ok.su	pos	ok
+case_fp_linear	case	fp_linear_two	tests/typeck/borrow/fp_linear_two_bindings_ok.su	pos	ok
+case_neg_escape	case	conflict_region_escape	tests/typeck/slice_lifetime/region_assign_escape.su	neg	8
+case_neg_mismatch	case	conflict_region_mismatch	tests/typeck/slice_lifetime/region_mismatch.su	neg	6
+case_neg_linear	case	conflict_linear_move	tests/typeck/linear/double_move.su	neg	move
+gate	script	run-type-borrow-conflict-gate.sh	tests/run-type-borrow-conflict-gate.sh	-	manifest
+hook_borrow	hook_script	run-type-borrow-conflict.sh	run-type-borrow-conflict.sh	-	烟测
+hook_region	hook_script	run-typeck-region.sh	run-typeck-region.sh	-	region
+hook_linear	hook_script	run-typeck-linear.sh	run-typeck-linear.sh	-	linear

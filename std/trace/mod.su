@@ -1,0 +1,223 @@
+// std.trace — 分布式链路追踪基础（STD-088）
+//
+// 【文件职责】
+// Span 创建/结束/嵌套；trace_id/span_id；text 导出；
+// 与 std.context value bag 传播 trace 句柄。
+//
+// 【对标】OpenTelemetry 最小子集、Go opentelemetry trace 简化版。
+// C 层依赖 std/time + std/random（链入 trace.o 时一并链接）。
+
+const context = import("std.context");
+const io = import("std.io");
+const async_mod = import("std.async");
+const net = import("std.net");
+
+/** 追踪会话句柄。 */
+allow(padding) struct Trace {
+  handle: i64;
+}
+
+/** Span 标识（opaque id）。 */
+allow(padding) struct Span {
+  id: i64;
+}
+
+/** trace_id 128-bit（16 字节）。 */
+allow(padding) struct TraceId {
+  bytes: [16]u8;
+}
+
+/** 成功。 */
+function trace_err_ok(): i32 { return 0; }
+/** 空指针/非法句柄。 */
+function trace_err_null(): i32 { return -1; }
+/** 未找到 span。 */
+function trace_err_not_found(): i32 { return -2; }
+/** 容量已满。 */
+function trace_err_full(): i32 { return -3; }
+/** 参数非法（如非栈顶 end）。 */
+function trace_err_invalid(): i32 { return -4; }
+
+extern function trace_create_c(): i64;
+extern function trace_free_c(handle: i64): void;
+extern function trace_trace_id_c(handle: i64, out16: *u8): void;
+extern function trace_current_span_c(handle: i64): i64;
+extern function trace_start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i32): i64;
+extern function trace_end_span_c(handle: i64, span_id: i64): i32;
+extern function trace_start_child_c(handle: i64, name: *u8, name_len: i32): i64;
+extern function trace_span_count_c(handle: i64): i32;
+extern function trace_export_text_c(handle: i64, out: *u8, out_cap: i32): i32;
+
+/** 创建新追踪会话。 */
+function trace_new(): Trace {
+  let h: i64 = trace_create_c();
+  return Trace { handle: h };
+}
+
+/** 释放追踪会话。 */
+function trace_free(tr: *Trace): void {
+  let zero: i64 = 0;
+  if (tr == 0) { return; }
+  if (tr.handle != zero) {
+    trace_free_c(tr.handle);
+    tr.handle = zero;
+  }
+}
+
+/** 读取 trace_id。 */
+function trace_id(tr: *Trace, out: *TraceId): void {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero || out == 0) { return; }
+  trace_trace_id_c(tr.handle, &out.bytes[0]);
+}
+
+/** 当前活跃 span id；无则 0。 */
+function current_span(tr: *Trace): i64 {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero) { return zero; }
+  return trace_current_span_c(tr.handle);
+}
+
+/** 开始 span；parent_id=0 为根 span。 */
+function span_start(tr: *Trace, parent_id: i64, name: *u8, name_len: i32): Span {
+  let zero: i64 = 0;
+  let sid: i64 = zero;
+  if (tr == 0 || tr.handle == zero || name == 0) {
+    return Span { id: zero };
+  }
+  sid = trace_start_span_c(tr.handle, parent_id, name, name_len);
+  return Span { id: sid };
+}
+
+/** 以当前栈顶为 parent 开始子 span。 */
+function span_start_child(tr: *Trace, name: *u8, name_len: i32): Span {
+  let zero: i64 = 0;
+  let sid: i64 = zero;
+  if (tr == 0 || tr.handle == zero || name == 0) {
+    return Span { id: zero };
+  }
+  sid = trace_start_child_c(tr.handle, name, name_len);
+  return Span { id: sid };
+}
+
+/** 结束 span（须为栈顶）。 */
+function span_end(tr: *Trace, sp: Span): i32 {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero || sp.id == zero) { return trace_err_null(); }
+  return trace_end_span_c(tr.handle, sp.id);
+}
+
+/** 已完成 span 数量。 */
+function span_count(tr: *Trace): i32 {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero) { return trace_err_null(); }
+  return trace_span_count_c(tr.handle);
+}
+
+/** 导出 text 格式追踪记录；返回写入长度。 */
+function export_text(tr: *Trace, out: *u8, out_cap: i32): i32 {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero || out == 0) { return trace_err_null(); }
+  return trace_export_text_c(tr.handle, out, out_cap);
+}
+
+/** 将 trace 句柄写入 Context value bag。 */
+function attach_to_context(ctx: Context, tr: Trace): i32 {
+  let k: [6]u8 = [116, 114, 97, 99, 101, 0];
+  return context.set_value(ctx, &k[0], tr.handle);
+}
+
+/** 从 Context 读取 trace 句柄；未附着则 handle=0。 */
+function from_context(ctx: Context): Trace {
+  let zero: i64 = 0;
+  let h: i64 = zero;
+  let tr: Trace = Trace { handle: zero };
+  let k: [6]u8 = [116, 114, 97, 99, 101, 0];
+  if (context.get_value(ctx, &k[0], &h) != 0) {
+    tr.handle = h;
+  }
+  return tr;
+}
+
+/* --- STD-118：与 std.async / std.io / std.net 关键路径挂钩 --- */
+
+/**
+ * 开始子 span；tr 无效时返回 id=0（透传模式）。
+ * 供自定义关键路径或内部 hook 使用。
+ */
+function hook_span_begin(tr: *Trace, name: *u8, name_len: i32): Span {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero || name == 0) {
+    return Span { id: zero };
+  }
+  return span_start_child(tr, name, name_len);
+}
+
+/**
+ * 结束 hook span；sp.id=0 时 no-op。
+ */
+function hook_span_end(tr: *Trace, sp: Span): i32 {
+  let zero: i64 = 0;
+  if (tr == 0 || tr.handle == zero || sp.id == zero) {
+    return trace_err_ok();
+  }
+  return span_end(tr, sp);
+}
+
+/** io.read 自动 span；Context 无 trace 时透传 read_ctx。 */
+function hook_io_read_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
+  let tr: Trace = from_context(ctx);
+  let n_io_read: [7]u8 = [105, 111, 46, 114, 101, 97, 100];
+  let sp: Span = hook_span_begin(&tr, &n_io_read[0], 7);
+  let r: i32 = io.read_ctx(handle, ptr, len, ctx);
+  hook_span_end(&tr, sp);
+  return r;
+}
+
+/** io.write 自动 span；Context 无 trace 时透传 write_ctx。 */
+function hook_io_write_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
+  let tr: Trace = from_context(ctx);
+  let n_io_write: [8]u8 = [105, 111, 46, 119, 114, 105, 116, 101];
+  let sp: Span = hook_span_begin(&tr, &n_io_write[0], 8);
+  let r: i32 = io.write_ctx(handle, ptr, len, ctx);
+  hook_span_end(&tr, sp);
+  return r;
+}
+
+/** net.connect 自动 span；返回 fd 语义同 connect_ctx_fd。 */
+function hook_net_connect_ctx(ctx: Context, addr: Ipv4Addr, port: u32): i32 {
+  let tr: Trace = from_context(ctx);
+  let n_net_conn: [11]u8 = [110, 101, 116, 46, 99, 111, 110, 110, 101, 99, 116];
+  let sp: Span = hook_span_begin(&tr, &n_net_conn[0], 11);
+  let fd: i32 = net.connect_ctx_fd(addr, port, ctx);
+  hook_span_end(&tr, sp);
+  return fd;
+}
+
+/** net.stream_read 自动 span；语义同 stream_read_ctx。 */
+function hook_net_stream_read_ctx(ctx: Context, stream: TcpStream, ptr: *u8, len: usize): i32 {
+  let tr: Trace = from_context(ctx);
+  let n_net_rd: [15]u8 = [110, 101, 116, 46, 115, 116, 114, 101, 97, 109, 95, 114, 101, 97, 100];
+  let sp: Span = hook_span_begin(&tr, &n_net_rd[0], 15);
+  let r: i32 = net.stream_read_ctx(stream, ptr, len, ctx);
+  hook_span_end(&tr, sp);
+  return r;
+}
+
+/** async.drain 自动 span；语义同 runtime_drain。 */
+function hook_async_drain_ctx(ctx: Context, rt: *AsyncRuntime): i32 {
+  let tr: Trace = from_context(ctx);
+  let n_async: [11]u8 = [97, 115, 121, 110, 99, 46, 100, 114, 97, 105, 110];
+  let sp: Span = hook_span_begin(&tr, &n_async[0], 11);
+  let r: i32 = async_mod.runtime_drain(rt);
+  hook_span_end(&tr, sp);
+  return r;
+}
+
+extern function trace_hooks_smoke_c(): i32;
+
+/** STD-118：挂钩路径 C 烟测；0 通过。 */
+function hooks_smoke(): i32 {
+  return trace_hooks_smoke_c();
+}
+

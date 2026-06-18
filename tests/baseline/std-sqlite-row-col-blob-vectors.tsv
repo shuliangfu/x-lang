@@ -1,0 +1,5 @@
+# STD-069 row_col_blob BLOB 列向量
+# 列：step_id	sql_ascii	expect_hex	expect_status	notes
+blob_row1	SELECT data FROM t ORDER BY k;	010203	DB_ROW_OK	首行 3 字节
+blob_row2	SELECT data FROM t ORDER BY k;	0a0b0c0d	DB_ROW_OK	次行 4 字节
+blob_done	SELECT data FROM t ORDER BY k;	-	DB_ROW_DONE	耗尽

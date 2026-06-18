@@ -1,0 +1,41 @@
+/**
+ * STD-031 烟测：WebSocket Accept 金样 + TEXT 帧 round-trip + 握手缓冲校验。
+ */
+const net = import("std.net");
+
+function main(): i32 {
+  // RFC 6455 金样：dGhlIHNhbXBsZSBub25jZQ== → s3pPLMBiTxlZ9bKI4hkFqO5zfXM=
+  let key: [25]u8 = [100, 71, 104, 108, 73, 72, 78, 104, 98, 71, 108, 90, 83, 66, 117, 98, 50, 53, 106, 90, 81, 61, 61, 0, 0];
+  let accept: [32]u8 = [];
+  let key_len: i32 = 24;
+  let n_acc: i32 = ws_compute_accept(&key[0], key_len, &accept[0], 32);
+  if (n_acc != 28) { return 1; }
+  if (accept[0] != 115 || accept[1] != 51 || accept[27] != 61) { return 2; }
+
+  // TEXT 帧 round-trip："hello"
+  let payload: [5]u8 = [104, 101, 108, 108, 111];
+  let frame: [16]u8 = [];
+  let frame_len: i32 = ws_encode_text_frame(&payload[0], 5, &frame[0], 16);
+  if (frame_len != 11) { return 3; }
+  let opcode: i32 = 0;
+  let decoded: [8]u8 = [];
+  let dec_len: i32 = 0;
+  if (ws_decode_frame(&frame[0], frame_len, &opcode, &decoded[0], 8, &dec_len) != 0) { return 4; }
+  if (opcode != 1) { return 5; }
+  if (dec_len != 5) { return 6; }
+  if (decoded[0] != 104 || decoded[4] != 111) { return 7; }
+
+  // 握手请求缓冲
+  let host: [10]u8 = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+  let path: [4]u8 = [47, 119, 115, 0];
+  let req: [256]u8 = [];
+  let req_len: i32 = ws_build_handshake_request(&host[0], &path[0], &key[0], &req[0], 256);
+  if (req_len < 40) { return 8; }
+  if (req[0] != 71) { return 9; }
+
+  // 模拟 101 响应（86 字节有效载荷）
+  let resp: [96]u8 = [72, 84, 84, 80, 47, 49, 46, 49, 32, 49, 48, 49, 32, 83, 119, 105, 116, 99, 104, 105, 110, 103, 32, 80, 114, 111, 116, 111, 99, 111, 108, 115, 13, 10, 83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 65, 99, 99, 101, 112, 116, 58, 32, 115, 51, 112, 80, 76, 77, 66, 105, 84, 120, 108, 90, 57, 98, 75, 73, 52, 104, 107, 70, 113, 79, 53, 122, 102, 88, 77, 61, 13, 10, 13, 10];
+  if (ws_validate_handshake_response(&resp[0], 86, &key[0], key_len) != 0) { return 10; }
+
+  return 0;
+}

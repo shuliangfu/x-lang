@@ -8,7 +8,7 @@
 // reloc、elf_add_sym）。
 // 所有编码常量均经 `clang -c -target arm64-apple-darwin` 验证。
 
-import platform.elf;
+const elf = import("platform.elf");
 
 /** CSET 机器码 cond 域（ARM invert 语义）；pipeline_glue.c switch 映射。 */
 extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
@@ -16,11 +16,11 @@ extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 /** 向 ctx 追加 4 字节（小端 u32），用于一条 AArch64 指令。 */
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
   let buf: [4]u8 = [];
-  buf[0] = platform.elf.elf_u32_byte_at(val, 0);
-  buf[1] = platform.elf.elf_u32_byte_at(val, 1);
-  buf[2] = platform.elf.elf_u32_byte_at(val, 2);
-  buf[3] = platform.elf.elf_u32_byte_at(val, 3);
-  return platform.elf.append_elf_bytes(ctx, buf, 4);
+  buf[0] = elf.elf_u32_byte_at(val, 0);
+  buf[1] = elf.elf_u32_byte_at(val, 1);
+  buf[2] = elf.elf_u32_byte_at(val, 2);
+  buf[3] = elf.elf_u32_byte_at(val, 3);
+  return elf.append_elf_bytes(ctx, buf, 4);
 }
 
 /** 函数入口：stp x29, x30, [sp, #-16]!; mov x29, sp; sub sp, sp, #frame_size（frame_size 需
@@ -708,8 +708,8 @@ i32): i32 {
 function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 872415232) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
 }
 
 /** beq label；发 0x54000000（EQ），记 19 位 patch。须紧接 cmp 之后。match
@@ -717,40 +717,40 @@ function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
 function enc_jeq(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 1409286144) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
 }
 
 /** b.ge label；须紧接 cmp w1,w0 或 cmp w0,#imm 之后；i>=n 时跳出计数循环。 */
 function enc_jge(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 1409286154) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
 }
 
 /** b.ne label；须紧接 cmp w1,#0 之后（除数非零则跳过 panic）。 */
 function enc_jne(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 1409286145) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
 }
 
 /** cbnz w0, label；19 位 patch。 */
 function enc_jnz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 889192448) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 19);
 }
 
 /** b label；26 位 patch。 */
 function enc_jmp(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 335544320) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
-  if (platform.elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
-  return platform.elf.elf_add_patch_with_bits(ctx, at, label, label_len, 26);
+  if (elf.elf_ensure_label_slot(ctx, label, label_len) != 0) { return -1; }
+  return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 26);
 }
 
 /**
@@ -800,18 +800,18 @@ function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
       rn[k + 1] = name[k];
       k = k + 1;
     }
-    return platform.elf.elf_add_reloc(ctx, at, &rn[0], name_len + 1);
+    return elf.elf_add_reloc(ctx, at, &rn[0], name_len + 1);
   }
-  return platform.elf.elf_add_reloc(ctx, at, &name[0], name_len);
+  return elf.elf_add_reloc(ctx, at, &name[0], name_len);
 }
 
 /** 标签：不发射字节，只记录；is_func 非 0 时记入 sym（先 4
 * 字节对齐入口）。 */
 function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32): i32 {
   if (is_func != 0) {
-    if (platform.elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
+    if (elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
   }
-  if (platform.elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
+  if (elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
     if (ctx.macho_leading_underscore != 0) {
       let macho_name: [64]u8 = [];
@@ -821,9 +821,9 @@ function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32):
         macho_name[k + 1] = name[k];
         k = k + 1;
       }
-      return platform.elf.elf_add_sym(ctx, macho_name, name_len + 1, platform.elf.elf_section_code_len(ctx));
+      return elf.elf_add_sym(ctx, macho_name, name_len + 1, elf.elf_section_code_len(ctx));
     }
-    return platform.elf.elf_add_sym(ctx, name, name_len, platform.elf.elf_section_code_len(ctx));
+    return elf.elf_add_sym(ctx, name, name_len, elf.elf_section_code_len(ctx));
   }
   return 0;
 }

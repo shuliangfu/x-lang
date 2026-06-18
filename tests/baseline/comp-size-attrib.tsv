@@ -1,0 +1,23 @@
+# COMP-010 size attribution manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_artifacts	8
+# min_cases	3
+read_path	section	## 1. 阅读路径	analysis/comp-size-attrib-v1.md	-	15min
+layers	section	## 2. 归因层 A1–A6	comp-size-attrib.tsv	-	attribution
+matrix	section	## 3. 产物矩阵	comp-size-attrib-matrix.tsv	-	distribution
+report	section	## 4. 报告格式	analysis/comp-size-attrib-v1.md	-	TSV
+cases	section	## 5. Golden 联动	analysis/comp-size-attrib-v1.md	-	cases
+verify	section	## 7. 验证与门禁	analysis/comp-size-attrib-v1.md	-	gate
+layer_a1	layers	A1-exec	comp-size-attrib-matrix.tsv	exec	file_bytes
+layer_a2	layers	A2-object	comp-size-attrib-matrix.tsv	object	build_asm
+layer_a3	layers	A3-text	tests/lib/comp-size-attrib.sh	text	__text
+layer_a4	layers	A4-strip	tests/run-size-shu-asm-gate.sh	strip	B-SIZE
+layer_a5	layers	A5-rollup	tests/lib/comp-size-attrib.sh	rollup	topN
+layer_a6	layers	A6-baseline	tests/baseline/shu-asm-size.tsv	baseline	advisory
+case_smoke	case	case_attrib_smoke	tests/run-comp-size-attrib.sh	smoke	report
+case_bsize	case	case_bsize	tests/run-size-shu-asm-gate.sh	advisory	8MiB
+case_hello	case	case_hello	tests/run-size-baseline.sh	hello	user
+hook_bsize	hook_ref	run-size-shu-asm-gate.sh	tests/run-size-shu-asm-gate.sh	B-SIZE	ENG-002
+gate	script	run-comp-size-attrib-gate.sh	tests/run-comp-size-attrib-gate.sh	-	manifest
+hook_attrib	hook_script	run-comp-size-attrib.sh	run-comp-size-attrib.sh	-	烟测

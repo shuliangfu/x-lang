@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/.."
 COMP="${SHU_S3_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  for cand in ./compiler/shu_asm.strict_glue ./compiler/shu_asm.experimental ./compiler/shu_asm; do
+  for cand in ./compiler/shu_asm.strict_glue ./compiler/shu_asm ./compiler/shu_asm.experimental; do
     if [ -x "$cand" ]; then
       COMP="$cand"
       break
@@ -28,7 +28,14 @@ if [ ! -x "$COMP" ]; then
   echo "s3 emit-heavy: no executable compiler (set SHU_S3_EMIT_HEAVY_COMPILER=)" >&2
   exit 127
 fi
-echo "s3 emit-heavy: compiler=$COMP"
+# 与 build_shu_asm rebuild_pipeline_o_second_pass 同 cwd/LIBROOT（根目录 invoke 仅 ~4KiB 薄码）。
+case "$COMP" in
+  ./*) COMP_ABS="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")" ;;
+  *) COMP_ABS="$COMP" ;;
+esac
+PIPELINE_SU_REL="src/pipeline/pipeline.su"
+LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+echo "s3 emit-heavy: compiler=$COMP (from compiler/)"
 
 text_section_size() {
   local o="$1"
@@ -49,7 +56,8 @@ except subprocess.CalledProcessError:
     print(0)
     sys.exit(0)
 real = 0
-for m in re.finditer(r"^[0-9a-f]+ <(_[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_|\Z)", text, re.M):
+# Mach-O: <_sym>；ELF: <sym>
+for m in re.finditer(r"^[0-9a-f]+ <(_?[^>]+)>:\n((?:.*\n)*?)(?=\n[0-9a-f]+ <_?|\Z)", text, re.M):
     body = m.group(2)
     insns = [ln for ln in body.splitlines() if ln.strip() and not ln.endswith(":")]
     if len(insns) > 10:
@@ -59,8 +67,9 @@ PY
 }
 
 rm -f "$OUT"
-if ! env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$COMP" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_SU" 2>/dev/null; then
+if ! ( cd compiler && ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+  env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
+    "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_SU_REL" ); then
   echo "s3 emit-heavy: compile failed" >&2
   exit 1
 fi

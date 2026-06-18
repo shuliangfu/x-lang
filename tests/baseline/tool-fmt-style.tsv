@@ -1,0 +1,29 @@
+# TOOL-001 formatter 风格锁定 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_cases	5
+# min_rules	6
+read_path	section	## 1. 阅读路径	analysis/tool-fmt-style-v1.md	-	15min
+rules	section	## 2. 风格规则 S1–S6	analysis/tool-fmt-style-v1.md	-	锁定
+fixtures	section	## 3. 金样用例矩阵	tool-fmt-style.tsv	-	golden
+idempotent	section	## 4. 幂等与 --check	analysis/tool-fmt-style-v1.md	-	deno 语义
+verify	section	## 6. 验证与门禁	analysis/tool-fmt-style-v1.md	-	gate
+rule_s1	rules	semicolon_space	analysis/tool-fmt-style-v1.md	wrap	分号后空格
+rule_s2	rules	operator_space	analysis/tool-fmt-style-v1.md	wrap	运算符空格
+rule_s3	rules	array_comma_space	analysis/tool-fmt-style-v1.md	wrap	数组逗号
+rule_s4	rules	comment_preserve	analysis/tool-fmt-style-v1.md	wrap	注释前缀
+rule_s5	rules	fmt_idempotent	analysis/tool-fmt-style-v1.md	cmd	fmt --check
+rule_s6	rules	check_after_fmt	analysis/tool-fmt-style-v1.md	cmd	fmt+check
+case_wrap	case	fmt_wrap_cases	tests/fmt/fmt_wrap_cases.su	wrap	折行
+case_comprehensive	case	fmt_comprehensive	tests/fmt/fmt_comprehensive.su	wrap	综合
+case_semicolon	case	fmt_semicolon_space	tests/fmt/fmt_semicolon_space.su	wrap	分号
+case_operator	case	fmt_operator_space	tests/fmt/fmt_operator_space.su	wrap	运算符
+case_array_comma	case	fmt_array_comma_space	tests/fmt/fmt_array_comma_space.su	wrap	逗号
+impl_fmt	file	compiler/src/driver/fmt.su	compiler/src/driver/fmt.su	driver	cmd_fmt
+impl_c	file	compiler/src/driver/fmt_check_cmd.c	compiler/src/driver/fmt_check_cmd.c	driver	C 实现
+script_scan	script	scan_fmt_damage.py	compiler/scripts/scan_fmt_damage.py	audit	损坏扫描
+script_comment	script	verify_comment_prefixes.py	compiler/scripts/verify_comment_prefixes.py	audit	注释
+lib	script	lib/tool-fmt.sh	tests/lib/tool-fmt.sh	-	共享库
+gate	script	run-tool-fmt-gate.sh	tests/run-tool-fmt-gate.sh	-	manifest
+hook_fmt_cmd	hook_script	run-fmt-cmd.sh	run-fmt-cmd.sh	-	fmt 子命令
+hook_fmt_check	hook_script	run-fmt-check-cmd.sh	run-fmt-check-cmd.sh	-	--check
+hook_fmt_wrap	hook_script	run-fmt-wrap.sh	run-fmt-wrap.sh	-	金样回归

@@ -184,9 +184,11 @@ static int32_t asm_type_align_for_local(struct ast_ASTArena *arena, int32_t type
   kind = pipeline_type_kind_ord_at(arena, type_ref);
   if (kind == 2)
     return 1;
-  if (kind == 0 || kind == 3 || kind == 1 || kind == 13)
+  if (kind == 0 || kind == 3 || kind == 1 || kind == 14)
     return 4;
-  if (kind == 5 || kind == 4 || kind == 6 || kind == 7 || kind == 14 || kind == 9 || kind == 11)
+  if (kind == 13)
+    return 16;
+  if (kind == 5 || kind == 4 || kind == 6 || kind == 7 || kind == 15 || kind == 9 || kind == 11)
     return 8;
   if (kind == 10 || kind == 12) {
     int32_t elem = pipeline_type_elem_ref_at(arena, type_ref);
@@ -227,18 +229,18 @@ int32_t asm_bump_off_before_struct_local(struct ast_ASTArena *arena, int32_t typ
   if (!arena || type_ref <= 0)
     return off;
   kind = pipeline_type_kind_ord_at(arena, type_ref);
-  if ((kind == 12 || asm_type_is_simd_vector_spelling(arena, type_ref)) && (off % 16) != 0)
+  if ((kind == 13 || asm_type_is_simd_vector_spelling(arena, type_ref)) && (off % 16) != 0)
     return (off + 15) / 16 * 16;
   if (kind == 8 && (off % 16) != 0)
     return (off + 15) / 16 * 16;
   return off;
 }
 
-/** 是否为 TYPE_VECTOR（kind==12）。 */
+/** 是否为 TYPE_VECTOR（kind==13；ast.h 在 TYPE_LINEAR=12 之后）。 */
 int32_t asm_type_is_simd_vector(struct ast_ASTArena *arena, int32_t type_ref) {
   if (!arena || type_ref <= 0 || type_ref > arena->num_types)
     return 0;
-  return pipeline_type_kind_ord_at(arena, type_ref) == 12 ? 1 : 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 13 ? 1 : 0;
 }
 
 /**

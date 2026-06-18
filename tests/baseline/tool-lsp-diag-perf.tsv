@@ -1,0 +1,29 @@
+# TOOL-004 LSP 诊断性能 manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_opts	6
+# min_cases	2
+# min_large_funcs	30
+# max_wall_ms	15000
+read_path	section	## 1. 阅读路径	analysis/tool-lsp-diag-perf-v1.md	-	15min
+opts	section	## 2. 优化策略 P1–P6	tool-lsp-diag-perf.tsv	-	cache
+metrics	section	## 3. 性能指标与 report	analysis/tool-lsp-diag-perf-v1.md	-	report
+fixtures	section	## 4. Golden 用例	tool-lsp-diag-perf.tsv	-	large
+verify	section	## 6. 验证与门禁	analysis/tool-lsp-diag-perf-v1.md	-	gate
+opt_p1	opts	P1-module-cache	analysis/tool-lsp-diag-perf-v1.md	P1	lsp_ensure_module
+opt_p2	opts	P2-diag-json-cache	analysis/tool-lsp-diag-perf-v1.md	P2	s_last_diag_json
+opt_p3	opts	P3-len-before-hash	analysis/tool-lsp-diag-perf-v1.md	P3	source_len
+opt_p4	opts	P4-in-place-parse	analysis/tool-lsp-diag-perf-v1.md	P4	zero-copy
+opt_p5	opts	P5-lazy-typeck	analysis/tool-lsp-diag-perf-v1.md	P5	only_func_index
+opt_p6	opts	P6-line-index	analysis/tool-lsp-diag-perf-v1.md	P6	build_line_index
+sym_ensure	symbol	lsp_ensure_module	compiler/src/lsp/lsp_diag.c	P1	static
+sym_hash	symbol	lsp_hash_source	compiler/src/lsp/lsp_diag.c	P3	static
+sym_line_idx	symbol	build_line_index	compiler/src/lsp/lsp_diag.c	P6	static
+sym_lazy	symbol	lsp_typeck_entry_module	compiler/src/lsp/lsp_diag.c	P5	static
+sym_diag_json	symbol	s_last_diag_json	compiler/src/lsp/lsp_diag.c	P2	static
+sym_reset	symbol	lsp_diag_su_reset_parse_buffers	compiler/src/lsp/lsp_diag.su	su	buffer reuse
+case_large	case	diag_large_ok	tests/lsp/diag_large_ok.su	large	40 funcs
+case_small	case	main.su	tests/lsp/main.su	small	control
+lib	script	lib/tool-lsp-diag-perf.sh	tests/lib/tool-lsp-diag-perf.sh	-	共享库
+gate	script	run-tool-lsp-diag-perf-gate.sh	tests/run-tool-lsp-diag-perf-gate.sh	-	manifest
+hook_perf	hook_script	run-lsp-diag-perf.sh	run-lsp-diag-perf.sh	-	perf 烟测
+hook_lsp_base	hook_script	run-lsp.sh	run-lsp.sh	-	基础 LSP

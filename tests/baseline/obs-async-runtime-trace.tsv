@@ -1,0 +1,22 @@
+# OBS-002 async/runtime trace 采样 manifest
+# 列：item_id	kind	anchor	notes
+# min_items	8
+# min_topn	5
+env_var	SHU_ASYNC_RUNTIME_TRACE	SHU_ASYNC_RUNTIME_TRACE	非空启用
+env_topn	SHU_ASYNC_RUNTIME_TRACE_TOPN	SHU_ASYNC_RUNTIME_TRACE_TOPN	Top-N 行数
+env_sample	SHU_ASYNC_RUNTIME_TRACE_SAMPLE	SHU_ASYNC_RUNTIME_TRACE_SAMPLE	采样率
+env_slow_us	SHU_ASYNC_RUNTIME_TRACE_SLOW_US	SHU_ASYNC_RUNTIME_TRACE_SLOW_US	慢事件阈值 us
+output_prefix	stderr_line	shu: [SHU_ASYNC_RUNTIME_TRACE]	grep 锚点
+field_summary	output_field	summary events=	摘要行
+field_rank	output_field	rank=	明细行
+impl_flush	runtime_fn	shu_async_runtime_trace_flush	scheduler.c
+impl_push	runtime_fn	shu_async_trace_push	scheduler.c 内部
+hook_task_run	event_kind	task_run	drain fn()
+hook_suspend	event_kind	suspend	SUSPENDED
+hook_io_wake	event_kind	io_wake	shu_async_io_wake
+hook_poll	event_kind	poll_completions	io poll
+hook_idle	event_kind	drain_idle	空转 stall
+smoke_harness	file	tests/bench/async_runtime_trace_smoke.c	C 烟测
+smoke_scheduler	object	std/async/scheduler.o	链接 scheduler.o
+cross_async	cross_ref	std/async/README.md	STD-004
+cross_perf	cross_ref	analysis/perf-compile-dogfood-v1.md	PERF-004 联动

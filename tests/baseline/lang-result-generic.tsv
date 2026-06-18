@@ -1,0 +1,17 @@
+# LANG-010 Result<T,E> 泛型 struct manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_golden	2
+read_path	section	## 1. 阅读路径	analysis/lang-result-generic-v1.md
+layers	section	## 2. 闭环 M7–M9	analysis/lang-result-generic-v1.md
+api	section	## 3. API（v1）	analysis/lang-result-generic-v1.md
+golden	section	## 4. 金样向量	analysis/lang-result-generic-v1.md
+symbol_template	symbol	struct Result<T, E>	core/result/mod.su	模板
+symbol_i32	symbol	Result_i32	core/result/mod.su	兼容
+symbol_is_ok_gen	symbol	is_ok_gen	core/result/mod.su	泛型辅助
+smoke_three	smoke	tests/lang-result-generic/result_three.su	三组合
+smoke_import	smoke	tests/lang-result-generic/with_core_import.su	core 导入
+typeck_c	symbol	typeck_demangle_suffix_to_types	compiler/src/typeck/typeck_generic_struct.c	双参 demangle
+parser_c	symbol	parser_append_type_inst_mangle	compiler/src/parser/parser.c	多实参 mangle
+cross_lang009	cross_ref	lang-option-generic-v1.md	analysis/lang-option-generic-v1.md	LANG-009
+lib	script	lib/lang-result-generic.sh	tests/lib/lang-result-generic.sh
+gate	script	run-lang-result-generic-gate.sh	tests/run-lang-result-generic-gate.sh

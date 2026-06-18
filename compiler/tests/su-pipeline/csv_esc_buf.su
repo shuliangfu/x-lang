@@ -1,10 +1,10 @@
-/** 探针：escape("ab") 应返回 4，buf = "\"ab\"" */
-import std.csv;
+/** 探针：csv.escape("ab") 应返回 4，buf = "\"ab\"" */
+const csv = import("std.csv");
 
 function main(): i32 {
   let line: [8]u8 = [97, 98, 0, 0, 0, 0, 0, 0];
   let buf: [64]u8 = [];
-  let n: i32 = escape(&line[0], 2, &buf[0], 64);
+  let n: i32 = csv.escape(&line[0], 2, &buf[0], 64);
   if (n != 4) {
     return n;
   }

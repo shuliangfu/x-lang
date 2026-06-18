@@ -2,6 +2,7 @@
 # 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench
 io_mmap_throughput	0.015
 io_batch_readv	0.020
+io_random_pread	0.030
 io_write_throughput	0.040
 zero_copy_sendfile	0.20
 zero_copy_splice	0.35

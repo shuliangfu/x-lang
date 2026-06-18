@@ -261,3 +261,29 @@ function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
   return off + frac_digits;
 }
 
+/** 将任意整数标量 x 的十进制写入 buf（overload 分派到对应 *_to_buf）。 */
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i32): i32 { return fmt_i32_to_buf(buf, cap, x); }
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i64): i32 { return fmt_i64_to_buf(buf, cap, x); }
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u32): i32 { return fmt_u32_to_buf(buf, cap, x); }
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u64): i32 { return fmt_u64_to_buf(buf, cap, x); }
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt_u32_to_buf(buf, cap, x as u32); }
+function fmt_scalar_to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt_i64_to_buf(buf, cap, x as i64); }
+
+/** usize 十进制写入 buf；与 fmt_scalar_to_buf(buf,cap,x:usize) 等价，供显式 API 名调用。 */
+function fmt_usize_to_buf(buf: *u8, cap: i32, x: usize): i32 {
+  return fmt_u32_to_buf(buf, cap, x as u32);
+}
+/** isize 十进制写入 buf；与 fmt_scalar_to_buf(buf,cap,x:isize) 等价。 */
+function fmt_isize_to_buf(buf: *u8, cap: i32, x: isize): i32 {
+  return fmt_i64_to_buf(buf, cap, x as i64);
+}
+
+/** 将指针 p 格式化为 "0x" + 十六进制（usize 宽度）；用于调试输出。 */
+function fmt_ptr_to_buf(buf: *u8, cap: i32, p: *u8): i32 {
+  if (cap < 2) { return -1; }
+  buf[0] = 48;
+  buf[1] = 120;
+  let n: i32 = fmt_u64_hex_to_buf(&buf[2], cap - 2, p as u64);
+  if (n < 0) { return -1; }
+  return 2 + n;
+}

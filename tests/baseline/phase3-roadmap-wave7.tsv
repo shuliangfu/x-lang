@@ -1,0 +1,22 @@
+# PLAN-007 Phase 3 第七批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave7-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave7-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave7-v1.md
+task_index	section	## 4. 第七批待办索引	analysis/phase3-roadmap-wave7-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave7-v1.md
+task_boot026	task	BOOT-026	NEXT.md	C4 bootstrap
+task_comp020	task	COMP-020	NEXT.md	incr-compile
+task_std068	task	STD-068	NEXT.md	row_col_text
+task_plan007	task	PLAN-007	NEXT.md	wave7 定版
+gate_boot026	gate_ref	run-boot-026-parser-c4-bootstrap-gate.sh	tests/run-boot-026-parser-c4-bootstrap-gate.sh	BOOT-026
+gate_comp020	gate_ref	run-comp-incr-compile-wave-gate.sh	tests/run-comp-incr-compile-wave-gate.sh	COMP-020
+gate_std068	gate_ref	run-std-sqlite-row-col-text-gate.sh	tests/run-std-sqlite-row-col-text-gate.sh	STD-068
+cross_plan006	cross_ref	PLAN-006	analysis/phase3-roadmap-wave6-v1.md	第六批
+cross_2028q2	cross_ref	2028-Q2	NEXT.md	§2.18 预览
+cross_next	file	NEXT.md	NEXT.md	§2.18
+lib	script	lib/phase3-roadmap-wave7.sh	tests/lib/phase3-roadmap-wave7.sh
+gate	script	run-phase3-roadmap-wave7-gate.sh	tests/run-phase3-roadmap-wave7-gate.sh

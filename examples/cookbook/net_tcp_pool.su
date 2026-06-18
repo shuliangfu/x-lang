@@ -1,0 +1,14 @@
+/**
+ * Cookbook NET-05：TcpConnPool idle 复用（STD-164）。
+ */
+const net = import("std.net");
+
+function main(): i32 {
+  let pool: TcpConnPool = net.tcp_pool_new(0, 0);
+  pool.idle_fd = 42;
+  pool.has_idle = 1;
+  let fd: i32 = net.tcp_pool_acquire(&pool, 0);
+  if (fd != 42) { return 1; }
+  net.tcp_pool_drain(&pool);
+  return 0;
+}

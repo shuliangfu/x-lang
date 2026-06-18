@@ -1,0 +1,21 @@
+# STD-033 std.http chunked / keep-alive manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	5
+read_path	section	## 1. 阅读路径	15min
+api_table	section	## 2. API（v1）	decode_chunked
+golden	section	## 3. 金样向量	hello
+bench	section	## 4. Bench	http_chunked_decode_bench
+api_hdr_off	api	headers_body_offset	std/http/mod.su	头结束偏移
+api_chunked	api	has_chunked_encoding	std/http/mod.su	chunked 检测
+api_keepalive	api	has_keep_alive	std/http/mod.su	keep-alive
+api_decode	api	decode_chunked_body	std/http/mod.su	解码
+api_build	api	build_get_keep_alive	std/http/mod.su	请求构建
+symbol_decode_c	symbol	http_decode_chunked_body_c	std/http/http_chunked.inc.c	C 解码
+symbol_keepalive_c	symbol	http_has_keep_alive_c	std/http/http_chunked.inc.c	C 检测
+include_chunked	cross_ref	http_chunked.inc.c	std/http/http.c	include
+smoke_chunked	smoke	tests/http/chunked_keepalive.su	烟测
+bench_decode	file	tests/bench/http_chunked_decode_bench.su	可复现 bench
+cross_std032	cross_ref	STD-032	tests/baseline/std-http-methods.tsv	STD-032 baseline
+lib	script	lib/std-http-chunked.sh	tests/lib/std-http-chunked.sh
+gate	script	run-std-http-chunked-gate.sh	tests/run-std-http-chunked-gate.sh
+doc	file	analysis/std-http-chunked-v1.md	analysis/std-http-chunked-v1.md	RFC

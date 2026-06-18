@@ -1,0 +1,13 @@
+# COMP-003 codegen 稳定性回归矩阵
+# Format: case_id<TAB>source_or_hook<TAB>arch<TAB>policy<TAB>expected_exit<TAB>notes
+# arch: any | x86_64 | arm64 | !docker
+# policy: run = 编译+运行 .su；hook = 调用 tests/run-*.sh
+loop_i32	tests/bench/loop_i32.su	any	run	0	标量循环 -o
+mem_copy	tests/bench/mem_copy.su	any	run	0	内存拷贝
+struct_param	tests/bench/struct_param.su	any	run	0	结构体传参/返回
+call_boundary	tests/bench/call_boundary.su	any	run	0	调用边界
+float_f64	tests/float/f32_f64.su	any	run	0	浮点 codegen
+match_expr	tests/match/main.su	any	run	2	match  lowering
+slice_view	tests/slice/main.su	any	run	20	slice codegen s[1]
+enum_suite	run-enum.sh	any	hook	0	枚举 tag
+asm_compute	run-asm-73-gate.sh	x86_64	hook	0	asm 8×binop+cfg（需 shu_asm）

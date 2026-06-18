@@ -1,0 +1,63 @@
+# SAFE-003 unsafe API audit ledger
+# Format: scope<TAB>symbol<TAB>owner<TAB>rationale<TAB>reviewer<TAB>audit_date
+# scope: tier-u | tier-e
+tier-u	Arena64	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	Map_i32_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	Set_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	Vec_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	Vec_u8	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	Vec3f_soa	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	Vec3f_aos	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	ReadPtrView	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	StrView	stdlib	StrView allow(padding); pointer+len string view	v1-baseline	2026-06-17
+tier-u	Queue_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
+tier-u	alloc	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	free	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	realloc	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	alloc_zeroed	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	alloc_aligned	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	arena64_init	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	arena64_alloc	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	arena64_deinit	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	alloc_i32	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	free_i32	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	realloc_i32	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	alloc_u8	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	free_u8	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	realloc_u8	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	copy_i32_at	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	copy_u8_at	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
+tier-u	cstr_len	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-u	cstring_new	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-u	cstring_free	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-u	open	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-u	sym	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-u	close	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-u	panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-u	abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-u	read	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	write	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_stdin	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	write_stdout	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	write_stderr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_ptr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_ptr_len	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_ptr_slice	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_ptr_gen	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read_ptr_view	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	fs_read	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_write	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_pread	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_pwrite	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_mmap_ro	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_mmap_rw	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	fs_munmap	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
+tier-u	path_join	stdlib	Caller output buffer; must pass valid cap	v1-baseline	2026-06-17
+tier-e	ffi_cstr_len_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-e	ffi_cstring_new_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-e	ffi_cstring_free_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-e	runtime_panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-e	runtime_abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-e	dynlib_open_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-e	dynlib_sym_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-e	dynlib_close_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17

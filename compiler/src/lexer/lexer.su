@@ -4,7 +4,7 @@
 // 依赖：token.su（Token/TokenKind）。源码以 []u8 传入，IDENT 的 ident 暂置
 // 0，仅填 ident_len。
 
-import token;
+const token = import("token");
 
 /** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 []u8
 * 传入。allow(padding) 与跨模块拷贝/赋值对齐。 */
@@ -1024,6 +1024,37 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: []u8): void {
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = (0 as usize);
+    return;
+  }
+  /** import("path") 等：字符串字面量，token_start 指向开引号后首字节，ident_len 为字节数。 */
+  if (c == 34) {
+    let line0: i32 = l.line;
+    let col0: i32 = l.col;
+    let start: usize = l.pos + 1;
+    l = advance_one(l, 34);
+    while (l.pos < data.length && data[l.pos] != 34) {
+      if (data[l.pos] == 92 && l.pos + 1 < data.length) {
+        l = advance_one(l, data[l.pos]);
+        l = advance_one(l, data[l.pos]);
+      } else {
+        l = advance_one(l, data[l.pos]);
+      }
+    }
+    if (l.pos >= data.length) {
+      let tok_eof: Token = Token { kind: TokenKind.TOKEN_EOF, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_eof);
+      out.token_start = start;
+      return;
+    }
+    let slen: i32 = (l.pos - start) as i32;
+    l = advance_one(l, 34);
+    let tok_str: Token = Token { kind: TokenKind.TOKEN_STRING, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: slen };
+    write_next_lex_into(out, l);
+    write_tok_into(out, tok_str);
+    out.token_start = start;
     return;
   }
   if (is_alpha(c)) {

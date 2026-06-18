@@ -1,0 +1,18 @@
+# BOOT-018 parser / std 解耦 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_mega7_stub	7
+section_goal	section	## 1. 目标	docs
+section_tracks	section	## 2. 双轨模型	docs
+section_rules	section	## 3. 解耦规则	docs
+policy_next	forbidden	不阻塞 std 迭代	docs	NEXT 北极星
+policy_mega7_stub	rule	stub	comp-parser-mega7-matrix	B1-B7 保持 stub
+std_track_gate	std_gate	tests/run-stdlib-check-matrix-gate.sh	std	BOOT-013
+std_track_matrix	std_gate	tests/baseline/stdlib-check-matrix.tsv	std	48 模块
+parser_track_gate	parser_gate	tests/run-comp-parser-mega7-gate.sh	parser	COMP-001
+parser_gap	cross_ref	analysis/boot-mega7-gap.md	parser	BOOT-009
+parser_plan	cross_ref	analysis/comp-parser-mega7-v1.md	parser	COMP-001
+eng_quality	cross_ref	tests/baseline/eng-quality-gate-matrix.tsv	ENG-002	Qp 分轨
+portable_suite	cross_ref	tests/run-portable-suite.sh	CI	SKIP hooks
+mega7_matrix	file	tests/baseline/comp-parser-mega7-matrix.tsv	tests/baseline/comp-parser-mega7-matrix.tsv	B1-B7
+doc	file	analysis/boot-018-parser-std-decouple-v1.md	analysis/boot-018-parser-std-decouple-v1.md	RFC
+gate	script	tests/run-boot-018-parser-std-decouple-gate.sh	tests/run-boot-018-parser-std-decouple-gate.sh	manifest

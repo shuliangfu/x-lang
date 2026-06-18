@@ -1,0 +1,49 @@
+// STD-109：std.base64 流式编解码烟测（分块与块 API 金样一致）
+const base64 = import("std.base64");
+const debug = import("core.debug");
+
+function main(): i32 {
+  let plain: [5]u8 = [104, 101, 108, 108, 111];
+  let state: [32]u8 = [];
+  let enc: [16]u8 = [];
+  let one: [16]u8 = [];
+  let dec: [8]u8 = [];
+  let dec_st: [32]u8 = [];
+  let consumed: i32 = 0;
+  let n1: i32 = 0;
+  let n2: i32 = 0;
+  let n_all: i32 = 0;
+  let dn: i32 = 0;
+  if (stream_state_bytes() > 32) {
+    return 1;
+  }
+  n_all = base64.encode_standard(&plain[0], 5, &one[0], 16);
+  if (n_all != 8) {
+    return 2;
+  }
+  if (stream_enc_init(&state[0], 32, 0) != 0) {
+    return 3;
+  }
+  n1 = stream_enc_update(&state[0], 32, &plain[0], 2, &enc[0], 16, 0, &consumed);
+  if (n1 < 0 || consumed != 2) {
+    return 4;
+  }
+  n2 = stream_enc_update(&state[0], 32, &plain[2], 3, &enc[n1], 16 - n1, 1, &consumed);
+  if (n2 < 0 || consumed != 3 || n1 + n2 != n_all) {
+    return 5;
+  }
+  if (stream_dec_init(&dec_st[0], 32, 0) != 0) {
+    return 6;
+  }
+  dn = stream_dec_update(&dec_st[0], 32, &enc[0], 4, &dec[0], 8, 0, &consumed);
+  if (dn < 0 || consumed != 4) {
+    return 7;
+  }
+  dn = dn + stream_dec_update(&dec_st[0], 32, &enc[4], n_all - 4, &dec[dn], 8 - dn, 1, &consumed);
+  if (dn != 5) {
+    return 8;
+  }
+  debug.assert_eq_i32(dec[0] as i32, 104);
+  debug.assert_eq_i32(dec[4] as i32, 111);
+  return 0;
+}

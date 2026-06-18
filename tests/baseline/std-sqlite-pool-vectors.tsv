@@ -1,0 +1,4 @@
+# STD-084 pool 金样向量
+# 列：step_id	op	expect	notes
+reuse_handle	release+acquire	same_handle	:memory: max=1
+exhausted	double_acquire	busy	max=1 耗尽

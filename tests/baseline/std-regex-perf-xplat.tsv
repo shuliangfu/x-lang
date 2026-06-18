@@ -1,0 +1,5 @@
+# STD-062 std.regex match perf 三平台矩阵
+# 列：case_id	script	linux	macos	windows	notes
+bench_engine_c	regex_match_bench.c	must	must	must	C 热循环
+bench_naive_c	regex_match_naive_stub.c	must	must	must	朴素桩
+perf_hook	run-perf-regex-match.sh	must	must	must	ratio

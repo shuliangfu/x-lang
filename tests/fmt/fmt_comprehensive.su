@@ -11,7 +11,7 @@
 
 /** 单行块注释包裹说明。 */
 
-import core.option;
+const option = import("core.option");
 
 // ——— 1. 分号链：优先在 ; 后折行 ———
 function fmt_comp_semicolon_chain(): i32 {

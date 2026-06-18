@@ -1,0 +1,145 @@
+// std.cli — 命令行参数解析与 usage（STD-077）
+//
+// 【文件职责】
+// 长短选项、子命令、位置参数解析；与 std.env args_iter 集成；
+// usage 生成；未知参数与 help 退出码约定。
+//
+// 【对标】Go flag + cobra 子集、Rust clap 最小路径。
+
+const env = import("std.env");
+
+/** 解析结果缓冲。 */
+allow(padding) struct CliResult {
+  subcommand_len: i32;
+  help: i32;
+  version: i32;
+  verbose: i32;
+  unknown: i32;
+  positional_count: i32;
+  subcommand: [64]u8;
+  positional0_len: i32;
+  positional0: [128]u8;
+}
+
+extern function cli_is_help_c(arg: *u8, len: i32): i32;
+extern function cli_is_version_c(arg: *u8, len: i32): i32;
+extern function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32;
+extern function cli_match_short_c(arg: *u8, len: i32, c: u8): i32;
+extern function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32;
+
+/** 成功完成解析。 */
+function cli_err_ok(): i32 { return 0; }
+/** 用户请求 --help。 */
+function cli_err_help(): i32 { return 1; }
+/** 未知或非法参数。 */
+function cli_err_unknown(): i32 { return -1; }
+
+/** 计算 C 串长度（不含 NUL）。 */
+function arg_len(p: *u8): i32 {
+  let n: i32 = 0;
+  if (p == 0) { return 0; }
+  while (p[n] != 0) {
+    n = n + 1;
+  }
+  return n;
+}
+
+/** 是否为 help 选项。 */
+function is_help(arg: *u8, len: i32): i32 {
+  return cli_is_help_c(arg, len);
+}
+
+/** 是否为 version 选项。 */
+function is_version(arg: *u8, len: i32): i32 {
+  return cli_is_version_c(arg, len);
+}
+
+/** 匹配长选项 --name。 */
+function match_long(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
+  return cli_match_long_c(arg, len, name, name_len);
+}
+
+/** 匹配短选项 -x。 */
+function match_short(arg: *u8, len: i32, c: u8): i32 {
+  return cli_match_short_c(arg, len, c);
+}
+
+/** 写入 usage 文本；返回长度。 */
+function write_usage(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32 {
+  return cli_write_usage_c(prog, prog_len, desc, desc_len, out, out_cap);
+}
+
+/** 从 args_iter 解析（跳过 argv[0] 程序名）；expect_sub 可为空 len=0。 */
+function parse_from_iter(it: *ArgsIter, expect_sub: *u8, expect_sub_len: i32, out: *CliResult): i32 {
+  let prog: *u8 = 0;
+  let p: *u8 = 0;
+  let al: i32 = 0;
+  if (out == 0) { return cli_err_unknown(); }
+  out.subcommand_len = 0;
+  out.help = 0;
+  out.version = 0;
+  out.verbose = 0;
+  out.unknown = 0;
+  out.positional_count = 0;
+  out.positional0_len = 0;
+  let vname: [7]u8 = [118, 101, 114, 98, 111, 115, 101];
+  prog = env.args_iter_next(it);
+  if (prog == 0) { return cli_err_ok(); }
+  while (1 == 1) {
+    p = env.args_iter_next(it);
+    if (p == 0) { break; }
+    al = arg_len(p);
+    if (is_help(p, al) != 0) {
+      out.help = 1;
+      return cli_err_help();
+    }
+    if (is_version(p, al) != 0) {
+      out.version = 1;
+      return cli_err_ok();
+    }
+    if (match_long(p, al, &vname[0], 7) != 0) {
+      out.verbose = 1;
+      continue;
+    }
+    if (match_short(p, al, 118) != 0) {
+      out.verbose = 1;
+      continue;
+    }
+    if (p[0] == 45) {
+      out.unknown = 1;
+      return cli_err_unknown();
+    }
+    if (out.subcommand_len == 0 && expect_sub_len > 0) {
+      let i: i32 = 0;
+      let ok: i32 = 1;
+      if (al != expect_sub_len) { ok = 0; }
+      while (i < expect_sub_len && ok != 0) {
+        if (p[i] != expect_sub[i]) { ok = 0; }
+        i = i + 1;
+      }
+      if (ok != 0) {
+        i = 0;
+        while (i < al && i < 63) {
+          out.subcommand[i] = p[i];
+          i = i + 1;
+        }
+        out.subcommand_len = al;
+        continue;
+      }
+    }
+    if (out.positional_count == 0) {
+      let j: i32 = 0;
+      while (j < al && j < 127) {
+        out.positional0[j] = p[j];
+        j = j + 1;
+      }
+      out.positional0_len = al;
+      out.positional_count = 1;
+      continue;
+    }
+    out.unknown = 1;
+    return cli_err_unknown();
+  }
+  return cli_err_ok();
+}
+

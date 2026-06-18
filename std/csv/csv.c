@@ -7,6 +7,8 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * 从 offset 起找下一字段（RFC 4180）。
@@ -137,4 +139,76 @@ int32_t csv_test_unescape_ok(uint8_t *buf, int32_t buf_cap) {
 
 int32_t csv_test_unescape_fail(void) {
   return std_csv_csv_test_unescape_fail();
+}
+
+/** 判断字段是否须 RFC 4180 引号包裹。 */
+static int32_t csv_field_needs_quote(const uint8_t *ptr, int32_t len) {
+  int32_t j;
+  if (!ptr) return 0;
+  for (j = 0; j < len; j++) {
+    uint8_t c = ptr[j];
+    if (c == ',' || c == '"' || c == '\n' || c == '\r') return 1;
+  }
+  return 0;
+}
+
+/** 解析一行 CSV；field_starts/lens 为绝对偏移；返回下一 offset 或 -1。 */
+int32_t csv_parse_row_c(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *field_starts,
+                        int32_t *field_lens, int32_t max_fields, int32_t *out_count) {
+  int32_t pos;
+  if (!ptr || !field_starts || !field_lens || !out_count || max_fields <= 0) return -1;
+  *out_count = 0;
+  if (offset < 0 || offset > len) return -1;
+  if (offset == len) return len;
+  pos = offset;
+  while (*out_count < max_fields && pos <= len) {
+    int32_t start = 0;
+    int32_t flen = 0;
+    int32_t next = csv_next_field_c(ptr, len, pos, &start, &flen);
+    field_starts[*out_count] = start;
+    field_lens[*out_count] = flen;
+    (*out_count)++;
+    if (next >= len) return len;
+    if (next > 0 && ptr[next - 1] == '\n') return next;
+    if (next > 1 && ptr[next - 2] == '\r' && ptr[next - 1] == '\n') return next;
+    pos = next;
+  }
+  return pos;
+}
+
+/** 将多列字段写入一行 CSV（无尾随换行）；返回写入字节数或 -1。 */
+int32_t csv_write_row_c(const uint8_t *blob, const int32_t *starts, const int32_t *lens,
+                        int32_t count, uint8_t *out, int32_t out_cap) {
+  int32_t o = 0;
+  int32_t i;
+  if (!blob || !starts || !lens || !out || count < 0) return -1;
+  for (i = 0; i < count; i++) {
+    const uint8_t *fp = blob + starts[i];
+    int32_t fl = lens[i];
+    if (i > 0) {
+      if (o >= out_cap) return -1;
+      out[o++] = ',';
+    }
+    if (csv_field_needs_quote(fp, fl)) {
+      int32_t ew = csv_escape_c(fp, fl, out + o, out_cap - o);
+      if (ew < 0) return -1;
+      o += ew;
+    } else {
+      if (o + fl > out_cap) return -1;
+      memcpy(out + o, fp, (size_t)fl);
+      o += fl;
+    }
+  }
+  return o;
+}
+
+/** 链接别名：与 mod.su / schema.c 裸名一致。 */
+int32_t parse_row(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *field_starts,
+                  int32_t *field_lens, int32_t max_fields, int32_t *out_count) {
+  return csv_parse_row_c(ptr, len, offset, field_starts, field_lens, max_fields, out_count);
+}
+
+int32_t write_row(const uint8_t *blob, const int32_t *starts, const int32_t *lens, int32_t count,
+                  uint8_t *out, int32_t out_cap) {
+  return csv_write_row_c(blob, starts, lens, count, out, out_cap);
 }

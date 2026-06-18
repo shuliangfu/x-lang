@@ -29,3 +29,17 @@ function to_lower(rune: u32): u32 {
 function to_upper(rune: u32): u32 {
   return unicode_to_upper_c(rune);
 }
+
+/** 是否为 Unicode 增补平面码点（U+10000 及以上）。 */
+function is_supplementary(rune: u32): i32 {
+  if (rune > 65535 as u32) { return 1; }
+  return 0;
+}
+
+/** rune 编码为 UTF-8 所需的字节数（1..4）；非法高位 surrogate 区间按 3 处理。 */
+function rune_utf8_len(rune: u32): i32 {
+  if (rune <= 127 as u32) { return 1; }
+  if (rune <= 2047 as u32) { return 2; }
+  if (rune <= 65535 as u32) { return 3; }
+  return 4;
+}

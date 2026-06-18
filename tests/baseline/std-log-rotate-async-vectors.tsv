@@ -1,0 +1,5 @@
+# STD-106 金样向量
+# 列：vector_id	expect_substr	notes
+async_defer	async1	flush 前不落盘
+async_flush	[INFO] async1	flush 后落盘
+rotate_backup	rotate_line_xx	轮转后 path.1 存在

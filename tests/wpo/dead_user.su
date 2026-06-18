@@ -1,5 +1,5 @@
 // dead_user.su — import dead_lib，仅调用 live_export
-import dead_lib;
+const dead_lib = import("dead_lib");
 
 function main(): i32 {
   return live_export();

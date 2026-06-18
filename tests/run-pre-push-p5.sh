@@ -16,6 +16,11 @@ fi
 make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../std/io/io.o
 
+echo "=== P5: B-CMP codegen-fair 1.0× (shu-c) ==="
+chmod +x tests/run-bcmp-gate.sh
+./tests/run-bcmp-gate.sh | tee /tmp/shu_bcmp_p5.log
+grep -q 'bcmp gate OK' /tmp/shu_bcmp_p5.log
+
 echo "=== P5: migrate SU gen gate ==="
 chmod +x tests/run-migrate-su-gen-gate.sh
 ./tests/run-migrate-su-gen-gate.sh
@@ -23,6 +28,10 @@ chmod +x tests/run-migrate-su-gen-gate.sh
 echo "=== P5: M-4 linear typeck ==="
 chmod +x tests/run-typeck-linear.sh
 ./tests/run-typeck-linear.sh
+
+echo "=== P5: M-6 sanitize=address bounds instrumentation ==="
+chmod +x tests/run-sanitize-gate.sh
+./tests/run-sanitize-gate.sh
 
 echo "=== P5: ZC gates (ZC-1 → ZC-2 → ZC-3 → ZC-4 → ZC-5) ==="
 chmod +x tests/run-zc-gates.sh
@@ -142,15 +151,33 @@ chmod +x tests/run-zc1-gate.sh tests/run-iocp-gate.sh tests/run-perf-iocp.sh
 if [ "$(uname -s)" = "Linux" ]; then
   echo "=== P5: refresh shu_asm gate (Linux SU path) ==="
   make -C compiler -q OPT=1 2>/dev/null || make -C compiler OPT=1
-  chmod +x tests/run-refresh-shu-asm-gate.sh
+  chmod +x tests/run-refresh-shu-asm-gate.sh tests/run-size-shu-asm-gate.sh
   ./tests/run-refresh-shu-asm-gate.sh
+  if [ -x ./compiler/shu_asm ]; then
+    echo "=== P5: B-SIZE shu_asm stripped (advisory, ENG-002) ==="
+    ./tests/run-size-shu-asm-gate.sh
+    echo "=== P5: S3 pipeline SU emit gate (parse_entry_do_parse + EMIT_HEAVY) ==="
+    chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
+    ./tests/run-s3-pipeline-sync-build-o.sh
+    SHU_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh
+    echo "=== P5: WPO shu_asm binary .text proxy (Linux) ==="
+    chmod +x tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh \
+      tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-full-chain-gate.sh
+    SHU_WPO_ENSURE_FAIL=1 SHU_WPO_ENSURE_COMPILER=./compiler/shu_asm ./tests/ensure-wpo-build-asm-artifacts.sh
+    SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh
+    # B-CMP-ASM：跟踪 shu_asm vs C-O3（计算 loop 仍劣于 C，勿硬门禁）
+    echo "=== P5: B-CMP shu_asm 1.0× (track-only, non-fatal) ==="
+    SHU_PERF_BCMP_ASM=1 ./tests/run-bcmp-gate.sh | tee /tmp/shu_bcmp_asm_p5.log || true
+    grep -q 'B-CMP-ASM' /tmp/shu_bcmp_asm_p5.log || true
+    # stretch -3%：须 run-bootstrap-bstrict-ci 全链后 ./tests/run-wpo-stretch-gate.sh
+  fi
 else
   echo "=== P5: refresh shu_asm gate SKIP (non-Linux) ==="
   echo "hint: ./scripts/docker-ci-local.sh ubuntu-gates"
   echo "hint: Linux perf+ZC-1: ./tests/run-zc1-gate.sh --perf 或 ./tests/run-perf-p1-gate.sh"
 fi
 
-echo "pre-push P5 OK (M-3/M-4/M-5/ZC-2/ZC-3/ZC-4/ZC-5/WPO cross-platform gates)"
+echo "pre-push P5 OK (M-3/M-4/M-6/ZC-2/ZC-3/ZC-4/ZC-5/WPO cross-platform gates)"
 # 推送提示（与 run-pre-push-p0.sh 一致）
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   br=$(git branch --show-current 2>/dev/null || echo "?")

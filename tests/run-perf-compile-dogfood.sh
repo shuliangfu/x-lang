@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# P3 编译器自优化 dogfood：固定模块 `-o` / `check` 编译耗时中位数，对比基线防回退。
+# PERF-004 / P3 编译器自优化 dogfood：固定模块 `-o` / `check` 编译耗时中位数，对比基线防回退。
 # 用法：
 #   ./tests/run-perf-compile-dogfood.sh
+#   ./tests/run-perf-compile-dogfood-gate.sh          # PERF-004 门禁（manifest + 回归）
 #   SHU=./compiler/shu_asm ./tests/run-perf-compile-dogfood.sh
 #   SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
 #   SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh   # 刷新 tests/baseline/compile-dogfood.tsv
@@ -55,6 +56,7 @@ cases = [
     ("perf_main", f'"{shu}" tests/perf-baseline/main.su -o /tmp/shu_dog_perf_main'),
     ("check_backend", f'"{shu}" check compiler/src/asm/backend.su'),
     ("check_parser", f'"{shu}" check compiler/src/parser/parser.su'),
+    ("check_typeck", f'"{shu}" check compiler/src/typeck/typeck.su'),
 ]
 
 def load_baseline(path):
@@ -106,6 +108,13 @@ for name, cmd in cases:
     if eff_cap is not None and med > eff_cap:
         status = "SLOW"
         if fail_regress:
+            # OBS-004：回归越界 stderr 告警（机器可 grep）
+            print(
+                f"shu: [SHU_PERF_ALERT] severity=critical baseline_id=compile-dogfood "
+                f"metric={name} measured={med:.4f} cap={eff_cap:.4f} "
+                f"gate=run-perf-compile-dogfood-gate.sh",
+                file=sys.stderr,
+            )
             failures += 1
     rows.append((name, med, cap, status))
     cap_s = f"{cap:.4f}" if cap is not None else "—"

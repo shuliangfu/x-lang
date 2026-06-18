@@ -1,0 +1,14 @@
+# CORE-006 iterator manifest
+# 列：item_id	kind	anchor	notes
+min_next_apis	2
+iter_i32	symbol	iter_i32	core/iterator/mod.su
+iter_u8	symbol	iter_u8	core/iterator/mod.su
+next_i32	symbol	next_i32	core/iterator/mod.su
+next_u8	symbol	next_u8	core/iterator/mod.su
+struct_iter_i32	symbol	SliceIter_i32	core/iterator/mod.su
+struct_iter_u8	symbol	SliceIter_u8	core/iterator/mod.su
+iter_remaining_i32	symbol	iter_remaining_i32	core/iterator/mod.su
+test_smoke	file	tests/iterator/main.su	烟测
+cookbook	file	examples/cookbook/iter_slice_sum.su	ITER-01
+doc	file	core-iterator-protocol-v1.md	analysis/core-iterator-protocol-v1.md	RFC
+gate	script	run-core-iterator-protocol-gate.sh	tests/run-core-iterator-protocol-gate.sh	manifest

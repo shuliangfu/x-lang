@@ -1,0 +1,8 @@
+# STD-075 std.uuid 金样向量
+# 列：case_id	input	expected	notes
+known_parse	550e8400-e29b-41d4-a716-446655440000	roundtrip	标准形式
+plain_hex	550e8400e29b41d4a716446655440000	eq known	无连字符
+upper_hex	550E8400-E29B-41D4-A716-446655440000	eq known	大写
+v4_version	new_v4	version=4	CSPRNG
+v7_version	new_v7	version=7	时间有序
+v7_monotonic	new_v7	x<y 连续	同毫秒序号递增

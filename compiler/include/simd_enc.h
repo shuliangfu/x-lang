@@ -1,5 +1,5 @@
 /**
- * simd_enc.h — SIMD-S3：硬件向量指令编码（x86 SSE/AVX2、arm64 NEON 预留）。
+ * simd_enc.h — SIMD-S3/S4：硬件向量指令编码（x86 SSE/AVX2、arm64 NEON shuffle/select）。
  *
  * 供 pipeline_glue 在向量 let 初值 binop 路径调用；lane-scalar 回退仍保留。
  */

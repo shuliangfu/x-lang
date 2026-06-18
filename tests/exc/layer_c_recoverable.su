@@ -1,0 +1,20 @@
+// tests/exc/layer_c_recoverable.su — EXC-002：Layer C 可恢复错误（fs 失败 + last_error，不 panic）
+const fs = import("std.fs");
+
+/** 返回不存在路径指针（NUL 结尾）。 */
+function exc_bad_path(): *u8 {
+  let p: [36]u8 =
+  [116, 101, 115, 116, 115, 47, 101, 120, 99, 47, 46, 110, 111, 95, 115, 117, 99, 104, 95, 102, 115, 95, 112, 97, 116, 104, 95, 120, 120, 120, 0, 0, 0, 0, 0, 0];
+  return &p[0];
+}
+
+function main(): i32 {
+  let fd: i32 = fs.fs_open_read(exc_bad_path());
+  if (fd >= 0) {
+    fs.fs_close(fd);
+    return 1;
+  }
+  let err: i32 = fs.fs_last_error();
+  if (err == 0) { return 2; }
+  return 0;
+}

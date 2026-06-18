@@ -1,0 +1,33 @@
+// STD-148：std.hash 默认策略与推荐 Hasher 烟测
+const hash = import("std.hash");
+
+function main(): i32 {
+  // 默认 SipHash（HASHER_SIPHASH=0）
+  if (default_hasher() != 0) { return 1; }
+  if (recommend_hasher_map() != 0) { return 2; }
+  if (recommend_hasher_fast() != 2) { return 3; }
+
+  // 三族 Hasher 工厂可创建且摘要非零（0=SipHash 1=aHash 2=xxHash）
+  let buf: [3]u8 = [97, 98, 99];
+  let hs: *u8 = hash_start_algo(0);
+  let ha: *u8 = hash_start_algo(1);
+  let hx: *u8 = hash_start_algo(2);
+  if (hs == 0 || ha == 0 || hx == 0) { return 4; }
+  hash_write_bytes_algo(hs, &buf[0], 3);
+  hash_write_bytes_algo(ha, &buf[0], 3);
+  hash_write_bytes_algo(hx, &buf[0], 3);
+  let rs: u64 = hash_finish_algo(hs);
+  let ra: u64 = hash_finish_algo(ha);
+  let rx: u64 = hash_finish_algo(hx);
+  hash_free_algo(hs);
+  hash_free_algo(ha);
+  hash_free_algo(hx);
+  if (rs == 0 || ra == 0 || rx == 0) { return 5; }
+  if (rs == ra || rs == rx || ra == rx) { return 6; }
+
+  // 快速一次性路径
+  let one: u64 = hash_xxhash64(&buf[0], 3);
+  if (one == 0) { return 7; }
+
+  return 0;
+}

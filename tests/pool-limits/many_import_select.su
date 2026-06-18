@@ -1,5 +1,5 @@
 // import select grow 池：选取 10 个符号（超过旧 8 顶）；调用 f9 应返回 9。
-const { f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 } = import select_lib;
+const select_lib = import("select_lib");
 
 function main(): i32 {
   let _u0: i32 = f0();

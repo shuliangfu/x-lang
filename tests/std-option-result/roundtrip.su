@@ -1,0 +1,39 @@
+// STD-080/081：std.option + std.result 组合子与互转烟测
+const option = import("std.option");
+const result = import("std.result");
+const err = import("std.error");
+const option = import("core.option");
+const result = import("core.result");
+
+function main(): i32 {
+  let o1: Option_i32 = option.some_i32(10);
+  let o2: Option_i32 = option.none_i32();
+  let r_ok: Result_i32 = result.ok_i32(42);
+  let r_err: Result_i32 = result.err_i32(error_code_not_found());
+  let o3: Option_i32 = option.option_from_result_i32(r_ok);
+  let r1: Result_i32 = option.option_to_result_i32(o1, error_code_invalid());
+  let r2: Result_i32 = option.option_to_result_i32(o2, error_code_not_found());
+  let r3: Result_i32 = result.result_from_error_code(error_ok());
+  let r4: Result_i32 = result.result_from_value_i32(7, error_ok());
+  let r5: Result_i32 = result.result_from_value_i32(0, error_code_invalid());
+  let m1: Option_i32 = map_i32(o1, 20);
+  let m2: Result_i32 = result.result_map_i32(r_ok, 100);
+  let a1: Result_i32 = result.result_and_then_i32(r_ok, result.ok_i32(1));
+  let a2: Option_i32 = and_then_i32(o1, option.some_i32(99));
+  let f1: Result_i32 = result.result_or_else_i32(r_err, result.ok_i32(5));
+
+  if (option.unwrap_or_i32(o1, 0) != 10) { return 1; }
+  if (option.is_none_i32(o2) == 0) { return 2; }
+  if (option.is_some_i32(o3) == 0 || o3.value != 42) { return 3; }
+  if (result.is_ok_i32(r1) == 0 || r1.value != 10) { return 4; }
+  if (result.is_err_i32(r2) == 0) { return 5; }
+  if (result.result_err_code(r3) != error_ok()) { return 6; }
+  if (r4.value != 7) { return 7; }
+  if (result.is_ok_i32(r5) != 0) { return 8; }
+  if (m1.value != 20) { return 9; }
+  if (m2.value != 100) { return 10; }
+  if (a1.value != 1) { return 11; }
+  if (a2.value != 99) { return 12; }
+  if (f1.value != 5) { return 13; }
+  return 0;
+}

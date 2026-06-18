@@ -1,0 +1,11 @@
+# STD-103 symtab/rela 金样向量（elf64_sym_rela.bin）
+# 列：key	value	notes
+shnum	6	节数量
+symtab_idx	2	.symtab
+sym_main_idx	1	main 符号下标
+sym_main_bind	1	STB_GLOBAL
+sym_main_type	2	STT_FUNC
+sym_main_name	main	.strtab
+rela_idx	4	.rela.text
+rela_sym_idx	1	指向 main
+rela_type	1	R_X86_64_64

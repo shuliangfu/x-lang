@@ -1,0 +1,34 @@
+# COMP-006/COMP-014 instruction selection manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_layers	6
+# min_cases	8
+# min_p0_cases	4
+read_path	section	## 1. 阅读路径	analysis/comp-isel-v1.md	-	15min
+layers	section	## 2. 选择层 I1–I6	comp-isel.tsv	-	isel
+bench	section	## 3. microbench 矩阵	comp-isel-bench.tsv	-	microbench
+cases	section	## 4. Golden 用例	analysis/comp-isel-v1.md	-	cases
+verify	section	## 6. 验证与门禁	analysis/comp-isel-v1.md	-	gate
+layer_i1	layers	I1-imm-binop	tests/asm/binop_var_fast.su	binop	ldr
+layer_i2	layers	I2-index-lit	tests/asm/binop_index_lit_fast.su	index	add_imm
+layer_i3	layers	I3-cmp-branch	compiler/src/asm/backend.su	cmp	分支
+layer_i4	layers	I4-peephole	compiler/src/asm/peephole.su	peephole	elf
+layer_i5	layers	I5-shift-div	tests/asm/binop_var_fast.su	shift	/%
+layer_i6	layers	I6-microbench	tests/bench/loop_i32.su	bcmp	对标C
+sym_peephole	symbol	peephole_elf_run	compiler/src/asm/peephole.su	elf	窥孔
+sym_peephole_txt	symbol	peephole_run	compiler/src/asm/peephole.su	text	窥孔
+case_var	case	case_var_fast	tests/asm/binop_var_fast.su	asm	143
+case_index	case	case_index_lit	tests/asm/binop_index_lit_fast.su	asm	75
+case_four	case	case_four_add	tests/asm/binop_return_four_add.su	chain	10
+case_loop	case	case_loop	tests/bench/loop_i32.su	bcmp	loop
+case_field_p0	case	case_field_index	tests/asm/binop_field_index_fast.su	P0	205
+case_nested_p0	case	case_nested_var	tests/asm/binop_nested_var_return.su	P0	20
+case_div_index_p0	case	case_div_index	tests/asm/binop_div_index_binop.su	P0	2
+case_cfg_p0	case	case_cfg_if	tests/asm/binop_if_plus_eq_merge.su	P0	13
+hook_field_p0	hook_script	run-asm-binop-field-index.sh	run-asm-binop-field-index.sh	P0	I7
+hook_nested_p0	hook_script	run-asm-binop-nested-var.sh	run-asm-binop-nested-var.sh	P0	I8
+hook_div_p0	hook_script	run-asm-binop-div-index.sh	run-asm-binop-div-index.sh	P0	I5
+hook_cfg_p0	hook_script	run-asm-binop-cfg-merge.sh	run-asm-binop-cfg-merge.sh	P0	I3
+hook_bcmp	hook_ref	run-bcmp-gate.sh	tests/run-bcmp-gate.sh	bcmp	CI
+gate_p0	script	run-comp-isel-p0-gate.sh	tests/run-comp-isel-p0-gate.sh	-	COMP-014
+gate	script	run-comp-isel-gate.sh	tests/run-comp-isel-gate.sh	-	manifest
+hook_isel	hook_script	run-comp-isel.sh	run-comp-isel.sh	-	烟测

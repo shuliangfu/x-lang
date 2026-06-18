@@ -1,5 +1,5 @@
 // 最小 codegen 片段：import + struct + 一函数，用于验证 .su 流水线
-import ast;
+const ast = import("ast");
 
 struct CodegenOutBuf {
   data: [64]u8;

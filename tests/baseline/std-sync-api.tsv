@@ -1,0 +1,6 @@
+# std.sync Tier-S stable public API (import std.sync)
+mutex_new
+mutex_lock
+mutex_try_lock
+mutex_unlock
+mutex_free

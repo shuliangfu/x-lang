@@ -1,0 +1,12 @@
+# core.mem Tier-S stable public API (import core.mem)
+mem_copy
+mem_set
+mem_move
+mem_compare
+mem_zero
+volatile_load_u32
+volatile_store_u32
+compiler_fence
+fence_acquire
+fence_release
+fence_seq_cst

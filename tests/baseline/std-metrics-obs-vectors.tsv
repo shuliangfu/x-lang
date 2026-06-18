@@ -1,0 +1,5 @@
+# STD-117 观测上下文向量
+# 列：case_id	input	expect	notes
+obs_kv_prefix	trace+span_start	trace_id=	obs_ctx_format_log_kv 前缀
+obs_span_key	context span	span	context 键名
+obs_trace_label	trace_id	label 键 trace_id

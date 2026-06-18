@@ -1,0 +1,22 @@
+# LANG-001 feature gate manifest
+# 列：item_id	kind	anchor	src	tier	notes
+# min_gates	6
+# min_cases	2
+read_path	section	## 1. 阅读路径	analysis/lang-feature-gate-v1.md	-	15min
+gates	section	## 2. 版本层 G1–G6	lang-feature-gate.tsv	-	feature gate
+catalog	section	## 3. 特性目录	lang-feature-catalog.tsv	-	symbols
+verify	section	## 6. 验证与门禁	analysis/lang-feature-gate-v1.md	-	gate
+gate_g1	gates	G1-edition-2024	analysis/lang-feature-gate-v1.md	stable	SHU_EDITION_2024
+gate_g2	gates	G2-edition-2025	analysis/lang-feature-gate-v1.md	experimental	2025
+gate_g3	gates	G3-feature-flag	analysis/lang-feature-gate-v1.md	feature	SHU_FEATURE_
+gate_g4	gates	G4-preprocessor	analysis/lang-feature-gate-v1.md	pp	#if
+gate_g5	gates	G5-driver-define	analysis/lang-feature-gate-v1.md	driver	-D
+gate_g6	gates	G6-platform-auto	analysis/lang-feature-gate-v1.md	platform	SHU_OS_
+sym_defines	symbol	driver_argv_collect_defines	compiler/src/runtime.c	driver	-D收集
+sym_preprocess	docs	预处理	docs/01-关键字.md	pp	#if说明
+case_edition	case	edition_stable	tests/lang-feature/edition_stable.su	stable	默认0
+case_feature	case	feature_match	tests/lang-feature/feature_match.su	feature	42/0
+wrapper	script	shu-lang-edition.sh	scripts/shu-lang-edition.sh	cli	edition
+lib	script	lib/lang-feature-gate.sh	tests/lib/lang-feature-gate.sh	-	共享
+gate	script	run-lang-feature-gate-gate.sh	tests/run-lang-feature-gate-gate.sh	-	manifest
+hook_feature	hook_script	run-lang-feature-gate.sh	run-lang-feature-gate.sh	-	烟测

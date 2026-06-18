@@ -86,5 +86,8 @@ fi
 # 10. exec_simple 失败路径
 run_one "exec_fail" "tests/process/exec_fail.su" || exit 1
 
+# 11. STD-142 跨平台聚合烟测
+run_one "xplat_behavior" "tests/process/xplat_behavior.su" || exit 1
+
 echo "process test OK (all)"
 rm -f /tmp/shu_process_$$_*

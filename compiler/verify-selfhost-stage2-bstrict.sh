@@ -2,23 +2,29 @@
 # verify-selfhost-stage2-bstrict.sh — B-strict Stage2：shu_asm 自举第二遍产出 shu_asm2，两代行为一致。
 # 与 verify-selfhost-stage2.sh（shu-su -su -E 生成 _gen2.c）正交；本脚本仅验 asm 链二遍自举。
 # 用法：cd compiler && sh ./verify-selfhost-stage2-bstrict.sh
+#       SHU_STAGE2_SKIP_BOOTSTRAP=1 — 跳过 Step 0（run-stage2-bstrict-gate / bootstrap-bstrict-ci 已 bootstrap 时）
 
 set -e
 cd "$(dirname "$0")"
 
-ulimit -s 16384 2>/dev/null || true
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 echo "============================================"
 echo " Shulang B-strict Stage2（shu_asm -> shu_asm2）"
 echo "============================================"
 
-echo ""
-echo "── Step 0: bootstrap-driver-bstrict ──"
-${MAKE:-make} bootstrap-driver-seed -q 2>/dev/null || ${MAKE:-make} bootstrap-driver-seed
-SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 ${MAKE:-make} bootstrap-driver-bstrict
-if [ ! -x ./shu_asm ]; then
-  echo "verify-stage2-bstrict: shu_asm missing" >&2
-  exit 1
+if [ "${SHU_STAGE2_SKIP_BOOTSTRAP:-0}" = "1" ] && [ -x ./shu_asm ]; then
+  echo ""
+  echo "── Step 0: bootstrap-driver-bstrict (SKIP, shu_asm present) ──"
+else
+  echo ""
+  echo "── Step 0: bootstrap-driver-bstrict ──"
+  ${MAKE:-make} bootstrap-driver-seed -q 2>/dev/null || ${MAKE:-make} bootstrap-driver-seed
+  SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 ${MAKE:-make} bootstrap-driver-bstrict
+  if [ ! -x ./shu_asm ]; then
+    echo "verify-stage2-bstrict: shu_asm missing" >&2
+    exit 1
+  fi
 fi
 
 echo ""
@@ -27,10 +33,21 @@ cp -f ./shu_asm ./shu_asm_stage1
 ls -lh ./shu_asm_stage1 | awk '{print "  stage1:", $5}'
 
 echo ""
-echo "── Step 2: 第二遍 build_shu_asm（SHU=shu_asm_stage1）──"
-SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 SHU=./shu_asm_stage1 ./scripts/build_shu_asm.sh 2>&1 | tee /tmp/build_shu_asm2.log
+echo "── Step 2: 第二遍 build_shu_asm（SHU=shu_asm_stage1，Stage2 round2 driver_compile_link 链）──"
+# CI=1 时 build_shu_asm 设 SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY，跳过 strict 重链；Stage2 须全量 B-strict。
+env -u CI \
+  SHU_ASM_CI_SKIP_FAST=1 \
+  SHU_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
+  SHU_ASM_CI_SKIP_SECOND_PASS= \
+  SHU_ASM_EXPERIMENTAL_SKIP_GEN=1 \
+  SHU=./shu_asm_stage1 \
+  ./scripts/build_shu_asm.sh 2>&1 | tee /tmp/build_shu_asm2.log
 if ! grep -qE 'asm_only_strict|B-strict OK' /tmp/build_shu_asm2.log; then
   echo "verify-stage2-bstrict: second pass did not reach B-strict link" >&2
+  exit 1
+fi
+if ! grep -q 'driver_compile_link.o' /tmp/build_shu_asm2.log; then
+  echo "verify-stage2-bstrict: second pass log missing driver_compile_link.o (gen2 driver SU link expected)" >&2
   exit 1
 fi
 if [ ! -x ./shu_asm ]; then
@@ -190,12 +207,15 @@ rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
 hello_compile() {
   local bin="$1" out="$2"
   local try=1
+  local last_err=""
   while [ "$try" -le 8 ]; do
-    if "$bin" -L "$ROOT" "$ROOT/examples/hello.su" -o "$out" >/dev/null 2>&1; then
+    if err=$("$bin" -L "$ROOT" "$ROOT/examples/hello.su" -o "$out" 2>&1); then
       return 0
     fi
+    last_err="$err"
     try=$((try + 1))
   done
+  echo "$last_err" >&2
   return 1
 }
 hello_compile ./shu_asm_stage1 /tmp/stage2_bstrict_hello1 || {

@@ -1,8 +1,8 @@
 // net_udp_many.su — N4：UDP recv_many_buf 批量收包（server，与 run-perf-net.sh 配套）
 // 监听 127.0.0.1；4096×64B 报文；argv[1] 为动态端口（默认 38458）。
-import std.net;
-import std.io.driver;
-import std.process;
+const net = import("std.net");
+const driver = import("std.io.driver");
+const process = import("std.process");
 
 /** 解析十进制 u32 端口；非法返回 default_port。 */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
@@ -23,14 +23,14 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 function main(): i32 {
   /** 与 net_udp_many_client.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
   let udp_port: u32 = 38458;
-  if (args_count() >= 2) {
-    udp_port = bench_parse_port(arg(1), udp_port);
+  if (process.args_count() >= 2) {
+    udp_port = bench_parse_port(process.arg(1), udp_port);
   }
   let udp_pkts: i32 = 4096;
   let batch: i32 = 8;
   let pkt_len: usize = 64;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let sock: UdpSocket = udp_bind(addr, udp_port);
+  let sock: UdpSocket = net.udp_bind(addr, udp_port);
   if (sock.fd < 0) { return 1; }
   let b0: [64]u8 = 0;
   let b1: [64]u8 = 0;
@@ -57,9 +57,9 @@ function main(): i32 {
   let sum: i32 = 0;
   /** timeout 5s 防止 client 未就绪时永久阻塞。 */
   while (total < udp_pkts) {
-    let n: i32 = udp_recv_many_buf(sock, &bufs[0], batch, 5000, &out_sizes[0], &out_addrs[0], &out_ports[0]);
+    let n: i32 = net.udp_recv_many_buf(sock, &bufs[0], batch, 5000, &out_sizes[0], &out_addrs[0], &out_ports[0]);
     if (n <= 0) {
-      close_udp(sock);
+      net.close_udp(sock);
       return 2;
     }
     let j: i32 = 0;
@@ -69,7 +69,7 @@ function main(): i32 {
     }
     total = total + n;
   }
-  if (close_udp(sock) != 0) { return 3; }
+  if (net.close_udp(sock) != 0) { return 3; }
   if (total != udp_pkts) { return 4; }
   return sum & 255;
 }

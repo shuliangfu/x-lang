@@ -1,0 +1,18 @@
+# STD-016 StrView + ZC-4 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_lifecycle_rules	4
+api_from_string	symbol	string_view_from_string	std/string/mod.su	STD-016
+api_subview	symbol	string_view_subview	std/string/mod.su	ZC-4
+api_concat_arena	symbol	string_view_concat_arena	std/string/mod.su	ZC-4
+api_stack_view	symbol	stack_str_view	std/string/mod.su	SSO
+lifecycle_doc	anchor	## 3. 生命周期规则	analysis/std-strview-zc4-v1.md	RFC
+lifecycle_string	anchor	string_view_from_string	analysis/std-strview-zc4-v1.md	RFC
+lifecycle_arena	anchor	arena64_deinit	analysis/std-strview-zc4-v1.md	RFC
+lifecycle_stack	anchor	stack_str_view	analysis/std-strview-zc4-v1.md	RFC
+test_lifecycle	file	tests/string/view_lifecycle.su		整合烟测
+test_subview	file	tests/string/view_subview_smoke.su		ZC-4
+test_arena	file	tests/string/arena_concat_smoke.su		ZC-4
+test_sso	file	tests/string/stack_str_sso_smoke.su		ZC-4
+zc4_gate	script	run-zc4-gate.sh	tests/run-zc4-gate.sh	深度回归
+doc	file	analysis/std-strview-zc4-v1.md	analysis/std-strview-zc4-v1.md	RFC
+gate	script	run-std-strview-zc4-gate.sh	tests/run-std-strview-zc4-gate.sh	manifest

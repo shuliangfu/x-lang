@@ -1,0 +1,11 @@
+# COMP-008 link symbol conflict patterns
+# 列：pattern_id	regex	kind	hint_attrib	repro	priority	notes
+# priority 越小越优先
+link_typeck_glue	dup.*typeck.*glue|ast_pool.*duplicate|typeck∩glue	duplicate	typeck_glue_dup	bstrict_build	5	strict 链已知
+link_parser_double	parser_su.*multiple definition|duplicate symbol.*parse_into	duplicate	parser_double_link	parser_second_pass	6	parser 双链
+link_wpo_missing	wpo strict link.*undefined|pipeline WPO symbol missing	undefined	wpo_orchestration	wpo_strict_link	8	WPO strict
+link_dup_macho	duplicate symbol ['']?_?([A-Za-z0-9_]+)	duplicate	double_object	bstrict_build	10	Mach-O
+link_dup_gnu	multiple definition of [`']?_?([A-Za-z0-9_]+)	duplicate	double_object	bstrict_build	10	GNU ld
+link_undef_macho	undefined symbol: _?([A-Za-z0-9_]+)	undefined	missing_export	bstrict_build	12	Mach-O
+link_undef_elf	undefined reference to [`']?_?([A-Za-z0-9_]+)	undefined	missing_export	bstrict_build	12	ELF
+link_failed	linker command failed|ld:.*error	link_failed	generic_ld	bstrict_build	20	兜底

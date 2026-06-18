@@ -1,0 +1,13 @@
+# COMP-013 regalloc 质量波次 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_metrics	9
+read_path	section	## 1. 目标	analysis/comp-regalloc-quality-v1.md
+wave2	section	## 2. Wave2 扩展指标	analysis/comp-regalloc-quality-v1.md
+gate_section	section	## 3. Gate	analysis/comp-regalloc-quality-v1.md
+quality_tsv	file	tests/baseline/comp-regalloc-quality.tsv	指标表
+parent_doc	cross_ref	analysis/comp-regalloc-v1.md	COMP-005
+parent_gate	cross_ref	tests/run-comp-regalloc-gate.sh	manifest
+hook_quality	hook_gate	run-comp-regalloc-quality-gate.sh	波次 runnable
+hook_73	cross_ref	tests/run-asm-73-gate.sh	全矩阵
+lib	script	lib/comp-regalloc-quality.sh	tests/lib/comp-regalloc-quality.sh
+gate	script	run-comp-regalloc-quality-gate.sh	tests/run-comp-regalloc-quality-gate.sh

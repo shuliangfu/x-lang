@@ -99,7 +99,7 @@ SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh
 |------|------|
 | `tests/run-f32-xmm-gates.sh` | abi 烟测 + dod-s2 vec3f push（**默认 xmm**）+ **CLI legacy** |
 | `tests/run-abi-f32-xmm-gate.sh` | 纯 f32 / mixed / 字段回读；disasm **movd**、**禁 cvtsd2ss**；**`-legacy-f32-abi`** |
-| `tests/run-dod-s2-gate.sh` | `import std.vec` **`vec3f_soa_push`**；xmm 时 push disasm 同上 |
+| `tests/run-dod-s2-gate.sh` | `import("std.vec")` **`vec3f_soa_push`**；xmm 时 push disasm 同上 |
 
 烟测源码：`tests/abi/f32_*.su`。
 

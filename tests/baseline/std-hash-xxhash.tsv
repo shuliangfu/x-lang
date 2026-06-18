@@ -1,0 +1,15 @@
+# STD-105 std.hash xxHash64 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	2
+read_path	section	## 1. 阅读路径	15min
+xx_api	section	## 2. xxHash64 语义	hash_xxhash64
+verify	section	## 4. 验证与门禁	gate
+api_xxhash64	api	hash_xxhash64	std/hash/mod.su	一次性
+api_xxhash64_seed	api	hash_xxhash64_seed	std/hash/mod.su	带 seed
+const_xxhash	const	HASHER_XXHASH	std/hash/mod.su	2
+symbol_bytes_c	symbol	hash_xxhash64_bytes_c	std/hash/hash.c	C 一次性
+symbol_smoke_c	symbol	hash_xxhash_smoke_c	std/hash/hash.c	C 烟测
+smoke_c	file	tests/std-hash/xxhash64_smoke_ok.c	C 入口
+smoke_su	smoke	tests/std-hash/xxhash64.su	.su 烟测
+lib	script	lib/std-hash-xxhash.sh	tests/lib/std-hash-xxhash.sh
+gate	script	run-std-hash-xxhash-gate.sh	tests/run-std-hash-xxhash-gate.sh

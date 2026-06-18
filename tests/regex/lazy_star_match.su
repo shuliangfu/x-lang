@@ -1,0 +1,14 @@
+// STD-065：`<.*?>` 非贪婪；`<a><b>` 应匹配最短 `<a>`
+const regex = import("std.regex");
+
+function main(): i32 {
+  let pat: [5]u8 = [60, 46, 42, 63, 62];
+  let re: *u8 = regex.compile(&pat[0], 5);
+  if (re == 0) { return 1; }
+  let hay: [6]u8 = [60, 97, 62, 60, 98, 62];
+  if (regex.regex_match(re, &hay[0], 6) != 0) { regex.free(re); return 2; }
+  if (group_offset(re, 0) != 0) { regex.free(re); return 3; }
+  if (group_length(re, 0) != 3) { regex.free(re); return 4; }
+  regex.free(re);
+  return 0;
+}

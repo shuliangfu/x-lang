@@ -1,0 +1,22 @@
+# PLAN-006 Phase 3 第六批路线图 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_tasks	4
+# min_sections	5
+# min_done	4
+read_path	section	## 1. 阅读路径	analysis/phase3-roadmap-wave6-v1.md
+north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave6-v1.md
+success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave6-v1.md
+task_index	section	## 4. 第六批待办索引	analysis/phase3-roadmap-wave6-v1.md
+gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave6-v1.md
+task_boot025	task	BOOT-025	NEXT.md	gen12
+task_comp019	task	COMP-019	NEXT.md	wpo global
+task_std067	task	STD-067	NEXT.md	next_row
+task_plan006	task	PLAN-006	NEXT.md	wave6 定版
+gate_boot025	gate_ref	run-boot-025-parser-gen12-consistency-gate.sh	tests/run-boot-025-parser-gen12-consistency-gate.sh	BOOT-025
+gate_comp019	gate_ref	run-comp-wpo-global-gate.sh	tests/run-comp-wpo-global-gate.sh	COMP-019
+gate_std067	gate_ref	run-std-sqlite-next-row-gate.sh	tests/run-std-sqlite-next-row-gate.sh	STD-067
+cross_plan005	cross_ref	PLAN-005	analysis/phase3-roadmap-wave5-v1.md	第五批
+cross_2028q1	cross_ref	2028-Q1	NEXT.md	§2.17 预览
+cross_next	file	NEXT.md	NEXT.md	§2.17
+lib	script	lib/phase3-roadmap-wave6.sh	tests/lib/phase3-roadmap-wave6.sh
+gate	script	run-phase3-roadmap-wave6-gate.sh	tests/run-phase3-roadmap-wave6-gate.sh

@@ -1,0 +1,11 @@
+# ZC-008 零拷贝指标定义
+# 列：metric_id	layer	source_tsv	case_id	field	cap	status_rule	notes
+metric_zc5_splice	D2-syscall	syscall-batch-perf.tsv	zero_copy_splice	max_splice	20	le_cap	ZC-5 splice 上限
+metric_zc5_read	D2-syscall	syscall-batch-perf.tsv	zero_copy_splice	max_read	30	le_cap	splice 路径 read
+metric_zc_rw_read	D2-syscall	syscall-batch-perf.tsv	zero_copy_readwrite	max_read	300	le_cap	对照 read+write
+metric_batch_readv	D2-syscall	syscall-batch-perf.tsv	io_batch_readv	max_readv	1100	le_cap	批 readv
+metric_net_provided	D3-net	net-zc-perf.tsv	net_echo_throughput_provided	max_cycles_per_mib	1500000000	le_cap	ZC-1 provided
+metric_net_batch	D3-net	net-zc-perf.tsv	net_echo_throughput	max_cycles_per_mib	1800000000	le_cap	batch 对照
+metric_io_sendfile	D4-io	io-perf.tsv	zero_copy_sendfile	time_sec_cap	0.20	le_cap	sendfile 耗时
+metric_gate_zc1	D1-gate	run-zc1-gate.sh	-	gate_ok	-	pass	gate manifest
+metric_gate_zc5	D1-gate	run-zc5-gate.sh	-	gate_ok	-	pass	ZC-5 gate

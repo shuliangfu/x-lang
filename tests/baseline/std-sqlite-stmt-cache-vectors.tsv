@@ -1,0 +1,5 @@
+# STD-070 stmt bind 金样向量
+# 列：step_id	op	expect	notes
+bind_insert	INSERT(?,?)x2	rows=2	alice+bob
+cache_hit	prepare_cachedx2	same_handle	缓存命中
+bind_select	SELECT WHERE k=?	alice,bob	文本列

@@ -1,4 +1,4 @@
-import ast;
+const ast = import("ast");
 function foo(): i32 {
   let e: Expr = 0;
   return 0;

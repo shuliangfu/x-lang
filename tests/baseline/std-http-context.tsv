@@ -1,0 +1,15 @@
+# STD-094 std.http Context 层封装 manifest
+min_apis	5
+api_timeout	api	timeout_ms_for_http	std/http/mod.su	Context→毫秒
+api_check	api	ctx_check_for_http	std/http/mod.su	前置检查
+api_get_ctx	api	get_ctx	std/http/mod.su	GET+Context
+api_post_ctx	api	post_ctx	std/http/mod.su	POST+Context
+api_head_ctx	api	head_ctx	std/http/mod.su	HEAD+Context
+err_timeout	api	http_err_timeout	std/error/mod.su	-1220
+err_cancelled	api	http_err_cancelled	std/error/mod.su	-1221
+api_timeout_c	symbol	http_get_timeout_c	std/http/http.c	STD-095
+api_map	api	map_http_c_result	std/http/mod.su	C→su 错误码
+smoke_timeout_c	smoke	tests/http/http_timeout_smoke.c	C 超时烟测
+smoke_connect_to	smoke	tests/http/context_connect_timeout.su	map_http_c_result 离线
+gate	script	run-std-http-context-gate.sh	tests/run-std-http-context-gate.sh
+cross_std092	cross_ref	STD-092	tests/baseline/std-net-context.tsv	net ctx 对齐
