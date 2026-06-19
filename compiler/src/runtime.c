@@ -4469,6 +4469,13 @@ static int driver_peek_source_file(const char *path, char *content, size_t cap) 
  * include_root：可选，仓库根目录，用于 -I 以便生成 .c 能 #include std/fs、path、map、error 等 ABI 头；NULL 或空则不传 -I。
  * 返回值：0 表示 cc 执行成功且退出码为 0；-1 表示参数非法、fork/exec 失败或 cc 非零退出。
  */
+static int invoke_cc_skip_native_tuning(void) {
+    /* CI/Docker/musl 上 -march=native/-flto 可能导致 cc 异常退出（exit -1）。 */
+    if (getenv("CI") || getenv("SHUX_CI_DOCKER") || getenv("SHUX_NO_MARCH_NATIVE"))
+        return 1;
+    return 0;
+}
+
 static int invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
     if (!c_paths || n < 1) return -1;
@@ -4492,8 +4499,8 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             static char oopt_buf[8];
             (void)snprintf(oopt_buf, sizeof(oopt_buf), "-O%s", opt_level);
             argv[i++] = oopt_buf;
-            /* 极致性能：-O3 时加 march=native mtune=native；-O2 时加 march=native */
-            if (strcmp(opt_level, "3") == 0 || strcmp(opt_level, "2") == 0) {
+            /* 极致性能：-O3 时加 march=native mtune=native；-O2 时加 march=native；CI/Docker 跳过。 */
+            if (!invoke_cc_skip_native_tuning() && (strcmp(opt_level, "3") == 0 || strcmp(opt_level, "2") == 0)) {
                 argv[i++] = (char *)"-march=native";
                 if (strcmp(opt_level, "3") == 0)
                     argv[i++] = (char *)"-mtune=native";
@@ -4502,7 +4509,7 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         /* 阶段 8：非调试时传 -DNDEBUG；-flto 便于跨模块内联（2.3 构建与链接） */
         if (strcmp(opt_level, "0") != 0)
             argv[i++] = (char *)"-DNDEBUG";
-        if (use_lto && strcmp(opt_level, "0") != 0)
+        if (use_lto && strcmp(opt_level, "0") != 0 && !invoke_cc_skip_native_tuning())
             argv[i++] = (char *)"-flto";
         argv[i++] = (char *)"-o";
         argv[i++] = (char *)out_path;

@@ -2520,11 +2520,12 @@ ensure_asm_bootstrap_su_companion_objs() {
     echo "  cc -c src/sx_seed_bridge.c -> $BUILD_DIR/sx_seed_bridge.o"
     "$CC" $CFLAGS -c -o "$BUILD_DIR/sx_seed_bridge.o" src/sx_seed_bridge.c
   fi
+  # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
+  ensure_bstrict_seed_support_objs
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.sx" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
     echo "build_shux_asm: build_seed_asm_host (backend_enc_* for pipeline_sx.o) ..."
     ./scripts/build_seed_asm_host.sh
   fi
-  ensure_bstrict_seed_support_objs
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
     make pipeline_bootstrap_orchestration.o
