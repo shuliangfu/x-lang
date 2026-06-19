@@ -83,9 +83,15 @@ extern function random_rng_smoke_c(): i32;
 function rng_next_u64(r: *Rng): u64 {
   let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
   r.state = z;
-  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9 as u64;
-  z = (z ^ (z >> 27)) * 0x94d049bb133111eb as u64;
-  return z ^ (z >> 31);
+  /* xor 与 mul 分步赋值，避免 C codegen 将 (z ^ t) * K 误解析为 z ^ (t * K)。 */
+  let t: u64 = z >> 30;
+  let x: u64 = z ^ t;
+  z = x * 0xbf58476d1ce4e5b9 as u64;
+  t = z >> 27;
+  x = z ^ t;
+  z = x * 0x94d049bb133111eb as u64;
+  t = z >> 31;
+  return z ^ t;
 }
 
 /** 用 seed 初始化 PRNG；同 seed 产生同序列。 */
