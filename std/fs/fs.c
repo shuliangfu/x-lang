@@ -22,6 +22,16 @@
 #pragma comment(lib, "mswsock.lib")
 #endif
 
+/** EXC-002：fs_open_read 等失败时立即保存，供 fs_last_error_c 读取（避免 glue 覆盖 GetLastError）。 */
+static int32_t fs_saved_last_error;
+static int fs_saved_last_error_set;
+
+/** 记录 Windows GetLastError 到 fs_saved_last_error。 */
+static void fs_note_last_error_win(void) {
+    fs_saved_last_error = (int32_t)(uint32_t)GetLastError();
+    fs_saved_last_error_set = 1;
+}
+
 /* Windows 补全：CreateFileMapping + MapViewOfFile、无缓冲打开、copy/readv/writev/TransmitFile/fallocate。符号与 std.fs extern 一致。MinGW 链接 TransmitFile 时需 -lws2_32 -lmswsock。 */
 
 /** 只读内存映射：CreateFile -> CreateFileMapping(PAGE_READONLY) -> MapViewOfFile(FILE_MAP_READ)。*out_size 为文件字节数；失败返回 NULL。 */
@@ -74,11 +84,19 @@ int32_t fs_munmap_c(void *ptr, size_t size) {
 int32_t fs_open_read_c(uint8_t *path) {
     HANDLE h;
     int fd;
-    if (!path) return -1;
+    if (!path) {
+        fs_saved_last_error = (int32_t)ERROR_INVALID_PARAMETER;
+        fs_saved_last_error_set = 1;
+        return -1;
+    }
     h = CreateFileA((const char *)path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (h == INVALID_HANDLE_VALUE) return -1;
+    if (h == INVALID_HANDLE_VALUE) {
+        fs_note_last_error_win();
+        return -1;
+    }
     fd = (int)_open_osfhandle((intptr_t)h, _O_RDONLY);
     if (fd < 0) {
+        fs_note_last_error_win();
         CloseHandle(h);
         return -1;
     }
@@ -242,6 +260,9 @@ int32_t fs_open_create_c(uint8_t *path) {
 
 /** 返回上次 fs_* 失败时的平台错误码（Windows GetLastError；POSIX errno）。 */
 int32_t fs_last_error_c(void) {
+    if (fs_saved_last_error_set) {
+        return fs_saved_last_error;
+    }
     return (int32_t)(uint32_t)GetLastError();
 }
 
@@ -336,6 +357,17 @@ int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n) {
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+
+/** EXC-002：fs_open_read 等失败时立即保存，供 fs_last_error_c 读取（避免 glue 覆盖 errno）。 */
+static int32_t fs_saved_last_error;
+static int fs_saved_last_error_set;
+
+/** 记录 POSIX errno 到 fs_saved_last_error。 */
+static void fs_note_last_error_posix(void) {
+    fs_saved_last_error = (int32_t)errno;
+    fs_saved_last_error_set = 1;
+}
+
 #if defined(__linux__)
 #include <sys/sendfile.h>
 /* O_DIRECT：绕过页缓存，顺序大文件读极致吞吐；buf 与 offset 须对齐（通常 4096）。 */
@@ -688,8 +720,18 @@ int32_t fs_fallocate_c(int32_t fd, int64_t offset, int64_t len) {
 
 /** 只读打开 path（NUL 结尾）；失败 -1。与 mod.sx fs_open_read 语义一致。 */
 int32_t fs_open_read_c(uint8_t *path) {
-    if (!path) return -1;
-    return open((const char *)path, O_RDONLY, 0);
+    int fd;
+    if (!path) {
+        fs_saved_last_error = EINVAL;
+        fs_saved_last_error_set = 1;
+        return -1;
+    }
+    fd = open((const char *)path, O_RDONLY, 0);
+    if (fd < 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    return (int32_t)fd;
 }
 
 /** 写打开 path（不存在则创建、存在则截断）；临时 umask(0) 并 fchmod 0644，确保后续 mmap_ro 等读打开不遇 EACCES。 */
@@ -716,6 +758,9 @@ int32_t fs_open_create_c(uint8_t *path) {
 
 /** 返回上次 fs_* 失败时的平台错误码（POSIX errno）。 */
 int32_t fs_last_error_c(void) {
+    if (fs_saved_last_error_set) {
+        return fs_saved_last_error;
+    }
     return (int32_t)errno;
 }
 
