@@ -13,6 +13,39 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 typedef HMODULE dynlib_handle_t;
+
+/**
+ * 将 UTF-8 路径中的 '/' 规范为 '\\' 写入 out；返回写入长度（不含 NUL）。
+ * out_cap 须 >= 1；失败返回 0。
+ */
+static size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
+  size_t i = 0;
+  if (!out || out_cap < 2 || !path)
+    return 0;
+  for (; path[i] != '\0' && i + 1 < out_cap; i++) {
+    char c = path[i];
+    if (c == '/')
+      c = '\\';
+    out[i] = c;
+  }
+  out[i] = '\0';
+  return i;
+}
+
+/** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）；烟测与正斜杠路径回退。 */
+static HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+  wchar_t wpath[512];
+  char norm[512];
+  int n;
+  if (!path_utf8 || !path_utf8[0])
+    return NULL;
+  if (dynlib_win_normalize_path(norm, sizeof norm, path_utf8) == 0)
+    return NULL;
+  n = MultiByteToWideChar(CP_UTF8, 0, norm, -1, wpath, (int)(sizeof(wpath) / sizeof(wpath[0])));
+  if (n <= 0)
+    return NULL;
+  return LoadLibraryW(wpath);
+}
 #else
 #include <dlfcn.h>
 typedef void *dynlib_handle_t;
@@ -43,6 +76,8 @@ void *dynlib_open_c(const uint8_t *path) {
 #if defined(_WIN32) || defined(_WIN64)
   {
     HMODULE h = LoadLibraryA((const char *)path);
+    if (!h)
+      h = dynlib_win_load_library_w_utf8((const char *)path);
     if (!h) dynlib_capture_last_error();
     return (void *)h;
   }
@@ -107,4 +142,31 @@ int32_t dynlib_last_error_smoke_c(void) {
   }
   n = dynlib_last_error_copy_c(msg, (int32_t)sizeof msg);
   return (n > 0) ? 0 : -2;
+}
+
+/**
+ * STD-097：Windows 正斜杠路径烟测；POSIX 直接返回 0。
+ * 校验 dynlib_win_normalize_path 并将 C:/Windows/System32/kernel32.dll 经 LoadLibraryW 打开。
+ */
+int32_t dynlib_win_path_smoke_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+  char norm[128];
+  HMODULE h;
+  if (dynlib_win_normalize_path(norm, sizeof norm, "C:/Windows/System32/kernel32.dll") == 0)
+    return -1;
+  {
+    size_t k = 0;
+    while (norm[k] != '\0') {
+      if (norm[k] == '/')
+        return -2;
+      k++;
+    }
+  }
+  h = LoadLibraryW(L"C:\\Windows\\System32\\kernel32.dll");
+  if (!h)
+    h = dynlib_win_load_library_w_utf8("C:/Windows/System32/kernel32.dll");
+  return h ? 0 : -3;
+#else
+  return 0;
+#endif
 }
