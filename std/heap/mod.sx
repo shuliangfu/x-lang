@@ -121,6 +121,54 @@ function copy_f64_at(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
   heap_copy_f64_at_c(dst, dst_offset, src, count);
 }
 
+// ——— STD-112：Allocator trait（堆 / Arena bump） ———
+
+/** 堆分配器 kind 常量（0）。 */
+function allocator_kind_heap(): i32 { return 0; }
+
+/** Arena bump 分配器 kind 常量（1）。 */
+function allocator_kind_arena(): i32 { return 1; }
+
+/** 统一分配器：kind 区分堆或 arena；arena 字段仅 kind=arena 时有效。 */
+allow(padding) struct Allocator {
+  kind: i32;
+  arena: *Arena64;
+}
+
+/** 默认 libc 堆分配器。 */
+function allocator_heap(): Allocator {
+  return Allocator { kind: allocator_kind_heap(), arena: 0 as *Arena64 };
+}
+
+/** 将 Arena64 包装为 bump 分配器（单独 free 为 no-op）。 */
+function allocator_from_arena(a: *Arena64): Allocator {
+  return Allocator { kind: allocator_kind_arena(), arena: a };
+}
+
+/** 按 Allocator 分配 size 字节；失败 null。 */
+function allocator_alloc(al: Allocator, size: usize): *u8 {
+  if (al.kind == allocator_kind_heap()) {
+    return alloc(size);
+  }
+  if (al.arena == 0) { return 0 as *u8; }
+  return arena64_alloc(al.arena, size, 8 as usize);
+}
+
+/** 释放 ptr；arena 分配器为 no-op。 */
+function allocator_free(al: Allocator, ptr: *u8): void {
+  if (al.kind == allocator_kind_heap()) {
+    free(ptr);
+  }
+}
+
+/** 调整块大小；仅堆分配器支持，arena 返回 null。 */
+function allocator_realloc(al: Allocator, ptr: *u8, new_size: usize): *u8 {
+  if (al.kind == allocator_kind_heap()) {
+    return realloc(ptr, new_size);
+  }
+  return 0 as *u8;
+}
+
 // ─── DOD-CL-S2：64B 对齐 chunk bump Arena API ───
 
 /** 未初始化 Arena64 占位；调用方须随后 arena64_init。 */

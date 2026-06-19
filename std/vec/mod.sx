@@ -283,6 +283,69 @@ function vec_u8_deinit(v: *Vec_u8): void {
   v.len = 0;
   v.cap = 0;
 }
+
+/** STD-112：按 Allocator 预分配 capacity；失败 -1。 */
+function vec_u8_with_allocator(v: *Vec_u8, al: heap.Allocator, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let p: *u8 = heap.allocator_alloc(al, capacity as usize);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+
+/** STD-112：按 Allocator 扩容预留 1 个元素；arena 满时 -1。 */
+function vec_u8_reserve_one_with_allocator(v: *Vec_u8, al: heap.Allocator): i32 {
+  if (v.len < v.cap) { return 0; }
+  if (al.kind == heap.allocator_kind_arena()) { return -1; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let p: *u8 = if (v.ptr == 0) {
+    heap.allocator_alloc(al, want as usize)
+  } else {
+    heap.allocator_realloc(al, v.ptr, want as usize)
+  };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+
+/** STD-112：按 Allocator 追加元素；失败 -1。 */
+function vec_u8_push_with_allocator(v: *Vec_u8, al: heap.Allocator, x: u8): i32 {
+  if (vec_u8_reserve_one_with_allocator(v, al) != 0) {
+    return -1;
+  } else {
+    v.ptr[v.len] = x;
+    v.len = v.len + 1;
+    return 0;
+  }
+}
+
+/** STD-112：按 Allocator 释放；arena 路径为 no-op。 */
+function vec_u8_deinit_with_allocator(v: *Vec_u8, al: heap.Allocator): void {
+  if (v.ptr != 0) {
+    heap.allocator_free(al, v.ptr);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+
 // ——— Vec_u16（STD-161） ———
 /** u16 动态数组。 */
 allow(padding) struct Vec_u16 {

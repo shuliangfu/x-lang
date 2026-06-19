@@ -4556,6 +4556,28 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             if (needs_db_arrow)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
         }
+        /* CORE-009 / Docker musl：仅链 process.o + core 依赖，避免全量 std/*.o 导致 ld 挂起。 */
+        if (getenv("SHUX_MINIMAL_CC_LINK")) {
+            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o);
+#if defined(__linux__) || defined(__APPLE__)
+            if (i < argv_cap - 1)
+                argv[i++] = (char *)"-lc";
+#endif
+            argv[i++] = NULL;
+#if defined(__linux__)
+            argv[0] = (char *)"gcc";
+            execvp("gcc", argv);
+            argv[0] = (char *)"cc";
+            execvp("cc", argv);
+#else
+            argv[0] = (char *)"cc";
+            execvp("cc", argv);
+            argv[0] = (char *)"gcc";
+            execvp("gcc", argv);
+#endif
+            perror("shux: cc/gcc");
+            _exit(127);
+        }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, io_o)) {
 #if defined(__linux__)
             if (i < argv_cap - 1)

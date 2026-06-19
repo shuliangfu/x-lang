@@ -7203,6 +7203,12 @@ static void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_l
   *out = lex;
 }
 
+/** 前向声明：cfg 跳过路径在定义之前调用。 */
+void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source);
+void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source);
+
 /**
  * B-02/B-19：import/collect 区段 `#[cfg]` 不匹配时跳过紧随其后的顶层 const/struct/function。
  * lex 位于待跳过项之前；*pending 置 0 后 *lex 写出跳过后的位置。
