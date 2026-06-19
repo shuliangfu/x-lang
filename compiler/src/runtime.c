@@ -1488,6 +1488,14 @@ static int generated_c_needs_core_slice(const char *c_path) {
     return found;
 }
 
+/** 扫描生成 C 是否引用 std.process 全局（main 入口写 shux_process_argc/argv）。 */
+static int generated_c_needs_process(const char *c_path) {
+    static const char *needles[] = {
+        "shux_process_argc", "shux_process_argv",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
 /** 根据仓库根或 cwd 得到 core/builtin/builtin.o 路径。 */
 static const char *get_core_builtin_o_path(const char *repo_root) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
@@ -4556,8 +4564,17 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             if (needs_db_arrow)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
         }
-        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc，勿再链 std/process 等（易 ld 挂起）。 */
+        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + 必要 std/process + -lc，勿全量 std/*.o。 */
         if (getenv("SHUX_MINIMAL_CC_LINK")) {
+            {
+                int needs_process = 0;
+                for (int j = 0; j < n; j++) {
+                    if (generated_c_needs_process(c_paths[j]))
+                        needs_process = 1;
+                }
+                if (needs_process)
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o);
+            }
 #if defined(__linux__) || defined(__APPLE__)
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-lc";
@@ -5712,10 +5729,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(cf, "  abort();\n");
             fprintf(cf, "}\n");
-            /* std.io.driver：前向声明 + 与 io.o 一致的 extern，再提供两桩实现；完整 struct 由 codegen 在后文给出 */
+            /* std.io.driver：weak batch 桩；链 io.o 时强符号覆盖。无 io.o 时 minimal 链仍可解析。 */
             fprintf(cf, "struct std_io_driver_Buffer;\n");
-            fprintf(cf, "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
-            fprintf(cf, "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
+            fprintf(cf, "__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n");
+            fprintf(cf, "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n");
+            fprintf(cf, "}\n");
+            fprintf(cf, "__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n");
+            fprintf(cf, "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n");
+            fprintf(cf, "}\n");
             /* parser.sx 路径将 #include pipeline_glue.c，其中已有 std_io_driver_submit_*_batch_buf；再输出 static 版会重复定义。 */
             if (!input_path || strstr(input_path, "parser.sx") == NULL) {
                 fprintf(cf, "static int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
