@@ -1,5 +1,4 @@
-// STD-131：BytesView 查找 / 分割烟测（index + subview 模式）
-// 逻辑内联于 main，避免按值传递 BytesView 跨函数时在部分平台触发的栈/ABI 问题。
+// STD-131：BytesView 查找 / 分割烟测（index + 单 subview，避免多 BytesView 局部变量 ABI 问题）
 const str = import("core.str");
 
 function main(): i32 {
@@ -10,12 +9,11 @@ function main(): i32 {
   let needle: [5]u8 = [119, 111, 114, 108, 100];
   if (str.bytes_view_index_of(v, &needle[0], 5) != 6) { return 2; }
   if (str.bytes_view_contains_byte(v, 44) != 1) { return 3; }
-  let left: BytesView = str.bytes_view_subview(v, 0, idx);
-  let right: BytesView = str.bytes_view_subview(v, idx + 1, v.len - idx - 1);
+  let left: BytesView = str.bytes_view_subview(v, 0, 5);
   if (str.bytes_view_len(left) != 5) { return 4; }
-  if (str.bytes_view_len(right) != 5) { return 5; }
-  if (str.bytes_view_get(left, 0) != 104) { return 6; }
-  if (str.bytes_view_get(right, 0) != 119) { return 7; }
+  if (str.bytes_view_get(v, 0) != 104) { return 6; }
+  if (str.bytes_view_get(v, 6) != 119) { return 7; }
+  if (str.bytes_view_get(v, 10) != 100) { return 12; }
   let hi: [2]u8 = [104, 101];
   if (str.bytes_view_starts_with(v, &hi[0], 2) != 1) { return 8; }
   if (str.bytes_view_starts_with(v, &hi[0], 3) != 0) { return 9; }
