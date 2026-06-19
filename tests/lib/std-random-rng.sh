@@ -42,22 +42,28 @@ std_random_rng_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .sx 烟测；失败时打印 build.log 尾部。
 std_random_rng_run_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_random_rng_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local log="/tmp/shux_std_random_rng_build_$$.log"
+  if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
     echo "std-random-rng FAIL: compile $src" >&2
-    rm -f "$exe"
+    tail -12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  rm -f "$exe" "$log"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-random-rng FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
 # 链接 random.o 运行 C smoke。
