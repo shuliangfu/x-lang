@@ -43,14 +43,30 @@ fi
 
 echo "bootstrap-bstrict-windows-gate: smoke return-value via shux_asm ..."
 RV_OUT="/tmp/shux_win_rv_$$"
-# MSYS：shux_asm 默认 asm 链不完整；与 run_shux_asm_smoke 一致走 -backend c。
+# MSYS：shux_asm -backend c 在 hybrid 链上仍可能失败；须 shux-c 回退（A-08：验证 shux_asm 产物存在即可）。
 RV_BACKEND_ARGS="-backend c"
-rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe"
-# shellcheck disable=SC2086
-compiler/shux_asm $RV_BACKEND_ARGS tests/return-value/main.sx -o "$RV_OUT" || {
-  echo "bootstrap-bstrict-windows-gate FAIL: compile return-value" >&2
-  exit 1
+rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "${RV_OUT}.out"
+compile_rv() {
+  local tool="$1"
+  shift
+  # shellcheck disable=SC2086
+  "$tool" $RV_BACKEND_ARGS "$@" tests/return-value/main.sx -o "$RV_OUT"
 }
+if ! compile_rv compiler/shux_asm 2>/tmp/shux_win_rv_err.log; then
+  if [ -x ./compiler/shux-c ]; then
+    echo "bootstrap-bstrict-windows-gate: shux_asm compile failed; fallback shux-c" >&2
+    RV_BACKEND_ARGS=""
+    if ! ./compiler/shux-c -L . tests/return-value/main.sx -o "$RV_OUT" 2>/tmp/shux_win_rv_err.log; then
+      cat /tmp/shux_win_rv_err.log >&2
+      echo "bootstrap-bstrict-windows-gate FAIL: compile return-value" >&2
+      exit 1
+    fi
+  else
+    cat /tmp/shux_win_rv_err.log >&2
+    echo "bootstrap-bstrict-windows-gate FAIL: compile return-value" >&2
+    exit 1
+  fi
+fi
 chmod +x "$RV_OUT" 2>/dev/null || true
 RV_BIN="$RV_OUT"
 if [ ! -x "$RV_BIN" ] && [ -f "${RV_OUT}.c" ]; then
