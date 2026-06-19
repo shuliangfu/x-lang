@@ -1258,6 +1258,19 @@ static const char *get_std_schema_o_path(const char *argv0) {
     return buf;
 }
 
+/** std.sys.win32 kernel32 桥（std/sys/win32.o）；B-17 WriteFile/ReadFile 按需链入。 */
+static const char *get_std_win32_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/sys/win32.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 18) != NULL) { size_t L = strlen(cwd); if (L + 18 <= sizeof(cwd)) { memcpy(cwd + L, "/std/sys/win32.o", 16); cwd[L+16] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 20 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/sys/win32.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
 /** std.async 协作调度内核（std/async/scheduler.o）；调用 coop_pingpong* 时按需链入。 */
 static const char *get_std_async_scheduler_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
@@ -1430,6 +1443,20 @@ static int generated_c_needs_async_scheduler(const char *c_path) {
     static const char *needles[] = {
         "shux_async_run_i32", "shux_async_cps_suspend",
         "shux_async_task_submit", "shux_async_run_seed_",
+        /* STD-118 hooks_smoke：runtime_drain/reset 走 scheduler 队列与 context 绑定 */
+        "shux_async_run_drain_until_idle", "shux_async_queue_reset",
+        "shux_async_bind_context_c",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
+/**
+ * 生成的 .c 是否引用 std.sys.win32 FFI（Windows WriteFile/ReadFile 等；按需链 std/sys/win32.o）。
+ */
+static int generated_c_needs_win32(const char *c_path) {
+    static const char *needles[] = {
+        "shux_win32_write_file", "shux_win32_get_std_handle",
+        "shux_win32_read_file_into_path", "shux_win32_write_available_c",
     };
     return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
@@ -4568,6 +4595,7 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             int needs_fs = 0;
             int needs_random = 0;
             int needs_runtime = 0;
+            int needs_win32 = 0;
             for (int j = 0; j < n; j++) {
                 if (generated_c_needs_core_builtin(c_paths[j]))
                     needs_core_builtin = 1;
@@ -4585,6 +4613,8 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
                     needs_random = 1;
                 if (generated_c_needs_runtime(c_paths[j]))
                     needs_runtime = 1;
+                if (generated_c_needs_win32(c_paths[j]))
+                    needs_win32 = 1;
             }
             if (needs_core_builtin) {
                 const char *abi_h = get_core_builtin_abi_h_path(include_root);
@@ -4611,6 +4641,14 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             if (needs_runtime) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
+            }
+            if (needs_win32) {
+                if (invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_win32_o_path(include_root))) {
+#if defined(_WIN32) || defined(_WIN64)
+                    if (i < argv_cap - 1)
+                        argv[i++] = (char *)"-lkernel32";
+#endif
+                }
             }
         }
         /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。 */
@@ -4706,18 +4744,29 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cache_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, trace_o);
         {
+            const char *sched_link = async_scheduler_o;
+            int j;
             int task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o);
+            /* 调用方未预检时，扫描生成 C 是否引用 runtime_drain 等 scheduler 符号。 */
+            if (!sched_link) {
+                for (j = 0; j < n; j++) {
+                    if (generated_c_needs_async_scheduler(c_paths[j])) {
+                        sched_link = get_std_async_scheduler_o_path(include_root);
+                        break;
+                    }
+                }
+            }
             if (task_linked) {
-                const char *sched = scheduler_o_for_task_link(task_o, async_scheduler_o);
+                const char *sched = scheduler_o_for_task_link(task_o, sched_link);
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched)) {
 #if defined(__linux__)
                     if (i < argv_cap - 1)
                         argv[i++] = (char *)"-pthread";
 #endif
                 }
-            } else if (invoke_cc_argv_push_existing(argv, &i, argv_cap, async_scheduler_o)) {
+            } else if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched_link)) {
 #if defined(__linux__)
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)"-pthread";
