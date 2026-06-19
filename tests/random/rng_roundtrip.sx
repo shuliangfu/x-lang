@@ -24,6 +24,6 @@ function main(): i32 {
     if (buf[i] != buf2[i]) { return 5; }
     i = i + 1;
   }
-  if (rng_smoke() != 0) { return 6; }
+  /* C 层 random_rng_smoke_c 由 gate 的 std_random_rng_run_c_smoke 单独覆盖。 */
   return 0;
 }
