@@ -8,11 +8,21 @@
 __asm__(".section .note.GNU-stack,\"\",%progbits");
 #endif
 
-/** 弱默认：无 backtrace.o 时不收集证据。 */
+/**
+ * 弱默认：无 backtrace.o 时不收集证据。
+ * PE/COFF（Windows/Cygwin）弱符号不可靠，须强符号默认实现以满足 std/runtime/runtime.o 链接。
+ */
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
+  (void)has_msg;
+  (void)msg_val;
+}
+#else
 __attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   (void)has_msg;
   (void)msg_val;
 }
+#endif
 
 void shux_panic_(int has_msg, int msg_val) {
   shux_crash_evidence_collect_c(has_msg, msg_val);
