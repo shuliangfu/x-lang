@@ -105,6 +105,15 @@ function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
   let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
+  /** INT64_MIN 字面量；须先于 `0 - x` 判定，避免一元取负溢出。 */
+  let i64_min: i64 = 0 - 9223372036854775807 - 1;
+  if (x == i64_min) {
+    if (cap < 20) { return -1; }
+    let s: [20]u8 = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];
+    let k: i32 = 0;
+    while (k < 20) { buf[k] = s[k]; k = k + 1; }
+    return 20;
+  }
   let u: i64 = 0 - x;
   if (x < 0 && u < 0) {
     if (cap < 20) { return -1; }
