@@ -43,7 +43,7 @@ sym_miss="$(std_db_compat_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 . tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/sqlite/sqlite.o
+ensure_std_c_o ../std/db/sqlite/sqlite.o
 
 SU_OK=0
 SKIP=0
