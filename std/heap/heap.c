@@ -312,6 +312,53 @@ void heap_free_u64_c(uint64_t *ptr) {
     free(ptr);
 }
 
+/** 将 ptr 调整为 new_count 个 uint64_t；失败 NULL 且原 ptr 未释放（STD-014 Vec_u64）。 */
+uint64_t *heap_realloc_u64_c(uint64_t *ptr, int32_t new_count) {
+  if (new_count <= 0) {
+    if (ptr)
+      free(ptr);
+    return NULL;
+  }
+  return (uint64_t *)realloc(ptr, (size_t)new_count * sizeof(uint64_t));
+}
+
+/** 块拷贝 u64：dst[dst_offset..] = src[0..count-1]；count<=0 不写（STD-014）。 */
+void heap_copy_u64_at_c(uint64_t *dst, int32_t dst_offset, const uint64_t *src, int32_t count) {
+  if (count <= 0)
+    return;
+  memcpy(dst + dst_offset, src, (size_t)count * sizeof(uint64_t));
+}
+
+/** 分配 count 个 double；失败 NULL（STD-014 Vec_f64）。 */
+double *heap_alloc_f64_c(int32_t count) {
+  if (count <= 0)
+    return NULL;
+  return (double *)malloc((size_t)count * sizeof(double));
+}
+
+/** 将 ptr 调整为 new_count 个 double；失败 NULL 且原 ptr 未释放。 */
+double *heap_realloc_f64_c(double *ptr, int32_t new_count) {
+  if (new_count <= 0) {
+    if (ptr)
+      free(ptr);
+    return NULL;
+  }
+  return (double *)realloc(ptr, (size_t)new_count * sizeof(double));
+}
+
+/** 释放 heap_alloc_f64_c / heap_realloc_f64_c 分配的 ptr。 */
+void heap_free_f64_c(double *ptr) {
+  if (ptr)
+    free(ptr);
+}
+
+/** 块拷贝 f64：dst[dst_offset..] = src[0..count-1]；count<=0 不写。 */
+void heap_copy_f64_at_c(double *dst, int32_t dst_offset, const double *src, int32_t count) {
+  if (count <= 0)
+    return;
+  memcpy(dst + dst_offset, src, (size_t)count * sizeof(double));
+}
+
 /** STD-017：trace 是否启用（1/0）。 */
 int32_t heap_trace_enabled_c(void) {
   return heap_trace_is_on();

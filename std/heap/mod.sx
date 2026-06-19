@@ -58,7 +58,13 @@ extern function heap_trace_reset_c(): void;
 extern function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
 bytes_allocated: *u64): void;
 extern function heap_alloc_u64_c(count: i32): *u64;
+extern function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64;
 extern function heap_free_u64_c(ptr: *u64): void;
+extern function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count: i32): void;
+extern function heap_alloc_f64_c(count: i32): *f64;
+extern function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64;
+extern function heap_free_f64_c(ptr: *f64): void;
+extern function heap_copy_f64_at_c(dst: *f64, dst_offset: i32, src: *f64, count: i32): void;
 
 /** trace 是否启用（1/0）。 */
 function heap_trace_enabled(): i32 {
@@ -83,6 +89,36 @@ function alloc_u64(count: i32): *u64 {
 /** 释放 alloc_u64 分配的 ptr。 */
 function free_u64(ptr: *u64): void {
   heap_free_u64_c(ptr);
+}
+
+/** 将 ptr 调整为 new_count 个 u64；失败 null 且原 ptr 未释放。供 Vec_u64 扩容。 */
+function realloc_u64(ptr: *u64, new_count: i32): *u64 {
+  return heap_realloc_u64_c(ptr, new_count);
+}
+
+/** 块拷贝 u64；供 std.vec append_slice/from_slice 快路径。 */
+function copy_u64_at(dst: *u64, dst_offset: i32, src: *u64, count: i32): void {
+  heap_copy_u64_at_c(dst, dst_offset, src, count);
+}
+
+/** 分配 count 个 f64；失败 null。供 Vec_f64 使用（STD-014）。 */
+function alloc_f64(count: i32): *f64 {
+  return heap_alloc_f64_c(count);
+}
+
+/** 将 ptr 调整为 new_count 个 f64；失败 null 且原 ptr 未释放。 */
+function realloc_f64(ptr: *f64, new_count: i32): *f64 {
+  return heap_realloc_f64_c(ptr, new_count);
+}
+
+/** 释放 alloc_f64/realloc_f64 分配的 ptr；ptr 可为 null。 */
+function free_f64(ptr: *f64): void {
+  heap_free_f64_c(ptr);
+}
+
+/** 块拷贝 f64；供 std.vec append_slice/from_slice 快路径。 */
+function copy_f64_at(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
+  heap_copy_f64_at_c(dst, dst_offset, src, count);
 }
 
 // ─── DOD-CL-S2：64B 对齐 chunk bump Arena API ───

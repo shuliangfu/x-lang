@@ -376,3 +376,205 @@ function map_u64_i32_deinit(m: *Map_u64_i32): void {
   m.cap = 0;
   m.len = 0;
 }
+
+// ——— Map_str_i32（STD-013）：字符串键（ptr+len）/ i32 值 ———
+
+/** 每槽键字节上限；超长键 insert 返回 -1。 */
+function map_str_key_cap(): i32 { return 32; }
+
+/** 字符串键哈希表：keys 为 cap×map_str_key_cap() 扁平字节区。 */
+allow(padding) struct Map_str_i32 {
+  keys: *u8;
+  key_lens: *i32;
+  vals: *i32;
+  occupied: *u8;
+  cap: i32;
+  len: i32;
+}
+
+/** djb2 哈希（key 字节序列）。 */
+function map_str_i32_hash(key: *u8, key_len: i32): i32 {
+  let h: i32 = 5381;
+  let i: i32 = 0;
+  while (i < key_len) {
+    h = (h << 5) + h + key[i];
+    i = i + 1;
+  }
+  return h;
+}
+
+/** 槽位下标（开放寻址起点）。 */
+function map_str_i32_slot(m: Map_str_i32, hash: i32): i32 {
+  let h: i32 = hash % m.cap;
+  if (h < 0) { return h + m.cap; }
+  return h;
+}
+
+/** 比较槽 slot 内键与 (key,key_len) 是否相等。 */
+function map_str_i32_key_eq(m: Map_str_i32, slot: i32, key: *u8, key_len: i32): i32 {
+  if (m.key_lens[slot] != key_len) { return 0; }
+  let base: i32 = slot * map_str_key_cap();
+  let i: i32 = 0;
+  while (i < key_len) {
+    if (m.keys[base + i] != key[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 线性探测查找字符串键；存在返回槽位，否则 -1。 */
+function map_str_i32_find(m: Map_str_i32, key: *u8, key_len: i32): i32 {
+  if (m.cap <= 0 || key_len <= 0) { return -1; }
+  let hash: i32 = map_str_i32_hash(key, key_len);
+  let start: i32 = map_str_i32_slot(m, hash);
+  let i: i32 = start;
+  loop {
+    if (m.occupied[i] == 0) { return -1; }
+    if (map_str_i32_key_eq(m, i, key, key_len) != 0) { return i; }
+    i = i + 1;
+    if (i >= m.cap) { i = 0; }
+    if (i == start) { return -1; }
+  }
+  return -1;
+}
+
+/** 新建空 Map_str_i32。 */
+function map_str_i32_new(): Map_str_i32 {
+  return Map_str_i32 { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
+}
+
+/** 预分配 capacity 槽位；失败 -1。 */
+function map_str_i32_with_capacity(m: *Map_str_i32, capacity: i32): i32 {
+  if (capacity <= 0) {
+    m.keys = 0;
+    m.key_lens = 0;
+    m.vals = 0;
+    m.occupied = 0;
+    m.cap = 0;
+    m.len = 0;
+    return 0;
+  }
+  let key_bytes: i32 = capacity * map_str_key_cap();
+  let k: *u8 = heap.alloc_u8(key_bytes);
+  let kl: *i32 = heap.alloc_i32(capacity);
+  let v: *i32 = heap.alloc_i32(capacity);
+  let o: *u8 = heap.alloc_u8(capacity);
+  if (k == 0 || kl == 0 || v == 0 || o == 0) {
+    if (k != 0) { heap.free_u8(k); }
+    if (kl != 0) { heap.free_i32(kl); }
+    if (v != 0) { heap.free_i32(v); }
+    if (o != 0) { heap.free_u8(o); }
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < capacity) {
+    o[i] = 0;
+    kl[i] = 0;
+    i = i + 1;
+  }
+  m.keys = k;
+  m.key_lens = kl;
+  m.vals = v;
+  m.occupied = o;
+  m.cap = capacity;
+  m.len = 0;
+  return 0;
+}
+
+/** 扩容并 rehash 所有字符串键。 */
+function map_str_i32_grow(m: *Map_str_i32, new_cap: i32): i32 {
+  if (new_cap <= m.cap) { return 0; }
+  let old_keys: *u8 = m.keys;
+  let old_key_lens: *i32 = m.key_lens;
+  let old_vals: *i32 = m.vals;
+  let old_occupied: *u8 = m.occupied;
+  let old_cap: i32 = m.cap;
+  if (map_str_i32_with_capacity(m, new_cap) != 0) { return -1; }
+  let i: i32 = 0;
+  while (i < old_cap) {
+    if (old_occupied[i] != 0) {
+      let base: i32 = i * map_str_key_cap();
+      let _: i32 = map_str_i32_insert(m, &old_keys[base], old_key_lens[i], old_vals[i]);
+      i = i + 1;
+    } else {
+      i = i + 1;
+    }
+  }
+  heap.free_u8(old_keys);
+  heap.free_i32(old_key_lens);
+  heap.free_i32(old_vals);
+  heap.free_u8(old_occupied);
+  return 0;
+}
+
+/** 负载因子超 0.75 时扩容。 */
+function map_str_i32_reserve_one(m: *Map_str_i32): i32 {
+  if (m.cap <= 0) {
+    return map_str_i32_with_capacity(m, 8);
+  }
+  if (m.len + 1 <= m.cap * 3 / 4) { return 0; }
+  return map_str_i32_grow(m, m.cap * 2);
+}
+
+/** 插入字符串键→i32；key_len>map_str_key_cap() 或分配失败返回 -1。 */
+function map_str_i32_insert(m: *Map_str_i32, key: *u8, key_len: i32, value: i32): i32 {
+  if (key_len <= 0 || key_len > map_str_key_cap()) { return -1; }
+  if (map_str_i32_reserve_one(m) != 0) { return -1; }
+  let hash: i32 = map_str_i32_hash(key, key_len);
+  let start: i32 = map_str_i32_slot(*m, hash);
+  let i: i32 = start;
+  loop {
+    if (m.occupied[i] == 0) {
+      let base: i32 = i * map_str_key_cap();
+      heap.copy_u8_at(m.keys, base, key, key_len);
+      m.key_lens[i] = key_len;
+      m.vals[i] = value;
+      m.occupied[i] = 1;
+      m.len = m.len + 1;
+      return 0;
+    }
+    if (map_str_i32_key_eq(*m, i, key, key_len) != 0) {
+      m.vals[i] = value;
+      return 0;
+    }
+    i = i + 1;
+    if (i >= m.cap) { i = 0; }
+    if (i == start) {
+      if (map_str_i32_grow(m, m.cap * 2) != 0) { return -1; }
+      return map_str_i32_insert(m, key, key_len, value);
+    }
+  }
+  return -1;
+}
+
+/** 取字符串键对应 value；不存在返回 default_val。 */
+function map_str_i32_get(m: Map_str_i32, key: *u8, key_len: i32, default_val: i32): i32 {
+  let idx: i32 = map_str_i32_find(m, key, key_len);
+  if (idx < 0) { return default_val; }
+  return m.vals[idx];
+}
+
+/** 是否包含字符串键。 */
+function map_str_i32_contains(m: Map_str_i32, key: *u8, key_len: i32): i32 {
+  if (map_str_i32_find(m, key, key_len) >= 0) { return 1; }
+  return 0;
+}
+
+/** 移除字符串键；存在返回 1。 */
+function map_str_i32_remove(m: *Map_str_i32, key: *u8, key_len: i32): i32 {
+  let idx: i32 = map_str_i32_find(*m, key, key_len);
+  if (idx < 0) { return 0; }
+  m.occupied[idx] = 0;
+  m.len = m.len - 1;
+  return 1;
+}
+
+/** 释放 Map_str_i32 堆内存。 */
+function map_str_i32_deinit(m: *Map_str_i32): void {
+  if (m.keys != 0) { heap.free_u8(m.keys); m.keys = 0; }
+  if (m.key_lens != 0) { heap.free_i32(m.key_lens); m.key_lens = 0; }
+  if (m.vals != 0) { heap.free_i32(m.vals); m.vals = 0; }
+  if (m.occupied != 0) { heap.free_u8(m.occupied); m.occupied = 0; }
+  m.cap = 0;
+  m.len = 0;
+}

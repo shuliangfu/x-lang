@@ -11,7 +11,7 @@ if [ -x ./compiler/shux-c ]; then
   RUN_SHUX=./compiler/shux-c
 fi
 
-$RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1
+$RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1 || { echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2; exit 1; }
 exitcode=0; /tmp/shux_builtin >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (core.builtin placeholder), got $exitcode"; exit 1; }
 

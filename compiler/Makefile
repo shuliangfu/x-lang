@@ -679,6 +679,14 @@ typeck_sx.o: typeck_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_sx.o
 	@test $$(stat -f%z typeck_sx.o 2>/dev/null || stat -c%s typeck_sx.o) -gt 10000 || (echo "typeck_sx.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_sx.o)" >&2; exit 1)
 
+# su→sx 迁移：旧脚本仍 make typeck_su.o / codegen_su.o / lexer_su.o
+typeck_su.o: typeck_sx.o
+	cp typeck_sx.o typeck_su.o
+codegen_su.o: codegen_sx.o
+	cp codegen_sx.o codegen_su.o
+lexer_su.o: lexer_sx.o
+	cp lexer_sx.o lexer_su.o
+
 codegen_gen.c: $(SHUX_C) ast_gen2.c src/codegen/codegen.sx
 	./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.sx -E-extern > $@
 	perl scripts/fix_slim_arena_gen_c.pl $@

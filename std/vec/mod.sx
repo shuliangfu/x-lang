@@ -328,6 +328,209 @@ function vec_u16_deinit(v: *Vec_u16): void {
   v.len = 0;
   v.cap = 0;
 }
+
+// ——— Vec_u64（STD-014） ———
+
+/** u64 动态数组；堆经 alloc_u64。 */
+allow(padding) struct Vec_u64 {
+  ptr: *u64;
+  len: i32;
+  cap: i32;
+}
+
+/** 新建空 Vec_u64。 */
+function vec_u64_new(): Vec_u64 {
+  return Vec_u64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** 预分配 capacity；失败 -1。 */
+function vec_u64_with_capacity(v: *Vec_u64, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let p: *u64 = heap.alloc_u64(capacity);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+
+/** 扩容预留 1 个 u64；失败 -1。 */
+function vec_u64_reserve_one(v: *Vec_u64): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let p: *u64 = if (v.ptr == 0) { heap.alloc_u64(want) } else { heap.realloc_u64(v.ptr, want) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+
+/** 确保容量至少 new_cap；失败 -1。 */
+function vec_u64_reserve(v: *Vec_u64, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  let p: *u64 = if (v.ptr == 0) { heap.alloc_u64(new_cap) } else { heap.realloc_u64(v.ptr, new_cap) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+
+/** 追加 u64 切片；失败 -1。 */
+function vec_u64_append_slice(v: *Vec_u64, ptr: *u64, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (vec_u64_reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy_u64_at(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+  return -1;
+}
+
+/** 从 u64 切片构造 Vec_u64；失败 len=-1。 */
+function vec_u64_from_slice(ptr: *u64, n: i32): Vec_u64 {
+  let v: Vec_u64 = vec_u64_new();
+  if (n <= 0) { return v; }
+  if (vec_u64_with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, len: -1, cap: 0 }; }
+  heap.copy_u64_at(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return vec_u64_new();
+}
+
+/** Vec_u64 长度。 */
+function vec_u64_len(v: Vec_u64): i32 { return v.len; }
+
+/** 取第 i 个 u64。 */
+function vec_u64_get(v: Vec_u64, i: i32): u64 { return v.ptr[i]; }
+
+/** 释放 Vec_u64。 */
+function vec_u64_deinit(v: *Vec_u64): void {
+  if (v.ptr != 0) { heap.free_u64(v.ptr); v.ptr = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+
+// ——— Vec_f64（STD-014） ———
+
+/** f64 动态数组；堆经 alloc_f64。 */
+allow(padding) struct Vec_f64 {
+  ptr: *f64;
+  len: i32;
+  cap: i32;
+}
+
+/** 新建空 Vec_f64。 */
+function vec_f64_new(): Vec_f64 {
+  return Vec_f64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** 预分配 capacity；失败 -1。 */
+function vec_f64_with_capacity(v: *Vec_f64, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let p: *f64 = heap.alloc_f64(capacity);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+
+/** 扩容预留 1 个 f64；失败 -1。 */
+function vec_f64_reserve_one(v: *Vec_f64): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let p: *f64 = if (v.ptr == 0) { heap.alloc_f64(want) } else { heap.realloc_f64(v.ptr, want) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+
+/** 确保容量至少 new_cap；失败 -1。 */
+function vec_f64_reserve(v: *Vec_f64, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  let p: *f64 = if (v.ptr == 0) { heap.alloc_f64(new_cap) } else { heap.realloc_f64(v.ptr, new_cap) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+
+/** 追加 f64 切片；失败 -1。 */
+function vec_f64_append_slice(v: *Vec_f64, ptr: *f64, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (vec_f64_reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy_f64_at(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+  return -1;
+}
+
+/** 从 f64 切片构造 Vec_f64；失败 len=-1。 */
+function vec_f64_from_slice(ptr: *f64, n: i32): Vec_f64 {
+  let v: Vec_f64 = vec_f64_new();
+  if (n <= 0) { return v; }
+  if (vec_f64_with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, len: -1, cap: 0 }; }
+  heap.copy_f64_at(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return vec_f64_new();
+}
+
+/** Vec_f64 长度。 */
+function vec_f64_len(v: Vec_f64): i32 { return v.len; }
+
+/** 取第 i 个 f64。 */
+function vec_f64_get(v: Vec_f64, i: i32): f64 { return v.ptr[i]; }
+
+/** 释放 Vec_f64。 */
+function vec_f64_deinit(v: *Vec_f64): void {
+  if (v.ptr != 0) { heap.free_f64(v.ptr); v.ptr = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+
 // ——— DOD-S2：Vec3f SoA 默认 / AoS opt-in ———
 /** SoA 三列 f32 向量（x/y/z 各一列，列主序；DOD-S2 默认布局）。 */
 allow(padding) struct Vec3f_soa {
