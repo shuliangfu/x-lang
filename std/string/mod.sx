@@ -574,6 +574,13 @@ function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
 function string_data_ptr(s: *String): *u8 {
   return &s.data[0];
 }
+/**
+ * 从 String 零拷贝构造 StrView（STD-016 / ZC-4 api_from_string）。
+ * 视图生命周期须不超出 s 所在内存的有效期。
+ */
+function string_view_from_string(s: *String): StrView {
+  return string_view(string_data_ptr(s), s.len);
+}
 /** 将 s 内容拷贝到 out[0..out_max-1]，返回拷贝长度；溢出返回 -1。长块走 C
 * memcpy。 */
 function string_copy_to(s: String, out: *u8, out_max: i32): i32 {

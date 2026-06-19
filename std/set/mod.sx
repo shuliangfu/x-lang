@@ -7,6 +7,7 @@
 // 【依赖】std.heap（alloc_i32/alloc_u8、free_i32/free_u8、map_i32_i32_find_c）。
 
 const heap = import("std.heap");
+const hash_mod = import("std.hash");
 
 /** 集合：keys/occupied 堆分配，cap 槽位，len 已用；调用方须在不用时 set_i32_deinit。 */
 allow(padding) struct Set_i32 {
@@ -299,9 +300,195 @@ function set_u64_remove(s: *Set_u64, key: u64): i32 {
   return 1;
 }
 
+/** u64 集合元素个数。 */
+function set_u64_len(s: Set_u64): i32 { return s.len; }
+
 /** 释放 Set_u64。 */
 function set_u64_deinit(s: *Set_u64): void {
   if (s.keys != 0) { heap.free_u64(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
+  s.cap = 0;
+  s.len = 0;
+}
+
+// ——— Set_str（STD-015）：固定槽内联键 + hash_bytes 探测 ———
+
+/** Set_str 单键最大字节数（含不含 NUL 的原始字节）。 */
+function set_str_key_cap(): i32 { return 32; }
+
+/** 字符串集合键哈希；Tier-S 与 std.hash 联动锚点。 */
+function hash_bytes(ptr: *u8, len: i32): u64 {
+  return hash_mod.hash_bytes(ptr, len);
+}
+
+/** 字符串集合：keys 为 cap×key_cap 字节平面，lens 为每槽有效长度。 */
+allow(padding) struct Set_str {
+  keys: *u8;
+  lens: *i32;
+  occupied: *u8;
+  cap: i32;
+  len: i32;
+}
+
+/** 新建空 Set_str。 */
+function set_str_new(): Set_str {
+  return Set_str { keys: 0, lens: 0, occupied: 0, cap: 0, len: 0 };
+}
+
+/** 预分配 capacity 槽；失败 -1，成功 0。 */
+function set_str_with_capacity(s: *Set_str, capacity: i32): i32 {
+  if (capacity <= 0) {
+    s.keys = 0;
+    s.lens = 0;
+    s.occupied = 0;
+    s.cap = 0;
+    s.len = 0;
+    return 0;
+  }
+  let kcap: i32 = set_str_key_cap();
+  let keys: *u8 = heap.alloc_u8(capacity * kcap);
+  let lens: *i32 = heap.alloc_i32(capacity);
+  let occ: *u8 = heap.alloc_u8(capacity);
+  if (keys == 0 || lens == 0 || occ == 0) {
+    if (keys != 0) { heap.free_u8(keys); }
+    if (lens != 0) { heap.free_i32(lens); }
+    if (occ != 0) { heap.free_u8(occ); }
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < capacity) {
+    occ[i] = 0;
+    lens[i] = 0;
+    i = i + 1;
+  }
+  s.keys = keys;
+  s.lens = lens;
+  s.occupied = occ;
+  s.cap = capacity;
+  s.len = 0;
+  return 0;
+}
+
+/** 计算 (ptr,len) 的起始槽位（hash mod cap）。 */
+function set_str_slot(s: Set_str, ptr: *u8, len: i32): i32 {
+  let h: u64 = hash_bytes(ptr, len);
+  let cap_u: u64 = s.cap as u64;
+  if (cap_u == 0) { return 0; }
+  return (h % cap_u) as i32;
+}
+
+/** 槽内键与 (ptr,len) 是否相等。 */
+function set_str_key_eq(s: Set_str, slot: i32, ptr: *u8, len: i32): i32 {
+  if (s.lens[slot] != len) { return 0; }
+  let kcap: i32 = set_str_key_cap();
+  let base: i32 = slot * kcap;
+  let i: i32 = 0;
+  while (i < len) {
+    if (s.keys[base + i] != ptr[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 查找 (ptr,len)；存在返回槽位，否则 -1。 */
+function set_str_find(s: Set_str, ptr: *u8, len: i32): i32 {
+  if (s.cap <= 0) { return -1; }
+  let start: i32 = set_str_slot(s, ptr, len);
+  let i: i32 = start;
+  loop {
+    if (s.occupied[i] == 0) { return -1; }
+    if (set_str_key_eq(s, i, ptr, len) != 0) { return i; }
+    i = i + 1;
+    if (i >= s.cap) { i = 0; }
+    if (i == start) { return -1; }
+  }
+  return -1;
+}
+
+/** 扩容并 rehash；失败 -1。 */
+function set_str_grow(s: *Set_str, new_cap: i32): i32 {
+  if (new_cap <= s.cap) { return 0; }
+  let old_keys: *u8 = s.keys;
+  let old_lens: *i32 = s.lens;
+  let old_occ: *u8 = s.occupied;
+  let old_cap: i32 = s.cap;
+  let kcap: i32 = set_str_key_cap();
+  if (set_str_with_capacity(s, new_cap) != 0) { return -1; }
+  let i: i32 = 0;
+  while (i < old_cap) {
+    if (old_occ[i] != 0) {
+      let base: i32 = i * kcap;
+      let _: i32 = set_str_insert(s, old_keys + base, old_lens[i]);
+    }
+    i = i + 1;
+  }
+  heap.free_u8(old_keys);
+  heap.free_i32(old_lens);
+  heap.free_u8(old_occ);
+  return 0;
+}
+
+/** 负载 >0.75 时扩容。 */
+function set_str_reserve_one(s: *Set_str): i32 {
+  if (s.cap <= 0) { return set_str_with_capacity(s, 8); }
+  if (s.len + 1 <= s.cap * 3 / 4) { return 0; }
+  return set_str_grow(s, s.cap * 2);
+}
+
+/** 插入 (ptr,len)；键过长返回 -1。 */
+function set_str_insert(s: *Set_str, ptr: *u8, len: i32): i32 {
+  if (len <= 0 || len > set_str_key_cap()) { return -1; }
+  if (set_str_find(*s, ptr, len) >= 0) { return 0; }
+  if (set_str_reserve_one(s) != 0) { return -1; }
+  let start: i32 = set_str_slot(*s, ptr, len);
+  let i: i32 = start;
+  let kcap: i32 = set_str_key_cap();
+  loop {
+    if (s.occupied[i] == 0) {
+      let base: i32 = i * kcap;
+      let j: i32 = 0;
+      while (j < len) {
+        s.keys[base + j] = ptr[j];
+        j = j + 1;
+      }
+      s.lens[i] = len;
+      s.occupied[i] = 1;
+      s.len = s.len + 1;
+      return 0;
+    }
+    i = i + 1;
+    if (i >= s.cap) { i = 0; }
+    if (i == start) {
+      if (set_str_grow(s, s.cap * 2) != 0) { return -1; }
+      return set_str_insert(s, ptr, len);
+    }
+  }
+  return -1;
+}
+
+/** 是否包含 (ptr,len)。 */
+function set_str_contains(s: Set_str, ptr: *u8, len: i32): i32 {
+  if (set_str_find(s, ptr, len) >= 0) { return 1; }
+  return 0;
+}
+
+/** 移除 (ptr,len)；成功 1，不存在 0。 */
+function set_str_remove(s: *Set_str, ptr: *u8, len: i32): i32 {
+  let idx: i32 = set_str_find(*s, ptr, len);
+  if (idx < 0) { return 0; }
+  s.occupied[idx] = 0;
+  s.lens[idx] = 0;
+  s.len = s.len - 1;
+  return 1;
+}
+
+/** 元素个数。 */
+function set_str_len(s: Set_str): i32 { return s.len; }
+
+/** 释放堆内存。 */
+function set_str_deinit(s: *Set_str): void {
+  if (s.keys != 0) { heap.free_u8(s.keys); s.keys = 0; }
+  if (s.lens != 0) { heap.free_i32(s.lens); s.lens = 0; }
   if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;

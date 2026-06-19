@@ -56,6 +56,16 @@ function error_base_net(): i32 { return -1200; }
 function net_err_timeout(): i32 { return -1201; }
 /** 网络操作已取消。 */
 function net_err_cancelled(): i32 { return -1202; }
+/** std.net 模块通用错误码（段起点占位，STD-011）。 */
+function net_err_generic(): i32 { return error_base_net(); }
+/** std.async 模块错误段起点（EXC-003）。 */
+function error_base_async(): i32 { return -1300; }
+/** std.async 模块通用错误码占位。 */
+function async_err_generic(): i32 { return error_base_async(); }
+/** std.coll（vec/map/heap）模块错误段起点（EXC-003）。 */
+function error_base_coll(): i32 { return -1400; }
+/** std.coll 模块通用错误码占位。 */
+function coll_err_generic(): i32 { return error_base_coll(); }
 /** std.fs 模块错误段起点。 */
 function error_base_fs(): i32 { return -1100; }
 /** 文件/路径不存在。 */
@@ -80,7 +90,39 @@ function error_code_to_module_base(code: i32): i32 {
   if (code == 0) { return 0; }
   if (code <= error_base_io() && code > error_base_fs()) { return error_base_io(); }
   if (code <= error_base_fs() && code > error_base_net()) { return error_base_fs(); }
-  if (code <= error_base_net() && code > error_base_net() - 100) { return error_base_net(); }
+  if (code <= error_base_net() && code > error_base_async()) { return error_base_net(); }
+  if (code <= error_base_async() && code > error_base_coll()) { return error_base_async(); }
+  if (code <= error_base_coll() && code > error_base_coll() - 100) { return error_base_coll(); }
+  return 0;
+}
+
+/**
+ * L 层全局码区间判定：-3..-1（error_code_alloc_fail/invalid/not_found）。
+ * 返回 1 在区间内，0 否。
+ */
+function error_code_in_global_range(code: i32): i32 {
+  if (code >= error_code_not_found() && code <= error_code_alloc_fail()) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * B 层模块段判定：code 落在 (base-100, base]。
+ * 返回 1 在段内，0 否。
+ */
+function error_code_in_module_span(code: i32, base: i32): i32 {
+  if (code == 0) { return 0; }
+  if (code <= base && code > base - 100) { return 1; }
+  return 0;
+}
+
+/**
+ * S 层平台 errno 判定：正整数视为宿主 errno（如 fs_last_error）。
+ * 返回 1 是 errno，0 否。
+ */
+function error_code_is_platform_errno(code: i32): i32 {
+  if (code > 0) { return 1; }
   return 0;
 }
 

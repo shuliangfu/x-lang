@@ -2718,11 +2718,13 @@ ensure_asm_gen_driver_su_objs() {
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_check.c" -o "$GEN_DIR/driver_check_su.o"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_test.c" -o "$GEN_DIR/driver_test_sx.o"
 
-  # pipeline/driver/preprocess：优先复用 Makefile gen-su-driver-objs（与 bootstrap-driver-seed 同源依赖）
+  # pipeline/driver/preprocess：优先复用 Makefile gen-sx-driver-objs（与 bootstrap-driver-seed 同源依赖）
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    echo "  make gen-su-driver-objs -> copy pipeline_sx.o driver_su.o preprocess_su.o to $GEN_DIR/"
-    make -s gen-su-driver-objs
-    cp -f pipeline_sx.o driver_su.o preprocess_su.o "$GEN_DIR/"
+    echo "  make gen-sx-driver-objs -> copy pipeline_sx.o driver_sx.o preprocess_sx.o to $GEN_DIR/"
+    make -s gen-sx-driver-objs
+    cp -f pipeline_sx.o "$GEN_DIR/"
+    cp -f driver_sx.o "$GEN_DIR/driver_su.o"
+    cp -f preprocess_sx.o "$GEN_DIR/preprocess_su.o"
   else
     echo "  cc -c gen_driver/*_su.o <- pipeline/driver/lsp/preprocess -E 产物 (no Makefile make)"
     "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \

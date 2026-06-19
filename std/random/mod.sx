@@ -57,3 +57,15 @@ function range_u32(lo: u32, hi: u32): u32 {
 function gen_bool(): i32 {
   return (random_u32_c() & 1) as i32;
 }
+/** Tier-S 公开名：密码学安全 u32（别名 next_u32）。 */
+function u32(): u32 {
+  return next_u32();
+}
+/** Tier-S 公开名：密码学安全 u64（别名 next_u64）。 */
+function u64(): u64 {
+  return next_u64();
+}
+/** Tier-S 公开名：均匀随机布尔 0/1（别名 gen_bool）。 */
+function bool(): i32 {
+  return gen_bool();
+}

@@ -87,3 +87,31 @@ function os_msync(ptr: *u8, size: usize): i32 {
   }
   return shux_sys_msync_c(ptr, size);
 }
+
+/** Windows：mmap 尚未实现；占位 API 供 std.sys 门面 typeck 通过。 */
+#[cfg(target_os = "windows")]
+function os_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+  if (out_size != 0 as *usize) {
+    out_size[0] = 0;
+  }
+  if (path == 0 as *u8 || min_size == 0) {
+    return 0 as *u8;
+  }
+  return 0 as *u8;
+}
+
+#[cfg(target_os = "windows")]
+function os_munmap(ptr: *u8, size: usize): i32 {
+  if (ptr == 0 as *u8 || size == 0) {
+    return -1;
+  }
+  return -1;
+}
+
+#[cfg(target_os = "windows")]
+function os_msync(ptr: *u8, size: usize): i32 {
+  if (ptr == 0 as *u8 || size == 0) {
+    return -1;
+  }
+  return -1;
+}

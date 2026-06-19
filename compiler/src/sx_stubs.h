@@ -30,9 +30,10 @@ int32_t std_io_core_shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle,
 int32_t std_io_core_shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms);
 void std_io_core_shux_io_unregister_buffers(void);
 
-/* ---- fs ---- */
-extern int64_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count);
-extern int64_t fs_posix_write_c(int32_t fd, const uint8_t *buf, size_t count);
+/* ---- fs ----
+ * 与 .sx extern isize 经 -E 生成的 ptrdiff_t 声明一致；链接时 std/fs/fs.c 的 int64_t 在 LP64 等价。 */
+extern ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count);
+extern ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t *buf, size_t count);
 extern int32_t fs_posix_close_c(int32_t fd);
 
 #ifdef __cplusplus
