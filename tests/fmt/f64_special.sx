@@ -42,24 +42,24 @@ function main(): i32 {
 
   // prec=2：3.14159 → "3.14"
   let pi: f64 = 3.14159;
-  let n_prec2: i32 = fmt_f64_to_buf_prec(buf, 16, pi, 2);
+  let n_prec2: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 2);
   if (n_prec2 != 4) { return 7; }
   if (!expect_bytes(buf, 4, 51, 46, 49, 52, 0, 0, 0, 0)) { return 8; }
 
   // prec=0：仅整数部分
-  let n_prec0: i32 = fmt_f64_to_buf_prec(buf, 16, pi, 0);
+  let n_prec0: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 0);
   if (n_prec0 != 1) { return 9; }
   if (buf[0] != 51) { return 10; }
 
   // 非法 prec
-  let bad: i32 = fmt_f64_to_buf_prec(buf, 16, pi, 10);
+  let bad: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 10);
   if (bad != -1) { return 11; }
 
   // 默认 6 位：1.5 → "1.500000"
   let one_half: f64 = 1.5;
   let n_def: i32 = fmt.fmt_f64_to_buf(buf, 16, one_half);
   if (n_def != 8) { return 12; }
-  if (!expect_bytes(buf, 8, 49, 46, 53, 48, 48, 48, 48, 0)) { return 13; }
+  if (!expect_bytes(buf, 8, 49, 46, 53, 48, 48, 48, 48, 48)) { return 13; }
 
   return 0;
 }
