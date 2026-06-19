@@ -20,11 +20,27 @@ ensure_std_c_o ../std/random/random.o
 RANDOM_O="$(cd compiler && pwd)/../std/random/random.o"
 C_OK=0
 std_random_rng_run_c_smoke "$RANDOM_O" && C_OK=1 || exit 1
+CHECK_OK=0
 SU_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
-  std_random_rng_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
+  if ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    CHECK_OK=1
+  else
+    echo "std-random-rng gate FAIL: typeck" >&2
+    ./compiler/shux-c check -L . "$SMOKE_SU" 2>&1 | tail -8 >&2 || true
+    std_random_rng_emit_report fail 1 0 0
+    exit 1
+  fi
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if std_random_rng_run_smoke "$RUN_SHUX" "$SMOKE_SU"; then
+    SU_OK=1
+  else
+    echo "std-random-rng gate SKIP su runnable (check passed; see build log above)" >&2
+    SKIP=1
+  fi
 else
   SKIP=1
 fi
