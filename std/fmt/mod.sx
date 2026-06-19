@@ -18,6 +18,9 @@ function fmt_usize_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt.fmt_us
 function fmt_isize_to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt.fmt_isize_to_buf(buf, cap, x); }
 function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 { return fmt.fmt_bool_to_buf(buf, cap, b); }
 function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 { return fmt.fmt_f64_to_buf(buf, cap, x); }
+function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
+  return fmt.fmt_f64_to_buf_prec(buf, cap, x, prec);
+}
 function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 { return fmt.fmt_u32_hex_to_buf(buf, cap, u); }
 function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 { return fmt.fmt_u64_hex_to_buf(buf, cap, u); }
 function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
