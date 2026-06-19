@@ -90,7 +90,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
       EXC_OK=0
       SKIP=1
     else
-      tail -10 /tmp/std_runtime_exc_panic.log >&2 || true
+      cat /tmp/std_runtime_exc_panic.log >&2 || true
       std_runtime_panic_emit_report "fail" 1 "$CHECK_OK" 0 "$SKIP"
       exit 1
     fi
