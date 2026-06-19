@@ -2506,10 +2506,15 @@ ensure_asm_bootstrap_su_companion_objs() {
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
     echo "build_shux_asm: ensure SU companion objs (parser/lexer/typeck/codegen/preprocess/compile) ..."
     # 瘦 pipeline_sx.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
+    # su→sx 迁移：链接行仍引用 *_su.o，须 make 别名目标（cp *_sx.o）。
     make -s parser_sx.o lexer_sx.o typeck_sx.o codegen_sx.o preprocess_sx.o \
+      lexer_su.o codegen_su.o typeck_su.o preprocess_su.o \
       lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o \
       driver_sx.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o \
       driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o \
+      driver_fmt_su.o driver_check_su.o driver_test_su.o \
+      driver_build_su.o driver_run_su.o driver_compile_su.o driver_emit_su.o \
+      lsp_io_std_heap_su.o \
       src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o
   fi
   if [ ! -f "$BUILD_DIR/std_fs_shim.o" ] || [ "src/std_fs_shim.c" -nt "$BUILD_DIR/std_fs_shim.o" ]; then
@@ -2573,6 +2578,11 @@ ensure_bstrict_seed_support_objs() {
     || [ "src/asm/simd_loop.c" -nt src/asm/simd_loop.o ]; then
     echo "  cc -c src/asm/simd_loop.c -> src/asm/simd_loop.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
+  fi
+  if [ ! -f src/asm/user_asm_seed_bridge.o ] \
+    || [ "src/asm/user_asm_seed_bridge.c" -nt src/asm/user_asm_seed_bridge.o ]; then
+    echo "  cc -c src/asm/user_asm_seed_bridge.c -> src/asm/user_asm_seed_bridge.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
   fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
