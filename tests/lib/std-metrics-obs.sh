@@ -25,12 +25,18 @@ std_metrics_obs_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .sx 烟测；失败时打印编译日志尾部。
 std_metrics_obs_run_sx_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_metrics_obs_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local log="/tmp/shux_std_metrics_obs_compile_$$.log"
+  if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
+    tail -12 "$log" >&2 || true
+    rm -f "$log" "$exe"
+    return 1
+  fi
+  rm -f "$log"
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

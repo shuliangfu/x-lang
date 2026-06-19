@@ -44,8 +44,19 @@ SU_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
-  std_metrics_obs_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
+  if ! ./compiler/shux-c check -L . "$SMOKE_SU" >/tmp/std_metrics_obs_check.log 2>&1; then
+    echo "std-metrics-obs gate FAIL: typeck" >&2
+    tail -12 /tmp/std_metrics_obs_check.log >&2 || true
+    exit 1
+  fi
+  if std_metrics_obs_run_sx_smoke ./compiler/shux-c "$SMOKE_SU"; then
+    SU_OK=1
+  elif [ -x ./compiler/shux ] && std_metrics_obs_run_sx_smoke ./compiler/shux "$SMOKE_SU"; then
+    SU_OK=1
+  else
+    echo "std-metrics-obs gate FAIL: smoke compile/run" >&2
+    exit 1
+  fi
 else
   SKIP=1
 fi
