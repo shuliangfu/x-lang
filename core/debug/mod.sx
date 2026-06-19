@@ -45,6 +45,33 @@ function assert_eq_bool(a: bool, b: bool): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
+// 断言 a != b（bool），否则 panic；返回 0。
+function assert_ne_bool(a: bool, b: bool): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+
+// 断言 a == b（u64），否则 panic；返回 0。
+function assert_eq_u64(a: u64, b: u64): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+// 断言 a != b（u64），否则 panic；返回 0。
+function assert_ne_u64(a: u64, b: u64): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+
+// 断言指针 a == b（按地址），否则 panic；返回 0。
+function assert_eq_ptr(a: *u8, b: *u8): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+// 断言指针 a != b（按地址），否则 panic；返回 0。
+function assert_ne_ptr(a: *u8, b: *u8): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
 
 /** 断言 a == b 并记录 tag；不等时 panic，相等返回 0（CORE-019）。 */
 function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
