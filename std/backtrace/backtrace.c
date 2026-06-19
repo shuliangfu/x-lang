@@ -9,6 +9,11 @@
  * 标准库 std.backtrace；与 std/backtrace/mod.sx 同属一模块。
  */
 
+/* glibc：Dl_info / dladdr 须 _GNU_SOURCE 才可见（CI Ubuntu -Wall -Wextra）。 */
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -22,7 +27,7 @@
 #define HAVE_EXECINFO 1
 #endif
 
-#if defined(HAVE_EXECINFO) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h>
 #define HAVE_DLADDR 1
 #endif

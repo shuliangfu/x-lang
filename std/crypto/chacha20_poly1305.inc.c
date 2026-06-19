@@ -98,7 +98,7 @@ static void poly1305_init(poly1305_ctx_t *ctx, const uint8_t key[32]) {
 static void poly1305_blocks(poly1305_ctx_t *ctx, const uint8_t *m, int32_t bytes, int32_t padbit) {
     uint32_t hibit = padbit ? (1u << 24) : 0u;
     while (bytes >= 16) {
-        uint32_t t0, t1, t2, t3, t4;
+        uint32_t t0, t1, t2, t3;
         uint64_t d0, d1, d2, d3, d4;
         uint32_t c;
         t0 = (uint32_t)m[0] | ((uint32_t)m[1] << 8) | ((uint32_t)m[2] << 16) | ((uint32_t)m[3] << 24);

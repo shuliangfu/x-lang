@@ -129,7 +129,6 @@ static void shu_gcm_ghash(const uint8_t h[16], const uint8_t *aad, int32_t aad_l
                           const uint8_t *ct, int32_t ct_len, uint8_t out[16]) {
   uint8_t y[16] = {0};
   uint8_t blk[16];
-  int32_t i;
   const uint8_t *p;
   int32_t n;
 
