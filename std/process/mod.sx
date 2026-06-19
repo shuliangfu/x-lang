@@ -47,7 +47,16 @@ extern function process_chdir_c(path: *u8): i32;
 extern function process_self_exe_path_c(buf: *u8, buf_size: i32): i32;
 extern function process_self_exe_path_ptr_c(): *u8;
 extern function process_self_exe_path_cached_len_c(): i32;
+
+/** spawn_io 重定向描述；fd < 0 表示继承对应 stdio（STD-023）。 */
+struct SpawnIo {
+  stdin_fd: i32;
+  stdout_fd: i32;
+  stderr_fd: i32;
+}
+
 extern function process_spawn_c(program: *u8, argv: *u8): i32;
+extern function process_spawn_io_c(program: *u8, argv: *u8, io: *SpawnIo): i32;
 extern function process_exec_c(program: *u8, argv: *u8): i32;
 extern function process_waitpid_c(pid: i32): i32;
 extern function process_spawn_simple_c(program: *u8): i32;
@@ -130,6 +139,14 @@ function self_exe_path_cached_len(): i32 {
 */
 function spawn(program: *u8, argv: *u8): i32 {
   return process_spawn_c(program, argv);
+}
+
+/**
+ * 创建子进程并应用 SpawnIo 重定向；argv 同 spawn。
+ * 返回子进程 pid（>0），失败 -1。
+ */
+function spawn_io(program: *u8, argv: *u8, io: *SpawnIo): i32 {
+  return process_spawn_io_c(program, argv, io);
 }
 /**
 * 用 program 替换当前进程（成功不返回）。argv 同 spawn。Windows 不支持，返回

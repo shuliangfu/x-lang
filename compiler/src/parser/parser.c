@@ -272,8 +272,162 @@ static int parse_generic_param_list(Parser *p, char ***out_names, int *out_count
 /** 单 struct 字面量最大字段数（与 parse_one_struct 用到的 MAX_STRUCT_FIELDS 一致；需 >= OneFuncResult 等大块字面量字段数） */
 #define MAX_STRUCT_FIELDS 64
 
-/* 前向声明：parse_primary 中 ( expr ) 会调用 parse_expr；parse_postfix 先 primary 再 postfix/调用，最后 parse_as_chain */
+/**
+ * 将 VAR / 嵌套 FIELD_ACCESS（模块路径）拼成限定前缀，如 process 或 arch.x86_64。
+ * 非模块路径表达式（如 struct 实例字段）返回 -1。
+ */
+static int parser_append_expr_import_path(const ASTExpr *e, char *buf, size_t cap) {
+    if (!e || !buf || cap == 0) return -1;
+    if (e->kind == AST_EXPR_VAR && e->value.var.name) {
+        int n = snprintf(buf, cap, "%s", e->value.var.name);
+        return (n > 0 && (size_t)n < cap) ? n : -1;
+    }
+    if (e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.base && e->value.field_access.field_name) {
+        char prefix[256];
+        int plen = parser_append_expr_import_path(e->value.field_access.base, prefix, sizeof(prefix));
+        if (plen < 0) return -1;
+        int n = snprintf(buf, cap, "%s.%s", prefix, e->value.field_access.field_name);
+        return (n > 0 && (size_t)n < cap) ? n : -1;
+    }
+    return -1;
+}
+
+/** 绑定 import 限定 struct 字面量名：process + SpawnIo → "process.SpawnIo"。 */
+static int parser_qual_name_from_expr_field(const ASTExpr *base, const char *field, char *buf, size_t cap) {
+    char prefix[256];
+    int plen;
+    if (!base || !field || !field[0] || !buf || cap == 0) return -1;
+    plen = parser_append_expr_import_path(base, prefix, sizeof(prefix));
+    if (plen < 0) return -1;
+    {
+        int n = snprintf(buf, cap, "%s.%s", prefix, field);
+        return (n > 0 && (size_t)n < cap) ? n : -1;
+    }
+}
+
+/* parse_struct_lit_body 内调用 parse_expr；须在前向声明之后定义 */
 static ASTExpr *parse_expr(Parser *p);
+
+/**
+ * 解析 `{ field: expr, ... }` 并构造 AST_EXPR_STRUCT_LIT。
+ * name 由调用方传入（裸 TypeName 或 mod.Type 限定名）；当前 token 须为 `{`。
+ */
+static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int ident_col) {
+    char **fnames;
+    ASTExpr **inits;
+    int nf;
+    ASTExpr *e;
+    if (!p || !name) return NULL;
+    if (peek(p)->kind != TOKEN_LBRACE) {
+        free(name);
+        fail(p, "expected '{' for struct literal");
+        return NULL;
+    }
+    advance(p);
+    fnames = (char **)malloc((size_t)MAX_STRUCT_FIELDS * sizeof(char *));
+    inits = (ASTExpr **)malloc((size_t)MAX_STRUCT_FIELDS * sizeof(ASTExpr *));
+    if (!fnames || !inits) {
+        free(name);
+        if (fnames) free(fnames);
+        if (inits) free(inits);
+        fprintf(stderr, "parse: out of memory\n");
+        return NULL;
+    }
+    nf = 0;
+    while (peek(p)->kind != TOKEN_RBRACE) {
+        if (nf >= MAX_STRUCT_FIELDS) {
+            free(name);
+            for (int i = 0; i < nf; i++) {
+                free((void *)fnames[i]);
+                ast_expr_free(inits[i]);
+            }
+            free(fnames);
+            free(inits);
+            fail(p, "too many struct literal fields");
+            return NULL;
+        }
+        fnames[nf] = parser_struct_field_name_dup(p);
+        if (!fnames[nf]) {
+            free(name);
+            for (int i = 0; i < nf; i++) {
+                free((void *)fnames[i]);
+                ast_expr_free(inits[i]);
+            }
+            free(fnames);
+            free(inits);
+            fail(p, "expected field name in struct literal");
+            return NULL;
+        }
+        if (peek(p)->kind != TOKEN_COLON) {
+            free((void *)fnames[nf]);
+            free(name);
+            for (int i = 0; i < nf; i++) {
+                free((void *)fnames[i]);
+                ast_expr_free(inits[i]);
+            }
+            free(fnames);
+            free(inits);
+            fail(p, "expected ':' after field name in struct literal");
+            return NULL;
+        }
+        advance(p);
+        inits[nf] = parse_expr(p);
+        if (!inits[nf]) {
+            free((void *)fnames[nf]);
+            free(name);
+            for (int i = 0; i < nf; i++) {
+                free((void *)fnames[i]);
+                ast_expr_free(inits[i]);
+            }
+            free(fnames);
+            free(inits);
+            return NULL;
+        }
+        nf++;
+        if (peek(p)->kind == TOKEN_COMMA) advance(p);
+    }
+    if (peek(p)->kind != TOKEN_RBRACE) {
+        free(name);
+        for (int i = 0; i < nf; i++) {
+            free((void *)fnames[i]);
+            ast_expr_free(inits[i]);
+        }
+        free(fnames);
+        free(inits);
+        fail(p, "expected '}' in struct literal");
+        return NULL;
+    }
+    advance(p);
+    if (fail_if_semicolon_after_brace(p) != 0) {
+        free(name);
+        for (int i = 0; i < nf; i++) {
+            free((void *)fnames[i]);
+            ast_expr_free(inits[i]);
+        }
+        free(fnames);
+        free(inits);
+        return NULL;
+    }
+    e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+    if (!e) {
+        free(name);
+        for (int i = 0; i < nf; i++) {
+            free((void *)fnames[i]);
+            ast_expr_free(inits[i]);
+        }
+        free(fnames);
+        free(inits);
+        fprintf(stderr, "parse: out of memory\n");
+        return NULL;
+    }
+    set_expr_loc_at(e, ident_line, ident_col);
+    e->kind = AST_EXPR_STRUCT_LIT;
+    e->value.struct_lit.struct_name = name;
+    e->value.struct_lit.field_names = fnames;
+    e->value.struct_lit.inits = inits;
+    e->value.struct_lit.num_fields = nf;
+    return e;
+}
 
 static ASTExpr *parse_term(Parser *p);
 
@@ -1312,112 +1466,8 @@ static ASTExpr *parse_primary(Parser *p) {
         }
         /* 枚举值用 Name.Variant（. 语法），见 parse_postfix 的 field_access；此处仅处理标识符或结构体字面量 */
         /* 仅当首字母大写（类型名约定）且下一 token 为 { 时解析为结构体字面量，避免 if ok { } 中的 ok 被误判 */
-        if (peek(p)->kind == TOKEN_LBRACE && name[0] >= 'A' && name[0] <= 'Z') {
-            advance(p);
-            char **fnames = (char **)malloc((size_t)MAX_STRUCT_FIELDS * sizeof(char *));
-            ASTExpr **inits = (ASTExpr **)malloc((size_t)MAX_STRUCT_FIELDS * sizeof(ASTExpr *));
-            if (!fnames || !inits) {
-                free(name);
-                if (fnames) free(fnames);
-                if (inits) free(inits);
-                fprintf(stderr, "parse: out of memory\n");
-                return NULL;
-            }
-            int nf = 0;
-            while (peek(p)->kind != TOKEN_RBRACE) {
-                if (nf >= MAX_STRUCT_FIELDS) {
-                    free(name);
-                    for (int i = 0; i < nf; i++) {
-                        free((void *)fnames[i]);
-                        ast_expr_free(inits[i]);
-                    }
-                    free(fnames);
-                    free(inits);
-                    fail(p, "too many struct literal fields");
-                    return NULL;
-                }
-                fnames[nf] = parser_struct_field_name_dup(p);
-                if (!fnames[nf]) {
-                    free(name);
-                    for (int i = 0; i < nf; i++) {
-                        free((void *)fnames[i]);
-                        ast_expr_free(inits[i]);
-                    }
-                    free(fnames);
-                    free(inits);
-                    fail(p, "expected field name in struct literal");
-                    return NULL;
-                }
-                if (peek(p)->kind != TOKEN_COLON) {
-                    free((void *)fnames[nf]);
-                    free(name);
-                    for (int i = 0; i < nf; i++) {
-                        free((void *)fnames[i]);
-                        ast_expr_free(inits[i]);
-                    }
-                    free(fnames);
-                    free(inits);
-                    fail(p, "expected ':' after field name in struct literal");
-                    return NULL;
-                }
-                advance(p);
-                inits[nf] = parse_expr(p);
-                if (!inits[nf]) {
-                    free((void *)fnames[nf]);
-                    free(name);
-                    for (int i = 0; i < nf; i++) {
-                        free((void *)fnames[i]);
-                        ast_expr_free(inits[i]);
-                    }
-                    free(fnames);
-                    free(inits);
-                    return NULL;
-                }
-                nf++;
-                if (peek(p)->kind == TOKEN_COMMA) advance(p);
-            }
-            if (peek(p)->kind != TOKEN_RBRACE) {
-                free(name);
-                for (int i = 0; i < nf; i++) {
-                    free((void *)fnames[i]);
-                    ast_expr_free(inits[i]);
-                }
-                free(fnames);
-                free(inits);
-                fail(p, "expected '}' in struct literal");
-                return NULL;
-            }
-            advance(p);
-            if (fail_if_semicolon_after_brace(p) != 0) {
-                free(name);
-                for (int i = 0; i < nf; i++) {
-                    free((void *)fnames[i]);
-                    ast_expr_free(inits[i]);
-                }
-                free(fnames);
-                free(inits);
-                return NULL;
-            }
-            ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-            if (!e) {
-                free(name);
-                for (int i = 0; i < nf; i++) {
-                    free((void *)fnames[i]);
-                    ast_expr_free(inits[i]);
-                }
-                free(fnames);
-                free(inits);
-                fprintf(stderr, "parse: out of memory\n");
-                return NULL;
-            }
-            set_expr_loc_at(e, ident_line, ident_col);
-            e->kind = AST_EXPR_STRUCT_LIT;
-            e->value.struct_lit.struct_name = name;
-            e->value.struct_lit.field_names = fnames;
-            e->value.struct_lit.inits = inits;
-            e->value.struct_lit.num_fields = nf;
-            return e;
-        }
+        if (peek(p)->kind == TOKEN_LBRACE && name[0] >= 'A' && name[0] <= 'Z')
+            return parse_struct_lit_body(p, name, ident_line, ident_col);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             free(name);
@@ -1623,6 +1673,26 @@ static ASTExpr *parse_postfix(Parser *p) {
                 e->value.method_call.resolved_impl_func = NULL;
                 left = e;
             } else {
+                /* 绑定 import 限定 struct 字面量：process.SpawnIo { ... }（与类型注解 process.SpawnIo 一致） */
+                if (peek(p)->kind == TOKEN_LBRACE && field_name[0] >= 'A' && field_name[0] <= 'Z') {
+                    char qbuf[256];
+                    if (parser_qual_name_from_expr_field(left, field_name, qbuf, sizeof(qbuf)) > 0) {
+                        char *lit_name = strdup(qbuf);
+                        int lit_line = left->line;
+                        int lit_col = left->col;
+                        if (!lit_name) {
+                            ast_expr_free(left);
+                            free(field_name);
+                            fprintf(stderr, "parse: out of memory\n");
+                            return NULL;
+                        }
+                        ast_expr_free(left);
+                        left = parse_struct_lit_body(p, lit_name, lit_line, lit_col);
+                        free(field_name);
+                        if (!left) return NULL;
+                        continue;
+                    }
+                }
                 ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
                 if (!e) {
                     ast_expr_free(left);

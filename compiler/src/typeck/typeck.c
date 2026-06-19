@@ -214,6 +214,47 @@ static const struct ASTStructDef *find_struct_def_with_deps(struct ASTStructDef 
 }
 
 /**
+ * 绑定 import 限定 struct 名（如 process.SpawnIo）：在 import_binding_names 匹配的依赖模块内查找短名。
+ * 仅当 qual_name 含 '.' 且首段为 binding 名时成功；否则返回 NULL。
+ */
+static const struct ASTStructDef *find_struct_def_binding_qualified(const struct ASTModule *m, const char *qual_name) {
+    const char *dot;
+    char binding[128];
+    size_t blen;
+    const char *struct_short;
+    const char *tail;
+    const char *sname;
+    int j;
+    if (!m || !qual_name || !(dot = strchr(qual_name, '.')))
+        return NULL;
+    blen = (size_t)(dot - qual_name);
+    if (blen == 0 || blen >= sizeof(binding))
+        return NULL;
+    memcpy(binding, qual_name, blen);
+    binding[blen] = '\0';
+    struct_short = dot + 1;
+    if (!struct_short[0])
+        return NULL;
+    tail = strrchr(struct_short, '.');
+    sname = tail ? tail + 1 : struct_short;
+    if (!sname[0])
+        return NULL;
+    for (j = 0; j < typeck_num_deps && j < m->num_imports; j++) {
+        struct ASTModule *dm;
+        if (!m->import_kinds || m->import_kinds[j] != AST_IMPORT_KIND_BINDING)
+            continue;
+        if (!m->import_binding_names || !m->import_binding_names[j]
+            || strcmp(m->import_binding_names[j], binding) != 0)
+            continue;
+        dm = typeck_dep_mods[j];
+        if (!dm || !dm->struct_defs)
+            return NULL;
+        return find_struct_def(dm->struct_defs, dm->num_structs, sname);
+    }
+    return NULL;
+}
+
+/**
  * 按名称查找枚举定义；用于枚举值 Name::Variant 校验（§7.4）。
  * 参数：defs 枚举定义数组；num 长度；name 类型名。返回值：找到返回该 ASTEnumDef*，否则 NULL。
  */
@@ -2458,7 +2499,12 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             return -1;
         }
         case AST_EXPR_STRUCT_LIT: {
-            const struct ASTStructDef *sd = find_struct_def_with_deps(struct_defs, num_structs, e->value.struct_lit.struct_name);
+            const char *lit_name = e->value.struct_lit.struct_name;
+            const struct ASTStructDef *sd = NULL;
+            if (lit_name && strchr(lit_name, '.') && typeck_current_mod)
+                sd = find_struct_def_binding_qualified(typeck_current_mod, lit_name);
+            if (!sd)
+                sd = find_struct_def_with_deps(struct_defs, num_structs, lit_name);
             if (!sd) {
                 TYPECK_ERR(e, "unknown struct type '%s'", e->value.struct_lit.struct_name ? e->value.struct_lit.struct_name : "");
                 return -1;

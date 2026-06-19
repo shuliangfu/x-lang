@@ -39,7 +39,8 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <stdlib.h>
 #include <string.h>
-/* Windows: process & env & cwd */
+#include <io.h>
+#include <fcntl.h>
 #include <windows.h>
 #define SHUX_GETENV(name) getenv((const char *)(name))
 #else
@@ -440,6 +441,98 @@ int32_t process_spawn_simple_c(uint8_t *program) {
     return process_spawn_c(program, (uint8_t *)(void *)argv);
 }
 
+/** spawn_io 与 mod.sx SpawnIo 布局一致（三 i32 fd）。 */
+typedef struct {
+    int32_t stdin_fd;
+    int32_t stdout_fd;
+    int32_t stderr_fd;
+} process_spawn_io_t;
+
+#if !defined(_WIN32) && !defined(_WIN64)
+/** POSIX：在子进程 dup2 指定 fd 到 stdio 后 execve。 */
+static int process_dup_stdio_posix(int32_t fd, int slot) {
+    if (fd < 0) return 0;
+    if (dup2(fd, slot) < 0) return -1;
+    return 0;
+}
+#endif
+
+/**
+ * 创建子进程并应用 stdio 重定向；fd < 0 表示继承。
+ * POSIX: fork + dup2 + execve；Windows: CreateProcess + STARTF_USESTDHANDLES。
+ */
+int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, process_spawn_io_t *io) {
+    if (program == NULL || argv_ptr == NULL) return -1;
+    int32_t in_fd = io ? io->stdin_fd : -1;
+    int32_t out_fd = io ? io->stdout_fd : -1;
+    int32_t err_fd = io ? io->stderr_fd : -1;
+    char **argv = (char **)(void *)argv_ptr;
+#if defined(_WIN32) || defined(_WIN64)
+    {
+        char cmdline[32768];
+        size_t off = 0;
+        STARTUPINFOA si;
+        PROCESS_INFORMATION pi;
+        HANDLE h_in = GetStdHandle(STD_INPUT_HANDLE);
+        HANDLE h_out = GetStdHandle(STD_OUTPUT_HANDLE);
+        HANDLE h_err = GetStdHandle(STD_ERROR_HANDLE);
+        for (int i = 0; argv[i] != NULL && off < sizeof(cmdline) - 4; i++) {
+            if (i > 0) cmdline[off++] = ' ';
+            const char *a = argv[i];
+            int quote = (strchr(a, ' ') != NULL || strchr(a, '\t') != NULL);
+            if (quote) cmdline[off++] = '"';
+            while (*a && off < sizeof(cmdline) - 2) {
+                if (*a == '"') {
+                    cmdline[off++] = '\\';
+                    cmdline[off++] = '"';
+                    a++;
+                    continue;
+                }
+                cmdline[off++] = *a++;
+            }
+            if (quote) cmdline[off++] = '"';
+        }
+        cmdline[off] = '\0';
+        if (in_fd >= 0) h_in = (HANDLE)_get_osfhandle(in_fd);
+        if (out_fd >= 0) h_out = (HANDLE)_get_osfhandle(out_fd);
+        if (err_fd >= 0) h_err = (HANDLE)_get_osfhandle(err_fd);
+        memset(&si, 0, sizeof(si));
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdInput = h_in;
+        si.hStdOutput = h_out;
+        si.hStdError = h_err;
+        memset(&pi, 0, sizeof(pi));
+        if (!CreateProcessA((const char *)program, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+            return -1;
+        }
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        return (int32_t)(intptr_t)pi.dwProcessId;
+    }
+#else
+    {
+        void (*saved_sigchld)(int) = signal(SIGCHLD, process_nop_sigchld);
+        if (saved_sigchld == SIG_ERR) saved_sigchld = SIG_DFL;
+        pid_t pid = fork();
+        if (pid < 0) {
+            signal(SIGCHLD, saved_sigchld);
+            return -1;
+        }
+        if (pid == 0) {
+            signal(SIGCHLD, saved_sigchld);
+            if (process_dup_stdio_posix(in_fd, STDIN_FILENO) != 0) _exit(127);
+            if (process_dup_stdio_posix(out_fd, STDOUT_FILENO) != 0) _exit(127);
+            if (process_dup_stdio_posix(err_fd, STDERR_FILENO) != 0) _exit(127);
+            execve((const char *)program, (char *const *)argv, environ);
+            _exit(127);
+        }
+        signal(SIGCHLD, saved_sigchld);
+        return (int32_t)pid;
+    }
+#endif
+}
+
 /**
  * 简化 exec：argv = [program, NULL]。成功不返回；失败返回 -1。
  */
@@ -456,9 +549,20 @@ int32_t process_exec_simple_c(uint8_t *program) {
 int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd) {
     if (read_fd == NULL || write_fd == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
-    (void)read_fd;
-    (void)write_fd;
-    return -1;
+    {
+        SECURITY_ATTRIBUTES sa;
+        HANDLE r = NULL;
+        HANDLE w = NULL;
+        memset(&sa, 0, sizeof(sa));
+        sa.nLength = sizeof(sa);
+        sa.bInheritHandle = TRUE;
+        if (!CreatePipe(&r, &w, &sa, 0)) return -1;
+        SetHandleInformation(r, HANDLE_FLAG_INHERIT, 0);
+        *read_fd = (int32_t)_open_osfhandle((intptr_t)r, _O_RDONLY);
+        *write_fd = (int32_t)_open_osfhandle((intptr_t)w, _O_WRONLY);
+        if (*read_fd < 0 || *write_fd < 0) return -1;
+        return 0;
+    }
 #else
     int fd[2];
     if (pipe(fd) != 0) return -1;
