@@ -592,6 +592,9 @@ src/sx_seed_bridge.o: src/sx_seed_bridge.c
 src/std_fs_shim.o: src/std_fs_shim.c
 	$(CC) $(CFLAGS) -I. -c -o $@ $<
 
+src/std_sys_shim.o: src/std_sys_shim.c
+	$(CC) $(CFLAGS) -I. -c -o $@ $<
+
 # pipeline_sx.o 仍引用 typeck_typeck_* / codegen_codegen_*；typeck_sx.o 导出 typeck_* / codegen_*。
 typeck_sx_link_alias.o: typeck_sx_link_alias.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -602,7 +605,7 @@ lexer_sx_link_alias.o: lexer_sx_link_alias.c
 # seed shux 用户程序 -backend asm：shux-c -E 编出的 backend/peephole/platform + user_asm_seed_bridge（无 weak 桩、无 C 回退）
 USER_ASM_SEED_HOST_DIR = build_asm/seed_host
 USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
-USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o
+USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o src/asm/parser_asm_parse_expr_link.o
 USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_OBJS)
 
 .PHONY: build-seed-asm-host
@@ -649,6 +652,9 @@ parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c
 # pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shux 与 experimental bootstrap 共用）。
 parser_asm_link_alias.o: src/asm/parser_asm_link_alias.c
 	$(CC) $(CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.c
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
 src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -716,7 +722,7 @@ src/ast/ast_seed.o: src/ast/ast.c include/ast.h
 # seed 链：lexer_sx.o（SU 词法）+ lexer.o（lexer_new/free 与 C 前端 lexer_next）。
 # preprocess -D 槽与 parser labeled 名写入（parser_sx.o / runtime_driver 依赖，不可缺链）。
 AST_POOL_L5_BRIDGE_O = src/ast_pool_l5_bridge.o
-DRIVER_SEED_OBJS = src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/sx_seed_bridge.o src/std_fs_shim.o $(AST_POOL_L5_BRIDGE_O)
+DRIVER_SEED_OBJS = src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/sx_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O)
 DRIVER_SEED_SX_OBJS = parser_sx.o typeck_sx.o codegen_sx.o
 
 # 阶段 10.4 实验：链 typeck_sx.o/codegen_sx.o 替代 C 前端（不含 pipeline_sx.o，无 SHUX_USE_SX_PIPELINE）。
@@ -905,7 +911,7 @@ ifeq ($(SHUX_SKIP_SUBSCRIPT_MAKE),1)
 bootstrap-driver-seed:
 	@test -x '$(TARGET)' || $(MAKE) bootstrap-driver-seed SHUX_SKIP_SUBSCRIPT_MAKE= SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
 else
-bootstrap-driver-seed: $(SHUX_C) build-seed-asm-host $(USER_ASM_LINK) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o driver_sx.o preprocess_sx.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/sx_seed_bridge.o src/std_fs_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
+bootstrap-driver-seed: $(SHUX_C) build-seed-asm-host $(USER_ASM_LINK) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o driver_sx.o preprocess_sx.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) src/main_driver.o src/runtime_driver.o src/driver/fmt_check_cmd_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/sx_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
 	@# gen_driver 的 pipeline_sx.o partial 可能缺 pipeline_asm_block_*；链 USER_ASM 前强制从 pipeline_gen.c 重编完整 TU。
 	@$(MAKE) pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1
 	$(MAKE) -B src/runtime_driver.o src/preprocess_for_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o

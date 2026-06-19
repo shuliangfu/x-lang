@@ -128,20 +128,7 @@ for my $pair (@pipeline_const_aliases) {
   }
 }
 
-# parser_gen(-2).c -E-extern：parser_parse 烟测调 parse_expr_into；符号在 build_asm/parser.o 为 parse_expr_into（无 parser_ 前缀）。
-if ($path =~ /parser_gen(?:2)?\.c$/ && index($src, 'parser_parse_expr_into') >= 0) {
-  $src =~ s/\n\/\* parser_gen thin TU: parse_expr_into.*?\n#define parser_parse_expr_into parse_expr_into\n\n//s;
-  if (index($src, '#define parser_parse_expr_into') < 0) {
-    my $pex = <<'PEX';
-
-/* parser_gen thin TU: parse_expr_into 由 build_asm/parser.o 提供 */
-extern void parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexer lex, struct shux_slice_uint8_t *source, struct parser_ParseExprResult *out);
-#define parser_parse_expr_into parse_expr_into
-PEX
-    $src =~ s/(struct parser_ParseExprResult \{[^\}]+\};)/$1$pex/s
-      or warn "fix_parser_pool_access_gen_c: parse_expr_into alias anchor not found\n";
-  }
-}
+# parse_expr_into：由 parser_asm_parse_expr_link.c 转发 parser_parse_expr_into；勿再注入 extern 裸名（bootstrap 链会 undefined）。
 
 if ($src ne $orig) {
   seek $fh, 0, 0;

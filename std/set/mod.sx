@@ -418,7 +418,8 @@ function set_str_grow(s: *Set_str, new_cap: i32): i32 {
   while (i < old_cap) {
     if (old_occ[i] != 0) {
       let base: i32 = i * kcap;
-      let _: i32 = set_str_insert(s, old_keys + base, old_lens[i]);
+      let key_ptr: *u8 = &old_keys[base];
+      let _: i32 = set_str_insert(s, key_ptr, old_lens[i]);
     }
     i = i + 1;
   }

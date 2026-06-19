@@ -2506,10 +2506,11 @@ ensure_asm_bootstrap_su_companion_objs() {
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
     echo "build_shux_asm: ensure SU companion objs (parser/lexer/typeck/codegen/preprocess/compile) ..."
     # 瘦 pipeline_sx.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
-    make -s parser_sx.o lexer_su.o typeck_su.o codegen_su.o preprocess_su.o \
+    make -s parser_sx.o lexer_sx.o typeck_sx.o codegen_sx.o preprocess_sx.o \
       lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o \
-      driver_su.o driver_fmt_su.o driver_check_su.o driver_test_sx.o \
-      driver_build_su.o driver_run_su.o driver_compile_su.o driver_emit_su.o
+      driver_sx.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o \
+      driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o \
+      src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o
   fi
   if [ ! -f "$BUILD_DIR/std_fs_shim.o" ] || [ "src/std_fs_shim.c" -nt "$BUILD_DIR/std_fs_shim.o" ]; then
     echo "  cc -c src/std_fs_shim.c -> $BUILD_DIR/std_fs_shim.o"
@@ -2534,7 +2535,7 @@ ensure_asm_bootstrap_su_companion_objs() {
 BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_sx.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
 # gen_driver 回退链：pipeline_sx.o / runtime_driver 须 parser/lexer/codegen SU + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
 GEN_DRIVER_SU_PIPELINE_COMPANIONS="parser_sx.o lexer_su.o codegen_su.o lexer_sx_link_alias.o codegen_sx_link_alias.o driver_build_su.o driver_run_su.o driver_compile_su.o driver_emit_su.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
