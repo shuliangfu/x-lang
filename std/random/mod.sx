@@ -1,9 +1,9 @@
-// std.random — 密码学安全随机数（CSPRNG）
+// std.random — CSPRNG + 可复现 PRNG（SplitMix64，STD-130）
 //
 // 【文件职责】
 // 对外暴露 std.random 的完整 API：fill_bytes、u32、u64、range_u32（[lo,hi]
-// 闭区间）、bool。
-// 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng。仅 CSPRNG，无 PRNG 引擎。
+// 闭区间）、bool（CSPRNG）；以及 Rng / rng_*（可复现 PRNG）。
+// 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng；PRNG 对标 SplitMix64 种子流。
 //
 // 【所属模块/组件】
 // 标准库 std.random；用户通过 import("std.random") 使用。依赖 core；与
@@ -68,4 +68,70 @@ function u64(): u64 {
 /** Tier-S 公开名：均匀随机布尔 0/1（别名 gen_bool）。 */
 function bool(): i32 {
   return gen_bool();
+}
+
+// ——— STD-130：可复现 PRNG（SplitMix64） ———
+
+/** PRNG 状态；仅含 u64 种子流，按值传递时须复制后再 mutate。 */
+allow(padding) struct Rng {
+  state: u64;
+}
+
+extern function random_rng_smoke_c(): i32;
+
+/** SplitMix64 单步；更新 *r 并返回下一个 u64。 */
+function rng_next_u64(r: *Rng): u64 {
+  let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
+  r.state = z;
+  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9 as u64;
+  z = (z ^ (z >> 27)) * 0x94d049bb133111eb as u64;
+  return z ^ (z >> 31);
+}
+
+/** 用 seed 初始化 PRNG；同 seed 产生同序列。 */
+function rng_init(seed: u64): Rng {
+  return Rng { state: seed };
+}
+
+/** rng_init 别名；烟测与文档沿用 from_seed 命名。 */
+function rng_from_seed(seed: u64): Rng {
+  return rng_init(seed);
+}
+
+/** 用 PRNG 字节填充 buf[0..len)。 */
+function rng_fill_bytes(r: *Rng, buf: *u8, len: i32): void {
+  let i: i32 = 0;
+  while (i < len) {
+    let w: u64 = rng_next_u64(r);
+    let j: i32 = 0;
+    while (j < 8 && i < len) {
+      buf[i] = (w & 255) as u8;
+      w = w >> 8;
+      i = i + 1;
+      j = j + 1;
+    }
+  }
+}
+
+/** [lo, hi] 闭区间均匀 u32；lo > hi 时返回 lo。 */
+function rng_range_u32(r: *Rng, lo: u32, hi: u32): u32 {
+  if (lo > hi) {
+    return lo;
+  }
+  let range: u32 = hi - lo + 1;
+  if (range == 0) {
+    return lo;
+  }
+  let max_u32: u32 = 4294967295;
+  let limit: u32 = max_u32 - (max_u32 % range);
+  let x: u32 = rng_next_u64(r) as u32;
+  while (x >= limit) {
+    x = rng_next_u64(r) as u32;
+  }
+  return lo + (x % range);
+}
+
+/** C 层 PRNG 烟测；0 成功，非 0 失败。 */
+function rng_smoke(): i32 {
+  return random_rng_smoke_c();
 }
