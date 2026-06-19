@@ -90,6 +90,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
       if run_sx_case "$script" "${want_ec:-0}"; then
         echo "exc OK $case_id"
       else
+        echo "exc FAIL $case_id ($script)" >&2
         FAILS=$((FAILS + 1))
       fi
       ;;
