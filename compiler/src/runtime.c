@@ -4556,9 +4556,8 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             if (needs_db_arrow)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
         }
-        /* CORE-009 / Docker musl：仅链 process.o + core 依赖，避免全量 std/*.o 导致 ld 挂起。 */
+        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc，勿再链 std/process 等（易 ld 挂起）。 */
         if (getenv("SHUX_MINIMAL_CC_LINK")) {
-            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o);
 #if defined(__linux__) || defined(__APPLE__)
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-lc";
