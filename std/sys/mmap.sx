@@ -92,7 +92,7 @@ function os_msync(ptr: *u8, size: usize): i32 {
 #[cfg(target_os = "windows")]
 function os_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (out_size != 0 as *usize) {
-    out_size[0] = 0;
+    out_size[0] = 0 as usize;
   }
   if (path == 0 as *u8 || min_size == 0) {
     return 0 as *u8;
