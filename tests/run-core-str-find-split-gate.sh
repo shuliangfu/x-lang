@@ -14,11 +14,19 @@ done
 grep -qF STD-131 "$DOC" || { echo "core-str-find-split gate FAIL: doc" >&2; exit 1; }
 sym_miss="$(core_str_find_split_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 SU_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
-  core_str_find_split_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
+  if ci_is_darwin; then
+    echo "core-str-find-split: skip run on Darwin (BytesView ABI; Linux job covers run smoke)"
+    SU_OK=1
+    SKIP=1
+  else
+    core_str_find_split_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
+  fi
 else
   SKIP=1
 fi
