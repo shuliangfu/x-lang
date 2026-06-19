@@ -7,24 +7,24 @@ precision	section	## 3. 平台精度矩阵	analysis/std-time-precision-v1.md	-	n
 timezone	section	## 4. 时区策略 timezone（v1）	analysis/std-time-precision-v1.md	-	UTC epoch
 api_surface	section	## 5. API 面	analysis/std-time-precision-v1.md	-	13 函数
 verify	section	## 6. 验证与门禁	analysis/std-time-precision-v1.md	-	gate
-api_now_mono_ns	api	now_monotonic_ns	std/time/mod.su	core	单调 ns
-api_now_mono_us	api	now_monotonic_us	std/time/mod.su	core	单调 us
-api_now_mono_ms	api	now_monotonic_ms	std/time/mod.su	core	单调 ms
-api_now_mono_sec	api	now_monotonic_sec	std/time/mod.su	core	单调 sec
-api_now_wall_sec	api	now_wall_sec	std/time/mod.su	core	墙钟 UTC sec
-api_now_wall_ms	api	now_wall_ms	std/time/mod.su	core	墙钟 ms
-api_now_wall_us	api	now_wall_us	std/time/mod.su	core	墙钟 us
-api_now_wall_ns	api	now_wall_ns	std/time/mod.su	core	墙钟 ns
-api_sleep_ns	api	sleep_ns	std/time/mod.su	core	睡眠 ns
-api_sleep_us	api	sleep_us	std/time/mod.su	core	睡眠 us
-api_sleep_ms	api	sleep_ms	std/time/mod.su	core	睡眠 ms
-api_sleep_sec	api	sleep_sec	std/time/mod.su	core	睡眠 sec
-api_duration_ns	api	duration_ns	std/time/mod.su	core	纯算术差
+api_now_mono_ns	api	now_monotonic_ns	std/time/mod.sx	core	单调 ns
+api_now_mono_us	api	now_monotonic_us	std/time/mod.sx	core	单调 us
+api_now_mono_ms	api	now_monotonic_ms	std/time/mod.sx	core	单调 ms
+api_now_mono_sec	api	now_monotonic_sec	std/time/mod.sx	core	单调 sec
+api_now_wall_sec	api	now_wall_sec	std/time/mod.sx	core	墙钟 UTC sec
+api_now_wall_ms	api	now_wall_ms	std/time/mod.sx	core	墙钟 ms
+api_now_wall_us	api	now_wall_us	std/time/mod.sx	core	墙钟 us
+api_now_wall_ns	api	now_wall_ns	std/time/mod.sx	core	墙钟 ns
+api_sleep_ns	api	sleep_ns	std/time/mod.sx	core	睡眠 ns
+api_sleep_us	api	sleep_us	std/time/mod.sx	core	睡眠 us
+api_sleep_ms	api	sleep_ms	std/time/mod.sx	core	睡眠 ms
+api_sleep_sec	api	sleep_sec	std/time/mod.sx	core	睡眠 sec
+api_duration_ns	api	duration_ns	std/time/mod.sx	core	纯算术差
 impl_c	file	std/time/time.c	std/time/time.c	impl	POSIX+Win
 impl_readme	file	std/time/README.md	std/time/README.md	doc	模块说明
 lib	script	lib/std-time.sh	tests/lib/std-time.sh	-	共享库
 gate	script	run-std-time-gate.sh	tests/run-std-time-gate.sh	-	manifest
 hook_time	hook_script	run-time.sh	tests/run-time.sh	-	回归
-smoke_main	smoke	tests/time/main.su	tests/time/main.su	-	基础烟测
-smoke_precision	smoke	tests/time/precision_smoke.su	tests/time/precision_smoke.su	-	精度烟测
+smoke_main	smoke	tests/time/main.sx	tests/time/main.sx	-	基础烟测
+smoke_precision	smoke	tests/time/precision_smoke.sx	tests/time/precision_smoke.sx	-	精度烟测
 cross_readme	cross_ref	std/time/README.md	std/time/README.md	-	README

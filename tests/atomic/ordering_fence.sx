@@ -1,0 +1,18 @@
+// STD-046：fence API 烟测（Ordering 常量见 std/atomic/mod.sx，manifest 校验）
+const atomic = import("std.atomic");
+const debug = import("core.debug");
+
+function main(): i32 {
+  let data: i32 = 0;
+  let ready: i32 = 0;
+  atomic.store_i32(&data, 42);
+  fence_release();
+  atomic.store_i32(&ready, 1);
+  fence_seq_cst();
+  if (atomic.load_i32(&ready) != 1) {
+    return 1;
+  }
+  fence_acquire();
+  debug.assert_eq_i32(atomic.load_i32(&data), 42);
+  return 0;
+}

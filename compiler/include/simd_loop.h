@@ -1,8 +1,8 @@
 /**
  * simd_loop.h — SIMD-S3：counted loop 矢量化（固定数组 index-add 剥离）。
  */
-#ifndef SHU_SIMD_LOOP_H
-#define SHU_SIMD_LOOP_H
+#ifndef SHUX_SIMD_LOOP_H
+#define SHUX_SIMD_LOOP_H
 
 #include <stdint.h>
 
@@ -25,4 +25,4 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                  int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
-#endif /* SHU_SIMD_LOOP_H */
+#endif /* SHUX_SIMD_LOOP_H */

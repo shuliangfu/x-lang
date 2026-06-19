@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_EXAMPLES_DOC:-analysis/std-examples-v1.md}"
-MANIFEST="${SHU_STD_EXAMPLES_MANIFEST:-tests/baseline/std-examples-manifest.tsv}"
-CATALOG="${SHU_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
+DOC="${SHUX_STD_EXAMPLES_DOC:-analysis/std-examples-v1.md}"
+MANIFEST="${SHUX_STD_EXAMPLES_MANIFEST:-tests/baseline/std-examples-manifest.tsv}"
+CATALOG="${SHUX_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
 MIN_EX=30
 
 # shellcheck source=tests/lib/std-examples.sh
@@ -125,17 +125,17 @@ for kw in examples catalog cookbook runnable; do
 done
 echo "std-examples manifest OK (catalog=${COUNT} index=${IDX})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   echo "=== STD-012: cookbook + core typeck smoke ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   CHECK_FAIL=0
@@ -146,7 +146,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     case "$tier" in
       cookbook|core)
         CHECK_N=$((CHECK_N + 1))
-        if std_ex_check_example "$SHU_BIN" "$path"; then
+        if std_ex_check_example "$SHUX_BIN" "$path"; then
           echo "std-examples typeck OK $eid"
         else
           echo "std-examples typeck FAIL $eid ($path)" >&2
@@ -161,7 +161,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
   fi
   echo "std-examples typeck smoke OK (${CHECK_N} cookbook+core)"
 else
-  echo "std-examples gate SKIP typeck (no native shu)" >&2
+  echo "std-examples gate SKIP typeck (no native shux)" >&2
 fi
 
 echo "std-examples gate OK"

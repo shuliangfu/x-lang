@@ -5,9 +5,9 @@
 #   std_dynlib_win_manifest_ok DOC DYNLIB_C MOD_SU TSV
 #   std_dynlib_win_emit_report status check_ok run_ok skip
 
-STD_DYNLIB_WIN_PREFIX="${SHU_STD_DYNLIB_WIN_PREFIX:-shu: [SHU_STD_DYNLIB_WIN]}"
+STD_DYNLIB_WIN_PREFIX="${SHUX_STD_DYNLIB_WIN_PREFIX:-shux: [SHUX_STD_DYNLIB_WIN]}"
 
-# 校验 manifest：C 符号、.su API、RFC 节；echo 缺失数。
+# 校验 manifest：C 符号、.sx API、RFC 节；echo 缺失数。
 std_dynlib_win_manifest_ok() {
   local doc="$1"
   local dynlib_c="$2"

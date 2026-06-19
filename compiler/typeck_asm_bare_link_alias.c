@@ -1,7 +1,7 @@
 /**
  * typeck_asm_bare_link_alias.c — build_asm/typeck.o 裸符号 → pipeline_glue 的 typeck_ 前缀名
  *
- * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.su 签名生成。
+ * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.sx 签名生成。
  */
 #include <stdint.h>
 

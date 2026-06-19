@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-db-compat-v1.md"
 MANIFEST="tests/baseline/std-db-compat-manifest.tsv"
 VECTORS="tests/baseline/std-db-compat-vectors.tsv"
-MOD_SU="std/db/mod.su"
-SQLITE_SU="std/sqlite/mod.su"
+MOD_SU="std/db/mod.sx"
+SQLITE_SU="std/sqlite/mod.sx"
 LIB="tests/lib/std-db-compat.sh"
-SMOKE_SU="tests/std-db/compat_smoke.su"
+SMOKE_SU="tests/std-db/compat_smoke.sx"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-db-compat.sh
@@ -47,10 +47,10 @@ ensure_std_c_o ../std/sqlite/sqlite.o
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_db_compat_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_db_compat_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

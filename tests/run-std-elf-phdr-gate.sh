@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
-MANIFEST="${SHU_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
-VECTORS="${SHU_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
-MOD_SU="std/elf/mod.su"
+DOC="${SHUX_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
+MANIFEST="${SHUX_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
+VECTORS="${SHUX_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
+MOD_SU="std/elf/mod.sx"
 ELF_C="std/elf/elf.c"
 LIB="tests/lib/std-elf-phdr.sh"
-SMOKE_SU="tests/std-elf/parse_phdr.su"
+SMOKE_SU="tests/std-elf/parse_phdr.sx"
 SMOKE_C="tests/std-elf/parse_phdr_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_phdr.bin"
 MIN_PHDR=2
@@ -80,7 +80,7 @@ echo "std-elf-phdr manifest OK"
 
 echo "=== STD-064: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHU_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
@@ -96,7 +96,7 @@ fi
 
 PHDR_SU=0
 SKIP=1
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -108,23 +108,23 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shu-c; then
-  SHU_BIN=./compiler/shu-c
-elif stdlib_cm_native_shu ./compiler/shu; then
-  SHU_BIN=./compiler/shu
+if stdlib_cm_native_shu ./compiler/shux-c; then
+  SHUX_BIN=./compiler/shux-c
+elif stdlib_cm_native_shu ./compiler/shux; then
+  SHUX_BIN=./compiler/shux
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-064: .su phdr smoke (SHU=$SHU_BIN) ==="
-  if std_elf_parse_run_smoke "$SHU_BIN" "$SMOKE_SU" "phdr"; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-064: .sx phdr smoke (SHUX=$SHUX_BIN) ==="
+  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_SU" "phdr"; then
     PHDR_SU=1
     SKIP=0
   else
-    echo "std-elf-phdr gate SKIP .su smoke" >&2
+    echo "std-elf-phdr gate SKIP .sx smoke" >&2
     SKIP=1
   fi
 else
-  echo "std-elf-phdr gate SKIP .su smoke (no native shu)" >&2
+  echo "std-elf-phdr gate SKIP .sx smoke (no native shux)" >&2
 fi
 
 std_elf_phdr_emit_report "ok" "$PHDR_C" "$PHDR_SU" "$SKIP"

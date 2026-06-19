@@ -1,8 +1,0 @@
-// vec_add_lit.su — 两侧 ARRAY_LIT 的向量加法 + 减法归零链
-function main(): i32 {
-  let c: i32x4 = [1, 2, 3, 4] + [10, 20, 30, 40];
-  let expect: i32x4 = [11, 22, 33, 44];
-  let d: i32x4 = c - expect;
-  let z: i32x4 = d - d;
-  return 0;
-}

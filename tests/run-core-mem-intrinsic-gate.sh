@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_MEM_INTRINSIC_DOC:-analysis/core-mem-intrinsic-v1.md}"
-MANIFEST="${SHU_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
+DOC="${SHUX_CORE_MEM_INTRINSIC_DOC:-analysis/core-mem-intrinsic-v1.md}"
+MANIFEST="${SHUX_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
 CODEGEN="compiler/src/codegen/codegen.c"
 LIB="tests/lib/core-mem-intrinsic.sh"
-EMIT_SU="tests/mem/main.su"
+EMIT_SU="tests/mem/main.sx"
 MIN_MAP=4
-PREFIX="shu: [SHU_CORE_MEM_INTRINSIC]"
+PREFIX="shux: [SHUX_CORE_MEM_INTRINSIC]"
 
 # shellcheck source=tests/lib/core-mem-intrinsic.sh
 . tests/lib/core-mem-intrinsic.sh
@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$EMIT_SU"; do
   fi
 done
 
-for kw in runnable SHU_CORE_MEM_INTRINSIC mem_compare __builtin_memcmp; do
+for kw in runnable SHUX_CORE_MEM_INTRINSIC mem_compare __builtin_memcmp; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "core-mem-intrinsic gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -46,7 +46,7 @@ if [ "${map_miss:-0}" -gt 0 ]; then
 fi
 echo "core-mem-intrinsic manifest OK (mappings=${MIN_MAP})"
 
-# 解析本机可执行 shu-c（与 BOOT-013 一致，避免 Darwin 误判 Linux ELF）。
+# 解析本机可执行 shux-c（与 BOOT-013 一致，避免 Darwin 误判 Linux ELF）。
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -60,28 +60,28 @@ stdlib_cm_native_shu() {
 }
 resolve_emit_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${SHU:-}" ] && stdlib_cm_native_shu "$SHU"; then
-    echo "$SHU"
+  if [ -n "${SHUX:-}" ] && stdlib_cm_native_shu "$SHUX"; then
+    echo "$SHUX"
     return 0
   fi
   return 1
 }
 
 EMIT_TOTAL=4
-if SHU_BIN="$(resolve_emit_shu 2>/dev/null)"; then
-  echo "=== CORE-008: runnable SHU_DEBUG_C emit (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! stdlib_cm_native_shu "$SHU_BIN"; then
-    SHU_BIN="$(resolve_emit_shu 2>/dev/null || true)"
+if SHUX_BIN="$(resolve_emit_shu 2>/dev/null)"; then
+  echo "=== CORE-008: runnable SHUX_DEBUG_C emit (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! stdlib_cm_native_shu "$SHUX_BIN"; then
+    SHUX_BIN="$(resolve_emit_shu 2>/dev/null || true)"
   fi
-  if [ -n "${SHU_BIN:-}" ] && stdlib_cm_native_shu "$SHU_BIN"; then
-  found="$(core_mem_intrinsic_emit_ok "$SHU_BIN" "$EMIT_SU" "$MANIFEST" || true)"
+  if [ -n "${SHUX_BIN:-}" ] && stdlib_cm_native_shu "$SHUX_BIN"; then
+  found="$(core_mem_intrinsic_emit_ok "$SHUX_BIN" "$EMIT_SU" "$MANIFEST" || true)"
   if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
     core_mem_intrinsic_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"
     echo "core-mem-intrinsic gate FAIL: emit ${found:-0}/${EMIT_TOTAL}" >&2
@@ -90,10 +90,10 @@ if SHU_BIN="$(resolve_emit_shu 2>/dev/null)"; then
   core_mem_intrinsic_emit_report "ok" "$found" "$EMIT_TOTAL"
   grep -qF "$PREFIX" <(core_mem_intrinsic_emit_report "ok" "$found" "$EMIT_TOTAL")
   else
-    echo "core-mem-intrinsic gate SKIP runnable (shu not native after make)" >&2
+    echo "core-mem-intrinsic gate SKIP runnable (shux not native after make)" >&2
   fi
 else
-  echo "core-mem-intrinsic gate SKIP runnable (no shu)" >&2
+  echo "core-mem-intrinsic gate SKIP runnable (no shux)" >&2
 fi
 
 echo "core-mem-intrinsic gate OK"

@@ -2,19 +2,19 @@
 # 列：item_id	kind	anchor	notes
 min_option_types	3
 min_result_types	2
-option_type_i32	symbol	Option_i32	core/option/mod.su
-option_type_u8	symbol	Option_u8	core/option/mod.su
-option_type_ptr	symbol	Option_ptr_u8	core/option/mod.su
-option_map	symbol	map_i32	core/option/mod.su
-option_and_then	symbol	and_then_i32	core/option/mod.su
-option_generic	symbol	unwrap_or<T>	core/option/mod.su
-result_type_i32	symbol	Result_i32	core/result/mod.su
-result_type_u8	symbol	Result_u8	core/result/mod.su
-result_map	symbol	map_i32	core/result/mod.su
-result_and_then	symbol	and_then_i32	core/result/mod.su
-result_or_else	symbol	or_else_i32	core/result/mod.su
-test_option	file	tests/option/main.su	烟测
-test_result	file	tests/result/main.su	烟测
+option_type_i32	symbol	Option_i32	core/option/mod.sx
+option_type_u8	symbol	Option_u8	core/option/mod.sx
+option_type_ptr	symbol	Option_ptr_u8	core/option/mod.sx
+option_map	symbol	map_i32	core/option/mod.sx
+option_and_then	symbol	and_then_i32	core/option/mod.sx
+option_generic	symbol	unwrap_or<T>	core/option/mod.sx
+result_type_i32	symbol	Result_i32	core/result/mod.sx
+result_type_u8	symbol	Result_u8	core/result/mod.sx
+result_map	symbol	map_i32	core/result/mod.sx
+result_and_then	symbol	and_then_i32	core/result/mod.sx
+result_or_else	symbol	or_else_i32	core/result/mod.sx
+test_option	file	tests/option/main.sx	烟测
+test_result	file	tests/result/main.sx	烟测
 runner_option	script	run-option.sh	tests/run-option.sh
 runner_result	script	run-result.sh	tests/run-result.sh
 doc	file	core-option-result-combinators-v1.md	analysis/core-option-result-combinators-v1.md	RFC

@@ -1,0 +1,20 @@
+// B-14 v3：Linux freestanding openat(AT_FDCWD)+read 烟测。
+const linux = import("std.sys.linux");
+
+function main(): i32 {
+  /** 固定路径 "/tmp/shux_linux_openat_read_gate.txt\0"（gate 写入 "AT"）。 */
+  let path: [37]u8 = [
+    47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 108, 105, 110, 117, 120, 95,
+    111, 112, 101, 110, 97, 116, 95, 114, 101, 97, 100, 95, 103, 97, 116, 101,
+    46, 116, 120, 116, 0,
+  ];
+  let buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = linux.linux_read_file_openat(-100, &path[0], &buf[0], 8);
+  if (n != 2) {
+    return 1;
+  }
+  if (buf[0] != 65 || buf[1] != 84) {
+    return 2;
+  }
+  return 0;
+}

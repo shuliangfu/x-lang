@@ -10,18 +10,18 @@ chmod +x tests/run-pre-push-p5.sh
 ./tests/run-pre-push-p5.sh
 
 echo ""
-echo "=== push-ready: S2 typeck gate (shu-c, no shu_asm required) ==="
+echo "=== push-ready: S2 typeck gate (shux-c, no shux_asm required) ==="
 chmod +x tests/run-s2-typeck-gate.sh
 ./tests/run-s2-typeck-gate.sh
 
 echo ""
 echo "=== push-ready: WPO-S3 (struct promote + await/yield asm) ==="
 chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh
-if [ -x ./compiler/shu_asm ] && { [ "$(uname -s)" = "Linux" ] || file ./compiler/shu_asm 2>/dev/null | grep -q Mach-O; }; then
+if [ -x ./compiler/shux_asm ] && { [ "$(uname -s)" = "Linux" ] || file ./compiler/shux_asm 2>/dev/null | grep -q Mach-O; }; then
   make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
-  SHU=./compiler/shu_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/shu_wpo_s3_push.log
-  grep -q 'wpo-s3 await asm OK' /tmp/shu_wpo_s3_push.log
-  grep -q 'wpo-s3 await_yield asm OK' /tmp/shu_wpo_s3_push.log
+  SHUX=./compiler/shux_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/shux_wpo_s3_push.log
+  grep -q 'wpo-s3 await asm OK' /tmp/shux_wpo_s3_push.log
+  grep -q 'wpo-s3 await_yield asm OK' /tmp/shux_wpo_s3_push.log
 else
   ./tests/run-wpo-s3-gate.sh
 fi
@@ -33,13 +33,13 @@ if [ "$(uname -s)" = "Linux" ]; then
 else
   echo ""
   echo "=== push-ready: optional Docker Linux gates ==="
-  echo "run: ./scripts/docker-ci-local.sh ubuntu-gates    # P5 + refresh shu_asm"
+  echo "run: ./scripts/docker-ci-local.sh ubuntu-gates    # P5 + refresh shux_asm"
   echo "run: ./scripts/docker-ci-local.sh ubuntu-net-zc1  # ZC-1 (GHA kernel; Docker Desktop may SKIP)"
 fi
 
 echo ""
-if [ ! -x ./compiler/shu_asm ]; then
-  echo "note: compiler/shu_asm missing (docker make clean / no bootstrap)"
+if [ ! -x ./compiler/shux_asm ]; then
+  echo "note: compiler/shux_asm missing (docker make clean / no bootstrap)"
   echo "  P0/asm: ./scripts/docker-ci-local.sh ubuntu-gates  or  make -C compiler bootstrap-driver-bstrict"
   echo "  WPO-S2: ./scripts/docker-ci-local.sh ubuntu-wpo-s2"
 fi

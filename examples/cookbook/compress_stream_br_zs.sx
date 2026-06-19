@@ -1,0 +1,61 @@
+/**
+ * Cookbook CMP-02：brotli/zstd 统一流式压缩（STD-081 #81）。
+ * 未链 lib 时 stream_compress_init 失败则 exit 0（skip）。
+ */
+const compress = import("std.compress");
+
+/** 单格式流式往返；init 失败返回 0（skip）。 */
+function roundtrip(format: i32): i32 {
+  let raw: [6]u8 = [99, 111, 111, 107, 33, 0];
+  let sb: i32 = compress.stream_compress_state_bytes_for(format);
+  if (sb <= 0 || sb > 512) {
+    return 99;
+  }
+  let st_c: [512]u8 = [];
+  let st_d: [512]u8 = [];
+  let sc: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
+  let sd: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
+  if (compress.stream_compress_init(&sc, &st_c[0], sb, format, compress.compress_stream_mode_compress()) != 0) {
+    return 0;
+  }
+  let out: [64]u8 = [];
+  let scratch: [32]u8 = [];
+  let consumed: i32 = 0;
+  let n: i32 = compress.stream_compress_process(sc, &raw[0], 5, &scratch[0], 32, 1, &consumed);
+  if (n < 0) {
+    compress.stream_compress_end(sc);
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    out[i] = scratch[i];
+    i = i + 1;
+  }
+  compress.stream_compress_end(sc);
+  if (n <= 0) {
+    return 2;
+  }
+  if (compress.stream_compress_init(&sd, &st_d[0], sb, format, compress.compress_stream_mode_decompress()) != 0) {
+    return 3;
+  }
+  let dec: [32]u8 = [];
+  let dconsumed: i32 = 0;
+  let dn: i32 = compress.stream_compress_process(sd, &out[0], n, &scratch[0], 32, 0, &dconsumed);
+  compress.stream_compress_end(sd);
+  if (dn != 5) {
+    return 4;
+  }
+  return 0;
+}
+
+function main(): i32 {
+  let br: i32 = roundtrip(compress.compress_format_brotli());
+  if (br != 0) {
+    return 10 + br;
+  }
+  let zs: i32 = roundtrip(compress.compress_format_zstd());
+  if (zs != 0) {
+    return 20 + zs;
+  }
+  return 0;
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-next-row.sh — STD-067 manifest 与 next_row 游标烟测辅助
 
-STD_DB_NEXT_ROW_PREFIX="${SHU_STD067_PREFIX:-shu: [SHU_STD067_DB_CURSOR]}"
+STD_DB_NEXT_ROW_PREFIX="${SHUX_STD067_PREFIX:-shux: [SHUX_STD067_DB_CURSOR]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_next_row_source_sqlite() {
@@ -28,7 +28,7 @@ std_sqlite_next_row_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-next-row FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -55,7 +55,7 @@ std_sqlite_next_row_symbols_ok() {
 std_sqlite_next_row_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/next_row_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_next_row_$$"
+  local out="/tmp/shux_std_sqlite_next_row_$$"
   local db_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

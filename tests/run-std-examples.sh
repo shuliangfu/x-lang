@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/std-examples.sh
 . tests/lib/std-examples.sh
 
-CATALOG="${SHU_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
+CATALOG="${SHUX_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
 
 echo "=== STD-012: std examples catalog (n=$(std_ex_catalog_count "$CATALOG")) ==="
 std_ex_validate_paths "$CATALOG"

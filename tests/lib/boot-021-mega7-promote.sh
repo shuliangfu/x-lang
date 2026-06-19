@@ -6,12 +6,12 @@
 #   boot021_parse_bisect_status LOG_FILE TARGET
 #   boot021_emit_report status runnable_ok promote_emit skip
 
-BOOT021_PREFIX="${SHU_BOOT021_PREFIX:-shu: [SHU_BOOT021]}"
+BOOT021_PREFIX="${SHUX_BOOT021_PREFIX:-shux: [SHUX_BOOT021]}"
 
-# Linux 且存在 experimental shu_asm 则可跑 bisect wave。
+# Linux 且存在 experimental shux_asm 则可跑 bisect wave。
 boot021_mega7_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || [ -x "./compiler/shu_asm.experimental" ] || return 1
+  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
   return 0
 }
 

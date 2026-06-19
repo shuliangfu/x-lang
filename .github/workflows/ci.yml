@@ -1,4 +1,4 @@
-# Shulang CI: multi-platform build, C test suite, and self-host (.su) tests
+# Shux CI: multi-platform build, C test suite, and self-host (.sx) tests
 # 全平台统一跑 tests/run-ci-full-suite.sh（Tier P 便携 + Tier B DOD/IO + Tier A asm/bstrict 按平台）。
 
 name: CI
@@ -31,18 +31,18 @@ jobs:
           uname -a
           pwd && ls -la
           which cc make 2>/dev/null || true
-      - name: Build compiler (shu)
+      - name: Build compiler (shux)
         run: make -C compiler OPT=1 all
         env:
           CC: cc
-      - name: Verify compiler/shu was built
+      - name: Verify compiler/shux was built
         run: |
-          if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
-            echo "::error::compiler/shu not found or not executable (Build compiler step did not produce it)"
+          if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
+            echo "::error::compiler/shux not found or not executable (Build compiler step did not produce it)"
             exit 1
           fi
-          if [ ! -f compiler/shu-c ] || [ ! -x compiler/shu-c ]; then
-            echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
+          if [ ! -f compiler/shux-c ] || [ ! -x compiler/shux-c ]; then
+            echo "::error::compiler/shux-c not found (make all should produce shux-c alongside shux)"
             exit 1
           fi
       - name: Full CI test suite
@@ -60,7 +60,7 @@ jobs:
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           echo "=== Kept generated C (head 120 lines each) ==="
-          for f in /tmp/shu_su.*.c; do
+          for f in /tmp/shux_su.*.c; do
             [ -f "$f" ] || continue
             echo "--- $f ---" && head -120 "$f" && echo ""
           done
@@ -75,25 +75,25 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies (liburing, zlib, brotli — 与主编译 job 对齐)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev strace
-      - name: Build compiler (shu + shu-c)
+      - name: Build compiler (shux + shux-c)
         run: make -C compiler OPT=1 all
         env:
           CC: cc
-      - name: Produce asm-capable shu (Goal 2)
+      - name: Produce asm-capable shux (Goal 2)
         run: make -C compiler bootstrap-driver-seed
         env:
           CC: cc
         timeout-minutes: 12
       - name: Run asm regression script (forces CI path)
-        run: SHU_CI_FORCE_ASM=1 ./tests/run-asm.sh
+        run: SHUX_CI_FORCE_ASM=1 ./tests/run-asm.sh
         timeout-minutes: 12
-      - name: shu_asm smoke (return-value)
+      - name: shux_asm smoke (return-value)
         run: |
-          if [ ! -x compiler/shu_asm ]; then
-            echo "shu_asm smoke SKIP (no shu_asm on asm-smoke job; full suite covers build_shu_asm)"
+          if [ ! -x compiler/shux_asm ]; then
+            echo "shux_asm smoke SKIP (no shux_asm on asm-smoke job; full suite covers build_shux_asm)"
             exit 0
           fi
-          cd compiler && ./scripts/run_shu_asm_smoke.sh
+          cd compiler && ./scripts/run_shux_asm_smoke.sh
         timeout-minutes: 8
 
   linux-arm64:
@@ -111,18 +111,18 @@ jobs:
         run: |
           echo "Runner OS: $RUNNER_OS | Linux ARM64"
           uname -a && pwd && which cc make 2>/dev/null || true
-      - name: Build compiler (shu)
+      - name: Build compiler (shux)
         run: make -C compiler OPT=1 all
         env:
           CC: cc
-      - name: Verify compiler/shu was built
+      - name: Verify compiler/shux was built
         run: |
-          if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
-            echo "::error::compiler/shu not found or not executable (Build compiler step did not produce it)"
+          if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
+            echo "::error::compiler/shux not found or not executable (Build compiler step did not produce it)"
             exit 1
           fi
-          if [ ! -f compiler/shu-c ] || [ ! -x compiler/shu-c ]; then
-            echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
+          if [ ! -f compiler/shux-c ] || [ ! -x compiler/shux-c ]; then
+            echo "::error::compiler/shux-c not found (make all should produce shux-c alongside shux)"
             exit 1
           fi
       - name: Full CI test suite
@@ -136,7 +136,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   mac:
     name: macOS (${{ matrix.os }})
@@ -157,18 +157,18 @@ jobs:
         run: |
           echo "Runner OS: $RUNNER_OS | ${{ matrix.os }}"
           uname -a && pwd && which cc make 2>/dev/null || true
-      - name: Build compiler (shu)
+      - name: Build compiler (shux)
         run: make -C compiler OPT=1 all
         env:
           CC: cc
-      - name: Verify compiler/shu was built
+      - name: Verify compiler/shux was built
         run: |
-          if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
-            echo "::error::compiler/shu not found or not executable (Build compiler step did not produce it)"
+          if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
+            echo "::error::compiler/shux not found or not executable (Build compiler step did not produce it)"
             exit 1
           fi
-          if [ ! -f compiler/shu-c ] || [ ! -x compiler/shu-c ]; then
-            echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
+          if [ ! -f compiler/shux-c ] || [ ! -x compiler/shux-c ]; then
+            echo "::error::compiler/shux-c not found (make all should produce shux-c alongside shux)"
             exit 1
           fi
       - name: Full CI test suite
@@ -182,7 +182,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   windows:
     name: Windows (MSYS2)
@@ -207,20 +207,25 @@ jobs:
           msystem: MSYS
           update: false
           install: make gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
-      - name: Build compiler (shu)
+      - name: Build compiler (shux)
         run: make -C compiler OPT=1 all
         env:
           CC: gcc
-      - name: Verify compiler/shu was built
+      - name: Verify compiler/shux was built
         run: |
-          if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
-            echo "::error::compiler/shu not found or not executable (Build compiler step did not produce it)"
+          if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
+            echo "::error::compiler/shux not found or not executable (Build compiler step did not produce it)"
             exit 1
           fi
-          if [ ! -f compiler/shu-c ] || [ ! -x compiler/shu-c ]; then
-            echo "::error::compiler/shu-c not found (make all should produce shu-c alongside shu)"
+          if [ ! -f compiler/shux-c ] || [ ! -x compiler/shux-c ]; then
+            echo "::error::compiler/shux-c not found (make all should produce shux-c alongside shux)"
             exit 1
           fi
+      - name: B-hybrid shux_asm smoke (A-08)
+        run: |
+          chmod +x tests/run-bootstrap-bstrict-windows-gate.sh
+          ./tests/run-bootstrap-bstrict-windows-gate.sh
+        timeout-minutes: 90
       - name: Full CI test suite
         run: |
           chmod +x tests/run-ci-full-suite.sh
@@ -233,7 +238,7 @@ jobs:
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shu_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   linux-option-asan:
     name: Linux (ASan repro run-option)
@@ -243,7 +248,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev strace
-      - name: Build std .o and shu (no ASan)
+      - name: Build std .o and shux (no ASan)
         run: make -C compiler clean && make -C compiler all
         env:
           CC: cc
@@ -259,7 +264,7 @@ jobs:
       - name: Reproduce run-option (capture ASan output)
         run: |
           ulimit -s 16384 2>/dev/null || true
-          ./compiler/shu -L . tests/option/main.su -o /tmp/shu_option 2>&1 || true
+          ./compiler/shux -L . tests/option/main.sx -o /tmp/shux_option 2>&1 || true
           echo "--- exit code above ---"
 
   docker-distro:
@@ -280,7 +285,7 @@ jobs:
       - name: Build and full test in ${{ matrix.image }}
         timeout-minutes: 180
         run: |
-          docker run --rm -e CI=1 -e SHU_CI_FULL_SUITE=1 -e SHU_CI_DOCKER=1 -e SHU_CC_EXTRA="-std=gnu11" \
+          docker run --rm -e CI=1 -e SHUX_CI_FULL_SUITE=1 -e SHUX_CI_DOCKER=1 -e SHUX_CC_EXTRA="-std=gnu11" \
             -v "${{ github.workspace }}:/src" -w /src \
             ${{ matrix.image }} \
             sh -c '
@@ -289,7 +294,7 @@ jobs:
               else
                 apt-get update -qq && apt-get install -y -qq build-essential bash diffutils python3 perl file liburing-dev zlib1g-dev libzstd-dev libbrotli-dev curl xz-utils
               fi &&
-              export SHU_CC_EXTRA="-std=gnu11" &&
+              export SHUX_CC_EXTRA="-std=gnu11" &&
               make -C compiler clean &&
               make -C compiler OPT=1 all &&
               chmod +x tests/run-ci-full-suite.sh &&

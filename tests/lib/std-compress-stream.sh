@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_compress_stream_symbols_ok MOD_SU COMPRESS_C TSV
-#   std_compress_stream_run_smoke SHU_BIN SU TAG
+#   std_compress_stream_run_smoke SHUX_BIN SU TAG
 #   std_compress_stream_emit_report status stream_ok skip
 
-STD_COMPRESS_STREAM_PREFIX="${SHU_STD_COMPRESS_STREAM_PREFIX:-shu: [SHU_STD_COMPRESS_STREAM]}"
+STD_COMPRESS_STREAM_PREFIX="${SHUX_STD_COMPRESS_STREAM_PREFIX:-shux: [SHUX_STD_COMPRESS_STREAM]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_compress_stream_symbols_ok() {
@@ -28,6 +28,8 @@ std_compress_stream_symbols_ok() {
       symbol)
         case "$mod_path" in
           std/compress/compress.c) mod_path="$compress_c" ;;
+          std/compress/gzip/gzip.c) mod_path="$compress_c" ;;
+          std/compress/brotli/brotli.c) mod_path="$compress_c" ;;
           *) mod_path="$mod_su" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
@@ -47,19 +49,19 @@ std_compress_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su（须已 rebuild compress.o with zlib）。
+# 编译并运行烟测 .sx（须已 rebuild compress.o with zlib）。
 std_compress_stream_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_compress_stream_${tag}_$$"
+  local exe="/tmp/shux_std_compress_stream_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-compress-stream FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-compress-stream FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

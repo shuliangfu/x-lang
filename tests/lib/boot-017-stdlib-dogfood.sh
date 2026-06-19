@@ -6,9 +6,9 @@
 #   boot017_list_modules MATRIX_TSV
 #   boot017_emit_report status modules slow p50 p95 skip
 
-BOOT017_PREFIX="${SHU_BOOT017_PREFIX:-shu: [SHU_BOOT017_STDLIB_DOGFOOD]}"
+BOOT017_PREFIX="${SHUX_BOOT017_PREFIX:-shux: [SHUX_BOOT017_STDLIB_DOGFOOD]}"
 
-# 判断 shu 是否可在本机执行。
+# 判断 shux 是否可在本机执行。
 boot017_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -21,17 +21,17 @@ boot017_native_shu() {
   esac
 }
 
-# 解析 check 用 shu（优先 shu-c）。
+# 解析 check 用 shux（优先 shux-c）。
 boot017_resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if boot017_native_shu "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${SHU:-}" ] && boot017_native_shu "$SHU"; then
-    echo "$SHU"
+  if [ -n "${SHUX:-}" ] && boot017_native_shu "$SHUX"; then
+    echo "$SHUX"
     return 0
   fi
   return 1

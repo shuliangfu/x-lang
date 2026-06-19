@@ -7,7 +7,7 @@
 #   perf_cm_report_emit case_id layout miss_pct cap_pct ok_flag
 #
 # 环境：
-#   SHU_CACHE_MISS_PREFIX — 默认 shu: [SHU_CACHE_MISS]
+#   SHUX_CACHE_MISS_PREFIX — 默认 shux: [SHUX_CACHE_MISS]
 
 # 解析 perf 可执行路径（GHA 常仅 linux-tools-* 目录下有 perf）。
 perf_cm_resolve_bin() {
@@ -119,7 +119,7 @@ perf_cm_report_emit() {
   local miss_pct="$3"
   local cap_pct="$4"
   local ok_flag="$5"
-  local prefix="${SHU_CACHE_MISS_PREFIX:-shu: [SHU_CACHE_MISS]}"
+  local prefix="${SHUX_CACHE_MISS_PREFIX:-shux: [SHUX_CACHE_MISS]}"
   printf '%s case=%s layout=%s l1_miss_pct=%s cap_pct=%s ok=%s\n' \
     "$prefix" "$case_id" "$layout" "$miss_pct" "$cap_pct" "$ok_flag" >&2
 }

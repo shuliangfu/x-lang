@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # PERF-169：SIMD/IO/NET/DB 每周性能基线汇总门禁
 #
-# 四支柱：
+# 四支柱 + STD 扩展：
 #   1) SIMD — std-simd-autovec-strategy + 可选 shuffle/select perf
-#   2) IO   — perf-io-zig（无 native shu 时 SKIP）
-#   3) NET  — perf-net-zc manifest + perf-net-zig（无 shu 时 SKIP）
+#   2) IO   — perf-io-zig（无 native shux 时 SKIP）
+#   3) NET  — perf-net-zc manifest + perf-net-zig（无 shux 时 SKIP）
 #   4) DB   — perf-sqlite manifest + stub/loop 烟测
 #
 # 用法：./tests/run-perf-weekly-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_WEEKLY_DOC:-analysis/perf-weekly-v1.md}"
-MANIFEST="${SHU_PERF_WEEKLY_TSV:-tests/baseline/perf-weekly.tsv}"
-PREFIX="shu: [SHU_PERF_WEEKLY]"
+DOC="${SHUX_PERF_WEEKLY_DOC:-analysis/perf-weekly-v1.md}"
+MANIFEST="${SHUX_PERF_WEEKLY_TSV:-tests/baseline/perf-weekly.tsv}"
+PREFIX="shux: [SHUX_PERF_WEEKLY]"
 
 echo "=== PERF-169: weekly perf manifest ==="
 for f in "$DOC" "$MANIFEST"; do
@@ -48,8 +48,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$PILLARS" -lt 4 ]; then
-  echo "perf-weekly gate FAIL: pillars=${PILLARS} < 4" >&2
+if [ "$PILLARS" -lt 5 ]; then
+  echo "perf-weekly gate FAIL: pillars=${PILLARS} < 5" >&2
   exit 1
 fi
 if [ "$MISS" -gt 0 ]; then
@@ -62,17 +62,18 @@ SIMD_OK=0
 IO_OK=0
 NET_OK=0
 DB_OK=0
+STD_OK=0
 SKIP=0
 
 echo "=== PERF-169: pillar SIMD ==="
 chmod +x tests/run-std-simd-autovec-strategy-gate.sh
 ./tests/run-std-simd-autovec-strategy-gate.sh
 SIMD_OK=1
-if [ -x ./compiler/shu_asm ] || [ -x ./compiler/shu_asm.strict ]; then
+if [ -x ./compiler/shux_asm ] || [ -x ./compiler/shux_asm.strict ]; then
   chmod +x tests/run-perf-simd-shuffle-select.sh 2>/dev/null || true
   if [ -f tests/run-perf-simd-shuffle-select.sh ]; then
     set +e
-    SHU_SIMD_SS_FAIL=0 ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
+    SHUX_SIMD_SS_FAIL=0 ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
     simd_ec=$?
     set -e
     if [ "$simd_ec" -eq 0 ]; then
@@ -96,7 +97,7 @@ if [ "$io_ec" -eq 0 ]; then
 elif grep -q 'SKIP' /tmp/perf_weekly_io.log 2>/dev/null; then
   IO_OK=1
   SKIP=$((SKIP + 1))
-  echo "perf-weekly IO SKIP (no native shu)"
+  echo "perf-weekly IO SKIP (no native shux)"
 else
   echo "perf-weekly IO FAIL" >&2
   tail -8 /tmp/perf_weekly_io.log >&2 || true
@@ -116,7 +117,7 @@ if [ "$net_ec" -eq 0 ]; then
 elif grep -q 'SKIP' /tmp/perf_weekly_net.log 2>/dev/null; then
   NET_OK=1
   SKIP=$((SKIP + 1))
-  echo "perf-weekly NET SKIP (no native shu)"
+  echo "perf-weekly NET SKIP (no native shux)"
 else
   echo "perf-weekly NET FAIL" >&2
   tail -8 /tmp/perf_weekly_net.log >&2 || true
@@ -128,5 +129,10 @@ chmod +x tests/run-perf-sqlite-gate.sh
 ./tests/run-perf-sqlite-gate.sh
 DB_OK=1
 
-echo "${PREFIX} status=ok simd=${SIMD_OK} io=${IO_OK} net=${NET_OK} db=${DB_OK} skip=${SKIP}"
+echo "=== PERF-169: pillar STD (Phase 3) ==="
+chmod +x tests/run-perf-phase3-gate.sh tests/lib/perf-phase3.sh
+./tests/run-perf-phase3-gate.sh
+STD_OK=1
+
+echo "${PREFIX} status=ok simd=${SIMD_OK} io=${IO_OK} net=${NET_OK} db=${DB_OK} std=${STD_OK} skip=${SKIP}"
 echo "perf-weekly gate OK"

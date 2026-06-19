@@ -1,5 +1,5 @@
-# shu net bench 中位数上限（秒）；门禁：实测 median ≤ 本列值
-# 更新：SHU_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
+# shux net bench 中位数上限（秒）；门禁：实测 median ≤ 本列值
+# 更新：SHUX_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
 net_accept_many	0.22
 net_echo_throughput	0.18
 net_echo_throughput_provided	0.18

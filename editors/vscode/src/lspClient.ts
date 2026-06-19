@@ -1,7 +1,7 @@
 /**
- * Shulang LSP 客户端 — 启动前校验、Pull 诊断、崩溃自动重启。
+ * Shux LSP 客户端 — 启动前校验、Pull 诊断、崩溃自动重启。
  *
- * 诊断仅走 LSP textDocument/diagnostic（Pull），不做本地 shu check 回退。
+ * 诊断仅走 LSP textDocument/diagnostic（Pull），不做本地 shux check 回退。
  */
 
 import { spawnSync } from 'child_process';
@@ -19,17 +19,17 @@ import {
 let intentionalStop = false;
 
 /** 启动 LSP 前的校验结果 */
-export type ShuLspValidation =
+export type ShuxLspValidation =
   | { ok: true }
   | { ok: false; message: string };
 
 /**
- * 校验 shu 是否可作为语言服务器：存在、可执行、支持 --lsp（非 shu-c）。
- * @param command 已 resolve 的 shu 绝对/相对路径
+ * 校验 shux 是否可作为语言服务器：存在、可执行、支持 --lsp（非 shux-c）。
+ * @param command 已 resolve 的 shux 绝对/相对路径
  */
-export function validateShuLanguageServer(command: string): ShuLspValidation {
+export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (!command.trim()) {
-    return { ok: false, message: 'shulang.serverPath 为空。请设置为 compiler/shu 或 shu 的绝对路径。' };
+    return { ok: false, message: 'shux.serverPath 为空。请设置为 compiler/shux 或 shux 的绝对路径。' };
   }
 
   if (!fs.existsSync(command)) {
@@ -42,10 +42,10 @@ export function validateShuLanguageServer(command: string): ShuLspValidation {
   try {
     fs.accessSync(command, fs.constants.X_OK);
   } catch {
-    return { ok: false, message: `shu 不可执行：${command}` };
+    return { ok: false, message: `shux 不可执行：${command}` };
   }
 
-  /** shu --lsp 会阻塞读 stdin；超时说明进程正常进入 LSP 模式 */
+  /** shux --lsp 会阻塞读 stdin；超时说明进程正常进入 LSP 模式 */
   const probe = spawnSync(command, ['--lsp'], {
     encoding: 'utf8',
     timeout: 2000,
@@ -56,7 +56,7 @@ export function validateShuLanguageServer(command: string): ShuLspValidation {
     return {
       ok: false,
       message:
-        '当前 shu 不支持 --lsp（常见为 shu-c）。请使用 bootstrap 构建的 compiler/shu 作为 shulang.serverPath。',
+        '当前 shux 不支持 --lsp（常见为 shux-c）。请使用 bootstrap 构建的 compiler/shux 作为 shux.serverPath。',
     };
   }
 
@@ -70,7 +70,7 @@ export function validateShuLanguageServer(command: string): ShuLspValidation {
   if (probe.status !== 0 && probe.status !== null) {
     return {
       ok: false,
-      message: `shu --lsp 探针异常退出 (code ${probe.status})。详见 Shulang 输出通道。`,
+      message: `shux --lsp 探针异常退出 (code ${probe.status})。详见 Shux 输出通道。`,
     };
   }
 
@@ -82,13 +82,13 @@ function createLanguageClient(
   serverOptions: ServerOptions,
   clientOptions: LanguageClientOptions
 ): LanguageClient {
-  return new LanguageClient('shulang', 'Shulang Language Server', serverOptions, clientOptions);
+  return new LanguageClient('shux', 'Shux Language Server', serverOptions, clientOptions);
 }
 
 /**
- * 启动 Shulang 语言服务；失败时弹窗并写 Output，返回 undefined。
+ * 启动 Shux 语言服务；失败时弹窗并写 Output，返回 undefined。
  */
-export async function startShulangLanguageClient(params: {
+export async function startShuxLanguageClient(params: {
   command: string;
   args: string[];
   cwd: string;
@@ -97,11 +97,11 @@ export async function startShulangLanguageClient(params: {
   outputChannel: vscode.OutputChannel;
   restartOnCrash: boolean;
 }): Promise<LanguageClient | undefined> {
-  const validation = validateShuLanguageServer(params.command);
+  const validation = validateShuxLanguageServer(params.command);
   if (!validation.ok) {
-    params.outputChannel.appendLine(`[Shulang] ${validation.message}`);
+    params.outputChannel.appendLine(`[Shux] ${validation.message}`);
     void vscode.window
-      .showErrorMessage(`Shulang 语言服务无法启动：${validation.message}`, '显示输出')
+      .showErrorMessage(`Shux 语言服务无法启动：${validation.message}`, '显示输出')
       .then((choice) => {
         if (choice === '显示输出') {
           params.outputChannel.show(true);
@@ -122,10 +122,10 @@ export async function startShulangLanguageClient(params: {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'su' }],
+    documentSelector: [{ scheme: 'file', language: 'sx' }],
     outputChannel: params.outputChannel,
     traceOutputChannel: params.outputChannel,
-    /** Pull 诊断：编辑/切换标签页时向 shu 请求 textDocument/diagnostic */
+    /** Pull 诊断：编辑/切换标签页时向 shux 请求 textDocument/diagnostic */
     diagnosticPullOptions: {
       onTabs: true,
     },
@@ -141,10 +141,10 @@ export async function startShulangLanguageClient(params: {
       event.oldState === State.Running &&
       event.newState === State.Stopped
     ) {
-      params.outputChannel.appendLine('[Shulang] 语言服务意外退出，正在自动重启…');
+      params.outputChannel.appendLine('[Shux] 语言服务意外退出，正在自动重启…');
       void client.start().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        params.outputChannel.appendLine(`[Shulang] 自动重启失败: ${message}`);
+        params.outputChannel.appendLine(`[Shux] 自动重启失败: ${message}`);
       });
     }
   });
@@ -152,13 +152,13 @@ export async function startShulangLanguageClient(params: {
   try {
     await client.start();
     params.outputChannel.appendLine(
-      '[Shulang] 语言服务已连接（Pull 诊断：parse/typeck 错误将显示在问题面板）。'
+      '[Shux] 语言服务已连接（Pull 诊断：parse/typeck 错误将显示在问题面板）。'
     );
     return client;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    params.outputChannel.appendLine(`[Shulang] LSP 启动失败: ${message}`);
-    void vscode.window.showErrorMessage(`Shulang LSP 启动失败: ${message}`, '显示输出').then((choice) => {
+    params.outputChannel.appendLine(`[Shux] LSP 启动失败: ${message}`);
+    void vscode.window.showErrorMessage(`Shux LSP 启动失败: ${message}`, '显示输出').then((choice) => {
       if (choice === '显示输出') {
         params.outputChannel.show(true);
       }
@@ -168,7 +168,7 @@ export async function startShulangLanguageClient(params: {
 }
 
 /** 停止语言服务（标记为用户主动，不触发崩溃重启） */
-export async function stopShulangLanguageClient(client: LanguageClient | undefined): Promise<void> {
+export async function stopShuxLanguageClient(client: LanguageClient | undefined): Promise<void> {
   if (!client) {
     return;
   }

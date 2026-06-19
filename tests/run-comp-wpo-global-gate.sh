@@ -3,15 +3,15 @@
 #
 # 1) comp-wpo-global-v1.md + comp-wpo-global-wave.tsv + comp-wpo.tsv global 行
 # 2) 父 COMP-017 manifest 绿
-# 3) 有 shu_asm / .o 产物时逐条执行 global hook
+# 3) 有 shux_asm / .o 产物时逐条执行 global hook
 #
 # 用法：./tests/run-comp-wpo-global-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP019_DOC:-analysis/comp-wpo-global-v1.md}"
-WAVE="${SHU_COMP019_WAVE_TSV:-tests/baseline/comp-wpo-global-wave.tsv}"
-MANIFEST="${SHU_COMP019_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+DOC="${SHUX_COMP019_DOC:-analysis/comp-wpo-global-v1.md}"
+WAVE="${SHUX_COMP019_WAVE_TSV:-tests/baseline/comp-wpo-global-wave.tsv}"
+MANIFEST="${SHUX_COMP019_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-global.sh"
 MIN_GLOBAL=5
 
@@ -98,9 +98,9 @@ echo "comp-wpo-global manifest OK (global_hooks=${GLOBAL_HOOK_N})"
 
 echo "=== COMP-019: parent COMP-017 manifest ==="
 chmod +x tests/run-comp-wpo-default-gate.sh
-SHU_COMP017_MANIFEST_ONLY=1 ./tests/run-comp-wpo-default-gate.sh
+SHUX_COMP017_MANIFEST_ONLY=1 ./tests/run-comp-wpo-default-gate.sh
 
-if [ "${SHU_COMP019_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP019_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_wpo_global_emit_report "ok" "$GLOBAL_HOOK_N" 0 0
   echo "comp-wpo-global gate OK (manifest only)"
   exit 0

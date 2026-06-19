@@ -11,7 +11,7 @@ upcoming	section	## 5. 下季预览	2028-Q1
 update_process	section	## 6. 季度更新流程	quarterly
 doc_index	section	## 7. 深度资料索引	索引
 self_check	section	## 8. 自检	quiz
-report	section	## 9. 报告格式	SHU_DOC_ROADMAP
+report	section	## 9. 报告格式	SHUX_DOC_ROADMAP
 cross_docs_readme	cross_ref	docs/README.md	语言参考
 cross_selfhost	cross_ref	analysis/doc-selfhost-architecture-v1.md	DOC-002
 cross_perf	cross_ref	analysis/perf-zig-baseline-v1.md	PERF-001

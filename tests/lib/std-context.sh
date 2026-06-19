@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-context.sh — STD-071 manifest 与烟测辅助
 
-STD_CONTEXT_PREFIX="${SHU_STD_CONTEXT_PREFIX:-shu: [SHU_STD_CONTEXT]}"
+STD_CONTEXT_PREFIX="${SHUX_STD_CONTEXT_PREFIX:-shux: [SHUX_STD_CONTEXT]}"
 
 # 遍历 manifest 校验 symbol/file/smoke。
 std_context_symbols_ok() {
@@ -43,7 +43,7 @@ std_context_symbols_ok() {
 # C 烟测：context.o + time.o。
 std_context_run_c_smoke() {
   local ctx_c="$1"
-  local out="/tmp/shu_std_context_$$"
+  local out="/tmp/shux_std_context_$$"
   local ctx_o time_o
   ctx_o="$(dirname "$ctx_c")/context.o"
   time_o="std/time/time.o"
@@ -70,15 +70,15 @@ std_context_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_context_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-ctx}"
-  local exe="/tmp/shu_std_context_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_context_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-context FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

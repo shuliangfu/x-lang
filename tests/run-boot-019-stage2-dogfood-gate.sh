@@ -3,14 +3,14 @@
 #
 # 1) boot-019-stage2-dogfood-v1.md 必需章节
 # 2) 六条烟测存在且文档引用
-# 3) native shu 时跑 bootstrap 子集 runner（check 必绿；link 可选）
+# 3) native shux 时跑 bootstrap 子集 runner（check 必绿；link 可选）
 #
 # 用法：./tests/run-boot-019-stage2-dogfood-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT019_DOC:-analysis/boot-019-stage2-dogfood-v1.md}"
-MANIFEST="${SHU_BOOT019_TSV:-tests/baseline/boot-019-stage2-dogfood.tsv}"
+DOC="${SHUX_BOOT019_DOC:-analysis/boot-019-stage2-dogfood-v1.md}"
+MANIFEST="${SHUX_BOOT019_TSV:-tests/baseline/boot-019-stage2-dogfood.tsv}"
 RUNNER="tests/run-bootstrap-stage2-dogfood-parser-typeck.sh"
 LIB="tests/lib/boot-019-stage2-dogfood.sh"
 MIN_SMOKE=6
@@ -106,11 +106,11 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "boot-019-stage2-dogfood manifest OK (smokes=${SMOKE})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
@@ -119,11 +119,11 @@ fi
 CHECK_OK=0
 LINK_OK=0
 SKIP=1
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== BOOT-019: bootstrap subset runner (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== BOOT-019: bootstrap subset runner (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   chmod +x "$RUNNER"
-  if SHU="$SHU_BIN" BOOT019_SKIP_LINK="${BOOT019_SKIP_LINK:-}" "$RUNNER" >/tmp/boot019_subset.log 2>&1; then
+  if SHUX="$SHUX_BIN" BOOT019_SKIP_LINK="${BOOT019_SKIP_LINK:-}" "$RUNNER" >/tmp/boot019_subset.log 2>&1; then
     grep -q 'bootstrap-stage2-dogfood parser/typeck OK' /tmp/boot019_subset.log
     CHECK_OK=6
     if grep -q 'link+run OK' /tmp/boot019_subset.log; then
@@ -136,7 +136,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     exit 1
   fi
 else
-  echo "boot-019-stage2-dogfood gate SKIP runner (no native shu)" >&2
+  echo "boot-019-stage2-dogfood gate SKIP runner (no native shux)" >&2
 fi
 
 boot019_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$SKIP"

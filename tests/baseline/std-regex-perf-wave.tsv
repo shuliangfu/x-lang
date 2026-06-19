@@ -14,7 +14,7 @@ bench_hook	bench	bench_hook	tests/run-perf-regex-match.sh	hook	ratio
 parent_tsv	cross_ref	tests/baseline/std-regex.tsv	STD-051
 parent_xplat	cross_ref	tests/baseline/std-regex-xplat.tsv	STD-051
 xplat_matrix	file	tests/baseline/std-regex-perf-xplat.tsv	xplat	三平台
-mod_anchor	file	STD-062	std/regex/mod.su	prod	注释
+mod_anchor	file	STD-062	std/regex/mod.sx	prod	注释
 lib	script	lib/std-regex-perf.sh	tests/lib/std-regex-perf.sh	-	helper
 gate	script	run-std-regex-perf-gate.sh	tests/run-std-regex-perf-gate.sh	-	manifest
 hook_perf	hook_script	run-perf-regex-match.sh	run-perf-regex-match.sh	prod	≥1.0×

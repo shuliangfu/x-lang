@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD069_DOC:-analysis/std-sqlite-row-col-blob-v1.md}"
-MANIFEST="${SHU_STD069_TSV:-tests/baseline/std-sqlite-row-col-blob.tsv}"
-VECTORS="${SHU_STD069_VECTORS:-tests/baseline/std-sqlite-row-col-blob-vectors.tsv}"
-MOD_SU="std/sqlite/mod.su"
-DB_C="std/sqlite/sqlite.c"
+DOC="${SHUX_STD069_DOC:-analysis/std-sqlite-row-col-blob-v1.md}"
+MANIFEST="${SHUX_STD069_TSV:-tests/baseline/std-sqlite-row-col-blob.tsv}"
+VECTORS="${SHUX_STD069_VECTORS:-tests/baseline/std-sqlite-row-col-blob-vectors.tsv}"
+MOD_SU="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.c"
 LIB="tests/lib/std-sqlite-row-col-blob.sh"
-SMOKE_SU="tests/std-sqlite/row_col_blob_roundtrip.su"
+SMOKE_SU="tests/std-sqlite/row_col_blob_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/row_col_blob_roundtrip_ok.c"
 MIN_BLOB=1
 
@@ -74,9 +74,9 @@ echo "std-sqlite-row-col-blob manifest OK"
 
 echo "=== STD-069: parent STD-068 manifest ==="
 chmod +x tests/run-std-sqlite-row-col-text-gate.sh
-SHU_STD068_MANIFEST_ONLY=1 ./tests/run-std-sqlite-row-col-text-gate.sh
+SHUX_STD068_MANIFEST_ONLY=1 ./tests/run-std-sqlite-row-col-text-gate.sh
 
-if [ "${SHU_STD069_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD069_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_row_col_blob_emit_report "ok" 0 0 1
   echo "std-sqlite-row-col-blob gate OK (manifest only)"
   exit 0
@@ -100,7 +100,7 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHU_BIN=""
+  SHUX_BIN=""
   stdlib_cm_native_shu() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -112,26 +112,26 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shu-c; then
-    SHU_BIN=./compiler/shu-c
-  elif stdlib_cm_native_shu ./compiler/shu; then
-    SHU_BIN=./compiler/shu
+  if stdlib_cm_native_shu ./compiler/shux-c; then
+    SHUX_BIN=./compiler/shux-c
+  elif stdlib_cm_native_shu ./compiler/shux; then
+    SHUX_BIN=./compiler/shux
   fi
 
-  if [ -n "$SHU_BIN" ]; then
-    echo "=== STD-069: .su row_col_blob smoke (SHU=$SHU_BIN) ==="
-    if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-      echo "std-sqlite-row-col-blob gate SKIP .su smoke (typeck fail)" >&2
+  if [ -n "$SHUX_BIN" ]; then
+    echo "=== STD-069: .sx row_col_blob smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+      echo "std-sqlite-row-col-blob gate SKIP .sx smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_SU" "blob"; then
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "blob"; then
       BLOB_SU=1
       SKIP=0
     else
-      echo "std-sqlite-row-col-blob gate SKIP .su smoke (link/compile)" >&2
+      echo "std-sqlite-row-col-blob gate SKIP .sx smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-row-col-blob gate SKIP .su smoke (no native shu)" >&2
+    echo "std-sqlite-row-col-blob gate SKIP .sx smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -139,7 +139,7 @@ else
   echo "std-sqlite-row-col-blob gate SKIP blob smoke (no libsqlite3)" >&2
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/sqlite/sqlite.o
+  ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
 std_sqlite_row_col_blob_emit_report "ok" "$BLOB_C" "$BLOB_SU" "$SKIP"

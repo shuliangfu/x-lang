@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-003：std.fs 跨平台对齐门禁（Linux / macOS / Windows 同一套 .su）
+# STD-003：std.fs 跨平台对齐门禁（Linux / macOS / Windows 同一套 .sx）
 #
 # 读取 tests/baseline/std-fs-crossplatform.tsv，按平台策略跑 must/skip/optional。
 # 用法：./tests/run-std-fs-crossplatform-gate.sh
@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/ci-host.sh"
 
 BASELINE="tests/baseline/std-fs-crossplatform.tsv"
-MATRIX="${SHU_STD_FS_CROSSPLATFORM_TSV:-$BASELINE}"
+MATRIX="${SHUX_STD_FS_CROSSPLATFORM_TSV:-$BASELINE}"
 
 platform_policy() {
   local linux="$1"
@@ -49,30 +49,30 @@ make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/fs/fs.o ../std/io/io.o -q 2>/dev/null \
   || make -C compiler ../std/fs/fs.o ../std/io/io.o
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-fs-crossplatform gate SKIP (no native shu; host=$(ci_host_summary))" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-fs-crossplatform gate SKIP (no native shux; host=$(ci_host_summary))" >&2
   exit 0
 fi
 
-echo "=== STD-003: std.fs cross-platform ($(ci_host_summary) SHU=$SHU_BIN) ==="
+echo "=== STD-003: std.fs cross-platform ($(ci_host_summary) SHUX=$SHUX_BIN) ==="
 
-run_su_case() {
+run_sx_case() {
   local script="$1"
   local src="tests/fs/${script}"
-  local out="/tmp/shu_fs_xplat_${script%.su}"
+  local out="/tmp/shux_fs_xplat_${script%.sx}"
   rm -f tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
-  "$SHU_BIN" -L . "$src" -o "$out" >/tmp/shu_fs_xplat_compile.log 2>&1 || {
-    cat /tmp/shu_fs_xplat_compile.log >&2
+  "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_fs_xplat_compile.log 2>&1 || {
+    cat /tmp/shux_fs_xplat_compile.log >&2
     return 1
   }
   local ec=0
@@ -98,7 +98,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   if [ "$script" = "run-fs.sh" ]; then
     echo "── case $case_id: $script ──"
     chmod +x tests/run-fs.sh
-    if SHU="$SHU_BIN" ./tests/run-fs.sh; then
+    if SHUX="$SHUX_BIN" ./tests/run-fs.sh; then
       echo "std-fs xplat OK $case_id"
     else
       if [ "$pol" = "optional" ]; then
@@ -118,7 +118,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   fi
 
   echo "── case $case_id: tests/fs/${script} ──"
-  if run_su_case "$script"; then
+  if run_sx_case "$script"; then
     echo "std-fs xplat OK $case_id"
   else
     if [ "$pol" = "optional" ]; then

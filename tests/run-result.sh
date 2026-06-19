@@ -3,10 +3,10 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
-$SHU -L . tests/result/main.su -o /tmp/shu_result 2>&1
-exitcode=0; /tmp/shu_result >/dev/null 2>&1 || exitcode=$?
+$SHUX -L . tests/result/main.sx -o /tmp/shux_result 2>&1
+exitcode=0; /tmp/shux_result >/dev/null 2>&1 || exitcode=$?
 # 42+0+3+5=50 + map/and_then/or_else/Result_u8 extra=123 → 173
 [ "$exitcode" -ne 173 ] && { echo "expected exit 173, got $exitcode"; exit 1; }
 

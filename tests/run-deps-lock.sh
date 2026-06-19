@@ -5,18 +5,18 @@
 set -e
 cd "$(dirname "$0")/.."
 
-PKG=tests/fixtures/pkgmgr/shu.pkg.tsv
-LOCK=tests/fixtures/pkgmgr/shu.pkg.lock.tsv
+PKG=tests/fixtures/pkgmgr/shux.pkg.tsv
+LOCK=tests/fixtures/pkgmgr/shux.pkg.lock.tsv
 
-chmod +x scripts/shu-deps-lock.sh scripts/shu-deps-verify.sh scripts/shu-deps-resolve.sh
+chmod +x scripts/shux-deps-lock.sh scripts/shux-deps-verify.sh scripts/shux-deps-resolve.sh
 
-./scripts/shu-deps-verify.sh "$PKG" "$LOCK"
-./scripts/shu-deps-verify.sh "$PKG" "$LOCK" | tee /tmp/shu_deps_verify_1.log
-grep -q 'reproducible=OK' /tmp/shu_deps_verify_1.log
+./scripts/shux-deps-verify.sh "$PKG" "$LOCK"
+./scripts/shux-deps-verify.sh "$PKG" "$LOCK" | tee /tmp/shux_deps_verify_1.log
+grep -q 'reproducible=OK' /tmp/shux_deps_verify_1.log
 
-TMP_LOCK="/tmp/shu_pkg_regen_$$.lock.tsv"
-./scripts/shu-deps-lock.sh "$PKG" "$TMP_LOCK"
-./scripts/shu-deps-verify.sh "$PKG" "$TMP_LOCK"
+TMP_LOCK="/tmp/shux_pkg_regen_$$.lock.tsv"
+./scripts/shux-deps-lock.sh "$PKG" "$TMP_LOCK"
+./scripts/shux-deps-verify.sh "$PKG" "$TMP_LOCK"
 # 金样锁与再生锁的 locked 行 sha 须一致
 if ! diff -u <(grep '^locked' "$LOCK" | sort) <(grep '^locked' "$TMP_LOCK" | sort); then
   echo "run-deps-lock FAIL: regen lock differs from golden" >&2

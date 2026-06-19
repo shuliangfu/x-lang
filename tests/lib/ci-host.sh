@@ -56,7 +56,7 @@ ci_is_linux_x64() {
 
 # 是否在 Docker 容器内。
 ci_is_docker() {
-  [ -f /.dockerenv ] || [ -n "${SHU_CI_DOCKER:-}" ]
+  [ -f /.dockerenv ] || [ -n "${SHUX_CI_DOCKER:-}" ]
 }
 
 # Linux：当前内核是否可用 io_uring（非 Linux 恒返回 1=不可用）。

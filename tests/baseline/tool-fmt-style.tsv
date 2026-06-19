@@ -13,12 +13,12 @@ rule_s3	rules	array_comma_space	analysis/tool-fmt-style-v1.md	wrap	数组逗号
 rule_s4	rules	comment_preserve	analysis/tool-fmt-style-v1.md	wrap	注释前缀
 rule_s5	rules	fmt_idempotent	analysis/tool-fmt-style-v1.md	cmd	fmt --check
 rule_s6	rules	check_after_fmt	analysis/tool-fmt-style-v1.md	cmd	fmt+check
-case_wrap	case	fmt_wrap_cases	tests/fmt/fmt_wrap_cases.su	wrap	折行
-case_comprehensive	case	fmt_comprehensive	tests/fmt/fmt_comprehensive.su	wrap	综合
-case_semicolon	case	fmt_semicolon_space	tests/fmt/fmt_semicolon_space.su	wrap	分号
-case_operator	case	fmt_operator_space	tests/fmt/fmt_operator_space.su	wrap	运算符
-case_array_comma	case	fmt_array_comma_space	tests/fmt/fmt_array_comma_space.su	wrap	逗号
-impl_fmt	file	compiler/src/driver/fmt.su	compiler/src/driver/fmt.su	driver	cmd_fmt
+case_wrap	case	fmt_wrap_cases	tests/fmt/fmt_wrap_cases.sx	wrap	折行
+case_comprehensive	case	fmt_comprehensive	tests/fmt/fmt_comprehensive.sx	wrap	综合
+case_semicolon	case	fmt_semicolon_space	tests/fmt/fmt_semicolon_space.sx	wrap	分号
+case_operator	case	fmt_operator_space	tests/fmt/fmt_operator_space.sx	wrap	运算符
+case_array_comma	case	fmt_array_comma_space	tests/fmt/fmt_array_comma_space.sx	wrap	逗号
+impl_fmt	file	compiler/src/driver/fmt.sx	compiler/src/driver/fmt.sx	driver	cmd_fmt
 impl_c	file	compiler/src/driver/fmt_check_cmd.c	compiler/src/driver/fmt_check_cmd.c	driver	C 实现
 script_scan	script	scan_fmt_damage.py	compiler/scripts/scan_fmt_damage.py	audit	损坏扫描
 script_comment	script	verify_comment_prefixes.py	compiler/scripts/verify_comment_prefixes.py	audit	注释

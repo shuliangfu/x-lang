@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# S3 driver SU 门禁：compile.su check + driver_compile_su.o 符号 + build_asm/driver_compile.o __text/insn。
+# S3 driver SU 门禁：compile.sx check + driver_compile_su.o 符号 + build_asm/driver_compile.o __text/insn。
 # 用法：./tests/run-s3-driver-gate.sh
-# 可选：SHU_S3_DRIVER_REQUIRE_COMPILE_O=1 — 无 driver_compile_su.o（C 链）时失败
-# 可选：SHU_S3_DRIVER_REQUIRE_ASM_O=1 — 无 build_asm/driver_compile.o 时失败（先 run-s3-driver-sync-build-o.sh）
-# 可选：SHU_S3_FAIL_ON_REGRESSION=1 — build_asm/driver_compile.o 低于 baseline 时失败
-# 可选：SHU_S3_DRIVER_UPDATE_BASELINE=1 — 更新 tests/baseline/s3-driver-o.tsv
+# 可选：SHUX_S3_DRIVER_REQUIRE_COMPILE_O=1 — 无 driver_compile_su.o（C 链）时失败
+# 可选：SHUX_S3_DRIVER_REQUIRE_ASM_O=1 — 无 build_asm/driver_compile.o 时失败（先 run-s3-driver-sync-build-o.sh）
+# 可选：SHUX_S3_FAIL_ON_REGRESSION=1 — build_asm/driver_compile.o 低于 baseline 时失败
+# 可选：SHUX_S3_DRIVER_UPDATE_BASELINE=1 — 更新 tests/baseline/s3-driver-o.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c
+make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
-SHU=${SHU:-./compiler/shu-c}
-COMPILE_SU="compiler/src/driver/compile.su"
-MAIN_SU="compiler/src/main.su"
+SHUX=${SHUX:-./compiler/shux-c}
+COMPILE_SU="compiler/src/driver/compile.sx"
+MAIN_SU="compiler/src/main.sx"
 DRIVER_COMPILE_O="compiler/driver_compile_su.o"
 DRIVER_ASM_O="compiler/build_asm/driver_compile.o"
 DRIVER_ASM_EH_O="compiler/build_asm/driver_compile_emit_heavy.o"
 DRIVER_LINK_O="compiler/build_asm/driver_compile_link.o"
-SYM_BASELINE="${SHU_S3_DRIVER_BASELINE:-tests/baseline/s3-driver.tsv}"
-EMIT_BASELINE="${SHU_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
+SYM_BASELINE="${SHUX_S3_DRIVER_BASELINE:-tests/baseline/s3-driver.tsv}"
+EMIT_BASELINE="${SHUX_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
 REQ_FULL_SU=$(awk -F'\t' '$1=="require_driver_run_compiler_full_su" && $1 !~ /^#/ { print $2; exit }' "$SYM_BASELINE")
 REQ_FULL_SU=${REQ_FULL_SU:-1}
 MIN_TEXT=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$EMIT_BASELINE")
@@ -57,7 +57,7 @@ else:
 PY
 }
 
-# asm EMIT_HEAVY 单编 compile.su 与 C-gen driver_compile_su.o 符号名不同；取首个存在的。
+# asm EMIT_HEAVY 单编 compile.sx 与 C-gen driver_compile_su.o 符号名不同；取首个存在的。
 func_insn_count_any() {
   local o="$1"
   shift
@@ -97,7 +97,7 @@ nm_has_def() {
 check_su_silent() {
   local f="$1"
   local out
-  out=$("$SHU" check "$f" 2>&1) || {
+  out=$("$SHUX" check "$f" 2>&1) || {
     echo "$out"
     echo "s3 driver gate: check failed on $f"
     exit 1
@@ -108,7 +108,7 @@ check_su_silent() {
   fi
 }
 
-# ── 1) driver / main .su check ──
+# ── 1) driver / main .sx check ──
 check_su_silent "$COMPILE_SU"
 check_su_silent "$MAIN_SU"
 
@@ -128,7 +128,7 @@ if [ -f "$DRIVER_COMPILE_O" ]; then
   if [ "$REQ_FULL_SU" = "1" ]; then
     echo "s3 driver gate: driver_run_compiler_full_su + dispatch_* present in $DRIVER_COMPILE_O"
   fi
-elif [ "${SHU_S3_DRIVER_REQUIRE_COMPILE_O:-0}" = "1" ]; then
+elif [ "${SHUX_S3_DRIVER_REQUIRE_COMPILE_O:-0}" = "1" ]; then
   echo "s3 driver gate: missing $DRIVER_COMPILE_O (make -C compiler driver_compile_su.o)" >&2
   exit 1
 fi
@@ -150,10 +150,10 @@ if [ -f "$DRIVER_ASM_O" ] || [ -f "$DRIVER_ASM_EH_O" ]; then
   fi
   echo "s3 driver gate: gate_o=$DRIVER_GATE_O __text=${asm_sz} real_funcs=${asm_real} (wpo_o=${DRIVER_ASM_O} __text=${wpo_sz}; min_text=${MIN_TEXT}, min_real=${MIN_REAL})"
 
-  if [ "${SHU_S3_DRIVER_UPDATE_BASELINE:-0}" = "1" ]; then
+  if [ "${SHUX_S3_DRIVER_UPDATE_BASELINE:-0}" = "1" ]; then
     {
-      echo "# S3 driver compile.su EMIT_HEAVY：build_asm/driver_compile.o baseline"
-      echo "# 更新：SHU_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh"
+      echo "# S3 driver compile.sx EMIT_HEAVY：build_asm/driver_compile.o baseline"
+      echo "# 更新：SHUX_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh"
       printf 'min_text_bytes\t%s\n' "$asm_sz"
       printf 'min_real_funcs\t%s\n' "$asm_real"
       echo "min_text_emit_heavy	5336"
@@ -166,7 +166,7 @@ if [ -f "$DRIVER_ASM_O" ] || [ -f "$DRIVER_ASM_EH_O" ]; then
     exit 1
   fi
 
-  if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHU_S3_DRIVER_REQUIRE_ASM_O:-0}" = "1" ]; then
+  if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHUX_S3_DRIVER_REQUIRE_ASM_O:-0}" = "1" ]; then
     if ! awk -v s="$asm_sz" -v m="$MIN_TEXT" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then
       echo "s3 driver gate FAIL: __text $asm_sz < min_text_bytes $MIN_TEXT" >&2
       exit 1
@@ -177,7 +177,7 @@ if [ -f "$DRIVER_ASM_O" ] || [ -f "$DRIVER_ASM_EH_O" ]; then
     fi
   fi
 
-  if [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ]; then
+  if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ]; then
     init_insns=$(func_insn_count "$DRIVER_GATE_O" "driver_compile_parse_argv_init")
     echo "s3 driver gate: driver_compile_parse_argv_init insns=${init_insns} (min=5; thin→init_c)"
     if [ "${init_insns:-0}" -lt 5 ] 2>/dev/null; then
@@ -243,7 +243,7 @@ if [ -f "$DRIVER_ASM_O" ] || [ -f "$DRIVER_ASM_EH_O" ]; then
   fi
 
   asm_o_ok=1
-elif [ "${SHU_S3_DRIVER_REQUIRE_ASM_O:-0}" = "1" ] || [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ]; then
+elif [ "${SHUX_S3_DRIVER_REQUIRE_ASM_O:-0}" = "1" ] || [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ]; then
   echo "s3 driver gate: missing $DRIVER_ASM_O / $DRIVER_ASM_EH_O (run ./tests/run-s3-driver-sync-build-o.sh)" >&2
   exit 1
 fi
@@ -254,7 +254,7 @@ if [ -f "$DRIVER_LINK_O" ]; then
     exit 1
   fi
   echo "s3 driver gate: $DRIVER_LINK_O driver_run_compiler_full_su alias OK"
-elif [ "${SHU_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "$asm_o_ok" -eq 1 ]; then
+elif [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "$asm_o_ok" -eq 1 ]; then
   echo "s3 driver gate: missing $DRIVER_LINK_O (sync should ld -r link alias)" >&2
   exit 1
 fi
@@ -265,7 +265,7 @@ if [ "$compile_o_ok" -eq 0 ] && [ "$asm_o_ok" -eq 0 ]; then
 fi
 
 if [ "$asm_o_ok" -eq 1 ]; then
-  echo "s3 driver gate OK (compile.su check; asm __text=${asm_sz}, real_funcs=${asm_real})"
+  echo "s3 driver gate OK (compile.sx check; asm __text=${asm_sz}, real_funcs=${asm_real})"
 else
-  echo "s3 driver gate OK (compile.su + driver_compile_su.o symbols)"
+  echo "s3 driver gate OK (compile.sx + driver_compile_su.o symbols)"
 fi

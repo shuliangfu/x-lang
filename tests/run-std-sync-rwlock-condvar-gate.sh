@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SYNC_RWLOCK_CONDVAR_DOC:-analysis/std-sync-rwlock-condvar-v1.md}"
-MANIFEST="${SHU_STD_SYNC_RWLOCK_CONDVAR_TSV:-tests/baseline/std-sync-rwlock-condvar.tsv}"
-MOD_SU="std/sync/mod.su"
+DOC="${SHUX_STD_SYNC_RWLOCK_CONDVAR_DOC:-analysis/std-sync-rwlock-condvar-v1.md}"
+MANIFEST="${SHUX_STD_SYNC_RWLOCK_CONDVAR_TSV:-tests/baseline/std-sync-rwlock-condvar.tsv}"
+MOD_SU="std/sync/mod.sx"
 SYNC_C="std/sync/sync.c"
 LIB="tests/lib/std-sync-rwlock-condvar.sh"
-SMOKE_SU="tests/sync/rwlock_condvar.su"
-MAIN_SU="tests/sync/main.su"
+SMOKE_SU="tests/sync/rwlock_condvar.sx"
+MAIN_SU="tests/sync/main.sx"
 TSAN_C="tests/sync/sync_tsan_ok.c"
 MIN_APIS=12
 
@@ -91,34 +91,34 @@ CV_OK=0
 MAIN_OK=0
 TSAN_R="skip"
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-045: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-045: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/sync/sync.o
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-sync-rwlock-condvar gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_sync_rc_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if std_sync_rc_run_smoke "$SHU_BIN" "$SMOKE_SU" "rwlock_cv"; then
+  if std_sync_rc_run_smoke "$SHUX_BIN" "$SMOKE_SU" "rwlock_cv"; then
     RW_OK=1
     CV_OK=1
   else
     std_sync_rc_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if std_sync_rc_run_smoke "$SHU_BIN" "$MAIN_SU" "main"; then
+  if std_sync_rc_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
     MAIN_OK=1
   else
     std_sync_rc_emit_report "fail" "$RW_OK" "$CV_OK" 0 0 0
@@ -131,7 +131,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-sync-rwlock-condvar gate SKIP smoke (no native shu)" >&2
+  echo "std-sync-rwlock-condvar gate SKIP smoke (no native shux)" >&2
 fi
 
 TSAN_OK=0

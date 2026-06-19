@@ -240,7 +240,7 @@ static void asm_module(struct ASTModule *m) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "Usage: %s <in.su> [-o <out>]\n", argv[0]); return 1; }
+    if (argc < 2) { fprintf(stderr, "Usage: %s <in.sx> [-o <out>]\n", argv[0]); return 1; }
 
     const char *in = argv[1];
     const char *out = "a.out";
@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
     printf("[asm_v2] parsed %d funcs\n", mod->num_funcs);
 
     char tmp_s[256];
-    snprintf(tmp_s, sizeof(tmp_s), "/tmp/shu_asmv2_%d.s", getpid());
+    snprintf(tmp_s, sizeof(tmp_s), "/tmp/shux_asmv2_%d.s", getpid());
     s = fopen(tmp_s, "w");
     if (!s) { perror(tmp_s); return 1; }
     label_id = 0;
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     fclose(s);
 
     char tmp_o[256];
-    snprintf(tmp_o, sizeof(tmp_o), "/tmp/shu_asmv2_%d.o", getpid());
+    snprintf(tmp_o, sizeof(tmp_o), "/tmp/shux_asmv2_%d.o", getpid());
     char cmd[1024];
     snprintf(cmd, sizeof(cmd),
         "as -arch arm64 -o %s %s 2>&1 && "

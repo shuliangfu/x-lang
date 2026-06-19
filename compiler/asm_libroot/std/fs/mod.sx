@@ -1,0 +1,36 @@
+// asm_libroot/std/fs/mod.sx — Goal2 asm 自举用精简 std.fs（与 import("std.fs")
+// 路径一致）
+//
+// 职责：仅提供 compiler 内 pipeline/main/parser 所需的 open/read/write/close
+// 薄封装，不 import("std.io")，
+// 避免完整 ../std/fs/mod.sx 拉入 std.io 后在当前 .sx typeck 下失败（见
+// scripts/build_shux_asm.sh）。
+// 正常用户库仍使用仓库 ../std/fs/mod.sx；本文件仅通过 asm_build_list 的 -L
+// asm_libroot 优先于 -L .. 被解析。
+
+extern function open(path: *u8, flags: i32, mode: i32): i32;
+extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+extern function close(fd: i32): i32;
+
+/** 只读打开 path（NUL 结尾）；失败返回 -1。 */
+function fs_open_read(path: *u8): i32 {
+  return open(path, 0, 0);
+}
+
+function fs_close(fd: i32): i32 {
+  return close(fd);
+}
+
+function fs_read(fd: i32, buf: *u8, count: usize): isize {
+  return fs_posix_read_c(fd, buf, count);
+}
+
+function fs_write(fd: i32, buf: *u8, count: usize): isize {
+  return fs_posix_write_c(fd, buf, count);
+}
+
+/** 占位：库模块可被 import。 */
+function placeholder(): i32 {
+  return 0;
+}

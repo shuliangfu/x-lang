@@ -1,7 +1,7 @@
 /**
  * std/fs/fs.c — 高性能文件：mmap 只读/可写、munmap、O_DIRECT、fadvise、madvise、copy_file_range、sendfile、pipe_splice（ZC-5）（极致压榨）
  *
- * 与 std/fs/mod.su 同目录；供 std.fs 各 API 调用。
+ * 与 std/fs/mod.sx 同目录；供 std.fs 各 API 调用。
  * 链接用户程序时由编译器链入本目录产出的 fs.o；POSIX 需 -lc。
  * 大文件：64 位平台下 st_size 与 size_t 均为 64 位，支持 >2GB 文件。
  */
@@ -70,7 +70,7 @@ int32_t fs_munmap_c(void *ptr, size_t size) {
     return (ptr && UnmapViewOfFile(ptr)) ? 0 : -1;
 }
 
-/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.su fs_open_read 语义一致。 */
+/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.sx fs_open_read 语义一致。 */
 int32_t fs_open_read_c(uint8_t *path) {
     HANDLE h;
     int fd;
@@ -245,19 +245,19 @@ int32_t fs_last_error_c(void) {
     return (int32_t)(uint32_t)GetLastError();
 }
 
-/** 包装 libc read，供 .su 的 fs_read 调用，避免与 std.io 的 read(handle,ptr,len,timeout) 同名。 */
+/** 包装 libc read，供 .sx 的 fs_read 调用，避免与 std.io 的 read(handle,ptr,len,timeout) 同名。 */
 int64_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count) {
     unsigned c = (count > 0x7FFFFFFFu) ? 0x7FFFFFFFu : (unsigned)count;
     return (int64_t)_read((int)fd, buf, c);
 }
 
-/** 包装 libc write，供 .su 的 fs_write 调用。 */
+/** 包装 libc write，供 .sx 的 fs_write 调用。 */
 int64_t fs_posix_write_c(int32_t fd, const uint8_t *buf, size_t count) {
     unsigned c = (count > 0x7FFFFFFFu) ? 0x7FFFFFFFu : (unsigned)count;
     return (int64_t)_write((int)fd, buf, c);
 }
 
-/** 包装 libc 关闭 fd，供 .su 的 fs_close 及 driver/pipeline 的 std_fs_fs_close 宏映射使用。返回 0 成功，-1 失败。 */
+/** 包装 libc 关闭 fd，供 .sx 的 fs_close 及 driver/pipeline 的 std_fs_fs_close 宏映射使用。返回 0 成功，-1 失败。 */
 int32_t fs_posix_close_c(int32_t fd) {
     return (int32_t)_close((int)fd);
 }
@@ -288,7 +288,7 @@ int64_t fs_writev4_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,
     return (int64_t)n0 + (int64_t)n1 + (int64_t)n2 + (int64_t)n3;
 }
 
-/** 与 Zig/Rust 对齐：按「指针+段数」分散读/集中写；bufs 为 (ptr,len,handle) 布局与 .su Buffer ABI 一致，n 为 1..FS_IOV_BUF_MAX。 */
+/** 与 Zig/Rust 对齐：按「指针+段数」分散读/集中写；bufs 为 (ptr,len,handle) 布局与 .sx Buffer ABI 一致，n 为 1..FS_IOV_BUF_MAX。 */
 #define FS_IOV_BUF_MAX 16
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } fs_iovec_buf_t;
 
@@ -686,7 +686,7 @@ int32_t fs_fallocate_c(int32_t fd, int64_t offset, int64_t len) {
 #endif
 }
 
-/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.su fs_open_read 语义一致。 */
+/** 只读打开 path（NUL 结尾）；失败 -1。与 mod.sx fs_open_read 语义一致。 */
 int32_t fs_open_read_c(uint8_t *path) {
     if (!path) return -1;
     return open((const char *)path, O_RDONLY, 0);
@@ -719,17 +719,17 @@ int32_t fs_last_error_c(void) {
     return (int32_t)errno;
 }
 
-/** 包装 libc read，供 .su 的 fs_read 调用，避免与 std.io 的 read(handle,ptr,len,timeout) 同名。 */
+/** 包装 libc read，供 .sx 的 fs_read 调用，避免与 std.io 的 read(handle,ptr,len,timeout) 同名。 */
 int64_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count) {
     return (int64_t)read((int)fd, buf, count);
 }
 
-/** 包装 libc write，供 .su 的 fs_write 调用。 */
+/** 包装 libc write，供 .sx 的 fs_write 调用。 */
 int64_t fs_posix_write_c(int32_t fd, const uint8_t *buf, size_t count) {
     return (int64_t)write((int)fd, buf, count);
 }
 
-/** 包装 libc close，供 .su 的 fs_close 及 driver/pipeline 的 std_fs_fs_close 宏映射使用。返回 0 成功，-1 失败。 */
+/** 包装 libc close，供 .sx 的 fs_close 及 driver/pipeline 的 std_fs_fs_close 宏映射使用。返回 0 成功，-1 失败。 */
 int32_t fs_posix_close_c(int32_t fd) {
     return (int32_t)close((int)fd);
 }
@@ -756,7 +756,7 @@ int64_t fs_writev4_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,
     return n >= 0 ? (int64_t)n : -1;
 }
 
-/** 与 Zig/Rust 对齐：按「指针+段数」分散读/集中写；bufs 与 .su Buffer ABI 一致，n 为 1..FS_IOV_BUF_MAX。 */
+/** 与 Zig/Rust 对齐：按「指针+段数」分散读/集中写；bufs 与 .sx Buffer ABI 一致，n 为 1..FS_IOV_BUF_MAX。 */
 #define FS_IOV_BUF_MAX 16
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } fs_iovec_buf_t;
 

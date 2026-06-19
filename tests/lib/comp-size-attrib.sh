@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MATRIX="${SHU_SIZE_ATTRIB_MATRIX:-$ROOT/tests/baseline/comp-size-attrib-matrix.tsv}"
+MATRIX="${SHUX_SIZE_ATTRIB_MATRIX:-$ROOT/tests/baseline/comp-size-attrib-matrix.tsv}"
 
 # 返回文件字节数（跨 Darwin/Linux stat）。
 comp_size_attrib_file_bytes() {

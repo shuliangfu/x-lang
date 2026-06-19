@@ -6,12 +6,12 @@
 #   comp_wpo_global_hook_runnable HOOK_SCRIPT
 #   comp_wpo_global_emit_report status global_ok global_skip skip
 
-COMP019_PREFIX="${SHU_COMP019_PREFIX:-shu: [SHU_COMP019_WPO_GLOBAL]}"
+COMP019_PREFIX="${SHUX_COMP019_PREFIX:-shux: [SHUX_COMP019_WPO_GLOBAL]}"
 
-# Linux 且存在 shu_asm 则可跑 stretch / strict_glue / .o 代理类 hook。
+# Linux 且存在 shux_asm 则可跑 stretch / strict_glue / .o 代理类 hook。
 comp_wpo_global_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || [ -x "./compiler/shu_asm.experimental" ] || return 1
+  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
   return 0
 }
 

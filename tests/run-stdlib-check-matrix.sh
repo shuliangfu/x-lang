@@ -5,21 +5,21 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHU_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
+MANIFEST="${SHUX_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
 
 # shellcheck source=tests/lib/stdlib-check-matrix.sh
 . tests/lib/stdlib-check-matrix.sh
 
 echo "=== BOOT-013: stdlib check matrix ==="
 
-SHU_BIN=""
-if ! SHU_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
+SHUX_BIN=""
+if ! SHUX_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
   stdlib_cm_emit_report "skip" 0 0 0 1
-  echo "stdlib-check-matrix SKIP (no shu)" >&2
+  echo "stdlib-check-matrix SKIP (no shux)" >&2
   exit 0
 fi
 
-make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || make -C compiler -q 2>/dev/null || make -C compiler
+make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || make -C compiler -q 2>/dev/null || make -C compiler
 
 CORE_OK=0
 STD_OK=0
@@ -30,7 +30,7 @@ while IFS=$'\t' read -r item_id kind anchor layer _notes; do
   case "$item_id" in \#*|min_*|read_path|matrix|report|lib|runner|gate) continue ;; esac
   case "$kind" in
     module)
-      if stdlib_cm_check_module "$SHU_BIN" "$anchor"; then
+      if stdlib_cm_check_module "$SHUX_BIN" "$anchor"; then
         case "$layer" in
           core) CORE_OK=$((CORE_OK + 1)) ;;
           std) STD_OK=$((STD_OK + 1)) ;;

@@ -1,14 +1,14 @@
 /**
  * driver_compile_asm_link_alias.c — strict 链 driver SU 符号别名
  *
- * build_asm/driver_compile.o（EMIT_HEAVY 单编 compile.su）导出 run_compiler_full_su /
+ * build_asm/driver_compile.o（EMIT_HEAVY 单编 compile.sx）导出 run_compiler_full_su /
  * compile_dispatch_* 裸名；runtime.c 与 C-gen driver_compile_su.o 期望 driver_* 链接名。
- * ld -r 与本 TU 合并为 build_asm/driver_compile_link.o，供 relink_shu_asm_strict_glue 替换
+ * ld -r 与本 TU 合并为 build_asm/driver_compile_link.o，供 relink_shux_asm_strict_glue 替换
  * driver_compile_su.o。
  */
 #include <stdint.h>
 
-/** 与 compile.su DriverCompileState 布局兼容；别名层仅透传指针。 */
+/** 与 compile.sx DriverCompileState 布局兼容；别名层仅透传指针。 */
 struct driver_DriverCompileState;
 
 extern int32_t run_compiler_full_su(int32_t argc, uint8_t *argv);

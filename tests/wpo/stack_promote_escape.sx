@@ -1,0 +1,22 @@
+// stack_promote_escape.sx — WPO-S3：局部 struct 取址逃逸（&p 存 *Pair）
+// make_pair 直写栈槽；经指针读字段仍须 exit 7（勿错误优化掉栈对象）。
+
+/** 两字段 POD。 */
+struct Pair {
+  a: i32
+  b: i32
+}
+
+/** 按值构造并返回 struct。 */
+function make_pair(x: i32, y: i32): Pair {
+  return Pair { a: x, b: y };
+}
+
+function main(): i32 {
+  let p: Pair = make_pair(3, 4);
+  let addr: *Pair = &p;
+  /** 经 *Pair 读字段（地址逃逸后仍读有效栈对象）。 */
+  let a: i32 = addr.a;
+  let b: i32 = addr.b;
+  return a + b;
+}

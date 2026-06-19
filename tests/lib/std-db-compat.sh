@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-db-compat.sh — STD-120 manifest 与烟测辅助
 
-STD_DB_COMPAT_PREFIX="${SHU_STD120_DB_COMPAT_PREFIX:-shu: [SHU_STD120_DB_COMPAT]}"
+STD_DB_COMPAT_PREFIX="${SHUX_STD120_DB_COMPAT_PREFIX:-shux: [SHUX_STD120_DB_COMPAT]}"
 
 std_db_compat_symbols_ok() {
   local mod_su="$1"
@@ -24,12 +24,12 @@ std_db_compat_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_db_compat_run_su_smoke() {
-  local shu="$1"
+std_db_compat_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_db_compat_$$"
-  if ! "$shu" -L . "$src" -o "$exe" -l sqlite3 >/dev/null 2>&1; then
-    if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_db_compat_$$"
+  if ! "$shux" -L . "$src" -o "$exe" -l sqlite3 >/dev/null 2>&1; then
+    if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
       return 1
     fi
   fi

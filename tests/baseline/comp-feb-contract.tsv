@@ -9,17 +9,17 @@ boundary	section	## 3. 边界矩阵	comp-feb-contract-boundary.tsv	-	report
 data	section	## 4. 核心数据结构	analysis/comp-feb-contract-v1.md	-	Module
 cases	section	## 5. Golden 源码锚点	analysis/comp-feb-contract-v1.md	-	cases
 verify	section	## 7. 验证与门禁	analysis/comp-feb-contract-v1.md	-	gate
-layer_b1	layers	B1-parser-ast	compiler/src/parser/parser.su	parse	ParseIntoResult
-layer_b2	layers	B2-typeck-ast	compiler/src/typeck/typeck.su	typeck	PipelineDepCtx
-layer_b3	layers	B3-codegen-out	compiler/src/codegen/codegen.su	codegen	CodegenOutBuf
-layer_b4	layers	B4-asm-backend	compiler/src/asm/backend.su	asm	elf
-layer_b5	layers	B5-pipeline	compiler/src/pipeline/pipeline.su	pipeline	orchestrate
+layer_b1	layers	B1-parser-ast	compiler/src/parser/parser.sx	parse	ParseIntoResult
+layer_b2	layers	B2-typeck-ast	compiler/src/typeck/typeck.sx	typeck	PipelineDepCtx
+layer_b3	layers	B3-codegen-out	compiler/src/codegen/codegen.sx	codegen	CodegenOutBuf
+layer_b4	layers	B4-asm-backend	compiler/src/asm/backend.sx	asm	elf
+layer_b5	layers	B5-pipeline	compiler/src/pipeline/pipeline.sx	pipeline	orchestrate
 layer_b6	layers	B6-glue-c	compiler/pipeline_glue.c	glue	slice
-case_pipeline	case	case_pipeline	compiler/src/pipeline/pipeline.su	impl	run_su_pipeline_impl
-case_parser	case	case_parser	compiler/src/parser/parser.su	parse	parse_into_buf
-case_typeck	case	case_typeck	compiler/src/typeck/typeck.su	typeck	typeck_su_ast
-case_codegen	case	case_codegen	compiler/src/codegen/codegen.su	emit	codegen_su_ast
-case_asm	case	case_asm	compiler/src/asm/backend.su	backend	asm_codegen_ast
+case_pipeline	case	case_pipeline	compiler/src/pipeline/pipeline.sx	impl	run_sx_pipeline_impl
+case_parser	case	case_parser	compiler/src/parser/parser.sx	parse	parse_into_buf
+case_typeck	case	case_typeck	compiler/src/typeck/typeck.sx	typeck	typeck_su_ast
+case_codegen	case	case_codegen	compiler/src/codegen/codegen.sx	emit	codegen_sx_ast
+case_asm	case	case_asm	compiler/src/asm/backend.sx	backend	asm_codegen_ast
 case_glue	case	case_glue	compiler/pipeline_glue.c	glue	parser_slice_from_buf
 hook_s3	hook_ref	run-s3-pipeline-gate.sh	tests/run-s3-pipeline-gate.sh	pipeline	EMIT_HEAVY
 hook_doc	hook_ref	doc-selfhost-architecture-v1.md	analysis/doc-selfhost-architecture-v1.md	nav	DOC-002

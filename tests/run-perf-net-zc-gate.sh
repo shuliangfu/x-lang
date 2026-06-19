@@ -5,15 +5,15 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_NET_ZC_DOC:-analysis/perf-net-zc-v1.md}"
-MANIFEST="${SHU_PERF_NET_ZC_TSV:-tests/baseline/perf-net-zc.tsv}"
-BASELINE="${SHU_NET_ZC_BASELINE:-tests/baseline/net-zc-perf.tsv}"
+DOC="${SHUX_PERF_NET_ZC_DOC:-analysis/perf-net-zc-v1.md}"
+MANIFEST="${SHUX_PERF_NET_ZC_TSV:-tests/baseline/perf-net-zc.tsv}"
+BASELINE="${SHUX_NET_ZC_BASELINE:-tests/baseline/net-zc-perf.tsv}"
 LIB="tests/lib/perf-net-zc.sh"
 RUNNER="tests/run-perf-net-zc.sh"
 NET_PERF="tests/run-perf-net.sh"
 ZC1="tests/run-zc1-gate.sh"
 MIN_CASES=3
-PREFIX="shu: [SHU_NET_ZC]"
+PREFIX="shux: [SHUX_NET_ZC]"
 
 # shellcheck source=tests/lib/perf-net-zc.sh
 . tests/lib/perf-net-zc.sh
@@ -121,7 +121,7 @@ echo "perf-net-zc manifest OK (cases=${CASES})"
 if perf_nz_probe_ok; then
   echo "=== PERF-009: net zc perf smoke (advisory) ==="
   chmod +x "$RUNNER"
-  if SHU_NET_ZC_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_net_zc_smoke.log | tail -10; then
+  if SHUX_NET_ZC_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_net_zc_smoke.log | tail -10; then
     if grep -qF "$PREFIX" /tmp/perf_net_zc_smoke.log; then
       echo "perf-net-zc perf smoke OK"
     elif grep -q 'net-zc perf SKIP' /tmp/perf_net_zc_smoke.log; then

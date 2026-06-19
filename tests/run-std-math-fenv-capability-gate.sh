@@ -11,10 +11,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-math-fenv-capability-v1.md"
 MANIFEST="tests/baseline/std-math-fenv-capability-manifest.tsv"
 VECTORS="tests/baseline/std-math-fenv-capability.tsv"
-MOD_SU="std/math/mod.su"
+MOD_SU="std/math/mod.sx"
 MATH_C="std/math/math.c"
 LIB="tests/lib/std-math-fenv-capability.sh"
-SMOKE_SU="tests/std-math/fenv_capability.su"
+SMOKE_SU="tests/std-math/fenv_capability.sx"
 SMOKE_C="tests/std-math/fenv_capability_ok.c"
 
 # shellcheck source=tests/lib/std-math-fenv-capability.sh
@@ -28,7 +28,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$MATH_C" "$SMOKE_SU" "$
   fi
 done
 
-for kw in STD-149 fenv_available SHU_MATH_FENV_CAP FENV_NOT_IMPL; do
+for kw in STD-149 fenv_available SHUX_MATH_FENV_CAP FENV_NOT_IMPL; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-math-fenv-cap gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -63,17 +63,17 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-math-fenv-cap gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_math_fenv_cap_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  if std_math_fenv_cap_run_su_smoke "$SHU_BIN" "$SMOKE_SU"; then
+  if std_math_fenv_cap_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU"; then
     SU_OK=1
   else
     std_math_fenv_cap_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"

@@ -1,7 +1,7 @@
 # PERF-008 syscall 批处理优化 manifest
 # 列：item_id	kind	anchor	notes
 # min_cases	4
-output_prefix	bracket_component	SHU_SYSCALL_BATCH	stderr 前缀
+output_prefix	bracket_component	SHUX_SYSCALL_BATCH	stderr 前缀
 field_case	output_field	case=	用例 id
 field_io_total	output_field	io_total=	syscall 合计
 field_ref	output_field	ref_case=	对照 case

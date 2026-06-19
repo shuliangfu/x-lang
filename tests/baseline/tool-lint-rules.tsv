@@ -10,15 +10,15 @@ fixtures	section	## 5. Golden 用例	tool-lint-rules.tsv	-	golden
 verify	section	## 7. 验证与门禁	analysis/tool-lint-rules-v1.md	-	gate
 rule_l1	rules	L1-type-error	analysis/tool-lint-rules-v1.md	error	typeck
 rule_l2	rules	L2-parse-error	analysis/tool-lint-rules-v1.md	error	parse
-rule_l3	rules	L3-pad-fields	analysis/tool-lint-rules-v1.md	warn	SHU_PAD_FIELDS
-rule_l4	rules	L4-hot-reorder	analysis/tool-lint-rules-v1.md	warn	SHU_HOT_REORDER
+rule_l3	rules	L3-pad-fields	analysis/tool-lint-rules-v1.md	warn	SHUX_PAD_FIELDS
+rule_l4	rules	L4-hot-reorder	analysis/tool-lint-rules-v1.md	warn	SHUX_HOT_REORDER
 rule_l5	rules	L5-fmt-style	analysis/tool-lint-rules-v1.md	info	TOOL-001
-rule_l6	rules	L6-unused-hint	analysis/tool-lint-rules-v1.md	info	SHU_UNUSED_HINT
-case_clean	case	lint_clean_ok	tests/lint/lint_clean_ok.su	error	静默
-case_error	case	lint_error_assign	tests/lint/lint_error_assign.su	error	assignment
-case_warn_pad	case	lint_warn_pad	tests/lint/lint_warn_pad.su	warn	pad-fields
-case_warn_reorder	case	lint_warn_reorder	tests/lint/lint_warn_reorder.su	warn	hot-reorder
-case_info_unused	case	lint_unused_hint	tests/lint/lint_unused_hint.su	info	unused-hint
+rule_l6	rules	L6-unused-hint	analysis/tool-lint-rules-v1.md	info	SHUX_UNUSED_HINT
+case_clean	case	lint_clean_ok	tests/lint/lint_clean_ok.sx	error	静默
+case_error	case	lint_error_assign	tests/lint/lint_error_assign.sx	error	assignment
+case_warn_pad	case	lint_warn_pad	tests/lint/lint_warn_pad.sx	warn	pad-fields
+case_warn_reorder	case	lint_warn_reorder	tests/lint/lint_warn_reorder.sx	warn	hot-reorder
+case_info_unused	case	lint_unused_hint	tests/lint/lint_unused_hint.sx	info	unused-hint
 impl_diag	file	compiler/src/lsp/lsp_diag.h	compiler/src/lsp/lsp_diag.h	driver	severity
 impl_check	file	compiler/src/driver/fmt_check_cmd.c	compiler/src/driver/fmt_check_cmd.c	driver	check
 profile_file	file	tests/baseline/tool-lint-ci-profile.tsv	tests/baseline/tool-lint-ci-profile.tsv	ci	profile

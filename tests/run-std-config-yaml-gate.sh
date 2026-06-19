@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-config-yaml-v1.md"
 MANIFEST="tests/baseline/std-config-yaml-manifest.tsv"
 VECTORS="tests/baseline/std-config-yaml-vectors.tsv"
-MOD_SU="std/config/mod.su"
+MOD_SU="std/config/mod.sx"
 CFG_C="std/config/config.c"
 LIB="tests/lib/std-config-yaml.sh"
-SMOKE_SU="tests/std-config/yaml_smoke.su"
+SMOKE_SU="tests/std-config/yaml_smoke.sx"
 SMOKE_C="tests/std-config/yaml_smoke_ok.c"
 MIN_APIS=4
 
@@ -43,20 +43,22 @@ sym_miss="$(std_config_yaml_symbols_ok "$MOD_SU" "$CFG_C" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 . tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/config/config.o
-ensure_std_c_o ../std/env/env.o
-CFG_O="$(cd compiler && pwd)/../std/config/config.o"
-ENV_O="$(cd compiler && pwd)/../std/env/env.o"
+  ensure_std_c_o ../std/config/config.o
+  ensure_std_c_o ../std/env/env.o
+  ensure_std_c_o ../std/process/process.o
+  CFG_O="$(cd compiler && pwd)/../std/config/config.o"
+  ENV_O="$(cd compiler && pwd)/../std/env/env.o"
+  PROC_O="$(cd compiler && pwd)/../std/process/process.o"
 
 C_OK=0
-std_config_yaml_run_c_smoke "$CFG_O" "$ENV_O" && C_OK=1 || exit 1
+std_config_yaml_run_c_smoke "$CFG_O" "$ENV_O" "$PROC_O" && C_OK=1 || exit 1
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_config_yaml_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_config_yaml_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

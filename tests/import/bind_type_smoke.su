@@ -1,7 +1,0 @@
-// 烟测：解构 import 下 struct 类型须直接用裸名 Buffer（不支持 driver.Buffer）
-const driver = import("std.io.driver");
-
-function main(): i32 {
-  let buf: Buffer = Buffer { ptr: 0, len: 0, handle: 0 };
-  return 0;
-}

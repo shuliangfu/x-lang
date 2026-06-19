@@ -2,7 +2,7 @@
  * iocp_pipe_loop.c — IO-A6 perf：Windows IOCP pipe 批量 readv/writev 热循环
  *
  * 每轮：io_write_batch(2×64B) + io_read_batch(2×64B)，与 iocp_batch_smoke 同 API 路径。
- * 轮数：环境变量 SHU_IOCP_BENCH_ROUNDS（默认 65536）。
+ * 轮数：环境变量 SHUX_IOCP_BENCH_ROUNDS（默认 65536）。
  * 用法：由 tests/run-perf-iocp.sh 编译链接 io.o 后 time 计时；仅 Windows。
  */
 #if defined(_WIN32) || defined(_WIN64)
@@ -42,7 +42,7 @@ int main(void) {
     unsigned r;
     ptrdiff_t n;
 
-    rounds = parse_rounds_env("SHU_IOCP_BENCH_ROUNDS", 65536u);
+    rounds = parse_rounds_env("SHUX_IOCP_BENCH_ROUNDS", 65536u);
     if (_pipe(pipefd, 65536, _O_BINARY) != 0) {
         perror("_pipe");
         return 1;

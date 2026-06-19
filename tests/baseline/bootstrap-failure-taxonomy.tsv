@@ -8,8 +8,8 @@ ft_parser_mega	parser_mega	parser	ci_banner_parser_mega	parser_mega_bisect	-	meg
 ft_parser_parse_count	parser_metrics	parser	ci_banner_parser_parse_count	parser_parse_count	-	func 计数
 ft_parser_parse_bootstrap	parser_bootstrap	parser	ci_banner_parser_parse_bootstrap	parser_second_pass	-	C seed TU
 ft_parser_syntax	parser_syntax	parser	err_parser	parser_second_pass	parser_parse_error	语法错误
-ft_typeck	typeck_fail	typeck	err_typeck	shu_asm_gate	typeck_return_mismatch	类型检查
-ft_codegen	codegen_fail	codegen	err_codegen	shu_asm_gate	codegen_emit_fail	emit 失败
+ft_typeck	typeck_fail	typeck	err_typeck	shux_asm_gate	typeck_return_mismatch	类型检查
+ft_codegen	codegen_fail	codegen	err_codegen	shux_asm_gate	codegen_emit_fail	emit 失败
 ft_asm_73	asm_cfg	asm	ci_banner_asm_73,err_asm_backend	asm_73	asm_73_segv	asm-73/cfg-merge
 ft_link_undefined	link_symbol	link	err_link	bstrict_build	link_undefined	undefined symbol
 ft_build_bstrict	build_topology	build	ci_banner_bstrict_build,err_build_bstrict	bstrict_build	build_pipeline_gen	B-strict 拓扑
@@ -19,9 +19,9 @@ ft_selfhost_stage2	selfhost_gen2	selfhost	ci_banner_stage2,err_selfhost_stage2	s
 ft_selfhost_verify	selfhost_verify	selfhost	ci_banner_verify	verify_semantic	-	bootstrap-verify
 ft_wpo_strict	wpo_link	wpo	ci_banner_wpo_strict,err_wpo	wpo_strict_link	wpo_strict_fail	WPO strict
 ft_wpo_glue_text	wpo_text	wpo	ci_banner_wpo_glue	wpo_strict_link	-	strict_glue .text
-ft_preprocess	preprocess_if	preprocess	err_preprocess	shu_asm_gate	preprocess_unclosed	#if 错误
-ft_lexer	lexer_fail	lexer	err_lexer	shu_asm_gate	-	词法错误
-ft_import	import_path	import	err_import	shu_asm_gate	-	模块路径
+ft_preprocess	preprocess_if	preprocess	err_preprocess	shux_asm_gate	preprocess_unclosed	#if 错误
+ft_lexer	lexer_fail	lexer	err_lexer	shux_asm_gate	-	词法错误
+ft_import	import_path	import	err_import	shux_asm_gate	-	模块路径
 ft_run_regression	run_fail	run	ci_banner_run_all,err_run_test	run_all_bstrict	-	run-all 回归
-ft_shu_asm_compile	user_compile	compile	ci_banner_shu_asm	shu_asm_gate	-	shu_asm 编 .su
+ft_shux_asm_compile	user_compile	compile	ci_banner_shux_asm	shux_asm_gate	-	shux_asm 编 .sx
 ft_full_ci	ci_full	all	ci_banner_bstrict_build	full_ci	-	完整 CI 链 fallback

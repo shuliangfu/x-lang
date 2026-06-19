@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-codec.sh — STD-073 manifest 与烟测辅助
 
-STD_CODEC_PREFIX="${SHU_STD_CODEC_PREFIX:-shu: [SHU_STD_CODEC]}"
+STD_CODEC_PREFIX="${SHUX_STD_CODEC_PREFIX:-shux: [SHUX_STD_CODEC]}"
 
 # 遍历 manifest 校验 api/file/smoke。
 std_codec_symbols_ok() {
@@ -31,16 +31,16 @@ std_codec_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su round-trip 烟测（须链 compress.o 解析 codec→gzip 符号）。
+# 编译并运行 .sx round-trip 烟测（须链 compress.o 解析 codec→gzip 符号）。
 std_codec_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-codec}"
   local compress_o="${4:-std/compress/compress.o}"
-  local exe="/tmp/shu_std_codec_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" "$compress_o" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_codec_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" "$compress_o" >/dev/null 2>&1; then
     echo "std-codec FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" "$compress_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$compress_o" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

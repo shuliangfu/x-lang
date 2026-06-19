@@ -5,13 +5,13 @@ read_path	section	## 1. 阅读路径	15min
 unbounded_api	section	## 2. 无界模式语义	send_unbounded
 close_api	section	## 2.3 关闭语义	try_recv_unbounded
 verify	section	## 4. 验证与门禁	gate
-api_send_u	api	send_unbounded	std/channel/mod.su	无界 send
-api_try_u	api	try_recv_unbounded	std/channel/mod.su	无界 try
-api_close_u	api	channel_unbounded_close	std/channel/mod.su	无界 close
-api_is_u	api	channel_unbounded_is_closed	std/channel/mod.su	关闭态
-api_is	api	channel_i32_is_closed	std/channel/mod.su	通用 is_closed
+api_send_u	api	send_unbounded	std/channel/mod.sx	无界 send
+api_try_u	api	try_recv_unbounded	std/channel/mod.sx	无界 try
+api_close_u	api	channel_unbounded_close	std/channel/mod.sx	无界 close
+api_is_u	api	channel_unbounded_is_closed	std/channel/mod.sx	关闭态
+api_is	api	channel_i32_is_closed	std/channel/mod.sx	通用 is_closed
 symbol_is_c	symbol	channel_i32_is_closed_c	std/channel/channel.c	C 关闭态
-smoke_unbounded	smoke	tests/channel/unbounded_roundtrip.su	无界往返
-smoke_main	smoke	tests/channel/main.su	有界回归
+smoke_unbounded	smoke	tests/channel/unbounded_roundtrip.sx	无界往返
+smoke_main	smoke	tests/channel/main.sx	有界回归
 lib	script	lib/std-channel-unbounded.sh	tests/lib/std-channel-unbounded.sh
 gate	script	run-std-channel-unbounded-gate.sh	tests/run-std-channel-unbounded-gate.sh

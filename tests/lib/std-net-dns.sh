@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_net_dns_symbols_ok MOD_SU NET_C TSV
-#   std_net_dns_run_smoke SHU_BIN SU TAG
+#   std_net_dns_run_smoke SHUX_BIN SU TAG
 #   std_net_dns_emit_report status resolve_ok main_ok skip
 
-STD_NET_DNS_PREFIX="${SHU_STD_NET_DNS_PREFIX:-shu: [SHU_STD_NET_DNS]}"
+STD_NET_DNS_PREFIX="${SHUX_STD_NET_DNS_PREFIX:-shux: [SHUX_STD_NET_DNS]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数。
 std_net_dns_symbols_ok() {
@@ -47,19 +47,19 @@ std_net_dns_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su（须已 ensure net.o）。
+# 编译并运行烟测 .sx（须已 ensure net.o）。
 std_net_dns_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_net_dns_${tag}_$$"
+  local exe="/tmp/shux_std_net_dns_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-net-dns FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-net-dns FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

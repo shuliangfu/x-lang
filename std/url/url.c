@@ -20,7 +20,7 @@
 #include <arpa/inet.h>
 #endif
 
-/** 与 mod.su Url 结构体布局一致（字段顺序须匹配）。 */
+/** 与 mod.sx Url 结构体布局一致（字段顺序须匹配）。 */
 typedef struct {
     int32_t scheme_len;
     int32_t host_len;

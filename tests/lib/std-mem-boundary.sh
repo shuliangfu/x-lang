@@ -6,9 +6,9 @@
 #   std_mem_boundary_forbidden_ok STD_SU TSV
 #   std_mem_boundary_emit_report status core_ok std_ok cross_ok skip
 
-STD_MEM_BOUNDARY_PREFIX="${SHU_STD_MEM_BOUNDARY_PREFIX:-shu: [SHU_STD_MEM_BOUNDARY]}"
+STD_MEM_BOUNDARY_PREFIX="${SHUX_STD_MEM_BOUNDARY_PREFIX:-shux: [SHUX_STD_MEM_BOUNDARY]}"
 
-# 校验 manifest core_only / std_only 锚点存在于对应 mod.su。
+# 校验 manifest core_only / std_only 锚点存在于对应 mod.sx。
 std_mem_boundary_symbols_ok() {
   local core_su="$1"
   local std_su="$2"

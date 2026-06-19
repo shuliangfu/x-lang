@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD105_DOC:-analysis/std-hash-xxhash-v1.md}"
-MANIFEST="${SHU_STD105_TSV:-tests/baseline/std-hash-xxhash.tsv}"
-VECTORS="${SHU_STD105_VECTORS:-tests/baseline/std-hash-xxhash-vectors.tsv}"
-MOD_SU="std/hash/mod.su"
+DOC="${SHUX_STD105_DOC:-analysis/std-hash-xxhash-v1.md}"
+MANIFEST="${SHUX_STD105_TSV:-tests/baseline/std-hash-xxhash.tsv}"
+VECTORS="${SHUX_STD105_VECTORS:-tests/baseline/std-hash-xxhash-vectors.tsv}"
+MOD_SU="std/hash/mod.sx"
 HASH_C="std/hash/hash.c"
 LIB="tests/lib/std-hash-xxhash.sh"
-SMOKE_SU="tests/std-hash/xxhash64.su"
+SMOKE_SU="tests/std-hash/xxhash64.sx"
 SMOKE_C="tests/std-hash/xxhash64_smoke_ok.c"
 MIN_APIS=2
 
@@ -83,7 +83,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -95,21 +95,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-105: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-105: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-hash-xxhash gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_hash_xxhash_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_xxhash_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "xxhash"; then
+  if std_hash_xxhash_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "xxhash"; then
     SU_OK=1
   else
     std_hash_xxhash_emit_report "fail" "$C_OK" 0 0

@@ -2,16 +2,16 @@
 # SAFE-004：FFI 边界内存契约 manifest 门禁
 #
 # 1) safe-ffi-contract-v1.md + matrix
-# 2) 每个 case .su 存在且文档引用
-# 3) native shu：逐条编译运行 + run-ffi.sh hook
+# 2) 每个 case .sx 存在且文档引用
+# 3) native shux：逐条编译运行 + run-ffi.sh hook
 #
 # 用法：./tests/run-safe-ffi-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
-MANIFEST="${SHU_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
-MOD_SU="${SHU_SAFE_FFI_MOD:-std/ffi/mod.su}"
+DOC="${SHUX_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
+MANIFEST="${SHUX_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
+MOD_SU="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.sx}"
 MIN_CASES=8
 
 # shellcheck source=tests/lib/safe-ffi.sh
@@ -120,18 +120,18 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "safe-ffi-contract manifest OK (cases=${CASE_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== SAFE-004: contract cases (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== SAFE-004: contract cases (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
@@ -141,7 +141,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     [ -z "${case_id:-}" ] && continue
     case "$case_id" in
       case_*)
-        if safe_ffi_run_case "$SHU_BIN" "$src" "$expect_rc" "$case_id"; then
+        if safe_ffi_run_case "$SHUX_BIN" "$src" "$expect_rc" "$case_id"; then
           echo "safe-ffi-contract OK $case_id"
         else
           FAIL=$((FAIL + 1))
@@ -156,7 +156,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
   chmod +x tests/run-ffi.sh
   ./tests/run-ffi.sh
 else
-  echo "safe-ffi-contract gate SKIP cases (no native shu)" >&2
+  echo "safe-ffi-contract gate SKIP cases (no native shux)" >&2
 fi
 
 echo "safe-ffi-contract gate OK"

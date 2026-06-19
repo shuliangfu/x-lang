@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-test-runner.sh — STD-145 manifest 与烟测辅助
 
-STD145_PREFIX="${SHU_STD145_TEST_RUNNER_PREFIX:-shu: [SHU_STD145_TEST_RUNNER]}"
+STD145_PREFIX="${SHUX_STD145_TEST_RUNNER_PREFIX:-shux: [SHUX_STD145_TEST_RUNNER]}"
 
 # 校验 manifest；echo 缺失数。
 std_test_runner_symbols_ok() {
@@ -52,16 +52,16 @@ std_test_runner_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 runner_smoke；校验 stderr 含 SHU_TEST 与 SUMMARY。
+# 编译并运行 runner_smoke；校验 stderr 含 SHUX_TEST 与 SUMMARY。
 std_test_runner_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local test_o="$3"
-  local exe="/tmp/shu_std_test_runner_$$"
-  local err="/tmp/shu_std_test_runner_err_$$.log"
-  if ! "$shu" -L . "$src" -o "$exe" "$test_o" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_test_runner_$$"
+  local err="/tmp/shux_std_test_runner_err_$$.log"
+  if ! "$shux" -L . "$src" -o "$exe" "$test_o" >/dev/null 2>&1; then
     echo "std-test-runner FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" "$test_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$test_o" 2>&1 | tail -12 >&2 || true
     rm -f "$exe" "$err"
     return 1
   fi
@@ -76,13 +76,13 @@ std_test_runner_run_smoke() {
     echo "std-test-runner FAIL: run exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shu: [SHU_TEST] name=case_ok status=pass' "$err" 2>/dev/null; then
+  if ! grep -qF 'shux: [SHUX_TEST] name=case_ok status=pass' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-test-runner FAIL: missing pass line" >&2
     return 1
   fi
-  if ! grep -qF 'shu: [SHU_TEST_SUMMARY]' "$err" 2>/dev/null; then
+  if ! grep -qF 'shux: [SHUX_TEST_SUMMARY]' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-test-runner FAIL: missing summary" >&2

@@ -135,3 +135,40 @@ int32_t http_build_get_keep_alive_c(const uint8_t *host, const uint8_t *path,
     if (n <= 0 || n >= out_cap) return -1;
     return (int32_t)n;
 }
+
+/** 扫描请求/响应头是否含 Upgrade: websocket（不区分大小写）。 */
+int32_t http_is_upgrade_websocket_c(const uint8_t *buf, int32_t len) {
+    static const uint8_t upg[] = "upgrade:";
+    int32_t hdr_end = -1;
+    int32_t off = 0;
+    if (!buf || len < 24) return 0;
+    if (http_headers_body_offset_c(buf, len, &hdr_end) != 0) return 0;
+    while (off + 8 <= hdr_end) {
+        if (shu_http_ci_eq(buf + off, upg, 8)) {
+            int32_t j = off + 8;
+            while (j < hdr_end && (buf[j] == ' ' || buf[j] == '\t')) j++;
+            if (j + 9 <= hdr_end && shu_http_ci_eq(buf + j, (const uint8_t *)"websocket", 9))
+                return 1;
+        }
+        off++;
+    }
+    return 0;
+}
+
+/**
+ * 构建 HTTP/1.1 101 Switching Protocols（WebSocket 握手响应头）。
+ * @param accept Sec-WebSocket-Accept 值（NUL 结尾）
+ */
+int32_t http_build_ws_upgrade_101_c(const uint8_t *accept, uint8_t *out, int32_t out_cap) {
+    int n;
+    if (!accept || !out || out_cap < 64) return -1;
+    n = snprintf((char *)out, (size_t)out_cap,
+        "HTTP/1.1 101 Switching Protocols\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        "Sec-WebSocket-Accept: %s\r\n"
+        "\r\n",
+        (const char *)accept);
+    if (n <= 0 || n >= out_cap) return -1;
+    return (int32_t)n;
+}

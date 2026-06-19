@@ -113,7 +113,7 @@ def main() -> int:
 
     for p in args.paths:
         path = Path(p)
-        paths = sorted(path.rglob("*.su")) if path.is_dir() else [path]
+        paths = sorted(path.rglob("*.sx")) if path.is_dir() else [path]
         for f in paths:
             text = f.read_text(encoding="utf-8")
             new_text, changed, warnings = migrate_binding(text, root)

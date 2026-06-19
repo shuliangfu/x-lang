@@ -1,13 +1,13 @@
 /**
  * lsp_diag.c — LSP 诊断收集器与 definition/hover/references/formatting 等 C 实现
  *
- * 维护固定大小诊断列表；C parser fail() 与（启用时）.su 流水线的 driver_diagnostic_* 写入 lsp_diag_add。
- * textDocument/diagnostic 的 JSON-RPC 正文由 lsp_diag.su 的 lsp_build_diagnostics_response（parse_into_buf + typeck_su_ast）构建。
+ * 维护固定大小诊断列表；C parser fail() 与（启用时）.sx 流水线的 driver_diagnostic_* 写入 lsp_diag_add。
+ * textDocument/diagnostic 的 JSON-RPC 正文由 lsp_diag.sx 的 lsp_build_diagnostics_response（parse_into_buf + typeck_sx_ast）构建。
  *
- * 纯 JSON 外壳（initialize_result、response_with_result）可迁到 lsp.su，但默认 shu 的 OBJS 未链 lsp_su/io
- *（无 std io/heap），lsp_diag 仍须在本文件提供这些符号；自举目标（shu-su）链 lsp_gen 后可再拆。
+ * 纯 JSON 外壳（initialize_result、response_with_result）可迁到 lsp.sx，但默认 shux 的 OBJS 未链 lsp_sx/io
+ *（无 std io/heap），lsp_diag 仍须在本文件提供这些符号；自举目标（shux-sx）链 lsp_gen 后可再拆。
  *
- * 为何大量逻辑仍保留为 C：直接调用 parser/lexer/typeck/ast 的 C API 与可变参 typeck 回调；迁 .su 见 docs/完全去掉C与H-前置清单.md §2。
+ * 为何大量逻辑仍保留为 C：直接调用 parser/lexer/typeck/ast 的 C API 与可变参 typeck 回调；迁 .sx 见 docs/完全去掉C与H-前置清单.md §2。
  */
 
 #include "lsp/lsp_diag.h"
@@ -33,8 +33,8 @@ extern void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_d
 extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
-/** bootstrap 链 pipeline 时返回真实 ctx 字节数；shu-c 弱符号回落瘦 struct。 */
-extern size_t lsp_diag_su_alloc_dep_ctx_size(void);
+/** bootstrap 链 pipeline 时返回真实 ctx 字节数；shux-c 弱符号回落瘦 struct。 */
+extern size_t lsp_diag_sx_alloc_dep_ctx_size(void);
 
 /** 调试 LSP read_message 的 leftover 长度 n；LSP_READ_DEBUG 时打 stderr，便于确认 state 是否在两次调用间保留。 */
 void lsp_debug_u32(uint32_t n) {
@@ -96,7 +96,7 @@ static int s_typeck_full = 0;  /* 1=缓存模块已全量 typeck，0=仅懒 type
 static char s_doc_uri[512];
 static char s_entry_fs_path[512];
 static char s_entry_dir[512];
-/** libRoots：默认与 VS Code shulang.compiler.libRoots 对齐，可由 SHULANG_LSP_LIB_ROOTS 覆盖（`:` 分隔）。 */
+/** libRoots：默认与 VS Code shux.compiler.libRoots 对齐，可由 SHUX_LSP_LIB_ROOTS 覆盖（`:` 分隔）。 */
 static const char *s_lib_roots[8];
 static char s_lib_roots_storage[8][256];
 static int s_n_lib_roots;
@@ -192,12 +192,12 @@ static void lsp_update_entry_dir(const char *fs_path) {
     }
 }
 
-/** 初始化 libRoots（环境变量 SHULANG_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
+/** 初始化 libRoots（环境变量 SHUX_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
 static void lsp_init_lib_roots_once(void) {
     int i;
     if (s_lib_roots_inited) return;
     s_lib_roots_inited = 1;
-    const char *env = getenv("SHULANG_LSP_LIB_ROOTS");
+    const char *env = getenv("SHUX_LSP_LIB_ROOTS");
     if (env && env[0]) {
         char buf[1024];
         (void)snprintf(buf, sizeof(buf), "%s", env);
@@ -224,7 +224,7 @@ static void lsp_init_lib_roots_once(void) {
     }
 }
 
-/** 查找函数 f 所属模块的 .su 文件路径；entry 模块用 s_entry_fs_path。 */
+/** 查找函数 f 所属模块的 .sx 文件路径；entry 模块用 s_entry_fs_path。 */
 static const char *lsp_fs_path_for_func(struct ASTFunc *f, ASTModule *entry) {
     int i, j;
     if (!f) return NULL;
@@ -243,7 +243,7 @@ static const char *lsp_fs_path_for_func(struct ASTFunc *f, ASTModule *entry) {
     return NULL;
 }
 
-/** 为 .su pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
+/** 为 .sx pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
 void lsp_diag_prepare_pipeline_ctx(void *ctx_void) {
     if (!ctx_void) return;
     lsp_init_lib_roots_once();
@@ -348,14 +348,14 @@ int lsp_diag_print_stderr_human(const char *path) {
     return n;
 }
 
-void *lsp_diag_su_arena_ptr(void) {
+void *lsp_diag_sx_arena_ptr(void) {
     static void *p;
     if (!p)
         p = calloc(1, lsp_diag_pipeline_sizeof_arena());
     return p;
 }
 
-void *lsp_diag_su_module_ptr(void) {
+void *lsp_diag_sx_module_ptr(void) {
     static void *p;
     if (!p)
         p = calloc(1, lsp_diag_pipeline_sizeof_module());
@@ -363,30 +363,30 @@ void *lsp_diag_su_module_ptr(void) {
 }
 
 /** 返回 LSP SU pipeline 用的 PipelineDepCtx 分配尺寸。 */
-static size_t lsp_diag_su_ctx_alloc_size(void) {
-    size_t sz = lsp_diag_su_alloc_dep_ctx_size();
+static size_t lsp_diag_sx_ctx_alloc_size(void) {
+    size_t sz = lsp_diag_sx_alloc_dep_ctx_size();
     if (sz > lsp_diag_pipeline_sizeof_dep_ctx())
         return sz;
     return lsp_diag_pipeline_sizeof_dep_ctx();
 }
 
-void *lsp_diag_su_ctx_ptr(void) {
+void *lsp_diag_sx_ctx_ptr(void) {
     static void *p;
     if (!p)
-        p = calloc(1, lsp_diag_su_ctx_alloc_size());
+        p = calloc(1, lsp_diag_sx_ctx_alloc_size());
     return p;
 }
 
-void lsp_diag_su_reset_parse_buffers(void) {
-    void *a = lsp_diag_su_arena_ptr();
-    void *m = lsp_diag_su_module_ptr();
-    void *c = lsp_diag_su_ctx_ptr();
+void lsp_diag_sx_reset_parse_buffers(void) {
+    void *a = lsp_diag_sx_arena_ptr();
+    void *m = lsp_diag_sx_module_ptr();
+    void *c = lsp_diag_sx_ctx_ptr();
     if (a)
         memset(a, 0, lsp_diag_pipeline_sizeof_arena());
     if (m)
         memset(m, 0, lsp_diag_pipeline_sizeof_module());
     if (c)
-        memset(c, 0, lsp_diag_su_ctx_alloc_size());
+        memset(c, 0, lsp_diag_sx_ctx_alloc_size());
 }
 
 /** 将 msg 按 JSON 字符串转义写入 out，返回写入长度；out_cap 为 out 的容量。 */
@@ -1454,7 +1454,7 @@ static int type_to_string(const struct ASTType *ty, char *buf, int cap) {
 
 /**
  * 将诊断列表写成 LSP Diagnostic[] JSON 写入 out，返回长度；out_cap 为 out 的容量。
- * 供 lsp_diag.c 缓存路径与 lsp_diag.su（-E 生成）共用。
+ * 供 lsp_diag.c 缓存路径与 lsp_diag.sx（-E 生成）共用。
  */
 int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
     int k = 0;
@@ -1478,7 +1478,7 @@ int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
     return k;
 }
 
-/* hover / references 由 .su pipeline 提供（arena 全量扫描，不依赖 C parser 缓存）。 */
+/* hover / references 由 .sx pipeline 提供（arena 全量扫描，不依赖 C parser 缓存）。 */
 extern int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                   uint8_t *out_buf, int32_t out_cap);
 extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
@@ -1487,7 +1487,7 @@ extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32
                                        int32_t *out_line, int32_t *out_col);
 
 /**
- * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
+ * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_sx_alias.c 强符号覆盖为 .sx pipeline。
  */
 __attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
     if (!source || !out_line || !out_col || source_len < 0) return 0;
@@ -1502,7 +1502,7 @@ __attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_le
 #define LSP_REFs_MAX 128
 
 /**
- * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
+ * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_sx_alias.c 强符号覆盖为 .sx pipeline。
  */
 __attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
                       int *out_lines, int *out_cols, int max_refs) {
@@ -1529,7 +1529,7 @@ __attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_le
 #define LSP_HOVER_BUF_MAX 128
 
 /**
- * 在 (line_0, col_0) 处找表达式类型；C 前端路径（shu-c）。bootstrap driver 由 lsp_diag_su_alias.c 强符号覆盖为 .su pipeline。
+ * 在 (line_0, col_0) 处找表达式类型；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_sx_alias.c 强符号覆盖为 .sx pipeline。
  */
 __attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
     if (!source || !out_buf || out_cap <= 0 || source_len < 0) return 0;
@@ -1543,7 +1543,7 @@ __attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, in
     return len > 0 ? len : 0;
 }
 
-/* ---------- 原 lsp_io.c：文档缓冲、contentChanges、JSON 响应构建（lsp_extract_document_text 在 lsp_io.su） ---------- */
+/* ---------- 原 lsp_io.c：文档缓冲、contentChanges、JSON 响应构建（lsp_extract_document_text 在 lsp_io.sx） ---------- */
 #define LSP_BODY_SAFETY_CAP (64 * 1024 * 1024)
 
 static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap);
@@ -1557,7 +1557,7 @@ static int parse_first_content_change(const uint8_t *body, int len,
 static uint8_t *s_doc_ptr = NULL;
 static int s_doc_len = 0;
 
-/** lsp_alloc/lsp_free/lsp_is_null、read_message、extract_document_text 已迁至 lsp_io.su；不再提供 lsp_peek_u8/lsp_poke_u8/lsp_ptr_add。 */
+/** lsp_alloc/lsp_free/lsp_is_null、read_message、extract_document_text 已迁至 lsp_io.sx；不再提供 lsp_peek_u8/lsp_poke_u8/lsp_ptr_add。 */
 
 /** 若 body 含 contentChanges 且当前有文档，则解析并应用第一项 range 替换，成功返回 1，否则 0。 */
 static int try_apply_content_changes(const uint8_t *body, int body_len) {
@@ -1627,7 +1627,7 @@ int lsp_get_document_len(void) {
     return s_doc_len;
 }
 
-/** lsp_read_c、lsp_read_at、lsp_read_message、lsp_write_c 已迁至 lsp_io.su（std.io）。 */
+/** lsp_read_c、lsp_read_at、lsp_read_message、lsp_write_c 已迁至 lsp_io.sx（std.io）。 */
 
 /** 将 (line, character) 转为文档中的字节偏移；line/character 为 0-based。 */
 static int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
@@ -1780,9 +1780,9 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
         "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"deprecated\",\"abstract\",\"async\",\"modification\",\"documentation\",\"defaultLibrary\"]},\"full\":true,\"range\":false},"
         "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
         "\"renameProvider\":true,"
-        "\"diagnosticProvider\":{\"identifier\":\"shulang\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
+        "\"diagnosticProvider\":{\"identifier\":\"shux\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
         "},"
-        "\"serverInfo\":{\"name\":\"shulang\",\"version\":\"0.1.0\"}"
+        "\"serverInfo\":{\"name\":\"shux\",\"version\":\"0.1.0\"}"
         "}";
     int len = 0;
     while (result[len] != '\0')
@@ -1792,7 +1792,7 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
 
 /**
  * 构建 JSON-RPC 响应正文：{"jsonrpc":"2.0","id":<id>,"result":<result>}。
- * 供 lsp.su 与 lsp_io.c 内 build_definition/references/hover/formatting 共用。
+ * 供 lsp.sx 与 lsp_io.c 内 build_definition/references/hover/formatting 共用。
  */
 int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int result_len,
                                    uint8_t *out_buf, int out_cap) {
@@ -1918,7 +1918,7 @@ int lsp_build_definition_response(int id_val, const uint8_t *body, int body_len,
             uri_len = (int)strlen(def_uri);
         }
     }
-    /* LSP Location: {"uri":"...","range":{...}}；行列 0-based。跨 import 模块时使用目标 .su 的 file URI。 */
+    /* LSP Location: {"uri":"...","range":{...}}；行列 0-based。跨 import 模块时使用目标 .sx 的 file URI。 */
     int line0_def = def_line > 0 ? def_line - 1 : 0;
     int col0_def = def_col > 0 ? def_col - 1 : 0;
     char result_buf[LSP_DEFINITION_RESULT_MAX];
@@ -2808,7 +2808,7 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
     return out_len;
 }
 
-/** shu fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
+/** shux fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
 int shu_format_su_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     return lsp_format_document(doc, doc_len, 2, 1, 100, 1, 1, 1, out_buf, out_cap);
 }

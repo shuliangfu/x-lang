@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-elf-phdr.sh — STD-064 manifest 与 phdr 烟测辅助
 
-STD_ELF_PHDR_PREFIX="${SHU_STD064_PREFIX:-shu: [SHU_STD064_ELF_PHDR]}"
+STD_ELF_PHDR_PREFIX="${SHUX_STD064_PREFIX:-shux: [SHUX_STD064_ELF_PHDR]}"
 
 # 校验 manifest 中 api/const/symbol/file。
 std_elf_phdr_symbols_ok() {
@@ -50,7 +50,7 @@ std_elf_phdr_symbols_ok() {
 std_elf_phdr_run_c_smoke() {
   local elf_c="$1"
   local src="tests/std-elf/parse_phdr_smoke_ok.c"
-  local out="/tmp/shu_std_elf_phdr_$$"
+  local out="/tmp/shux_std_elf_phdr_$$"
   local elf_o
   elf_o="$(dirname "$elf_c")/elf.o"
   if [ ! -f "$elf_o" ]; then

@@ -5,7 +5,7 @@
 #   std_set_extend_symbols_ok SET_SU TSV
 #   std_set_extend_emit_report status check_ok run_ok skip
 
-STD_SET_EXTEND_PREFIX="${SHU_STD_SET_EXTEND_PREFIX:-shu: [SHU_STD_SET_EXTEND]}"
+STD_SET_EXTEND_PREFIX="${SHUX_STD_SET_EXTEND_PREFIX:-shux: [SHUX_STD_SET_EXTEND]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数，成功返回 0。
 std_set_extend_symbols_ok() {

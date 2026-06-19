@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT026_DOC:-analysis/boot-026-parser-c4-bootstrap-v1.md}"
-MANIFEST="${SHU_BOOT026_TSV:-tests/baseline/boot-026-parser-c4-bootstrap.tsv}"
-WAVE="${SHU_BOOT026_WAVE_TSV:-tests/baseline/parser-c4-bootstrap-wave.tsv}"
+DOC="${SHUX_BOOT026_DOC:-analysis/boot-026-parser-c4-bootstrap-v1.md}"
+MANIFEST="${SHUX_BOOT026_TSV:-tests/baseline/boot-026-parser-c4-bootstrap.tsv}"
+WAVE="${SHUX_BOOT026_WAVE_TSV:-tests/baseline/parser-c4-bootstrap-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 REPRO="tests/baseline/bootstrap-repro.tsv"
 LIB="tests/lib/boot-026-parser-c4-bootstrap.sh"
@@ -19,7 +19,7 @@ MIN_ROWS=4
 
 echo "=== BOOT-026: parser C4 SU bootstrap manifest ==="
 for f in "$DOC" "$MANIFEST" "$WAVE" "$LIB" "$MATRIX" "$REPRO" \
-  tests/run-parser-parse-bootstrap-su-emit-gate.sh \
+  tests/run-parser-parse-bootstrap-sx-emit-gate.sh \
   tests/run-parser-parse-bootstrap-bisect-gate.sh \
   tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-boot-025-parser-gen12-consistency-gate.sh; do
@@ -106,9 +106,9 @@ echo "boot-026-parser-c4-bootstrap manifest OK (rows=${ROW_N} hooks=${HOOK_N})"
 
 echo "=== BOOT-026: parent BOOT-025 manifest ==="
 chmod +x tests/run-boot-025-parser-gen12-consistency-gate.sh
-SHU_BOOT025_MANIFEST_ONLY=1 ./tests/run-boot-025-parser-gen12-consistency-gate.sh
+SHUX_BOOT025_MANIFEST_ONLY=1 ./tests/run-boot-025-parser-gen12-consistency-gate.sh
 
-if [ "${SHU_BOOT026_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_BOOT026_MANIFEST_ONLY:-0}" = "1" ]; then
   boot026_emit_report "ok" 0 0 1
   echo "boot-026-parser-c4-bootstrap gate OK (manifest only)"
   exit 0
@@ -119,10 +119,10 @@ C4_SU_PROBE=0
 SKIP=1
 
 if boot026_parser_linux_shu; then
-  echo "=== BOOT-026: SU emit probe (Linux shu) ==="
-  chmod +x tests/run-parser-parse-bootstrap-su-emit-gate.sh
+  echo "=== BOOT-026: SU emit probe (Linux shux) ==="
+  chmod +x tests/run-parser-parse-bootstrap-sx-emit-gate.sh
   SU_LOG="/tmp/boot026_su_emit_$$.log"
-  if ./tests/run-parser-parse-bootstrap-su-emit-gate.sh 2>&1 | tee "$SU_LOG"; then
+  if ./tests/run-parser-parse-bootstrap-sx-emit-gate.sh 2>&1 | tee "$SU_LOG"; then
     read -r C4_MINIMAL_OK C4_SU_PROBE <<< "$(boot026_parse_su_emit_log "$SU_LOG")"
     SKIP=0
     echo "boot-026 su_emit OK (minimal=${C4_MINIMAL_OK} probe=${C4_SU_PROBE})"
@@ -133,7 +133,7 @@ if boot026_parser_linux_shu; then
   fi
   rm -f "$SU_LOG"
 else
-  echo "boot-026-parser-c4-bootstrap gate SKIP wave (Darwin or no compiler/shu)" >&2
+  echo "boot-026-parser-c4-bootstrap gate SKIP wave (Darwin or no compiler/shux)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$C4_MINIMAL_OK" -lt 1 ]; then

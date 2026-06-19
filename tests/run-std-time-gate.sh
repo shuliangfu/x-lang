@@ -2,17 +2,17 @@
 # STD-005：std.time 精度与时区 manifest 门禁
 #
 # 1) std-time-precision-v1.md + manifest
-# 2) mod.su 13 API + time.c 平台实现
-# 3) native shu：precision_smoke + main 烟测
+# 2) mod.sx 13 API + time.c 平台实现
+# 3) native shux：precision_smoke + main 烟测
 #
 # 用法：./tests/run-std-time-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
-MANIFEST="${SHU_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
-MOD_SU="${SHU_STD_TIME_MOD:-std/time/mod.su}"
-TIME_C="${SHU_STD_TIME_C:-std/time/time.c}"
+DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
+MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
+MOD_SU="${SHUX_STD_TIME_MOD:-std/time/mod.sx}"
+TIME_C="${SHUX_STD_TIME_C:-std/time/time.c}"
 MIN_APIS=13
 
 # shellcheck source=tests/lib/std-time.sh
@@ -125,26 +125,26 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-time manifest OK (apis=${API_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== STD-005: std.time smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== STD-005: std.time smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/time/time.o
   FAIL=0
-  for smoke in tests/time/main.su tests/time/precision_smoke.su; do
-    tag="$(basename "$smoke" .su)"
-    if std_time_run_smoke "$SHU_BIN" "$smoke" "$tag"; then
+  for smoke in tests/time/main.sx tests/time/precision_smoke.sx; do
+    tag="$(basename "$smoke" .sx)"
+    if std_time_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
       echo "std-time smoke OK $tag"
     else
       FAIL=$((FAIL + 1))
@@ -155,7 +155,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     exit 1
   fi
 else
-  echo "std-time gate SKIP smoke (no native shu)" >&2
+  echo "std-time gate SKIP smoke (no native shux)" >&2
 fi
 
 echo "std-time gate OK"

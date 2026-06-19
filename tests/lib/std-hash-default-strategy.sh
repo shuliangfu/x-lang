@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-hash-default-strategy.sh — STD-148 manifest 与烟测辅助
 
-STD148_PREFIX="${SHU_STD148_HASH_DEFAULT_STRATEGY_PREFIX:-shu: [SHU_STD148_HASH_DEFAULT_STRATEGY]}"
+STD148_PREFIX="${SHUX_STD148_HASH_DEFAULT_STRATEGY_PREFIX:-shux: [SHUX_STD148_HASH_DEFAULT_STRATEGY]}"
 
 # 校验 manifest；echo 缺失数。
 std_hash_default_strategy_symbols_ok() {
@@ -73,7 +73,7 @@ std_hash_default_strategy_vectors_ok() {
 std_hash_default_strategy_run_c_smoke() {
   local hash_c="$1"
   local src="tests/std-hash/default_strategy_ok.c"
-  local out="/tmp/shu_hash_default_strategy_c_$$"
+  local out="/tmp/shux_hash_default_strategy_c_$$"
   local hash_o
   hash_o="$(dirname "$hash_c")/hash.o"
   if [ ! -f "$hash_o" ]; then
@@ -96,15 +96,15 @@ std_hash_default_strategy_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .su 烟测。
-std_hash_default_strategy_run_su_smoke() {
-  local shu="$1"
+# 编译并运行 .sx 烟测。
+std_hash_default_strategy_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
   local hash_o="$3"
-  local exe="/tmp/shu_hash_default_strategy_su_$$"
-  if ! "$shu" -L . "$src" -o "$exe" "$hash_o" >/dev/null 2>&1; then
+  local exe="/tmp/shux_hash_default_strategy_su_$$"
+  if ! "$shux" -L . "$src" -o "$exe" "$hash_o" >/dev/null 2>&1; then
     echo "std-hash-default-strategy FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" "$hash_o" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$hash_o" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

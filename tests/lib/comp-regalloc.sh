@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # comp-regalloc.sh — COMP-005 寄存器分配评估共享辅助
 
-# 判断本机能否执行 shu_asm（asm 7.3 regalloc 路径）。
-comp_regalloc_native_shu_asm() {
-  local f="${1:-./compiler/shu_asm}"
+# 判断本机能否执行 shux_asm（asm 7.3 regalloc 路径）。
+comp_regalloc_native_shux_asm() {
+  local f="${1:-./compiler/shux_asm}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;

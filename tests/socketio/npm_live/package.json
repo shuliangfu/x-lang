@@ -1,0 +1,8 @@
+{
+  "name": "shux-socketio-npm-live",
+  "private": true,
+  "description": "Optional socket.io npm live gate for std.socketio (SHUX_SOCKETIO_NPM=1)",
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
+}

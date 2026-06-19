@@ -3,9 +3,9 @@
  *
  * 【文件职责】
  * TaskGroup / JoinSet 封装 std.async spawn + drain；Context 取消传播；
- * 结构化并发 leak 检测；Supervisor 重试；供 mod.su 与 gate 烟测。
+ * 结构化并发 leak 检测；Supervisor 重试；供 mod.sx 与 gate 烟测。
  *
- * 【所属模块】标准库 std.task；与 std/task/mod.su 同属一模块。
+ * 【所属模块】标准库 std.task；与 std/task/mod.sx 同属一模块。
  * 【依赖】std/async/scheduler.c、std/context/context.c、std/time/time.c。
  */
 
@@ -26,13 +26,13 @@ enum {
 
 typedef int32_t (*task_fn_t)(void);
 
-extern int shu_async_spawn_i32(task_fn_t fn, int32_t seed);
-extern void shu_async_run_seed_reset(void);
-extern void shu_async_queue_reset(void);
-extern int32_t shu_async_run_drain_until_idle(void);
+extern int shux_async_spawn_i32(task_fn_t fn, int32_t seed);
+extern void shux_async_run_seed_reset(void);
+extern void shux_async_queue_reset(void);
+extern int32_t shux_async_run_drain_until_idle(void);
 extern int32_t ctx_is_cancelled_c(int64_t handle);
 extern void ctx_cancel_c(int64_t handle);
-extern void shu_async_bind_context_c(int64_t ctx_handle);
+extern void shux_async_bind_context_c(int64_t ctx_handle);
 extern void time_sleep_ns_c(int64_t ns);
 
 typedef struct task_group {
@@ -68,14 +68,14 @@ static int32_t tg_is_cancelled(task_group_t *g) {
 
 /** 烟测/demo 任务：返回 seed*10。 */
 int32_t task_echo_fn_c(void) {
-    extern int32_t shu_async_run_seed_valid(void);
-    extern int32_t shu_async_run_seed_take_i32(void);
+    extern int32_t shux_async_run_seed_valid(void);
+    extern int32_t shux_async_run_seed_take_i32(void);
     int32_t seed = 0;
-    if (shu_async_run_seed_valid()) seed = shu_async_run_seed_take_i32();
+    if (shux_async_run_seed_valid()) seed = shux_async_run_seed_take_i32();
     return seed * 10;
 }
 
-/** 返回 demo 任务函数指针（供 .su spawn 烟测）。 */
+/** 返回 demo 任务函数指针（供 .sx spawn 烟测）。 */
 void *task_echo_fn_ptr_c(void) {
     return (void *)(uintptr_t)task_echo_fn_c;
 }
@@ -110,7 +110,7 @@ int32_t task_group_spawn_c(int64_t handle, task_fn_t fn, int32_t seed) {
     if (tg_is_cancelled(g)) return TASK_ERR_CANCELLED;
     if (g->spawned >= g->capacity) return TASK_ERR_FULL;
     {
-        int spawn_r = shu_async_spawn_i32(fn, seed);
+        int spawn_r = shux_async_spawn_i32(fn, seed);
         if (spawn_r != 0) {
             if (spawn_r == -2 || tg_is_cancelled(g)) return TASK_ERR_CANCELLED;
             return TASK_ERR_INVALID;
@@ -133,8 +133,8 @@ int32_t task_group_join_c(int64_t handle) {
         return TASK_OK;
     }
     if (g->ctx_handle != 0)
-        shu_async_bind_context_c(g->ctx_handle);
-    total = shu_async_run_drain_until_idle();
+        shux_async_bind_context_c(g->ctx_handle);
+    total = shux_async_run_drain_until_idle();
     if (total == -3)
         return TASK_ERR_CANCELLED;
     g->join_total = total;
@@ -193,7 +193,7 @@ int32_t join_set_spawn_c(int64_t handle, task_fn_t fn, int32_t seed) {
     join_set_t *s = js_from_handle(handle);
     if (!s || !fn) return TASK_ERR_NULL;
     if (s->spawned >= s->capacity) return TASK_ERR_FULL;
-    if (shu_async_spawn_i32(fn, seed) != 0) return TASK_ERR_INVALID;
+    if (shux_async_spawn_i32(fn, seed) != 0) return TASK_ERR_INVALID;
     s->spawned++;
     s->joined = 0;
     return TASK_OK;
@@ -209,7 +209,7 @@ int32_t join_set_join_c(int64_t handle) {
         s->join_total = 0;
         return TASK_OK;
     }
-    total = shu_async_run_drain_until_idle();
+    total = shux_async_run_drain_until_idle();
     s->join_total = total;
     s->joined = 1;
     s->spawned = 0;
@@ -230,10 +230,10 @@ int32_t task_supervise_retry_c(task_fn_t fn, int32_t seed, int32_t max_attempts,
     int32_t total;
     if (!fn || max_attempts <= 0) return TASK_ERR_NULL;
     for (attempt = 0; attempt < max_attempts; attempt++) {
-        shu_async_run_seed_reset();
-        shu_async_queue_reset();
-        if (shu_async_spawn_i32(fn, seed) != 0) return TASK_ERR_INVALID;
-        total = shu_async_run_drain_until_idle();
+        shux_async_run_seed_reset();
+        shux_async_queue_reset();
+        if (shux_async_spawn_i32(fn, seed) != 0) return TASK_ERR_INVALID;
+        total = shux_async_run_drain_until_idle();
         if (total >= 0) return total;
         if (backoff_ns > 0) time_sleep_ns_c(backoff_ns);
     }
@@ -246,21 +246,21 @@ int32_t task_smoke_c(void) {
     int64_t js = join_set_create_c(2);
     int32_t r;
     if (grp == 0 || js == 0) return 1;
-    shu_async_run_seed_reset();
-    shu_async_queue_reset();
+    shux_async_run_seed_reset();
+    shux_async_queue_reset();
     if (task_group_spawn_c(grp, task_echo_fn_c, 2) != TASK_OK) return 2;
     if (task_group_spawn_c(grp, task_echo_fn_c, 3) != TASK_OK) return 3;
     if (task_group_check_leak_c(grp) != TASK_ERR_LEAK) return 4;
     r = task_group_join_c(grp);
     if (r != 50) return 5;
     if (task_group_check_leak_c(grp) != TASK_OK) return 6;
-    shu_async_run_seed_reset();
-    shu_async_queue_reset();
+    shux_async_run_seed_reset();
+    shux_async_queue_reset();
     if (join_set_spawn_c(js, task_echo_fn_c, 4) != TASK_OK) return 7;
     r = join_set_join_c(js);
     if (r != 40) return 8;
-    shu_async_run_seed_reset();
-    shu_async_queue_reset();
+    shux_async_run_seed_reset();
+    shux_async_queue_reset();
     r = task_supervise_retry_c(task_echo_fn_c, 5, 3, 0);
     if (r != 50) return 9;
     task_group_free_c(grp);

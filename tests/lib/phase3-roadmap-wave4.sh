@@ -7,7 +7,7 @@
 #   phase3_roadmap_wave4_done_count NEXT_MD
 #   phase3_roadmap_wave4_emit_report status tasks_ok sections_ok done_ok
 
-PHASE3_WAVE4_PREFIX="${SHU_PLAN004_PREFIX:-shu: [SHU_PLAN004_PHASE3_W4]}"
+PHASE3_WAVE4_PREFIX="${SHUX_PLAN004_PREFIX:-shux: [SHUX_PLAN004_PHASE3_W4]}"
 
 # 校验 manifest；echo 缺失数。
 phase3_roadmap_wave4_check() {

@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_BUILTIN_DOC:-analysis/core-builtin-bitops-v1.md}"
-MANIFEST="${SHU_CORE_BUILTIN_TSV:-tests/baseline/core-builtin-bitops.tsv}"
+DOC="${SHUX_CORE_BUILTIN_DOC:-analysis/core-builtin-bitops-v1.md}"
+MANIFEST="${SHUX_CORE_BUILTIN_TSV:-tests/baseline/core-builtin-bitops.tsv}"
 CODEGEN="compiler/src/codegen/codegen.c"
 BUILTIN_C="core/builtin/builtin.c"
 LIB="tests/lib/core-builtin-bitops.sh"
-EMIT_SU="tests/builtin/main.su"
+EMIT_SU="tests/builtin/main.sx"
 MIN_MAP=3
-PREFIX="shu: [SHU_CORE_BUILTIN_BITOPS]"
+PREFIX="shux: [SHUX_CORE_BUILTIN_BITOPS]"
 
 # shellcheck source=tests/lib/core-builtin-bitops.sh
 . tests/lib/core-builtin-bitops.sh
@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$BUILTIN_C" "$EMIT_SU"; do
   fi
 done
 
-for kw in __builtin_clz shulang_builtin popcount_u32; do
+for kw in __builtin_clz shux_builtin popcount_u32; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "core-builtin-bitops gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -61,7 +61,7 @@ stdlib_cm_native_shu() {
 }
 resolve_emit_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -71,11 +71,11 @@ resolve_emit_shu() {
 }
 
 EMIT_TOTAL=3
-if SHU_BIN="$(resolve_emit_shu 2>/dev/null)"; then
-  echo "=== CORE-009: SHU_DEBUG_C emit (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(resolve_emit_shu 2>/dev/null)"; then
+  echo "=== CORE-009: SHUX_DEBUG_C emit (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  found="$(core_builtin_emit_ok "$SHU_BIN" "$EMIT_SU" "$MANIFEST" || true)"
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  found="$(core_builtin_emit_ok "$SHUX_BIN" "$EMIT_SU" "$MANIFEST" || true)"
   if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
     core_builtin_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"
     echo "core-builtin-bitops gate FAIL: emit ${found:-0}/${EMIT_TOTAL}" >&2
@@ -86,7 +86,7 @@ if SHU_BIN="$(resolve_emit_shu 2>/dev/null)"; then
   chmod +x tests/run-builtin.sh
   ./tests/run-builtin.sh
 else
-  echo "core-builtin-bitops gate SKIP runnable (no shu)" >&2
+  echo "core-builtin-bitops gate SKIP runnable (no shux)" >&2
 fi
 
 echo "core-builtin-bitops gate OK"

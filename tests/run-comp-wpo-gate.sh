@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_WPO_DOC:-analysis/comp-wpo-v1.md}"
-MANIFEST="${SHU_COMP_WPO_MANIFEST:-tests/baseline/comp-wpo.tsv}"
-PROTO="${SHU_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
+DOC="${SHUX_COMP_WPO_DOC:-analysis/comp-wpo-v1.md}"
+MANIFEST="${SHUX_COMP_WPO_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+PROTO="${SHUX_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
 MIN_STAGES=6
 MIN_CASES=4
 MIN_CAPS=6
@@ -18,7 +18,7 @@ MIN_CAPS=6
 echo "=== COMP-004: WPO v1 manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTO" \
   compiler/src/runtime.c compiler/scripts/wpo_dce.pl compiler/scripts/wpo_const_spec.pl \
-  tests/wpo/dead_fn.su tests/wpo/dead_user.su tests/wpo/if_block_reach.su tests/wpo/const_spec.su \
+  tests/wpo/dead_fn.sx tests/wpo/dead_user.sx tests/wpo/if_block_reach.sx tests/wpo/const_spec.sx \
   tests/run-wpo-dce-emit.sh tests/run-pipeline-wpo-optin-smoke.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-wpo gate FAIL: missing $f" >&2
@@ -153,7 +153,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-wpo manifest OK (stages=${STAGE_N} cases=${CASE_N} caps=${CAP_N})"
 
-if [ "${SHU_COMP_WPO_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP_WPO_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-wpo gate OK (manifest only)"
   exit 0
 fi

@@ -1,0 +1,31 @@
+// tests/exc/error_chain_smoke.sx — EXC-004：ErrorChain wrap 与 root/leaf 烟测
+const result = import("core.result");
+const err = import("std.error");
+
+function main(): i32 {
+  let leaf: ErrorChain = error_chain_from_code(fs_err_not_found());
+  if (error_chain_depth(leaf) != 1) { return 1; }
+  if (error_chain_leaf(leaf) != fs_err_not_found()) { return 2; }
+  if (error_chain_root(leaf) != fs_err_not_found()) { return 3; }
+  let wrapped: ErrorChain = error_chain_wrap(leaf, io_err_timeout());
+  if (error_chain_depth(wrapped) != 2) { return 4; }
+  if (error_chain_root(wrapped) != io_err_timeout()) { return 5; }
+  if (error_chain_leaf(wrapped) != fs_err_not_found()) { return 6; }
+  if (error_chain_code_at(wrapped, 0) != io_err_timeout()) { return 7; }
+  if (error_chain_code_at(wrapped, 1) != fs_err_not_found()) { return 8; }
+  let bad: Result_i32 = result.err_i32(fs_err_not_found());
+  let from_r: ErrorChain = error_chain_from_result(bad);
+  if (error_chain_leaf(from_r) != fs_err_not_found()) { return 9; }
+  let deep: ErrorChain = error_chain_wrap(
+    error_chain_wrap(
+      error_chain_wrap(
+        error_chain_wrap(leaf, io_err_generic()),
+        io_err_timeout()),
+      io_err_cancelled()),
+    error_code_invalid());
+  if (error_chain_depth(deep) != error_chain_max_depth()) { return 10; }
+  if (error_chain_root(deep) != error_code_invalid()) { return 11; }
+  let out: Result_i32 = result.err_i32(error_chain_root(wrapped));
+  if (!result.is_err_i32(out) || out.err != io_err_timeout()) { return 12; }
+  return 0;
+}

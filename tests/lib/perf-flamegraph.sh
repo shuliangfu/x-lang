@@ -7,9 +7,9 @@
 #   perf_fg_top_symbols CASE CMD...  # 采样并输出 Top-N TSV 行
 #
 # 环境：
-#   SHU_PERF_FLAMEGRAPH_TOPN — Top 行数（默认 20）
-#   SHU_PERF_FLAMEGRAPH_FREQ  — 采样频率 Hz（默认 997）
-#   SHU_PERF_FLAMEGRAPH_PREFIX — stderr 前缀（默认 shu: [SHU_PERF_FLAMEGRAPH]）
+#   SHUX_PERF_FLAMEGRAPH_TOPN — Top 行数（默认 20）
+#   SHUX_PERF_FLAMEGRAPH_FREQ  — 采样频率 Hz（默认 997）
+#   SHUX_PERF_FLAMEGRAPH_PREFIX — stderr 前缀（默认 shux: [SHUX_PERF_FLAMEGRAPH]）
 
 # 解析 perf 可执行路径（GHA 常仅 linux-tools-* 目录下有 perf）。
 perf_fg_resolve_bin() {
@@ -33,7 +33,7 @@ perf_fg_probe_ok() {
   [ "$(uname -s)" = "Linux" ] || return 1
   perf_bin="$(perf_fg_resolve_bin)" || return 1
   sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
-  tmpdata="$(mktemp -t shu-perf-fg-probe.XXXXXX.data)"
+  tmpdata="$(mktemp -t shux-perf-fg-probe.XXXXXX.data)"
   if "$perf_bin" record -F 99 -o "$tmpdata" -- true 2>/dev/null; then
     rm -f "$tmpdata"
     return 0
@@ -49,16 +49,16 @@ perf_fg_top_symbols() {
   local case_id="$1"
   shift
   local perf_bin topn freq prefix tmpdata tmpreport rows
-  topn="${SHU_PERF_FLAMEGRAPH_TOPN:-20}"
-  freq="${SHU_PERF_FLAMEGRAPH_FREQ:-997}"
-  prefix="${SHU_PERF_FLAMEGRAPH_PREFIX:-shu: [SHU_PERF_FLAMEGRAPH]}"
+  topn="${SHUX_PERF_FLAMEGRAPH_TOPN:-20}"
+  freq="${SHUX_PERF_FLAMEGRAPH_FREQ:-997}"
+  prefix="${SHUX_PERF_FLAMEGRAPH_PREFIX:-shux: [SHUX_PERF_FLAMEGRAPH]}"
   perf_bin="$(perf_fg_resolve_bin)" || {
     echo "${prefix} case=${case_id} error=no_perf" >&2
     return 1
   }
   sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
-  tmpdata="$(mktemp -t "shu-perf-fg-${case_id}.XXXXXX.data")"
-  tmpreport="$(mktemp -t "shu-perf-fg-${case_id}.XXXXXX.report")"
+  tmpdata="$(mktemp -t "shux-perf-fg-${case_id}.XXXXXX.data")"
+  tmpreport="$(mktemp -t "shux-perf-fg-${case_id}.XXXXXX.report")"
   # -g dwarf：便于后续 flamegraph.pl；Top-N 仍从 symbol 聚合报告读取。
   if ! "$perf_bin" record -F "$freq" -g --call-graph dwarf,4096 -o "$tmpdata" -- "$@" 2>/dev/null; then
     rm -f "$tmpdata" "$tmpreport"
@@ -68,7 +68,7 @@ perf_fg_top_symbols() {
   "$perf_bin" report -i "$tmpdata" --stdio -n --sort=symbol --percent-limit=0 \
     >"$tmpreport" 2>/dev/null || true
   rows=0
-  # perf report 符号行形如：  12.34%  shu-c  [.] symbol_name
+  # perf report 符号行形如：  12.34%  shux-c  [.] symbol_name
   while IFS= read -r line; do
     case "$line" in
       *"%"*)

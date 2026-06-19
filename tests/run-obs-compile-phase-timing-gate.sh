@@ -2,20 +2,20 @@
 # OBS-001：编译阶段耗时埋点 manifest + 烟测门禁
 #
 # 1) obs-compile-phase-timing-v1.md + manifest
-# 2) runtime.c / pipeline.su 符号与 env 锚点
-# 3) native shu：SHU_COMPILE_PHASE_TIMING=1 check 须输出汇总行
+# 2) runtime.c / pipeline.sx 符号与 env 锚点
+# 3) native shux：SHUX_COMPILE_PHASE_TIMING=1 check 须输出汇总行
 #
 # 用法：./tests/run-obs-compile-phase-timing-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
-MANIFEST="${SHU_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
-RUNTIME="${SHU_OBS_PHASE_TIMING_RUNTIME:-compiler/src/runtime.c}"
-PIPELINE="${SHU_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.su}"
+DOC="${SHUX_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
+MANIFEST="${SHUX_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
+RUNTIME="${SHUX_OBS_PHASE_TIMING_RUNTIME:-compiler/src/runtime.c}"
+PIPELINE="${SHUX_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.sx}"
 MIN_ITEMS=6
-OUTPUT_PREFIX="shu: [SHU_COMPILE_PHASE_TIMING]"
-SMOKE_FIX="tests/bench/loop_i32.su"
+OUTPUT_PREFIX="shux: [SHUX_COMPILE_PHASE_TIMING]"
+SMOKE_FIX="tests/bench/loop_i32.sx"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -105,27 +105,27 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "obs-compile-phase-timing manifest OK (host=$(ci_host_summary), items=${FOUND})"
 
-# ── native shu 烟测 ──
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+# ── native shux 烟测 ──
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "obs-compile-phase-timing gate SKIP smoke (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "obs-compile-phase-timing gate SKIP smoke (no native shux)" >&2
   echo "obs-compile-phase-timing gate OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-LOG=/tmp/shu_obs_phase_timing.log
-if ! SHU_COMPILE_PHASE_TIMING=1 "$SHU_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; then
+LOG=/tmp/shux_obs_phase_timing.log
+if ! SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; then
   echo "obs-compile-phase-timing gate FAIL: check $SMOKE_FIX (see $LOG)" >&2
   tail -20 "$LOG" >&2 || true
   exit 1
@@ -141,6 +141,6 @@ for field in parse_ms= typeck_ms= codegen_ms= total_ms=; do
     exit 1
   fi
 done
-echo "obs-compile-phase-timing smoke OK ($SHU_BIN check $SMOKE_FIX)"
+echo "obs-compile-phase-timing smoke OK ($SHUX_BIN check $SMOKE_FIX)"
 
 echo "obs-compile-phase-timing gate OK"

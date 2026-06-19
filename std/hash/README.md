@@ -18,7 +18,7 @@
 | 内部去重 / checksum | `recommend_hasher_fast()` → xxHash64 |
 | Tier-S 稳定 | `hash_start()`（恒 SipHash） |
 
-环境变量 **`SHU_HASH_ALGO`**：`siphash`（默认）/ `ahash` / `xxhash` — 仅影响 `default_hasher()`。
+环境变量 **`SHUX_HASH_ALGO`**：`siphash`（默认）/ `ahash` / `xxhash` — 仅影响 `default_hasher()`。
 
 ## API 摘要
 

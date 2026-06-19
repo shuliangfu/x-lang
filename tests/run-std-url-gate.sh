@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_URL_DOC:-analysis/std-url-v1.md}"
-MANIFEST="${SHU_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
-VECTORS="${SHU_STD_URL_VECTORS:-tests/baseline/std-url-vectors.tsv}"
-MOD_SU="std/url/mod.su"
+DOC="${SHUX_STD_URL_DOC:-analysis/std-url-v1.md}"
+MANIFEST="${SHUX_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
+VECTORS="${SHUX_STD_URL_VECTORS:-tests/baseline/std-url-vectors.tsv}"
+MOD_SU="std/url/mod.sx"
 URL_C="std/url/url.c"
 LIB="tests/lib/std-url.sh"
-SMOKE_SU="tests/std-url/roundtrip.su"
+SMOKE_SU="tests/std-url/roundtrip.sx"
 SMOKE_C="tests/std-url/url_smoke_ok.c"
 MIN_APIS=6
 
@@ -64,7 +64,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-url manifest OK"
 
-if [ "${SHU_STD_URL_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_URL_MANIFEST_ONLY:-0}" = "1" ]; then
   std_url_emit_report "ok" 0 0 1
   echo "std-url gate OK (manifest only)"
   exit 0
@@ -76,12 +76,12 @@ SKIP=0
 
 echo "=== STD-076: url c smoke ==="
 make -C compiler ../std/url/url.o >/dev/null 2>&1
-if cc -std=c11 -O1 -o /tmp/shu_url_smoke \
+if cc -std=c11 -O1 -o /tmp/shux_url_smoke \
   "$SMOKE_C" std/url/url.o 2>/dev/null; then
-  if /tmp/shu_url_smoke >/dev/null 2>&1; then
+  if /tmp/shux_url_smoke >/dev/null 2>&1; then
     C_OK=1
   fi
-  rm -f /tmp/shu_url_smoke
+  rm -f /tmp/shux_url_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_url_emit_report "fail" 0 0 0
@@ -89,25 +89,25 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-076: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-076: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-url gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_url_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_url_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then
+  if std_url_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then
     SU_OK=1
   else
     std_url_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-url gate SKIP .su smoke (no shu)" >&2
+  echo "std-url gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

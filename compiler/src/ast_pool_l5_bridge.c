@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 
-/** 与 ast.su LabeledStmt / ast_pool grow 池布局一致。 */
+/** 与 ast.sx LabeledStmt / ast_pool grow 池布局一致。 */
 struct ast_LabeledStmt {
   uint8_t label[32];
   int32_t label_len;

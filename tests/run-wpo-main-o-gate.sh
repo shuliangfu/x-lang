@@ -3,17 +3,17 @@
 # 用法：
 #   ./tests/run-wpo-main-o-gate.sh
 #   ./tests/run-wpo-main-o-gate.sh compiler/build_asm/main.o
-#   SHU_WPO_MAIN_O_FAIL=1 ./tests/run-wpo-main-o-gate.sh
+#   SHUX_WPO_MAIN_O_FAIL=1 ./tests/run-wpo-main-o-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . tests/lib/wpo-ab-proxy.sh
 
 MAIN_O="${1:-compiler/build_asm/main.o}"
-BASELINE="${SHU_WPO_MAIN_O_BASELINE:-tests/baseline/wpo-main-o.tsv}"
+BASELINE="${SHUX_WPO_MAIN_O_BASELINE:-tests/baseline/wpo-main-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="main_o_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MAX_TEXT=${MAX_TEXT:-768}
-FAIL=${SHU_WPO_MAIN_O_FAIL:-1}
+FAIL=${SHUX_WPO_MAIN_O_FAIL:-1}
 
 if [ ! -f "$MAIN_O" ]; then
   echo "run-wpo-main-o-gate FAIL: missing $MAIN_O" >&2

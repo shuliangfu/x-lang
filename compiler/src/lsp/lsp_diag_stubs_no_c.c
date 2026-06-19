@@ -1,5 +1,5 @@
 /**
- * lsp_diag_stubs_no_c.c — SHU_NO_C_FRONTEND 下 lsp_diag_su.o / lsp_su.o / runtime_driver_no_c.o 需要的符号桩
+ * lsp_diag_stubs_no_c.c — SHUX_NO_C_FRONTEND 下 lsp_diag_sx.o / lsp_sx.o / runtime_driver_no_c.o 需要的符号桩
  * 不依赖 parser/lexer/typeck/ast（无 C 前端）
  */
 #include <stdlib.h>
@@ -13,28 +13,28 @@ extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
 
 /* ====== SU 管道缓冲 ====== */
 
-void *lsp_diag_su_arena_ptr(void) {
+void *lsp_diag_sx_arena_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_arena());
     return p;
 }
 
-void *lsp_diag_su_module_ptr(void) {
+void *lsp_diag_sx_module_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_module());
     return p;
 }
 
-void *lsp_diag_su_ctx_ptr(void) {
+void *lsp_diag_sx_ctx_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_dep_ctx());
     return p;
 }
 
-void lsp_diag_su_reset_parse_buffers(void) {
-    void *a = lsp_diag_su_arena_ptr();
-    void *m = lsp_diag_su_module_ptr();
-    void *c = lsp_diag_su_ctx_ptr();
+void lsp_diag_sx_reset_parse_buffers(void) {
+    void *a = lsp_diag_sx_arena_ptr();
+    void *m = lsp_diag_sx_module_ptr();
+    void *c = lsp_diag_sx_ctx_ptr();
     if (a) memset(a, 0, lsp_diag_pipeline_sizeof_arena());
     if (m) memset(m, 0, lsp_diag_pipeline_sizeof_module());
     if (c) memset(c, 0, lsp_diag_pipeline_sizeof_dep_ctx());
@@ -199,7 +199,7 @@ int lsp_get_document_len(void) { return s_doc_len; }
 void lsp_debug_u32(uint32_t n) { (void)n; }
 void lsp_debug_ptr(uint8_t *p) { (void)p; }
 
-/* ====== SHU_NO_C_FRONTEND 下不可用的高级 LSP 功能桩 ====== */
+/* ====== SHUX_NO_C_FRONTEND 下不可用的高级 LSP 功能桩 ====== */
 int lsp_build_definition_response(int id_val, const uint8_t *source, int source_len, int line_0, int col_0, uint8_t *out_buf, int out_cap) {
     (void)id_val; (void)source; (void)source_len; (void)line_0; (void)col_0;
     if (out_buf && out_cap > 2) { out_buf[0] = 'n'; out_buf[1] = 'u'; out_buf[2] = 'l'; out_buf[3] = 'l'; return 4; }

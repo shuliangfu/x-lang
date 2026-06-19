@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-simd-autovec-strategy-v1.md"
 MANIFEST="tests/baseline/std-simd-autovec-strategy-manifest.tsv"
 VECTORS="tests/baseline/std-simd-autovec-strategy.tsv"
-MOD_SU="std/simd/mod.su"
+MOD_SU="std/simd/mod.sx"
 SIMD_C="std/simd/simd.c"
 LIB="tests/lib/std-simd-autovec-strategy.sh"
-SMOKE_SU="tests/std-simd/autovec_strategy.su"
+SMOKE_SU="tests/std-simd/autovec_strategy.sx"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/std-simd-autovec-strategy.sh
@@ -28,7 +28,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SIMD_C" "$SMOKE_SU" \
   fi
 done
 
-for kw in STD-153 recommend_simd_path SHU_SIMD_AUTovec SIMD_PATH_HW; do
+for kw in STD-153 recommend_simd_path SHUX_SIMD_AUTovec SIMD_PATH_HW; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-autovec gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -73,20 +73,20 @@ fi
 SU_OK=0
 PERF_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/simd/simd.o
   SIMD_O="$(cd compiler && pwd)/../std/simd/simd.o"
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-simd-autovec gate FAIL: typeck" >&2
     std_simd_autovec_emit_report "fail" "$C_OK" 0 0 0 "$HOST_KEY"
     exit 1
   fi
-  if std_simd_autovec_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "$SIMD_O"; then
+  if std_simd_autovec_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "$SIMD_O"; then
     SU_OK=1
   else
     std_simd_autovec_emit_report "fail" "$C_OK" 0 0 0 "$HOST_KEY"
@@ -96,15 +96,15 @@ else
   SKIP=1
 fi
 
-SHU_ASM=""
-if std_simd_prod_native_asm ./compiler/shu_asm; then
-  SHU_ASM=./compiler/shu_asm
-elif std_simd_prod_native_asm ./compiler/shu; then
-  SHU_ASM=./compiler/shu
+SHUX_ASM=""
+if std_simd_prod_native_asm ./compiler/shux_asm; then
+  SHUX_ASM=./compiler/shux_asm
+elif std_simd_prod_native_asm ./compiler/shux; then
+  SHUX_ASM=./compiler/shux
 fi
 
-if [ -n "$SHU_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s) > 0.001) ? 0 : 1 }'; then
-  if std_simd_autovec_run_perf "$SHU_ASM" "$DOT_MIN" "$SS_MIN"; then
+if [ -n "$SHUX_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s) > 0.001) ? 0 : 1 }'; then
+  if std_simd_autovec_run_perf "$SHUX_ASM" "$DOT_MIN" "$SS_MIN"; then
     PERF_OK=1
   else
     echo "std-simd-autovec WARN: perf below threshold; strategy smoke OK (skip perf hard fail)" >&2
@@ -112,7 +112,7 @@ if [ -n "$SHU_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s) 
     SKIP=1
   fi
 else
-  echo "std-simd-autovec gate SKIP perf (asm=${SHU_ASM:-none} thresholds=${DOT_MIN}/${SS_MIN})" >&2
+  echo "std-simd-autovec gate SKIP perf (asm=${SHUX_ASM:-none} thresholds=${DOT_MIN}/${SS_MIN})" >&2
   PERF_OK=0
   SKIP=1
 fi

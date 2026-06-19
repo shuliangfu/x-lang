@@ -1,11 +1,11 @@
 # CORE-001 core.types 泛型 size_of/align_of manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	2
-size_of_generic	symbol	size_of<T>	core/types/mod.su	泛型 API
-align_of_generic	symbol	align_of<T>	core/types/mod.su	泛型 API
+size_of_generic	symbol	size_of<T>	core/types/mod.sx	泛型 API
+align_of_generic	symbol	align_of<T>	core/types/mod.sx	泛型 API
 typeck_hook	file	compiler/src/typeck/typeck.c	compiler/src/typeck/typeck.c	CORE-001 折叠
 codegen_hook	file	compiler/src/codegen/codegen.c	compiler/src/codegen/codegen.c	常量发射
-test_generic	file	tests/core-types-size/generic_layout.su		金样
-test_scalar	file	tests/core-types-size/main.su		标量回归
+test_generic	file	tests/core-types-size/generic_layout.sx		金样
+test_scalar	file	tests/core-types-size/main.sx		标量回归
 doc	file	analysis/core-types-generic-layout-v1.md	analysis/core-types-generic-layout-v1.md	RFC
 gate	script	run-core-types-generic-layout-gate.sh	tests/run-core-types-generic-layout-gate.sh	manifest

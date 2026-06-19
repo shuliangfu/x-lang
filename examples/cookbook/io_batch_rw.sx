@@ -1,0 +1,28 @@
+/**
+ * Cookbook IO-01：write_batch_fd + read_batch_fd 两段写读环回校验。
+ * 平台：Linux io_uring / macOS kqueue / Windows IOCP 自动分派（std.io）。
+ */
+const fs = import("std.fs");
+
+function main(): i32 {
+  /** "/tmp/shux_cookbook_io_batch\0" */
+  let path: [26]u8 =
+  [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
+  95, 105, 111, 95, 98, 97, 116, 99, 104, 0];
+  let w0: [4]u8 = [1, 2, 3, 4];
+  let w1: [4]u8 = [5, 6, 7, 8];
+  let r0: [4]u8 = [];
+  let r1: [4]u8 = [];
+  let fd: i32 = fs.fs_open_create(&path[0]);
+  if (fd < 0) { return 1; }
+  let nw: i32 = fs.write_batch_fd(fd, &w0[0], 4 as usize, &w1[0], 4 as usize, 0 as *u8, 0 as usize, 0 as *u8, 0 as usize, 2);
+  if (nw != 8) { fs.fs_close(fd); return 2; }
+  if (fs.fs_close(fd) != 0) { return 3; }
+  fd = fs.fs_open_read(&path[0]);
+  if (fd < 0) { return 4; }
+  let nr: i32 = fs.read_batch_fd(fd, &r0[0], 4 as usize, &r1[0], 4 as usize, 0 as *u8, 0 as usize, 0 as *u8, 0 as usize, 2);
+  if (nr != 8) { fs.fs_close(fd); return 5; }
+  if (r0[0] != 1 || r1[3] != 8) { fs.fs_close(fd); return 6; }
+  if (fs.fs_close(fd) != 0) { return 7; }
+  return 0;
+}

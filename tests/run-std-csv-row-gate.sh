@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CSV_ROW_DOC:-analysis/std-csv-row-v1.md}"
-MANIFEST="${SHU_STD_CSV_ROW_TSV:-tests/baseline/std-csv-row.tsv}"
-CSV_SU="std/csv/mod.su"
+DOC="${SHUX_STD_CSV_ROW_DOC:-analysis/std-csv-row-v1.md}"
+MANIFEST="${SHUX_STD_CSV_ROW_TSV:-tests/baseline/std-csv-row.tsv}"
+CSV_SU="std/csv/mod.sx"
 CSV_C="std/csv/csv.c"
 LIB="tests/lib/std-csv-row.sh"
-RT_SU="tests/csv/row_roundtrip.su"
-MAIN_SU="tests/csv/main.su"
+RT_SU="tests/csv/row_roundtrip.sx"
+MAIN_SU="tests/csv/main.sx"
 
 # shellcheck source=tests/lib/std-csv-row.sh
 . "$LIB"
@@ -54,33 +54,33 @@ stdlib_cm_native_shu() {
 RT_OK=0
 MAIN_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-036: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-036: typeck + smoke (SHUX=$SHUX_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/csv/csv.o
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$RT_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$RT_SU" >/dev/null 2>&1; then
     echo "std-csv-row gate FAIL: typeck $RT_SU" >&2
-    "$SHU_BIN" check -L . "$RT_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$RT_SU" 2>&1 | tail -10 >&2 || true
     std_csv_row_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_csv_row_run_smoke "$SHU_BIN" "$RT_SU" "row_roundtrip"; then
+  if std_csv_row_run_smoke "$SHUX_BIN" "$RT_SU" "row_roundtrip"; then
     RT_OK=1
   else
     std_csv_row_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_csv_row_run_smoke "$SHU_BIN" "$MAIN_SU" "main"; then
+  if std_csv_row_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
     MAIN_OK=1
   else
     std_csv_row_emit_report "fail" "$RT_OK" 0 0
@@ -88,7 +88,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-csv-row gate SKIP smoke (no native shu-c)" >&2
+  echo "std-csv-row gate SKIP smoke (no native shux-c)" >&2
 fi
 
 std_csv_row_emit_report "ok" "$RT_OK" "$MAIN_OK" "$SKIP"

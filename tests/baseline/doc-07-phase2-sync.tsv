@@ -7,10 +7,10 @@ kw_std133	keyword	timer_elapsed_ns	docs07	STD-133 std.time
 kw_std137	keyword	format_wall_rfc3339	docs07	STD-137 std.time
 kw_std139	keyword	encode_into_bytes	docs07	STD-139 std.codec
 kw_std140	keyword	STD-140	docs07	std.path extreme
-recipe_cstr	recipe	examples/cookbook/core_str_index.su	cookbook	CSTR-01
-recipe_time2	recipe	examples/cookbook/time_timer_elapsed.su	cookbook	TIME-02
-recipe_time3	recipe	examples/cookbook/time_rfc3339_format.su	cookbook	TIME-03
-recipe_path2	recipe	examples/cookbook/path_clean_extreme.su	cookbook	PATH-02
+recipe_cstr	recipe	examples/cookbook/core_str_index.sx	cookbook	CSTR-01
+recipe_time2	recipe	examples/cookbook/time_timer_elapsed.sx	cookbook	TIME-02
+recipe_time3	recipe	examples/cookbook/time_rfc3339_format.sx	cookbook	TIME-03
+recipe_path2	recipe	examples/cookbook/path_clean_extreme.sx	cookbook	PATH-02
 doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
 cookbook_doc	file	analysis/doc-cookbook-expand-v1.md	cookbook	§14
 gate	script	run-doc-07-phase2-sync-gate.sh	tests/run-doc-07-phase2-sync-gate.sh	gate

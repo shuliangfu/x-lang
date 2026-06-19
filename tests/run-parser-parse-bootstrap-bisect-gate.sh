@@ -2,11 +2,11 @@
 # SU PARSE_BOOTSTRAP_EMIT 二分门禁：MINIMAL 白名单应可编；全量仍 139（根因在 parse_into_buf/parse_into mega emit）。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-bisect-gate.sh
-#   SHU_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
+#   SHUX_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHU_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL:-0}
+FAIL=${SHUX_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL:-0}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -14,9 +14,9 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-SHU_SEED="compiler/shu"
-if [ ! -x "$SHU_SEED" ]; then
-  echo "parser-parse-bootstrap-bisect-gate: SKIP (no $SHU_SEED)"
+SHUX_SEED="compiler/shux"
+if [ ! -x "$SHUX_SEED" ]; then
+  echo "parser-parse-bootstrap-bisect-gate: SKIP (no $SHUX_SEED)"
   exit 0
 fi
 
@@ -31,22 +31,22 @@ symbol_text_size() {
 
 probe_bootstrap() {
   local mode="$1"
-  local out="/tmp/shu_parser_boot_bisect_${mode}.$$.o"
-  local log="/tmp/shu_parser_boot_bisect_${mode}.log"
+  local out="/tmp/shux_parser_boot_bisect_${mode}.$$.o"
+  local log="/tmp/shux_parser_boot_bisect_${mode}.log"
   local ec has_o has_init buf_sz
   rm -f "$out" "$log" 2>/dev/null || true
   set +e
   (
     cd compiler
     if [ "$mode" = "minimal" ]; then
-      env -u SHU_ASM_START_FUNC SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
-        SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
-        SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_WPO_DCE=0 \
-        ./shu -backend asm -o "$out" $LIBROOT src/parser/parser.su
+      env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
+        SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
+        SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
+        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.sx
     else
-      env -u SHU_ASM_START_FUNC SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
-        SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 SHU_ASM_WPO_DCE=0 \
-        ./shu -backend asm -o "$out" $LIBROOT src/parser/parser.su
+      env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
+        SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
+        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.sx
     fi
   ) > "$log" 2>&1
   ec=$?

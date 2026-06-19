@@ -4,12 +4,12 @@
 read_path	section	## 1. 目标	analysis/std-simd-prod-v1.md	-	15min
 bench_matrix	section	## 2. Bench 矩阵	analysis/std-simd-prod-v1.md	-	3条
 gate_section	section	## 3. Gate	analysis/std-simd-prod-v1.md	-	runnable
-bench_shuffle_hot	bench	bench_shuffle_hot	tests/bench/simd_shuffle_select.su	prod	2M
+bench_shuffle_hot	bench	bench_shuffle_hot	tests/bench/simd_shuffle_select.sx	prod	2M
 bench_stub_scalar	bench	bench_stub_scalar	tests/bench/simd_shuffle_select_stub.c	stub	scalar
 bench_hook	bench	bench_hook	tests/run-perf-simd-shuffle-select.sh	hook	ratio
 parent_tsv	cross_ref	tests/baseline/std-simd-shuffle-select.tsv	STD-047
 parent_doc	cross_ref	analysis/std-simd-shuffle-select-v1.md	STD-047
-mod_anchor	file	STD-061	std/simd/mod.su	prod	注释
+mod_anchor	file	STD-061	std/simd/mod.sx	prod	注释
 lib	script	lib/std-simd-prod.sh	tests/lib/std-simd-prod.sh	-	helper
 gate	script	run-std-simd-prod-gate.sh	tests/run-std-simd-prod-gate.sh	-	manifest
 hook_perf	hook_script	run-perf-simd-shuffle-select.sh	run-perf-simd-shuffle-select.sh	prod	≥1.0×

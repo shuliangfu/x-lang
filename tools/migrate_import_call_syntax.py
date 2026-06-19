@@ -76,7 +76,7 @@ def migrate_text(text: str) -> tuple[str, int]:
 
 
 def process_file(path: Path, write: bool) -> int:
-    """处理单个 .su 文件。"""
+    """处理单个 .sx 文件。"""
     text = path.read_text(encoding="utf-8")
     new_text, n = migrate_text(text)
     if n == 0:
@@ -98,9 +98,9 @@ def main() -> int:
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
-            for f in sorted(path.rglob("*.su")):
+            for f in sorted(path.rglob("*.sx")):
                 total += process_file(f, args.write)
-        elif path.is_file() and path.suffix == ".su":
+        elif path.is_file() and path.suffix == ".sx":
             total += process_file(path, args.write)
     print(f"done: {total} lines changed")
     return 0

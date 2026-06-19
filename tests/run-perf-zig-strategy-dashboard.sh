@@ -4,7 +4,7 @@
 # 用法：
 #   ./tests/run-perf-zig-strategy-dashboard.sh
 #   ./tests/run-perf-zig-strategy-dashboard.sh --record
-#   SHU_ZIG_STRATEGY_RECORD=1 ./tests/run-perf-zig-strategy-dashboard.sh --record
+#   SHUX_ZIG_STRATEGY_RECORD=1 ./tests/run-perf-zig-strategy-dashboard.sh --record
 set -e
 cd "$(dirname "$0")/.."
 
@@ -13,12 +13,12 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/zig-strategy-dashboard.sh
 . tests/lib/zig-strategy-dashboard.sh
 
-CASES="${SHU_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
-HISTORY="${SHU_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
+CASES="${SHUX_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
+HISTORY="${SHUX_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
 BENCH_ROOT="tests/bench"
 RUNS="$(zig_baseline_meta_get runs)"
 [ -n "$RUNS" ] || RUNS=3
-FAIL_FLAG="${SHU_ZIG_STRATEGY_FAIL:-0}"
+FAIL_FLAG="${SHUX_ZIG_STRATEGY_FAIL:-0}"
 DO_RECORD=0
 
 for arg in "$@"; do
@@ -26,11 +26,11 @@ for arg in "$@"; do
     --record) DO_RECORD=1 ;;
   esac
 done
-[ "${SHU_ZIG_STRATEGY_RECORD:-0}" = "1" ] && DO_RECORD=1
+[ "${SHUX_ZIG_STRATEGY_RECORD:-0}" = "1" ] && DO_RECORD=1
 
-PERF_COMPILE_SHU=./compiler/shu
-if [ -x ./compiler/shu-c ]; then
-  PERF_COMPILE_SHU=./compiler/shu-c
+PERF_COMPILE_SHUX=./compiler/shux
+if [ -x ./compiler/shux-c ]; then
+  PERF_COMPILE_SHUX=./compiler/shux-c
 fi
 
 pick_free_port() {
@@ -46,7 +46,7 @@ zsd_run_net_echo_client() {
   local client="$1"
   local port="$2"
   local srv spid rc
-  srv="$(mktemp /tmp/shu_zsd_echo_srv.XXXXXX)"
+  srv="$(mktemp /tmp/shux_zsd_echo_srv.XXXXXX)"
   if ! cc -O2 tests/bench/net_echo_throughput_server.c -o "$srv" 2>/dev/null; then
     return 1
   fi
@@ -85,7 +85,7 @@ zsd_median_net_client() {
 # 确保 io mmap bench 文件存在。
 zsd_ensure_io_bench_file() {
   local f="tests/bench/.io_mmap_bench_tmp"
-  local mb="${SHU_IO_BENCH_MB:-16}"
+  local mb="${SHUX_IO_BENCH_MB:-16}"
   if [ ! -f "$f" ]; then
     dd if=/dev/zero of="$f" bs=1M count="$mb" status=none 2>/dev/null || \
       dd if=/dev/zero of="$f" bs=1048576 count="$mb" 2>/dev/null || return 1
@@ -133,36 +133,36 @@ while IFS=$'\t' read -r case_id category su_src zig_src target_pct notes; do
   zig_out="/tmp/${tag}_zig"
   rm -f "$shu_out" "$zig_out"
 
-  SHU_MED="nan"
+  SHUX_MED="nan"
   ZIG_MED="nan"
 
   if [ "$category" = "net" ]; then
-    if ! $PERF_COMPILE_SHU -L . "$su_path" -o "$shu_out" 2>/dev/null \
+    if ! $PERF_COMPILE_SHUX -L . "$su_path" -o "$shu_out" 2>/dev/null \
       || ! zig_build_exe_o2 "$zig_path" "$zig_out"; then
       echo "zig-strategy SKIP: $case_id compile (net)" >&2
       continue
     fi
-    SHU_MED=$(zsd_median_net_client "$shu_out" "$RUNS")
+    SHUX_MED=$(zsd_median_net_client "$shu_out" "$RUNS")
     ZIG_MED=$(zsd_median_net_client "$zig_out" "$RUNS")
   else
-    if ! $PERF_COMPILE_SHU -O2 "$su_path" -o "$shu_out" 2>/dev/null; then
-      echo "zig-strategy SKIP: $case_id shu compile" >&2
+    if ! $PERF_COMPILE_SHUX -O2 "$su_path" -o "$shu_out" 2>/dev/null; then
+      echo "zig-strategy SKIP: $case_id shux compile" >&2
       continue
     fi
     if ! zig_build_exe_o2 "$zig_path" "$zig_out"; then
       echo "zig-strategy SKIP: $case_id zig compile" >&2
       continue
     fi
-    SHU_MED=$(zig_baseline_median_real "$shu_out" "$RUNS")
+    SHUX_MED=$(zig_baseline_median_real "$shu_out" "$RUNS")
     ZIG_MED=$(zig_baseline_median_real "$zig_out" "$RUNS")
   fi
 
-  AHEAD=$(zsd_ahead_pct "$SHU_MED" "$ZIG_MED")
+  AHEAD=$(zsd_ahead_pct "$SHUX_MED" "$ZIG_MED")
   STATUS=$(zsd_status "$AHEAD" "$target_pct")
   TREND=$(zsd_sparkline "$case_id" "$HISTORY")
 
-  zsd_report_emit "$case_id" "$SHU_MED" "$ZIG_MED" "$AHEAD" "$target_pct" "$STATUS" "$TREND"
-  zsd_print_dashboard_row "$case_id" "$SHU_MED" "$ZIG_MED" "$AHEAD" "$TREND" "$STATUS"
+  zsd_report_emit "$case_id" "$SHUX_MED" "$ZIG_MED" "$AHEAD" "$target_pct" "$STATUS" "$TREND"
+  zsd_print_dashboard_row "$case_id" "$SHUX_MED" "$ZIG_MED" "$AHEAD" "$TREND" "$STATUS"
 
   if [ "$STATUS" = "ahead" ]; then
     CASE_OK=$((CASE_OK + 1))
@@ -171,7 +171,7 @@ while IFS=$'\t' read -r case_id category su_src zig_src target_pct notes; do
   fi
 
   if [ "$DO_RECORD" = "1" ] && [ "$AHEAD" != "nan" ]; then
-    zsd_append_history "$MONTH" "$case_id" "$SHU_MED" "$ZIG_MED" "$AHEAD" "$HISTORY"
+    zsd_append_history "$MONTH" "$case_id" "$SHUX_MED" "$ZIG_MED" "$AHEAD" "$HISTORY"
     echo "zig-strategy RECORD: $MONTH $case_id ahead=${AHEAD}%"
   fi
 done < "$CASES"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DOD 门禁共用：判断 shu/shu_asm 是否为本机可 exec 的二进制。
+# DOD 门禁共用：判断 shux/shux_asm 是否为本机可 exec 的二进制。
 # 用法：source tests/lib/dod-native-exe.sh && dod_native_exe "$path"
 
 # 判断编译器/可执行文件是否与本机 OS/架构匹配；无 file(1) 时 Linux/Darwin 回落为可 exec 即通过。

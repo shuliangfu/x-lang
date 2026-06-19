@@ -9,18 +9,18 @@ zc_chapter	section	## 4. 零拷贝（ZC）食谱	ZC-006
 async_chapter	section	## 5. ASYNC 食谱	STD-004
 run_verify	section	## 6. 运行与验证	gate
 self_check	section	## 8. 自检（5 题）	quiz
-recipe_io_batch	recipe	examples/cookbook/io_batch_rw.su	IO-01
-recipe_io_chunk	recipe	examples/cookbook/io_read_chunk.su	IO-02
-recipe_io_mmap	recipe	examples/cookbook/io_mmap_read.su	IO-03
-recipe_net_listen	recipe	examples/cookbook/net_listen_bind.su	NET-01
-recipe_net_udp	recipe	examples/cookbook/net_udp_bind.su	NET-02
-recipe_net_stream	recipe	examples/cookbook/net_stream_write.su	NET-03
-recipe_zc_arena	recipe	examples/cookbook/zc_arena_concat.su	ZC-01
-recipe_zc_view	recipe	examples/cookbook/zc_read_ptr_slice.su	ZC-02
-recipe_zc_provided	recipe	examples/cookbook/zc_provided_buffers.su	ZC-03
-recipe_async_import	recipe	examples/cookbook/async_mod_import.su	ASYNC-01
-recipe_async_drain	recipe	examples/cookbook/async_drain_idle.su	ASYNC-02
-recipe_async_channel	recipe	examples/cookbook/async_channel_ping.su	ASYNC-03
+recipe_io_batch	recipe	examples/cookbook/io_batch_rw.sx	IO-01
+recipe_io_chunk	recipe	examples/cookbook/io_read_chunk.sx	IO-02
+recipe_io_mmap	recipe	examples/cookbook/io_mmap_read.sx	IO-03
+recipe_net_listen	recipe	examples/cookbook/net_listen_bind.sx	NET-01
+recipe_net_udp	recipe	examples/cookbook/net_udp_bind.sx	NET-02
+recipe_net_stream	recipe	examples/cookbook/net_stream_write.sx	NET-03
+recipe_zc_arena	recipe	examples/cookbook/zc_arena_concat.sx	ZC-01
+recipe_zc_view	recipe	examples/cookbook/zc_read_ptr_slice.sx	ZC-02
+recipe_zc_provided	recipe	examples/cookbook/zc_provided_buffers.sx	ZC-03
+recipe_async_import	recipe	examples/cookbook/async_mod_import.sx	ASYNC-01
+recipe_async_drain	recipe	examples/cookbook/async_drain_idle.sx	ASYNC-02
+recipe_async_channel	recipe	examples/cookbook/async_channel_ping.sx	ASYNC-03
 cross_zc_sem	cross_ref	tests/baseline/zc-semantics.tsv	ZC-006
 cross_std_io	cross_ref	std/io/README.md	STD-001
 cross_std_net	cross_ref	std/net/README.md	STD-002

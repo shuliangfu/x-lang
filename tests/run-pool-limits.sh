@@ -4,18 +4,18 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-# -o 链接：bootstrap/shu_asm gate 经 SHULANG_LINK_SHU 走 shu-c（asm 大模块 fn259 等易 ld 失败）。
-COMPILE_SHU="$RUN_SHU"
+SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# -o 链接：bootstrap/shux_asm gate 经 SHUX_LINK_SHUX 走 shux-c（asm 大模块 fn259 等易 ld 失败）。
+COMPILE_SHUX="$RUN_SHUX"
 TMPDIR=${TMPDIR:-/tmp}
-GEN_DIR="$TMPDIR/shu_pool_limits_gen"
+GEN_DIR="$TMPDIR/shux_pool_limits_gen"
 mkdir -p "$GEN_DIR"
 
 run_expect_exit() {
   local src="$1" expect="$2" label="$3"
-  $COMPILE_SHU "$src" -o "$GEN_DIR/out_${label}" 2>&1
+  $COMPILE_SHUX "$src" -o "$GEN_DIR/out_${label}" 2>&1
   local ec=0
   "$GEN_DIR/out_${label}" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne "$expect" ]; then
@@ -25,12 +25,12 @@ run_expect_exit() {
 }
 
 # 静态用例：20 形参、20 struct 字段、6 层嵌套 loop
-run_expect_exit tests/pool-limits/many_params.su 19 many_params
-run_expect_exit tests/pool-limits/many_fields.su 19 many_fields
-run_expect_exit tests/pool-limits/nested_loops.su 6 nested_loops
-run_expect_exit tests/pool-limits/nested_loops_8.su 8 nested_loops_8
-run_expect_exit tests/pool-limits/many_call_args.su 64 many_call_args
-run_expect_exit tests/pool-limits/many_import_select.su 9 many_import_select
+run_expect_exit tests/pool-limits/many_params.sx 19 many_params
+run_expect_exit tests/pool-limits/many_fields.sx 19 many_fields
+run_expect_exit tests/pool-limits/nested_loops.sx 6 nested_loops
+run_expect_exit tests/pool-limits/nested_loops_8.sx 8 nested_loops_8
+run_expect_exit tests/pool-limits/many_call_args.sx 64 many_call_args
+run_expect_exit tests/pool-limits/many_import_select.sx 9 many_import_select
 
 # 30 局部变量（旧 AsmFuncCtx locals[24] 硬顶）
 gen_many_locals() {
@@ -44,8 +44,8 @@ gen_many_locals() {
   echo "  return v29;"
   echo "}"
 }
-gen_many_locals > "$GEN_DIR/many_locals.su"
-run_expect_exit "$GEN_DIR/many_locals.su" 29 many_locals
+gen_many_locals > "$GEN_DIR/many_locals.sx"
+run_expect_exit "$GEN_DIR/many_locals.sx" 29 many_locals
 
 # 100 条 block stmt（旧 stmt_order 96 硬顶）
 gen_many_block_stmts() {
@@ -59,8 +59,8 @@ gen_many_block_stmts() {
   echo "  return s99;"
   echo "}"
 }
-gen_many_block_stmts > "$GEN_DIR/many_block_stmts.su"
-run_expect_exit "$GEN_DIR/many_block_stmts.su" 99 many_block_stmts
+gen_many_block_stmts > "$GEN_DIR/many_block_stmts.sx"
+run_expect_exit "$GEN_DIR/many_block_stmts.sx" 99 many_block_stmts
 
 # 260 个顶层函数（旧 module func 256 硬顶）
 # fn259 固定返回 42：进程 exit code 仅 0–255，若 return 259 会被截成 3 造成误报。
@@ -74,8 +74,8 @@ gen_many_funcs() {
   echo "function fn259(): i32 { return 42; }"
   echo "function main(): i32 { return fn259(); }"
 }
-gen_many_funcs > "$GEN_DIR/many_funcs.su"
-run_expect_exit "$GEN_DIR/many_funcs.su" 42 many_funcs
+gen_many_funcs > "$GEN_DIR/many_funcs.sx"
+run_expect_exit "$GEN_DIR/many_funcs.sx" 42 many_funcs
 
 # #if 嵌套 40 层（旧 preprocess stack[32] 硬顶）
 DEPTH=40
@@ -93,7 +93,7 @@ gen_deep_if() {
     i=$((i - 1))
   done
 }
-gen_deep_if > "$GEN_DIR/deep_if_nest.su"
+gen_deep_if > "$GEN_DIR/deep_if_nest.sx"
 DEFS=""
 i=1
 while [ "$i" -le "$DEPTH" ]; do
@@ -101,7 +101,7 @@ while [ "$i" -le "$DEPTH" ]; do
   i=$((i + 1))
 done
 # shellcheck disable=SC2086
-$COMPILE_SHU $DEFS "$GEN_DIR/deep_if_nest.su" -o "$GEN_DIR/out_deep_if" 2>&1
+$COMPILE_SHUX $DEFS "$GEN_DIR/deep_if_nest.sx" -o "$GEN_DIR/out_deep_if" 2>&1
 ec=0
 "$GEN_DIR/out_deep_if" >/dev/null 2>&1 || ec=$?
 if [ "$ec" -ne 40 ]; then

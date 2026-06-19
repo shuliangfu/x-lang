@@ -5,7 +5,7 @@
 #   core_types_i16_u16_symbols_ok TYPES_SU TSV
 #   core_types_i16_u16_emit_report status check_ok skip
 
-CORE_TYPES_I16_U16_PREFIX="${SHU_CORE_TYPES_I16_U16_PREFIX:-shu: [SHU_CORE_TYPES_I16_U16]}"
+CORE_TYPES_I16_U16_PREFIX="${SHUX_CORE_TYPES_I16_U16_PREFIX:-shux: [SHUX_CORE_TYPES_I16_U16]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_types_i16_u16_symbols_ok() {

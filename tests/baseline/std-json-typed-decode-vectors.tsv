@@ -3,3 +3,5 @@
 age_i32	{"age":30}	age	30	object i32
 ok_bool	{"ok":true}	ok	1	object bool
 name_str	{"name":"alice"}	name	alice	object string
+user_age_dot	{"user":{"age":21}}	user.age	21	dotted i32
+metrics_cpu_dot	{"metrics":{"cpu":0.75}}	metrics.cpu	0.75	dotted f64

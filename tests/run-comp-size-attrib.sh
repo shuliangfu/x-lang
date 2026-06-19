@@ -3,15 +3,15 @@
 #
 # 用法：
 #   ./tests/run-comp-size-attrib.sh
-#   SHU_SIZE_ATTRIB_REPORT=/tmp/report.tsv ./tests/run-comp-size-attrib.sh
+#   SHUX_SIZE_ATTRIB_REPORT=/tmp/report.tsv ./tests/run-comp-size-attrib.sh
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/comp-size-attrib.sh
 . tests/lib/comp-size-attrib.sh
 
-MATRIX="${SHU_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
-REPORT="${SHU_SIZE_ATTRIB_REPORT:-/tmp/comp_size_attrib_report.$$.tsv}"
+MATRIX="${SHUX_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
+REPORT="${SHUX_SIZE_ATTRIB_REPORT:-/tmp/comp_size_attrib_report.$$.tsv}"
 
 echo "=== COMP-010: size attribution smoke ==="
 
@@ -82,7 +82,7 @@ fi
   done <"$TMP_ROWS"
 } >"$REPORT"
 
-if [ -z "${SHU_SIZE_ATTRIB_REPORT:-}" ]; then
+if [ -z "${SHUX_SIZE_ATTRIB_REPORT:-}" ]; then
   head -12 "$REPORT"
   rm -f "$REPORT" 2>/dev/null || true
 fi

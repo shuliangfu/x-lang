@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-crypto-aes-gcm.sh — STD-049 manifest 与烟测辅助
 
-STD_CRYPTO_AES_GCM_PREFIX="${SHU_STD_CRYPTO_AES_GCM_PREFIX:-shu: [SHU_STD_CRYPTO_AES_GCM]}"
+STD_CRYPTO_AES_GCM_PREFIX="${SHUX_STD_CRYPTO_AES_GCM_PREFIX:-shux: [SHUX_STD_CRYPTO_AES_GCM]}"
 
 std_crypto_aes_gcm_symbols_ok() {
   local mod_su="$1"
@@ -50,13 +50,13 @@ std_crypto_aes_gcm_symbols_ok() {
 }
 
 std_crypto_aes_gcm_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_crypto_aes_gcm_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_crypto_aes_gcm_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-crypto-aes-gcm FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

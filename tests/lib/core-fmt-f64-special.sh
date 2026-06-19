@@ -5,7 +5,7 @@
 #   core_fmt_f64_special_symbols_ok FMT_SU STD_FMT_SU TSV
 #   core_fmt_f64_special_emit_report status check_ok skip
 
-CORE_FMT_F64_SPECIAL_PREFIX="${SHU_CORE_FMT_F64_SPECIAL_PREFIX:-shu: [SHU_CORE_FMT_F64_SPECIAL]}"
+CORE_FMT_F64_SPECIAL_PREFIX="${SHUX_CORE_FMT_F64_SPECIAL_PREFIX:-shux: [SHUX_CORE_FMT_F64_SPECIAL]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_fmt_f64_special_symbols_ok() {
@@ -22,7 +22,7 @@ core_fmt_f64_special_symbols_ok() {
         local target="${mod_path:-$fmt_su}"
         if [ "$item_id" = "std_reexport" ]; then
           target="$std_fmt_su"
-        elif [ -z "$mod_path" ] || [ "$mod_path" = "core/fmt/mod.su" ]; then
+        elif [ -z "$mod_path" ] || [ "$mod_path" = "core/fmt/mod.sx" ]; then
           target="$fmt_su"
         fi
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then

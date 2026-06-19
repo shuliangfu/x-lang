@@ -1,5 +1,5 @@
 /**
- * http_bench_server.c — STD-009：最小 HTTP GET server sink（供 http_get_bench.su 驱动）
+ * http_bench_server.c — STD-009：最小 HTTP GET server sink（供 http_get_bench.sx 驱动）
  * 用法：http_bench_server [port]  默认 38460
  */
 #include <arpa/inet.h>

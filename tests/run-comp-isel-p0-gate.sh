@@ -2,15 +2,15 @@
 # COMP-014：isel P0 回归波次 runnable 门禁
 #
 # 1) comp-isel-p0-v1.md + comp-isel-p0-wave.tsv + comp-isel.tsv P0 行
-# 2) 有 native shu/shu_asm 时逐条执行 P0 hook
+# 2) 有 native shux/shux_asm 时逐条执行 P0 hook
 #
 # 用法：./tests/run-comp-isel-p0-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP014_DOC:-analysis/comp-isel-p0-v1.md}"
-WAVE="${SHU_COMP014_WAVE_TSV:-tests/baseline/comp-isel-p0-wave.tsv}"
-MANIFEST="${SHU_COMP014_MANIFEST:-tests/baseline/comp-isel.tsv}"
+DOC="${SHUX_COMP014_DOC:-analysis/comp-isel-p0-v1.md}"
+WAVE="${SHUX_COMP014_WAVE_TSV:-tests/baseline/comp-isel-p0-wave.tsv}"
+MANIFEST="${SHUX_COMP014_MANIFEST:-tests/baseline/comp-isel.tsv}"
 LIB="tests/lib/comp-isel-p0.sh"
 MIN_P0=4
 
@@ -92,20 +92,20 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-isel-p0 manifest OK (p0_cases=${P0_CASE_N} p0_hooks=${P0_HOOK_N})"
 
-SHU_ASM="${SHU:-./compiler/shu_asm}"
+SHUX_ASM="${SHUX:-./compiler/shux_asm}"
 P0_OK=0
 P0_SKIP=0
 SKIP=1
 
-if comp_isel_native_shu "$SHU_ASM"; then
-  echo "=== COMP-014: run P0 hooks (SHU=$SHU_ASM) ==="
+if comp_isel_native_shu "$SHUX_ASM"; then
+  echo "=== COMP-014: run P0 hooks (SHUX=$SHUX_ASM) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   while IFS=$'\t' read -r item_id kind anchor _src tier _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$item_id" in \#*|min_*) continue ;; esac
     [ "${tier:-}" = "P0" ] || continue
     [ "$kind" = "hook_script" ] || continue
-    if comp_isel_p0_run_hook "$SHU_ASM" "$anchor"; then
+    if comp_isel_p0_run_hook "$SHUX_ASM" "$anchor"; then
       P0_OK=$((P0_OK + 1))
       echo "comp-isel-p0 runnable OK $anchor"
     else
@@ -115,7 +115,7 @@ if comp_isel_native_shu "$SHU_ASM"; then
   done < "$MANIFEST"
   SKIP=0
 else
-  echo "comp-isel-p0 gate SKIP runnable (no native shu_asm)" >&2
+  echo "comp-isel-p0 gate SKIP runnable (no native shux_asm)" >&2
   P0_SKIP=$P0_HOOK_N
 fi
 

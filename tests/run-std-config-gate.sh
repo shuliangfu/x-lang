@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# STD-086：std.config 门禁
+# STD-086：std.config 门禁（含来源 meta）
 #
 # 用法：./tests/run-std-config-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
-MANIFEST="${SHU_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
-MOD_SU="std/config/mod.su"
+DOC="${SHUX_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
+MANIFEST="${SHUX_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
+MOD_SU="std/config/mod.sx"
 CFG_C="std/config/config.c"
 LIB="tests/lib/std-config.sh"
-SMOKE_SU="tests/std-config/layer_smoke.su"
+SMOKE_SU="tests/std-config/layer_smoke.sx"
 SMOKE_C="tests/std-config/config_smoke_ok.c"
-MIN_APIS=10
+MIN_APIS=15
 
 # shellcheck source=tests/lib/std-config.sh
 . "$LIB"
@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$CFG_C" "$SMOKE_SU" "$SMOKE_C" std
   fi
 done
 
-for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool; do
+for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool get_source config_source_toml; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-config gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -66,11 +66,11 @@ SU_OK=0
 SKIP=0
 
 echo "=== STD-086: config c smoke ==="
-make -C compiler ../std/config/config.o ../std/env/env.o >/dev/null 2>&1
-if cc -std=c11 -O1 -o /tmp/shu_config_smoke \
-  "$SMOKE_C" std/config/config.o std/env/env.o 2>/dev/null; then
-  if /tmp/shu_config_smoke >/dev/null 2>&1; then C_OK=1; fi
-  rm -f /tmp/shu_config_smoke
+make -C compiler ../std/config/config.o ../std/env/env.o ../std/process/process.o >/dev/null 2>&1
+if cc -std=c11 -O1 -o /tmp/shux_config_smoke \
+  "$SMOKE_C" std/config/config.o std/env/env.o std/process/process.o 2>/dev/null; then
+  if /tmp/shux_config_smoke >/dev/null 2>&1; then C_OK=1; fi
+  rm -f /tmp/shux_config_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_config_emit_report "fail" 0 0 0
@@ -78,23 +78,23 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-086: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-086: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-config gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_config_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_config_run_smoke "$SHU_BIN" "$SMOKE_SU" "layer"; then SU_OK=1; else
+  if std_config_run_smoke "$SHUX_BIN" "$SMOKE_SU" "layer"; then SU_OK=1; else
     std_config_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-config gate SKIP .su smoke (no shu)" >&2
+  echo "std-config gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-bytes.sh — STD-072 manifest 与烟测辅助
 
-STD_BYTES_PREFIX="${SHU_STD_BYTES_PREFIX:-shu: [SHU_STD_BYTES]}"
+STD_BYTES_PREFIX="${SHUX_STD_BYTES_PREFIX:-shux: [SHUX_STD_BYTES]}"
 
 # 遍历 manifest 校验 api/file/smoke。
 std_bytes_symbols_ok() {
@@ -31,15 +31,15 @@ std_bytes_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su round-trip 烟测。
+# 编译并运行 .sx round-trip 烟测。
 std_bytes_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-bytes}"
-  local exe="/tmp/shu_std_bytes_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_bytes_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-bytes FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

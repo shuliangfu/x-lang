@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
-MANIFEST="${SHU_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
-VECTORS="${SHU_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
-MOD_SU="std/sqlite/mod.su"
-SQLITE_C="std/sqlite/sqlite.c"
+DOC="${SHUX_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
+MANIFEST="${SHUX_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
+VECTORS="${SHUX_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
+MOD_SU="std/db/sqlite/mod.sx"
+SQLITE_C="std/db/sqlite/sqlite.c"
 LIB="tests/lib/std-sqlite-gate.sh"
-SMOKE_SU="tests/std-sqlite/exec_roundtrip.su"
-SMOKE_IMPORT_SU="tests/std-sqlite/import_smoke.su"
+SMOKE_SU="tests/std-sqlite/exec_roundtrip.sx"
+SMOKE_IMPORT_SU="tests/std-sqlite/import_smoke.sx"
 SMOKE_C="tests/std-sqlite/exec_roundtrip_ok.c"
 PREREQ_DOC="analysis/std-sqlite-prereq-v1.md"
 MIN_APIS=4
@@ -21,7 +21,7 @@ MIN_APIS=4
 . "$LIB"
 
 echo "=== STD-057: std.sqlite manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SQLITE_C" "$SMOKE_SU" "$SMOKE_IMPORT_SU" "$SMOKE_C" "$PREREQ_DOC" std/sqlite/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SQLITE_C" "$SMOKE_SU" "$SMOKE_IMPORT_SU" "$SMOKE_C" "$PREREQ_DOC" std/db/sqlite/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2
     exit 1
@@ -81,7 +81,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sqlite manifest OK"
 
-if [ "${SHU_STD_SQLITE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_SQLITE_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_emit_report "ok" 0 0 1
   echo "std-sqlite gate OK (manifest only)"
   exit 0
@@ -105,37 +105,37 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHU_BIN=""
-  if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+  SHUX_BIN=""
+  if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-  if [ -n "$SHU_BIN" ]; then
-    echo "=== STD-057: .su smoke (SHU=$SHU_BIN) ==="
-    if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if [ -n "$SHUX_BIN" ]; then
+    echo "=== STD-057: .sx smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
       echo "std-sqlite gate FAIL: typeck $SMOKE_SU" >&2
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_SU" "rt"; then
+    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "rt"; then
       SU_OK=1
     else
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! "$SHU_BIN" check -L . "$SMOKE_IMPORT_SU" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$SMOKE_IMPORT_SU" >/dev/null 2>&1; then
       echo "std-sqlite gate FAIL: typeck $SMOKE_IMPORT_SU" >&2
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" "$SU_OK" 0
       exit 1
     fi
-    if ! std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_IMPORT_SU" "import"; then
+    if ! std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_IMPORT_SU" "import"; then
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" "$SU_OK" 0
       exit 1
     fi
   else
-    echo "std-sqlite gate SKIP .su smoke (no native shu)" >&2
+    echo "std-sqlite gate SKIP .sx smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -144,7 +144,7 @@ else
   SKIP=1
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/sqlite/sqlite.o
+  ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
 std_sqlite_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"

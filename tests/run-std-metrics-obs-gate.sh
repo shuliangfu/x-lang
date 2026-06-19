@@ -6,9 +6,9 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-metrics-obs-v1.md"
 MANIFEST="tests/baseline/std-metrics-obs-manifest.tsv"
 VECTORS="tests/baseline/std-metrics-obs-vectors.tsv"
-MOD_SU="std/metrics/mod.su"
+MOD_SU="std/metrics/mod.sx"
 LIB="tests/lib/std-metrics-obs.sh"
-SMOKE_SU="tests/std-metrics/obs_correlation.su"
+SMOKE_SU="tests/std-metrics/obs_correlation.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-metrics-obs.sh
@@ -42,10 +42,10 @@ sym_miss="$(std_metrics_obs_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_metrics_obs_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_metrics_obs_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

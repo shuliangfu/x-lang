@@ -3,16 +3,16 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu-c}
+SHUX=${SHUX:-./compiler/shux-c}
 
 # return a > 10 ? 10 : a; a=15 -> 10
-$SHU tests/ternary/main.su -o /tmp/shu_ternary_main 2>&1
-exitcode=0; /tmp/shu_ternary_main >/dev/null 2>&1 || exitcode=$?
+$SHUX tests/ternary/main.sx -o /tmp/shux_ternary_main 2>&1
+exitcode=0; /tmp/shux_ternary_main >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 10 ] && { echo "expected 10 (main), got $exitcode"; exit 1; }
 
 # clamp -3 -> 0
-$SHU tests/ternary/clamp.su -o /tmp/shu_ternary_clamp 2>&1
-exitcode=0; /tmp/shu_ternary_clamp >/dev/null 2>&1 || exitcode=$?
+$SHUX tests/ternary/clamp.sx -o /tmp/shux_ternary_clamp 2>&1
+exitcode=0; /tmp/shux_ternary_clamp >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (clamp), got $exitcode"; exit 1; }
 
 echo "ternary test OK"

@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-API_TSV="${SHU_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
-EXT_TSV="${SHU_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
+API_TSV="${SHUX_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
+EXT_TSV="${SHUX_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
 
 echo "=== SAFE-002: unsafe API manifest ==="
 for f in \

@@ -12,12 +12,12 @@ verify	section	## 7. 验证与门禁	analysis/comp-size-attrib-v1.md	-	gate
 layer_a1	layers	A1-exec	comp-size-attrib-matrix.tsv	exec	file_bytes
 layer_a2	layers	A2-object	comp-size-attrib-matrix.tsv	object	build_asm
 layer_a3	layers	A3-text	tests/lib/comp-size-attrib.sh	text	__text
-layer_a4	layers	A4-strip	tests/run-size-shu-asm-gate.sh	strip	B-SIZE
+layer_a4	layers	A4-strip	tests/run-size-shux-asm-gate.sh	strip	B-SIZE
 layer_a5	layers	A5-rollup	tests/lib/comp-size-attrib.sh	rollup	topN
-layer_a6	layers	A6-baseline	tests/baseline/shu-asm-size.tsv	baseline	advisory
+layer_a6	layers	A6-baseline	tests/baseline/shux-asm-size.tsv	baseline	advisory
 case_smoke	case	case_attrib_smoke	tests/run-comp-size-attrib.sh	smoke	report
-case_bsize	case	case_bsize	tests/run-size-shu-asm-gate.sh	advisory	8MiB
+case_bsize	case	case_bsize	tests/run-size-shux-asm-gate.sh	advisory	8MiB
 case_hello	case	case_hello	tests/run-size-baseline.sh	hello	user
-hook_bsize	hook_ref	run-size-shu-asm-gate.sh	tests/run-size-shu-asm-gate.sh	B-SIZE	ENG-002
+hook_bsize	hook_ref	run-size-shux-asm-gate.sh	tests/run-size-shux-asm-gate.sh	B-SIZE	ENG-002
 gate	script	run-comp-size-attrib-gate.sh	tests/run-comp-size-attrib-gate.sh	-	manifest
 hook_attrib	hook_script	run-comp-size-attrib.sh	run-comp-size-attrib.sh	-	烟测

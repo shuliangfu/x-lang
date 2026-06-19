@@ -1,13 +1,13 @@
 # STD-036 std.csv 整行解析与 write_row manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	4
-parse_row	symbol	parse_row	std/csv/mod.su
-write_row	symbol	write_row	std/csv/mod.su
+parse_row	symbol	parse_row	std/csv/mod.sx
+write_row	symbol	write_row	std/csv/mod.sx
 csv_parse_row_c	symbol	csv_parse_row_c	std/csv/csv.c
 csv_write_row_c	symbol	csv_write_row_c	std/csv/csv.c
 roundtrip_doc	anchor	row_roundtrip	analysis/std-csv-row-v1.md	RFC
-test_rt	file	tests/csv/row_roundtrip.su		金样
-test_main	file	tests/csv/main.su		回归
+test_rt	file	tests/csv/row_roundtrip.sx		金样
+test_main	file	tests/csv/main.sx		回归
 runner	script	run-csv.sh	tests/run-csv.sh
 doc	file	analysis/std-csv-row-v1.md	analysis/std-csv-row-v1.md	RFC
 gate	script	run-std-csv-row-gate.sh	tests/run-std-csv-row-gate.sh	manifest

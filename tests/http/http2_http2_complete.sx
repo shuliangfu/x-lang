@@ -1,0 +1,10 @@
+// STD-HTTP-H2-v27：HTTP/2 v1 收口烟测（RST + 全局池 GOAWAY）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_rst_stream_smoke() != 0) { return 1; }
+  if (http.http2_frame_rst_stream() != 3) { return 2; }
+  if (http.http2_err_rst_stream() != -1246) { return 3; }
+  if (http.http2_http2_complete_smoke() != 0) { return 4; }
+  return 0;
+}

@@ -1,0 +1,11 @@
+// B-17 v1：Windows std.sys win32_write_stdout 烟测（MSYS2/Windows 常规链接）。
+const sys = import("std.sys");
+
+function main(): i32 {
+  let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 83, 104, 117, 33, 10, 0];
+  let n: i32 = sys.os_write_stdout(&msg[0], 11);
+  if (n != 11) {
+    return 1;
+  }
+  return 0;
+}

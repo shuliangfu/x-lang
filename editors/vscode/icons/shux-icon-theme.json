@@ -1,0 +1,35 @@
+{
+  "iconDefinitions": {
+    "file-sx": {
+      "iconPath": "./sx.png"
+    },
+    "file-sx-main": {
+      "iconPath": "./sx.png"
+    },
+    "file-sx-test": {
+      "iconPath": "./sx.png"
+    },
+    "file-sx-compiler": {
+      "iconPath": "./sx.png"
+    },
+    "folder-shux": {
+      "iconPath": "./sx.png"
+    },
+    "folder-shux-src": {
+      "iconPath": "./sx.png"
+    }
+  },
+  "fileExtensions": {
+    "sx": "file-sx"
+  },
+  "fileNames": {
+    "main.sx": "file-sx-main",
+    "mod.sx": "file-sx-compiler"
+  },
+  "folderNames": {
+    "compiler": "folder-shux",
+    "src": "folder-shux-src",
+    "shux": "folder-shux",
+    ".sx": "folder-shux-src"
+  }
+}

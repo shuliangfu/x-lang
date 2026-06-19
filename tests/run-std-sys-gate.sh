@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# BOOT-029：std.sys freestanding write 门禁
+#
+# 用法：./tests/run-std-sys-gate.sh
+set -e
+cd "$(dirname "$0")/.."
+
+DOC="${SHUX_STD_SYS_DOC:-analysis/std-sys-v0.md}"
+MANIFEST="${SHUX_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
+MOD_SU="std/sys/mod.sx"
+SMOKE_SU="tests/sys/sys_write_freestanding.sx"
+MIN_APIS=5
+PREFIX="shux: [SHUX_BOOT029_STD_SYS]"
+
+LINUX_MOD="std/sys/linux.sx"
+MACOS_MOD="std/sys/macos.sx"
+SMOKE_LINUX="tests/sys/linux_syscall_nr_smoke.sx"
+SMOKE_MACOS="tests/sys/macos_posix_write_smoke.sx"
+
+echo "=== BOOT-029: std.sys manifest ==="
+for f in "$DOC" "$MANIFEST" "$MOD_SU" "$LINUX_MOD" "$MACOS_MOD" "$SMOKE_SU" "$SMOKE_LINUX" "$SMOKE_MACOS" std/sys/README.md; do
+  if [ ! -f "$f" ]; then
+    echo "std-sys gate FAIL: missing $f" >&2
+    exit 1
+  fi
+done
+
+for kw in BOOT-029 os_write shux_sys_write freestanding linux.sx macos.sx macos_write; do
+  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
+    echo "std-sys gate FAIL: doc missing '$kw'" >&2
+    exit 1
+  fi
+done
+
+API_N=0
+MISS=0
+while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
+  [ -z "${item_id:-}" ] && continue
+  case "$item_id" in \#*|min_*) continue ;; esac
+  case "$kind" in
+    api)
+      API_N=$((API_N + 1))
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+        echo "std-sys FAIL: missing api $anchor" >&2
+        MISS=$((MISS + 1))
+      fi
+      ;;
+    symbol)
+      if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
+        echo "std-sys FAIL: missing symbol $anchor" >&2
+        MISS=$((MISS + 1))
+      fi
+      ;;
+    smoke)
+      [ -f "$anchor" ] || { echo "std-sys FAIL: missing $anchor" >&2; MISS=$((MISS + 1)); }
+      ;;
+  esac
+done < "$MANIFEST"
+
+if [ "$API_N" -lt "$MIN_APIS" ]; then
+  echo "std-sys gate FAIL: api count $API_N < $MIN_APIS" >&2
+  exit 1
+fi
+if [ "$MISS" -gt 0 ]; then
+  echo "${PREFIX} status=fail"
+  exit 1
+fi
+echo "std-sys manifest OK"
+
+CHECK_OK=0
+RUN_LINUX=0
+RUN_MACOS=0
+SKIP_LINUX=1
+SKIP_MACOS=1
+
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ] && [ -x ./compiler/shux ]; then
+  SHUX_BIN=./compiler/shux
+fi
+
+if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
+  if "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1 \
+     && "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1 \
+     && "$SHUX_BIN" check -L . "$SMOKE_MACOS" >/dev/null 2>&1; then
+    CHECK_OK=1
+    echo "std-sys typeck OK"
+  else
+    echo "std-sys gate FAIL: typeck" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -5 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_MACOS" 2>&1 | tail -5 >&2 || true
+    echo "${PREFIX} status=fail"
+    exit 1
+  fi
+fi
+
+if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] \
+   && [ -n "$SHUX_BIN" ] && "$SHUX_BIN" -freestanding -backend asm "$SMOKE_SU" -o /tmp/shux_sys_write_smoke 2>/dev/null \
+   && [ -x /tmp/shux_sys_write_smoke ]; then
+  SKIP_LINUX=0
+  set +e
+  OUT=$(/tmp/shux_sys_write_smoke 2>/dev/null)
+  EX=$?
+  set -e
+  rm -f /tmp/shux_sys_write_smoke
+  EXPECTED=$(printf 'Hello Shu!\n')
+  if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
+    RUN_LINUX=1
+    echo "std-sys freestanding run OK"
+  else
+    echo "std-sys gate FAIL: freestanding run exit=$EX out='$OUT'" >&2
+    echo "${PREFIX} status=fail"
+    exit 1
+  fi
+else
+  echo "std-sys gate SKIP freestanding run (need Linux x86_64 + shux -freestanding -backend asm)" >&2
+fi
+
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -n "$SHUX_BIN" ] \
+   && "$SHUX_BIN" "$SMOKE_MACOS" -o /tmp/shux_macos_write_smoke 2>/dev/null \
+   && [ -x /tmp/shux_macos_write_smoke ]; then
+  SKIP_MACOS=0
+  set +e
+  OUT=$(/tmp/shux_macos_write_smoke 2>/dev/null)
+  EX=$?
+  set -e
+  rm -f /tmp/shux_macos_write_smoke
+  EXPECTED=$(printf 'Hello Shu!\n')
+  if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
+    RUN_MACOS=1
+    echo "std-sys macOS posix write run OK"
+  else
+    echo "std-sys gate FAIL: macOS run exit=$EX out='$OUT'" >&2
+    echo "${PREFIX} status=fail"
+    exit 1
+  fi
+else
+  echo "std-sys gate SKIP macOS run (need Darwin + shux -o exe)" >&2
+fi
+
+echo "${PREFIX} status=ok check=${CHECK_OK} run_linux=${RUN_LINUX} run_macos=${RUN_MACOS} skip_linux=${SKIP_LINUX} skip_macos=${SKIP_MACOS}"
+echo "std-sys gate OK"

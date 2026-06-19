@@ -4,12 +4,12 @@
 # 用法（source 后）：
 #   comp_riscv64_qemu_probe
 #   comp_riscv64_qemu_link_bin OBJ BIN
-#   comp_riscv64_qemu_run_case SHU_BIN SAMPLE EXPECT_EXIT
+#   comp_riscv64_qemu_run_case SHUX_BIN SAMPLE EXPECT_EXIT
 #   comp_riscv64_qemu_count MATRIX
 #   comp_riscv64_qemu_emit_report status qemu_ok qemu_skip skip
 
-COMP018_PREFIX="${SHU_COMP018_PREFIX:-shu: [SHU_COMP018_RISCV_QEMU]}"
-RISCV_TARGET="${SHU_RISCV_TARGET:-riscv64}"
+COMP018_PREFIX="${SHUX_COMP018_PREFIX:-shux: [SHUX_COMP018_RISCV_QEMU]}"
+RISCV_TARGET="${SHUX_RISCV_TARGET:-riscv64}"
 
 # 探测本机是否安装 qemu-riscv64 用户态仿真器。
 comp_riscv64_qemu_probe() {
@@ -51,7 +51,7 @@ comp_riscv64_qemu_link_bin() {
 
 # 单样例：编译 → 链接 → qemu 运行并校验 exit。
 comp_riscv64_qemu_run_case() {
-  local shu="$1"
+  local shux="$1"
   local sample="$2"
   local expect_exit="$3"
   local qemu="$4"
@@ -59,10 +59,10 @@ comp_riscv64_qemu_run_case() {
   # shellcheck source=tests/lib/comp-riscv64.sh
   . tests/lib/comp-riscv64.sh
   su="$(comp_riscv64_sample_path "$sample")" || return 1
-  o="$(mktemp /tmp/shu_riscv_qemu.XXXXXX.o)"
-  bin="$(mktemp /tmp/shu_riscv_qemu.XXXXXX)"
+  o="$(mktemp /tmp/shux_riscv_qemu.XXXXXX.o)"
+  bin="$(mktemp /tmp/shux_riscv_qemu.XXXXXX)"
   rm -f "$o" "$bin" 2>/dev/null || true
-  if ! "$shu" -backend asm -target "$RISCV_TARGET" -o "$o" "$su" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$RISCV_TARGET" -o "$o" "$su" 2>/dev/null; then
     rm -f "$o" "$bin"
     return 1
   fi

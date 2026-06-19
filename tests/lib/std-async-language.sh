@@ -4,9 +4,9 @@
 # 用法（source 后）：
 #   std_alang_symbols_ok MOD_SU TSV
 #   std_alang_emit_report status run_ok mod_ok skip_1m
-#   std_alang_run_smoke SHU_BIN SU OUT
+#   std_alang_run_smoke SHUX_BIN SU OUT
 
-STD_ALANG_PREFIX="${SHU_STD_ASYNC_LANGUAGE_PREFIX:-shu: [SHU_STD_ASYNC_LANGUAGE]}"
+STD_ALANG_PREFIX="${SHUX_STD_ASYNC_LANGUAGE_PREFIX:-shux: [SHUX_STD_ASYNC_LANGUAGE]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 std_alang_symbols_ok() {
@@ -38,11 +38,11 @@ std_alang_symbols_ok() {
 
 # 编译并运行烟测；成功返回 0。
 std_alang_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local su="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shu" -L . "$su" -o "$out" >/tmp/std_alang_smoke.log 2>&1; then
+  if ! "$shux" -L . "$su" -o "$out" >/tmp/std_alang_smoke.log 2>&1; then
     cat /tmp/std_alang_smoke.log >&2
     return 1
   fi

@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_context_cookbook_symbols_ok MOD_SU TSV
-#   std_context_cookbook_run_smoke RUN_SHU RECIPE
+#   std_context_cookbook_run_smoke RUN_SHUX RECIPE
 #   std_context_cookbook_emit_report status run_ok skip
 
-STD_CTX_CB_PREFIX="${SHU_STD_CTX_CB_PREFIX:-shu: [SHU_STD_CONTEXT_COOKBOOK]}"
+STD_CTX_CB_PREFIX="${SHUX_STD_CTX_CB_PREFIX:-shux: [SHUX_STD_CONTEXT_COOKBOOK]}"
 
 # 校验 manifest 中 symbol/recipe 锚点；echo 缺失数。
 std_context_cookbook_symbols_ok() {
@@ -40,10 +40,10 @@ std_context_cookbook_symbols_ok() {
 std_context_cookbook_run_smoke() {
   local run_shu="$1"
   local recipe="$2"
-  local out="/tmp/shu_std_context_cookbook"
-  if ! $run_shu -L . "$recipe" -o "$out" 2>/tmp/shu_std_context_cookbook_build.log; then
+  local out="/tmp/shux_std_context_cookbook"
+  if ! $run_shu -L . "$recipe" -o "$out" 2>/tmp/shux_std_context_cookbook_build.log; then
     echo "std-context-cookbook gate FAIL: link" >&2
-    tail -8 /tmp/shu_std_context_cookbook_build.log 2>/dev/null >&2 || true
+    tail -8 /tmp/shux_std_context_cookbook_build.log 2>/dev/null >&2 || true
     return 1
   fi
   local ec=0

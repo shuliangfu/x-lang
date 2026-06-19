@@ -2,13 +2,13 @@
 # S5：backend_wpo.o WPO reach 门禁（asm_codegen_ast / emit_expr_elf / emit_block_body_elf 须已定义）。
 # 用法：
 #   ./tests/run-wpo-backend-reach-gate.sh
-#   SHU_WPO_BACKEND_REACH_FAIL=1 ./tests/run-wpo-backend-reach-gate.sh
+#   SHUX_WPO_BACKEND_REACH_FAIL=1 ./tests/run-wpo-backend-reach-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
 BACKEND_O="${1:-compiler/build_asm/backend_wpo.o}"
-FAIL=${SHU_WPO_BACKEND_REACH_FAIL:-1}
-MIN_EXPORTS=${SHU_WPO_BACKEND_MIN_EXPORTS:-5}
+FAIL=${SHUX_WPO_BACKEND_REACH_FAIL:-1}
+MIN_EXPORTS=${SHUX_WPO_BACKEND_MIN_EXPORTS:-5}
 
 if [ ! -f "$BACKEND_O" ]; then
   echo "run-wpo-backend-reach-gate SKIP: missing $BACKEND_O"

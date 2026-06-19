@@ -5,32 +5,32 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
+MATRIX="${SHUX_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
 
 # shellcheck source=tests/lib/type-borrow-conflict.sh
 . tests/lib/type-borrow-conflict.sh
 # shellcheck source=tests/lib/lang-lifetime-diag.sh
 . tests/lib/lang-lifetime-diag.sh
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if type_borrow_native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ] || ! type_borrow_native_shu "$SHU_BIN"; then
-  echo "type-borrow-conflict SKIP (no native shu, host=$(uname -s)/$(uname -m 2>/dev/null))"
+if [ -z "$SHUX_BIN" ] || ! type_borrow_native_shu "$SHUX_BIN"; then
+  echo "type-borrow-conflict SKIP (no native shux, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "type-borrow-conflict OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-echo "=== TYPE-003: borrow conflict smoke (SHU=$SHU_BIN) ==="
+echo "=== TYPE-003: borrow conflict smoke (SHUX=$SHUX_BIN) ==="
 FAILS=0
 while IFS=$'\t' read -r case_id file policy substr want_line notes; do
   [ -z "${case_id:-}" ] && continue
@@ -42,17 +42,17 @@ while IFS=$'\t' read -r case_id file policy substr want_line notes; do
   }
   case "$policy" in
     pos)
-      if "$SHU_BIN" check "$src" >/dev/null 2>&1; then
+      if "$SHUX_BIN" check "$src" >/dev/null 2>&1; then
         echo "type-borrow-conflict OK $case_id (pos)"
       else
-        err=$("$SHU_BIN" check "$src" 2>&1) || true
+        err=$("$SHUX_BIN" check "$src" 2>&1) || true
         echo "type-borrow-conflict FAIL: false positive $case_id ($notes)" >&2
         echo "$err" >&2
         FAILS=$((FAILS + 1))
       fi
       ;;
     neg)
-      err=$("$SHU_BIN" check "$src" 2>&1) || true
+      err=$("$SHUX_BIN" check "$src" 2>&1) || true
       if [ -z "$substr" ] || [ "$substr" = "-" ]; then
         echo "type-borrow-conflict FAIL: neg case $case_id missing expect_substr" >&2
         FAILS=$((FAILS + 1))

@@ -1,7 +1,7 @@
 /**
  * lsp_diag_pipeline_sizes.c — 仅为 lsp_diag.c 提供 ASTArena / Module / PipelineDepCtx 的 sizeof。
  *
- * 须与 ast.su 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
+ * 须与 ast.sx 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -32,6 +32,8 @@ struct ast_Module {
   int32_t num_struct_layouts;
   int32_t pending_allow_padding;
   int32_t pending_soa_struct;
+  int32_t pending_cfg_skip;
+  int32_t pending_repr_c_struct;
   int32_t num_module_enums;
 };
 
@@ -60,7 +62,7 @@ struct ast_PipelineDepCtx {
   int32_t use_coff_o;
   int32_t current_block_ref;
   int32_t typeck_loop_depth;
-  /** typeck: check_expr 递归深度计数器，防 self-typeck.su 编译时循环引用栈溢出（lsp_diag_pipeline_sizes.c）。 */
+  /** typeck: check_expr 递归深度计数器，防 self-typeck.sx 编译时循环引用栈溢出（lsp_diag_pipeline_sizes.c）。 */
   int32_t typeck_check_depth;
   int32_t current_func_index;
   int32_t skip_codegen_dep_0;
@@ -87,18 +89,18 @@ size_t lsp_diag_pipeline_sizeof_module(void) { return sizeof(struct ast_Module);
 size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 
 /**
- * shu-c / 无 pipeline_su 时的弱占位：返回 0 表示用瘦 struct 尺寸。
+ * shux-c / 无 pipeline_sx 时的弱占位：返回 0 表示用瘦 struct 尺寸。
  * bootstrap-driver 链 lsp_diag_pipeline_ctx.o 时由强符号覆盖为 pipeline_sizeof_dep_ctx()。
- * SHU_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
+ * SHUX_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
  */
-#ifndef SHU_LSP_PIPELINE_CTX_LINKED
+#ifndef SHUX_LSP_PIPELINE_CTX_LINKED
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
-size_t lsp_diag_su_alloc_dep_ctx_size(void) { return 0; }
+size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
 #else
-__attribute__((weak)) size_t lsp_diag_su_alloc_dep_ctx_size(void) { return 0; }
+__attribute__((weak)) size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
 #endif
 
-/** shu-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
+/** shux-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
                                       const char **lib_roots, int n_lib_roots) {
@@ -111,4 +113,4 @@ __attribute__((weak)) void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, cons
     (void)lib_roots;
     (void)n_lib_roots;
 }
-#endif /* !SHU_LSP_PIPELINE_CTX_LINKED */
+#endif /* !SHUX_LSP_PIPELINE_CTX_LINKED */

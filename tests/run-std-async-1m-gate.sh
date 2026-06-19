@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MATRIX="${SHU_STD_ASYNC_1M_TSV:-tests/baseline/std-async-1m.tsv}"
+MATRIX="${SHUX_STD_ASYNC_1M_TSV:-tests/baseline/std-async-1m.tsv}"
 
 platform_policy() {
   local linux="$1"
@@ -54,45 +54,45 @@ fi
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-async-1m gate SKIP (no native shu; host=$(ci_host_summary))" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-async-1m gate SKIP (no native shux; host=$(ci_host_summary))" >&2
   exit 0
 fi
 
-# 编译 bench：Linux x86_64 可用 asm；其它平台 shu-c/-backend c。
+# 编译 bench：Linux x86_64 可用 asm；其它平台 shux-c/-backend c。
 async_compile_bench() {
   local su="$1"
   local out="$2"
   rm -f "$out"
   if async_is_linux_x64_asm && [[ "$su" == *sched* ]]; then
-    if ! "$SHU_BIN" -L . "$su" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
+    if ! "$SHUX_BIN" -L . "$su" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
       cat /tmp/async_1m_compile.log >&2
       return 1
     fi
     return 0
   fi
   if async_is_linux_x64_asm; then
-    "$SHU_BIN" -L . "$su" -o "$out"
-  elif [ -x ./compiler/shu-c ]; then
-    ./compiler/shu-c -L . "$su" -o "$out"
-  elif [ -x ./compiler/shu ]; then
-    ./compiler/shu -L . "$su" -backend c -o "$out"
+    "$SHUX_BIN" -L . "$su" -o "$out"
+  elif [ -x ./compiler/shux-c ]; then
+    ./compiler/shux-c -L . "$su" -o "$out"
+  elif [ -x ./compiler/shux ]; then
+    ./compiler/shux -L . "$su" -backend c -o "$out"
   else
-    "$SHU_BIN" -L . "$su" -o "$out"
+    "$SHUX_BIN" -L . "$su" -o "$out"
   fi
 }
 
-echo "=== STD-004: async 1M stress ($(ci_host_summary) SHU=$SHU_BIN) ==="
+echo "=== STD-004: async 1M stress ($(ci_host_summary) SHUX=$SHUX_BIN) ==="
 
 FAILS=0
 while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
@@ -111,7 +111,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
     FAILS=$((FAILS + 1))
     continue
   fi
-  out="/tmp/shu_async_1m_${case_id}"
+  out="/tmp/shux_async_1m_${case_id}"
   echo "── case $case_id: $src ──"
   if ! async_compile_bench "$src" "$out"; then
     echo "async 1M FAIL $case_id: compile" >&2

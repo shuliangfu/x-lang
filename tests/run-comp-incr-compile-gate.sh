@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_INCR_COMPILE_DOC:-analysis/comp-incr-compile-v1.md}"
-MANIFEST="${SHU_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
-PROTOS="${SHU_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
-BENCH="${SHU_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+DOC="${SHUX_COMP_INCR_COMPILE_DOC:-analysis/comp-incr-compile-v1.md}"
+MANIFEST="${SHUX_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
+PROTOS="${SHUX_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
+BENCH="${SHUX_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
 MIN_LAYERS=6
 MIN_PROTOS=6
 MIN_BENCHES=4
@@ -20,7 +20,7 @@ echo "=== COMP-007: incremental compile manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTOS" "$BENCH" \
   tests/lib/comp-incr-compile.sh tests/run-comp-incr-compile.sh \
   analysis/obs-compile-phase-timing-v1.md tests/run-obs-compile-phase-timing-gate.sh \
-  compiler/src/pipeline/pipeline.su compiler/src/lsp/lsp_diag.c; do
+  compiler/src/pipeline/pipeline.sx compiler/src/lsp/lsp_diag.c; do
   if [ ! -f "$f" ]; then
     echo "comp-incr-compile gate FAIL: missing $f" >&2
     exit 1
@@ -148,7 +148,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-incr-compile manifest OK (layers=${LAYER_N} protos=${PROTO_N} benches=${BENCH_N})"
 
-if [ "${SHU_COMP_INCR_COMPILE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP_INCR_COMPILE_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-incr-compile gate OK (manifest only)"
   exit 0
 fi

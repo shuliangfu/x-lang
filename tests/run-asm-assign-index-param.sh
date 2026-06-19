@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
 run_one() {
   local src="$1"
   local out="$2"
   local fn="$3"
   local want="$4"
-  $SHU "$src" -o "$out" 2>&1
+  $SHUX "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && {
@@ -23,7 +23,7 @@ run_one() {
   fi
 }
 
-run_one tests/asm/assign_index_ptr_param.su /tmp/shu_asm_assign_index_ptr_param set_at 99
-run_one tests/asm/assign_index_struct_field.su /tmp/shu_asm_assign_index_struct_field set_in 99
+run_one tests/asm/assign_index_ptr_param.sx /tmp/shux_asm_assign_index_ptr_param set_at 99
+run_one tests/asm/assign_index_struct_field.sx /tmp/shux_asm_assign_index_struct_field set_in 99
 
 echo "asm assign index param OK"

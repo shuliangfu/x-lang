@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_SCAFFOLD_DOC:-analysis/tool-project-scaffold-v1.md}"
-MANIFEST="${SHU_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
+DOC="${SHUX_TOOL_SCAFFOLD_DOC:-analysis/tool-project-scaffold-v1.md}"
+MANIFEST="${SHUX_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
 TEMPLATE="tests/templates/project-hello"
 MIN_RULES=5
 MIN_TEMPLATE_FILES=2
@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-006: project scaffold manifest ==="
-for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.su" "$TEMPLATE/README.md" scripts/shu-new.sh; do
+for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.sx" "$TEMPLATE/README.md" scripts/shux-new.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-scaffold gate FAIL: missing $f" >&2
     exit 1
@@ -107,12 +107,12 @@ if [ "$TPL_N" -lt "$MIN_TEMPLATE_FILES" ] || [ "${FILES_N:-0}" -lt "$MIN_TEMPLAT
   exit 1
 fi
 
-if ! grep -q 'function main(): i32' "$TEMPLATE/main.su" 2>/dev/null; then
+if ! grep -q 'function main(): i32' "$TEMPLATE/main.sx" 2>/dev/null; then
   echo "tool-scaffold gate FAIL: template missing main()" >&2
   exit 1
 fi
-if ! grep -qi 'shu run' "$TEMPLATE/README.md" 2>/dev/null; then
-  echo "tool-scaffold gate FAIL: README missing shu run" >&2
+if ! grep -qi 'shux run' "$TEMPLATE/README.md" 2>/dev/null; then
+  echo "tool-scaffold gate FAIL: README missing shux run" >&2
   exit 1
 fi
 
@@ -129,32 +129,32 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-scaffold manifest OK (rules=${RULE_N} files=${FILES_N} expect_exit=${EXPECT_EXIT})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== TOOL-006: scaffold hooks (SHU=$SHU_BIN) ==="
-  chmod +x tests/run-tool-scaffold.sh scripts/shu-new.sh
-  SHU="$SHU_BIN" SHU_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
-  DEMO="/tmp/shu_new_demo_$$"
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== TOOL-006: scaffold hooks (SHUX=$SHUX_BIN) ==="
+  chmod +x tests/run-tool-scaffold.sh scripts/shux-new.sh
+  SHUX="$SHUX_BIN" SHUX_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
+  DEMO="/tmp/shux_new_demo_$$"
   rm -rf "$DEMO"
-  ./scripts/shu-new.sh "$DEMO"
-  if [ ! -f "$DEMO/main.su" ]; then
-    echo "tool-scaffold FAIL: shu-new did not create main.su" >&2
+  ./scripts/shux-new.sh "$DEMO"
+  if [ ! -f "$DEMO/main.sx" ]; then
+    echo "tool-scaffold FAIL: shux-new did not create main.sx" >&2
     rm -rf "$DEMO"
     exit 1
   fi
   rm -rf "$DEMO"
   echo "tool-scaffold hooks OK"
 else
-  echo "tool-scaffold gate SKIP hooks (no native shu)" >&2
+  echo "tool-scaffold gate SKIP hooks (no native shux)" >&2
 fi
 
 echo "tool-scaffold gate OK"

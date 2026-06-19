@@ -2,17 +2,17 @@
 # S3 driver 同链烟测：build_asm/driver_compile_link.o 须导出 driver_run_compiler_full_su 且含 SU parse_argv。
 # 用法：./tests/run-s3-driver-o-parity.sh
 # 前置：./tests/run-s3-driver-sync-build-o.sh
-# 可选：SHU_S3_FAIL_ON_PARITY=1 — 任一检查失败时 exit 1
+# 可选：SHUX_S3_FAIL_ON_PARITY=1 — 任一检查失败时 exit 1
 set -e
 cd "$(dirname "$0")/.."
 DRIVER_ASM_O="compiler/build_asm/driver_compile.o"
 DRIVER_LINK_O="compiler/build_asm/driver_compile_link.o"
-BASELINE="${SHU_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
+BASELINE="${SHUX_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
 MIN_TEXT=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_TEXT=${MIN_TEXT:-256}
 MIN_REAL=${MIN_REAL:-0}
-FAIL=${SHU_S3_FAIL_ON_PARITY:-0}
+FAIL=${SHUX_S3_FAIL_ON_PARITY:-0}
 
 text_section_size() {
   local o="$1"

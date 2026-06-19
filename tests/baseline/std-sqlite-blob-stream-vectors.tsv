@@ -1,0 +1,5 @@
+# STD-137 blob stream 向量
+step_id	op	expect
+blob_len96	row_col_blob_len	96
+blob_chunk32	read_32x3	0..95
+blob_stream_done	query_end	DB_OK

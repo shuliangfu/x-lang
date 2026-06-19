@@ -1,14 +1,14 @@
 /**
- * Shulang import 路径解析 — 与 compiler/runtime.c resolve_import_file_path_multi 对齐。
+ * Shux import 路径解析 — 与 compiler/runtime.c resolve_import_file_path_multi 对齐。
  */
 
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { readLibRootsSetting } from './configSettings';
 
-/** 读取 shulang.compiler.libRoots，转为 SHULANG_LSP_LIB_ROOTS（`:` 分隔，与 runtime/LSP C 侧一致）。 */
+/** 读取 shux.compiler.libRoots，转为 SHUX_LSP_LIB_ROOTS（`:` 分隔，与 runtime/LSP C 侧一致）。 */
 export function getLibRootsEnvColon(): string {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   return readLibRootsSetting(config).join(':');
 }
 
@@ -18,10 +18,10 @@ export type ImportResolveResult = {
 };
 
 /**
- * 读取 shulang.compiler.libRoots 配置（字符串数组）。
+ * 读取 shux.compiler.libRoots 配置（字符串数组）。
  */
 export function getLibRootUris(workspaceRoot: vscode.Uri): vscode.Uri[] {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   const rels = readLibRootsSetting(config);
   return rels.map((rel) =>
     rel === '.' || rel === ''
@@ -46,7 +46,7 @@ function collectCandidates(
 ): vscode.Uri[] {
   const out: vscode.Uri[] = [];
   const isFilePath =
-    importPath.includes('/') || importPath.endsWith('.su');
+    importPath.includes('/') || importPath.endsWith('.sx');
 
   if (isFilePath) {
     if (importPath.startsWith('/')) {
@@ -62,17 +62,17 @@ function collectCandidates(
 
   if (hasDot) {
     const seg = importPath.replace(/\./g, '/');
-    out.push(vscode.Uri.joinPath(libRoot, `${seg}.su`));
-    out.push(vscode.Uri.joinPath(libRoot, seg, 'mod.su'));
+    out.push(vscode.Uri.joinPath(libRoot, `${seg}.sx`));
+    out.push(vscode.Uri.joinPath(libRoot, seg, 'mod.sx'));
   } else {
-    out.push(vscode.Uri.joinPath(libRoot, `${importPath}.su`));
-    out.push(vscode.Uri.joinPath(libRoot, importPath, 'mod.su'));
-    out.push(vscode.Uri.joinPath(libRoot, importPath, `${importPath}.su`));
+    out.push(vscode.Uri.joinPath(libRoot, `${importPath}.sx`));
+    out.push(vscode.Uri.joinPath(libRoot, importPath, 'mod.sx'));
+    out.push(vscode.Uri.joinPath(libRoot, importPath, `${importPath}.sx`));
   }
 
   if (entryDir) {
     if (!hasDot) {
-      out.push(vscode.Uri.joinPath(entryDir, `${importPath}.su`));
+      out.push(vscode.Uri.joinPath(entryDir, `${importPath}.sx`));
     } else {
       let eff = importPath;
       const dirName = path.basename(entryDir.fsPath);
@@ -81,15 +81,15 @@ function collectCandidates(
         eff = importPath.slice(firstDot + 1);
       }
       const seg = eff.replace(/\./g, '/');
-      out.push(vscode.Uri.joinPath(entryDir, `${seg}.su`));
-      out.push(vscode.Uri.joinPath(entryDir, seg, 'mod.su'));
+      out.push(vscode.Uri.joinPath(entryDir, `${seg}.sx`));
+      out.push(vscode.Uri.joinPath(entryDir, seg, 'mod.sx'));
     }
   }
 
   return out;
 }
 
-export async function resolveShulangImportWithAttempts(
+export async function resolveShuxImportWithAttempts(
   workspaceRoot: vscode.Uri,
   documentUri: vscode.Uri,
   importPath: string
@@ -115,11 +115,11 @@ export async function resolveShulangImportWithAttempts(
   return { attempts };
 }
 
-export async function resolveShulangImportUri(
+export async function resolveShuxImportUri(
   workspaceRoot: vscode.Uri,
   documentUri: vscode.Uri,
   importPath: string
 ): Promise<vscode.Uri | undefined> {
-  const r = await resolveShulangImportWithAttempts(workspaceRoot, documentUri, importPath);
+  const r = await resolveShuxImportWithAttempts(workspaceRoot, documentUri, importPath);
   return r.uri;
 }

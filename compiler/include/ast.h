@@ -2,7 +2,7 @@
  * ast.h — 抽象语法树（AST）节点定义
  *
  * 文件职责：
- *   定义 .su 源码对应的 AST 节点类型（表达式、函数、模块），供 Parser 构建、Typeck/Codegen 消费。
+ *   定义 .sx 源码对应的 AST 节点类型（表达式、函数、模块），供 Parser 构建、Typeck/Codegen 消费。
  * 所属模块：
  *   编译器前端，compiler/include/；被 src/parser、src/typeck、src/codegen、src/ast 引用。
  * 与其它文件的关系：
@@ -14,8 +14,8 @@
  *   - name/return_type 等字符串由 Parser 侧 strdup，由 ast_module_free 统一释放，调用方不得单独 free。
  */
 
-#ifndef SHU_AST_H
-#define SHU_AST_H
+#ifndef SHUX_AST_H
+#define SHUX_AST_H
 
 #include <stdint.h>
 
@@ -113,8 +113,8 @@ typedef enum ASTExprKind {
     AST_EXPR_DEREF,        /**< 解引用 *expr（一元 *，操作数须为 *T，结果类型为 T）；value.unary.operand 为子表达式 */
     AST_EXPR_AS,           /**< 类型转换 expr as type；value.as_type.operand 为子表达式，value.as_type.type 为目标类型 */
     AST_EXPR_AWAIT,        /**< await expr（仅 async function 内；A3 同步 stub，复用 value.unary.operand） */
-    AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 shu_async_sched_* drain；复用 value.unary.operand） */
-    AST_EXPR_SPAWN         /**< spawn async_fn()（非阻塞 submit；须 shu_async_run_drain_until_idle，IO-A5 v4） */
+    AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 shux_async_sched_* drain；复用 value.unary.operand） */
+    AST_EXPR_SPAWN         /**< spawn async_fn()（非阻塞 submit；须 shux_async_run_drain_until_idle，IO-A5 v4） */
 } ASTExprKind;
 
 /** match 单分支：整数字面量、_、或枚举变体 Name.Variant => 表达式（arms 由 ast_module_free 路径释放） */
@@ -252,6 +252,7 @@ typedef struct ASTStructDef {
     ASTStructField *fields;      /**< 字段数组 */
     int num_fields;
     int allow_padding;           /**< 1 表示允许隐式 padding（§11.1 allow(padding)），0 则存在 padding 时报错 */
+    int repr_c;                  /**< 1 表示 #[repr(C)]：C ABI 布局，允许隐式 padding（与 allow_padding 等效于 layout pass） */
     int packed;                  /**< 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）；0 为默认 */
     int soa;                     /**< 1 表示 SoA 语义：`[N]T` 按列主序存储，仅 `arr[i].field` 访问；0 为默认 AoS */
     /** 以下由 typeck 结构体布局 pass 填充（变量类型与类型系统设计 §11.1） */
@@ -308,7 +309,7 @@ typedef struct ASTRegionBlock {
 
 /** 块内语句顺序：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=region；idx 为对应数组下标；codegen 按此顺序生成保证 let/expr/loop 交错正确。
  * 需足够大以容纳 parse_into 等大块（成功路径含大量 let/loop/expr_stmt），否则写回 block_set/num_funcs++/lex 等被截断。 */
-/** 大函数体（如 typeck.su check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
+/** 大函数体（如 typeck.sx check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
 #define MAX_BLOCK_STMT_ORDER 512
 typedef struct ASTBlockStmtOrder {
     unsigned char kind;
@@ -363,7 +364,7 @@ typedef struct ASTFunc {
     int num_params;
     struct ASTType *return_type;
     ASTBlock *body;    /**< 函数体（块）；extern 时为 NULL；普通函数不可为 NULL（main 至少含 final_expr） */
-    int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .su 函数 */
+    int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .sx 函数 */
     int is_async;      /**< 1 表示 async function（P2）；await 仅允许在其体内（A2c） */
     /** 以下仅当本函数为 impl 块内方法时非 NULL；codegen 用于生成 mangle 名（阶段 7.2） */
     const char *impl_for_trait; /**< 所属 trait 名，NULL 表示顶层函数 */
@@ -415,9 +416,10 @@ typedef struct ASTMonoInstance {
 /** 顶层 let 最大数量（与 parser MAX_TOP_LEVEL_LETS 一致） */
 #define AST_MODULE_MAX_TOP_LEVEL_LETS 32
 
-/** 单条 import 的种类：0=整模块导入(import path;)，1=模块绑定(const x = import path;)，2=按名选取(const { a,b } = import path;) */
+/** 单条 import 的种类：0=整模块导入(import path;)，1=模块绑定(const x = import path;) */
 #define AST_IMPORT_KIND_WHOLE   0
 #define AST_IMPORT_KIND_BINDING 1
+/** @deprecated 解构 import 已移除；保留枚举值供旧 AST 兼容 */
 #define AST_IMPORT_KIND_SELECT  2
 
 /** 模块/程序：阶段 5 支持顶层 import；阶段 4–5 支持顶层 struct；§7 支持顶层 enum；多函数 + 函数调用；7.1 泛型；7.2 trait/impl。 */
@@ -425,7 +427,7 @@ typedef struct ASTModule {
     /** import 路径列表，如 "core.types"；由 parser 分配，ast_module_free 释放 */
     char **import_paths;
     int num_imports;       /**< import_paths 有效长度 */
-    /** 与 import_paths 一一对应：0=整模块，1=const x = import path，2=const { a,b } = import path；由 parser 分配，ast_module_free 释放 */
+    /** 与 import_paths 一一对应：0=整模块，1=const x = import path；由 parser 分配，ast_module_free 释放 */
     int *import_kinds;
     /** import_kinds[i]==AST_IMPORT_KIND_BINDING 时为绑定名(如 "process")，否则 NULL；由 parser 分配，ast_module_free 释放 */
     char **import_binding_names;
@@ -507,7 +509,7 @@ void ast_expr_free(ASTExpr *e);
 
 /**
  * 初始化 EXPR_MATCH 节点的 arms 子结构（num_arms=0，arms=NULL，matched_expr=NULL）。
- * 供 parser 在 .su 中调用（ast.expr_init_match_enum），确保未初始化字段不会导致
+ * 供 parser 在 .sx 中调用（ast.expr_init_match_enum），确保未初始化字段不会导致
  * typeck/codegen 访问垃圾值崩溃。
  * 参数：e 待初始化的 EXPR_MATCH 节点。
  */
@@ -520,8 +522,8 @@ void ast_expr_init_match_enum(ASTExpr *e);
 void ast_type_free(ASTType *t);
 
 /* -------------------------------------------------------------------------- */
-/* Pipeline / .su AST 竞技场 ABI（struct ast_*）：与 pipeline_gen.c 自举单文件一致。
+/* Pipeline / .sx AST 竞技场 ABI（struct ast_*）：与 pipeline_gen.c 自举单文件一致。
  * ast_ast_arena_{type,expr,block}_get 由 SU 编译产物按值返回大结构体，在 ARM64 macOS 上
  * 与其它 TU 交错调用时 ABI 不可靠；下列 *_into 由宿主 C 编译器编译，写入调用方缓冲区。
  * 完整定义见 pipeline_gen.c；此处仅为 ast.c 实现的调用约定前置声明。 */
-#endif /* SHU_AST_H */
+#endif /* SHUX_AST_H */

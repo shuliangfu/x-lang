@@ -1,5 +1,5 @@
 /**
- * race_probe.c — SAFE-006 探测器：双线程无锁递增，仅 SHU_RACE_PROBE=1 时以 TSAN 校验。
+ * race_probe.c — SAFE-006 探测器：双线程无锁递增，仅 SHUX_RACE_PROBE=1 时以 TSAN 校验。
  *
  * 预期：-fsanitize=thread 编译运行时 ThreadSanitizer 报告 data race 并非零退出。
  */

@@ -1,8 +1,8 @@
 /**
  * simd_vector_inline.h — M8-tail：SIMD 向量 intrinsic let-init 内联 C API（SU 薄包装 bl 目标）。
  */
-#ifndef SHU_SIMD_VECTOR_INLINE_H
-#define SHU_SIMD_VECTOR_INLINE_H
+#ifndef SHUX_SIMD_VECTOR_INLINE_H
+#define SHUX_SIMD_VECTOR_INLINE_H
 
 #include <stdint.h>
 
@@ -28,4 +28,10 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTArena *aren
                                                        int32_t call_ref, struct backend_AsmFuncCtx *ctx,
                                                        int32_t ta, int32_t stack_slot_off, int32_t type_ref);
 
-#endif /* SHU_SIMD_VECTOR_INLINE_H */
+/** vec4f_fma / vec4f_madd / simd_fma 三参 CALL 内联（vfmadd231ps）；1=已内联，0=未匹配，-1=错误。 */
+int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t call_ref, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+
+#endif /* SHUX_SIMD_VECTOR_INLINE_H */

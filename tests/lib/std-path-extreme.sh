@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-path-extreme.sh — STD-140 manifest 与烟测辅助
 
-STD_PATH_EXTREME_PREFIX="${SHU_STD140_PATH_EXTREME_PREFIX:-shu: [SHU_STD140_PATH_EXTREME]}"
+STD_PATH_EXTREME_PREFIX="${SHUX_STD140_PATH_EXTREME_PREFIX:-shux: [SHUX_STD140_PATH_EXTREME]}"
 
 # 校验 manifest 中 api/file/smoke 锚点；echo 缺失数。
 std_path_extreme_symbols_ok() {
@@ -54,12 +54,12 @@ std_path_extreme_vectors_ok() {
 
 # 编译并运行 extreme_clean 烟测。
 std_path_extreme_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_path_extreme_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_path_extreme_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-path-extreme FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

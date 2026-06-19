@@ -8,21 +8,21 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-incr-compile.sh
 . tests/lib/comp-incr-compile.sh
 
-BENCH="${SHU_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
-PROTOS="${SHU_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
+BENCH="${SHUX_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+PROTOS="${SHUX_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
 MAX_RATIO="1.0"
 
-SHU_BIN=""
-for cand in ./compiler/shu-c ./compiler/shu ./compiler/shu_asm; do
+SHUX_BIN=""
+for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux_asm; do
   if comp_incr_compile_native_shu "$cand"; then
-    SHU_BIN="$cand"
+    SHUX_BIN="$cand"
     break
   fi
 done
 
 echo "=== COMP-007: incremental compile smoke ==="
 
-# 原型符号检查（不依赖 shu 可执行）。
+# 原型符号检查（不依赖 shux 可执行）。
 PROTO_FAIL=0
 while IFS=$'\t' read -r pid _cap status sym src _notes; do
   [ -z "${pid:-}" ] && continue
@@ -46,8 +46,8 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$BENCH"
 
-if [ -z "$SHU_BIN" ]; then
-  echo "comp-incr-compile SKIP bench (no native shu)"
+if [ -z "$SHUX_BIN" ]; then
+  echo "comp-incr-compile SKIP bench (no native shux)"
   echo "comp-incr-compile OK"
   exit 0
 fi
@@ -63,7 +63,7 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
   cap="${max_r:-$MAX_RATIO}"
   first_ms=0
   second_ms=0
-  FIX="${fixture:-tests/bench/loop_i32.su}"
+  FIX="${fixture:-tests/bench/loop_i32.sx}"
   if [ "$cmd_kind" != "make_q" ] && [ ! -f "$FIX" ]; then
     echo "comp-incr-compile SKIP $bench_id (no fixture $FIX)"
     continue
@@ -72,30 +72,30 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
   case "$cmd_kind" in
     check)
       for run in 1 2; do
-        log="$(SHU_COMPILE_PHASE_TIMING=1 "$SHU_BIN" check "$FIX" 2>&1)" || true
+        log="$(SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$FIX" 2>&1)" || true
         ms="$(comp_incr_compile_parse_total_ms "$log")"
         if [ -z "$ms" ]; then
-          ms="$(comp_incr_compile_wall_ms "$SHU_BIN" check "$FIX")"
+          ms="$(comp_incr_compile_wall_ms "$SHUX_BIN" check "$FIX")"
         fi
         if [ "$run" -eq 1 ]; then first_ms="$ms"; else second_ms="$ms"; fi
       done
       ;;
     -o)
-      out="/tmp/shu_incr_compile_${bench_id}.$$"
+      out="/tmp/shux_incr_compile_${bench_id}.$$"
       for run in 1 2; do
         rm -f "$out" 2>/dev/null || true
-        log="$(SHU_COMPILE_PHASE_TIMING=1 "$SHU_BIN" "$FIX" -o "$out" 2>&1)" || true
+        log="$(SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" "$FIX" -o "$out" 2>&1)" || true
         ms="$(comp_incr_compile_parse_total_ms "$log")"
         if [ -z "$ms" ]; then
-          ms="$(comp_incr_compile_wall_ms "$SHU_BIN" "$FIX" -o "$out")"
+          ms="$(comp_incr_compile_wall_ms "$SHUX_BIN" "$FIX" -o "$out")"
         fi
         if [ "$run" -eq 1 ]; then first_ms="$ms"; else second_ms="$ms"; fi
       done
       rm -f "$out" 2>/dev/null || true
       ;;
     timing)
-      log="$(SHU_COMPILE_PHASE_TIMING=1 "$SHU_BIN" check "$FIX" 2>&1)" || true
-      if ! printf '%s' "$log" | grep -q 'SHU_COMPILE_PHASE_TIMING'; then
+      log="$(SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$FIX" 2>&1)" || true
+      if ! printf '%s' "$log" | grep -q 'SHUX_COMPILE_PHASE_TIMING'; then
         echo "comp-incr-compile FAIL: $bench_id no timing line" >&2
         FAILS=$((FAILS + 1))
         continue

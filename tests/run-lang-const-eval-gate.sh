@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_CONST_EVAL_DOC:-analysis/lang-const-eval-v1.md}"
-MANIFEST="${SHU_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
+DOC="${SHUX_LANG_CONST_EVAL_DOC:-analysis/lang-const-eval-v1.md}"
+MANIFEST="${SHUX_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
 RUNNER="tests/lib/lang-const-eval.sh"
 MIN_LAYERS=6
 MIN_CASES=10
@@ -105,6 +105,6 @@ if lang_const_eval_resolve_shu >/dev/null 2>&1; then
     exit 1
   fi
 else
-  echo "lang-const-eval gate SKIP bench (no native shu)" >&2
+  echo "lang-const-eval gate SKIP bench (no native shux)" >&2
   echo "lang-const-eval gate OK"
 fi

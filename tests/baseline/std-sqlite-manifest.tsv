@@ -10,20 +10,20 @@ layer_d1	layers	D1-connection	analysis/std-sqlite-prereq-v1.md	draft	open/close
 layer_d2	layers	D2-query-exec	analysis/std-sqlite-prereq-v1.md	draft	exec/query
 layer_d3	layers	D3-transaction	analysis/std-sqlite-prereq-v1.md	draft	tx
 layer_d4	layers	D4-backend	analysis/std-sqlite-prereq-v1.md	draft	stub/SQLite
-api_open	api	open	std/sqlite/mod.su	draft	连接
-api_close	api	close	std/sqlite/mod.su	draft	关闭
-api_exec	api	exec	std/sqlite/mod.su	draft	执行
-api_query	api	query_rows	std/sqlite/mod.su	draft	查询
-api_begin	api	begin_tx	std/sqlite/mod.su	draft	事务
-api_commit	api	commit	std/sqlite/mod.su	draft	提交
-api_rollback	api	rollback	std/sqlite/mod.su	draft	回滚
-api_last_err	api	last_error	std/sqlite/mod.su	draft	错误
-api_backend	api	backend_name	std/sqlite/mod.su	draft	后端名
-draft_mod	file	std/sqlite/mod.su	std/sqlite/mod.su	draft	草案模块
-readme	cross_ref	std/sqlite/README.md	std/sqlite/README.md	-	README
+api_open	api	open	std/db/sqlite/mod.sx	draft	连接
+api_close	api	close	std/db/sqlite/mod.sx	draft	关闭
+api_exec	api	exec	std/db/sqlite/mod.sx	draft	执行
+api_query	api	query_rows	std/db/sqlite/mod.sx	draft	查询
+api_begin	api	begin_tx	std/db/sqlite/mod.sx	draft	事务
+api_commit	api	commit	std/db/sqlite/mod.sx	draft	提交
+api_rollback	api	rollback	std/db/sqlite/mod.sx	draft	回滚
+api_last_err	api	last_error	std/db/sqlite/mod.sx	draft	错误
+api_backend	api	backend_name	std/db/sqlite/mod.sx	draft	后端名
+draft_mod	file	std/db/sqlite/mod.sx	std/db/sqlite/mod.sx	draft	草案模块
+readme	cross_ref	std/db/sqlite/README.md	std/db/sqlite/README.md	-	README
 lib	script	lib/std-sqlite.sh	tests/lib/std-sqlite.sh	-	共享库
 gate	script	run-std-sqlite-prereq-gate.sh	tests/run-std-sqlite-prereq-gate.sh	-	manifest
 runner	script	run-std-sqlite.sh	tests/run-std-sqlite.sh	-	typeck runner
-smoke_typeck	smoke	tests/std-sqlite/draft_typeck.su	tests/std-sqlite/draft_typeck.su	-	check 金样
+smoke_typeck	smoke	tests/std-sqlite/draft_typeck.sx	tests/std-sqlite/draft_typeck.sx	-	check 金样
 cross_exc	cross_ref	analysis/exc-error-code-layer-v1.md	analysis/exc-error-code-layer-v1.md	EXC-003	错误码
 cross_roadmap	cross_ref	analysis/doc-public-roadmap-v1.md	analysis/doc-public-roadmap-v1.md	DOC-005	路线图

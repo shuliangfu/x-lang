@@ -1,8 +1,0 @@
-// 回归：return 后以 ( 开头的表达式须走 parse_expr_into（parse_one_function_impl 非
-// IDENT 分支）。
-// 宿主 compiler/shu 使用 pipeline 内联的 parser.su；compiler/shu-c 走
-// parser.c，单测脚本需显式用 shu 覆盖此路径。
-/** 入口：返回 (1+2) 即 3，run-parser.sh 以进程退出码断言。 */
-function main(): i32 {
-  return (1 + 2);
-}

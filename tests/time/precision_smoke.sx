@@ -1,0 +1,56 @@
+// STD-005：std.time 精度与时区烟测
+//
+// 【文件职责】覆盖全部 13 个公开 API；校验单调递增、墙钟 UTC 合理、sleep 下限。
+// 【运行方式】由 tests/run-std-time-gate.sh 在 native shux 下编译执行。
+const time = import("std.time");
+
+/** 2020-01-01 00:00:00 UTC（秒）；墙钟应大于此值。 */
+const MIN_WALL_SEC: i64 = 1577836800;
+
+function main(): i32 {
+  let ns0: i64 = time.now_monotonic_ns();
+  let us0: i64 = time.now_monotonic_us();
+  let ms0: i64 = time.now_monotonic_ms();
+  let sec0: i64 = time.now_monotonic_sec();
+  if (ns0 <= 0) {
+    return 1;
+  }
+  if (us0 <= 0 || ms0 <= 0 || sec0 <= 0) {
+    return 2;
+  }
+  let ws: i64 = time.now_wall_sec();
+  let wm: i64 = time.now_wall_ms();
+  let wu: i64 = time.now_wall_us();
+  let wn: i64 = time.now_wall_ns();
+  if (ws < MIN_WALL_SEC) {
+    return 10;
+  }
+  if (wm < ws * 1000) {
+    return 11;
+  }
+  if (wu < wm * 1000) {
+    return 12;
+  }
+  if (wn < wu * 1000) {
+    return 13;
+  }
+  let t0: i64 = time.now_monotonic_ns();
+  time.sleep_ms(50);
+  let t1: i64 = time.now_monotonic_ns();
+  let elapsed: i64 = time.duration_ns(t0, t1);
+  if (elapsed < 0) {
+    return 20;
+  }
+  // 宽松下限 10ms（Windows Sleep 粒度、调度抖动）
+  if (elapsed < 10000000) {
+    return 21;
+  }
+  let ns1: i64 = time.now_monotonic_ns();
+  if (ns1 <= ns0) {
+    return 30;
+  }
+  time.sleep_us(1000);
+  time.sleep_ns(1000000);
+  time.sleep_sec(0);
+  return 0;
+}

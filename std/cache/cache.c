@@ -3,9 +3,9 @@
  *
  * 【文件职责】
  * i64 键值 LRU 缓存（容量淘汰 + TTL 惰性过期）；通用 i64 资源池
- * acquire/release/health；命中率统计；供 mod.su 与 gate 烟测调用。
+ * acquire/release/health；命中率统计；供 mod.sx 与 gate 烟测调用。
  *
- * 【所属模块】标准库 std.cache；与 std/cache/mod.su 同属一模块。
+ * 【所属模块】标准库 std.cache；与 std/cache/mod.sx 同属一模块。
  * 【依赖】std/time/time.c（单调时钟 time_now_monotonic_ns_c）。
  */
 

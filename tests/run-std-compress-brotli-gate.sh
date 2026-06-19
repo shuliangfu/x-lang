@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-compress-brotli-v1.md"
 MANIFEST="tests/baseline/std-compress-brotli-manifest.tsv"
-MOD_SU="std/compress/mod.su"
-COMPRESS_C="std/compress/compress.c"
+MOD_SU="std/compress/mod.sx"
+COMPRESS_C="std/compress/brotli/brotli.c"
 LIB="tests/lib/std-compress-brotli.sh"
-SMOKE_SU="tests/std-compress/brotli_roundtrip.su"
+SMOKE_SU="tests/std-compress/brotli_roundtrip.sx"
 SMOKE_C="tests/std-compress/brotli_smoke_ok.c"
 MIN_APIS=4
 
@@ -58,10 +58,10 @@ if std_compress_brotli_try_build; then
   if [ "$C_EC" -eq 0 ]; then
     BROTLI_OK=1
     SKIP=0
-    if [ -x ./compiler/shu-c ]; then
-      make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-      ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-      std_compress_brotli_run_su_smoke ./compiler/shu-c "$SMOKE_SU" || exit 1
+    if [ -x ./compiler/shux-c ]; then
+      make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+      ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+      std_compress_brotli_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" || exit 1
     fi
   elif [ "$C_EC" -eq 2 ]; then
     echo "std-compress-brotli gate SKIP runtime (no brotli link libs)" >&2

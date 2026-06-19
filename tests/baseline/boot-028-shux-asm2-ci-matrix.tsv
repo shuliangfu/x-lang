@@ -1,0 +1,22 @@
+# BOOT-028 shux_asm2 CI 矩阵 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_c6_hooks	4
+# min_wave_rows	4
+# min_linux_must	1
+# min_macos_must	1
+section_goal	section	## 1. 目标	C6 CI 矩阵
+ci_matrix	section	## 2. C6 CI 矩阵	c6_matrix_ok
+gate_section	section	## 3. Gate	run-boot-028-shux-asm2-ci-matrix-gate
+hook_smoke	hook_gate	run-shux-asm2-cross-smoke.sh	c6_smoke
+hook_boot027	hook_ref	run-boot-027-shux-asm2-cross-gate.sh	c6_boot027
+hook_cross	hook_ref	run-bootstrap-crossplatform-gate.sh	c6_cross
+hook_eng_ci	hook_ref	run-eng-crossplatform-ci-gate.sh	c6_eng_ci
+platform_matrix	file	shux-asm2-ci-platform-matrix.tsv	tests/baseline/shux-asm2-ci-platform-matrix.tsv	linux+mac
+repro_matrix	cross_ref	tests/baseline/bootstrap-repro.tsv	boot028_shux_asm2_ci_matrix
+mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C7 shux_asm2_ci
+ci_platform	cross_ref	tests/baseline/ci-platform-matrix.tsv	ENG-003
+parent_boot027	cross_ref	analysis/boot-027-shux-asm2-cross-v1.md	C5
+parent_eng	cross_ref	analysis/eng-crossplatform-ci-v1.md	ENG-003
+doc	file	boot-028-shux-asm2-ci-matrix-v1.md	analysis/boot-028-shux-asm2-ci-matrix-v1.md	RFC
+lib	script	lib/boot-028-shux-asm2-ci-matrix.sh	tests/lib/boot-028-shux-asm2-ci-matrix.sh
+gate	script	run-boot-028-shux-asm2-ci-matrix-gate.sh	tests/run-boot-028-shux-asm2-ci-matrix-gate.sh

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-row-col-blob.sh — STD-069 manifest 与 row_col_blob BLOB 列烟测辅助
 
-STD_DB_ROW_COL_BLOB_PREFIX="${SHU_STD069_PREFIX:-shu: [SHU_STD069_DB_BLOB_COL]}"
+STD_DB_ROW_COL_BLOB_PREFIX="${SHUX_STD069_PREFIX:-shux: [SHUX_STD069_DB_BLOB_COL]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_row_col_blob_source_sqlite() {
@@ -28,7 +28,7 @@ std_sqlite_row_col_blob_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-row-col-blob FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -55,7 +55,7 @@ std_sqlite_row_col_blob_symbols_ok() {
 std_sqlite_row_col_blob_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/row_col_blob_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_row_col_blob_$$"
+  local out="/tmp/shux_std_sqlite_row_col_blob_$$"
   local db_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

@@ -4,10 +4,10 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-url-ipv6-host-v1.md"
 MANIFEST="tests/baseline/std-url-ipv6-host-manifest.tsv"
-MOD_SU="std/url/mod.su"
+MOD_SU="std/url/mod.sx"
 URL_C="std/url/url.c"
 LIB="tests/lib/std-url-ipv6-host.sh"
-SMOKE_SU="tests/std-url/ipv6_host.su"
+SMOKE_SU="tests/std-url/ipv6_host.sx"
 . "$LIB"
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$URL_C" "$SMOKE_SU"; do
   [ -f "$f" ] || { echo "std-url-ipv6-host gate FAIL: missing $f" >&2; exit 1; }
@@ -22,9 +22,9 @@ C_OK=0
 std_url_ipv6_host_run_c_smoke "$URL_O" && C_OK=1 || exit 1
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_url_ipv6_host_run_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_url_ipv6_host_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

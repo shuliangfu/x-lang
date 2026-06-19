@@ -5,7 +5,7 @@
 #   std_sv_zc4_manifest_ok STRING_SU DOC TSV
 #   std_sv_zc4_emit_report status lifecycle_ok typeck_ok zc4_skip
 
-STD_SV_ZC4_PREFIX="${SHU_STD_STRVIEW_ZC4_PREFIX:-shu: [SHU_STD_STRVIEW_ZC4]}"
+STD_SV_ZC4_PREFIX="${SHUX_STD_STRVIEW_ZC4_PREFIX:-shux: [SHUX_STD_STRVIEW_ZC4]}"
 
 # 校验 manifest symbol/anchor；echo 缺失数，成功返回 0。
 std_sv_zc4_manifest_ok() {

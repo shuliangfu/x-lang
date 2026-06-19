@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
-MATRIX="${SHU_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
+DOC="${SHUX_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
+MATRIX="${SHUX_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
 MIN_ITEMS=10
 
 native_shu() {
@@ -102,31 +102,31 @@ echo "exc-cli-lsp-error manifest OK (items=${FOUND})"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu ./compiler/shu-su; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux-sx; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "exc-cli-lsp-error gate SKIP golden (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "exc-cli-lsp-error gate SKIP golden (no native shux)" >&2
   echo "exc-cli-lsp-error gate OK"
   exit 0
 fi
 
 FAILS=0
-echo "=== EXC-005: golden compile stderr (SHU=$SHU_BIN) ==="
+echo "=== EXC-005: golden compile stderr (SHUX=$SHUX_BIN) ==="
 while IFS=$'\t' read -r item_id kind anchor src notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*|min_items) continue ;; esac
   [ "$kind" = "golden" ] || continue
   want="$notes"
   echo "── compile golden: $src ──"
-  err=$("$SHU_BIN" "$src" -o /tmp/shu_exc_cli_lsp_fail 2>&1) || true
+  err=$("$SHUX_BIN" "$src" -o /tmp/shux_exc_cli_lsp_fail 2>&1) || true
   if ! echo "$err" | grep -qF "$want"; then
     echo "exc-cli-lsp-error FAIL compile: missing phrase '$want' in $src" >&2
     echo "$err" >&2
@@ -147,9 +147,9 @@ while IFS=$'\t' read -r item_id kind anchor src notes; do
 done < "$MATRIX"
 
 echo "=== EXC-005: golden check format ==="
-assign="tests/typeck/type_mismatch_assign.su"
+assign="tests/typeck/type_mismatch_assign.sx"
 want="assignment type mismatch: expected i32, found bool"
-chk=$("$SHU_BIN" check "$assign" 2>&1) && {
+chk=$("$SHUX_BIN" check "$assign" 2>&1) && {
   echo "exc-cli-lsp-error FAIL: check should fail on $assign" >&2
   FAILS=$((FAILS + 1))
 } || true

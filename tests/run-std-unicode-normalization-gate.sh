@@ -3,12 +3,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_UNICODE_NORM_DOC:-analysis/std-unicode-normalization-v1.md}"
-MANIFEST="${SHU_STD_UNICODE_NORM_MANIFEST:-tests/baseline/std-unicode-normalization-manifest.tsv}"
-MOD_SU="std/unicode/mod.su"
+DOC="${SHUX_STD_UNICODE_NORM_DOC:-analysis/std-unicode-normalization-v1.md}"
+MANIFEST="${SHUX_STD_UNICODE_NORM_MANIFEST:-tests/baseline/std-unicode-normalization-manifest.tsv}"
+MOD_SU="std/unicode/mod.sx"
 UNI_C="std/unicode/unicode.c"
 LIB="tests/lib/std-unicode-normalization.sh"
-SMOKE_SU="tests/std-unicode-normalization/roundtrip.su"
+SMOKE_SU="tests/std-unicode-normalization/roundtrip.sx"
 SMOKE_C="tests/std-unicode-normalization/normalization_smoke_ok.c"
 MIN_APIS=6
 
@@ -67,9 +67,9 @@ echo "=== STD-082: unicode normalization c smoke ==="
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/unicode/unicode.o
-if cc -std=c11 -O1 -o /tmp/shu_unicode_norm_smoke "$SMOKE_C" std/unicode/unicode.o 2>/dev/null; then
-  if /tmp/shu_unicode_norm_smoke >/dev/null 2>&1; then C_OK=1; fi
-  rm -f /tmp/shu_unicode_norm_smoke
+if cc -std=c11 -O1 -o /tmp/shux_unicode_norm_smoke "$SMOKE_C" std/unicode/unicode.o 2>/dev/null; then
+  if /tmp/shux_unicode_norm_smoke >/dev/null 2>&1; then C_OK=1; fi
+  rm -f /tmp/shux_unicode_norm_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_unicode_norm_emit_report "fail" 0 0 0
@@ -77,19 +77,19 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-082: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-082: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-unicode-normalization gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_unicode_norm_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_unicode_norm_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
+  if std_unicode_norm_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
     std_unicode_norm_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

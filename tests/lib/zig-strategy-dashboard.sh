@@ -6,17 +6,17 @@
 #   zsd_status ahead_pct target_pct
 #   zsd_sparkline case_id [history_tsv]
 #   zsd_history_months [history_tsv]
-#   zsd_report_emit case_id shu zig ahead target status trend
-#   zsd_append_history month case_id shu zig ahead [history_tsv]
+#   zsd_report_emit case_id shux zig ahead target status trend
+#   zsd_append_history month case_id shux zig ahead [history_tsv]
 #
 # 环境：
-#   SHU_ZIG_STRATEGY_PREFIX — 默认 shu: [SHU_ZIG_STRATEGY]
+#   SHUX_ZIG_STRATEGY_PREFIX — 默认 shux: [SHUX_ZIG_STRATEGY]
 
-# 计算领先 Zig 的百分点；shu/zig 无效时输出 nan。
+# 计算领先 Zig 的百分点；shux/zig 无效时输出 nan。
 zsd_ahead_pct() {
-  local shu="$1"
+  local shux="$1"
   local zig="$2"
-  awk -v s="$shu" -v z="$zig" 'BEGIN {
+  awk -v s="$shux" -v z="$zig" 'BEGIN {
     if (z <= 0 || s == "nan" || z == "nan" || s == "") { print "nan"; exit }
     printf "%.1f", (1.0 - s / z) * 100.0
   }'
@@ -76,50 +76,50 @@ zsd_current_month() {
 zsd_append_history() {
   local month="$1"
   local case_id="$2"
-  local shu="$3"
+  local shux="$3"
   local zig="$4"
   local ahead="$5"
   local hist="${6:-tests/baseline/zig-strategy-history.tsv}"
   if awk -F'\t' -v m="$month" -v c="$case_id" \
     '$1==m && $2==c && $1 !~ /^#/ { found=1 } END { exit !found }' "$hist" 2>/dev/null; then
-    awk -F'\t' -v m="$month" -v c="$case_id" -v s="$shu" -v z="$zig" -v a="$ahead" '
+    awk -F'\t' -v m="$month" -v c="$case_id" -v s="$shux" -v z="$zig" -v a="$ahead" '
       $1 == m && $2 == c && $1 !~ /^#/ { print m "\t" c "\t" s "\t" z "\t" a; next }
       { print }
     ' OFS='\t' "$hist" > "${hist}.new"
     mv "${hist}.new" "$hist"
   else
-    printf '%s\t%s\t%s\t%s\t%s\n' "$month" "$case_id" "$shu" "$zig" "$ahead" >> "$hist"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$month" "$case_id" "$shux" "$zig" "$ahead" >> "$hist"
   fi
 }
 
 # 输出结构化战略看板报告行（OBS-003 bracket 兼容）。
 zsd_report_emit() {
   local case_id="$1"
-  local shu="$2"
+  local shux="$2"
   local zig="$3"
   local ahead="$4"
   local target="$5"
   local status="$6"
   local trend="$7"
-  local prefix="${SHU_ZIG_STRATEGY_PREFIX:-shu: [SHU_ZIG_STRATEGY]}"
+  local prefix="${SHUX_ZIG_STRATEGY_PREFIX:-shux: [SHUX_ZIG_STRATEGY]}"
   printf '%s case=%s shu_sec=%s zig_sec=%s ahead_pct=%s target_pct=%s status=%s trend=%s\n' \
-    "$prefix" "$case_id" "$shu" "$zig" "$ahead" "$target" "$status" "$trend" >&2
+    "$prefix" "$case_id" "$shux" "$zig" "$ahead" "$target" "$status" "$trend" >&2
 }
 
 # 打印看板表头（Markdown 风格到 stdout）。
 zsd_print_dashboard_header() {
-  printf '\n| case | shu (s) | zig (s) | ahead%% | trend | status |\n'
+  printf '\n| case | shux (s) | zig (s) | ahead%% | trend | status |\n'
   printf '|------|---------|---------|--------|-------|--------|\n'
 }
 
 # 打印看板一行。
 zsd_print_dashboard_row() {
   local case_id="$1"
-  local shu="$2"
+  local shux="$2"
   local zig="$3"
   local ahead="$4"
   local trend="$5"
   local status="$6"
   printf '| %s | %s | %s | %s | %s | %s |\n' \
-    "$case_id" "$shu" "$zig" "$ahead" "$trend" "$status"
+    "$case_id" "$shux" "$zig" "$ahead" "$trend" "$status"
 }

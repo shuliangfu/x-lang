@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STD-002：std.net 稳定 API manifest 门禁 + 基础 smoke。
-# 1) tests/baseline/std-net-api.tsv 中每个符号须在 std/net/mod.su 存在
+# 1) tests/baseline/std-net-api.tsv 中每个符号须在 std/net/mod.sx 存在
 # 2) tests/run-net.sh 烟测
 #
 # 用法：./tests/run-std-net-api-gate.sh
@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-net-api.tsv"
-MOD="std/net/mod.su"
+MOD="std/net/mod.sx"
 MISS=0
 N=0
 
@@ -52,23 +52,23 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-net-api gate SKIP smoke (no native shu; manifest OK only)"
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-net-api gate SKIP smoke (no native shux; manifest OK only)"
   echo "std-net-api gate OK (manifest)"
   exit 0
 fi
 
 echo "=== STD-002: std.net smoke (run-net.sh) ==="
 chmod +x tests/run-net.sh
-SHU="$SHU_BIN" ./tests/run-net.sh
+SHUX="$SHUX_BIN" ./tests/run-net.sh
 echo "std-net-api gate OK"

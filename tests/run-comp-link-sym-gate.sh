@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_LINK_SYM_DOC:-analysis/comp-link-sym-v1.md}"
-MANIFEST="${SHU_COMP_LINK_SYM_MANIFEST:-tests/baseline/comp-link-sym.tsv}"
-PATTERNS="${SHU_LINK_SYM_PATTERNS:-tests/baseline/comp-link-sym-patterns.tsv}"
-CASES="${SHU_LINK_SYM_CASES:-tests/baseline/comp-link-sym-cases.tsv}"
+DOC="${SHUX_COMP_LINK_SYM_DOC:-analysis/comp-link-sym-v1.md}"
+MANIFEST="${SHUX_COMP_LINK_SYM_MANIFEST:-tests/baseline/comp-link-sym.tsv}"
+PATTERNS="${SHUX_LINK_SYM_PATTERNS:-tests/baseline/comp-link-sym-patterns.tsv}"
+CASES="${SHUX_LINK_SYM_CASES:-tests/baseline/comp-link-sym-cases.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 
@@ -18,7 +18,7 @@ MIN_CASES=6
 echo "=== COMP-008: link symbol conflict manifest ==="
 for f in "$DOC" "$MANIFEST" "$PATTERNS" "$CASES" \
   tests/lib/comp-link-sym.sh tests/run-comp-link-sym.sh \
-  compiler/scripts/relink_shu_asm_strict_glue.sh \
+  compiler/scripts/relink_shux_asm_strict_glue.sh \
   tests/run-bootstrap-stage-diag-gate.sh tests/run-wpo-strict-link-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-link-sym gate FAIL: missing $f" >&2

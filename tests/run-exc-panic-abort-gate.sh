@@ -2,14 +2,14 @@
 # EXC-002：panic/abort 与可恢复错误边界门禁
 #
 # 读取 tests/baseline/exc-panic-abort.tsv：
-#   policy=run  — 编译运行 .su，须 expected_exit
+#   policy=run  — 编译运行 .sx，须 expected_exit
 #   policy=hook — 调用 tests/run-*.sh
 #
 # 用法：./tests/run-exc-panic-abort-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_EXC_PANIC_ABORT_TSV:-tests/baseline/exc-panic-abort.tsv}"
+MATRIX="${SHUX_EXC_PANIC_ABORT_TSV:-tests/baseline/exc-panic-abort.tsv}"
 
 native_shu() {
   local f="$1"
@@ -28,8 +28,8 @@ for f in \
   analysis/exc-panic-abort-v1-rfc.md \
   analysis/exc-result-error-v1-rfc.md \
   "$MATRIX" \
-  tests/exc/recoverable_result.su \
-  tests/exc/layer_c_recoverable.su; do
+  tests/exc/recoverable_result.sx \
+  tests/exc/layer_c_recoverable.sx; do
   if [ ! -f "$f" ]; then
     echo "exc-panic-abort gate FAIL: missing $f" >&2
     exit 1
@@ -39,32 +39,32 @@ echo "exc-panic-abort manifest OK"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "exc-panic-abort gate SKIP bench (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "exc-panic-abort gate SKIP bench (no native shux)" >&2
   exit 0
 fi
 
-run_su_case() {
+run_sx_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/exc/${script}"
-  local out="/tmp/shu_exc_${script%.su}"
+  local out="/tmp/shux_exc_${script%.sx}"
   if [ ! -f "$src" ]; then
     echo "exc FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHU_BIN" -L . "$src" -o "$out" >/tmp/shu_exc_compile.log 2>&1; then
-    cat /tmp/shu_exc_compile.log >&2
+  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_exc_compile.log 2>&1; then
+    cat /tmp/shux_exc_compile.log >&2
     return 1
   fi
   local ec=0
@@ -77,7 +77,7 @@ run_su_case() {
 }
 
 FAILS=0
-echo "=== EXC-002: boundary smoke (SHU=$SHU_BIN) ==="
+echo "=== EXC-002: boundary smoke (SHUX=$SHUX_BIN) ==="
 
 while IFS=$'\t' read -r case_id script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -87,7 +87,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
   echo "── $case_id: $notes ──"
   case "$policy" in
     run)
-      if run_su_case "$script" "${want_ec:-0}"; then
+      if run_sx_case "$script" "${want_ec:-0}"; then
         echo "exc OK $case_id"
       else
         FAILS=$((FAILS + 1))
@@ -98,7 +98,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
       if [ ! -x "$hook" ]; then
         chmod +x "$hook" 2>/dev/null || true
       fi
-      if SHU="$SHU_BIN" "$hook"; then
+      if SHUX="$SHUX_BIN" "$hook"; then
         echo "exc OK $case_id ($script)"
       else
         echo "exc FAIL $case_id ($script)" >&2

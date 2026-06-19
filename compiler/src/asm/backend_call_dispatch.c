@@ -15,7 +15,7 @@ struct platform_elf_ElfCodegenCtx;
 struct backend_AsmFuncCtx;
 struct codegen_CodegenOutBuf;
 
-/** 与 backend.su AsmFuncCtx 前缀一致（module_ref + dep_pipe）。 */
+/** 与 backend.sx AsmFuncCtx 前缀一致（module_ref + dep_pipe）。 */
 struct glue_AsmFuncCtxCall {
   int32_t frame_size;
   int32_t next_offset;
@@ -34,7 +34,7 @@ struct glue_AsmFuncCtxCall {
   void *dep_pipe;
 };
 
-/** import ast.su ImportKind.IMPORT_BINDING */
+/** import ast.sx ImportKind.IMPORT_BINDING */
 #define GLUE_IMPORT_KIND_BINDING 1
 
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -113,8 +113,8 @@ extern int32_t backend_enc_call_stack_reserve_arch(struct platform_elf_ElfCodege
 extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
                                                    int32_t ta);
 
-/** bench stream_*_batch 等最多 11 实参；与 backend.su 6 参上限解耦。 */
-/** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.su。 */
+/** bench stream_*_batch 等最多 11 实参；与 backend.sx 6 参上限解耦。 */
+/** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.sx。 */
 #define GLUE_ASM_MAX_CALL_ARGS 96
 
 extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
@@ -216,7 +216,7 @@ static int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t 
   return stk;
 }
 
-/** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHU_ABI_F32_XMM=1）。 */
+/** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHUX_ABI_F32_XMM=1）。 */
 static int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                       struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
@@ -322,7 +322,7 @@ static int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
 }
 
 /**
- * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.su codegen_import_path_to_c_prefix_into 一致。
+ * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.sx codegen_import_path_to_c_prefix_into 一致。
  */
 static void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
   int32_t off;
@@ -580,8 +580,8 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena
 }
 
 /**
- * text 路径：为 call 准备至多 6 个实参（与 backend.su asm_emit_call_args_text 语义一致）。
- * 供 backend.su 薄包装 bl 委托（M8-tail）。
+ * text 路径：为 call 准备至多 6 个实参（与 backend.sx asm_emit_call_args_text 语义一致）。
+ * 供 backend.sx 薄包装 bl 委托（M8-tail）。
  */
 int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch,
@@ -620,7 +620,7 @@ int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct co
 
 /**
  * ELF 路径：为 enc_call 准备实参（寄存器 + outgoing 栈；经 pipeline_asm_emit_expr_elf_for_call_args）。
- * 供 backend.su asm_emit_call_args_elf 薄包装（M8-tail）。
+ * 供 backend.sx asm_emit_call_args_elf 薄包装（M8-tail）。
  */
 static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
   return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
@@ -647,7 +647,7 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
 
   if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
     return -1;
-  /** x86 SysV f32 xmm 实参（SHU_ABI_F32_XMM=1）。 */
+  /** x86 SysV f32 xmm 实参（SHUX_ABI_F32_XMM=1）。 */
   if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c())
     return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
   reg_max = glue_asm_call_reg_max(ta);
@@ -774,8 +774,8 @@ static int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *e
   if (rlen <= 0)
     rlen = pipeline_asm_redirect_std_c_wrapper_sym(name, name_len, redir, 64);
   if (rlen > 0) {
-    if (getenv("SHU_ASM_DEBUG"))
-      fprintf(stderr, "shu: call_redirect %.*s -> %.*s\n", (int)name_len, (char *)name, (int)rlen, (char *)redir);
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: call_redirect %.*s -> %.*s\n", (int)name_len, (char *)name, (int)rlen, (char *)redir);
     return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
   }
   return backend_enc_call_arch(elf_ctx, name, name_len, ta);
@@ -800,7 +800,7 @@ static int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struc
 
 /**
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
- * 供 pipeline_asm_emit_expr_elf_rec 与 backend.su emit_expr_elf_call 委托。
+ * 供 pipeline_asm_emit_expr_elf_rec 与 backend.sx emit_expr_elf_call 委托。
  */
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -924,8 +924,8 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   inline_rc = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0)
     return inline_rc < 0 ? -1 : 0;
-  if (!getenv("SHU_WPO_MONO") && !getenv("SHU_WPO_NO_FOLD")) {
-    /* SHU_WPO_NO_FOLD=1：bench/对照时禁用常量实参 fold（仍允许 mono 路径）。 */
+  if (!getenv("SHUX_WPO_MONO") && !getenv("SHUX_WPO_NO_FOLD")) {
+    /* SHUX_WPO_NO_FOLD=1：bench/对照时禁用常量实参 fold（仍允许 mono 路径）。 */
     inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
     if (inline_rc != 0)
       return inline_rc < 0 ? -1 : 0;
@@ -937,8 +937,8 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   if (clen <= 0 || clen > 63)
     return -1;
   pipeline_expr_var_name_into(arena, callee_ref, cname);
-  if (getenv("SHU_ASM_DEBUG"))
-    fprintf(stderr, "shu: call_elf_c %.*s nargs=%d\n", (int)clen, (char *)cname, (int)nargs);
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: call_elf_c %.*s nargs=%d\n", (int)clen, (char *)cname, (int)nargs);
   return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
 }
 
@@ -950,7 +950,7 @@ extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t
 
 /**
  * EXPR_METHOD_CALL ELF：receiver 作 arg0，实参 arg1..argN，enc_call(method_name)。
- * 供 backend.su emit_expr_elf_method_call 薄包装（M8-tail）。
+ * 供 backend.sx emit_expr_elf_method_call 薄包装（M8-tail）。
  */
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {

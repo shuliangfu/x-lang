@@ -1,7 +1,7 @@
 # PERF-009 网络收发零拷贝优化 manifest
 # 列：item_id	kind	anchor	notes
 # min_cases	3
-output_prefix	bracket_component	SHU_NET_ZC	stderr 前缀
+output_prefix	bracket_component	SHUX_NET_ZC	stderr 前缀
 field_case	output_field	case=	用例 id
 field_cpm	output_field	cycles_per_mib=	CPU/MiB
 field_cap	output_field	cap_cycles_per_mib=	上限

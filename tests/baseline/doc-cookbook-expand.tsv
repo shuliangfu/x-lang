@@ -1,7 +1,7 @@
 # DOC-006 Cookbook 扩充 manifest
 # 列：item_id	kind	anchor	notes
 # min_sections	8
-# min_recipes	52
+# min_recipes	57
 overview	section	## 1. 阅读路径	DOC-006 expand
 container_chapter	section	## 7. 容器与迭代	STD-013-015
 string_chapter	section	## 8. 字符串、堆诊断与格式化	STD-016-025
@@ -9,62 +9,69 @@ system_chapter	section	## 9. 路径、进程与运行时	STD-021-028
 serialize_chapter	section	## 10. 序列化与压缩	STD-034-040
 net_http_chapter	section	## 11. 网络与 HTTP 扩展	STD-029-033
 io_fallback_chapter	section	## 12. IO 回退与验证	STD-026
-index_chapter	section	## 13. 全量食谱索引	52 recipes
+index_chapter	section	## 13. 全量食谱索引	57 recipes
 phase2_chapter	section	## 14. Phase 2 增量	STD-131-140
 phase2_156_chapter	section	## 15. Phase 2 增量（STD-156 / STD-158）	CTX-01 ERR-02
 phase2_167_chapter	section	## 16. Phase 2 增量（STD-159～167 / CORE-018）	10 recipes
-recipe_slice_u64	recipe	examples/cookbook/slice_u64_subslice.su	SLICE-02 CORE-157
-recipe_builtin_bitops	recipe	examples/cookbook/builtin_bitops.su	BUILT-01 CORE-018
-recipe_vec_u16	recipe	examples/cookbook/vec_u16_push.su	VEC-02 STD-161
-recipe_map_iter	recipe	examples/cookbook/map_iter_load_factor.su	MAP-02 STD-162
-recipe_queue_u8	recipe	examples/cookbook/queue_u8_push.su	QUEUE-01 STD-163
-recipe_tcp_pool	recipe	examples/cookbook/net_tcp_pool.su	NET-05 STD-164
-recipe_thread_stats	recipe	examples/cookbook/thread_pool_stats.su	THREAD-01 STD-165
-recipe_fmt_template	recipe	examples/cookbook/fmt_template_i32.su	FMT-02 STD-166
-recipe_str_casefold	recipe	examples/cookbook/string_case_fold.su	STR-02 STD-160
-recipe_sqlite_avail	recipe	examples/cookbook/sqlite_available.su	DB-01 STD-167
-recipe_core_str	recipe	examples/cookbook/core_str_index.su	CSTR-01 STD-131
-recipe_time_timer	recipe	examples/cookbook/time_timer_elapsed.su	TIME-02 STD-133
-recipe_time_rfc3339	recipe	examples/cookbook/time_rfc3339_format.su	TIME-03 STD-137
-recipe_path_extreme	recipe	examples/cookbook/path_clean_extreme.su	PATH-02 STD-140
-recipe_ctx01	recipe	examples/cookbook/context_cancel_deadline.su	CTX-01 STD-156
-recipe_err02	recipe	examples/cookbook/error_semantic_class.su	ERR-02 STD-158
-recipe_io_batch	recipe	examples/cookbook/io_batch_rw.su	IO-01 DOC-001
-recipe_io_chunk	recipe	examples/cookbook/io_read_chunk.su	IO-02 DOC-001
-recipe_io_mmap	recipe	examples/cookbook/io_mmap_read.su	IO-03 DOC-001
-recipe_io_fallback	recipe	examples/cookbook/io_fallback_read.su	IO-04 STD-026
-recipe_net_listen	recipe	examples/cookbook/net_listen_bind.su	NET-01 DOC-001
-recipe_net_udp	recipe	examples/cookbook/net_udp_bind.su	NET-02 DOC-001
-recipe_net_stream	recipe	examples/cookbook/net_stream_write.su	NET-03 DOC-001
-recipe_net_resolve	recipe	examples/cookbook/net_resolve_invalid.su	NET-04 STD-029
-recipe_zc_arena	recipe	examples/cookbook/zc_arena_concat.su	ZC-01 DOC-001
-recipe_zc_view	recipe	examples/cookbook/zc_read_ptr_slice.su	ZC-02 DOC-001
-recipe_zc_provided	recipe	examples/cookbook/zc_provided_buffers.su	ZC-03 DOC-001
-recipe_async_import	recipe	examples/cookbook/async_mod_import.su	ASYNC-01 DOC-001
-recipe_async_drain	recipe	examples/cookbook/async_drain_idle.su	ASYNC-02 DOC-001
-recipe_async_channel	recipe	examples/cookbook/async_channel_ping.su	ASYNC-03 DOC-001
-recipe_iter_slice	recipe	examples/cookbook/iter_slice_sum.su	ITER-01 CORE-006
-recipe_map_u64	recipe	examples/cookbook/map_u64_get.su	MAP-01 STD-013
-recipe_vec_i32	recipe	examples/cookbook/vec_i32_push.su	VEC-01 STD-014
-recipe_set_u64	recipe	examples/cookbook/set_u64_insert.su	SET-01 STD-015
-recipe_strview	recipe	examples/cookbook/strview_subview.su	STR-01 STD-016
-recipe_heap_trace	recipe	examples/cookbook/heap_trace_reset.su	HEAP-01 STD-017
-recipe_fmt	recipe	examples/cookbook/fmt_two_fields.su	FMT-01 STD-019
-recipe_error	recipe	examples/cookbook/error_module_base.su	ERR-01 STD-020
-recipe_env	recipe	examples/cookbook/env_args_iter.su	ENV-01 STD-025
-recipe_path	recipe	examples/cookbook/path_join_basename.su	PATH-01 STD-021
-recipe_fs	recipe	examples/cookbook/fs_invalid_handle.su	FS-01 STD-001
-recipe_process	recipe	examples/cookbook/process_getpid.su	PROC-01 STD-023
-recipe_dynlib	recipe	examples/cookbook/dynlib_open_sym.su	DYN-01 STD-027
-recipe_runtime	recipe	examples/cookbook/runtime_panic_hook.su	RT-01 STD-028
-recipe_json	recipe	examples/cookbook/json_object_parse.su	JSON-01 STD-034
-recipe_csv	recipe	examples/cookbook/csv_write_row.su	CSV-01 STD-036
-recipe_unicode	recipe	examples/cookbook/unicode_nfc_smoke.su	UNI-01 STD-037
-recipe_tar	recipe	examples/cookbook/tar_append_entry.su	TAR-01 STD-038
-recipe_compress	recipe	examples/cookbook/compress_gzip_roundtrip.su	CMP-01 STD-007
-recipe_encoding	recipe	examples/cookbook/encoding_hex_encode.su	ENC-01 STD-040
-recipe_http	recipe	examples/cookbook/http_parse_status.su	HTTP-01 STD-032
-recipe_http_chunked	recipe	examples/cookbook/http_chunked_decode.su	HTTP-02 STD-033
+phase3_chapter	section	## 17. Phase 3 增量（§11 #78～#83 / STD-171）	5 recipes
+phase3_db_chapter	section	## 18. Phase 3 增量（std.db #90～#92）	DB-03
+recipe_slice_u64	recipe	examples/cookbook/slice_u64_subslice.sx	SLICE-02 CORE-157
+recipe_builtin_bitops	recipe	examples/cookbook/builtin_bitops.sx	BUILT-01 CORE-018
+recipe_vec_u16	recipe	examples/cookbook/vec_u16_push.sx	VEC-02 STD-161
+recipe_map_iter	recipe	examples/cookbook/map_iter_load_factor.sx	MAP-02 STD-162
+recipe_queue_u8	recipe	examples/cookbook/queue_u8_push.sx	QUEUE-01 STD-163
+recipe_tcp_pool	recipe	examples/cookbook/net_tcp_pool.sx	NET-05 STD-164
+recipe_thread_stats	recipe	examples/cookbook/thread_pool_stats.sx	THREAD-01 STD-165
+recipe_fmt_template	recipe	examples/cookbook/fmt_template_i32.sx	FMT-02 STD-166
+recipe_str_casefold	recipe	examples/cookbook/string_case_fold.sx	STR-02 STD-160
+recipe_sqlite_avail	recipe	examples/cookbook/sqlite_available.sx	DB-01 STD-167
+recipe_core_str	recipe	examples/cookbook/core_str_index.sx	CSTR-01 STD-131
+recipe_time_timer	recipe	examples/cookbook/time_timer_elapsed.sx	TIME-02 STD-133
+recipe_time_rfc3339	recipe	examples/cookbook/time_rfc3339_format.sx	TIME-03 STD-137
+recipe_path_extreme	recipe	examples/cookbook/path_clean_extreme.sx	PATH-02 STD-140
+recipe_ctx01	recipe	examples/cookbook/context_cancel_deadline.sx	CTX-01 STD-156
+recipe_err02	recipe	examples/cookbook/error_semantic_class.sx	ERR-02 STD-158
+recipe_io_batch	recipe	examples/cookbook/io_batch_rw.sx	IO-01 DOC-001
+recipe_io_chunk	recipe	examples/cookbook/io_read_chunk.sx	IO-02 DOC-001
+recipe_io_mmap	recipe	examples/cookbook/io_mmap_read.sx	IO-03 DOC-001
+recipe_io_fallback	recipe	examples/cookbook/io_fallback_read.sx	IO-04 STD-026
+recipe_net_listen	recipe	examples/cookbook/net_listen_bind.sx	NET-01 DOC-001
+recipe_net_udp	recipe	examples/cookbook/net_udp_bind.sx	NET-02 DOC-001
+recipe_net_stream	recipe	examples/cookbook/net_stream_write.sx	NET-03 DOC-001
+recipe_net_resolve	recipe	examples/cookbook/net_resolve_invalid.sx	NET-04 STD-029
+recipe_zc_arena	recipe	examples/cookbook/zc_arena_concat.sx	ZC-01 DOC-001
+recipe_zc_view	recipe	examples/cookbook/zc_read_ptr_slice.sx	ZC-02 DOC-001
+recipe_zc_provided	recipe	examples/cookbook/zc_provided_buffers.sx	ZC-03 DOC-001
+recipe_async_import	recipe	examples/cookbook/async_mod_import.sx	ASYNC-01 DOC-001
+recipe_async_drain	recipe	examples/cookbook/async_drain_idle.sx	ASYNC-02 DOC-001
+recipe_async_channel	recipe	examples/cookbook/async_channel_ping.sx	ASYNC-03 DOC-001
+recipe_iter_slice	recipe	examples/cookbook/iter_slice_sum.sx	ITER-01 CORE-006
+recipe_map_u64	recipe	examples/cookbook/map_u64_get.sx	MAP-01 STD-013
+recipe_vec_i32	recipe	examples/cookbook/vec_i32_push.sx	VEC-01 STD-014
+recipe_set_u64	recipe	examples/cookbook/set_u64_insert.sx	SET-01 STD-015
+recipe_strview	recipe	examples/cookbook/strview_subview.sx	STR-01 STD-016
+recipe_heap_trace	recipe	examples/cookbook/heap_trace_reset.sx	HEAP-01 STD-017
+recipe_fmt	recipe	examples/cookbook/fmt_two_fields.sx	FMT-01 STD-019
+recipe_error	recipe	examples/cookbook/error_module_base.sx	ERR-01 STD-020
+recipe_env	recipe	examples/cookbook/env_args_iter.sx	ENV-01 STD-025
+recipe_path	recipe	examples/cookbook/path_join_basename.sx	PATH-01 STD-021
+recipe_fs	recipe	examples/cookbook/fs_invalid_handle.sx	FS-01 STD-001
+recipe_process	recipe	examples/cookbook/process_getpid.sx	PROC-01 STD-023
+recipe_dynlib	recipe	examples/cookbook/dynlib_open_sym.sx	DYN-01 STD-027
+recipe_runtime	recipe	examples/cookbook/runtime_panic_hook.sx	RT-01 STD-028
+recipe_json	recipe	examples/cookbook/json_object_parse.sx	JSON-01 STD-034
+recipe_csv	recipe	examples/cookbook/csv_write_row.sx	CSV-01 STD-036
+recipe_unicode	recipe	examples/cookbook/unicode_nfc_smoke.sx	UNI-01 STD-037
+recipe_tar	recipe	examples/cookbook/tar_append_entry.sx	TAR-01 STD-038
+recipe_compress	recipe	examples/cookbook/compress_gzip_roundtrip.sx	CMP-01 STD-007
+recipe_encoding	recipe	examples/cookbook/encoding_hex_encode.sx	ENC-01 STD-040
+recipe_http	recipe	examples/cookbook/http_parse_status.sx	HTTP-01 STD-032
+recipe_http_chunked	recipe	examples/cookbook/http_chunked_decode.sx	HTTP-02 STD-033
+recipe_async_netfs	recipe	examples/cookbook/async_net_fs.sx	ASYNC-04 STD-171
+recipe_datetime_iana	recipe	examples/cookbook/datetime_iana.sx	DT-01 STD-171
+recipe_compress_stream	recipe	examples/cookbook/compress_stream_br_zs.sx	CMP-02 STD-171
+recipe_sqlite_blob	recipe	examples/cookbook/sqlite_blob_stream.sx	DB-02 STD-171
+recipe_db_kv_arrow	recipe	examples/cookbook/db_kv_arrow.sx	DB-03 STD-171
 cross_doc001	cross_ref	analysis/doc-stdlib-cookbook-v1.md	DOC-001 base
 cross_io_fallback	cross_ref	analysis/std-io-fallback-v1.md	STD-026
 hook_expand	hook_script	run-doc-cookbook-expand-gate.sh	DOC-006 gate

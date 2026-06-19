@@ -1,11 +1,11 @@
 /**
- * tests/bench/async_run_io_dual_pipe_wrapper.c — 双 pipe 注入 fd 3/4 后 exec .su 二进制
+ * tests/bench/async_run_io_dual_pipe_wrapper.c — 双 pipe 注入 fd 3/4 后 exec .sx 二进制
  *
- * 为 async_run_io_dual_pipe.su 提供可读 pipe 端：fd 3 ← "ab"，fd 4 ← "xyz"。
+ * 为 async_run_io_dual_pipe.sx 提供可读 pipe 端：fd 3 ← "ab"，fd 4 ← "xyz"。
  *
  * 编译：cc -std=c11 -Wall -Wextra -o async_run_io_dual_pipe_wrapper \
  *   tests/bench/async_run_io_dual_pipe_wrapper.c
- * 用法：SHU_ASYNC_YIELD=1 ./async_run_io_dual_pipe_wrapper /tmp/shu_async_run_io_dual_pipe
+ * 用法：SHUX_ASYNC_YIELD=1 ./async_run_io_dual_pipe_wrapper /tmp/shux_async_run_io_dual_pipe
  */
 #include <errno.h>
 #include <stdio.h>
@@ -35,7 +35,7 @@ static int setup_pipe_on_fd(int target_fd, const char *payload, int payload_len)
 }
 
 /**
- * 入口：建双 pipe → dup2 到 fd 3/4 → exec 用户 .su 可执行文件。
+ * 入口：建双 pipe → dup2 到 fd 3/4 → exec 用户 .sx 可执行文件。
  */
 int main(int argc, char **argv) {
     const char *exe;
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         return 3;
     }
 
-    setenv("SHU_ASYNC_YIELD", "1", 1);
+    setenv("SHUX_ASYNC_YIELD", "1", 1);
     execv(exe, argv + 1);
     fprintf(stderr, "async_run_io_dual_pipe_wrapper: execv %s: %s\n", exe, strerror(errno));
     return 4;

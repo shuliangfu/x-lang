@@ -1,17 +1,17 @@
 # STD-051 std.regex 三平台烟测矩阵
 # 列：case_id	script	linux	macos	windows	notes
-literal_match.su	tests/regex/literal_match.su	must	must	must	hello 子串
-dot_match.su	tests/regex/dot_match.su	must	must	must	h.l
-class_match.su	tests/regex/class_match.su	must	must	must	[0-9]
-star_match.su	tests/regex/star_match.su	must	must	must	a*b
-question_match.su	tests/regex/question_match.su	must	must	must	colou?r
-group_match.su	tests/regex/group_match.su	must	must	must	(ab)c
-alt_match.su	tests/regex/alt_match.su	must	must	must	cat|dog
-anchor_match.su	tests/regex/anchor_match.su	must	must	must	^hi$
-capture_match.su	tests/regex/capture_match.su	must	must	must	(ab)c capture
-plus_match.su	tests/regex/plus_match.su	must	must	must	a+b
-lazy_star_match.su	tests/regex/lazy_star_match.su	must	must	must	<.*?>
-prop_match.su	tests/regex/prop_match.su	must	must	must	STD-066 \p{}
-possessive_match.su	tests/regex/possessive_match.su	must	must	must	STD-099 *+/++/?+
-atomic_match.su	tests/regex/atomic_match.su	must	must	must	STD-124 (?>)
+literal_match.sx	tests/regex/literal_match.sx	must	must	must	hello 子串
+dot_match.sx	tests/regex/dot_match.sx	must	must	must	h.l
+class_match.sx	tests/regex/class_match.sx	must	must	must	[0-9]
+star_match.sx	tests/regex/star_match.sx	must	must	must	a*b
+question_match.sx	tests/regex/question_match.sx	must	must	must	colou?r
+group_match.sx	tests/regex/group_match.sx	must	must	must	(ab)c
+alt_match.sx	tests/regex/alt_match.sx	must	must	must	cat|dog
+anchor_match.sx	tests/regex/anchor_match.sx	must	must	must	^hi$
+capture_match.sx	tests/regex/capture_match.sx	must	must	must	(ab)c capture
+plus_match.sx	tests/regex/plus_match.sx	must	must	must	a+b
+lazy_star_match.sx	tests/regex/lazy_star_match.sx	must	must	must	<.*?>
+prop_match.sx	tests/regex/prop_match.sx	must	must	must	STD-066 \p{}
+possessive_match.sx	tests/regex/possessive_match.sx	must	must	must	STD-099 *+/++/?+
+atomic_match.sx	tests/regex/atomic_match.sx	must	must	must	STD-124 (?>)
 regex_min_ok.c	tests/regex/regex_min_ok.c	must	must	must	C 烟测

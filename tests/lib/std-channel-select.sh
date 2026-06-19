@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_channel_select_symbols_ok MOD_SU CHANNEL_C TSV
-#   std_channel_select_run_smoke SHU_BIN SU TAG
+#   std_channel_select_run_smoke SHUX_BIN SU TAG
 #   std_channel_select_emit_report status select_ok skip
 
-STD_CHANNEL_SELECT_PREFIX="${SHU_STD_CHANNEL_SELECT_PREFIX:-shu: [SHU_STD_CHANNEL_SELECT]}"
+STD_CHANNEL_SELECT_PREFIX="${SHUX_STD_CHANNEL_SELECT_PREFIX:-shux: [SHUX_STD_CHANNEL_SELECT]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_channel_select_symbols_ok() {
@@ -47,19 +47,19 @@ std_channel_select_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su。
+# 编译并运行烟测 .sx。
 std_channel_select_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_channel_sel_${tag}_$$"
+  local exe="/tmp/shux_std_channel_sel_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-channel-select FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-channel-select FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

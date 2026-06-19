@@ -5,15 +5,15 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
-MANIFEST="${SHU_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
+DOC="${SHUX_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
+MANIFEST="${SHUX_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
 DYNLIB_C="std/dynlib/dynlib.c"
-MOD_SU="std/dynlib/mod.su"
+MOD_SU="std/dynlib/mod.sx"
 LIB="tests/lib/std-dynlib-windows.sh"
-SMOKE="tests/dynlib/open_sym_close.su"
-WIN_PATH_SU="tests/dynlib/win_path.su"
+SMOKE="tests/dynlib/open_sym_close.sx"
+WIN_PATH_SU="tests/dynlib/win_path.sx"
 WIN_PATH_C="tests/dynlib/win_path_smoke.c"
-NULL_TEST="tests/dynlib/main.su"
+NULL_TEST="tests/dynlib/main.sx"
 RUNNER="tests/run-dynlib.sh"
 
 # shellcheck source=tests/lib/std-dynlib-windows.sh
@@ -56,7 +56,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -69,23 +69,23 @@ CHECK_OK=0
 RUN_OK=0
 WIN_PATH_C_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-027: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1 && "$SHU_BIN" check -L . "$NULL_TEST" >/dev/null 2>&1 && "$SHU_BIN" check -L . "$WIN_PATH_SU" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-027: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$NULL_TEST" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$WIN_PATH_SU" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-dynlib-windows gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -6 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -6 >&2 || true
     std_dynlib_win_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
   make -C compiler -q ../std/dynlib/dynlib.o 2>/dev/null || make -C compiler ../std/dynlib/dynlib.o
   echo "=== STD-097: win path C smoke ==="
-  if cc -Wall -Wextra -o /tmp/shu_std_dynlib_winpath "$WIN_PATH_C" std/dynlib/dynlib.o 2>/dev/null; then
+  if cc -Wall -Wextra -o /tmp/shux_std_dynlib_winpath "$WIN_PATH_C" std/dynlib/dynlib.o 2>/dev/null; then
     wp_ec=0
-    /tmp/shu_std_dynlib_winpath >/dev/null 2>&1 || wp_ec=$?
-    rm -f /tmp/shu_std_dynlib_winpath
+    /tmp/shux_std_dynlib_winpath >/dev/null 2>&1 || wp_ec=$?
+    rm -f /tmp/shux_std_dynlib_winpath
     if [ "$wp_ec" -ne 0 ]; then
       echo "std-dynlib-windows gate FAIL: win_path_smoke exit=$wp_ec" >&2
       std_dynlib_win_emit_report "fail" "$CHECK_OK" 0 0
@@ -96,12 +96,12 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     echo "std-dynlib-windows gate FAIL: compile win_path_smoke.c" >&2
     exit 1
   fi
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if $RUN_SHU -L . "$SMOKE" -o /tmp/shu_std_dynlib_osc 2>/tmp/shu_std_dynlib_osc_build.log; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_std_dynlib_osc 2>/tmp/shux_std_dynlib_osc_build.log; then
     exitcode=0
-    /tmp/shu_std_dynlib_osc >/dev/null 2>&1 || exitcode=$?
+    /tmp/shux_std_dynlib_osc >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -111,11 +111,11 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "std-dynlib-windows gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shu_std_dynlib_osc_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/shux_std_dynlib_osc_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "std-dynlib-windows gate SKIP typeck (no native shu)" >&2
+  echo "std-dynlib-windows gate SKIP typeck (no native shux)" >&2
 fi
 
 std_dynlib_win_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

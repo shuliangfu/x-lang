@@ -1,0 +1,19 @@
+/**
+ * Cookbook PATH-01：path_join / path_basename / path_dirname（STD-021）。
+ */
+const path = import("std.path");
+
+function main(): i32 {
+  let dir: [4]u8 = [100, 105, 114, 0];
+  let file: [5]u8 = [102, 105, 108, 101, 0];
+  let out: [32]u8 = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ];
+  let j: i32 = path.path_join(&out[0], 32, &dir[0], 3, &file[0], 4);
+  if (j != 8) { return 1; }
+  let joined: [9]u8 = [100, 105, 114, 47, 102, 105, 108, 101, 0];
+  let base: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (path.path_basename(&joined[0], 8, &base[0], 8) != 4) { return 2; }
+  return 0;
+}

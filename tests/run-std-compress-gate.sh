@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
-MANIFEST="${SHU_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
-MOD_SU="${SHU_STD_COMPRESS_MOD:-std/compress/mod.su}"
+DOC="${SHUX_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
+MANIFEST="${SHUX_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
+MOD_SU="${SHUX_STD_COMPRESS_MOD:-std/compress/mod.sx}"
 MIN_APIS=4
 MIN_LAYERS=4
 
@@ -15,7 +15,9 @@ MIN_LAYERS=4
 . tests/lib/std-compress.sh
 
 echo "=== STD-007: std.compress manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" std/compress/compress.c tests/lib/std-compress.sh; do
+for f in "$DOC" "$MANIFEST" "$MOD_SU" std/compress/compress_common.h \
+  std/compress/zlib/zlib.c std/compress/gzip/gzip.c std/compress/brotli/brotli.c \
+  tests/lib/std-compress.sh; do
   if [ ! -f "$f" ]; then
     echo "std-compress gate FAIL: missing $f" >&2
     exit 1
@@ -117,10 +119,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-compress manifest OK (apis=${API_N} layers=${LAYER_N})"
 
-if SHU_BIN="$(std_compress_resolve_shu)"; then
+if SHUX_BIN="$(std_compress_resolve_shu)"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   std_compress_try_libs
-  echo "=== STD-007: runnable report (SHU=$SHU_BIN) ==="
+  echo "=== STD-007: runnable report (SHUX=$SHUX_BIN) ==="
   FAILS=0
   GZIP_R="skip"
   ZSTD_R="skip"
@@ -130,7 +132,7 @@ if SHU_BIN="$(std_compress_resolve_shu)"; then
     case "$kind" in
       smoke)
         echo "── $item_id ──"
-        if std_compress_run_smoke "$SHU_BIN" "$anchor" "$item_id"; then
+        if std_compress_run_smoke "$SHUX_BIN" "$anchor" "$item_id"; then
           echo "std-compress OK $item_id"
           case "$item_id" in
             smoke_gzip) GZIP_R="ok" ;;
@@ -144,7 +146,7 @@ if SHU_BIN="$(std_compress_resolve_shu)"; then
         hook="tests/$anchor"
         echo "── $item_id ──"
         chmod +x "$hook" 2>/dev/null || true
-        if SHU="$SHU_BIN" "$hook"; then
+        if SHUX="$SHUX_BIN" "$hook"; then
           echo "std-compress OK $item_id"
         else
           FAILS=$((FAILS + 1))
@@ -159,6 +161,6 @@ if SHU_BIN="$(std_compress_resolve_shu)"; then
   echo "std-compress gate report gzip=${GZIP_R} zstd=${ZSTD_R}"
   echo "std-compress gate OK"
 else
-  echo "std-compress gate SKIP bench (no native shu)" >&2
+  echo "std-compress gate SKIP bench (no native shux)" >&2
   echo "std-compress gate OK"
 fi

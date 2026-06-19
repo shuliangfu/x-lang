@@ -2,12 +2,12 @@
  * parser_asm_as_suffix_slice.c — parse_as_suffix_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 与 parser.su parse_as_suffix_into 一致：`as type` 后缀链，支持 *T 与标量/命名类型。
+ * 与 parser.sx parse_as_suffix_into 一致：`as type` 后缀链，支持 *T 与标量/命名类型。
  */
 #ifndef PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
 #define PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
 
-/** 与 ast.su ExprKind.EXPR_AS 序一致。 */
+/** 与 ast.sx ExprKind.EXPR_AS 序一致。 */
 enum { PARSER_ASM_EXPR_AS = 54 };
 
 extern int32_t ast_ast_arena_expr_alloc(void *arena);

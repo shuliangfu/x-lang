@@ -1231,7 +1231,7 @@ static ASTExpr *parse_primary(Parser *p) {
                 elems[num_elems++] = e;
                 if (peek(p)->kind == TOKEN_COMMA) {
                     advance(p);
-                    /* 尾逗号 `, ]`：多行 [64]i32 初值等与 parser.su 一致 */
+                    /* 尾逗号 `, ]`：多行 [64]i32 初值等与 parser.sx 一致 */
                     if (peek(p)->kind == TOKEN_RBRACKET)
                         break;
                     continue;
@@ -1501,7 +1501,7 @@ static ASTExpr *parse_primary(Parser *p) {
 }
 
 /**
- * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.su parse_as_suffix_into 一致）。
+ * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.sx parse_as_suffix_into 一致）。
  * 支持 path[i] as i32、foo() as *u8 等；as 不可放在 [index] 之前。
  * 参数：p 解析器；left 已有子表达式。返回值：成功返回（可能嵌套 AS 的）ASTExpr*；失败返回 NULL。
  */
@@ -1823,7 +1823,7 @@ static ASTExpr *parse_unary(Parser *p) {
         e->value.unary.operand = inner;
         return e;
     }
-    /* run async_fn()：sync 上下文经 scheduler drain（typeck 校验）；codegen → shu_async_sched_* */
+    /* run async_fn()：sync 上下文经 scheduler drain（typeck 校验）；codegen → shux_async_sched_* */
     if (k == TOKEN_RUN) {
         int unary_line = peek(p)->line;
         int unary_col = peek(p)->col;
@@ -2242,11 +2242,11 @@ static ASTExpr *parse_expr(Parser *p) {
 /** 顶层最大 enum 定义数 */
 #define MAX_ENUMS 16
 /** 单 struct 定义最大字段数（parse_one_struct 用） */
-/** 自举用：ast.su 的 Expr 等结构体字段数超 32，故提高上限 */
+/** 自举用：ast.sx 的 Expr 等结构体字段数超 32，故提高上限 */
 #define MAX_STRUCT_FIELDS_DEF 64
 /** 单 enum 定义最大变体数（自举 9.1：TokenKind 等超 32 项，故提高上限） */
 #define MAX_ENUM_VARIANTS 128
-/** 块内最大 const/let 声明数（自举用：parser.su 的 parse_one_function 单块内 let 超 32，故提高上限） */
+/** 块内最大 const/let 声明数（自举用：parser.sx 的 parse_one_function 单块内 let 超 32，故提高上限） */
 #define MAX_CONST_DECLS 256
 #define MAX_LET_DECLS 256
 /** 块内最大 while 循环数 */
@@ -2291,7 +2291,7 @@ static char *parse_import_call_path(Parser *p) {
  * 解析单条结构体定义：struct Name { field : Type ; ... }。
  * 参数：p 解析器状态；当前 Token 须为 TOKEN_STRUCT；allow_padding 为 1 表示该 struct 前有 allow(padding)。返回值：成功返回新分配的 ASTStructDef*（调用方须通过 ast_struct_def_free 释放）；失败返回 NULL 且已 fail。
  */
-static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_soa) {
+static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_soa, int force_repr_c) {
     if (peek(p)->kind != TOKEN_STRUCT) return NULL;
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) {
@@ -2450,6 +2450,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     s->fields = fields;
     s->num_fields = num_fields;
     s->allow_padding = allow_padding;
+    s->repr_c = force_repr_c;
     s->packed = is_packed;
     s->soa = is_soa;
     for (int fi = 0; fi < num_fields && fi < AST_STRUCT_MAX_FIELDS; fi++)
@@ -3540,6 +3541,67 @@ after_block:
 }
 
 /**
+ * B-01：按 open/close token 跳过一段括号/花括号/尖括号平衡区域（含起始 token）。
+ */
+static void skip_balanced_tokens(Parser *p, TokenKind open, TokenKind close) {
+    int depth;
+    if (peek(p)->kind != open)
+        return;
+    depth = 1;
+    advance(p);
+    while (depth > 0 && peek(p)->kind != TOKEN_EOF) {
+        if (peek(p)->kind == open)
+            depth++;
+        else if (peek(p)->kind == close)
+            depth--;
+        advance(p);
+    }
+}
+
+/**
+ * B-01：跳过一条顶层 function（含 optional async/extern 前缀；不建 AST）。
+ */
+static void skip_one_top_level_function(Parser *p) {
+    if (peek(p)->kind == TOKEN_ASYNC)
+        advance(p);
+    if (peek(p)->kind == TOKEN_EXTERN)
+        advance(p);
+    if (peek(p)->kind != TOKEN_FUNCTION)
+        return;
+    advance(p);
+    while (peek(p)->kind != TOKEN_LPAREN && peek(p)->kind != TOKEN_LT && peek(p)->kind != TOKEN_LBRACE
+           && peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_EOF)
+        advance(p);
+    if (peek(p)->kind == TOKEN_LT)
+        skip_balanced_tokens(p, TOKEN_LT, TOKEN_GT);
+    if (peek(p)->kind == TOKEN_LPAREN)
+        skip_balanced_tokens(p, TOKEN_LPAREN, TOKEN_RPAREN);
+    /* 跳过 `: return_type` 直至 `{` 或 extern 的 `;` */
+    while (peek(p)->kind != TOKEN_LBRACE && peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_EOF)
+        advance(p);
+    if (peek(p)->kind == TOKEN_LBRACE)
+        skip_balanced_tokens(p, TOKEN_LBRACE, TOKEN_RBRACE);
+    else {
+        while (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_EOF)
+            advance(p);
+        if (peek(p)->kind == TOKEN_SEMICOLON)
+            advance(p);
+    }
+}
+
+/**
+ * B-01：跳过一条顶层 struct 定义（不建 AST）。
+ */
+static void skip_one_top_level_struct(Parser *p) {
+    if (peek(p)->kind != TOKEN_STRUCT)
+        return;
+    advance(p);
+    while (peek(p)->kind != TOKEN_LBRACE && peek(p)->kind != TOKEN_EOF)
+        advance(p);
+    skip_balanced_tokens(p, TOKEN_LBRACE, TOKEN_RBRACE);
+}
+
+/**
  * 解析单条函数定义：function name ( [ param : type , ... ] ) : type { block } 或 extern function name (...) : type ;
  * 当 is_extern 非 0 时，当前 Token 须为 TOKEN_FUNCTION（extern 已在上层消费），结尾为 ; 且 body 为 NULL。
  * 返回值：成功返回新分配的 ASTFunc*（调用方由 ast_module_free 统一释放）；失败返回 NULL 且已 fail。
@@ -3775,6 +3837,19 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
     return func;
 }
 
+/**
+ * B-01：跳过一条顶层 `const ... ;`（含 const x = import("path");），不建 AST。
+ */
+static void skip_one_top_level_const_decl(Parser *p) {
+    if (peek(p)->kind != TOKEN_CONST)
+        return;
+    advance(p);
+    while (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_EOF)
+        advance(p);
+    if (peek(p)->kind == TOKEN_SEMICOLON)
+        advance(p);
+}
+
 /* parse 的完整说明见 parser.h */
 int parse(Lexer *lex, ASTModule **out) {
     if (!out) return -1;
@@ -3810,7 +3885,7 @@ int parse(Lexer *lex, ASTModule **out) {
     mod->mono_instances = NULL;
     mod->num_mono_instances = 0;
 
-    /* [ const IDENT = import("path") ; | const { IDENT [, IDENT as IDENT ...] } = import("path") ; ]* */
+    /* [ const IDENT = import("path") ; ]* — 与 Zig @import 一致，仅绑定 import */
     char *import_list[MAX_IMPORTS];
     int kind_list[MAX_IMPORTS];
     char *binding_list[MAX_IMPORTS];
@@ -3831,9 +3906,36 @@ int parse(Lexer *lex, ASTModule **out) {
             } \
         } \
     } while (0)
+    int pending_cfg_skip_import = 0;
     while (1) {
+        /** B-01/B-19：`#[cfg]` 不匹配 host 时跳过紧随其后的 const import 绑定。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_CFG) {
+            pending_cfg_skip_import = (peek(&prs)->value.int_val == 0) ? 1 : 0;
+            advance(&prs);
+            continue;
+        }
+        if (pending_cfg_skip_import) {
+            if (peek(&prs)->kind == TOKEN_CONST) {
+                skip_one_top_level_const_decl(&prs);
+                pending_cfg_skip_import = 0;
+                continue;
+            }
+            /** B-02：import 区段遇 #[cfg] 后亦须跳过 function/struct（与顶层循环一致）。 */
+            if (peek(&prs)->kind == TOKEN_STRUCT) {
+                skip_one_top_level_struct(&prs);
+                pending_cfg_skip_import = 0;
+                continue;
+            }
+            if (peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_EXTERN
+                || peek(&prs)->kind == TOKEN_FUNCTION) {
+                skip_one_top_level_function(&prs);
+                pending_cfg_skip_import = 0;
+                continue;
+            }
+            pending_cfg_skip_import = 0;
+        }
         if (peek(&prs)->kind == TOKEN_CONST) {
-            /* 仅当确定为 const x = import 或 const { } = import 时才 consume const，否则 break 交给后续顶层循环处理普通 const */
+            /* 仅当确定为 const x = import 时才 consume const，否则 break 交给后续顶层循环处理普通 const */
             if (peek_next(&prs)->kind == TOKEN_IDENT && peek_next_next(&prs)->kind == TOKEN_ASSIGN) {
                 advance(&prs); /* const */
                 char *name = (peek(&prs)->ident_len > 0 && peek(&prs)->value.ident)
@@ -3885,160 +3987,12 @@ int parse(Lexer *lex, ASTModule **out) {
                 select_aliases_list[nimports] = NULL;
                 select_count_list[nimports] = 0;
                 nimports++;
-                } else if (peek_next(&prs)->kind == TOKEN_LBRACE) {
-                /* const { IDENT [, IDENT as IDENT ...] } = import path ; */
-                advance(&prs); advance(&prs); /* const { */
-                char *sel_names[32];
-                char *sel_aliases[32];
-                int nsel = 0;
-                for (;;) {
-                    if (peek(&prs)->kind != TOKEN_IDENT && peek(&prs)->kind != TOKEN_I32) {
-                        fail(&prs, "expected identifier in const { ... } = import");
-                        while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                        while (nimports--) free(import_list[nimports]);
-                        FREE_IMPORT_AUX;
-                        free(mod);
-                        return -1;
-                    }
-                    char *n = (peek(&prs)->kind == TOKEN_IDENT && peek(&prs)->ident_len > 0 && peek(&prs)->value.ident)
-                        ? strndup(peek(&prs)->value.ident, (size_t)peek(&prs)->ident_len)
-                        : (peek(&prs)->kind == TOKEN_I32 ? strdup("i32") : NULL);
-                    if (!n || nsel >= 32) {
-                        if (n) free(n);
-                        while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                        while (nimports--) free(import_list[nimports]);
-                        FREE_IMPORT_AUX;
-                        free(mod);
-                        return -1;
-                    }
-                    advance(&prs);
-                    char *alias = NULL;
-                    if (peek(&prs)->kind == TOKEN_AS) {
-                        advance(&prs);
-                        if (peek(&prs)->kind != TOKEN_IDENT || peek(&prs)->ident_len <= 0 || !peek(&prs)->value.ident) {
-                            free(n);
-                            fail(&prs, "expected identifier after 'as' in const { ... } = import");
-                            while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                            while (nimports--) free(import_list[nimports]);
-                            FREE_IMPORT_AUX;
-                            free(mod);
-                            return -1;
-                        }
-                        alias = strndup(peek(&prs)->value.ident, (size_t)peek(&prs)->ident_len);
-                        if (!alias) {
-                            free(n);
-                            while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                            while (nimports--) free(import_list[nimports]);
-                            FREE_IMPORT_AUX;
-                            free(mod);
-                            return -1;
-                        }
-                        advance(&prs);
-                    }
-                    {
-                        const char *local = alias ? alias : n;
-                        for (int di = 0; di < nsel; di++) {
-                            const char *prev = sel_aliases[di] ? sel_aliases[di] : sel_names[di];
-                            if (prev && strcmp(prev, local) == 0) {
-                                free(n);
-                                if (alias) free(alias);
-                                fail(&prs, "duplicate import select binding in const { ... } = import");
-                                while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                                while (nimports--) free(import_list[nimports]);
-                                FREE_IMPORT_AUX;
-                                free(mod);
-                                return -1;
-                            }
-                        }
-                    }
-                    sel_names[nsel] = n;
-                    sel_aliases[nsel] = alias;
-                    nsel++;
-                    if (peek(&prs)->kind == TOKEN_COMMA) { advance(&prs); continue; }
-                    if (peek(&prs)->kind == TOKEN_RBRACE) break;
-                    fail(&prs, "expected ',' or '}' in const { ... } = import");
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                advance(&prs);
-                if (peek(&prs)->kind != TOKEN_ASSIGN) {
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    fail(&prs, "expected '=' after const { ... }");
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                advance(&prs);
-                if (peek(&prs)->kind != TOKEN_IMPORT) {
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    fail(&prs, "expected import after const { ... } =");
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                advance(&prs);
-                char *path = parse_import_call_path(&prs);
-                if (!path) {
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                if (peek(&prs)->kind != TOKEN_SEMICOLON) {
-                    free(path);
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    fail(&prs, "expected ';' after const { ... } = import(\"path\")");
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                advance(&prs);
-                if (nimports >= MAX_IMPORTS) {
-                    free(path);
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    fail(&prs, "too many imports");
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    return -1;
-                }
-                char **sarr = (char **)malloc((size_t)nsel * sizeof(char *));
-                char **aarr = (char **)malloc((size_t)nsel * sizeof(char *));
-                if (!sarr || !aarr) {
-                    free(path);
-                    if (sarr) free(sarr);
-                    if (aarr) free(aarr);
-                    while (nsel--) { free(sel_names[nsel]); if (sel_aliases[nsel]) free(sel_aliases[nsel]); }
-                    while (nimports--) free(import_list[nimports]);
-                    FREE_IMPORT_AUX;
-                    free(mod);
-                    fprintf(stderr, "parse: out of memory\n");
-                    return -1;
-                }
-                for (int i = 0; i < nsel; i++) {
-                    sarr[i] = sel_names[i];
-                    aarr[i] = sel_aliases[i];
-                }
-                import_list[nimports] = path;
-                kind_list[nimports] = AST_IMPORT_KIND_SELECT;
-                binding_list[nimports] = NULL;
-                select_names_list[nimports] = sarr;
-                select_aliases_list[nimports] = aarr;
-                select_count_list[nimports] = nsel;
-                nimports++;
-                } else {
+            } else {
                 /* 普通 const（如 const X: Type = expr;），不 consume，交给后续顶层循环 */
                 break;
-                }
-            } else
-                break;
+            }
+        } else
+            break;
     }
 #undef FREE_IMPORT_AUX
 
@@ -4215,7 +4169,7 @@ int parse(Lexer *lex, ASTModule **out) {
             allow_padding = 1;
         }
         if (peek(&prs)->kind != TOKEN_STRUCT) break;
-        ASTStructDef *s = parse_one_struct(&prs, allow_padding, 0);
+        ASTStructDef *s = parse_one_struct(&prs, allow_padding, 0, 0);
         if (!s) {
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
@@ -4304,9 +4258,12 @@ int parse(Lexer *lex, ASTModule **out) {
     }
     int nfuncs = 0;
     int pending_soa = 0;
+    int pending_cfg_skip = 0;
+    int pending_repr_c = 0;
     while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
-           || peek(&prs)->kind == TOKEN_ATTR_SOA
+           || peek(&prs)->kind == TOKEN_ATTR_SOA || peek(&prs)->kind == TOKEN_ATTR_CFG
+           || peek(&prs)->kind == TOKEN_ATTR_REPR_C
            || peek(&prs)->kind == TOKEN_LET || peek(&prs)->kind == TOKEN_CONST
            || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5))) {
         /* 顶层 let：与 function/struct/enum 同级，可任意顺序出现 */
@@ -4439,6 +4396,37 @@ int parse(Lexer *lex, ASTModule **out) {
             pending_soa = 1;
             continue;
         }
+        /** B-01：`#[cfg(...)]` 属性；int_val==0 时剪枝紧随其后的顶层 function/struct。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_CFG) {
+            pending_cfg_skip = (peek(&prs)->value.int_val == 0) ? 1 : 0;
+            advance(&prs);
+            continue;
+        }
+        /** B-03：`#[repr(C)]` 属性；下一顶层 struct 记 repr_c。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_REPR_C) {
+            advance(&prs);
+            pending_repr_c = 1;
+            continue;
+        }
+        if (pending_cfg_skip) {
+            if (peek(&prs)->kind == TOKEN_STRUCT) {
+                skip_one_top_level_struct(&prs);
+                pending_cfg_skip = 0;
+                continue;
+            }
+            if (peek(&prs)->kind == TOKEN_CONST) {
+                skip_one_top_level_const_decl(&prs);
+                pending_cfg_skip = 0;
+                continue;
+            }
+            if (peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_EXTERN
+                || peek(&prs)->kind == TOKEN_FUNCTION) {
+                skip_one_top_level_function(&prs);
+                pending_cfg_skip = 0;
+                continue;
+            }
+            pending_cfg_skip = 0;
+        }
         int allow_padding = 0;
         if (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5)) {
             advance(&prs);
@@ -4455,8 +4443,11 @@ int parse(Lexer *lex, ASTModule **out) {
             }
         }
         if (peek(&prs)->kind == TOKEN_STRUCT) {
-            ASTStructDef *s = parse_one_struct(&prs, allow_padding, pending_soa);
+            int ps_struct = pending_soa;
+            int pr_struct = pending_repr_c;
             pending_soa = 0;
+            pending_repr_c = 0;
+            ASTStructDef *s = parse_one_struct(&prs, allow_padding, ps_struct, pr_struct);
             if (!s) goto cleanup_funcs_fail;
             if (nstructs >= MAX_STRUCTS) {
                 ast_struct_def_free(s);
@@ -4625,7 +4616,7 @@ cleanup_funcs_fail:
     } else {
         free(func_list);
     }
-    /* 库模块（被 import 的 .su）可不含 main；入口模块由 driver 在 -o/-E 时校验须有 main（阶段 7.3）。 */
+    /* 库模块（被 import 的 .sx）可不含 main；入口模块由 driver 在 -o/-E 时校验须有 main（阶段 7.3）。 */
 
     /* 拷贝 struct 定义到 mod */
     if (nstructs > 0) {

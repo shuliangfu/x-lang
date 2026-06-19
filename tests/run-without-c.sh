@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# 脱离对 C 的依赖测试：用 asm 路径构建 shu_asm（.su → asm → .o + 最少 C 桩链接），
-# 再用 shu_asm 跑全量测试，验证「运行时不依赖 C 逻辑」。
+# 脱离对 C 的依赖测试：用 asm 路径构建 shux_asm（.sx → asm → .o + 最少 C 桩链接），
+# 再用 shux_asm 跑全量测试，验证「运行时不依赖 C 逻辑」。
 #
 # 用法：在仓库根目录执行 ./tests/run-without-c.sh
-# 前提：compiler 下已有 shu（含 driver 或种子）与 build_tool（make -C compiler 会产出 shu+shu-c；若无 build_tool 则 make -C compiler build-tool，其仅依赖 shu-c -E）。
-# 本脚本会先确保存在支持 -backend asm 的 shu（make -C compiler bootstrap-driver），再执行 asm 构建。
+# 前提：compiler 下已有 shux（含 driver 或种子）与 build_tool（make -C compiler 会产出 shux+shux-c；若无 build_tool 则 make -C compiler build-tool，其仅依赖 shux-c -E）。
+# 本脚本会先确保存在支持 -backend asm 的 shux（make -C compiler bootstrap-driver），再执行 asm 构建。
 #
-# 说明：不删除任何 .c 文件；仅验证 asm 产出的 shu_asm 能通过全部测试，为日后执行第 5 步（删除 .c）做准备。
+# 说明：不删除任何 .c 文件；仅验证 asm 产出的 shux_asm 能通过全部测试，为日后执行第 5 步（删除 .c）做准备。
 # 见：analysis/完全自举-无C无Makefile.md §脱离对C的依赖测试。
 
 set -e
 cd "$(dirname "$0")/.."
 COMPILER_DIR="compiler"
-SHU="${COMPILER_DIR}/shu"
+SHUX="${COMPILER_DIR}/shux"
 BUILD_TOOL="${COMPILER_DIR}/build_tool"
-SHU_ASM="${COMPILER_DIR}/shu_asm"
+SHUX_ASM="${COMPILER_DIR}/shux_asm"
 
-# 1) 确保有 shu 与 build_tool（默认 make 即可）
+# 1) 确保有 shux 与 build_tool（默认 make 即可）
 make -C "$COMPILER_DIR" -q 2>/dev/null || make -C "$COMPILER_DIR"
-if [ ! -x "$SHU" ]; then
-  echo "run-without-c: no $SHU; run 'make -C compiler' first."
+if [ ! -x "$SHUX" ]; then
+  echo "run-without-c: no $SHUX; run 'make -C compiler' first."
   exit 1
 fi
 if [ ! -x "$BUILD_TOOL" ]; then
@@ -30,39 +30,39 @@ if [ ! -x "$BUILD_TOOL" ]; then
   exit 1
 fi
 
-# 2) 当前 shu 必须支持 -backend asm（bootstrap-driver 产出）；否则先构建 bootstrap-driver
-# 使用含 main 的用例（../tests/return-value/main.su），否则 typeck 会因 main_func_index < 0 失败
-SHU_ASM_CHECK_INPUT="../tests/return-value/main.su"
-SHU_ASM_CHECK=$(mktemp)
-if ! (cd "$COMPILER_DIR" && ./shu -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$SHU_ASM_CHECK_INPUT") 2>"$SHU_ASM_CHECK"; then
-  if grep -q "not available in this build" "$SHU_ASM_CHECK" 2>/dev/null; then
-    echo "run-without-c: building bootstrap-driver (shu with -backend asm) ..."
+# 2) 当前 shux 必须支持 -backend asm（bootstrap-driver 产出）；否则先构建 bootstrap-driver
+# 使用含 main 的用例（../tests/return-value/main.sx），否则 typeck 会因 main_func_index < 0 失败
+SHUX_ASM_CHECK_INPUT="../tests/return-value/main.sx"
+SHUX_ASM_CHECK=$(mktemp)
+if ! (cd "$COMPILER_DIR" && ./shux -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$SHUX_ASM_CHECK_INPUT") 2>"$SHUX_ASM_CHECK"; then
+  if grep -q "not available in this build" "$SHUX_ASM_CHECK" 2>/dev/null; then
+    echo "run-without-c: building bootstrap-driver (shux with -backend asm) ..."
     make -C "$COMPILER_DIR" bootstrap-driver 2>/dev/null || true
   fi
 fi
-rm -f "$SHU_ASM_CHECK"
+rm -f "$SHUX_ASM_CHECK"
 # 再次检测：若仍不支持 asm，则 SKIP 以便 run-all 不因环境缺失而失败
-# 说明：run-all 中 run-asm 在 CI 下会直接 SKIP，不会执行 bootstrap-driver，故此时 compiler/shu 多为「仅 C 版」；
+# 说明：run-all 中 run-asm 在 CI 下会直接 SKIP，不会执行 bootstrap-driver，故此时 compiler/shux 多为「仅 C 版」；
 # 若上一步已成功执行 bootstrap-driver，则此处失败可能是该环境下 driver 运行 -backend asm 仍失败（依赖/路径/平台）。
 SECOND_CHECK_ERR=$(mktemp)
-if ! (cd "$COMPILER_DIR" && ./shu -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$SHU_ASM_CHECK_INPUT") 2>"$SECOND_CHECK_ERR"; then
-  echo "run-without-c SKIP (shu -backend asm check failed; run 'make -C compiler bootstrap-driver' for full no-C path)"
-  [ -s "$SECOND_CHECK_ERR" ] && { echo "--- shu -backend asm stderr ---"; cat "$SECOND_CHECK_ERR"; }
+if ! (cd "$COMPILER_DIR" && ./shux -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$SHUX_ASM_CHECK_INPUT") 2>"$SECOND_CHECK_ERR"; then
+  echo "run-without-c SKIP (shux -backend asm check failed; run 'make -C compiler bootstrap-driver' for full no-C path)"
+  [ -s "$SECOND_CHECK_ERR" ] && { echo "--- shux -backend asm stderr ---"; cat "$SECOND_CHECK_ERR"; }
   rm -f "$SECOND_CHECK_ERR"
   exit 0
 fi
 rm -f "$SECOND_CHECK_ERR"
 
-# 3) 用 asm 路径构建 shu_asm（不编任何 .su 为 C，只编为 asm .o + 最少 C 桩链接）
-echo "run-without-c: building shu_asm (asm backend, minimal C link) ..."
-(cd "$COMPILER_DIR" && ./build_tool ./shu asm)
-if [ ! -x "$SHU_ASM" ]; then
-  echo "run-without-c: $SHU_ASM not produced; asm build failed. Fix build_shu_asm.sh / -backend asm first."
+# 3) 用 asm 路径构建 shux_asm（不编任何 .sx 为 C，只编为 asm .o + 最少 C 桩链接）
+echo "run-without-c: building shux_asm (asm backend, minimal C link) ..."
+(cd "$COMPILER_DIR" && ./build_tool ./shux asm)
+if [ ! -x "$SHUX_ASM" ]; then
+  echo "run-without-c: $SHUX_ASM not produced; asm build failed. Fix build_shux_asm.sh / -backend asm first."
   exit 1
 fi
 
-# 4) 用 shu_asm 跑全量测试（不执行 make，不覆盖 compiler/shu）
-echo "run-without-c: running full test suite with SHU=$SHU_ASM ..."
-SHU="$SHU_ASM" ./tests/run-all.sh
+# 4) 用 shux_asm 跑全量测试（不执行 make，不覆盖 compiler/shux）
+echo "run-without-c: running full test suite with SHUX=$SHUX_ASM ..."
+SHUX="$SHUX_ASM" ./tests/run-all.sh
 
-echo "run-without-c: all tests passed with shu_asm (no-C-runtime path)."
+echo "run-without-c: all tests passed with shux_asm (no-C-runtime path)."

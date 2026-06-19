@@ -1,5 +1,5 @@
 /**
- * Shulang CompletionItemProvider — 智能补全
+ * Shux CompletionItemProvider — 智能补全
  *
  * 提供关键字、当前文件内函数、结构体名、字段、枚举变体等的补全。
  * 在 LSP 补全不可用时作为本地回退。
@@ -14,7 +14,7 @@
 
 import * as vscode from 'vscode';
 
-export class ShulangCompletionItemProvider implements vscode.CompletionItemProvider {
+export class ShuxCompletionItemProvider implements vscode.CompletionItemProvider {
   // ── 关键字 ──
   private readonly keywords = [
     { label: 'function', detail: '函数定义', insertText: 'function ${1:name}(${2}): ${3:i32} {\n\t$0\n}' },

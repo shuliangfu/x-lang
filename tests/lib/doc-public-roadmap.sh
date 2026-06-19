@@ -7,7 +7,7 @@
 #   doc_roadmap_quarter_ok DOC QUARTER
 #   doc_roadmap_emit_report status quarter sections cross_refs
 
-DOC_ROADMAP_PREFIX="${SHU_DOC_ROADMAP_PREFIX:-shu: [SHU_DOC_ROADMAP]}"
+DOC_ROADMAP_PREFIX="${SHUX_DOC_ROADMAP_PREFIX:-shux: [SHUX_DOC_ROADMAP]}"
 
 # 报告行固定前缀。
 doc_roadmap_prefix() {

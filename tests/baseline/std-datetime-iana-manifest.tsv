@@ -1,0 +1,10 @@
+# STD-136 std.datetime IANA DST manifest
+min_apis	4
+api_iana	api	timezone_iana	std/datetime/mod.sx
+api_offset_at	api	timezone_offset_at	std/datetime/mod.sx
+api_smoke	api	iana_dst_smoke	std/datetime/mod.sx
+symbol_from_name_c	symbol	datetime_iana_from_name_c	std/datetime/timezone_iana.inc.c
+symbol_offset_at_c	symbol	datetime_iana_offset_at_c	std/datetime/timezone_iana.inc.c
+symbol_dst_smoke_c	symbol	datetime_iana_dst_smoke_c	std/datetime/timezone_iana.inc.c
+smoke_sx	smoke	tests/std-datetime/iana_dst_smoke.sx
+gate	script	run-std-datetime-iana-gate.sh	tests/run-std-datetime-iana-gate.sh

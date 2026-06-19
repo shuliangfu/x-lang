@@ -2,14 +2,14 @@
 # comp-isel-p0.sh — COMP-014 isel P0 回归辅助
 #
 # 用法（source 后）：
-#   comp_isel_p0_run_hook SHU script_name
+#   comp_isel_p0_run_hook SHUX script_name
 #   comp_isel_p0_emit_report status p0_ok p0_skip skip
 
-COMP_ISEL_P0_PREFIX="${SHU_COMP014_PREFIX:-shu: [SHU_COMP014_ISEL_P0]}"
+COMP_ISEL_P0_PREFIX="${SHUX_COMP014_PREFIX:-shux: [SHUX_COMP014_ISEL_P0]}"
 
 # 执行 P0 hook 脚本；成功 0，失败 1。
 comp_isel_p0_run_hook() {
-  local shu="$1"
+  local shux="$1"
   local script="$2"
   local path="tests/$script"
   if [ ! -f "$path" ]; then
@@ -17,8 +17,8 @@ comp_isel_p0_run_hook() {
     return 1
   fi
   chmod +x "$path" 2>/dev/null || true
-  if ! SHU="$shu" "$path" >/dev/null 2>&1; then
-    SHU="$shu" "$path" 2>&1 | tail -6 >&2 || true
+  if ! SHUX="$shux" "$path" >/dev/null 2>&1; then
+    SHUX="$shux" "$path" 2>&1 | tail -6 >&2 || true
     return 1
   fi
   return 0

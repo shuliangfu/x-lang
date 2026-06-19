@@ -1,0 +1,20 @@
+// STD-HTTP-H2-v12：H2 连接池 + 长连接 URL 烟测（离线）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_conn_pool_smoke() != 0) { return 1; }
+  if (http.http2_conn_pool_is_available() == false) { return 2; }
+  if (http.http2_err_pool_scheme() != -1238) { return 3; }
+
+  let host: [10]u8 = [49, 50, 55, 46, 48, 46, 48, 46, 49, 0];
+  let port: [2]u8 = [57, 0];
+  let pool: i64 = http.http2_conn_pool_create_h2c(&host[0], 9, &port[0], 1, 2);
+  if (pool == 0) { return 4; }
+
+  let https: [20]u8 = [104, 116, 116, 112, 115, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 47, 0, 0];
+  let out: [64]u8 = [];
+  if (http.h2c_pool_get(pool, &https[0], 19, &out[0], 64, 0) != http.http2_err_pool_scheme()) { return 5; }
+
+  http.http2_conn_pool_destroy(pool);
+  return 0;
+}

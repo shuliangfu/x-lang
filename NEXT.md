@@ -1,966 +1,457 @@
-# Shulang 标准库全面完善总表（core + std）
+# Shux 完全自举路线图（NEXT）
 
-> 更新时间：2026-06-18  
-> 当前唯一目标：**全面完整实现 `core/` 与 `std/` 标准库功能**（功能完备、跨平台一致、默认可用、可测试、可维护）。  
-> 本文已重写：旧 Phase 波次推进内容已移除，不再作为主驱动。
+> **更新时间**：2026-06-19  
+> **决议**：标准库**新功能**暂停；**下一阶段唯一主线 = 完全自举**（含 **必达** 阶段 F：全仓库 std 无 C）。  
+> **依据**：`[自举分析.md](自举分析.md)`（战略与四关卡）、`[compiler/docs/SELFHOST.md](compiler/docs/SELFHOST.md)`（验收命令）、`[analysis/doc-selfhost-architecture-v1.md](analysis/doc-selfhost-architecture-v1.md)`（1 小时全景）  
+> **旧版 std 缺口总表**：已归档至 git 历史（2026-06-18 版）；std 维护暂停，不再在本文件逐模块展开。
 
 ---
 
 ## 0. 使用说明
 
-### 0.1 状态定义
 
-- `✅`：功能已实现，主路径默认可用，且有 smoke/manifest/gate 支撑。
-- `🟡`：功能已部分实现（最小化实现、平台受限、降级回退、测试深度不足）。
-- `⚪`：功能缺失/占位/默认 stub（`NOT_IMPL`、placeholder、仅 API 壳）。
+| 标记  | 含义                           |
+| --- | ---------------------------- |
+| ✅   | **已完成**（有 gate / 脚本 / 文档可复验） |
+| 🟡  | **进行中**（部分平台或子路径已通，未达金标准）    |
+| ⬜   | **未开始**（依赖前置项）               |
 
-### 0.2 执行原则
 
-1. 先补齐 `⚪`，再把 `🟡` 提升为 `✅`。  
-2. 每个模块同时推进：API 实现 + 边界测试 + manifest + 文档同步。  
-3. 默认构建必须可用；可选后端必须文档化并有 gate。  
-4. 用户只写一套 API，不暴露平台分叉到业务层。  
-5. parser mega7（COMP-001）与 std/core 迭代**双轨推进**：mega7 B1–B7 保持 stub 时**不阻塞 std 迭代**（BOOT-018）。
+**阅读顺序**：§1 定义 → §2 当前站位 → §3 总时序 → §4～§9 按开发顺序执行 → §10 下一步 → §11 验收命令。
 
-### 0.3 命名决议（生效）
+**「完全自举」金标准**（与 `自举分析.md` 一致）：
 
-1. 数据库模块统一为 **`std.sqlite`**（目录 `std/sqlite/`）。  
-2. 所有新增 API/文档/gate 一律按 `std.sqlite` 命名。  
-3. 历史 `std.db` 引用仅在迁移文档中保留说明。
+```text
+Stage 0（寄生）  C/shux-c 编译全 .sx 编译器  →  Stage 1 二进制
+Stage 1（破茧）  Stage 1 再编同一套 .sx 源码  →  Stage 2 二进制
+Stage 2（黄金）  SHA256(Stage 1) == SHA256(Stage 2) 且全链无 cc -c 编译器主体
+终局（必达）    删除仓库内手写 .c/.h —— 含编译器、LSP、core、std（全仓库无 C）
+```
 
-### 0.4 维护纪律（强制）
-
-**每完成一项 gate 通过的待办，必须在本文件对应行打 `✅`，并同步 §1 总览计数。**
+> **决议**：「全仓库 std 无 C」**不是可选项**，而是完全自举定义的组成部分（见 `自举分析.md` 终局 / `完全去掉C与H-前置清单.md` 程度 5）。
 
 ---
 
-## 1. 总览
+## 1. 五关卡 × 三平台（自举分析摘要 + 终局 std 无 C）
 
-| 层 | 模块数 | ✅ | 🟡 | ⚪ | 说明 |
-|----|--------|----|----|----|------|
-| core | 11 | 11 | 0 | 0 | 主体已完整，剩高级增强项 |
-| std（已有） | 45 | 52 | 0 | 0 | `sqlite`/`net` TLS 等已补强；见各模块表 |
-| std（新建已交付） | 15 | 15 | 0 | 0 | context…schema（§3.1 全部 ✅） |
-| std（待建） | 0 | 0 | 0 | 0 | — |
-| std 合计 | 60 | 91 | 0 | 0 | 以功能表 ✅ 为准同步维护 |
-| **总计** | **71** | **105** | **0** | **0** | 每完成一项须在本文打 ✅ |
 
----
+| 关卡    | 内容                                            | Linux        | macOS        | Windows |
+| ----- | --------------------------------------------- | ------------ | ------------ | ------- |
+| **一** | 编译器前端全 `.sx`（lexer/parser/ast/typeck/codegen） | ⬜ 像素级替换 C    | ⬜            | ⬜       |
+| **二** | 后端 Codegen 自举 MVP（指针/struct/控制流/栈帧/条件编译）      | 🟡 asm 主链    | 🟡 asm 主链    | ⬜       |
+| **三** | `_stubs.c` 退役 → `std/sys/*.sx` 独立调 OS         | 🟡 v0～v3     | 🟡 v0～v2     | ⬜ win32 |
+| **四** | 三阶段自举闭环 + 二进制哈希一致                             | 🟡 行为 parity | 🟡 行为 parity | ⬜       |
+| **五** | **全仓库 std/core 无 C**（`.sx` + FFI/asm，按需链入）    | ⬜            | ⬜            | ⬜       |
 
-## 2. core 全模块清单（11/11）
 
-### core.types
+**平台策略**（`自举分析.md`）：
 
-> 功能说明：提供基础类型尺寸与对齐查询能力（标量 + 泛型），作为 ABI 与代码生成的基础。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 标量 `size_of_*` / `align_of_*` | ✅ | i16/u16/i32/u32/u64/f32/f64/pointer 已覆盖 | - |
-| 泛型 `size_of<T>()` / `align_of<T>()` | ✅ | 已支持 | 增加复杂结构体布局回归向量 |
-| ABI 宽度一致性 | ✅ | 与代码生成约束对齐 | 增加更多跨平台金样 |
-
-### core.mem
-
-> 功能说明：提供核心内存读写与对齐工具，承载高性能基础拷贝/比较语义。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `mem_copy/set/move/compare/zero/swap` | ✅ | 主路径完整 | - |
-| 对齐工具（`align_up/down` 等） | ✅ | 已支持 | - |
-| volatile/fence 级别内存原语 | ✅ | CORE-017；含 u8/u16/u32/u64 + fence；runtime 按需链 `core/mem/mem.o` | - |
-
-### core.option
-
-> 功能说明：提供 `Option` 空值语义与组合子，支撑安全分支逻辑与错误规约。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `Option_i32/u8/ptr_u8` | ✅ | 已完整 | - |
-| `is_some/is_none/unwrap_or/expect` | ✅ | 已完整 | - |
-| `map/and_then/or` | ✅ | 已实现 | 增加更多类型族金样 |
-
-### core.result
-
-> 功能说明：提供 `Result` 成功/失败语义与组合子，支撑显式错误传播。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `Result_i32/u8` | ✅ | 已完整 | - |
-| `is_ok/is_err/unwrap_or/expect` | ✅ | 已完整 | - |
-| `map/and_then/or_else` | ✅ | 已实现 | 增加错误码链路边界测试 |
-
-### core.slice
-
-> 功能说明：提供切片访问、分段与分块能力，作为容器与字符串等模块的基础视图语义。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `len/get/get_unchecked` | ✅ | `[]i32`、`[]u8` 可用 | - |
-| `subslice/split_at/chunks` | ✅ | 已支持 | - |
-| 泛型 `slice<T>` 能力统一 | ✅ | `[]i32`/`[]u8`/`[]u64` + `is_empty/first/last`（CORE-157） | - |
-
-### core.fmt
-
-> 功能说明：提供基础数值/指针格式化能力，是日志、打印与错误报告的底层格式引擎。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 整型格式化（十进制/十六进制） | ✅ | 已完整 | - |
-| `usize/isize/ptr` 格式化 | ✅ | 已完整 | - |
-| `f64` NaN/Inf/precision | ✅ | 已支持 | 补更多极端数值向量 |
-
-### core.builtin
-
-> 功能说明：封装编译器内建能力（位运算、基础拷贝等），用于性能关键路径。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `clz/ctz/popcount` | ✅ | 已接 C builtin 热路径 | - |
-| `copy/min/max` | ✅ | 已可用 | - |
-| 更多位运算内建 | ✅ | `bswap_u32` / `rotl_u32` / `rotr_u32`（CORE-018） | - |
-
-### core.debug
-
-> 功能说明：提供断言与调试检查能力，保障开发期快速定位逻辑错误。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `assert/debug_assert` | ✅ | 可用 | - |
-| `assert_eq/ne`（i32/u32/u64/bool/ptr） | ✅ | 已覆盖 | 增加更丰富错误上下文输出 |
-| 调试辅助扩展 | ✅ | `debug_assert_eq_i32_diag` / `debug_diag_store`（CORE-019） | - |
-
-### core.cmp
-
-> 功能说明：提供统一比较语义（`Ordering`）与基础比较函数，支撑排序与有序逻辑。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `Ordering` 三态 | ✅ | 已实现 | - |
-| `cmp_i32/cmp_u8/cmp_ptr` | ✅ | 已实现 | 补更多类型比较器 |
-| 组合比较（`then/reverse`） | ✅ | 已可用 | - |
-
-### core.iterator
-
-> 功能说明：提供最小迭代协议与切片迭代器，支撑容器遍历抽象。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `SliceIter_i32/u8` | ✅ | 已实现 | - |
-| `next_*` / `iter_remaining_*` | ✅ | 已实现 | - |
-| 统一迭代 trait 化 | ✅ | `SliceIter_u64` + `iterator_protocol_version`（CORE-020） | - |
-
-### core.str
-
-> 功能说明：提供零拷贝字节视图与基础字节操作，用于高性能字符串/缓冲处理。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `BytesView` 视图 | ✅ | 已可用 | - |
-| `subview/eq/get` | ✅ | 已实现 | - |
-| 更完整字节串工具 | ✅ | STD-131 `bytes_view_index_of` / `contains_byte` / `starts_with` | - |
+- **Linux**：`std/sys/linux.sx` — 内联汇编 `svc/syscall`，可 freestanding，拒绝 libc 脐带。  
+- **macOS**：`std/sys/macos.sx` — `extern "C"` 绑 `libSystem.dylib`（稳定，规避 syscall 号漂移）。  
+- **Windows**：`std/sys/win32.sx` — `extern "stdcall"` 绑 `kernel32.dll` / `ws2_32.dll` + **IOCP**（禁止硬编码 Nt* syscall 号）。
 
 ---
 
-## 3. std 全模块清单（60/60：45 已有 + 15 待建）
+## 2. 当前站位（2026-06-19）
+
+
+| 维度                        | 状态                    | 说明                                                                                            |
+| ------------------------- | --------------------- | --------------------------------------------------------------------------------------------- |
+| **标准库**                   | 🟡 功能收口 / C 未清        | mod ✅ 约 39/73；**新功能暂停**，但 **std/*.c 必须清零**（阶段 F）                                              |
+| **全仓库 std 无 C**           | ⬜                     | 当前大量 `std/**/*.c`、`runtime.c` 按需链 `.o`；终局必无手写 C                                               |
+| **std/core C 存量基线**       | 🟡                    | `**run-std-c-inventory-gate.sh`**：`std/**/*.c = 104`、`core/**/*.c = 4`（total 108）             |
+| **语义自举烟测**                | ✅                     | `make -C compiler bootstrap-verify`                                                           |
+| **B-strict 构建**           | ✅ macOS arm64 / Linux | `full_asm` + `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1`；24/24 `__text` 非空（macOS 实测）                   |
+| **B-partial（Linux crt0）** | ✅                     | 无 `pipeline_gen.c` 的 crt0 链                                                                   |
+| **Stage2 行为一致**           | ✅                     | `verify-selfhost-stage2-bstrict.sh`（42 + hello + struct mk）                                   |
+| **Stage2 哈希金标准**          | 🟡                    | `run-stage2-hash-gate.sh` 已接入；当前 **track-only**（不等仍 WARN 通过）                                  |
+| **std.sys 底座**            | 🟡                    | v0 write + v1 Linux 号表 + v2 macOS write + v3 mmap；**缺** Linux 全 syscall/.sx asm、Windows       |
+| **去 C/H（编译器本体）**          | 🟡                    | 仍有 `runtime.c`、`parser.c`、`lsp_diag.c` 等；见 `[完全去掉C与H-前置清单.md](compiler/docs/完全去掉C与H-前置清单.md)` |
+| **语言：条件编译 / repr(C)**     | 🟡                    | B-01/B-03 lexer v0 已落地；语义剪枝与 layout codegen 待做 |
+| **术语口径统一（NEXT/SELFHOST）** | 🟡                    | `SELFHOST.md` 现偏“编译器本体”；阶段 D 完成后需同步为 **D+E+F 才叫完全自举**                                         |
 
-> 下半 §「待建模块」与上半已有模块同一套表格规范；**全部按完整功能拆解**，不设“最小交付”裁剪。
-
-### std.runtime
-
-> 功能说明：提供运行时错误与 panic 处理能力，是标准库错误终止与诊断入口。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| panic/abort | ✅ | 已可用 | - |
-| panic hook | ✅ | `panic_hook_collect` 可用 | - |
-| 运行时统一诊断 | ✅ | `runtime_diag_*` / `runtime_panic_with_code`（STD-159） | - |
-
-### std.io
-
-> 功能说明：提供统一输入输出抽象（同步/异步/批量/零拷贝），是系统编程主数据通道。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 同步 read/write/stdio | ✅ | 主路径完整 | - |
-| 批量 IO / buffer 管理 | ✅ | 已实现 | - |
-| read_ptr / view / slice 零拷贝 | ✅ | 已实现 | - |
-| Context 超时 read/write | ✅ | STD-091 `read_ctx`/`write_ctx` | - |
-| async submit/complete/poll | ✅ | 已有 | poll 层 bind ctx |
-| 跨平台一致性边界 | ✅ | STD-138 三平台深度边界注册表 + `deep_boundary.su` gate | - |
-
-### std.mem
-
-> 功能说明：提供标准库层缓冲与内存工具，桥接 `core.mem` 与上层模块。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Buffer 抽象 | ✅ | 已可用 | - |
-| copy/set/compare | ✅ | 已实现 | - |
-| 更高层内存工具 | ✅ | STD-144 `copy_bounded`/`set_bounded`/`compare_bounded`/`buffer_from` + gate | - |
-
-### std.fs
-
-> 功能说明：提供文件系统操作与高性能文件 IO 能力（mmap/readv/sendfile/splice 等）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| open/read/write/close/pread/pwrite | ✅ | 主路径完整 | - |
-| mmap / munmap | ✅ | 已可用 | - |
-| readv/writev、copy_file_range、sendfile、splice | ✅ | 高性能路径可用 | - |
-| direct/fadvise/fallocate/sync_range | ✅ | 已可用 | - |
-| 目录级 API（readdir/stat/chmod 等） | ✅ | STD-123 `fs_stat/fs_dir_*`/mkdir/chmod | - |
-
-### std.path
-
-> 功能说明：提供跨平台路径拼接、解析与规范化能力，屏蔽系统路径差异。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| join/dirname/basename/stem/ext/clean | ✅ | 已可用 | - |
-| 相对路径 resolve（base + ref） | ✅ | STD-101 `path_resolve`；gate：`tests/path/resolve.su` | - |
-| Windows 分隔符/盘符/UNC | ✅ | 已实现 | - |
-| 复杂路径规范化策略 | ✅ | STD-140 极端向量 + `extreme_clean.su` gate | v1 `foo//baz` 双分隔符后续演进 |
-
-### std.process
-
-> 功能说明：提供进程生命周期与环境交互能力（spawn/exec/wait/pipe 等）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| args/env/getcwd/chdir/pid | ✅ | 已可用 | - |
-| spawn/exec/waitpid | ✅ | 已可用 | - |
-| pipe/spawn_io | ✅ | 已实现 | - |
-| Windows 进程行为一致性 | ✅ | STD-142 `std-process-xplat.tsv` + `xplat_behavior.su` gate |
-
-### std.heap
-
-> 功能说明：提供标准库默认堆分配器与 arena 能力，是容器/字符串等模块的分配基础。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| alloc/free/realloc/zeroed | ✅ | 已可用 | - |
-| 类型特化分配（i32/u8） | ✅ | 已支持 | - |
-| Arena64 bump | ✅ | 已实现 | - |
-| 自定义分配器 trait | ✅ | STD-112 `Allocator` + `vec_u8_*_with_allocator` | 设计 Allocator 接口并接入容器 |
-
-### std.string
-
-> 功能说明：提供字符串构造、比较、查找与 StrView 零拷贝视图能力。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| String（固定容量）构造/追加/比较/查找 | ✅ | 主路径完整 | - |
-| StrView 零拷贝视图 | ✅ | 已完整 | - |
-| 长串性能快路径（memchr/memmem） | ✅ | 已实现 | - |
-| 完整 Unicode 语义（大小写折叠等） | ✅ | STD-160 `string_view_case_fold` 等桥接 | - |
-
-### std.vec
-
-> 功能说明：提供动态数组能力（扩容、切片追加、容量管理），是通用序列容器基础。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Vec_i32 / Vec_u8 | ✅ | 完整 | - |
-| Vec_u64 / Vec_f64 | ✅ | 已扩展 | - |
-| append_slice/reserve/truncate/deinit | ✅ | 已可用 | - |
-| 泛型 Vec<T> 用户态全覆盖 | ✅ | STD-161 `Vec_u16` + 既有 u8/u64/f64（类型族 v1） | - |
-
-### std.map
-
-> 功能说明：提供键值映射容器能力，支持多类型键并用于高效索引访问。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Map_i32_i32 | ✅ | 已可用 | - |
-| Map_u64_i32 / Map_str_i32 | ✅ | 已扩展 | - |
-| 迭代/扩容策略优化 | ✅ | STD-162 `MapIter` + `load_factor_pct` / `should_rehash` | - |
-
-### std.set
-
-> 功能说明：提供集合容器能力，支撑去重与成员关系判定。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Set_i32 / Set_u64 / Set_str | ✅ | 已可用 | - |
-| 基本增删查 | ✅ | 已可用 | - |
-| 高阶集合操作 | ✅ | STD-129 `set_i32_union/intersect/difference_into` | - |
-
-### std.queue
-
-> 功能说明：提供队列/双端队列与并发安全队列封装，支撑任务与消息缓冲场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Queue_i32 双端队列 | ✅ | 已可用 | - |
-| SyncQueue_i32 并发包装 | ✅ | 已实现 | - |
-| 泛型队列 | ✅ | STD-163 `Queue_u8` + 既有 i32/SyncQueue | - |
-
-### std.error
-
-> 功能说明：提供跨模块统一错误码与错误链封装，是 std 错误语义中枢。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 模块错误码基线 | ✅ | 已可用 | - |
-| ErrorChain 链式封装 | ✅ | 已可用 | - |
-| 跨模块错误语义统一 | ✅ | `error_semantic_class` / `error_is_*`（STD-158） | - |
-
-### std.net
-
-> 功能说明：提供网络套接字能力（TCP/UDP/IPv6/DNS/batch），是网络通信基础层。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| TCP/UDP/accept/connect | ✅ | 已可用 | - |
-| Context 超时 connect/accept/read/write | ✅ | STD-092 `*_ctx_fd` / `stream_*_ctx` | - |
-| IPv6 / resolve_ex | ✅ | 已可用 | - |
-| batch send/recv | ✅ | 已可用 | - |
-| TLS 客户端（OpenSSL / mbedTLS） | ✅ | STD-083/085 gate；runtime 按 net.o marker 自动 `-lssl`/`-lmbedtls` | - |
-| 高层协议能力（连接池等） | ✅ | STD-164 `TcpConnPool` idle 复用 | - |
-
-### std.thread
-
-> 功能说明：提供线程创建、同步与调度辅助能力，支撑并发执行模型。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| spawn/join | ✅ | 已可用 | - |
-| affinity/线程池能力 | ✅ | 已实现 | - |
-| 并发观测工具 | ✅ | STD-165 `thread_pool_stats` | - |
-
-### std.time
-
-> 功能说明：提供时间读取、睡眠与计时能力，支撑超时、调度与性能测量。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| monotonic/wall clock/sleep | ✅ | 已可用 | - |
-| 时间格式化与时区 | ✅ | STD-137 `format_wall_rfc3339` / `wall_local_offset_min` gate | 完整 DateTime 见 std.datetime |
-| 高精度计时工具 | ✅ | STD-133 `Timer` + `timer_elapsed_*` / `timer_lap_ns` gate | - |
-
-### std.random
-
-> 功能说明：提供随机数与随机字节能力，支撑安全与通用随机场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| fill_bytes/range | ✅ | 已可用 | - |
-| CSPRNG 路径 | ✅ | 已可用 | - |
-| 可复现 PRNG 套件 | ✅ | STD-130 SplitMix64 `Rng` + `rng_*` gate | - |
-
-### std.env
-
-> 功能说明：提供进程参数与环境变量访问能力，支撑 CLI 与配置注入。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| getenv/setenv/unsetenv | ✅ | 已可用 | - |
-| args_iter/env_iter | ✅ | 已可用 | - |
-| 平台编码边界 | ✅ | STD-132 空 value / `=` 分割 / key_len 金样 + gate | - |
-
-### std.fmt
-
-> 功能说明：提供标准输出格式化入口，并复用 `core.fmt` 能力。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| print/println | ✅ | 已可用 | - |
-| core.fmt 重导出 | ✅ | 已可用 | - |
-| 复杂模板格式化 | ✅ | STD-166 `format_template_1_i32`（`{}` 占位 v1） | - |
-
-### std.sync
-
-> 功能说明：提供互斥锁、读写锁与条件变量能力，是多线程同步基础。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Mutex | ✅ | 已可用 | - |
-| RwLock | ✅ | 已可用 | - |
-| Condvar | ✅ | 已可用 | - |
-| 死锁检测/诊断 | ✅ | STD-111 `lock_diag_*` gate | 调试模式锁序/递归 |
-
-### std.encoding
-
-> 功能说明：提供基础编码能力（UTF-8/ASCII/hex/base64 互操作）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| UTF-8/ASCII 基础工具 | ✅ | 已可用 | - |
-| hex/base64 互操作 | ✅ | 已可用 | - |
-| 更多编码（URL/base32 等） | ✅ | STD-127 Base32/percent/URL-Base64 门面 | - |
-
-### std.base64
-
-> 功能说明：提供 Base64 编解码能力（standard/url），用于文本与二进制转换。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| standard/url encode/decode | ✅ | 已可用 | - |
-| round-trip 测试 | ✅ | 已有 | - |
-| 流式 base64 | ✅ | STD-109 `stream_*_update` gate | - |
-
-### std.crypto
-
-> 功能说明：提供常用密码学原语（hash/hmac/aes-gcm）与认证校验能力。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| sha256/sha512 | ✅ | 已可用 | - |
-| hmac_sha256/hmac_sha512 | ✅ | 已可用 | - |
-| aes-gcm seal/open | ✅ | 已可用 | - |
-| 更多算法（chacha/ed25519 等） | ✅ | STD-113 ChaCha20-Poly1305 + STD-126 Ed25519 sign/verify | - |
-
-### std.log
-
-> 功能说明：提供统一日志能力（级别、多 sink、结构化字段）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 多 sink | ✅ | 已可用 | - |
-| 级别过滤 | ✅ | 已可用 | - |
-| 结构化 KV | ✅ | 已可用 | - |
-| 日志轮转/异步写 | ✅ | STD-106 rotate + async_flush gate | - |
-
-### std.test
-
-> 功能说明：提供测试断言与后续 bench/fuzz 框架入口能力。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| expect 断言 | ✅ | 已可用 | - |
-| bench/fuzz 可执行框架 | ✅ | STD-143 `bench_run_noop` / `fuzz_run_noop` + `bench_fuzz_exec.su` gate | 覆盖率反馈后续 |
-| 测试发现/报告统一 | ✅ | STD-145 `runner_case`/`runner_finish` + `runner_smoke.su` gate | 文件自动发现后续 |
-
-### std.atomic
-
-> 功能说明：提供原子操作与内存序基础能力，用于无锁并发场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| load/store/CAS/fetch_add | ✅ | 已可用 | - |
-| ordering/fence | ✅ | 已有基础 | - |
-| 更完整原子类型覆盖 | ✅ | STD-146 i16/u16 + i64/u64 CAS/fetch 补齐 + gate | 带 Ordering 重载后续 |
-
-### std.channel
-
-> 功能说明：提供线程/任务间消息通道能力（有界/无界）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 有界 channel | ✅ | 已可用 | - |
-| 无界 channel | ✅ | 已补齐 | - |
-| select/多路复用 | ✅ | STD-098/102 recv + STD-104 send + STD-108 mixed select gate | - |
-
-### std.backtrace
-
-> 功能说明：提供调用栈采集与符号化能力，用于诊断与调试。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| capture | ✅ | 已可用 | - |
-| symbolicate | ✅ | 已有 | - |
-| 跨平台符号质量一致性 | ✅ | STD-147 `SHU_BT_XPLAT` 向量 + Darwin/Windows/Linux gate | - |
-
-### std.hash
-
-> 功能说明：提供哈希计算能力，服务于 map/set/去重与校验场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| SipHash | ✅ | 已可用 | - |
-| 非加密快速哈希 | ✅ | STD-105 xxHash64（`hash_xxhash64` / `HASHER_XXHASH`）gate | - |
-| 哈希族切换策略 | ✅ | STD-148 策略表 + `recommend_hasher_*` + `SHU_HASH_ALGO` gate | - |
-
-### std.math
-
-> 功能说明：提供基础数学函数与浮点环境能力（常量、三角、幂、对数、fenv）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 常量 + 三角/幂/对数/取整 | ✅ | 已可用 | - |
-| fenv test/clear/raise | ✅ | STD-059 API + STD-149 `fenv_available()` 能力检测 gate | - |
-| 特殊函数扩展 | ✅ | STD-115 `erf`/`log1p`/`expm1` gate | 增加 erf/log1p/expm1 等 |
-
-### std.sort
-
-> 功能说明：提供排序能力（基础排序与稳定排序），服务集合与数据处理。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| sort_i32/sort_u8 | ✅ | 已可用 | - |
-| 稳定排序 | ✅ | 已实现 | - |
-| 泛型比较器策略 | ✅ | STD-150 `KeyTag` + `sort_stable_by_key` + 策略 gate | - |
-
-### std.ffi
-
-> 功能说明：提供 C 互操作基础能力（CString 生命周期、错误路径）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| CString new/free/len | ✅ | 已可用 | - |
-| try_new 错误路径 | ✅ | 已可用 | - |
-| 更丰富 FFI 类型映射 | ✅ | STD-151 `FfiPoint` + `invoke_i32_cb` + gate | 复杂布局后续 |
-
-### std.json
-
-> 功能说明：提供 JSON 解析与构造能力（游标读取、对象/数组构建）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| parse 标量 | ✅ | 已可用 | - |
-| JsonCursor object/array | ✅ | 已可用 | - |
-| append_object/append_array | ✅ | 已可用 | - |
-| schema/类型化 decode | ✅ | STD-116 `object_decode_*` / `decode_*_at` | 增加 typed decode/校验 |
-
-### std.csv
-
-> 功能说明：提供 CSV 解析与写入能力，用于表格数据交换。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| next_field/escape/unescape | ✅ | 已可用 | - |
-| parse_row/write_row | ✅ | 已可用 | - |
-| 流式 CSV reader/writer | ✅ | STD-128 `StreamCsvReader`/`StreamCsvWriter` + gate | - |
-
-### std.compress
-
-> 功能说明：提供压缩/解压能力（gzip/zstd 等），服务存储与传输场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| gzip/zstd 基础压缩解压 | ✅ | 已可用 | - |
-| 分块/round-trip | ✅ | 已可用 | - |
-| 统一流式 API | ✅ | STD-122 `stream_compress_*` + `StreamCompress` | - |
-| Brotli 默认路径 | ✅ | STD-125 构建矩阵 + `brotli_available`/gate | - |
-
-### std.unicode
-
-> 功能说明：提供 Unicode 基础能力（补充平面、规范化基础、文本语义扩展入口）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `is_supplementary` | ✅ | 已可用 | - |
-| `nfc_buf` 基础 | ✅ | 已有 | - |
-| 完整 normalization（NFD/NFKC/NFKD） | ✅ | STD-082 v1 拉丁子集 | 扩展至全量 Unicode 表 |
-| grapheme/case fold | ✅ | STD-114 `grapheme_next` / `case_fold_buf` | 补齐文本处理关键能力 |
-
-### std.dynlib
-
-> 功能说明：提供动态库加载与符号查找能力，用于插件和系统库互操作。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| open/sym/close | ✅ | 已可用 | - |
-| Windows 兼容路径 | ✅ | STD-097 `/` 规范化 + LoadLibraryW gate | - |
-| 错误诊断信息 | ✅ | STD-096 `last_error` gate | - |
-
-### std.http
-
-> 功能说明：提供 HTTP 基础客户端能力与协议解析（状态行、chunked、keep-alive）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| GET/POST/HEAD | ✅ | 已可用 | - |
-| GET/POST/HEAD + Context | ✅ | STD-094/095 ctx + C 层 timeout gate | - |
-| parse_status_line | ✅ | 已可用 | - |
-| chunked decode/keep-alive | ✅ | 已可用 | - |
-| HTTP server / client pool | ✅ | STD-107 `serve_one` + `client_pool_*` gate | - |
-
-### std.tar
-
-> 功能说明：提供 tar/ustar 归档读写能力，用于打包与分发。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| read_header/write_header | ✅ | 已可用 | - |
-| next_entry/read_entry_data | ✅ | 已可用 | - |
-| append_entry | ✅ | 已可用 | - |
-| 目录遍历/长路径/pax | ✅ | STD-152 UStar prefix + Pax path + gate | - |
-
-### std.async
-
-> 功能说明：提供异步调度、任务提交与 IO 协作能力，支撑 future/await 运行时。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| scheduler_reset / run / spawn | ✅ | 主路径可用 | - |
-| coop pingpong / worker drain | ✅ | 已可用 | - |
-| IO await 协作 | ✅ | STD-090/091/093 spawn 自动绑 ctx + read_ctx | - |
-| 高层 async runtime API | ✅ | AsyncRuntime + runtime_reset/drain | - |
-
-### std.regex
-
-> 功能说明：提供正则编译与匹配能力（当前为最小可用子集）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| compile/match/free | ✅ | 最小引擎可用 | - |
-| 三平台一致最小子集 | ✅ | 已打通 | - |
-| 分组 `()` / 交替 `\|` / 锚点 `^$` | ✅ | STD-063；gate：`group/alt/anchor_match.su` | - |
-| capture 索引 API | ✅ | STD-064 group_count/offset/length | - |
-| `+` / lazy `*?`/`+?` 量词 | ✅ | STD-065；gate：`plus/lazy_star_match.su` | - |
-| `\p{}` / `\P{}` Unicode 属性 | ✅ | STD-066；gate：`prop_match.su` | 非 ASCII 分类扩展 |
-| 回溯控制（possessive/atomic） | ✅ | STD-099 `*+`/`++`/`?+` + STD-124 `(?>...)` | - |
-
-### std.simd
-
-> 功能说明：提供向量类型与 SIMD 相关运算能力（当前含回退路径）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Vec4f/Vec8i + add/splat | ✅ | 已可用 | - |
-| shuffle/select | ✅ | arm64 **`compiler/shu`** gate：`shuffle=1 select=1 s4=1`；**otool 验 ld1/ins/fcmgt/bit**；comptime mask **EXPR_LIT(0)** + arm64 **正偏移 lea** 已修 | 跨模块 call 回退路径可删 |
-| 自动向量化策略门禁 | ✅ | STD-153 `recommend_simd_path` + 跨平台 perf gate | - |
-
-### std.sqlite
-
-> 功能说明：提供 SQLite 数据库访问能力（连接、执行、事务、游标、预编译与连接池）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| open/close/exec/query_rows | ✅ | STD-057 gate；默认 sqlite3 后端 | stub 见 STD-154 / `sqlite-o-stub` |
-| query_begin/next_row/query_end | ✅ | STD-067 gate | 并发语义深度测试 |
-| row_col_i32/text/blob | ✅ | STD-068/069 gate | 大 blob 流式 |
-| stmt cache + 参数绑定（STD-070） | ✅ | prepare_cached + bind gate | - |
-| 连接池（STD-084） | ✅ | pool_acquire/release gate | 跨线程 / std.cache 联动 |
-
-#### std.sqlite 重命名迁移任务（强制）
-
-| 任务 | 状态 | 说明 |
-|------|------|------|
-| 新建 `std/sqlite/` 模块目录与 `mod.su` | ✅ | 已落地 |
-| `import("std.db")` 兼容层（deprecated） | ✅ | STD-120 `std/db/mod.su` 转发 std.sqlite | - |
-| gate/manifest/README 命名切换到 `sqlite` | ✅ | `run-std-sqlite-*` / `std-sqlite-*.tsv` |
-| 文档与示例统一 `std.sqlite` | ✅ | STD-154 docs/07 主表 + stub 说明 + gate | - |
-
-### std.elf
-
-> 功能说明：提供 ELF 二进制只读解析能力（头、节、程序头）。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| parse_hdr/read_section/sec_name/find_section/read_sec_byte/read_phdr | ✅ | 只读解析主路径可用 | - |
-| 符号表/重定位解析 | ✅ | STD-103 `read_sym`/`read_rela`；gate：`run-std-elf-sym-rela-gate.sh` | - |
-| 写 ELF/链接器级能力 | ✅ | STD-121 `write_min_reloc` 最小 ET_REL | 完整链接器专项 |
 
 ---
 
-### 3.1 新建 std 模块（15/15 已交付 ✅）
+## 3. 总时序（从现在 → 完全自举）
 
-### std.context（已建 · P0 · STD-071 ✅）
+```mermaid
+flowchart LR
+  subgraph done["已完成底座"]
+    A1["B-strict shux_asm"]
+    A2["Stage2 行为 parity"]
+    A3["std.sys v0～v3"]
+    A4["DOC-002 自举文档"]
+  end
 
-> 功能说明：跨模块统一的取消、超时与 deadline 传播载体，贯穿 `io` / `net` / `http` / `async`。
+  subgraph p1["阶段 A：构建链硬化"]
+    B1["全平台 B-strict"]
+    B2["Stage2 SHA256 门禁"]
+    B3["L5 run-all parity"]
+  end
 
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `Context` 根上下文与父子派生 | ✅ | `background` / `with_cancel` / `with_deadline` | - |
-| `cancel` / `cancelled` 检测 | ✅ | `cancel` / `is_cancelled` | - |
-| `deadline` / `timeout` 与剩余时间 | ✅ | `deadline_ns` / `remaining_ns` | - |
-| 值携带（可选键值 bag） | ✅ | `set_value` / `get_value` | - |
-| manifest + gate | ✅ | `run-std-context-gate.sh` | cookbook 扩展示例 ✅ STD-156 |
-| 与 `std.io` read/write 超时集成 | ✅ | STD-091 `read_ctx`/`write_ctx` gate | - |
-| 与 `std.net` / `std.http` 连接超时集成 | ✅ | STD-092/094/095 net+http ctx + C timeout gate | - |
-| 与 `std.async` 任务取消集成 | ✅ | STD-090/093 spawn 自动绑 Context gate | - |
+  subgraph p2["阶段 B：语言 + std/sys"]
+    C1["cfg / repr(C)"]
+    C2["linux.sx syscall asm"]
+    C3["win32.sx + IOCP"]
+    C4["编译器读源不 fopen"]
+  end
 
-### std.bytes（已建 · P0 · STD-072 ✅）
+  subgraph p3["阶段 C：前端 .sx 化"]
+    D1["去 pipeline_gen.c"]
+    D2["lsp_diag.sx"]
+    D3["默认只链 *_sx.o"]
+  end
 
-> 功能说明：统一动态字节缓冲与读写游标，替代 string/mem 各处重复增长逻辑。
+  subgraph p4["阶段 D：黄金自举"]
+    E1["Stage1 纯 shux 二进制"]
+    E2["Stage2 哈希一致"]
+    E3["文档：Stage2 达成"]
+  end
 
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `Bytes` 动态缓冲（append/grow/clear/len/cap） | ✅ | 完整生命周期 + deinit | - |
-| `BytesReader` / `BytesWriter` 游标读写 | ✅ | seek/read/write/remaining | - |
-| 与 `std.io` Reader/Writer 桥接 | ✅ | `bytes_as_buffer` | - |
-| 与 `std.string.StrView` 零拷贝互转 | ✅ | `bytes_as_view` / `bytes_from_view` | - |
-| 分块拼接与 reserve 策略 | ✅ | `bytes_reserve` / `bytes_grow` | - |
-| manifest + gate + round-trip 向量 | ✅ | `run-std-bytes-gate.sh` | - |
-| 与 `std.heap` / Arena 协作策略 | ✅ | STD-155 `bytes_from_external` + Arena gate | - |
+  subgraph p5["阶段 E：编译器去 C"]
+    F1["lsp / parser / runtime"]
+    F2["删除 compiler C/H"]
+  end
 
-### std.option（已建 · P2 · STD-080 ✅）
+  subgraph p6["阶段 F：全仓库 std 无 C"]
+    G1["std/*.c → .sx / FFI"]
+    G2["构建链无 cc 编 std"]
+    G3["vX.Y.Z-selfhost 发布"]
+  end
 
-> 功能说明：在 `core.option` 之上提供用户友好的 re-export 与常用组合子（不重复 core 语义）。
+  done --> p1 --> p2 --> p3 --> p4 --> p5 --> p6
+```
 
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| re-export `core.option` 核心类型与构造 | ✅ | `std/option/mod.su` | - |
-| 常用组合子文档化入口 | ✅ | analysis + gate | - |
-| 与 `std.result` 互转辅助 | ✅ | `option_from_result` 等 | - |
-| manifest + gate | ✅ | `run-std-option-result-gate.sh` | - |
 
-### std.result（已建 · P2 · STD-081 ✅）
-
-> 功能说明：在 `core.result` 之上提供用户友好的 re-export 与错误传播组合子。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| re-export `core.result` 核心类型与构造 | ✅ | `std/result/mod.su` | - |
-| 与 `std.error` 错误码桥接 | ✅ | `result_from_error` 等 | - |
-| `map`/`and_then`/`or_else` 完整金样 | ✅ | gate 烟测 | - |
-| manifest + gate | ✅ | `run-std-option-result-gate.sh` | - |
-
-### std.codec（已建 · P1 · STD-073 ✅）
-
-> 功能说明：统一编解码抽象层，收敛 json/csv/base64/hex/compress 等模块接口风格。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 统一 `Encoder` / `Decoder` 接口定义 | ✅ | trait + 错误语义 | - |
-| `json` / `csv` / `base64` / `hex` 适配器 | ✅ | 挂接现有模块 | - |
-| manifest + gate + round-trip | ✅ | `run-std-codec-gate.sh` | - |
-| `compress` 流式编解码适配 | ✅ | STD-110 `adapter_*_stream_*` | 块 + 流式双路径 |
-| 缓冲复用与零拷贝策略文档 | ✅ | STD-139 `std-codec-buffer-reuse-v1.md` + cap 复用烟测 gate | - |
-
-### std.datetime（已建 · P1 · STD-074 ✅）
-
-> 功能说明：日期时间解析、格式化、时区与持续时间，补足 `std.time` 原语层。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `DateTime` 墙钟/UTC 表示 | ✅ | 内部表示与比较 | - |
-| RFC3339 parse/format | ✅ | gate 向量 | - |
-| `Duration` 算术与与 `std.time` 互操作 | ✅ | 纳秒单位 | - |
-| 日历字段访问 | ✅ | 构造与校验 | - |
-| manifest + gate | ✅ | `run-std-datetime-gate.sh` | - |
-| 时区加载与本地/UTC 转换 | ✅ | STD-135 `TimeZone` + 内置名/`parse_offset_min` + zoned 字段 gate | IANA DST 后续 |
-
-### std.uuid（已建 · P1 · STD-075 ✅）
-
-> 功能说明：标准 UUID 生成、解析与比较，服务分布式 ID 场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| UUID v4（随机）生成 | ✅ | CSPRNG 路径 | - |
-| 标准字符串 parse/format | ✅ | 连字符容错 | - |
-| 字节序布局与比较 | ✅ | `eq` / `as_bytes` | - |
-| manifest + gate + round-trip | ✅ | `run-std-uuid-gate.sh` | - |
-| UUID v7（时间有序）生成 | ✅ | STD-075 `new_v7` + 墙钟 ms + 同毫秒序号 gate | - |
-
-### std.url（已建 · P1 · STD-076 ✅）
-
-> 功能说明：URL 解析、构建与 query 编解码，HTTP/网络生态基础设施。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| parse（scheme/host/path/query/fragment） | ✅ | C 层解析 | - |
-| build / stringify | ✅ | gate round-trip | - |
-| query 参数 encode/decode | ✅ | 与 http 编码一致 | - |
-| manifest + gate | ✅ | `run-std-url-gate.sh` | - |
-| 相对路径 resolve（base + ref） | ✅ | STD-076 `url.resolve` + STD-101 `path_resolve` | - |
-| IPv6 bracket host 形式 | ✅ | STD-134 `host_to_ipv6` / `format_ipv6_host` + net 字节桥接 gate | - |
-
-### std.cli（已建 · P1 · STD-077 ✅）
-
-> 功能说明：命令行参数解析、子命令与 help 生成，支撑 CLI 应用完整开发。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| 长短选项解析（`-f` / `--flag`） | ✅ | `match_long` / `match_short` | - |
-| 子命令（subcommand）树 | ✅ | `parse_from_iter` | - |
-| 位置参数与可选参数绑定 | ✅ | `CliResult` | - |
-| `--help` / usage 自动生成 | ✅ | `write_usage` | - |
-| 错误提示与未知参数策略 | ✅ | `cli_err_*` | - |
-| manifest + gate + cookbook 示例 | ✅ | `run-std-cli-gate.sh` | - |
-
-### std.metrics（已建 · P1 · STD-078 ✅）
-
-> 功能说明：统一可观测性指标（counter/gauge/histogram）与导出。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Counter / Gauge / Histogram API | ✅ | 注册、递增、快照 | - |
-| 本地聚合与标签（label）支持 | ✅ | 多维指标 | - |
-| 文本 / Prometheus 风格导出 | ✅ | exporter | - |
-| manifest + gate | ✅ | `run-std-metrics-gate.sh` | - |
-| 与 `std.log` / `std.trace` 关联字段 | ✅ | STD-117 `ObservabilityCtx` + log KV + context | - |
-
-### std.security（已建 · P1 · STD-079 ✅）
-
-> 功能说明：常用安全工具封装，补齐 crypto 之上的应用层安全原语。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| constant-time 比较 | ✅ | `mem_eq_const` | - |
-| 密钥派生（HKDF） | ✅ | 联动 `std.crypto` | - |
-| 安全清零（secure zero） | ✅ | 密钥材料释放 | - |
-| 敏感缓冲 mlock（可选） | ✅ | 平台回退 | - |
-| manifest + gate | ✅ | `run-std-security-gate.sh` | - |
-
-### std.config（已建 · P2 · STD-086 ✅）
-
-> 功能说明：分层配置加载（文件 + 环境变量），支撑应用启动配置完整路径。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| ENV 键值加载与覆盖规则 | ✅ | `load_env_prefix` + std.env | - |
-| TOML 扁平 + `[section]` 解析 | ✅ | `load_toml_buf/file` | 嵌套表/数组 |
-| YAML 解析（可选后端） | ✅ | STD-119 `load_yaml_buf/file` 缩进 section | 嵌套表/数组 |
-| 多源合并（file < env < cli） | ✅ | `merge` + override | 冲突报告 |
-| 类型化取值（i32/bool/string） | ✅ | `get_*` + 错误码 | 带来源信息 |
-| manifest + gate | ✅ | `run-std-config-gate.sh` | - |
-
-### std.cache（已建 · P2 · STD-087 ✅）
-
-> 功能说明：通用缓存与连接池抽象，服务 DB/NET/对象复用场景。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| LRU 缓存（容量上限 + 淘汰） | ✅ | `lru_new/get/put` | 字符串键 |
-| TTL 过期与惰性清理 | ✅ | `lru_purge_expired` | 主动 sweep 策略 |
-| 连接池抽象（acquire/release/health） | ✅ | `pool_*` i64 资源池 | 与 sqlite/net 联动 |
-| 命中率/统计接口 | ✅ | `lru_stats` / `pool_stats` | 导出至 metrics |
-| manifest + gate | ✅ | `run-std-cache-gate.sh` | 并发安全烟测 |
-
-### std.trace（已建 · P2 · STD-088 ✅）
-
-> 功能说明：分布式链路追踪基础（span + context 传播），配合 async/net/http。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Span 创建/结束/嵌套 | ✅ | `span_start/child/end` | - |
-| trace_id / span_id 生成与传递 | ✅ | 128-bit trace_id + 递增 span_id | - |
-| 与 `std.context` 集成 | ✅ | `attach_to_context/from_context` | - |
-| 与 `std.async` / `std.io` / `std.net` 挂钩点 | ✅ | STD-118 `hook_*_ctx` 自动 span | - |
-| 导出格式（text/OTLP 风格可选） | ✅ | `export_text` v1 | OTLP JSON |
-| manifest + gate | ✅ | `run-std-trace-gate.sh` | 多 span 压测 |
-
-### std.task（已建 · P2 · STD-089 ✅）
-
-> 功能说明：async 任务组与结构化并发，限制子任务泄漏并支持批量 join。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| `TaskGroup` / `JoinSet` | ✅ | `task_group_*` / `join_set_*` | - |
-| 取消传播（绑定 Context） | ✅ | `task_group_bind_context/cancel` | - |
-| 结构化并发边界（禁止泄漏） | ✅ | `task_group_check_leak` / `join_set_check_leak` | - |
-| Supervisor 基础（失败重试策略） | ✅ | `supervise_retry` + 退避 | - |
-| 与 `std.async` scheduler 深度集成 | ✅ | spawn + drain + STD-093 ctx 继承 | - |
-| manifest + gate | ✅ | `run-std-task-gate.sh` | 1M task 压测纳入 CI |
-
-### std.schema（已建 · P2 · STD-090 ✅）
-
-> 功能说明：结构化数据 typed decode/validate，统一 json/csv/sqlite 校验路径。
-
-| 功能项 | 状态 | 现状 | 待办 |
-|--------|------|------|------|
-| Schema 定义与字段类型注册 | ✅ | `schema_add_field` 标量/可选/col_index | 嵌套 object |
-| JSON typed decode + 校验错误 | ✅ | `decode_json` + json 游标 | 数组字段 |
-| CSV typed decode（列映射） | ✅ | `decode_csv_row` | 引号字段 unescape 联动 |
-| SQLite 行映射（列名→类型） | ✅ | `map_columns` 列文本映射 | stmt 一步 decode |
-| 错误路径（字段级定位） | ✅ | `last_error_field/message` | 与 std.error 码段注册 |
-| manifest + gate + 向量库 | ✅ | `run-std-schema-gate.sh` | round-trip 扩向量 |
 
 ---
 
-## 4. 跨模块缺口与待办总清单（下一阶段执行）
+## 4. 阶段 A — 构建链与门禁硬化（优先，约 2～4 周）
 
-### P0（必须先做）
+> **目标**：在不动大架构的前提下，把「能自举」变成「可 CI 证明、可重复、可跨平台」。
 
-| 待办项 | 目标状态 |
-|--------|----------|
-| std.sqlite 默认后端去 stub（默认可用 sqlite3） | ✅ |
-| std.sqlite stmt cache + 参数绑定 + 连接池 | ✅ |
-| std.net TLS 客户端（OpenSSL + mbedTLS） | ✅ |
-| std.unicode 完整 normalization 基础集（STD-082） | ✅ |
-| std.context 新建模块（§3.1 v1 gate） | ✅ |
-| std.bytes 新建模块（§3.1 v1 gate） | ✅ |
+### 4.1 变绿判定（避免 🟡 长期不更新）
 
-### P1（完成度拉满）
+| 状态 | 含义 |
+| --- | --- |
+| ✅ | **该条验收标准已全部满足**（gate 硬失败模式亦通过，或平台 scope 内 CI 绿） |
+| 🟡 | gate/脚本**已落地**，但金标准/平台/指标**尚未闭合** |
+| ⬜ | 未开始或缺 gate |
 
-| 待办项 | 目标状态 |
-|--------|----------|
-| std.simd 真 SIMD shuffle/select 实装 | ✅ |
-| std.regex 扩至工程可用完整子集 | ✅ | STD-065/066 +/lazy + `\p{}` gate 12 项 | 回溯控制 |
-| std.compress 统一流式 API | ✅ |
-| std.fs 目录/元数据 API 补齐 | ✅ |
-| std.async 结构化并发 + 取消/超时（联动 `std.context`） | ✅（STD-090/093 spawn ctx 继承 ✅） |
-| std.codec / std.datetime / std.uuid / std.url / std.cli / std.metrics / std.security（§3.1 v1） | ✅ |
+**按 A 序号推进**：A-07 已绿 → 依次 A-08 → A-09 → …；**不要跳去 B/C** 直到当前条变绿或 documented skip（如 A-13）。
 
-### P2（工程化与质量）
+**本机 Darwin 限制**：A-11 / A-12 的 parse count 与 `nm arch_*` **只能在 Linux x86_64 CI 变绿**；本地 gate 会 `N/A` 跳过。
 
-| 待办项 | 目标状态 |
-|--------|----------|
-| std.option / std.result（std 层便捷）§3.1 v1 | ✅ |
-| std.config（§3.1 v1） | ✅ |
-| std.cache（§3.1 v1） | ✅ |
-| std.trace（§3.1 v1） | ✅ |
-| std.task（§3.1 v1） | ✅ |
-| std.schema（§3.1 v1） | ✅ |
-| 剩余模块 manifest/gate 全覆盖 | ✅ | STD-136 `std-api.tsv` + `run-std-api-gate.sh`（60 std 模块） |
-| Windows/macOS 深度边界向量补齐 | ✅ | STD-138 `std-xplat-deep-boundary.tsv` + 聚合 gate |
-| std.path 极端路径规范化向量 | ✅ | STD-140 `std-path-extreme.tsv` + gate |
-| docs/07 + cookbook Phase 2 同步 | ✅ | STD-141 增量表 + 4 食谱 + gate |
-| std.process 跨平台行为一致性 | ✅ | STD-142 `std-process-xplat.tsv` + gate |
-| std.test bench/fuzz 可执行框架 | ✅ | STD-143 `bench_run_noop` / `fuzz_run_noop` + gate |
-| std.mem 有界安全封装 | ✅ | STD-144 `copy_bounded` 等 + `mem_safe_boundary.su` gate |
-| std.test 统一 test runner | ✅ | STD-145 `runner_case`/`runner_finish` + gate |
-| std.atomic 16/64 扩展 | ✅ | STD-146 i16/u16 + i64/u64 CAS/fetch + gate |
-| std.backtrace 跨平台符号质量 | ✅ | STD-147 `SHU_BT_XPLAT` + xplat gate |
-| std.hash 默认策略 | ✅ | STD-148 `recommend_hasher_*` + 策略 gate |
-| std.math fenv 能力检测 | ✅ | STD-149 `fenv_available()` + `SHU_MATH_FENV_CAP` gate |
-| std.sort key 比较器策略 | ✅ | STD-150 `sort_stable_by_key` + gate |
-| std.ffi 结构体/回调 | ✅ | STD-151 `FfiPoint` + `invoke_i32_cb` + gate |
-| std.tar 长路径/Pax | ✅ | STD-152 prefix + Pax path + gate |
-| std.simd 自动向量化策略 | ✅ | STD-153 `recommend_simd_path` + perf gate |
-| std.sqlite 文档统一 | ✅ | STD-154 docs/07 + stub 说明 + gate |
-| std.bytes Arena 协作 | ✅ | STD-155 `bytes_from_external` + gate |
-| std.context Cookbook | ✅ | STD-156 CTX-01 + gate |
-| core.slice 泛型工具 | ✅ | STD-157 `[]u64` + is_empty/first/last + gate |
-| std.error 跨模块语义 | ✅ | STD-158 `error_semantic_class` + gate |
-| NEXT-YELLOW 全量 🟡 清除 | ✅ | CORE-018～020 + STD-159～167 + `run-next-yellow-clear-gate.sh` |
-| 横切 | 全面检查 | ✅ | STD-168 `run-comprehensive-check-gate.sh` |
-| placeholder 冻结 | ✅ | STD-168 清单 gate（6/6，只减不增） |
-| 性能 weekly | ✅ | PERF-169 `run-perf-weekly-gate.sh` |
-| `[]u64` subslice | ✅ | CORE-157 typeck + subslice_u64 API |
-| docs + cookbook 与模块能力逐项同步 | 持续 |
-| 性能基线（SIMD/IO/NET/DB）每周回归 | 持续 |
+
+| #    | 任务                                                    | 状态  | 验收                                                                                                 | 变绿条件 |
+| ---- | ----------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------- | --- |
+| A-01 | 语义自举烟测                                                | ✅   | `make -C compiler bootstrap-verify`                                                                | — |
+| A-02 | macOS `bootstrap-driver-bstrict` → `asm_only_strict`  | ✅   | `SELFHOST.md` §4.1；`check_asm_o_quality.sh` → 24/24                                                | — |
+| A-03 | Linux crt0 **B-partial**（无 `pipeline_gen.c`）          | ✅   | `make -C compiler bootstrap-driver-crt0`                                                           | — |
+| A-04 | B-strict Stage2 **行为** parity                         | ✅   | `verify-selfhost-stage2-bstrict.sh`                                                                | — |
+| A-05 | BOOT 门禁族（repro / stage-diag / bstrict-ci）             | ✅   | `run-bootstrap-bstrict-ci.sh`                                                                      | — |
+| A-06 | DOC-002 自举架构全景                                        | ✅   | `run-doc-selfhost-architecture-gate.sh`                                                            | — |
+| A-07 | push 前 P0 包（bstrict + asm-73 + perf）                  | ✅   | `run-pre-push-p0.sh`                                                                               | — |
+| A-08 | **Windows** B-hybrid 可构建 `shux_asm`                   | 🟡  | `run-bootstrap-bstrict-windows-gate.sh` + CI windows job；MSYS experimental 链                       | CI windows job 绿；**非** B-strict |
+| A-09 | **Stage2 SHA256 金标准**门禁                               | 🟡  | `run-stage2-hash-gate.sh` + `SHUX_STAGE2_HASH_STRICT=1` 硬失败通过                                  | stage1/stage2 **SHA256 一致** |
+| A-10 | **L5 run-all**：bootstrap `shux` 真 parity（缩小 seed 白名单） | 🟡  | `run-l5-run-all-parity-gate.sh`；bstrict **110** 项 ⊆ whitelist                                      | 白名单 sync + **110 项全绿** |
+| A-11 | parser/typeck **第二遍 EMIT_HEAVY** 稳定（大 module 不截断）     | 🟡  | `run-typeck-parse-count-gate.sh`（**num_defined** target 146）+ bisect                               | **Linux**：num_defined≥146 且 FAIL=1 |
+| A-12 | 跨模块符号统一（`arch_arm64_*` 等）                             | 🟡  | `run-a12-cross-module-symbols-gate.sh` + baseline TSV                                                | **Linux**：`SHUX_A12_CROSS_MODULE_FAIL=1` 无新 U |
+| A-13 | Alpine / 其他 Linux 变体 B-strict 或 documented skip       | ⬜   | `run-bootstrap-crossplatform-gate.sh`                                                              | gate 绿或 documented skip |
+| A-14 | Stage2 哈希门禁**脚本化**                                     | ✅   | `run-stage2-hash-gate.sh` 已落地并挂 `verify-selfhost-stage2-bstrict`                                     | 脚本 + 接入（**与 A-09 正交**） |
+
 
 ---
 
-## 5. 执行约定（强制）
+## 5. 阶段 B — 语言特性 + std/sys 斩断 C 脐带（约 3～5 周）
 
-1. 每次改动只推动模块能力，不再引入“季度波次任务噪音”。  
-2. 模块功能新增必须同时更新：`std/README.md` / `core/README.md` / `docs/07-内置与标准库.md`。  
-3. 新增 API 必须配套：manifest + gate + 至少 1 个边界 smoke。  
-4. `⚪` 项优先级永远高于新增 feature。  
-5. 达到 `✅` 的条件：默认可用、跨平台行为清晰、测试可重复。  
-6. **§6 与功能表关系**：§2/§3 的 `✅` 指**主 API 对用户完整可用**；§6 仅记录**可选构建路径**（无第三方库时的 stub）与**源码级遗留项**，不推翻功能表结论。
+> **目标**：新编译器读 `.sx` 源码、写文件、调 OS，**不经过** C 的 `fopen` / `_stubs.c`。对应自举分析 **关卡三 + 缺失拼图 1/2/4**。
+
+### 5.1 语言 / 编译器前端特性（自举必需）
+
+
+| #    | 任务                                           | 状态  | 说明 / 验收                                                                 |
+| ---- | -------------------------------------------- | --- | ----------------------------------------------------------------------- |
+| B-01 | `**#[cfg(target_os = "linux")]`** 模块/函数级条件编译 | 🟡  | v1：lexer + parser/asm import 区 cfg 剪枝 + gate |
+| B-02 | `**#[cfg(target_arch = "aarch64")]**` 等      | 🟡  | `-target` triple 联动 #[cfg] + gate；host 默认仍可用 |
+| B-03 | `**#[repr(C)]` / 显式 struct 对齐**              | 🟡  | v1：`TOKEN_ATTR_REPR_C` + typeck 允许 C padding + layout gate |
+| B-04 | **内联汇编 `asm { }` 块**（或等价 intrinsic）          | 🟡  | Linux freestanding 已有 `.s` 桩；需在 **.sx 语法层** 可写                          |
+| B-05 | Codegen 自举 MVP 稳定性清单                         | 🟡  | 指针 &/*、struct 字段、if/while/switch、函数调用 ABI — `run-asm-73-gate.sh` 覆盖子集   |
+| B-06 | **显式 AST Arena / 对象池**（.sx 写编译器时用）           | 🟡  | `ast_pool` 已有 C+glue；需在 .sx 编译器中可依赖                                     |
+
+
+### 5.2 std/sys 分平台实现
+
+
+| #    | 任务                                                                  | 状态  | 说明 / 验收                                         |
+| ---- | ------------------------------------------------------------------- | --- | ----------------------------------------------- |
+| B-10 | **std.sys v0** — freestanding `os_write`                            | ✅   | BOOT-029；`tests/sys/sys_write_freestanding.sx`  |
+| B-11 | **std.sys v1** — Linux syscall 号表                                   | ✅   | `std/sys/linux.sx`；`linux_syscall_nr_smoke.sx`  |
+| B-12 | **std.sys v2** — macOS POSIX write                                  | ✅   | `std/sys/macos.sx`；`macos_posix_write_smoke.sx` |
+| B-13 | **std.sys v3** — mmap（kv 等用）                                        | ✅   | `std/sys/mmap.sx` + `mmap.inc.c`；按需链入           |
+| B-14 | **Linux .sx 真实 syscall**：`read/write/openat/close/mmap` 内联 asm      | 🟡  | v3：openat/mmap/munmap + gate；v2 open+read；v1 read/write/close/exit |
+| B-15 | **Linux io_uring** 最小子集（setup/enter/register）                       | ⬜   | 结构体 `#[repr(C)]` + smoke                        |
+| B-16 | **macOS** 扩展：`open/read/mmap` 经 libSystem FFI                       | 🟡  | v1：macos_mmap_rw MAP_SHARED + `run-macos-mmap-file-gate.sh`；v0 匿名 mmap |
+| B-17 | **std/sys/win32.sx** — `ReadFile/WriteFile/CreateFileW/ExitProcess` | 🟡  | v2：CreateFileA+ReadFile + gate；v1 WriteFile；ExitProcess 待 v3 |
+| B-18 | **std/sys/win32 网络** — `WSA*` + **IOCP** 最小 async                   | ⬜   | 为后续 std.net Windows 高性能路径                       |
+| B-19 | **std/sys/mod.sx** 统一门面 + `#[cfg]` 分流                               | 🟡  | os_write + cfg import 剪枝（C/asm collect_imports）；`run-sys-mod-cfg-import-gate.sh` |
+| B-20 | 编译器自身 **读源文件** 改调 `std.sys`（非 C `fopen`）                            | 🟡  | v1：generated_c_needs_* 改 read_file；读/fmt 已 POSIX；asm -o 仍 FILE* |
+
+
+### 5.3 去 stubs / runtime C 依赖
+
+
+| #    | 任务                                             | 状态  | 说明                                   |
+| ---- | ---------------------------------------------- | --- | ------------------------------------ |
+| B-30 | 盘点 `_stubs.c` / `runtime.c` 中 OS 调用            | 🟡  | 见 `完全去掉C与H-前置清单.md`                  |
+| B-31 | freestanding_io 保留为 **极薄 .s** 或迁入 linux.sx asm | 🟡  | x86_64 已有 `freestanding_io_x86_64.s` |
+| B-32 | **按需链 std.o** 与自举 **不依赖 cc 编译 std**            | ⬜   | 与 B-14/B-17 同步                       |
+
 
 ---
 
-## 6. 可选后端与构建矩阵（源码审计 · 非功能 🟡）
+## 6. 阶段 C — 编译器前端 .sx 化（约 4～6 周）
 
-> **本节不是「还没做完的功能清单」。**  
-> Shulang 标准库设计为：**同一套 API 全平台**；部分能力依赖 OS/第三方库（SQLite、OpenSSL 等）。  
-> 在**未安装对应库**或 **freestanding/最小构建** 时，C 层回退 stub 是**预期行为**，已通过 `*_is_available()` + gate 文档化。  
-> 功能表（§2/§3）中相关模块仍为 `✅`：表示**有库环境主路径完整**；本节供 CI/嵌入式/审计对照。
+> **目标**：构建编译器时 **默认只链 `.sx` 产出的 .o`**，对应自举分析 **关卡一** 与` 完全去掉C与H` 条目 2、3。
 
-| 模块 | 触发条件（非缺功能） | 运行时探测 / gate | 功能表结论 |
-|------|----------------------|-------------------|------------|
-| `std.sqlite` | 链接未加 `-lsqlite3` → `sqlite-o-stub` | `sqlite_is_available()`（STD-167） | ✅ 主 API 完整；无库时 stub 可预期 |
-| `std.net` TLS | 无 OpenSSL/mbedTLS → `TLS_NOT_IMPL` 桩 | `tls_is_available()` + STD-030/083/167 | ✅ TCP/UDP 完整；TLS 随库链入 |
-| `std.math` fenv | 平台无 fenv → `FENV_NOT_IMPL` | `fenv_available()`（STD-149） | ✅ 主 math API 完整；fenv 可选 |
-| `std.regex` | — | STD-065/066/124 gate 全绿 | ✅ 工程子集已验收 |
-| `std.simd` | 非 arm64 或无 HW 向量 | shuffle/select/s4 gate（arm64 `compiler/shu`） | ✅ 策略 API + 真向量路径已 gate |
-| `std.test` | — | STD-143 bench/fuzz + STD-145 runner | ✅ |
 
-### 6.1 源码遗留（与 §6 主表区分 · 待清理）
+| #    | 任务                                                                       | 状态  | 说明 / 验收                      |
+| ---- | ------------------------------------------------------------------------ | --- | ---------------------------- |
+| C-01 | 前端模块 **.sx 源码齐全**（lexer/parser/ast/typeck/codegen/pipeline/driver）       | ✅   | `compiler/src/**/*.sx`       |
+| C-02 | `build_asm/*.o` 全量 `-backend asm` 构建                                     | ✅   | `asm_build_list.sx`          |
+| C-03 | **去掉 `cc -c pipeline_gen.c`**（全平台 B-strict）                              | 🟡  | macOS/Linux ✅ B-strict；Windows B-hybrid **track-only** 审计（`SHUX_WIN_C03_PIPELINE_GEN_FAIL=1`） |
+| C-04 | `**-E-extern` 生成 C 自带 extern**（去 `lsp_io_extern.h`）                      | 🟡  | shux-c：parser 零 fix_parser_pool；shux-sx 仍条件 perl 回退 |
+| C-05 | **LSP**：`lsp_diag.sx` 或 C 兼容 parse API                                   | ⬜   | 方案 A/B 见前置清单 §2              |
+| C-06 | Makefile **默认** `parser_sx.o` / `typeck_su.o` / `ast_su.o`，不链 `parser.o` | ⬜   | bootstrap + CI 同步改           |
+| C-07 | **像素级**验证：`.sx` 编译器 ≡ C 编译器（同一输入 AST/产物）                                 | ⬜   | 差分测试 harness                 |
+| C-08 | `main.c` 收成一行入口；`runtime.c` 业务迁 `driver.sx` / `build.sx`                 | ⬜   | 前置清单 §4                      |
+| C-09 | mega7 / force_stub 清理（parser 无 C 回退）                                     | 🟡  | `analysis/boot-mega7-gap.md` |
 
-| 项 | 说明 | 是否影响功能表 `✅` | 待办 |
-|----|------|---------------------|------|
-| 各模块 `placeholder()` | 历史「模块可 import」烟测钩子；**非业务 API** | 否（不计入主能力缺失） | 已清理至 6 处（STD-168 v2）；见 `placeholder-inventory-v1.md` |
 
 ---
 
-## 7. 下一步建议（立刻执行）
+## 7. 阶段 D — 三阶段自举闭环（约 2～3 周）
 
-1. ~~**性能基线回归**~~ ✅ PERF-169 `run-perf-weekly-gate.sh`（SIMD/IO/NET/DB 四支柱）。  
-2. ~~**编译器能力跟进**~~ ✅ `[]u64` subslice（typeck `.data` + `subslice_u64` API，CORE-157 完成）。  
-3. ~~**placeholder 逐步清理**~~ ✅ 37→6（保留烟测/Tier-S 依赖）。  
-4. ~~**Cookbook 持续同步**~~ ✅ §16 新增 10 食谱（52 总数）。
+> **目标**：达成 `自举分析.md` **Stage 0→1→2** 与 **SHA256 一致**。
 
-### 7.1 后续可选
 
-- `core.fmt` / `std.async` 最后 2 处 Tier-S `placeholder` 改为 `mod_smoke()`  
-- `[]u64` 泛型 subslice 与 `[]i32`/`[]u8` 统一宏化（编译器泛型 slice 扩展）  
-- PERF-169 每周 CI cron 挂 `run-perf-weekly-gate.sh`
+| #    | 任务                                                      | 状态  | 说明 / 验收                                      |
+| ---- | ------------------------------------------------------- | --- | -------------------------------------------- |
+| D-01 | **Stage 0**：C/seed 编译出 **Stage 1** 纯 shux 编译器           | 🟡  | 当前 `shux_asm`；仍含少量 C seed/ panic             |
+| D-02 | **Stage 1** 编译同一 tree → **Stage 2**                     | 🟡  | `verify-selfhost-stage2-bstrict.sh`          |
+| D-03 | **Stage 1 与 Stage 2 二进制哈希一致**                           | ⬜   | **完全自举金标准**                                  |
+| D-04 | Stage2 扩展：`make test_sx` / `run-portable-suite` 两代 diff | ⬜   | 同一 SHUX=stage1 vs stage2                     |
+| D-05 | 发布 `**shux` 单二进制** 不依赖 `shux-c` 冷启动                     | ⬜   | 仅保留 bootstrap 脚本用于考古                         |
+| D-06 | 文档：README 声明 **Stage2 黄金自举** + 复现命令                     | ⬜   | 更新 `SELFHOST.md` §1（**不含**最终「完全自举」——须等 F 完成） |
 
+
+---
+
+## 8. 阶段 E — 删除 C/H（编译器 + LSP，约 2～4 周）
+
+> **依据**：`[compiler/docs/完全去掉C与H-前置清单.md](compiler/docs/完全去掉C与H-前置清单.md)` 程度 1～4。**不含 std** — std 在 §9 阶段 F 单独清场。
+
+
+| #    | 任务                                                                              | 状态  | 目标文件     |
+| ---- | ------------------------------------------------------------------------------- | --- | -------- |
+| E-01 | 删除 `lsp_io_extern.h` / `lsp_gen_extern.h`                                       | ⬜   | 程度 1     |
+| E-02 | 删除 `lsp_diag.c`                                                                 | ⬜   | 程度 2     |
+| E-03 | 删除 `parser.c` / `typeck.c` / `ast.c` / `codegen.c` / `lexer.c` / `preprocess.c` | ⬜   | 程度 3     |
+| E-04 | `runtime.c` 仅保留 ABI 边界或全删                                                       | ⬜   | 程度 4     |
+| E-05 | `include/*.h` 仅保留 FFI/ABI 必需                                                    | ⬜   | 程度 4     |
+| E-06 | CI：**构建链不出现 `cc -c`** 编译器 `.c`（链接器 `ld`/`clang` 除外）                             | ⬜   | 目标 B 完整版 |
+
+
+---
+
+## 9. 阶段 F — 全仓库 std 无 C（必达终局，约 8～16 周）
+
+> **目标**：`core/` + `std/` 下**零手写 `.c/.h` 业务实现**；OS 边界仅允许 `.sx` 内 `asm { }` 或 `extern` FFI（+ 极薄 `.s` 入口如 crt0，若仍需要）。  
+> **与阶段 E 关系**：编译器本体先去 C（E），再系统性清 std（F）；**未完成 F 不得宣称「完全自举」**。  
+> **依据**：`完全去掉C与H-前置清单.md` **程度 5**；`自举分析.md` Stage 3「彻底消灭 C」。
+
+### 9.1 清场原则
+
+
+| 原则           | 说明                                                                |
+| ------------ | ----------------------------------------------------------------- |
+| **mod 面不变**  | 用户仍 `import("std.*")`；实现从 `.c` 迁 `.sx` 或 `extern` 系统 DLL/dylib    |
+| **按需链接保留**   | 无 C 不等于全量静态链入；runtime 扫描符号 → 链对应 `.o`（由 `.sx` 编译产出）               |
+| **分模块推进**    | 先 **std.sys / std.io / std.fs / std.mem**，再 net/crypto/compress 等 |
+| **每模块 gate** | 删除某 `.c` 前：对应 smoke/gate 绿 + 文档同步                                 |
+
+
+### 9.2 任务清单
+
+
+| #    | 任务                                                                       | 状态  | 说明 / 验收                                                                          |
+| ---- | ------------------------------------------------------------------------ | --- | -------------------------------------------------------------------------------- |
+| F-01 | **inventory**：列出全仓库 `std/**/*.c`、`core/**/*.c` 及链入点                      | 🟡  | `**run-std-c-inventory-gate.sh`** + `tests/baseline/std-c-inventory.tsv`（108 文件） |
+| F-02 | **std.sys** 去 C：`mmap.inc.c` 等 → `.sx` asm/FFI                           | 🟡  | v3 仍含 `mmap.inc.c`                                                               |
+| F-03 | **std.io / std.fs / std.mem / std.heap** 核心路径 .sx 化                      | ⬜   | 编译器 bootstrap 可读源、写产物                                                            |
+| F-04 | **std.net / std.compress / std.crypto** 等 `.inc.c` → `.sx` 或分平台 FFI      | ⬜   | 按模块 gate 逐个替换                                                                    |
+| F-05 | **std.db**（sqlite/kv/arrow）`.c` → `.sx` 或 OS 纯 FFI                       | ⬜   | 当前 kv/arrow/sqlite 均为 `.c`                                                       |
+| F-06 | **runtime.c** 中 std 按需链路径改为链 `**.sx` 产物 .o**                             | ⬜   | 无 `cc -c std/*.c`                                                                |
+| F-07 | **Makefile / build.sx**：构建 std 仅 `-backend asm` 或自举 shux，**禁止 cc 编 std** | ⬜   | CI 审计无 std 的 `cc -c`                                                             |
+| F-08 | **core/** 确认无 `.c`（或仅保留 0 文件）                                            | 🟡  | 以 mod.sx + 编译器内建为准                                                               |
+| F-09 | 全仓库 `**grep -r '\.c$'` 门禁**（compiler + std 白名单为空）                        | ⬜   | 新增 `run-no-handwritten-c-gate.sh`                                                |
+| F-10 | `**make test_sx` + portable suite** 在「无 std C」构建下全绿                      | ⬜   | 与阶段 D Stage2 联动                                                                  |
+| F-11 | Tag `**vX.Y.Z-selfhost`**：发布物 = 单二进制 + 全 `.sx` 源码树                       | ⬜   | README / SELFHOST 声明完全自举                                                         |
+| F-12 | 文档口径统一：`README.md` + `SELFHOST.md` 将「完全自举」改为 **D+E+F**                   | ⬜   | 不再把仅 Stage2/B-strict 写成完全自举                                                      |
+
+
+### 9.3 推荐模块顺序（阶段 F 内部）
+
+1. `std/sys`（含 mmap）→ 2. `std/io` + `std/fs` → 3. `std/mem` + `std/heap` → 4. `std/process` + `std/path` → 5. `std/net` 族 → 6. 其余 std → 7. `std/db` → 8. runtime 链入表收尾。
+
+---
+
+## 10. 建议执行顺序（下一步动作）
+
+> **严格按 A 序号**：A-07 已绿 → **A-08 → A-09 → A-10 → A-11 → A-12 → A-13**；每项变绿后再进 B/C。  
+> **完全自举 = D（哈希）+ E（编译器无 C）+ F（全仓库 std 无 C）**，缺一不可。
+
+| 序 | 条 | 动作 | 变绿命令 / 备注 |
+| --- | --- | --- | --- |
+| 1 | **A-08** | Windows B-hybrid CI 绿 | `./tests/run-bootstrap-bstrict-windows-gate.sh`（MSYS2）；CI `windows` job |
+| 2 | **A-09** | Stage2 SHA256 一致 | `verify-selfhost-stage2-bstrict` → `SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh` |
+| 3 | **A-10** | L5 110 项 shux_asm 全绿 | `make -C compiler bootstrap-driver-bstrict` 后 `./tests/run-l5-run-all-parity-gate.sh` |
+| 4 | **A-11** | typeck num_defined→146 | **Linux**：`SHUX_TYPECK_PARSE_COUNT_FAIL=1 ./tests/run-typeck-parse-count-gate.sh` |
+| 5 | **A-12** | 消除 arch_* U | **Linux**：`SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh` |
+| 6 | **A-13** | Alpine/cross 或 skip 文档 | `./tests/run-bootstrap-crossplatform-gate.sh` |
+| 7 | **B-01…** | 语言/std.sys | 见 §5；**须 A 阶段闭合后再默认推进** |
+| 8 | **C-04→C-06** | -E-extern / 只链 `*_sx.o` | 见 §6 |
+| 9 | **D/E/F** | 完全自举终局 | 见 §7–§9 |
+
+**当前阻塞（2026-06）**：
+
+- **Darwin 本地**：A-11 / A-12 gate 直接 `N/A`，**无法在本机变绿**，只能 Linux CI 或远程 runner。
+- **A-09**：行为 parity（A-04）已绿，**二进制 SHA256 仍不一致** → 故意 track-only，不能标绿。
+- **A-10**：白名单 sync 已 OK；缺 `shux_asm` 跑完 110 项（需 `bootstrap-driver-bstrict`）。
+- **A-14**：脚本化已完成 → **已标 ✅**（与 A-09 分开）。
+
+---
+
+## 11. 验收命令速查
+
+```bash
+# 语义自举
+make -C compiler bootstrap-verify
+
+# 生产 shux_asm（B-strict）
+make -C compiler bootstrap-driver-bstrict
+
+# CI 等价全链
+SHUX=./compiler/shux_asm ./tests/run-bootstrap-bstrict-ci.sh
+
+# Stage2 行为 parity
+make -C compiler bootstrap-verify-stage2-bstrict
+
+# Stage2 SHA256（A-09；默认 track-only，严格：SHUX_STAGE2_HASH_STRICT=1）
+./tests/run-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2
+
+# Windows B-hybrid（A-08；仅 MSYS2）
+./tests/run-bootstrap-bstrict-windows-gate.sh
+# C-03 Windows track-only（B-hybrid 日志 cc -c pipeline_gen.c 计数；严格：SHUX_WIN_C03_PIPELINE_GEN_FAIL=1）
+SHUX_WIN32_WRITE_FAIL=1 ./tests/run-win32-write-gate.sh
+SHUX_WIN32_READ_FILE_FAIL=1 ./tests/run-win32-read-file-gate.sh
+
+# L5 bstrict 白名单（A-10）
+./tests/run-l5-run-all-parity-gate.sh
+
+# typeck 模块 parse 函数数（A-11；Linux；指标 num_defined）
+SHUX_TYPECK_PARSE_COUNT_FAIL=1 ./tests/run-typeck-parse-count-gate.sh
+./tests/run-typeck-parse-bisect-gate.sh
+
+# std/core .c 存量盘点（F-01）
+./tests/run-std-c-inventory-gate.sh
+
+# B-01：#[cfg(...)] 词法跳过（shux-c / 任意平台）
+SHUX_CFG_ATTR_SKIP_FAIL=1 ./tests/run-cfg-attribute-skip-gate.sh
+
+# B-02：#[cfg] 与 -target triple 联动（cross OS/arch 剪枝）
+SHUX_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
+
+# B-14：Linux freestanding syscall invoke（Linux x86_64）
+SHUX_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
+SHUX_LINUX_OPEN_READ_FAIL=1 ./tests/run-linux-open-read-gate.sh
+SHUX_LINUX_MMAP_INVOKE_FAIL=1 ./tests/run-linux-mmap-invoke-gate.sh
+SHUX_LINUX_OPENAT_READ_FAIL=1 ./tests/run-linux-openat-read-gate.sh
+
+# B-20：std.sys os_read_file_into（任意平台 shux-c）
+SHUX_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
+SHUX_B20_GENERATED_C_SCAN_FAIL=1 ./tests/run-b20-generated-c-scan-gate.sh
+
+# C-04：-E-extern 自动生成 import extern（shux-c）
+SHUX_E_EXTERN_IMPORT_FAIL=1 ./tests/run-e-extern-import-gate.sh
+SHUX_LEXER_E_EXTERN_FAIL=1 ./tests/run-lexer-e-extern-gate.sh
+SHUX_PIPELINE_E_EXTERN_FAIL=1 ./tests/run-pipeline-e-extern-gate.sh
+SHUX_PARSER_E_EXTERN_FAIL=1 ./tests/run-parser-e-extern-gate.sh
+
+# B-16：macOS libSystem mmap（Darwin）
+SHUX_MACOS_MMAP_FAIL=1 ./tests/run-macos-mmap-gate.sh
+SHUX_MACOS_MMAP_FILE_FAIL=1 ./tests/run-macos-mmap-file-gate.sh
+
+# B-03：#[repr(C)] 词法跳过 + C ABI layout 烟测（shux-c / 任意平台）
+SHUX_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
+SHUX_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
+
+# B-19：std.sys 统一 os_write（任意平台 shux-c）
+SHUX_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
+SHUX_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
+
+# 跨模块 arch/backend 符号（A-12；Linux）
+SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh
+
+# push 前
+SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
+
+# 自举文档门禁
+./tests/run-doc-selfhost-architecture-gate.sh
+
+# 失败诊断
+./tests/run-bootstrap-bstrict-ci.sh 2>&1 | tee /tmp/boot.log
+./tests/run-bootstrap-stage-diag.sh /tmp/boot.log
+```
+
+> F 阶段仍缺一条**必须新增**门禁脚本：  
+> `tests/run-no-handwritten-c-gate.sh`（F-09，手写 C 清零审计）  
+> Stage2 哈希：`tests/run-stage2-hash-gate.sh`（A-09/A-14，已接入 verify-stage2-bstrict）
+
+---
+
+## 附录 A — 标准库状态说明
+
+> **功能扩展**暂停（HTTP/3、kv 多级 SST 深化等不再排期）。  
+> **实现去 C**（阶段 F）**不暂停** — 完全自举必达项。
+
+
+| 里程碑                                           | 状态  | 摘要                        |
+| --------------------------------------------- | --- | ------------------------- |
+| std.http HTTP/1.1 + HTTP/2 v1                 | ✅   | 远期 HTTP/3 非目标             |
+| std.websocket / std.net TLS / TcpConnPool     | ✅   |                           |
+| std.async net/fs + datetime IANA + compress 流 | ✅   | #78～#81                   |
+| std.sqlite / std.db blob + kv/arrow + docs/07 | ✅   | #82～#93；**功能**收口          |
+| mod ✅ 计数（2026-06-18 审计）                       | ✅   | core 11/11；std 约 28 mod ✅ |
+| **std/*.c 清零（阶段 F）**                          | ⬜   | **完全自举必达**                |
+
+
+---
+
+## 附录 B — 文档索引
+
+
+| 文档                                                                                     | 用途                      |
+| -------------------------------------------------------------------------------------- | ----------------------- |
+| `[自举分析.md](自举分析.md)`                                                                   | 战略、syscall 平台策略、四关卡、三阶段 |
+| `[compiler/docs/SELFHOST.md](compiler/docs/SELFHOST.md)`                               | 目标 A/B/C、拓扑、CI job      |
+| `[analysis/doc-selfhost-architecture-v1.md](analysis/doc-selfhost-architecture-v1.md)` | 新人 1 小时全景               |
+| `[compiler/docs/完全去掉C与H-前置清单.md](compiler/docs/完全去掉C与H-前置清单.md)`                       | 去 C/H 分程度清单             |
+| `[compiler/src/asm/README.md](compiler/src/asm/README.md)`                             | asm 后端能力表               |
+| `[docs/07-内置与标准库.md](docs/07-内置与标准库.md)`                                               | 用户-facing std API       |
+
+
+---
+
+*本文档随自举推进更新；**下一编辑**请同步 §2 当前站位与 §10 第一条未完成任务。*

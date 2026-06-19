@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-stmt-cache.sh — STD-070 manifest 与 bind 烟测辅助
 
-STD_DB_STMT_PREFIX="${SHU_STD070_PREFIX:-shu: [SHU_STD070_DB_STMT]}"
+STD_DB_STMT_PREFIX="${SHUX_STD070_PREFIX:-shux: [SHUX_STD070_DB_STMT]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_stmt_cache_source_sqlite() {
@@ -28,7 +28,7 @@ std_sqlite_stmt_cache_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-stmt-cache FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -55,7 +55,7 @@ std_sqlite_stmt_cache_symbols_ok() {
 std_sqlite_stmt_cache_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/stmt_bind_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_stmt_$$"
+  local out="/tmp/shux_std_sqlite_stmt_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

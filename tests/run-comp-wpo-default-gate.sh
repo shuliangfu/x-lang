@@ -3,15 +3,15 @@
 #
 # 1) comp-wpo-default-v1.md + comp-wpo-default-wave.tsv + comp-wpo.tsv default 行
 # 2) 父 COMP-015 manifest 绿
-# 3) 有 shu_asm / .o 产物时逐条执行 default hook
+# 3) 有 shux_asm / .o 产物时逐条执行 default hook
 #
 # 用法：./tests/run-comp-wpo-default-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP017_DOC:-analysis/comp-wpo-default-v1.md}"
-WAVE="${SHU_COMP017_WAVE_TSV:-tests/baseline/comp-wpo-default-wave.tsv}"
-MANIFEST="${SHU_COMP017_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+DOC="${SHUX_COMP017_DOC:-analysis/comp-wpo-default-v1.md}"
+WAVE="${SHUX_COMP017_WAVE_TSV:-tests/baseline/comp-wpo-default-wave.tsv}"
+MANIFEST="${SHUX_COMP017_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-default.sh"
 MIN_DEFAULT=5
 
@@ -98,9 +98,9 @@ echo "comp-wpo-default manifest OK (default_hooks=${DEFAULT_HOOK_N})"
 
 echo "=== COMP-017: parent COMP-015 manifest ==="
 chmod +x tests/run-comp-wpo-prod-gate.sh
-SHU_COMP015_MANIFEST_ONLY=1 ./tests/run-comp-wpo-prod-gate.sh
+SHUX_COMP015_MANIFEST_ONLY=1 ./tests/run-comp-wpo-prod-gate.sh
 
-if [ "${SHU_COMP017_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP017_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_wpo_default_emit_report "ok" "$DEFAULT_HOOK_N" 0 0
   echo "comp-wpo-default gate OK (manifest only)"
   exit 0

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# S2 typeck SU 门禁（NEXT §2.2 S2 / P3）：typeck.su check + build_asm/typeck.o 非空 __text + 关键导出符号。
+# S2 typeck SU 门禁（NEXT §2.2 S2 / P3）：typeck.sx check + build_asm/typeck.o 非空 __text + 关键导出符号。
 # 用法：./tests/run-s2-typeck-gate.sh
-# 可选：SHU_S2_REQUIRE_TYPECK_O=1 — 无 typeck.o 时失败（CI 在 build_shu_asm 之后设置）
-# 可选：SHU_S2_FAIL_ON_REGRESSION=1 — __text 低于 baseline min_text_bytes 时失败
-# 可选：SHU_S2_UPDATE_BASELINE=1 — 将当前 __text 写入 tests/baseline/s2-typeck-o.tsv
+# 可选：SHUX_S2_REQUIRE_TYPECK_O=1 — 无 typeck.o 时失败（CI 在 build_shux_asm 之后设置）
+# 可选：SHUX_S2_FAIL_ON_REGRESSION=1 — __text 低于 baseline min_text_bytes 时失败
+# 可选：SHUX_S2_UPDATE_BASELINE=1 — 将当前 __text 写入 tests/baseline/s2-typeck-o.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c
+make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
-SHU=${SHU:-./compiler/shu-c}
-TYPECK_SU="compiler/src/typeck/typeck.su"
+SHUX=${SHUX:-./compiler/shux-c}
+TYPECK_SX="compiler/src/typeck/typeck.sx"
 TYPECK_O="compiler/build_asm/typeck.o"
-BASELINE="${SHU_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
+BASELINE="${SHUX_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
 MIN_TEXT=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_TEXT=${MIN_TEXT:-1500}
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -40,14 +40,14 @@ print(real)
 PY
 }
 
-# ── 1) typeck.su 须能通过 C 前端 check（与 run-check-compiler 子集一致）──
-out=$("$SHU" check "$TYPECK_SU" 2>&1) || {
+# ── 1) typeck.sx 须能通过 C 前端 check（与 run-check-compiler 子集一致）──
+out=$("$SHUX" check "$TYPECK_SX" 2>&1) || {
   echo "$out"
-  echo "s2 typeck gate: check failed on $TYPECK_SU"
+  echo "s2 typeck gate: check failed on $TYPECK_SX"
   exit 1
 }
 if [ -n "$out" ]; then
-  echo "s2 typeck gate: expected silent check on $TYPECK_SU, got: $out"
+  echo "s2 typeck gate: expected silent check on $TYPECK_SX, got: $out"
   exit 1
 fi
 
@@ -69,8 +69,8 @@ text_section_size() {
 }
 
 if [ ! -f "$TYPECK_O" ]; then
-  if [ "${SHU_S2_REQUIRE_TYPECK_O:-0}" = "1" ]; then
-    echo "s2 typeck gate: missing $TYPECK_O (run: cd compiler && SHU=./shu ./scripts/build_shu_asm.sh)" >&2
+  if [ "${SHUX_S2_REQUIRE_TYPECK_O:-0}" = "1" ]; then
+    echo "s2 typeck gate: missing $TYPECK_O (run: cd compiler && SHUX=./shux ./scripts/build_shux_asm.sh)" >&2
     exit 1
   fi
   echo "s2 typeck gate OK (check only; $TYPECK_O missing — skip __text/symbol checks)"
@@ -80,10 +80,10 @@ fi
 sz=$(text_section_size "$TYPECK_O")
 echo "s2 typeck gate: $TYPECK_O __text size=$sz (min=$MIN_TEXT)"
 
-if [ "${SHU_S2_UPDATE_BASELINE:-0}" = "1" ]; then
+if [ "${SHUX_S2_UPDATE_BASELINE:-0}" = "1" ]; then
   {
-    echo "# S2 typeck.o：build_asm/typeck.su 的 asm 产物 __text 下限（字节）"
-    echo "# 更新：SHU_S2_UPDATE_BASELINE=1 ./tests/run-s2-typeck-gate.sh"
+    echo "# S2 typeck.o：build_asm/typeck.sx 的 asm 产物 __text 下限（字节）"
+    echo "# 更新：SHUX_S2_UPDATE_BASELINE=1 ./tests/run-s2-typeck-gate.sh"
     printf 'min_text_bytes\t%s\n' "$sz"
   } >"$BASELINE"
   echo "s2 typeck gate: updated baseline min_text_bytes=$sz"
@@ -94,7 +94,7 @@ if [ "${sz:-0}" -eq 0 ] 2>/dev/null; then
   exit 1
 fi
 
-if [ "${SHU_S2_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHU_S2_REQUIRE_TYPECK_O:-0}" = "1" ]; then
+if [ "${SHUX_S2_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHUX_S2_REQUIRE_TYPECK_O:-0}" = "1" ]; then
   if ! awk -v s="$sz" -v m="$MIN_TEXT" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then
     echo "s2 typeck gate FAIL: __text $sz < min_text_bytes $MIN_TEXT" >&2
     exit 1
@@ -118,7 +118,7 @@ elif [ "${sz:-0}" -ge 8192 ] 2>/dev/null; then
   echo "s2 typeck gate: typeck.o EMIT_HEAVY selfhosted (__text>=8192, real_funcs=${real})"
 fi
 
-if [ "${SHU_S2_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${MIN_REAL:-0}" -gt 0 ] 2>/dev/null; then
+if [ "${SHUX_S2_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${MIN_REAL:-0}" -gt 0 ] 2>/dev/null; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s2 typeck gate FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
     exit 1

@@ -10,14 +10,14 @@ fi
 
 make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
 
-if ! cc -std=c11 -Wall -Wextra -o /tmp/shu_io_multishot_accept_smoke \
+if ! cc -std=c11 -Wall -Wextra -o /tmp/shux_io_multishot_accept_smoke \
   tests/bench/io_multishot_accept_smoke.c std/io/io.o -luring -lpthread 2>/dev/null; then
   echo "io multishot: skip (build failed; need liburing)"
   echo "io multishot accept OK"
   exit 0
 fi
 
-out=$(SHU_IO_URING_MULTISHOT_ACCEPT=1 /tmp/shu_io_multishot_accept_smoke 2>&1) || {
+out=$(SHUX_IO_URING_MULTISHOT_ACCEPT=1 /tmp/shux_io_multishot_accept_smoke 2>&1) || {
   rc=$?
   echo "$out"
   # 内核无 io_uring / multishot accept（Docker、旧内核 hits=0 / accepted<4）→ N/A，勿误报 FAIL。

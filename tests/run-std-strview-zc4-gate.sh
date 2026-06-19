@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
-MANIFEST="${SHU_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
-STRING_SU="std/string/mod.su"
+DOC="${SHUX_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
+MANIFEST="${SHUX_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
+STRING_SU="std/string/mod.sx"
 LIB="tests/lib/std-strview-zc4.sh"
-LIFECYCLE_SU="tests/string/view_lifecycle.su"
+LIFECYCLE_SU="tests/string/view_lifecycle.sx"
 
 # shellcheck source=tests/lib/std-strview-zc4.sh
 . tests/lib/std-strview-zc4.sh
@@ -50,7 +50,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -61,13 +61,13 @@ resolve_shu() {
 
 TYPECK_OK=0
 ZC4_SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-016: typeck (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  for su in "$LIFECYCLE_SU" tests/string/view_subview_smoke.su tests/string/arena_concat_smoke.su tests/string/stack_str_sso_smoke.su; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-016: typeck (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  for su in "$LIFECYCLE_SU" tests/string/view_subview_smoke.sx tests/string/arena_concat_smoke.sx tests/string/stack_str_sso_smoke.sx; do
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "std-strview-zc4 gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -6 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -6 >&2 || true
       std_sv_zc4_emit_report "fail" 1 0 1
       exit 1
     fi
@@ -76,7 +76,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
   if [ -x tests/run-zc4-gate.sh ]; then
     echo "=== STD-016: delegate run-zc4-gate (runnable) ==="
     chmod +x tests/run-zc4-gate.sh tests/run-perf-string-arena.sh tests/run-string.sh
-    if SHU="$SHU_BIN" ./tests/run-zc4-gate.sh >/tmp/std_sv_zc4_deep.log 2>&1; then
+    if SHUX="$SHUX_BIN" ./tests/run-zc4-gate.sh >/tmp/std_sv_zc4_deep.log 2>&1; then
       ZC4_SKIP=0
       grep -qF 'zc4 gate OK' /tmp/std_sv_zc4_deep.log || true
     else
@@ -85,7 +85,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "std-strview-zc4 gate SKIP typeck (no native shu-c)" >&2
+  echo "std-strview-zc4 gate SKIP typeck (no native shux-c)" >&2
 fi
 
 std_sv_zc4_emit_report "ok" 1 "$TYPECK_OK" "$ZC4_SKIP"

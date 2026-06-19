@@ -58,8 +58,8 @@ import json, os, sys
 cdir, cc, out = sys.argv[1], sys.argv[2], sys.argv[3]
 base = ["-x", "c", "-std=c11", "-Wall", "-Wextra", "-I.", "-Iinclude", "-Isrc", "-Iide"]
 driver_flags = base + [
-    "-DSHU_USE_SU_DRIVER", "-DSHU_USE_SU_PIPELINE", "-DSHU_USE_SU_PREPROCESS",
-    "-DSHU_USE_SU_TYPECK", "-DSHU_USE_SU_CODEGEN",
+    "-DSHUX_USE_SX_DRIVER", "-DSHUX_USE_SX_PIPELINE", "-DSHUX_USE_SX_PREPROCESS",
+    "-DSHUX_USE_SX_TYPECK", "-DSHUX_USE_SX_CODEGEN",
 ]
 pipeline_flags = base + [
     "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-unused-function",

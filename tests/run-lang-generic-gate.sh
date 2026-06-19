@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_GENERIC_DOC:-analysis/lang-generic-v1.md}"
-MANIFEST="${SHU_LANG_GENERIC_MANIFEST:-tests/baseline/lang-generic.tsv}"
-PROTOTYPE="${SHU_LANG_GENERIC_PROTOTYPE:-tests/baseline/lang-generic-prototype.tsv}"
+DOC="${SHUX_LANG_GENERIC_DOC:-analysis/lang-generic-v1.md}"
+MANIFEST="${SHUX_LANG_GENERIC_MANIFEST:-tests/baseline/lang-generic.tsv}"
+PROTOTYPE="${SHUX_LANG_GENERIC_PROTOTYPE:-tests/baseline/lang-generic-prototype.tsv}"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_CAPS=4
@@ -17,9 +17,9 @@ MIN_CAPS=4
 
 echo "=== LANG-003: generic monomorph manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTOTYPE" \
-  tests/generic/main.su tests/generic/wrong_type_args.su \
-  tests/multi-file-generic/main.su tests/multi-file-generic/foo.su \
-  tests/bench/generic_id_i32.su \
+  tests/generic/main.sx tests/generic/wrong_type_args.sx \
+  tests/multi-file-generic/main.sx tests/multi-file-generic/foo.sx \
+  tests/bench/generic_id_i32.sx \
   compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c; do
   if [ ! -f "$f" ]; then
     echo "lang-generic gate FAIL: missing $f" >&2

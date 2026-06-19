@@ -5,7 +5,7 @@
 #   std_pfw_symbols_ok PATH_SU TSV
 #   std_pfw_emit_report status path_ok fs_ok skip
 
-STD_PFW_PREFIX="${SHU_STD_PATH_FS_WIN_PREFIX:-shu: [SHU_STD_PATH_FS_WIN]}"
+STD_PFW_PREFIX="${SHUX_STD_PATH_FS_WIN_PREFIX:-shux: [SHUX_STD_PATH_FS_WIN]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数，成功返回 0。
 std_pfw_symbols_ok() {

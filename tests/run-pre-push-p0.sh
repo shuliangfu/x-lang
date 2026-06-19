@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # P0 本地 push 前自检：bootstrap-ci + perf P1 + asm 7.3（bstrict 107 含于 bootstrap-ci）。
-# 用法：SHU=./compiler/shu_asm ./tests/run-pre-push-p0.sh
+# 用法：SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/ensure-compiler-seed.sh
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
-export SHU="${SHU:-./compiler/shu_asm}"
-if [ ! -x "$SHU" ]; then
-  echo "run-pre-push-p0: missing $SHU (make -C compiler bootstrap-driver-bstrict)" >&2
+export SHUX="${SHUX:-./compiler/shux_asm}"
+if [ ! -x "$SHUX" ]; then
+  echo "run-pre-push-p0: missing $SHUX (make -C compiler bootstrap-driver-bstrict)" >&2
   exit 1
 fi
 
 echo "=== P0: bootstrap-bstrict-ci ==="
-SHU="$SHU" ./tests/run-bootstrap-bstrict-ci.sh
+SHUX="$SHUX" ./tests/run-bootstrap-bstrict-ci.sh
 
 echo "=== P0: asm compute gate (binop + vector + call-inline) ==="
-SHU="$SHU" ./tests/run-asm-73-gate.sh
+SHUX="$SHUX" ./tests/run-asm-73-gate.sh
 
 echo "=== P0: perf P1 gate ==="
 ./tests/run-perf-p1-gate.sh

@@ -1,5 +1,5 @@
 # std.fs Tier-S stable public API (import std.fs)
-# One symbol per line; run-std-fs-api-gate.sh greps std/fs/mod.su
+# One symbol per line; run-std-fs-api-gate.sh greps std/fs/mod.sx
 # Updated: 2026-06-17 (STD-003)
 fs_invalid_handle
 fs_read_chunk

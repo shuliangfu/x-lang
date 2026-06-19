@@ -1,0 +1,6 @@
+// dead_user.sx — import dead_lib，仅调用 live_export
+const dead_lib = import("dead_lib");
+
+function main(): i32 {
+  return live_export();
+}

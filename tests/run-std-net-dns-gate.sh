@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
-MANIFEST="${SHU_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
-NET_SU="std/net/mod.su"
+DOC="${SHUX_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
+MANIFEST="${SHUX_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
+NET_SU="std/net/mod.sx"
 NET_C="std/net/net.c"
 LIB="tests/lib/std-net-dns.sh"
-RESOLVE_SU="tests/net/resolve_dns.su"
-MAIN_SU="tests/net/main.su"
+RESOLVE_SU="tests/net/resolve_dns.sx"
+MAIN_SU="tests/net/main.sx"
 MIN_APIS=4
 
 # shellcheck source=tests/lib/std-net-dns.sh
@@ -88,33 +88,33 @@ stdlib_cm_native_shu() {
 RESOLVE_OK=0
 MAIN_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-029: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-029: typeck + smoke (SHUX=$SHUX_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/net/net.o
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$RESOLVE_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$RESOLVE_SU" >/dev/null 2>&1; then
     echo "std-net-dns gate FAIL: typeck $RESOLVE_SU" >&2
-    "$SHU_BIN" check -L . "$RESOLVE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$RESOLVE_SU" 2>&1 | tail -10 >&2 || true
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHU_BIN" "$RESOLVE_SU" "resolve_dns"; then
+  if std_net_dns_run_smoke "$SHUX_BIN" "$RESOLVE_SU" "resolve_dns"; then
     RESOLVE_OK=1
   else
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHU_BIN" "$MAIN_SU" "main"; then
+  if std_net_dns_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
     MAIN_OK=1
   else
     std_net_dns_emit_report "fail" "$RESOLVE_OK" 0 0
@@ -122,7 +122,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-net-dns gate SKIP smoke (no native shu-c)" >&2
+  echo "std-net-dns gate SKIP smoke (no native shux-c)" >&2
 fi
 
 std_net_dns_emit_report "ok" "$RESOLVE_OK" "$MAIN_OK" "$SKIP"

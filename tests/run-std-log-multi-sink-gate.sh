@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_LOG_MULTI_SINK_DOC:-analysis/std-log-multi-sink-v1.md}"
-MANIFEST="${SHU_STD_LOG_MULTI_SINK_TSV:-tests/baseline/std-log-multi-sink.tsv}"
-VECTORS="${SHU_STD_LOG_MULTI_SINK_VECTORS:-tests/baseline/std-log-multi-sink-vectors.tsv}"
-MOD_SU="std/log/mod.su"
+DOC="${SHUX_STD_LOG_MULTI_SINK_DOC:-analysis/std-log-multi-sink-v1.md}"
+MANIFEST="${SHUX_STD_LOG_MULTI_SINK_TSV:-tests/baseline/std-log-multi-sink.tsv}"
+VECTORS="${SHUX_STD_LOG_MULTI_SINK_VECTORS:-tests/baseline/std-log-multi-sink-vectors.tsv}"
+MOD_SU="std/log/mod.sx"
 LOG_C="std/log/log.c"
 LIB="tests/lib/std-log-multi-sink.sh"
-SMOKE_SU="tests/std-log/level_filter.su"
+SMOKE_SU="tests/std-log/level_filter.sx"
 SMOKE_C="tests/std-log/multi_sink_ok.c"
 MIN_APIS=6
 
@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$LOG_C" "$SMOKE_SU" "$S
   fi
 done
 
-for kw in STD-053 SINK_STDERR SHU_LOG_MIN_LEVEL Cookbook; do
+for kw in STD-053 SINK_STDERR SHUX_LOG_MIN_LEVEL Cookbook; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-log-multi-sink gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -93,7 +93,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -105,28 +105,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-053: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-053: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-log-multi-sink gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_log_multi_sink_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_log_multi_sink_run_smoke "$SHU_BIN" "$SMOKE_SU" "level"; then
+  if std_log_multi_sink_run_smoke "$SHUX_BIN" "$SMOKE_SU" "level"; then
     SU_OK=1
   else
     std_log_multi_sink_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-log-multi-sink gate SKIP .su smoke (no native shu)" >&2
+  echo "std-log-multi-sink gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

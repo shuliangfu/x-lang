@@ -3,14 +3,14 @@
 #
 # 1) exc-error-code-layer-v1.md + manifest
 # 2) std/error 符号与 fs_last_error 侧车
-# 3) native shu：tests/exc/error_code_layer.su exit 0
+# 3) native shux：tests/exc/error_code_layer.sx exit 0
 #
 # 用法：./tests/run-exc-error-code-layer-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_EXC_CODE_LAYER_DOC:-analysis/exc-error-code-layer-v1.md}"
-MATRIX="${SHU_EXC_CODE_LAYER_TSV:-tests/baseline/exc-error-code-layer.tsv}"
+DOC="${SHUX_EXC_CODE_LAYER_DOC:-analysis/exc-error-code-layer-v1.md}"
+MATRIX="${SHUX_EXC_CODE_LAYER_TSV:-tests/baseline/exc-error-code-layer.tsv}"
 MIN_ITEMS=12
 
 native_shu() {
@@ -30,7 +30,7 @@ for f in \
   "$DOC" \
   "$MATRIX" \
   analysis/exc-result-error-v1-rfc.md \
-  std/error/mod.su; do
+  std/error/mod.sx; do
   if [ ! -f "$f" ]; then
     echo "exc-error-code-layer gate FAIL: missing $f" >&2
     exit 1
@@ -94,18 +94,18 @@ fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "exc-error-code-layer gate SKIP smoke (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "exc-error-code-layer gate SKIP smoke (no native shux)" >&2
   echo "exc-error-code-layer gate OK"
   exit 0
 fi
@@ -115,10 +115,10 @@ if [ -z "$SMOKE" ] || [ ! -f "$SMOKE" ]; then
   exit 1
 fi
 
-OUT=/tmp/shu_exc_code_layer
-echo "=== EXC-003: layer smoke (SHU=$SHU_BIN) ==="
-if ! "$SHU_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shu_exc_code_layer_compile.log 2>&1; then
-  cat /tmp/shu_exc_code_layer_compile.log >&2
+OUT=/tmp/shux_exc_code_layer
+echo "=== EXC-003: layer smoke (SHUX=$SHUX_BIN) ==="
+if ! "$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_exc_code_layer_compile.log 2>&1; then
+  cat /tmp/shux_exc_code_layer_compile.log >&2
   exit 1
 fi
 EC=0

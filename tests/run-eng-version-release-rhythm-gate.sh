@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_ENG_VERSION_DOC:-analysis/eng-version-release-rhythm-v1.md}"
-MANIFEST="${SHU_ENG_VERSION_TSV:-tests/baseline/eng-version-release-rhythm.tsv}"
+DOC="${SHUX_ENG_VERSION_DOC:-analysis/eng-version-release-rhythm-v1.md}"
+MANIFEST="${SHUX_ENG_VERSION_TSV:-tests/baseline/eng-version-release-rhythm.tsv}"
 LIB="tests/lib/eng-version-release-rhythm.sh"
 VERSION_FILE="VERSION"
 VSCODE_PKG="editors/vscode/package.json"

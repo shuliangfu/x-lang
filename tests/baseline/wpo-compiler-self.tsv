@@ -1,3 +1,3 @@
-# WPO-S1 compiler self：从 main.su(entry) 全程序 call graph 的 dead export 下限（%）
+# WPO-S1 compiler self：从 main.sx(entry) 全程序 call graph 的 dead export 下限（%）
 # 更新：实测后调整 min_dead_pct；门禁 ./tests/run-wpo-compiler-self.sh
 min_dead_pct	5

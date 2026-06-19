@@ -1,12 +1,12 @@
 # ENG-004：发布前 checklist（复制到 Release PR / 打 tag 前自检）
 - [ ] `dev` → `main` PR 已合并且 CI 全绿（`run-ci-full-suite.sh`）
-- [ ] 已运行 `./tests/run-eng-release-precheck.sh`（或 `SHU_RELEASE_TAG=vX.Y.Z` 带 tag 校验）
+- [ ] 已运行 `./tests/run-eng-release-precheck.sh`（或 `SHUX_RELEASE_TAG=vX.Y.Z` 带 tag 校验）
 - [ ] 若改 performance baseline：已 bump `perf-baseline-registry.tsv` version（见 ENG-001 checklist）
 - [ ] `NEXT.md` 中本版本相关待办状态已更新（如有）
-- [ ] 工作区无未提交变更（`SHU_RELEASE_REQUIRE_CLEAN=1` 预检或 `git status`）
+- [ ] 工作区无未提交变更（`SHUX_RELEASE_REQUIRE_CLEAN=1` 预检或 `git status`）
 - [ ] 若对外发版：已 bump 根目录 `VERSION` 且 `editors/vscode/package.json` version 一致（ENG-005）
 - [ ] Tag 渠道符合矩阵：`tests/templates/eng-version-channel-matrix.txt`（alpha/beta/stable）
 - [ ] 在 `main` HEAD 打 annotated tag：`git tag -a vX.Y.Z -m "Release vX.Y.Z"`
 - [ ] 先 push 分支再 push tag：`git push origin main` → `git push origin vX.Y.Z`
 - [ ] （发布后若需回滚）见 `tests/templates/eng-rollback-playbook.txt`（ENG-006，SLA 30min）
-- [ ] （可选）`SHU_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh` 跑 Tier P 便携套件
+- [ ] （可选）`SHUX_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh` 跑 Tier P 便携套件

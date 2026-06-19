@@ -5,7 +5,7 @@
 #   std_io_fallback_manifest_ok DOC README IO_C MOD_SU TSV
 #   std_io_fallback_emit_report status matrix_ok code_ok readme_ok check_ok skip
 
-STD_IO_FALLBACK_PREFIX="${SHU_STD_IO_FALLBACK_PREFIX:-shu: [SHU_STD_IO_FALLBACK]}"
+STD_IO_FALLBACK_PREFIX="${SHUX_STD_IO_FALLBACK_PREFIX:-shux: [SHUX_STD_IO_FALLBACK]}"
 
 # 校验 manifest：矩阵行 doc+code 锚点、README、符号；echo "matrix_miss code_miss"。
 std_io_fallback_manifest_ok() {

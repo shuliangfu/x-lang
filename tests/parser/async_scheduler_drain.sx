@@ -1,0 +1,20 @@
+// async_scheduler_drain.sx — A4：run yield_demo() + scheduler drain（无需 extern）
+/** await 后 +1；SHUX_ASYNC_YIELD=1 时 drain 内 resume。 */
+async function yield_demo(): i32 {
+  let a: i32 = 1;
+  let b: i32 = await a;
+  return b + 1;
+}
+
+function main(): i32 {
+  let r: i32 = run yield_demo();
+  if (r != 2) {
+    return 11;
+  }
+  /** phase reset 后二次 run 仍应成功。 */
+  let r2: i32 = run yield_demo();
+  if (r2 != 2) {
+    return 12;
+  }
+  return 0;
+}

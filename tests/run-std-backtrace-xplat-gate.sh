@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$BT_C" "$SMOKE_C" std/backtrace/R
   fi
 done
 
-for kw in STD-147 SHU_BT_XPLAT export_dynamic DbgHelp; do
+for kw in STD-147 SHUX_BT_XPLAT export_dynamic DbgHelp; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-backtrace-xplat gate FAIL: doc missing '$kw'" >&2
     exit 1

@@ -8,7 +8,7 @@
 #   phase3_roadmap_wave9_is_draft MANIFEST
 #   phase3_roadmap_wave9_emit_report status tasks_ok sections_ok done_ok draft_ok
 
-PHASE3_WAVE9_PREFIX="${SHU_PLAN009_PREFIX:-shu: [SHU_PLAN009_PHASE3_W9]}"
+PHASE3_WAVE9_PREFIX="${SHUX_PLAN009_PREFIX:-shux: [SHUX_PLAN009_PHASE3_W9]}"
 
 # 校验 manifest；echo 缺失数。
 phase3_roadmap_wave9_check() {

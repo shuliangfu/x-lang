@@ -5,7 +5,7 @@
 #   std_fmt_multi_symbols_ok FMT_SU TSV
 #   std_fmt_multi_emit_report status check_ok run_ok skip
 
-STD_FMT_MULTI_PREFIX="${SHU_STD_FMT_MULTI_PREFIX:-shu: [SHU_STD_FMT_MULTI]}"
+STD_FMT_MULTI_PREFIX="${SHUX_STD_FMT_MULTI_PREFIX:-shux: [SHUX_STD_FMT_MULTI]}"
 
 # 校验 manifest symbol/overload 锚点；echo 缺失数。
 std_fmt_multi_symbols_ok() {

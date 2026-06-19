@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-process-xplat-v1.md"
 MANIFEST="tests/baseline/std-process-xplat-manifest.tsv"
 VECTORS="tests/baseline/std-process-xplat.tsv"
-MOD_SU="std/process/mod.su"
+MOD_SU="std/process/mod.sx"
 PROC_C="std/process/process.c"
 LIB="tests/lib/std-process-xplat.sh"
-SMOKE_SU="tests/process/xplat_behavior.su"
+SMOKE_SU="tests/process/xplat_behavior.sx"
 MIN_VECTORS=10
 
 # shellcheck source=tests/lib/std-process-xplat.sh
@@ -48,25 +48,25 @@ make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  for su in "$SMOKE_SU" tests/process/boundary.su tests/process/spawn_wait_win.su tests/process/spawn_pipe_echo.su; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  for su in "$SMOKE_SU" tests/process/boundary.sx tests/process/spawn_wait_win.sx tests/process/spawn_pipe_echo.sx; do
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "std-process-xplat gate FAIL: typeck $su" >&2
       std_process_xplat_emit_report "fail" 0 0
       exit 1
     fi
   done
-  if std_process_xplat_run_smoke "$SHU_BIN" "$SMOKE_SU"; then
+  if std_process_xplat_run_smoke "$SHUX_BIN" "$SMOKE_SU"; then
     SU_OK=1
   else
     std_process_xplat_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-process-xplat gate SKIP .su smoke (no shu)" >&2
+  echo "std-process-xplat gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

@@ -1,7 +1,7 @@
 /**
  * lexer.c — 词法分析器实现
  *
- * 文件职责：将 .su 源码按字符流切分为 Token 流，识别关键字、标识符、字面量、符号及三种注释：双斜线行注释、块注释、井号行注释。
+ * 文件职责：将 .sx 源码按字符流切分为 Token 流，识别关键字、标识符、字面量、符号及三种注释：双斜线行注释、块注释、井号行注释。
  * 所属模块：编译器前端 lexer，compiler/src/lexer/；实现 lexer.h 声明的接口。
  * 与其它文件的关系：依赖 include/token.h；被 parser、main 通过 lexer.h 调用；不依赖 parser 或 ast。
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 及阶段 5 import 词法一致；Token 的 line/col 为该 Token 在源码中的起始位置；ident 不拷贝，指向 source 内地址。
@@ -643,6 +643,334 @@ static void lex_float_leading_dot(Lexer *l, Token *out) {
 }
 
 /**
+ * B-01：返回当前 host 的 target_os 字面量（与 #[cfg(target_os = "...")] 对齐）。
+ */
+static const char *cfg_host_os_lit(void) {
+#if defined(__APPLE__)
+    return "macos";
+#elif defined(__linux__)
+    return "linux";
+#elif defined(_WIN32)
+    return "windows";
+#else
+    return "unknown";
+#endif
+}
+
+/**
+ * B-01：返回当前 host 的 target_arch 字面量。
+ */
+static const char *cfg_host_arch_lit(void) {
+#if defined(__aarch64__) || defined(_M_ARM64)
+    return "aarch64";
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__amd64__)
+    return "x86_64";
+#elif defined(__riscv) && __riscv_xlen == 64
+    return "riscv64";
+#else
+    return "unknown";
+#endif
+}
+
+/** B-02：`-target` triple 覆盖后的 effective os/arch；未设置时与 host 相同。 */
+static char g_cfg_os_override[32];
+static char g_cfg_arch_override[32];
+static int g_cfg_has_target_override;
+
+/**
+ * B-02：在 triple[len] 中忽略大小写查找子串 needle。
+ * 返回值：找到返回 1，否则 0。
+ */
+static int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
+    size_t nlen;
+    int i;
+    if (!triple || len <= 0 || !needle)
+        return 0;
+    nlen = strlen(needle);
+    if (nlen == 0 || (size_t)len < nlen)
+        return 0;
+    for (i = 0; i + (int)nlen <= len; i++) {
+        int j;
+        int ok = 1;
+        for (j = 0; j < (int)nlen; j++) {
+            unsigned char a = (unsigned char)triple[i + j];
+            unsigned char b = (unsigned char)needle[j];
+            if (a >= 'A' && a <= 'Z')
+                a = (unsigned char)(a + 32);
+            if (b >= 'A' && b <= 'Z')
+                b = (unsigned char)(b + 32);
+            if (a != b) {
+                ok = 0;
+                break;
+            }
+        }
+        if (ok)
+            return 1;
+    }
+    return 0;
+}
+
+/**
+ * B-02：从 `-target` triple 解析 target_os / target_arch 字面量写入 os_out/arch_out。
+ * 解析失败时回退 host 值。
+ */
+static void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
+                                      size_t arch_sz) {
+    const char *host_os;
+    const char *host_arch;
+    if (!os_out || os_sz == 0 || !arch_out || arch_sz == 0)
+        return;
+    host_os = cfg_host_os_lit();
+    host_arch = cfg_host_arch_lit();
+    strncpy(os_out, host_os, os_sz - 1);
+    os_out[os_sz - 1] = '\0';
+    strncpy(arch_out, host_arch, arch_sz - 1);
+    arch_out[arch_sz - 1] = '\0';
+    if (!triple || len <= 0)
+        return;
+    if (cfg_triple_contains_ci(triple, len, "linux"))
+        strncpy(os_out, "linux", os_sz - 1);
+    else if (cfg_triple_contains_ci(triple, len, "darwin") || cfg_triple_contains_ci(triple, len, "macos"))
+        strncpy(os_out, "macos", os_sz - 1);
+    else if (cfg_triple_contains_ci(triple, len, "windows") || cfg_triple_contains_ci(triple, len, "win32"))
+        strncpy(os_out, "windows", os_sz - 1);
+    os_out[os_sz - 1] = '\0';
+    if (cfg_triple_contains_ci(triple, len, "aarch64") || cfg_triple_contains_ci(triple, len, "arm64"))
+        strncpy(arch_out, "aarch64", arch_sz - 1);
+    else if (cfg_triple_contains_ci(triple, len, "x86_64") || cfg_triple_contains_ci(triple, len, "amd64"))
+        strncpy(arch_out, "x86_64", arch_sz - 1);
+    else if (cfg_triple_contains_ci(triple, len, "riscv64"))
+        strncpy(arch_out, "riscv64", arch_sz - 1);
+    arch_out[arch_sz - 1] = '\0';
+}
+
+/** B-02：#[cfg] 求值使用的 effective target_os（triple 覆盖或 host）。 */
+static const char *cfg_effective_os_lit(void) {
+    if (g_cfg_has_target_override && g_cfg_os_override[0])
+        return g_cfg_os_override;
+    return cfg_host_os_lit();
+}
+
+/** B-02：#[cfg] 求值使用的 effective target_arch（triple 覆盖或 host）。 */
+static const char *cfg_effective_arch_lit(void) {
+    if (g_cfg_has_target_override && g_cfg_arch_override[0])
+        return g_cfg_arch_override;
+    return cfg_host_arch_lit();
+}
+
+/**
+ * B-02：应用 `-target` triple，使后续 #[cfg] 按 cross 目标剪枝。
+ */
+void cfg_apply_compile_target_from_triple(const char *triple, int len) {
+    cfg_parse_triple_literals(triple, len, g_cfg_os_override, sizeof g_cfg_os_override, g_cfg_arch_override,
+                              sizeof g_cfg_arch_override);
+    g_cfg_has_target_override = 1;
+}
+
+/** B-02：清除 triple 覆盖，#[cfg] 回退 host。 */
+void cfg_reset_compile_target(void) {
+    g_cfg_has_target_override = 0;
+    g_cfg_os_override[0] = '\0';
+    g_cfg_arch_override[0] = '\0';
+}
+
+/** 忽略大小写比较 [a, a+alen) 与 C 字符串 b。 */
+static int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
+    size_t blen;
+    size_t i;
+
+    if (!a || !b)
+        return 0;
+    blen = strlen(b);
+    if (alen != blen)
+        return 0;
+    for (i = 0; i < alen; i++) {
+        unsigned char ca = (unsigned char)a[i];
+        unsigned char cb = (unsigned char)b[i];
+        if (ca >= 'A' && ca <= 'Z')
+            ca = (unsigned char)(ca + 32);
+        if (cb >= 'A' && cb <= 'Z')
+            cb = (unsigned char)(cb + 32);
+        if (ca != cb)
+            return 0;
+    }
+    return 1;
+}
+
+/** 递归求值 cfg 表达式；end 不含（指向 cfg 外层 ')' 或子表达式结束）。 */
+static int cfg_eval_expr(const char *start, const char *end) {
+    const char *p = start;
+
+    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
+        p++;
+    if (p >= end)
+        return 0;
+    if ((size_t)(end - p) >= 4 && strncmp(p, "all(", 4) == 0) {
+        p += 4;
+        while (p < end) {
+            const char *part;
+            int depth;
+            while (p < end && (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r'))
+                p++;
+            if (p >= end)
+                break;
+            if (*p == ')')
+                return 1;
+            part = p;
+            depth = 0;
+            while (p < end) {
+                if (*p == '(')
+                    depth++;
+                else if (*p == ')') {
+                    if (depth == 0)
+                        break;
+                    depth--;
+                } else if (*p == ',' && depth == 0)
+                    break;
+                p++;
+            }
+            if (!cfg_eval_expr(part, p))
+                return 0;
+            if (p < end && *p == ')')
+                return 1;
+        }
+        return 1;
+    }
+    if ((size_t)(end - p) >= 4 && strncmp(p, "not(", 4) == 0) {
+        const char *inner;
+        const char *close;
+        int depth;
+
+        inner = p + 4;
+        depth = 1;
+        close = inner;
+        while (close < end && depth > 0) {
+            if (*close == '(')
+                depth++;
+            else if (*close == ')')
+                depth--;
+            if (depth > 0)
+                close++;
+        }
+        return !cfg_eval_expr(inner, close);
+    }
+    if ((size_t)(end - p) >= 9 && strncmp(p, "target_os", 9) == 0) {
+        const char *lit;
+        p += 9;
+        while (p < end && (*p == ' ' || *p == '\t'))
+            p++;
+        if (p >= end || *p != '=')
+            return 0;
+        p++;
+        while (p < end && (*p == ' ' || *p == '\t'))
+            p++;
+        if (p >= end || *p != '"')
+            return 0;
+        p++;
+        lit = p;
+        while (p < end && *p != '"')
+            p++;
+        return cfg_lit_eq_ci(lit, (size_t)(p - lit), cfg_effective_os_lit());
+    }
+    if ((size_t)(end - p) >= 11 && strncmp(p, "target_arch", 11) == 0) {
+        const char *lit;
+        p += 11;
+        while (p < end && (*p == ' ' || *p == '\t'))
+            p++;
+        if (p >= end || *p != '=')
+            return 0;
+        p++;
+        while (p < end && (*p == ' ' || *p == '\t'))
+            p++;
+        if (p >= end || *p != '"')
+            return 0;
+        p++;
+        lit = p;
+        while (p < end && *p != '"')
+            p++;
+        return cfg_lit_eq_ci(lit, (size_t)(p - lit), cfg_effective_arch_lit());
+    }
+    return 0;
+}
+
+int cfg_eval_expr_c(const char *start, int len) {
+    if (!start || len <= 0)
+        return 0;
+    return cfg_eval_expr(start, start + len) ? 1 : 0;
+}
+
+/**
+ * B-03 v1：若当前位置为 #[repr(C)]，消费整段并写入 TOKEN_ATTR_REPR_C；成功返回 1。
+ */
+static int lexer_lex_repr_c_attr(Lexer *l, Token *out) {
+    int line;
+    int col;
+    if (!l || !l->src || !out || l->src + 10 > l->end)
+        return 0;
+    if (l->src[0] != '#' || l->src[1] != '[')
+        return 0;
+    if (l->src[2] != 'r' || l->src[3] != 'e' || l->src[4] != 'p' || l->src[5] != 'r')
+        return 0;
+    if (l->src[6] != '(' || l->src[7] != 'C' || l->src[8] != ')' || l->src[9] != ']')
+        return 0;
+    line = l->line;
+    col = l->col;
+    for (int i = 0; i < 10; i++)
+        lexer_advance(l);
+    out->kind = TOKEN_ATTR_REPR_C;
+    out->line = line;
+    out->col = col;
+    out->value.int_val = 0;
+    out->ident_len = 0;
+    return 1;
+}
+
+/**
+ * B-01 v1：若当前位置为 #[cfg(...)]，求值 host 匹配并写入 out（TOKEN_ATTR_CFG）；成功返回 1。
+ */
+static int lexer_lex_cfg_attr(Lexer *l, Token *out) {
+    const char *expr_start;
+    const char *p;
+    int depth;
+    int line;
+    int col;
+    int enabled;
+
+    if (!l || !l->src || !out || l->src + 6 > l->end)
+        return 0;
+    if (l->src[0] != '#' || l->src[1] != '[')
+        return 0;
+    if (l->src[2] != 'c' || l->src[3] != 'f' || l->src[4] != 'g')
+        return 0;
+    if (l->src[5] != '(')
+        return 0;
+    line = l->line;
+    col = l->col;
+    expr_start = l->src + 6;
+    p = expr_start;
+    depth = 1;
+    while (p < l->end && depth > 0) {
+        if (*p == '(')
+            depth++;
+        else if (*p == ')')
+            depth--;
+        p++;
+    }
+    if (p >= l->end || *p != ']')
+        return 0;
+    enabled = cfg_eval_expr_c(expr_start, (int)(p - 1 - expr_start));
+    p++;
+    while (l->src < p)
+        lexer_advance(l);
+    out->kind = TOKEN_ATTR_CFG;
+    out->line = line;
+    out->col = col;
+    out->value.int_val = enabled ? 1 : 0;
+    out->ident_len = 0;
+    return 1;
+}
+
+/**
  * 取下一个 Token；见 lexer.h 中 lexer_next 注释。
  */
 void lexer_next(Lexer *l, Token *out) {
@@ -682,6 +1010,12 @@ void lexer_next(Lexer *l, Token *out) {
     }
 
     int c = lexer_peek(l);
+    /* B-01 v1：#[cfg(...)] → TOKEN_ATTR_CFG（int_val 表 host 是否保留下一顶层项）。 */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_cfg_attr(l, out))
+        return;
+    /* B-03 v1：#[repr(C)] → TOKEN_ATTR_REPR_C。 */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_repr_c_attr(l, out))
+        return;
     /* DOD-S1：#[soa] 属性 token */
     if (c == '#' && l->src + 6 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'o'
         && l->src[4] == 'a' && l->src[5] == ']') {

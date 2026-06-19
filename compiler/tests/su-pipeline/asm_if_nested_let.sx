@@ -1,0 +1,20 @@
+// asm_if_nested_let.sx — 复现 typeck_layout_init_struct_from_lit：while 体内 if 嵌套 let
+// fr
+const ast = import("ast");
+
+extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
+
+function test_nested_fr(num_fields: i32): i32 {
+  let j: i32 = 0;
+  while (j < num_fields) {
+    let acc: i32 = 0;
+    if (j >= 0) {
+      let fr: i32 = j + 1;
+      if (fr != 0) {
+        acc = fr;
+      }
+    }
+    j = j + acc;
+  }
+  return j;
+}

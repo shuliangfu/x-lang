@@ -1,16 +1,39 @@
 /**
  * lexer.h — 词法分析器接口
  *
- * 文件职责：声明 Lexer 类型及创建/取 Token/释放接口，供 Parser 与 Driver 将 .su 源码转为 Token 流。
+ * 文件职责：声明 Lexer 类型及创建/取 Token/释放接口，供 Parser 与 Driver 将 .sx 源码转为 Token 流。
  * 所属模块：编译器前端 lexer，compiler/src/lexer/；被 src/parser、src/main 引用。
  * 与其它文件的关系：依赖 include/token.h 的 Token/TokenKind；实现位于 lexer.c，不暴露内部结构体布局。
  * 重要约定：源码字符串 source 在 lexer 使用期间不得被修改或释放；Token 的 value.ident 指向 source 内片段，调用方在消费 Token 前不得 free source。
  */
 
-#ifndef SHU_LEXER_H
-#define SHU_LEXER_H
+#ifndef SHUX_LEXER_H
+#define SHUX_LEXER_H
 
 #include "token.h"
+
+/**
+ * B-01：求值 #[cfg(...)] 括号内表达式（target_os/target_arch、all/not）。
+ * B-02：若已通过 cfg_apply_compile_target_from_triple 设置 -target，则按 triple 而非 host 求值。
+ * 参数：start 为 cfg( 后首字符；len 为表达式字节数（不含外层闭合 ')'）。
+ * 返回值：非 0 表示当前 effective target 匹配，应保留下一顶层项；0 表示剪枝跳过。
+ */
+int cfg_eval_expr_c(const char *start, int len);
+
+/**
+ * B-02：从 `-target` triple 字符串解析 os/arch 并覆盖 #[cfg] 求值上下文。
+ * 参数：triple 如 x86_64-unknown-linux-gnu；len 为字节数。
+ */
+void cfg_apply_compile_target_from_triple(const char *triple, int len);
+
+/** B-02：清除 triple 覆盖，#[cfg] 回退为 host OS/arch。 */
+void cfg_reset_compile_target(void);
+
+/**
+ * B-02：按 DriverCompileState 的 target_buf 同步 #[cfg] 上下文（有 -target 则应用，否则 reset）。
+ * 参数：state 可为 NULL（等价 reset）。
+ */
+void cfg_sync_compile_target_from_state_c(void *state);
 
 /** Lexer 状态（不透明，在 .c 中定义） */
 typedef struct Lexer Lexer;
@@ -45,4 +68,4 @@ void lexer_next(Lexer *l, Token *out);
  */
 void lexer_free(Lexer *l);
 
-#endif /* SHU_LEXER_H */
+#endif /* SHUX_LEXER_H */

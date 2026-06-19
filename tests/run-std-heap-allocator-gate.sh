@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
-MANIFEST="${SHU_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
-HEAP_SU="std/heap/mod.su"
-VEC_SU="std/vec/mod.su"
+DOC="${SHUX_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
+MANIFEST="${SHUX_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
+HEAP_SU="std/heap/mod.sx"
+VEC_SU="std/vec/mod.sx"
 LIB="tests/lib/std-heap-allocator.sh"
-SMOKE_SU="tests/heap/allocator_vec.su"
+SMOKE_SU="tests/heap/allocator_vec.sx"
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-heap-allocator.sh
@@ -64,19 +64,19 @@ echo "std-heap-allocator manifest OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-112: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-112: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-heap-allocator gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_heap_alloc_emit_report "fail" 0 0
     exit 1
   fi
-  if std_heap_alloc_run_smoke "$SHU_BIN" "$SMOKE_SU" "vec"; then
+  if std_heap_alloc_run_smoke "$SHUX_BIN" "$SMOKE_SU" "vec"; then
     SU_OK=1
   else
     std_heap_alloc_emit_report "fail" 0 0

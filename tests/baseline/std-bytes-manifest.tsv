@@ -4,23 +4,23 @@
 read_path	section	## 1. 阅读路径	analysis/std-bytes-v1.md
 api_doc	section	## 2. API	analysis/std-bytes-v1.md
 verify	section	## 3. Gate	analysis/std-bytes-v1.md
-api_new	api	bytes_new	std/bytes/mod.su	创建
-api_append_byte	api	bytes_append_byte	std/bytes/mod.su	追加
-api_append_slice	api	bytes_append_slice	std/bytes/mod.su	切片
-api_len	api	bytes_len	std/bytes/mod.su	长度
-api_cap	api	bytes_capacity	std/bytes/mod.su	容量
-api_clear	api	bytes_clear	std/bytes/mod.su	清空
-api_reserve	api	bytes_reserve	std/bytes/mod.su	扩容
-api_grow	api	bytes_grow	std/bytes/mod.su	大块
-api_deinit	api	bytes_deinit	std/bytes/mod.su	释放
-api_as_view	api	bytes_as_view	std/bytes/mod.su	StrView
-api_from_view	api	bytes_from_view	std/bytes/mod.su	拷贝
-api_as_buffer	api	bytes_as_buffer	std/bytes/mod.su	Buffer
-api_reader_read	api	reader_read	std/bytes/mod.su	读
-api_reader_seek	api	reader_seek	std/bytes/mod.su	seek
-api_writer_write	api	writer_write	std/bytes/mod.su	写
-impl_su	file	std/bytes/mod.su	std/bytes/mod.su
-smoke_su	smoke	tests/std-bytes/roundtrip.su	round-trip
+api_new	api	bytes_new	std/bytes/mod.sx	创建
+api_append_byte	api	bytes_append_byte	std/bytes/mod.sx	追加
+api_append_slice	api	bytes_append_slice	std/bytes/mod.sx	切片
+api_len	api	bytes_len	std/bytes/mod.sx	长度
+api_cap	api	bytes_capacity	std/bytes/mod.sx	容量
+api_clear	api	bytes_clear	std/bytes/mod.sx	清空
+api_reserve	api	bytes_reserve	std/bytes/mod.sx	扩容
+api_grow	api	bytes_grow	std/bytes/mod.sx	大块
+api_deinit	api	bytes_deinit	std/bytes/mod.sx	释放
+api_as_view	api	bytes_as_view	std/bytes/mod.sx	StrView
+api_from_view	api	bytes_from_view	std/bytes/mod.sx	拷贝
+api_as_buffer	api	bytes_as_buffer	std/bytes/mod.sx	Buffer
+api_reader_read	api	reader_read	std/bytes/mod.sx	读
+api_reader_seek	api	reader_seek	std/bytes/mod.sx	seek
+api_writer_write	api	writer_write	std/bytes/mod.sx	写
+impl_su	file	std/bytes/mod.sx	std/bytes/mod.sx
+smoke_su	smoke	tests/std-bytes/roundtrip.sx	round-trip
 vectors	file	tests/baseline/std-bytes-vectors.tsv	向量
 lib	script	lib/std-bytes.sh	tests/lib/std-bytes.sh
 gate	script	run-std-bytes-gate.sh	tests/run-std-bytes-gate.sh

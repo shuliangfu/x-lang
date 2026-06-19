@@ -1,7 +1,7 @@
 /**
- * fmt_check_cmd.c — shu fmt / shu check CLI（对标 deno fmt、deno check）
+ * fmt_check_cmd.c — shux fmt / shux check CLI（对标 deno fmt、deno check）
  *
- * fmt：无路径参数时递归处理当前目录 *.su；--check 全通过时无输出；失败时列出需格式化的文件。
+ * fmt：无路径参数时递归处理当前目录 *.sx；--check 全通过时无输出；失败时列出需格式化的文件。
  * check：多文件/目录；诊断格式 path:line:col - error: message；全通过时无输出。
  */
 
@@ -19,12 +19,12 @@ extern void driver_fmt_check_only_set(int32_t v);
 extern int32_t driver_fmt_check_only_get(void);
 extern void driver_check_only_set(int32_t v);
 extern int run_compiler_c(int argc, char **argv);
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
 extern int driver_run_compiler_full(int argc, char **argv);
 extern void driver_dep_seeded_clear_all(void);
 #endif
 
-/** 单目录遍历时最多收集的 .su 路径数。 */
+/** 单目录遍历时最多收集的 .sx 路径数。 */
 #define DRIVER_FMT_MAX_FILES 8192
 /** 忽略规则条数（CLI --ignore + 内置）。 */
 #define DRIVER_FMT_MAX_IGNORE 32
@@ -188,18 +188,18 @@ static void check_argv_append_default_libs_for_path(const char *path, char **che
 }
 
 /**
- * SHU_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
+ * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
  */
 static int check_lint_fail_on_warnings(void) {
-    const char *v = getenv("SHU_LINT_CI_FAIL_ON");
+    const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
     return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
 
 /**
- * 单文件 check：SU pipeline 走 driver_run_compiler_full，shu-c 走 run_compiler_c。
+ * 单文件 check：SU pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
 static int fmt_check_invoke_compile(int argc, char **check_argv) {
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
 #else
     return run_compiler_c(argc, check_argv);
@@ -210,7 +210,7 @@ static int fmt_check_invoke_compile(int argc, char **check_argv) {
  * check 批次结束后清理 dep 槽（仅 SU pipeline 需要）。
  */
 static void fmt_check_dep_clear(void) {
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
@@ -276,7 +276,7 @@ static int file_list_push(const char *path) {
     if (path_should_ignore(path))
         return 0;
     size_t len = strlen(path);
-    if (len < 4 || strcmp(path + len - 3, ".su") != 0)
+    if (len < 4 || strcmp(path + len - 3, ".sx") != 0)
         return 0;
     s_file_list[s_n_files] = strdup(path);
     if (!s_file_list[s_n_files])
@@ -286,7 +286,7 @@ static int file_list_push(const char *path) {
 }
 
 /**
- * 递归遍历目录，收集 .su 文件。
+ * 递归遍历目录，收集 .sx 文件。
  */
 static void walk_dir_collect(const char *dir) {
     DIR *d = opendir(dir);
@@ -309,7 +309,7 @@ static void walk_dir_collect(const char *dir) {
         }
         if (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN) {
             size_t n = strlen(child);
-            if (n > 3 && strcmp(child + n - 3, ".su") == 0)
+            if (n > 3 && strcmp(child + n - 3, ".sx") == 0)
                 file_list_push(child);
         }
     }
@@ -349,7 +349,7 @@ static void collect_paths_from_arg(const char *arg) {
     if (!arg)
         return;
     if (stat(arg, &st) != 0) {
-        fprintf(stderr, "shu: cannot access '%s'\n", arg);
+        fprintf(stderr, "shux: cannot access '%s'\n", arg);
         return;
     }
     if (S_ISDIR(st.st_mode)) {
@@ -403,7 +403,7 @@ static void file_list_clear(void) {
 }
 
 /**
- * 运行 shu fmt（deno fmt 语义）。
+ * 运行 shux fmt（deno fmt 语义）。
  */
 int driver_run_fmt(int argc, char **argv) {
     int i;
@@ -447,9 +447,9 @@ int driver_run_fmt(int argc, char **argv) {
 
     if (s_n_files == 0) {
         if (any_path_arg)
-            fprintf(stderr, "shu fmt: no .su files found under given path(s)\n");
+            fprintf(stderr, "shux fmt: no .sx files found under given path(s)\n");
         else
-            fprintf(stderr, "shu fmt: no .su files found in current directory\n");
+            fprintf(stderr, "shux fmt: no .sx files found in current directory\n");
         return 1;
     }
 
@@ -478,21 +478,21 @@ int driver_run_fmt(int argc, char **argv) {
         fprintf(stderr, "\nFound %d not formatted file%s:\n\n", s_unformatted_count, s_unformatted_count == 1 ? "" : "s");
         for (j = 0; j < s_unformatted_count; j++)
             fprintf(stderr, "  %s\n", s_unformatted_paths[j]);
-        fprintf(stderr, "\nRun `shu fmt` to format these files.\n");
+        fprintf(stderr, "\nRun `shux fmt` to format these files.\n");
         return 1;
     }
 
     if (failed)
         return 1;
 
-    if (!check_mode && formatted > 0 && getenv("SHU_FMT_VERBOSE"))
+    if (!check_mode && formatted > 0 && getenv("SHUX_FMT_VERBOSE"))
         fprintf(stderr, "Formatted %d file%s\n", formatted, formatted == 1 ? "" : "s");
 
     return 0;
 }
 
 /**
- * 对单个 .su 运行 check；复用 driver_run_compiler_full。
+ * 对单个 .sx 运行 check；复用 driver_run_compiler_full。
  */
 static int check_one_file(const char *path, int argc, char **argv) {
     char *check_argv[64];
@@ -507,7 +507,7 @@ static int check_one_file(const char *path, int argc, char **argv) {
     s_n_check_lib_bufs = 0;
 
     check_argv[n++] = argv[0];
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     check_argv[n++] = "check";
 #endif
     for (i = 2; i < argc && n < 60; i++) {
@@ -546,7 +546,7 @@ static int check_one_file(const char *path, int argc, char **argv) {
 }
 
 /**
- * 运行 shu check（deno check 语义：多文件/目录，失败打印诊断）。
+ * 运行 shux check（deno check 语义：多文件/目录，失败打印诊断）。
  */
 int driver_run_compiler_check(int argc, char **argv) {
     int i;
@@ -559,7 +559,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     s_check_quiet_ok = 1;
     file_list_clear();
 
-    /* main.su 传入 argv[1]=check；shu-c 已 drop 子命令时 argv[1] 为首个路径。 */
+    /* main.sx 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
         path_start = 2;
 
@@ -592,16 +592,16 @@ int driver_run_compiler_check(int argc, char **argv) {
 
     /*
      * 无路径：仅 check 产品目录（compiler/src、core、std、examples），避免扫 tests 负例。
-     * 有路径时仍由 collect_paths_from_arg 处理（可显式 shu check tests/...）。
+     * 有路径时仍由 collect_paths_from_arg 处理（可显式 shux check tests/...）。
      */
     if (!any_path)
         check_collect_default_product_dirs();
 
     if (s_n_files == 0) {
         if (any_path)
-            fprintf(stderr, "shu check: no .su files found under given path(s)\n");
+            fprintf(stderr, "shux check: no .sx files found under given path(s)\n");
         else
-            fprintf(stderr, "shu check: no .su files found in current directory\n");
+            fprintf(stderr, "shux check: no .sx files found in current directory\n");
         return 1;
     }
 

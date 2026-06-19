@@ -10,7 +10,7 @@ success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave9-v1.md
 task_index	section	## 4. 第九批待办索引	analysis/phase3-roadmap-wave9-v1.md
 gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave9-v1.md
 task_boot028	task	BOOT-028	NEXT.md	C6 CI 矩阵
-gate_boot028	gate_ref	run-boot-028-shu-asm2-ci-matrix-gate.sh	tests/run-boot-028-shu-asm2-ci-matrix-gate.sh	BOOT-028
+gate_boot028	gate_ref	run-boot-028-shux-asm2-ci-matrix-gate.sh	tests/run-boot-028-shux-asm2-ci-matrix-gate.sh	BOOT-028
 task_comp022	task	COMP-022	NEXT.md	incr bench
 task_std070	task	STD-070	NEXT.md	stmt cache
 task_plan009	task	PLAN-009	NEXT.md	wave9 定版

@@ -126,7 +126,7 @@ extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, 
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
 
-/** 与 parser.su ast.expr_init_match_enum 一致。 */
+/** 与 parser.sx ast.expr_init_match_enum 一致。 */
 static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -134,7 +134,7 @@ static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
   e->enum_variant_tag = 0;
 }
 
-/** expr_set_common_zeros：与 parser.su 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
 static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;

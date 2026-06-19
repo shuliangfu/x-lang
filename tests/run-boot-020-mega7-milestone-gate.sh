@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT020_DOC:-analysis/boot-020-mega7-milestone-v1.md}"
-MANIFEST="${SHU_BOOT020_TSV:-tests/baseline/boot-020-mega7-milestone.tsv}"
+DOC="${SHUX_BOOT020_DOC:-analysis/boot-020-mega7-milestone-v1.md}"
+MANIFEST="${SHUX_BOOT020_TSV:-tests/baseline/boot-020-mega7-milestone.tsv}"
 SYMBOL_BASELINE="tests/baseline/parser-thin-glue-symbols.tsv"
 THIN_SRC="compiler/src/asm/parser_asm_thin_c.c"
 LIB="tests/lib/boot-020-mega7-milestone.sh"
@@ -114,7 +114,7 @@ if [ "$IS_DARWIN" -eq 1 ]; then
   SKIP=1
   echo "boot-020 thin glue source anchors OK (Darwin N/A nm)"
 else
-  if SHU_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 "$HOOK_SYMBOL" >/tmp/boot020_symbol.log 2>&1; then
+  if SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 "$HOOK_SYMBOL" >/tmp/boot020_symbol.log 2>&1; then
     grep -q 'parser-thin-glue-symbol-integrity-gate OK' /tmp/boot020_symbol.log
     SYMBOL_OK=1
   else
@@ -138,7 +138,7 @@ fi
 if [ "$IS_DARWIN" -eq 0 ] && [ -f "$HOOK_SECOND" ]; then
   echo "=== BOOT-020: parser second-pass gate ==="
   chmod +x "$HOOK_SECOND" 2>/dev/null || true
-  if SHU_PARSER_SECOND_PASS_FAIL=1 "$HOOK_SECOND" >/tmp/boot020_second.log 2>&1; then
+  if SHUX_PARSER_SECOND_PASS_FAIL=1 "$HOOK_SECOND" >/tmp/boot020_second.log 2>&1; then
     grep -qE 'parser-second-pass-gate OK|second-pass.*OK' /tmp/boot020_second.log || true
   else
     if grep -q 'N/A on Darwin\|SKIP' /tmp/boot020_second.log 2>/dev/null; then

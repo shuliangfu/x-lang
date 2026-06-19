@@ -3,7 +3,7 @@
  *
  * 【文件职责】
  * secure_zero、mlock/munlock（可选）、HKDF-SHA256；
- * 常量时间比较复用 std.crypto；供 mod.su 与 gate 烟测调用。
+ * 常量时间比较复用 std.crypto；供 mod.sx 与 gate 烟测调用。
  */
 
 #include <stdint.h>

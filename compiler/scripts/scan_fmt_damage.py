@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-扫描 shu fmt 折行造成的损坏：
+扫描 shux fmt 折行造成的损坏：
   A) // 续行缺少 //
   B) 块注释续行缺少 *
   C) 代码行被拦腰切断（行首 refix[/fix[/ 等）
@@ -110,14 +110,14 @@ def main() -> None:
     total = 0
     files = 0
     for root in roots:
-        if os.path.isfile(root) and root.endswith(".su"):
+        if os.path.isfile(root) and root.endswith(".sx"):
             paths = [root]
         elif os.path.isdir(root):
             paths = []
             for dp, dns, fns in os.walk(root):
                 dns[:] = [d for d in dns if d not in SKIP_DIRS]
                 for fn in fns:
-                    if fn.endswith(".su"):
+                    if fn.endswith(".sx"):
                         paths.append(os.path.join(dp, fn))
         else:
             continue

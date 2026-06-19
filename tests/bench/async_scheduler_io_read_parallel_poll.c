@@ -1,7 +1,7 @@
 /**
  * tests/bench/async_scheduler_io_read_parallel_poll.c — IO-A5 v4 双协程并行 + poll 唤醒
  *
- * 两路 pipe 各 submit 一个 read async；Linux 上 shu_io_poll_async_completions 唤醒；
+ * 两路 pipe 各 submit 一个 read async；Linux 上 shux_io_poll_async_completions 唤醒；
  * 主线程 complete slot（与 read_multi_e2e 同路径）。
  */
 #define _GNU_SOURCE
@@ -11,18 +11,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define SHU_ASYNC_SUSPENDED ((int32_t)0x41535700)
-#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
+#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
 
-extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_complete_read_async_slot(int slot);
-extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
-extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
-extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_scheduler_drain(void);
-extern void shu_async_queue_reset(void);
-extern void shu_async_io_wake_all(void);
-extern uint32_t shu_async_io_waiters_pending(void);
+extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_read_async_slot(int slot);
+extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
+extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
+extern int shux_async_task_submit(int32_t (*fn)(void));
+extern int32_t shux_async_scheduler_drain(void);
+extern void shux_async_queue_reset(void);
+extern void shux_async_io_wake_all(void);
+extern uint32_t shux_async_io_waiters_pending(void);
 
 /** 单协程 read async 上下文。 */
 typedef struct {
@@ -48,18 +48,18 @@ static int32_t io_read_task_impl(io_read_ctx_t *ctx) {
     if (ctx->step == 0) {
         ctx->step = 1;
         ctx->phase = 0;
-        ctx->slot = shu_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
+        ctx->slot = shux_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
             (size_t)(unsigned)ctx->read_fd);
         if (ctx->slot < 0)
             return -1;
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
+        if (shux_async_cps_suspend_io(&ctx->phase, 1))
+            return SHUX_ASYNC_SUSPENDED;
     }
     if (ctx->result >= 0)
         return ctx->result;
-    if (shu_async_cps_suspend_io(&ctx->phase, 1))
-        return SHU_ASYNC_SUSPENDED;
-    return SHU_ASYNC_SUSPENDED;
+    if (shux_async_cps_suspend_io(&ctx->phase, 1))
+        return SHUX_ASYNC_SUSPENDED;
+    return SHUX_ASYNC_SUSPENDED;
 }
 
 /** 任务 A 入口。 */
@@ -74,12 +74,12 @@ static int32_t io_read_task_b(void) {
 
 /** 主线程 poll + retry complete slot。 */
 static int32_t io_read_slot_complete_with_poll(int slot) {
-    int32_t n = shu_io_complete_read_async_slot(slot);
-    if (n == SHU_IO_ASYNC_NOT_READY) {
+    int32_t n = shux_io_complete_read_async_slot(slot);
+    if (n == SHUX_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
+        (void)shux_io_poll_async_completions(500);
 #endif
-        n = shu_io_complete_read_async_slot(slot);
+        n = shux_io_complete_read_async_slot(slot);
     }
     return n;
 }
@@ -108,7 +108,7 @@ static void dual_io_poll_complete_in_main(void) {
     int32_t nb;
 
 #if defined(__linux__)
-    (void)shu_io_poll_async_completions(500);
+    (void)shux_io_poll_async_completions(500);
 #endif
     na = io_read_slot_complete_with_poll(g_task_a.slot);
     nb = io_read_slot_complete_with_poll(g_task_b.slot);
@@ -116,8 +116,8 @@ static void dual_io_poll_complete_in_main(void) {
         g_task_a.result = na;
     if (nb >= 0)
         g_task_b.result = nb;
-    shu_async_io_wake_all();
-    (void)shu_async_scheduler_drain();
+    shux_async_io_wake_all();
+    (void)shux_async_scheduler_drain();
 }
 
 /**
@@ -140,8 +140,8 @@ int main(void) {
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
 
-    setenv("SHU_ASYNC_YIELD", "1", 1);
-    unsetenv("SHU_ASYNC_IO_WAIT");
+    setenv("SHUX_ASYNC_YIELD", "1", 1);
+    unsetenv("SHUX_ASYNC_IO_WAIT");
 
     memset(&g_task_a, 0, sizeof(g_task_a));
     memset(&g_task_b, 0, sizeof(g_task_b));
@@ -154,21 +154,21 @@ int main(void) {
     g_task_b.expect_len = 3;
     g_task_b.result = -99;
 
-    shu_async_queue_reset();
-    if (shu_async_task_submit(io_read_task_a) != 0
-        || shu_async_task_submit(io_read_task_b) != 0) {
+    shux_async_queue_reset();
+    if (shux_async_task_submit(io_read_task_a) != 0
+        || shux_async_task_submit(io_read_task_b) != 0) {
         fprintf(stderr, "async_scheduler_io_read_parallel_poll: submit failed\n");
         return 3;
     }
 
-    r = shu_async_scheduler_drain();
+    r = shux_async_scheduler_drain();
     if (r != 0) {
         fprintf(stderr, "async_scheduler_io_read_parallel_poll: first drain got %d want 0\n", (int)r);
         return 4;
     }
-    if (shu_async_io_waiters_pending() != 2) {
+    if (shux_async_io_waiters_pending() != 2) {
         fprintf(stderr, "async_scheduler_io_read_parallel_poll: waiters=%u want 2\n",
-            (unsigned)shu_async_io_waiters_pending());
+            (unsigned)shux_async_io_waiters_pending());
         return 5;
     }
 

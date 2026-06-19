@@ -7,7 +7,7 @@
 #   boot018_eng_parser_not_hard ENG_MATRIX
 #   boot018_emit_report status mega7_stub std_independent parser_portable
 
-BOOT018_PREFIX="${SHU_BOOT018_PREFIX:-shu: [SHU_BOOT018]}"
+BOOT018_PREFIX="${SHUX_BOOT018_PREFIX:-shux: [SHUX_BOOT018]}"
 
 # 统计 comp-parser-mega7-matrix 中 kind=mega7 且 status=stub 的行数。
 boot018_mega7_stub_count() {

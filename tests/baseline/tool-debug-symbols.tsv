@@ -16,8 +16,8 @@ sym_strip	symbol	strip	compiler/src/runtime.c	D1	invoke_cc
 sym_ndebug	symbol	NDEBUG	compiler/src/runtime.c	D2	cc argv
 sym_backtrace	symbol	backtrace_capture_c	std/backtrace/backtrace.c	D4	capture
 sym_lsp_line	symbol	lsp_definition_at	compiler/src/lsp/lsp_diag.c	D5	line/col
-case_marker	case	symbols_marker	tests/debug/symbols_marker.su	debug	marker
-case_backtrace	case	main.su	tests/backtrace/main.su	stack	capture
+case_marker	case	symbols_marker	tests/debug/symbols_marker.sx	debug	marker
+case_backtrace	case	main.sx	tests/backtrace/main.sx	stack	capture
 lib	script	lib/tool-debug-symbols.sh	tests/lib/tool-debug-symbols.sh	-	共享库
 gate	script	run-tool-debug-symbols-gate.sh	tests/run-tool-debug-symbols-gate.sh	-	manifest
 hook_symbols	hook_script	run-debug-symbols.sh	run-debug-symbols.sh	-	-O0 symtab

@@ -3,18 +3,18 @@
 #
 # 1) std-mem-boundary-v1.md 职责矩阵
 # 2) std.mem 不 import core.mem；双模块锚点存在
-# 3) 可选：native shu 时 std_mem_boundary 烟测 typeck
+# 3) 可选：native shux 时 std_mem_boundary 烟测 typeck
 #
 # 用法：./tests/run-std-mem-boundary-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_MEM_BOUNDARY_DOC:-analysis/std-mem-boundary-v1.md}"
-MANIFEST="${SHU_STD_MEM_BOUNDARY_TSV:-tests/baseline/std-mem-boundary.tsv}"
-CORE_SU="core/mem/mod.su"
-STD_SU="std/mem/mod.su"
+DOC="${SHUX_STD_MEM_BOUNDARY_DOC:-analysis/std-mem-boundary-v1.md}"
+MANIFEST="${SHUX_STD_MEM_BOUNDARY_TSV:-tests/baseline/std-mem-boundary.tsv}"
+CORE_SU="core/mem/mod.sx"
+STD_SU="std/mem/mod.sx"
 STD_README="std/mem/README.md"
-SMOKE="tests/mem/std_mem_boundary.su"
+SMOKE="tests/mem/std_mem_boundary.sx"
 LIB="tests/lib/std-mem-boundary.sh"
 MIN_CORE=4
 MIN_STD=4
@@ -119,27 +119,27 @@ fi
 
 SKIP=1
 CHECK_OK=0
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
     SKIP=0
   else
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -5 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -5 >&2 || true
     std_mem_boundary_emit_report "fail" "$CORE_N" "$STD_N" 1 0
     exit 1
   fi
 else
-  echo "std-mem-boundary gate SKIP typeck (no native shu)" >&2
+  echo "std-mem-boundary gate SKIP typeck (no native shux)" >&2
 fi
 
 std_mem_boundary_emit_report "ok" "$CORE_N" "$STD_N" 1 "$SKIP"

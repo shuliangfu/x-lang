@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-审计 k_asm_parser_thin_delegate 表：su/c 名长度、parser.su 是否存在对应 function。
+审计 k_asm_parser_thin_delegate 表：su/c 名长度、parser.sx 是否存在对应 function。
 用法：python3 compiler/scripts/audit_parser_thin_delegate.py
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 AST_POOL = ROOT / "compiler/ast_pool.c"
-PARSER_SU = ROOT / "compiler/src/parser/parser.su"
+PARSER_SU = ROOT / "compiler/src/parser/parser.sx"
 
 
 def main() -> int:

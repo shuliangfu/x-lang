@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-process-xplat.sh — STD-142 manifest 与烟测辅助
 
-STD_PROC_XPLAT_PREFIX="${SHU_STD142_PROCESS_XPLAT_PREFIX:-shu: [SHU_STD142_PROCESS_XPLAT]}"
+STD_PROC_XPLAT_PREFIX="${SHUX_STD142_PROCESS_XPLAT_PREFIX:-shux: [SHUX_STD142_PROCESS_XPLAT]}"
 
 # 校验 manifest 锚点；echo 缺失数。
 std_process_xplat_symbols_ok() {
@@ -62,14 +62,14 @@ std_process_xplat_vectors_ok() {
   return 0
 }
 
-# 编译并运行烟测 .su。
+# 编译并运行烟测 .sx。
 std_process_xplat_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_proc_xplat_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_proc_xplat_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-process-xplat FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

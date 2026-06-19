@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-elf-write.sh — STD-121 manifest 与烟测辅助
 
-STD_ELF_WRITE_PREFIX="${SHU_STD121_ELF_WRITE_PREFIX:-shu: [SHU_STD121_ELF_WRITE]}"
+STD_ELF_WRITE_PREFIX="${SHUX_STD121_ELF_WRITE_PREFIX:-shux: [SHUX_STD121_ELF_WRITE]}"
 
 std_elf_write_symbols_ok() {
   local mod_su="$1"
@@ -32,7 +32,7 @@ std_elf_write_symbols_ok() {
 
 std_elf_write_run_c_smoke() {
   local elf_o="$1"
-  local out="/tmp/shu_std_elf_write_c_$$"
+  local out="/tmp/shux_std_elf_write_c_$$"
   cc -std=c11 -O1 -o "$out" tests/std-elf/write_smoke_ok.c "$elf_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
@@ -42,11 +42,11 @@ std_elf_write_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-std_elf_write_run_su_smoke() {
-  local shu="$1"
+std_elf_write_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_elf_write_$$"
-  "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/shux_std_elf_write_$$"
+  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

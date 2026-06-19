@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STD-001：std.io 稳定 API manifest 门禁 + 基础 smoke。
-# 1) tests/baseline/std-io-api.tsv 中每个符号须在 std/io/mod.su 存在
+# 1) tests/baseline/std-io-api.tsv 中每个符号须在 std/io/mod.sx 存在
 # 2) tests/run-io.sh 烟测
 #
 # 用法：./tests/run-std-io-api-gate.sh
@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-io-api.tsv"
-MOD="std/io/mod.su"
+MOD="std/io/mod.sx"
 MISS=0
 N=0
 
@@ -40,7 +40,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-io-api manifest OK (${N} symbols)"
 
-# 烟测：需本机可 exec 的 shu/shu-c
+# 烟测：需本机可 exec 的 shux/shux-c
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -53,23 +53,23 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-io-api gate SKIP smoke (no native shu; manifest OK only)"
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-io-api gate SKIP smoke (no native shux; manifest OK only)"
   echo "std-io-api gate OK (manifest)"
   exit 0
 fi
 
 echo "=== STD-001: std.io smoke (run-io.sh) ==="
 chmod +x tests/run-io.sh
-SHU="$SHU_BIN" ./tests/run-io.sh
+SHUX="$SHUX_BIN" ./tests/run-io.sh
 echo "std-io-api gate OK"

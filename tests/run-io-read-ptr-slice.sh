@@ -4,31 +4,31 @@
 set -e
 cd "$(dirname "$0")/.."
 
-if [ -n "$SHU" ]; then
+if [ -n "$SHUX" ]; then
   :
-elif [ -x ./compiler/shu ]; then
-  SHU=./compiler/shu
-elif [ -x ./compiler/shu-c ]; then
-  SHU=./compiler/shu-c
+elif [ -x ./compiler/shux ]; then
+  SHUX=./compiler/shux
+elif [ -x ./compiler/shux-c ]; then
+  SHUX=./compiler/shux-c
 else
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  SHU=./compiler/shu-c
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  SHUX=./compiler/shux-c
 fi
 
-# 非 x86_64：-o 链接用 shu-c，避免 seed asm 产出 x86_64 ELF（EM:62）在 ARM64 上 ld 失败。
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+# 非 x86_64：-o 链接用 shux-c，避免 seed asm 产出 x86_64 ELF（EM:62）在 ARM64 上 ld 失败。
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../std/io/io.o
 
-$RUN_SHU -L . tests/io/read_ptr_slice.su -o /tmp/shu_io_read_ptr_slice 2>&1
-echo -n "AB" | /tmp/shu_io_read_ptr_slice
+$RUN_SHUX -L . tests/io/read_ptr_slice.sx -o /tmp/shux_io_read_ptr_slice 2>&1
+echo -n "AB" | /tmp/shux_io_read_ptr_slice
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
 
-$RUN_SHU -L . tests/io/read_ptr_slice_param.su -o /tmp/shu_io_read_ptr_slice_param 2>&1
-echo -n "AB" | /tmp/shu_io_read_ptr_slice_param
+$RUN_SHUX -L . tests/io/read_ptr_slice_param.sx -o /tmp/shux_io_read_ptr_slice_param 2>&1
+echo -n "AB" | /tmp/shux_io_read_ptr_slice_param
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param local/param field), got $ec"; exit 1; }
 

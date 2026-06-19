@@ -8,12 +8,12 @@
 #   tool_vscode_020_has_node
 #   tool_vscode_020_emit_report status grammar_ok vsix_ok skip
 
-TOOL_VSCODE_PREFIX="${SHU_TOOL009_PREFIX:-shu: [SHU_TOOL009_VSCODE_020]}"
-VSCODE_DIR="${SHU_VSCODE_DIR:-editors/vscode}"
-GRAMMAR="${VSCODE_DIR}/grammars/su.tmLanguage.json"
+TOOL_VSCODE_PREFIX="${SHUX_TOOL009_PREFIX:-shux: [SHUX_TOOL009_VSCODE_020]}"
+VSCODE_DIR="${SHUX_VSCODE_DIR:-editors/vscode}"
+GRAMMAR="${VSCODE_DIR}/grammars/sx.tmLanguage.json"
 PKG="${VSCODE_DIR}/package.json"
-VERSION_FILE="${SHU_VERSION_FILE:-VERSION}"
-EXPECTED_VER="${SHU_TOOL009_VERSION:-0.2.0}"
+VERSION_FILE="${SHUX_VERSION_FILE:-VERSION}"
+EXPECTED_VER="${SHUX_TOOL009_VERSION:-0.2.0}"
 
 # 校验 TextMate grammar JSON 可解析。
 tool_vscode_020_grammar_json_ok() {

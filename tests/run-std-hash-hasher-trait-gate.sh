@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_HASH_HASHER_TRAIT_DOC:-analysis/std-hash-hasher-trait-v1.md}"
-MANIFEST="${SHU_STD_HASH_HASHER_TRAIT_TSV:-tests/baseline/std-hash-hasher-trait.tsv}"
-VECTORS="${SHU_STD_HASH_HASHER_TRAIT_VECTORS:-tests/baseline/std-hash-hasher-trait-vectors.tsv}"
-MOD_SU="std/hash/mod.su"
+DOC="${SHUX_STD_HASH_HASHER_TRAIT_DOC:-analysis/std-hash-hasher-trait-v1.md}"
+MANIFEST="${SHUX_STD_HASH_HASHER_TRAIT_TSV:-tests/baseline/std-hash-hasher-trait.tsv}"
+VECTORS="${SHUX_STD_HASH_HASHER_TRAIT_VECTORS:-tests/baseline/std-hash-hasher-trait-vectors.tsv}"
+MOD_SU="std/hash/mod.sx"
 HASH_C="std/hash/hash.c"
 LIB="tests/lib/std-hash-hasher-trait.sh"
-SMOKE_SU="tests/std-hash/hasher_switch.su"
+SMOKE_SU="tests/std-hash/hasher_switch.sx"
 SMOKE_C="tests/std-hash/hasher_switch_ok.c"
 STBL_TSV="tests/baseline/std-hash-api.tsv"
 MIN_APIS=6
@@ -27,7 +27,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$HASH_C" "$SMOKE_SU" "$
   fi
 done
 
-for kw in STD-056 HASHER_SIPHASH SHU_HASH_ALGO SipHash; do
+for kw in STD-056 HASHER_SIPHASH SHUX_HASH_ALGO SipHash; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-hash-hasher-trait gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -101,7 +101,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -113,28 +113,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-056: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-056: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-hash-hasher-trait gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_hash_hasher_trait_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_hasher_trait_run_smoke "$SHU_BIN" "$SMOKE_SU" "switch"; then
+  if std_hash_hasher_trait_run_smoke "$SHUX_BIN" "$SMOKE_SU" "switch"; then
     SU_OK=1
   else
     std_hash_hasher_trait_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-hash-hasher-trait gate SKIP .su smoke (no native shu)" >&2
+  echo "std-hash-hasher-trait gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

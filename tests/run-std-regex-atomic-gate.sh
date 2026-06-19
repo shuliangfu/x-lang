@@ -10,7 +10,7 @@ MANIFEST="tests/baseline/std-regex-atomic-manifest.tsv"
 MIN_INC="std/regex/regex_min.inc.c"
 REGEX_C="std/regex/regex.c"
 LIB="tests/lib/std-regex-atomic.sh"
-SMOKE_SU="tests/regex/atomic_match.su"
+SMOKE_SU="tests/regex/atomic_match.sx"
 
 # shellcheck source=tests/lib/std-regex-atomic.sh
 . "$LIB"
@@ -34,10 +34,10 @@ std_regex_atomic_run_c_smoke "$REGEX_O" && C_OK=1 || exit 1
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_regex_atomic_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_regex_atomic_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
-MANIFEST="${SHU_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
-TYPES_SU="core/types/mod.su"
+DOC="${SHUX_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
+MANIFEST="${SHUX_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
+TYPES_SU="core/types/mod.sx"
 TYPECK="compiler/src/typeck/typeck.c"
 CODEGEN="compiler/src/codegen/codegen.c"
 LIB="tests/lib/core-types-i16-u16.sh"
-SMOKE="tests/core-types-size/i16_u16_width.su"
-SCALAR="tests/core-types-size/main.su"
+SMOKE="tests/core-types-size/i16_u16_width.sx"
+SCALAR="tests/core-types-size/main.sx"
 MIN_SYMBOLS=4
 
 # shellcheck source=tests/lib/core-types-i16-u16.sh
@@ -97,28 +97,28 @@ echo "core-types-i16-u16 manifest OK (symbols=${SYM_N})"
 
 SKIP=1
 CHECK_OK=0
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
-    && "$SHU_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
+    && "$SHUX_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
     CHECK_OK=1
     SKIP=0
   else
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_types_i16_u16_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "core-types-i16-u16 gate SKIP typeck (no native shu)" >&2
+  echo "core-types-i16-u16 gate SKIP typeck (no native shux)" >&2
 fi
 
 core_types_i16_u16_emit_report "ok" "$CHECK_OK" "$SKIP"

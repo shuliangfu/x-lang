@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_FEB_CONTRACT_DOC:-analysis/comp-feb-contract-v1.md}"
-MANIFEST="${SHU_COMP_FEB_CONTRACT_MANIFEST:-tests/baseline/comp-feb-contract.tsv}"
-BOUNDARY="${SHU_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
+DOC="${SHUX_COMP_FEB_CONTRACT_DOC:-analysis/comp-feb-contract-v1.md}"
+MANIFEST="${SHUX_COMP_FEB_CONTRACT_MANIFEST:-tests/baseline/comp-feb-contract.tsv}"
+BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
 MIN_LAYERS=6
 MIN_BOUNDARIES=8
 MIN_CASES=6
@@ -18,7 +18,7 @@ MIN_CASES=6
 echo "=== COMP-009: frontend/backend contract manifest ==="
 for f in "$DOC" "$MANIFEST" "$BOUNDARY" \
   tests/lib/comp-feb-contract.sh tests/run-comp-feb-contract.sh \
-  compiler/src/pipeline/pipeline.su compiler/pipeline_glue.c \
+  compiler/src/pipeline/pipeline.sx compiler/pipeline_glue.c \
   tests/run-s3-pipeline-gate.sh analysis/doc-selfhost-architecture-v1.md; do
   if [ ! -f "$f" ]; then
     echo "comp-feb-contract gate FAIL: missing $f" >&2

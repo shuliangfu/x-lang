@@ -6,9 +6,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-API_TSV="${SHU_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
-EXT_TSV="${SHU_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
-AUDIT_TSV="${SHU_SAFE_UNSAFE_AUDIT_TSV:-tests/baseline/safe-unsafe-audit.tsv}"
+API_TSV="${SHUX_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
+EXT_TSV="${SHUX_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
+AUDIT_TSV="${SHUX_SAFE_UNSAFE_AUDIT_TSV:-tests/baseline/safe-unsafe-audit.tsv}"
 
 echo "=== SAFE-003: unsafe audit manifest ==="
 for f in \
@@ -24,8 +24,8 @@ done
 echo "safe-unsafe-audit manifest OK"
 
 # 读取 audit ledger 到关联数组（bash 3.2+ 兼容：用临时文件）
-AUDIT_KEYS="$(mktemp /tmp/shu_audit_keys.XXXXXX)"
-AUDIT_ORPHAN="$(mktemp /tmp/shu_audit_orphan.XXXXXX)"
+AUDIT_KEYS="$(mktemp /tmp/shux_audit_keys.XXXXXX)"
+AUDIT_ORPHAN="$(mktemp /tmp/shux_audit_orphan.XXXXXX)"
 : > "$AUDIT_KEYS"
 : > "$AUDIT_ORPHAN"
 

@@ -1,6 +1,6 @@
 # std.log — 日志级别与 stderr
 
-**路径**：`std/log/`（mod.su + log.c）  
+**路径**：`std/log/`（mod.sx + log.c）  
 **依赖**：core。**性能**：零分配，单次 write。
 
 | API | 说明 |

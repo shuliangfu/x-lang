@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 修复 fmt 折行后丢失的注释前缀：块注释续行补 '*'，文件头 '//' 续行补 '//'。
-仅处理 std/**/*.su；不改动已合法的代码行。
+仅处理 std/**/*.sx；不改动已合法的代码行。
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def fix_lines(lines: list[str]) -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parents[1] / "std"
     changed = 0
-    for path in sorted(root.rglob("*.su")):
+    for path in sorted(root.rglob("*.sx")):
         text = path.read_text(encoding="utf-8", errors="replace")
         # 去掉孤立的替换字符行（fmt 损坏）
         lines = text.splitlines(keepends=True)

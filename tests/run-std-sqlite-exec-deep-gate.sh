@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
-MANIFEST="${SHU_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
-VECTORS="${SHU_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
-MOD_SU="std/sqlite/mod.su"
-DB_C="std/sqlite/sqlite.c"
+DOC="${SHUX_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
+MANIFEST="${SHUX_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
+VECTORS="${SHUX_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
+MOD_SU="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.c"
 LIB="tests/lib/std-sqlite-exec-deep.sh"
-SMOKE_SU="tests/std-sqlite/exec_tx_roundtrip.su"
+SMOKE_SU="tests/std-sqlite/exec_tx_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/exec_tx_roundtrip_ok.c"
 MIN_TX=3
 
@@ -76,7 +76,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sqlite-exec-deep manifest OK"
 
-if [ "${SHU_STD065_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD065_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_exec_deep_emit_report "ok" 0 0 1
   echo "std-sqlite-exec-deep gate OK (manifest only)"
   exit 0
@@ -84,7 +84,7 @@ fi
 
 echo "=== STD-065: parent STD-057 manifest ==="
 chmod +x tests/run-std-sqlite-gate.sh
-SHU_STD_SQLITE_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
+SHUX_STD_SQLITE_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 
 TX_C=0
 TX_SU=0
@@ -104,7 +104,7 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHU_BIN=""
+  SHUX_BIN=""
   stdlib_cm_native_shu() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -116,26 +116,26 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shu-c; then
-    SHU_BIN=./compiler/shu-c
-  elif stdlib_cm_native_shu ./compiler/shu; then
-    SHU_BIN=./compiler/shu
+  if stdlib_cm_native_shu ./compiler/shux-c; then
+    SHUX_BIN=./compiler/shux-c
+  elif stdlib_cm_native_shu ./compiler/shux; then
+    SHUX_BIN=./compiler/shux
   fi
 
-  if [ -n "$SHU_BIN" ]; then
-    echo "=== STD-065: .su tx smoke (SHU=$SHU_BIN) ==="
-    if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-      echo "std-sqlite-exec-deep gate SKIP .su smoke (typeck fail)" >&2
+  if [ -n "$SHUX_BIN" ]; then
+    echo "=== STD-065: .sx tx smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+      echo "std-sqlite-exec-deep gate SKIP .sx smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_SU" "tx"; then
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "tx"; then
       TX_SU=1
       SKIP=0
     else
-      echo "std-sqlite-exec-deep gate SKIP .su smoke (link/compile)" >&2
+      echo "std-sqlite-exec-deep gate SKIP .sx smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-exec-deep gate SKIP .su smoke (no native shu)" >&2
+    echo "std-sqlite-exec-deep gate SKIP .sx smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -143,7 +143,7 @@ else
   echo "std-sqlite-exec-deep gate SKIP tx smoke (no libsqlite3)" >&2
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/sqlite/sqlite.o
+  ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
 std_sqlite_exec_deep_emit_report "ok" "$TX_C" "$TX_SU" "$SKIP"

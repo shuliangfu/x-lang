@@ -3,28 +3,28 @@
 #
 # 用法（source 后）：
 #   std_crypto_has_api MOD_SU fn_name
-#   std_crypto_run_smoke SHU_BIN smoke_su [tag]
-#   std_crypto_run_hook SHU_BIN tests/run-*.sh
+#   std_crypto_run_smoke SHUX_BIN smoke_su [tag]
+#   std_crypto_run_hook SHUX_BIN tests/run-*.sh
 
-# 检查 mod.su 是否导出指定函数。
+# 检查 mod.sx 是否导出指定函数。
 std_crypto_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 编译并运行烟测 .su；期望退出码 0。
+# 编译并运行烟测 .sx；期望退出码 0。
 std_crypto_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_crypto_${tag}_$$"
+  local exe="/tmp/shux_std_crypto_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-crypto FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -40,17 +40,17 @@ std_crypto_run_smoke() {
 
 # 运行 hook 脚本（run-crypto.sh / run-random.sh）。
 std_crypto_run_hook() {
-  local shu="$1"
+  local shux="$1"
   local hook="$2"
   if [ ! -f "$hook" ]; then
     echo "std-crypto FAIL: missing hook $hook" >&2
     return 1
   fi
   chmod +x "$hook" 2>/dev/null || true
-  SHU="$shu" "$hook"
+  SHUX="$shux" "$hook"
 }
 
-# 判断本机能否直接执行给定 shu 二进制。
+# 判断本机能否直接执行给定 shux 二进制。
 std_crypto_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -63,14 +63,14 @@ std_crypto_native_shu() {
   esac
 }
 
-# 解析可用 shu；失败返回 1。
+# 解析可用 shux；失败返回 1。
 std_crypto_resolve_shu() {
-  if [ -n "${SHU:-}" ] && std_crypto_native_shu "$SHU"; then
-    echo "$SHU"
+  if [ -n "${SHUX:-}" ] && std_crypto_native_shu "$SHUX"; then
+    echo "$SHUX"
     return 0
   fi
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if std_crypto_native_shu "$cand"; then
       echo "$cand"
       return 0

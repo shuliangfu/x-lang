@@ -4,26 +4,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shulang_panic_(int has_msg, int msg_val) {
+static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void shux_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
-extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
 typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
 extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
-enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
-enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS };
+enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
+enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN };
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
-struct ast_Type { enum ast_TypeKind kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; };
-struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int32_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
+struct ast_Type { enum ast_TypeKind kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; uint8_t region_label[64]; int32_t region_label_len; };
+struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int32_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t field_access_soa_stride; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
 struct ast_ConstDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_LetDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_WhileLoop { int32_t cond_ref; int32_t body_ref; };
@@ -31,14 +31,43 @@ struct ast_ForLoop { int32_t init_ref; int32_t cond_ref; int32_t step_ref; int32
 struct ast_IfStmt { int32_t cond_ref; int32_t then_body_ref; int32_t else_body_ref; };
 struct ast_StmtOrderItem { uint8_t kind; int32_t idx; };
 struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; uint8_t goto_target[32]; int32_t goto_target_len; int32_t return_expr_ref; };
-struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
+struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t region_base; int32_t num_regions; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
-struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; };
-struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t num_module_enums; };
+struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; };
+struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
+extern int ast_ref_is_null(int32_t ref);
+
+/* ast gen2 late link aliases */
+#define ast_block_num_lets ast_ast_block_num_lets
+#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
+#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
+#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
+#define ast_block_num_consts ast_ast_block_num_consts
+#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
+#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
+#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
+#define ast_block_while_body_ref ast_ast_block_while_body_ref
+#define ast_block_for_init_ref ast_ast_block_for_init_ref
+#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
+#define ast_block_for_step_ref ast_ast_block_for_step_ref
+#define ast_block_for_body_ref ast_ast_block_for_body_ref
+#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
+#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
+#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
+#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
+#define ast_block_num_regions ast_ast_block_num_regions
+#define ast_block_region_body_ref ast_ast_block_region_body_ref
+#define ast_arena_expr_get ast_ast_arena_expr_get
+#define ast_arena_type_get ast_ast_arena_type_get
+#define ast_arena_block_get ast_ast_arena_block_get
+#define ast_arena_func_get ast_ast_arena_func_get
 
 /* ast gen2 single-prefix externs */
+extern struct ast_Expr ast_arena_expr_get(struct ast_ASTArena * arena, int32_t ref);
+extern struct ast_Type ast_arena_type_get(struct ast_ASTArena * arena, int32_t ref);
+extern struct ast_Block ast_arena_block_get(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t ast_block_num_lets(struct ast_ASTArena * a, int32_t br);
 extern struct ast_Func ast_arena_func_get(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t ast_block_num_stmt_order(struct ast_ASTArena * a, int32_t br);
@@ -57,6 +86,8 @@ extern int32_t ast_block_num_if_stmts(struct ast_ASTArena * a, int32_t br);
 extern int32_t ast_block_if_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
 extern int32_t ast_block_if_then_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
 extern int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
+extern int32_t ast_block_num_regions(struct ast_ASTArena * a, int32_t br);
+extern int32_t ast_block_region_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ri);
 
 /* pipeline call aliases (ast_pipeline_* extern, pipeline_* call) */
 #define pipeline_dep_ctx_import_path_len ast_pipeline_dep_ctx_import_path_len
@@ -99,31 +130,6 @@ extern int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, i
 #define pipeline_module_top_level_let_name_byte_at ast_pipeline_module_top_level_let_name_byte_at
 #define pipeline_module_top_level_let_type_ref ast_pipeline_module_top_level_let_type_ref
 #define pipeline_module_top_level_let_init_ref ast_pipeline_module_top_level_let_init_ref
-#define ast_arena_expr_get ast_ast_arena_expr_get
-#define ast_arena_type_get ast_ast_arena_type_get
-#define ast_arena_block_get ast_ast_arena_block_get
-#define ast_arena_func_get ast_ast_arena_func_get
-#define ast_block_num_lets ast_ast_block_num_lets
-#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
-#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
-#define ast_block_while_body_ref ast_ast_block_while_body_ref
-#define ast_block_for_init_ref ast_ast_block_for_init_ref
-#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
-#define ast_block_for_step_ref ast_ast_block_for_step_ref
-#define ast_block_for_body_ref ast_ast_block_for_body_ref
-#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
-#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
-#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
-#define ast_block_num_consts ast_ast_block_num_consts
-#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
-#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
-#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
-#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
-#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
-#define ast_arena_expr_set ast_ast_arena_expr_set
-#define ast_arena_block_set ast_ast_arena_block_set
-#define ast_arena_type_set ast_ast_arena_type_set
-#define ast_arena_func_set ast_ast_arena_func_set
 
 /* pipeline reverse aliases (call ast_pipeline_* → pipeline_* extern) */
 #define ast_pipeline_type_named_name_into pipeline_type_named_name_into
@@ -148,31 +154,12 @@ extern int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, i
 #define ast_pipeline_dep_ctx_empty_param_restore pipeline_dep_ctx_empty_param_restore
 #define ast_pipeline_module_func_is_extern_at pipeline_module_func_is_extern_at
 #define ast_pipeline_module_func_param_type_ref_at pipeline_module_func_param_type_ref_at
-
-/* slim arena grow pool glue (linked from pipeline/runtime) */
-extern struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Type pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Func pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
-extern void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
-extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
-extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
-
-struct ast_PipelineDepCtx { int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t path_buf[512]; uint8_t loaded_buf[4194304]; ptrdiff_t loaded_len; uint8_t preprocess_buf[4194304]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t typeck_loop_depth; int32_t current_func_index; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; int32_t current_codegen_dep_index; uint8_t current_codegen_prefix_mirror[64]; int32_t current_codegen_prefix_len; int32_t asm_entry_module_only; uint8_t entry_module_import_path_mirror[64]; int32_t entry_module_import_path_len; };
+struct ast_PipelineDepCtx { int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t path_buf[512]; uint8_t loaded_buf[4194304]; ptrdiff_t loaded_len; uint8_t preprocess_buf[4194304]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t target_cpu_features; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t typeck_loop_depth; int32_t current_func_index; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; int32_t current_codegen_dep_index; uint8_t current_codegen_prefix_mirror[64]; int32_t current_codegen_prefix_len; int32_t asm_entry_module_only; uint8_t entry_module_import_path_mirror[64]; int32_t entry_module_import_path_len; int32_t typeck_scope_region_len; uint8_t typeck_scope_region_label[64]; };
 
 /* pipeline glue usage aliases */
-extern struct ast_Block ast_pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Expr ast_pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Func ast_pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
-extern struct ast_Type ast_pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
 extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
 extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
 extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
-#define pipeline_arena_block_get_copy ast_pipeline_arena_block_get_copy
-#define pipeline_arena_expr_get_copy ast_pipeline_arena_expr_get_copy
-#define pipeline_arena_func_get_copy ast_pipeline_arena_func_get_copy
-#define pipeline_arena_type_get_copy ast_pipeline_arena_type_get_copy
 #define pipeline_block_const_init_ref ast_pipeline_block_const_init_ref
 #define pipeline_block_const_name_copy64 ast_pipeline_block_const_name_copy64
 #define pipeline_block_const_name_len ast_pipeline_block_const_name_len
@@ -218,9 +205,6 @@ extern int32_t ast_pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx * 
 extern void ast_pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst);
 extern int32_t ast_pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx * ctx);
 extern struct ast_Module * ast_pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx * ctx, int32_t idx);
-extern struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena * arena, int32_t ref);
-extern int ast_ref_is_null(int32_t ref);
-extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t ast_pipeline_expr_array_lit_elem_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t ast_pipeline_module_struct_layout_name_len(struct ast_Module * module, int32_t idx);
@@ -231,8 +215,6 @@ extern int32_t ast_pipeline_module_struct_layout_num_fields(struct ast_Module * 
 extern int32_t ast_pipeline_module_struct_layout_field_name_len(struct ast_Module * module, int32_t li, int32_t j);
 extern int32_t ast_pipeline_module_struct_layout_field_type_ref(struct ast_Module * module, int32_t li, int32_t j);
 extern void ast_pipeline_module_struct_layout_field_name_into(struct ast_Module * module, int32_t li, int32_t j, uint8_t * out64);
-extern struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena * arena, int32_t ref);
-extern int32_t ast_ast_block_num_lets(struct ast_ASTArena * a, int32_t br);
 extern int32_t ast_pipeline_block_let_name_len(struct ast_ASTArena * arena, int32_t br, int32_t li);
 extern int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t ast_pipeline_module_import_kind_at(struct ast_Module * module, int32_t idx);
@@ -243,7 +225,6 @@ extern int32_t ast_pipeline_module_import_select_name_len(struct ast_Module * mo
 extern uint8_t ast_pipeline_module_import_select_name_byte_at(struct ast_Module * module, int32_t idx, int32_t sel, int32_t off);
 extern struct ast_ASTArena * ast_pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx * ctx, int32_t idx);
 extern int32_t ast_pipeline_module_func_ref_at(struct ast_Module * module, int32_t func_index);
-extern struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t ast_pipeline_expr_method_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t ast_pipeline_expr_match_arm_result_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t i);
 extern int32_t ast_pipeline_block_const_name_len(struct ast_ASTArena * arena, int32_t br, int32_t ci);
@@ -253,22 +234,6 @@ extern void ast_pipeline_block_const_name_copy64(struct ast_ASTArena * arena, in
 extern int32_t ast_pipeline_block_let_type_ref(struct ast_ASTArena * arena, int32_t br, int32_t li);
 extern int32_t ast_pipeline_block_let_init_ref(struct ast_ASTArena * arena, int32_t br, int32_t li);
 extern void ast_pipeline_block_let_name_copy64(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * dst);
-extern int32_t ast_ast_block_expr_stmt_ref(struct ast_ASTArena * a, int32_t br, int32_t ei);
-extern int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t wi);
-extern int32_t ast_ast_block_while_body_ref(struct ast_ASTArena * a, int32_t br, int32_t wi);
-extern int32_t ast_ast_block_for_init_ref(struct ast_ASTArena * a, int32_t br, int32_t fi);
-extern int32_t ast_ast_block_for_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t fi);
-extern int32_t ast_ast_block_for_step_ref(struct ast_ASTArena * a, int32_t br, int32_t fi);
-extern int32_t ast_ast_block_for_body_ref(struct ast_ASTArena * a, int32_t br, int32_t fi);
-extern int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena * a, int32_t br);
-extern uint8_t ast_ast_block_stmt_order_kind(struct ast_ASTArena * a, int32_t br, int32_t si);
-extern int32_t ast_ast_block_stmt_order_idx(struct ast_ASTArena * a, int32_t br, int32_t si);
-extern int32_t ast_ast_block_num_consts(struct ast_ASTArena * a, int32_t br);
-extern int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena * a, int32_t br);
-extern int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena * a, int32_t br);
-extern int32_t ast_ast_block_if_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
-extern int32_t ast_ast_block_if_then_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
-extern int32_t ast_ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii);
 extern int32_t ast_pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
 extern int32_t ast_pipeline_module_func_body_expr_ref_at(struct ast_Module * module, int32_t fi);
 extern int32_t ast_pipeline_module_top_level_let_is_const(struct ast_Module * module, int32_t idx);
@@ -276,7 +241,12 @@ extern int32_t ast_pipeline_module_top_level_let_name_len(struct ast_Module * mo
 extern uint8_t ast_pipeline_module_top_level_let_name_byte_at(struct ast_Module * module, int32_t idx, int32_t off);
 extern int32_t ast_pipeline_module_top_level_let_type_ref(struct ast_Module * module, int32_t idx);
 extern int32_t ast_pipeline_module_top_level_let_init_ref(struct ast_Module * module, int32_t idx);
-struct codegen_CodegenOutBuf { uint8_t data[8388608]; int32_t len; };
+struct codegen_CodegenOutBuf { uint8_t data[9437184]; int32_t len; };
+extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx * ctx, int32_t idx);
+extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst);
+extern struct ast_Module * pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx * ctx, int32_t idx);
+extern struct ast_ASTArena * pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx * ctx, int32_t idx);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena * arena, int32_t ref, uint8_t * out64);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena * arena, int32_t ref);
@@ -359,6 +329,7 @@ int32_t codegen_force_param_ptrdiff_t(uint8_t * prefix, int32_t prefix_len, uint
 int32_t codegen_force_param_uint32_t(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
 int32_t codegen_use_buf_wrapper(uint8_t * name, int32_t name_len, int32_t num_args);
 int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out, uint8_t * name, int32_t name_len, int32_t num_args);
+int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len);
 int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len);
@@ -402,8 +373,8 @@ void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi
 void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst);
 int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals);
 int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
-int32_t codegen_su_ast_emit_header(struct codegen_CodegenOutBuf * out);
-int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
+int32_t codegen_sx_ast_emit_header(struct codegen_CodegenOutBuf * out);
+int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
 int32_t codegen_is_submit_batch_buf_call(uint8_t * name, int32_t name_len);
 int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
@@ -415,9 +386,9 @@ int32_t codegen_path_is_std_io_driver_bytes(uint8_t * path) {
   (void)(({ int32_t __tmp = 0; if (path == ((uint8_t *)(0))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   while (i < 14) {
-    (void)(({ int32_t __tmp = 0; if ((path)[i] != (i < 0 || (i) >= 14 ? (shulang_panic_(1, 0), (expect)[0]) : (expect)[i])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((path)[i] != (expect)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
@@ -429,11 +400,11 @@ int32_t codegen_path_is_std_io_core_bytes(uint8_t * path) {
   (void)(({ int32_t __tmp = 0; if (path == ((uint8_t *)(0))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   while (i < 12) {
-    (void)((pi = ((int32_t)((path)[i]))));
-    (void)((ei = ((int32_t)((i < 0 || (i) >= 12 ? (shulang_panic_(1, 0), (expect)[0]) : (expect)[i])))));
+    (pi = (((int32_t)((path)[i]))));
+    (ei = (((int32_t)((expect)[i]))));
     (void)(({ int32_t __tmp = 0; if (pi != ei) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
@@ -448,16 +419,16 @@ void codegen_import_path_to_c_prefix_into(uint8_t * path, uint8_t * buf, int32_t
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (off + 2 >= buf_cap) {   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ uint8_t __tmp = 0; if (ch == ((uint8_t)(46))) {   (void)(((buf)[off] = ((uint8_t)(95))));
- } else {   (void)(((buf)[off] = ch));
+    (void)(({ uint8_t __tmp = 0; if (ch == ((uint8_t)(46))) {   ((buf)[off] = (((uint8_t)(95))));
+ } else {   ((buf)[off] = (ch));
  } ; __tmp; }));
-    (void)((off = off + 1));
-    (void)((pi = pi + 1));
+    ++off;
+    ++pi;
   }
-  (void)(({ int32_t __tmp = 0; if (off + 1 < buf_cap) {   (void)(((buf)[off] = ((uint8_t)(95))));
-  (void)((off = off + 1));
+  (void)(({ int32_t __tmp = 0; if (off + 1 < buf_cap) {   ((buf)[off] = (((uint8_t)(95))));
+  ++off;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(((buf)[off] = ((uint8_t)(0))));
+  ((buf)[off] = (((uint8_t)(0))));
 }
 int32_t codegen_dep_import_path_len_at(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst) {
   int32_t plen = pipeline_dep_ctx_import_path_len(ctx, idx);
@@ -474,27 +445,27 @@ int32_t codegen_ctx_dep_path_for_current_codegen_module_into(struct ast_Pipeline
   while (j < nd) {
     (void)(({ int32_t __tmp = 0; if (pipeline_dep_ctx_module_at(ctx, j) == (ctx)->current_codegen_module) {   return codegen_dep_import_path_len_at(ctx, j, dst);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
   return 0;
 }
 int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx * ctx, uint8_t * buf, int32_t buf_cap) {
   (void)(({ int32_t __tmp = 0; if (buf == ((uint8_t *)(0)) || buf_cap <= 0 || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(((buf)[0] = ((uint8_t)(0))));
+  ((buf)[0] = (((uint8_t)(0))));
   (void)(({ int32_t __tmp = 0; if ((ctx)->current_codegen_prefix_len > 0) {   int32_t pi = 0;
   while (pi < (ctx)->current_codegen_prefix_len && pi < buf_cap - 1) {
-    (void)(((buf)[pi] = (pi < 0 || (pi) >= 64 ? (shulang_panic_(1, 0), ((ctx)->current_codegen_prefix_mirror)[0]) : ((ctx)->current_codegen_prefix_mirror)[pi])));
-    (void)((pi = pi + 1));
+    ((buf)[pi] = ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), ((ctx)->current_codegen_prefix_mirror)[0]) : ((ctx)->current_codegen_prefix_mirror)[pi])));
+    ++pi;
   }
-  (void)(((buf)[pi] = ((uint8_t)(0))));
+  ((buf)[pi] = (((uint8_t)(0))));
   return pi;
  } else (__tmp = 0) ; __tmp; }));
   uint8_t path_buf[64] = { 0 };
   int32_t path_len = 0;
-  (void)(({ int32_t __tmp = 0; if ((ctx)->current_codegen_dep_index >= 0) {   (void)((path_len = codegen_dep_import_path_len_at(ctx, (ctx)->current_codegen_dep_index, (&((path_buf)[0])))));
+  (void)(({ int32_t __tmp = 0; if ((ctx)->current_codegen_dep_index >= 0) {   (path_len = (codegen_dep_import_path_len_at(ctx, (ctx)->current_codegen_dep_index, (&((path_buf)[0])))));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (path_len == 0) {   (void)((path_len = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, (&((path_buf)[0])))));
+  (void)(({ int32_t __tmp = 0; if (path_len == 0) {   (path_len = (codegen_ctx_dep_path_for_current_codegen_module_into(ctx, (&((path_buf)[0])))));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (path_len == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -503,7 +474,7 @@ int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx * ctx, uint8_
   (void)(codegen_import_path_to_c_prefix_into((&((path_buf)[0])), buf, buf_cap));
   int32_t i = 0;
   while (i < buf_cap && (buf)[i] != ((uint8_t)(0))) {
-    (void)((i = i + 1));
+    ++i;
   }
   return i;
 }
@@ -515,8 +486,7 @@ int32_t codegen_expr_var_matches_func_param_index(struct ast_ASTArena * arena, i
   int32_t np = pipeline_module_func_num_params_at(mod, func_index);
   (void)(({ int32_t __tmp = 0; if (param_idx < 0 || param_idx >= np) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr base;
-  base = pipeline_arena_expr_get_copy(arena, var_ref);
+  struct ast_Expr base = ast_arena_expr_get(arena, var_ref);
   (void)(({ int32_t __tmp = 0; if ((base).kind != ast_ExprKind_EXPR_VAR) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, func_index, param_idx);
@@ -528,9 +498,9 @@ int32_t codegen_expr_var_matches_func_param_index(struct ast_ASTArena * arena, i
  } else (__tmp = 0) ; __tmp; }));
   int32_t j = 0;
   while (j < p_name_len) {
-    (void)(({ int32_t __tmp = 0; if ((j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[j]) != (j < 0 || (j) >= 32 ? (shulang_panic_(1, 0), (pname_buf)[0]) : (pname_buf)[j])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((j < 0 || (j) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[j]) != (j < 0 || (j) >= 32 ? (shux_panic_(1, 0), (pname_buf)[0]) : (pname_buf)[j])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
   return 1;
  } else (__tmp = 0) ; __tmp; });
@@ -550,7 +520,7 @@ int32_t codegen_symbuf_bytes_eq(uint8_t * buf, int32_t buf_len, uint8_t * lit, i
   while (i < lit_len) {
     (void)(({ int32_t __tmp = 0; if ((buf)[i] != (lit)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
@@ -560,18 +530,18 @@ int32_t codegen_call_num_args_override(uint8_t * prefix, int32_t prefix_len, uin
   uint8_t buf[96] = { 0 };
   int32_t full = 0;
   int32_t i = 0;
-  (void)(({ int32_t __tmp = 0; if (prefix != ((uint8_t *)(0)) && prefix_len > 0) {   (void)((i = 0));
+  (void)(({ int32_t __tmp = 0; if (prefix != ((uint8_t *)(0)) && prefix_len > 0) {   (i = (0));
   while (i < prefix_len && full < 96) {
-    (void)(((full < 0 || (full) >= 96 ? (shulang_panic_(1, 0), 0) : ((buf)[full] = (prefix)[i], 0))));
-    (void)((full = full + 1));
-    (void)((i = i + 1));
+    ((full < 0 || (full) >= 96 ? (shux_panic_(1, 0), 0) : ((buf)[full] = (prefix)[i], 0)));
+    ++full;
+    ++i;
   }
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (name != ((uint8_t *)(0)) && name_len > 0) {   (void)((i = 0));
+  (void)(({ int32_t __tmp = 0; if (name != ((uint8_t *)(0)) && name_len > 0) {   (i = (0));
   while (i < name_len && full < 96) {
-    (void)(((full < 0 || (full) >= 96 ? (shulang_panic_(1, 0), 0) : ((buf)[full] = (name)[i], 0))));
-    (void)((full = full + 1));
-    (void)((i = i + 1));
+    ((full < 0 || (full) >= 96 ? (shux_panic_(1, 0), 0) : ((buf)[full] = (name)[i], 0)));
+    ++full;
+    ++i;
   }
  } else (__tmp = 0) ; __tmp; }));
   uint8_t z0[13] = { 118, 101, 99, 95, 108, 101, 110, 95, 101, 109, 112, 116, 121 };
@@ -674,7 +644,7 @@ int32_t codegen_name_bytes_prefix_eq(uint8_t * name, int32_t name_len, uint8_t *
   while (i < exp_len) {
     (void)(({ int32_t __tmp = 0; if ((name)[i] != (expect)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
@@ -716,9 +686,9 @@ int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t 
   (void)(({ int32_t __tmp = 0; if (dep_path == ((uint8_t *)(0)) || name == ((uint8_t *)(0))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   while (di < 11) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (di < 0 || (di) >= 11 ? (shulang_panic_(1, 0), (path_core)[0]) : (path_core)[di])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (path_core)[di]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di = di + 1));
+    ++di;
   }
   (void)(({ int32_t __tmp = 0; if (name_len == 17 || name_len == 18 && codegen_name_bytes_prefix_eq(name, name_len, (&((n_rf)[0])), 17) != 0) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
@@ -744,9 +714,9 @@ int32_t codegen_should_skip_emit_std_io_trivial_handle(uint8_t * dep_path, uint8
   (void)(({ int32_t __tmp = 0; if (name == ((uint8_t *)(0))) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (dep_path != ((uint8_t *)(0))) {   while (di < 7) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (di < 0 || (di) >= 7 ? (shulang_panic_(1, 0), (path_io)[0]) : (path_io)[di])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (path_io)[di]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di = di + 1));
+    ++di;
   }
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (name_len == 12 || name_len == 13 && codegen_name_bytes_prefix_eq(name, name_len, (&((h_stdin)[0])), 12) != 0) {   return 1;
@@ -771,53 +741,53 @@ int32_t codegen_should_skip_emit_func(uint8_t * dep_path, uint8_t * prefix, int3
   int32_t ok_path = 0;
   int32_t di = 0;
   (void)(({ int32_t __tmp = 0; if (prefix != ((uint8_t *)(0)) && prefix_len > 0 && name != ((uint8_t *)(0)) && name_len > 0) {   int32_t total_len = prefix_len + name_len;
-  (void)(({ int32_t __tmp = 0; if (total_len == 33) {   (void)((pi = 0));
+  (void)(({ int32_t __tmp = 0; if (total_len == 33) {   (pi = (0));
   while (pi < prefix_len) {
-    (void)(({ int32_t __tmp = 0; if ((prefix)[pi] != (pi < 0 || (pi) >= 33 ? (shulang_panic_(1, 0), (full33)[0]) : (full33)[pi])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((prefix)[pi] != (pi < 0 || (pi) >= 33 ? (shux_panic_(1, 0), (full33)[0]) : (full33)[pi])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((pi = pi + 1));
+    ++pi;
   }
-  (void)((ni = 0));
+  (ni = (0));
   while (ni < name_len) {
-    (void)(({ int32_t __tmp = 0; if ((name)[ni] != (prefix_len + ni < 0 || (prefix_len + ni) >= 33 ? (shulang_panic_(1, 0), (full33)[0]) : (full33)[prefix_len + ni])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((name)[ni] != (prefix_len + ni < 0 || (prefix_len + ni) >= 33 ? (shux_panic_(1, 0), (full33)[0]) : (full33)[prefix_len + ni])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ni = ni + 1));
+    ++ni;
   }
   return 1;
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (total_len == 29) {   (void)((pi = 0));
+  __tmp = ({ int32_t __tmp = 0; if (total_len == 29) {   (pi = (0));
   while (pi < prefix_len) {
-    (void)(({ int32_t __tmp = 0; if ((prefix)[pi] != (pi < 0 || (pi) >= 29 ? (shulang_panic_(1, 0), (full29)[0]) : (full29)[pi])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((prefix)[pi] != (pi < 0 || (pi) >= 29 ? (shux_panic_(1, 0), (full29)[0]) : (full29)[pi])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((pi = pi + 1));
+    ++pi;
   }
-  (void)((ni = 0));
+  (ni = (0));
   while (ni < name_len) {
-    (void)(({ int32_t __tmp = 0; if ((name)[ni] != (prefix_len + ni < 0 || (prefix_len + ni) >= 29 ? (shulang_panic_(1, 0), (full29)[0]) : (full29)[prefix_len + ni])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((name)[ni] != (prefix_len + ni < 0 || (prefix_len + ni) >= 29 ? (shux_panic_(1, 0), (full29)[0]) : (full29)[prefix_len + ni])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ni = ni + 1));
+    ++ni;
   }
   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (dep_path != ((uint8_t *)(0))) {   (void)((ok_path = 0));
-  (void)((di = 0));
+  (void)(({ int32_t __tmp = 0; if (dep_path != ((uint8_t *)(0))) {   (ok_path = (0));
+  (di = (0));
   while (di < 14) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (di < 0 || (di) >= 14 ? (shulang_panic_(1, 0), (path_driver)[0]) : (path_driver)[di])) {   (void)((ok_path = 0));
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (path_driver)[di]) {   (ok_path = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di = di + 1));
+    ++di;
   }
-  (void)(({ int32_t __tmp = 0; if (di == 14) {   (void)((ok_path = 1));
+  (void)(({ int32_t __tmp = 0; if (di == 14) {   (ok_path = (1));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ok_path == 0) {   (void)((di = 0));
+  (void)(({ int32_t __tmp = 0; if (ok_path == 0) {   (di = (0));
   while (di < 7) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (di < 0 || (di) >= 7 ? (shulang_panic_(1, 0), (path_io)[0]) : (path_io)[di])) {   (void)((ok_path = 0));
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (path_io)[di]) {   (ok_path = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di = di + 1));
+    ++di;
   }
-  __tmp = ({ int32_t __tmp = 0; if (di == 7) {   (void)((ok_path = 1));
+  __tmp = ({ int32_t __tmp = 0; if (di == 7) {   (ok_path = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (ok_path != 0 && name != ((uint8_t *)(0))) {   (void)(({ int32_t __tmp = 0; if (name_len == 19 || name_len == 20 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm_len19)[0])), 19) != 0) {   return 1;
@@ -831,14 +801,14 @@ int32_t codegen_should_skip_emit_func(uint8_t * dep_path, uint8_t * prefix, int3
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (dep_path != ((uint8_t *)(0)) && name != ((uint8_t *)(0))) {   int32_t ok_drv_only = 0;
-  (void)((di = 0));
+  (di = (0));
   while (di < 14) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (di < 0 || (di) >= 14 ? (shulang_panic_(1, 0), (path_driver)[0]) : (path_driver)[di])) {   (void)((ok_drv_only = 0));
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di] != (path_driver)[di]) {   (ok_drv_only = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di = di + 1));
+    ++di;
   }
-  (void)(({ int32_t __tmp = 0; if (di == 14) {   (void)((ok_drv_only = 1));
+  (void)(({ int32_t __tmp = 0; if (di == 14) {   (ok_drv_only = (1));
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (ok_drv_only != 0 && codegen_is_std_io_driver_bridge_name(name, name_len) != 0) {   return 1;
  } else (__tmp = 0) ; __tmp; });
@@ -851,9 +821,9 @@ int32_t codegen_should_skip_emit_func(uint8_t * dep_path, uint8_t * prefix, int3
   uint8_t path_driver[14] = { 115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0 };
   int32_t di2 = 0;
   while (di2 < 14) {
-    (void)(({ int32_t __tmp = 0; if ((dep_path)[di2] != (di2 < 0 || (di2) >= 14 ? (shulang_panic_(1, 0), (path_driver)[0]) : (path_driver)[di2])) {   break;
+    (void)(({ int32_t __tmp = 0; if ((dep_path)[di2] != (path_driver)[di2]) {   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((di2 = di2 + 1));
+    ++di2;
   }
   __tmp = ({ int32_t __tmp = 0; if (di2 == 14 && codegen_should_skip_emit_std_io_trivial_handle(((uint8_t *)(0)), name, name_len) != 0) {   return 1;
  } else (__tmp = 0) ; __tmp; });
@@ -866,9 +836,9 @@ int32_t codegen_force_param_std_io_driver_prefix_ok(uint8_t * prefix, int32_t pr
  } else (__tmp = 0) ; __tmp; }));
   int32_t i = 0;
   while (i < 13) {
-    (void)(({ int32_t __tmp = 0; if ((prefix)[i] != (i < 0 || (i) >= 13 ? (shulang_panic_(1, 0), (exp13)[0]) : (exp13)[i])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((prefix)[i] != (exp13)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   (void)(({ int32_t __tmp = 0; if (prefix_len > 13) {   uint8_t b14 = (prefix)[13];
   __tmp = ({ int32_t __tmp = 0; if (b14 != ((uint8_t)(0)) && b14 != ((uint8_t)(95))) {   return 0;
@@ -903,9 +873,9 @@ int32_t codegen_force_param_size_t_std_io_print_str_second(uint8_t * prefix, int
  } else (__tmp = 0) ; __tmp; }));
   int32_t i = 0;
   while (i < 7) {
-    (void)(({ int32_t __tmp = 0; if ((prefix)[i] != (i < 0 || (i) >= 7 ? (shulang_panic_(1, 0), (exp7)[0]) : (exp7)[i])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((prefix)[i] != (exp7)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
@@ -990,30 +960,120 @@ int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out,
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
+int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len) {
+  uint8_t fn_local[64] = { 0 };
+  int32_t fn_len = 0;
+  int32_t nparams = 0;
+  uint8_t p0[32] = { 98, 117, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t p1[32] = { 116, 105, 109, 101, 111, 117, 116, 95, 109, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t reg8[8] = { 114, 101, 103, 105, 115, 116, 101, 114 };
+  uint8_t rd11[11] = { 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100 };
+  uint8_t wr12[12] = { 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101 };
+  uint8_t sym_reg[19] = { 115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102 };
+  uint8_t sym_rd[22] = { 115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102 };
+  uint8_t sym_wr[23] = { 115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102 };
+  uint8_t ret_kw[8] = { 32, 32, 114, 101, 116, 117, 114, 110 };
+  uint8_t close_b[3] = { 10, 125, 0 };
+  (void)(({ int32_t __tmp = 0; if (codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) == 0) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t p0_len = 3;
+  int32_t p1_len = 10;
+  (void)(pipeline_module_func_name_copy64(module, fi, (&((fn_local)[0]))));
+  (fn_len = (pipeline_module_func_name_len_at(module, fi)));
+  (nparams = (pipeline_module_func_num_params_at(module, fi)));
+  (void)(({ int32_t __tmp = 0; if (pipeline_module_func_param_name_len_at(module, fi, 0) > 0) {   (void)(pipeline_module_func_param_name_copy32(module, fi, 0, (&((p0)[0]))));
+  (p0_len = (pipeline_module_func_param_name_len_at(module, fi, 0)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (nparams > 1 && pipeline_module_func_param_name_len_at(module, fi, 1) > 0) {   (void)(pipeline_module_func_param_name_copy32(module, fi, 1, (&((p1)[0]))));
+  (p1_len = (pipeline_module_func_param_name_len_at(module, fi, 1)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (fn_len == 8 && codegen_name_bytes_prefix_eq((&((fn_local)[0])), fn_len, (&((reg8)[0])), 8) != 0 && nparams == 1) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((ret_kw)[0])), 8) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((sym_reg)[0])), 19) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((p0)[0])), p0_len) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 59) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((close_b)[0])), 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  return 1;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (fn_len == 11 && codegen_name_bytes_prefix_eq((&((fn_local)[0])), fn_len, (&((rd11)[0])), 11) != 0 && nparams == 2) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((ret_kw)[0])), 8) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((sym_rd)[0])), 22) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((p0)[0])), p0_len) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  uint8_t comma[3] = { 44, 32, 0 };
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((p1)[0])), p1_len) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 59) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((close_b)[0])), 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  return 1;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (fn_len == 12 && codegen_name_bytes_prefix_eq((&((fn_local)[0])), fn_len, (&((wr12)[0])), 12) != 0 && nparams == 2) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((ret_kw)[0])), 8) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((sym_wr)[0])), 23) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((p0)[0])), p0_len) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  uint8_t comma2[3] = { 44, 32, 0 };
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma2, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((p1)[0])), p1_len) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 59) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((close_b)[0])), 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  return 1;
+ } else (__tmp = 0) ; __tmp; }));
+  return 0;
+}
 int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref) {
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr base;
-  base = pipeline_arena_expr_get_copy(arena, base_ref);
+  struct ast_Expr base = ast_arena_expr_get(arena, base_ref);
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null((base).resolved_type_ref) || (base).resolved_type_ref <= 0 || (base).resolved_type_ref > (arena)->num_types) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type ty;
-  ty = pipeline_arena_type_get_copy(arena, (base).resolved_type_ref);
-  (void)(({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_PTR || (ty).kind == ast_TypeKind_TYPE_SLICE) {   return 1;
+  struct ast_Type ty = ast_arena_type_get(arena, (base).resolved_type_ref);
+  (void)(({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_PTR) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
 int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref) {
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr base;
-  base = pipeline_arena_expr_get_copy(arena, base_ref);
+  struct ast_Expr base = ast_arena_expr_get(arena, base_ref);
   (void)(({ int32_t __tmp = 0; if ((base).kind != ast_ExprKind_EXPR_VAR || (base).var_name_len <= 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((base).var_name_len == 6) {   __tmp = ({ int32_t __tmp = 0; if (((base).var_name)[0] == 115 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 111 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 117 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[3]) == 114 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[4]) == 99 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[5]) == 101) {   return 1;
+  (void)(({ int32_t __tmp = 0; if ((base).var_name_len == 6) {   __tmp = ({ int32_t __tmp = 0; if (((base).var_name)[0] == 115 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 111 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 117 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[3]) == 114 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[4]) == 99 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[5]) == 101) {   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((base).var_name_len == 7) {   __tmp = ({ int32_t __tmp = 0; if (((base).var_name)[0] == 111 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[4]) == 98 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[5]) == 117 && (6 < 0 || (6) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[6]) == 102) {   return 1;
+  (void)(({ int32_t __tmp = 0; if ((base).var_name_len == 7) {   __tmp = ({ int32_t __tmp = 0; if (((base).var_name)[0] == 111 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[4]) == 98 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[5]) == 117 && (6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[6]) == 102) {   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   return 0;
@@ -1031,15 +1091,15 @@ int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int32_t prefix_le
   while (i < prefix_len) {
     (void)(({ int32_t __tmp = 0; if ((name)[i] != (prefix)[i]) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 1;
 }
 int32_t codegen_append_byte(struct codegen_CodegenOutBuf * out, int32_t b) {
-  (void)(({ int32_t __tmp = 0; if ((out)->len >= 8388608) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if ((out)->len >= 9437184) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((((out)->len < 0 || ((out)->len) >= 8388608 ? (shulang_panic_(1, 0), 0) : (((out)->data)[(out)->len] = ((uint8_t)(b & 255)), 0))));
-  (void)(((out)->len = (out)->len + 1));
+  (((out)->len < 0 || ((out)->len) >= 9437184 ? (shux_panic_(1, 0), 0) : (((out)->data)[(out)->len] = ((uint8_t)(b & 255)), 0)));
+  ((out)->len = ((out)->len + 1));
   return 0;
 }
 int32_t codegen_append_byte_u8(struct codegen_CodegenOutBuf * out, uint8_t b) {
@@ -1050,7 +1110,7 @@ int32_t codegen_emit_bytes_from_ptr(struct codegen_CodegenOutBuf * out, uint8_t 
   while (i < len) {
     (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (ptr)[i]) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
@@ -1060,96 +1120,96 @@ int32_t codegen_emit_bytes_64(struct codegen_CodegenOutBuf * out, uint8_t * ptr,
 int32_t codegen_emit_bytes_32(struct codegen_CodegenOutBuf * out, uint8_t buf[32], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 32 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 32 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_22(struct codegen_CodegenOutBuf * out, uint8_t buf[22], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 22 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 22 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_9(struct codegen_CodegenOutBuf * out, uint8_t buf[9], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_8(struct codegen_CodegenOutBuf * out, uint8_t buf[8], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_7(struct codegen_CodegenOutBuf * out, uint8_t buf[7], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 7 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 7 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_6(struct codegen_CodegenOutBuf * out, uint8_t buf[6], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 6 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 6 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_5(struct codegen_CodegenOutBuf * out, uint8_t buf[5], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 5 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 5 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_4(struct codegen_CodegenOutBuf * out, uint8_t buf[4], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 4 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 4 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_3(struct codegen_CodegenOutBuf * out, uint8_t buf[3], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 3 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 3 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_emit_bytes_2(struct codegen_CodegenOutBuf * out, uint8_t buf[2], int32_t len) {
   int32_t i = 0;
   while (i < len) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 2 ? (shulang_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 2 ? (shux_panic_(1, 0), (buf)[0]) : (buf)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
 int32_t codegen_format_uint(struct codegen_CodegenOutBuf * out, int32_t val) {
-  (void)(({ int32_t __tmp = 0; if (val >= 10) {   int32_t q = (10 == 0 ? (shulang_panic_(1, 0), val) : (val / 10));
-  int32_t r = (10 == 0 ? (shulang_panic_(1, 0), val) : (val % 10));
+  (void)(({ int32_t __tmp = 0; if (val >= 10) {   int32_t q = (10 == 0 ? (shux_panic_(1, 0), val) : (val / 10));
+  int32_t r = (10 == 0 ? (shux_panic_(1, 0), val) : (val % 10));
   (void)(({ int32_t __tmp = 0; if (codegen_format_uint(out, q) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 48 + r) != 0) {   return (-1);
@@ -1169,9 +1229,9 @@ int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int32_t val) {
   uint8_t d[11] = { 50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0 };
   int32_t i = 0;
   while (i < 10) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 11 ? (shulang_panic_(1, 0), (d)[0]) : (d)[i])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (i < 0 || (i) >= 11 ? (shux_panic_(1, 0), (d)[0]) : (d)[i])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -1184,7 +1244,7 @@ int32_t codegen_emit_indent(struct codegen_CodegenOutBuf * out, int32_t indent) 
   while (i < indent) {
     (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }
@@ -1219,8 +1279,8 @@ int32_t codegen_emit_type_kind(struct codegen_CodegenOutBuf * out, enum ast_Type
   (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_U64) {   uint8_t s[9] = { 117, 105, 110, 116, 54, 52, 95, 116, 0 };
   return codegen_emit_bytes_9(out, s, 8);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_F32) {   uint8_t s[5] = { 102, 108, 111, 97, 0 };
-  return codegen_emit_bytes_5(out, s, 4);
+  (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_F32) {   uint8_t s[6] = { 102, 108, 111, 97, 116, 0 };
+  return codegen_emit_bytes_6(out, s, 5);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_F64) {   uint8_t s[7] = { 100, 111, 117, 98, 108, 101, 0 };
   return codegen_emit_bytes_7(out, s, 6);
@@ -1242,9 +1302,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 7) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1253,9 +1313,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 7) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1264,9 +1324,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 3) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 4 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 4 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1275,9 +1335,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 7) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1286,9 +1346,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 8) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1297,20 +1357,20 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 8) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_F32) {   uint8_t s[5] = { 102, 108, 111, 97, 0 };
+  (void)(({ int32_t __tmp = 0; if (kind == ast_TypeKind_TYPE_F32) {   uint8_t s[6] = { 102, 108, 111, 97, 116, 0 };
   int32_t i = 0;
-  while (i < 4) {
+  while (i < 5) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 5 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 6 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1319,9 +1379,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 6) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 7 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 7 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1330,9 +1390,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 4) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 5 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 5 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1341,9 +1401,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 6) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 7 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 7 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1352,9 +1412,9 @@ int32_t codegen_type_kind_append_to_scratch(uint8_t * scratch, int32_t cap, int3
   while (i < 7) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((w = w + 1));
-    (void)((i = i + 1));
+    ((scratch)[w] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++w;
+    ++i;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1390,51 +1450,49 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(type_ref) || type_ref <= 0 || type_ref > (arena)->num_types) {   uint8_t s[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
   int32_t i = 0;
   while (i < 7) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
   }
   return 7;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type t;
-  t = pipeline_arena_type_get_copy(arena, type_ref);
+  struct ast_Type t = ast_arena_type_get(arena, type_ref);
   (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_PTR && (!ast_ref_is_null((t).elem_type_ref))) {   uint8_t inner[256] = { 0 };
   int32_t n = codegen_type_to_c_repr(arena, (&((inner)[0])), 256, (t).elem_type_ref, struct_prefix, struct_prefix_len);
   (void)(({ int32_t __tmp = 0; if (n < 0 || n + 2 >= cap) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t j = 0;
   while (j < n) {
-    (void)(((scratch)[j] = (j < 0 || (j) >= 256 ? (shulang_panic_(1, 0), (inner)[0]) : (inner)[j])));
-    (void)((j = j + 1));
+    ((scratch)[j] = ((j < 0 || (j) >= 256 ? (shux_panic_(1, 0), (inner)[0]) : (inner)[j])));
+    ++j;
   }
-  (void)(((scratch)[n] = ((uint8_t)(32))));
-  (void)(((scratch)[n + 1] = ((uint8_t)(42))));
+  ((scratch)[n] = (((uint8_t)(32))));
+  ((scratch)[n + 1] = (((uint8_t)(42))));
   return n + 2;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_ARRAY && (!ast_ref_is_null((t).elem_type_ref))) {   return codegen_type_to_c_repr(arena, scratch, cap, (t).elem_type_ref, struct_prefix, struct_prefix_len);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_VECTOR && (!ast_ref_is_null((t).elem_type_ref))) {   struct ast_Type elem_t;
-  elem_t = pipeline_arena_type_get_copy(arena, (t).elem_type_ref);
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_VECTOR && (!ast_ref_is_null((t).elem_type_ref))) {   struct ast_Type elem_t = ast_arena_type_get(arena, (t).elem_type_ref);
   (void)(({ int32_t __tmp = 0; if ((elem_t).kind == ast_TypeKind_TYPE_I32) {   (void)(({ int32_t __tmp = 0; if ((t).array_size == 4) {   uint8_t s[8] = { 105, 51, 50, 120, 52, 95, 116, 0 };
   int32_t i = 0;
   while (i < 7) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
   }
   return 7;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((t).array_size == 8) {   uint8_t s[8] = { 105, 51, 50, 120, 56, 95, 116, 0 };
   int32_t i = 0;
   while (i < 7) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
   }
   return 7;
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if ((t).array_size == 16) {   uint8_t sa[9] = { 105, 51, 50, 120, 49, 54, 95, 116, 0 };
   int32_t i = 0;
   while (i < 8) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (sa)[0]) : (sa)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (sa)[0]) : (sa)[i])));
+    ++i;
   }
   return 8;
  } else (__tmp = 0) ; __tmp; });
@@ -1442,24 +1500,24 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   (void)(({ int32_t __tmp = 0; if ((elem_t).kind == ast_TypeKind_TYPE_U32) {   (void)(({ int32_t __tmp = 0; if ((t).array_size == 4) {   uint8_t s[8] = { 117, 51, 50, 120, 52, 95, 116, 0 };
   int32_t i = 0;
   while (i < 7) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
   }
   return 7;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((t).array_size == 8) {   uint8_t s[8] = { 117, 51, 50, 120, 56, 95, 116, 0 };
   int32_t i = 0;
   while (i < 7) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 8 ? (shulang_panic_(1, 0), (s)[0]) : (s)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
   }
   return 7;
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if ((t).array_size == 16) {   uint8_t sa[9] = { 117, 51, 50, 120, 49, 54, 95, 116, 0 };
   int32_t i = 0;
   while (i < 8) {
-    (void)(((scratch)[i] = (i < 0 || (i) >= 9 ? (shulang_panic_(1, 0), (sa)[0]) : (sa)[i])));
-    (void)((i = i + 1));
+    ((scratch)[i] = ((i < 0 || (i) >= 9 ? (shux_panic_(1, 0), (sa)[0]) : (sa)[i])));
+    ++i;
   }
   return 8;
  } else (__tmp = 0) ; __tmp; });
@@ -1467,14 +1525,16 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   enum ast_TypeKind i32_fallback = ast_TypeKind_TYPE_I32;
   return codegen_type_kind_append_to_scratch(scratch, cap, 0, i32_fallback);
  } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_LINEAR && (!ast_ref_is_null((t).elem_type_ref))) {   return codegen_type_to_c_repr(arena, scratch, cap, (t).elem_type_ref, struct_prefix, struct_prefix_len);
+ } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_SLICE && (!ast_ref_is_null((t).elem_type_ref))) {   uint8_t eb[256] = { 0 };
   int32_t ne = codegen_type_to_c_repr(arena, (&((eb)[0])), 256, (t).elem_type_ref, struct_prefix, struct_prefix_len);
   (void)(({ int32_t __tmp = 0; if (ne < 0 || ne >= 256) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t sp = 0;
-  (void)(({ int32_t __tmp = 0; if (ne >= 7) {   __tmp = ({ int32_t __tmp = 0; if ((eb)[0] == ((uint8_t)(115)) && (1 < 0 || (1) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[1]) == ((uint8_t)(116)) && (2 < 0 || (2) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[2]) == ((uint8_t)(114)) && (3 < 0 || (3) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[3]) == ((uint8_t)(117)) && (4 < 0 || (4) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[4]) == ((uint8_t)(99)) && (5 < 0 || (5) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[5]) == ((uint8_t)(116)) && (6 < 0 || (6) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[6]) == ((uint8_t)(32))) {   (void)((sp = 7));
-  while (sp < ne && (sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[sp]) == ((uint8_t)(32))) {
-    (void)((sp = sp + 1));
+  (void)(({ int32_t __tmp = 0; if (ne >= 7) {   __tmp = ({ int32_t __tmp = 0; if ((eb)[0] == ((uint8_t)(115)) && (1 < 0 || (1) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[1]) == ((uint8_t)(116)) && (2 < 0 || (2) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[2]) == ((uint8_t)(114)) && (3 < 0 || (3) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[3]) == ((uint8_t)(117)) && (4 < 0 || (4) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[4]) == ((uint8_t)(99)) && (5 < 0 || (5) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[5]) == ((uint8_t)(116)) && (6 < 0 || (6) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[6]) == ((uint8_t)(32))) {   (sp = (7));
+  while (sp < ne && (sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[sp]) == ((uint8_t)(32))) {
+    ++sp;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -1484,13 +1544,13 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   uint8_t hdr[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 104, 117, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0 };
   int32_t hi = 0;
   while (hi < 21) {
-    (void)(((scratch)[hi] = (hi < 0 || (hi) >= 22 ? (shulang_panic_(1, 0), (hdr)[0]) : (hdr)[hi])));
-    (void)((hi = hi + 1));
+    ((scratch)[hi] = ((hi < 0 || (hi) >= 22 ? (shux_panic_(1, 0), (hdr)[0]) : (hdr)[hi])));
+    ++hi;
   }
   int32_t pi = 0;
   while (pi < plen) {
-    (void)(((scratch)[21 + pi] = (sp + pi < 0 || (sp + pi) >= 256 ? (shulang_panic_(1, 0), (eb)[0]) : (eb)[sp + pi])));
-    (void)((pi = pi + 1));
+    ((scratch)[21 + pi] = ((sp + pi < 0 || (sp + pi) >= 256 ? (shux_panic_(1, 0), (eb)[0]) : (eb)[sp + pi])));
+    ++pi;
   }
   return 21 + plen;
  } else (__tmp = 0) ; __tmp; }));
@@ -1500,35 +1560,35 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   while (h < 7) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (h < 0 || (h) >= 8 ? (shulang_panic_(1, 0), (hdr2)[0]) : (hdr2)[h])));
-    (void)((w = w + 1));
-    (void)((h = h + 1));
+    ((scratch)[w] = ((h < 0 || (h) >= 8 ? (shux_panic_(1, 0), (hdr2)[0]) : (hdr2)[h])));
+    ++w;
+    ++h;
   }
   (void)(({ int32_t __tmp = 0; if (struct_prefix != ((uint8_t *)(0)) && struct_prefix_len > 0) {   int32_t pi = 0;
   while (pi < struct_prefix_len) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (struct_prefix)[pi]));
-    (void)((w = w + 1));
-    (void)((pi = pi + 1));
+    ((scratch)[w] = ((struct_prefix)[pi]));
+    ++w;
+    ++pi;
   }
  } else {   uint8_t ast_p[4] = { 97, 115, 116, 95 };
   int32_t ai = 0;
   while (ai < 4) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (ai < 0 || (ai) >= 4 ? (shulang_panic_(1, 0), (ast_p)[0]) : (ast_p)[ai])));
-    (void)((w = w + 1));
-    (void)((ai = ai + 1));
+    ((scratch)[w] = ((ast_p)[ai]));
+    ++w;
+    ++ai;
   }
  } ; __tmp; }));
   int32_t ni = 0;
   while (ni < (t).name_len && ni < 64) {
     (void)(({ int32_t __tmp = 0; if (w >= cap - 1) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(((scratch)[w] = (ni < 0 || (ni) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[ni])));
-    (void)((w = w + 1));
-    (void)((ni = ni + 1));
+    ((scratch)[w] = ((ni < 0 || (ni) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[ni])));
+    ++w;
+    ++ni;
   }
   return w;
  } else (__tmp = 0) ; __tmp; }));
@@ -1538,15 +1598,14 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(type_ref)) {   uint8_t s[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
   return codegen_emit_bytes_8(out, s, 7);
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type t;
-  t = pipeline_arena_type_get_copy(arena, type_ref);
+  struct ast_Type t = ast_arena_type_get(arena, type_ref);
   (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_PTR && (!ast_ref_is_null((t).elem_type_ref))) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, (t).elem_type_ref, struct_prefix, struct_prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return codegen_append_byte(out, 42);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   (void)(({ int32_t __tmp = 0; if ((t).name_len == 6 && ((t).name)[0] == 66 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[2]) == 102 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[3]) == 102 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[4]) == 101 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[5]) == 114) {   uint8_t io_buf[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0 };
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   (void)(({ int32_t __tmp = 0; if ((t).name_len == 6 && ((t).name)[0] == 66 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[2]) == 102 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[3]) == 102 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[4]) == 101 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[5]) == 114) {   uint8_t io_buf[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0 };
   return codegen_emit_bytes_from_ptr(out, (&((io_buf)[0])), 20);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && codegen_type_is_module_user_enum((ctx)->current_codegen_module, arena, type_ref) != 0) {   uint8_t i32_enum[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
@@ -1575,14 +1634,13 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   int32_t si = 0;
   while (si < nl) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (si < 0 || (si) >= 256 ? (shulang_panic_(1, 0), (slb)[0]) : (slb)[si])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (si < 0 || (si) >= 256 ? (shux_panic_(1, 0), (slb)[0]) : (slb)[si])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((si = si + 1));
+    ++si;
   }
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_VECTOR && (!ast_ref_is_null((t).elem_type_ref))) {   struct ast_Type et_vec;
-  et_vec = pipeline_arena_type_get_copy(arena, (t).elem_type_ref);
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_VECTOR && (!ast_ref_is_null((t).elem_type_ref))) {   struct ast_Type et_vec = ast_arena_type_get(arena, (t).elem_type_ref);
   return codegen_emit_vector_c_type_out(out, (et_vec).kind, (t).array_size);
  } else (__tmp = 0) ; __tmp; }));
   return codegen_emit_type_kind(out, (t).kind);
@@ -1590,17 +1648,15 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
 int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_ref) {
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(type_ref) || type_ref <= 0 || type_ref > (arena)->num_types) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type ty;
-  ty = pipeline_arena_type_get_copy(arena, type_ref);
+  struct ast_Type ty = ast_arena_type_get(arena, type_ref);
   (void)(({ int32_t __tmp = 0; if ((ty).kind != ast_TypeKind_TYPE_ARRAY && pipeline_type_kind_ord_at(arena, type_ref) != 10) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t inner = (ty).elem_type_ref;
-  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(inner)) {   (void)((inner = pipeline_type_elem_ref_at(arena, type_ref)));
+  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(inner)) {   (inner = (pipeline_type_elem_ref_at(arena, type_ref)));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(inner) || inner <= 0 || inner > (arena)->num_types) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type inner_ty;
-  inner_ty = pipeline_arena_type_get_copy(arena, inner);
+  struct ast_Type inner_ty = ast_arena_type_get(arena, inner);
   (void)(({ int32_t __tmp = 0; if ((inner_ty).kind == ast_TypeKind_TYPE_U8) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_type_kind_ord_at(arena, inner) == 2) {   return 1;
@@ -1634,15 +1690,15 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 123) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  int32_t n = ast_pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  int32_t n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   int32_t ai = 0;
   while (ai < n) {
     (void)(({ int32_t __tmp = 0; if (ai > 0) {   uint8_t comma[3] = { 44, 32, 0 };
-  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) == 0) {   (void)((ai = ai));
+  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) == 0) {   (ai = (ai));
  } else {   return (-1);
  } ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) == 0) {   (void)((ai = ai + 1));
+    (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) == 0) {   ++ai;
  } else {   return (-1);
  } ; __tmp; }));
   }
@@ -1694,9 +1750,9 @@ int32_t codegen_emit_struct_field_type_via_pipeline(struct ast_ASTArena * arena,
  } else (__tmp = 0) ; __tmp; }));
   int32_t si = 0;
   while (si < nl_s) {
-    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (si < 0 || (si) >= 256 ? (shulang_panic_(1, 0), (slb)[0]) : (slb)[si])) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_append_byte_u8(out, (si < 0 || (si) >= 256 ? (shux_panic_(1, 0), (slb)[0]) : (slb)[si])) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((si = si + 1));
+    ++si;
   }
   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -1779,66 +1835,64 @@ int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32
 int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ast_ref_is_null(type_ref)) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type t;
-  t = pipeline_arena_type_get_copy(arena, type_ref);
+  struct ast_Type t = ast_arena_type_get(arena, type_ref);
   (void)(({ int32_t __tmp = 0; if ((t).kind != ast_TypeKind_TYPE_NAMED || (t).name_len <= 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t k = 0;
   while (k < (module)->num_struct_layouts) {
-    int32_t nl = ast_pipeline_module_struct_layout_name_len(module, k);
+    int32_t nl = pipeline_module_struct_layout_name_len(module, k);
     (void)(({ int32_t __tmp = 0; if (nl == (t).name_len) {   uint8_t ty_nm[64] = { 0 };
-  (void)(ast_pipeline_module_struct_layout_name_into(module, k, (&((ty_nm)[0]))));
+  (void)(pipeline_module_struct_layout_name_into(module, k, (&((ty_nm)[0]))));
   int eq = 1;
   int32_t j = 0;
   while (j < nl && j < 64) {
-    (void)(({ int32_t __tmp = 0; if ((j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), (ty_nm)[0]) : (ty_nm)[j]) != (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[j])) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if ((j < 0 || (j) >= 64 ? (shux_panic_(1, 0), (ty_nm)[0]) : (ty_nm)[j]) != (j < 0 || (j) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[j])) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq) {   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
+    ++k;
   }
   return 0;
 }
 int32_t codegen_type_is_module_user_enum(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ast_ref_is_null(type_ref)) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Type t;
-  t = pipeline_arena_type_get_copy(arena, type_ref);
+  struct ast_Type t = ast_arena_type_get(arena, type_ref);
   (void)(({ int32_t __tmp = 0; if ((t).kind != ast_TypeKind_TYPE_NAMED || (t).name_len <= 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t ei = 0;
   while (ei < (module)->num_module_enums) {
-    int32_t enl = ast_pipeline_module_enum_name_len(module, ei);
+    int32_t enl = pipeline_module_enum_name_len(module, ei);
     (void)(({ int32_t __tmp = 0; if (enl == (t).name_len) {   int eq = 1;
   int32_t j = 0;
   while (j < (t).name_len && j < 64) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_enum_name_byte_at(module, ei, j) != (j < 0 || (j) >= 64 ? (shulang_panic_(1, 0), ((t).name)[0]) : ((t).name)[j])) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_enum_name_byte_at(module, ei, j) != (j < 0 || (j) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[j])) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq) {   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ei = ei + 1));
+    ++ei;
   }
   return 0;
 }
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   int32_t k = 0;
   while (k < (module)->num_struct_layouts) {
-    int32_t nf = ast_pipeline_module_struct_layout_num_fields(module, k);
-    int32_t nl = ast_pipeline_module_struct_layout_name_len(module, k);
-    (void)(({ int32_t __tmp = 0; if (nf <= 0 || nl <= 0) {   (void)((k = k + 1));
+    int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+    int32_t nl = pipeline_module_struct_layout_name_len(module, k);
+    (void)(({ int32_t __tmp = 0; if (nf <= 0 || nl <= 0) {   ++k;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     uint8_t ty_nm[64] = { 0 };
-    (void)(ast_pipeline_module_struct_layout_name_into(module, k, (&((ty_nm)[0]))));
-    (void)(({ int32_t __tmp = 0; if (codegen_should_skip_emit_struct_layout_for_abi_dup((&((ty_nm)[0])), nl) != 0) {   (void)((k = k + 1));
+    (void)(pipeline_module_struct_layout_name_into(module, k, (&((ty_nm)[0]))));
+    (void)(({ int32_t __tmp = 0; if (codegen_should_skip_emit_struct_layout_for_abi_dup((&((ty_nm)[0])), nl) != 0) {   ++k;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     uint8_t hdr_top[8] = { 115, 116, 114, 117, 99, 116, 32, 0 };
@@ -1857,9 +1911,9 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
  } else (__tmp = 0) ; __tmp; }));
     int32_t j = 0;
     while (j < nf) {
-      int32_t flen = ast_pipeline_module_struct_layout_field_name_len(module, k, j);
-      int32_t ftr = ast_pipeline_module_struct_layout_field_type_ref(module, k, j);
-      (void)(({ int32_t __tmp = 0; if (flen <= 0) {   (void)((j = j + 1));
+      int32_t flen = pipeline_module_struct_layout_field_name_len(module, k, j);
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
+      (void)(({ int32_t __tmp = 0; if (flen <= 0) {   ++j;
   continue;
  } else (__tmp = 0) ; __tmp; }));
       (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
@@ -1869,18 +1923,18 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
       (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
       uint8_t fnm[64] = { 0 };
-      (void)(ast_pipeline_module_struct_layout_field_name_into(module, k, j, (&((fnm)[0]))));
+      (void)(pipeline_module_struct_layout_field_name_into(module, k, j, (&((fnm)[0]))));
       (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((fnm)[0])), flen) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
       uint8_t semi_nl[3] = { 59, 10, 0 };
       (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, semi_nl, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-      (void)((j = j + 1));
+      ++j;
     }
     uint8_t close_ty[4] = { 125, 59, 10, 10 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, close_ty, 4) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
+    ++k;
   }
   return 0;
 }
@@ -1889,16 +1943,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr e;
-  e = pipeline_arena_expr_get_copy(arena, expr_ref);
+  struct ast_Expr e = ast_arena_expr_get(arena, expr_ref);
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_LIT) {   return codegen_format_int(out, (e).int_val);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BOOL_LIT) {   (void)(({ int32_t __tmp = 0; if ((e).int_val != 0) {   return codegen_append_byte(out, 49);
  } else (__tmp = 0) ; __tmp; }));
   return codegen_append_byte(out, 48);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_VAR) {   (void)(({ int32_t __tmp = 0; if ((e).var_name_len > 0 && ((e).var_name)[0] > 32) {   (void)(({ int32_t __tmp = 0; if ((e).var_name_len == 3 && ((e).var_name)[0] == 109 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[1]) == 115 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[2]) == 103 && ctx != ((struct ast_PipelineDepCtx *)(0))) {   int use_l0 = 0;
-  (void)(({ int __tmp = 0; if ((ctx)->current_block_ref != 0 && (ctx)->current_block_ref <= (arena)->num_blocks) {   __tmp = ({ int __tmp = 0; if (ast_block_num_lets(arena, (ctx)->current_block_ref) >= 1 && ast_pipeline_block_let_name_len(arena, (ctx)->current_block_ref, 0) == 0) {   (void)((use_l0 = 1));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_VAR) {   (void)(({ int32_t __tmp = 0; if ((e).var_name_len > 0 && ((e).var_name)[0] > 32) {   (void)(({ int32_t __tmp = 0; if ((e).var_name_len == 3 && ((e).var_name)[0] == 109 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[1]) == 115 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[2]) == 103 && ctx != ((struct ast_PipelineDepCtx *)(0))) {   int use_l0 = 0;
+  (void)(({ int __tmp = 0; if ((ctx)->current_block_ref != 0 && (ctx)->current_block_ref <= (arena)->num_blocks) {   (void)(ast_arena_block_get(arena, (ctx)->current_block_ref));
+  __tmp = ({ int __tmp = 0; if (ast_block_num_lets(arena, (ctx)->current_block_ref) >= 1 && pipeline_block_let_name_len(arena, (ctx)->current_block_ref, 0) == 0) {   (use_l0 = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (use_l0) {   uint8_t l0[4] = { 95, 108, 48, 0 };
@@ -1921,7 +1975,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_format_int(out, param_idx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(((ctx)->current_emit_empty_var_next_index = (ctx)->current_emit_empty_var_next_index + 1));
+  ((ctx)->current_emit_empty_var_next_index = ((ctx)->current_emit_empty_var_next_index + 1));
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -1996,49 +2050,49 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ADD_ASSIGN || (e).kind == ast_ExprKind_EXPR_SUB_ASSIGN || (e).kind == ast_ExprKind_EXPR_MUL_ASSIGN || (e).kind == ast_ExprKind_EXPR_DIV_ASSIGN || (e).kind == ast_ExprKind_EXPR_MOD_ASSIGN || (e).kind == ast_ExprKind_EXPR_BITAND_ASSIGN || (e).kind == ast_ExprKind_EXPR_BITOR_ASSIGN || (e).kind == ast_ExprKind_EXPR_BITXOR_ASSIGN || (e).kind == ast_ExprKind_EXPR_SHL_ASSIGN || (e).kind == ast_ExprKind_EXPR_SHR_ASSIGN) {   uint8_t op_buf[8] = { 32, 43, 61, 32, 0, 0, 0, 0 };
   int32_t op_len = 4;
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ADD_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 43, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ADD_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 43, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SUB_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 45, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SUB_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 45, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_MUL_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 42, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_MUL_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 42, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_DIV_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 47, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_DIV_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 47, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_MOD_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 37, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_MOD_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 37, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITAND_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 38, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITAND_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 38, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITOR_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 124, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITOR_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 124, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITXOR_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 94, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0))));
-  (void)((op_len = 4));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_BITXOR_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 94, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 61, 0)));
+  (op_len = (4));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SHL_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 60, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 60, 0))));
-  (void)(((3 < 0 || (3) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[3] = 61, 0))));
-  (void)(((4 < 0 || (4) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[4] = 32, 0))));
-  (void)((op_len = 5));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SHL_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 60, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 60, 0)));
+  ((3 < 0 || (3) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[3] = 61, 0)));
+  ((4 < 0 || (4) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[4] = 32, 0)));
+  (op_len = (5));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SHR_ASSIGN) {   (void)(((1 < 0 || (1) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[1] = 62, 0))));
-  (void)(((2 < 0 || (2) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[2] = 62, 0))));
-  (void)(((3 < 0 || (3) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[3] = 61, 0))));
-  (void)(((4 < 0 || (4) >= 8 ? (shulang_panic_(1, 0), 0) : ((op_buf)[4] = 32, 0))));
-  (void)((op_len = 5));
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_SHR_ASSIGN) {   ((1 < 0 || (1) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[1] = 62, 0)));
+  ((2 < 0 || (2) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[2] = 62, 0)));
+  ((3 < 0 || (3) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[3] = 61, 0)));
+  ((4 < 0 || (4) >= 8 ? (shux_panic_(1, 0), 0) : ((op_buf)[4] = 32, 0)));
+  (op_len = (5));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2088,33 +2142,31 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   return codegen_append_byte(out, 41);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_CALL) {   int32_t callee_ref = (e).call_callee_ref;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs && ctx != ((struct ast_PipelineDepCtx *)(0)) && pipeline_dep_ctx_ndep(ctx) > 0 && (ctx)->current_codegen_module != ((struct ast_Module *)(0))) {   struct ast_Expr callee;
-  callee = pipeline_arena_expr_get_copy(arena, callee_ref);
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs && ctx != ((struct ast_PipelineDepCtx *)(0)) && pipeline_dep_ctx_ndep(ctx) > 0 && (ctx)->current_codegen_module != ((struct ast_Module *)(0))) {   struct ast_Expr callee = ast_arena_expr_get(arena, callee_ref);
   struct ast_Module * cur_mod = (ctx)->current_codegen_module;
-  (void)(({ int32_t __tmp = 0; if ((callee).kind == ast_ExprKind_EXPR_FIELD_ACCESS && (callee).field_access_base_ref > 0 && (callee).field_access_base_ref <= (arena)->num_exprs) {   struct ast_Expr base;
-  base = pipeline_arena_expr_get_copy(arena, (callee).field_access_base_ref);
+  (void)(({ int32_t __tmp = 0; if ((callee).kind == ast_ExprKind_EXPR_FIELD_ACCESS && (callee).field_access_base_ref > 0 && (callee).field_access_base_ref <= (arena)->num_exprs) {   struct ast_Expr base = ast_arena_expr_get(arena, (callee).field_access_base_ref);
   __tmp = ({ int32_t __tmp = 0; if ((base).kind == ast_ExprKind_EXPR_VAR && (base).var_name_len > 0 && (base).var_name_len <= 63) {   int32_t j = 0;
   int32_t nd_bind = pipeline_dep_ctx_ndep(ctx);
   while (j < (cur_mod)->num_imports && j < nd_bind) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_import_kind_at(cur_mod, j) == 1 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {   int32_t bind_len = ast_pipeline_module_import_binding_name_len(cur_mod, j);
-  (void)(({ int32_t __tmp = 0; if (bind_len != (base).var_name_len) {   (void)((j = j + 1));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_import_kind_at(cur_mod, j) == 1 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {   int32_t bind_len = pipeline_module_import_binding_name_len(cur_mod, j);
+  (void)(({ int32_t __tmp = 0; if (bind_len != (base).var_name_len) {   ++j;
   continue;
  } else (__tmp = 0) ; __tmp; }));
   int eq = 1;
   int32_t kk = 0;
   while (kk < (base).var_name_len && kk < 64) {
-    (void)(({ int32_t __tmp = 0; if ((kk < 0 || (kk) >= 64 ? (shulang_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[kk]) != ast_pipeline_module_import_binding_name_byte_at(cur_mod, j, kk)) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if ((kk < 0 || (kk) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[kk]) != pipeline_module_import_binding_name_byte_at(cur_mod, j, kk)) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((kk = kk + 1));
+    ++kk;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq) {   uint8_t dep_path_bind[64] = { 0 };
   (void)(pipeline_dep_ctx_import_path_copy64(ctx, j, (&((dep_path_bind)[0]))));
   uint8_t pre_buf[128] = { 0 };
   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_bind)[0])), (&((pre_buf)[0])), 128));
   int32_t pre_len = 0;
-  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shulang_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
-    (void)((pre_len = pre_len + 1));
+  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
+    ++pre_len;
   }
   (void)(({ int32_t __tmp = 0; if (pre_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (&(((callee).field_access_field_name)[0])), (callee).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2129,43 +2181,43 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if ((callee).kind == ast_ExprKind_EXPR_VAR && (callee).var_name_len > 0) {   int32_t j = 0;
   int32_t nd_sel = pipeline_dep_ctx_ndep(ctx);
   while (j < (cur_mod)->num_imports && j < nd_sel) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_import_kind_at(cur_mod, j) == 2 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {   int32_t k = 0;
-  int32_t sel_cnt = ast_pipeline_module_import_select_count_at(cur_mod, j);
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_import_kind_at(cur_mod, j) == 2 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {   int32_t k = 0;
+  int32_t sel_cnt = pipeline_module_import_select_count_at(cur_mod, j);
   while (k < sel_cnt) {
-    int32_t sel_len = ast_pipeline_module_import_select_name_len(cur_mod, j, k);
+    int32_t sel_len = pipeline_module_import_select_name_len(cur_mod, j, k);
     (void)(({ int32_t __tmp = 0; if (sel_len == (callee).var_name_len) {   int eq = 1;
   int32_t kk = 0;
   while (kk < (callee).var_name_len && kk < 64) {
-    (void)(({ int32_t __tmp = 0; if ((kk < 0 || (kk) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[kk]) != ast_pipeline_module_import_select_name_byte_at(cur_mod, j, k, kk)) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if ((kk < 0 || (kk) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[kk]) != pipeline_module_import_select_name_byte_at(cur_mod, j, k, kk)) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((kk = kk + 1));
+    ++kk;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq) {   uint8_t dep_path_sel[64] = { 0 };
   (void)(pipeline_dep_ctx_import_path_copy64(ctx, j, (&((dep_path_sel)[0]))));
   uint8_t pre_buf[128] = { 0 };
   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_sel)[0])), (&((pre_buf)[0])), 128));
   int32_t pre_len = 0;
-  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shulang_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
-    (void)((pre_len = pre_len + 1));
+  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
+    ++pre_len;
   }
   (void)(({ int32_t __tmp = 0; if (pre_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (callee).var_name, (callee).var_name_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2180,52 +2232,52 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
+    ++k;
   }
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
-  (void)((j = 0));
+  (j = (0));
   int32_t nd_call = pipeline_dep_ctx_ndep(ctx);
   while (j < nd_call) {
     struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, j);
     struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, j);
     (void)(({ int32_t __tmp = 0; if (dep_mod != ((struct ast_Module *)(0)) && dep_arena != ((struct ast_ASTArena *)(0)) && (dep_mod)->num_funcs > 0) {   int32_t fi = 0;
   while (fi < (dep_mod)->num_funcs) {
-    int32_t func_ref = ast_pipeline_module_func_ref_at(dep_mod, fi);
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(func_ref) || func_ref <= 0 || func_ref > (dep_arena)->num_funcs) {   (void)((fi = fi + 1));
+    int32_t func_ref = pipeline_module_func_ref_at(dep_mod, fi);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(func_ref) || func_ref <= 0 || func_ref > (dep_arena)->num_funcs) {   ++fi;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     struct ast_Func df = ast_arena_func_get(dep_arena, func_ref);
     (void)(({ int32_t __tmp = 0; if ((df).name_len == (callee).var_name_len) {   int eq = 1;
   int32_t k = 0;
   while (k < (callee).var_name_len && k < 64) {
-    (void)(({ int32_t __tmp = 0; if ((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[k]) != (k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((df).name)[0]) : ((df).name)[k])) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if ((k < 0 || (k) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[k]) != (k < 0 || (k) >= 64 ? (shux_panic_(1, 0), ((df).name)[0]) : ((df).name)[k])) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
+    ++k;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {   uint8_t dep_path_call[64] = { 0 };
   (void)(pipeline_dep_ctx_import_path_copy64(ctx, j, (&((dep_path_call)[0]))));
   uint8_t pre_buf[128] = { 0 };
   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_call)[0])), (&((pre_buf)[0])), 128));
   int32_t pre_len = 0;
-  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shulang_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
-    (void)((pre_len = pre_len + 1));
+  while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
+    ++pre_len;
   }
   int32_t drv_buf_call = 0;
-  (void)(({ int32_t __tmp = 0; if (codegen_path_is_std_io_driver_bytes((&((dep_path_call)[0]))) != 0) {   (void)((drv_buf_call = codegen_emit_io_driver_buf_call_name(out, (&(((callee).var_name)[0])), (callee).var_name_len, (e).call_num_args)));
+  (void)(({ int32_t __tmp = 0; if (codegen_path_is_std_io_driver_bytes((&((dep_path_call)[0]))) != 0) {   (drv_buf_call = (codegen_emit_io_driver_buf_call_name(out, (&(((callee).var_name)[0])), (callee).var_name_len, (e).call_num_args)));
   __tmp = ({ int32_t __tmp = 0; if (drv_buf_call < 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -2242,7 +2294,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   int32_t n_dep = codegen_call_num_args_override((&((pre_buf)[0])), pre_len, (callee).var_name, (callee).var_name_len, (e).call_num_args);
   int32_t fmt_i32_second_dep = 0;
-  (void)(({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_dep == 1 && (callee).var_name_len == 7 && ((callee).var_name)[0] == 102 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[1]) == 109 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[4]) == 105 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[5]) == 51 && (6 < 0 || (6) >= 64 ? (shulang_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[6]) == 50) {   __tmp = ({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0))) {   (void)((fmt_i32_second_dep = 1));
+  (void)(({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_dep == 1 && (callee).var_name_len == 7 && ((callee).var_name)[0] == 102 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[1]) == 109 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[4]) == 105 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[5]) == 51 && (6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), ((callee).var_name)[0]) : ((callee).var_name)[6]) == 50) {   __tmp = ({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, 0))) {   (fmt_i32_second_dep = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   int32_t cast_buf0 = drv_buf_call;
@@ -2253,17 +2305,17 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     int32_t arg_idx_dep = ai;
-    (void)(({ int32_t __tmp = 0; if (fmt_i32_second_dep != 0 && ai == 0) {   (void)((arg_idx_dep = 1));
+    (void)(({ int32_t __tmp = 0; if (fmt_i32_second_dep != 0 && ai == 0) {   (arg_idx_dep = (1));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (cast_buf0 != 0 && ai == 0) {   uint8_t cast_buf[19] = { 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 118, 111, 105, 100, 42, 41, 38, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((cast_buf)[0])), 18) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_is_submit_batch_buf_call((callee).var_name, (callee).var_name_len) != 0 && (e).call_num_args == 3) {   uint8_t comma0[4] = { 44, 32, 48, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, comma0, 3) != 0) {   return (-1);
@@ -2274,16 +2326,15 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((fi = fi + 1));
+    ++fi;
   }
  } else (__tmp = 0) ; __tmp; }));
-    (void)((j = j + 1));
+    ++j;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->ndep > 0 && (!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_fb;
-  callee_fb = pipeline_arena_expr_get_copy(arena, callee_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((callee_fb).kind == ast_ExprKind_EXPR_VAR && (callee_fb).var_name_len == 9 && ((callee_fb).var_name)[0] == 112 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[1]) == 114 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[2]) == 105 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[3]) == 110 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[4]) == 116 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[5]) == 95 && (6 < 0 || (6) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[6]) == 115 && (7 < 0 || (7) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[7]) == 116 && (8 < 0 || (8) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[8]) == 114) {   uint8_t std_io[8] = { 115, 116, 100, 95, 105, 111, 95, 0 };
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->ndep > 0 && (!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_fb = ast_arena_expr_get(arena, callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((callee_fb).kind == ast_ExprKind_EXPR_VAR && (callee_fb).var_name_len == 9 && ((callee_fb).var_name)[0] == 112 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[1]) == 114 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[2]) == 105 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[3]) == 110 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[4]) == 116 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[5]) == 95 && (6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[6]) == 115 && (7 < 0 || (7) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[7]) == 116 && (8 < 0 || (8) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[8]) == 114) {   uint8_t std_io[8] = { 115, 116, 100, 95, 105, 111, 95, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((std_io)[0])), 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_64(out, (&(((callee_fb).var_name)[0])), (callee_fb).var_name_len) != 0) {   return (-1);
@@ -2296,42 +2347,41 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_codegen_arena != ((struct ast_ASTArena *)(0)) && (!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee2;
-  callee2 = pipeline_arena_expr_get_copy(arena, callee_ref);
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_codegen_arena != ((struct ast_ASTArena *)(0)) && (!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee2 = ast_arena_expr_get(arena, callee_ref);
   __tmp = ({ int32_t __tmp = 0; if ((callee2).kind == ast_ExprKind_EXPR_VAR && (callee2).var_name_len > 0) {   struct ast_Module * cur_mod = (ctx)->current_codegen_module;
   struct ast_ASTArena * cur_arena = (ctx)->current_codegen_arena;
   int32_t fi = 0;
   while (fi < (cur_mod)->num_funcs) {
-    int32_t func_ref = ast_pipeline_module_func_ref_at(cur_mod, fi);
+    int32_t func_ref = pipeline_module_func_ref_at(cur_mod, fi);
     (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(func_ref)) && func_ref > 0 && func_ref <= (cur_arena)->num_funcs) {   struct ast_Func df = ast_arena_func_get(cur_arena, func_ref);
   __tmp = ({ int32_t __tmp = 0; if ((df).name_len == (callee2).var_name_len) {   int eq = 1;
   int32_t k = 0;
   while (k < (callee2).var_name_len && k < 64) {
-    (void)(({ int32_t __tmp = 0; if ((k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[k]) != (k < 0 || (k) >= 64 ? (shulang_panic_(1, 0), ((df).name)[0]) : ((df).name)[k])) {   (void)((eq = 0));
+    (void)(({ int32_t __tmp = 0; if ((k < 0 || (k) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[k]) != (k < 0 || (k) >= 64 ? (shux_panic_(1, 0), ((df).name)[0]) : ((df).name)[k])) {   (eq = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((k = k + 1));
+    ++k;
   }
   __tmp = ({ int32_t __tmp = 0; if (eq) {   uint8_t cur_pre[128] = { 0 };
   uint8_t cur_dep_path_buf[128] = { 0 };
   int32_t cur_dep_plen = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, (&((cur_dep_path_buf)[0])));
   (void)(({ uint8_t __tmp = 0; if (cur_dep_plen > 0) {   (void)(codegen_import_path_to_c_prefix_into((&((cur_dep_path_buf)[0])), (&((cur_pre)[0])), 128));
- } else {   (void)(((cur_pre)[0] = ((uint8_t)(0))));
+ } else {   ((cur_pre)[0] = (((uint8_t)(0))));
  } ; __tmp; }));
   int32_t pl = 0;
-  while (pl < 128 && (pl < 0 || (pl) >= 128 ? (shulang_panic_(1, 0), (cur_pre)[0]) : (cur_pre)[pl]) != 0) {
-    (void)((pl = pl + 1));
+  while (pl < 128 && (pl < 0 || (pl) >= 128 ? (shux_panic_(1, 0), (cur_pre)[0]) : (cur_pre)[pl]) != 0) {
+    ++pl;
   }
   (void)(({ int32_t __tmp = 0; if (pl > 0 && codegen_c_prefix_redundant_with_name((&((cur_pre)[0])), pl, (callee2).var_name, (callee2).var_name_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((cur_pre)[0])), pl) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2341,7 +2391,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   int32_t n_cur = codegen_call_num_args_override((&((cur_pre)[0])), pl, (callee2).var_name, (callee2).var_name_len, (e).call_num_args);
   int32_t fmt_i32_second_cur = 0;
-  (void)(({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_cur == 1 && (callee2).var_name_len == 7 && ((callee2).var_name)[0] == 102 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[1]) == 109 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[4]) == 105 && (5 < 0 || (5) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[5]) == 51 && (6 < 0 || (6) >= 64 ? (shulang_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[6]) == 50) {   __tmp = ({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0))) {   (void)((fmt_i32_second_cur = 1));
+  (void)(({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_cur == 1 && (callee2).var_name_len == 7 && ((callee2).var_name)[0] == 102 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[1]) == 109 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[2]) == 116 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[4]) == 105 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[5]) == 51 && (6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), ((callee2).var_name)[0]) : ((callee2).var_name)[6]) == 50) {   __tmp = ({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, 0))) {   (fmt_i32_second_cur = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   int32_t ai = 0;
@@ -2351,13 +2401,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     int32_t arg_idx_cur = ai;
-    (void)(({ int32_t __tmp = 0; if (fmt_i32_second_cur != 0 && ai == 0) {   (void)((arg_idx_cur = 1));
+    (void)(({ int32_t __tmp = 0; if (fmt_i32_second_cur != 0 && ai == 0) {   (arg_idx_cur = (1));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_is_submit_batch_buf_call((callee2).var_name, (callee2).var_name_len) != 0 && (e).call_num_args == 3) {   uint8_t comma0[4] = { 44, 32, 48, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, comma0, 3) != 0) {   return (-1);
@@ -2369,36 +2419,35 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((fi = fi + 1));
+    ++fi;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_num_args == 2 && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_fb;
-  callee_fb = pipeline_arena_expr_get_copy(arena, (e).call_callee_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((callee_fb).kind == ast_ExprKind_EXPR_VAR && (callee_fb).var_name_len >= 10) {   int prefix_ok = ((callee_fb).var_name)[0] == 109 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[1]) == 97 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[2]) == 112 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[3]) == 95;
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_num_args == 2 && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_fb = ast_arena_expr_get(arena, (e).call_callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((callee_fb).kind == ast_ExprKind_EXPR_VAR && (callee_fb).var_name_len >= 10) {   int prefix_ok = ((callee_fb).var_name)[0] == 109 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[1]) == 97 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[2]) == 112 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[3]) == 95;
   int32_t off = (callee_fb).var_name_len - 6;
-  int suffix_ok = off >= 0 && (off < 0 || (off) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off]) == 102 && (off + 1 < 0 || (off + 1) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 1]) == 105 && (off + 2 < 0 || (off + 2) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 2]) == 110 && (off + 3 < 0 || (off + 3) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 3]) == 100 && (off + 4 < 0 || (off + 4) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 4]) == 95 && (off + 5 < 0 || (off + 5) >= 64 ? (shulang_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 5]) == 99;
+  int suffix_ok = off >= 0 && (off < 0 || (off) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off]) == 102 && (off + 1 < 0 || (off + 1) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 1]) == 105 && (off + 2 < 0 || (off + 2) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 2]) == 110 && (off + 3 < 0 || (off + 3) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 3]) == 100 && (off + 4 < 0 || (off + 4) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 4]) == 95 && (off + 5 < 0 || (off + 5) >= 64 ? (shux_panic_(1, 0), ((callee_fb).var_name)[0]) : ((callee_fb).var_name)[off + 5]) == 99;
   __tmp = ({ int32_t __tmp = 0; if (prefix_ok && suffix_ok) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_64(out, (&(((callee_fb).var_name)[0])), (callee_fb).var_name_len) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t open[3] = { 40, 40, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, open, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t mid1[10] = { 41, 46, 107, 101, 121, 115, 44, 32, 40, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((mid1)[0])), 9) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t mid2[14] = { 41, 46, 111, 99, 99, 117, 112, 105, 101, 100, 44, 32, 40, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((mid2)[0])), 13) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t mid3[8] = { 41, 46, 99, 97, 112, 44, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_8(out, mid3, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2407,20 +2456,19 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   int32_t need_4th = 0;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs && (e).call_num_args == 3) {   struct ast_Expr callee_f4;
-  callee_f4 = pipeline_arena_expr_get_copy(arena, (e).call_callee_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((callee_f4).kind == ast_ExprKind_EXPR_VAR && codegen_is_submit_batch_buf_call((callee_f4).var_name, (callee_f4).var_name_len) != 0) {   (void)((need_4th = 1));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs && (e).call_num_args == 3) {   struct ast_Expr callee_f4 = ast_arena_expr_get(arena, (e).call_callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((callee_f4).kind == ast_ExprKind_EXPR_VAR && codegen_is_submit_batch_buf_call((callee_f4).var_name, (callee_f4).var_name_len) != 0) {   (need_4th = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   int32_t saved_callee_flag = 0;
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)((saved_callee_flag = (ctx)->emit_expr_as_callee));
-  (void)(((ctx)->emit_expr_as_callee = 1));
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_callee_flag = ((ctx)->emit_expr_as_callee));
+  ((ctx)->emit_expr_as_callee = (1));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && codegen_emit_expr(arena, out, (e).call_callee_ref, ctx) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->emit_expr_as_callee = saved_callee_flag));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && codegen_emit_expr(arena, out, (e).call_callee_ref, ctx) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->emit_expr_as_callee = (saved_callee_flag));
  } else (__tmp = 0) ; __tmp; }));
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->emit_expr_as_callee = saved_callee_flag));
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->emit_expr_as_callee = (saved_callee_flag));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2429,18 +2477,17 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   uint8_t fb_dep_path_buf[128] = { 0 };
   int32_t fb_dep_plen = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, (&((fb_dep_path_buf)[0])));
   (void)(({ uint8_t __tmp = 0; if (fb_dep_plen > 0) {   (void)(codegen_import_path_to_c_prefix_into((&((fb_dep_path_buf)[0])), (&((fallback_pre)[0])), 64));
- } else {   (void)(((fallback_pre)[0] = ((uint8_t)(0))));
+ } else {   ((fallback_pre)[0] = (((uint8_t)(0))));
  } ; __tmp; }));
-  while (fallback_pl < 64 && (fallback_pl < 0 || (fallback_pl) >= 64 ? (shulang_panic_(1, 0), (fallback_pre)[0]) : (fallback_pre)[fallback_pl]) != 0) {
-    (void)((fallback_pl = fallback_pl + 1));
+  while (fallback_pl < 64 && (fallback_pl < 0 || (fallback_pl) >= 64 ? (shux_panic_(1, 0), (fallback_pre)[0]) : (fallback_pre)[fallback_pl]) != 0) {
+    ++fallback_pl;
   }
  } else (__tmp = 0) ; __tmp; }));
   int32_t n_fb = (e).call_num_args;
   int32_t use_second_arg = 0;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_expr;
-  callee_expr = pipeline_arena_expr_get_copy(arena, (e).call_callee_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((callee_expr).kind == ast_ExprKind_EXPR_VAR) {   (void)((n_fb = codegen_call_num_args_override((&((fallback_pre)[0])), fallback_pl, (callee_expr).var_name, (callee_expr).var_name_len, (e).call_num_args)));
-  __tmp = ({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_fb == 1 && ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, 0)) != 0) {   (void)((use_second_arg = 1));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_expr = ast_arena_expr_get(arena, (e).call_callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((callee_expr).kind == ast_ExprKind_EXPR_VAR) {   (n_fb = (codegen_call_num_args_override((&((fallback_pre)[0])), fallback_pl, (callee_expr).var_name, (callee_expr).var_name_len, (e).call_num_args)));
+  __tmp = ({ int32_t __tmp = 0; if ((e).call_num_args == 2 && n_fb == 1 && ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, 0)) != 0) {   (use_second_arg = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -2451,13 +2498,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     int32_t arg_idx = ai;
-    (void)(({ int32_t __tmp = 0; if (use_second_arg != 0 && ai == 0) {   (void)((arg_idx = 1));
+    (void)(({ int32_t __tmp = 0; if (use_second_arg != 0 && ai == 0) {   (arg_idx = (1));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx))) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (need_4th != 0) {   uint8_t comma0[4] = { 44, 32, 48, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, comma0, 3) != 0) {   return (-1);
@@ -2763,12 +2810,12 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    int32_t m_arg = ast_pipeline_expr_method_call_arg_ref(arena, expr_ref, mi);
+    int32_t m_arg = pipeline_expr_method_call_arg_ref(arena, expr_ref, mi);
     (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(m_arg)) {   __tmp = ({ int32_t __tmp = 0; if (codegen_append_byte(out, 48) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, m_arg, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-    (void)((mi = mi + 1));
+    ++mi;
   }
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 41) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2776,7 +2823,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_MATCH) {   (void)(({ int32_t __tmp = 0; if ((e).match_num_arms <= 0) {   return codegen_append_byte(out, 48);
  } else (__tmp = 0) ; __tmp; }));
-  int32_t m0 = ast_pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
+  int32_t m0 = pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(m0)) && codegen_emit_expr(arena, out, m0, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
@@ -2787,22 +2834,22 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   (void)(({ int32_t __tmp = 0; if (sl_plen == 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_dep_index < 0 && (ctx)->current_codegen_module != ((struct ast_Module *)(0))) {   struct ast_Module * modu = (ctx)->current_codegen_module;
   int32_t sk = 0;
   while (sk < (modu)->num_struct_layouts) {
-    int32_t snl = ast_pipeline_module_struct_layout_name_len(modu, sk);
+    int32_t snl = pipeline_module_struct_layout_name_len(modu, sk);
     (void)(({ int32_t __tmp = 0; if (snl == (e).struct_lit_struct_name_len && snl > 0) {   uint8_t snm[64] = { 0 };
-  (void)(ast_pipeline_module_struct_layout_name_into(modu, sk, (&((snm)[0]))));
+  (void)(pipeline_module_struct_layout_name_into(modu, sk, (&((snm)[0]))));
   int eq2 = 1;
   int32_t sj = 0;
   while (sj < snl && sj < 64) {
-    (void)(({ int32_t __tmp = 0; if ((sj < 0 || (sj) >= 64 ? (shulang_panic_(1, 0), (snm)[0]) : (snm)[sj]) != (sj < 0 || (sj) >= 64 ? (shulang_panic_(1, 0), ((e).struct_lit_struct_name)[0]) : ((e).struct_lit_struct_name)[sj])) {   (void)((eq2 = 0));
+    (void)(({ int32_t __tmp = 0; if ((sj < 0 || (sj) >= 64 ? (shux_panic_(1, 0), (snm)[0]) : (snm)[sj]) != (sj < 0 || (sj) >= 64 ? (shux_panic_(1, 0), ((e).struct_lit_struct_name)[0]) : ((e).struct_lit_struct_name)[sj])) {   (eq2 = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((sj = sj + 1));
+    ++sj;
   }
-  __tmp = ({ int32_t __tmp = 0; if (eq2) {   (void)((bare_user_lit = 1));
+  __tmp = ({ int32_t __tmp = 0; if (eq2) {   (bare_user_lit = (1));
   break;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((sk = sk + 1));
+    ++sk;
   }
  } else (__tmp = 0) ; __tmp; }));
   uint8_t open[9] = { 40, 115, 116, 114, 117, 99, 116, 32, 0 };
@@ -2836,8 +2883,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     int32_t init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
-    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(init_ref))) {   struct ast_Expr init_e;
-  init_e = pipeline_arena_expr_get_copy(arena, init_ref);
+    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(init_ref))) {   struct ast_Expr init_e = ast_arena_expr_get(arena, init_ref);
   __tmp = ({ int32_t __tmp = 0; if ((init_e).kind == ast_ExprKind_EXPR_ARRAY_LIT && (init_e).array_lit_num_elems == 0) {   uint8_t zero_init[6] = { 123, 32, 48, 32, 125, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_6(out, zero_init, 5) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
@@ -2845,25 +2891,23 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)((fi = fi + 1));
+    ++fi;
   }
   uint8_t close[4] = { 32, 125, 0, 0 };
   return codegen_emit_bytes_4(out, close, 2);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ARRAY_LIT) {   int32_t n = ast_pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ARRAY_LIT) {   int32_t n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
   int32_t elem_type_ref = 0;
   int32_t is_slice = 0;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).resolved_type_ref)) && (e).resolved_type_ref > 0 && (e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type ty;
-  ty = pipeline_arena_type_get_copy(arena, (e).resolved_type_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_SLICE) {   (void)((is_slice = 1));
-  (void)((elem_type_ref = (ty).elem_type_ref));
- } else (__tmp = ({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_ARRAY) {   (void)((elem_type_ref = (ty).elem_type_ref));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).resolved_type_ref)) && (e).resolved_type_ref > 0 && (e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type ty = ast_arena_type_get(arena, (e).resolved_type_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_SLICE) {   (is_slice = (1));
+  (elem_type_ref = ((ty).elem_type_ref));
+ } else (__tmp = ({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_ARRAY) {   (elem_type_ref = ((ty).elem_type_ref));
  } else (__tmp = 0) ; __tmp; })) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (elem_type_ref == 0 && n > 0) {   int32_t first_ref = ast_pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(first_ref))) {   struct ast_Expr first_e;
-  first_e = pipeline_arena_expr_get_copy(arena, first_ref);
-  (void)((elem_type_ref = (first_e).resolved_type_ref));
+  (void)(({ int32_t __tmp = 0; if (elem_type_ref == 0 && n > 0) {   int32_t first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(first_ref))) {   struct ast_Expr first_e = ast_arena_expr_get(arena, first_ref);
+  (elem_type_ref = ((first_e).resolved_type_ref));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (is_slice != 0) {   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
@@ -2900,9 +2944,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(ast_pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai))) && codegen_emit_expr(arena, out, ast_pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai))) && codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ai = ai + 1));
+    ++ai;
   }
   (void)(({ int32_t __tmp = 0; if (is_slice != 0) {   uint8_t slice_end[22] = { 32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_22(out, slice_end, 14) != 0) {   return (-1);
@@ -2928,18 +2972,18 @@ int32_t codegen_callee_var_is_string_new(struct ast_Expr e) {
   (void)(({ int32_t __tmp = 0; if ((e).var_name_len == 10) {   uint8_t expect_sn[10] = { 115, 116, 114, 105, 110, 95, 110, 101, 119, 0 };
   int32_t i_sn = 0;
   while (i_sn < 9) {
-    (void)(({ int32_t __tmp = 0; if ((i_sn < 0 || (i_sn) >= 64 ? (shulang_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[i_sn]) != (i_sn < 0 || (i_sn) >= 10 ? (shulang_panic_(1, 0), (expect_sn)[0]) : (expect_sn)[i_sn])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((i_sn < 0 || (i_sn) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[i_sn]) != (i_sn < 0 || (i_sn) >= 10 ? (shux_panic_(1, 0), (expect_sn)[0]) : (expect_sn)[i_sn])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i_sn = i_sn + 1));
+    ++i_sn;
   }
   return 1;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).var_name_len == 22) {   uint8_t expect_ssn[22] = { 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 95, 110, 101, 119, 0, 0 };
   int32_t i_ssn = 0;
   while (i_ssn < 20) {
-    (void)(({ int32_t __tmp = 0; if ((i_ssn < 0 || (i_ssn) >= 64 ? (shulang_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[i_ssn]) != (i_ssn < 0 || (i_ssn) >= 22 ? (shulang_panic_(1, 0), (expect_ssn)[0]) : (expect_ssn)[i_ssn])) {   return 0;
+    (void)(({ int32_t __tmp = 0; if ((i_ssn < 0 || (i_ssn) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[i_ssn]) != (i_ssn < 0 || (i_ssn) >= 22 ? (shux_panic_(1, 0), (expect_ssn)[0]) : (expect_ssn)[i_ssn])) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i_ssn = i_ssn + 1));
+    ++i_ssn;
   }
   return 1;
  } else (__tmp = 0) ; __tmp; }));
@@ -2952,17 +2996,16 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (block_ref <= 0 || block_ref > (arena)->num_blocks) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Block b;
-  b = pipeline_arena_block_get_copy(arena, block_ref);
+  struct ast_Block b = ast_arena_block_get(arena, block_ref);
   (void)(({ int32_t __tmp = 0; if (ast_block_num_stmt_order(arena, block_ref) > 0) {   int32_t si = 0;
   while (si < ast_block_num_stmt_order(arena, block_ref)) {
     uint8_t k = ast_block_stmt_order_kind(arena, block_ref, si);
     int32_t idx = ast_block_stmt_order_idx(arena, block_ref, si);
     (void)(({ int32_t __tmp = 0; if (k == 0) {   __tmp = ({ int32_t __tmp = 0; if (idx >= 0 && idx < ast_block_num_consts(arena, block_ref)) {   uint8_t cname_buf[64] = { 0 };
-  (void)(ast_pipeline_block_const_name_copy64(arena, block_ref, idx, (&((cname_buf)[0]))));
-  int32_t cname_len = ast_pipeline_block_const_name_len(arena, block_ref, idx);
-  int32_t ctype_ref = ast_pipeline_block_const_type_ref(arena, block_ref, idx);
-  int32_t cinit_ref = ast_pipeline_block_const_init_ref(arena, block_ref, idx);
+  (void)(pipeline_block_const_name_copy64(arena, block_ref, idx, (&((cname_buf)[0]))));
+  int32_t cname_len = pipeline_block_const_name_len(arena, block_ref, idx);
+  int32_t ctype_ref = pipeline_block_const_type_ref(arena, block_ref, idx);
+  int32_t cinit_ref = pipeline_block_const_init_ref(arena, block_ref, idx);
   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, ctype_ref, ((uint8_t *)(0)), 0, ctx) != 0) {   return (-1);
@@ -2988,56 +3031,52 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if (k == 1) {   __tmp = ({ int32_t __tmp = 0; if (idx >= 0 && idx < ast_block_num_lets(arena, block_ref)) {   uint8_t lname_buf[64] = { 0 };
-  (void)(ast_pipeline_block_let_name_copy64(arena, block_ref, idx, (&((lname_buf)[0]))));
-  int32_t lname_len = ast_pipeline_block_let_name_len(arena, block_ref, idx);
-  int32_t let_type_ref = ast_pipeline_block_let_type_ref(arena, block_ref, idx);
-  int32_t linit_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
+  (void)(pipeline_block_let_name_copy64(arena, block_ref, idx, (&((lname_buf)[0]))));
+  int32_t lname_len = pipeline_block_let_name_len(arena, block_ref, idx);
+  int32_t let_type_ref = pipeline_block_let_type_ref(arena, block_ref, idx);
+  int32_t linit_ref = pipeline_block_let_init_ref(arena, block_ref, idx);
   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t type_emitted = 0;
   int32_t use_local_array = 0;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(let_type_ref)) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {   (void)((use_local_array = 1));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(let_type_ref)) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {   (use_local_array = (1));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (use_local_array != 0) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e;
-  init_e = pipeline_arena_expr_get_copy(arena, linit_ref);
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e = ast_arena_expr_get(arena, linit_ref);
   (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_ARRAY_LIT && codegen_type_array_elem_is_u8(arena, let_type_ref) != 0) {   uint8_t u8ptr[9] = { 117, 105, 110, 116, 56, 95, 116, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_9(out, u8ptr, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 42) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt;
-  rt = pipeline_arena_type_get_copy(arena, (init_e).resolved_type_ref);
+  (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt = ast_arena_type_get(arena, (init_e).resolved_type_ref);
   __tmp = ({ int32_t __tmp = 0; if ((rt).kind == ast_TypeKind_TYPE_NAMED && (rt).name_len >= 6) {   int32_t n0 = (rt).name_len - 6;
-  __tmp = ({ int32_t __tmp = 0; if ((n0 < 0 || (n0) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shulang_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
+  __tmp = ({ int32_t __tmp = 0; if ((n0 < 0 || (n0) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 6) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let;
-  callee_let = pipeline_arena_expr_get_copy(arena, (init_e).call_callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let = ast_arena_expr_get(arena, (init_e).call_callee_ref);
   __tmp = ({ int32_t __tmp = 0; if ((callee_let).kind == ast_ExprKind_EXPR_VAR) {   __tmp = ({ int32_t __tmp = 0; if (codegen_callee_var_is_string_new(callee_let) != 0) {   uint8_t str_ty[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 6) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (type_emitted == 0) {   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(let_type_ref) && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e;
-  init_e = pipeline_arena_expr_get_copy(arena, linit_ref);
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((init_e).resolved_type_ref))) {   (void)((let_type_ref = (init_e).resolved_type_ref));
+  (void)(({ int32_t __tmp = 0; if (type_emitted == 0) {   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(let_type_ref) && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e = ast_arena_expr_get(arena, linit_ref);
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((init_e).resolved_type_ref))) {   (let_type_ref = ((init_e).resolved_type_ref));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) != 0) {   return (-1);
@@ -3059,8 +3098,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
   uint8_t eq[4] = { 32, 61, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e2;
-  init_e2 = pipeline_arena_expr_get_copy(arena, linit_ref);
+  (void)(({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e2 = ast_arena_expr_get(arena, linit_ref);
   __tmp = ({ int32_t __tmp = 0; if ((init_e2).kind == ast_ExprKind_EXPR_ARRAY_LIT) {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if ((init_e2).kind == ast_ExprKind_EXPR_LIT && (init_e2).int_val == 0) {   uint8_t zinit[6] = { 123, 32, 48, 32, 125, 0 };
@@ -3077,8 +3115,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if (k == 2) {   __tmp = ({ int32_t __tmp = 0; if (idx >= 0 && idx < ast_block_num_expr_stmts(arena, block_ref)) {   int32_t ex_ref = ast_block_expr_stmt_ref(arena, block_ref, idx);
-  struct ast_Expr st;
-  st = pipeline_arena_expr_get_copy(arena, ex_ref);
+  struct ast_Expr st = ast_arena_expr_get(arena, ex_ref);
   __tmp = ({ int32_t __tmp = 0; if ((st).kind == ast_ExprKind_EXPR_RETURN) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t ret[8] = { 114, 101, 116, 117, 114, 110, 32, 0 };
@@ -3189,16 +3226,29 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, cif, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
-    (void)((si = si + 1));
+ } else (__tmp = ({ int32_t __tmp = 0; if (k == 6) {   __tmp = ({ int32_t __tmp = 0; if (idx >= 0 && idx < ast_block_num_regions(arena, block_ref)) {   int32_t reg_body = ast_block_region_body_ref(arena, block_ref, idx);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  uint8_t ob[2] = { 123, 10 };
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_2(out, ob, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_block(arena, out, reg_body, indent + 2, ctx) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  uint8_t cb[3] = { 125, 10, 0 };
+  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, cb, 2) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
+    ++si;
   }
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref))) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t ret[8] = { 114, 101, 116, 117, 114, 110, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_8(out, ret, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr fe_ordered;
-  fe_ordered = pipeline_arena_expr_get_copy(arena, (b).final_expr_ref);
+  struct ast_Expr fe_ordered = ast_arena_expr_get(arena, (b).final_expr_ref);
   (void)(({ int32_t __tmp = 0; if ((fe_ordered).kind == ast_ExprKind_EXPR_RETURN) {   __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((fe_ordered).unary_operand_ref)) && codegen_emit_expr(arena, out, (fe_ordered).unary_operand_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, (b).final_expr_ref, ctx) != 0) {   return (-1);
@@ -3213,10 +3263,10 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
   int32_t i = 0;
   while (i < ast_block_num_consts(arena, block_ref)) {
     uint8_t cname_fb[64] = { 0 };
-    (void)(ast_pipeline_block_const_name_copy64(arena, block_ref, i, (&((cname_fb)[0]))));
-    int32_t cname_len_fb = ast_pipeline_block_const_name_len(arena, block_ref, i);
-    int32_t ctype_fb = ast_pipeline_block_const_type_ref(arena, block_ref, i);
-    int32_t cinit_fb = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+    (void)(pipeline_block_const_name_copy64(arena, block_ref, i, (&((cname_fb)[0]))));
+    int32_t cname_len_fb = pipeline_block_const_name_len(arena, block_ref, i);
+    int32_t ctype_fb = pipeline_block_const_type_ref(arena, block_ref, i);
+    int32_t cinit_fb = pipeline_block_const_init_ref(arena, block_ref, i);
     (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, ctype_fb, (&((blk_prefix)[0])), blk_prefix_len, ctx) != 0) {   return (-1);
@@ -3240,61 +3290,57 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     uint8_t sc[3] = { 59, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, sc, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
-  (void)((i = 0));
+  (i = (0));
   while (i < ast_block_num_lets(arena, block_ref)) {
     uint8_t lname_fb[64] = { 0 };
-    (void)(ast_pipeline_block_let_name_copy64(arena, block_ref, i, (&((lname_fb)[0]))));
-    int32_t lname_len_fb = ast_pipeline_block_let_name_len(arena, block_ref, i);
-    int32_t let_type_ref = ast_pipeline_block_let_type_ref(arena, block_ref, i);
-    int32_t linit_fb = ast_pipeline_block_let_init_ref(arena, block_ref, i);
+    (void)(pipeline_block_let_name_copy64(arena, block_ref, i, (&((lname_fb)[0]))));
+    int32_t lname_len_fb = pipeline_block_let_name_len(arena, block_ref, i);
+    int32_t let_type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+    int32_t linit_fb = pipeline_block_let_init_ref(arena, block_ref, i);
     (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     int32_t type_emitted = 0;
     int32_t use_local_array = 0;
-    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(let_type_ref)) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {   (void)((use_local_array = 1));
+    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(let_type_ref)) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {   (use_local_array = (1));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (use_local_array != 0) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e;
-  init_e = pipeline_arena_expr_get_copy(arena, linit_fb);
+    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e = ast_arena_expr_get(arena, linit_fb);
   (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_ARRAY_LIT && codegen_type_array_elem_is_u8(arena, let_type_ref) != 0) {   uint8_t u8ptr[9] = { 117, 105, 110, 116, 56, 95, 116, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_9(out, u8ptr, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 42) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt2;
-  rt2 = pipeline_arena_type_get_copy(arena, (init_e).resolved_type_ref);
+  (void)(({ int32_t __tmp = 0; if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt2 = ast_arena_type_get(arena, (init_e).resolved_type_ref);
   __tmp = ({ int32_t __tmp = 0; if ((rt2).kind == ast_TypeKind_TYPE_NAMED && (rt2).name_len >= 6) {   int32_t n02 = (rt2).name_len - 6;
-  __tmp = ({ int32_t __tmp = 0; if ((n02 < 0 || (n02) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02]) == 83 && (n02 + 1 < 0 || (n02 + 1) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 1]) == 116 && (n02 + 2 < 0 || (n02 + 2) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 2]) == 114 && (n02 + 3 < 0 || (n02 + 3) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 3]) == 105 && (n02 + 4 < 0 || (n02 + 4) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 4]) == 110 && (n02 + 5 < 0 || (n02 + 5) >= 64 ? (shulang_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 5]) == 103) {   uint8_t str_ty2a[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
+  __tmp = ({ int32_t __tmp = 0; if ((n02 < 0 || (n02) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02]) == 83 && (n02 + 1 < 0 || (n02 + 1) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 1]) == 116 && (n02 + 2 < 0 || (n02 + 2) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 2]) == 114 && (n02 + 3 < 0 || (n02 + 3) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 3]) == 105 && (n02 + 4 < 0 || (n02 + 4) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 4]) == 110 && (n02 + 5 < 0 || (n02 + 5) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 5]) == 103) {   uint8_t str_ty2a[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((str_ty2a)[0])), 6) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let2;
-  callee_let2 = pipeline_arena_expr_get_copy(arena, (init_e).call_callee_ref);
+  __tmp = ({ int32_t __tmp = 0; if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let2 = ast_arena_expr_get(arena, (init_e).call_callee_ref);
   __tmp = ({ int32_t __tmp = 0; if ((callee_let2).kind == ast_ExprKind_EXPR_VAR) {   __tmp = ({ int32_t __tmp = 0; if (codegen_callee_var_is_string_new(callee_let2) != 0) {   uint8_t str_ty2[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((str_ty2)[0])), 6) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((type_emitted = 1));
+  (type_emitted = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (type_emitted == 0) {   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(let_type_ref) && (!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e;
-  init_e = pipeline_arena_expr_get_copy(arena, linit_fb);
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((init_e).resolved_type_ref))) {   (void)((let_type_ref = (init_e).resolved_type_ref));
+    (void)(({ int32_t __tmp = 0; if (type_emitted == 0) {   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(let_type_ref) && (!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e = ast_arena_expr_get(arena, linit_fb);
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((init_e).resolved_type_ref))) {   (let_type_ref = ((init_e).resolved_type_ref));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, let_type_ref, (&((blk_prefix)[0])), blk_prefix_len, ctx) != 0) {   return (-1);
@@ -3316,8 +3362,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     uint8_t eq[4] = { 32, 61, 32, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e3;
-  init_e3 = pipeline_arena_expr_get_copy(arena, linit_fb);
+    (void)(({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_fb)) && linit_fb > 0 && linit_fb <= (arena)->num_exprs) {   struct ast_Expr init_e3 = ast_arena_expr_get(arena, linit_fb);
   __tmp = ({ int32_t __tmp = 0; if ((init_e3).kind == ast_ExprKind_EXPR_ARRAY_LIT) {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_braced_array_lit_init(arena, out, linit_fb, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if ((init_e3).kind == ast_ExprKind_EXPR_LIT && (init_e3).int_val == 0) {   uint8_t zinit2[6] = { 123, 32, 48, 32, 125, 0 };
@@ -3332,15 +3377,14 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     uint8_t sc[3] = { 59, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, sc, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
-  (void)((i = 0));
+  (i = (0));
   while (i < ast_block_num_expr_stmts(arena, block_ref)) {
     int32_t ex_fb = ast_block_expr_stmt_ref(arena, block_ref, i);
     (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    struct ast_Expr st;
-    st = pipeline_arena_expr_get_copy(arena, ex_fb);
+    struct ast_Expr st = ast_arena_expr_get(arena, ex_fb);
     (void)(({ int32_t __tmp = 0; if ((st).kind == ast_ExprKind_EXPR_RETURN) {   uint8_t ret[8] = { 114, 101, 116, 117, 114, 110, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_8(out, ret, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -3364,9 +3408,9 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, sc, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; })) ; __tmp; })) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
-  (void)((i = 0));
+  (i = (0));
   while (i < (b).num_loops) {
     int32_t w_cr = ast_block_while_cond_ref(arena, block_ref, i);
     int32_t w_br = ast_block_while_body_ref(arena, block_ref, i);
@@ -3387,9 +3431,9 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     uint8_t close[3] = { 125, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, close, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
-  (void)((i = 0));
+  (i = (0));
   while (i < (b).num_for_loops) {
     int32_t fl_ir = ast_block_for_init_ref(arena, block_ref, i);
     int32_t fl_cr = ast_block_for_cond_ref(arena, block_ref, i);
@@ -3425,15 +3469,14 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     uint8_t close[3] = { 125, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, close, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref))) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t ret[8] = { 114, 101, 116, 117, 114, 110, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_8(out, ret, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr fe_plain;
-  fe_plain = pipeline_arena_expr_get_copy(arena, (b).final_expr_ref);
+  struct ast_Expr fe_plain = ast_arena_expr_get(arena, (b).final_expr_ref);
   (void)(({ int32_t __tmp = 0; if ((fe_plain).kind == ast_ExprKind_EXPR_RETURN) {   __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((fe_plain).unary_operand_ref)) && codegen_emit_expr(arena, out, (fe_plain).unary_operand_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, (b).final_expr_ref, ctx) != 0) {   return (-1);
@@ -3457,23 +3500,23 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   uint8_t fn_local[64] = { 0 };
   (void)(codegen_copy_func_name64_from_module(module, fi, (&((fn_local)[0]))));
   int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, ast_pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t main_name[4] = { 109, 97, 105, 110 };
-  int name_is_main = fn_len == 4 && (fn_local)[0] == 109 && (1 < 0 || (1) >= 64 ? (shulang_panic_(1, 0), (fn_local)[0]) : (fn_local)[1]) == 97 && (2 < 0 || (2) >= 64 ? (shulang_panic_(1, 0), (fn_local)[0]) : (fn_local)[2]) == 105 && (3 < 0 || (3) >= 64 ? (shulang_panic_(1, 0), (fn_local)[0]) : (fn_local)[3]) == 110;
+  int name_is_main = fn_len == 4 && (fn_local)[0] == 109 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), (fn_local)[0]) : (fn_local)[1]) == 97 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), (fn_local)[0]) : (fn_local)[2]) == 105 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), (fn_local)[0]) : (fn_local)[3]) == 110;
   int force_entry_main = 0;
-  (void)(({ int __tmp = 0; if (is_entry && (module)->num_funcs == 1) {   (void)(({ int __tmp = 0; if (fn_len <= 0) {   (void)((force_entry_main = 1));
+  (void)(({ int __tmp = 0; if (is_entry && (module)->num_funcs == 1) {   (void)(({ int __tmp = 0; if (fn_len <= 0) {   (force_entry_main = (1));
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int __tmp = 0; if ((fn_local)[0] == 0) {   (void)((force_entry_main = 1));
+  __tmp = ({ int __tmp = 0; if ((fn_local)[0] == 0) {   (force_entry_main = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   int emit_c_main_symbol = 0;
-  (void)(({ int __tmp = 0; if (is_entry) {   __tmp = ({ int __tmp = 0; if (name_is_main) {   (void)((emit_c_main_symbol = 1));
+  (void)(({ int __tmp = 0; if (is_entry) {   __tmp = ({ int __tmp = 0; if (name_is_main) {   (emit_c_main_symbol = (1));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int __tmp = 0; if (force_entry_main) {   (void)((emit_c_main_symbol = 1));
+  (void)(({ int __tmp = 0; if (force_entry_main) {   (emit_c_main_symbol = (1));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (emit_c_main_symbol) {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, main_name, 4) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
@@ -3527,7 +3570,7 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   __tmp = ({ int32_t __tmp = 0; if (codegen_format_int(out, p) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; }));
-    (void)((p = p + 1));
+    ++p;
   }
  } ; __tmp; }));
   uint8_t rpar[3] = { 41, 32, 0 };
@@ -3536,7 +3579,9 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   uint8_t brace[3] = { 123, 10, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, brace, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  int fn_ret_void = pipeline_type_kind_ord_at(arena, ast_pipeline_module_func_return_type_at(module, fi)) == 15;
+  (void)(({ int32_t __tmp = 0; if (codegen_try_emit_std_io_driver_buf_body(out, module, fi, prefix, prefix_len) != 0) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  int fn_ret_void = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi)) == 15;
   (void)(({ int32_t __tmp = 0; if (call_init_globals != 0) {   __tmp = ({ int32_t __tmp = 0; if (is_entry) {   __tmp = ({ int32_t __tmp = 0; if (emit_c_main_symbol) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   uint8_t init_globals_call[22] = { 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 41, 59, 10, 0, 0, 0, 0, 0, 0 };
@@ -3545,55 +3590,55 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  int32_t saved_empty = (-1);
+  int32_t saved_empty = -1;
   int32_t saved_count = 0;
   int32_t saved_next = 0;
   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(pipeline_dep_ctx_empty_param_backup(ctx));
-  (void)((saved_empty = (ctx)->current_func_single_empty_param_index));
-  (void)((saved_count = (ctx)->current_func_empty_param_count));
-  (void)((saved_next = (ctx)->current_emit_empty_var_next_index));
+  (saved_empty = ((ctx)->current_func_single_empty_param_index));
+  (saved_count = ((ctx)->current_func_empty_param_count));
+  (saved_next = ((ctx)->current_emit_empty_var_next_index));
   int32_t empty_count = 0;
-  int32_t empty_idx = (-1);
+  int32_t empty_idx = -1;
   int32_t pi = 0;
   while (pi < pipeline_module_func_num_params_at(module, fi)) {
-    (void)(({ int32_t __tmp = 0; if (pipeline_module_func_param_name_len_at(module, fi, pi) <= 0) {   (void)((empty_count = empty_count + 1));
-  (void)((empty_idx = pi));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_func_param_name_len_at(module, fi, pi) <= 0) {   ++empty_count;
+  (empty_idx = (pi));
  } else (__tmp = 0) ; __tmp; }));
-    (void)((pi = pi + 1));
+    ++pi;
   }
-  __tmp = ({ int32_t __tmp = 0; if (empty_count == 1) {   (void)(((ctx)->current_func_single_empty_param_index = empty_idx));
-  (void)(((ctx)->current_func_empty_param_count = 0));
-  (void)(((ctx)->current_emit_empty_var_next_index = 0));
- } else (__tmp = ({ int32_t __tmp = 0; if (empty_count >= 2) {   (void)(((ctx)->current_func_single_empty_param_index = (-1)));
+  __tmp = ({ int32_t __tmp = 0; if (empty_count == 1) {   ((ctx)->current_func_single_empty_param_index = (empty_idx));
+  ((ctx)->current_func_empty_param_count = (0));
+  ((ctx)->current_emit_empty_var_next_index = (0));
+ } else (__tmp = ({ int32_t __tmp = 0; if (empty_count >= 2) {   ((ctx)->current_func_single_empty_param_index = ((-1)));
   (void)(pipeline_dep_ctx_empty_param_reset(ctx));
-  (void)(((ctx)->current_func_empty_param_count = empty_count));
+  ((ctx)->current_func_empty_param_count = (empty_count));
   int32_t ei = 0;
-  (void)((pi = 0));
+  (pi = (0));
   while (pi < pipeline_module_func_num_params_at(module, fi)) {
     (void)(({ int32_t __tmp = 0; if (pipeline_module_func_param_name_len_at(module, fi, pi) <= 0) {   (void)(pipeline_dep_ctx_empty_param_append(ctx, pi));
-  (void)((ei = ei + 1));
+  ++ei;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((pi = pi + 1));
+    ++pi;
   }
-  (void)(((ctx)->current_emit_empty_var_next_index = 0));
- } else {   (void)(((ctx)->current_func_single_empty_param_index = (-1)));
-  (void)(((ctx)->current_func_empty_param_count = 0));
-  (void)(((ctx)->current_emit_empty_var_next_index = 0));
+  ((ctx)->current_emit_empty_var_next_index = (0));
+ } else {   ((ctx)->current_func_single_empty_param_index = ((-1)));
+  ((ctx)->current_func_empty_param_count = (0));
+  ((ctx)->current_emit_empty_var_next_index = (0));
  } ; __tmp; })) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {   int32_t saved_block = 0;
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)((saved_block = (ctx)->current_block_ref));
-  (void)(((ctx)->current_block_ref = pipeline_module_func_body_ref_at(module, fi)));
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_block = ((ctx)->current_block_ref));
+  ((ctx)->current_block_ref = (pipeline_module_func_body_ref_at(module, fi)));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_block(arena, out, pipeline_module_func_body_ref_at(module, fi), 2, ctx) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_block_ref = saved_block));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_block(arena, out, pipeline_module_func_body_ref_at(module, fi), 2, ctx) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_block_ref = (saved_block));
  } else (__tmp = 0) ; __tmp; }));
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_block_ref = saved_block));
+  __tmp = ({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_block_ref = (saved_block));
  } else (__tmp = 0) ; __tmp; });
- } else (__tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(ast_pipeline_module_func_body_expr_ref_at(module, fi)))) {   __tmp = ({ int32_t __tmp = 0; if (fn_ret_void) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi)))) {   __tmp = ({ int32_t __tmp = 0; if (fn_ret_void) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_module_func_body_expr_ref_at(module, fi), ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_module_func_body_expr_ref_at(module, fi), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 59) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -3604,11 +3649,10 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   uint8_t ret_keyword[9] = { 114, 101, 116, 117, 114, 110, 32, 0, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_9(out, ret_keyword, 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Expr body_e;
-  body_e = pipeline_arena_expr_get_copy(arena, ast_pipeline_module_func_body_expr_ref_at(module, fi));
+  struct ast_Expr body_e = ast_arena_expr_get(arena, pipeline_module_func_body_expr_ref_at(module, fi));
   (void)(({ int32_t __tmp = 0; if ((body_e).kind == ast_ExprKind_EXPR_RETURN) {   __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null((body_e).unary_operand_ref)) && codegen_emit_expr(arena, out, (body_e).unary_operand_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } else {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_module_func_body_expr_ref_at(module, fi), ctx) != 0) {   return (-1);
+ } else {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_module_func_body_expr_ref_at(module, fi), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 59) != 0) {   return (-1);
@@ -3617,28 +3661,26 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; });
  } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_func_single_empty_param_index = saved_empty));
-  (void)(((ctx)->current_func_empty_param_count = saved_count));
-  (void)(((ctx)->current_emit_empty_var_next_index = saved_next));
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_single_empty_param_index = (saved_empty));
+  ((ctx)->current_func_empty_param_count = (saved_count));
+  ((ctx)->current_emit_empty_var_next_index = (saved_next));
   (void)(pipeline_dep_ctx_empty_param_restore(ctx));
  } else (__tmp = 0) ; __tmp; }));
   int need_fallback_return = 1;
-  (void)(({ int __tmp = 0; if ((!ast_ref_is_null(ast_pipeline_module_func_body_expr_ref_at(module, fi)))) {   (void)((need_fallback_return = 0));
+  (void)(({ int __tmp = 0; if ((!ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi)))) {   (need_fallback_return = (0));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {   int32_t body_br = pipeline_module_func_body_ref_at(module, fi);
-  struct ast_Block b;
-  b = pipeline_arena_block_get_copy(arena, body_br);
-  (void)(({ int __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref))) {   (void)((need_fallback_return = 0));
+  struct ast_Block b = ast_arena_block_get(arena, body_br);
+  (void)(({ int __tmp = 0; if ((!ast_ref_is_null((b).final_expr_ref))) {   (need_fallback_return = (0));
  } else (__tmp = 0) ; __tmp; }));
   int32_t ji = 0;
   int32_t nes = ast_block_num_expr_stmts(arena, body_br);
   while (ji < nes) {
-    struct ast_Expr se;
-    se = pipeline_arena_expr_get_copy(arena, ast_block_expr_stmt_ref(arena, body_br, ji));
-    (void)(({ int32_t __tmp = 0; if ((se).kind == ast_ExprKind_EXPR_RETURN) {   (void)((need_fallback_return = 0));
+    struct ast_Expr se = ast_arena_expr_get(arena, ast_block_expr_stmt_ref(arena, body_br, ji));
+    (void)(({ int32_t __tmp = 0; if ((se).kind == ast_ExprKind_EXPR_RETURN) {   (need_fallback_return = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ji = ji + 1));
+    ++ji;
   }
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (need_fallback_return) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
@@ -3667,7 +3709,7 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
   uint8_t kw[8] = { 101, 120, 116, 101, 114, 110, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((kw)[0])), 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, ast_pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -3720,7 +3762,7 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
   __tmp = ({ int32_t __tmp = 0; if (codegen_format_int(out, p) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; }));
-    (void)((p = p + 1));
+    ++p;
   }
  } ; __tmp; }));
   uint8_t end_proto[3] = { 41, 59, 10 };
@@ -3728,71 +3770,71 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
-int32_t codegen_su_ast_emit_header(struct codegen_CodegenOutBuf * out) {
+int32_t codegen_sx_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   uint8_t h[22] = { 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 0, 0 };
   return codegen_emit_bytes_22(out, h, 20);
 }
-int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_codegen_module = module));
-  (void)(((ctx)->current_codegen_arena = arena));
-  (void)(((ctx)->current_codegen_dep_index = dep_index));
+int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_module = (module));
+  ((ctx)->current_codegen_arena = (arena));
+  ((ctx)->current_codegen_dep_index = (dep_index));
  } else (__tmp = 0) ; __tmp; }));
   uint8_t prefix_buf[128] = { 0 };
   int32_t prefix_len = 0;
   uint8_t dep_path_prefix[64] = { 0 };
   int32_t dep_path_prefix_len = 0;
-  (void)(({ int32_t __tmp = 0; if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)((dep_path_prefix_len = codegen_dep_import_path_len_at(ctx, dep_index, (&((dep_path_prefix)[0])))));
+  (void)(({ int32_t __tmp = 0; if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0))) {   (dep_path_prefix_len = (codegen_dep_import_path_len_at(ctx, dep_index, (&((dep_path_prefix)[0])))));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0) {   __tmp = ({ int32_t __tmp = 0; if (codegen_path_is_std_io_core_bytes((&((dep_path_prefix)[0]))) == 0) {   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_prefix)[0])), (&((prefix_buf)[0])), 128));
-  while (prefix_len < 128 && (prefix_len < 0 || (prefix_len) >= 128 ? (shulang_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[prefix_len]) != 0) {
-    (void)((prefix_len = prefix_len + 1));
+  while (prefix_len < 128 && (prefix_len < 0 || (prefix_len) >= 128 ? (shux_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[prefix_len]) != 0) {
+    ++prefix_len;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (prefix_len == 0 && dep_index < 0 || dep_path_prefix_len == 0 || codegen_path_is_std_io_core_bytes((&((dep_path_prefix)[0]))) == 0) {   (void)((prefix_len = 0));
-  (void)(((prefix_buf)[0] = ((uint8_t)(0))));
+  (void)(({ int32_t __tmp = 0; if (prefix_len == 0 && dep_index < 0 || dep_path_prefix_len == 0 || codegen_path_is_std_io_core_bytes((&((dep_path_prefix)[0]))) == 0) {   (prefix_len = (0));
+  ((prefix_buf)[0] = (((uint8_t)(0))));
   __tmp = ({ int32_t __tmp = 0; if (dep_path_prefix_len > 0) {   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_prefix)[0])), (&((prefix_buf)[0])), 128));
-  while (prefix_len < 128 && (prefix_len < 0 || (prefix_len) >= 128 ? (shulang_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[prefix_len]) != 0) {
-    (void)((prefix_len = prefix_len + 1));
+  while (prefix_len < 128 && (prefix_len < 0 || (prefix_len) >= 128 ? (shux_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[prefix_len]) != 0) {
+    ++prefix_len;
   }
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_codegen_prefix_len = 0));
+  (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_prefix_len = (0));
   int32_t px = 0;
   while (px < prefix_len && px < 63) {
-    (void)(((px < 0 || (px) >= 64 ? (shulang_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = (px < 0 || (px) >= 128 ? (shulang_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[px]), 0))));
-    (void)((px = px + 1));
+    ((px < 0 || (px) >= 64 ? (shux_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = (px < 0 || (px) >= 128 ? (shux_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[px]), 0)));
+    ++px;
   }
-  (void)(((px < 0 || (px) >= 64 ? (shulang_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = ((uint8_t)(0)), 0))));
-  (void)(((ctx)->current_codegen_prefix_len = px));
+  ((px < 0 || (px) >= 64 ? (shux_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = ((uint8_t)(0)), 0)));
+  ((ctx)->current_codegen_prefix_len = (px));
  } else (__tmp = 0) ; __tmp; }));
   int32_t call_init_globals = 0;
   (void)(({ int32_t __tmp = 0; if (dep_index < 0 && (module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_top_level_let_is_const(module, ti) == 0) {   (void)((call_init_globals = 1));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_top_level_let_is_const(module, ti) == 0) {   (call_init_globals = (1));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ti = ti + 1));
+    ++ti;
   }
  } else (__tmp = 0) ; __tmp; }));
   int32_t i = 0;
   while (i < (module)->num_funcs) {
-    (void)(({ int32_t __tmp = 0; if (i == 0) {   (void)(({ int32_t __tmp = 0; if (codegen_su_ast_emit_header(out) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (i == 0) {   (void)(({ int32_t __tmp = 0; if (codegen_sx_ast_emit_header(out) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_emit_module_struct_definitions(module, arena, out, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   __tmp = ({ int32_t __tmp = 0; if (dep_index < 0 && (module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
-    int32_t is_const = ast_pipeline_module_top_level_let_is_const(module, ti);
-    int32_t name_len = ast_pipeline_module_top_level_let_name_len(module, ti);
-    (void)(({ int32_t __tmp = 0; if (name_len <= 0 || name_len > 63) {   (void)((ti = ti + 1));
+    int32_t is_const = pipeline_module_top_level_let_is_const(module, ti);
+    int32_t name_len = pipeline_module_top_level_let_name_len(module, ti);
+    (void)(({ int32_t __tmp = 0; if (name_len <= 0 || name_len > 63) {   ++ti;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     uint8_t tl_name_buf[64] = { 0 };
     int32_t tni = 0;
     while (tni < name_len && tni < 64) {
-      (void)(((tni < 0 || (tni) >= 64 ? (shulang_panic_(1, 0), 0) : ((tl_name_buf)[tni] = ast_pipeline_module_top_level_let_name_byte_at(module, ti, tni), 0))));
-      (void)((tni = tni + 1));
+      ((tni < 0 || (tni) >= 64 ? (shux_panic_(1, 0), 0) : ((tl_name_buf)[tni] = pipeline_module_top_level_let_name_byte_at(module, ti, tni), 0)));
+      ++tni;
     }
     (void)(({ int32_t __tmp = 0; if (is_const != 0) {   uint8_t static_const[15] = { 115, 116, 97, 116, 105, 99, 32, 99, 111, 110, 115, 116, 32, 0, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((static_const)[0])), 13) != 0) {   return (-1);
@@ -3801,30 +3843,30 @@ int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((static_)[0])), 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, ast_pipeline_module_top_level_let_type_ref(module, ti), (&((prefix_buf)[0])), 0, ctx) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, pipeline_module_top_level_let_type_ref(module, ti), (&((prefix_buf)[0])), 0, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((tl_name_buf)[0])), name_len) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (is_const != 0 && (!ast_ref_is_null(ast_pipeline_module_top_level_let_init_ref(module, ti)))) {   uint8_t eq[4] = { 32, 61, 32, 0 };
+    (void)(({ int32_t __tmp = 0; if (is_const != 0 && (!ast_ref_is_null(pipeline_module_top_level_let_init_ref(module, ti)))) {   uint8_t eq[4] = { 32, 61, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, ast_pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {   return (-1);
+  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     uint8_t sc[3] = { 59, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, sc, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ti = ti + 1));
+    ++ti;
   }
   int32_t any_let = 0;
-  (void)((ti = 0));
+  (ti = (0));
   while (ti < (module)->num_top_level_lets) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_top_level_let_is_const(module, ti) == 0) {   (void)((any_let = 1));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_top_level_let_is_const(module, ti) == 0) {   (any_let = (1));
   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ti = ti + 1));
+    ++ti;
   }
   __tmp = ({ int32_t __tmp = 0; if (any_let != 0) {   uint8_t init_globals_def[32] = { 115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((init_globals_def)[0])), 31) != 0) {   return (-1);
@@ -3832,19 +3874,19 @@ int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
   uint8_t brace3[3] = { 123, 10, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, brace3, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((ti = 0));
+  (ti = (0));
   while (ti < (module)->num_top_level_lets) {
-    (void)(({ int32_t __tmp = 0; if (ast_pipeline_module_top_level_let_is_const(module, ti) != 0) {   (void)((ti = ti + 1));
+    (void)(({ int32_t __tmp = 0; if (pipeline_module_top_level_let_is_const(module, ti) != 0) {   ++ti;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (codegen_emit_indent(out, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    int32_t nlen = ast_pipeline_module_top_level_let_name_len(module, ti);
+    int32_t nlen = pipeline_module_top_level_let_name_len(module, ti);
     (void)(({ int32_t __tmp = 0; if (nlen > 0 && nlen <= 63) {   uint8_t tl_init_name[64] = { 0 };
   int32_t tni2 = 0;
   while (tni2 < nlen && tni2 < 64) {
-    (void)(((tni2 < 0 || (tni2) >= 64 ? (shulang_panic_(1, 0), 0) : ((tl_init_name)[tni2] = ast_pipeline_module_top_level_let_name_byte_at(module, ti, tni2), 0))));
-    (void)((tni2 = tni2 + 1));
+    ((tni2 < 0 || (tni2) >= 64 ? (shux_panic_(1, 0), 0) : ((tl_init_name)[tni2] = pipeline_module_top_level_let_name_byte_at(module, ti, tni2), 0)));
+    ++tni2;
   }
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((tl_init_name)[0])), nlen) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
@@ -3852,12 +3894,12 @@ int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
     uint8_t eq2[4] = { 32, 61, 32, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq2, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(ast_pipeline_module_top_level_let_init_ref(module, ti))) && codegen_emit_expr(arena, out, ast_pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(pipeline_module_top_level_let_init_ref(module, ti))) && codegen_emit_expr(arena, out, pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     uint8_t sc2[3] = { 59, 10, 0 };
     (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, sc2, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)((ti = ti + 1));
+    ++ti;
   }
   uint8_t close_brace[3] = { 125, 10, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, close_brace, 2) != 0) {   return (-1);
@@ -3870,42 +3912,42 @@ int32_t codegen_su_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
     int32_t skip_nl = pipeline_module_func_name_len_at(module, i);
     (void)(({ int32_t __tmp = 0; if (pipeline_module_func_is_extern_at(module, i) != 0) {   (void)(({ int32_t __tmp = 0; if (codegen_emit_func_extern_declaration(arena, out, module, i, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)((i = i + 1));
+  ++i;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     int32_t skip = 0;
     int32_t asm_backend = 0;
-    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->use_asm_backend != 0) {   (void)((asm_backend = 1));
+    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->use_asm_backend != 0) {   (asm_backend = (1));
  } else (__tmp = 0) ; __tmp; }));
-    (void)((skip = codegen_should_skip_emit_func_by_name((&((skip_name)[0])), skip_nl)));
-    (void)(({ int32_t __tmp = 0; if (skip == 0 && prefix_len == 0 && asm_backend == 0) {   (void)((skip = codegen_should_skip_emit_func_core_read_ptr((&((skip_name)[0])), skip_nl)));
+    (skip = (codegen_should_skip_emit_func_by_name((&((skip_name)[0])), skip_nl)));
+    (void)(({ int32_t __tmp = 0; if (skip == 0 && prefix_len == 0 && asm_backend == 0) {   (skip = (codegen_should_skip_emit_func_core_read_ptr((&((skip_name)[0])), skip_nl)));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (skip == 0 && prefix_len > 0 && asm_backend == 0) {   (void)((skip = codegen_should_skip_emit_func(((uint8_t *)(0)), (&((prefix_buf)[0])), prefix_len, (&((skip_name)[0])), skip_nl)));
+    (void)(({ int32_t __tmp = 0; if (skip == 0 && prefix_len > 0 && asm_backend == 0) {   (skip = (codegen_should_skip_emit_func(((uint8_t *)(0)), (&((prefix_buf)[0])), prefix_len, (&((skip_name)[0])), skip_nl)));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (skip == 0 && dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0 && asm_backend == 0) {   (void)((skip = codegen_should_skip_emit_func((&((dep_path_prefix)[0])), ((uint8_t *)(0)), 0, (&((skip_name)[0])), skip_nl)));
+    (void)(({ int32_t __tmp = 0; if (skip == 0 && dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0 && asm_backend == 0) {   (skip = (codegen_should_skip_emit_func((&((dep_path_prefix)[0])), ((uint8_t *)(0)), 0, (&((skip_name)[0])), skip_nl)));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (skip == 0 && asm_backend == 0) {   uint8_t * skip_dep = ((uint8_t *)(0));
-  (void)(({ uint8_t * __tmp = 0; if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0) {   (void)((skip_dep = (&((dep_path_prefix)[0]))));
+  (void)(({ uint8_t * __tmp = 0; if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0) {   (skip_dep = ((&((dep_path_prefix)[0]))));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ uint8_t * __tmp = 0; if (skip_dep == ((uint8_t *)(0))) {   (void)((skip_dep = driver_get_current_dep_path_for_codegen()));
+  (void)(({ uint8_t * __tmp = 0; if (skip_dep == ((uint8_t *)(0))) {   (skip_dep = (driver_get_current_dep_path_for_codegen()));
  } else (__tmp = 0) ; __tmp; }));
-  (void)((skip = codegen_should_skip_emit_func(skip_dep, ((uint8_t *)(0)), 0, (&((skip_name)[0])), skip_nl)));
+  (skip = (codegen_should_skip_emit_func(skip_dep, ((uint8_t *)(0)), 0, (&((skip_name)[0])), skip_nl)));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (skip != 0) {   (void)((i = i + 1));
+    (void)(({ int32_t __tmp = 0; if (skip != 0) {   ++i;
   continue;
  } else (__tmp = 0) ; __tmp; }));
     int is_entry = i == (module)->main_func_index || (module)->num_funcs == 1;
-    int32_t saved_func_idx = (-1);
-    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)((saved_func_idx = (ctx)->current_func_index));
-  (void)(((ctx)->current_func_index = i));
+    int32_t saved_func_idx = -1;
+    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_func_idx = ((ctx)->current_func_index));
+  ((ctx)->current_func_index = (i));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (codegen_emit_func(arena, out, module, i, is_entry, (&((prefix_buf)[0])), prefix_len, ctx, call_init_globals) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_func_index = saved_func_idx));
+    (void)(({ int32_t __tmp = 0; if (codegen_emit_func(arena, out, module, i, is_entry, (&((prefix_buf)[0])), prefix_len, ctx, call_init_globals) != 0) {   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_index = (saved_func_idx));
  } else (__tmp = 0) ; __tmp; }));
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (void)(((ctx)->current_func_index = saved_func_idx));
+    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_index = (saved_func_idx));
  } else (__tmp = 0) ; __tmp; }));
-    (void)((i = i + 1));
+    ++i;
   }
   return 0;
 }

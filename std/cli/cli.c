@@ -2,14 +2,14 @@
  * std/cli/cli.c — 命令行解析辅助（STD-077）
  *
  * 【文件职责】
- * 长短选项检测、子命令匹配、usage 生成；供 mod.su 与 std.env args_iter 组合使用。
+ * 长短选项检测、子命令匹配、usage 生成；供 mod.sx 与 std.env args_iter 组合使用。
  */
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-/** 与 mod.su CliResult 布局一致。 */
+/** 与 mod.sx CliResult 布局一致。 */
 typedef struct {
     int32_t subcommand_len;
     int32_t help;

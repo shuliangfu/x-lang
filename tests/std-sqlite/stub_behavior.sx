@@ -1,0 +1,26 @@
+// STD-139：stub / sqlite3 双模式行为烟测（sqlite3 时仅探测；stub 时断言 DB_NOT_IMPL）
+const sqlite = import("std.sqlite");
+
+function main(): i32 {
+  let av: i32 = sqlite.sqlite_is_available();
+  if (av != 0 && av != 1) {
+    return 1;
+  }
+  if (av == 1) {
+    return 0;
+  }
+  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let c: DbConn = sqlite.open(&mem[0]);
+  if (c.handle != 0) {
+    return 2;
+  }
+  let err: DbError = sqlite.last_error();
+  if (err.code != -9) {
+    return 3;
+  }
+  let bn: *u8 = sqlite.backend_name();
+  if (bn[0] != 115 || bn[1] != 116 || bn[2] != 117 || bn[3] != 98) {
+    return 4;
+  }
+  return 0;
+}

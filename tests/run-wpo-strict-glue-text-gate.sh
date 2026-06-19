@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # S5：strict_glue 实二进制 .text A/B（pipeline WPO helpers on/off，同 strict_glue 链骨架）。
-# 与 proxy（run-perf-wpo-dce-shu-asm-text.sh）互补：本脚本读最终 ELF .text，非 A/B 反推。
+# 与 proxy（run-perf-wpo-dce-shux-asm-text.sh）互补：本脚本读最终 ELF .text，非 A/B 反推。
 # 用法：
 #   ./tests/run-wpo-strict-glue-text-gate.sh
-#   SHU_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
-#   SHU_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE=1 ./tests/run-wpo-strict-glue-text-gate.sh
+#   SHUX_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+#   SHUX_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE=1 ./tests/run-wpo-strict-glue-text-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
@@ -12,10 +12,10 @@ cd "$(dirname "$0")/.."
 
 text_bytes() { wpo_ab_text_bytes "$@"; }
 
-STRICT_GLUE="${SHU_WPO_STRICT_GLUE:-compiler/shu_asm.strict_glue}"
-FAIL=${SHU_WPO_STRICT_GLUE_TEXT_FAIL:-0}
-UPDATE_BASELINE=${SHU_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE:-0}
-BASELINE="${SHU_WPO_STRICT_GLUE_TEXT_BASELINE:-tests/baseline/wpo-strict-glue-text.tsv}"
+STRICT_GLUE="${SHUX_WPO_STRICT_GLUE:-compiler/shux_asm.strict_glue}"
+FAIL=${SHUX_WPO_STRICT_GLUE_TEXT_FAIL:-0}
+UPDATE_BASELINE=${SHUX_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE:-0}
+BASELINE="${SHUX_WPO_STRICT_GLUE_TEXT_BASELINE:-tests/baseline/wpo-strict-glue-text.tsv}"
 MAX_GROWTH_BYTES=$(awk -F'\t' '$1=="max_text_growth_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)
 MAX_GROWTH_BYTES=${MAX_GROWTH_BYTES:-8192}
 
@@ -26,7 +26,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 
 chmod +x tests/run-wpo-strict-link-gate.sh tests/ensure-wpo-build-asm-artifacts.sh \
-  compiler/scripts/relink_shu_asm_strict_glue.sh 2>/dev/null || true
+  compiler/scripts/relink_shux_asm_strict_glue.sh 2>/dev/null || true
 
 echo "=== wpo strict_glue binary .text A/B (pipeline WPO helpers off vs on) ==="
 
@@ -56,12 +56,12 @@ echo "run-wpo-strict-glue-text-gate: relink strict_glue (WPO helpers OFF) ..."
 wpo_strict_glue_rm_pipeline_partials
 (
   cd compiler
-  export SHU_ASM_STRICT_LINK_PIPELINE_WPO=0
+  export SHUX_ASM_STRICT_LINK_PIPELINE_WPO=0
   export STRICT_LINK_BUILD_ASM_PIPELINE=1
   export STRICT_LINK_BUILD_ASM_WPO=0
   export STRICT_LINK_BUILD_ASM_TYPECK_WPO=1
   export STRICT_LINK_BUILD_ASM_BACKEND_WPO=1
-  ./scripts/relink_shu_asm_strict_glue.sh >/tmp/wpo_strict_glue_text_off.log 2>&1
+  ./scripts/relink_shux_asm_strict_glue.sh >/tmp/wpo_strict_glue_text_off.log 2>&1
 )
 
 if [ ! -x "$STRICT_GLUE" ]; then
@@ -79,7 +79,7 @@ TEXT_OFF=$(text_bytes "$STRICT_GLUE") || {
 
 # B：链 pipeline_wpo helpers + C orchestration（与 strict link gate 一致）
 wpo_strict_glue_rm_pipeline_partials
-SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh >/tmp/wpo_strict_glue_text_on.log 2>&1
+SHUX_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh >/tmp/wpo_strict_glue_text_on.log 2>&1
 
 TEXT_ON=$(text_bytes "$STRICT_GLUE") || {
   echo "run-wpo-strict-glue-text-gate FAIL: cannot read .text (WPO on)" >&2

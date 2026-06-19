@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_PKGMGR_DOC:-analysis/tool-pkgmgr-v1.md}"
-MANIFEST="${SHU_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
-CATALOG="${SHU_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
+DOC="${SHUX_TOOL_PKGMGR_DOC:-analysis/tool-pkgmgr-v1.md}"
+MANIFEST="${SHUX_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
+CATALOG="${SHUX_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
 MIN_RULES=6
 MIN_PACKAGES=8
 
@@ -27,8 +27,8 @@ native_shu() {
 }
 
 echo "=== TOOL-007: pkgmgr manifest ==="
-for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/shu-deps-resolve.sh \
-  tests/fixtures/pkgmgr/shu.pkg.tsv tests/fixtures/pkgmgr/main.su; do
+for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/shux-deps-resolve.sh \
+  tests/fixtures/pkgmgr/shux.pkg.tsv tests/fixtures/pkgmgr/main.sx; do
   if [ ! -f "$f" ]; then
     echo "tool-pkgmgr gate FAIL: missing $f" >&2
     exit 1
@@ -146,25 +146,25 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-pkgmgr manifest OK (rules=${RULE_N} packages=${PKG_N})"
 
-chmod +x scripts/shu-deps-resolve.sh tests/run-pkgmgr-resolve.sh
-./scripts/shu-deps-resolve.sh tests/fixtures/pkgmgr/shu.pkg.tsv
+chmod +x scripts/shux-deps-resolve.sh tests/run-pkgmgr-resolve.sh
+./scripts/shux-deps-resolve.sh tests/fixtures/pkgmgr/shux.pkg.tsv
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== TOOL-007: pkgmgr hooks (SHU=$SHU_BIN) ==="
-  SHU="$SHU_BIN" ./tests/run-pkgmgr-resolve.sh
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== TOOL-007: pkgmgr hooks (SHUX=$SHUX_BIN) ==="
+  SHUX="$SHUX_BIN" ./tests/run-pkgmgr-resolve.sh
   echo "tool-pkgmgr hooks OK"
 else
-  echo "tool-pkgmgr gate SKIP compile hook (no native shu)" >&2
+  echo "tool-pkgmgr gate SKIP compile hook (no native shux)" >&2
 fi
 
 echo "tool-pkgmgr gate OK"

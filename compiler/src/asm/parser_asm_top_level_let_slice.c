@@ -7,7 +7,7 @@
 #ifndef PARSER_ASM_TOP_LEVEL_LET_SLICE_INCLUDED
 #define PARSER_ASM_TOP_LEVEL_LET_SLICE_INCLUDED
 
-/** 与 parser.su TopLevelLetResult（allow(padding)）布局一致。 */
+/** 与 parser.sx TopLevelLetResult（allow(padding)）布局一致。 */
 struct parser_asm_top_level_let_result {
   int32_t ok;
   uint8_t _pad[4];

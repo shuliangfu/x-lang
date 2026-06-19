@@ -8,12 +8,12 @@
 
 # 演练/门禁 stderr 前缀。
 eng_rollback_prefix() {
-  echo "shu: [SHU_ROLLBACK_DRILL]"
+  echo "shux: [SHUX_ROLLBACK_DRILL]"
 }
 
 # 回滚 SLA 总预算（分钟）。
 eng_rollback_sla_minutes() {
-  echo "${SHU_ROLLBACK_SLA_MINUTES:-30}"
+  echo "${SHUX_ROLLBACK_SLA_MINUTES:-30}"
 }
 
 # 烟测 hook 脚本存在且可执行路径检查（相对 tests/）。

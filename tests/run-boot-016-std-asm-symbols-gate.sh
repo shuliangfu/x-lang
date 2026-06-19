@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BOOT-016：shu_asm 路径 Top-N std .o 符号完整性门禁
+# BOOT-016：shux_asm 路径 Top-N std .o 符号完整性门禁
 #
 # 1) boot-016-std-asm-symbols-v1.md + manifest
 # 2) runtime.c asm_ld_append_std_objs 含各 obj 路径
@@ -9,9 +9,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT016_DOC:-analysis/boot-016-std-asm-symbols-v1.md}"
-MANIFEST="${SHU_BOOT016_TSV:-tests/baseline/boot-016-std-asm-symbols.tsv}"
-RUNTIME="${SHU_BOOT016_RUNTIME:-compiler/src/runtime.c}"
+DOC="${SHUX_BOOT016_DOC:-analysis/boot-016-std-asm-symbols-v1.md}"
+MANIFEST="${SHUX_BOOT016_TSV:-tests/baseline/boot-016-std-asm-symbols.tsv}"
+RUNTIME="${SHUX_BOOT016_RUNTIME:-compiler/src/runtime.c}"
 LIB="tests/lib/boot-016-std-asm-symbols.sh"
 MIN_TOP=12
 
@@ -33,7 +33,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in shu_asm asm_ld_append_std_objs Top-N BOOT-016; do
+for kw in shux_asm asm_ld_append_std_objs Top-N BOOT-016; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "boot-016-std-asm-symbols gate FAIL: doc missing '$kw'" >&2
     exit 1

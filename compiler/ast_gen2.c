@@ -20,7 +20,7 @@ struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; };
 struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; };
-struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t num_module_enums; };
+struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 
 /* slim arena grow pool glue (linked from pipeline/runtime) */
@@ -34,8 +34,8 @@ extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_T
 extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
 
 struct ast_PipelineDepCtx { int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t path_buf[512]; uint8_t loaded_buf[4194304]; ptrdiff_t loaded_len; uint8_t preprocess_buf[4194304]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t target_cpu_features; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t typeck_loop_depth; int32_t current_func_index; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; int32_t current_codegen_dep_index; uint8_t current_codegen_prefix_mirror[64]; int32_t current_codegen_prefix_len; int32_t asm_entry_module_only; uint8_t entry_module_import_path_mirror[64]; int32_t entry_module_import_path_len; int32_t typeck_scope_region_len; uint8_t typeck_scope_region_label[64]; };
-static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shulang_panic_(int has_msg, int msg_val) {
+static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void shux_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
@@ -450,13 +450,13 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
   int32_t i = 0;
   (void)(({ int32_t __tmp = 0; if (block_ref <= 0 || block_ref > (arena)->num_blocks) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = block_ref, 0)));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = parent_ref, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = block_ref, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = parent_ref, 0)));
   ++sp;
   while (sp > 0) {
     (sp = (sp - 1));
-    (cur = ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_blk)[0]) : (stack_blk)[sp])));
-    (par = ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), (stack_par)[0]) : (stack_par)[sp])));
+    (cur = ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), (stack_blk)[0]) : (stack_blk)[sp])));
+    (par = ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), (stack_par)[0]) : (stack_par)[sp])));
     (void)(({ int32_t __tmp = 0; if (cur <= 0 || cur > (arena)->num_blocks) {   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (par != 0) {   struct ast_Block b_head;
@@ -470,8 +470,8 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
     (i = (0));
     while (i < (b).num_loops) {
       (wb = (ast_block_while_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (wb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0)));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+      (void)(({ int32_t __tmp = 0; if (wb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
  } else (__tmp = 0) ; __tmp; }));
       ++i;
@@ -479,8 +479,8 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
     (i = (0));
     while (i < (b).num_for_loops) {
       (fb = (ast_block_for_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (fb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0)));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+      (void)(({ int32_t __tmp = 0; if (fb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
  } else (__tmp = 0) ; __tmp; }));
       ++i;
@@ -488,13 +488,13 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
     (i = (0));
     while (i < (b).num_if_stmts) {
       (tb = (ast_block_if_then_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (tb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0)));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+      (void)(({ int32_t __tmp = 0; if (tb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
  } else (__tmp = 0) ; __tmp; }));
       (eb = (ast_block_if_else_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (eb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0)));
-  ((sp < 0 || (sp) >= 256 ? (shulang_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
+      (void)(({ int32_t __tmp = 0; if (eb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0)));
+  ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
  } else (__tmp = 0) ; __tmp; }));
       ++i;

@@ -1,11 +1,11 @@
 # STD-130 std.random PRNG manifest
 min_apis	5
-api_init	api	rng_init	std/random/mod.su
-api_next_u64	api	rng_next_u64	std/random/mod.su
-api_fill	api	rng_fill_bytes	std/random/mod.su
-api_range	api	rng_range_u32	std/random/mod.su
-api_smoke	api	rng_smoke	std/random/mod.su
-struct_rng	symbol	Rng	std/random/mod.su
+api_init	api	rng_init	std/random/mod.sx
+api_next_u64	api	rng_next_u64	std/random/mod.sx
+api_fill	api	rng_fill_bytes	std/random/mod.sx
+api_range	api	rng_range_u32	std/random/mod.sx
+api_smoke	api	rng_smoke	std/random/mod.sx
+struct_rng	symbol	Rng	std/random/mod.sx
 symbol_smoke_c	symbol	random_rng_smoke_c	std/random/random.c
-smoke_su	smoke	tests/random/rng_roundtrip.su
+smoke_su	smoke	tests/random/rng_roundtrip.sx
 gate	script	run-std-random-rng-gate.sh	tests/run-std-random-rng-gate.sh

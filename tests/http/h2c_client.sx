@@ -1,0 +1,14 @@
+// STD-HTTP-H2-v9：h2c URL 客户端入口烟测（离线；不建连）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_h2c_client_smoke() != 0) { return 1; }
+  if (http.http2_err_h2c_scheme() != -1235) { return 2; }
+  if (http.http2_h2c_is_available() == false) { return 3; }
+
+  let https: [20]u8 = [104, 116, 116, 112, 115, 58, 47, 47, 120, 46, 99, 111, 109, 47, 0, 0, 0, 0, 0, 0];
+  let out: [64]u8 = [];
+  if (http.h2c_get(&https[0], 19, &out[0], 64, 0) != http.http2_err_h2c_scheme()) { return 4; }
+
+  return 0;
+}

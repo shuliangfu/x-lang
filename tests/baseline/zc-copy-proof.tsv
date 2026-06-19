@@ -1,6 +1,6 @@
 # ZC-007 零拷贝证明测试矩阵
 # 列：proof_id	source	policy	want_ec	userland_copies	zc_tier	notes
 # min_proofs	1
-copy_proof_smoke	copy_proof_smoke.su	run	0	0	ZC-4	StrView subview 示例
-template_meta	zc-copy-proof-test.su	meta	-	-	-	模板 metadata 键
+copy_proof_smoke	copy_proof_smoke.sx	run	0	0	ZC-4	StrView subview 示例
+template_meta	zc-copy-proof-test.sx	meta	-	-	-	模板 metadata 键
 pr_checklist	zc-pr-copy-declaration.txt	checklist	-	-	-	PR 声明模板

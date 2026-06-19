@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-fs-dirmeta.sh — STD-123 manifest 与烟测辅助
 
-STD_FS_DIRMETA_PREFIX="${SHU_STD123_FS_DIRMETA_PREFIX:-shu: [SHU_STD123_FS_DIRMETA]}"
+STD_FS_DIRMETA_PREFIX="${SHUX_STD123_FS_DIRMETA_PREFIX:-shux: [SHUX_STD123_FS_DIRMETA]}"
 
 # 校验 manifest api/symbol/smoke；echo 缺失数。
 std_fs_dirmeta_symbols_ok() {
@@ -34,7 +34,7 @@ std_fs_dirmeta_symbols_ok() {
 # C 烟测：mkdir/stat/rmdir。
 std_fs_dirmeta_run_c_smoke() {
   local fs_o="$1"
-  local out="/tmp/shu_std_fs_dirmeta_c_$$"
+  local out="/tmp/shux_std_fs_dirmeta_c_$$"
   cc -std=c11 -O1 -o "$out" tests/fs/dirmeta_smoke_ok.c "$fs_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
@@ -44,12 +44,12 @@ std_fs_dirmeta_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-# .su 烟测。
-std_fs_dirmeta_run_su_smoke() {
-  local shu="$1"
+# .sx 烟测。
+std_fs_dirmeta_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_fs_dirmeta_su_$$"
-  "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/shux_std_fs_dirmeta_su_$$"
+  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

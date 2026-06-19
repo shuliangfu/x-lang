@@ -1,30 +1,57 @@
 # std.compress
 
-压缩封装（P4 可选；对标 Zig std.compress、Rust flate2）。提供 **zlib**、**gzip**（.gz）、**Brotli**（.br），各格式可选编译。
+压缩封装（P4 可选；对标 Zig std.compress、Rust flate2）。提供 **zlib**、**gzip**（.gz）、**Brotli**（.br）、**zstd**，各格式可选编译。
 
-**实现**：启用对应库时，上述 API 均为**真实压缩/解压**（zlib 用 `compress2`/`uncompress` 与 deflate/inflate 流；Brotli 用 `BrotliEncoderCompress`/`BrotliDecoderDecompress`）。未启用时为占位，返回 -1。`tests/compress/main.su` 与 `run-compress.sh` 对 gzip、brotli 做压缩→解压往返校验。
+**实现**：启用对应库时，上述 API 均为**真实压缩/解压**（zlib 用 `compress2`/`uncompress` 与 deflate/inflate 流；Brotli 用 `BrotliEncoderCompress`/`BrotliDecoderDecompress`；zstd 用 `ZSTD_compress`/`ZSTD_decompress`）。未启用时为占位，返回 -1。`tests/compress/main.sx` 与 `run-compress.sh` 对 gzip、brotli 做压缩→解压往返校验。
+
+## 目录结构
+
+```
+std/compress/
+  compress_common.h   # 共用类型（如 gzip 流状态头）
+  mod.sx              # 门面：import("std.compress") 聚合各子模块
+  zlib/               # RFC 1950 zlib（deflate/inflate）
+    zlib.c
+    mod.sx            # import("std.compress.zlib")
+  gzip/               # .gz 块 + 流式 API
+    gzip.c
+    mod.sx            # import("std.compress.gzip")
+  brotli/             # .br 块压缩
+    brotli.c
+    mod.sx            # import("std.compress.brotli")
+  zstd/               # zstd 块（可选）
+    zstd.c
+    mod.sx            # import("std.compress.zstd")
+```
+
+链接仍产出单一 `std/compress/compress.o`（`ld -r` 合并各格式 `.o`），runtime 路径不变。
 
 ## 格式说明
 
-- **zlib**：2 字节头 + deflate 流 + 4 字节 Adler-32，常用于 HTTP 等协议。API：`deflate` / `inflate`。
-- **gzip**：.gz 文件格式，含 gzip 头、deflate 流、8 字节尾。API：`gzip_compress` / `gzip_decompress`。
-- **Brotli（.br）**：压缩率通常优于 gzip（尤其文本），HTTP Content-Encoding: br。API：`brotli_compress` / `brotli_decompress`。
+- **zlib**：2 字节头 + deflate 流 + 4 字节 Adler-32，常用于 HTTP 等协议。API：`deflate` / `inflate`（`std.compress.zlib`）。
+- **gzip**：.gz 文件格式，含 gzip 头、deflate 流、8 字节尾。API：`gzip_compress` / `gzip_decompress`；流式见 `gzip_stream_*` 与统一门面 `stream_compress_*`（STD-122，`std.compress.gzip`）。
+- **Brotli（.br）**：压缩率通常优于 gzip（尤其文本），HTTP Content-Encoding: br。API：`brotli_compress` / `brotli_decompress`；流式见 `brotli_stream_*`（`std.compress.brotli`）。
+- **zstd**：块压缩/解压 API：`zstd_compress` / `zstd_decompress`；流式见 `zstd_stream_*`（需 `-DSHUX_USE_ZSTD -lzstd`，`std.compress.zstd`）。
+- **统一流**：`stream_compress_init` / `stream_compress_process` / `stream_compress_end` 支持 gzip/brotli/zstd（STD-122/136，`std.compress`）。
 
 ## 平台与系统支持
 
 - **不启用任何库**：所有系统均支持，对应 API 为占位（返回 -1），无额外依赖。
 - **zlib / gzip**：Linux、macOS、BSD 上 zlib 多为系统自带或包管理可装（如 `libz-dev` / `zlib-devel`）；Windows 需自行提供 zlib（如 vcpkg、MSYS2 或自带头库）。
 - **Brotli**：各系统均需额外安装（如 Linux `libbrotli-dev`、macOS `brew install brotli`、Windows vcpkg 等），非默认自带。
+- **zstd**：需 libzstd（如 `brew install zstd`、Linux `libzstd-dev`）。
 
 ## 编译与链接
 
 - **不定义**：对应格式为占位，返回 -1，无额外依赖。
-- **zlib**：编译 `-DSHU_USE_ZLIB`，链接 `-lz`。
-- **Brotli**：编译 `-DSHU_USE_BROTLI`，链接 `-lbrotlienc -lbrotlidec`（或部分系统 `-lbrotli`）。例如：
-  - 编译：`cc -DSHU_USE_BROTLI -I/usr/include -c -o std/compress/compress.o std/compress/compress.c`
+- **zlib**：编译 `-DSHUX_USE_ZLIB`（`zlib/zlib.c` 与 `gzip/gzip.c`），链接 `-lz`。
+- **Brotli**：编译 `-DSHUX_USE_BROTLI`（`brotli/brotli.c`），链接 `-lbrotlienc -lbrotlidec`（或部分系统 `-lbrotli`）。例如：
+  - `make -C compiler compress-o-brotli`
   - 链接：在 cc 参数中加 `-lbrotlienc -lbrotlidec`。
+- **zstd**：编译 `-DSHUX_USE_ZSTD`（`zstd/zstd.c`），链接 `-lzstd`。
+- **默认构建**：`make -C compiler` 编译四份 `.o` 并 `ld -r` 为 `compress.o`。
 
-## API
+## 块 API
 
 - **deflate(in, in_len, out, out_cap): i32** — 压缩为 zlib 格式，返回写入字节数，失败 -1。
 - **inflate(in, in_len, out, out_cap): i32** — 解压 zlib 流，返回写入字节数，失败 -1。
@@ -32,3 +59,22 @@
 - **gzip_decompress(in, in_len, out, out_cap): i32** — 解压 gzip 流，返回写入字节数，失败 -1。
 - **brotli_compress(in, in_len, out, out_cap): i32** — 压缩为 Brotli 格式（.br），返回写入字节数，失败 -1。
 - **brotli_decompress(in, in_len, out, out_cap): i32** — 解压 Brotli 流，返回写入字节数，失败 -1。
+- **zstd_compress / zstd_decompress** — zstd 块压缩/解压，失败 -1。
+
+## 流式 API（STD-039 / STD-122）
+
+**低层 gzip 流**（直接操作外置 state 缓冲）：
+
+- `gzip_stream_state_bytes()` — 状态缓冲最小字节数
+- `gzip_stream_init_compress` / `gzip_stream_init_decompress`
+- `gzip_stream_compress` / `gzip_stream_decompress` — 分块处理；压缩末块 `is_last≠0`
+- `gzip_stream_end` — 释放底层 z_stream
+
+**统一门面**（format + mode，与 `std.codec.StreamCodec` 风格对齐）：
+
+- `compress_format_gzip()` — 流格式常量（v1 仅 gzip）
+- `compress_stream_mode_compress()` / `compress_stream_mode_decompress()`
+- `stream_compress_state_bytes()` / `stream_compress_init` / `stream_compress_process` / `stream_compress_end`
+- `StreamCompress` — `{ format, mode, state, state_cap }`
+
+未链 zlib 时 init 失败；gate 烟测以 exit 0 skip（与 STD-039 一致）。

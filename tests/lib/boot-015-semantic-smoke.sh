@@ -2,35 +2,35 @@
 # boot-015-semantic-smoke.sh — BOOT-015：vec/map/heap 语义自举 smoke 辅助
 #
 # 用法（source 后）：
-#   boot015_check_one SHU tests/vec/main.su
-#   boot015_link_run_one SHU tests/vec/main.su OUT_PATH
+#   boot015_check_one SHU tests/vec/main.sx
+#   boot015_link_run_one SHU tests/vec/main.sx OUT_PATH
 #   boot015_emit_report status check_ok link_ok skip
 
-BOOT015_PREFIX="${SHU_BOOT015_PREFIX:-shu: [SHU_BOOT015]}"
+BOOT015_PREFIX="${SHUX_BOOT015_PREFIX:-shux: [SHUX_BOOT015]}"
 
-# 对单个 .su 跑 shu check；失败返回 1。
+# 对单个 .sx 跑 shux check；失败返回 1。
 boot015_check_one() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if "$shu" check -L . "$src" >/dev/null 2>&1; then
+  if "$shux" check -L . "$src" >/dev/null 2>&1; then
     return 0
   fi
-  "$shu" check -L . "$src" 2>&1 | tail -5 >&2 || true
+  "$shux" check -L . "$src" 2>&1 | tail -5 >&2 || true
   return 1
 }
 
 # 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行失败返回 1。
 boot015_link_run_one() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out="$3"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$out" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$out" >/dev/null 2>&1; then
     return 2
   fi
   local ex=0

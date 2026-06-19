@@ -6,7 +6,7 @@
  * 算法 SipHash-2-4，64-bit 输出；与 HashMap 等可复用。
  *
  * 【所属模块/组件】
- * 标准库 std.hash；与 std/hash/mod.su 同属一模块。无外部依赖。
+ * 标准库 std.hash；与 std/hash/mod.sx 同属一模块。无外部依赖。
  */
 
 #include <stdint.h>

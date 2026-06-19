@@ -1,3 +1,3 @@
 # build_asm/driver_compile.o WPO 生产链：post-strict 重编后 __text 上限（entry TU 压缩）
-# WPO on + compile.su 压缩 export：实测 ~145B（compile_dispatch_asm_backend）；全量在 driver_compile_emit_heavy.o
+# WPO on + compile.sx 压缩 export：实测 ~145B（compile_dispatch_asm_backend）；全量在 driver_compile_emit_heavy.o
 driver_o_max_text_bytes	768

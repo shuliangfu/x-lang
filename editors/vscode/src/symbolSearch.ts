@@ -1,11 +1,11 @@
 /**
- * Shulang 符号搜索 — import 解析、跨模块定义、extern C 实现定位。
+ * Shux 符号搜索 — import 解析、跨模块定义、extern C 实现定位。
  * 供 DefinitionProvider / ReferenceProvider / HoverProvider 共用。
  */
 
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { resolveShulangImportUri, resolveShulangImportWithAttempts } from './importResolve';
+import { resolveShuxImportUri, resolveShuxImportWithAttempts } from './importResolve';
 
 /** 从文档文本解析 import 模块路径列表 */
 const IMPORT_RE = /\bimport\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*;/g;
@@ -60,7 +60,7 @@ export function importPathAtPosition(
 }
 
 /**
- * 在 .su 文档中查找符号声明。
+ * 在 .sx 文档中查找符号声明。
  */
 export function findDeclInSuDocument(
   document: vscode.TextDocument,
@@ -131,7 +131,7 @@ export async function findDeclInImportedModules(
   }
 
   for (const imp of parseImportPaths(document.getText())) {
-    const uri = await resolveShulangImportUri(wf.uri, document.uri, imp);
+    const uri = await resolveShuxImportUri(wf.uri, document.uri, imp);
     if (!uri) {
       continue;
     }
@@ -149,12 +149,12 @@ export async function findDeclInImportedModules(
   return undefined;
 }
 
-/** 在工作区 .su 中查找符号 */
+/** 在工作区 .sx 中查找符号 */
 export async function findDeclInWorkspaceSu(
   name: string,
   skipUri: vscode.Uri
 ): Promise<vscode.Location | undefined> {
-  const files = await vscode.workspace.findFiles('**/*.su', '**/node_modules/**', 300);
+  const files = await vscode.workspace.findFiles('**/*.sx', '**/node_modules/**', 300);
   for (const uri of files) {
     if (uri.fsPath === skipUri.fsPath) {
       continue;
@@ -222,7 +222,7 @@ export async function buildImportResolveHover(
   if (!wf) {
     return `import \`${importPath}\`：无工作区，无法解析。`;
   }
-  const { uri, attempts } = await resolveShulangImportWithAttempts(
+  const { uri, attempts } = await resolveShuxImportWithAttempts(
     wf.uri,
     document.uri,
     importPath

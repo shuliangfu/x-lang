@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # comp-wpo.sh — COMP-004 WPO 共享辅助
 
-# 判断本机能否直接执行给定 shu/shu-c 二进制。
+# 判断本机能否直接执行给定 shux/shux-c 二进制。
 comp_wpo_native_exe() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1

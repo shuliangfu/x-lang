@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CLI_DOC:-analysis/std-cli-v1.md}"
-MANIFEST="${SHU_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
-MOD_SU="std/cli/mod.su"
+DOC="${SHUX_STD_CLI_DOC:-analysis/std-cli-v1.md}"
+MANIFEST="${SHUX_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
+MOD_SU="std/cli/mod.sx"
 CLI_C="std/cli/cli.c"
 LIB="tests/lib/std-cli.sh"
-SMOKE_SU="tests/std-cli/roundtrip.su"
+SMOKE_SU="tests/std-cli/roundtrip.sx"
 SMOKE_C="tests/std-cli/cli_smoke_ok.c"
-COOKBOOK="examples/cookbook/cli_subcommand.su"
+COOKBOOK="examples/cookbook/cli_subcommand.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-cli.sh
@@ -66,9 +66,9 @@ SKIP=0
 
 echo "=== STD-077: cli c smoke ==="
 make -C compiler ../std/cli/cli.o >/dev/null 2>&1
-if cc -std=c11 -O1 -o /tmp/shu_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
-  if /tmp/shu_cli_smoke >/dev/null 2>&1; then C_OK=1; fi
-  rm -f /tmp/shu_cli_smoke
+if cc -std=c11 -O1 -o /tmp/shux_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
+  if /tmp/shux_cli_smoke >/dev/null 2>&1; then C_OK=1; fi
+  rm -f /tmp/shux_cli_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_cli_emit_report "fail" 0 0 0
@@ -76,18 +76,18 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-077: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-077: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-cli gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_cli_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
+  if std_cli_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

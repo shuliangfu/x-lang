@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-compress-brotli.sh — STD-125 manifest 与烟测辅助
 
-STD_COMPRESS_BROTLI_PREFIX="${SHU_STD125_COMPRESS_BROTLI_PREFIX:-shu: [SHU_STD125_COMPRESS_BROTLI]}"
+STD_COMPRESS_BROTLI_PREFIX="${SHUX_STD125_COMPRESS_BROTLI_PREFIX:-shux: [SHUX_STD125_COMPRESS_BROTLI]}"
 
 std_compress_brotli_symbols_ok() {
   local mod_su="$1"
@@ -18,7 +18,9 @@ std_compress_brotli_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/compress/compress.c" ] && path="$compress_c"
+        case "$path" in
+          std/compress/compress.c|std/compress/brotli/brotli.c) path="$compress_c" ;;
+        esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       target)
@@ -43,7 +45,7 @@ std_compress_brotli_try_build() {
 
 std_compress_brotli_run_c_smoke() {
   local compress_o="$1"
-  local out="/tmp/shu_std_compress_brotli_c_$$"
+  local out="/tmp/shux_std_compress_brotli_c_$$"
   if ! cc -std=c11 -O1 -o "$out" tests/std-compress/brotli_smoke_ok.c "$compress_o" -lbrotlienc -lbrotlidec 2>/dev/null; then
     return 2
   fi
@@ -55,11 +57,11 @@ std_compress_brotli_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-std_compress_brotli_run_su_smoke() {
-  local shu="$1"
+std_compress_brotli_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_compress_brotli_su_$$"
-  "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/shux_std_compress_brotli_su_$$"
+  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${SHU_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
-MANIFEST="${SHU_STD_REGEX_TSV:-tests/baseline/std-regex.tsv}"
-XPLAT="${SHU_STD_REGEX_XPLAT:-tests/baseline/std-regex-xplat.tsv}"
-MOD_SU="std/regex/mod.su"
+DOC="${SHUX_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
+MANIFEST="${SHUX_STD_REGEX_TSV:-tests/baseline/std-regex.tsv}"
+XPLAT="${SHUX_STD_REGEX_XPLAT:-tests/baseline/std-regex-xplat.tsv}"
+MOD_SU="std/regex/mod.sx"
 REGEX_C="std/regex/regex.c"
 MIN_INC="std/regex/regex_min.inc.c"
 LIB="tests/lib/std-regex.sh"
@@ -101,7 +101,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -114,14 +114,14 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-051: xplat .su smoke (SHU=$SHU_BIN host=$(ci_host_summary)) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-051: xplat .sx smoke (SHUX=$SHUX_BIN host=$(ci_host_summary)) ==="
   SU_FAIL=0
   while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
     [ -z "$case_id" ] && continue
@@ -136,12 +136,12 @@ if [ -n "$SHU_BIN" ]; then
     if [ "$script" = "tests/regex/regex_min_ok.c" ]; then
       continue
     fi
-    if ! "$SHU_BIN" check -L . "$script" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$script" >/dev/null 2>&1; then
       echo "std-regex gate FAIL: typeck $script" >&2
       SU_FAIL=1
       break
     fi
-    if ! std_regex_run_smoke "$SHU_BIN" "$script" "$case_id"; then
+    if ! std_regex_run_smoke "$SHUX_BIN" "$script" "$case_id"; then
       SU_FAIL=1
       break
     fi
@@ -153,7 +153,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SU_OK=1
 else
-  echo "std-regex gate SKIP .su smoke (no native shu)" >&2
+  echo "std-regex gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

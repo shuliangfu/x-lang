@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_DEBUG_DOC:-analysis/tool-debug-symbols-v1.md}"
-MANIFEST="${SHU_TOOL_DEBUG_MANIFEST:-tests/baseline/tool-debug-symbols.tsv}"
+DOC="${SHUX_TOOL_DEBUG_DOC:-analysis/tool-debug-symbols-v1.md}"
+MANIFEST="${SHUX_TOOL_DEBUG_MANIFEST:-tests/baseline/tool-debug-symbols.tsv}"
 MIN_RULES=6
 MIN_CASES=2
 
@@ -125,24 +125,24 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-debug-symbols manifest OK (rules=${RULE_N} cases=${CASE_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== TOOL-005: debug symbol hooks (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== TOOL-005: debug symbol hooks (SHUX=$SHUX_BIN) ==="
   chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
-  SHU="$SHU_BIN" ./tests/run-debug-symbols.sh
-  SHU="$SHU_BIN" ./tests/run-backtrace.sh
+  SHUX="$SHUX_BIN" ./tests/run-debug-symbols.sh
+  SHUX="$SHUX_BIN" ./tests/run-backtrace.sh
   echo "tool-debug-symbols hooks OK"
 else
-  echo "tool-debug-symbols gate SKIP hooks (no native shu)" >&2
+  echo "tool-debug-symbols gate SKIP hooks (no native shux)" >&2
 fi
 
 echo "tool-debug-symbols gate OK"

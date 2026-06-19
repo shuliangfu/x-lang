@@ -6,12 +6,12 @@
 #   comp_wpo_prod_hook_runnable HOOK_SCRIPT
 #   comp_wpo_prod_emit_report status prod_ok prod_skip skip
 
-COMP015_PREFIX="${SHU_COMP015_PREFIX:-shu: [SHU_COMP015_WPO_PROD]}"
+COMP015_PREFIX="${SHUX_COMP015_PREFIX:-shux: [SHUX_COMP015_WPO_PROD]}"
 
-# Linux 且存在 shu_asm 则可跑 build_asm chain / strict link。
+# Linux 且存在 shux_asm 则可跑 build_asm chain / strict link。
 comp_wpo_prod_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || [ -x "./compiler/shu_asm.experimental" ] || return 1
+  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
   return 0
 }
 

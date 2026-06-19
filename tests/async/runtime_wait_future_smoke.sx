@@ -1,0 +1,18 @@
+// STD-041：runtime_wait_future + Context 桥接烟测（await 落地前手动驱动）
+const async_mod = import("std.async");
+const ctx_mod = import("std.context");
+
+function main(): i32 {
+  let zero: i64 = 0;
+  let bg: Context = ctx_mod.background();
+  let rt: AsyncRuntime = async_mod.runtime_new(bg);
+  let fut: Future = async_mod.future_new();
+  if (fut.handle == zero) { return 1; }
+  async_mod.future_complete(&fut, 88);
+  let st: i32 = async_mod.runtime_wait_future(&rt, &fut, 8);
+  if (st != async_mod.poll_ready()) { return 2; }
+  let out: i32 = 0;
+  if (async_mod.future_take(&fut, &out) != 0) { return 3; }
+  if (out != 88) { return 4; }
+  return 0;
+}

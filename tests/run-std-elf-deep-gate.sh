@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD063_DOC:-analysis/std-elf-deep-v1.md}"
-MANIFEST="${SHU_STD063_TSV:-tests/baseline/std-elf-deep.tsv}"
-VECTORS="${SHU_STD063_VECTORS:-tests/baseline/std-elf-deep-vectors.tsv}"
-MOD_SU="std/elf/mod.su"
+DOC="${SHUX_STD063_DOC:-analysis/std-elf-deep-v1.md}"
+MANIFEST="${SHUX_STD063_TSV:-tests/baseline/std-elf-deep.tsv}"
+VECTORS="${SHUX_STD063_VECTORS:-tests/baseline/std-elf-deep-vectors.tsv}"
+MOD_SU="std/elf/mod.sx"
 ELF_C="std/elf/elf.c"
 LIB="tests/lib/std-elf-deep.sh"
-SMOKE_SU="tests/std-elf/parse_sections.su"
+SMOKE_SU="tests/std-elf/parse_sections.sx"
 SMOKE_C="tests/std-elf/parse_sections_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_reloc.bin"
 MIN_DEEP=2
@@ -78,7 +78,7 @@ echo "std-elf-deep manifest OK"
 
 echo "=== STD-063: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHU_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
@@ -94,7 +94,7 @@ fi
 
 DEEP_SU=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -106,16 +106,16 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shu-c; then
-  SHU_BIN=./compiler/shu-c
-elif stdlib_cm_native_shu ./compiler/shu; then
-  SHU_BIN=./compiler/shu
+if stdlib_cm_native_shu ./compiler/shux-c; then
+  SHUX_BIN=./compiler/shux-c
+elif stdlib_cm_native_shu ./compiler/shux; then
+  SHUX_BIN=./compiler/shux
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-063: .su deep smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-063: .sx deep smoke (SHUX=$SHUX_BIN) ==="
   rc=0
-  std_elf_deep_run_su_smoke "$SHU_BIN" "$SMOKE_SU" || rc=$?
+  std_elf_deep_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" || rc=$?
   if [ "$rc" -eq 0 ]; then
     DEEP_SU=1
   elif [ "$rc" -eq 2 ]; then
@@ -125,7 +125,7 @@ if [ -n "$SHU_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-elf-deep gate SKIP .su smoke (no native shu)" >&2
+  echo "std-elf-deep gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# parser.su -E/-E-extern 产物：slim ASTArena 无 exprs/types/blocks/funcs 数组，
+# parser.sx -E/-E-extern 产物：slim ASTArena 无 exprs/types/blocks/funcs 数组，
 # 将 memcpy(&v, &arena->pool[idx-1], ...) 改写为 ast_arena_*_get(arena, idx) API 调用。
 use strict;
 use warnings;
@@ -55,7 +55,63 @@ if (index($src, 'ast_arena_func_get(') >= 0) {
   }
 }
 
-# parser.su 新增 onefunc const 池 API：补 #define 使 parser_gen.c 链到 ast_pipeline_* glue。
+# lsp_diag 等：直接调用 ast_arena_*_get 时补 ast_ast_arena_* extern 与 #define 别名。
+if (index($src, 'ast_arena_expr_get(') >= 0 && index($src, '#define ast_arena_expr_get ast_ast_arena_expr_get') < 0) {
+  $src =~ s/\n\/\* ast_ast_arena pool externs \(pipeline_glue\.c at link\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
+  if (index($src, 'extern struct ast_Expr ast_ast_arena_expr_get') < 0) {
+    my $pool_ext = <<'POOL_EXT';
+
+/* ast_ast_arena pool externs (pipeline_glue.c at link) */
+extern struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
+#define ast_arena_expr_get ast_ast_arena_expr_get
+#define ast_arena_type_get ast_ast_arena_type_get
+POOL_EXT
+    $src =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$pool_ext/s
+      or warn "fix_parser_pool_access_gen_c: lsp ast_arena getter extern anchor not found\n";
+  }
+}
+
+# parser 等：经 fix_slim_arena 映射 ast_arena_* → ast_ast_arena_* 时，单 TU 编译须补 pipeline_glue 侧 extern。
+if (index($src, '#define ast_arena_block_get ast_ast_arena_block_get') >= 0) {
+  $src =~ s/\n\/\* ast_ast_arena pool externs \(pipeline_glue\.c at link\) \*\/\n(?:extern[^\n]*\n|#define ast_arena_[^\n]*\n)*//s;
+  if (index($src, 'extern struct ast_Block ast_ast_arena_block_get') < 0) {
+    my $pool_ext = <<'POOL_EXT';
+
+/* ast_ast_arena pool externs (pipeline_glue.c at link) */
+extern void ast_ast_arena_init(struct ast_ASTArena *arena);
+extern int32_t ast_ast_arena_type_alloc(struct ast_ASTArena *a);
+extern int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena *a);
+extern int32_t ast_ast_arena_block_alloc(struct ast_ASTArena *a);
+extern int32_t ast_ast_arena_func_alloc(struct ast_ASTArena *a);
+extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena *a, int32_t ref);
+extern void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+extern void ast_ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+extern void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+extern void ast_ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+POOL_EXT
+    $src =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$pool_ext/s
+      or warn "fix_parser_pool_access_gen_c: ast_ast_arena pool extern anchor not found\n";
+  }
+  # ast 辅助与 heap：parser -E 生成体直接调用，单 TU 须 extern（链 ast_gen2 weak / sx_seed_bridge）。
+  if (index($src, 'ast_ref_is_null(') >= 0 && index($src, 'extern int ast_ref_is_null') < 0) {
+    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern int ast_ref_is_null(int32_t ref);\n/s
+      or warn "fix_parser_pool_access_gen_c: ast_ref_is_null anchor not found\n";
+  }
+  if (index($src, 'std_heap_alloc_zeroed(') >= 0 && index($src, 'extern void *std_heap_alloc_zeroed') < 0) {
+    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern void *std_heap_alloc_zeroed(size_t size);\n/s
+      or warn "fix_parser_pool_access_gen_c: std_heap_alloc_zeroed anchor not found\n";
+  }
+  if (index($src, 'std_heap_free(') >= 0 && index($src, 'extern void std_heap_free') < 0) {
+    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern void std_heap_free(void *ptr);\n/s
+      or warn "fix_parser_pool_access_gen_c: std_heap_free anchor not found\n";
+  }
+}
+
+# parser.sx 新增 onefunc const 池 API：补 #define 使 parser_gen.c 链到 ast_pipeline_* glue。
 my @pipeline_const_aliases = (
   [ 'pipeline_onefunc_append_const',    'ast_pipeline_onefunc_append_const' ],
   [ 'pipeline_onefunc_const_init_ref',  'ast_pipeline_onefunc_const_init_ref' ],
@@ -63,6 +119,7 @@ my @pipeline_const_aliases = (
 );
 for my $pair (@pipeline_const_aliases) {
   my ($from, $to) = @$pair;
+  next if $path !~ /parser_gen\.c$/;
   next if index($src, "#define $from ") >= 0;
   if ($src =~ s/(#define pipeline_onefunc_append_let ast_pipeline_onefunc_append_let\n)/$1#define $from $to\n/) {
     $orig = '' if $src ne $orig;    # force write below
@@ -71,14 +128,14 @@ for my $pair (@pipeline_const_aliases) {
   }
 }
 
-# parser_gen -E-extern：parser_parse 烟测调 parse_expr_into；符号在 build_asm/parser.o 为 parse_expr_into（无 parser_ 前缀）。
-if ($path =~ /parser_gen\.c$/ && index($src, 'parser_parse_expr_into') >= 0) {
+# parser_gen(-2).c -E-extern：parser_parse 烟测调 parse_expr_into；符号在 build_asm/parser.o 为 parse_expr_into（无 parser_ 前缀）。
+if ($path =~ /parser_gen(?:2)?\.c$/ && index($src, 'parser_parse_expr_into') >= 0) {
   $src =~ s/\n\/\* parser_gen thin TU: parse_expr_into.*?\n#define parser_parse_expr_into parse_expr_into\n\n//s;
   if (index($src, '#define parser_parse_expr_into') < 0) {
     my $pex = <<'PEX';
 
 /* parser_gen thin TU: parse_expr_into 由 build_asm/parser.o 提供 */
-extern void parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexer lex, struct shulang_slice_uint8_t *source, struct parser_ParseExprResult *out);
+extern void parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexer lex, struct shux_slice_uint8_t *source, struct parser_ParseExprResult *out);
 #define parser_parse_expr_into parse_expr_into
 PEX
     $src =~ s/(struct parser_ParseExprResult \{[^\}]+\};)/$1$pex/s

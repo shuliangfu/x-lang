@@ -5,10 +5,10 @@ read_path	section	## 1. 阅读路径	analysis/lang-option-generic-v1.md
 layers	section	## 2. 闭环 M7–M9	analysis/lang-option-generic-v1.md
 api	section	## 3. API（v1）	analysis/lang-option-generic-v1.md
 golden	section	## 4. 金样向量	analysis/lang-option-generic-v1.md
-symbol_template	symbol	struct Option<T>	core/option/mod.su	模板
-symbol_i32	symbol	Option_i32	core/option/mod.su	兼容
-smoke_three	smoke	tests/lang-option-generic/option_three.su	三类型
-smoke_import	smoke	tests/lang-option-generic/with_core_import.su	core 导入
+symbol_template	symbol	struct Option<T>	core/option/mod.sx	模板
+symbol_i32	symbol	Option_i32	core/option/mod.sx	兼容
+smoke_three	smoke	tests/lang-option-generic/option_three.sx	三类型
+smoke_import	smoke	tests/lang-option-generic/with_core_import.sx	core 导入
 typeck_c	symbol	typeck_materialize_generic_structs	compiler/src/typeck/typeck_generic_struct.c	物化
 parser_c	symbol	parser_append_type_inst_mangle	compiler/src/parser/parser.c	mangle
 cross_lang003	cross_ref	lang-generic-v1.md	analysis/lang-generic-v1.md	LANG-003

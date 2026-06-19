@@ -175,7 +175,7 @@ int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_
   if (ix_base_ref <= 0)
     return 0;
   base_ty = pipeline_expr_resolved_type_ref(arena, ix_base_ref);
-  /** skip .su typeck：形参 VAR 常无 resolved_type；按 emit 函数或全 module 形参表回落。 */
+  /** skip .sx typeck：形参 VAR 常无 resolved_type；按 emit 函数或全 module 形参表回落。 */
   if (base_ty <= 0 && pipeline_expr_kind_ord_at(arena, ix_base_ref) == 3) {
     int32_t fi;
     uint8_t vname[64];

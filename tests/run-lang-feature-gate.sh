@@ -20,28 +20,28 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ] || ! native_shu "$SHU_BIN"; then
-  echo "lang-feature-gate SKIP (no native shu, host=$(ci_host_summary))" >&2
+if [ -z "$SHUX_BIN" ] || ! native_shu "$SHUX_BIN"; then
+  echo "lang-feature-gate SKIP (no native shux, host=$(ci_host_summary))" >&2
   echo "lang-feature-gate OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
-chmod +x scripts/shu-lang-edition.sh
+chmod +x scripts/shux-lang-edition.sh
 
-ED_STABLE=tests/lang-feature/edition_stable.su
-FEAT=tests/lang-feature/feature_match.su
-EXE="/tmp/shu_lang_feat_$$"
+ED_STABLE=tests/lang-feature/edition_stable.sx
+FEAT=tests/lang-feature/feature_match.sx
+EXE="/tmp/shux_lang_feat_$$"
 
 run_expect() {
   local label="$1"
@@ -54,23 +54,23 @@ run_expect() {
 }
 
 # edition：默认稳定 0
-ec=$(run_expect edition_stable ./scripts/shu-lang-edition.sh 2024 "$ED_STABLE")
+ec=$(run_expect edition_stable ./scripts/shux-lang-edition.sh 2024 "$ED_STABLE")
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition stable want 0 got $ec" >&2; exit 1; }
 
 # edition：无 2025 flag 亦为 0
-ec=$(SHU="$SHU_BIN" run_expect edition_default "$SHU_BIN" "$ED_STABLE")
+ec=$(SHUX="$SHUX_BIN" run_expect edition_default "$SHUX_BIN" "$ED_STABLE")
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL edition default want 0 got $ec" >&2; exit 1; }
 
 # edition：2025 experimental 99
-ec=$(run_expect edition_2025 ./scripts/shu-lang-edition.sh 2025 "$ED_STABLE")
+ec=$(run_expect edition_2025 ./scripts/shux-lang-edition.sh 2025 "$ED_STABLE")
 [ "$ec" -eq 99 ] || { echo "lang-feature FAIL edition 2025 want 99 got $ec" >&2; exit 1; }
 
 # feature：off 0
-ec=$(SHU="$SHU_BIN" run_expect feature_off "$SHU_BIN" "$FEAT")
+ec=$(SHUX="$SHUX_BIN" run_expect feature_off "$SHUX_BIN" "$FEAT")
 [ "$ec" -eq 0 ] || { echo "lang-feature FAIL feature off want 0 got $ec" >&2; exit 1; }
 
 # feature：on 42
-ec=$(run_expect feature_on ./scripts/shu-lang-edition.sh feature MATCH_STMT "$FEAT")
+ec=$(run_expect feature_on ./scripts/shux-lang-edition.sh feature MATCH_STMT "$FEAT")
 [ "$ec" -eq 42 ] || { echo "lang-feature FAIL feature on want 42 got $ec" >&2; exit 1; }
 
 echo "lang-feature-gate report edition=OK feature=OK host=$(ci_host_summary)"

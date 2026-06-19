@@ -6,9 +6,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/net/mod.su"
-SMOKE="tests/net/context_connect.su"
-PREFIX="shu: [SHU_STD092_NET_CTX]"
+MOD_SU="std/net/mod.sx"
+SMOKE="tests/net/context_connect.sx"
+PREFIX="shux: [SHUX_STD092_NET_CTX]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -35,11 +35,11 @@ for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd stream_read_ctx stre
     exit 1
   fi
 done
-if ! grep -qF 'function net_err_timeout()' std/error/mod.su 2>/dev/null; then
+if ! grep -qF 'function net_err_timeout()' std/error/mod.sx 2>/dev/null; then
   echo "net-context gate FAIL: missing net_err_timeout in std.error" >&2
   exit 1
 fi
-if ! grep -qF 'function net_err_cancelled()' std/error/mod.su 2>/dev/null; then
+if ! grep -qF 'function net_err_cancelled()' std/error/mod.sx 2>/dev/null; then
   echo "net-context gate FAIL: missing net_err_cancelled in std.error" >&2
   exit 1
 fi
@@ -51,23 +51,23 @@ ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/net/net.o
 
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
 SU_OK=0
 SKIP=0
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-092: smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-092: smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "net-context gate FAIL: typeck $SMOKE" >&2
     exit 1
   fi
-  exe="/tmp/shu_std092_net_ctx_$$"
-  if ! "$SHU_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  exe="/tmp/shux_std092_net_ctx_$$"
+  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
     echo "net-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi
@@ -82,7 +82,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SU_OK=1
 else
-  echo "net-context gate SKIP .su (no native shu)" >&2
+  echo "net-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

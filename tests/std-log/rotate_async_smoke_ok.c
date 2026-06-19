@@ -9,6 +9,6 @@ extern int32_t log_rotate_async_smoke_c(const char *path);
 
 int main(void) {
   char path[256];
-  snprintf(path, sizeof(path), "/tmp/shu_std_log_rotate_%d.txt", (int)getpid());
+  snprintf(path, sizeof(path), "/tmp/shux_std_log_rotate_%d.txt", (int)getpid());
   return log_rotate_async_smoke_c(path);
 }

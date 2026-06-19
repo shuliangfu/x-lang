@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
-MANIFEST="${SHU_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
-VECTORS="${SHU_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
-MOD_SU="std/http/mod.su"
+DOC="${SHUX_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
+MANIFEST="${SHUX_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
+VECTORS="${SHUX_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
+MOD_SU="std/http/mod.sx"
 HTTP_C="std/http/http.c"
 POOL_INC="std/http/http_server_pool.inc.c"
 LIB="tests/lib/std-http-server-pool.sh"
-SMOKE_SU="tests/http/server_pool.su"
+SMOKE_SU="tests/http/server_pool.sx"
 SMOKE_C="tests/http/server_pool_smoke_ok.c"
 MIN_APIS=5
 
@@ -84,7 +84,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -96,21 +96,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-107: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-107: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-http-server-pool gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_http_server_pool_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "sp"; then
+  if std_http_server_pool_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "sp"; then
     SU_OK=1
   else
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0

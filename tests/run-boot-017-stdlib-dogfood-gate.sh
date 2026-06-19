@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# BOOT-017：标准库 .su 前端编译 dogfood 指标门禁
+# BOOT-017：标准库 .sx 前端编译 dogfood 指标门禁
 #
 # 用法：./tests/run-boot-017-stdlib-dogfood-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT017_DOC:-analysis/boot-017-stdlib-dogfood-v1.md}"
-MANIFEST="${SHU_BOOT017_MANIFEST:-tests/baseline/boot-017-stdlib-dogfood.tsv}"
-MATRIX="${SHU_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
-BASELINE="${SHU_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"
+DOC="${SHUX_BOOT017_DOC:-analysis/boot-017-stdlib-dogfood-v1.md}"
+MANIFEST="${SHUX_BOOT017_MANIFEST:-tests/baseline/boot-017-stdlib-dogfood.tsv}"
+MATRIX="${SHUX_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
+BASELINE="${SHUX_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"
 LIB="tests/lib/boot-017-stdlib-dogfood.sh"
 RUNNER="tests/run-boot-017-stdlib-dogfood.sh"
 MIN_MODULES=55
-PREFIX="shu: [SHU_BOOT017_STDLIB_DOGFOOD]"
+PREFIX="shux: [SHUX_BOOT017_STDLIB_DOGFOOD]"
 
 # shellcheck source=tests/lib/boot-017-stdlib-dogfood.sh
 . tests/lib/boot-017-stdlib-dogfood.sh
@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER" "$MATRIX"; do
   fi
 done
 
-for kw in PERF-004 分模块 SHU_BOOT017_STDLIB_DOGFOOD stdlib-dogfood; do
+for kw in PERF-004 分模块 SHUX_BOOT017_STDLIB_DOGFOOD stdlib-dogfood; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "boot-017-stdlib-dogfood gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -99,18 +99,18 @@ fi
 echo "boot-017-stdlib-dogfood manifest OK (modules=${MOD_N}, baseline=${BASE_N})"
 
 # perf 注册表须含 stdlib-dogfood
-REG="${SHU_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 if ! awk -F'\t' '$1=="stdlib-dogfood" && $1 !~ /^#/ { found=1; exit } END { exit !found }' "$REG" 2>/dev/null; then
   echo "boot-017-stdlib-dogfood gate FAIL: perf-baseline-registry missing stdlib-dogfood" >&2
   exit 1
 fi
 
-if SHU_BIN="$(boot017_resolve_shu 2>/dev/null)"; then
-  echo "=== BOOT-017: per-module timing (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(boot017_resolve_shu 2>/dev/null)"; then
+  echo "=== BOOT-017: per-module timing (SHUX=$SHUX_BIN) ==="
   chmod +x "$RUNNER" "$LIB"
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   set -o pipefail
-  if ! SHU="$SHU_BIN" ./"$RUNNER" 2>&1 | tee /tmp/boot017_stdlib_dogfood.log; then
+  if ! SHUX="$SHUX_BIN" ./"$RUNNER" 2>&1 | tee /tmp/boot017_stdlib_dogfood.log; then
     set +o pipefail
     echo "boot-017-stdlib-dogfood gate FAIL: runner" >&2
     exit 1
@@ -121,7 +121,7 @@ if SHU_BIN="$(boot017_resolve_shu 2>/dev/null)"; then
     exit 1
   }
 else
-  echo "boot-017-stdlib-dogfood gate SKIP timing (no native shu)" >&2
+  echo "boot-017-stdlib-dogfood gate SKIP timing (no native shux)" >&2
 fi
 
 echo "boot-017-stdlib-dogfood gate OK"

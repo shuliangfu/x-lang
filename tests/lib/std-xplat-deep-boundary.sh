@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-xplat-deep-boundary.sh — STD-138 三平台深度边界 manifest 与烟测辅助
 
-STD_XPLAT_DEEP_PREFIX="${SHU_STD138_XPLAT_DEEP_BOUNDARY_PREFIX:-shu: [SHU_STD138_XPLAT_DEEP_BOUNDARY]}"
+STD_XPLAT_DEEP_PREFIX="${SHUX_STD138_XPLAT_DEEP_BOUNDARY_PREFIX:-shux: [SHUX_STD138_XPLAT_DEEP_BOUNDARY]}"
 
 # 按当前宿主返回 linux/macos/windows 列策略。
 xplat_deep_platform_policy() {
@@ -60,12 +60,12 @@ xplat_deep_matrix_rows() {
   echo "$n"
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 xplat_deep_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_xplat_deep_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_xplat_deep_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "xplat-deep FAIL: compile $src" >&2
     rm -f "$exe"
     return 1

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_LSP_DIAG_DOC:-analysis/tool-lsp-diag-perf-v1.md}"
-MANIFEST="${SHU_TOOL_LSP_DIAG_MANIFEST:-tests/baseline/tool-lsp-diag-perf.tsv}"
+DOC="${SHUX_TOOL_LSP_DIAG_DOC:-analysis/tool-lsp-diag-perf-v1.md}"
+MANIFEST="${SHUX_TOOL_LSP_DIAG_MANIFEST:-tests/baseline/tool-lsp-diag-perf.tsv}"
 MIN_OPTS=6
 MIN_CASES=2
 MIN_LARGE_FUNCS=30
@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-004: LSP diag perf manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.su; do
+for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.sx; do
   if [ ! -f "$f" ]; then
     echo "tool-lsp-diag-perf gate FAIL: missing $f" >&2
     exit 1
@@ -107,7 +107,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-LARGE_FUNCS=$(tool_lsp_count_funcs tests/lsp/diag_large_ok.su)
+LARGE_FUNCS=$(tool_lsp_count_funcs tests/lsp/diag_large_ok.sx)
 if [ "$OPT_N" -lt "$MIN_OPTS" ]; then
   echo "tool-lsp-diag-perf gate FAIL: opts=${OPT_N} < min ${MIN_OPTS}" >&2
   exit 1
@@ -134,23 +134,23 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-lsp-diag-perf manifest OK (opts=${OPT_N} cases=${CASE_N} funcs=${LARGE_FUNCS} max_wall_ms=${MAX_WALL_MS})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN" && "$SHU_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  echo "=== TOOL-004: LSP diag perf hooks (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN" && "$SHUX_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
+  echo "=== TOOL-004: LSP diag perf hooks (SHUX=$SHUX_BIN) ==="
   chmod +x tests/run-lsp-diag-perf.sh
-  SHU_LSP_DIAG_MAX_WALL_MS="$MAX_WALL_MS" SHU_LSP_DIAG_MIN_FUNCS="$MIN_LARGE_FUNCS" SHU="$SHU_BIN" ./tests/run-lsp-diag-perf.sh
+  SHUX_LSP_DIAG_MAX_WALL_MS="$MAX_WALL_MS" SHUX_LSP_DIAG_MIN_FUNCS="$MIN_LARGE_FUNCS" SHUX="$SHUX_BIN" ./tests/run-lsp-diag-perf.sh
   echo "tool-lsp-diag-perf hooks OK"
 else
-  echo "tool-lsp-diag-perf gate SKIP hooks (no native shu --lsp)" >&2
+  echo "tool-lsp-diag-perf gate SKIP hooks (no native shux --lsp)" >&2
 fi
 
 echo "tool-lsp-diag-perf gate OK"

@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # 文件职责：验证 codegen 使用 main 体字面量作为程序退出码；编译 fn main() -> i32 { 42 } 并检查退出码为 42。
-# 与其它文件的关系：由 compiler/Makefile 的 test 目标调用；依赖 compiler/shu、tests/return-value/main.su。
+# 与其它文件的关系：由 compiler/Makefile 的 test 目标调用；依赖 compiler/shux、tests/return-value/main.sx。
 
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-LINK_SHU="$RUN_SHU"
-OUT=/tmp/shu_return_value
-# 避免上一次 shu-c 留下的 Mach-O 与本次 C 输出长度交错导致 file/cc 误判；同时清掉二次链接产物。
+SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
+OUT=/tmp/shux_return_value
+# 避免上一次 shux-c 留下的 Mach-O 与本次 C 输出长度交错导致 file/cc 误判；同时清掉二次链接产物。
 rm -f "$OUT" "${OUT}.bin"
-# 编译：shu-c 走 C 前端会在 -o 处直接产出可执行文件；bootstrap-driver-seed 的 shu / stage2 对无 import 单文件走 .su pipeline，仅把生成的 C 写入 -o，须再经 cc 链接。
-$LINK_SHU tests/return-value/main.su -o "$OUT" 2>&1
+# 编译：shux-c 走 C 前端会在 -o 处直接产出可执行文件；bootstrap-driver-seed 的 shux / stage2 对无 import 单文件走 .sx pipeline，仅把生成的 C 写入 -o，须再经 cc 链接。
+$LINK_SHUX tests/return-value/main.sx -o "$OUT" 2>&1
 BIN="$OUT"
 ft=$(file -b "$OUT" 2>/dev/null || true)
 # 无 file(1) 时勿把已链接 ELF 当 C 源；读魔数 0x7F 'E' 'L' 'F'。

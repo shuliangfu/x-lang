@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-cache.sh — STD-087 manifest 与烟测辅助
 
-STD_CACHE_PREFIX="${SHU_STD_CACHE_PREFIX:-shu: [SHU_STD_CACHE]}"
+STD_CACHE_PREFIX="${SHUX_STD_CACHE_PREFIX:-shux: [SHUX_STD_CACHE]}"
 
 std_cache_symbols_ok() {
   local mod_su="$1"
@@ -40,13 +40,13 @@ std_cache_symbols_ok() {
 }
 
 std_cache_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-cache}"
-  local exe="/tmp/shu_std_cache_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_cache_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-cache FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

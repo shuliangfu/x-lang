@@ -5,7 +5,7 @@
 #   doc_phase2_close_check MANIFEST
 #   doc_phase2_close_emit_report status anchors_ok cookbook_ok skip
 
-DOC_PHASE2_CLOSE_PREFIX="${SHU_DOC08_PREFIX:-shu: [SHU_DOC08_PHASE2_CLOSE]}"
+DOC_PHASE2_CLOSE_PREFIX="${SHUX_DOC08_PREFIX:-shux: [SHUX_DOC08_PHASE2_CLOSE]}"
 
 # 校验 manifest 锚点；echo 缺失数。
 doc_phase2_close_check() {

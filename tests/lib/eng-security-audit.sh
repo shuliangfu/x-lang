@@ -8,7 +8,7 @@
 #   eng_sec_secret_probe
 #   eng_sec_emit_report status inventory npm secret rows
 
-ENG_SEC_PREFIX="${SHU_SECURITY_AUDIT_PREFIX:-shu: [SHU_SECURITY_AUDIT]}"
+ENG_SEC_PREFIX="${SHUX_SECURITY_AUDIT_PREFIX:-shux: [SHUX_SECURITY_AUDIT]}"
 
 # 报告行固定前缀。
 eng_sec_audit_prefix() {
@@ -55,7 +55,7 @@ eng_sec_inventory_scan() {
 # 在 editors/vscode 执行 npm audit（仅 high+）。
 # PROBE=0 时跳过并返回 2；npm 不可用返回 2；有 high 漏洞返回 1。
 eng_sec_npm_audit() {
-  local probe="${SHU_SEC_AUDIT_PROBE:-0}"
+  local probe="${SHUX_SEC_AUDIT_PROBE:-0}"
   local vsdir="editors/vscode"
   if [ "$probe" != "1" ]; then
     return 2
@@ -68,7 +68,7 @@ eng_sec_npm_audit() {
     echo "eng-security-audit npm SKIP: no lockfile" >&2
     return 2
   fi
-  local log="/tmp/shu_eng_sec_npm_audit_$$.log"
+  local log="/tmp/shux_eng_sec_npm_audit_$$.log"
   if ! (cd "$vsdir" && npm audit --audit-level=high --omit=dev 2>&1 | tee "$log"); then
     rm -f "$log"
     echo "eng-security-audit npm FAIL: high+ vulnerabilities" >&2

@@ -26,7 +26,7 @@
 
 ## 性能（已压榨）
 
-- **find 走 C 快路径**：`map_i32_i32_find_c`（在 heap.o）内线性探测，get/contains/remove/insert 均复用，避免 .su 层循环。
+- **find 走 C 快路径**：`map_i32_i32_find_c`（在 heap.o）内线性探测，get/contains/remove/insert 均复用，避免 .sx 层循环。
 - **reserve_one**：字面量 8 与 3/4 负载因子，避免阈值函数调用。
 - **with_capacity**：occupied 清零用 **4 字节展开** 循环。
 - **热路径**：`map_i32_i32_len_ptr` 避免按值传 Map 结构体。

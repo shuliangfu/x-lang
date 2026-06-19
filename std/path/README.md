@@ -43,8 +43,8 @@
 
 ## 测试
 
-- `tests/path/main.su` — path_empty_len
-- `tests/path/join_basename.su` — path_join、path_basename、path_dirname
-- `tests/path/extension_stem_abs_clean.su` — path_extension、path_stem、path_is_absolute、path_sep、path_clean
+- `tests/path/main.sx` — path_empty_len
+- `tests/path/join_basename.sx` — path_join、path_basename、path_dirname
+- `tests/path/extension_stem_abs_clean.sx` — path_extension、path_stem、path_is_absolute、path_sep、path_clean
 
 运行：`./tests/run-path.sh`

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-codec-stream.sh — STD-110 manifest 与烟测辅助
 
-STD_CODEC_STREAM_PREFIX="${SHU_STD110_CODEC_STREAM_PREFIX:-shu: [SHU_STD110_CODEC_STREAM]}"
+STD_CODEC_STREAM_PREFIX="${SHUX_STD110_CODEC_STREAM_PREFIX:-shux: [SHUX_STD110_CODEC_STREAM]}"
 
 # 校验 manifest 中 api/file/smoke。
 std_codec_stream_symbols_ok() {
@@ -31,15 +31,15 @@ std_codec_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 流式烟测。
+# 编译并运行 .sx 流式烟测。
 std_codec_stream_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-stream}"
-  local exe="/tmp/shu_std_codec_stream_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_codec_stream_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-codec-stream FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_SIZE_ATTRIB_DOC:-analysis/comp-size-attrib-v1.md}"
-MANIFEST="${SHU_COMP_SIZE_ATTRIB_MANIFEST:-tests/baseline/comp-size-attrib.tsv}"
-MATRIX="${SHU_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
+DOC="${SHUX_COMP_SIZE_ATTRIB_DOC:-analysis/comp-size-attrib-v1.md}"
+MANIFEST="${SHUX_COMP_SIZE_ATTRIB_MANIFEST:-tests/baseline/comp-size-attrib.tsv}"
+MATRIX="${SHUX_SIZE_ATTRIB_MATRIX:-tests/baseline/comp-size-attrib-matrix.tsv}"
 MIN_LAYERS=6
 MIN_ARTIFACTS=8
 MIN_CASES=3
@@ -18,7 +18,7 @@ MIN_CASES=3
 echo "=== COMP-010: size attribution manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-size-attrib.sh tests/run-comp-size-attrib.sh \
-  tests/run-size-shu-asm-gate.sh tests/baseline/shu-asm-size.tsv \
+  tests/run-size-shux-asm-gate.sh tests/baseline/shux-asm-size.tsv \
   tests/run-size-baseline.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-size-attrib gate FAIL: missing $f" >&2

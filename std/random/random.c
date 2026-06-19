@@ -6,7 +6,7 @@
  * u32/u64 由内部 fill 4/8 字节后按平台字节序解释。仅提供 CSPRNG，不引入 PRNG 引擎。
  *
  * 【所属模块/组件】
- * 标准库 std.random；与 std/random/mod.su 同目录，mod.su 为对外 API。
+ * 标准库 std.random；与 std/random/mod.sx 同目录，mod.sx 为对外 API。
  *
  * 【与其它文件的关系】
  * - 被依赖：用户 import std.random 且 -o exe 时，编译器将本文件产出的 random.o 链入可执行文件。

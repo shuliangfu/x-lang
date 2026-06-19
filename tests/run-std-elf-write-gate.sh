@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-elf-write-v1.md"
 MANIFEST="tests/baseline/std-elf-write-manifest.tsv"
 VECTORS="tests/baseline/std-elf-write-vectors.tsv"
-MOD_SU="std/elf/mod.su"
+MOD_SU="std/elf/mod.sx"
 ELF_C="std/elf/elf.c"
 LIB="tests/lib/std-elf-write.sh"
-SMOKE_SU="tests/std-elf/write_roundtrip.su"
+SMOKE_SU="tests/std-elf/write_roundtrip.sx"
 SMOKE_C="tests/std-elf/write_smoke_ok.c"
 MIN_APIS=3
 
@@ -51,10 +51,10 @@ std_elf_write_run_c_smoke "$ELF_O" && C_OK=1 || exit 1
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_elf_write_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_elf_write_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

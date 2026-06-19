@@ -1,27 +1,27 @@
-# std.bytes
+# std.bytes — 动态字节缓冲
 
-动态字节缓冲 `Bytes`、读游标 `BytesReader`、写游标 `BytesWriter`。
+**模块路径**：`std/bytes/mod.sx`（纯 .sx，依赖 std.heap/string/mem）  
+**对标**：Zig ArrayList(u8)、Go bytes.Buffer、Rust Vec<u8>。
 
-## 依赖
+## API 概览
 
-- `std.heap` — 默认堆分配（`alloc_u8` / `realloc_u8` / `free_u8`）；Arena 见 STD-155
-- `std.string` — `StrView` 零拷贝互转
-- `std.mem` — `Buffer` IO 桥接
+### Bytes 容器
 
-## 分配策略
+- `bytes_new` / `bytes_with_capacity` / `bytes_from_slice` / `bytes_from_view`
+- `bytes_append_byte` / `bytes_append_slice` / `bytes_clear` / `bytes_deinit`
+- `bytes_from_external` — Arena/外部切片绑定（STD-155，不拥有内存）
 
-| 路径 | API | 释放 |
-|------|-----|------|
-| **堆（默认）** | `bytes_new` / `bytes_append_*` | `bytes_deinit` |
-| **Arena 外部** | `bytes_from_external` + 预 bump slab | `bytes_deinit`（no-op free）+ `arena64_deinit` |
+### 游标
 
-常量：`BYTES_OWN_HEAP` / `BYTES_OWN_EXTERNAL`；`bytes_is_owned`；`recommend_bytes_alloc` / `recommend_bytes_alloc_arena`。
+- `reader_new` / `reader_read` / `reader_seek` / `reader_remaining`
+- `writer_new` / `writer_write` / `writer_remaining_cap`
 
-RFC：`analysis/std-bytes-v1.md`（STD-072）· `analysis/std-bytes-arena-v1.md`（STD-155）
+### 互操作
 
-## Gate
+- `bytes_as_view` — 零拷贝 StrView
+- `bytes_as_buffer` — 转 std.mem.Buffer（IO 桥接）
+- `bytes_eq` — 等长字节比较（1/0）
 
-```bash
-./tests/run-std-bytes-gate.sh          # STD-072
-./tests/run-std-bytes-arena-gate.sh    # STD-155 Arena
-```
+## 测试
+
+- `bash tests/run-std-bytes-gate.sh`

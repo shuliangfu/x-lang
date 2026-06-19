@@ -10,21 +10,21 @@ ci_banner_wpo_strict	wpo strict link gate	wpo	wpo_strict_link	10	CI banner
 ci_banner_wpo_glue	wpo strict_glue text	wpo	wpo_strict_link	11	CI banner
 ci_banner_stage2	M5 B-strict Stage2	selfhost	stage2_bstrict	10	CI banner
 ci_banner_asm_73	asm compute gate	asm	asm_73	10	CI banner
-ci_banner_shu_asm	run-shu-asm-gate	compile	shu_asm_gate	15	CI banner
+ci_banner_shux_asm	run-shux-asm-gate	compile	shux_asm_gate	15	CI banner
 ci_banner_run_all	run-all-bstrict	run	run_all_bstrict	10	CI banner
 ci_banner_bstrict_build	bootstrap-driver-bstrict	build	bstrict_build	5	CI banner
 ci_banner_strict_smoke	strict smoke gate	build	strict_smoke	8	CI banner
 ci_banner_verify	bootstrap-verify	selfhost	verify_semantic	10	CI banner
-err_preprocess	preprocess error:|#if.*unclosed|#endif without	preprocess	shu_asm_gate	20	preprocess 条件编译
-err_lexer	lex(er)? error|lexer error	lexer	shu_asm_gate	20	lexer 词法
+err_preprocess	preprocess error:|#if.*unclosed|#endif without	preprocess	shux_asm_gate	20	preprocess 条件编译
+err_lexer	lex(er)? error|lexer error	lexer	shux_asm_gate	20	lexer 词法
 err_parser	parse error at|parser error|parser-second-pass gate FAIL|parser thin glue.*FAIL|mega bisect.*FAIL|parse count.*FAIL	parser	parser_second_pass	20	parser 语法/emit
-err_typeck	typeck error:|\.su pipeline type check failed	typeck	shu_asm_gate	20	typeck 类型
-err_codegen	codegen error:|failed to emit function	codegen	shu_asm_gate	25	codegen 发射
+err_typeck	typeck error:|\.sx pipeline type check failed	typeck	shux_asm_gate	20	typeck 类型
+err_codegen	codegen error:|failed to emit function	codegen	shux_asm_gate	25	codegen 发射
 err_asm_backend	asm-73.*FAIL|cfg-merge|SIGSEGV.*asm|__text.*EMPTY|check_asm_o_quality	asm	asm_73	22	asm 后端
-err_import	cannot open import	import	shu_asm_gate	30	import 解析（pipeline）
+err_import	cannot open import	import	shux_asm_gate	30	import 解析（pipeline）
 err_link	ld: |undefined symbol|duplicate symbol|linker command failed	link	bstrict_build	15	链接
-err_build_bstrict	pipeline_gen\.c|B-strict link must not|experimental fallback|shu_asm not built	build	bstrict_build	8	B-strict 构建
+err_build_bstrict	pipeline_gen\.c|B-strict link must not|experimental fallback|shux_asm not built	build	bstrict_build	8	B-strict 构建
 err_build_make	make(\[.*\])?: \*\*\*|Error [0-9]+	build	bstrict_build	50	generic make
-err_selfhost_stage2	stage2.*FAIL|verify-selfhost-stage2|shu_asm2	selfhost	stage2_bstrict	18	Stage2 自举
-err_wpo	wpo.*gate FAIL|wpo strict link|SHU_WPO	wpo	wpo_strict_link	18	WPO 链
+err_selfhost_stage2	stage2.*FAIL|verify-selfhost-stage2|shux_asm2	selfhost	stage2_bstrict	18	Stage2 自举
+err_wpo	wpo.*gate FAIL|wpo strict link|SHUX_WPO	wpo	wpo_strict_link	18	WPO 链
 err_run_test	run-.*FAIL|test FAILED|expected.*got	run	run_all_bstrict	35	运行/回归

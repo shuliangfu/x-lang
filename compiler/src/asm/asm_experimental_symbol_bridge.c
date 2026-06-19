@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 
-struct shulang_slice_uint8_t {
+struct shux_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };
@@ -23,24 +23,24 @@ extern int32_t entry(int32_t argc, uint8_t *argv);
 /** runtime.c 完整编译驱动（-o / -backend asm 等）；实验链无 driver_su.o 时作 main_run_compiler_c 兜底。 */
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t *argv);
 
-/** main.o 链入时其强符号 entry 覆盖本 weak 实现；未链 main.o 时转 runtime run_compiler_c（缺 run_compiler_su_path_impl 会 silent fail）。 */
+/** main.o 链入时其强符号 entry 覆盖本 weak 实现；未链 main.o 时转 runtime run_compiler_c（缺 run_compiler_sx_path_impl 会 silent fail）。 */
 __attribute__((weak)) int32_t entry(int32_t argc, uint8_t *argv) {
   extern int32_t run_compiler_c(int32_t, char **);
   return run_compiler_c(argc, (char **)argv);
 }
 
-/** driver_su.o 的 main_entry 引用；B-strict 未链 lsp_su.o 时弱桩。 */
+/** driver_su.o 的 main_entry 引用；B-strict 未链 lsp_sx.o 时弱桩。 */
 __attribute__((weak)) int32_t typeck_lsp_main(void) {
   return -1;
 }
 
-/** build_asm/main.o 导出 run_compiler_su_path_impl；driver/build.su 经 -E 期望 main_ 前缀。 */
+/** build_asm/main.o 导出 run_compiler_sx_path_impl；driver/build.sx 经 -E 期望 main_ 前缀。 */
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t *argv);
-__attribute__((weak)) int32_t run_compiler_su_path_impl(int32_t argc, uint8_t *argv) {
+__attribute__((weak)) int32_t run_compiler_sx_path_impl(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (uint8_t *)argv);
 }
 int32_t main_run_compiler_su_path_impl(int32_t argc, char **argv) {
-  return run_compiler_su_path_impl(argc, (uint8_t *)argv);
+  return run_compiler_sx_path_impl(argc, (uint8_t *)argv);
 }
 
 extern uint8_t *driver_argv_drop_subcommand(int32_t argc, uint8_t *argv);
@@ -52,7 +52,7 @@ extern int32_t driver_cmd_run(int32_t argc, uint8_t *argv);
 
 /**
  * B-strict：build_asm/main.o 为 ENTRY_MODULE_ONLY 桩时，在此路由 check/fmt/test/build/run 到 driver_*_su.o。
- * 与 main.su entry() 子命令语义一致（argc-1 + driver_argv_drop_subcommand）。
+ * 与 main.sx entry() 子命令语义一致（argc-1 + driver_argv_drop_subcommand）。
  */
 int32_t main_entry(int32_t argc, char **argv) {
   uint8_t *adj;
@@ -90,7 +90,7 @@ __attribute__((weak)) int32_t asm_codegen_elf_o(void *module, void *arena, void 
   return -1;
 }
 
-/** asm 模块导出名与 runtime 期望的 asm_asm_codegen_elf_o 对齐；pipeline_su.o 链入时由其强符号覆盖。 */
+/** asm 模块导出名与 runtime 期望的 asm_asm_codegen_elf_o 对齐；pipeline_sx.o 链入时由其强符号覆盖。 */
 __attribute__((weak)) int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
   return asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
 }
@@ -109,7 +109,7 @@ __attribute__((weak)) struct parser_ParseIntoResult parse_into_buf(void *arena, 
 }
 
 __attribute__((weak)) struct parser_ParseIntoResult parse_into(void *arena, void *module,
-                                                                 struct shulang_slice_uint8_t *source) {
+                                                                 struct shux_slice_uint8_t *source) {
   (void)source;
   return parse_into_buf(arena, module, NULL, 0);
 }
@@ -129,7 +129,7 @@ __attribute__((weak)) int32_t get_module_num_imports(void *module) {
   return 0;
 }
 
-/** pipeline.su 直调；强符号转发 parser.su（strict 无 parser_su.o 时由下方 weak 桩清零）。 */
+/** pipeline.sx 直调；强符号转发 parser.sx（strict 无 parser_sx.o 时由下方 weak 桩清零）。 */
 void parser_get_module_import_path(void *module, int32_t i, uint8_t *out);
 
 void get_module_import_path(void *module, int32_t i, uint8_t *out) {
@@ -144,7 +144,7 @@ __attribute__((weak)) void parser_get_module_import_path(void *module, int32_t i
 }
 
 /** build_asm/preprocess.o 有真实现时覆盖弱符号。 */
-__attribute__((weak)) int32_t preprocess_su_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+__attribute__((weak)) int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                                   int32_t out_cap) {
   (void)source_buf;
   (void)source_len;
@@ -153,7 +153,7 @@ __attribute__((weak)) int32_t preprocess_su_buf(uint8_t *source_buf, ptrdiff_t s
   return -1;
 }
 
-/** parser 裸名 → runtime 的 parser_ 前缀 API（pipeline_su.o 链入时弱符号被覆盖）。 */
+/** parser 裸名 → runtime 的 parser_ 前缀 API（pipeline_sx.o 链入时弱符号被覆盖）。 */
 __attribute__((weak)) void parser_parse_into_init(void *arena, void *module) {
   parse_into_init(module, arena);
 }
@@ -162,7 +162,7 @@ __attribute__((weak)) struct parser_ParseIntoResult parser_parse_into_buf(void *
   return parse_into_buf(arena, module, data, len);
 }
 
-__attribute__((weak)) struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shulang_slice_uint8_t *source) {
+__attribute__((weak)) struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source) {
   return parse_into(arena, module, source);
 }
 
@@ -174,13 +174,13 @@ __attribute__((weak)) int32_t parser_get_module_num_imports(void *module) {
   return get_module_num_imports(module);
 }
 
-/** pipeline.su 引用 preprocess.preprocess_su_buf；build_asm 导出 preprocess_su_buf。 */
-__attribute__((weak)) int32_t preprocess_preprocess_su_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+/** pipeline.sx 引用 preprocess.preprocess_sx_buf；build_asm 导出 preprocess_sx_buf。 */
+__attribute__((weak)) int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                      int32_t out_cap) {
-  return preprocess_su_buf((uint8_t *)source_buf, source_len, out_buf, out_cap);
+  return preprocess_sx_buf((uint8_t *)source_buf, source_len, out_buf, out_cap);
 }
 
-/** asm.su import peephole.peephole_run → peephole_peephole_run；build_asm/peephole.o 提供强符号。 */
+/** asm.sx import peephole.peephole_run → peephole_peephole_run；build_asm/peephole.o 提供强符号。 */
 __attribute__((weak)) int32_t peephole_peephole_run(void *out) {
   (void)out;
   return 0;
@@ -207,31 +207,31 @@ __attribute__((weak)) int32_t asm_asm_codegen_ast(void *module, void *arena, voi
   return asm_codegen_ast(module, arena, out_buf, ctx);
 }
 
-/** build_asm/typeck.o 导出 typeck_su_ast*；orchestration 期望 typeck_typeck_su_ast*（pipeline_su 链入时由其强符号覆盖）。 */
-__attribute__((weak)) int32_t typeck_su_ast(void *module, void *arena, void *ctx) {
+/** build_asm/typeck.o 导出 typeck_sx_ast*；orchestration 期望 typeck_typeck_sx_ast*（pipeline_sx 链入时由其强符号覆盖）。 */
+__attribute__((weak)) int32_t typeck_sx_ast(void *module, void *arena, void *ctx) {
   (void)module;
   (void)arena;
   (void)ctx;
   return -1;
 }
 
-__attribute__((weak)) int32_t typeck_su_ast_library(void *module, void *arena, void *ctx) {
+__attribute__((weak)) int32_t typeck_sx_ast_library(void *module, void *arena, void *ctx) {
   (void)module;
   (void)arena;
   (void)ctx;
   return -1;
 }
 
-__attribute__((weak)) int32_t typeck_typeck_su_ast(void *module, void *arena, void *ctx) {
-  return typeck_su_ast(module, arena, ctx);
+__attribute__((weak)) int32_t typeck_typeck_sx_ast(void *module, void *arena, void *ctx) {
+  return typeck_sx_ast(module, arena, ctx);
 }
 
-__attribute__((weak)) int32_t typeck_typeck_su_ast_library(void *module, void *arena, void *ctx) {
-  return typeck_su_ast_library(module, arena, ctx);
+__attribute__((weak)) int32_t typeck_typeck_sx_ast_library(void *module, void *arena, void *ctx) {
+  return typeck_sx_ast_library(module, arena, ctx);
 }
 
 /** runtime 诊断路径；C parser 未导出时弱符号兜底。 */
-__attribute__((weak)) int32_t parser_diag_token_after_collect_imports(struct shulang_slice_uint8_t *source, void *module) {
+__attribute__((weak)) int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module) {
   (void)source;
   (void)module;
   return -1;
@@ -273,10 +273,10 @@ __attribute__((weak)) int32_t std_io_driver_driver_read_ptr_len(void *fd) {
 }
 
 /**
- * strict 链：pipeline codegen_deps/entry 在非 asm 分支引用 codegen_su_ast；
+ * strict 链：pipeline codegen_deps/entry 在非 asm 分支引用 codegen_sx_ast；
  * build_asm/codegen.o 未链入时 weak 桩（asm 后端走 asm_codegen_ast）。
  */
-__attribute__((weak)) int32_t codegen_su_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
+__attribute__((weak)) int32_t codegen_sx_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
   (void)module;
   (void)arena;
   (void)out_buf;
@@ -292,7 +292,7 @@ __attribute__((weak)) void typeck_merge_dep_struct_layouts_into_entry(void *modu
   (void)ctx;
 }
 
-/** pipeline.su import 前缀名；typeck_su.o 链入时强符号覆盖。 */
+/** pipeline.sx import 前缀名；typeck_su.o 链入时强符号覆盖。 */
 __attribute__((weak)) void typeck_typeck_merge_dep_struct_layouts_into_entry(void *module, void *arena, void *ctx) {
   typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
 }
@@ -310,7 +310,7 @@ __attribute__((weak)) void typeck_typeck_wpo_unify_soa_layouts(void *entry, void
 /**
  * strict 链：parse_into_with_init_buf 经 import ast 引用 ast_ast_arena_init；
  * build_asm/ast.o 未链入、ast_seed 仅 C 种子时，由本 weak 桥接转发 ast_arena_init；
- * pipeline_su.o / build_asm/ast.o 链入时强符号覆盖。
+ * pipeline_sx.o / build_asm/ast.o 链入时强符号覆盖。
  */
 extern void ast_arena_init(void *arena);
 

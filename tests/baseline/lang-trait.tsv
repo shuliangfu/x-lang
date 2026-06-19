@@ -15,9 +15,9 @@ layer_t5	layers	T5-error-no-impl	analysis/lang-trait-v1.md	error	no impl
 layer_t6	layers	T6-self-dispatch	analysis/lang-trait-v1.md	self	首参
 sym_find_trait	symbol	find_trait_def	compiler/src/typeck/typeck.c	typeck	查找
 sym_method_call	symbol	no impl for type	compiler/src/typeck/typeck.c	typeck	方法
-case_call	case	case_method_call	tests/trait/main.su	stable	exit42
-case_no_impl	case	case_no_impl	tests/trait/method_no_impl.su	typeck	no impl
-case_missing	case	case_missing_method	tests/trait/impl_missing_method.su	typeck	missing
+case_call	case	case_method_call	tests/trait/main.sx	stable	exit42
+case_no_impl	case	case_no_impl	tests/trait/method_no_impl.sx	typeck	no impl
+case_missing	case	case_missing_method	tests/trait/impl_missing_method.sx	typeck	missing
 gate	script	run-lang-trait-gate.sh	tests/run-lang-trait-gate.sh	-	manifest
 hook_trait	hook_script	run-lang-trait.sh	run-lang-trait.sh	-	烟测
 hook_minimal	hook_script	run-trait.sh	run-trait.sh	-	Double

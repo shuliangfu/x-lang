@@ -5,7 +5,7 @@
 #   lang_result_generic_check MANIFEST
 #   lang_result_generic_emit_report status golden_ok typeck_ok skip
 
-LANG_RESULT_GENERIC_PREFIX="${SHU_LANG010_PREFIX:-shu: [SHU_LANG010_RESULT_GENERIC]}"
+LANG_RESULT_GENERIC_PREFIX="${SHUX_LANG010_PREFIX:-shux: [SHUX_LANG010_RESULT_GENERIC]}"
 
 # 校验 manifest；echo 缺失数。
 lang_result_generic_check() {

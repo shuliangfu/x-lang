@@ -4,29 +4,29 @@
 set -e
 cd "$(dirname "$0")/.."
 
-if [ -n "$SHU" ]; then
+if [ -n "$SHUX" ]; then
   :
-elif [ -x ./compiler/shu ]; then
-  SHU=./compiler/shu
-elif [ -x ./compiler/shu-c ]; then
-  SHU=./compiler/shu-c
+elif [ -x ./compiler/shux ]; then
+  SHUX=./compiler/shux
+elif [ -x ./compiler/shux-c ]; then
+  SHUX=./compiler/shux-c
 else
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  SHU=./compiler/shu-c
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  SHUX=./compiler/shux-c
 fi
 
-# shu_asm 实验链 -o 链接 slice 字段 codegen 不完整；非 x86_64 须 shu-c 避免 asm x86_64 .o。
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+# shux_asm 实验链 -o 链接 slice 字段 codegen 不完整；非 x86_64 须 shux-c 避免 asm x86_64 .o。
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 
-$RUN_SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
-ec=0; /tmp/shu_slice_data_field >/dev/null 2>&1 || ec=$?
+$RUN_SHUX tests/slice/data_field.sx -o /tmp/shux_slice_data_field 2>&1
+ec=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (slice data_field), got $ec"; exit 1; }
 
-$RUN_SHU tests/slice/main.su -o /tmp/shu_slice_main 2>&1
-ec=0; /tmp/shu_slice_main >/dev/null 2>&1 || ec=$?
+$RUN_SHUX tests/slice/main.sx -o /tmp/shux_slice_main 2>&1
+ec=0; /tmp/shux_slice_main >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 20 ] && { echo "expected exit 20 (slice main s[1]), got $ec"; exit 1; }
 
 echo "slice field OK"

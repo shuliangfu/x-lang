@@ -1,11 +1,11 @@
 # SAFE-002 严格 extern 清单（小模块全量锁定）
 # Format: source_file<TAB>extern_symbol
 # 新增 extern 须更新本表 + SAFE-003 审计（上线后）
-std/ffi/mod.su	ffi_cstr_len_c
-std/ffi/mod.su	ffi_cstring_new_c
-std/ffi/mod.su	ffi_cstring_free_c
-std/runtime/mod.su	runtime_panic
-std/runtime/mod.su	runtime_abort
-std/dynlib/mod.su	dynlib_open_c
-std/dynlib/mod.su	dynlib_sym_c
-std/dynlib/mod.su	dynlib_close_c
+std/ffi/mod.sx	ffi_cstr_len_c
+std/ffi/mod.sx	ffi_cstring_new_c
+std/ffi/mod.sx	ffi_cstring_free_c
+std/runtime/mod.sx	runtime_panic
+std/runtime/mod.sx	runtime_abort
+std/dynlib/mod.sx	dynlib_open_c
+std/dynlib/mod.sx	dynlib_sym_c
+std/dynlib/mod.sx	dynlib_close_c

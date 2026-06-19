@@ -3,46 +3,46 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
-$SHU tests/vector/i32x4.su -o /tmp/shu_vec_i32x4 2>&1
+$SHUX tests/vector/i32x4.sx -o /tmp/shux_vec_i32x4 2>&1
 exitcode=0
-/tmp/shu_vec_i32x4 >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_i32x4 >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: i32x4 expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/u32x4_lit.su -o /tmp/shu_vec_u32 2>&1
+$SHUX tests/vector/u32x4_lit.sx -o /tmp/shux_vec_u32 2>&1
 exitcode=0
-/tmp/shu_vec_u32 >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_u32 >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: u32x4_lit expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/vec_add.su -o /tmp/shu_vec_add 2>&1
+$SHUX tests/vector/vec_add.sx -o /tmp/shux_vec_add 2>&1
 exitcode=0
-/tmp/shu_vec_add >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_add >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/vec_add_check.su -o /tmp/shu_vec_add_check 2>&1
+$SHUX tests/vector/vec_add_check.sx -o /tmp/shux_vec_add_check 2>&1
 exitcode=0
-/tmp/shu_vec_add_check >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_add_check >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_check expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/vec_add_lit.su -o /tmp/shu_vec_add_lit 2>&1
+$SHUX tests/vector/vec_add_lit.sx -o /tmp/shux_vec_add_lit 2>&1
 exitcode=0
-/tmp/shu_vec_add_lit >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_add_lit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_lit expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/vec_copy.su -o /tmp/shu_vec_copy 2>&1
+$SHUX tests/vector/vec_copy.sx -o /tmp/shux_vec_copy 2>&1
 exitcode=0
-/tmp/shu_vec_copy >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_copy >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_copy expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/vec_add_verify.su -o /tmp/shu_vec_add_verify 2>&1
+$SHUX tests/vector/vec_add_verify.sx -o /tmp/shux_vec_add_verify 2>&1
 exitcode=0
-/tmp/shu_vec_add_verify >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_add_verify >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: vec_add_verify expected exit 0, got $exitcode"; exit 1; }
 
-$SHU tests/vector/i32x16.su -o /tmp/shu_vec_i32x16 2>&1
+$SHUX tests/vector/i32x16.sx -o /tmp/shux_vec_i32x16 2>&1
 exitcode=0
-/tmp/shu_vec_i32x16 >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_vec_i32x16 >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-vector FAIL: i32x16 expected exit 0, got $exitcode"; exit 1; }
 
 echo "vector test OK"

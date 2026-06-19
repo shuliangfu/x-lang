@@ -1,17 +1,17 @@
 # CORE-014 core 全模块 manifest 注册表
 # 列：module_id	manifest	mod_path	kind	sub_gate
 min_modules	11
-core.types	tests/baseline/core-types-generic-layout.tsv	core/types/mod.su	feature	run-core-types-i16-u16-gate.sh
-core.mem	tests/baseline/core-mem-api.tsv	core/mem/mod.su	api	run-core-mem-intrinsic-gate.sh
-core.option	tests/baseline/core-option-result.tsv	core/option/mod.su	feature	run-core-option-result-gate.sh
-core.result	tests/baseline/core-option-result.tsv	core/result/mod.su	feature	run-core-option-result-gate.sh
-core.slice	tests/baseline/core-slice-api.tsv	core/slice/mod.su	feature	run-core-slice-api-gate.sh
-core.fmt	tests/baseline/core-fmt-api.tsv	core/fmt/mod.su	api	run-core-fmt-f64-special-gate.sh
-core.builtin	tests/baseline/core-builtin-api.tsv	core/builtin/mod.su	api	run-core-builtin-bitops-gate.sh
-core.debug	tests/baseline/core-debug-api.tsv	core/debug/mod.su	api	run-core-debug-assert-extend-gate.sh
-core.cmp	tests/baseline/core-cmp-ordering.tsv	core/cmp/mod.su	feature	run-core-cmp-ordering-gate.sh
-core.iterator	tests/baseline/core-iterator-protocol.tsv	core/iterator/mod.su	feature	run-core-iterator-protocol-gate.sh
-core.str	tests/baseline/core-str-view.tsv	core/str/mod.su	feature	run-core-str-view-gate.sh
+core.types	tests/baseline/core-types-generic-layout.tsv	core/types/mod.sx	feature	run-core-types-i16-u16-gate.sh
+core.mem	tests/baseline/core-mem-api.tsv	core/mem/mod.sx	api	run-core-mem-intrinsic-gate.sh
+core.option	tests/baseline/core-option-result.tsv	core/option/mod.sx	feature	run-core-option-result-gate.sh
+core.result	tests/baseline/core-option-result.tsv	core/result/mod.sx	feature	run-core-option-result-gate.sh
+core.slice	tests/baseline/core-slice-api.tsv	core/slice/mod.sx	feature	run-core-slice-api-gate.sh
+core.fmt	tests/baseline/core-fmt-api.tsv	core/fmt/mod.sx	api	run-core-fmt-f64-special-gate.sh
+core.builtin	tests/baseline/core-builtin-api.tsv	core/builtin/mod.sx	api	run-core-builtin-bitops-gate.sh
+core.debug	tests/baseline/core-debug-api.tsv	core/debug/mod.sx	api	run-core-debug-assert-extend-gate.sh
+core.cmp	tests/baseline/core-cmp-ordering.tsv	core/cmp/mod.sx	feature	run-core-cmp-ordering-gate.sh
+core.iterator	tests/baseline/core-iterator-protocol.tsv	core/iterator/mod.sx	feature	run-core-iterator-protocol-gate.sh
+core.str	tests/baseline/core-str-view.tsv	core/str/mod.sx	feature	run-core-str-view-gate.sh
 matrix_cross	file	tests/baseline/stdlib-check-matrix.tsv	BOOT-013 11 core
 doc	file	core-api-gate-v1.md	analysis/core-api-gate-v1.md	RFC
 gate	script	run-core-api-gate.sh	tests/run-core-api-gate.sh	manifest

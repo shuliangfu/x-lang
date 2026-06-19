@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_queue_conc_symbols_ok MOD_SU QUEUE_C TSV
-#   std_queue_conc_run_smoke SHU_BIN SU TAG
+#   std_queue_conc_run_smoke SHUX_BIN SU TAG
 #   std_queue_conc_emit_report status sync_ok main_ok smoke_ok skip
 
-STD_QUEUE_CONC_PREFIX="${SHU_STD_QUEUE_CONCURRENT_PREFIX:-shu: [SHU_STD_QUEUE_CONCURRENT]}"
+STD_QUEUE_CONC_PREFIX="${SHUX_STD_QUEUE_CONCURRENT_PREFIX:-shux: [SHUX_STD_QUEUE_CONCURRENT]}"
 
 std_queue_conc_symbols_ok() {
   local mod_su="$1"
@@ -53,17 +53,17 @@ std_queue_conc_symbols_ok() {
 }
 
 std_queue_conc_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_queue_conc_${tag}_$$"
+  local exe="/tmp/shux_std_queue_conc_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-queue-concurrent FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-queue-concurrent FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -82,7 +82,7 @@ std_queue_conc_run_smoke() {
 std_queue_conc_run_c_smoke() {
   local queue_c="$1"
   local src="tests/queue/sync_queue_contention_ok.c"
-  local out="/tmp/shu_sync_queue_contention_$$"
+  local out="/tmp/shux_sync_queue_contention_$$"
   local queue_o
   queue_o="$(dirname "$queue_c")/queue.o"
   if [ ! -f "$queue_o" ]; then

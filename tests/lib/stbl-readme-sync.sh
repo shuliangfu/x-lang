@@ -6,7 +6,7 @@
 #   stbl_readme_anchors_ok README TSV
 #   stbl_readme_emit_report status forbidden_miss anchor_miss
 
-STBL_README_PREFIX="${SHU_STBL_README_PREFIX:-shu: [SHU_STBL_README]}"
+STBL_README_PREFIX="${SHUX_STBL_README_PREFIX:-shux: [SHUX_STBL_README]}"
 
 # 扫描禁止措辞；命中返回 1 并 echo 命中数。
 stbl_readme_forbidden_ok() {

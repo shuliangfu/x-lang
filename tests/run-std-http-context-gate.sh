@@ -6,13 +6,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/http/mod.su"
+MOD_SU="std/http/mod.sx"
 HTTP_C="std/http/http.c"
-ERR_SU="std/error/mod.su"
-SMOKE="tests/http/context_get.su"
-SMOKE_TO="tests/http/context_connect_timeout.su"
+ERR_SU="std/error/mod.sx"
+SMOKE="tests/http/context_get.sx"
+SMOKE_TO="tests/http/context_connect_timeout.sx"
 SMOKE_C="tests/http/http_timeout_smoke.c"
-PREFIX="shu: [SHU_STD094_HTTP_CTX]"
+PREFIX="shux: [SHUX_STD094_HTTP_CTX]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -71,7 +71,7 @@ ensure_std_c_o ../std/http/http.o
 
 C_OK=0
 echo "=== STD-095: C timeout smoke ==="
-c_exe="/tmp/shu_std095_http_to_$$"
+c_exe="/tmp/shux_std095_http_to_$$"
 if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/http/http.o 2>/dev/null; then
   set +e
   "$c_exe" >/dev/null 2>&1
@@ -88,25 +88,25 @@ else
   exit 1
 fi
 
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
 SU_OK=0
 SKIP=0
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-094/095: smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-094/095: smoke (SHUX=$SHUX_BIN) ==="
   for su in "$SMOKE" "$SMOKE_TO"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "http-context gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       exit 1
     fi
-    exe="/tmp/shu_std094_http_ctx_$$_${su##*/}"
-    if ! "$SHU_BIN" -L . "$su" -o "$exe" >/dev/null 2>&1; then
+    exe="/tmp/shux_std094_http_ctx_$$_${su##*/}"
+    if ! "$SHUX_BIN" -L . "$su" -o "$exe" >/dev/null 2>&1; then
       echo "http-context gate FAIL: compile $su" >&2
       exit 1
     fi
@@ -122,7 +122,7 @@ if [ -n "$SHU_BIN" ]; then
   done
   SU_OK=1
 else
-  echo "http-context gate SKIP .su (no native shu)" >&2
+  echo "http-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

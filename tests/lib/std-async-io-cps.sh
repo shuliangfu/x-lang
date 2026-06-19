@@ -3,11 +3,11 @@
 #
 # 用法（source 后）：
 #   std_async_io_cps_symbols_ok MOD_SU IO_SU SCHED_C IO_C TSV
-#   std_async_io_cps_run_smoke SHU_BIN SU TAG
-#   std_async_io_cps_check_emit SHU_BIN SU
-#   std_async_io_cps_emit_report status align_ok emit_ok skip
+#   std_async_io_cps_run_smoke SHUX_BIN SU TAG
+#   std_async_io_cps_check_emit SHUX_BIN SU
+#   std_async_io_cps_emit_report status align_ok io_uring_ok emit_ok skip
 
-STD_ASYNC_IO_CPS_PREFIX="${SHU_STD_ASYNC_IO_CPS_PREFIX:-shu: [SHU_STD_ASYNC_IO_CPS]}"
+STD_ASYNC_IO_CPS_PREFIX="${SHUX_STD_ASYNC_IO_CPS_PREFIX:-shux: [SHUX_STD_ASYNC_IO_CPS]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_async_io_cps_symbols_ok() {
@@ -24,8 +24,8 @@ std_async_io_cps_symbols_ok() {
     case "$kind" in
       symbol)
         case "$mod_path" in
-          std/async/mod.su) mod_path="$mod_su" ;;
-          std/io/mod.su) mod_path="$io_su" ;;
+          std/async/mod.sx) mod_path="$mod_su" ;;
+          std/io/mod.sx) mod_path="$io_su" ;;
           std/async/scheduler.c) mod_path="$sched_c" ;;
           std/io/io.c) mod_path="$io_c" ;;
         esac
@@ -46,19 +46,19 @@ std_async_io_cps_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su。
+# 编译并运行烟测 .sx。
 std_async_io_cps_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_async_io_cps_${tag}_$$"
+  local exe="/tmp/shux_std_async_io_cps_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-async-io-cps FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-async-io-cps FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -76,24 +76,24 @@ std_async_io_cps_run_smoke() {
 
 # 检查 await IO emit 含 suspend_io + async submit。
 std_async_io_cps_check_emit() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
   if [ ! -f "$src" ]; then
     echo "std-async-io-cps FAIL: missing emit src $src" >&2
     return 1
   fi
-  if ! out="$("$shu" -E "$src" 2>&1)"; then
+  if ! out="$("$shux" -E "$src" 2>&1)"; then
     echo "std-async-io-cps FAIL: -E $src" >&2
     echo "$out" | tail -12 >&2
     return 1
   fi
-  if ! echo "$out" | grep -qF 'shu_async_cps_suspend_io'; then
-    echo "std-async-io-cps FAIL: emit missing shu_async_cps_suspend_io" >&2
+  if ! echo "$out" | grep -qF 'shux_async_cps_suspend_io'; then
+    echo "std-async-io-cps FAIL: emit missing shux_async_cps_suspend_io" >&2
     return 1
   fi
-  if ! echo "$out" | grep -qF 'shu_io_submit_read_async'; then
-    echo "std-async-io-cps FAIL: emit missing shu_io_submit_read_async" >&2
+  if ! echo "$out" | grep -qF 'shux_io_submit_read_async'; then
+    echo "std-async-io-cps FAIL: emit missing shux_io_submit_read_async" >&2
     return 1
   fi
   return 0
@@ -103,7 +103,8 @@ std_async_io_cps_check_emit() {
 std_async_io_cps_emit_report() {
   local status="$1"
   local align_ok="$2"
-  local emit_ok="$3"
-  local skip="$4"
-  echo "${STD_ASYNC_IO_CPS_PREFIX} status=${status} align=${align_ok} emit=${emit_ok} skip=${skip}"
+  local io_uring_ok="$3"
+  local emit_ok="$4"
+  local skip="$5"
+  echo "${STD_ASYNC_IO_CPS_PREFIX} status=${status} align=${align_ok} io_uring=${io_uring_ok} emit=${emit_ok} skip=${skip}"
 }

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# mega 7 项 bisect 扫描：逐项 SHU_ASM_PARSER_MEGA_BISECT=<name>，记录 ec 与 __text delta（track-only）。
+# mega 7 项 bisect 扫描：逐项 SHUX_ASM_PARSER_MEGA_BISECT=<name>，记录 ec 与 __text delta（track-only）。
 # 用法：
 #   ./tests/run-parser-mega-bisect-sweep-gate.sh
-#   SHU_PARSER_MEGA_BISECT_SWEEP_FAIL=1 ./tests/run-parser-mega-bisect-sweep-gate.sh
+#   SHUX_PARSER_MEGA_BISECT_SWEEP_FAIL=1 ./tests/run-parser-mega-bisect-sweep-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHU_PARSER_MEGA_BISECT_SWEEP_FAIL:-0}
-MIN_DELTA=${SHU_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
-BASELINE="${SHU_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
+FAIL=${SHUX_PARSER_MEGA_BISECT_SWEEP_FAIL:-0}
+MIN_DELTA=${SHUX_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
+BASELINE="${SHUX_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 MEGAS=(parse_into_buf parse_into parse parse_one_function_impl parse_expr_into parse_block_into parse_body_lets_into)
 
@@ -17,7 +17,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-COMP_IN="./shu_asm"
+COMP_IN="./shux_asm"
 if [ ! -x "compiler/$COMP_IN" ]; then
   echo "parser-mega-bisect-sweep-gate: SKIP (no compiler/$COMP_IN)"
   exit 0
@@ -33,16 +33,16 @@ text_bytes() {
 
 compile_one() {
   local name="$1"
-  local out="/tmp/shu_mega_sweep_${name}.$$.o"
+  local out="/tmp/shux_mega_sweep_${name}.$$.o"
   local ec text
   rm -f "$out" 2>/dev/null || true
   set +e
   (
     cd compiler
-    env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 \
-      SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
-      ${name:+SHU_ASM_PARSER_MEGA_BISECT=$name} \
-      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.su
+    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+      SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
+      ${name:+SHUX_ASM_PARSER_MEGA_BISECT=$name} \
+      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.sx
   ) >/dev/null 2>&1
   ec=$?
   set -e
@@ -59,7 +59,7 @@ echo "parser-mega-bisect-sweep-gate: baseline text=${BASE_TEXT}B ec=${BASE_EC}"
 
 TMP_BASELINE="/tmp/parser_mega_bisect_sweep.$$.tsv"
 {
-  echo "# parser mega bisect sweep (linux/amd64 experimental shu_asm)"
+  echo "# parser mega bisect sweep (linux/amd64 experimental shux_asm)"
   echo "baseline_text	${BASE_TEXT}"
   echo "min_delta_pass	${MIN_DELTA}"
 } > "$TMP_BASELINE"

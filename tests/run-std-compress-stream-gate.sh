@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_COMPRESS_STREAM_DOC:-analysis/std-compress-stream-v1.md}"
-MANIFEST="${SHU_STD_COMPRESS_STREAM_TSV:-tests/baseline/std-compress-stream.tsv}"
-MOD_SU="std/compress/mod.su"
-COMPRESS_C="std/compress/compress.c"
+DOC="${SHUX_STD_COMPRESS_STREAM_DOC:-analysis/std-compress-stream-v1.md}"
+MANIFEST="${SHUX_STD_COMPRESS_STREAM_TSV:-tests/baseline/std-compress-stream.tsv}"
+MOD_SU="std/compress/mod.sx"
+COMPRESS_C="std/compress/gzip/gzip.c"
 LIB="tests/lib/std-compress-stream.sh"
-STREAM_SU="tests/std-compress/gzip_stream_roundtrip.su"
+STREAM_SU="tests/std-compress/gzip_stream_roundtrip.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-compress-stream.sh
@@ -76,20 +76,20 @@ echo "std-compress-stream manifest OK"
 
 STREAM_OK=0
 SKIP=1
-if SHU_BIN="$(std_compress_resolve_shu)"; then
-  echo "=== STD-039: typeck + smoke (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(std_compress_resolve_shu)"; then
+  echo "=== STD-039: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   std_compress_try_libs
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/compress/compress.o
-  if ! "$SHU_BIN" check -L . "$STREAM_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$STREAM_SU" >/dev/null 2>&1; then
     echo "std-compress-stream gate FAIL: typeck $STREAM_SU" >&2
-    "$SHU_BIN" check -L . "$STREAM_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$STREAM_SU" 2>&1 | tail -10 >&2 || true
     std_compress_stream_emit_report "fail" 0 0
     exit 1
   fi
-  if std_compress_stream_run_smoke "$SHU_BIN" "$STREAM_SU" "gzip_stream"; then
+  if std_compress_stream_run_smoke "$SHUX_BIN" "$STREAM_SU" "gzip_stream"; then
     STREAM_OK=1
     SKIP=0
   else
@@ -97,7 +97,7 @@ if SHU_BIN="$(std_compress_resolve_shu)"; then
     exit 1
   fi
 else
-  echo "std-compress-stream gate SKIP smoke (no native shu)" >&2
+  echo "std-compress-stream gate SKIP smoke (no native shux)" >&2
 fi
 
 std_compress_stream_emit_report "ok" "$STREAM_OK" "$SKIP"

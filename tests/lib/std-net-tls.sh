@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_net_tls_symbols_ok MOD_SU NET_C TSV
-#   std_net_tls_run_smoke SHU_BIN SU TAG
+#   std_net_tls_run_smoke SHUX_BIN SU TAG
 #   std_net_tls_emit_report status stub_ok typeck_ok skip
 
-STD_NET_TLS_PREFIX="${SHU_STD_NET_TLS_PREFIX:-shu: [SHU_STD_NET_TLS]}"
+STD_NET_TLS_PREFIX="${SHUX_STD_NET_TLS_PREFIX:-shux: [SHUX_STD_NET_TLS]}"
 
 # 校验 manifest symbol/api/file；echo 缺失数。
 std_net_tls_symbols_ok() {
@@ -49,19 +49,19 @@ std_net_tls_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su（须已 ensure net.o）。
+# 编译并运行烟测 .sx（须已 ensure net.o）。
 std_net_tls_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_net_tls_${tag}_$$"
+  local exe="/tmp/shux_std_net_tls_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-net-tls FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-net-tls FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -79,7 +79,7 @@ std_net_tls_run_smoke() {
 
 # 探测本机是否可链 OpenSSL（libssl）。
 std_net_tls_probe_openssl() {
-  local out="/tmp/shu_net_tls_ssl_probe_$$"
+  local out="/tmp/shux_net_tls_ssl_probe_$$"
   if cc -std=c11 -x c - -lssl -lcrypto -o "$out" 2>/dev/null <<'EOF'
 #include <openssl/ssl.h>
 int main(void) { return OPENSSL_init_ssl(0, NULL) ? 0 : 1; }
@@ -116,7 +116,7 @@ EOF
 
 # 探测本机是否可链 mbedTLS。
 std_net_tls_probe_mbedtls() {
-  local out="/tmp/shu_net_tls_mb_probe_$$"
+  local out="/tmp/shux_net_tls_mb_probe_$$"
   if cc -std=c11 -I/opt/homebrew/opt/mbedtls/include -L/opt/homebrew/opt/mbedtls/lib \
     -x c - -lmbedtls -lmbedx509 -lmbedcrypto -o "$out" 2>/dev/null <<'EOF'
 #include "mbedtls/ssl.h"
@@ -170,7 +170,7 @@ std_net_tls_start_s_server() {
   local port="$2"
   local cert="$3"
   local key="$4"
-  local log="/tmp/shu_tls_s_server_$$.log"
+  local log="/tmp/shux_tls_s_server_$$.log"
   openssl s_server -accept "$port" -cert "$cert" -key "$key" -www \
     >/dev/null 2>"$log" &
   echo $! >"$pid_file"
@@ -195,7 +195,7 @@ std_net_tls_stop_s_server() {
 # C 烟测：tls_openssl_smoke_ok.c + net.o(OpenSSL) + libssl。
 std_net_tls_run_openssl_c_smoke() {
   local src="tests/net/tls_openssl_smoke_ok.c"
-  local out="/tmp/shu_net_tls_openssl_$$"
+  local out="/tmp/shux_net_tls_openssl_$$"
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_openssl_ldflags)"
@@ -208,7 +208,7 @@ std_net_tls_run_openssl_c_smoke() {
     echo "std-net-tls FAIL: compile openssl smoke" >&2
     return 1
   fi
-  SHU_TLS_SMOKE_PORT="${SHU_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
+  SHUX_TLS_SMOKE_PORT="${SHUX_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
   local ec=$?
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
@@ -221,7 +221,7 @@ std_net_tls_run_openssl_c_smoke() {
 # C 烟测：tls_mbedtls_smoke_ok.c + net.o(mbedTLS) + libmbedtls。
 std_net_tls_run_mbedtls_c_smoke() {
   local src="tests/net/tls_mbedtls_smoke_ok.c"
-  local out="/tmp/shu_net_tls_mbedtls_$$"
+  local out="/tmp/shux_net_tls_mbedtls_$$"
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_mbedtls_ldflags)"
@@ -234,7 +234,7 @@ std_net_tls_run_mbedtls_c_smoke() {
     echo "std-net-tls FAIL: compile mbedtls smoke" >&2
     return 1
   fi
-  SHU_TLS_SMOKE_PORT="${SHU_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
+  SHUX_TLS_SMOKE_PORT="${SHUX_TLS_SMOKE_PORT:-9876}" "$out" >/dev/null 2>&1
   local ec=$?
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
@@ -244,18 +244,18 @@ std_net_tls_run_mbedtls_c_smoke() {
   return 0
 }
 
-# 通过 shu-c 链接 OpenSSL net.o 并验证 tls_is_available（runtime 自动 -lssl）。
+# 通过 shux-c 链接 OpenSSL net.o 并验证 tls_is_available（runtime 自动 -lssl）。
 std_net_tls_runtime_link_smoke() {
-  local shu="$1"
-  local src="tests/net/tls_runtime_link_smoke.su"
-  local exe="/tmp/shu_net_tls_runtime_$$"
+  local shux="$1"
+  local src="tests/net/tls_runtime_link_smoke.sx"
+  local exe="/tmp/shux_net_tls_runtime_$$"
   if [ ! -f "$src" ]; then
     echo "std-net-tls FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-net-tls FAIL: runtime link compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

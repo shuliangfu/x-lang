@@ -1,21 +1,21 @@
 /**
- * parser_asm_seed_parse_into_buf_slice.c — seed ./shu 链 parse_into_buf / parse_into C 实现。
+ * parser_asm_seed_parse_into_buf_slice.c — seed ./shux 链 parse_into_buf / parse_into C 实现。
  *
- * 瘦 parser_su.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
- * 覆盖 parser_asm_link_alias.c 弱桩，供 runtime asm 后端 parse 任意 .su。
+ * 瘦 parser_sx.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
+ * 覆盖 parser_asm_link_alias.c 弱桩，供 runtime asm 后端 parse 任意 .sx。
  */
 #ifndef PARSER_ASM_SEED_PARSE_INTO_BUF_SLICE_INCLUDED
 #define PARSER_ASM_SEED_PARSE_INTO_BUF_SLICE_INCLUDED
 
 #include <string.h>
 
-/** 与 parser.su ParseIntoResult 布局一致。 */
+/** 与 parser.sx ParseIntoResult 布局一致。 */
 struct parser_asm_seed_parse_into_result {
   int32_t ok;
   int32_t main_idx;
 };
 
-/** SU Module 池头部（与 ast.su / pipeline_glue_types.inc 一致）。 */
+/** SU Module 池头部（与 ast.sx / pipeline_glue_types.inc 一致）。 */
 typedef struct {
   int32_t num_funcs;
   int32_t main_func_index;
@@ -24,6 +24,8 @@ typedef struct {
   int32_t num_struct_layouts;
   int32_t pending_allow_padding;
   int32_t pending_soa_struct;
+  int32_t pending_cfg_skip;
+  int32_t pending_repr_c_struct;
   int32_t num_module_enums;
 } parser_asm_su_module_hdr_t;
 
@@ -331,6 +333,9 @@ extern void parser_skip_one_impl_into_buf_glue(struct parser_asm_lexer *out, str
                                                uint8_t *data, int32_t len);
 extern void parser_skip_one_function_full_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                         uint8_t *data, int32_t len);
+/** B-01/B-19：跳过一条顶层 const 声明（含 const import）。 */
+extern void parser_skip_one_top_level_const_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                           uint8_t *data, int32_t len);
 extern void parser_parse_one_top_level_let_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
                                                      struct parser_asm_slice_u8 *source, int32_t is_const,
                                                      struct parser_asm_top_level_let_result *out);
@@ -378,7 +383,7 @@ extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
 extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
 
-/** []u8 slice 路径与 shulang_slice_uint8_t 布局一致。 */
+/** []u8 slice 路径与 shux_slice_uint8_t 布局一致。 */
 struct parser_asm_seed_slice_u8 {
   uint8_t *data;
   size_t length;
@@ -466,7 +471,7 @@ static int32_t parser_asm_seed_is_main_name_c(const uint8_t *name, int32_t name_
 }
 
 /**
- * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回）；与 parser.su parser_expr_wrap_in_return 一致。
+ * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回）；与 parser.sx parser_expr_wrap_in_return 一致。
  */
 static int32_t parser_asm_seed_expr_wrap_in_return_c(void *arena, int32_t type_ref, int32_t inner_ref) {
   int32_t wrap;
@@ -1515,12 +1520,56 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
         lex.pos++;
       continue;
     }
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_CFG) {
+      mod_hdr->pending_cfg_skip = (r.tok.int_val == 0) ? 1 : 0;
+      parser_lex_from_next_into_glue(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+        lex.pos++;
+      continue;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_REPR_C) {
+      mod_hdr->pending_repr_c_struct = 1;
+      parser_lex_from_next_into_glue(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+        lex.pos++;
+      continue;
+    }
+    if (mod_hdr->pending_cfg_skip) {
+      if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
+        parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
+        mod_hdr->pending_cfg_skip = 0;
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+        continue;
+      }
+      if (r.tok.kind == (int32_t)TOKEN_CONST) {
+        parser_skip_one_top_level_const_into_buf_glue(&lex, iter_start, data, len);
+        mod_hdr->pending_cfg_skip = 0;
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+        continue;
+      }
+      if (r.tok.kind == (int32_t)TOKEN_FUNCTION || func_is_async ||
+          r.tok.kind == (int32_t)TOKEN_EXTERN) {
+        parser_skip_one_function_full_into_buf_glue(&lex, iter_start, data, len);
+        mod_hdr->pending_cfg_skip = 0;
+        func_is_async = 0;
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+        continue;
+      }
+      mod_hdr->pending_cfg_skip = 0;
+    }
     if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
       struct parser_asm_lexer out_lex;
       int32_t ap = mod_hdr->pending_allow_padding;
       int32_t ps = mod_hdr->pending_soa_struct;
+      int32_t pr = mod_hdr->pending_repr_c_struct;
       mod_hdr->pending_allow_padding = 0;
       mod_hdr->pending_soa_struct = 0;
+      mod_hdr->pending_repr_c_struct = 0;
+      if (pr)
+        ap = 1;
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_record_layout_body_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(lex, data, len));
@@ -1755,15 +1804,35 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       if (!res.ok)
         parser_asm_parse_one_function_buf_into_c(&res, lex_at_function, data, len);
       if (!res.ok) {
+        /* 与 parser.sx parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
+        {
+          uint8_t skip_name[64];
+          int32_t skip_nlen =
+              parser_parse_peek_function_name_buf_glue(lex_at_function, data, len, skip_name);
+          driver_diagnostic_parse_skip_function((int32_t)lex_at_function.pos, mod_hdr->num_funcs, skip_nlen,
+                                                skip_name);
+        }
         parser_skip_one_function_full_into_buf_glue(&lex, lex_at_function, data, len);
         if (lex.pos == lex_at_function.pos && lex.pos < (size_t)len)
           lex.pos++;
         continue;
       }
       if (parser_asm_seed_commit_onefunc_c(arena, module, &res, func_is_async, &main_idx, &lex) != 0) {
-        out.ok = -1;
-        out.main_idx = -1;
-        return out;
+        /* 与 parse skip 一致：commit 失败跳过该函数并继续，避免 typeck 等大模块在 ~47 func 处整文件 abort。 */
+        {
+          uint8_t cname[64];
+          int32_t cnlen = res.name_len > 0 ? res.name_len : 0;
+          if (cnlen > 63)
+            cnlen = 63;
+          if (cnlen > 0)
+            memcpy(cname, res.name, (size_t)cnlen);
+          cname[cnlen > 0 ? cnlen : 0] = '\0';
+          driver_diagnostic_parse_commit_fail((int32_t)lex_at_function.pos, mod_hdr->num_funcs, cnlen, cname);
+        }
+        parser_skip_one_function_full_into_buf_glue(&lex, lex_at_function, data, len);
+        if (lex.pos == lex_at_function.pos && lex.pos < (size_t)len)
+          lex.pos++;
+        continue;
       }
     }
   }
@@ -1801,6 +1870,13 @@ struct parser_asm_seed_parse_into_result parser_parse_into(void *arena, void *mo
 
 /** parse_into_set_main_index：写 module.main_func_index。 */
 extern void pipeline_module_set_main_func_index(void *m, int32_t idx);
+/** parse_into_buf 跳过/commit 失败时 stderr 诊断（SHUX_DEBUG_PARSE=1）；与 parser.sx / runtime.c 一致。 */
+extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                  const uint8_t *name);
+extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                const uint8_t *name);
+extern int32_t parser_parse_peek_function_name_buf_glue(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                      uint8_t *out);
 
 void parse_into_set_main_index(void *module, int32_t main_idx) {
   pipeline_module_set_main_func_index(module, main_idx);

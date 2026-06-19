@@ -1,6 +1,6 @@
 # std.fmt — 格式化与标准输出
 
-**模块路径**：`std/fmt/mod.su`  
+**模块路径**：`std/fmt/mod.sx`  
 **依赖**：core.fmt、std.io。  
 **对标**：Zig std.fmt、Rust std::fmt。
 
@@ -19,6 +19,8 @@
 - `fmt_u64_hex_to_buf(buf, cap, u): i32` — 将 u64 写为十六进制小写。
 - `fmt_append_i32_to_buf(buf, cap, off, x): i32` — 从 buf[off] 起追加 i32 十进制，返回新偏移或 -1。
 - `fmt_append_i64_to_buf(buf, cap, off, x): i32` — 从 buf[off] 起追加 i64 十进制。
+- `fmt_usize_to_buf` / `fmt_isize_to_buf` — usize/isize 十进制写入。
+- `format_template_1_i32(buf, cap, pat, pat_len, val): i32` — 单 `{}` 占位模板（STD-166）。
 - `placeholder(): i32` — 占位，表示模块可 import。
 
 ### 标准输出（委托 std.io，零拷贝）

@@ -5,7 +5,7 @@
 #   std_joa_symbols_ok JSON_SU JSON_C TSV
 #   std_joa_emit_report status oa_ok skip
 
-STD_JOA_PREFIX="${SHU_STD_JSON_OBJECT_ARRAY_PREFIX:-shu: [SHU_STD_JSON_OBJECT_ARRAY]}"
+STD_JOA_PREFIX="${SHUX_STD_JSON_OBJECT_ARRAY_PREFIX:-shux: [SHUX_STD_JSON_OBJECT_ARRAY]}"
 
 # 校验 manifest；echo 缺失数，成功返回 0。
 std_joa_symbols_ok() {

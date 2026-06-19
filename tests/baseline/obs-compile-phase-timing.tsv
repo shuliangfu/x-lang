@@ -1,8 +1,8 @@
 # OBS-001 编译阶段耗时 manifest
 # 列：item_id	kind	anchor	notes
 # min_items	6
-env_var	SHU_COMPILE_PHASE_TIMING	SHU_COMPILE_PHASE_TIMING	非空启用
-output_prefix	stderr_line	shu: [SHU_COMPILE_PHASE_TIMING]	grep 锚点
+env_var	SHUX_COMPILE_PHASE_TIMING	SHUX_COMPILE_PHASE_TIMING	非空启用
+output_prefix	stderr_line	shux: [SHUX_COMPILE_PHASE_TIMING]	grep 锚点
 field_parse	output_field	parse_ms=	阶段 0
 field_typeck	output_field	typeck_ms=	阶段 1
 field_codegen	output_field	codegen_ms=	阶段 2
@@ -10,5 +10,5 @@ field_total	output_field	total_ms=	三阶段之和
 impl_begin	runtime_fn	driver_compile_phase_timing_begin	runtime.c
 impl_end	runtime_fn	driver_compile_phase_timing_end	runtime.c
 impl_flush	runtime_fn	driver_compile_phase_timing_flush	runtime.c
-pipeline_hook	pipeline_fn	run_su_pipeline_impl	pipeline.su 编排
-smoke_fixture	check	tests/bench/loop_i32.su	native shu 烟测
+pipeline_hook	pipeline_fn	run_sx_pipeline_impl	pipeline.sx 编排
+smoke_fixture	check	tests/bench/loop_i32.sx	native shux 烟测

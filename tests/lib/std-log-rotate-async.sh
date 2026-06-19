@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-log-rotate-async.sh — STD-106 manifest 与烟测辅助
 
-STD_LOG_ROTATE_ASYNC_PREFIX="${SHU_STD106_LOG_ROTATE_ASYNC_PREFIX:-shu: [SHU_STD106_LOG_ROTATE_ASYNC]}"
+STD_LOG_ROTATE_ASYNC_PREFIX="${SHUX_STD106_LOG_ROTATE_ASYNC_PREFIX:-shux: [SHUX_STD106_LOG_ROTATE_ASYNC]}"
 
 # 校验 manifest 中 api/symbol/file。
 std_log_rotate_async_symbols_ok() {
@@ -40,15 +40,15 @@ std_log_rotate_async_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
-std_log_rotate_async_run_su_smoke() {
-  local shu="$1"
+# 编译并运行 .sx 烟测。
+std_log_rotate_async_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
   local tag="${3:-rotate}"
-  local exe="/tmp/shu_std_log_ra_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_log_ra_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-log-rotate-async FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -68,7 +68,7 @@ std_log_rotate_async_run_su_smoke() {
 std_log_rotate_async_run_c_smoke() {
   local log_c="$1"
   local src="tests/std-log/rotate_async_smoke_ok.c"
-  local out="/tmp/shu_std_log_rotate_async_$$"
+  local out="/tmp/shux_std_log_rotate_async_$$"
   local log_o
   log_o="$(dirname "$log_c")/log.o"
   if [ ! -f "$log_o" ]; then

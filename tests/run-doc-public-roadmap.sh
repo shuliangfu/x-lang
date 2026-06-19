@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # DOC-005：对外路线图季度 runner
 #
-# 校验文档当季版本与 manifest 一致，并输出 SHU_DOC_ROADMAP 报告。
+# 校验文档当季版本与 manifest 一致，并输出 SHUX_DOC_ROADMAP 报告。
 #
 # 用法：./tests/run-doc-public-roadmap.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
-MANIFEST="${SHU_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
+DOC="${SHUX_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
+MANIFEST="${SHUX_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
 
 # shellcheck source=tests/lib/doc-public-roadmap.sh

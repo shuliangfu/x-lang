@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-base64-stream.sh — STD-109 manifest 与烟测辅助
 
-STD_BASE64_STREAM_PREFIX="${SHU_STD109_BASE64_STREAM_PREFIX:-shu: [SHU_STD109_BASE64_STREAM]}"
+STD_BASE64_STREAM_PREFIX="${SHUX_STD109_BASE64_STREAM_PREFIX:-shux: [SHUX_STD109_BASE64_STREAM]}"
 
 # 校验 manifest 中 api/symbol/file。
 std_base64_stream_symbols_ok() {
@@ -40,15 +40,15 @@ std_base64_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
-std_base64_stream_run_su_smoke() {
-  local shu="$1"
+# 编译并运行 .sx 烟测。
+std_base64_stream_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
   local tag="${3:-stream}"
-  local exe="/tmp/shu_std_b64_stream_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_b64_stream_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-base64-stream FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -68,7 +68,7 @@ std_base64_stream_run_su_smoke() {
 std_base64_stream_run_c_smoke() {
   local b64_c="$1"
   local src="tests/std-base64/stream_smoke_ok.c"
-  local out="/tmp/shu_std_base64_stream_$$"
+  local out="/tmp/shux_std_base64_stream_$$"
   local b64_o
   b64_o="$(dirname "$b64_c")/base64.o"
   if [ ! -f "$b64_o" ]; then

@@ -85,7 +85,7 @@ wpo_s2_darwin_skip_exe_run() {
   esac
 }
 
-# Linux ARM64 / Windows MSYS2 lite refresh shu_asm：asm 产出不可用；WPO asm 由 Linux x86_64 承担。
+# Linux ARM64 / Windows MSYS2 lite refresh shux_asm：asm 产出不可用；WPO asm 由 Linux x86_64 承担。
 wpo_host_asm_run_na() {
   case "$(uname -s 2>/dev/null)" in
     MINGW*|MSYS*) return 0 ;;

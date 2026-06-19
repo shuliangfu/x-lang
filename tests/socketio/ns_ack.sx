@@ -1,0 +1,50 @@
+/**
+ * STD-SOCKETIO-001 烟测：namespace CONNECT / ACK / 带 id EVENT v6。
+ */
+const sio = import("std.socketio");
+
+function main(): i32 {
+  if (sio.ns_ack_smoke() != 0) {
+    return 1;
+  }
+
+  let ns: [8]u8 = [47, 99, 104, 97, 116, 0];
+  let pkt: [32]u8 = [];
+  let n: i32 = sio.encode_connect_ns_packet(&ns[0], 5, &pkt[0], 32);
+  if (n != 8) {
+    return 2;
+  }
+  if (sio.server_is_connect_ns_packet(&pkt[0], n, &ns[0], 5) != 1) {
+    return 3;
+  }
+
+  let ev: [8]u8 = [112, 105, 110, 103, 0];
+  let data: [8]u8 = [112, 111, 110, 103, 0];
+  n = sio.encode_event_ack_packet(7, &ev[0], 4, &data[0], 4, &pkt[0], 32);
+  if (n <= 10) {
+    return 4;
+  }
+
+  let stype: i32 = -1;
+  let sid: i32 = -1;
+  let poff: i32 = 0;
+  if (sio.parse_sio_packet_head(&pkt[1], n - 1, &stype, &sid, &poff) != 0) {
+    return 5;
+  }
+  if (stype != sio.sio_type_event() || sid != 7) {
+    return 6;
+  }
+
+  n = sio.encode_ack_packet(9, &data[0], 4, &pkt[0], 32);
+  if (n <= 6) {
+    return 7;
+  }
+  if (sio.parse_sio_packet_head(&pkt[1], n - 1, &stype, &sid, &poff) != 0) {
+    return 8;
+  }
+  if (stype != sio.sio_type_ack() || sid != 9) {
+    return 9;
+  }
+
+  return 0;
+}

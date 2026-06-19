@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-test-executable.sh — STD-143 manifest 与烟测辅助
 
-STD143_PREFIX="${SHU_STD143_TEST_EXECUTABLE_PREFIX:-shu: [SHU_STD143_TEST_EXECUTABLE]}"
+STD143_PREFIX="${SHUX_STD143_TEST_EXECUTABLE_PREFIX:-shux: [SHUX_STD143_TEST_EXECUTABLE]}"
 
 # 校验 manifest；echo 缺失数。
 std_test_executable_symbols_ok() {
@@ -52,16 +52,16 @@ std_test_executable_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 bench_fuzz_exec；校验 stderr 含 SHU_BENCH。
+# 编译并运行 bench_fuzz_exec；校验 stderr 含 SHUX_BENCH。
 std_test_executable_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local test_o="$3"
-  local exe="/tmp/shu_std_test_exec_$$"
-  local err="/tmp/shu_std_test_exec_err_$$.log"
-  if ! "$shu" -L . "$src" -o "$exe" "$test_o" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_test_exec_$$"
+  local err="/tmp/shux_std_test_exec_err_$$.log"
+  if ! "$shux" -L . "$src" -o "$exe" "$test_o" >/dev/null 2>&1; then
     echo "std-test-executable FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" "$test_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$test_o" 2>&1 | tail -12 >&2 || true
     rm -f "$exe" "$err"
     return 1
   fi
@@ -76,7 +76,7 @@ std_test_executable_run_smoke() {
     echo "std-test-executable FAIL: run exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shu: [SHU_BENCH] name=loop' "$err" 2>/dev/null; then
+  if ! grep -qF 'shux: [SHUX_BENCH] name=loop' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-test-executable FAIL: missing bench report" >&2

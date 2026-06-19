@@ -1,5 +1,5 @@
 # STD-053 金样向量
 # 列：vector_id	expect_substr	notes
 human_file	[INFO] sink_ok	人类行落盘
-structured_file	shu: level=info component=std_log_smoke	结构化行
+structured_file	shux: level=info component=std_log_smoke	结构化行
 level_filter	filtered	低于 min 不出现（烟测反例）

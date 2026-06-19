@@ -1,8 +1,8 @@
 # Cursor 索引/上下文忽略（.cursor 不忽略，以便读取规则）
 
 # --- 构建产物 ---
-shu
-compiler/shu
+shux
+compiler/shux
 *.exe
 *.out
 *.o
@@ -39,7 +39,7 @@ node_modules/
 *~
 .project
 .settings/
-*.sublime-*
+*.sxblime-*
 
 # --- 系统与临时 ---
 .DS_Store

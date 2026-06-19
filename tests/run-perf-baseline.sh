@@ -2,8 +2,8 @@
 # 阶段 8 性能基线：编译 perf-baseline 用例并以 time 多次运行，输出耗时便于对比与防回退
 # 用法：./tests/run-perf-baseline.sh [--bench]  # --bench 额外跑 tests/bench（需本机 cc；zig 可选）
 # 门禁：
-#   SHU_PERF_FAIL_ON_ZIG=1 — default asm 中位数 ≤ Zig -O2（无 zig 则跳过该项）
-#   SHU_PERF_FAIL_ON_C_O3=1 — default asm 中位数 ≤ SHU_PERF_C_O3_RATIO× C -O3（B-CMP/L2；无 cc 则跳过）
+#   SHUX_PERF_FAIL_ON_ZIG=1 — default asm 中位数 ≤ Zig -O2（无 zig 则跳过该项）
+#   SHUX_PERF_FAIL_ON_C_O3=1 — default asm 中位数 ≤ SHUX_PERF_C_O3_RATIO× C -O3（B-CMP/L2；无 cc 则跳过）
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
@@ -12,30 +12,30 @@ make -C compiler -q 2>/dev/null || make -C compiler
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh"
 
-# CI make all 产出 C-only shu；perf 编译统一用 shu-c。
-PERF_COMPILE_SHU=./compiler/shu
-if [ -x ./compiler/shu-c ]; then
-  PERF_COMPILE_SHU=./compiler/shu-c
+# CI make all 产出 C-only shux；perf 编译统一用 shux-c。
+PERF_COMPILE_SHUX=./compiler/shux
+if [ -x ./compiler/shux-c ]; then
+  PERF_COMPILE_SHUX=./compiler/shux-c
 fi
 
-PERF_SU="tests/perf-baseline/main.su"
-OUT="/tmp/shu_perf_baseline"
-RUNS=${SHU_PERF_BASELINE_RUNS:-3}
-[ "${SHU_PERF_FAIL_ON_C_O3:-0}" = "1" ] && RUNS=${SHU_PERF_BASELINE_RUNS:-9}
+PERF_SU="tests/perf-baseline/main.sx"
+OUT="/tmp/shux_perf_baseline"
+RUNS=${SHUX_PERF_BASELINE_RUNS:-3}
+[ "${SHUX_PERF_FAIL_ON_C_O3:-0}" = "1" ] && RUNS=${SHUX_PERF_BASELINE_RUNS:-9}
 DO_BENCH=0
 PERF_ZIG_FAILS=0
 PERF_C_O3_FAILS=0
 PERF_BCMP_ASM_FAILS=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHU_PERF_FAIL_ON_ZIG:-0}" = "1" ] && PERF_FAIL_ZIG=1 || PERF_FAIL_ZIG=0
-[ "${SHU_PERF_FAIL_ON_C_O3:-0}" = "1" ] && PERF_FAIL_C_O3=1 || PERF_FAIL_C_O3=0
-[ "${SHU_PERF_BCMP_ASM:-0}" = "1" ] && PERF_BCMP_ASM=1 || PERF_BCMP_ASM=0
-C_O3_RATIO="${SHU_PERF_C_O3_RATIO:-0.95}"
+[ "${SHUX_PERF_FAIL_ON_ZIG:-0}" = "1" ] && PERF_FAIL_ZIG=1 || PERF_FAIL_ZIG=0
+[ "${SHUX_PERF_FAIL_ON_C_O3:-0}" = "1" ] && PERF_FAIL_C_O3=1 || PERF_FAIL_C_O3=0
+[ "${SHUX_PERF_BCMP_ASM:-0}" = "1" ] && PERF_BCMP_ASM=1 || PERF_BCMP_ASM=0
+C_O3_RATIO="${SHUX_PERF_C_O3_RATIO:-0.95}"
 STRETCH_ASM_ONLY=0
-[ "${SHU_PERF_STRETCH_ASM_ONLY:-0}" = "1" ] && STRETCH_ASM_ONLY=1
+[ "${SHUX_PERF_STRETCH_ASM_ONLY:-0}" = "1" ] && STRETCH_ASM_ONLY=1
 # B-CMP 须与 C -O3 同级优化；默认 bench 仍 -O2（Zig 对照）。
-SHU_BENCH_OPT="${SHU_BENCH_OPT:-2}"
-[ "${SHU_PERF_FAIL_ON_C_O3:-0}" = "1" ] && SHU_BENCH_OPT=3
+SHUX_BENCH_OPT="${SHUX_BENCH_OPT:-2}"
+[ "${SHUX_PERF_FAIL_ON_C_O3:-0}" = "1" ] && SHUX_BENCH_OPT=3
 
 # B-CMP 用 cc 旗标与 invoke_cc -O3 对齐（march=native + NDEBUG）。
 bcmp_cc_o3() {
@@ -48,11 +48,11 @@ bcmp_compile_shu_codegen() {
   local out="$2"
   local tag="$3"
   local gen_c="/tmp/bench_shu_gen_${tag}.c"
-  SHU_DEBUG_C=1 "$PERF_COMPILE_SHU" -O "$SHU_BENCH_OPT" "$su" -o "/tmp/bench_shu_link_${tag}" >/dev/null 2>&1 || return 1
-  if [ ! -f /tmp/shu_debug.c ]; then
+  SHUX_DEBUG_C=1 "$PERF_COMPILE_SHUX" -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_link_${tag}" >/dev/null 2>&1 || return 1
+  if [ ! -f /tmp/shux_debug.c ]; then
     return 1
   fi
-  grep -v 'shulang_process' /tmp/shu_debug.c > "$gen_c"
+  grep -v 'shux_process' /tmp/shux_debug.c > "$gen_c"
   bcmp_cc_o3 "$gen_c" -o "$out"
 }
 
@@ -78,15 +78,15 @@ median_real() {
   echo "$med"
 }
 
-# 跑单个 bench 用例：name + .su/.c/.zig 基名（不含扩展名），打印 median 表
+# 跑单个 bench 用例：name + .sx/.c/.zig 基名（不含扩展名），打印 median 表
 bench_case() {
   local name="$1"
   local base="$2"
-  local su="${base}.su"
+  local su="${base}.sx"
   local c="${base}.c"
   local zig="${base}.zig"
-  local SHU_ASM_MED="nan"
-  local SHU_C_MED="nan"
+  local SHUX_ASM_MED="nan"
+  local SHUX_C_MED="nan"
   local C_MED="nan"
   local C_O3_MED="nan"
   local ZIG_MED="nan"
@@ -95,42 +95,42 @@ bench_case() {
 
   echo "=== tests/bench/${name} ==="
 
-  if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$PERF_COMPILE_SHU" = "./compiler/shu-c" ]; then
+  if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$PERF_COMPILE_SHUX" = "./compiler/shux-c" ]; then
     if bcmp_compile_shu_codegen "$su" "/tmp/bench_shu_${tag}" "$tag" 2>&1; then
       :
     else
-      $PERF_COMPILE_SHU -O "$SHU_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
+      $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
     fi
   else
-    $PERF_COMPILE_SHU -O "$SHU_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
+    $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
   fi
   if [ -x "/tmp/bench_shu_${tag}" ]; then
-    SHU_ASM_MED=$(median_real "/tmp/bench_shu_${tag}")
-    echo "Shu (-O${SHU_BENCH_OPT}) ${name} median real: ${SHU_ASM_MED}s"
+    SHUX_ASM_MED=$(median_real "/tmp/bench_shu_${tag}")
+    echo "Shu (-O${SHUX_BENCH_OPT}) ${name} median real: ${SHUX_ASM_MED}s"
   fi
 
-  if [ "$PERF_COMPILE_SHU" != "./compiler/shu-c" ] \
-    && $PERF_COMPILE_SHU -O "$SHU_BENCH_OPT" "$su" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
+  if [ "$PERF_COMPILE_SHUX" != "./compiler/shux-c" ] \
+    && $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_shu_c_${tag}" ]; then
-    SHU_C_MED=$(median_real "/tmp/bench_shu_c_${tag}")
-    echo "Shu (-backend c) ${name} median real: ${SHU_C_MED}s"
-  elif [ "$PERF_COMPILE_SHU" = "./compiler/shu-c" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    SHU_C_MED="$SHU_ASM_MED"
+    SHUX_C_MED=$(median_real "/tmp/bench_shu_c_${tag}")
+    echo "Shu (-backend c) ${name} median real: ${SHUX_C_MED}s"
+  elif [ "$PERF_COMPILE_SHUX" = "./compiler/shux-c" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    SHUX_C_MED="$SHUX_ASM_MED"
   fi
 
-  if [ -x compiler/shu_asm ]; then
+  if [ -x compiler/shux_asm ]; then
     # B-CMP-ASM：Linux 上 nostdlib 静态链，避免全量 std 链拖慢 microbench（S4 freestanding）。
     asm_bcmp_env=()
     if [ "$PERF_BCMP_ASM" -eq 1 ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
-      asm_bcmp_env=(env SHU_FREESTANDING=1)
+      asm_bcmp_env=(env SHUX_FREESTANDING=1)
     fi
-    if "${asm_bcmp_env[@]}" compiler/shu_asm -O "$SHU_BENCH_OPT" "$su" -o "/tmp/bench_asm_${tag}" 2>&1 \
+    if "${asm_bcmp_env[@]}" compiler/shux_asm -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_asm_${tag}" 2>&1 \
       && [ -x "/tmp/bench_asm_${tag}" ]; then
       ASM_MED=$(median_real "/tmp/bench_asm_${tag}")
       if [ "${#asm_bcmp_env[@]}" -gt 0 ]; then
-        echo "Shu asm (-O${SHU_BENCH_OPT}, freestanding) ${name} median real: ${ASM_MED}s"
+        echo "Shu asm (-O${SHUX_BENCH_OPT}, freestanding) ${name} median real: ${ASM_MED}s"
       else
-        echo "Shu asm (-O${SHU_BENCH_OPT}) ${name} median real: ${ASM_MED}s"
+        echo "Shu asm (-O${SHUX_BENCH_OPT}) ${name} median real: ${ASM_MED}s"
       fi
     fi
   fi
@@ -156,53 +156,53 @@ bench_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (-O%s) | %s |\n' "$SHU_BENCH_OPT" "$SHU_ASM_MED"
-  printf '| Shu (-backend c, -O%s) | %s |\n' "$SHU_BENCH_OPT" "$SHU_C_MED"
-  printf '| Shu asm (-O%s) | %s |\n' "$SHU_BENCH_OPT" "$ASM_MED"
+  printf '| Shu (-O%s) | %s |\n' "$SHUX_BENCH_OPT" "$SHUX_ASM_MED"
+  printf '| Shu (-backend c, -O%s) | %s |\n' "$SHUX_BENCH_OPT" "$SHUXXX_C_MED"
+  printf '| Shu asm (-O%s) | %s |\n' "$SHUX_BENCH_OPT" "$ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| C -O3 | %s |\n' "$C_O3_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
   # P2 门禁：default asm 中位数须 ≤ Zig -O2（zig 不可用时跳过）
-  if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    if awk -v shu="$SHU_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shu <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "perf gate OK: ${name} Shu asm ${SHU_ASM_MED}s <= Zig ${ZIG_MED}s"
+  if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    if awk -v shux="$SHUX_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shux <= zig + 0.000001) ? 0 : 1 }'; then
+      echo "perf gate OK: ${name} Shu asm ${SHUX_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "perf gate FAIL: ${name} Shu asm ${SHU_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "perf gate FAIL: ${name} Shu asm ${SHUX_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_ZIG_FAILS=$((PERF_ZIG_FAILS + 1))
     fi
   fi
 
   # L2 B-CMP：Shu -O3 中位数须 ≤ ratio× C -O3（cc 不可用时跳过）
-  if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$C_O3_MED" != "nan" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    if awk -v shu="$SHU_ASM_MED" -v c="$C_O3_MED" -v r="$C_O3_RATIO" 'BEGIN {
+  if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$C_O3_MED" != "nan" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    if awk -v shux="$SHUX_ASM_MED" -v c="$C_O3_MED" -v r="$C_O3_RATIO" 'BEGIN {
       slack = (r + 0 >= 0.999) ? 0.002 : 0
-      exit (shu <= c * r + slack + 0.000001) ? 0 : 1
+      exit (shux <= c * r + slack + 0.000001) ? 0 : 1
     }'; then
-      echo "perf B-CMP OK: ${name} Shu -O${SHU_BENCH_OPT} ${SHU_ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
+      echo "perf B-CMP OK: ${name} Shu -O${SHUX_BENCH_OPT} ${SHUX_ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
     else
-      echo "perf B-CMP FAIL: ${name} Shu -O${SHU_BENCH_OPT} ${SHU_ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
+      echo "perf B-CMP FAIL: ${name} Shu -O${SHUX_BENCH_OPT} ${SHUX_ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
       PERF_C_O3_FAILS=$((PERF_C_O3_FAILS + 1))
     fi
   fi
 
-  # L2 B-CMP（shu_asm 原生后端）：须 ≤ ratio× C -O3（SHU_PERF_BCMP_ASM=1 且 shu_asm 可用时）
+  # L2 B-CMP（shux_asm 原生后端）：须 ≤ ratio× C -O3（SHUX_PERF_BCMP_ASM=1 且 shux_asm 可用时）
   if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$PERF_BCMP_ASM" -eq 1 ] && [ "$C_O3_MED" != "nan" ] && [ "$ASM_MED" != "nan" ]; then
-    if awk -v shu="$ASM_MED" -v c="$C_O3_MED" -v r="$C_O3_RATIO" 'BEGIN {
+    if awk -v shux="$ASM_MED" -v c="$C_O3_MED" -v r="$C_O3_RATIO" 'BEGIN {
       slack = (r + 0 >= 0.999) ? 0.002 : 0
-      exit (shu <= c * r + slack + 0.000001) ? 0 : 1
+      exit (shux <= c * r + slack + 0.000001) ? 0 : 1
     }'; then
-      echo "perf B-CMP-ASM OK: ${name} shu_asm -O${SHU_BENCH_OPT} ${ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
+      echo "perf B-CMP-ASM OK: ${name} shux_asm -O${SHUX_BENCH_OPT} ${ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
     else
-      echo "perf B-CMP-ASM FAIL: ${name} shu_asm -O${SHU_BENCH_OPT} ${ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
+      echo "perf B-CMP-ASM FAIL: ${name} shux_asm -O${SHUX_BENCH_OPT} ${ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
       PERF_BCMP_ASM_FAILS=$((PERF_BCMP_ASM_FAILS + 1))
     fi
   fi
 }
 
-echo "=== 性能基线（Shulang）==="
-$PERF_COMPILE_SHU "$PERF_SU" -o "$OUT" 2>&1
+echo "=== 性能基线（Shux）==="
+$PERF_COMPILE_SHUX "$PERF_SU" -o "$OUT" 2>&1
 if [ ! -f "$OUT" ]; then
   echo "编译失败，无产物" >&2
   exit 1
@@ -228,7 +228,7 @@ if [ "$DO_BENCH" -eq 1 ]; then
     exit 1
   fi
   if [ "$PERF_BCMP_ASM" -eq 1 ] && [ "$PERF_BCMP_ASM_FAILS" -gt 0 ]; then
-    echo "perf baseline FAIL: ${PERF_BCMP_ASM_FAILS} case(s) shu_asm slower than ${C_O3_RATIO}× C -O3 (B-CMP-ASM)" >&2
+    echo "perf baseline FAIL: ${PERF_BCMP_ASM_FAILS} case(s) shux_asm slower than ${C_O3_RATIO}× C -O3 (B-CMP-ASM)" >&2
     exit 1
   fi
 fi

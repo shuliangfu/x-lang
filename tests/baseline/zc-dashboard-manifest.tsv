@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 min_metrics	8
 min_history_days	2
-output_prefix	bracket_component	SHU_ZC_DASHBOARD	stderr 前缀
+output_prefix	bracket_component	SHUX_ZC_DASHBOARD	stderr 前缀
 field_metric	output_field	metric=	指标 id
 field_value	output_field	value=	当前值
 field_trend	output_field	trend=	sparkline

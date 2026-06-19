@@ -2,12 +2,12 @@
 # 列：bench_id	su_file	policy	expect	notes
 # min_benches	9
 # min_p0_benches	3
-bench_var_fast	binop_var_fast.su	asm	143	run-asm-binop-var
-bench_index_lit	binop_index_lit_fast.su	asm	75	run-asm-binop-index-lit
-bench_loop	loop_i32.su	bcmp	-	C-O3
-bench_call	call_boundary.su	bcmp	-	depth
-bench_struct	struct_param.su	bcmp	-	byval
-bench_peephole	binop_block_swap_add.su	disasm	-	no round-trip
-bench_field_p0	binop_field_index_fast.su	asm	205	run-asm-binop-field-index
-bench_nested_p0	binop_nested_var_return.su	asm	20	run-asm-binop-nested-var
-bench_div_index_p0	binop_div_index_binop.su	asm	2	run-asm-binop-div-index
+bench_var_fast	binop_var_fast.sx	asm	143	run-asm-binop-var
+bench_index_lit	binop_index_lit_fast.sx	asm	75	run-asm-binop-index-lit
+bench_loop	loop_i32.sx	bcmp	-	C-O3
+bench_call	call_boundary.sx	bcmp	-	depth
+bench_struct	struct_param.sx	bcmp	-	byval
+bench_peephole	binop_block_swap_add.sx	disasm	-	no round-trip
+bench_field_p0	binop_field_index_fast.sx	asm	205	run-asm-binop-field-index
+bench_nested_p0	binop_nested_var_return.sx	asm	20	run-asm-binop-nested-var
+bench_div_index_p0	binop_div_index_binop.sx	asm	2	run-asm-binop-div-index

@@ -5,7 +5,7 @@
 #   placeholder_count_repo
 #   placeholder_emit_report status count max
 
-PH_INV_PREFIX="${SHU_PLACEHOLDER_INV_PREFIX:-shu: [SHU_PLACEHOLDER_INV]}"
+PH_INV_PREFIX="${SHUX_PLACEHOLDER_INV_PREFIX:-shux: [SHUX_PLACEHOLDER_INV]}"
 
 # 统计仓库内 function placeholder() 定义数（不含 bad_path_placeholder 等）。
 placeholder_count_repo() {

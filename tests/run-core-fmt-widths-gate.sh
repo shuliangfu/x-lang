@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_FMT_WIDTHS_DOC:-analysis/core-fmt-widths-v1.md}"
-MANIFEST="${SHU_CORE_FMT_WIDTHS_TSV:-tests/baseline/core-fmt-widths.tsv}"
-FMT_SU="core/fmt/mod.su"
+DOC="${SHUX_CORE_FMT_WIDTHS_DOC:-analysis/core-fmt-widths-v1.md}"
+MANIFEST="${SHUX_CORE_FMT_WIDTHS_TSV:-tests/baseline/core-fmt-widths.tsv}"
+FMT_SU="core/fmt/mod.sx"
 LIB="tests/lib/core-fmt-widths.sh"
-SMOKE="tests/fmt/widths.su"
+SMOKE="tests/fmt/widths.sx"
 
 # shellcheck source=tests/lib/core-fmt-widths.sh
 . tests/lib/core-fmt-widths.sh
@@ -50,7 +50,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -62,23 +62,23 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-010: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-010: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "core-fmt-widths gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_fmt_widths_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if $RUN_SHU -L . "$SMOKE" -o /tmp/shu_core_fmt_widths 2>/tmp/shu_core_fmt_widths_build.log; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_core_fmt_widths 2>/tmp/shux_core_fmt_widths_build.log; then
     exitcode=0
-    /tmp/shu_core_fmt_widths >/dev/null 2>&1 || exitcode=$?
+    /tmp/shux_core_fmt_widths >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -88,11 +88,11 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "core-fmt-widths gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shu_core_fmt_widths_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/shux_core_fmt_widths_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "core-fmt-widths gate SKIP typeck (no native shu)" >&2
+  echo "core-fmt-widths gate SKIP typeck (no native shux)" >&2
 fi
 
 core_fmt_widths_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

@@ -6,7 +6,7 @@
 #   boot_link_contract_verify_makefile MAKEFILE TSV
 #   boot_link_contract_emit_report status always_ok on_demand_ok smoke_ok skip
 
-BOOT_LINK_PREFIX="${SHU_BOOT_STD_LINK_CONTRACT_PREFIX:-shu: [SHU_BOOT_STD_LINK_CONTRACT]}"
+BOOT_LINK_PREFIX="${SHUX_BOOT_STD_LINK_CONTRACT_PREFIX:-shux: [SHUX_BOOT_STD_LINK_CONTRACT]}"
 
 # 校验 runtime.c 含 getter 与 obj_rel；on_demand/freestanding 含 trigger。
 # echo 缺失数；成功返回 0。
@@ -78,11 +78,11 @@ boot_link_contract_verify_makefile() {
 
 # 编译并运行链接烟测；成功返回 0。
 boot_link_contract_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local su="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shu" -L . "$su" -o "$out" >/tmp/boot_link_smoke.log 2>&1; then
+  if ! "$shux" -L . "$su" -o "$out" >/tmp/boot_link_smoke.log 2>&1; then
     cat /tmp/boot_link_smoke.log >&2
     return 1
   fi

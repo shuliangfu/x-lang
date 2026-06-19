@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_thread_pool_symbols_ok MOD_SU THREAD_C TSV
-#   std_thread_pool_run_smoke SHU_BIN SU TAG
+#   std_thread_pool_run_smoke SHUX_BIN SU TAG
 #   std_thread_pool_emit_report status pool_ok name_ok main_ok skip
 
-STD_THREAD_POOL_PREFIX="${SHU_STD_THREAD_POOL_PREFIX:-shu: [SHU_STD_THREAD_POOL]}"
+STD_THREAD_POOL_PREFIX="${SHUX_STD_THREAD_POOL_PREFIX:-shux: [SHUX_STD_THREAD_POOL]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_thread_pool_symbols_ok() {
@@ -47,19 +47,19 @@ std_thread_pool_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su（须链 thread.o + -lpthread）。
+# 编译并运行烟测 .sx（须链 thread.o + -lpthread）。
 std_thread_pool_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_thread_pool_${tag}_$$"
+  local exe="/tmp/shux_std_thread_pool_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-thread-pool FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-thread-pool FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -1,0 +1,51 @@
+/**
+ * STD-SOCKETIO-001 烟测：Engine.IO polling 服务端 open 响应 v2。
+ */
+const sio = import("std.socketio");
+
+function main(): i32 {
+  if (sio.server_smoke() != 0) {
+    return 1;
+  }
+
+  let sid: [8]u8 = [108, 105, 118, 101, 49, 0];
+  let path_ok: [48]u8 = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52,
+    38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
+  if (sio.server_is_polling_handshake(&path_ok[0], 35) != 1) {
+    return 2;
+  }
+
+  let pkt: [4]u8 = [52, 48, 0];
+  if (sio.server_is_connect_packet(&pkt[0], 2) != 1) {
+    return 3;
+  }
+
+  let http: [256]u8 = [];
+  let n: i32 = sio.server_build_http_open_response(&sid[0], 5, &http[0], 256);
+  if (n <= 80) {
+    return 4;
+  }
+
+  let sid_out: [8]u8 = [];
+  let has_ws: i32 = 0;
+  if (sio.polling_handshake_parse(&http[0], n, &sid_out[0], 8, &has_ws) != 5) {
+    return 5;
+  }
+  if (sid_out[0] != 108 || has_ws != 1) {
+    return 6;
+  }
+
+  if (sio.server_emit_smoke() != 0) {
+    return 7;
+  }
+
+  let ev: [8]u8 = [110, 101, 119, 115, 0];
+  let payload: [8]u8 = [117, 112, 100, 97, 116, 101, 0];
+  let evt_http: [256]u8 = [];
+  let en: i32 = sio.server_build_http_event_response(&ev[0], 4, &payload[0], 6, &evt_http[0], 256);
+  if (en <= 40) {
+    return 8;
+  }
+
+  return 0;
+}

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_FEATURE_DOC:-analysis/lang-feature-gate-v1.md}"
-MANIFEST="${SHU_LANG_FEATURE_MANIFEST:-tests/baseline/lang-feature-gate.tsv}"
-CATALOG="${SHU_LANG_FEATURE_CATALOG:-tests/baseline/lang-feature-catalog.tsv}"
+DOC="${SHUX_LANG_FEATURE_DOC:-analysis/lang-feature-gate-v1.md}"
+MANIFEST="${SHUX_LANG_FEATURE_MANIFEST:-tests/baseline/lang-feature-gate.tsv}"
+CATALOG="${SHUX_LANG_FEATURE_CATALOG:-tests/baseline/lang-feature-catalog.tsv}"
 MIN_GATES=6
 MIN_CASES=2
 MIN_SYMBOLS=3
@@ -17,8 +17,8 @@ MIN_SYMBOLS=3
 
 echo "=== LANG-001: feature gate manifest ==="
 for f in "$DOC" "$MANIFEST" "$CATALOG" docs/01-关键字.md \
-  compiler/src/runtime.c scripts/shu-lang-edition.sh \
-  tests/lang-feature/edition_stable.su tests/lang-feature/feature_match.su; do
+  compiler/src/runtime.c scripts/shux-lang-edition.sh \
+  tests/lang-feature/edition_stable.sx tests/lang-feature/feature_match.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-feature-gate gate FAIL: missing $f" >&2
     exit 1
@@ -138,7 +138,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "lang-feature-gate manifest OK (gates=${GATE_N} cases=${CASE_N} symbols=${SYM_N})"
 
-chmod +x scripts/shu-lang-edition.sh tests/run-lang-feature-gate.sh
+chmod +x scripts/shux-lang-edition.sh tests/run-lang-feature-gate.sh
 ./tests/run-lang-feature-gate.sh
 
 echo "lang-feature-gate gate OK"

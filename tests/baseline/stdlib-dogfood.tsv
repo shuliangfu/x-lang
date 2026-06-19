@@ -1,5 +1,5 @@
-# BOOT-017 std/core 单模块 shu check 中位数上限（秒）；median ≤ 本列
-# 更新：SHU_BOOT017_UPDATE_BASELINE=1 SHU_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
+# BOOT-017 std/core 单模块 shux check 中位数上限（秒）；median ≤ 本列
+# 更新：SHUX_BOOT017_UPDATE_BASELINE=1 SHUX_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
 # 列：module_id	ceiling_s	tier
 core.builtin	0.0280	core
 core.debug	0.0273	core

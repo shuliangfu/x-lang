@@ -38,17 +38,14 @@ resolve_module_file = _m.resolve_module_file
 IMPORT_BINDING_LINE = _m.IMPORT_BINDING_LINE
 
 SELECT_IMPORT_LINE = re.compile(
-    r'^(\s*)const\s+\{\s*([^}]+)\s*\}\s*=\s*import\s*\(\s*"([^"]+)"\s*\)\s*;\s*$'
+    r'^(\s*)const\s+\{\s*([^}]+)\s*\}\s*=\s*import\s*\(\s*"([^"]+)"\s*\)\s*;\s*$',
+    re.MULTILINE,
 )
 
-# 刻意保留解构语法的测试（语言仍支持，但仓库默认绑定）
-SKIP_FILES = {
-    ROOT / "tests/import/const_select.su",
-    ROOT / "tests/import/select_type_smoke.su",
-}
+# 仓库已统一为绑定 import（与 Zig @import 一致）
+SKIP_FILES: set[Path] = set()
 
-# typeck 暂不支持 std.error 的绑定 import，保留解构
-SKIP_IMPORT_PATHS = {"std.error"}
+SKIP_IMPORT_PATHS: set[str] = set()
 
 
 def parse_select_syms(raw: str) -> list[str]:
@@ -56,34 +53,62 @@ def parse_select_syms(raw: str) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def collect_imports(lines: list[str]) -> tuple[dict[str, str], dict[str, set[str]], list[int]]:
+def collect_imports(text: str) -> tuple[dict[str, str], dict[str, set[str]], list[tuple[int, int]]]:
     """
-    扫描 import 行。
-    返回 (path→bind, path→select符号集, 待删解构行号列表)。
+    扫描 import 行（含多行解构）。
+    返回 (path→bind, path→select符号集, (start,end) 待替换行区间列表)。
     """
+    lines = text.splitlines(keepends=True)
     path_bind: dict[str, str] = {}
     path_syms: dict[str, set[str]] = {}
-    select_line_idxs: list[int] = []
+    select_spans: list[tuple[int, int]] = []
 
-    for i, line in enumerate(lines):
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         bm = IMPORT_BINDING_LINE.match(line.rstrip("\n\r"))
         if bm:
             bind, path = bm.group(1), bm.group(2)
             path_bind[path] = bind
             path_syms.setdefault(path, set())
+            i += 1
             continue
+        stripped = line.lstrip()
+        if stripped.startswith("const {") and "import(" not in line:
+            # 多行解构：合并至含 ); 的行
+            chunk = line
+            j = i + 1
+            while j < len(lines) and ");" not in chunk and "import(" not in chunk:
+                chunk += lines[j]
+                j += 1
+            while j < len(lines) and ");" not in chunk:
+                chunk += lines[j]
+                j += 1
+            m = re.search(
+                r'const\s+\{\s*([^}]+)\s*\}\s*=\s*import\s*\(\s*"([^"]+)"\s*\)\s*;',
+                chunk,
+                re.S,
+            )
+            if m:
+                path = m.group(2)
+                syms = parse_select_syms(m.group(1))
+                path_syms.setdefault(path, set()).update(syms)
+                if path not in path_bind:
+                    path_bind[path] = binding_name(path)
+                select_spans.append((i, j))
+                i = j
+                continue
         sm = SELECT_IMPORT_LINE.match(line.rstrip("\n\r"))
         if sm:
             path = sm.group(3)
-            if path in SKIP_IMPORT_PATHS:
-                continue
             syms = parse_select_syms(sm.group(2))
             path_syms.setdefault(path, set()).update(syms)
             if path not in path_bind:
                 path_bind[path] = binding_name(path)
-            select_line_idxs.append(i)
+            select_spans.append((i, i))
+        i += 1
 
-    return path_bind, path_syms, select_line_idxs
+    return path_bind, path_syms, select_spans
 
 
 def prefix_function_calls(text: str, bind: str, func_names: set[str]) -> str:
@@ -99,9 +124,8 @@ def prefix_function_calls(text: str, bind: str, func_names: set[str]) -> str:
 
 def migrate_file_text(text: str, root: Path) -> tuple[str, bool, list[str]]:
     """迁移单文件；返回 (新文本, 是否变化, 日志)。"""
-    lines = text.splitlines(keepends=True)
-    path_bind, path_syms, select_idxs = collect_imports(lines)
-    if not select_idxs:
+    path_bind, path_syms, select_spans = collect_imports(text)
+    if not select_spans:
         return text, False, []
 
     logs: list[str] = []
@@ -118,52 +142,49 @@ def migrate_file_text(text: str, root: Path) -> tuple[str, bool, list[str]]:
         funcs, structs, enums = module_export_symbols(mod_file)
         type_names = structs | enums
         func_only = (syms & funcs) - type_names
+        const_only = syms - funcs - type_names
         if func_only:
             out = prefix_function_calls(out, bind, func_only)
             logs.append(f"{path}: prefix {len(func_only)} funcs as {bind}.*")
+        if const_only:
+            out = prefix_function_calls(out, bind, const_only)
+            logs.append(f"{path}: prefix {len(const_only)} consts as {bind}.*")
 
-    new_lines = out.splitlines(keepends=True)
+    lines = out.splitlines(keepends=True)
 
-    # 已有绑定 import 的路径
     existing_bind_paths: set[str] = set()
-    for line in new_lines:
+    for line in lines:
         bm = IMPORT_BINDING_LINE.match(line.rstrip("\n\r"))
         if bm:
             existing_bind_paths.add(bm.group(2))
 
-    # 每个 path 首次解构行 → 若无绑定则替换为绑定行，否则删除
-    first_select_for_path: dict[str, int] = {}
-    for i in select_idxs:
-        sm = SELECT_IMPORT_LINE.match(new_lines[i].rstrip("\n\r"))
-        if not sm:
-            continue
-        path = sm.group(3)
-        if path not in first_select_for_path:
-            first_select_for_path[path] = i
-
     replaced_paths: set[str] = set()
-    for i in sorted(select_idxs, reverse=True):
-        sm = SELECT_IMPORT_LINE.match(new_lines[i].rstrip("\n\r"))
-        if not sm:
-            del new_lines[i]
+    for start, end in sorted(select_spans, reverse=True):
+        chunk = "".join(lines[start : end + 1])
+        m = re.search(
+            r'const\s+\{\s*([^}]+)\s*\}\s*=\s*import\s*\(\s*"([^"]+)"\s*\)\s*;',
+            chunk,
+            re.S,
+        )
+        if not m:
+            del lines[start : end + 1]
             continue
-        path = sm.group(3)
+        path = m.group(2)
         bind = path_bind[path]
         if path not in existing_bind_paths and path not in replaced_paths:
-            new_lines[i] = f'const {bind} = import("{path}");\n'
+            lines[start : end + 1] = [f'const {bind} = import("{path}");\n']
             replaced_paths.add(path)
-            logs.append(f"replace select with: const {bind} = import(\"{path}\")")
+            logs.append(f'replace select with: const {bind} = import("{path}")')
         else:
-            del new_lines[i]
-            if path in existing_bind_paths:
-                logs.append(f"drop duplicate select for {path}")
+            del lines[start : end + 1]
+            logs.append(f"drop duplicate select for {path}")
 
-    new_text = "".join(new_lines)
+    new_text = "".join(lines)
     return new_text, new_text != text, logs
 
 
 def process_file(path: Path, root: Path, write: bool) -> int:
-    """处理单个 .su 文件。"""
+    """处理单个 .sx 文件。"""
     if path in SKIP_FILES:
         return 0
     text = path.read_text(encoding="utf-8")
@@ -190,7 +211,7 @@ def main() -> int:
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
-            files.extend(sorted(path.rglob("*.su")))
+            files.extend(sorted(path.rglob("*.sx")))
         elif path.is_file():
             files.append(path)
 

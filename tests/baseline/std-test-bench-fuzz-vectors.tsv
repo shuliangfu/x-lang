@@ -1,4 +1,4 @@
 # STD-054 金样向量
 # 列：vector_id	expect_substr	notes
-bench_report_line	shu: [SHU_BENCH] name=smoke	C 烟测 stderr
-fuzz_next_nz	fuzz_next	.su 非零
+bench_report_line	shux: [SHUX_BENCH] name=smoke	C 烟测 stderr
+fuzz_next_nz	fuzz_next	.sx 非零

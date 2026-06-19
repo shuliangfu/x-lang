@@ -10,20 +10,20 @@
 #include <string.h>
 #include <unistd.h>
 
-extern int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_complete_write_async_slot(int slot);
-extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
+extern int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_write_async_slot(int slot);
+extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
 
-#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
 
 /** Linux：双 slot submit 后 poll 再 complete，避免 CQE 未就绪。 */
 static int32_t io_write_slot_complete_with_poll(int slot) {
-    int32_t n = shu_io_complete_write_async_slot(slot);
-    if (n == SHU_IO_ASYNC_NOT_READY) {
+    int32_t n = shux_io_complete_write_async_slot(slot);
+    if (n == SHUX_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
+        (void)shux_io_poll_async_completions(500);
 #endif
-        n = shu_io_complete_write_async_slot(slot);
+        n = shux_io_complete_write_async_slot(slot);
     }
     return n;
 }
@@ -50,8 +50,8 @@ int main(void) {
         return 1;
     }
 
-    slot_a = shu_io_submit_write_async(pay_a, 2, (size_t)(unsigned)fds_a[1]);
-    slot_b = shu_io_submit_write_async(pay_b, 3, (size_t)(unsigned)fds_b[1]);
+    slot_a = shux_io_submit_write_async(pay_a, 2, (size_t)(unsigned)fds_a[1]);
+    slot_b = shux_io_submit_write_async(pay_b, 3, (size_t)(unsigned)fds_b[1]);
     if (slot_a < 0 || slot_b < 0 || slot_a == slot_b) {
         fprintf(stderr, "io_write_async_multi: submit slots a=%d b=%d\n", slot_a, slot_b);
         return 2;

@@ -1,55 +1,55 @@
 #!/usr/bin/env bash
-# WPO-S4 PGO-Lite 门禁：S0 binary __text 代理不回归；S1 SHU_WPO_PGO_HOT=1 时 .text.hot + .text.unlikely；S2 call-depth emit 序。
+# WPO-S4 PGO-Lite 门禁：S0 binary __text 代理不回归；S1 SHUX_WPO_PGO_HOT=1 时 .text.hot + .text.unlikely；S2 call-depth emit 序。
 # 用法：
 #   ./tests/run-wpo-s4-gate.sh
-#   SHU=./compiler/shu_asm SHU_WPO_PGO_HOT=1 ./tests/run-wpo-s4-gate.sh
+#   SHUX=./compiler/shux_asm SHUX_WPO_PGO_HOT=1 ./tests/run-wpo-s4-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 
-SHU_ASM="${SHU:-./compiler/shu_asm}"
-case "$SHU_ASM" in
-  /*) SHU_ASM_ABS="$SHU_ASM" ;;
-  *) SHU_ASM_ABS="$(pwd)/$SHU_ASM" ;;
+SHUX_ASM="${SHUX:-./compiler/shux_asm}"
+case "$SHUX_ASM" in
+  /*) SHUX_ASM_ABS="$SHUX_ASM" ;;
+  *) SHUX_ASM_ABS="$(pwd)/$SHUX_ASM" ;;
 esac
 
 if wpo_host_asm_run_na; then
-  echo "wpo-s4: asm/PGO N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm stub; x86_64 covers)"
+  echo "wpo-s4: asm/PGO N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm stub; x86_64 covers)"
   echo "wpo-s4 gate OK"
   exit 0
 fi
 
-echo "=== WPO-S4-S0: shu_asm binary .text proxy (PGO-Lite baseline) ==="
+echo "=== WPO-S4-S0: shux_asm binary .text proxy (PGO-Lite baseline) ==="
 
-if [ ! -x "$SHU_ASM_ABS" ]; then
-  echo "wpo-s4 gate SKIP (no shu_asm: $SHU_ASM_ABS)"
+if [ ! -x "$SHUX_ASM_ABS" ]; then
+  echo "wpo-s4 gate SKIP (no shux_asm: $SHUX_ASM_ABS)"
   exit 0
 fi
 
-chmod +x tests/run-perf-wpo-dce-shu-asm-text.sh tests/lib/wpo-ab-proxy.sh
-SHU="$SHU_ASM" ./tests/run-perf-wpo-dce-shu-asm-text.sh
+chmod +x tests/run-perf-wpo-dce-shux-asm-text.sh tests/lib/wpo-ab-proxy.sh
+SHUX="$SHUX_ASM" ./tests/run-perf-wpo-dce-shux-asm-text.sh
 
-# S4-S1：编译用户程序并断言 .text.hot 段（非 shu_asm 自身）
-if [ -n "${SHU_WPO_PGO_HOT:-}" ]; then
-  echo "=== WPO-S4-S1: user .o .text.hot + .text.unlikely (SHU_WPO_PGO_HOT=1) ==="
+# S4-S1：编译用户程序并断言 .text.hot 段（非 shux_asm 自身）
+if [ -n "${SHUX_WPO_PGO_HOT:-}" ]; then
+  echo "=== WPO-S4-S1: user .o .text.hot + .text.unlikely (SHUX_WPO_PGO_HOT=1) ==="
   if ! command -v readelf >/dev/null 2>&1; then
     echo "wpo-s4: readelf missing; skip PGO section check"
   else
-    PGO_O="/tmp/shu_wpo_pgo_hot_smoke.o"
-    PGO_SRC="tests/wpo/pgo_hot_smoke.su"
+    PGO_O="/tmp/shux_wpo_pgo_hot_smoke.o"
+    PGO_SRC="tests/wpo/pgo_hot_smoke.sx"
     rm -f "$PGO_O"
-    if ! SHU_WPO_PGO_HOT=1 SHU="$SHU_ASM" "$SHU_ASM_ABS" "$PGO_SRC" -o "$PGO_O"; then
-      echo "wpo-s4 FAIL: compile $PGO_SRC with SHU_WPO_PGO_HOT=1" >&2
+    if ! SHUX_WPO_PGO_HOT=1 SHUX="$SHUX_ASM" "$SHUX_ASM_ABS" "$PGO_SRC" -o "$PGO_O"; then
+      echo "wpo-s4 FAIL: compile $PGO_SRC with SHUX_WPO_PGO_HOT=1" >&2
       exit 1
     fi
     if ! readelf -S "$PGO_O" 2>/dev/null | grep -q '\.text\.hot'; then
-      echo "wpo-s4 FAIL: no .text.hot in $PGO_O (SHU_WPO_PGO_HOT=1)" >&2
+      echo "wpo-s4 FAIL: no .text.hot in $PGO_O (SHUX_WPO_PGO_HOT=1)" >&2
       exit 1
     fi
     UNLIKELY_LINE="$(readelf -S "$PGO_O" 2>/dev/null | grep '\.text\.unlikely' || true)"
     if [ -z "$UNLIKELY_LINE" ]; then
-      echo "wpo-s4 FAIL: no .text.unlikely in $PGO_O (SHU_WPO_PGO_HOT=1)" >&2
+      echo "wpo-s4 FAIL: no .text.unlikely in $PGO_O (SHUX_WPO_PGO_HOT=1)" >&2
       exit 1
     fi
     UNLIKELY_SIZE="$(echo "$UNLIKELY_LINE" | awk '{print $6}')"

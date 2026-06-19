@@ -2,11 +2,11 @@
 # 列：item_id	kind	anchor	notes
 # min_items	8
 # min_topn	5
-env_var	SHU_ASYNC_RUNTIME_TRACE	SHU_ASYNC_RUNTIME_TRACE	非空启用
-env_topn	SHU_ASYNC_RUNTIME_TRACE_TOPN	SHU_ASYNC_RUNTIME_TRACE_TOPN	Top-N 行数
-env_sample	SHU_ASYNC_RUNTIME_TRACE_SAMPLE	SHU_ASYNC_RUNTIME_TRACE_SAMPLE	采样率
-env_slow_us	SHU_ASYNC_RUNTIME_TRACE_SLOW_US	SHU_ASYNC_RUNTIME_TRACE_SLOW_US	慢事件阈值 us
-output_prefix	stderr_line	shu: [SHU_ASYNC_RUNTIME_TRACE]	grep 锚点
+env_var	SHUX_ASYNC_RUNTIME_TRACE	SHUX_ASYNC_RUNTIME_TRACE	非空启用
+env_topn	SHUX_ASYNC_RUNTIME_TRACE_TOPN	SHUX_ASYNC_RUNTIME_TRACE_TOPN	Top-N 行数
+env_sample	SHUX_ASYNC_RUNTIME_TRACE_SAMPLE	SHUX_ASYNC_RUNTIME_TRACE_SAMPLE	采样率
+env_slow_us	SHUX_ASYNC_RUNTIME_TRACE_SLOW_US	SHUX_ASYNC_RUNTIME_TRACE_SLOW_US	慢事件阈值 us
+output_prefix	stderr_line	shux: [SHUX_ASYNC_RUNTIME_TRACE]	grep 锚点
 field_summary	output_field	summary events=	摘要行
 field_rank	output_field	rank=	明细行
 impl_flush	runtime_fn	shu_async_runtime_trace_flush	scheduler.c

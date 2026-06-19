@@ -2,12 +2,12 @@
  * parser_asm_primary_slice.c — parse_primary_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.su 一致。
+ * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.sx 一致。
  */
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
 #define PARSER_ASM_PRIMARY_SLICE_INCLUDED
 
-/** 与 ast.su ExprKind 序一致（primary 用到的子集；勿用 C ast.h 旧序 +32 误值）。 */
+/** 与 ast.sx ExprKind 序一致（primary 用到的子集；勿用 C ast.h 旧序 +32 误值）。 */
 enum {
   PARSER_ASM_EXPR_LIT = 0,
   PARSER_ASM_EXPR_FLOAT_LIT = 1,
@@ -152,7 +152,7 @@ extern int32_t ast_ast_arena_expr_alloc(void *arena);
 
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
 
-/** 分配 EXPR_FLOAT_LIT 节点；与 parser.su parser_alloc_float_lit 一致。 */
+/** 分配 EXPR_FLOAT_LIT 节点；与 parser.sx parser_alloc_float_lit 一致。 */
 static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
   int32_t ref;
   struct parser_asm_ast_expr e;

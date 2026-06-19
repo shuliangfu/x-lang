@@ -4,25 +4,27 @@
  * 供 driver/runtime 在编译期解析 `-target-cpu`（native/generic/具名特性），
  * 并将结果写入 PipelineDepCtx.target_cpu_features 供后续 SIMD pass 使用。
  */
-#ifndef SHU_TARGET_CPU_H
-#define SHU_TARGET_CPU_H
+#ifndef SHUX_TARGET_CPU_H
+#define SHUX_TARGET_CPU_H
 
 #include <stdint.h>
 #include <stdio.h>
 
 /** x86/x86_64 特性位（与 arm/riscv 分段，避免混用）。 */
-#define SHU_CPU_FEAT_SSE2     (1u << 0)
-#define SHU_CPU_FEAT_SSE41    (1u << 1)
-#define SHU_CPU_FEAT_AVX      (1u << 2)
-#define SHU_CPU_FEAT_AVX2     (1u << 3)
-#define SHU_CPU_FEAT_AVX512F  (1u << 4)
-#define SHU_CPU_FEAT_POPCNT   (1u << 5)
-#define SHU_CPU_FEAT_BMI2     (1u << 6)
+#define SHUX_CPU_FEAT_SSE2     (1u << 0)
+#define SHUX_CPU_FEAT_SSE41    (1u << 1)
+#define SHUX_CPU_FEAT_AVX      (1u << 2)
+#define SHUX_CPU_FEAT_AVX2     (1u << 3)
+#define SHUX_CPU_FEAT_AVX512F  (1u << 4)
+#define SHUX_CPU_FEAT_POPCNT   (1u << 5)
+#define SHUX_CPU_FEAT_BMI2     (1u << 6)
+/** x86 FMA3（vfmadd213ps / vfmadd231ps 等）。 */
+#define SHUX_CPU_FEAT_FMA      (1u << 7)
 /** AArch64：NEON（asimd）为 baseline；SVE 为可选扩展。 */
-#define SHU_CPU_FEAT_NEON     (1u << 8)
-#define SHU_CPU_FEAT_SVE      (1u << 9)
+#define SHUX_CPU_FEAT_NEON     (1u << 8)
+#define SHUX_CPU_FEAT_SVE      (1u << 9)
 /** RISC-V：向量扩展（探测到 rv64 含 'v' 时置位）。 */
-#define SHU_CPU_FEAT_RVV      (1u << 16)
+#define SHUX_CPU_FEAT_RVV      (1u << 16)
 
 /**
  * 探测当前宿主机 CPU 特性（Linux /proc/cpuinfo、macOS sysctl、编译期宏兜底）。
@@ -66,4 +68,4 @@ int shu_simd_is_vector_type_spelling(const char *name, size_t name_len);
 int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
                                             int32_t *out_esz);
 
-#endif /* SHU_TARGET_CPU_H */
+#endif /* SHUX_TARGET_CPU_H */

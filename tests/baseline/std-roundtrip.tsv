@@ -1,10 +1,10 @@
 # TST-003 std round-trip 向量库 manifest
 # 列：item_id	kind	module	test_path	needs_o	notes
 min_vectors	4
-base64_std	roundtrip	std.base64	tests/boundary/base64_roundtrip.su	../std/base64/base64.o	encode/decode standard
-json_oa	roundtrip	std.json	tests/json/object_array_roundtrip.su	../std/json/json.o	STD-035
-csv_row	roundtrip	std.csv	tests/csv/row_roundtrip.su	../std/csv/csv.o	STD-036
-compress_gzip	roundtrip	std.compress	tests/std-compress/gzip_roundtrip.su	../std/compress/compress.o	gzip 往返；无 zlib 时 exit 0
+base64_std	roundtrip	std.base64	tests/boundary/base64_roundtrip.sx	../std/base64/base64.o	encode/decode standard
+json_oa	roundtrip	std.json	tests/json/object_array_roundtrip.sx	../std/json/json.o	STD-035
+csv_row	roundtrip	std.csv	tests/csv/row_roundtrip.sx	../std/csv/csv.o	STD-036
+compress_gzip	roundtrip	std.compress	tests/std-compress/gzip_roundtrip.sx	../std/compress/compress.o	gzip 往返；无 zlib 时 exit 0
 doc	file	analysis/tst-003-std-roundtrip-v1.md	analysis/tst-003-std-roundtrip-v1.md	RFC
 lib	script	tests/lib/tst-003-std-roundtrip.sh	tests/lib/tst-003-std-roundtrip.sh	-
 gate	script	tests/run-tst-003-std-roundtrip-gate.sh	tests/run-tst-003-std-roundtrip-gate.sh	manifest

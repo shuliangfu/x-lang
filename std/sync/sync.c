@@ -6,7 +6,7 @@
  * POSIX 使用 pthread_mutex_t；Windows 使用 CRITICAL_SECTION。与 std.thread 配合用于多线程互斥。
  *
  * 【所属模块/组件】
- * 标准库 std.sync；与 std/sync/mod.su 同目录。用户 import std.sync 时链入 std/sync/sync.o；Unix 需 -lpthread。
+ * 标准库 std.sync；与 std/sync/mod.sx 同目录。用户 import std.sync 时链入 std/sync/sync.o；Unix 需 -lpthread。
  *
  * 【与其它文件的关系】
  * - 被依赖：用户 import std.sync 且 -o exe 时链入本 .o。

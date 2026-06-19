@@ -15,10 +15,10 @@ layer_e6	layers	E6-lsp-bridge	compiler/src/lsp/lsp_diag.c	lsp	diag_add
 sym_report	symbol	lsp_diag_report_typeck	compiler/src/lsp/lsp_diag.c	diag	格式化
 sym_escape	symbol	slice region escape	compiler/src/typeck/typeck.c	typeck	文案
 sym_mismatch	symbol	slice region mismatch	compiler/src/typeck/typeck.c	typeck	文案
-case_escape	case	diag_escape_assign	tests/typeck/slice_lifetime/region_assign_escape.su	neg	8
-case_mismatch	case	diag_mismatch	tests/typeck/slice_lifetime/region_mismatch.su	neg	6
-case_return	case	diag_return_escape	tests/typeck/slice_lifetime/region_return_escape.su	neg	7
-case_call	case	diag_call_escape	tests/typeck/slice_lifetime/region_call_escape.su	neg	8
+case_escape	case	diag_escape_assign	tests/typeck/slice_lifetime/region_assign_escape.sx	neg	8
+case_mismatch	case	diag_mismatch	tests/typeck/slice_lifetime/region_mismatch.sx	neg	6
+case_return	case	diag_return_escape	tests/typeck/slice_lifetime/region_return_escape.sx	neg	7
+case_call	case	diag_call_escape	tests/typeck/slice_lifetime/region_call_escape.sx	neg	8
 gate	script	run-lang-lifetime-diag-gate.sh	tests/run-lang-lifetime-diag-gate.sh	-	manifest
 hook_diag	hook_script	run-lang-lifetime-diag.sh	run-lang-lifetime-diag.sh	-	行号
 hook_region	hook_script	run-typeck-region.sh	run-typeck-region.sh	-	12case

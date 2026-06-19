@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 # 使用本机目标三元组（clang 接受 -target）
 case "$(uname -s)" in
     Darwin)  triple="$(uname -m)-apple-darwin" ;;
@@ -12,7 +12,7 @@ case "$(uname -s)" in
     *)       triple="" ;;
 esac
 if [ -n "$triple" ]; then
-    $SHU -target "$triple" examples/hello.su -o /tmp/shu_target_hello 2>&1
-    /tmp/shu_target_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
+    $SHUX -target "$triple" examples/hello.sx -o /tmp/shux_target_hello 2>&1
+    /tmp/shux_target_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
 fi
 echo "target test OK"

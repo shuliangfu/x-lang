@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-config-yaml.sh — STD-119 manifest 与烟测辅助
 
-STD_CONFIG_YAML_PREFIX="${SHU_STD119_CONFIG_YAML_PREFIX:-shu: [SHU_STD119_CONFIG_YAML]}"
+STD_CONFIG_YAML_PREFIX="${SHUX_STD119_CONFIG_YAML_PREFIX:-shux: [SHUX_STD119_CONFIG_YAML]}"
 
 std_config_yaml_symbols_ok() {
   local mod_su="$1"
@@ -30,11 +30,11 @@ std_config_yaml_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_config_yaml_run_su_smoke() {
-  local shu="$1"
+std_config_yaml_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_config_yaml_$$"
-  "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/shux_std_config_yaml_$$"
+  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
@@ -46,8 +46,9 @@ std_config_yaml_run_su_smoke() {
 std_config_yaml_run_c_smoke() {
   local cfg_o="$1"
   local env_o="$2"
-  local out="/tmp/shu_std_config_yaml_c_$$"
-  cc -std=c11 -O1 -o "$out" tests/std-config/yaml_smoke_ok.c "$cfg_o" "$env_o" 2>/dev/null || return 1
+  local proc_o="$3"
+  local out="/tmp/shux_std_config_yaml_c_$$"
+  cc -std=c11 -O1 -o "$out" tests/std-config/yaml_smoke_ok.c "$cfg_o" "$env_o" "$proc_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
   local ec=$?

@@ -1,0 +1,33 @@
+/**
+ * io_read_chunked.sx — PERF-008 对照：4KiB 单段 fs_read 顺序读满 16MiB（高 syscall 基线）
+ * 与 io_batch_readv.sx 同 workload（16MiB）；用于 strace 证明 batch 路径 syscall 更少。
+ */
+const fs = import("std.fs");
+
+function main(): i32 {
+  /** 路径 "tests/bench/.io_mmap_bench_tmp" */
+  let path: [31]u8 =
+  [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
+  98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
+  let fd: i32 = fs.fs_open_read(&path[0]);
+  if (fd < 0) { return 1; }
+  let buf: [4096]u8 = [];
+  let sum: i32 = 0;
+  let rounds: i32 = 0;
+  /** 4096 轮 × 4KiB = 16MiB；每轮 1 次 read syscall。 */
+  while (rounds < 4096) {
+    let nr: isize = fs.fs_read(fd, &buf[0], 4096);
+    if (nr != 4096) {
+      fs.fs_close(fd);
+      return 2;
+    }
+    let si: i32 = 0;
+    while (si < 4096) {
+      sum = sum + (buf[si] as i32);
+      si = si + 1;
+    }
+    rounds = rounds + 1;
+  }
+  if (fs.fs_close(fd) != 0) { return 3; }
+  return sum & 255;
+}

@@ -8,7 +8,7 @@ tier-u	Vec_i32	stdlib	allow(padding) container; C-side layout interop	v1-baselin
 tier-u	Vec_u8	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
 tier-u	Vec3f_soa	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
 tier-u	Vec3f_aos	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
-tier-u	ReadPtrView	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	ReadPtrView	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
 tier-u	StrView	stdlib	StrView allow(padding); pointer+len string view	v1-baseline	2026-06-17
 tier-u	Queue_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
 tier-u	alloc	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
@@ -35,16 +35,16 @@ tier-u	sym	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-u	close	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-u	panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
 tier-u	abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
-tier-u	read	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	write	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_stdin	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	write_stdout	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	write_stderr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_ptr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_ptr_len	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_ptr_slice	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_ptr_gen	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
-tier-u	read_ptr_view	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.su	v1-baseline	2026-06-17
+tier-u	read	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	write	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_stdin	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	write_stdout	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	write_stderr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_ptr	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_ptr_len	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_ptr_slice	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_ptr_gen	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
+tier-u	read_ptr_view	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
 tier-u	fs_read	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
 tier-u	fs_write	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
 tier-u	fs_pread	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17

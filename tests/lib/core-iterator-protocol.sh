@@ -5,7 +5,7 @@
 #   core_iter_symbols_ok ITER_SU TSV
 #   core_iter_emit_report status check_ok run_ok cookbook_ok skip
 
-CORE_ITER_PREFIX="${SHU_CORE_ITERATOR_PREFIX:-shu: [SHU_CORE_ITERATOR]}"
+CORE_ITER_PREFIX="${SHUX_CORE_ITERATOR_PREFIX:-shux: [SHUX_CORE_ITERATOR]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_iter_symbols_ok() {

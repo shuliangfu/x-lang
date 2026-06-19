@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/next-yellow-clear-v1.md"
 MANIFEST="tests/baseline/next-yellow-clear.tsv"
-PREFIX="shu: [SHU_NEXT_YELLOW_CLEAR]"
+PREFIX="shux: [SHUX_NEXT_YELLOW_CLEAR]"
 
 native_shu() {
   local f="$1"
@@ -64,53 +64,53 @@ echo "next-yellow-clear manifest OK"
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-SHU_BIN=""
-for cand in ./compiler/shu-c ./compiler/shu; do
-  if native_shu "$cand"; then SHU_BIN="$cand"; break; fi
+SHUX_BIN=""
+for cand in ./compiler/shux-c ./compiler/shux; do
+  if native_shu "$cand"; then SHUX_BIN="$cand"; break; fi
 done
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== NEXT-YELLOW: typeck smokes (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== NEXT-YELLOW: typeck smokes (SHUX=$SHUX_BIN) ==="
   SMOKES=(
-    tests/debug/diag_smoke.su
-    tests/iterator/u64_roundtrip.su
-    tests/exc/runtime_diag_smoke.su
-    tests/string/unicode_bridge.su
-    tests/vec/u16_roundtrip.su
-    tests/map/iter_rehash.su
-    tests/queue/u8_roundtrip.su
-    tests/net/tcp_pool_smoke.su
-    tests/thread/pool_stats.su
-    tests/fmt/template_smoke.su
-    tests/stub/sqlite_net_stub.su
+    tests/debug/diag_smoke.sx
+    tests/iterator/u64_roundtrip.sx
+    tests/exc/runtime_diag_smoke.sx
+    tests/string/unicode_bridge.sx
+    tests/vec/u16_roundtrip.sx
+    tests/map/iter_rehash.sx
+    tests/queue/u8_roundtrip.sx
+    tests/net/tcp_pool_smoke.sx
+    tests/thread/pool_stats.sx
+    tests/fmt/template_smoke.sx
+    tests/stub/sqlite_net_stub.sx
   )
   for s in "${SMOKES[@]}"; do
-    if ! "$SHU_BIN" check -L . "$s" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$s" >/dev/null 2>&1; then
       echo "next-yellow-clear FAIL: typeck $s" >&2
-      "$SHU_BIN" check -L . "$s" 2>&1 | tail -6 >&2 || true
+      "$SHUX_BIN" check -L . "$s" 2>&1 | tail -6 >&2 || true
       echo "${PREFIX} status=fail check=0"
       exit 1
     fi
   done
   CHECK_OK=1
   SKIP=0
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
   RUN_LIST=(
-    tests/vec/u16_roundtrip.su
-    tests/map/iter_rehash.su
-    tests/queue/u8_roundtrip.su
-    tests/net/tcp_pool_smoke.su
-    tests/fmt/template_smoke.su
-    tests/stub/sqlite_net_stub.su
-    tests/iterator/u64_roundtrip.su
+    tests/vec/u16_roundtrip.sx
+    tests/map/iter_rehash.sx
+    tests/queue/u8_roundtrip.sx
+    tests/net/tcp_pool_smoke.sx
+    tests/fmt/template_smoke.sx
+    tests/stub/sqlite_net_stub.sx
+    tests/iterator/u64_roundtrip.sx
   )
   RUN_OK=1
   for s in "${RUN_LIST[@]}"; do
-    out="/tmp/shu_yellow_$(basename "$s" .su)"
-    if $RUN_SHU -L . "$s" -o "$out" 2>/tmp/shu_yellow_build.log; then
+    out="/tmp/shux_yellow_$(basename "$s" .sx)"
+    if $RUN_SHUX -L . "$s" -o "$out" 2>/tmp/shux_yellow_build.log; then
       ec=0
       "$out" >/dev/null 2>&1 || ec=$?
       if [ "$ec" -ne 0 ]; then
@@ -123,7 +123,7 @@ if [ -n "$SHU_BIN" ]; then
     fi
   done
 else
-  echo "next-yellow-clear SKIP typeck (no native shu)" >&2
+  echo "next-yellow-clear SKIP typeck (no native shux)" >&2
 fi
 
 echo "${PREFIX} status=ok check=${CHECK_OK} run=${RUN_OK} skip=${SKIP}"

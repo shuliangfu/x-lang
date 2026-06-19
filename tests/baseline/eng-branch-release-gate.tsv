@@ -3,7 +3,7 @@
 # min_release_gates	3
 # min_branch_rules	2
 # tag_pattern	v[0-9]+\.[0-9]+\.[0-9]+
-output_prefix	field	shu: [SHU_RELEASE_PRECHECK]	stderr 前缀
+output_prefix	field	shux: [SHUX_RELEASE_PRECHECK]	stderr 前缀
 branch_dev	branch_rule	dev	ci push
 branch_main_pr	branch_rule	main	ci pull_request
 ci_yml	file	.github/workflows/ci.yml	分支触发锚点
@@ -15,6 +15,6 @@ lib	script	lib/eng-branch-release-gate.sh	共享函数
 precheck_baseline	release_gate	run-eng-baseline-governance-gate.sh	ENG-001
 precheck_quality	release_gate	run-eng-quality-gate-gate.sh	ENG-002
 precheck_cross_ci	release_gate	run-eng-crossplatform-ci-gate.sh	ENG-003
-precheck_portable	release_hook	run-portable-suite.sh	SHU_RELEASE_FULL=1
+precheck_portable	release_hook	run-portable-suite.sh	SHUX_RELEASE_FULL=1
 cross_eng001	cross_ref	analysis/eng-baseline-governance-v1.md
 cross_eng003	cross_ref	analysis/eng-crossplatform-ci-v1.md

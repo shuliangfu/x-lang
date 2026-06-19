@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 # min_sections	4
 # sla_minutes	30
-output_prefix	field	shu: [SHU_ROLLBACK_DRILL]	演练前缀
+output_prefix	field	shux: [SHUX_ROLLBACK_DRILL]	演练前缀
 sla_budget	field	30 分钟	SLA 锚点
 section_triage	section	T0–T5	判定 5min
 section_tag_rb	section	R1 — 发布 tag	工具链回滚

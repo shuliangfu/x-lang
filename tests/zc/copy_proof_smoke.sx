@@ -1,0 +1,19 @@
+// tests/zc/copy_proof_smoke.sx — ZC-007 示例：StrView 解析路径 userland 冗余拷贝 = 0
+//
+// path_id: copy_proof_smoke
+// userland_copies: 0
+// zc_tier: ZC-4
+// hot_path: string_view + string_view_subview on stack buffer
+// fallback: none
+const string = import("std.string");
+
+function main(): i32 {
+  let buf: [8]u8 = [104, 101, 108, 108, 111, 0, 0, 0];
+  let v: StrView = string.string_view(&buf[0], 5);
+  if (string.string_view_len(v) != 5) { return 1; }
+  if (string.string_view_get(v, 0) != 104) { return 2; }
+  let sub: StrView = string.string_view_subview(v, 1, 3);
+  if (string.string_view_len(sub) != 3) { return 3; }
+  if (string.string_view_get(sub, 0) != 101) { return 4; }
+  return 0;
+}

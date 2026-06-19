@@ -13,28 +13,28 @@ chmod +x tests/run-abi-layout.sh
 ./tests/run-abi-layout.sh
 echo "lang-abi-stability OK layout"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu_asm ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux_asm ./compiler/shux-c ./compiler/shux; do
     if lang_abi_native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && lang_abi_native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && lang_abi_native_shu "$SHUX_BIN"; then
   if [ -x tests/run-abi-f32-xmm-gate.sh ]; then
     echo "=== LANG-005: f32 xmm ABI (optional) ==="
     chmod +x tests/run-abi-f32-xmm-gate.sh
-    if SHU="$SHU_BIN" ./tests/run-abi-f32-xmm-gate.sh; then
+    if SHUX="$SHUX_BIN" ./tests/run-abi-f32-xmm-gate.sh; then
       echo "lang-abi-stability OK f32_xmm"
     else
       echo "lang-abi-stability SKIP f32_xmm (gate failed or unsupported host)" >&2
     fi
   fi
 else
-  echo "lang-abi-stability SKIP f32_xmm (no native shu)"
+  echo "lang-abi-stability SKIP f32_xmm (no native shux)"
 fi
 
 echo "lang-abi-stability OK"

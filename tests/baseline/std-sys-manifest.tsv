@@ -1,0 +1,27 @@
+# BOOT-029 std.sys manifest
+# min_apis	5
+read_path	section	## 1. 目标	analysis/std-sys-v0.md
+api_doc	section	## 2. API（v0）	os_write
+api_v1	section	## 6. v1（Linux syscall 号表）	linux
+api_v2	section	## 7. v2（macOS POSIX write）	macos
+verify	section	## 3. Gate	gate
+api_os_write	api	os_write	std/sys/mod.sx	write
+api_os_stdout	api	os_write_stdout	std/sys/mod.sx	stdout
+api_os_read_file	api	os_read_file_into	std/sys/mod.sx	B-20 v0
+api_freestanding	api	freestanding_write_available	std/sys/mod.sx	探测
+api_linux_table	api	linux_syscall_table_available	std/sys/mod.sx	v1
+api_linux_write_amd64	api	linux_syscall_nr_write_amd64	std/sys/mod.sx	v1
+api_macos_write	api	macos_write	std/sys/mod.sx	v2
+api_macos_avail	api	macos_write_available	std/sys/mod.sx	v2
+linux_mod	file	std/sys/linux.sx	std/sys/linux.sx	syscall
+macos_mod	file	std/sys/macos.sx	std/sys/macos.sx	posix
+win32_mod	file	std/sys/win32.sx	std/sys/win32.sx	kernel32
+symbol_shux_write	symbol	shux_sys_write	std/sys/mod.sx	extern
+readme	file	std/sys/README.md	std/sys/README.md	README
+smoke_su	smoke	tests/sys/sys_write_freestanding.sx	freestanding
+smoke_linux_nr	smoke	tests/sys/linux_syscall_nr_smoke.sx	v1
+smoke_macos	smoke	tests/sys/macos_posix_write_smoke.sx	v2
+smoke_macos_mmap	smoke	tests/sys/macos_mmap_smoke.sx	B-16 v0
+smoke_win32	smoke	tests/sys/win32_write_smoke.sx	B-17 v1
+smoke_win32_read	smoke	tests/sys/win32_read_file_smoke.sx	B-17 v2
+gate	script	run-std-sys-gate.sh	tests/run-std-sys-gate.sh

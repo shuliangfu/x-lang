@@ -38,7 +38,7 @@ if [ -z "$LOG_ARG" ]; then
   exit 1
 fi
 
-OUT="$(mktemp /tmp/shu_boot_stage_diag.XXXXXX)"
+OUT="$(mktemp /tmp/shux_boot_stage_diag.XXXXXX)"
 if ! bootstrap_stage_classify "$(read_log "$LOG_ARG")" >"$OUT"; then
   cat "$OUT"
   rm -f "$OUT"
@@ -50,10 +50,10 @@ cat "$OUT"
 source "$OUT"
 rm -f "$OUT"
 
-if [ "$DO_REPRO" -eq 1 ] && [ -n "${SHU_BOOT_REPRO:-}" ] && [ "$SHU_BOOT_REPRO" != "full_ci" ]; then
-  echo "=== bootstrap-stage-diag: running repro $SHU_BOOT_REPRO ==="
+if [ "$DO_REPRO" -eq 1 ] && [ -n "${SHUX_BOOT_REPRO:-}" ] && [ "$SHUX_BOOT_REPRO" != "full_ci" ]; then
+  echo "=== bootstrap-stage-diag: running repro $SHUX_BOOT_REPRO ==="
   chmod +x "$REPRO" 2>/dev/null || true
-  "$REPRO" "$SHU_BOOT_REPRO"
+  "$REPRO" "$SHUX_BOOT_REPRO"
 elif [ "$DO_REPRO" -eq 1 ]; then
   echo "=== bootstrap-stage-diag: low confidence — running full_ci ==="
   "$REPRO" full_ci

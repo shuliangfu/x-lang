@@ -3,18 +3,18 @@
 #
 # 检查：
 #   1) manifest：compile-dogfood.tsv + 8 个源路径
-#   2) Shu median ≤ tests/baseline/compile-dogfood.tsv（默认 SHU_PERF_FAIL_ON_COMPILE_REGRESSION=1）
+#   2) Shu median ≤ tests/baseline/compile-dogfood.tsv（默认 SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1）
 #
 # 用法：./tests/run-perf-compile-dogfood-gate.sh
-# 烟测（不硬失败）：SHU_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
+# 烟测（不硬失败）：SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
 # CI：run-ci-full-suite.sh 在 native Linux x86_64 调用本脚本（硬失败）
 set -e
 cd "$(dirname "$0")/.."
 
-BASELINE="${SHU_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
-FAIL_REG="${SHU_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
+BASELINE="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+FAIL_REG="${SHUX_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
 
-# 判断 shu/shu-c 是否可在本机 exec（与 perf-io-zig gate 一致）。
+# 判断 shux/shux-c 是否可在本机 exec（与 perf-io-zig gate 一致）。
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -30,14 +30,14 @@ native_shu() {
 # manifest：case_id 与源路径（bash 3.2 兼容，不用关联数组）。
 compile_dogfood_case_src() {
   case "$1" in
-    loop_i32) echo tests/bench/loop_i32.su ;;
-    mem_copy) echo tests/bench/mem_copy.su ;;
-    struct_param) echo tests/bench/struct_param.su ;;
-    call_boundary) echo tests/bench/call_boundary.su ;;
-    perf_main) echo tests/perf-baseline/main.su ;;
-    check_backend) echo compiler/src/asm/backend.su ;;
-    check_parser) echo compiler/src/parser/parser.su ;;
-    check_typeck) echo compiler/src/typeck/typeck.su ;;
+    loop_i32) echo tests/bench/loop_i32.sx ;;
+    mem_copy) echo tests/bench/mem_copy.sx ;;
+    struct_param) echo tests/bench/struct_param.sx ;;
+    call_boundary) echo tests/bench/call_boundary.sx ;;
+    perf_main) echo tests/perf-baseline/main.sx ;;
+    check_backend) echo compiler/src/asm/backend.sx ;;
+    check_parser) echo compiler/src/parser/parser.sx ;;
+    check_typeck) echo compiler/src/typeck/typeck.sx ;;
     *) return 1 ;;
   esac
 }
@@ -70,25 +70,25 @@ done
 [ "$missing" -eq 0 ] || exit 1
 echo "compile-dogfood manifest OK (8 cases)"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "perf-compile-dogfood gate SKIP bench (no native shu; run in Docker/Linux)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "perf-compile-dogfood gate SKIP bench (no native shux; run in Docker/Linux)" >&2
   exit 0
 fi
 
-echo "=== PERF-004: compile dogfood vs baseline (SHU=$SHU_BIN FAIL_REG=$FAIL_REG) ==="
+echo "=== PERF-004: compile dogfood vs baseline (SHUX=$SHUX_BIN FAIL_REG=$FAIL_REG) ==="
 chmod +x tests/run-perf-compile-dogfood.sh
-SHU="$SHU_BIN" \
-  SHU_PERF_FAIL_ON_COMPILE_REGRESSION="$FAIL_REG" \
+SHUX="$SHUX_BIN" \
+  SHUX_PERF_FAIL_ON_COMPILE_REGRESSION="$FAIL_REG" \
   ./tests/run-perf-compile-dogfood.sh
 
 echo "perf-compile-dogfood gate OK"

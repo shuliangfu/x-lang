@@ -18,7 +18,7 @@ extern int32_t fs_rmdir_c(uint8_t *path);
 extern int32_t fs_unlink_c(uint8_t *path);
 
 int main(void) {
-    const char *dir = "/tmp/shu_fs_dirmeta_smoke";
+    const char *dir = "/tmp/shux_fs_dirmeta_smoke";
     fs_stat_out_t st;
     (void)fs_rmdir_c((uint8_t *)dir);
     (void)fs_unlink_c((uint8_t *)dir);

@@ -4,6 +4,6 @@
 - [ ] 已读 analysis/zc-semantics-v1.md §4 拷贝触发点
 - [ ] userland_copies: ___   （0 = 无冗余用户态拷贝；N = 有，须说明不可避免原因）
 - [ ] zc_tier: ___           （none | ZC-1 | ZC-2 | ZC-3 | ZC-4 | ZC-5）
-- [ ] proof_id: ___          （tests/zc/<id>.su 或 N/A）
+- [ ] proof_id: ___          （tests/zc/<id>.sx 或 N/A）
 - [ ] fallback: ___          （非 Linux 回退；无则写 none）
 - [ ] 若新增 proof：已登记 tests/baseline/zc-copy-proof.tsv 且 run-zc-copy-proof-gate.sh 通过

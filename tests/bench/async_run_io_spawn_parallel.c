@@ -1,12 +1,12 @@
 /**
  * tests/bench/async_run_io_spawn_parallel.c — IO-A5 v5 spawn 并行 IO + drain_until_idle
  *
- * 模拟 .su：queue_reset → submit ×2（各任务 ctx 预设 fd）→ drain_until_idle。
+ * 模拟 .sx：queue_reset → submit ×2（各任务 ctx 预设 fd）→ drain_until_idle。
  * 双 pipe 并行 in-flight read async，校验总字节 2+3=5。
  *
  * 编译：cc -std=c11 -o async_run_io_spawn_parallel \
  *   tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o
- * 运行：SHU_ASYNC_YIELD=1 ./async_run_io_spawn_parallel
+ * 运行：SHUX_ASYNC_YIELD=1 ./async_run_io_spawn_parallel
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -14,19 +14,19 @@
 #include <string.h>
 #include <unistd.h>
 
-#define SHU_ASYNC_SUSPENDED ((int32_t)0x41535700)
-#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
+#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
 
-extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_complete_read_async_slot(int slot);
-extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
-extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
-extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_run_drain_until_idle(void);
-extern void shu_async_queue_reset(void);
-extern void shu_async_run_seed_push_i32(int32_t v);
-extern int shu_async_run_seed_valid(void);
-extern int32_t shu_async_run_seed_take_i32(void);
+extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_read_async_slot(int slot);
+extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
+extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
+extern int shux_async_task_submit(int32_t (*fn)(void));
+extern int32_t shux_async_run_drain_until_idle(void);
+extern void shux_async_queue_reset(void);
+extern void shux_async_run_seed_push_i32(int32_t v);
+extern int shux_async_run_seed_valid(void);
+extern int32_t shux_async_run_seed_take_i32(void);
 
 /** 单协程 read async + seed 注入上下文。 */
 typedef struct {
@@ -51,19 +51,19 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
         /* fd 由 main 预设；勿用全局 seed FIFO（并行 submit 时易抢错 fd）。 */
         ctx->step = 1;
         ctx->phase = 0;
-        ctx->slot = shu_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
+        ctx->slot = shux_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
             (size_t)(unsigned)ctx->read_fd);
         if (ctx->slot < 0)
             return -1;
-        if (shu_async_cps_suspend_io(&ctx->phase, 1))
-            return SHU_ASYNC_SUSPENDED;
+        if (shux_async_cps_suspend_io(&ctx->phase, 1))
+            return SHUX_ASYNC_SUSPENDED;
     }
-    n = shu_io_complete_read_async_slot(ctx->slot);
-    if (n == SHU_IO_ASYNC_NOT_READY) {
+    n = shux_io_complete_read_async_slot(ctx->slot);
+    if (n == SHUX_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
+        (void)shux_io_poll_async_completions(500);
 #endif
-        n = shu_io_complete_read_async_slot(ctx->slot);
+        n = shux_io_complete_read_async_slot(ctx->slot);
     }
     return n;
 }
@@ -97,25 +97,25 @@ int main(void) {
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
 
-    setenv("SHU_ASYNC_YIELD", "1", 1);
-    unsetenv("SHU_ASYNC_IO_WAIT");
+    setenv("SHUX_ASYNC_YIELD", "1", 1);
+    unsetenv("SHUX_ASYNC_IO_WAIT");
 
     memset(&g_ctx_a, 0, sizeof(g_ctx_a));
     memset(&g_ctx_b, 0, sizeof(g_ctx_b));
     g_ctx_a.read_fd = fds_a[0];
     g_ctx_b.read_fd = fds_b[0];
 
-    shu_async_queue_reset();
-    if (shu_async_task_submit(io_spawn_read_a) != 0) {
+    shux_async_queue_reset();
+    if (shux_async_task_submit(io_spawn_read_a) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit a failed\n");
         return 3;
     }
-    if (shu_async_task_submit(io_spawn_read_b) != 0) {
+    if (shux_async_task_submit(io_spawn_read_b) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit b failed\n");
         return 4;
     }
 
-    total = shu_async_run_drain_until_idle();
+    total = shux_async_run_drain_until_idle();
     if (total != 5) {
         fprintf(stderr, "async_run_io_spawn_parallel: total=%d want 5\n", (int)total);
         return 5;

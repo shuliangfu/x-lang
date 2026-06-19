@@ -2,13 +2,13 @@
 # S5：typeck_wpo.o WPO reach 门禁（typeck_su_ast / check_block / check_expr 须已定义）。
 # 用法：
 #   ./tests/run-wpo-typeck-reach-gate.sh
-#   SHU_WPO_TYPECK_REACH_FAIL=1 ./tests/run-wpo-typeck-reach-gate.sh
+#   SHUX_WPO_TYPECK_REACH_FAIL=1 ./tests/run-wpo-typeck-reach-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
 TYPECK_O="${1:-compiler/build_asm/typeck_wpo.o}"
-FAIL=${SHU_WPO_TYPECK_REACH_FAIL:-1}
-MIN_EXPORTS=${SHU_WPO_TYPECK_MIN_EXPORTS:-5}
+FAIL=${SHUX_WPO_TYPECK_REACH_FAIL:-1}
+MIN_EXPORTS=${SHUX_WPO_TYPECK_MIN_EXPORTS:-5}
 
 if [ ! -f "$TYPECK_O" ]; then
   echo "run-wpo-typeck-reach-gate SKIP: missing $TYPECK_O"

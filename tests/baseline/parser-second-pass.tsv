@@ -1,4 +1,4 @@
-# parser EMIT_HEAVY second pass metrics (linux/amd64 experimental shu_asm)
+# parser EMIT_HEAVY second pass metrics (linux/amd64 experimental shux_asm)
 # min_*：硬门禁下限；其余为指标追踪（不再作为 combined/audit ratchet）。
 min_parser_o_text	10000
 min_combined_bytes	125000

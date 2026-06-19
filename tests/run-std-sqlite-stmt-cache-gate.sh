@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
-MANIFEST="${SHU_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
-VECTORS="${SHU_STD070_VECTORS:-tests/baseline/std-sqlite-stmt-cache-vectors.tsv}"
-MOD_SU="std/sqlite/mod.su"
-DB_C="std/sqlite/sqlite.c"
+DOC="${SHUX_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
+MANIFEST="${SHUX_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
+VECTORS="${SHUX_STD070_VECTORS:-tests/baseline/std-sqlite-stmt-cache-vectors.tsv}"
+MOD_SU="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.c"
 LIB="tests/lib/std-sqlite-stmt-cache.sh"
-SMOKE_SU="tests/std-sqlite/stmt_bind_roundtrip.su"
+SMOKE_SU="tests/std-sqlite/stmt_bind_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/stmt_bind_roundtrip_ok.c"
 MIN_STMT=6
 
@@ -87,21 +87,21 @@ else
   echo "std-sqlite-stmt-cache: no libsqlite3, c smoke SKIP"
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ] && [ "$SKIP" -eq 0 ]; then
-  echo "=== STD-070: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-sqlite-stmt-cache gate SKIP .su smoke (typeck fail)" >&2
-  elif std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_SU" "stmt_bind"; then
+if [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 0 ]; then
+  echo "=== STD-070: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    echo "std-sqlite-stmt-cache gate SKIP .sx smoke (typeck fail)" >&2
+  elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "stmt_bind"; then
     BIND_SU=1
   else
-    echo "std-sqlite-stmt-cache gate SKIP .su smoke (link/compile)" >&2
+    echo "std-sqlite-stmt-cache gate SKIP .sx smoke (link/compile)" >&2
   fi
-elif [ -n "$SHU_BIN" ] && [ "$SKIP" -eq 1 ]; then
-  echo "std-sqlite-stmt-cache: .su smoke SKIP (no libsqlite3)"
+elif [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 1 ]; then
+  echo "std-sqlite-stmt-cache: .sx smoke SKIP (no libsqlite3)"
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$BIND_C" -eq 0 ]; then

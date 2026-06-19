@@ -3,17 +3,17 @@
 #
 # 1) exc-error-chain-v1.md + manifest
 # 2) std/error ErrorChain API 符号
-# 3) native shu：tests/exc/error_chain_smoke.su
+# 3) native shux：tests/exc/error_chain_smoke.sx
 #
 # 用法：./tests/run-exc-error-chain-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
-MATRIX="${SHU_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
-ERR_MOD="${SHU_STD_ERROR_MOD:-std/error/mod.su}"
+DOC="${SHUX_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
+MATRIX="${SHUX_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
+ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.sx}"
 MIN_ITEMS=8
-SMOKE="tests/exc/error_chain_smoke.su"
+SMOKE="tests/exc/error_chain_smoke.sx"
 
 native_shu() {
   local f="$1"
@@ -87,26 +87,26 @@ echo "exc-error-chain manifest OK (items=${FOUND})"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "exc-error-chain gate SKIP smoke (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "exc-error-chain gate SKIP smoke (no native shux)" >&2
   echo "exc-error-chain gate OK"
   exit 0
 fi
 
-OUT=/tmp/shu_exc_error_chain
-echo "=== EXC-004: chain smoke (SHU=$SHU_BIN) ==="
-if ! "$SHU_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shu_exc_chain_compile.log 2>&1; then
-  cat /tmp/shu_exc_chain_compile.log >&2
+OUT=/tmp/shux_exc_error_chain
+echo "=== EXC-004: chain smoke (SHUX=$SHUX_BIN) ==="
+if ! "$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_exc_chain_compile.log 2>&1; then
+  cat /tmp/shux_exc_chain_compile.log >&2
   exit 1
 fi
 EC=0

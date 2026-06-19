@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # std-sqlite-gate.sh — STD-057 manifest 与 SQLite 烟测辅助
 
-STD_SQLITE_PREFIX="${SHU_STD_SQLITE_PREFIX:-shu: [SHU_STD_SQLITE]}"
+STD_SQLITE_PREFIX="${SHUX_STD_SQLITE_PREFIX:-shux: [SHUX_STD_SQLITE]}"
 
 # 探测本机是否可链 libsqlite3。
 std_sqlite_probe_libs() {
-  local out="/tmp/shu_std_sqlite_probe_$$"
+  local out="/tmp/shux_std_sqlite_probe_$$"
   if ! cc -std=c11 -x c - -lsqlite3 -o "$out" 2>/dev/null <<'EOF'
 #include <sqlite3.h>
 int main(void) { return sqlite3_libversion() ? 0 : 1; }
@@ -20,8 +20,8 @@ EOF
 
 # 确保 sqlite.o 已构建（默认 SQLite3）。
 std_sqlite_build_o() {
-  if ! make -C compiler ../std/sqlite/sqlite.o >/dev/null 2>&1; then
-    echo "std-sqlite FAIL: make ../std/sqlite/sqlite.o" >&2
+  if ! make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1; then
+    echo "std-sqlite FAIL: make ../std/db/sqlite/sqlite.o" >&2
     return 1
   fi
   return 0
@@ -29,7 +29,7 @@ std_sqlite_build_o() {
 
 # 恢复默认 SQLite3 sqlite.o。
 std_sqlite_restore_default_o() {
-  make -C compiler ../std/sqlite/sqlite.o >/dev/null 2>&1 || true
+  make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
 }
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
@@ -57,7 +57,7 @@ std_sqlite_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$sqlite_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$sqlite_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -84,7 +84,7 @@ std_sqlite_symbols_ok() {
 std_sqlite_run_c_smoke() {
   local sqlite_c="$1"
   local src="tests/std-sqlite/exec_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_$$"
+  local out="/tmp/shux_std_sqlite_$$"
   local sqlite_o
   sqlite_o="$(dirname "$sqlite_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then
@@ -107,15 +107,15 @@ std_sqlite_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_sqlite_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-exec}"
-  local exe="/tmp/shu_std_sqlite_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_sqlite_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sqlite FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

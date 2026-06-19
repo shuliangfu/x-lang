@@ -26,10 +26,11 @@ extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *
 extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t main_idx);
 extern int32_t pipeline_module_num_funcs(struct ast_Module *module);
 extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
+extern void driver_diagnostic_after_entry_parse_module(struct ast_Module *module);
 extern void driver_diagnostic_entry_module(struct ast_Module *module, struct ast_ASTArena *arena);
 
 /**
- * 解析 + 诊断（不含 load deps）；与 pipeline.su pipeline_impl_phase_parse_only 语义一致。
+ * 解析 + 诊断（不含 load deps）；与 pipeline.sx pipeline_impl_phase_parse_only 语义一致。
  */
 __attribute__((noinline)) int32_t pipeline_impl_phase_parse_only(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                    uint8_t *source_data, size_t source_len,
@@ -42,6 +43,7 @@ __attribute__((noinline)) int32_t pipeline_impl_phase_parse_only(struct ast_Modu
   r = parser_parse_into_buf(arena, module, source_data, len_i32);
   parser_parse_into_set_main_index(module, r.main_idx);
   driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+  driver_diagnostic_after_entry_parse_module(module);
   driver_diagnostic_entry_module(module, arena);
   return -2 * r.ok;
 }

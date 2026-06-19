@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-time-format-timezone.sh — STD-137 manifest 与烟测辅助
 
-STD_TIME_FORMAT_TZ_PREFIX="${SHU_STD137_TIME_FORMAT_TZ_PREFIX:-shu: [SHU_STD137_TIME_FORMAT_TZ]}"
+STD_TIME_FORMAT_TZ_PREFIX="${SHUX_STD137_TIME_FORMAT_TZ_PREFIX:-shux: [SHUX_STD137_TIME_FORMAT_TZ]}"
 
 std_time_format_tz_symbols_ok() {
   local mod_su="$1"
@@ -40,10 +40,10 @@ std_time_format_tz_symbols_ok() {
 }
 
 std_time_format_tz_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_time_ftz_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_time_ftz_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-time-format-tz FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -60,7 +60,7 @@ std_time_format_tz_run_c_smoke() {
   local time_o="$1"
   local dt_o="$2"
   local src="tests/time/format_timezone_smoke_ok.c"
-  local out="/tmp/shu_std_time_ftz_c_$$"
+  local out="/tmp/shux_std_time_ftz_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

@@ -3,13 +3,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
-OPT_MANIFEST="${SHU_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
-RES_MANIFEST="${SHU_STD_RESULT_MANIFEST:-tests/baseline/std-result-manifest.tsv}"
-OPT_SU="std/option/mod.su"
-RES_SU="std/result/mod.su"
+DOC="${SHUX_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
+OPT_MANIFEST="${SHUX_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
+RES_MANIFEST="${SHUX_STD_RESULT_MANIFEST:-tests/baseline/std-result-manifest.tsv}"
+OPT_SU="std/option/mod.sx"
+RES_SU="std/result/mod.sx"
 LIB="tests/lib/std-option-result.sh"
-SMOKE_SU="tests/std-option-result/roundtrip.su"
+SMOKE_SU="tests/std-option-result/roundtrip.sx"
 MIN_OPT=8
 MIN_RES=8
 
@@ -46,19 +46,19 @@ echo "std-option-result manifest OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-080/081: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-080/081: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-option-result gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_option_result_emit_report "fail" 0 0
     exit 1
   fi
-  if std_option_result_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
+  if std_option_result_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
     std_option_result_emit_report "fail" 0 0
     exit 1
   fi

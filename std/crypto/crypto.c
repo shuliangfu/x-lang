@@ -1,7 +1,7 @@
 /**
  * std/crypto/crypto.c — 常量时间比较、SHA-256/512、HMAC（性能压榨，对标 Zig std.crypto）
  *
- * 【文件职责】mem_eq（常量时间）；SHA-256/512；HMAC-SHA256。无外部依赖，单文件。ChaCha20-Poly1305 占位。
+ * 【文件职责】mem_eq、SHA-256/512、HMAC-SHA256、AES-GCM、ChaCha20-Poly1305、Ed25519；无外部依赖。
  * 【性能】restrict、热路径内联、SHA 块循环展开友好。
  */
 
@@ -205,3 +205,8 @@ void crypto_hmac_sha256_c(const uint8_t * restrict key, int32_t key_len, const u
   memcpy(outer + 64, out, 32);
   crypto_sha256_c(outer, 64 + 32, out);
 }
+
+/* AES-GCM / ChaCha20-Poly1305 / Ed25519：同翻译单元链入，无额外 .o 依赖。 */
+#include "aes_gcm.inc.c"
+#include "chacha20_poly1305.inc.c"
+#include "ed25519.inc.c"

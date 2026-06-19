@@ -3,15 +3,15 @@
 #
 # 1) comp-wpo-prod-v1.md + comp-wpo-prod-wave.tsv + comp-wpo.tsv prod 行
 # 2) 父 COMP-004 manifest 绿
-# 3) 有 native shu/shu_asm 时逐条执行 prod hook
+# 3) 有 native shux/shux_asm 时逐条执行 prod hook
 #
 # 用法：./tests/run-comp-wpo-prod-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP015_DOC:-analysis/comp-wpo-prod-v1.md}"
-WAVE="${SHU_COMP015_WAVE_TSV:-tests/baseline/comp-wpo-prod-wave.tsv}"
-MANIFEST="${SHU_COMP015_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+DOC="${SHUX_COMP015_DOC:-analysis/comp-wpo-prod-v1.md}"
+WAVE="${SHUX_COMP015_WAVE_TSV:-tests/baseline/comp-wpo-prod-wave.tsv}"
+MANIFEST="${SHUX_COMP015_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-prod.sh"
 MIN_PROD=5
 
@@ -97,7 +97,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-wpo-prod manifest OK (prod_hooks=${PROD_HOOK_N})"
 
-if [ "${SHU_COMP015_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP015_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_wpo_prod_emit_report "ok" "$PROD_HOOK_N" 0 1
   echo "comp-wpo-prod gate OK (manifest only)"
   exit 0
@@ -105,16 +105,16 @@ fi
 
 echo "=== COMP-015: parent COMP-004 manifest ==="
 chmod +x tests/run-comp-wpo-gate.sh tests/run-comp-wpo.sh
-SHU_COMP_WPO_MANIFEST_ONLY=1 ./tests/run-comp-wpo-gate.sh
+SHUX_COMP_WPO_MANIFEST_ONLY=1 ./tests/run-comp-wpo-gate.sh
 
 PROD_RUN=0
 PROD_SKIP=0
 HOST_SKIP=0
 
-SHU_C="${SHU:-./compiler/shu-c}"
-if ! comp_wpo_native_exe "$SHU_C"; then
-  if comp_wpo_native_exe ./compiler/shu; then
-    SHU_C=./compiler/shu
+SHUX_C="${SHUX:-./compiler/shux-c}"
+if ! comp_wpo_native_exe "$SHUXXX_C"; then
+  if comp_wpo_native_exe ./compiler/shux; then
+    SHUX_C=./compiler/shux
   fi
 fi
 
@@ -136,12 +136,12 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
 
   case "$anchor" in
     run-wpo-dce-emit.sh)
-      if ! comp_wpo_native_exe "$SHU_C"; then
-        echo "comp-wpo-prod SKIP $item_id (no native shu/shu-c)"
+      if ! comp_wpo_native_exe "$SHUXXX_C"; then
+        echo "comp-wpo-prod SKIP $item_id (no native shux/shux-c)"
         PROD_SKIP=$((PROD_SKIP + 1))
         continue
       fi
-      if SHU="$SHU_C" "$hook"; then
+      if SHUX="$SHUXXX_C" "$hook"; then
         PROD_RUN=$((PROD_RUN + 1))
         echo "comp-wpo-prod runnable OK $item_id"
       else

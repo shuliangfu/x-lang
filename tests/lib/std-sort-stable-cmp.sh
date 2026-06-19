@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sort-stable-cmp.sh — STD-060 manifest 与烟测辅助
 
-STD_SORT_STABLE_CMP_PREFIX="${SHU_STD_SORT_STABLE_CMP_PREFIX:-shu: [SHU_STD_SORT_STABLE_CMP]}"
+STD_SORT_STABLE_CMP_PREFIX="${SHUX_STD_SORT_STABLE_CMP_PREFIX:-shux: [SHUX_STD_SORT_STABLE_CMP]}"
 
 # 遍历 manifest TSV，校验 api/symbol/file/smoke。
 std_sort_stable_cmp_symbols_ok() {
@@ -44,7 +44,7 @@ std_sort_stable_cmp_symbols_ok() {
 std_sort_stable_cmp_run_c_smoke() {
   local sort_c="$1"
   local src="tests/std-sort/stable_smoke_ok.c"
-  local out="/tmp/shu_std_sort_stable_$$"
+  local out="/tmp/shux_std_sort_stable_$$"
   local sort_o
   sort_o="$(dirname "$sort_c")/sort.o"
   if [ ! -f "$sort_o" ]; then
@@ -67,15 +67,15 @@ std_sort_stable_cmp_run_c_smoke() {
   return 0
 }
 
-# .su 烟测。
+# .sx 烟测。
 std_sort_stable_cmp_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-sort}"
-  local exe="/tmp/shu_std_sort_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_sort_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sort-stable-cmp FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

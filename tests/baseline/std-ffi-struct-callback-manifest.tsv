@@ -2,13 +2,13 @@
 # 列：item_id	kind	anchor	mod_path	notes
 read_path	section	## 1. 目标	analysis/std-ffi-struct-callback-v1.md
 api_doc	section	## 2. 结构体与回调 API	analysis/std-ffi-struct-callback-v1.md
-api_point_pack	api	point_pack	std/ffi/mod.su	POD 写入
-api_point_unpack	api	point_unpack	std/ffi/mod.su	POD 读出
-api_invoke_cb	api	invoke_i32_cb	std/ffi/mod.su	回调调用
-struct_point	struct	FfiPoint	std/ffi/mod.su	8 字节
-const_too_small	const	FFI_ERR_TOO_SMALL	std/ffi/mod.su	-4
+api_point_pack	api	point_pack	std/ffi/mod.sx	POD 写入
+api_point_unpack	api	point_unpack	std/ffi/mod.sx	POD 读出
+api_invoke_cb	api	invoke_i32_cb	std/ffi/mod.sx	回调调用
+struct_point	struct	FfiPoint	std/ffi/mod.sx	8 字节
+const_too_small	const	FFI_ERR_TOO_SMALL	std/ffi/mod.sx	-4
 symbol_smoke_c	symbol	ffi_struct_callback_smoke_c	std/ffi/ffi.c	C 烟测
-smoke_su	smoke	tests/std-ffi/struct_callback.su	.su 烟测
+smoke_su	smoke	tests/std-ffi/struct_callback.sx	.sx 烟测
 smoke_c	smoke	tests/std-ffi/struct_callback_ok.c	C 烟测
 gate_base	gate	tests/run-std-ffi-cstring-lifecycle-gate.sh	STD-055
 lib	script	tests/lib/std-ffi-struct-callback.sh	lib

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PLAN004_DOC:-analysis/phase3-roadmap-wave4-v1.md}"
-MANIFEST="${SHU_PLAN004_TSV:-tests/baseline/phase3-roadmap-wave4.tsv}"
+DOC="${SHUX_PLAN004_DOC:-analysis/phase3-roadmap-wave4-v1.md}"
+MANIFEST="${SHUX_PLAN004_TSV:-tests/baseline/phase3-roadmap-wave4.tsv}"
 NEXT_MD="NEXT.md"
 LIB="tests/lib/phase3-roadmap-wave4.sh"
 MIN_TASKS=4
@@ -37,7 +37,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in Phase 3 BOOT-023 COMP-017 STD-065 SHU_PLAN004; do
+for kw in Phase 3 BOOT-023 COMP-017 STD-065 SHUX_PLAN004; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "phase3-roadmap-wave4 gate FAIL: doc missing '$kw'" >&2
     exit 1

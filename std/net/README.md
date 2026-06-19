@@ -10,13 +10,18 @@
 - **UDP**：`udp_bind` / `udp_send_to` / `udp_recv_many_buf`
 - **DNS / IPv6**：`resolve_ex` / `resolve_ipv6`（STD-029 可诊断错误码）、`ipv6_loopback`、`connect_ipv6`
 
-## echo / http / ws 统一栈
+## echo / http / websocket 统一栈
 
-所有面向连接的协议共用：
+面向连接的协议分层：
 
 1. **std.net** 建连 → `TcpStream`
 2. **std.io** 或 **stream_*** 读写字节
-3. 协议层（echo 回写 / **std.http** / **std.net ws_***（STD-031））只处理报文格式
+3. 协议层：
+   - echo 回写
+   - **std.http** — HTTP/1.x 客户端与服务辅助（GET/POST/HEAD、Context、server/pool）
+   - **std.websocket** — RFC6455 握手与帧（C 在 `std/net/ws.inc.c`，公开 API 在 `std/websocket/mod.sx`）
+
+> WebSocket **不**再作为 `std.net` 公开 API；STD-031 net-ws gate 测 C 层，用户应 `import("std.websocket")`。
 
 详见 [`analysis/std-net-api-v1.md`](../../analysis/std-net-api-v1.md) §4。
 
@@ -44,12 +49,14 @@ close_stream(s);
 - **门禁**：`tests/run-std-net-api-gate.sh`
 - **DNS（STD-029）**：`analysis/std-net-dns-v1.md`、`tests/run-std-net-dns-gate.sh`
 - **TLS（STD-030/083/085）**：`analysis/std-net-tls-v1.md`、`tests/run-std-net-tls-gate.sh`（桩 + OpenSSL/mbedTLS 握手烟测）
-- **WebSocket（STD-031）**：`analysis/std-net-ws-v1.md`、`tests/run-std-net-ws-gate.sh`（Accept + 帧 + 握手烟测）
+- **TLS ALPN（STD-HTTP-H2-TLS）**：`tls_alpn_h2_http1_wire` / `tls_connect_client_alpn` / `tls_alpn_is_h2`（h2 + http/1.1）
+- **WebSocket（STD-031）**：C 在 `std/net/ws.inc.c`；用户 API 见 **std.websocket**、`tests/run-std-websocket-gate.sh`
 
 ## 相关模块
 
 | 模块 | 关系 |
 |------|------|
 | `std.io` | 字节读写后端 |
-| `std.http` | HTTP 协议（占位，基于本模块 + std.io） |
+| `std.http` | HTTP/1.x 客户端与服务辅助 |
+| `std.websocket` | WebSocket 握手与帧（依赖 net + 可选 http Upgrade） |
 | `std.fs` | 文件 fd 可走 io 联合路径，非 net 替代 |

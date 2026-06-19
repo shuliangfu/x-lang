@@ -3,16 +3,16 @@
 #
 # 用法（source 后）：
 #   safe_leak_asan_ok
-#   safe_leak_run_su SHU_BIN src tag
+#   safe_leak_run_su SHUX_BIN src tag
 #   safe_leak_run_probe
 #   safe_leak_emit_report status cases_ok cases_fail leak_count
 
-SAFE_LEAK_PREFIX="${SHU_LEAK_NIGHTLY_PREFIX:-shu: [SHU_LEAK_NIGHTLY]}"
+SAFE_LEAK_PREFIX="${SHUX_LEAK_NIGHTLY_PREFIX:-shux: [SHUX_LEAK_NIGHTLY]}"
 
 # 检测当前 cc 是否支持 -fsanitize=address。
 safe_leak_asan_ok() {
-  local tmp="/tmp/shu_leak_asan_probe_$$.c"
-  local out="/tmp/shu_leak_asan_probe_$$"
+  local tmp="/tmp/shux_leak_asan_probe_$$.c"
+  local out="/tmp/shux_leak_asan_probe_$$"
   cat >"$tmp" <<'EOF'
 int main(void) { return 0; }
 EOF
@@ -24,18 +24,18 @@ EOF
   return 1
 }
 
-# 以 ASAN 编译并运行 .su；泄漏或崩溃返回 1。
+# 以 ASAN 编译并运行 .sx；泄漏或崩溃返回 1。
 safe_leak_run_su() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-leak}"
-  local exe="/tmp/shu_safe_leak_${tag}_$$"
+  local exe="/tmp/shux_safe_leak_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "safe-leak FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -fsanitize=address -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shu" -fsanitize=address -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$shux" -fsanitize=address -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -fsanitize=address -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -52,7 +52,7 @@ safe_leak_run_su() {
 
 # 运行故意泄漏 probe；应被 ASAN 检出（非 0 退出）。
 safe_leak_run_probe() {
-  local exe="/tmp/shu_leak_probe_$$"
+  local exe="/tmp/shux_leak_probe_$$"
   if ! cc -fsanitize=address tests/leak/leak_probe.c -o "$exe" 2>/dev/null; then
     echo "safe-leak probe SKIP: compile" >&2
     return 0

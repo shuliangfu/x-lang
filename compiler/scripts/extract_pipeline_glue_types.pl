@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# extract_pipeline_glue_types.pl — 从 pipeline_gen.c 抽取 glue+ast_pool 独立 TU 所需类型/extern，不含 .su 函数体。
+# extract_pipeline_glue_types.pl — 从 pipeline_gen.c 抽取 glue+ast_pool 独立 TU 所需类型/extern，不含 .sx 函数体。
 # 用法：perl scripts/extract_pipeline_glue_types.pl pipeline_gen.c > build_asm/pipeline_glue_types.inc
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ while (my $line = <$fh>) {
             print $line;
             next;
         }
-        # 单行 static inline 保留；多行函数体（如 shulang_panic_）整段跳过。
+        # 单行 static inline 保留；多行函数体（如 shux_panic_）整段跳过。
         if ($line =~ /^static inline .+\{.*\}\s*$/) {
             print $line;
             next;

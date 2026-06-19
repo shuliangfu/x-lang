@@ -13,6 +13,6 @@ kw_gate	keyword	run-std-sqlite-gate.sh	docs07	gate
 kw_deprecated	keyword	import std.db	docs07	deprecated 脚注
 doc07_main	keyword	## std 已完善	docs07	主表区
 doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
-readme_sqlite	file	std/sqlite/README.md	readme	模块 README
+readme_sqlite	file	std/db/sqlite/README.md	readme	模块 README
 readme_std	file	std/README.md	readme	std 索引
 gate	script	run-std-sqlite-docs-sync-gate.sh	tests	gate

@@ -1,9 +1,9 @@
 # TST-002 P0 边界测试波次 2 manifest
 # 列：item_id	kind	path	min_cases	module	notes
 min_cases_per_mod	8
-heap	boundary	tests/heap/boundary.su	8	std.heap	alloc/arena
-vec	boundary	tests/vec/boundary.su	9	std.vec	push/pop/clear
-map	boundary	tests/map/boundary.su	8	std.map	u64/str map
-process	boundary	tests/process/boundary.su	9	std.process	pid/pipe/cwd
+heap	boundary	tests/heap/boundary.sx	8	std.heap	alloc/arena
+vec	boundary	tests/vec/boundary.sx	9	std.vec	push/pop/clear
+map	boundary	tests/map/boundary.sx	8	std.map	u64/str map
+process	boundary	tests/process/boundary.sx	9	std.process	pid/pipe/cwd
 doc	file	analysis/tst-002-boundary-wave2-v1.md	-	-	RFC
 gate	script	tests/run-tst-002-boundary-gate.sh	tests/run-tst-002-boundary-gate.sh	-	manifest

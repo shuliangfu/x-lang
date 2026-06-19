@@ -1,6 +1,6 @@
 # std.dynlib — 动态库加载
 
-**模块路径**：`std/dynlib/`（mod.su + dynlib.c）  
+**模块路径**：`std/dynlib/`（mod.sx + dynlib.c）  
 **对标**：Zig `std.DynLib`、Rust `libloading`。
 
 ## API

@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD103_DOC:-analysis/std-elf-sym-rela-v1.md}"
-MANIFEST="${SHU_STD103_TSV:-tests/baseline/std-elf-sym-rela.tsv}"
-VECTORS="${SHU_STD103_VECTORS:-tests/baseline/std-elf-sym-rela-vectors.tsv}"
-MOD_SU="std/elf/mod.su"
+DOC="${SHUX_STD103_DOC:-analysis/std-elf-sym-rela-v1.md}"
+MANIFEST="${SHUX_STD103_TSV:-tests/baseline/std-elf-sym-rela.tsv}"
+VECTORS="${SHUX_STD103_VECTORS:-tests/baseline/std-elf-sym-rela-vectors.tsv}"
+MOD_SU="std/elf/mod.sx"
 ELF_C="std/elf/elf.c"
 LIB="tests/lib/std-elf-sym-rela.sh"
-SMOKE_SU="tests/std-elf/parse_sym_rela.su"
+SMOKE_SU="tests/std-elf/parse_sym_rela.sx"
 SMOKE_C="tests/std-elf/parse_sym_rela_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_sym_rela.bin"
 MIN_APIS=4
@@ -74,7 +74,7 @@ echo "std-elf-sym-rela manifest OK"
 
 echo "=== STD-103: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHU_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
@@ -90,7 +90,7 @@ fi
 
 SYM_SU=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -102,21 +102,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shu-c; then
-  SHU_BIN=./compiler/shu-c
-elif stdlib_cm_native_shu ./compiler/shu; then
-  SHU_BIN=./compiler/shu
+if stdlib_cm_native_shu ./compiler/shux-c; then
+  SHUX_BIN=./compiler/shux-c
+elif stdlib_cm_native_shu ./compiler/shux; then
+  SHUX_BIN=./compiler/shux
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-103: .su symtab/rela smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-103: .sx symtab/rela smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-elf-sym-rela gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_elf_sym_rela_emit_report "fail" "$SYM_C" 0 0
     exit 1
   fi
-  if std_elf_sym_rela_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "symrela"; then
+  if std_elf_sym_rela_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "symrela"; then
     SYM_SU=1
   else
     std_elf_sym_rela_emit_report "fail" "$SYM_C" 0 0
@@ -124,7 +124,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
 else
   SKIP=1
-  echo "std-elf-sym-rela gate SKIP .su smoke (no native shu)" >&2
+  echo "std-elf-sym-rela gate SKIP .sx smoke (no native shux)" >&2
 fi
 
 std_elf_sym_rela_emit_report "ok" "$SYM_C" "$SYM_SU" "$SKIP"

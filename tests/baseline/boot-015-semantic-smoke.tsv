@@ -4,14 +4,14 @@
 section_goal	section	## 1. 目标	bootstrap-verify 子集
 section_subset	section	## 2. bootstrap-verify 子集	vec map heap
 section_gate	section	## 4. Gate	boot-015 gate
-smoke_vec	smoke	tests/vec/main.su	vec_len_empty
-smoke_map	smoke	tests/map/main.su	map_empty_size
-smoke_heap	smoke	tests/heap/main.su	alloc_size_zero
+smoke_vec	smoke	tests/vec/main.sx	vec_len_empty
+smoke_map	smoke	tests/map/main.sx	map_empty_size
+smoke_heap	smoke	tests/heap/main.sx	alloc_size_zero
 hook_runner	hook_script	run-bootstrap-semantic-smoke-vec-map-heap.sh	subset runner
 hook_vec	hook_script	run-vec.sh	vec regression
 hook_map	hook_script	run-map.sh	map regression
 hook_heap	hook_script	run-heap.sh	heap regression
 cross_check72	cross_ref	compiler/Makefile	check-7.2-bstrict integration
-cross_bootstrap_gate	cross_ref	tests/run-bootstrap-shu-gate.sh	driver gate
+cross_bootstrap_gate	cross_ref	tests/run-bootstrap-shux-gate.sh	driver gate
 doc	file	boot-015-semantic-smoke-v1.md	analysis/boot-015-semantic-smoke-v1.md	RFC
 gate	script	run-boot-015-semantic-smoke-gate.sh	tests/run-boot-015-semantic-smoke-gate.sh	manifest

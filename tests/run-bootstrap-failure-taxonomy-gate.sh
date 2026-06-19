@@ -11,10 +11,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-TAX="${SHU_BOOT_FAILURE_TAXONOMY:-tests/baseline/bootstrap-failure-taxonomy.tsv}"
-PATTERNS="${SHU_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
-REPRO="${SHU_BOOT_REPRO_MATRIX:-tests/baseline/bootstrap-repro.tsv}"
-FIXTURES="${SHU_BOOT_STAGE_FIXTURES:-tests/baseline/bootstrap-stage-diag-fixtures.tsv}"
+TAX="${SHUX_BOOT_FAILURE_TAXONOMY:-tests/baseline/bootstrap-failure-taxonomy.tsv}"
+PATTERNS="${SHUX_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
+REPRO="${SHUX_BOOT_REPRO_MATRIX:-tests/baseline/bootstrap-repro.tsv}"
+FIXTURES="${SHUX_BOOT_STAGE_FIXTURES:-tests/baseline/bootstrap-stage-diag-fixtures.tsv}"
 MIN_PCT=95
 MIN_TYPES=20
 

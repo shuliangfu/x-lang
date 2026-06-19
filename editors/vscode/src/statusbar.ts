@@ -1,17 +1,17 @@
 /**
- * Shulang 状态栏 — 在右下角显示「Shulang」及对当前 `.su` 源的符号粗略统计。
+ * Shux 状态栏 — 在右下角显示「Shux」及对当前 `.sx` 源的符号粗略统计。
  *
  * extension.activate() 示例：
  * ```
- * registerShulangStatusBar(context);
- * refreshShulangStatusBar(vscode.window.activeTextEditor);
+ * registerShuxStatusBar(context);
+ * refreshShuxStatusBar(vscode.window.activeTextEditor);
  * context.subscriptions.push(
- *   vscode.window.onDidChangeActiveTextEditor((e) => refreshShulangStatusBar(e))
+ *   vscode.window.onDidChangeActiveTextEditor((e) => refreshShuxStatusBar(e))
  * );
  * context.subscriptions.push(
  *   vscode.workspace.onDidChangeTextDocument((e) => {
- *     if (e.document.languageId === 'su') {
- *       refreshShulangStatusBar(vscode.window.activeTextEditor);
+ *     if (e.document.languageId === 'sx') {
+ *       refreshShuxStatusBar(vscode.window.activeTextEditor);
  *     }
  *   })
  * );
@@ -27,7 +27,7 @@ import {
 } from 'vscode';
 
 /** VSCode StatusBar：扩展侧持有单例，防止重复条目。 */
-let shulangStatusItem: StatusBarItem | undefined;
+let shuxStatusItem: StatusBarItem | undefined;
 
 /** 与普通函数声明行匹配的正则（与 symbols.ts 行首抽取策略一致）。 */
 const FUNC_HEAD = /^\s*function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(/;
@@ -44,7 +44,7 @@ const ENUM_HEAD = /^\s*enum\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
  * @param source 文档全文。
  * @returns 去掉注释后的文本（仅用于正则统计，不改变换行个数）。
  */
-function stripSuCommentsPreserveNewlines(source: string): string {
+function stripSxCommentsPreserveNewlines(source: string): string {
   /** 输出缓冲区，与原串等长，逐字节填充。 */
   const outChars: string[] = new Array(source.length);
   /** 是否在 `//` 行注释尾部。 */
@@ -130,9 +130,9 @@ function stripSuCommentsPreserveNewlines(source: string): string {
 /**
  * 对清洗后的源码逐行计数：function / struct / enum。
  *
- * @param sanitized 已通过 `stripSuCommentsPreserveNewlines` 的文本。
+ * @param sanitized 已通过 `stripSxCommentsPreserveNewlines` 的文本。
  */
-function countSuSymbolsPerLinePrefix(sanitized: string): {
+function countSxSymbolsPerLinePrefix(sanitized: string): {
   funcs: number;
   structs: number;
   enums: number;
@@ -150,68 +150,68 @@ function countSuSymbolsPerLinePrefix(sanitized: string): {
 }
 
 /**
- * 创建右下角 Shulang 状态项并完成首次刷新（若当前有活动编辑器）。
+ * 创建右下角 Shux 状态项并完成首次刷新（若当前有活动编辑器）。
  *
  * StatusBar：`alignment = Right`、`priority = 100`；
- * `text = ' Shulang'`（按需求保留前导空格）；
- * `tooltip = 'Shulang (.su)'`；
+ * `text = ' Shux'`（按需求保留前导空格）；
+ * `tooltip = 'Shux (.sx)'`；
  * `show()` 后即加入 `context.subscriptions`。
  *
  * @param context VSCode 激活上下文。
  */
-export function registerShulangStatusBar(context: ExtensionContext): void {
-  if (shulangStatusItem) {
+export function registerShuxStatusBar(context: ExtensionContext): void {
+  if (shuxStatusItem) {
     /** 已在开发热重载下多次激活时重用同一项，防止泄漏。 */
-    shulangStatusItem.dispose();
+    shuxStatusItem.dispose();
   }
   /** 右下角状态条目 */
   const item = window.createStatusBarItem(StatusBarAlignment.Right, 100);
-  shulangStatusItem = item;
-  item.name = 'Shulang';
+  shuxStatusItem = item;
+  item.name = 'Shux';
   /** 初始化展示（占位含前导空格，符合需求字面） */
-  item.text = ' Shulang';
-  item.tooltip = 'Shulang (.su)';
+  item.text = ' Shux';
+  item.tooltip = 'Shux (.sx)';
   item.show();
 
   /** 扩展卸载时销毁状态条目 */
   context.subscriptions.push(item);
 
   /** 注册完成后立即对齐当前编辑器 */
-  refreshShulangStatusBar(window.activeTextEditor);
+  refreshShuxStatusBar(window.activeTextEditor);
 }
 
 /**
  * 在活动编辑器或其文档发生变化时刷新状态栏计数。
  *
- * - 若为 `.su`：统计 `function`/`struct`/`enum`（排除注释）。
- * - 否则回退占位文本：` Shulang`，tooltip：`Shulang (.su)`。
+ * - 若为 `.sx`：统计 `function`/`struct`/`enum`（排除注释）。
+ * - 否则回退占位文本：` Shux`，tooltip：`Shux (.sx)`。
  *
  * @param editor 当前活动编辑器，可为 undefined。
  */
-export function refreshShulangStatusBar(editor: TextEditor | undefined): void {
-  const item = shulangStatusItem;
+export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
+  const item = shuxStatusItem;
   if (!item) {
     return;
   }
 
-  /** 仅在 Shulang 语言 ID 上做统计（与 contributes 对齐） */
-  if (!editor || editor.document.languageId !== 'su') {
-    /** 需求：非 .su 编辑器回退占位 */
-    item.text = ' Shulang';
-    item.tooltip = 'Shulang (.su)';
+  /** 仅在 Shux 语言 ID 上做统计（与 contributes 对齐） */
+  if (!editor || editor.document.languageId !== 'sx') {
+    /** 需求：非 .sx 编辑器回退占位 */
+    item.text = ' Shux';
+    item.tooltip = 'Shux (.sx)';
     return;
   }
 
-  const sanitized = stripSuCommentsPreserveNewlines(editor.document.getText());
-  const { funcs, structs, enums } = countSuSymbolsPerLinePrefix(sanitized);
+  const sanitized = stripSxCommentsPreserveNewlines(editor.document.getText());
+  const { funcs, structs, enums } = countSxSymbolsPerLinePrefix(sanitized);
 
   /**
    * `$(symbol-namespace)`：使用内置图标前缀，前缀保留一个空格以保持版式，
    * 后面展示三种符号计数。
    */
-  item.text = ` $(symbol-namespace) Shulang · fn ${funcs} · st ${structs} · en ${enums}`;
+  item.text = ` $(symbol-namespace) Shux · fn ${funcs} · st ${structs} · en ${enums}`;
   /** 悬停详细信息：分项列出 */
-  item.tooltip = `Shulang (.su)
+  item.tooltip = `Shux (.sx)
 函数: ${funcs}
 结构体: ${structs}
 枚举: ${enums}`;

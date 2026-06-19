@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_README_DOC:-analysis/core-readme-sync-v1.md}"
-MANIFEST="${SHU_CORE_README_TSV:-tests/baseline/core-readme-sync.tsv}"
+DOC="${SHUX_CORE_README_DOC:-analysis/core-readme-sync-v1.md}"
+MANIFEST="${SHUX_CORE_README_TSV:-tests/baseline/core-readme-sync.tsv}"
 README="core/README.md"
 DOC07="docs/07-内置与标准库.md"
 

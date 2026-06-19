@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
 run_case() {
   local src="$1"
   local out="$2"
   local want="$3"
   local max_ldur="$4"
-  $SHU "$src" -o "$out" 2>&1
+  $SHUX "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && {
@@ -29,7 +29,7 @@ run_case() {
   fi
 }
 
-run_case tests/asm/binop_nested_var_return.su /tmp/shu_asm_binop_nested_var 20 8
-run_case tests/asm/binop_nested_mul_return.su /tmp/shu_asm_binop_nested_mul 120 8
+run_case tests/asm/binop_nested_var_return.sx /tmp/shux_asm_binop_nested_var 20 8
+run_case tests/asm/binop_nested_mul_return.sx /tmp/shux_asm_binop_nested_mul 120 8
 
 echo "asm binop nested var OK"

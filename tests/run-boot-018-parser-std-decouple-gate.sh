@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT018_DOC:-analysis/boot-018-parser-std-decouple-v1.md}"
-MANIFEST="${SHU_BOOT018_TSV:-tests/baseline/boot-018-parser-std-decouple.tsv}"
+DOC="${SHUX_BOOT018_DOC:-analysis/boot-018-parser-std-decouple-v1.md}"
+MANIFEST="${SHUX_BOOT018_TSV:-tests/baseline/boot-018-parser-std-decouple.tsv}"
 MEGA_MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 ENG_MATRIX="tests/baseline/eng-quality-gate-matrix.tsv"
 PORTABLE="tests/run-portable-suite.sh"

@@ -23,7 +23,7 @@
 
 /** STD-107：client 连接池（同 host:port idle fd 栈）。 */
 typedef struct http_client_pool {
-  char host[SHU_HTTP_HOST_MAX];
+  char host[SHUX_HTTP_HOST_MAX];
   char port[8];
   int32_t max_conns;
   int32_t n_idle;
@@ -70,11 +70,11 @@ int32_t http_listen_c(uint32_t addr_u32, uint32_t port_u32, int32_t backlog) {
   if (fd == INVALID_SOCKET) return -1;
   (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, (int)sizeof(opt));
   if (bind(fd, (struct sockaddr *)&sin, (int)sizeof(sin)) != 0) {
-    SHU_HTTP_CLOSE((int)fd);
+    SHUX_HTTP_CLOSE((int)fd);
     return -1;
   }
   if (listen(fd, backlog) != 0) {
-    SHU_HTTP_CLOSE((int)fd);
+    SHUX_HTTP_CLOSE((int)fd);
     return -1;
   }
   return (int32_t)fd;
@@ -83,11 +83,11 @@ int32_t http_listen_c(uint32_t addr_u32, uint32_t port_u32, int32_t backlog) {
   if (fd < 0) return -1;
   (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, (socklen_t)sizeof(opt));
   if (bind(fd, (struct sockaddr *)&sin, (socklen_t)sizeof(sin)) != 0) {
-    SHU_HTTP_CLOSE(fd);
+    SHUX_HTTP_CLOSE(fd);
     return -1;
   }
   if (listen(fd, backlog) != 0) {
-    SHU_HTTP_CLOSE(fd);
+    SHUX_HTTP_CLOSE(fd);
     return -1;
   }
   return (int32_t)fd;
@@ -106,7 +106,7 @@ int32_t http_serve_one_c(int32_t listener_fd, const uint8_t *body, int32_t body_
     int32_t r;
     if (client == INVALID_SOCKET) return -1;
     r = http_respond_get_ok_c((int)client, body, body_len);
-    SHU_HTTP_CLOSE((int)client);
+    SHUX_HTTP_CLOSE((int)client);
     return r;
   }
 #else
@@ -123,7 +123,7 @@ int32_t http_serve_one_c(int32_t listener_fd, const uint8_t *body, int32_t body_
   client = (int)accept(listener_fd, NULL, NULL);
   if (client < 0) return -1;
   r = http_respond_get_ok_c(client, body, body_len);
-  SHU_HTTP_CLOSE(client);
+  SHUX_HTTP_CLOSE(client);
   return r;
 #endif
 }
@@ -166,12 +166,12 @@ static int32_t http_respond_get_ok_keepalive_c(int fd, const uint8_t *body, int3
 
 /** 校验 url 的 host/port 与 pool 绑定一致。 */
 static int http_pool_url_matches(const http_client_pool_t *p, const uint8_t *url, int32_t url_len) {
-  char host_buf[SHU_HTTP_HOST_MAX];
+  char host_buf[SHUX_HTTP_HOST_MAX];
   char port_buf[8];
-  char path_buf[SHU_HTTP_PATH_MAX];
+  char path_buf[SHUX_HTTP_PATH_MAX];
   if (!p || !url || url_len <= 0) return 0;
-  if (parse_http_url(url, url_len, host_buf, SHU_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                     path_buf, SHU_HTTP_PATH_MAX) != 0)
+  if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                     path_buf, SHUX_HTTP_PATH_MAX, NULL) != 0)
     return 0;
   if (strcmp(host_buf, p->host) != 0) return 0;
   if (strcmp(port_buf, p->port) != 0) return 0;
@@ -208,7 +208,7 @@ static int http_pool_connect_new(http_client_pool_t *p) {
       return -1;
     }
     if (connect(s, res->ai_addr, (int)res->ai_addrlen) != 0) {
-      SHU_HTTP_CLOSE((int)s);
+      SHUX_HTTP_CLOSE((int)s);
       freeaddrinfo(res);
       WSACleanup();
       return -1;
@@ -222,7 +222,7 @@ static int http_pool_connect_new(http_client_pool_t *p) {
     return -1;
   }
   if (connect(fd, res->ai_addr, (socklen_t)res->ai_addrlen) != 0) {
-    SHU_HTTP_CLOSE(fd);
+    SHUX_HTTP_CLOSE(fd);
     freeaddrinfo(res);
     return -1;
   }
@@ -246,13 +246,13 @@ static void http_pool_release_fd(http_client_pool_t *p, int fd) {
     p->fds[p->n_idle++] = fd;
     return;
   }
-  SHU_HTTP_CLOSE(fd);
+  SHUX_HTTP_CLOSE(fd);
 }
 
 /** 在已连接 fd 上发 GET 并读完整响应（按 Content-Length，兼容 keep-alive）。 */
 static int32_t http_get_on_fd_c(int fd, const char *host, const char *path,
                                 uint8_t *out_buf, int32_t out_cap) {
-  char req[SHU_HTTP_REQ_MAX];
+  char req[SHUX_HTTP_REQ_MAX];
   int req_len;
   int32_t total;
   int32_t hdr_end;
@@ -318,7 +318,7 @@ int64_t http_client_pool_create_c(const uint8_t *host, int32_t host_len,
                                   const uint8_t *port, int32_t port_len,
                                   int32_t max_conns) {
   http_client_pool_t *p;
-  if (!host || host_len <= 0 || host_len >= SHU_HTTP_HOST_MAX) return 0;
+  if (!host || host_len <= 0 || host_len >= SHUX_HTTP_HOST_MAX) return 0;
   if (!port || port_len <= 0 || port_len >= 8) return 0;
   if (max_conns <= 0) max_conns = 1;
   if (max_conns > HTTP_POOL_MAX_CONNS) max_conns = HTTP_POOL_MAX_CONNS;
@@ -337,7 +337,7 @@ void http_client_pool_destroy_c(int64_t pool_h) {
   http_client_pool_t *p = (http_client_pool_t *)(intptr_t)pool_h;
   int i;
   if (!p) return;
-  for (i = 0; i < p->n_idle; i++) SHU_HTTP_CLOSE(p->fds[i]);
+  for (i = 0; i < p->n_idle; i++) SHUX_HTTP_CLOSE(p->fds[i]);
   free(p);
 }
 
@@ -348,27 +348,27 @@ void http_client_pool_destroy_c(int64_t pool_h) {
 int32_t http_client_pool_get_c(int64_t pool_h, const uint8_t *url, int32_t url_len,
                                uint8_t *out_buf, int32_t out_cap) {
   http_client_pool_t *p = (http_client_pool_t *)(intptr_t)pool_h;
-  char host_buf[SHU_HTTP_HOST_MAX];
+  char host_buf[SHUX_HTTP_HOST_MAX];
   char port_buf[8];
-  char path_buf[SHU_HTTP_PATH_MAX];
+  char path_buf[SHUX_HTTP_PATH_MAX];
   int fd;
   int32_t n;
   if (!p || !url || !out_buf || url_len <= 0 || out_cap <= 0) return -1;
   if (!http_pool_url_matches(p, url, url_len)) return -1;
-  if (parse_http_url(url, url_len, host_buf, SHU_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                     path_buf, SHU_HTTP_PATH_MAX) != 0)
+  if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                     path_buf, SHUX_HTTP_PATH_MAX, NULL) != 0)
     return -1;
   fd = http_pool_acquire_fd(p);
   if (fd < 0) return -1;
   n = http_get_on_fd_c(fd, p->host, path_buf, out_buf, out_cap);
   if (n < 0) {
-    SHU_HTTP_CLOSE(fd);
+    SHUX_HTTP_CLOSE(fd);
     return -1;
   }
   if (http_has_keep_alive_c(out_buf, n)) {
     http_pool_release_fd(p, fd);
   } else {
-    SHU_HTTP_CLOSE(fd);
+    SHUX_HTTP_CLOSE(fd);
   }
   return n;
 }
@@ -411,23 +411,23 @@ int32_t http_server_pool_smoke_c(void) {
   if (lfd < 0) return 1;
   slen = (socklen_t)sizeof(sin);
   if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 2;
   }
   bound_port = ntohs(sin.sin_port);
   if (snprintf(port_dyn, sizeof(port_dyn), "%u", (unsigned)bound_port) <= 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 3;
   }
   if (snprintf(url, sizeof(url), "http://127.0.0.1:%u/", (unsigned)bound_port) <= 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 4;
   }
 
   /* Part 1：serve_one — 子进程作 client */
   pid = fork();
   if (pid < 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 5;
   }
   if (pid == 0) {
@@ -441,14 +441,14 @@ int32_t http_server_pool_smoke_c(void) {
     cfd = (int)socket(AF_INET, SOCK_STREAM, 0);
     if (cfd < 0) _exit(1);
     if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-      SHU_HTTP_CLOSE(cfd);
+      SHUX_HTTP_CLOSE(cfd);
       _exit(2);
     }
     sent = 0;
     while (sent < (int)sizeof(get_req) - 1) {
       ssize_t n = send(cfd, get_req + sent, sizeof(get_req) - 1u - (size_t)sent, 0);
       if (n <= 0) {
-        SHU_HTTP_CLOSE(cfd);
+        SHUX_HTTP_CLOSE(cfd);
         _exit(3);
       }
       sent += (int)n;
@@ -456,33 +456,33 @@ int32_t http_server_pool_smoke_c(void) {
     {
       ssize_t nr = recv(cfd, client_buf, sizeof(client_buf) - 1u, 0);
       if (nr <= 0) {
-        SHU_HTTP_CLOSE(cfd);
+        SHUX_HTTP_CLOSE(cfd);
         _exit(4);
       }
       client_buf[nr] = '\0';
       if (strstr((char *)client_buf, "200 OK") == NULL) {
-        SHU_HTTP_CLOSE(cfd);
+        SHUX_HTTP_CLOSE(cfd);
         _exit(5);
       }
     }
-    SHU_HTTP_CLOSE(cfd);
+    SHUX_HTTP_CLOSE(cfd);
     _exit(0);
   }
   if (http_serve_one_c(lfd, body, 2, 3000u) != 0) {
     (void)kill(pid, SIGKILL);
     (void)waitpid(pid, NULL, 0);
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 6;
   }
   if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 7;
   }
 
   /* Part 2：client pool — 子进程同一连接处理两次 keep-alive */
   pid = fork();
   if (pid < 0) {
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 8;
   }
   if (pid == 0) {
@@ -493,9 +493,9 @@ int32_t http_server_pool_smoke_c(void) {
       for (i = 0; i < 2; i++) {
         if (http_respond_get_ok_keepalive_c(client, body, 2) != 0) break;
       }
-      SHU_HTTP_CLOSE(client);
+      SHUX_HTTP_CLOSE(client);
     }
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     _exit(0);
   }
 
@@ -506,14 +506,14 @@ int32_t http_server_pool_smoke_c(void) {
   if (pool == 0) {
     (void)kill(pid, SIGKILL);
     (void)waitpid(pid, NULL, 0);
-    SHU_HTTP_CLOSE(lfd);
+    SHUX_HTTP_CLOSE(lfd);
     return 9;
   }
   n1 = http_client_pool_get_c(pool, (const uint8_t *)url, (int32_t)strlen(url), out, (int32_t)sizeof(out));
   n2 = http_client_pool_get_c(pool, (const uint8_t *)url, (int32_t)strlen(url), out, (int32_t)sizeof(out));
   cc = http_client_pool_connect_count_c(pool);
   http_client_pool_destroy_c(pool);
-  SHU_HTTP_CLOSE(lfd);
+  SHUX_HTTP_CLOSE(lfd);
   (void)kill(pid, SIGKILL);
   (void)waitpid(pid, NULL, 0);
 

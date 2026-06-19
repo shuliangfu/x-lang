@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-query-rows.sh — STD-066 manifest 与 query_rows 烟测辅助
 
-STD_DB_QUERY_ROWS_PREFIX="${SHU_STD066_PREFIX:-shu: [SHU_STD066_DB_ROWS]}"
+STD_DB_QUERY_ROWS_PREFIX="${SHUX_STD066_PREFIX:-shux: [SHUX_STD066_DB_ROWS]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_query_rows_source_sqlite() {
@@ -28,7 +28,7 @@ std_sqlite_query_rows_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-query-rows FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -55,7 +55,7 @@ std_sqlite_query_rows_symbols_ok() {
 std_sqlite_query_rows_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/query_rows_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_query_rows_$$"
+  local out="/tmp/shux_std_sqlite_query_rows_$$"
   local db_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

@@ -1,12 +1,12 @@
 /**
- * pipeline_typeck_field_access.c — EXPR_FIELD_ACCESS 类型检查的 C glue（从 typeck.su 机械移植）。
+ * pipeline_typeck_field_access.c — EXPR_FIELD_ACCESS 类型检查的 C glue（从 typeck.sx 机械移植）。
  *
  * 由 pipeline_glue.c #include 并入同一翻译单元；不单独编译。
- * 子逻辑导出 pipeline_typeck_field_*_c 供 typeck.su EMIT_HEAVY 编排；仍保留 pipeline_typeck_check_expr_field_access_c（strict_glue）。
- * 依赖 typeck_su_no_layout_partial 导出的 typeck_* helper 与 pipeline_* 池访问器。
+ * 子逻辑导出 pipeline_typeck_field_*_c 供 typeck.sx EMIT_HEAVY 编排；仍保留 pipeline_typeck_check_expr_field_access_c（strict_glue）。
+ * 依赖 typeck_sx_no_layout_partial 导出的 typeck_* helper 与 pipeline_* 池访问器。
  */
 
-/* typeck_su_no_layout_partial 符号（SU 经 C gen 带 typeck_ 前缀）；find_or_alloc_ptr 见 typeck_su_link_alias.c。 */
+/* typeck_sx_no_layout_partial 符号（SU 经 C gen 带 typeck_ 前缀）；find_or_alloc_ptr 见 typeck_sx_link_alias.c。 */
 extern int32_t typeck_name_equal(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len);
 extern int32_t typeck_find_or_alloc_named_type_ref(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
 extern int32_t typeck_ensure_i32_type_ref(struct ast_ASTArena *arena);
@@ -545,7 +545,7 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
 }
 
 /**
- * typeck.su::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
+ * typeck.sx::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
  */
 int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {

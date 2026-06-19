@@ -8,7 +8,7 @@ anchor_decode	api	decode_chunked_body	std/http/README.md	STD-033 API
 anchor_std033_readme	anchor	STD-033	std/README.md	std.http 行
 anchor_std033_doc07	anchor	STD-033	docs/07-内置与标准库.md	std.http 表
 anchor_http02	anchor	HTTP-02	analysis/doc-cookbook-expand-v1.md	§11
-recipe_http02	recipe	examples/cookbook/http_chunked_decode.su	HTTP-02
+recipe_http02	recipe	examples/cookbook/http_chunked_decode.sx	HTTP-02
 cross_std033	cross_ref	STD-033	analysis/std-http-chunked-v1.md	RFC
 cross_chunked_gate	cross_ref	run-std-http-chunked-gate.sh	tests/run-std-http-chunked-gate.sh	门禁
 lib	script	lib/doc-phase2-close.sh	tests/lib/doc-phase2-close.sh

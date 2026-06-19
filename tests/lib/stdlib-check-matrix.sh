@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# stdlib-check-matrix.sh — BOOT-013：单模块 shu check 辅助
+# stdlib-check-matrix.sh — BOOT-013：单模块 shux check 辅助
 #
 # 用法（source 后）：
 #   stdlib_cm_resolve_shu
-#   stdlib_cm_check_module SHU mod_name
+#   stdlib_cm_check_module SHUX mod_name
 #   stdlib_cm_emit_report status core_ok std_ok fail skip
 
-STDLIB_CM_PREFIX="${SHU_STDLIB_CHECK_PREFIX:-shu: [SHU_STDLIB_CHECK]}"
+STDLIB_CM_PREFIX="${SHUX_STDLIB_CHECK_PREFIX:-shux: [SHUX_STDLIB_CHECK]}"
 
-# 判断 shu 是否可在本机执行（避免 Linux ELF 在 macOS 上误判）。
+# 判断 shux 是否可在本机执行（避免 Linux ELF 在 macOS 上误判）。
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -21,17 +21,17 @@ stdlib_cm_native_shu() {
   esac
 }
 
-# 解析 typeck 用 shu（优先本机可执行的 shu-c）。
+# 解析 typeck 用 shux（优先本机可执行的 shux-c）。
 stdlib_cm_resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${SHU:-}" ] && stdlib_cm_native_shu "$SHU"; then
-    echo "$SHU"
+  if [ -n "${SHUX:-}" ] && stdlib_cm_native_shu "$SHUX"; then
+    echo "$SHUX"
     return 0
   fi
   return 1
@@ -39,10 +39,10 @@ stdlib_cm_resolve_shu() {
 
 # 对单个模块跑 check；成功 0，失败 1。
 stdlib_cm_check_module() {
-  local shu="$1"
+  local shux="$1"
   local mod="$2"
   local safe="${mod//./_}"
-  local tmp="/tmp/shu_stdlib_cm_${safe}_$$.su"
+  local tmp="/tmp/shux_stdlib_cm_${safe}_$$.sx"
   cat >"$tmp" <<EOF
 // BOOT-013 auto check probe for ${mod}
 const _m = import("${mod}");
@@ -50,8 +50,8 @@ function main(): i32 {
   return 0;
 }
 EOF
-  if ! "$shu" check -L . "$tmp" >/dev/null 2>&1; then
-    "$shu" check -L . "$tmp" 2>&1 | tail -6 >&2 || true
+  if ! "$shux" check -L . "$tmp" >/dev/null 2>&1; then
+    "$shux" check -L . "$tmp" 2>&1 | tail -6 >&2 || true
     rm -f "$tmp"
     return 1
   fi

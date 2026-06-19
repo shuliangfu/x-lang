@@ -1,73 +1,73 @@
 {
   // =============================================================================
-  // Shulang 工作区默认配置（与 editors/vscode/package.json 默认值对齐，可按需覆盖）
+  // Shux 工作区默认配置（与 editors/vscode/package.json 默认值对齐，可按需覆盖）
   // =============================================================================
 
   // --- 语言服务（LSP）---
-  // shu 可执行文件路径（相对工作区根）；LSP、运行、诊断均依赖此路径
-  "shulang.serverPath": "compiler/shu",
+  // shux 可执行文件路径（相对工作区根）；LSP、运行、诊断均依赖此路径
+  "shux.serverPath": "compiler/shux",
   // LSP 通信日志：off | messages | verbose（排查问题时改为 verbose）
-  "shulang.server.trace": "off",
+  "shux.server.trace": "off",
   // LSP 进程异常退出时是否自动重启
-  "shulang.server.restartOnCrash": true,
+  "shux.server.restartOnCrash": true,
 
   // --- 格式化 ---
-  // 是否启用 Shulang 格式化（Format Document / 保存时格式化）
-  "shulang.format.enabled": true,
+  // 是否启用 Shux 格式化（Format Document / 保存时格式化）
+  "shux.format.enabled": true,
   // 每级缩进空格数（insertSpaces 为 true 时生效）
-  "shulang.format.tabSize": 2,
+  "shux.format.tabSize": 2,
   // true=空格缩进，false=Tab 缩进
-  "shulang.format.insertSpaces": true,
+  "shux.format.insertSpaces": true,
   // 单行最大字符数（超出可换行，0 表示不限制）
-  "shulang.format.maxLineLength": 100,
+  "shux.format.maxLineLength": 100,
   // 文件末尾是否插入换行符
-  "shulang.format.insertFinalNewline": true,
+  "shux.format.insertFinalNewline": true,
   // 是否删除行尾空白
-  "shulang.format.trimTrailingWhitespace": true,
+  "shux.format.trimTrailingWhitespace": true,
   // 是否删除文件末尾多余空行
-  "shulang.format.trimFinalNewlines": true,
+  "shux.format.trimFinalNewlines": true,
 
-  // --- 编辑器功能开关（Shulang 扩展提供）---
+  // --- 编辑器功能开关（Shux 扩展提供）---
   // 文档大纲 / 符号列表（函数、结构体、枚举等）
-  "shulang.features.symbols": true,
+  "shux.features.symbols": true,
   // 代码折叠（{}、import 块等）
-  "shulang.features.folding": true,
+  "shux.features.folding": true,
   // 悬停提示（类型、文档等）
-  "shulang.features.hover": true,
+  "shux.features.hover": true,
   // CodeLens 总开关：main 上方「▶ Run」、struct「N fields」、enum「N variants」等
   // 须与下方 editor.codeLens 同时为 true，行内灰色提示才会显示
-  "shulang.features.codeLens": true,
+  "shux.features.codeLens": true,
   // 是否在 function / extern function 行上方显示灰色「fn」「extern fn」标签
   // false=不显示（推荐）；true=显示；不影响 ▶ Run 与 struct/enum 计数
-  "shulang.features.codeLensFunctionLabels": false,
+  "shux.features.codeLensFunctionLabels": false,
   // 函数调用时的参数签名提示
-  "shulang.features.signatureHelp": true,
+  "shux.features.signatureHelp": true,
   // 智能补全
-  "shulang.features.completion": true,
+  "shux.features.completion": true,
   // 输入时自动调整缩进（如换行后补全）
-  "shulang.features.formatOnType": true,
+  "shux.features.formatOnType": true,
   // import 路径等可点击跳转
-  "shulang.features.documentLinks": true,
+  "shux.features.documentLinks": true,
   // 状态栏显示 LSP 连接状态
-  "shulang.features.statusBar": true,
+  "shux.features.statusBar": true,
   // 智能扩展选区（Expand Selection）
-  "shulang.features.selectionRange": true,
+  "shux.features.selectionRange": true,
   // 失去焦点时自动格式化当前行（默认关，避免频繁改动）
-  "shulang.features.formatOnBlur": false,
+  "shux.features.formatOnBlur": false,
 
   // --- 编译器 / LSP 传参 ---
   // 诊断最低级别：error | warning | info
-  "shulang.compiler.diagnosticLevel": "warning",
-  // 传给 shu --lsp 的额外命令行参数（字符串数组）
-  "shulang.compiler.extraArgs": [],
+  "shux.compiler.diagnosticLevel": "warning",
+  // 传给 shux --lsp 的额外命令行参数（字符串数组）
+  "shux.compiler.extraArgs": [],
   // 编译输出目录（相对工作区根）；留空用编译器默认
-  "shulang.compiler.targetDir": "",
-  // import 解析库根（与 shu -L 一致）；用于跳转、跨模块符号
-  "shulang.compiler.libRoots": [".", "compiler/src", "core", "std"],
-  // 启动 shu/LSP 时注入的环境变量（键值对象，如 SHULANG_PATH）
-  "shulang.compiler.envJson": {},
+  "shux.compiler.targetDir": "",
+  // import 解析库根（与 shux -L 一致）；用于跳转、跨模块符号
+  "shux.compiler.libRoots": [".", "compiler/src", "core", "std"],
+  // 启动 shux/LSP 时注入的环境变量（键值对象，如 SHUX_PATH）
+  "shux.compiler.envJson": {},
 
-  // --- VS Code 编辑器全局（CodeLens 需此项 + shulang.features.codeLens 同时开启）---
+  // --- VS Code 编辑器全局（CodeLens 需此项 + shux.features.codeLens 同时开启）---
   // 编辑器是否显示 CodeLens 行（函数上方的灰色小字、▶ Run 等）
   "editor.codeLens": true,
 
@@ -81,15 +81,15 @@
   ],
   "clangd.checkUpdates": false,
 
-  // --- .su 文件专用编辑器行为 ---
-  "[su]": {
-    // 默认格式化器：Shulang 扩展
-    "editor.defaultFormatter": "shulang.vscode-shulang",
+  // --- .sx 文件专用编辑器行为（语言 ID 为 sx） ---
+  "[sx]": {
+    // 默认格式化器：Shux 扩展
+    "editor.defaultFormatter": "shux.vscode-shux",
     // 保存时自动格式化
     "editor.formatOnSave": true,
     // 粘贴时自动格式化
     "editor.formatOnPaste": true,
-    // Tab 显示宽度（与 shulang.format.tabSize 建议保持一致）
+    // Tab 显示宽度（与 shux.format.tabSize 建议保持一致）
     "editor.tabSize": 2,
     // 使用空格而非 Tab
     "editor.insertSpaces": true

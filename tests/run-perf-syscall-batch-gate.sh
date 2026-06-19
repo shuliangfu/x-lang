@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_SYSCALL_BATCH_DOC:-analysis/perf-syscall-batch-v1.md}"
-MANIFEST="${SHU_PERF_SYSCALL_BATCH_TSV:-tests/baseline/perf-syscall-batch.tsv}"
-BASELINE="${SHU_SYSCALL_BATCH_BASELINE:-tests/baseline/syscall-batch-perf.tsv}"
+DOC="${SHUX_PERF_SYSCALL_BATCH_DOC:-analysis/perf-syscall-batch-v1.md}"
+MANIFEST="${SHUX_PERF_SYSCALL_BATCH_TSV:-tests/baseline/perf-syscall-batch.tsv}"
+BASELINE="${SHUX_SYSCALL_BATCH_BASELINE:-tests/baseline/syscall-batch-perf.tsv}"
 LIB="tests/lib/perf-syscall-batch.sh"
 RUNNER="tests/run-perf-syscall-batch.sh"
 ZC5="tests/run-zc5-gate.sh"
 MIN_CASES=4
-PREFIX="shu: [SHU_SYSCALL_BATCH]"
+PREFIX="shux: [SHUX_SYSCALL_BATCH]"
 
 # shellcheck source=tests/lib/perf-syscall-batch.sh
 . tests/lib/perf-syscall-batch.sh
@@ -120,7 +120,7 @@ echo "perf-syscall-batch manifest OK (cases=${CASES})"
 if perf_sb_strace_probe_ok; then
   echo "=== PERF-008: syscall batch strace smoke (advisory) ==="
   chmod +x "$RUNNER"
-  if SHU_SYSCALL_BATCH_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_syscall_batch_smoke.log | tail -10; then
+  if SHUX_SYSCALL_BATCH_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_syscall_batch_smoke.log | tail -10; then
     if grep -qF "$PREFIX" /tmp/perf_syscall_batch_smoke.log; then
       echo "perf-syscall-batch strace smoke OK"
     elif grep -q 'syscall-batch perf SKIP' /tmp/perf_syscall_batch_smoke.log; then

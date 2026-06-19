@@ -9,16 +9,16 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
-#define SHU_QUEUE_WIN 1
+#define SHUX_QUEUE_WIN 1
 #else
 #include <pthread.h>
 #include <time.h>
-#define SHU_QUEUE_WIN 0
+#define SHUX_QUEUE_WIN 0
 #endif
 
 /** 烟测用 mutex 保护环形队列（i32）。 */
 typedef struct {
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     CRITICAL_SECTION cs;
 #else
     pthread_mutex_t mu;
@@ -54,7 +54,7 @@ static int32_t shu_sq_push_back(shu_sync_q_smoke_t *q, int32_t x) {
 }
 
 static void shu_sq_lock(shu_sync_q_smoke_t *q) {
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     EnterCriticalSection(&q->cs);
 #else
     pthread_mutex_lock(&q->mu);
@@ -62,7 +62,7 @@ static void shu_sq_lock(shu_sync_q_smoke_t *q) {
 }
 
 static void shu_sq_unlock(shu_sync_q_smoke_t *q) {
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     LeaveCriticalSection(&q->cs);
 #else
     pthread_mutex_unlock(&q->mu);
@@ -73,7 +73,7 @@ typedef struct {
     shu_sync_q_smoke_t *q;
 } shu_sq_worker_ctx_t;
 
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
 static unsigned __stdcall shu_sq_worker(void *arg) {
 #else
 static void *shu_sq_worker(void *arg) {
@@ -85,7 +85,7 @@ static void *shu_sq_worker(void *arg) {
         shu_sq_push_back(ctx->q, 1);
         shu_sq_unlock(ctx->q);
     }
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     return 0;
 #else
     return NULL;
@@ -96,7 +96,7 @@ static void *shu_sq_worker(void *arg) {
 int32_t sync_queue_contention_smoke_c(void) {
     shu_sync_q_smoke_t q;
     shu_sq_worker_ctx_t ctx;
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     uintptr_t h0, h1;
 #else
     pthread_t t0, t1;
@@ -107,13 +107,13 @@ int32_t sync_queue_contention_smoke_c(void) {
     q.cap = 0;
     q.len = 0;
     q.head = 0;
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     InitializeCriticalSection(&q.cs);
 #else
     if (pthread_mutex_init(&q.mu, NULL) != 0) return -1;
 #endif
     ctx.q = &q;
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     h0 = _beginthreadex(NULL, 0, shu_sq_worker, &ctx, 0, NULL);
     h1 = _beginthreadex(NULL, 0, shu_sq_worker, &ctx, 0, NULL);
     if (h0 == 0 || h1 == 0) goto done;
@@ -133,7 +133,7 @@ int32_t sync_queue_contention_smoke_c(void) {
     rc = (q.len == 1000) ? 0 : -1;
 done:
     free(q.data);
-#if SHU_QUEUE_WIN
+#if SHUX_QUEUE_WIN
     DeleteCriticalSection(&q.cs);
 #else
     pthread_mutex_destroy(&q.mu);

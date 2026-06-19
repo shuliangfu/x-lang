@@ -4,11 +4,11 @@
 read_path	section	## 1. 阅读路径	analysis/safe-leak-nightly-v1.md	-	15min
 asan	section	## 2. ASAN/LSAN 策略	analysis/safe-leak-nightly-v1.md	-	detect_leaks
 cases	section	## 3. 夜跑用例矩阵	safe-leak-nightly.tsv	-	no_leak
-report	section	## 4. 报告格式	analysis/safe-leak-nightly-v1.md	-	SHU_LEAK_NIGHTLY
+report	section	## 4. 报告格式	analysis/safe-leak-nightly-v1.md	-	SHUX_LEAK_NIGHTLY
 schedule	section	## 5. 调度与门禁	analysis/safe-leak-nightly-v1.md	-	ci-nightly
-case_heap	case	no_leak_heap	tests/leak/no_leak_heap.su	heap	alloc+free
-case_ffi	case	no_leak_ffi	tests/leak/no_leak_ffi.su	ffi	cstring
-case_arena	case	no_leak_arena	tests/leak/no_leak_arena.su	arena	arena64_deinit
+case_heap	case	no_leak_heap	tests/leak/no_leak_heap.sx	heap	alloc+free
+case_ffi	case	no_leak_ffi	tests/leak/no_leak_ffi.sx	ffi	cstring
+case_arena	case	no_leak_arena	tests/leak/no_leak_arena.sx	arena	arena64_deinit
 probe	file	leak_probe.c	tests/leak/leak_probe.c	probe	故意泄漏
 lib	script	lib/safe-leak.sh	tests/lib/safe-leak.sh	-	共享库
 runner	script	run-safe-leak-nightly.sh	tests/run-safe-leak-nightly.sh	-	夜跑

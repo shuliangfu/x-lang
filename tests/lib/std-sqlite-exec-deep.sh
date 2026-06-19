@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-exec-deep.sh — STD-065 manifest 与事务 exec 烟测辅助
 
-STD_DB_EXEC_DEEP_PREFIX="${SHU_STD065_PREFIX:-shu: [SHU_STD065_DB_EXEC]}"
+STD_DB_EXEC_DEEP_PREFIX="${SHUX_STD065_PREFIX:-shux: [SHUX_STD065_DB_EXEC]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 # shellcheck source=tests/lib/std-sqlite-gate.sh
@@ -28,7 +28,7 @@ std_sqlite_exec_deep_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/sqlite/sqlite.c" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-exec-deep FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -55,7 +55,7 @@ std_sqlite_exec_deep_symbols_ok() {
 std_sqlite_exec_deep_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/exec_tx_roundtrip_ok.c"
-  local out="/tmp/shu_std_sqlite_exec_deep_$$"
+  local out="/tmp/shux_std_sqlite_exec_deep_$$"
   local db_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

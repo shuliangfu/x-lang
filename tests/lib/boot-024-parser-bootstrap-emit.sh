@@ -6,12 +6,12 @@
 #   boot024_parse_bisect_minimal LOG_FILE
 #   boot024_emit_report status bootstrap_minimal_ok bootstrap_full_emit skip
 
-BOOT024_PREFIX="${SHU_BOOT024_PREFIX:-shu: [SHU_BOOT024]}"
+BOOT024_PREFIX="${SHUX_BOOT024_PREFIX:-shux: [SHUX_BOOT024]}"
 
-# Linux 且存在 compiler/shu seed 则可跑 bootstrap bisect。
+# Linux 且存在 compiler/shux seed 则可跑 bootstrap bisect。
 boot024_parser_linux_shu() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu" ] || return 1
+  [ -x "./compiler/shux" ] || return 1
   return 0
 }
 

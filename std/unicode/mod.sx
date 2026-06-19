@@ -1,0 +1,79 @@
+// std.unicode — Unicode 分类、大小写、NFC、字素簇（对标 Zig std.unicode、Rust char）
+//
+// 【文件职责】category、to_lower/to_upper、is_whitespace、is_ascii；
+// nfc_buf（v1 拉丁预组合）；grapheme_next、case_fold_*。
+// 【依赖】core、std.encoding；与 std/unicode/unicode.c 同属一模块。
+extern function unicode_category_c(rune: u32): i32;
+extern function unicode_is_whitespace_c(rune: u32): i32;
+extern function unicode_is_ascii_c(rune: u32): i32;
+extern function unicode_to_lower_c(rune: u32): u32;
+extern function unicode_to_upper_c(rune: u32): u32;
+extern function unicode_is_supplementary_c(rune: u32): i32;
+extern function unicode_nfc_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function unicode_grapheme_next_c(s: *u8, len: i32, off: i32): i32;
+extern function unicode_case_fold_rune_c(rune: u32): u32;
+extern function unicode_case_fold_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function unicode_grapheme_case_smoke_c(): i32;
+
+/** rune 分类：0 未知，1 Letter，2 Number，3 Whitespace。 */
+function category(rune: u32): i32 {
+  return unicode_category_c(rune);
+}
+
+/** 是否为空白（\\t \\n \\v \\f \\r 空格）。 */
+function is_whitespace(rune: u32): i32 {
+  return unicode_is_whitespace_c(rune);
+}
+
+/** 是否为 ASCII（rune <= 127）。 */
+function is_ascii(rune: u32): i32 {
+  return unicode_is_ascii_c(rune);
+}
+
+/** rune 转小写；非 ASCII 暂返回原值。 */
+function to_lower(rune: u32): u32 {
+  return unicode_to_lower_c(rune);
+}
+
+/** rune 转大写；非 ASCII 暂返回原值。 */
+function to_upper(rune: u32): u32 {
+  return unicode_to_upper_c(rune);
+}
+
+/** 是否为 Unicode 增补平面码点（U+10000 及以上）。 */
+function is_supplementary(rune: u32): i32 {
+  return unicode_is_supplementary_c(rune);
+}
+
+/** rune 编码为 UTF-8 所需的字节数（1..4）；非法高位 surrogate 区间按 3 处理。 */
+function rune_utf8_len(rune: u32): i32 {
+  if (rune <= 127 as u32) { return 1; }
+  if (rune <= 2047 as u32) { return 2; }
+  if (rune <= 65535 as u32) { return 3; }
+  return 4;
+}
+
+/** 缓冲 NFC（v1 拉丁预组合子集）；返回写入 out 的字节数，失败 -1。 */
+function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  return unicode_nfc_buf_c(in, in_len, out, out_cap);
+}
+
+/** 下一字素簇字节数（基字符 + U+0300..036F 附标）。 */
+function grapheme_next(s: *u8, len: i32, off: i32): i32 {
+  return unicode_grapheme_next_c(s, len, off);
+}
+
+/** 单码点 case fold（v1 委托 to_lower）。 */
+function case_fold_rune(rune: u32): u32 {
+  return unicode_case_fold_rune_c(rune);
+}
+
+/** 缓冲 case fold 输出 UTF-8；返回写入字节数，失败 -1。 */
+function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  return unicode_case_fold_buf_c(in, in_len, out, out_cap);
+}
+
+/** C 烟测入口（STD-114）；0 表示通过。 */
+function grapheme_case_smoke(): i32 {
+  return unicode_grapheme_case_smoke_c();
+}

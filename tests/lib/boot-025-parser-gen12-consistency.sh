@@ -5,13 +5,13 @@
 #   boot025_gen12_linux_asm
 #   boot025_emit_report status gen12_ok dogfood_ok skip
 
-BOOT025_PREFIX="${SHU_BOOT025_PREFIX:-shu: [SHU_BOOT025]}"
+BOOT025_PREFIX="${SHUX_BOOT025_PREFIX:-shux: [SHUX_BOOT025]}"
 
-# Linux 且存在 shu_asm + seed shu 则可跑 stage2 一致性。
+# Linux 且存在 shux_asm + seed shux 则可跑 stage2 一致性。
 boot025_gen12_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || return 1
-  [ -x "./compiler/shu" ] || [ -x "./compiler/shu-su" ] || return 1
+  [ -x "./compiler/shux_asm" ] || return 1
+  [ -x "./compiler/shux" ] || [ -x "./compiler/shux-sx" ] || return 1
   return 0
 }
 

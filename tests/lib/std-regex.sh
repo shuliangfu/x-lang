@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-regex.sh — STD-051 manifest 与三平台烟测辅助
 
-STD_REGEX_PREFIX="${SHU_STD_REGEX_PREFIX:-shu: [SHU_STD_REGEX]}"
+STD_REGEX_PREFIX="${SHUX_STD_REGEX_PREFIX:-shux: [SHUX_STD_REGEX]}"
 
 # 遍历 manifest TSV，校验 api/file/symbol/smoke 锚点。
 std_regex_symbols_ok() {
@@ -43,15 +43,15 @@ std_regex_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_regex_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_regex_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_regex_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-regex FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -71,7 +71,7 @@ std_regex_run_smoke() {
 std_regex_run_c_smoke() {
   local regex_c="$1"
   local src="tests/regex/regex_min_ok.c"
-  local out="/tmp/shu_regex_min_ok_$$"
+  local out="/tmp/shux_regex_min_ok_$$"
   local regex_o
   regex_o="$(dirname "$regex_c")/regex.o"
   if [ ! -f "$regex_o" ]; then

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_TRAIT_DOC:-analysis/lang-trait-v1.md}"
-MANIFEST="${SHU_LANG_TRAIT_MANIFEST:-tests/baseline/lang-trait.tsv}"
-TYPECK="${SHU_LANG_TRAIT_TYPECK:-tests/baseline/lang-trait-typeck.tsv}"
+DOC="${SHUX_LANG_TRAIT_DOC:-analysis/lang-trait-v1.md}"
+MANIFEST="${SHUX_LANG_TRAIT_MANIFEST:-tests/baseline/lang-trait.tsv}"
+TYPECK="${SHUX_LANG_TRAIT_TYPECK:-tests/baseline/lang-trait-typeck.tsv}"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_RULES=4
@@ -17,7 +17,7 @@ MIN_RULES=4
 
 echo "=== LANG-004: trait interface manifest ==="
 for f in "$DOC" "$MANIFEST" "$TYPECK" \
-  tests/trait/main.su tests/trait/method_no_impl.su tests/trait/impl_missing_method.su \
+  tests/trait/main.sx tests/trait/method_no_impl.sx tests/trait/impl_missing_method.sx \
   compiler/src/typeck/typeck.c compiler/src/parser/parser.c; do
   if [ ! -f "$f" ]; then
     echo "lang-trait gate FAIL: missing $f" >&2

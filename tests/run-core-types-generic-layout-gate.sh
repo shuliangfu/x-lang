@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
-MANIFEST="${SHU_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
-TYPES_SU="core/types/mod.su"
+DOC="${SHUX_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
+MANIFEST="${SHUX_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
+TYPES_SU="core/types/mod.sx"
 LIB="tests/lib/core-types-generic-layout.sh"
-GENERIC_SU="tests/core-types-size/generic_layout.su"
-SCALAR_SU="tests/core-types-size/main.su"
+GENERIC_SU="tests/core-types-size/generic_layout.sx"
+SCALAR_SU="tests/core-types-size/main.sx"
 
 # shellcheck source=tests/lib/core-types-generic-layout.sh
 . "$LIB"
@@ -59,31 +59,31 @@ stdlib_cm_native_shu() {
 GENERIC_OK=0
 SCALAR_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== CORE-001: typeck + smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$GENERIC_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== CORE-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$GENERIC_SU" >/dev/null 2>&1; then
     echo "core-types-generic-layout gate FAIL: typeck $GENERIC_SU" >&2
-    "$SHU_BIN" check -L . "$GENERIC_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$GENERIC_SU" 2>&1 | tail -10 >&2 || true
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
-  if ! "$SHU_BIN" check -L . "$SCALAR_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SCALAR_SU" >/dev/null 2>&1; then
     echo "core-types-generic-layout gate FAIL: typeck $SCALAR_SU" >&2
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
   SCALAR_OK=1
-  tmp="/tmp/shu_core_types_gl_$$"
-  if "$SHU_BIN" -L . "$GENERIC_SU" -o "$tmp" && "$tmp"; then
+  tmp="/tmp/shux_core_types_gl_$$"
+  if "$SHUX_BIN" -L . "$GENERIC_SU" -o "$tmp" && "$tmp"; then
     GENERIC_OK=1
   else
     echo "core-types-generic-layout gate FAIL: generic_layout smoke" >&2
@@ -93,7 +93,7 @@ if [ -n "$SHU_BIN" ]; then
   rm -f "$tmp"
   SKIP=0
 else
-  echo "core-types-generic-layout gate SKIP smoke (no native shu-c)" >&2
+  echo "core-types-generic-layout gate SKIP smoke (no native shux-c)" >&2
 fi
 
 core_types_gl_emit_report "ok" "$GENERIC_OK" "$SCALAR_OK" "$SKIP"

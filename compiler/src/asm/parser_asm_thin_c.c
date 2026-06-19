@@ -1,7 +1,7 @@
 /**
- * parser_asm_thin_c.c — parser.su EMIT_HEAVY 第二遍 skip_heavy 桩 bl→C 目标。
+ * parser_asm_thin_c.c — parser.sx EMIT_HEAVY 第二遍 skip_heavy 桩 bl→C 目标。
  *
- * 与 lexer_gen.c / token.su 布局一致；供 ast_pool k_asm_parser_thin_delegate 委托，
+ * 与 lexer_gen.c / token.sx 布局一致；供 ast_pool k_asm_parser_thin_delegate 委托，
  * 避免 parse_peek / skip_balanced 等在宿主编译器 SU emit 失败（TokenKind / 深循环体）。
  */
 #include <stddef.h>
@@ -9,7 +9,7 @@
 #include <string.h>
 #include "parser_asm_stretch_audit_gate.h"
 
-/** 与 token.su / token.h TokenKind 序一致（kind 字段为 int 比较）。 */
+/** 与 token.sx / token.h TokenKind 序一致（kind 字段为 int 比较）。 */
 #include "token.h"
 #include "ast.h"
 
@@ -35,20 +35,20 @@ struct parser_asm_lexer_result {
   size_t token_start;
 };
 
-/** 与 shulang_slice_uint8_t / parser_gen []u8 指针路径一致。 */
+/** 与 shux_slice_uint8_t / parser_gen []u8 指针路径一致。 */
 struct parser_asm_slice_u8 {
   uint8_t *data;
   size_t length;
 };
 
-/** 与 parser.su TrySkipAllowResult（allow(padding)）布局一致。 */
+/** 与 parser.sx TrySkipAllowResult（allow(padding)）布局一致。 */
 struct parser_asm_try_skip_allow_result {
   struct parser_asm_lexer lex;
   int32_t skipped;
   uint8_t _pad[4];
 };
 
-/** 与 parser.su LibraryParseResult（allow(padding)）布局一致。 */
+/** 与 parser.sx LibraryParseResult（allow(padding)）布局一致。 */
 struct parser_asm_library_parse_result {
   uint8_t ok;
   uint8_t _pad[4];
@@ -58,7 +58,7 @@ struct parser_asm_library_parse_result {
   uint8_t _pad_tail[4];
 };
 
-/** 与 parser.su LibraryParseScanResult（allow(padding)）布局一致。 */
+/** 与 parser.sx LibraryParseScanResult（allow(padding)）布局一致。 */
 struct parser_asm_library_parse_scan_result {
   uint8_t ok;
   uint8_t _pad[4];
@@ -75,12 +75,12 @@ struct parser_asm_library_parse_scan_result {
   uint8_t _pad_tail2[4];
 };
 
-/** 与 parser.su CollectImportsResult 布局一致。 */
+/** 与 parser.sx CollectImportsResult 布局一致。 */
 struct parser_asm_collect_imports_result {
   struct parser_asm_lexer lex;
 };
 
-/** 与 parser.su ExternParseResult（allow(padding)）布局一致；侧车 grow 池键为 (uint8_t *)out。 */
+/** 与 parser.sx ExternParseResult（allow(padding)）布局一致；侧车 grow 池键为 (uint8_t *)out。 */
 struct parser_asm_extern_parse_result {
   struct parser_asm_lexer next_lex;
   uint8_t name[64];
@@ -89,7 +89,7 @@ struct parser_asm_extern_parse_result {
   int32_t num_params;
 };
 
-/** 与 ast.su Func 布局一致（parse_one_extern_and_add C 路径写 arena）。 */
+/** 与 ast.sx Func 布局一致（parse_one_extern_and_add C 路径写 arena）。 */
 struct ast_Func {
   uint8_t name[64];
   int32_t name_len;
@@ -3783,6 +3783,7 @@ extern int32_t ast_ast_arena_func_alloc(void *arena);
 extern struct ast_Func ast_arena_func_get(void *arena, int32_t ref);
 extern void ast_arena_func_set(void *arena, int32_t ref, struct ast_Func f);
 extern int32_t pipeline_module_func_alloc_slot(void *module);
+extern int32_t pipeline_module_num_funcs(void *module);
 extern void pipeline_module_func_name_write(void *module, int32_t fi, uint8_t *name_bytes, int32_t name_len);
 extern void pipeline_module_func_set_num_params(void *module, int32_t fi, int32_t n);
 extern void pipeline_module_func_set_return_type(void *module, int32_t fi, int32_t type_ref);
@@ -3803,7 +3804,7 @@ void parser_skip_one_extern_into_glue(struct parser_asm_lexer *out, struct parse
 int32_t parser_asm_module_register_arena_func_c(void *module, int32_t func_ref, struct ast_Func f);
 void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_t func_ref, int32_t fi,
                                                struct parser_asm_extern_parse_result *res);
-/** parser_su.o 提供：OneFuncResult 工作区与 parse_one_function_impl。 */
+/** parser_sx.o 提供：OneFuncResult 工作区与 parse_one_function_impl。 */
 extern struct parser_asm_onefunc_result parser_onefunc_scratch_empty(void);
 extern void parser_onefunc_res_wire_dummy_head(struct parser_asm_onefunc_result *res, struct parser_asm_lexer lex,
                                                uint8_t *name64);
@@ -3822,7 +3823,7 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
 int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_result r,
                                                         struct parser_asm_slice_u8 *source);
 
-/** 与 lexer.su lexer_init 一致：pos=0, line=1, col=1。 */
+/** 与 lexer.sx lexer_init 一致：pos=0, line=1, col=1。 */
 static struct parser_asm_lexer parser_asm_lexer_init_c(void) {
   struct parser_asm_lexer lex;
   lex.pos = 0;
@@ -3840,7 +3841,7 @@ static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, st
   out->col = r.next_lex.col;
 }
 
-/** 从 buf 复制 [start, start+nlen) 到 out（等价 parser.su copy_slice_to_name64_buf）。 */
+/** 从 buf 复制 [start, start+nlen) 到 out（等价 parser.sx copy_slice_to_name64_buf）。 */
 void parser_asm_copy_slice_to_name64_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                             uint8_t *out) {
   int32_t i;
@@ -4253,7 +4254,7 @@ void parser_asm_skip_balanced_parens_into_buf_c(struct parser_asm_lexer *out, st
 
 /**
  * skip_balanced_parens_into（[]u8 slice 路径）：结果写入 *out。
- * SU []u8 经 C 生成器以 shulang_slice_uint8_t* 传递（与 parser_gen lexer_next_into 一致）。
+ * SU []u8 经 C 生成器以 shux_slice_uint8_t* 传递（与 parser_gen lexer_next_into 一致）。
  */
 void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source) {
@@ -6114,7 +6115,7 @@ int32_t parser_asm_is_pointee_type_token_c(int32_t kind) {
   return 0;
 }
 
-/** 与 su_seed_bridge / parser_gen 一致的扁平 ast_Expr（slice 与 glue 共用）。 */
+/** 与 sx_seed_bridge / parser_gen 一致的扁平 ast_Expr（slice 与 glue 共用）。 */
 struct parser_asm_ast_expr {
   int32_t kind;
   int32_t resolved_type_ref;
@@ -6173,7 +6174,7 @@ struct parser_asm_ast_expr {
 extern struct ast_Expr ast_arena_expr_get(void *arena, int32_t ref);
 extern void ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 
-/** pipeline ast_Expr 与 parser_asm_ast_expr 布局一致（su_seed_bridge）。 */
+/** pipeline ast_Expr 与 parser_asm_ast_expr 布局一致（sx_seed_bridge）。 */
 struct ast_Expr {
   int32_t kind;
   int32_t resolved_type_ref;
@@ -6245,7 +6246,7 @@ static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_
 }
 
 /**
- * expr_set_common_zeros C 实现：与 parser.su 字段清零顺序一致；match 占位同 ast.expr_init_match_enum。
+ * expr_set_common_zeros C 实现：与 parser.sx 字段清零顺序一致；match 占位同 ast.expr_init_match_enum。
  */
 static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   if (!e)
@@ -6315,7 +6316,7 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 #include "parser_asm_emit_heavy_stretch_suite_slice.c"
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
-/* 瘦 parser_su.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_su.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
+/* 瘦 parser_sx.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_sx.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
 #include "parser_asm_seed_parse_into_buf_slice.c"
 #endif
 
@@ -7172,6 +7173,73 @@ static int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect
                                                       int32_t *path_len);
 
 /**
+ * B-01/B-19：跳过一条顶层 `const ... ;`（含 const x = import("path");），不建 AST。
+ * lex 位于 const 之前；*out 写出跳过后的 lex。
+ */
+static void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *out,
+                                                               struct parser_asm_lexer lex,
+                                                               struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+
+  if (!out || !source) {
+    if (out)
+      *out = lex;
+    return;
+  }
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_CONST) {
+    *out = lex;
+    return;
+  }
+  lex = r.next_lex;
+  for (;;) {
+    lexer_next_into(&r, lex, source);
+    lex = r.next_lex;
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON || r.tok.kind == (int32_t)TOKEN_EOF)
+      break;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_SEMICOLON)
+    lex = r.next_lex;
+  *out = lex;
+}
+
+/**
+ * B-02/B-19：import/collect 区段 `#[cfg]` 不匹配时跳过紧随其后的顶层 const/struct/function。
+ * lex 位于待跳过项之前；*pending 置 0 后 *lex 写出跳过后的位置。
+ */
+static void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer *lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                int32_t *pending) {
+  if (!lex || !source || !pending || !*pending)
+    return;
+  if (lex->pos >= source->length) {
+    *pending = 0;
+    return;
+  }
+  {
+    struct parser_asm_lexer_result r;
+    lexer_next_into(&r, *lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_CONST) {
+      parser_asm_skip_one_top_level_const_into_slice_c(lex, *lex, source);
+      *pending = 0;
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
+      parser_asm_skip_one_struct_into_slice_c(lex, *lex, source);
+      *pending = 0;
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_FUNCTION || r.tok.kind == (int32_t)TOKEN_EXTERN
+        || r.tok.kind == (int32_t)TOKEN_ASYNC) {
+      parser_asm_skip_one_function_full_into_slice_c(lex, *lex, source);
+      *pending = 0;
+      return;
+    }
+  }
+  *pending = 0;
+}
+
+/**
  * 若 lex 位于 const 之后，尝试跳过整条 const [=|{]= import("path"); 语句。
  * 成功返回 1 并更新 *lex；否则返回 0。
  */
@@ -7202,37 +7270,6 @@ static int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *le
       return 1;
     }
   }
-  if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
-    dummy.lex = r.next_lex;
-    lexer_next_into(&r, dummy.lex, source);
-    while (r.tok.kind == (int32_t)TOKEN_IDENT) {
-      parser_asm_lex_from_result_val_into(&dummy.lex, r);
-      lexer_next_into(&r, dummy.lex, source);
-      if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-        parser_asm_lex_from_result_val_into(&dummy.lex, r);
-        lexer_next_into(&r, dummy.lex, source);
-      } else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
-        break;
-      } else {
-        return 0;
-      }
-    }
-    if (r.tok.kind != (int32_t)TOKEN_RBRACE)
-      return 0;
-    parser_asm_lex_from_result_val_into(&dummy.lex, r);
-    lexer_next_into(&r, dummy.lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
-      return 0;
-    parser_asm_lex_from_result_val_into(&dummy.lex, r);
-    lexer_next_into(&r, dummy.lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_IMPORT)
-      return 0;
-    parser_asm_lex_from_result_val_into(&dummy.lex, r);
-    if (!parser_asm_collect_imports_consume_path(&dummy, source, path_buf, &path_len))
-      return 0;
-    *lex = dummy.lex;
-    return 1;
-  }
   (void)i;
   return 0;
 }
@@ -7243,10 +7280,23 @@ static int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *le
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
                                                       struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  int32_t pending_cfg_skip_import = 0;
   if (!source)
     return lex;
   for (;;) {
     lexer_next_into(&r, lex, source);
+    /** B-01/B-19：`#[cfg]` 不匹配 host 时跳过紧随其后的 const import 绑定。 */
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_CFG) {
+      pending_cfg_skip_import = (r.tok.int_val == 0) ? 1 : 0;
+      lex = r.next_lex;
+      continue;
+    }
+    if (pending_cfg_skip_import) {
+      parser_asm_cfg_skip_pending_top_level_into_slice_c(&lex, source, &pending_cfg_skip_import);
+      if (pending_cfg_skip_import)
+        pending_cfg_skip_import = 0;
+      continue;
+    }
     if (r.tok.kind != (int32_t)TOKEN_CONST)
       return lex;
     lex = r.next_lex;
@@ -8118,12 +8168,26 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
   out->lex.pos = lex.pos;
   out->lex.line = lex.line;
   out->lex.col = lex.col;
+  {
+    int32_t pending_cfg_skip_import = 0;
   for (;;) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_toplevel_kind_peek_audit_c(out->lex, source));
     lexer_next_into(&r, out->lex, source);
     lexer_next_into(&r2, r.next_lex, source);
     lexer_next_into(&r3, r2.next_lex, source);
     parser_asm_stretch_collect_imports_preamble_audit_c(r, r2, r3, source);
+    /** B-01/B-19：`#[cfg]` 不匹配 host 时跳过紧随其后的 const import 绑定。 */
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_CFG) {
+      pending_cfg_skip_import = (r.tok.int_val == 0) ? 1 : 0;
+      parser_asm_lex_from_result_val_into(&out->lex, r);
+      continue;
+    }
+    if (pending_cfg_skip_import) {
+      parser_asm_cfg_skip_pending_top_level_into_slice_c(&out->lex, source, &pending_cfg_skip_import);
+      if (pending_cfg_skip_import)
+        pending_cfg_skip_import = 0;
+      continue;
+    }
     if (r.tok.kind == (int32_t)TOKEN_CONST) {
       lexer_next_into(&r2, r.next_lex, source);
       if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 63) {
@@ -8151,60 +8215,10 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
           continue;
         }
       }
-      if (r2.tok.kind == (int32_t)TOKEN_LBRACE) {
-        PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_select_brace_head_audit_c(r2));
-        out->lex.pos = r2.next_lex.pos;
-        out->lex.line = r2.next_lex.line;
-        out->lex.col = r2.next_lex.col;
-        imp_ix = pipeline_module_import_alloc(module);
-        if (imp_ix < 0)
-          return;
-        pipeline_module_import_set_kind(module, imp_ix, 2);
-        pipeline_module_import_set_select_count(module, imp_ix, 0);
-        r = r2;
-        parser_asm_lex_from_result_val_into(&out->lex, r);
-        {
-          struct parser_asm_lexer sel_audit_lex = out->lex;
-          PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_select_list_audit_c(&sel_audit_lex, source, 32));
-        }
-        lexer_next_into(&r, out->lex, source);
-        while (r.tok.kind == (int32_t)TOKEN_IDENT) {
-          if (r.tok.ident_len <= 0 || r.tok.ident_len > 63)
-            return;
-          parser_asm_copy_token_bytes_to_buf64(source, r.token_start, r.tok.ident_len, sel_buf);
-          PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_select_bind_audit_c(source, r.token_start, r.tok.ident_len));
-          if (pipeline_module_import_append_select_name(module, imp_ix, sel_buf, r.tok.ident_len) < 0)
-            return;
-          parser_asm_lex_from_result_val_into(&out->lex, r);
-          lexer_next_into(&r, out->lex, source);
-          if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-            parser_asm_lex_from_result_val_into(&out->lex, r);
-            lexer_next_into(&r, out->lex, source);
-          } else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
-            break;
-          } else {
-            return;
-          }
-        }
-        if (r.tok.kind != (int32_t)TOKEN_RBRACE)
-          return;
-        parser_asm_lex_from_result_val_into(&out->lex, r);
-        lexer_next_into(&r, out->lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
-          return;
-        parser_asm_lex_from_result_val_into(&out->lex, r);
-        lexer_next_into(&r, out->lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_IMPORT)
-          return;
-        parser_asm_lex_from_result_val_into(&out->lex, r);
-        if (!parser_asm_collect_imports_consume_path(out, source, path_buf, &path_len))
-          return;
-        pipeline_module_import_set_path(module, imp_ix, path_buf, path_len);
-        continue;
-      }
-      return;
+      break; /* 非 const x = import：结束 import 收集 */
     }
     return;
+  }
   }
 }
 
@@ -9015,7 +9029,7 @@ int32_t parser_asm_diag_token_after_collect_imports_buf_c(uint8_t *data, int32_t
 }
 
 /**
- * 为 parse_one_function_impl 准备已 wire 的 OneFuncResult 工作区（与 parser.su 诊断路径一致）。
+ * 为 parse_one_function_impl 准备已 wire 的 OneFuncResult 工作区（与 parser.sx 诊断路径一致）。
  */
 static struct parser_asm_onefunc_result parser_asm_onefunc_wired_for_parse_c(struct parser_asm_lexer lex) {
   struct parser_asm_onefunc_result res;
@@ -11039,16 +11053,20 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   }
   type_ref = res.return_ty_ref;
   if (type_ref == 0) {
-    lex_out->pos = res.next_lex.pos;
-    lex_out->line = res.next_lex.line;
-    lex_out->col = res.next_lex.col;
+    extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                      const uint8_t *name);
+    driver_diagnostic_parse_skip_function((int32_t)lex.pos, pipeline_module_num_funcs(module), res.name_len,
+                                          res.name_len > 0 ? res.name : NULL);
+    parser_skip_one_extern_into_glue(lex_out, lex, source);
     return;
   }
   func_ref = ast_ast_arena_func_alloc(arena);
   if (func_ref == 0) {
-    lex_out->pos = res.next_lex.pos;
-    lex_out->line = res.next_lex.line;
-    lex_out->col = res.next_lex.col;
+    extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                      const uint8_t *name);
+    driver_diagnostic_parse_skip_function((int32_t)lex.pos, pipeline_module_num_funcs(module), res.name_len,
+                                          res.name_len > 0 ? res.name : NULL);
+    parser_skip_one_extern_into_glue(lex_out, lex, source);
     return;
   }
   f = ast_arena_func_get(arena, func_ref);
@@ -11068,9 +11086,11 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   ast_arena_func_set(arena, func_ref, f);
   fi_ex = parser_asm_module_register_arena_func_c(module, func_ref, f);
   if (fi_ex < 0) {
-    lex_out->pos = res.next_lex.pos;
-    lex_out->line = res.next_lex.line;
-    lex_out->col = res.next_lex.col;
+    extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                      const uint8_t *name);
+    driver_diagnostic_parse_skip_function((int32_t)lex.pos, pipeline_module_num_funcs(module), res.name_len,
+                                          res.name_len > 0 ? res.name : NULL);
+    parser_skip_one_extern_into_glue(lex_out, lex, source);
     return;
   }
   parser_asm_write_extern_params_to_pools_c(arena, module, func_ref, fi_ex, &res);
@@ -16163,7 +16183,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
   return parser_asm_parse_one_function_library_slice_c(arena, module, lex, &source);
 }
 
-/** LexerResult.next_lex → 当前 Lexer（与 parser.su lex_from_next_into 一致）。 */
+/** LexerResult.next_lex → 当前 Lexer（与 parser.sx lex_from_next_into 一致）。 */
 static void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
   if (lex && r)
     *lex = r->next_lex;
@@ -16171,7 +16191,7 @@ static void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct p
 
 /**
  * parse_one_function_library_scan：库函数 token 序列扫描（不建 AST），结果写入 *result。
- * 与 parser.su 逐步写 result 语义一致，避免 SU EMIT_HEAVY 深 LexerResult 循环 emit 失败。
+ * 与 parser.sx 逐步写 result 语义一致，避免 SU EMIT_HEAVY 深 LexerResult 循环 emit 失败。
  */
 int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source,
@@ -16464,14 +16484,14 @@ void parser_body_skip_let_const_then_if_into_glue(struct parser_asm_lexer_result
 }
 
 /**
- * diag_first_ident_len：strict 链 thin delegate；weak 避免与 parser_su.o 真 emit 符号冲突。
+ * diag_first_ident_len：strict 链 thin delegate；weak 避免与 parser_sx.o 真 emit 符号冲突。
  */
 __attribute__((weak)) int32_t parser_diag_first_ident_len(struct parser_asm_slice_u8 *source) {
   return parser_asm_diag_first_ident_len_slice_c(source);
 }
 
 /**
- * diag_skip_let_const_into：strict 链 thin delegate；weak 避免与 parser_su.o 真 emit 符号冲突。
+ * diag_skip_let_const_into：strict 链 thin delegate；weak 避免与 parser_sx.o 真 emit 符号冲突。
  */
 __attribute__((weak)) void parser_diag_skip_let_const_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                                      struct parser_asm_slice_u8 *source) {
@@ -16479,7 +16499,7 @@ __attribute__((weak)) void parser_diag_skip_let_const_into(struct parser_asm_lex
 }
 
 /**
- * body_skip_let_const_then_if_into：strict 链 thin delegate；weak 避免与 parser_su.o 真 emit 符号冲突。
+ * body_skip_let_const_then_if_into：strict 链 thin delegate；weak 避免与 parser_sx.o 真 emit 符号冲突。
  */
 __attribute__((weak)) void parser_body_skip_let_const_then_if_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                                              struct parser_asm_slice_u8 *source) {
@@ -16499,7 +16519,7 @@ int32_t parser_first_token_kind_buf_glue(uint8_t *data, int32_t len) {
 }
 
 /**
- * first_token_kind：strict 链 thin delegate；weak 避免与 parser_su.o 真 emit 符号冲突。
+ * first_token_kind：strict 链 thin delegate；weak 避免与 parser_sx.o 真 emit 符号冲突。
  */
 __attribute__((weak)) int32_t parser_first_token_kind(struct parser_asm_slice_u8 *source) {
   return parser_asm_first_token_kind_slice_c(source);
@@ -17830,7 +17850,7 @@ void parser_parse_if_expr_into_glue(void *arena, struct parser_asm_lexer lex_at_
   parser_asm_parse_if_expr_into_c(arena, lex_at_if, source, type_ref, out);
 }
 
-/** finish_struct_lit_from_type_ident_into_glue：TypeName { fields } 后缀（primary_slice / parser.su thin delegate）。 */
+/** finish_struct_lit_from_type_ident_into_glue：TypeName { fields } 后缀（primary_slice / parser.sx thin delegate）。 */
 void parser_finish_struct_lit_from_type_ident_into_glue(void *arena, int32_t lit_ref,
                                                         struct parser_asm_lexer lex_in_brace,
                                                         struct parser_asm_slice_u8 *source,
@@ -17906,6 +17926,26 @@ struct parser_asm_lexer parser_skip_imports_buf_glue(struct parser_asm_lexer lex
   return parser_asm_skip_imports_buf_c(lex, data, len);
 }
 
+/** B-01/B-19：跳过一条顶层 const 声明（含 const import）；lex 位于 const 前。 */
+void parser_skip_one_top_level_const_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source) {
+  parser_asm_skip_one_top_level_const_into_slice_c(out, lex, source);
+}
+
+/** buf 路径：跳过一条顶层 const 声明。 */
+void parser_skip_one_top_level_const_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                    uint8_t *data, int32_t len) {
+  struct parser_asm_slice_u8 source;
+  if (!data || len <= 0) {
+    if (out)
+      *out = lex;
+    return;
+  }
+  source.data = data;
+  source.length = (size_t)len;
+  parser_asm_skip_one_top_level_const_into_slice_c(out, lex, &source);
+}
+
 /** collect_imports_glue：收集顶层 import 路径到 module，并写出跳过 import 后的 lex。 */
 void parser_collect_imports_glue(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, void *module,
                                  struct parser_asm_collect_imports_result *out) {
@@ -17925,13 +17965,13 @@ int32_t parser_is_compound_assign_token_glue(int32_t kind) {
   return parser_asm_is_compound_assign_token_c(kind);
 }
 
-/** parse_into_init 依赖 pipeline/ast_pool 重置（onefunc prime 由 parser_su.o / strict 链提供，thin glue 勿硬链）。 */
+/** parse_into_init 依赖 pipeline/ast_pool 重置（onefunc prime 由 parser_sx.o / strict 链提供，thin glue 勿硬链）。 */
 extern void pipeline_strict_parse_into_init(void *arena, void *module);
 extern void pipeline_module_reset_parse_counters_c(void *module);
 extern void pipeline_parser_set_match_module(void *module);
 
 /**
- * parse_into_init_glue：arena/module 重置 + parse 计数（EMIT_HEAVY 勿 SU emit；等价 parser.su parse_into_init）。
+ * parse_into_init_glue：arena/module 重置 + parse 计数（EMIT_HEAVY 勿 SU emit；等价 parser.sx parse_into_init）。
  */
 void parser_parse_into_init_glue(void *module, void *arena) {
   pipeline_strict_parse_into_init(arena, module);

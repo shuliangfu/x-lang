@@ -2,21 +2,21 @@
 # 验证显式 return expr；块尾可为 return 42 作为返回值。
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-SHU=${SHU:-./compiler/shu}
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-LINK_SHU="$RUN_SHU"
+SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
 
-$LINK_SHU tests/return-expr/explicit.su -o /tmp/shu_return_explicit 2>&1
+$LINK_SHUX tests/return-expr/explicit.sx -o /tmp/shux_return_explicit 2>&1
 exitcode=0
-/tmp/shu_return_explicit >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_return_explicit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (explicit return), got $exitcode"; exit 1; }
 
 # 边界：return 类型与声明不一致（当前 typeck 未检查，用例保留待后续补 typeck 后启用）
-# err=$(./compiler/shu tests/return-expr/return_type_mismatch.su -o /tmp/shu_return_fail 2>&1) || true
+# err=$(./compiler/shux tests/return-expr/return_type_mismatch.sx -o /tmp/shux_return_fail 2>&1) || true
 # echo "$err" | grep -q "typeck error" || { echo "expected typeck error for return type mismatch"; exit 1; }
 
 echo "return-expr test OK"

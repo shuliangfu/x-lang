@@ -8,24 +8,24 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-wpo.sh
 . tests/lib/comp-wpo.sh
 
-SHU_C="${SHU:-./compiler/shu-c}"
-if ! comp_wpo_native_exe "$SHU_C"; then
-  if comp_wpo_native_exe ./compiler/shu; then
-    SHU_C=./compiler/shu
+SHUX_C="${SHUX:-./compiler/shux-c}"
+if ! comp_wpo_native_exe "$SHUXXX_C"; then
+  if comp_wpo_native_exe ./compiler/shux; then
+    SHUX_C=./compiler/shux
   fi
 fi
 
-if ! comp_wpo_native_exe "$SHU_C"; then
-  echo "comp-wpo SKIP (no native shu/shu-c, host=$(uname -s)/$(uname -m 2>/dev/null))"
+if ! comp_wpo_native_exe "$SHUXXX_C"; then
+  echo "comp-wpo SKIP (no native shux/shux-c, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "comp-wpo OK"
   exit 0
 fi
 
-make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c
+make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
-echo "=== COMP-004: WPO smoke (SHU=$SHU_C) ==="
+echo "=== COMP-004: WPO smoke (SHUX=$SHUXXX_C) ==="
 chmod +x tests/run-wpo-dce-emit.sh tests/run-wpo-s1.sh
-SHU="$SHU_C" ./tests/run-wpo-dce-emit.sh
+SHUX="$SHUXXX_C" ./tests/run-wpo-dce-emit.sh
 echo "comp-wpo OK dce"
 
 ./tests/run-wpo-s1.sh

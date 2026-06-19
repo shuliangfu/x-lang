@@ -2,7 +2,7 @@
  * async_liveness.h — async 函数跨 await 存活变量分析（A3）
  *
  * 文件职责：对 async function 体做静态分析，求协程帧字段布局并 emit C struct typedef。
- * 所属模块：compiler 前端；供 codegen 输出帧类型与 SHU_ASYNC_FRAME 注释。
+ * 所属模块：compiler 前端；供 codegen 输出帧类型与 SHUX_ASYNC_FRAME 注释。
  */
 #ifndef ASYNC_LIVENESS_H
 #define ASYNC_LIVENESS_H
@@ -67,11 +67,11 @@ int async_liveness_module_struct_in_frame(const struct ASTModule *m, const char 
 /** 兼容旧接口：仅填充 live 集。 */
 int async_liveness_analyze_func(const struct ASTFunc *f, AsyncFrameLive *out);
 
-/** 在函数定义之前 emit `typedef struct __shu_async_frame_* { ... }`（无 await 时不输出）。 */
+/** 在函数定义之前 emit `typedef struct __shux_async_frame_* { ... }`（无 await 时不输出）。 */
 void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out);
 
-/** 函数体开头 emit 帧局部变量占位（sync stub；CPS 后续读写 __shu_frame）。 */
+/** 函数体开头 emit 帧局部变量占位（sync stub；CPS 后续读写 __shux_frame）。 */
 void async_liveness_emit_frame_local(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out);
 

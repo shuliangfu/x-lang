@@ -1,0 +1,16 @@
+/**
+ * Cookbook NET-05：TcpConnPool idle 复用（STD-164）。
+ * 演示创建池、离线 connect_count 检查与 destroy（不发起真实网络连接）。
+ */
+const net = import("std.net");
+
+function main(): i32 {
+  let pool: TcpConnPool = net.tcp_pool_new_simple(0x7f000001, 9);
+  let zero: i64 = 0;
+  if (pool.handle == zero) { return 1; }
+  if (net.tcp_pool_connect_count(&pool) != 0) { return 2; }
+  if (net.tcp_pool_idle_count(&pool) != 0) { return 3; }
+  net.tcp_pool_drain(&pool);
+  net.tcp_pool_destroy(&pool);
+  return 0;
+}

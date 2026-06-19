@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # S2 同链烟测：build_asm/typeck.o（EMIT_HEAVY asm）+ layout partial 与 strict 链分工一致。
 # 用法：./tests/run-s2-typeck-o-parity.sh
-# 可选：SHU_S2_FAIL_ON_PARITY=1 — 任一检查失败时 exit 1（CI 推荐）
+# 可选：SHUX_S2_FAIL_ON_PARITY=1 — 任一检查失败时 exit 1（CI 推荐）
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/s2-typeck-layout-partial.sh
@@ -9,12 +9,12 @@ cd "$(dirname "$0")/.."
 
 TYPECK_O="compiler/build_asm/typeck.o"
 PARTIAL="compiler/build_asm/typeck_asm_layout_partial.o"
-BASELINE="${SHU_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
+BASELINE="${SHUX_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
 MIN_TEXT=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_TEXT=${MIN_TEXT:-8192}
 MIN_REAL=${MIN_REAL:-130}
-FAIL=${SHU_S2_FAIL_ON_PARITY:-0}
+FAIL=${SHUX_S2_FAIL_ON_PARITY:-0}
 
 text_section_size() {
   local o="$1"

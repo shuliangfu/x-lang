@@ -4,8 +4,8 @@
 # 用法：
 #   ./tests/run-zig-baseline-gate.sh              # manifest + 版本检查（默认）
 #   ./tests/run-zig-baseline-gate.sh --record     # 录制 median 写入 zig-perf.tsv（须 pin 版 zig）
-#   SHU_ZIG_BASELINE_STRICT=1 ...                 # zig 版本须匹配 0.13.x
-#   SHU_ZIG_BASELINE_VERIFY=1 ...                 # 实测须在 recorded×(1+tolerance%) 内
+#   SHUX_ZIG_BASELINE_STRICT=1 ...                 # zig 版本须匹配 0.13.x
+#   SHUX_ZIG_BASELINE_VERIFY=1 ...                 # 实测须在 recorded×(1+tolerance%) 内
 set -e
 cd "$(dirname "$0")/.."
 
@@ -37,7 +37,7 @@ zig_baseline_host_summary
 echo "=== PERF-001: zig version pin ==="
 zig_baseline_check_version
 
-if [ "$DO_RECORD" -eq 0 ] && [ "${SHU_ZIG_BASELINE_VERIFY:-0}" != "1" ]; then
+if [ "$DO_RECORD" -eq 0 ] && [ "${SHUX_ZIG_BASELINE_VERIFY:-0}" != "1" ]; then
   echo "zig baseline gate OK (manifest)"
   exit 0
 fi
@@ -78,7 +78,7 @@ while IFS=$'\t' read -r typ case_id category src recorded tol notes; do
     continue
   fi
 
-  if [ "${SHU_ZIG_BASELINE_VERIFY:-0}" = "1" ] && [ -n "$recorded" ] && [ "$recorded" != "nan" ]; then
+  if [ "${SHUX_ZIG_BASELINE_VERIFY:-0}" = "1" ] && [ -n "$recorded" ] && [ "$recorded" != "nan" ]; then
     pct="${tol:-15}"
     if awk -v m="$med" -v r="$recorded" -v p="$pct" 'BEGIN {
       hi = r * (1.0 + p / 100.0) + 0.000001

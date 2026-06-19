@@ -5,7 +5,7 @@
 #   core_slice_symbols_ok SLICE_SU TSV
 #   core_slice_emit_report status check_ok run_ok skip
 
-CORE_SLICE_PREFIX="${SHU_CORE_SLICE_PREFIX:-shu: [SHU_CORE_SLICE_API]}"
+CORE_SLICE_PREFIX="${SHUX_CORE_SLICE_PREFIX:-shux: [SHUX_CORE_SLICE_API]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_slice_symbols_ok() {

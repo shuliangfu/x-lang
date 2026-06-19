@@ -2,15 +2,15 @@
 # ZC-4 门禁：StrView 零拷贝 + Arena64 concat（无 per-concat heap_alloc）。
 # 用法：
 #   ./tests/run-zc4-gate.sh
-#   SHU=./compiler/shu_asm ./tests/run-zc4-gate.sh
+#   SHUX=./compiler/shux_asm ./tests/run-zc4-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-SHU_BIN="${SHU:-}"
-case "$SHU_BIN" in
-  /*) SHU_ABS="$SHU_BIN" ;;
-  "") SHU_ABS="" ;;
-  *) SHU_ABS="$(pwd)/$SHU_BIN" ;;
+SHUX_BIN="${SHUX:-}"
+case "$SHUX_BIN" in
+  /*) SHUX_ABS="$SHUX_BIN" ;;
+  "") SHUX_ABS="" ;;
+  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
 esac
 
 zc4_native_exe() {
@@ -35,7 +35,7 @@ zc4_native_exe() {
   esac
 }
 
-# 从候选列表选首个 native 编译器；typeck 与 import std.string/heap 用户链均优先 shu-c。
+# 从候选列表选首个 native 编译器；typeck 与 import std.string/heap 用户链均优先 shux-c。
 zc4_pick_native_shu() {
   local cand abs
   for cand in "$@"; do
@@ -48,36 +48,36 @@ zc4_pick_native_shu() {
   return 1
 }
 
-CHECK_SHU="$(zc4_pick_native_shu ./compiler/shu-c ./compiler/shu ./compiler/shu_asm)" || CHECK_SHU=""
+CHECK_SHUX="$(zc4_pick_native_shu ./compiler/shux-c ./compiler/shux ./compiler/shux_asm)" || CHECK_SHUX=""
 
-if [ -z "$CHECK_SHU" ]; then
-  if make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null; then
-    if [ -x ./compiler/shu-c ]; then
-      CHECK_SHU=./compiler/shu-c
+if [ -z "$CHECK_SHUX" ]; then
+  if make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null; then
+    if [ -x ./compiler/shux-c ]; then
+      CHECK_SHUX=./compiler/shux-c
     fi
   fi
 fi
 
-if [ -z "$CHECK_SHU" ]; then
-  echo "zc4 gate SKIP (no working shu-c/shu)"
+if [ -z "$CHECK_SHUX" ]; then
+  echo "zc4 gate SKIP (no working shux-c/shux)"
   exit 0
 fi
 
-# 编译/运行：import std.string/heap 时 shu_asm co-emit 暂缺 .su 符号，须 shu-c（CI 可 SHU=shu_asm 跑 typeck 上下文）
-RUN_SHU="$(zc4_pick_native_shu ./compiler/shu-c ./compiler/shu)" || RUN_SHU=""
-if [ -z "$RUN_SHU" ]; then
-  RUN_SHU="$(zc4_pick_native_shu ./compiler/shu_asm)" || RUN_SHU="$CHECK_SHU"
+# 编译/运行：import std.string/heap 时 shux_asm co-emit 暂缺 .sx 符号，须 shux-c（CI 可 SHUX=shux_asm 跑 typeck 上下文）
+RUN_SHUX="$(zc4_pick_native_shu ./compiler/shux-c ./compiler/shux)" || RUN_SHUX=""
+if [ -z "$RUN_SHUX" ]; then
+  RUN_SHUX="$(zc4_pick_native_shu ./compiler/shux_asm)" || RUN_SHUX="$CHECK_SHUX"
 fi
-if [ -n "$SHU_ABS" ] && zc4_native_exe "$SHU_ABS" ] && [ -z "${SHU_ZC4_FORCE_COMPILE_ASM:-}" ]; then
-  case "$SHU_ABS" in *shu_asm*) ;; *) RUN_SHU="$SHU_ABS" ;; esac
+if [ -n "$SHUX_ABS" ] && zc4_native_exe "$SHUX_ABS" ] && [ -z "${SHUX_ZC4_FORCE_COMPILE_ASM:-}" ]; then
+  case "$SHUX_ABS" in *shux_asm*) ;; *) RUN_SHUX="$SHUX_ABS" ;; esac
 fi
-[ -n "$RUN_SHU" ] || RUN_SHU="$CHECK_SHU"
+[ -n "$RUN_SHUX" ] || RUN_SHUX="$CHECK_SHUX"
 
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-SUBVIEW_OUT="$OUT_DIR/shu_zc4_subview"
-CONCAT_OUT="$OUT_DIR/shu_zc4_arena_concat"
-SSO_OUT="$OUT_DIR/shu_zc4_stack_str"
+SUBVIEW_OUT="$OUT_DIR/shux_zc4_subview"
+CONCAT_OUT="$OUT_DIR/shux_zc4_arena_concat"
+SSO_OUT="$OUT_DIR/shux_zc4_stack_str"
 rm -f "$SUBVIEW_OUT" "$CONCAT_OUT" "$SSO_OUT"
 
 echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
@@ -88,55 +88,55 @@ echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
 ensure_std_c_o ../std/string/string.o
 ensure_std_c_o ../std/heap/heap.o
 
-SUBVIEW_SRC="tests/string/view_subview_smoke.su"
-CONCAT_SRC="tests/string/arena_concat_smoke.su"
-SSO_SRC="tests/string/stack_str_sso_smoke.su"
+SUBVIEW_SRC="tests/string/view_subview_smoke.sx"
+CONCAT_SRC="tests/string/arena_concat_smoke.sx"
+SSO_SRC="tests/string/stack_str_sso_smoke.sx"
 
-if ! "$CHECK_SHU" check -L . "$SUBVIEW_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_SHUX" check -L . "$SUBVIEW_SRC" >/dev/null 2>&1; then
   echo "zc4 FAIL: typeck $SUBVIEW_SRC" >&2
-  "$CHECK_SHU" check -L . "$SUBVIEW_SRC" 2>&1 || true
+  "$CHECK_SHUX" check -L . "$SUBVIEW_SRC" 2>&1 || true
   exit 1
 fi
-if ! "$CHECK_SHU" check -L . "$CONCAT_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_SHUX" check -L . "$CONCAT_SRC" >/dev/null 2>&1; then
   echo "zc4 FAIL: typeck $CONCAT_SRC" >&2
-  "$CHECK_SHU" check -L . "$CONCAT_SRC" 2>&1 || true
+  "$CHECK_SHUX" check -L . "$CONCAT_SRC" 2>&1 || true
   exit 1
 fi
-if ! "$CHECK_SHU" check -L . "$SSO_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_SHUX" check -L . "$SSO_SRC" >/dev/null 2>&1; then
   echo "zc4 FAIL: typeck $SSO_SRC" >&2
-  "$CHECK_SHU" check -L . "$SSO_SRC" 2>&1 || true
+  "$CHECK_SHUX" check -L . "$SSO_SRC" 2>&1 || true
   exit 1
 fi
 echo "zc4: subview/arena_concat/stack_str typeck OK"
 
 chmod +x tests/run-string.sh
-SHU="$CHECK_SHU" ./tests/run-string.sh
+SHUX="$CHECK_SHUX" ./tests/run-string.sh
 echo "zc4: run-string OK"
 
-if [ "$RUN_SHU" != "$CHECK_SHU" ] && [ -n "$RUN_SHU" ]; then
-  echo "zc4: compile via $(basename "$RUN_SHU") (import std.string/heap; shu_asm co-emit pending)"
+if [ "$RUN_SHUX" != "$CHECK_SHUX" ] && [ -n "$RUN_SHUX" ]; then
+  echo "zc4: compile via $(basename "$RUN_SHUX") (import std.string/heap; shux_asm co-emit pending)"
 fi
 
-if ! SHU="$RUN_SHU" "$RUN_SHU" -L . "$SUBVIEW_SRC" -o "$SUBVIEW_OUT" 2>/tmp/shu_zc4_subview_build.log; then
+if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$SUBVIEW_SRC" -o "$SUBVIEW_OUT" 2>/tmp/shux_zc4_subview_build.log; then
   echo "zc4 FAIL: compile $SUBVIEW_SRC" >&2
-  tail -8 /tmp/shu_zc4_subview_build.log 2>/dev/null || true
+  tail -8 /tmp/shux_zc4_subview_build.log 2>/dev/null || true
   exit 1
 fi
-if ! SHU="$RUN_SHU" "$RUN_SHU" -L . "$CONCAT_SRC" -o "$CONCAT_OUT" 2>/tmp/shu_zc4_concat_build.log; then
+if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$CONCAT_SRC" -o "$CONCAT_OUT" 2>/tmp/shux_zc4_concat_build.log; then
   echo "zc4 FAIL: compile $CONCAT_SRC" >&2
-  tail -8 /tmp/shu_zc4_concat_build.log 2>/dev/null || true
+  tail -8 /tmp/shux_zc4_concat_build.log 2>/dev/null || true
   exit 1
 fi
-if ! SHU="$RUN_SHU" "$RUN_SHU" -L . "$SSO_SRC" -o "$SSO_OUT" 2>/tmp/shu_zc4_sso_build.log; then
+if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$SSO_SRC" -o "$SSO_OUT" 2>/tmp/shux_zc4_sso_build.log; then
   echo "zc4 FAIL: compile $SSO_SRC" >&2
-  tail -8 /tmp/shu_zc4_sso_build.log 2>/dev/null || true
+  tail -8 /tmp/shux_zc4_sso_build.log 2>/dev/null || true
   exit 1
 fi
 
 if [ ! -x "$SUBVIEW_OUT" ] || [ ! -x "$CONCAT_OUT" ] || [ ! -x "$SSO_OUT" ]; then
   echo "zc4: compile OK, run SKIP (no native exe; typeck-only on this host)"
   chmod +x tests/run-perf-string-arena.sh
-  SHU="$RUN_SHU" ./tests/run-perf-string-arena.sh
+  SHUX="$RUN_SHUX" ./tests/run-perf-string-arena.sh
   echo "zc4 gate OK"
   exit 0
 fi
@@ -166,5 +166,5 @@ fi
 echo "zc4: stack_str_sso_smoke exit=0 OK"
 
 chmod +x tests/run-perf-string-arena.sh
-SHU="$RUN_SHU" ./tests/run-perf-string-arena.sh
+SHUX="$RUN_SHUX" ./tests/run-perf-string-arena.sh
 echo "zc4 gate OK"

@@ -5,7 +5,7 @@
 #   std_error_semantics_symbols_ok ERR_MOD TSV
 #   std_error_semantics_emit_report status check_ok run_ok skip
 
-STD_ERR_SEM_PREFIX="${SHU_STD_ERR_SEM_PREFIX:-shu: [SHU_STD_ERROR_SEMANTICS]}"
+STD_ERR_SEM_PREFIX="${SHUX_STD_ERR_SEM_PREFIX:-shux: [SHUX_STD_ERROR_SEMANTICS]}"
 
 # 校验 manifest symbol；echo 缺失数。
 std_error_semantics_symbols_ok() {

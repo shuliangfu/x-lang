@@ -13,7 +13,7 @@ static FILE *f;
 static void emit(const char *s) { fprintf(f, "%s\n", s); }
 
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "Usage: %s <in.su> [-o <out>]\n", argv[0]); return 1; }
+    if (argc < 2) { fprintf(stderr, "Usage: %s <in.sx> [-o <out>]\n", argv[0]); return 1; }
 
     const char *in = argv[1];
     const char *out = "a.out";
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 
     /* write .s */
     char tmp_s[256];
-    snprintf(tmp_s, sizeof(tmp_s), "/tmp/shu_min_%d.s", getpid());
+    snprintf(tmp_s, sizeof(tmp_s), "/tmp/shux_min_%d.s", getpid());
     f = fopen(tmp_s, "w");
     if (!f) { perror(tmp_s); return 1; }
 
@@ -59,10 +59,10 @@ int main(int argc, char **argv) {
     /* assemble + link */
     char cmd[1024];
     snprintf(cmd, sizeof(cmd),
-        "as -arch arm64 -o /tmp/shu_min_%d.o %s && "
+        "as -arch arm64 -o /tmp/shux_min_%d.o %s && "
         "ld -arch arm64 -o %s -platform_version macos 14.0 14.0 "
         "-syslibroot $(xcrun --show-sdk-path) -lSystem "
-        "/tmp/shu_min_%d.o 2>&1",
+        "/tmp/shux_min_%d.o 2>&1",
         getpid(), tmp_s, out, getpid());
     printf("[min] %s\n", cmd);
     int rc = system(cmd);

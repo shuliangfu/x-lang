@@ -1,0 +1,48 @@
+// STD-HTTP-H2-CLIENT：HPACK + HEADERS 帧 + 多路复用烟测
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_smoke() != 0) { return 1; }
+  if (http.http2_hpack_smoke() != 0) { return 2; }
+  if (http.http2_client_smoke() != 0) { return 3; }
+  if (http.http2_hpack_dyn_smoke() != 0) { return 13; }
+  if (http.http2_client_is_available() == false) { return 4; }
+
+  let host: [12]u8 = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
+  let path: [2]u8 = [47, 97];
+  let hpack: [64]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let hlen: i32 = http.http2_hpack_encode_get_request(&host[0], 11, &path[0], 2, 1, &hpack[0], 64);
+  if (hlen <= 0) { return 5; }
+
+  let frame: [128]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let flen: i32 = http.http2_build_headers_frame(3, http.http2_flag_end_stream() + http.http2_flag_end_headers(),
+    &hpack[0], hlen, &frame[0], 128);
+  if (flen <= 9) { return 6; }
+
+  let ftype: i32 = 0;
+  let flags: i32 = 0;
+  let sid: i32 = 0;
+  let plen: i32 = 0;
+  if (http.http2_parse_frame_header(&frame[0], 9, &ftype, &flags, &sid, &plen) != 0) { return 7; }
+  if (ftype != http.http2_frame_headers()) { return 8; }
+  if (sid != 3) { return 9; }
+
+  let status_block: [1]u8 = [136];
+  let code: i32 = 0;
+  if (http.http2_hpack_decode_status(&status_block[0], 1, &code) != 0) { return 10; }
+  if (code != 200) { return 11; }
+
+  if (http.http2_err_network_h2() != -1231) { return 12; }
+
+  return 0;
+}

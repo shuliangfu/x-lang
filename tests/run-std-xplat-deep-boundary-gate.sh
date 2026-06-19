@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-xplat-deep-boundary-v1.md"
 MANIFEST="tests/baseline/std-xplat-deep-boundary.tsv"
 LIB="tests/lib/std-xplat-deep-boundary.sh"
-SMOKE="tests/xplat/deep_boundary.su"
+SMOKE="tests/xplat/deep_boundary.sx"
 MIN_ROWS=8
 MIN_SMOKE_CASES=6
 . "$LIB"
@@ -28,11 +28,11 @@ if [ "$n_cases" -lt "$MIN_SMOKE_CASES" ]; then
 fi
 SMOKE_OK=0
 SKIP=0
-SHU_BIN=""
-for cand in ./compiler/shu-c ./compiler/shu; do
-  [ -x "$cand" ] && SHU_BIN="$cand" && break
+SHUX_BIN=""
+for cand in ./compiler/shux-c ./compiler/shux; do
+  [ -x "$cand" ] && SHUX_BIN="$cand" && break
 done
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   FAIL=0
   while IFS=$'\t' read -r case_id kind path linux pol_mac pol_win _notes; do
     [ -z "${case_id:-}" ] && continue
@@ -42,12 +42,12 @@ if [ -n "$SHU_BIN" ]; then
     case "$pol" in
       skip) echo "xplat-deep SKIP $case_id"; continue ;;
     esac
-    if ! "$SHU_BIN" check -L . "$path" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$path" >/dev/null 2>&1; then
       echo "xplat-deep-boundary gate FAIL: typeck $path" >&2
       FAIL=1
       break
     fi
-    if ! xplat_deep_run_smoke "$SHU_BIN" "$path"; then
+    if ! xplat_deep_run_smoke "$SHUX_BIN" "$path"; then
       if [ "$pol" = "optional" ]; then
         echo "xplat-deep WARN $case_id (optional)" >&2
       else

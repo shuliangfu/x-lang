@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# CI 全平台统一测试入口：平台支持的能力必须实跑，禁止 silent SKIP（SHU_CI_NO_SKIP=1）。
+# CI 全平台统一测试入口：平台支持的能力必须实跑，禁止 silent SKIP（SHUX_CI_NO_SKIP=1）。
 # 用法（仓库根）：CI=1 ./tests/run-ci-full-suite.sh
-# 环境：SHU_CI_SKIP_TIER_A=1 或 SHU_CI_SKIP_HEAVY=1 — 跳过 Tier A（build_shu_asm/bstrict），仍跑 Tier P/B。
+# 环境：SHUX_CI_SKIP_TIER_A=1 或 SHUX_CI_SKIP_HEAVY=1 — 跳过 Tier A（build_shux_asm/bstrict），仍跑 Tier P/B。
 
 set -e
 cd "$(dirname "$0")/.."
 
 export CI="${CI:-1}"
-export SHU_CI_FULL_SUITE="${SHU_CI_FULL_SUITE:-1}"
-export SHU_CI_NO_SKIP="${SHU_CI_NO_SKIP:-1}"
+export SHUX_CI_FULL_SUITE="${SHUX_CI_FULL_SUITE:-1}"
+export SHUX_CI_NO_SKIP="${SHUX_CI_NO_SKIP:-1}"
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -31,7 +31,7 @@ ci_linux_perf_l1_probe_ok() {
   [ -n "$loads" ] && [ -n "$misses" ] && [ "$loads" != "0" ]
 }
 
-# Linux ARM64 CI 精简路径：全量 run-all-su + build_shu_asm 易超 170min；Neon DOD/SIMD 烟测保留，完整回归由 x86_64 承担。
+# Linux ARM64 CI 精简路径：全量 run-all-sx + build_shux_asm 易超 170min；Neon DOD/SIMD 烟测保留，完整回归由 x86_64 承担。
 ci_is_linux_arm64_ci_lite() {
   ci_is_linux && ci_is_arm64_host
 }
@@ -41,9 +41,9 @@ ci_is_windows_msys_ci_lite() {
   ci_is_windows_msys && ci_is_x86_64_host
 }
 
-# 是否为 Tier A 重门禁可跳过（lite 平台或 SHU_CI_SKIP_TIER_A / 旧名 SHU_CI_SKIP_HEAVY）。
+# 是否为 Tier A 重门禁可跳过（lite 平台或 SHUX_CI_SKIP_TIER_A / 旧名 SHUX_CI_SKIP_HEAVY）。
 ci_skip_tier_a() {
-  if [ -n "${SHU_CI_SKIP_TIER_A:-}" ] || [ -n "${SHU_CI_SKIP_HEAVY:-}" ]; then
+  if [ -n "${SHUX_CI_SKIP_TIER_A:-}" ] || [ -n "${SHUX_CI_SKIP_HEAVY:-}" ]; then
     return 0
   fi
   if ci_is_linux_arm64_ci_lite || ci_is_windows_msys_ci_lite; then
@@ -72,7 +72,7 @@ ci_apt_get() {
 
 # 从 ziglang.org 下载官方 tarball（apt/brew 不可用时的回退）。
 ci_install_zig_tarball() {
-  local ver="${SHU_CI_ZIG_VERSION:-0.13.0}"
+  local ver="${SHUX_CI_ZIG_VERSION:-0.13.0}"
   local tarname ext dir="$PWD/.ci-zig"
   case "$(ci_host_os)-$(ci_host_arch)" in
     Linux-x86_64) tarname="zig-linux-x86_64-${ver}"; ext=tar.xz ;;
@@ -128,10 +128,10 @@ ci_require_cmd() {
   fi
 }
 
-# 要求 shu_asm 已产出。
-ci_require_shu_asm() {
-  if [ ! -x compiler/shu_asm ]; then
-    echo "ci-full-suite FAIL: compiler/shu_asm missing (required on this platform)" >&2
+# 要求 shux_asm 已产出。
+ci_require_shux_asm() {
+  if [ ! -x compiler/shux_asm ]; then
+    echo "ci-full-suite FAIL: compiler/shux_asm missing (required on this platform)" >&2
     exit 1
   fi
 }
@@ -139,25 +139,25 @@ ci_require_shu_asm() {
 # 非 Linux 无 io_uring：不跑 ZC-1，但必须跑 ZC-2..5。
 ci_run_zc_gates_no_zc1() {
   chmod +x tests/run-zc2-gate.sh tests/run-zc3-gate.sh tests/run-zc4-gate.sh tests/run-zc5-gate.sh
-  SHU=./compiler/shu_asm ./tests/run-zc2-gate.sh
-  SHU=./compiler/shu_asm ./tests/run-zc3-gate.sh
-  SHU=./compiler/shu_asm ./tests/run-zc4-gate.sh
-  SHU=./compiler/shu_asm ./tests/run-zc5-gate.sh
+  SHUX=./compiler/shux_asm ./tests/run-zc2-gate.sh
+  SHUX=./compiler/shux_asm ./tests/run-zc3-gate.sh
+  SHUX=./compiler/shux_asm ./tests/run-zc4-gate.sh
+  SHUX=./compiler/shux_asm ./tests/run-zc5-gate.sh
   echo "zc gates OK (ZC-1 N/A: io_uring requires Linux)"
 }
 
 echo "ci-full-suite: host=$(ci_host_summary) CI=${CI:-}"
 if ci_is_linux_arm64_ci_lite; then
   echo "ci-full-suite: Linux ARM64 — Tier P portable + Tier B; Tier A asm/bstrict by x86_64"
-  export SHULANG_LINK_SHU=./compiler/shu-c
+  export SHUX_LINK_SHUX=./compiler/shux-c
 elif ci_is_windows_msys_ci_lite; then
   echo "ci-full-suite: Windows MSYS2 — Tier P portable + Tier B; Tier A asm/bstrict by x86_64"
-  export SHULANG_LINK_SHU=./compiler/shu-c
+  export SHUX_LINK_SHUX=./compiler/shux-c
 fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-# ── Tier P：全平台统一便携测试（同一套 .su / shu-c，平台能力自动 N/A） ───
+# ── Tier P：全平台统一便携测试（同一套 .sx / shux-c，平台能力自动 N/A） ───
 echo "── Tier P portable suite ──"
 chmod +x tests/run-portable-suite.sh
 ./tests/run-portable-suite.sh | tee /tmp/portable_suite.log
@@ -180,10 +180,10 @@ ci_require_cmd zig
 
 echo "── perf baseline ──"
 if ci_is_linux; then
-  PERF_BASELINE_ENV="SHU_PERF_FAIL_ON_ZIG=1"
+  PERF_BASELINE_ENV="SHUX_PERF_FAIL_ON_ZIG=1"
   # L2 B-CMP：GHA 原生 ubuntu 须 Shu -O3 不劣于 C-O3（1.0×）；stretch 0.95× 见 run-bcmp-stretch-gate.sh
   if ci_is_linux_x64 && ! ci_is_docker; then
-    PERF_BASELINE_ENV="${PERF_BASELINE_ENV} SHU_PERF_FAIL_ON_C_O3=1 SHU_PERF_C_O3_RATIO=1.0"
+    PERF_BASELINE_ENV="${PERF_BASELINE_ENV} SHUX_PERF_FAIL_ON_C_O3=1 SHUX_PERF_C_O3_RATIO=1.0"
   fi
   # shellcheck disable=SC2086
   env ${PERF_BASELINE_ENV} ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_bench.log
@@ -192,13 +192,13 @@ else
 fi
 grep -q 'perf baseline OK' /tmp/perf_bench.log
 
-echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .su) ──"
+echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .sx) ──"
 chmod +x tests/run-io-unified-gate.sh
 if ci_is_linux; then
-  IO_UNIFIED_ENV="SHU_PERF_FAIL_ON_IO_REGRESSION=1"
+  IO_UNIFIED_ENV="SHUX_PERF_FAIL_ON_IO_REGRESSION=1"
   # L1 ≥ Zig + ZC-1 -10%：GHA 原生 ubuntu 须实锤；Docker Desktop 无 io_uring 时不硬门禁。
   if ci_is_linux_x64 && ! ci_is_docker; then
-    IO_UNIFIED_ENV="${IO_UNIFIED_ENV} SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_CI_REQUIRE_ZC1=1"
+    IO_UNIFIED_ENV="${IO_UNIFIED_ENV} SHUX_PERF_FAIL_ON_IO_ZIG=1 SHUX_CI_REQUIRE_ZC1=1"
   fi
   # shellcheck disable=SC2086
   env ${IO_UNIFIED_ENV} ./tests/run-io-unified-gate.sh --perf | tee /tmp/io_unified_perf.log
@@ -212,30 +212,30 @@ chmod +x tests/run-perf-compile-dogfood-gate.sh tests/run-perf-compile-dogfood.s
 if ci_is_linux && ! ci_is_docker; then
   ./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/compile_dogfood.log
 else
-  SHU_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/compile_dogfood.log
+  SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh | tee /tmp/compile_dogfood.log
 fi
 grep -qE 'compile dogfood OK|perf-compile-dogfood gate OK' /tmp/compile_dogfood.log
 
 # refresh：Linux 全量；Darwin/Windows 在 CI 全量模式下也尝试（Mach-O/PE 单平台 relink）。
-echo "── refresh shu_asm gate ──"
-chmod +x tests/run-refresh-shu-asm-gate.sh
+echo "── refresh shux_asm gate ──"
+chmod +x tests/run-refresh-shux-asm-gate.sh
 if ci_is_windows_msys_ci_lite; then
-  # MSYS2 上 relink-shu / build_shu_asm typeck EMIT_HEAVY 易挂起 45min+；seed shu 作 shu_asm 足够 DOD/ZC 烟测。
+  # MSYS2 上 relink-shux / build_shux_asm typeck EMIT_HEAVY 易挂起 45min+；seed shux 作 shux_asm 足够 DOD/ZC 烟测。
   make -C compiler migrate-su-objs 2>/dev/null || make -C compiler migrate-su-objs
-  cp -f compiler/shu compiler/shu_asm
+  cp -f compiler/shux compiler/shux_asm
   {
-    echo "refresh shu asm gate: CI non-Linux — Mach-O/PE single-platform relink"
-    echo "refresh shu asm gate OK (Windows lite: shu_asm <- seed shu)"
+    echo "refresh shux asm gate: CI non-Linux — Mach-O/PE single-platform relink"
+    echo "refresh shux asm gate OK (Windows lite: shux_asm <- seed shux)"
     echo "region typeck OK"
     echo "linear typeck OK"
   } | tee /tmp/refresh_asm_gate.log
 else
-  ./tests/run-refresh-shu-asm-gate.sh | tee /tmp/refresh_asm_gate.log
+  ./tests/run-refresh-shux-asm-gate.sh | tee /tmp/refresh_asm_gate.log
 fi
-grep -q 'refresh shu asm gate OK' /tmp/refresh_asm_gate.log
+grep -q 'refresh shux asm gate OK' /tmp/refresh_asm_gate.log
 grep -q 'region typeck OK' /tmp/refresh_asm_gate.log
 grep -q 'linear typeck OK' /tmp/refresh_asm_gate.log
-ci_require_shu_asm
+ci_require_shux_asm
 
 echo "── M-6 sanitize=address gate ──"
 chmod +x tests/run-sanitize-gate.sh
@@ -248,11 +248,11 @@ if ci_is_linux; then
   chmod +x tests/run-zc-gates.sh
   # 原生 Linux x86_64 GHA：strace 须实锤 splice；Docker Desktop ptrace 失效时由 gate 内 SKIP。
   if ci_is_linux_x64 && ! ci_is_docker; then
-    export SHU_ZC5_REQUIRE_STRACE=1
-    export SHU_CI_REQUIRE_ZC1=1
-    SHU=./compiler/shu_asm ./tests/run-zc-gates.sh --perf | tee /tmp/zc_gates.log
+    export SHUX_ZC5_REQUIRE_STRACE=1
+    export SHUX_CI_REQUIRE_ZC1=1
+    SHUX=./compiler/shux_asm ./tests/run-zc-gates.sh --perf | tee /tmp/zc_gates.log
   else
-    SHU=./compiler/shu_asm ./tests/run-zc-gates.sh | tee /tmp/zc_gates.log
+    SHUX=./compiler/shux_asm ./tests/run-zc-gates.sh | tee /tmp/zc_gates.log
   fi
   grep -q 'zc gates OK' /tmp/zc_gates.log
 else
@@ -269,16 +269,16 @@ grep -q 'async gate OK' /tmp/async_smoke.log
 echo "── async perf ──"
 if ci_is_linux; then
   grep -q 'async linux full OK' /tmp/async_smoke.log
-  SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
+  SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
   grep -q 'async perf OK' /tmp/async_perf.log
 elif ci_is_darwin; then
-  SHU=./compiler/shu-c SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
+  SHUX=./compiler/shux-c SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench | tee /tmp/async_perf.log
   grep -q 'async perf OK' /tmp/async_perf.log
 fi
 
 echo "── B-BOOT coldstart ──"
 chmod +x tests/run-perf-coldstart.sh
-SHU_COLDSTART_STD_ONLY=1 SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 \
+SHUX_COLDSTART_STD_ONLY=1 SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=1 \
   ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart.log
 grep -q 'coldstart OK' /tmp/coldstart.log
 
@@ -293,61 +293,61 @@ grep -q 'wpo dce emit OK' /tmp/wpo_dce_emit.log
 
 echo "── bootstrap seed gate ──"
 if ci_is_windows_msys_ci_lite; then
-  echo "ci-full-suite: bootstrap seed gate N/A on Windows MSYS2 (C test suite smoke already ran bootstrap-shu-gate)"
+  echo "ci-full-suite: bootstrap seed gate N/A on Windows MSYS2 (C test suite smoke already ran bootstrap-shux-gate)"
 else
-  ./tests/run-bootstrap-shu-gate.sh
+  ./tests/run-bootstrap-shux-gate.sh
 fi
 
 echo "── bootstrap run-all ──"
 if ci_is_linux_arm64_ci_lite; then
   echo "ci-full-suite: bootstrap run-all N/A on Linux ARM64 (test_c OK; ubuntu x86_64 covers run-all)"
 elif ci_is_windows_msys_ci_lite; then
-  echo "ci-full-suite: bootstrap run-all N/A on Windows MSYS2 (bootstrap-shu-gate OK; Linux x86_64 covers run-all)"
+  echo "ci-full-suite: bootstrap run-all N/A on Windows MSYS2 (bootstrap-shux-gate OK; Linux x86_64 covers run-all)"
 else
   make -C compiler bootstrap-driver-seed
-  SHU=./compiler/shu SHULANG_RUN_ALL_BOOTSTRAP_SHU=1 ./tests/run-all.sh
+  ./tests/run-all-seed.sh
 fi
 
-echo "── test_su (LSP + run-all-su) ──"
+echo "── test_sx (LSP + run-all-sx) ──"
 if ci_is_linux_arm64_ci_lite; then
   make -C compiler bootstrap-driver-seed
   chmod +x tests/run-lsp.sh
   ./tests/run-lsp.sh
-  echo "ci-full-suite: run-all-su N/A on Linux ARM64 (x86_64 covers shu_su full run-all)"
+  echo "ci-full-suite: run-all-sx N/A on Linux ARM64 (x86_64 covers shux_sx full run-all)"
 elif ci_is_windows_msys_ci_lite; then
   chmod +x tests/run-lsp.sh
   ./tests/run-lsp.sh
-  echo "ci-full-suite: run-all-su N/A on Windows MSYS2 (Linux x86_64 covers shu_su full run-all)"
+  echo "ci-full-suite: run-all-sx N/A on Windows MSYS2 (Linux x86_64 covers shux_sx full run-all)"
 else
-  make -C compiler test_su
+  make -C compiler test_sx
 fi
 
-# ── Tier A 边界：lite 平台跳过 build_shu_asm/bstrict，仍跑 Tier B（DOD/WPO-S2 等） ──
+# ── Tier A 边界：lite 平台跳过 build_shux_asm/bstrict，仍跑 Tier B（DOD/WPO-S2 等） ──
 if ci_skip_tier_a; then
-  echo "ci-full-suite: Tier A build_shu_asm/bstrict deferred ($(ci_host_summary); ubuntu x86_64 covers)"
-  ci_require_shu_asm
+  echo "ci-full-suite: Tier A build_shux_asm/bstrict deferred ($(ci_host_summary); ubuntu x86_64 covers)"
+  ci_require_shux_asm
 else
-  echo "── build_shu_asm (Goal 2) ──"
-  cd compiler && SHU=./shu ./scripts/build_shu_asm.sh
+  echo "── build_shux_asm (Goal 2) ──"
+  cd compiler && SHUX=./shux ./scripts/build_shux_asm.sh
   cd ..
-  [ -x compiler/shu_asm ] || { echo "ci-full-suite FAIL: shu_asm missing after build_shu_asm" >&2; exit 1; }
+  [ -x compiler/shux_asm ] || { echo "ci-full-suite FAIL: shux_asm missing after build_shux_asm" >&2; exit 1; }
 
   echo "── asm .o quality ──"
-  cd compiler && SHU=./shu ./scripts/check_asm_o_quality.sh
+  cd compiler && SHUX=./shux ./scripts/check_asm_o_quality.sh
   cd ..
 
-  echo "── B-SIZE shu_asm stripped (advisory, ENG-002) ──"
-  chmod +x tests/run-size-shu-asm-gate.sh
-  ./tests/run-size-shu-asm-gate.sh | tee /tmp/size_shu_asm.log
-  grep -qE 'size gate OK|size gate WARN|size gate SKIP' /tmp/size_shu_asm.log
+  echo "── B-SIZE shux_asm stripped (advisory, ENG-002) ──"
+  chmod +x tests/run-size-shux-asm-gate.sh
+  ./tests/run-size-shux-asm-gate.sh | tee /tmp/size_shux_asm.log
+  grep -qE 'size gate OK|size gate WARN|size gate SKIP' /tmp/size_shux_asm.log
 fi
 
 echo "── S2 typeck gate ──"
 chmod +x tests/run-s2-typeck-gate.sh tests/run-s2-typeck-o-parity.sh
 if ci_is_linux && ci_is_x86_64_host; then
-  SHU_S2_REQUIRE_TYPECK_O=1 SHU_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
+  SHUX_S2_REQUIRE_TYPECK_O=1 SHUX_S2_FAIL_ON_REGRESSION=1 ./tests/run-s2-typeck-gate.sh | tee /tmp/s2_typeck_gate.log
   grep -q 's2 typeck gate OK' /tmp/s2_typeck_gate.log
-  SHU_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
+  SHUX_S2_FAIL_ON_PARITY=1 ./tests/run-s2-typeck-o-parity.sh | tee /tmp/s2_typeck_parity.log
   grep -q 's2 parity OK' /tmp/s2_typeck_parity.log
 else
   echo "ci-full-suite: S2 typeck gate N/A on $(ci_host_summary) (EMIT_HEAVY Linux x86_64 only)"
@@ -355,29 +355,29 @@ fi
 
 echo "── S3 pipeline gate ──"
 chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
-if ci_is_linux && ci_is_x86_64_host && ! ci_skip_tier_a && [ -x compiler/shu_asm ]; then
+if ci_is_linux && ci_is_x86_64_host && ! ci_skip_tier_a && [ -x compiler/shux_asm ]; then
   # CI fast 跳过 pipeline 第二遍时 build_asm/pipeline.o 为 ~1KiB 桩；门禁前 EMIT_HEAVY 同步。
   ./tests/run-s3-pipeline-sync-build-o.sh | tee /tmp/s3_pipeline_sync.log
-  SHU_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
+  SHUX_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
   grep -q 's3 pipeline gate OK' /tmp/s3_pipeline_gate.log
 else
   ./tests/run-s3-pipeline-gate.sh | tee /tmp/s3_pipeline_gate.log
   grep -qE 's3 pipeline gate OK|check only' /tmp/s3_pipeline_gate.log
 fi
 
-echo "── shu_asm smoke ──"
+echo "── shux_asm smoke ──"
 if ci_skip_tier_a; then
-  echo "ci-full-suite: shu_asm smoke N/A (Tier A skipped; stub shu_asm lacks asm backend on $(ci_host_summary))"
+  echo "ci-full-suite: shux_asm smoke N/A (Tier A skipped; stub shux_asm lacks asm backend on $(ci_host_summary))"
 elif ci_is_linux_arm64_ci_lite; then
-  echo "ci-full-suite: shu_asm smoke on Linux ARM64 uses -backend c (full asm smoke: ubuntu x86_64)"
-  cd compiler && ./scripts/run_shu_asm_smoke.sh
+  echo "ci-full-suite: shux_asm smoke on Linux ARM64 uses -backend c (full asm smoke: ubuntu x86_64)"
+  cd compiler && ./scripts/run_shux_asm_smoke.sh
   cd ..
 else
-  cd compiler && ./scripts/run_shu_asm_smoke.sh
+  cd compiler && ./scripts/run_shux_asm_smoke.sh
   cd ..
 fi
 if ci_is_darwin && ! ci_skip_tier_a; then
-  echo "ci-full-suite: shu_asm smoke on Darwin uses -backend c for run (asm user exe N/A on gen_driver hybrid)"
+  echo "ci-full-suite: shux_asm smoke on Darwin uses -backend c for run (asm user exe N/A on gen_driver hybrid)"
 fi
 
 # ARM64 宿主（Linux/macOS）：DOD SoA + cache-line + Neon strip（不含 x86 f32-xmm）。
@@ -385,15 +385,15 @@ ci_run_dod_arm64_subset() {
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s3-gate.sh \
     tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh \
     tests/run-simd-s3-gate.sh tests/lib/dod-native-exe.sh tests/lib/dod-host-backend.sh
-  SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
   grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
   grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
   grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
   grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-  SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
+  SHUX=./compiler/shux_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
   grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
   if ci_is_linux && ci_is_arm64_host; then
     echo "ci-full-suite: dod/simd f32 + simd-s3 vec peel N/A on Linux ARM64 (x86_64 covers)"
@@ -402,25 +402,34 @@ ci_run_dod_arm64_subset() {
   fi
 }
 
+# x86_64 / arm64：objdump/otool 校验 shuffle/select/add 硬件指令（SHUX_SIMD_HW_STRICT=1）。
+ci_run_simd_hw_strict_gates() {
+  chmod +x tests/run-simd-s3-gate.sh tests/run-simd-s4-gate.sh
+  echo "── SIMD HW strict (SHUX_SIMD_HW_STRICT=1) ──"
+  SHUX=./compiler/shux_asm SHUX_SIMD_HW_STRICT=1 ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3_strict.log
+  grep -q 'simd-s3 gate OK' /tmp/simd_s3_strict.log
+  SHUX=./compiler/shux_asm SHUX_SIMD_HW_STRICT=1 ./tests/run-simd-s4-gate.sh | tee /tmp/simd_s4_strict.log
+  grep -q 'simd-s4 gate OK' /tmp/simd_s4_strict.log
+}
+
 # x86_64 宿主 DOD 正确性（无 Linux perf stat）：Windows / Intel macOS。
 ci_run_dod_x86_correctness() {
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s3-gate.sh tests/run-dod-s2-gate.sh \
     tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh \
-    tests/run-simd-s3-gate.sh tests/run-f32-xmm-gates.sh tests/lib/dod-native-exe.sh
-  SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
+    tests/run-simd-s3-gate.sh tests/run-simd-s4-gate.sh tests/run-f32-xmm-gates.sh tests/lib/dod-native-exe.sh
+  SHUX=./compiler/shux_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
   grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
   grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
   grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
   grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-  SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
-  grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
+  ci_run_simd_hw_strict_gates
   if ci_is_windows_msys; then
     echo "ci-full-suite: f32-xmm gates N/A on Windows MSYS2 (f32 SSE codegen; Linux x86_64 covers)"
   else
-    SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
+    SHUX=./compiler/shux_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
     grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
   fi
 }
@@ -445,7 +454,7 @@ if ci_is_linux && ci_is_x86_64_host; then
     fi
   fi
   chmod +x tests/run-dod-s1-gate.sh tests/run-dod-s2-gate.sh tests/run-dod-s3-gate.sh tests/run-perf-dod-soa.sh tests/lib/dod-native-exe.sh
-  SHU=./compiler/shu_asm SHU_DOD_SOA_FAIL=1 SHU_DOD_SOA_REQUIRE_L1="$DOD_SOA_REQUIRE_L1" ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
+  SHUX=./compiler/shux_asm SHUX_DOD_SOA_FAIL=1 SHUX_DOD_SOA_REQUIRE_L1="$DOD_SOA_REQUIRE_L1" ./tests/run-perf-dod-soa.sh | tee /tmp/dod_soa_perf.log
   grep -q 'SoA exit=16' /tmp/dod_soa_perf.log
   grep -q 'AoS exit=16' /tmp/dod_soa_perf.log
   if [ "$DOD_SOA_REQUIRE_L1" = "1" ]; then
@@ -454,21 +463,20 @@ if ci_is_linux && ci_is_x86_64_host; then
     echo "dod-soa L1 perf N/A (probe unavailable on this runner)"
   fi
   grep -q 'dod-soa gate OK' /tmp/dod_soa_perf.log
-  SHU=./compiler/shu_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-s1-gate.sh | tee /tmp/dod_s1.log
   grep -q 'dod-s1 gate OK' /tmp/dod_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-s3-gate.sh | tee /tmp/dod_s3.log
   grep -q 'dod-s3 gate OK' /tmp/dod_s3.log
-  chmod +x tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh tests/run-simd-s3-gate.sh tests/run-f32-xmm-gates.sh
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
+  chmod +x tests/run-dod-cl-s1-gate.sh tests/run-dod-cl-s2-gate.sh tests/run-simd-s3-gate.sh tests/run-simd-s4-gate.sh tests/run-f32-xmm-gates.sh
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s1-gate.sh | tee /tmp/dod_cl_s1.log
   grep -q 'dod-cl-s1 gate OK' /tmp/dod_cl_s1.log
-  SHU=./compiler/shu_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
+  SHUX=./compiler/shux_asm ./tests/run-dod-cl-s2-gate.sh | tee /tmp/dod_cl_s2.log
   grep -q 'dod-cl-s2 gate OK' /tmp/dod_cl_s2.log
-  SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh | tee /tmp/simd_s3.log
-  grep -q 'simd-s3 gate OK' /tmp/simd_s3.log
-  SHU=./compiler/shu_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
+  ci_run_simd_hw_strict_gates
+  SHUX=./compiler/shux_asm ./tests/run-f32-xmm-gates.sh | tee /tmp/f32_xmm_gates.log
   grep -q 'f32-xmm-gates OK' /tmp/f32_xmm_gates.log
 elif ci_is_linux && ci_is_arm64_host; then
-  echo "── DOD/SIMD (Linux ARM64, shu-c -o link; refresh shu_asm typeck) ──"
+  echo "── DOD/SIMD (Linux ARM64, shux-c -o link; refresh shux_asm typeck) ──"
   ci_run_dod_arm64_subset
 elif ci_is_darwin && ci_is_arm64_host; then
   echo "── DOD/SIMD (macOS ARM64) ──"
@@ -487,20 +495,20 @@ fi
 if ci_is_linux && ci_is_x86_64_host; then
   echo "── S4 freestanding coldstart ──"
   chmod +x tests/run-perf-coldstart.sh
-  SHU=./compiler/shu_asm SHU_COLDSTART_FREESTANDING_ONLY=1 \
-    SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart_fs.log
+  SHUX=./compiler/shux_asm SHUX_COLDSTART_FREESTANDING_ONLY=1 \
+    SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh --bench | tee /tmp/coldstart_fs.log
   grep -q 'coldstart OK' /tmp/coldstart_fs.log
 fi
 
 echo "── WPO-S2/S3/S4 ──"
 chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/run-wpo-dce-asm.sh \
   tests/run-perf-wpo-dce-text.sh tests/run-perf-wpo-dce-compiler-self-text.sh \
-  tests/run-perf-wpo-dce-shu-asm-text.sh tests/run-wpo-build-asm-chain-gate.sh \
+  tests/run-perf-wpo-dce-shux-asm-text.sh tests/run-wpo-build-asm-chain-gate.sh \
   tests/ensure-wpo-build-asm-artifacts.sh tests/run-wpo-strict-link-gate.sh \
   tests/run-wpo-pipeline-reach-gate.sh tests/run-wpo-typeck-reach-gate.sh \
   tests/run-wpo-backend-reach-gate.sh tests/run-wpo-s3-gate.sh tests/run-wpo-s4-gate.sh \
   tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh tests/lib/wpo-ab-proxy.sh \
-  compiler/scripts/relink_shu_asm_strict_glue.sh
+  compiler/scripts/relink_shux_asm_strict_glue.sh
 if ci_skip_tier_a; then
   echo "ci-full-suite: WPO asm gates N/A (Tier A skipped; x86_64 covers full WPO)"
 fi
@@ -508,47 +516,47 @@ fi
 grep -q 'wpo-s2 smoke OK' /tmp/wpo_s2.log
 ./tests/run-wpo-dce-asm.sh | tee /tmp/wpo_dce_asm.log
 grep -q 'wpo asm dce OK' /tmp/wpo_dce_asm.log
-SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
+SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_DCE_TEXT=1 ./tests/run-perf-wpo-dce-text.sh | tee /tmp/wpo_dce_text.log
 grep -q 'wpo dce text OK' /tmp/wpo_dce_text.log
 if ci_skip_tier_a; then
-  echo "ci-full-suite: wpo compiler-self / shu_asm text / build_asm chain / strict-link N/A (Tier A skipped)"
+  echo "ci-full-suite: wpo compiler-self / shux_asm text / build_asm chain / strict-link N/A (Tier A skipped)"
   echo "wpo compiler self text OK (Linux ARM64 N/A)" | tee /tmp/wpo_compiler_self_text.log
-  echo "wpo shu_asm text OK (Linux ARM64 N/A)" | tee /tmp/wpo_shu_asm_text.log
+  echo "wpo shux_asm text OK (Linux ARM64 N/A)" | tee /tmp/wpo_shux_asm_text.log
   echo "wpo build_asm chain gate OK (Linux ARM64 N/A)" | tee /tmp/wpo_chain_gate.log
   echo "run-wpo-strict-link-gate OK (Linux ARM64 N/A)" | tee /tmp/wpo_strict_link_gate.log
 else
-  # refresh 路径 proxy 仅 ~0.84%；须先 ensure 五模块 WPO .o 再测 shu_asm text（~4.65% stretch）。
-  SHU_WPO_ENSURE_FAIL=1 SHU_WPO_ENSURE_COMPILER=./compiler/shu_asm ./tests/ensure-wpo-build-asm-artifacts.sh | tee /tmp/wpo_ensure.log
+  # refresh 路径 proxy 仅 ~0.84%；须先 ensure 五模块 WPO .o 再测 shux_asm text（~4.65% stretch）。
+  SHUX_WPO_ENSURE_FAIL=1 SHUX_WPO_ENSURE_COMPILER=./compiler/shux_asm ./tests/ensure-wpo-build-asm-artifacts.sh | tee /tmp/wpo_ensure.log
   grep -q 'ensure-wpo-build-asm-artifacts OK' /tmp/wpo_ensure.log
-  SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
+  SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh | tee /tmp/wpo_compiler_self_text.log
   grep -q 'wpo compiler self text OK' /tmp/wpo_compiler_self_text.log
-  SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text.log
-  grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text.log
+  SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_SHUX_ASM_TEXT=1 ./tests/run-perf-wpo-dce-shux-asm-text.sh | tee /tmp/wpo_shux_asm_text.log
+  grep -q 'wpo shux_asm text OK' /tmp/wpo_shux_asm_text.log
   # stretch -3%：strict bstrict 全链（非 CI-fast）时可选
-  if [ "${SHU_WPO_STRETCH_3PCT:-0}" = "1" ]; then
-    SHU=./compiler/shu_asm SHU_WPO_STRETCH_3PCT=1 SHU_PERF_FAIL_ON_WPO_SHU_ASM_TEXT=1 \
-      ./tests/run-perf-wpo-dce-shu-asm-text.sh | tee /tmp/wpo_shu_asm_text_3pct.log
-    grep -q 'wpo shu_asm text OK' /tmp/wpo_shu_asm_text_3pct.log
+  if [ "${SHUX_WPO_STRETCH_3PCT:-0}" = "1" ]; then
+    SHUX=./compiler/shux_asm SHUX_WPO_STRETCH_3PCT=1 SHUX_PERF_FAIL_ON_WPO_SHUX_ASM_TEXT=1 \
+      ./tests/run-perf-wpo-dce-shux-asm-text.sh | tee /tmp/wpo_shux_asm_text_3pct.log
+    grep -q 'wpo shux_asm text OK' /tmp/wpo_shux_asm_text_3pct.log
   fi
   ./tests/run-wpo-build-asm-chain-gate.sh | tee /tmp/wpo_chain_gate.log
   grep -q 'wpo build_asm chain gate OK' /tmp/wpo_chain_gate.log
-  SHU_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log
+  SHUX_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh | tee /tmp/wpo_strict_link_gate.log
   grep -q 'run-wpo-strict-link-gate OK' /tmp/wpo_strict_link_gate.log
 fi
 if ci_is_docker; then
   # Docker 内 vec no-fold 运行偶发 SIGSEGV（可执行栈/perf 环境）；compile+disasm 仍实跑。
-  SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 SHU_WPO_S2_COMPILE_ONLY=1 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
+  SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHUX_WPO_S2_RUNS=1 SHUX_WPO_S2_LIMIT=1000000 SHUX_WPO_S2_COMPILE_ONLY=1 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
 elif [ "${CI:-0}" = "1" ] && ci_is_linux && ci_is_x86_64_host; then
   # GHA native linux：vec no-fold 运行偶发 SIGSEGV；compile+disasm 烟测，ratio 由本地/非 CI 承担。
-  SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 SHU_WPO_S2_COMPILE_ONLY=1 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
+  SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHUX_WPO_S2_RUNS=1 SHUX_WPO_S2_LIMIT=1000000 SHUX_WPO_S2_COMPILE_ONLY=1 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
 else
-  SHU=./compiler/shu_asm SHU_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHU_WPO_S2_RUNS=1 SHU_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
+  SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_S2_REGRESSION=1 SHUX_WPO_S2_RUNS=1 SHUX_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
 fi
 grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
 make -C compiler ../std/async/scheduler.o
-SHU=./compiler/shu_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
+SHUX=./compiler/shux_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
 grep -q 'wpo-s3 gate OK' /tmp/wpo_s3.log
-SHU_WPO_PGO_HOT=1 SHU=./compiler/shu_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
+SHUX_WPO_PGO_HOT=1 SHUX=./compiler/shux_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
 grep -q 'wpo-s4 gate OK' /tmp/wpo_s4.log
 
 echo "── B-strict bootstrap + gates ──"
@@ -556,7 +564,7 @@ if ci_skip_tier_a; then
   echo "ci-full-suite: bootstrap-bstrict-ci N/A (Tier A skipped on $(ci_host_summary))"
 elif ci_is_linux && ci_is_x86_64_host; then
   if ci_is_docker; then
-    # Docker 容器：shu_asm.experimental 在 cfg-merge 等 asm 烟测偶发 SIGSEGV；完整 bstrict 由 native linux job 覆盖。
+    # Docker 容器：shux_asm.experimental 在 cfg-merge 等 asm 烟测偶发 SIGSEGV；完整 bstrict 由 native linux job 覆盖。
     echo "ci-full-suite: bootstrap-bstrict-ci N/A in Docker (native linux ubuntu job covers)"
     echo "── bootstrap-verify ──"
     make -C compiler bootstrap-verify

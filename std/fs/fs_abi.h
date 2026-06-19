@@ -2,7 +2,7 @@
  * std/fs/fs_abi.h — std.fs 与 codegen 生成 C 的 ABI 头文件
  *
  * 供编译器在生成 .c 时通过 #include "std/fs/fs_abi.h" 引入，
- * 声明 fs.c 提供的 _c 符号，供 std/fs/mod.su 生成代码调用。
+ * 声明 fs.c 提供的 _c 符号，供 std/fs/mod.sx 生成代码调用。
  */
 #ifndef STD_FS_FS_ABI_H
 #define STD_FS_FS_ABI_H

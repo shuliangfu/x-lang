@@ -15,9 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 AST_POOL = ROOT / "compiler/ast_pool.c"
 THIN_C = ROOT / "compiler/src/asm/parser_asm_thin_c.c"
-PARSER_SU = ROOT / "compiler/src/parser/parser.su"
+PARSER_SU = ROOT / "compiler/src/parser/parser.sx"
 
-# glue 名 → parser.su 函数名（自动生成 su 名与 module 表不一致时手工覆盖）
+# glue 名 → parser.sx 函数名（自动生成 su 名与 module 表不一致时手工覆盖）
 GLUE_SU_OVERRIDE: dict[str, str] = {
     "parser_lex_copy_from_import_into_glue": "copy_lex_from_import_into",
     "parser_token_is_label_start_glue": "parser_token_is_label_start",
@@ -44,7 +44,7 @@ HELPER_BLOCK = r'''
 #define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 8
 
 /**
- * parser.su EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
+ * parser.sx EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
  */
 static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_selfhost(m))
@@ -187,7 +187,7 @@ def build_delegate_rows() -> list[tuple[str, int, str, int]]:
     for c in sorted(thin_names):
         su = GLUE_SU_OVERRIDE.get(c, c[len("parser_") : -len("_glue")])
         if su not in parser_funcs:
-            print(f"WARN: skip glue {c} (no function {su} in parser.su)", file=sys.stderr)
+            print(f"WARN: skip glue {c} (no function {su} in parser.sx)", file=sys.stderr)
             continue
         rows.append((su, len(su), c, len(c)))
     for extra in (
@@ -203,7 +203,7 @@ def emit_parser_block(tail: str) -> str:
     """生成 asm_skip_heavy 中 parser 分支。"""
     tail_line = "return 0;" if tail == "return0" else "return 1;"
     return f'''    /**
-     * parser.su EMIT_HEAVY 第二遍：mega/force_stub ret0 桩；thin delegate bl→C glue；
+     * parser.sx EMIT_HEAVY 第二遍：mega/force_stub ret0 桩；thin delegate bl→C glue；
      * 其余 {tail_line.replace("return ", "").replace(";", "（扩 __text）。")}
      */
     if (asm_module_is_parser_selfhost(m)) {{
@@ -246,7 +246,7 @@ def main() -> int:
   int32_t i;
   if (!m || m->num_funcs < 40)
     return 0;
-  /** parser.su ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
+  /** parser.sx ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
       return 0;
@@ -264,7 +264,7 @@ def main() -> int:
 
     # 替换 delegate 块（兼容已 patch / bisect 注释）
     m = re.search(
-        r"/\*\* M8-tail：parser\.su.*?\nstatic const AsmBackendThinDelegateRow k_asm_parser_thin_delegate\[\] = \{.*?\n\};\n",
+        r"/\*\* M8-tail：parser\.sx.*?\nstatic const AsmBackendThinDelegateRow k_asm_parser_thin_delegate\[\] = \{.*?\n\};\n",
         text,
         re.S,
     )
@@ -272,7 +272,7 @@ def main() -> int:
         print("ERROR: k_asm_parser_thin_delegate block not found", file=sys.stderr)
         return 1
     new_delegate = (
-        "/** M8-tail：parser.su 薄包装 SU 名 → parser_asm_thin_c.c *_glue（EMIT_HEAVY 第二遍 bl 扩 __text）。\n"
+        "/** M8-tail：parser.sx 薄包装 SU 名 → parser_asm_thin_c.c *_glue（EMIT_HEAVY 第二遍 bl 扩 __text）。\n"
         " * SU 真 emit（不在表内）：parse_into_set_main_index / pipeline_module_reset_parse_counters /\n"
         " * collect_imports_buf / lex_from_next_into / parse_one_function_library_buf / copy_lex_from_import_into /\n"
         " * expr_set_common_zeros */\n"
@@ -286,12 +286,12 @@ def main() -> int:
     print(f"OK: {len(rows)} delegate rows, emit_tail={args.emit_tail}")
     return 0
     parser_pat = re.compile(
-        r"    /\*\*\n     \* parser\.su.*?\n     \*/\n    if \(asm_module_is_parser_selfhost\(m\)\) \{.*?\n    \}",
+        r"    /\*\*\n     \* parser\.sx.*?\n     \*/\n    if \(asm_module_is_parser_selfhost\(m\)\) \{.*?\n    \}",
         re.S,
     )
     if not parser_pat.search(text):
         old_simple = '''    /**
-     * parser.su：parse_into_* mega 全桩；reset/set_main 等小 helper 经 k_asm_parser_thin_delegate bl→C。
+     * parser.sx：parse_into_* mega 全桩；reset/set_main 等小 helper 经 k_asm_parser_thin_delegate bl→C。
      */
     if (asm_module_is_parser_selfhost(m))
       return 1;'''

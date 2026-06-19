@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-special.sh — STD-115 manifest 与烟测辅助
 
-STD_MATH_SPECIAL_PREFIX="${SHU_STD115_MATH_SPECIAL_PREFIX:-shu: [SHU_STD115_MATH_SPECIAL]}"
+STD_MATH_SPECIAL_PREFIX="${SHUX_STD115_MATH_SPECIAL_PREFIX:-shux: [SHUX_STD115_MATH_SPECIAL]}"
 
 # 校验 manifest 中 api/symbol/file/smoke。
 std_math_special_symbols_ok() {
@@ -40,12 +40,12 @@ std_math_special_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
-std_math_special_run_su_smoke() {
-  local shu="$1"
+# 编译并运行 .sx 烟测。
+std_math_special_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_math_special_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_math_special_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-math-special FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -62,7 +62,7 @@ std_math_special_run_su_smoke() {
 std_math_special_run_c_smoke() {
   local math_o="$1"
   local src="tests/std-math/special_smoke_ok.c"
-  local out="/tmp/shu_std_math_special_c_$$"
+  local out="/tmp/shux_std_math_special_c_$$"
   if ! cc -std=c11 -O1 -o "$out" "$src" "$math_o" -lm 2>/dev/null; then
     echo "std-math-special FAIL: compile C smoke" >&2
     return 1

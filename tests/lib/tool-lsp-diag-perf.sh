@@ -15,7 +15,7 @@ tool_lsp_send_frame() {
   printf 'Content-Length: %d\r\n\r\n%s' "$len" "$body"
 }
 
-# 统计 .su 文件中顶层 function 声明数（粗匹配 `function name`）。
+# 统计 .sx 文件中顶层 function 声明数（粗匹配 `function name`）。
 tool_lsp_count_funcs() {
   local f="$1"
   grep -cE '^function [A-Za-z_][A-Za-z0-9_]*\(' "$f" 2>/dev/null || echo 0

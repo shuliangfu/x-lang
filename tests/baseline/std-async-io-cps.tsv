@@ -1,20 +1,34 @@
 # STD-042 std.async IO + CPS suspend manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_syms	4
+# min_syms	8
 read_path	section	## 1. 阅读路径	15min
 model	section	## 2. 三层统一模型	poll_async_completions
 io_align	section	## 3. std.io async API 对齐表	read_async
 codegen	section	## 4. language await IO	async_await_io
 facade	section	## 5. std.async 新增门面	cps_suspend_io
+io_uring_facade	section	## 8. STD-049 io_uring 完整路径	io_uring_is_available
 verify	section	## 6. 验证与门禁	gate
-symbol_cps_io	symbol	cps_suspend_io	std/async/mod.su	IO suspend
-symbol_poll_io	symbol	poll_io_completions	std/async/mod.su	poll 门面
-symbol_poll_io_c	symbol	poll_async_completions	std/io/mod.su	std.io poll
-symbol_io_not_ready	symbol	IO_ASYNC_NOT_READY	std/io/mod.su	-2 常量
-symbol_suspend_c	symbol	shu_async_cps_suspend_io	std/async/scheduler.c	C IO suspend
-symbol_poll_c	symbol	shu_io_poll_async_completions	std/io/io.c	C poll
-smoke_align	smoke	tests/async/io_cps_align.su	门面对齐
-emit_await_io	file	tests/parser/async_await_io.su	emit 烟测
+symbol_cps_io	symbol	cps_suspend_io	std/async/mod.sx	IO suspend
+symbol_poll_io	symbol	poll_io_completions	std/async/mod.sx	poll 门面
+symbol_poll_io_c	symbol	poll_async_completions	std/io/mod.sx	std.io poll
+symbol_io_not_ready	symbol	IO_ASYNC_NOT_READY	std/async/mod.sx	-2 常量
+symbol_io_uring_avail	symbol	io_uring_is_available	std/async/mod.sx	uring 探测
+symbol_read_async_fd	symbol	read_async_fd	std/async/mod.sx	fd read async
+symbol_io_pump	symbol	io_pump_once	std/async/mod.sx	单轮 pump
+symbol_poll_loop_ctx	symbol	poll_loop_ctx	std/async/mod.sx	Context poll
+symbol_await_read_fd	symbol	await_read_fd	std/async/mod.sx	net/fs await read
+symbol_await_write_fd	symbol	await_write_fd	std/async/mod.sx	net/fs await write
+symbol_net_read_async	symbol	net_read_async	std/async/mod.sx	net fd async
+symbol_fs_read_async	symbol	fs_read_async	std/async/mod.sx	fs fd async
+symbol_net_fs_smoke	symbol	net_fs_async_smoke	std/async/mod.sx	pipe 烟测
+symbol_net_fs_smoke_c	symbol	shux_async_net_fs_smoke_c	std/async/async_net_fs.inc.c	C 烟测
+smoke_net_fs	smoke	tests/async/net_fs_async_smoke.sx	net/fs async
+symbol_uring_c	symbol	shux_io_uring_is_available_c	std/io/io.c	C 探测
+symbol_suspend_c	symbol	shux_async_cps_suspend_io	std/async/scheduler.c	C IO suspend
+symbol_poll_c	symbol	shux_io_poll_async_completions	std/io/io.c	C poll
+smoke_align	smoke	tests/async/io_cps_align.sx	门面对齐
+smoke_io_uring	smoke	tests/async/io_uring_facade.sx	STD-049 门面
+emit_await_io	file	tests/parser/async_await_io.sx	emit 烟测
 doc	file	analysis/std-async-io-cps-v1.md	RFC
 lib	script	lib/std-async-io-cps.sh	tests/lib/std-async-io-cps.sh
 gate	script	run-std-async-io-cps-gate.sh	tests/run-std-async-io-cps-gate.sh

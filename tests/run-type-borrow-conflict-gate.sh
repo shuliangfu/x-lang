@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TYPE_BORROW_DOC:-analysis/type-borrow-conflict-v1.md}"
-MANIFEST="${SHU_TYPE_BORROW_MANIFEST:-tests/baseline/type-borrow-conflict.tsv}"
-MATRIX="${SHU_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
+DOC="${SHUX_TYPE_BORROW_DOC:-analysis/type-borrow-conflict-v1.md}"
+MANIFEST="${SHUX_TYPE_BORROW_MANIFEST:-tests/baseline/type-borrow-conflict.tsv}"
+MATRIX="${SHUX_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 
@@ -18,7 +18,7 @@ echo "=== TYPE-003: borrow conflict manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
   compiler/src/typeck/typeck.c \
-  tests/typeck/borrow/fp_linear_two_bindings_ok.su; do
+  tests/typeck/borrow/fp_linear_two_bindings_ok.sx; do
   if [ ! -f "$f" ]; then
     echo "type-borrow-conflict gate FAIL: missing $f" >&2
     exit 1

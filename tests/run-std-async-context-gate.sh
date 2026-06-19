@@ -6,11 +6,11 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/async/mod.su"
+MOD_SU="std/async/mod.sx"
 SCHED_C="std/async/scheduler.c"
-SMOKE_CANCEL="tests/async/context_cancel_drain.su"
-SMOKE_SPAWN="tests/async/spawn_context_inherit.su"
-PREFIX="shu: [SHU_STD090_ASYNC_CTX]"
+SMOKE_CANCEL="tests/async/context_cancel_drain.sx"
+SMOKE_SPAWN="tests/async/spawn_context_inherit.sx"
+PREFIX="shux: [SHUX_STD090_ASYNC_CTX]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -33,9 +33,9 @@ for f in "$MOD_SU" "$SCHED_C" "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
 done
 for sym in bind_context async_err_ctx_abort runtime_new runtime_reset runtime_drain \
            task_submit task_submit_with_context spawn_context_smoke \
-           shu_async_bind_context_c shu_async_task_submit_with_ctx shu_async_spawn_ctx_smoke_c; do
+           shux_async_bind_context_c shux_async_task_submit_with_ctx shux_async_spawn_ctx_smoke_c; do
   case "$sym" in
-    shu_async_bind_context_c|shu_async_task_submit_with_ctx|shu_async_spawn_ctx_smoke_c)
+    shux_async_bind_context_c|shux_async_task_submit_with_ctx|shux_async_spawn_ctx_smoke_c)
       if ! grep -qF "$sym" "$SCHED_C" 2>/dev/null; then
         echo "async-context gate FAIL: missing $sym in scheduler.c" >&2
         exit 1
@@ -63,38 +63,38 @@ ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/task/task.o
 
 echo "=== STD-093: C smoke ==="
-if ! cc -std=c11 -O1 -pthread -o /tmp/shu_std093_spawn_ctx_smoke \
+if ! cc -std=c11 -O1 -pthread -o /tmp/shux_std093_spawn_ctx_smoke \
   tests/async/spawn_context_smoke.c std/async/scheduler.o std/context/context.o std/time/time.o 2>/dev/null; then
   echo "async-context gate FAIL: build spawn_context_smoke.c" >&2
   exit 1
 fi
-if ! /tmp/shu_std093_spawn_ctx_smoke >/dev/null 2>&1; then
+if ! /tmp/shux_std093_spawn_ctx_smoke >/dev/null 2>&1; then
   echo "async-context gate FAIL: spawn_context_smoke.c exit=$?" >&2
   exit 1
 fi
-rm -f /tmp/shu_std093_spawn_ctx_smoke
+rm -f /tmp/shux_std093_spawn_ctx_smoke
 echo "async-context C smoke OK"
 
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
 SU_OK=0
 SKIP=0
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-090/093: smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-090/093: smoke (SHUX=$SHUX_BIN) ==="
   for su in "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "async-context gate FAIL: typeck $su" >&2
       exit 1
     fi
   done
   if [ "$SMOKE_CANCEL" != "" ]; then
-    exe="/tmp/shu_std090_async_ctx_$$"
-    if ! "$SHU_BIN" -L . "$SMOKE_CANCEL" -o "$exe" >/dev/null 2>&1; then
+    exe="/tmp/shux_std090_async_ctx_$$"
+    if ! "$SHUX_BIN" -L . "$SMOKE_CANCEL" -o "$exe" >/dev/null 2>&1; then
       echo "async-context gate FAIL: compile $SMOKE_CANCEL" >&2
       exit 1
     fi
@@ -110,7 +110,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SU_OK=1
 else
-  echo "async-context gate SKIP .su (no native shu)" >&2
+  echo "async-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

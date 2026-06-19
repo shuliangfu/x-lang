@@ -314,21 +314,21 @@ static uint32_t glue_simd_loop_cpu_features_c(void) {
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
 static int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
     if (binop_ko == GLUE_EXPR_MUL) {
-        if ((feats & SHU_CPU_FEAT_AVX2) != 0) {
+        if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
             *lanes_out = 8;
             return 0;
         }
-        if ((feats & SHU_CPU_FEAT_SSE41) != 0) {
+        if ((feats & SHUX_CPU_FEAT_SSE41) != 0) {
             *lanes_out = 4;
             return 0;
         }
         return -1;
     }
-    if ((feats & SHU_CPU_FEAT_AVX2) != 0) {
+    if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
         *lanes_out = 8;
         return 0;
     }
-    if ((feats & SHU_CPU_FEAT_SSE2) != 0) {
+    if ((feats & SHUX_CPU_FEAT_SSE2) != 0) {
         *lanes_out = 4;
         return 0;
     }
@@ -371,7 +371,7 @@ static int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *el
         int32_t chunk_off_d = off_d - start * esz;
         if (glue_simd_loop_emit_chunk_binop_c(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta,
                                               feats) != 0) {
-            strict_env = getenv("SHU_SIMD_HW_STRICT");
+            strict_env = getenv("SHUX_SIMD_HW_STRICT");
             if (strict_env && strict_env[0] != '0')
                 return -1;
             return 0;
@@ -564,7 +564,7 @@ static int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct 
     int32_t epi_len;
     int32_t done_len;
     const char *strict_env;
-    if (ta != 0 || lanes != 4 || (feats & SHU_CPU_FEAT_SSE2) == 0)
+    if (ta != 0 || lanes != 4 || (feats & SHUX_CPU_FEAT_SSE2) == 0)
         return 0;
     vec_len = pipeline_asm_emit_next_label_c(ctx, vec_loop, 64);
     merge_len = pipeline_asm_emit_next_label_c(ctx, epi_merge, 64);
@@ -601,7 +601,7 @@ static int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct 
     if (backend_enc_jge_arch(elf_ctx, epi_merge, merge_len, ta) != 0)
         return -1;
     if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) {
-        strict_env = getenv("SHU_SIMD_HW_STRICT");
+        strict_env = getenv("SHUX_SIMD_HW_STRICT");
         if (strict_env && strict_env[0] != '0')
             return -1;
         return 0;
@@ -690,7 +690,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHU_SIMD_HW");
+    hw_env = getenv("SHUX_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
@@ -728,7 +728,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
         return 0;
     feats = glue_simd_loop_cpu_features_c();
     lanes = 4;
-    if ((feats & SHU_CPU_FEAT_SSE2) == 0)
+    if ((feats & SHUX_CPU_FEAT_SSE2) == 0)
         return 0;
     off_n = -1;
     if (n_var_ref > 0)
@@ -768,7 +768,7 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHU_SIMD_HW");
+    hw_env = getenv("SHUX_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);

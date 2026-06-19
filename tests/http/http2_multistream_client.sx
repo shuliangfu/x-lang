@@ -1,0 +1,34 @@
+// STD-HTTP-H2-v10：SETTINGS 协商 + 多 stream 并发客户端烟测（离线）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_settings_smoke() != 0) { return 1; }
+  if (http.http2_multistream_client_smoke() != 0) { return 2; }
+  if (http.http2_err_max_streams() != -1236) { return 3; }
+
+  let ps: Http2PeerSettings = Http2PeerSettings { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 };
+  http.http2_peer_settings_init(&ps);
+  http.http2_peer_settings_apply_entry(&ps, http.http2_setting_max_concurrent_streams(), 2);
+  if (http.http2_peer_settings_max_streams(&ps) != 2) { return 4; }
+
+  let cli: Http2MultistreamClient = Http2MultistreamClient {
+    registry: Http2StreamRegistry { slots_blob: [], count: 0, next_id: 0 },
+    peer: Http2PeerSettings { max_concurrent_streams: 0, initial_window_size: 0, settings_ack_sent: 0 },
+    flow: Http2FlowState { conn_window: 0, stream_window: 0 },
+    open_count: 0
+  };
+  http.http2_multistream_client_init(&cli);
+  http.http2_peer_settings_apply_entry(&cli.peer, http.http2_setting_max_concurrent_streams(), 2);
+  let s1: i32 = http.http2_multistream_client_open_stream(&cli);
+  let s2: i32 = http.http2_multistream_client_open_stream(&cli);
+  let s3: i32 = http.http2_multistream_client_open_stream(&cli);
+  if (s1 != 1 || s2 != 3) { return 5; }
+  if (s3 != http.http2_err_max_streams()) { return 6; }
+
+  let frame: [512]u8 = [];
+  let host: [12]u8 = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
+  let path: [3]u8 = [47, 97, 0];
+  if (http.http2_multistream_client_build_get(&cli, 1, &host[0], 11, &path[0], 2, &frame[0], 512) <= 0) { return 7; }
+
+  return 0;
+}

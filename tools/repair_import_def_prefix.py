@@ -44,7 +44,7 @@ def main() -> int:
     files = 0
     for p in args.paths:
         path = Path(p)
-        todo = sorted(path.rglob("*.su")) if path.is_dir() else [path]
+        todo = sorted(path.rglob("*.sx")) if path.is_dir() else [path]
         for f in todo:
             if ".git" in f.parts:
                 continue

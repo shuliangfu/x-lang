@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# shu fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
+# shux fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-SHU=${SHU:-./compiler/shu}
-# MSYS2：与 run-fmt-cmd.sh 一致，fmt 回归优先 seed shu。
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*)
-    if [ -x ./compiler/shu ]; then
-      SHU=./compiler/shu
-    fi
-    ;;
-esac
+SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# fmt/check 用 RUN_SHUX（bootstrap 下为 shux-c，与 run-import 一致）
+SHUX="$RUN_SHUX"
 run_one_case() {
   local CASE=$1
   local TMP=$2
@@ -19,7 +15,7 @@ run_one_case() {
   cp "$CASE" "$TMP"
   before=$(wc -l <"$CASE" | tr -d ' ')
 
-  out=$($SHU fmt "$TMP" 2>&1) || { echo "fmt failed on $CASE: $out"; return 1; }
+  out=$($SHUX fmt "$TMP" 2>&1) || { echo "fmt failed on $CASE: $out"; return 1; }
 
   python3 compiler/scripts/scan_fmt_damage.py "$TMP" || {
     echo "scan_fmt_damage failed on fmt output ($CASE)"
@@ -43,7 +39,7 @@ run_one_case() {
     return 1
   fi
 
-  chk=$($SHU check -L "$ROOT" "$TMP" 2>&1) || {
+  chk=$($SHUX check -L "$ROOT" "$TMP" 2>&1) || {
     echo "$chk"
     echo "check failed after fmt ($CASE)"
     return 1
@@ -53,7 +49,7 @@ run_one_case() {
     return 1
   fi
 
-  chk2=$($SHU fmt --check "$TMP" 2>&1) || {
+  chk2=$($SHUX fmt --check "$TMP" 2>&1) || {
     echo "fmt --check failed after first fmt ($CASE): $chk2"
     return 1
   }
@@ -67,17 +63,17 @@ run_one_case() {
   return 0
 }
 
-if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler src/lsp/lsp_diag.o -q 2>/dev/null || true
   if [ -f compiler/build_asm/seed_host/asm_backend_partial.o ]; then
-    make -C compiler relink-shu -q 2>/dev/null || true
+    make -C compiler relink-shux -q 2>/dev/null || true
   fi
 fi
 
 echo "fmt wrap regression:"
-run_one_case tests/fmt/fmt_wrap_cases.su "$ROOT/tests/fmt/.fmt_wrap_out.su" || exit 1
-run_one_case tests/fmt/fmt_comprehensive.su "$ROOT/tests/fmt/.fmt_comprehensive_out.su" || exit 1
-run_one_case tests/fmt/fmt_semicolon_space.su "$ROOT/tests/fmt/.fmt_semicolon_space_out.su" || exit 1
-run_one_case tests/fmt/fmt_operator_space.su "$ROOT/tests/fmt/.fmt_operator_space_out.su" || exit 1
-run_one_case tests/fmt/fmt_array_comma_space.su "$ROOT/tests/fmt/.fmt_array_comma_space_out.su" || exit 1
+run_one_case tests/fmt/fmt_wrap_cases.sx "$ROOT/tests/fmt/.fmt_wrap_out.sx" || exit 1
+run_one_case tests/fmt/fmt_comprehensive.sx "$ROOT/tests/fmt/.fmt_comprehensive_out.sx" || exit 1
+run_one_case tests/fmt/fmt_semicolon_space.sx "$ROOT/tests/fmt/.fmt_semicolon_space_out.sx" || exit 1
+run_one_case tests/fmt/fmt_operator_space.sx "$ROOT/tests/fmt/.fmt_operator_space_out.sx" || exit 1
+run_one_case tests/fmt/fmt_array_comma_space.sx "$ROOT/tests/fmt/.fmt_array_comma_space_out.sx" || exit 1
 echo "fmt wrap test OK (all cases)"

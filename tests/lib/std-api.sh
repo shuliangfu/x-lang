@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-api.sh — STD-136：std 全模块 manifest/gate 注册表校验
 
-STD_API_PREFIX="${SHU_STD136_STD_API_PREFIX:-shu: [SHU_STD136_STD_API]}"
+STD_API_PREFIX="${SHUX_STD136_STD_API_PREFIX:-shux: [SHUX_STD136_STD_API]}"
 
 # 校验 BOOT-013 矩阵含 60 个 std 模块行。
 std_api_matrix_ok() {

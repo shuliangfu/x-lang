@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # perf-coldstart.sh — PERF-010 冷启动共享辅助
 #
-# 读取 coldstart-perf.tsv cap、判断 native shu。
+# 读取 coldstart-perf.tsv cap、判断 native shux。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CAP_FILE="${SHU_PERF_COLDSTART_CAP:-$ROOT/tests/baseline/coldstart-perf.tsv}"
+CAP_FILE="${SHUX_PERF_COLDSTART_CAP:-$ROOT/tests/baseline/coldstart-perf.tsv}"
 
-# 本机可执行 shu（与 perf-compile-dogfood gate 一致）。
+# 本机可执行 shux（与 perf-compile-dogfood gate 一致）。
 perf_coldstart_native_shu() {
-  local f="${1:-./compiler/shu}"
+  local f="${1:-./compiler/shux}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;

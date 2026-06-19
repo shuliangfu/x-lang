@@ -8,12 +8,12 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${SHU_STD062_DOC:-analysis/std-regex-perf-v1.md}"
-WAVE="${SHU_STD062_WAVE_TSV:-tests/baseline/std-regex-perf-wave.tsv}"
-XPLAT="${SHU_STD062_XPLAT:-tests/baseline/std-regex-perf-xplat.tsv}"
-PARENT_DOC="${SHU_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
+DOC="${SHUX_STD062_DOC:-analysis/std-regex-perf-v1.md}"
+WAVE="${SHUX_STD062_WAVE_TSV:-tests/baseline/std-regex-perf-wave.tsv}"
+XPLAT="${SHUX_STD062_XPLAT:-tests/baseline/std-regex-perf-xplat.tsv}"
+PARENT_DOC="${SHUX_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
 MIN_INC="std/regex/regex_min.inc.c"
-MOD_SU="std/regex/mod.su"
+MOD_SU="std/regex/mod.sx"
 LIB="tests/lib/std-regex-perf.sh"
 MIN_BENCHES=3
 
@@ -151,7 +151,7 @@ elif std_regex_perf_has_cc; then
   PERF_LOG="/tmp/std_regex_perf_$$.log"
   set +e
   set -o pipefail
-  SHU_REGEX_PERF_FAIL=1 ./tests/run-perf-regex-match.sh 2>&1 | tee "$PERF_LOG"
+  SHUX_REGEX_PERF_FAIL=1 ./tests/run-perf-regex-match.sh 2>&1 | tee "$PERF_LOG"
   perf_ec=$?
   set +o pipefail
   set -e

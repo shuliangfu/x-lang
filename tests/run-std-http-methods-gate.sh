@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_HTTP_METHODS_DOC:-analysis/std-http-methods-v1.md}"
-MANIFEST="${SHU_STD_HTTP_METHODS_TSV:-tests/baseline/std-http-methods.tsv}"
-MOD_SU="std/http/mod.su"
+DOC="${SHUX_STD_HTTP_METHODS_DOC:-analysis/std-http-methods-v1.md}"
+MANIFEST="${SHUX_STD_HTTP_METHODS_TSV:-tests/baseline/std-http-methods.tsv}"
+MOD_SU="std/http/mod.sx"
 HTTP_C="std/http/http.c"
 LIB="tests/lib/std-http-methods.sh"
-METHODS_SU="tests/http/methods_status.su"
+METHODS_SU="tests/http/methods_status.sx"
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-http-methods.sh
@@ -31,7 +31,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in POST HEAD parse_status_line status line; do
+for kw in POST HEAD PUT DELETE PATCH OPTIONS parse_status_line Method client_request; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-http-methods gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -86,30 +86,30 @@ stdlib_cm_native_shu() {
 
 METHODS_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-032: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-032: typeck + smoke (SHUX=$SHUX_BIN) ==="
   if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
     export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$METHODS_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$METHODS_SU" >/dev/null 2>&1; then
     echo "std-http-methods gate FAIL: typeck $METHODS_SU" >&2
-    "$SHU_BIN" check -L . "$METHODS_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$METHODS_SU" 2>&1 | tail -10 >&2 || true
     std_http_methods_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_methods_run_smoke "$SHU_BIN" "$METHODS_SU" "methods_status"; then
+  if std_http_methods_run_smoke "$SHUX_BIN" "$METHODS_SU" "methods_status"; then
     METHODS_OK=1
   else
     std_http_methods_emit_report "fail" 0 0
@@ -117,7 +117,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-http-methods gate SKIP smoke (no native shu-c)" >&2
+  echo "std-http-methods gate SKIP smoke (no native shux-c)" >&2
 fi
 
 std_http_methods_emit_report "ok" "$METHODS_OK" "$SKIP"

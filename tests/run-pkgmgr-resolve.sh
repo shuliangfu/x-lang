@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST=tests/fixtures/pkgmgr/shu.pkg.tsv
-MAIN=tests/fixtures/pkgmgr/main.su
+MANIFEST=tests/fixtures/pkgmgr/shux.pkg.tsv
+MAIN=tests/fixtures/pkgmgr/main.sx
 
-chmod +x scripts/shu-deps-resolve.sh
-./scripts/shu-deps-resolve.sh "$MANIFEST"
+chmod +x scripts/shux-deps-resolve.sh
+./scripts/shux-deps-resolve.sh "$MANIFEST"
 
-SHU="${SHU:-./compiler/shu}"
+SHUX="${SHUX:-./compiler/shux}"
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -24,10 +24,10 @@ native_shu() {
   esac
 }
 
-if [ -n "$SHU" ] && native_shu "$SHU"; then
+if [ -n "$SHUX" ] && native_shu "$SHUX"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  EXE="/tmp/shu_pkgmgr_demo_$$"
-  if ! "$SHU" -L . "$MAIN" -o "$EXE" 2>&1; then
+  EXE="/tmp/shux_pkgmgr_demo_$$"
+  if ! "$SHUX" -L . "$MAIN" -o "$EXE" 2>&1; then
     echo "run-pkgmgr-resolve FAIL: compile $MAIN" >&2
     rm -f "$EXE"
     exit 1
@@ -41,7 +41,7 @@ if [ -n "$SHU" ] && native_shu "$SHU"; then
   fi
   echo "pkgmgr-resolve compile OK"
 else
-  echo "pkgmgr-resolve SKIP compile (no native shu)" >&2
+  echo "pkgmgr-resolve SKIP compile (no native shux)" >&2
 fi
 
 echo "pkgmgr-resolve OK"

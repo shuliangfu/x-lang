@@ -4,10 +4,10 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-random-rng-v1.md"
 MANIFEST="tests/baseline/std-random-rng-manifest.tsv"
-MOD_SU="std/random/mod.su"
+MOD_SU="std/random/mod.sx"
 RANDOM_C="std/random/random.c"
 LIB="tests/lib/std-random-rng.sh"
-SMOKE_SU="tests/random/rng_roundtrip.su"
+SMOKE_SU="tests/random/rng_roundtrip.sx"
 . "$LIB"
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$RANDOM_C" "$SMOKE_SU"; do
   [ -f "$f" ] || { echo "std-random-rng gate FAIL: missing $f" >&2; exit 1; }
@@ -22,9 +22,9 @@ C_OK=0
 std_random_rng_run_c_smoke "$RANDOM_O" && C_OK=1 || exit 1
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_random_rng_run_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_random_rng_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

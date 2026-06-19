@@ -1,0 +1,14 @@
+// BOOT-029 v2：macOS POSIX write 烟测（Darwin + 常规 -o exe）。
+const sys = import("std.sys");
+
+function main(): i32 {
+  if (sys.macos_write_available() != 1) {
+    return 1;
+  }
+  let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 83, 104, 117, 33, 10, 0];
+  let n: i32 = sys.macos_write_stdout(&msg[0], 11);
+  if (n != 11) {
+    return 2;
+  }
+  return 0;
+}

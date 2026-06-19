@@ -1,0 +1,21 @@
+# STD-SIMD-INTRINSIC std.simd mul/sub/dot/fma manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_apis	11
+read_path	section	## 1. 阅读路径	15min
+binop_api	section	## 2. binop intrinsic	vec4f_mul
+verify	section	## 3. 验证与门禁	gate
+api_v4_mul	api	vec4f_mul	std/simd/mod.sx	f32 mul
+api_v4_sub	api	vec4f_sub	std/simd/mod.sx	f32 sub
+api_v4_dot	api	vec4f_dot	std/simd/mod.sx	dot
+api_v4_hsum	api	vec4f_hsum	std/simd/mod.sx	hsum
+api_v8_mul	api	vec8i_mul	std/simd/mod.sx	i32 mul
+api_v8_sub	api	vec8i_sub	std/simd/mod.sx	i32 sub
+api_simd_mul	api	simd_mul	std/simd/mod.sx	语法糖 mul
+api_simd_dot	api	simd_dot	std/simd/mod.sx	语法糖 dot
+api_v4_fma	api	vec4f_fma	std/simd/mod.sx	f32 FMA
+api_v4_madd	api	vec4f_madd	std/simd/mod.sx	FMA 别名
+api_simd_fma	api	simd_fma	std/simd/mod.sx	语法糖 FMA
+smoke_binop	smoke	tests/simd/intrinsic_binop_dot.sx	金样
+cross_s3	cross_ref	tests/run-simd-s3-gate.sh	SIMD-S3 HW
+lib	script	lib/std-simd-intrinsic.sh	tests/lib/std-simd-intrinsic.sh
+gate	script	run-std-simd-intrinsic-gate.sh	tests/run-std-simd-intrinsic-gate.sh

@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP016_DOC:-analysis/comp-riscv64-wave-v1.md}"
-WAVE="${SHU_COMP016_WAVE_TSV:-tests/baseline/comp-riscv64-wave.tsv}"
-MANIFEST="${SHU_COMP016_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
-MATRIX="${SHU_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
+DOC="${SHUX_COMP016_DOC:-analysis/comp-riscv64-wave-v1.md}"
+WAVE="${SHUX_COMP016_WAVE_TSV:-tests/baseline/comp-riscv64-wave.tsv}"
+MANIFEST="${SHUX_COMP016_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
+MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 LIB="tests/lib/comp-riscv64-wave.sh"
 MIN_WAVE=3
 MIN_CASES=9
@@ -93,7 +93,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-riscv64-wave manifest OK (wave=${WAVE_N} total=${CASE_TOTAL})"
 
-if [ "${SHU_COMP016_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP016_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_riscv64_wave_emit_report "ok" 0 "$MIN_WAVE" 1
   echo "comp-riscv64-wave gate OK (manifest only)"
   exit 0
@@ -101,12 +101,12 @@ fi
 
 echo "=== COMP-016: parent COMP-012 manifest ==="
 chmod +x tests/run-comp-riscv64-gate.sh
-SHU_COMP_RISCV64_MANIFEST_ONLY=1 ./tests/run-comp-riscv64-gate.sh
+SHUX_COMP_RISCV64_MANIFEST_ONLY=1 ./tests/run-comp-riscv64-gate.sh
 
-SHU_BIN=""
-for cand in ./compiler/shu ./compiler/shu-c; do
+SHUX_BIN=""
+for cand in ./compiler/shux ./compiler/shux-c; do
   if comp_riscv64_native_shu "$cand"; then
-    SHU_BIN="$cand"
+    SHUX_BIN="$cand"
     break
   fi
 done
@@ -115,14 +115,14 @@ WAVE_OK=0
 WAVE_SKIP=0
 HOST_SKIP=1
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== COMP-016: wave asm_text (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== COMP-016: wave asm_text (SHUX=$SHUX_BIN) ==="
   HOST_SKIP=0
   while IFS=$'\t' read -r case_id sample _check _expect policy _notes; do
     [ -z "${case_id:-}" ] && continue
     case "$case_id" in \#*|min_*) continue ;; esac
     [ "${policy:-}" = "wave" ] || continue
-    if comp_riscv64_wave_run_case "$SHU_BIN" "$sample"; then
+    if comp_riscv64_wave_run_case "$SHUX_BIN" "$sample"; then
       WAVE_OK=$((WAVE_OK + 1))
       echo "comp-riscv64-wave runnable OK $case_id"
     else
@@ -131,7 +131,7 @@ if [ -n "$SHU_BIN" ]; then
     fi
   done < "$MATRIX"
 else
-  echo "comp-riscv64-wave gate SKIP runnable (no native shu)" >&2
+  echo "comp-riscv64-wave gate SKIP runnable (no native shux)" >&2
   WAVE_SKIP=$MIN_WAVE
 fi
 

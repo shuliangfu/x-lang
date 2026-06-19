@@ -1,17 +1,17 @@
 # CORE-009 core.builtin 位运算内建 manifest
 # 列：item_id	kind	anchor	notes
 min_mappings	6
-mapping_clz	mapping	core_builtin_clz_u32	shulang_builtin_clz_u32
-mapping_ctz	mapping	core_builtin_ctz_u32	shulang_builtin_ctz_u32
-mapping_popcount	mapping	core_builtin_popcount_u32	shulang_builtin_popcount_u32
-mapping_bswap	mapping	core_builtin_bswap_u32	shulang_builtin_bswap_u32
-mapping_rotl	mapping	core_builtin_rotl_u32	shulang_builtin_rotl_u32
-mapping_rotr	mapping	core_builtin_rotr_u32	shulang_builtin_rotr_u32
+mapping_clz	mapping	core_builtin_clz_u32	shux_builtin_clz_u32
+mapping_ctz	mapping	core_builtin_ctz_u32	shux_builtin_ctz_u32
+mapping_popcount	mapping	core_builtin_popcount_u32	shux_builtin_popcount_u32
+mapping_bswap	mapping	core_builtin_bswap_u32	shux_builtin_bswap_u32
+mapping_rotl	mapping	core_builtin_rotl_u32	shux_builtin_rotl_u32
+mapping_rotr	mapping	core_builtin_rotr_u32	shux_builtin_rotr_u32
 c_impl	file	core/builtin/builtin.c	__builtin_clz/ctz/popcount
-emit_probe	file	tests/builtin/main.su	SHU_DEBUG_C 烟测
-emit_grep_1	emit_grep	shulang_builtin_clz_u32	C emit
-emit_grep_2	emit_grep	shulang_builtin_ctz_u32	C emit
-emit_grep_3	emit_grep	shulang_builtin_popcount_u32	C emit
+emit_probe	file	tests/builtin/main.sx	SHUX_DEBUG_C 烟测
+emit_grep_1	emit_grep	shux_builtin_clz_u32	C emit
+emit_grep_2	emit_grep	shux_builtin_ctz_u32	C emit
+emit_grep_3	emit_grep	shux_builtin_popcount_u32	C emit
 doc	file	core-builtin-bitops-v1.md	analysis/core-builtin-bitops-v1.md	RFC
 codegen	file	codegen.c	compiler/src/codegen/codegen.c	builtin_intrinsic_name
 gate	script	run-core-builtin-bitops-gate.sh	tests/run-core-builtin-bitops-gate.sh	manifest

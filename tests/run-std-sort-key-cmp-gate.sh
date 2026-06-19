@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-sort-key-cmp-v1.md"
 MANIFEST="tests/baseline/std-sort-key-cmp-manifest.tsv"
 VECTORS="tests/baseline/std-sort-key-cmp.tsv"
-MOD_SU="std/sort/mod.su"
+MOD_SU="std/sort/mod.sx"
 SORT_C="std/sort/sort.c"
 LIB="tests/lib/std-sort-key-cmp.sh"
-SMOKE_SU="tests/std-sort/key_stable.su"
+SMOKE_SU="tests/std-sort/key_stable.sx"
 SMOKE_C="tests/std-sort/key_cmp_ok.c"
 
 # shellcheck source=tests/lib/std-sort-key-cmp.sh
@@ -64,17 +64,17 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-sort-key-cmp gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_sort_key_cmp_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "$SORT_O"; then
+  if std_sort_key_cmp_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "$SORT_O"; then
     SU_OK=1
   else
     std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0

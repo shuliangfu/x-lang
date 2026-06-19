@@ -6,7 +6,7 @@
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 
-/** 与 ast.su Type 布局一致。 */
+/** 与 ast.sx Type 布局一致。 */
 struct ast_Type {
   int32_t kind;
   uint8_t name[64];
@@ -17,7 +17,7 @@ struct ast_Type {
   int32_t region_label_len;
 };
 
-/** 与 ast.su TypeKind 序一致。 */
+/** 与 ast.sx TypeKind 序一致。 */
 enum {
   PARSER_ASM_TYPE_I32 = 0,
   PARSER_ASM_TYPE_BOOL = 1,

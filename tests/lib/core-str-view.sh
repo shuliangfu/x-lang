@@ -5,7 +5,7 @@
 #   core_str_symbols_ok STR_SU TSV
 #   core_str_emit_report status check_ok run_ok skip
 
-CORE_STR_PREFIX="${SHU_CORE_STR_VIEW_PREFIX:-shu: [SHU_CORE_STR_VIEW]}"
+CORE_STR_PREFIX="${SHUX_CORE_STR_VIEW_PREFIX:-shux: [SHUX_CORE_STR_VIEW]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_str_symbols_ok() {

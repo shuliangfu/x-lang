@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
-MANIFEST="${SHU_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
-MOD_SU="${SHU_STD_HTTP_MOD:-std/http/mod.su}"
-HTTP_C="${SHU_STD_HTTP_C:-std/http/http.c}"
+DOC="${SHUX_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
+MANIFEST="${SHUX_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
+MOD_SU="${SHUX_STD_HTTP_MOD:-std/http/mod.sx}"
+HTTP_C="${SHUX_STD_HTTP_C:-std/http/http.c}"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/perf-http.sh
@@ -33,12 +33,12 @@ std_http_has_api() {
 }
 
 std_http_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="$3"
-  local exe="/tmp/shu_std_http_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  local exe="/tmp/shux_std_http_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -151,29 +151,29 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-http manifest OK (apis=${API_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  if std_http_run_smoke "$SHU_BIN" tests/http/main.su main; then
+  if std_http_run_smoke "$SHUX_BIN" tests/http/main.sx main; then
     echo "std-http smoke OK main"
   else
     echo "std-http gate FAIL: main smoke" >&2
     exit 1
   fi
 else
-  echo "std-http gate SKIP smoke (no native shu)" >&2
+  echo "std-http gate SKIP smoke (no native shux)" >&2
 fi
 
 echo "std-http gate OK"

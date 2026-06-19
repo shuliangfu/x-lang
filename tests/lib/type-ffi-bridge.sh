@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # type-ffi-bridge.sh — TYPE-004 FFI 类型桥接共享辅助
 
-# 判断本机能否直接执行给定 shu 二进制。
+# 判断本机能否直接执行给定 shux 二进制。
 type_ffi_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -17,10 +17,10 @@ type_ffi_native_shu() {
 
 # 校验 mapping 表中 shu_type 在 codegen 有对应 C 类型子串。
 type_ffi_mapping_in_codegen() {
-  local shu="$1"
+  local shux="$1"
   local cty="$2"
   local cg="${3:-compiler/src/codegen/codegen.c}"
-  case "$shu" in
+  case "$shux" in
     i32) grep -qF 'int32_t' "$cg" ;;
     u32) grep -qF 'uint32_t' "$cg" ;;
     i64) grep -qF 'int64_t' "$cg" ;;
@@ -32,7 +32,7 @@ type_ffi_mapping_in_codegen() {
     usize) grep -qF 'size_t' "$cg" ;;
     isize) grep -qF 'ptrdiff_t' "$cg" ;;
     ptr_star|ptr_u8_bridge) grep -qF 'c_type_to_buf' "$cg" ;;
-    slice_arr) grep -qF 'shulang_slice_' "$cg" ;;
+    slice_arr) grep -qF 'shux_slice_' "$cg" ;;
     *) grep -qF "$cty" "$cg" ;;
   esac
 }

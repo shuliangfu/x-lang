@@ -1,0 +1,24 @@
+// B-01/B-02 v1 烟测：#[cfg(...)] 语义剪枝 — OS + arch 双维度，仅保留 host 匹配项。
+#[cfg(target_os = "macos")]
+function helper_os(): i32 {
+  return 5;
+}
+
+#[cfg(target_os = "linux")]
+function helper_os(): i32 {
+  return 7;
+}
+
+#[cfg(target_arch = "aarch64")]
+function helper_arch(): i32 {
+  return 11;
+}
+
+#[cfg(target_arch = "x86_64")]
+function helper_arch(): i32 {
+  return 22;
+}
+
+function main(): i32 {
+  return helper_os() + helper_arch();
+}

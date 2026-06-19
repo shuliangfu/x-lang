@@ -2,17 +2,17 @@
 # OBS-003：统一结构化日志 manifest + 烟测门禁
 #
 # 1) obs-structured-log-v1.md + manifest
-# 2) log.c / mod.su 符号；registry bracket 组件可 grep
+# 2) log.c / mod.sx 符号；registry bracket 组件可 grep
 # 3) obs_structured_log_smoke.c 输出合法结构化行
 #
 # 用法：./tests/run-obs-structured-log-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
-MANIFEST="${SHU_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
+DOC="${SHUX_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
+MANIFEST="${SHUX_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
 LOG_C="std/log/log.c"
-LOG_SU="std/log/mod.su"
+LOG_SU="std/log/mod.sx"
 SMOKE="tests/bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
 MIN_COMP=6
@@ -62,8 +62,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       ;;
     bracket_component)
       COMP=$((COMP + 1))
-      if ! grep -rqF "shu: [$anchor]" . \
-        --include='*.c' --include='*.sh' --include='*.su' 2>/dev/null; then
+      if ! grep -rqF "shux: [$anchor]" . \
+        --include='*.c' --include='*.sh' --include='*.sx' 2>/dev/null; then
         echo "obs-structured-log FAIL: bracket component $anchor not found in tree" >&2
         MISS=$((MISS + 1))
       else
@@ -118,7 +118,7 @@ if [ ! -f "$LOG_O" ]; then
   echo "obs-structured-log gate FAIL: missing $LOG_O" >&2
   exit 1
 fi
-SMOKE_BIN="/tmp/shu_obs_struct_log_smoke_$$"
+SMOKE_BIN="/tmp/shux_obs_struct_log_smoke_$$"
 cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE" "$LOG_O" 2>/tmp/obs_struct_log_build.log || {
   cat /tmp/obs_struct_log_build.log >&2
   echo "obs-structured-log gate FAIL: smoke compile" >&2

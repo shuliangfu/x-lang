@@ -3,12 +3,12 @@
  *
  * 文件职责：定义 Lexer 产出的 Token 种类（TokenKind）与单个 Token 结构（含 kind、位置、可选值），供 Parser 消费。
  * 所属模块：编译器前端，compiler/include/；被 src/lexer、src/parser、src/main 引用。
- * 与其它文件的关系：Lexer 根据 .su 源码填充 Token；Parser 按 Token 流递归下降构建 AST；main 打印 Token 时使用 token_kind_str。
+ * 与其它文件的关系：Lexer 根据 .sx 源码填充 Token；Parser 按 Token 流递归下降构建 AST；main 打印 Token 时使用 token_kind_str。
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 词法一致；value.ident 指向源码片段不拷贝，生命周期由调用方保证；IDENT/I32 须配合 ident_len 使用。阶段 7 将增加 TOKEN_LANGLE/TOKEN_RANGLE。
  */
 
-#ifndef SHU_TOKEN_H
-#define SHU_TOKEN_H
+#ifndef SHUX_TOKEN_H
+#define SHUX_TOKEN_H
 
 /** Token 类型枚举 */
 typedef enum TokenKind {
@@ -32,6 +32,8 @@ typedef enum TokenKind {
     TOKEN_PACKED,   /**< 关键字 packed（结构体无填充布局，与 C __attribute__((packed)) 一致） */
     TOKEN_SOA,      /**< 关键字 soa（DOD-S1：数组按 StructOfArray 列主序存储） */
     TOKEN_ATTR_SOA, /**< 属性 #[soa]（等价于 struct Name soa { }） */
+    TOKEN_ATTR_CFG, /**< 属性 #[cfg(...)]（int_val：1 保留下一顶层项，0 剪枝跳过） */
+    TOKEN_ATTR_REPR_C, /**< 属性 #[repr(C)]（下一 struct 按 C ABI 布局，允许隐式 padding） */
     TOKEN_ALIGN,    /**< 关键字 align（DOD-CL：struct 字段 align(N) cache line 对齐） */
     TOKEN_ENUM,     /**< 关键字 enum（枚举定义，§7） */
     TOKEN_GOTO,     /**< 关键字 goto（跳转） */
@@ -131,4 +133,4 @@ typedef struct Token {
     int ident_len;
 } Token;
 
-#endif /* SHU_TOKEN_H */
+#endif /* SHUX_TOKEN_H */

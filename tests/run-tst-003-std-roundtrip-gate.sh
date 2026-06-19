@@ -7,8 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TST003_DOC:-analysis/tst-003-std-roundtrip-v1.md}"
-MANIFEST="${SHU_TST003_TSV:-tests/baseline/std-roundtrip.tsv}"
+DOC="${SHUX_TST003_DOC:-analysis/tst-003-std-roundtrip-v1.md}"
+MANIFEST="${SHUX_TST003_TSV:-tests/baseline/std-roundtrip.tsv}"
 LIB="tests/lib/tst-003-std-roundtrip.sh"
 MIN_VEC=4
 
@@ -57,17 +57,17 @@ stdlib_cm_native_shu() {
 VECTORS=0
 PASS=0
 SKIP=0
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== TST-003: round-trip smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== TST-003: round-trip smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   # Homebrew libzstd（macOS 常见）；无则链接受限时 SKIP。
   if [ -d /opt/homebrew/lib ]; then
     export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
@@ -82,7 +82,7 @@ if [ -n "$SHU_BIN" ]; then
         VECTORS=$((VECTORS + 1))
         tst003_ensure_o "${needs_o:--}"
         rv=0
-        tst003_run_vector "$SHU_BIN" "$test_path" "$item_id" || rv=$?
+        tst003_run_vector "$SHUX_BIN" "$test_path" "$item_id" || rv=$?
         if [ "$rv" -eq 0 ]; then
           PASS=$((PASS + 1))
           echo "  OK ${item_id} (${test_path})"
@@ -97,7 +97,7 @@ if [ -n "$SHU_BIN" ]; then
     esac
   done < "$MANIFEST"
 else
-  echo "tst-003-roundtrip gate SKIP smoke (no native shu-c)" >&2
+  echo "tst-003-roundtrip gate SKIP smoke (no native shux-c)" >&2
   SKIP=1
   while IFS=$'\t' read -r item_id kind _mod _test_path _needs_o _notes; do
     case "$kind" in roundtrip) VECTORS=$((VECTORS + 1)) ;; esac
@@ -110,7 +110,7 @@ if [ "$VECTORS" -lt "$MIN_VEC" ]; then
   exit 1
 fi
 
-if [ -n "$SHU_BIN" ] && [ "$PASS" -eq 0 ] && [ "$SKIP" -gt 0 ]; then
+if [ -n "$SHUX_BIN" ] && [ "$PASS" -eq 0 ] && [ "$SKIP" -gt 0 ]; then
   echo "tst-003-roundtrip gate OK (typeck+manifest; link SKIP libzstd)" >&2
 fi
 

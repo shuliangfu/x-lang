@@ -1,5 +1,5 @@
-# S3 driver compile.su EMIT_HEAVY：build_asm/driver_compile.o baseline
-# 更新：SHU_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh
+# S3 driver compile.sx EMIT_HEAVY：build_asm/driver_compile.o baseline
+# 更新：SHUX_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh
 # parse_argv init→loop(step+glue)→finalize SU；run_compiler_full_su 堆 state + post_parse
 min_text_bytes	6008
 min_real_funcs	18

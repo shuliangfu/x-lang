@@ -6,6 +6,6 @@ api_doc	section	## 2. 原子分组	analysis/std-regex-atomic-v1.md
 verify	section	## 3. Gate	analysis/std-regex-atomic-v1.md
 symbol_atomic_c	symbol	atomic_nest	std/regex/regex_min.inc.c	回溯控制
 symbol_smoke_c	symbol	pat20	std/regex/regex_min.inc.c	C 烟测
-smoke_su	smoke	tests/regex/atomic_match.su	.su烟测
+smoke_su	smoke	tests/regex/atomic_match.sx	.su烟测
 lib	script	lib/std-regex-atomic.sh	tests/lib/std-regex-atomic.sh
 gate	script	run-std-regex-atomic-gate.sh	tests/run-std-regex-atomic-gate.sh

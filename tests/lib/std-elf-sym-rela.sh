@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-elf-sym-rela.sh — STD-103 manifest 与 symtab/rela 烟测辅助
 
-STD_ELF_SYM_RELA_PREFIX="${SHU_STD103_PREFIX:-shu: [SHU_STD103_ELF_SYM_RELA]}"
+STD_ELF_SYM_RELA_PREFIX="${SHUX_STD103_PREFIX:-shux: [SHUX_STD103_ELF_SYM_RELA]}"
 
 # 校验 manifest 中 api/const/symbol/file。
 std_elf_sym_rela_symbols_ok() {
@@ -50,7 +50,7 @@ std_elf_sym_rela_symbols_ok() {
 std_elf_sym_rela_run_c_smoke() {
   local elf_c="$1"
   local src="tests/std-elf/parse_sym_rela_smoke_ok.c"
-  local out="/tmp/shu_std_elf_sym_rela_$$"
+  local out="/tmp/shux_std_elf_sym_rela_$$"
   local elf_o
   elf_o="$(dirname "$elf_c")/elf.o"
   if [ ! -f "$elf_o" ]; then
@@ -73,15 +73,15 @@ std_elf_sym_rela_run_c_smoke() {
   return 0
 }
 
-# .su 烟测。
-std_elf_sym_rela_run_su_smoke() {
-  local shu="$1"
+# .sx 烟测。
+std_elf_sym_rela_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
   local tag="${3:-symrela}"
-  local exe="/tmp/shu_std_elf_sym_rela_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_elf_sym_rela_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-elf-sym-rela FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

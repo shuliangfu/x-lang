@@ -5,7 +5,7 @@
 #   core_cmp_symbols_ok CMP_SU TSV
 #   core_cmp_emit_report status check_ok run_ok skip
 
-CORE_CMP_PREFIX="${SHU_CORE_CMP_PREFIX:-shu: [SHU_CORE_CMP_ORDERING]}"
+CORE_CMP_PREFIX="${SHUX_CORE_CMP_PREFIX:-shux: [SHUX_CORE_CMP_ORDERING]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_cmp_symbols_ok() {

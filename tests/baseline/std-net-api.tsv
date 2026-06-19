@@ -1,5 +1,5 @@
 # std.net Tier-S stable public API (import std.net)
-# One symbol per line; run-std-net-api-gate.sh greps std/net/mod.su
+# One symbol per line; run-std-net-api-gate.sh greps std/net/mod.sx
 # Updated: 2026-06-17 (STD-002)
 addr_to_u32
 u32_to_ipv4

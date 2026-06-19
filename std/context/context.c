@@ -6,7 +6,7 @@
  * cancel / is_cancelled；deadline_ns / remaining_ns；轻量键值 bag。
  * 取消标志使用 C11 原子操作，可重复查询、线程安全。
  *
- * 【所属模块】标准库 std.context；与 std/context/mod.su 同属一模块。
+ * 【所属模块】标准库 std.context；与 std/context/mod.sx 同属一模块。
  * 【依赖】单调时钟（time_now_monotonic_ns_c，链入 std/time/time.o）。
  */
 
@@ -20,7 +20,7 @@
 #error "std.context requires C11 atomics"
 #endif
 
-/** 与 mod.su 错误码一致。 */
+/** 与 mod.sx 错误码一致。 */
 enum {
   CTX_OK = 0,
   CTX_ERR_NULL = -1,

@@ -40,13 +40,13 @@ echo "doc-07-phase2-sync registry OK"
 
 CHECK_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   while IFS=$'\t' read -r item_id kind anchor _t _n; do
     [ "$kind" = "recipe" ] || continue
-    if doc_cb_check_recipe "$SHU_BIN" "$anchor"; then
+    if doc_cb_check_recipe "$SHUX_BIN" "$anchor"; then
       echo "doc-07-phase2-sync typeck OK $anchor"
     else
       doc07_phase2_emit_report "fail" 0 0

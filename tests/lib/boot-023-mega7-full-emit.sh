@@ -6,12 +6,12 @@
 #   boot023_count_emit LOG_FILE
 #   boot023_emit_report status promote_emit emit_full skip
 
-BOOT023_PREFIX="${SHU_BOOT023_PREFIX:-shu: [SHU_BOOT023]}"
+BOOT023_PREFIX="${SHUX_BOOT023_PREFIX:-shux: [SHUX_BOOT023]}"
 
-# Linux 且存在 experimental shu_asm 则可跑全量 emit wave。
+# Linux 且存在 experimental shux_asm 则可跑全量 emit wave。
 boot023_mega7_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || [ -x "./compiler/shu_asm.experimental" ] || return 1
+  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
   return 0
 }
 

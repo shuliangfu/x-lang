@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-trace-hooks-v1.md"
 MANIFEST="tests/baseline/std-trace-hooks-manifest.tsv"
 VECTORS="tests/baseline/std-trace-hooks-vectors.tsv"
-MOD_SU="std/trace/mod.su"
+MOD_SU="std/trace/mod.sx"
 TRACE_C="std/trace/trace.c"
 LIB="tests/lib/std-trace-hooks.sh"
-SMOKE_SU="tests/std-trace/hooks_smoke.su"
+SMOKE_SU="tests/std-trace/hooks_smoke.sx"
 SMOKE_C="tests/std-trace/hooks_smoke_ok.c"
 MIN_APIS=6
 
@@ -55,10 +55,10 @@ std_trace_hooks_run_c_smoke "$TRACE_O" "$TIME_O" "$RANDOM_O" && C_OK=1 || exit 1
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_trace_hooks_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_trace_hooks_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

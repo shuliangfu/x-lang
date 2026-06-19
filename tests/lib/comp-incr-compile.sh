@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # comp-incr-compile.sh — COMP-007 增量编译共享辅助
 #
-# 二次编译计时、ratio 计算、native shu 探测。
+# 二次编译计时、ratio 计算、native shux 探测。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # 判断本机能否执行指定编译器二进制。
 comp_incr_compile_native_shu() {
-  local f="${1:-./compiler/shu-c}"
+  local f="${1:-./compiler/shux-c}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
@@ -19,11 +19,11 @@ comp_incr_compile_native_shu() {
   esac
 }
 
-# 从 SHU_COMPILE_PHASE_TIMING 汇总行解析 total_ms；失败返回空。
+# 从 SHUX_COMPILE_PHASE_TIMING 汇总行解析 total_ms；失败返回空。
 comp_incr_compile_parse_total_ms() {
   local log="$1"
   local ms=""
-  ms="$(printf '%s' "$log" | grep -E 'SHU_COMPILE_PHASE_TIMING.*total_ms=' | tail -1 \
+  ms="$(printf '%s' "$log" | grep -E 'SHUX_COMPILE_PHASE_TIMING.*total_ms=' | tail -1 \
     | sed -E 's/.*total_ms=([0-9.]+).*/\1/' 2>/dev/null || true)"
   printf '%s' "$ms"
 }

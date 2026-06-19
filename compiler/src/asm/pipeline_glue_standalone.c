@@ -1,8 +1,8 @@
 /**
- * pipeline_glue_standalone.c — Target B 实验链：独立 pipeline_glue+ast_pool TU（不含 pipeline.su 函数体）。
+ * pipeline_glue_standalone.c — Target B 实验链：独立 pipeline_glue+ast_pool TU（不含 pipeline.sx 函数体）。
  *
  * 类型头由 scripts/extract_pipeline_glue_types.pl 从 pipeline_gen.c 抽取至 build_asm/pipeline_glue_types.inc；
- * 与 build_asm/pipeline.o 并列链接，补齐 pool 读写 glue 符号，避免重复 pipeline_run_su_pipeline_impl 等 .su 定义。
+ * 与 build_asm/pipeline.o 并列链接，补齐 pool 读写 glue 符号，避免重复 pipeline_run_sx_pipeline_impl 等 .sx 定义。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -12,7 +12,7 @@
 
 #include "pipeline_glue_types.inc"
 
-#define SHU_PIPELINE_GLUE_STANDALONE_TU 1
+#define SHUX_PIPELINE_GLUE_STANDALONE_TU 1
 #include "../../pipeline_glue.c"
 
 struct ast_Module;
@@ -21,9 +21,9 @@ struct ast_PipelineDepCtx;
 
 /** typeck 布局 metrics：strict 链由 typeck_su.o / typeck_asm_layout_partial.o 导出，glue 不重复 wrapper。 */
 
-/** preprocess_preprocess_su_buf 由 su_seed_bridge.o + preprocess_su.o 提供，勿在此重复定义。 */
+/** preprocess_sx_buf 由 sx_seed_bridge.o + preprocess_su.o 提供，勿在此重复定义。 */
 
-/** ast_ast_arena_init 由 pipeline_glue.c（SHU_PIPELINE_GLUE_STANDALONE_TU）提供，勿在此重复定义。 */
+/** ast_ast_arena_init 由 pipeline_glue.c（SHUX_PIPELINE_GLUE_STANDALONE_TU）提供，勿在此重复定义。 */
 
 /** runtime_asm_build / main.c 期望的入口名（strict 链不链 build_asm/main.o）。 */
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
@@ -38,10 +38,10 @@ int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
 }
 
 /**
- * build_asm/pipeline.o 非 asm 分支引用 codegen_su_ast；strict 链不链 build_asm/codegen.o 时 weak 桩。
+ * build_asm/pipeline.o 非 asm 分支引用 codegen_sx_ast；strict 链不链 build_asm/codegen.o 时 weak 桩。
  * 签名须与 pipeline_glue_types.inc 一致，避免与 pipeline_glue.c 内声明冲突。
  */
-__attribute__((weak)) int32_t codegen_su_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+__attribute__((weak)) int32_t codegen_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                               struct codegen_CodegenOutBuf *out, struct ast_PipelineDepCtx *ctx,
                                               int32_t dep_index) {
   (void)module;
@@ -59,7 +59,7 @@ void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
 }
 
-/** ast_pool.c 提供 C 实现；glue_standalone 勿 undefined 调 pipeline.su 薄 bl。 */
+/** ast_pool.c 提供 C 实现；glue_standalone 勿 undefined 调 pipeline.sx 薄 bl。 */
 extern int32_t pipeline_should_skip_su_typeck_c(struct ast_PipelineDepCtx *ctx);
 
 int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx) {
@@ -67,8 +67,8 @@ int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx) {
 }
 
 /**
- * weak：strict 链无 pipeline.o / pipeline_su.o 时 LSP 路径可链接；
- * 强符号由 pipeline_su.o 或 build_asm/pipeline.o 覆盖。
+ * weak：strict 链无 pipeline.o / pipeline_sx.o 时 LSP 路径可链接；
+ * 强符号由 pipeline_sx.o 或 build_asm/pipeline.o 覆盖。
  */
 __attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena,
@@ -80,7 +80,7 @@ __attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps(struct a
 }
 
 /** weak：orchestration partial 在无 build_asm/pipeline.o 时仍可链接。 */
-__attribute__((weak)) int32_t run_su_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
+__attribute__((weak)) int32_t run_sx_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            struct codegen_CodegenOutBuf *out_buf,
                                                            struct ast_PipelineDepCtx *ctx, int32_t skip_asm_dep_codegen) {
   (void)module;
@@ -91,7 +91,7 @@ __attribute__((weak)) int32_t run_su_pipeline_codegen_deps(struct ast_Module *mo
   return 0;
 }
 
-__attribute__((weak)) int32_t run_su_pipeline_codegen_entry(struct ast_Module *module, struct ast_ASTArena *arena,
+__attribute__((weak)) int32_t run_sx_pipeline_codegen_entry(struct ast_Module *module, struct ast_ASTArena *arena,
                                                             struct codegen_CodegenOutBuf *out_buf,
                                                             struct ast_PipelineDepCtx *ctx) {
   (void)module;

@@ -2,13 +2,13 @@
 # 列：item_id	kind	anchor	mod_path	notes
 read_path	section	## 1. 目标	analysis/std-hash-default-strategy-v1.md
 strategy_doc	section	## 2. 默认策略表	analysis/std-hash-default-strategy-v1.md
-env_doc	section	## 3. SHU_HASH_ALGO	analysis/std-hash-default-strategy-v1.md
-api_recommend_map	api	recommend_hasher_map	std/hash/mod.su	Map 推荐
-api_recommend_fast	api	recommend_hasher_fast	std/hash/mod.su	快速推荐
-api_default	api	default_hasher	std/hash/mod.su	环境默认
+env_doc	section	## 3. SHUX_HASH_ALGO	analysis/std-hash-default-strategy-v1.md
+api_recommend_map	api	recommend_hasher_map	std/hash/mod.sx	Map 推荐
+api_recommend_fast	api	recommend_hasher_fast	std/hash/mod.sx	快速推荐
+api_default	api	default_hasher	std/hash/mod.sx	环境默认
 symbol_smoke_c	symbol	hash_default_strategy_smoke_c	std/hash/hash.c	C 烟测
 vectors_tsv	file	tests/baseline/std-hash-default-strategy.tsv	策略向量
-smoke_su	smoke	tests/std-hash/default_strategy.su	.su 烟测
+smoke_su	smoke	tests/std-hash/default_strategy.sx	.sx 烟测
 smoke_c	smoke	tests/std-hash/default_strategy_ok.c	C 烟测
 gate_base	gate	tests/run-std-hash-hasher-trait-gate.sh	STD-056
 lib	script	tests/lib/std-hash-default-strategy.sh	lib

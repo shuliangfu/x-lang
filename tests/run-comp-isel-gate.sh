@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_ISEL_DOC:-analysis/comp-isel-v1.md}"
-MANIFEST="${SHU_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
-BENCH="${SHU_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
+DOC="${SHUX_COMP_ISEL_DOC:-analysis/comp-isel-v1.md}"
+MANIFEST="${SHUX_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
+BENCH="${SHUX_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
 MIN_LAYERS=6
 MIN_CASES=8
 MIN_BENCHES=9
@@ -17,9 +17,9 @@ MIN_BENCHES=9
 
 echo "=== COMP-006: instruction selection manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
-  compiler/src/asm/peephole.su compiler/src/asm/backend.su \
-  tests/asm/binop_var_fast.su tests/asm/binop_index_lit_fast.su \
-  tests/bench/loop_i32.su tests/run-bcmp-gate.sh; do
+  compiler/src/asm/peephole.sx compiler/src/asm/backend.sx \
+  tests/asm/binop_var_fast.sx tests/asm/binop_index_lit_fast.sx \
+  tests/bench/loop_i32.sx tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-isel gate FAIL: missing $f" >&2
     exit 1

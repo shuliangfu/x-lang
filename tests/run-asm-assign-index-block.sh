@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
 run_one() {
   local src="$1"
   local out="$2"
   local want="$3"
   local tag="$4"
-  $SHU "$src" -o "$out"
+  $SHUX "$src" -o "$out"
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && { echo "run-asm-assign-index-block FAIL: $tag expected exit $want, got $exitcode"; exit 1; }
@@ -27,7 +27,7 @@ run_one_reuse() {
   local want="$3"
   local tag="$4"
   local max_ldur="$5"
-  $SHU "$src" -o "$out"
+  $SHUX "$src" -o "$out"
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && { echo "run-asm-assign-index-block FAIL: $tag expected exit $want, got $exitcode"; exit 1; }
@@ -45,21 +45,21 @@ run_one_reuse() {
   fi
 }
 
-run_one tests/asm/assign_index_block_sum.su /tmp/shu_asm_assign_index_block_sum 6 "lit index block"
-run_one tests/asm/assign_index_block_var.su /tmp/shu_asm_assign_index_block_var 6 "var index block"
-run_one tests/asm/assign_index_block_nested.su /tmp/shu_asm_assign_index_block_nested 62 "nested index block"
-run_one tests/asm/assign_index_block_sub_mul.su /tmp/shu_asm_assign_index_block_sub_mul 33 "sub+mul index block"
-run_one_reuse tests/asm/assign_index_block_sub_mul.su /tmp/shu_asm_assign_index_block_sub_mul_reuse 33 "sub+mul minus pair reuse" 6
-run_one tests/asm/assign_index_block_seq.su /tmp/shu_asm_assign_index_block_seq 45 "index assign seq"
-run_one_reuse tests/asm/assign_index_block_reuse_same_index.su /tmp/shu_asm_assign_index_block_reuse 22 "same index addr reuse" 8
-run_one_reuse tests/asm/assign_index_block_subadd3_mul_lit.su /tmp/shu_asm_assign_index_block_subadd3_mul_lit 33 "subadd3 mul lit prefix reuse" 5
-run_one_reuse tests/asm/assign_index_block_minus_mul_lit.su /tmp/shu_asm_assign_index_block_minus_mul_lit 33 "subadd3 then minus mul lit reuse" 6
-run_one_reuse tests/asm/assign_index_block_minus_mul_lit_seq.su /tmp/shu_asm_assign_index_block_minus_mul_lit_seq 33 "minus mul lit seq reuse" 4
-run_one tests/asm/assign_index_block_rhs_index.su /tmp/shu_asm_assign_index_block_rhs_index 20 "rhs index clears cache"
-run_one_reuse tests/asm/assign_index_block_read_between.su /tmp/shu_asm_assign_index_block_read_between 33 "read between assigns" 10
-run_one_reuse tests/asm/assign_index_block_let_read_addr_cache.su /tmp/shu_asm_assign_index_block_let_read_addr_cache 99 "let read assign addr cache" 3
-run_one_reuse tests/asm/assign_index_block_read_subadd3.su /tmp/shu_asm_assign_index_block_read_subadd3 198 "read subadd3 after assign" 4
-run_one_reuse tests/asm/assign_index_block_read_minus_mul.su /tmp/shu_asm_assign_index_block_read_minus_mul 22 "read minus mul after subadd3 assign" 5
-run_one_reuse tests/asm/assign_index_block_read_minus_mul_seq.su /tmp/shu_asm_assign_index_block_read_minus_mul_seq 110 "read minus mul after assign" 3
+run_one tests/asm/assign_index_block_sum.sx /tmp/shux_asm_assign_index_block_sum 6 "lit index block"
+run_one tests/asm/assign_index_block_var.sx /tmp/shux_asm_assign_index_block_var 6 "var index block"
+run_one tests/asm/assign_index_block_nested.sx /tmp/shux_asm_assign_index_block_nested 62 "nested index block"
+run_one tests/asm/assign_index_block_sub_mul.sx /tmp/shux_asm_assign_index_block_sub_mul 33 "sub+mul index block"
+run_one_reuse tests/asm/assign_index_block_sub_mul.sx /tmp/shux_asm_assign_index_block_sub_mul_reuse 33 "sub+mul minus pair reuse" 6
+run_one tests/asm/assign_index_block_seq.sx /tmp/shux_asm_assign_index_block_seq 45 "index assign seq"
+run_one_reuse tests/asm/assign_index_block_reuse_same_index.sx /tmp/shux_asm_assign_index_block_reuse 22 "same index addr reuse" 8
+run_one_reuse tests/asm/assign_index_block_subadd3_mul_lit.sx /tmp/shux_asm_assign_index_block_subadd3_mul_lit 33 "subadd3 mul lit prefix reuse" 5
+run_one_reuse tests/asm/assign_index_block_minus_mul_lit.sx /tmp/shux_asm_assign_index_block_minus_mul_lit 33 "subadd3 then minus mul lit reuse" 6
+run_one_reuse tests/asm/assign_index_block_minus_mul_lit_seq.sx /tmp/shux_asm_assign_index_block_minus_mul_lit_seq 33 "minus mul lit seq reuse" 4
+run_one tests/asm/assign_index_block_rhs_index.sx /tmp/shux_asm_assign_index_block_rhs_index 20 "rhs index clears cache"
+run_one_reuse tests/asm/assign_index_block_read_between.sx /tmp/shux_asm_assign_index_block_read_between 33 "read between assigns" 10
+run_one_reuse tests/asm/assign_index_block_let_read_addr_cache.sx /tmp/shux_asm_assign_index_block_let_read_addr_cache 99 "let read assign addr cache" 3
+run_one_reuse tests/asm/assign_index_block_read_subadd3.sx /tmp/shux_asm_assign_index_block_read_subadd3 198 "read subadd3 after assign" 4
+run_one_reuse tests/asm/assign_index_block_read_minus_mul.sx /tmp/shux_asm_assign_index_block_read_minus_mul 22 "read minus mul after subadd3 assign" 5
+run_one_reuse tests/asm/assign_index_block_read_minus_mul_seq.sx /tmp/shux_asm_assign_index_block_read_minus_mul_seq 110 "read minus mul after assign" 3
 
 echo "asm assign index block OK"

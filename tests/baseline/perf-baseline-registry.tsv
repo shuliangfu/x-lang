@@ -2,11 +2,12 @@
 # Format: baseline_id<TAB>path<TAB>version<TAB>gate_script<TAB>update_env<TAB>notes
 # version: v1.YYYY-MM-DD — 改 path 内数值须同 PR bump 本列
 # change_requires: perf-review（见 analysis/eng-baseline-governance-v1.md）
-zig-perf	tests/baseline/zig-perf.tsv	v1.2026-06-17	tests/run-zig-baseline-gate.sh	SHU_ZIG_BASELINE_RECORD=1	PERF-001 Zig 对标
-io-perf	tests/baseline/io-perf.tsv	v1.2026-06-17	tests/run-perf-io-zig-gate.sh	SHU_PERF_UPDATE_BASELINE=1	PERF-002 IO 吞吐
-net-perf	tests/baseline/net-perf.tsv	v1.2026-06-17	tests/run-perf-net-zig-gate.sh	SHU_PERF_UPDATE_NET_BASELINE=1	PERF-003 NET 吞吐
-net-perf-latency	tests/baseline/net-perf-latency.tsv	v1.2026-06-17	tests/run-perf-net-zig-gate.sh	SHU_PERF_UPDATE_NET_BASELINE=1	PERF-003 P99 延迟
-compile-dogfood	tests/baseline/compile-dogfood.tsv	v1.2026-06-17	tests/run-perf-compile-dogfood-gate.sh	SHU_PERF_UPDATE_BASELINE=1	PERF-004 编译 dogfood
-stdlib-dogfood	tests/baseline/stdlib-dogfood.tsv	v1.2026-06-18	tests/run-boot-017-stdlib-dogfood-gate.sh	SHU_BOOT017_UPDATE_BASELINE=1	BOOT-017 std 分模块 check
-async-perf	tests/baseline/async-perf.tsv	v1.2026-06-17	tests/run-perf-async.sh	SHU_PERF_UPDATE_ASYNC_BASELINE=1	async 调度压测
-sqlite-perf	tests/baseline/perf-sqlite.tsv	v1.2026-06-18	tests/run-perf-sqlite-gate.sh	SHU_PERF_UPDATE_SQLITE_BASELINE=1	PERF-170 sqlite stub loop
+zig-perf	tests/baseline/zig-perf.tsv	v1.2026-06-17	tests/run-zig-baseline-gate.sh	SHUX_ZIG_BASELINE_RECORD=1	PERF-001 Zig 对标
+io-perf	tests/baseline/io-perf.tsv	v1.2026-06-17	tests/run-perf-io-zig-gate.sh	SHUX_PERF_UPDATE_BASELINE=1	PERF-002 IO 吞吐
+net-perf	tests/baseline/net-perf.tsv	v1.2026-06-17	tests/run-perf-net-zig-gate.sh	SHUX_PERF_UPDATE_NET_BASELINE=1	PERF-003 NET 吞吐
+net-perf-latency	tests/baseline/net-perf-latency.tsv	v1.2026-06-17	tests/run-perf-net-zig-gate.sh	SHUX_PERF_UPDATE_NET_BASELINE=1	PERF-003 P99 延迟
+compile-dogfood	tests/baseline/compile-dogfood.tsv	v1.2026-06-17	tests/run-perf-compile-dogfood-gate.sh	SHUX_PERF_UPDATE_BASELINE=1	PERF-004 编译 dogfood
+stdlib-dogfood	tests/baseline/stdlib-dogfood.tsv	v1.2026-06-18	tests/run-boot-017-stdlib-dogfood-gate.sh	SHUX_BOOT017_UPDATE_BASELINE=1	BOOT-017 std 分模块 check
+async-perf	tests/baseline/async-perf.tsv	v1.2026-06-17	tests/run-perf-async.sh	SHUX_PERF_UPDATE_ASYNC_BASELINE=1	async 调度压测
+sqlite-perf	tests/baseline/perf-sqlite.tsv	v1.2026-06-18	tests/run-perf-sqlite-gate.sh	SHUX_PERF_UPDATE_SQLITE_BASELINE=1	PERF-170 sqlite stub loop
+phase3-perf	tests/baseline/perf-phase3.tsv	v1.2026-06-19	tests/run-perf-phase3-gate.sh	SHUX_PERF_UPDATE_PHASE3_BASELINE=1	PERF-172 Phase 3 std hotpath

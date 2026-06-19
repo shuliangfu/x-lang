@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_encoding_hex_b64_symbols_ok MOD_SU ENCODING_C TSV
-#   std_encoding_hex_b64_run_smoke SHU_BIN SU TAG
+#   std_encoding_hex_b64_run_smoke SHUX_BIN SU TAG
 #   std_encoding_hex_b64_emit_report status hex_ok b64_ok main_ok skip
 
-STD_ENCODING_HEX_B64_PREFIX="${SHU_STD_ENCODING_HEX_B64_PREFIX:-shu: [SHU_STD_ENCODING_HEX_B64]}"
+STD_ENCODING_HEX_B64_PREFIX="${SHUX_STD_ENCODING_HEX_B64_PREFIX:-shux: [SHUX_STD_ENCODING_HEX_B64]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_encoding_hex_b64_symbols_ok() {
@@ -47,19 +47,19 @@ std_encoding_hex_b64_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su。
+# 编译并运行烟测 .sx。
 std_encoding_hex_b64_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_encoding_hb_${tag}_$$"
+  local exe="/tmp/shux_std_encoding_hb_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-encoding-hex-b64 FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-encoding-hex-b64 FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

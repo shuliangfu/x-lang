@@ -5,7 +5,7 @@
 #   core_debug_assert_extend_symbols_ok DEBUG_SU TSV
 #   core_debug_assert_extend_emit_report status check_ok skip
 
-CORE_DEBUG_ASSERT_EXTEND_PREFIX="${SHU_CORE_DEBUG_ASSERT_EXTEND_PREFIX:-shu: [SHU_CORE_DEBUG_ASSERT_EXTEND]}"
+CORE_DEBUG_ASSERT_EXTEND_PREFIX="${SHUX_CORE_DEBUG_ASSERT_EXTEND_PREFIX:-shux: [SHUX_CORE_DEBUG_ASSERT_EXTEND]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_debug_assert_extend_symbols_ok() {

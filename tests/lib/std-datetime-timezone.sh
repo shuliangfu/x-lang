@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-datetime-timezone.sh — STD-135 manifest 与烟测辅助
 
-STD_DATETIME_TIMEZONE_PREFIX="${SHU_STD135_DATETIME_TIMEZONE_PREFIX:-shu: [SHU_STD135_DATETIME_TIMEZONE]}"
+STD_DATETIME_TIMEZONE_PREFIX="${SHUX_STD135_DATETIME_TIMEZONE_PREFIX:-shux: [SHUX_STD135_DATETIME_TIMEZONE]}"
 
 # 校验 manifest 条目；echo 缺失数。
 std_datetime_timezone_symbols_ok() {
@@ -48,12 +48,12 @@ std_datetime_timezone_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_datetime_timezone_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_dt_tz_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_dt_tz_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-datetime-timezone FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -71,7 +71,7 @@ std_datetime_timezone_run_c_smoke() {
   local dt_o="$1"
   local time_o="$2"
   local src="tests/std-datetime/timezone_smoke_ok.c"
-  local out="/tmp/shu_std_dt_tz_c_$$"
+  local out="/tmp/shux_std_dt_tz_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

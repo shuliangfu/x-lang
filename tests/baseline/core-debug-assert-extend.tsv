@@ -1,18 +1,18 @@
 # CORE-012 core.debug 断言类型扩展 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	6
-assert_eq_u64	symbol	assert_eq_u64	core/debug/mod.su	u64 相等
-assert_ne_u64	symbol	assert_ne_u64	core/debug/mod.su	u64 不等
-assert_ne_bool	symbol	assert_ne_bool	core/debug/mod.su	bool 不等
-assert_eq_ptr	symbol	assert_eq_ptr	core/debug/mod.su	指针相等
-assert_ne_ptr	symbol	assert_ne_ptr	core/debug/mod.su	指针不等
-assert_eq_bool	symbol	assert_eq_bool	core/debug/mod.su	bool 相等（回归）
+assert_eq_u64	symbol	assert_eq_u64	core/debug/mod.sx	u64 相等
+assert_ne_u64	symbol	assert_ne_u64	core/debug/mod.sx	u64 不等
+assert_ne_bool	symbol	assert_ne_bool	core/debug/mod.sx	bool 不等
+assert_eq_ptr	symbol	assert_eq_ptr	core/debug/mod.sx	指针相等
+assert_ne_ptr	symbol	assert_ne_ptr	core/debug/mod.sx	指针不等
+assert_eq_bool	symbol	assert_eq_bool	core/debug/mod.sx	bool 相等（回归）
 section_api	section	## 1. 目标	docs
 section_golden	section	## 2. 金样向量	docs
-smoke_u64	smoke	assert_eq_u64	tests/debug/assert_extend.su	u64
-smoke_bool	smoke	assert_ne_bool	tests/debug/assert_extend.su	bool
-smoke_ptr	smoke	assert_eq_ptr	tests/debug/assert_extend.su	指针
-test_smoke	file	tests/debug/assert_extend.su	tests/debug/assert_extend.su	边界烟测
-test_regress	file	tests/debug/main.su	tests/debug/main.su	既有回归
+smoke_u64	smoke	assert_eq_u64	tests/debug/assert_extend.sx	u64
+smoke_bool	smoke	assert_ne_bool	tests/debug/assert_extend.sx	bool
+smoke_ptr	smoke	assert_eq_ptr	tests/debug/assert_extend.sx	指针
+test_smoke	file	tests/debug/assert_extend.sx	tests/debug/assert_extend.sx	边界烟测
+test_regress	file	tests/debug/main.sx	tests/debug/main.sx	既有回归
 doc	file	analysis/core-debug-assert-extend-v1.md	analysis/core-debug-assert-extend-v1.md	RFC
 gate	script	tests/run-core-debug-assert-extend-gate.sh	tests/run-core-debug-assert-extend-gate.sh	manifest

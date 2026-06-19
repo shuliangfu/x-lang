@@ -1,4 +1,4 @@
-# WPO-S3 disasm baseline (shu_asm)
+# WPO-S3 disasm baseline (shux_asm)
 # stack_promote_smoke / stack_promote_cross: make_pair+sum_pair inlined in _main
 # stack_promote_cross_ret: make_pair inlined; field sum in _main (no sum_pair)
 # stack_promote_escape: make_pair inlined; &p 同模块经 *Pair 读字段 (exit 7)

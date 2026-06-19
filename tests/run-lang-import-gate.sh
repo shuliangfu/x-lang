@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LANG-002：import 解析跨平台一致性门禁
 #
-# 同一套 .su / run-*.sh 在 Linux / macOS / Windows MSYS 须行为一致。
+# 同一套 .sx / run-*.sh 在 Linux / macOS / Windows MSYS 须行为一致。
 # 用法：./tests/run-lang-import-gate.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MATRIX="${SHU_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
+MATRIX="${SHUX_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
 
 native_shu() {
   local f="$1"
@@ -28,9 +28,9 @@ echo "=== LANG-002: import cross-platform manifest ==="
 for f in \
   analysis/lang-import-v1-rfc.md \
   "$MATRIX" \
-  tests/import/main.su \
-  tests/import/missing_module.su \
-  tests/parser/import_std_async.su; do
+  tests/import/main.sx \
+  tests/import/missing_module.sx \
+  tests/parser/import_std_async.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-import gate FAIL: missing $f" >&2
     exit 1
@@ -42,28 +42,28 @@ make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
   || make -C compiler ../std/async/scheduler.o
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "lang-import gate SKIP bench (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "lang-import gate SKIP bench (no native shux)" >&2
   exit 0
 fi
 
-# 链接优先 shu-c（与 run-stdlib-import 一致，跨平台稳定）。
-LINK_SHU="$SHU_BIN"
-if [ -x ./compiler/shu-c ] && native_shu ./compiler/shu-c; then
-  LINK_SHU=./compiler/shu-c
+# 链接优先 shux-c（与 run-stdlib-import 一致，跨平台稳定）。
+LINK_SHUX="$SHUX_BIN"
+if [ -x ./compiler/shux-c ] && native_shu ./compiler/shux-c; then
+  LINK_SHUX=./compiler/shux-c
 fi
 
-run_su_case() {
+run_sx_case() {
   local script="$1"
   local want_ec="${2:-0}"
   local src=""
@@ -75,9 +75,9 @@ run_su_case() {
     echo "lang-import FAIL: missing ${script}" >&2
     return 1
   fi
-  local out="/tmp/shu_lang_import_${script%.su}"
-  if ! "$LINK_SHU" -L . "$src" -o "$out" >/tmp/shu_lang_import_compile.log 2>&1; then
-    cat /tmp/shu_lang_import_compile.log >&2
+  local out="/tmp/shux_lang_import_${script%.sx}"
+  if ! "$LINK_SHUX" -L . "$src" -o "$out" >/tmp/shux_lang_import_compile.log 2>&1; then
+    cat /tmp/shux_lang_import_compile.log >&2
     return 1
   fi
   local ec=0
@@ -90,7 +90,7 @@ run_su_case() {
 }
 
 FAILS=0
-echo "=== LANG-002: import smoke (CHECK/LINK via $(basename "$LINK_SHU")) ==="
+echo "=== LANG-002: import smoke (CHECK/LINK via $(basename "$LINK_SHUX")) ==="
 
 while IFS=$'\t' read -r case_id script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -102,7 +102,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHU="$SHU_BIN" "$hook"; then
+      if SHUX="$SHUX_BIN" "$hook"; then
         echo "lang-import OK $case_id"
       else
         echo "lang-import FAIL $case_id ($script)" >&2
@@ -110,7 +110,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
       fi
       ;;
     run)
-      if run_su_case "$script" "${want_ec:-0}"; then
+      if run_sx_case "$script" "${want_ec:-0}"; then
         echo "lang-import OK $case_id"
       else
         FAILS=$((FAILS + 1))

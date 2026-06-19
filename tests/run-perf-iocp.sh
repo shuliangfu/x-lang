@@ -2,19 +2,19 @@
 # IO-A6 Windows IOCP pipe 批量 perf（对齐 io_batch_readv 规模感）
 # 用法：./tests/run-perf-iocp.sh [--bench]
 # 门禁（可选）：
-#   SHU_PERF_FAIL_ON_IOCP_REGRESSION=1 — median ≤ tests/baseline/iocp-perf.tsv
-#   SHU_PERF_UPDATE_IOCP_BASELINE=1 — 刷新 iocp-perf.tsv
+#   SHUX_PERF_FAIL_ON_IOCP_REGRESSION=1 — median ≤ tests/baseline/iocp-perf.tsv
+#   SHUX_PERF_UPDATE_IOCP_BASELINE=1 — 刷新 iocp-perf.tsv
 # 非 Windows MSYS2：SKIP exit 0
 set -e
 cd "$(dirname "$0")/.."
 
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHU_PERF_FAIL_ON_IOCP_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
-RUNS="${SHU_IOCP_RUNS:-3}"
-[ "${CI:-0}" = "1" ] && RUNS="${SHU_IOCP_RUNS:-1}"
-ROUNDS="${SHU_IOCP_BENCH_ROUNDS:-65536}"
-BASELINE="${SHU_PERF_IOCP_BASELINE:-tests/baseline/iocp-perf.tsv}"
+[ "${SHUX_PERF_FAIL_ON_IOCP_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
+RUNS="${SHUX_IOCP_RUNS:-3}"
+[ "${CI:-0}" = "1" ] && RUNS="${SHUX_IOCP_RUNS:-1}"
+ROUNDS="${SHUX_IOCP_BENCH_ROUNDS:-65536}"
+BASELINE="${SHUX_PERF_IOCP_BASELINE:-tests/baseline/iocp-perf.tsv}"
 
 _is_windows_msys() {
   case "$(uname -s 2>/dev/null)" in
@@ -35,7 +35,7 @@ extract_real_sec() {
 iocp_bench_wall_sec() {
   local start end
   start=$(date +%s.%N 2>/dev/null || date +%s)
-  SHU_IOCP_BENCH_ROUNDS="$ROUNDS" "$OUT" >/dev/null
+  SHUX_IOCP_BENCH_ROUNDS="$ROUNDS" "$OUT" >/dev/null
   end=$(date +%s.%N 2>/dev/null || date +%s)
   awk -v s="$start" -v e="$end" 'BEGIN { if (e > s) print e - s; else print "nan" }'
 }
@@ -72,7 +72,7 @@ fi
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
 
-OUT="/tmp/shu_iocp_pipe_loop"
+OUT="/tmp/shux_iocp_pipe_loop"
 if ! cc -O2 -Wall tests/bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/dev/null; then
   echo "run-perf-iocp: SKIP (link failed)"
   exit 0
@@ -83,7 +83,7 @@ vals=""
 i=0
 while [ "$i" -lt "$RUNS" ]; do
   i=$((i + 1))
-  v=$( ( SHU_IOCP_BENCH_ROUNDS="$ROUNDS" time "$OUT" >/dev/null ) 2>&1 | extract_real_sec)
+  v=$( ( SHUX_IOCP_BENCH_ROUNDS="$ROUNDS" time "$OUT" >/dev/null ) 2>&1 | extract_real_sec)
   if [ -z "$v" ] || [ "$v" = "nan" ]; then
     v=$(iocp_bench_wall_sec)
   fi
@@ -100,10 +100,10 @@ printf '\n| iocp_pipe_batch | real (s) 中位数 |\n|---|----------------|\n| Sh
 
 check_iocp_regress iocp_pipe_batch "$med"
 
-if [ "${SHU_PERF_UPDATE_IOCP_BASELINE:-0}" = "1" ] && [ "$med" != "nan" ]; then
+if [ "${SHUX_PERF_UPDATE_IOCP_BASELINE:-0}" = "1" ] && [ "$med" != "nan" ]; then
   {
-    echo "# shu IOCP pipe batch bench 中位数上限（秒）；门禁：实测 median ≤ 本列值"
-    echo "# 更新：SHU_PERF_UPDATE_IOCP_BASELINE=1 ./tests/run-perf-iocp.sh --bench"
+    echo "# shux IOCP pipe batch bench 中位数上限（秒）；门禁：实测 median ≤ 本列值"
+    echo "# 更新：SHUX_PERF_UPDATE_IOCP_BASELINE=1 ./tests/run-perf-iocp.sh --bench"
     echo "# 仅 Windows MSYS2；65536 轮 2×64B write_batch + read_batch"
     printf 'iocp_pipe_batch\t%s\n' "$med"
   } >"$BASELINE"

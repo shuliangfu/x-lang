@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-tar-extended-v1.md"
 MANIFEST="tests/baseline/std-tar-extended.tsv"
-MOD_SU="std/tar/mod.su"
+MOD_SU="std/tar/mod.sx"
 TAR_C="std/tar/tar.c"
 LIB="tests/lib/std-tar-extended.sh"
-SMOKE_SU="tests/tar/long_path_dir.su"
+SMOKE_SU="tests/tar/long_path_dir.sx"
 SMOKE_C="tests/std-tar/extended_ok.c"
 MIN_APIS=1
 
@@ -69,7 +69,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -81,21 +81,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shu-c; then SHU_BIN=./compiler/shu-c; fi
+if stdlib_cm_native_shu ./compiler/shux-c; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/tar/tar.o
   TAR_O="$(cd compiler && pwd)/../std/tar/tar.o"
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-tar-extended gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_tar_extended_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "$TAR_O"; then
+  if std_tar_extended_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "$TAR_O"; then
     SU_OK=1
   else
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
@@ -103,7 +103,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
 else
   SKIP=1
-  echo "std-tar-extended gate SKIP su smoke (no native shu-c)" >&2
+  echo "std-tar-extended gate SKIP su smoke (no native shux-c)" >&2
 fi
 
 std_tar_extended_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"

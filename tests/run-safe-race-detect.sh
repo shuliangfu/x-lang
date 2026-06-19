@@ -3,13 +3,13 @@
 #
 # 用法：
 #   ./tests/run-safe-race-detect.sh
-#   SHU_RACE_PROBE=1 ./tests/run-safe-race-detect.sh
+#   SHUX_RACE_PROBE=1 ./tests/run-safe-race-detect.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHU_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
+MANIFEST="${SHUX_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
 DO_PROBE=0
-[ "${SHU_RACE_PROBE:-0}" = "1" ] && DO_PROBE=1
+[ "${SHUX_RACE_PROBE:-0}" = "1" ] && DO_PROBE=1
 
 # shellcheck source=tests/lib/safe-race.sh
 . tests/lib/safe-race.sh
@@ -26,11 +26,11 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
@@ -43,8 +43,8 @@ CASES_OK=0
 CASES_FAIL=0
 PROBE_STATUS="skip"
 
-if [ -z "$SHU_BIN" ]; then
-  echo "safe-race-detect SKIP cases (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "safe-race-detect SKIP cases (no native shux)" >&2
 else
   while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
     [ -z "${item_id:-}" ] && continue
@@ -52,7 +52,7 @@ else
     case "$kind" in
       case)
         echo "── $item_id ($src) ──"
-        if safe_race_run_su "$SHU_BIN" "$src" "$item_id"; then
+        if safe_race_run_su "$SHUX_BIN" "$src" "$item_id"; then
           CASES_OK=$((CASES_OK + 1))
         else
           CASES_FAIL=$((CASES_FAIL + 1))

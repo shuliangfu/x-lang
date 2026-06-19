@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   safe_ffi_contract_count [manifest_tsv]
-#   safe_ffi_run_case SHU_BIN src expect_rc [tag]
+#   safe_ffi_run_case SHUX_BIN src expect_rc [tag]
 
 # 统计 manifest 中 case 行数（case_id 以 case_ 开头）。
 safe_ffi_contract_count() {
@@ -11,19 +11,19 @@ safe_ffi_contract_count() {
   awk -F'\t' '$1 ~ /^case_/ { n++ } END { print n+0 }' "$man"
 }
 
-# 编译并运行单个契约 .su；校验退出码。
+# 编译并运行单个契约 .sx；校验退出码。
 safe_ffi_run_case() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local expect="${3:-0}"
   local tag="${4:-case}"
-  local exe="/tmp/shu_safe_ffi_${tag}_$$"
+  local exe="/tmp/shux_safe_ffi_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "safe-ffi FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

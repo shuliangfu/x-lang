@@ -6,13 +6,13 @@ long_path	section	## 2. 长路径策略	prefix
 pax	section	## 3. Pax path	'x'
 dir_walk	section	## 4. 目录遍历	is_dir
 verify	section	## 5. Gate	gate
-api_path_max	api	path_max	std/tar/mod.su	最大路径
-symbol_max_ustar	symbol	TAR_MAX_PATH_USTAR	std/tar/mod.su	常量
+api_path_max	api	path_max	std/tar/mod.sx	最大路径
+symbol_max_ustar	symbol	TAR_MAX_PATH_USTAR	std/tar/mod.sx	常量
 symbol_path_max_c	symbol	tar_path_max_c	std/tar/tar.c	C 路径上限
 symbol_smoke_c	symbol	tar_extended_smoke_c	std/tar/tar.c	C 烟测
 impl_prefix	symbol	TAR_PREFIX_OFF	std/tar/tar.c	prefix 字段
 impl_pax	symbol	TAR_TYPE_PAX	std/tar/tar.c	Pax 类型
-smoke_long	smoke	tests/tar/long_path_dir.su	长路径烟测
+smoke_long	smoke	tests/tar/long_path_dir.sx	长路径烟测
 smoke_c	smoke	tests/std-tar/extended_ok.c	C 入口
 lib	script	lib/std-tar-extended.sh	tests/lib/std-tar-extended.sh
 gate	script	run-std-tar-extended-gate.sh	tests/run-std-tar-extended-gate.sh

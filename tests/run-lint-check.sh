@@ -20,43 +20,43 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ] || ! native_shu "$SHU_BIN"; then
-  echo "lint-check SKIP (no native shu)" >&2
+if [ -z "$SHUX_BIN" ] || ! native_shu "$SHUX_BIN"; then
+  echo "lint-check SKIP (no native shux)" >&2
   echo "lint-check OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-CLEAN=tests/lint/lint_clean_ok.su
-ERR=tests/lint/lint_error_assign.su
-PAD=tests/lint/lint_warn_pad.su
-REORDER=tests/lint/lint_warn_reorder.su
-UNUSED=tests/lint/lint_unused_hint.su
+CLEAN=tests/lint/lint_clean_ok.sx
+ERR=tests/lint/lint_error_assign.sx
+PAD=tests/lint/lint_warn_pad.sx
+REORDER=tests/lint/lint_warn_reorder.sx
+UNUSED=tests/lint/lint_unused_hint.sx
 
-tool_lint_expect_check_silent "$SHU_BIN" "$CLEAN"
+tool_lint_expect_check_silent "$SHUX_BIN" "$CLEAN"
 echo "lint-check OK: clean silent"
 
-tool_lint_expect_check_error "$SHU_BIN" "$ERR"
+tool_lint_expect_check_error "$SHUX_BIN" "$ERR"
 echo "lint-check OK: error tier"
 
-tool_lint_expect_warn_pad "$SHU_BIN" "$PAD"
+tool_lint_expect_warn_pad "$SHUX_BIN" "$PAD"
 echo "lint-check OK: warn pad-fields"
 
-tool_lint_expect_warn_reorder "$SHU_BIN" "$REORDER"
+tool_lint_expect_warn_reorder "$SHUX_BIN" "$REORDER"
 echo "lint-check OK: warn hot-reorder"
 
-tool_lint_expect_info_unused "$SHU_BIN" "$UNUSED"
+tool_lint_expect_info_unused "$SHUX_BIN" "$UNUSED"
 echo "lint-check OK: info unused-hint"
 
 echo "lint-check OK"

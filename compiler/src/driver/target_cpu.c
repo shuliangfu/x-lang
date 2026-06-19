@@ -83,24 +83,27 @@ static int flags_has_token(const char *hay, const char *token) {
  * 编译期宏兜底（交叉编译或无 /proc/cpuinfo 时仍给出合理缺省）。
  */
 static uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
-    uint32_t f = SHU_CPU_FEAT_SSE2;
+    uint32_t f = SHUX_CPU_FEAT_SSE2;
 #if defined(__SSE4_1__)
-    f |= SHU_CPU_FEAT_SSE41;
+    f |= SHUX_CPU_FEAT_SSE41;
 #endif
 #if defined(__AVX__)
-    f |= SHU_CPU_FEAT_AVX;
+    f |= SHUX_CPU_FEAT_AVX;
 #endif
 #if defined(__AVX2__)
-    f |= SHU_CPU_FEAT_AVX2;
+    f |= SHUX_CPU_FEAT_AVX2;
 #endif
 #if defined(__AVX512F__)
-    f |= SHU_CPU_FEAT_AVX512F;
+    f |= SHUX_CPU_FEAT_AVX512F;
 #endif
 #if defined(__POPCNT__)
-    f |= SHU_CPU_FEAT_POPCNT;
+    f |= SHUX_CPU_FEAT_POPCNT;
 #endif
 #if defined(__BMI2__)
-    f |= SHU_CPU_FEAT_BMI2;
+    f |= SHUX_CPU_FEAT_BMI2;
+#endif
+#if defined(__FMA__)
+    f |= SHUX_CPU_FEAT_FMA;
 #endif
     return f;
 }
@@ -121,19 +124,21 @@ static uint32_t shu_target_cpu_detect_x86_linux(void) {
         if (strncmp(line, "flags", 5) != 0)
             continue;
         if (flags_has_token(line, "sse2"))
-            f |= SHU_CPU_FEAT_SSE2;
+            f |= SHUX_CPU_FEAT_SSE2;
         if (flags_has_token(line, "sse4_1"))
-            f |= SHU_CPU_FEAT_SSE41;
+            f |= SHUX_CPU_FEAT_SSE41;
         if (flags_has_token(line, "avx"))
-            f |= SHU_CPU_FEAT_AVX;
+            f |= SHUX_CPU_FEAT_AVX;
         if (flags_has_token(line, "avx2"))
-            f |= SHU_CPU_FEAT_AVX2;
+            f |= SHUX_CPU_FEAT_AVX2;
         if (flags_has_token(line, "avx512f"))
-            f |= SHU_CPU_FEAT_AVX512F;
+            f |= SHUX_CPU_FEAT_AVX512F;
         if (flags_has_token(line, "popcnt"))
-            f |= SHU_CPU_FEAT_POPCNT;
+            f |= SHUX_CPU_FEAT_POPCNT;
         if (flags_has_token(line, "bmi2"))
-            f |= SHU_CPU_FEAT_BMI2;
+            f |= SHUX_CPU_FEAT_BMI2;
+        if (flags_has_token(line, "fma"))
+            f |= SHUX_CPU_FEAT_FMA;
         break;
     }
     fclose(fp);
@@ -151,23 +156,25 @@ static uint32_t shu_target_cpu_detect_x86_macos(void) {
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
     size_t sz;
-    uint32_t f = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41;
+    uint32_t f = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41;
 
     sz = sizeof(leaf7);
     if (sysctlbyname("machdep.cpu.leaf7_features", &leaf7, &sz, NULL, 0) == 0) {
         if (leaf7 & (1ULL << 5))
-            f |= SHU_CPU_FEAT_AVX2;
+            f |= SHUX_CPU_FEAT_AVX2;
         if (leaf7 & (1ULL << 16))
-            f |= SHU_CPU_FEAT_AVX512F;
+            f |= SHUX_CPU_FEAT_AVX512F;
         if (leaf7 & (1ULL << 8))
-            f |= SHU_CPU_FEAT_BMI2;
+            f |= SHUX_CPU_FEAT_BMI2;
+        if (leaf7 & (1ULL << 12))
+            f |= SHUX_CPU_FEAT_FMA;
     }
     sz = sizeof(feat);
     if (sysctlbyname("machdep.cpu.feature_bits", &feat, &sz, NULL, 0) == 0) {
         if (feat & (1ULL << 28))
-            f |= SHU_CPU_FEAT_AVX;
+            f |= SHUX_CPU_FEAT_AVX;
         if (feat & (1ULL << 14))
-            f |= SHU_CPU_FEAT_POPCNT;
+            f |= SHUX_CPU_FEAT_POPCNT;
     }
     if (f == 0)
         f = shu_target_cpu_detect_x86_macro_fallback();
@@ -196,7 +203,7 @@ static uint32_t shu_target_cpu_detect_x86(void) {
 static uint32_t shu_target_cpu_detect_arm64_linux(void) {
     FILE *fp;
     char line[512];
-    uint32_t f = SHU_CPU_FEAT_NEON;
+    uint32_t f = SHUX_CPU_FEAT_NEON;
 
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
@@ -205,9 +212,9 @@ static uint32_t shu_target_cpu_detect_arm64_linux(void) {
         if (strncmp(line, "Features", 8) != 0)
             continue;
         if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
-            f |= SHU_CPU_FEAT_NEON;
+            f |= SHUX_CPU_FEAT_NEON;
         if (flags_has_token(line, "sve"))
-            f |= SHU_CPU_FEAT_SVE;
+            f |= SHUX_CPU_FEAT_SVE;
         break;
     }
     fclose(fp);
@@ -218,12 +225,12 @@ static uint32_t shu_target_cpu_detect_arm64_linux(void) {
 #if defined(__APPLE__)
 /** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
 static uint32_t shu_target_cpu_detect_arm64_macos(void) {
-    uint32_t f = SHU_CPU_FEAT_NEON;
+    uint32_t f = SHUX_CPU_FEAT_NEON;
     int sve = 0;
     size_t sz = sizeof(sve);
 
     if (sysctlbyname("hw.optional.arm.FEAT_SVE", &sve, &sz, NULL, 0) == 0 && sve)
-        f |= SHU_CPU_FEAT_SVE;
+        f |= SHUX_CPU_FEAT_SVE;
     return f;
 }
 #endif
@@ -234,7 +241,7 @@ static uint32_t shu_target_cpu_detect_arm64(void) {
 #elif defined(__APPLE__)
     return shu_target_cpu_detect_arm64_macos();
 #else
-    return SHU_CPU_FEAT_NEON;
+    return SHUX_CPU_FEAT_NEON;
 #endif
 }
 
@@ -263,7 +270,7 @@ static uint32_t shu_target_cpu_detect_riscv64_linux(void) {
         while (*isa == ' ' || *isa == '\t')
             isa++;
         if (strchr(isa, 'v') != NULL)
-            f |= SHU_CPU_FEAT_RVV;
+            f |= SHUX_CPU_FEAT_RVV;
         break;
     }
     fclose(fp);
@@ -295,9 +302,9 @@ uint32_t shu_target_cpu_detect_host(void) {
 
 uint32_t shu_target_cpu_generic_for_host(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    return SHU_CPU_FEAT_SSE2;
+    return SHUX_CPU_FEAT_SSE2;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return SHU_CPU_FEAT_NEON;
+    return SHUX_CPU_FEAT_NEON;
 #else
     return 0;
 #endif
@@ -316,50 +323,50 @@ static int shu_target_cpu_parse_named(const char *spec, size_t spec_len, uint32_
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "sse2")) {
-        *out = SHU_CPU_FEAT_SSE2;
+        *out = SHUX_CPU_FEAT_SSE2;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "sse4.1") || spec_eq_ci(spec, spec_len, "sse4_1")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "avx")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_AVX;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "avx2")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_AVX | SHU_CPU_FEAT_AVX2;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "avx512") || spec_eq_ci(spec, spec_len, "avx512f")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_AVX | SHU_CPU_FEAT_AVX2 |
-               SHU_CPU_FEAT_AVX512F;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
+               SHUX_CPU_FEAT_AVX512F;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "x86-64-v2")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_POPCNT;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_POPCNT;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "x86-64-v3")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_AVX | SHU_CPU_FEAT_AVX2 |
-               SHU_CPU_FEAT_POPCNT | SHU_CPU_FEAT_BMI2;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
+               SHUX_CPU_FEAT_POPCNT | SHUX_CPU_FEAT_BMI2;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "x86-64-v4")) {
-        *out = SHU_CPU_FEAT_SSE2 | SHU_CPU_FEAT_SSE41 | SHU_CPU_FEAT_AVX | SHU_CPU_FEAT_AVX2 |
-               SHU_CPU_FEAT_AVX512F | SHU_CPU_FEAT_POPCNT | SHU_CPU_FEAT_BMI2;
+        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
+               SHUX_CPU_FEAT_AVX512F | SHUX_CPU_FEAT_POPCNT | SHUX_CPU_FEAT_BMI2;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "neon")) {
-        *out = SHU_CPU_FEAT_NEON;
+        *out = SHUX_CPU_FEAT_NEON;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "sve")) {
-        *out = SHU_CPU_FEAT_NEON | SHU_CPU_FEAT_SVE;
+        *out = SHUX_CPU_FEAT_NEON | SHUX_CPU_FEAT_SVE;
         return 0;
     }
     if (spec_eq_ci(spec, spec_len, "rvv")) {
-        *out = SHU_CPU_FEAT_RVV;
+        *out = SHUX_CPU_FEAT_RVV;
         return 0;
     }
     return -1;
@@ -403,25 +410,25 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
     if (!out)
         return;
     list[0] = '\0';
-    if (features & SHU_CPU_FEAT_SSE2)
+    if (features & SHUX_CPU_FEAT_SSE2)
         append_feat_name(list, sizeof(list), &pos, "sse2");
-    if (features & SHU_CPU_FEAT_SSE41)
+    if (features & SHUX_CPU_FEAT_SSE41)
         append_feat_name(list, sizeof(list), &pos, "sse4.1");
-    if (features & SHU_CPU_FEAT_AVX)
+    if (features & SHUX_CPU_FEAT_AVX)
         append_feat_name(list, sizeof(list), &pos, "avx");
-    if (features & SHU_CPU_FEAT_AVX2)
+    if (features & SHUX_CPU_FEAT_AVX2)
         append_feat_name(list, sizeof(list), &pos, "avx2");
-    if (features & SHU_CPU_FEAT_AVX512F)
+    if (features & SHUX_CPU_FEAT_AVX512F)
         append_feat_name(list, sizeof(list), &pos, "avx512f");
-    if (features & SHU_CPU_FEAT_POPCNT)
+    if (features & SHUX_CPU_FEAT_POPCNT)
         append_feat_name(list, sizeof(list), &pos, "popcnt");
-    if (features & SHU_CPU_FEAT_BMI2)
+    if (features & SHUX_CPU_FEAT_BMI2)
         append_feat_name(list, sizeof(list), &pos, "bmi2");
-    if (features & SHU_CPU_FEAT_NEON)
+    if (features & SHUX_CPU_FEAT_NEON)
         append_feat_name(list, sizeof(list), &pos, "neon");
-    if (features & SHU_CPU_FEAT_SVE)
+    if (features & SHUX_CPU_FEAT_SVE)
         append_feat_name(list, sizeof(list), &pos, "sve");
-    if (features & SHU_CPU_FEAT_RVV)
+    if (features & SHUX_CPU_FEAT_RVV)
         append_feat_name(list, sizeof(list), &pos, "rvv");
     fprintf(out, "target_cpu_features=0x%08x\n", features);
     fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");

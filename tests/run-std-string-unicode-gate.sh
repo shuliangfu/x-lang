@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MOD="std/string/mod.su"
-SMOKE="tests/string/unicode_bridge.su"
+MOD="std/string/mod.sx"
+SMOKE="tests/string/unicode_bridge.sx"
 
 echo "=== STD-160: std.string unicode bridge ==="
 for f in "$MOD" "$SMOKE"; do
@@ -22,10 +22,10 @@ for kw in string_view_case_fold string_view_is_valid_utf8 unicode_case_fold_buf_
   fi
 done
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "std-string-unicode gate FAIL: typeck" >&2
     exit 1
   fi

@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_ITER_DOC:-analysis/core-iterator-protocol-v1.md}"
-MANIFEST="${SHU_CORE_ITER_TSV:-tests/baseline/core-iterator-protocol.tsv}"
-ITER_SU="core/iterator/mod.su"
+DOC="${SHUX_CORE_ITER_DOC:-analysis/core-iterator-protocol-v1.md}"
+MANIFEST="${SHUX_CORE_ITER_TSV:-tests/baseline/core-iterator-protocol.tsv}"
+ITER_SU="core/iterator/mod.sx"
 LIB="tests/lib/core-iterator-protocol.sh"
-SMOKE="tests/iterator/main.su"
-COOKBOOK="examples/cookbook/iter_slice_sum.su"
+SMOKE="tests/iterator/main.sx"
+COOKBOOK="examples/cookbook/iter_slice_sum.sx"
 
 # shellcheck source=tests/lib/core-iterator-protocol.sh
 . tests/lib/core-iterator-protocol.sh
@@ -51,7 +51,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -64,31 +64,31 @@ CHECK_OK=0
 RUN_OK=0
 COOKBOOK_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-006: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-006: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "core-iterator-protocol gate FAIL: smoke typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_iter_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if "$SHU_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
     COOKBOOK_OK=1
   else
     echo "core-iterator-protocol gate FAIL: cookbook typeck" >&2
-    "$SHU_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
     core_iter_emit_report "fail" "$CHECK_OK" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if $RUN_SHU -L . "$SMOKE" -o /tmp/shu_core_iter 2>/tmp/shu_core_iter_build.log; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_core_iter 2>/tmp/shux_core_iter_build.log; then
     exitcode=0
-    /tmp/shu_core_iter >/dev/null 2>&1 || exitcode=$?
+    /tmp/shux_core_iter >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -98,11 +98,11 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "core-iterator-protocol gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shu_core_iter_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/shux_core_iter_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "core-iterator-protocol gate SKIP typeck (no native shu)" >&2
+  echo "core-iterator-protocol gate SKIP typeck (no native shux)" >&2
 fi
 
 core_iter_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$COOKBOOK_OK" "$SKIP"

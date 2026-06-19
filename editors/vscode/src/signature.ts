@@ -1,5 +1,5 @@
 /**
- * Shulang SignatureHelpProvider — 函数参数提示
+ * Shux SignatureHelpProvider — 函数参数提示
  *
  * 当输入 `func(` 时弹出参数签名提示。
  * 从当前文件解析函数定义，展示参数名和类型。
@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode';
 
-export class ShulangSignatureHelpProvider implements vscode.SignatureHelpProvider {
+export class ShuxSignatureHelpProvider implements vscode.SignatureHelpProvider {
   public provideSignatureHelp(
     document: vscode.TextDocument,
     position: vscode.Position,

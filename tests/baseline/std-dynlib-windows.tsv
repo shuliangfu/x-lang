@@ -8,14 +8,14 @@ win_sym	code	-	GetProcAddress	std/dynlib/dynlib.c	Windows sym
 win_close	code	-	FreeLibrary	std/dynlib/dynlib.c	Windows close
 posix_open	code	-	dlopen	std/dynlib/dynlib.c	POSIX open
 posix_sym	code	-	dlsym	std/dynlib/dynlib.c	POSIX sym
-api_open	symbol	-	open	std/dynlib/mod.su	用户 API
-api_sym	symbol	-	sym	std/dynlib/mod.su	用户 API
-api_close	symbol	-	close	std/dynlib/mod.su	用户 API
+api_open	symbol	-	open	std/dynlib/mod.sx	用户 API
+api_sym	symbol	-	sym	std/dynlib/mod.sx	用户 API
+api_close	symbol	-	close	std/dynlib/mod.sx	用户 API
 section_win	section	LoadLibraryA	-	analysis/std-dynlib-windows-v1.md	§3
 section_posix	section	dlopen(RTLD_NOW)	-	analysis/std-dynlib-windows-v1.md	POSIX
-test_null	file	-	main.su	tests/dynlib/main.su	open null
-test_osc	file	-	open_sym_close.su	tests/dynlib/open_sym_close.su	open/sym/close
-test_win_path	file	-	win_path.su	tests/dynlib/win_path.su	STD-097 typeck
+test_null	file	-	main.sx	tests/dynlib/main.sx	open null
+test_osc	file	-	open_sym_close.sx	tests/dynlib/open_sym_close.sx	open/sym/close
+test_win_path	file	-	win_path.sx	tests/dynlib/win_path.sx	STD-097 typeck
 test_win_path_c	file	-	win_path_smoke.c	tests/dynlib/win_path_smoke.c	STD-097 C 烟测
 runner	script	-	run-dynlib.sh	tests/run-dynlib.sh	回归
 doc	file	-	std-dynlib-windows-v1.md	analysis/std-dynlib-windows-v1.md	RFC

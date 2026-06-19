@@ -1,15 +1,15 @@
 # CORE-017 core.mem volatile/fence manifest
 min_apis	8
-api_vload8	api	volatile_load_u8	core/mem/mod.su	u8
-api_vload16	api	volatile_load_u16	core/mem/mod.su	u16
-api_vstore16	api	volatile_store_u16	core/mem/mod.su	u16
-api_vstore32	api	volatile_store_u32	core/mem/mod.su	u32
-api_compiler_fence	api	compiler_fence	core/mem/mod.su	编译器栅栏
-api_fence_acquire	api	fence_acquire	core/mem/mod.su	acquire
-api_fence_release	api	fence_release	core/mem/mod.su	release
-api_fence_seq	api	fence_seq_cst	core/mem/mod.su	seq_cst
+api_vload8	api	volatile_load_u8	core/mem/mod.sx	u8
+api_vload16	api	volatile_load_u16	core/mem/mod.sx	u16
+api_vstore16	api	volatile_store_u16	core/mem/mod.sx	u16
+api_vstore32	api	volatile_store_u32	core/mem/mod.sx	u32
+api_compiler_fence	api	compiler_fence	core/mem/mod.sx	编译器栅栏
+api_fence_acquire	api	fence_acquire	core/mem/mod.sx	acquire
+api_fence_release	api	fence_release	core/mem/mod.sx	release
+api_fence_seq	api	fence_seq_cst	core/mem/mod.sx	seq_cst
 impl_c	file	core/mem/mem.c	C volatile/fence
 symbol_smoke_c	symbol	mem_volatile_fence_smoke_c	core/mem/mem.c	C 烟测
-smoke_su	smoke	tests/core-mem/volatile_fence.su	.su 烟测
+smoke_su	smoke	tests/core-mem/volatile_fence.sx	.sx 烟测
 smoke_c	file	tests/core-mem/volatile_fence_smoke.c	C 入口
 gate	script	run-core-mem-volatile-fence-gate.sh	tests/run-core-mem-volatile-fence-gate.sh

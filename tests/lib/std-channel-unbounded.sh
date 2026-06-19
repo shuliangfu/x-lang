@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_channel_unbounded_symbols_ok MOD_SU CHANNEL_C TSV
-#   std_channel_unbounded_run_smoke SHU_BIN SU TAG
+#   std_channel_unbounded_run_smoke SHUX_BIN SU TAG
 #   std_channel_unbounded_emit_report status unbounded_ok main_ok skip
 
-STD_CHANNEL_UNBOUNDED_PREFIX="${SHU_STD_CHANNEL_UNBOUNDED_PREFIX:-shu: [SHU_STD_CHANNEL_UNBOUNDED]}"
+STD_CHANNEL_UNBOUNDED_PREFIX="${SHUX_STD_CHANNEL_UNBOUNDED_PREFIX:-shux: [SHUX_STD_CHANNEL_UNBOUNDED]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_channel_unbounded_symbols_ok() {
@@ -47,19 +47,19 @@ std_channel_unbounded_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su。
+# 编译并运行烟测 .sx。
 std_channel_unbounded_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_channel_ub_${tag}_$$"
+  local exe="/tmp/shux_std_channel_ub_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-channel-unbounded FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-channel-unbounded FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

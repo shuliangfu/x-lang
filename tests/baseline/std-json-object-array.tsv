@@ -1,14 +1,14 @@
 # STD-034 std.json object/array manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	6
-skip_value	symbol	skip_value	std/json/mod.su
-cursor_init	symbol	cursor_init	std/json/mod.su
-cursor_object_next	symbol	cursor_object_next	std/json/mod.su
-cursor_array_has_elem	symbol	cursor_array_has_elem	std/json/mod.su
-cursor_skip_value	symbol	cursor_skip_value	std/json/mod.su
+skip_value	symbol	skip_value	std/json/mod.sx
+cursor_init	symbol	cursor_init	std/json/mod.sx
+cursor_object_next	symbol	cursor_object_next	std/json/mod.sx
+cursor_array_has_elem	symbol	cursor_array_has_elem	std/json/mod.sx
+cursor_skip_value	symbol	cursor_skip_value	std/json/mod.sx
 json_cursor_c	symbol	json_cursor_object_next_c	std/json/json.c
 zc_doc	anchor	大对象 ZC 策略	analysis/std-json-object-array-v1.md	RFC
 object_array	anchor	object_array_parse	analysis/std-json-object-array-v1.md	RFC
-test_oa	file	tests/json/object_array_parse.su		金样
+test_oa	file	tests/json/object_array_parse.sx		金样
 doc	file	analysis/std-json-object-array-v1.md	analysis/std-json-object-array-v1.md	RFC
 gate	script	run-std-json-object-array-gate.sh	tests/run-std-json-object-array-gate.sh	manifest

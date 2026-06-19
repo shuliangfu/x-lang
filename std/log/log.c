@@ -2,7 +2,7 @@
  * std/log/log.c — 日志写入 stderr，带级别前缀（零分配，对标 Zig std.log / Rust log）
  *
  * 【文件职责】log_write_c(level, ptr, len) 写 "[LEVEL] " + 消息 + 换行到 fd 2；set_min_level_c 过滤。
- * 【性能】无 malloc；单次 write 调用；级别比较在 C 层避免 .su 分支。
+ * 【性能】无 malloc；单次 write 调用；级别比较在 C 层避免 .sx 分支。
  */
 
 #include <stdint.h>

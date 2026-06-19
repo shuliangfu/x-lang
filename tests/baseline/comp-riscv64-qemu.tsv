@@ -7,8 +7,8 @@ gate_section	section	## 3. Gate	run-comp-riscv64-qemu-gate
 parent_tsv	cross_ref	tests/baseline/comp-riscv64.tsv	COMP-012
 parent_wave	cross_ref	tests/baseline/comp-riscv64-wave.tsv	COMP-016
 parent_doc	cross_ref	analysis/comp-riscv64-wave-v1.md	COMP-016
-case_qemu_min	case_ref	case_qemu_min	riscv64_min.su	exit 42
-case_qemu_binop	case_ref	case_qemu_binop	binop_return_four_add.su	exit 10
+case_qemu_min	case_ref	case_qemu_min	riscv64_min.sx	exit 42
+case_qemu_binop	case_ref	case_qemu_binop	binop_return_four_add.sx	exit 10
 hook_smoke	hook_gate	run-comp-riscv64-qemu-smoke.sh	qemu runner
 lib	script	lib/comp-riscv64-qemu.sh	tests/lib/comp-riscv64-qemu.sh
 gate	script	run-comp-riscv64-qemu-gate.sh	tests/run-comp-riscv64-qemu-gate.sh

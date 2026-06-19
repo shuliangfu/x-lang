@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CONTEXT_DOC:-analysis/std-context-v1.md}"
-MANIFEST="${SHU_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
-MOD_SU="std/context/mod.su"
+DOC="${SHUX_STD_CONTEXT_DOC:-analysis/std-context-v1.md}"
+MANIFEST="${SHUX_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
+MOD_SU="std/context/mod.sx"
 CTX_C="std/context/context.c"
 LIB="tests/lib/std-context.sh"
-SMOKE_SU="tests/std-context/cancel_smoke.su"
+SMOKE_SU="tests/std-context/cancel_smoke.sx"
 SMOKE_C="tests/std-context/context_smoke_ok.c"
 MIN_APIS=10
 
@@ -63,7 +63,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-context manifest OK"
 
-if [ "${SHU_STD_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
   std_context_emit_report "ok" 0 0 1
   echo "std-context gate OK (manifest only)"
   exit 0
@@ -75,12 +75,12 @@ SKIP=0
 
 echo "=== STD-071: context c smoke ==="
 make -C compiler ../std/context/context.o ../std/time/time.o >/dev/null 2>&1
-if cc -std=c11 -O1 -o /tmp/shu_ctx_smoke \
+if cc -std=c11 -O1 -o /tmp/shux_ctx_smoke \
   "$SMOKE_C" std/context/context.o std/time/time.o 2>/dev/null; then
-  if /tmp/shu_ctx_smoke >/dev/null 2>&1; then
+  if /tmp/shux_ctx_smoke >/dev/null 2>&1; then
     C_OK=1
   fi
-  rm -f /tmp/shu_ctx_smoke
+  rm -f /tmp/shux_ctx_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_context_emit_report "fail" 0 0 0
@@ -88,25 +88,25 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-071: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-071: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-context gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_context_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_context_run_smoke "$SHU_BIN" "$SMOKE_SU" "cancel"; then
+  if std_context_run_smoke "$SHUX_BIN" "$SMOKE_SU" "cancel"; then
     SU_OK=1
   else
     std_context_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-context gate SKIP .su smoke (no shu)" >&2
+  echo "std-context gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

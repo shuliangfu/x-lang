@@ -8,30 +8,30 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/lang-trait.sh
 . tests/lib/lang-trait.sh
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if lang_trait_native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ] || ! lang_trait_native_shu "$SHU_BIN"; then
-  echo "lang-trait SKIP (no native shu, host=$(uname -s)/$(uname -m 2>/dev/null))"
+if [ -z "$SHUX_BIN" ] || ! lang_trait_native_shu "$SHUX_BIN"; then
+  echo "lang-trait SKIP (no native shux, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "lang-trait OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-echo "=== LANG-004: trait smoke (SHU=$SHU_BIN) ==="
+echo "=== LANG-004: trait smoke (SHUX=$SHUX_BIN) ==="
 chmod +x tests/run-trait.sh
-SHU="$SHU_BIN" ./tests/run-trait.sh
+SHUX="$SHUX_BIN" ./tests/run-trait.sh
 
 # impl 缺方法负例（run-trait.sh 未覆盖）
-err=$("$SHU_BIN" tests/trait/impl_missing_method.su -o /tmp/shu_trait_miss 2>&1) || true
+err=$("$SHUX_BIN" tests/trait/impl_missing_method.sx -o /tmp/shux_trait_miss 2>&1) || true
 echo "$err" | grep -q "missing method" || {
   echo "lang-trait FAIL: expected missing method error, got: $err" >&2
   exit 1

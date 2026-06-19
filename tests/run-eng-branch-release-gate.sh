@@ -9,14 +9,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_ENG_RELEASE_DOC:-analysis/eng-branch-release-gate-v1.md}"
-MANIFEST="${SHU_ENG_RELEASE_MANIFEST:-tests/baseline/eng-branch-release-gate.tsv}"
+DOC="${SHUX_ENG_RELEASE_DOC:-analysis/eng-branch-release-gate-v1.md}"
+MANIFEST="${SHUX_ENG_RELEASE_MANIFEST:-tests/baseline/eng-branch-release-gate.tsv}"
 LIB="tests/lib/eng-branch-release-gate.sh"
 PRECHECK="tests/run-eng-release-precheck.sh"
 CI_YML=".github/workflows/ci.yml"
 MIN_GATES=3
 MIN_BRANCH=2
-PREFIX="shu: [SHU_RELEASE_PRECHECK]"
+PREFIX="shux: [SHUX_RELEASE_PRECHECK]"
 
 # shellcheck source=tests/lib/eng-branch-release-gate.sh
 . tests/lib/eng-branch-release-gate.sh
@@ -109,7 +109,7 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-for kw in branch protection release precheck SHU_RELEASE_PRECHECK dev main; do
+for kw in branch protection release precheck SHUX_RELEASE_PRECHECK dev main; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "eng-branch-release-gate FAIL: doc missing keyword $kw" >&2
     exit 1

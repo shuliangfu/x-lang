@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
-# M8-tail：将 backend.su 大 emit 函数体替换为单行 C/partial 薄包装（恢复自举 second pass）。
+# M8-tail：将 backend.sx 大 emit 函数体替换为单行 C/partial 薄包装（恢复自举 second pass）。
 use strict;
 use warnings;
 use utf8;
 
-my $path = shift @ARGV // 'src/asm/backend.su';
+my $path = shift @ARGV // 'src/asm/backend.sx';
 open my $fh, '<', $path or die "open $path: $!";
 my $src = do { local $/; <$fh> };
 close $fh;

@@ -6,12 +6,12 @@
 #   boot026_parse_su_emit_log LOG_FILE
 #   boot026_emit_report status c4_minimal_ok c4_su_probe skip
 
-BOOT026_PREFIX="${SHU_BOOT026_PREFIX:-shu: [SHU_BOOT026]}"
+BOOT026_PREFIX="${SHUX_BOOT026_PREFIX:-shux: [SHUX_BOOT026]}"
 
-# Linux 且存在 compiler/shu seed 则可跑 SU bootstrap 波次。
+# Linux 且存在 compiler/shux seed 则可跑 SU bootstrap 波次。
 boot026_parser_linux_shu() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu" ] || return 1
+  [ -x "./compiler/shux" ] || return 1
   return 0
 }
 
@@ -21,7 +21,7 @@ boot026_parse_su_emit_log() {
   local log="$1"
   local minimal=0
   local probe=0
-  if grep -qE 'parser-parse-bootstrap-su-emit-gate PASS' "$log" 2>/dev/null; then
+  if grep -qE 'parser-parse-bootstrap-sx-emit-gate PASS' "$log" 2>/dev/null; then
     probe=1
     if grep -qF 'MINIMAL OK' "$log" 2>/dev/null; then
       minimal=1

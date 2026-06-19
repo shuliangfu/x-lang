@@ -7,8 +7,8 @@
  * 重要约定：parse 成功后 *out 由调用方 ast_module_free；语法错误时已向 stderr 输出行号列号及信息，返回 -1。
  */
 
-#ifndef SHU_PARSER_H
-#define SHU_PARSER_H
+#ifndef SHUX_PARSER_H
+#define SHUX_PARSER_H
 
 #include "ast.h"
 
@@ -24,4 +24,4 @@ struct Lexer;  /* 前向声明，避免 parser 使用者强制依赖 lexer.h */
  */
 int parse(struct Lexer *lex, ASTModule **out);
 
-#endif /* SHU_PARSER_H */
+#endif /* SHUX_PARSER_H */

@@ -3,14 +3,14 @@
 # min_cases	2
 read_path	section	## 1. 阅读路径	analysis/safe-crash-evidence-v1.md	-	15min
 bundle	section	## 2. 证据包字段	analysis/safe-crash-evidence-v1.md	-	panic+frames
-env	section	## 3. 环境变量	analysis/safe-crash-evidence-v1.md	-	SHU_CRASH_EVIDENCE
+env	section	## 3. 环境变量	analysis/safe-crash-evidence-v1.md	-	SHUX_CRASH_EVIDENCE
 panic_hook	section	## 4. panic 挂钩	analysis/safe-crash-evidence-v1.md	-	runtime_panic
 verify	section	## 6. 验证与门禁	analysis/safe-crash-evidence-v1.md	-	gate
-api_collect	api	collect_crash_evidence	std/backtrace/mod.su	core	手动/自动
+api_collect	api	collect_crash_evidence	std/backtrace/mod.sx	core	手动/自动
 impl_c	file	std/backtrace/backtrace.c	std/backtrace/backtrace.c	impl	收集
 impl_panic	file	compiler/src/asm/runtime_panic.c	compiler/src/asm/runtime_panic.c	hook	弱符号
-case_manual	case	evidence_manual	tests/crash/evidence_manual.su	0	显式收集
-case_panic	case	div_zero	tests/ub/div_zero.su	panic	除零 panic
+case_manual	case	evidence_manual	tests/crash/evidence_manual.sx	0	显式收集
+case_panic	case	div_zero	tests/ub/div_zero.sx	panic	除零 panic
 lib	script	lib/safe-crash.sh	tests/lib/safe-crash.sh	-	共享库
 runner	script	run-safe-crash-evidence.sh	tests/run-safe-crash-evidence.sh	-	回归
 gate	script	run-safe-crash-evidence-gate.sh	tests/run-safe-crash-evidence-gate.sh	-	manifest

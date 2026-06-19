@@ -17,11 +17,11 @@
 | 类型/函数 | 说明 |
 |-----------|------|
 | `Buffer` | 结构体 { ptr, len, handle }，24 字节，与 std.io.driver Buffer 同布局。 |
-| `register_buffer(buf)` | 调用 std.io.core.shu_io_register，与 std.io.driver 共用同一实现。 |
+| `register_buffer(buf)` | 调用 std.io.core.shux_io_register，与 std.io.driver 共用同一实现。 |
 
 ## 依赖
 
-- **std.io.core**：register_buffer 用 shu_io_register。
+- **std.io.core**：register_buffer 用 shux_io_register。
 - **std.heap**：copy/set/compare 用 heap 的 copy_u8_at、heap_mem_set_c、heap_mem_compare_c（链接 heap.o）。
 
 ## 对标说明

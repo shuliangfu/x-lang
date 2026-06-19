@@ -1,0 +1,180 @@
+// build.sx — Shux 构建配置（对标 Zig 的
+// build.zig），目标是以本文件为唯一「构建策略」来源，最终去掉 Makefile。
+// 自举分层、Target B 与验收命令见 compiler/docs/SELFHOST.md（与 src/asm/README.md
+// Goal 2 互补）。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// 两条产物路径（由 argv[2] 是否等于 asm 选择）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//  • 默认路径：shux 把各 .sx 模块编译为 C（-E -E-extern），再用宿主 cc 编成
+// .o 并链接 → 产物 compiler/shux。
+//    依赖少、调试友好；中间有 *_gen.c。
+//
+//  • asm 路径：./build_tool <shux> asm → scripts/build_shux_asm.sh
+//    用同一套 shux 以 -backend asm 把 .sx 直接编成目标文件 .o（顺序见
+// src/asm/asm_build_list.sx），再尽量用 crt0 + 极少 C 运行时节链接出
+// compiler/shux_asm。
+//    这是「尽量走机器码、少依赖 C 翻译
+// .sx」的路径；链接阶段仍需要宿主 cc 做 ld（与 Zig
+// 最终结果也由平台链接器完成类似）。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// 如何使用 shux 来编译（从零到一次完整构建）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//  1) 得到「第一个」shux（仅首次或干净克隆后需要），任选其一：
+//       cd compiler && sh bootstrap.sh
+//     仅依赖 cc，不依赖 Makefile；产出 shux、shux-c、build_tool。
+//     或：cd compiler && make（与仓库既有流程兼容）。
+//
+//  2) 若尚未有 build_tool：bootstrap.sh 已生成；否则 `make build-tool` /
+// `first-time`（仅用 **shux-c** 跑 ../build.sx -E → build_gen.c + build_runtime.c；与
+// lsp_*_gen 一致，不依赖已链 pipeline/driver 的完整 shux，避免 Makefile 规则环）。
+//
+//  3) 日常：在 compiler 目录
+//       ./build_tool ./shux
+//     由 build_use_asm_only() 决定默认行为（见下方）：为 1 时先走 asm
+// 脚本（不生成 pipeline_gen.c/driver_gen.c），
+//     失败则自动回退到 legacy 逐步（生成 *_gen.c）；为 0 时直接 legacy。
+//
+//  4) 显式强制：
+//       ./build_tool ./shux asm   — 只跑 asm 脚本，失败则退出（不回退）。
+//       ./build_tool ./shux legacy — 只跑 legacy 逐步，忽略 build_use_asm_only。
+//
+//     asm 成功产出 shux_asm 后，由 compiler 目录下 C 版 build_tool 默认会 cp 覆盖
+// ./shux；仅 crt0+build_runner 的 Linux 产物若未含该逻辑则需自行 cp。
+//
+//  之后：改 .sx 后重复 3) 或 4)；改 build.sx 后需重新生成 build_tool（bootstrap
+// 第 4 步或 make build-tool）。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// 如何用 build.sx 替代 Makefile（build_tool 的用法）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//   • 日常构建（M7：等价于 make bootstrap-driver = B-strict）：
+//       cd compiler && ./build_tool ./shux
+//     或：make -C compiler bootstrap-driver-bstrict
+//
+//   • 指定 shux 路径：
+//       ./build_tool /path/to/shux
+//
+//   • 完全自举 asm 路径（不生成 *_gen.c 参与 shux 本体，见
+// scripts/build_shux_asm.sh）：
+//       ./build_tool ./shux asm
+//
+//   build_tool 由「本文件 build.sx → shux-c（或等价 C 前端）-E →
+// build_gen.c」编成，与 build_runtime.o 链接；
+//   运行器（build_runtime.c）按本文件步骤顺序执行「默认路径」；asm 由
+// argv[2]=asm 转调上述脚本（build_runner.sx 与 C 版 main 行为一致）。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// 去掉 Makefile 的爬梯（实现中）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//   1) 冷启动仅用 bootstrap.sh + cc（已具备）。
+//   2) 日常与 CI 以 ./build_tool ./shux 与 ./build_tool ./shux asm 为准，Makefile
+// 标为兜底（Makefile 顶部注释已说明）；冷启动后生成 build_tool 用 shux-c 即可。
+//   3) 待 asm 路径在目标平台上稳定替代默认路径后，可删除 Makefile
+// 中与重复的目标，仅保留文档指向 build.sx。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// build.sx 里写什么（替代 Makefile 的「配置」部分）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//   • 步骤顺序：默认先做哪一步、再做哪一步（见下方步骤 ID 与顺序）。
+//   • 步骤含义：每个 step_id 对应「编 C / 生成 _gen.c / 编 _su.o /
+// 链接」中的哪一类（仅注释说明）。
+//   • 构建选项：argv[1]=shux 路径、argv[2]=asm 时走 asm
+// 路径（仅注释，由运行器解释）。
+//
+//  不写在 build.sx 的：具体 shell 命令、sed/patch
+// 内容、编译/链接参数；这些留在 build_runtime.c。
+//
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+// 步骤 ID 与含义（与 Makefile bootstrap-driver 等价）
+//
+═════════════════════════════════�
+��════════════════════════════════�
+�════════════
+//
+//   0 = STEP_INITIAL_C            编初始 C（与 build_runtime.c case 0
+// 一致：main/runtime/lexer/ast/parser/typeck/codegen/lsp_diag/std_fs_shim/sx_stubs 等）
+//   6 = STEP_GEN_AND_COMPILE_SU   用 shux -E 生成并编
+parser/typeck/codegen/ast/token/lexer/preprocess → _su.o
+//   1 = STEP_PIPELINE_GEN         生成 pipeline_gen.c 并修正
+//   2 = STEP_COMPILE_PIPELINE_GEN 编 pipeline_gen.c → pipeline_sx.o
+//   3 = STEP_DRIVER_GEN           生成 driver_gen.c 并修正
+//   4 = STEP_COMPILE_DRIVER_GEN   编 driver_gen.c → driver_su.o
+//   5 = STEP_LINK                 链接 shux（main.o + runtime_driver.o + … + pipeline_sx.o）
+//
+// 默认步骤顺序：0 → 6 → 1 → 2 → 3 → 4 → 5。
+// 第 i 步对应的 step_id 由下方 build_get_step_at(i) 给出；与
+// compiler/src/build_runtime.c 中默认循环一致。
+//
+// 下面函数是「配置 → 运行器」的接口：运行器据此选择 asm 脚本或 legacy
+// 步骤。
+
+/**
+* 1：./build_tool <shux> 在无 argv[2]、且非 legacy 时，优先执行
+* scripts/build_shux_asm.sh（汇编后端直出 .o，不生成 pipeline_gen.c/driver_gen.c）。
+*    asm 失败时 build_runtime 会自动回退 legacy（便于 macOS 等 asm
+* 链接未成熟的宿主）。
+* 0：默认始终走 legacy 逐步（与旧 Makefile build_tool 行为一致）。
+* 显式 ./build_tool <shux> asm / legacy 不受此位影响（asm 仍不回退；legacy
+* 仍只跑逐步）。
+*/
+function build_use_asm_only(): i32 {
+  return 1;
+}
+
+/** 返回第 i 步的 step_id（0≤i<build_get_step_count()）；越界返回
+* -1。顺序与上文「默认步骤顺序」一致。 */
+function build_get_step_at(i: i32): i32 {
+  if (i == 0) { return 0; }
+  if (i == 1) { return 6; }
+  if (i == 2) { return 1; }
+  if (i == 3) { return 2; }
+  if (i == 4) { return 3; }
+  if (i == 5) { return 4; }
+  if (i == 6) { return 5; }
+  return -1;
+}
+
+/** 返回默认构建的步骤数量；运行器据此循环执行各步。 */
+function build_get_step_count(): i32 {
+  return 7;
+}

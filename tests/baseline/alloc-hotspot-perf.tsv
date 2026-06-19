@@ -1,5 +1,5 @@
 # PERF-007 heap 分配热点基线（strace 次数上限）
 # 列：case_id	bench_src	expect_exit	max_malloc	max_calloc	max_realloc	notes
 # posix_memalign 不计入；仅治理 malloc/calloc/realloc 热路径
-string_arena_concat	tests/bench/string_arena_concat.su	128	0	0	0	ZC-4 arena 链式拼接
-cl_arena64_smoke	tests/dod/cl_arena64_smoke.su	0	0	0	0	DOD-CL-S2 Arena64 bump
+string_arena_concat	tests/bench/string_arena_concat.sx	128	0	0	0	ZC-4 arena 链式拼接
+cl_arena64_smoke	tests/dod/cl_arena64_smoke.sx	0	0	0	0	DOD-CL-S2 Arena64 bump

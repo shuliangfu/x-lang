@@ -1,4 +1,4 @@
-/* mem_copy.c — 与 tests/bench/mem_copy.su 对齐（while 两遍扫描 × rounds，无 I/O） */
+/* mem_copy.c — 与 tests/bench/mem_copy.sx 对齐（while 两遍扫描 × rounds，无 I/O） */
 #include <stdint.h>
 
 int main(void) {

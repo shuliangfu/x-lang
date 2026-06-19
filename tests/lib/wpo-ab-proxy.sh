@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WPO A/B 快路径：build_asm 已有压缩 .o 时用 baseline proxy 作 dce_off，免重复 EMIT_HEAVY 重编。
-# 被 run-perf-wpo-dce-compiler-self-text.sh / run-perf-wpo-dce-shu-asm-text.sh source。
-# 关闭：SHU_WPO_FAST_AB=0
+# 被 run-perf-wpo-dce-compiler-self-text.sh / run-perf-wpo-dce-shux-asm-text.sh source。
+# 关闭：SHUX_WPO_FAST_AB=0
 
 wpo_ab_proxy_from_baseline() {
   local key="$1"
@@ -37,13 +37,13 @@ wpo_ab_text_bytes() {
   return 1
 }
 
-# main.su：MON=树内 main.o；MOFF=baseline proxy（生产 WPO 链）。
+# main.sx：MON=树内 main.o；MOFF=baseline proxy（生产 WPO 链）。
 wpo_ab_try_main_fast() {
   local build_main="$1"
   local baseline="$2"
   local max_on="${3:-768}"
   local off_proxy on_txt
-  [ "${SHU_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_main" ] || return 1
   off_proxy=$(wpo_ab_proxy_from_baseline "main_dce_off_text" "$baseline")
   off_proxy=${off_proxy:-1304}
@@ -54,13 +54,13 @@ wpo_ab_try_main_fast() {
   return 0
 }
 
-# driver/compile.su：DON=树内 driver_compile.o；DOFF=baseline proxy。
+# driver/compile.sx：DON=树内 driver_compile.o；DOFF=baseline proxy。
 wpo_ab_try_driver_fast() {
   local build_drv="$1"
   local baseline="$2"
   local max_on="${3:-768}"
   local off_proxy on_txt
-  [ "${SHU_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_drv" ] || return 1
   off_proxy=$(wpo_ab_proxy_from_baseline "driver_dce_off_text" "$baseline")
   off_proxy=${off_proxy:-7637}
@@ -71,30 +71,30 @@ wpo_ab_try_driver_fast() {
   return 0
 }
 
-# pipeline.su：PON=树内 pipeline.o 或 pipeline_wpo.o；POFF=baseline proxy（须 < emit_heavy min）。
+# pipeline.sx：PON=树内 pipeline.o 或 pipeline_wpo.o；POFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_pipeline_fast() {
   local build_pipe="$1"
   local baseline="$2"
   local emit_heavy_min="${3:-2048}"
   local off_proxy on_txt
-  [ "${SHU_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_pipe" ] || return 1
   off_proxy=$(wpo_ab_proxy_from_baseline "pipeline_dce_off_text" "$baseline")
   off_proxy=${off_proxy:-11588}
   on_txt=$(wpo_ab_text_bytes "$build_pipe") || return 1
   [ "$on_txt" -lt "$emit_heavy_min" ] 2>/dev/null || return 1
-  nm "$build_pipe" 2>/dev/null | grep -q 'run_su_pipeline_impl' || return 1
+  nm "$build_pipe" 2>/dev/null | grep -q 'run_sx_pipeline_impl' || return 1
   echo "$off_proxy $on_txt"
   return 0
 }
 
-# typeck.su：TON=树内 typeck_wpo.o；TOFF=baseline proxy（须 < emit_heavy min）。
+# typeck.sx：TON=树内 typeck_wpo.o；TOFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_typeck_fast() {
   local build_tck="$1"
   local baseline="$2"
   local emit_heavy_min="${3:-2048}"
   local off_proxy on_txt
-  [ "${SHU_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_tck" ] || return 1
   off_proxy=$(wpo_ab_proxy_from_baseline "typeck_dce_off_text" "$baseline")
   off_proxy=${off_proxy:-79397}
@@ -106,13 +106,13 @@ wpo_ab_try_typeck_fast() {
   return 0
 }
 
-# backend.su：BON=树内 backend_wpo.o；BOFF=baseline proxy（须 < emit_heavy min）。
+# backend.sx：BON=树内 backend_wpo.o；BOFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_backend_fast() {
   local build_be="$1"
   local baseline="$2"
   local emit_heavy_min="${3:-4096}"
   local off_proxy on_txt
-  [ "${SHU_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_be" ] || return 1
   off_proxy=$(wpo_ab_proxy_from_baseline "backend_dce_off_text" "$baseline")
   off_proxy=${off_proxy:-4677}

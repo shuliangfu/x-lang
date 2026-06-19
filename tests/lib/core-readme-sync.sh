@@ -6,7 +6,7 @@
 #   core_readme_anchors_ok README DOC07 TSV
 #   core_readme_emit_report status forbidden_miss readme_miss doc_miss
 
-CORE_README_PREFIX="${SHU_CORE_README_PREFIX:-shu: [SHU_CORE_README]}"
+CORE_README_PREFIX="${SHUX_CORE_README_PREFIX:-shux: [SHUX_CORE_README]}"
 
 # 按 target 列扫描禁止措辞；echo 命中数。
 core_readme_forbidden_ok() {

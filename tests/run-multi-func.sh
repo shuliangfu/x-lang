@@ -4,14 +4,14 @@
 
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-if [ -z "${SHULANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-"$RUN_SHU" tests/multi-func/main.su -o /tmp/shu_multi_func 2>&1
+"$RUN_SHUX" tests/multi-func/main.sx -o /tmp/shux_multi_func 2>&1
 exitcode=0
-/tmp/shu_multi_func >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_multi_func >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 3 ]; then
     echo "expected exit code 3 (add(1,2)), got $exitcode"
     exit 1

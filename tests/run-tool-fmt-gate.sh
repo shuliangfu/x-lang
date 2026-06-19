@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
-MANIFEST="${SHU_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
+DOC="${SHUX_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
+MANIFEST="${SHUX_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
 MIN_CASES=5
 MIN_RULES=6
 
@@ -27,7 +27,7 @@ native_shu() {
 }
 
 echo "=== TOOL-001: formatter style manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/driver/fmt.su compiler/src/driver/fmt_check_cmd.c; do
+for f in "$DOC" "$MANIFEST" compiler/src/driver/fmt.sx compiler/src/driver/fmt_check_cmd.c; do
   if [ ! -f "$f" ]; then
     echo "tool-fmt gate FAIL: missing $f" >&2
     exit 1
@@ -122,24 +122,24 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-fmt manifest OK (cases=${CASE_N} rules=${RULE_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  echo "=== TOOL-001: fmt hooks (SHU=$SHU_BIN) ==="
+  echo "=== TOOL-001: fmt hooks (SHUX=$SHUX_BIN) ==="
   chmod +x tests/run-fmt-cmd.sh tests/run-fmt-check-cmd.sh tests/run-fmt-wrap.sh
-  SHU="$SHU_BIN" ./tests/run-fmt-cmd.sh
+  SHUX="$SHUX_BIN" ./tests/run-fmt-cmd.sh
   echo "tool-fmt hooks OK"
 else
-  echo "tool-fmt gate SKIP hooks (no shu)" >&2
+  echo "tool-fmt gate SKIP hooks (no shux)" >&2
 fi
 
 echo "tool-fmt gate OK"

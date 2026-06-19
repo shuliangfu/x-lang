@@ -1,0 +1,47 @@
+// tests/env/env_iter.sx — STD-025：env_iter / args_iter 烟测
+//
+// 【文件职责】校验环境块与命令行参数遍历 API。
+// 【预期结果】退出码 0 表示通过。
+const env = import("std.env");
+
+/** 比较 key_buf 与字面量 "X_IT"（4 字节）是否一致。 */
+function key_is_x_it(key: *u8): i32 {
+  if (key[0] != 88) { return 0; }
+  if (key[1] != 95) { return 0; }
+  if (key[2] != 73) { return 0; }
+  if (key[3] != 84) { return 0; }
+  if (key[4] != 0) { return 0; }
+  return 1;
+}
+
+function main(): i32 {
+  let ai: ArgsIter = env.args_iter();
+  let a0: *u8 = env.args_iter_next(&ai);
+  if (a0 == 0) { return 1; }
+  if (env.args_iter_count() < 1) { return 2; }
+
+  let name: [5]u8 = [88, 95, 73, 84, 0];
+  let val: [4]u8 = [118, 49, 0, 0];
+  if (env.setenv(&name[0], &val[0], 1) != 0) { return 3; }
+
+  let ei: EnvIter = env.env_iter();
+  let key_buf: [32]u8 = [];
+  let val_buf: [32]u8 = [];
+  let found: i32 = 0;
+  let steps: i32 = 0;
+  while (steps < 4096) {
+    let r: i32 = env.env_iter_next(&ei, &key_buf[0], 32, &val_buf[0], 32);
+    if (r == 0) { break; }
+    if (r < 0) { return 4; }
+    if (key_is_x_it(&key_buf[0]) == 1) {
+      if (val_buf[0] != 118) { return 5; }
+      if (val_buf[1] != 49) { return 6; }
+      found = 1;
+    }
+    steps = steps + 1;
+  }
+  if (found != 1) { return 7; }
+  if (env.env_iter_count() < 1) { return 8; }
+  if (env.unsetenv(&name[0]) != 0) { return 9; }
+  return 0;
+}

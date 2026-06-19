@@ -1,7 +1,7 @@
 /**
  * tests/bench/async_scheduler_queue.c — A4 就绪队列烟测
  *
- * 验证 shu_async_task_submit + shu_async_scheduler_drain：
+ * 验证 shux_async_task_submit + shux_async_scheduler_drain：
  *   1) 单任务一次 suspend 后 resume 完成；
  *   2) 双任务穿插（先 suspend 的任务让出，immediate 任务先完成）。
  *
@@ -10,11 +10,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/** 与 scheduler.c SHU_ASYNC_SUSPENDED 一致。 */
-#define SHU_ASYNC_SUSPENDED ((int32_t)0x41535700)
+/** 与 scheduler.c SHUX_ASYNC_SUSPENDED 一致。 */
+#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
 
-extern int shu_async_task_submit(int32_t (*fn)(void));
-extern int32_t shu_async_scheduler_drain(void);
+extern int shux_async_task_submit(int32_t (*fn)(void));
+extern int32_t shux_async_scheduler_drain(void);
 
 /** 单步 suspend 任务的状态。 */
 static int g_step_a;
@@ -25,7 +25,7 @@ static int g_step_a;
 static int32_t task_suspend_once(void) {
     if (g_step_a == 0) {
         g_step_a = 1;
-        return SHU_ASYNC_SUSPENDED;
+        return SHUX_ASYNC_SUSPENDED;
     }
     return 77;
 }
@@ -45,11 +45,11 @@ int main(void) {
 
     /* 单任务：suspend 一次后 drain 内二次 poll 完成 */
     g_step_a = 0;
-    if (shu_async_task_submit(task_suspend_once) != 0) {
+    if (shux_async_task_submit(task_suspend_once) != 0) {
         fprintf(stderr, "async_scheduler_queue: submit single failed\n");
         return 1;
     }
-    r = shu_async_scheduler_drain();
+    r = shux_async_scheduler_drain();
     if (r != 77) {
         fprintf(stderr, "async_scheduler_queue: single drain got %d want 77\n", (int)r);
         return 2;
@@ -57,15 +57,15 @@ int main(void) {
 
     /* 双任务：A suspend → B 完成 → A resume */
     g_step_a = 0;
-    if (shu_async_task_submit(task_suspend_once) != 0) {
+    if (shux_async_task_submit(task_suspend_once) != 0) {
         fprintf(stderr, "async_scheduler_queue: submit A failed\n");
         return 3;
     }
-    if (shu_async_task_submit(task_immediate) != 0) {
+    if (shux_async_task_submit(task_immediate) != 0) {
         fprintf(stderr, "async_scheduler_queue: submit B failed\n");
         return 4;
     }
-    r = shu_async_scheduler_drain();
+    r = shux_async_scheduler_drain();
     if (r != 77) {
         fprintf(stderr, "async_scheduler_queue: two-task drain got %d want 77\n", (int)r);
         return 5;

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-crypto-chacha20-poly1305.sh — STD-113 manifest 与烟测辅助
 
-STD_CRYPTO_CHACHA_PREFIX="${SHU_STD113_CRYPTO_CHACHA_PREFIX:-shu: [SHU_STD113_CRYPTO_CHACHA]}"
+STD_CRYPTO_CHACHA_PREFIX="${SHUX_STD113_CRYPTO_CHACHA_PREFIX:-shux: [SHUX_STD113_CRYPTO_CHACHA]}"
 
 std_crypto_chacha_symbols_ok() {
   local mod_su="$1"
@@ -43,10 +43,10 @@ std_crypto_chacha_symbols_ok() {
 }
 
 std_crypto_chacha_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_crypto_chacha_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_crypto_chacha_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-crypto-chacha FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -62,7 +62,7 @@ std_crypto_chacha_run_smoke() {
 std_crypto_chacha_run_c_smoke() {
   local crypto_o="$1"
   local src="tests/std-crypto/chacha_smoke_ok.c"
-  local out="/tmp/shu_std_crypto_chacha_c_$$"
+  local out="/tmp/shux_std_crypto_chacha_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

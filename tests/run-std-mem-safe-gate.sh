@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-mem-safe-v1.md"
 MANIFEST="tests/baseline/std-mem-safe-manifest.tsv"
-MOD_SU="std/mem/mod.su"
+MOD_SU="std/mem/mod.sx"
 LIB="tests/lib/std-mem-safe.sh"
-SMOKE_SU="tests/mem/mem_safe_boundary.su"
+SMOKE_SU="tests/mem/mem_safe_boundary.sx"
 
 # shellcheck source=tests/lib/std-mem-safe.sh
 . "$LIB"
@@ -43,17 +43,17 @@ echo "std-mem-safe registry OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-mem-safe gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_mem_safe_emit_report "fail" 0 0
     exit 1
   fi
-  if std_mem_safe_run_smoke "$SHU_BIN" "$SMOKE_SU"; then
+  if std_mem_safe_run_smoke "$SHUX_BIN" "$SMOKE_SU"; then
     SU_OK=1
   else
     std_mem_safe_emit_report "fail" 0 0

@@ -1,0 +1,10 @@
+// dead_lib.sx — WPO cross-module DCE：live_export 被引用，dead_export 不可达
+/** 不可达 export：WPO DCE 应剔除函数体。 */
+function dead_export(): i32 {
+  return 99;
+}
+
+/** 被 dead_user 引用的 export。 */
+function live_export(): i32 {
+  return 7;
+}

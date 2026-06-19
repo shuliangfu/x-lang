@@ -2,9 +2,9 @@
 # I/O 性能基线（NEXT I1/I2/I3/I4）：mmap / read_batch_fd(4段) / write，对比 Shu / C -O2 / Zig -O2
 # 用法：./tests/run-perf-io.sh [--bench]
 # 门禁（可选）：
-#   SHU_PERF_FAIL_ON_IO_ZIG=1 — Shu default asm ≤ Zig -O2
-#   SHU_PERF_FAIL_ON_IO_REGRESSION=1 — Shu default asm ≤ tests/baseline/io-perf.tsv
-#   SHU_PERF_UPDATE_BASELINE=1 — 用本次 median 刷新 io-perf.tsv
+#   SHUX_PERF_FAIL_ON_IO_ZIG=1 — Shu default asm ≤ Zig -O2
+#   SHUX_PERF_FAIL_ON_IO_REGRESSION=1 — Shu default asm ≤ tests/baseline/io-perf.tsv
+#   SHUX_PERF_UPDATE_BASELINE=1 — 用本次 median 刷新 io-perf.tsv
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
@@ -14,23 +14,23 @@ make -C compiler ../std/fs/fs.o ../std/net/net.o -q 2>/dev/null || make -C compi
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh"
 
-# CI make all 产出 C-only shu；perf 编译统一用 shu-c，避免 -backend 在 C-only shu 上报错。
-PERF_COMPILE_SHU=./compiler/shu
-if [ -x ./compiler/shu-c ]; then
-  PERF_COMPILE_SHU=./compiler/shu-c
+# CI make all 产出 C-only shux；perf 编译统一用 shux-c，避免 -backend 在 C-only shux 上报错。
+PERF_COMPILE_SHUX=./compiler/shux
+if [ -x ./compiler/shux-c ]; then
+  PERF_COMPILE_SHUX=./compiler/shux-c
 fi
 
 BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
 BENCH_WRITE_FILE="tests/bench/.io_write_bench_tmp"
-BENCH_MB="${SHU_IO_BENCH_MB:-16}"
+BENCH_MB="${SHUX_IO_BENCH_MB:-16}"
 SENDFILE_PORT_DEFAULT=38459
 BENCH_BYTES=$((BENCH_MB * 1024 * 1024))
 RUNS=3
 DO_BENCH=0
 PERF_IO_FAILS=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHU_PERF_FAIL_ON_IO_ZIG:-0}" = "1" ] && PERF_FAIL_IO=1 || PERF_FAIL_IO=0
-[ "${SHU_PERF_FAIL_ON_IO_REGRESSION:-0}" = "1" ] && PERF_FAIL_REGRESS=1 || PERF_FAIL_REGRESS=0
+[ "${SHUX_PERF_FAIL_ON_IO_ZIG:-0}" = "1" ] && PERF_FAIL_IO=1 || PERF_FAIL_IO=0
+[ "${SHUX_PERF_FAIL_ON_IO_REGRESSION:-0}" = "1" ] && PERF_FAIL_REGRESS=1 || PERF_FAIL_REGRESS=0
 IO_CASE_MEDS=""
 
 # 从 time 输出提取 real 秒数
@@ -96,8 +96,8 @@ compile_shu_sendfile() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_sendfile.su >"/tmp/bench_io_sendfile.su"
-  if ! $PERF_COMPILE_SHU -L . "/tmp/bench_io_sendfile.su" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
+      tests/bench/zero_copy_sendfile.sx >"/tmp/bench_io_sendfile.sx"
+  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_sendfile.sx" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
     cat /tmp/bench_io_compile.log >&2
     return 1
   fi
@@ -171,7 +171,7 @@ median_zig_sendfile() {
 
 bench_io_sendfile_case() {
   local name="zero_copy_sendfile"
-  local SHU_ASM_MED="nan"
+  local SHUX_ASM_MED="nan"
   local C_MED="nan"
   local ZIG_MED="nan"
 
@@ -184,8 +184,8 @@ bench_io_sendfile_case() {
   ensure_io_mmap_bench_file
   echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket sendfile @ 127.0.0.1:<dynamic>) ==="
 
-  SHU_ASM_MED=$(median_shu_sendfile)
-  echo "Shu (default asm) ${name} median real: ${SHU_ASM_MED}s"
+  SHUX_ASM_MED=$(median_shu_sendfile)
+  echo "Shu (default asm) ${name} median real: ${SHUX_ASM_MED}s"
 
   if command -v cc >/dev/null 2>&1; then
     C_MED=$(median_c_sendfile)
@@ -200,23 +200,23 @@ bench_io_sendfile_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$SHU_ASM_MED"
+  printf '| Shu (default asm) | %s |\n' "$SHUX_ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
-  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    if awk -v shu="$SHU_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shu <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Shu asm ${SHU_ASM_MED}s <= Zig ${ZIG_MED}s"
+  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    if awk -v shux="$SHUX_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shux <= zig + 0.000001) ? 0 : 1 }'; then
+      echo "io perf gate OK: ${name} Shu asm ${SHUX_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "io perf gate FAIL: ${name} Shu asm ${SHU_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "io perf gate FAIL: ${name} Shu asm ${SHUX_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
     fi
   fi
 
-  check_io_baseline_regress "$name" "$SHU_ASM_MED" "nan"
+  check_io_baseline_regress "$name" "$SHUX_ASM_MED" "nan"
 
-  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
+  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHUX_ASM_MED};"
 }
 
 compile_shu_splice() {
@@ -224,8 +224,8 @@ compile_shu_splice() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_splice.su >"/tmp/bench_io_splice.su"
-  if ! $PERF_COMPILE_SHU -L . "/tmp/bench_io_splice.su" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
+      tests/bench/zero_copy_splice.sx >"/tmp/bench_io_splice.sx"
+  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_splice.sx" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
     cat /tmp/bench_io_splice_compile.log >&2
     return 1
   fi
@@ -258,7 +258,7 @@ median_shu_splice() {
 
 bench_io_splice_case() {
   local name="zero_copy_splice"
-  local SHU_ASM_MED="nan"
+  local SHUX_ASM_MED="nan"
 
   if ! fs_splice_supported; then
     echo "=== tests/bench/${name} — skip (pipe splice unsupported on $(uname -s)) ==="
@@ -269,18 +269,18 @@ bench_io_splice_case() {
   ensure_io_mmap_bench_file
   echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket fs_pipe_splice @ 127.0.0.1:<dynamic>) ==="
 
-  SHU_ASM_MED=$(median_shu_splice)
-  echo "Shu (default asm) ${name} median real: ${SHU_ASM_MED}s"
+  SHUX_ASM_MED=$(median_shu_splice)
+  echo "Shu (default asm) ${name} median real: ${SHUX_ASM_MED}s"
 
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$SHU_ASM_MED"
+  printf '| Shu (default asm) | %s |\n' "$SHUX_ASM_MED"
   printf '\n'
 
-  check_io_baseline_regress "$name" "$SHU_ASM_MED" "nan"
+  check_io_baseline_regress "$name" "$SHUX_ASM_MED" "nan"
 
-  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
+  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHUX_ASM_MED};"
 }
 
 fs_splice_supported() {
@@ -297,19 +297,19 @@ fs_sendfile_supported() {
 # 从 baseline 读取某 case 的上限秒数
 io_baseline_cap() {
   local name="$1"
-  awk -F'\t' -v n="$name" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHU_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
+  awk -F'\t' -v n="$name" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHUX_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
 }
 
 # 门禁：Shu median（asm 或 c）须 ≤ baseline cap。
 check_io_baseline_regress() {
   local name="$1"
-  local shu_asm_med="$2"
+  local shux_asm_med="$2"
   local shu_c_med="$3"
   local med_gate cap
   if [ "$PERF_FAIL_REGRESS" -ne 1 ]; then
     return 0
   fi
-  med_gate="$shu_asm_med"
+  med_gate="$shux_asm_med"
   if [ "$med_gate" = "nan" ] && [ "$shu_c_med" != "nan" ]; then
     med_gate="$shu_c_med"
   fi
@@ -322,7 +322,7 @@ check_io_baseline_regress() {
   if [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 1.4 }')
   fi
-  if awk -v shu="$med_gate" -v cap="$cap" 'BEGIN { exit (shu <= cap + 0.000001) ? 0 : 1 }'; then
+  if awk -v shux="$med_gate" -v cap="$cap" 'BEGIN { exit (shux <= cap + 0.000001) ? 0 : 1 }'; then
     echo "io perf baseline OK: ${name} ${med_gate}s <= cap ${cap}s"
   else
     echo "io perf baseline FAIL: ${name} ${med_gate}s > cap ${cap}s" >&2
@@ -354,11 +354,11 @@ bench_io_case() {
   local name="$1"
   local base="$2"
   local desc="$3"
-  local su="${base}.su"
+  local su="${base}.sx"
   local c="${base}.c"
   local zig="${base}.zig"
-  local SHU_ASM_MED="nan"
-  local SHU_C_MED="nan"
+  local SHUX_ASM_MED="nan"
+  local SHUX_C_MED="nan"
   local C_MED="nan"
   local ZIG_MED="nan"
   local ASM_MED="nan"
@@ -377,28 +377,28 @@ bench_io_case() {
     ensure_io_mmap_bench_file
   fi
 
-  $PERF_COMPILE_SHU -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
+  $PERF_COMPILE_SHUX -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
-    SHU_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
-    echo "Shu (default asm) ${name} median real: ${SHU_ASM_MED}s"
+    SHUX_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
+    echo "Shu (default asm) ${name} median real: ${SHUX_ASM_MED}s"
   fi
 
-  if [ "$PERF_COMPILE_SHU" != "./compiler/shu-c" ] \
-    && $PERF_COMPILE_SHU -L . "$su" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
+  if [ "$PERF_COMPILE_SHUX" != "./compiler/shux-c" ] \
+    && $PERF_COMPILE_SHUX -L . "$su" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
-    SHU_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
-    echo "Shu (-backend c) ${name} median real: ${SHU_C_MED}s"
-  elif [ "$PERF_COMPILE_SHU" = "./compiler/shu-c" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    SHU_C_MED="$SHU_ASM_MED"
+    SHUX_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
+    echo "Shu (-backend c) ${name} median real: ${SHUX_C_MED}s"
+  elif [ "$PERF_COMPILE_SHUX" = "./compiler/shux-c" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    SHUX_C_MED="$SHUX_ASM_MED"
   fi
 
-  if [ -x compiler/shu_asm ]; then
-    if compiler/shu_asm -L . "$su" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
+  if [ -x compiler/shux_asm ]; then
+    if compiler/shux_asm -L . "$su" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
       [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
       ASM_MED=$(median_real "/tmp/bench_io_asm_${tag}")
-      echo "Shu asm (shu_asm) ${name} median real: ${ASM_MED}s"
+      echo "Shu asm (shux_asm) ${name} median real: ${ASM_MED}s"
     fi
   fi
 
@@ -421,25 +421,25 @@ bench_io_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$SHU_ASM_MED"
-  printf '| Shu (-backend c) | %s |\n' "$SHU_C_MED"
-  printf '| Shu asm (shu_asm) | %s |\n' "$ASM_MED"
+  printf '| Shu (default asm) | %s |\n' "$SHUX_ASM_MED"
+  printf '| Shu (-backend c) | %s |\n' "$SHUXXX_C_MED"
+  printf '| Shu asm (shux_asm) | %s |\n' "$ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
-  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHU_ASM_MED" != "nan" ]; then
-    if awk -v shu="$SHU_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shu <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Shu asm ${SHU_ASM_MED}s <= Zig ${ZIG_MED}s"
+  if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$SHUX_ASM_MED" != "nan" ]; then
+    if awk -v shux="$SHUX_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (shux <= zig + 0.000001) ? 0 : 1 }'; then
+      echo "io perf gate OK: ${name} Shu asm ${SHUX_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "io perf gate FAIL: ${name} Shu asm ${SHU_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "io perf gate FAIL: ${name} Shu asm ${SHUX_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
     fi
   fi
 
-  check_io_baseline_regress "$name" "$SHU_ASM_MED" "$SHU_C_MED"
+  check_io_baseline_regress "$name" "$SHUX_ASM_MED" "$SHUXXX_C_MED"
 
-  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHU_ASM_MED};"
+  IO_CASE_MEDS="${IO_CASE_MEDS}${name}:${SHUX_ASM_MED};"
 }
 
 ensure_io_mmap_bench_file
@@ -449,7 +449,7 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-BASELINE="${SHU_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
+BASELINE="${SHUX_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
 bench_io_case io_mmap_throughput tests/bench/io_mmap_throughput "${BENCH_MB}MiB mmap scan"
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
@@ -465,7 +465,7 @@ rm -f "$BENCH_MMAP_FILE"
 bench_io_splice_case
 rm -f "$BENCH_MMAP_FILE"
 
-if [ "${SHU_PERF_UPDATE_BASELINE:-0}" = "1" ]; then
+if [ "${SHUX_PERF_UPDATE_BASELINE:-0}" = "1" ]; then
   {
     if [ -f "$BASELINE" ]; then
       awk -F'\t' '$1 !~ /^#/ && NF>=2 { print $1 "\t" $2 }' "$BASELINE"
@@ -479,8 +479,8 @@ if [ "${SHU_PERF_UPDATE_BASELINE:-0}" = "1" ]; then
     done
   } | awk -F'\t' 'NF>=2 { cap[$1]=$2 } END { for (k in cap) print k "\t" cap[k] }' >"${BASELINE}.body"
   {
-    echo "# shu io bench 中位数上限（秒）；门禁：实测 median ≤ 本列值"
-    echo "# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench"
+    echo "# shux io bench 中位数上限（秒）；门禁：实测 median ≤ 本列值"
+    echo "# 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench"
     for c in io_mmap_throughput io_batch_readv io_random_pread io_write_throughput zero_copy_sendfile zero_copy_splice; do
       if grep -q "^${c}	" "${BASELINE}.body" 2>/dev/null; then
         grep "^${c}	" "${BASELINE}.body"

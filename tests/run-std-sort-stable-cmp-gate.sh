@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
-MANIFEST="${SHU_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
-VECTORS="${SHU_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
-MOD_SU="std/sort/mod.su"
+DOC="${SHUX_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
+MANIFEST="${SHUX_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
+VECTORS="${SHUX_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
+MOD_SU="std/sort/mod.sx"
 SORT_C="std/sort/sort.c"
 LIB="tests/lib/std-sort-stable-cmp.sh"
-SMOKE_STABLE="tests/std-sort/stable_i32.su"
-SMOKE_CMP="tests/std-sort/cmp_desc.su"
+SMOKE_STABLE="tests/std-sort/stable_i32.sx"
+SMOKE_CMP="tests/std-sort/cmp_desc.sx"
 SMOKE_C="tests/std-sort/stable_smoke_ok.c"
 MIN_APIS=3
 
@@ -94,7 +94,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -106,29 +106,29 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-060: .su smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-060: .sx smoke (SHUX=$SHUX_BIN) ==="
   for su in "$SMOKE_STABLE" "$SMOKE_CMP"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "std-sort-stable-cmp gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! std_sort_stable_cmp_run_smoke "$SHU_BIN" "$su" "$(basename "$su" .su)"; then
+    if ! std_sort_stable_cmp_run_smoke "$SHUX_BIN" "$su" "$(basename "$su" .sx)"; then
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
   done
   SU_OK=1
 else
-  echo "std-sort-stable-cmp gate SKIP .su smoke (no native shu)" >&2
+  echo "std-sort-stable-cmp gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

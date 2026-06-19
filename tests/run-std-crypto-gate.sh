@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CRYPTO_DOC:-analysis/std-crypto-min-v1.md}"
-MANIFEST="${SHU_STD_CRYPTO_MANIFEST:-tests/baseline/std-crypto-manifest.tsv}"
-VECTORS="${SHU_STD_CRYPTO_VECTORS:-tests/baseline/std-crypto-vectors.tsv}"
-CRYPTO_MOD="${SHU_STD_CRYPTO_MOD:-std/crypto/mod.su}"
-RAND_MOD="${SHU_STD_RANDOM_MOD:-std/random/mod.su}"
+DOC="${SHUX_STD_CRYPTO_DOC:-analysis/std-crypto-min-v1.md}"
+MANIFEST="${SHUX_STD_CRYPTO_MANIFEST:-tests/baseline/std-crypto-manifest.tsv}"
+VECTORS="${SHUX_STD_CRYPTO_VECTORS:-tests/baseline/std-crypto-vectors.tsv}"
+CRYPTO_MOD="${SHUX_STD_CRYPTO_MOD:-std/crypto/mod.sx}"
+RAND_MOD="${SHUX_STD_RANDOM_MOD:-std/random/mod.sx}"
 MIN_APIS=5
 MIN_LAYERS=3
 
@@ -118,10 +118,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-crypto manifest OK (apis=${API_N} layers=${LAYER_N})"
 
-SHU_BIN=""
-if SHU_BIN="$(std_crypto_resolve_shu)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(std_crypto_resolve_shu)"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  echo "=== STD-006: runnable report (SHU=$SHU_BIN) ==="
+  echo "=== STD-006: runnable report (SHUX=$SHUX_BIN) ==="
   FAILS=0
   while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
     [ -z "${item_id:-}" ] && continue
@@ -129,7 +129,7 @@ if SHU_BIN="$(std_crypto_resolve_shu)"; then
     case "$kind" in
       smoke)
         echo "── $item_id ──"
-        if std_crypto_run_smoke "$SHU_BIN" "$anchor" "$item_id"; then
+        if std_crypto_run_smoke "$SHUX_BIN" "$anchor" "$item_id"; then
           echo "std-crypto OK $item_id"
         else
           FAILS=$((FAILS + 1))
@@ -138,7 +138,7 @@ if SHU_BIN="$(std_crypto_resolve_shu)"; then
       hook_script)
         hook="tests/$anchor"
         echo "── $item_id ──"
-        if std_crypto_run_hook "$SHU_BIN" "$hook"; then
+        if std_crypto_run_hook "$SHUX_BIN" "$hook"; then
           echo "std-crypto OK $item_id"
         else
           FAILS=$((FAILS + 1))
@@ -152,6 +152,6 @@ if SHU_BIN="$(std_crypto_resolve_shu)"; then
   fi
   echo "std-crypto gate OK"
 else
-  echo "std-crypto gate SKIP bench (no native shu)" >&2
+  echo "std-crypto gate SKIP bench (no native shux)" >&2
   echo "std-crypto gate OK"
 fi

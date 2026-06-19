@@ -1,0 +1,73 @@
+// STD-103：std.elf symtab/rela 烟测（金样 574 字节嵌入）
+const elf = import("std.elf");
+function main(): i32 {
+  let blob: [574]u8 = [
+    127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 5, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 192, 1, 0, 0, 0, 0, 0, 0,
+    4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    7, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 196, 1, 0, 0, 0, 0, 0, 0,
+    48, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0,
+    8, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0,
+    15, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 244, 1, 0, 0, 0, 0, 0, 0,
+    6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    23, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 250, 1, 0, 0, 0, 0, 0, 0,
+    24, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0,
+    8, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0,
+    34, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 18, 2, 0, 0, 0, 0, 0, 0,
+    44, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    144, 144, 144, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+    18, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0,
+    0, 0, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 46, 116, 101, 120, 116, 0, 46, 115, 121, 109, 116, 97, 98,
+    0, 46, 115, 116, 114, 116, 97, 98, 0, 46, 114, 101, 108, 97, 46, 116,
+    101, 120, 116, 0, 46, 115, 104, 115, 116, 114, 116, 97, 98, 0,
+  ];
+  let hdr: Elf64Hdr = Elf64Hdr {
+    e_type: 0, machine: 0, entry: 0, phoff: 0, phnum: 0, shnum: 0, shoff: 0, shstrndx: 0,
+  };
+  let sec: Elf64Sec = Elf64Sec { name_off: 0, sh_type: 0, addr: 0, offset: 0, size: 0 };
+  let sym: Elf64Sym = Elf64Sym { name_off: 0, bind: 0, sym_type: 0, shndx: 0, value: 0, size: 0 };
+  let rela: Elf64Rela = Elf64Rela { offset: 0, sym_idx: 0, reloc_type: 0, addend: 0 };
+  let idx: i32 = 0;
+  let name: [8]u8 = [];
+  let name_symtab: [8]u8 = [46, 115, 121, 109, 116, 97, 98, 0];
+  let name_strtab: [8]u8 = [46, 115, 116, 114, 116, 97, 98, 0];
+  let name_rela: [11]u8 = [46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 0];
+  if (elf.parse_hdr(&blob[0], 574, &hdr) != 0) { return 1; }
+  if (hdr.shnum != 6) { return 2; }
+  if (elf.find_section_idx(&blob[0], 574, &hdr, &name_symtab[0], &idx) != 0) { return 3; }
+  if (idx != 2) { return 4; }
+  if (elf.read_section(&blob[0], 574, &hdr, idx, &sec) != 0) { return 5; }
+  if (sec.sh_type != 2) { return 6; }
+  if (elf.symtab_entry_count(&sec) != 2) { return 7; }
+  if (elf.read_sym(&blob[0], 574, &sec, 1, &sym) != 0) { return 8; }
+  if (sym.bind != 1 || sym.sym_type != 2) { return 9; }
+  if (sym.shndx != 1 || sym.size != 4) { return 10; }
+  if (elf.find_section_idx(&blob[0], 574, &hdr, &name_strtab[0], &idx) != 0) { return 11; }
+  if (elf.read_section(&blob[0], 574, &hdr, idx, &sec) != 0) { return 12; }
+  if (elf.sym_name(&blob[0], 574, &sec, sym.name_off, &name[0], 8) < 0) { return 13; }
+  if (name[0] != 109 || name[3] != 110) { return 14; }
+  if (elf.find_section_idx(&blob[0], 574, &hdr, &name_rela[0], &idx) != 0) { return 15; }
+  if (elf.read_section(&blob[0], 574, &hdr, idx, &sec) != 0) { return 16; }
+  if (elf.rela_entry_count(&sec) != 1) { return 17; }
+  if (elf.read_rela(&blob[0], 574, &sec, 0, &rela) != 0) { return 18; }
+  if (rela.sym_idx != 1 || rela.reloc_type != 1) { return 19; }
+  return 0;
+}

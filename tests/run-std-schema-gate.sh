@@ -3,12 +3,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SCHEMA_DOC:-analysis/std-schema-v1.md}"
-MANIFEST="${SHU_STD_SCHEMA_MANIFEST:-tests/baseline/std-schema-manifest.tsv}"
-MOD_SU="std/schema/mod.su"
+DOC="${SHUX_STD_SCHEMA_DOC:-analysis/std-schema-v1.md}"
+MANIFEST="${SHUX_STD_SCHEMA_MANIFEST:-tests/baseline/std-schema-manifest.tsv}"
+MOD_SU="std/schema/mod.sx"
 SCHEMA_C="std/schema/schema.c"
 LIB="tests/lib/std-schema.sh"
-SMOKE_SU="tests/std-schema/decode_smoke.su"
+SMOKE_SU="tests/std-schema/decode_smoke.sx"
 SMOKE_C="tests/std-schema/schema_smoke_ok.c"
 MIN_APIS=10
 
@@ -65,10 +65,10 @@ SKIP=0
 
 echo "=== STD-090: schema c smoke ==="
 make -C compiler ../std/schema/schema.o ../std/json/json.o ../std/csv/csv.o >/dev/null 2>&1
-if cc -std=c11 -O1 -o /tmp/shu_schema_smoke \
+if cc -std=c11 -O1 -o /tmp/shux_schema_smoke \
   "$SMOKE_C" std/schema/schema.o std/json/json.o std/csv/csv.o 2>/dev/null; then
-  if /tmp/shu_schema_smoke >/dev/null 2>&1; then C_OK=1; fi
-  rm -f /tmp/shu_schema_smoke
+  if /tmp/shux_schema_smoke >/dev/null 2>&1; then C_OK=1; fi
+  rm -f /tmp/shux_schema_smoke
 fi
 if [ "$C_OK" -eq 0 ]; then
   std_schema_emit_report "fail" 0 0 0
@@ -76,18 +76,18 @@ if [ "$C_OK" -eq 0 ]; then
   exit 1
 fi
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-090: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-090: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-schema gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_schema_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_schema_run_smoke "$SHU_BIN" "$SMOKE_SU" "decode"; then SU_OK=1; else
+  if std_schema_run_smoke "$SHUX_BIN" "$SMOKE_SU" "decode"; then SU_OK=1; else
     std_schema_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

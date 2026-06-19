@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-encoding-extra.sh — STD-127 manifest 与烟测辅助
 
-STD_ENCODING_EXTRA_PREFIX="${SHU_STD127_ENCODING_EXTRA_PREFIX:-shu: [SHU_STD127_ENCODING_EXTRA]}"
+STD_ENCODING_EXTRA_PREFIX="${SHUX_STD127_ENCODING_EXTRA_PREFIX:-shux: [SHUX_STD127_ENCODING_EXTRA]}"
 
 # 校验 manifest 条目。
 std_encoding_extra_symbols_ok() {
@@ -42,12 +42,12 @@ std_encoding_extra_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_encoding_extra_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_encoding_extra_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_encoding_extra_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-encoding-extra FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -64,7 +64,7 @@ std_encoding_extra_run_smoke() {
 std_encoding_extra_run_c_smoke() {
   local encoding_o="$1"
   local src="tests/encoding/extra_smoke_ok.c"
-  local out="/tmp/shu_std_encoding_extra_c_$$"
+  local out="/tmp/shux_std_encoding_extra_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

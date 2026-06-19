@@ -1,5 +1,5 @@
 /**
- * Shulang OnTypeFormattingProvider — `.su` 编辑时轻量实时缩进
+ * Shux OnTypeFormattingProvider — `.sx` 编辑时轻量实时缩进
  *
  * 在语言配置 onEnterRules 之外用 TextEdit 细调三块场景：
  * 1) `{` 行后回车 → 新行比上行多一级缩进；
@@ -125,7 +125,7 @@ function stripTrailingComments(line: string): string {
   return line;
 }
 
-/** 返回行首连续的 tab／space **字符计数**（与 Range.character 对齐，`.su` 源以 ASCII 为主）。 */
+/** 返回行首连续的 tab／space **字符计数**（与 Range.character 对齐，`.sx` 源以 ASCII 为主）。 */
 function leadingWhitespaceCharCount(line: string): number {
   let i = 0;
   for (; i < line.length; i++) {
@@ -247,7 +247,7 @@ function findMatchingOpenBrace(doc: vscode.TextDocument, closingBraceOffset: num
   return undefined;
 }
 
-export class ShulangOnTypeFormattingProvider implements vscode.OnTypeFormattingEditProvider {
+export class ShuxOnTypeFormattingProvider implements vscode.OnTypeFormattingEditProvider {
   /**
    * 根据刚键入字符（与 VS Code onTypeFormatting 钩子）推断缩进补丁。
    */
@@ -258,7 +258,7 @@ export class ShulangOnTypeFormattingProvider implements vscode.OnTypeFormattingE
     options: vscode.FormattingOptions,
     _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.TextEdit[]> {
-    if (document.languageId !== 'su') {
+    if (document.languageId !== 'sx') {
       return [];
     }
 

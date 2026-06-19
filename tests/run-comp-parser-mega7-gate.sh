@@ -2,7 +2,7 @@
 # COMP-001：parser mega 7 深循环改造 manifest 门禁
 #
 # 1) comp-parser-mega7-v1.md + matrix + boot-mega7-gap + parser-mega-bisect.tsv
-# 2) mega7 函数存在于 parser.su；matrix 行数下限
+# 2) mega7 函数存在于 parser.sx；matrix 行数下限
 # 3) capability slice 文件存在（status=done）
 # 4) hook：symbol-integrity（Linux）；mega bisect baseline 7 行
 #
@@ -10,9 +10,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
-MEGA_BISECT="${SHU_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
-PARSER_SU="compiler/src/parser/parser.su"
+MATRIX="${SHUX_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
+MEGA_BISECT="${SHUX_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
+PARSER_SU="compiler/src/parser/parser.sx"
 MIN_PHASE_A=2
 MIN_MEGA7=7
 MIN_SLICE=15
@@ -45,7 +45,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MATRIX"
 
-# ── mega 7 函数在 parser.su ──
+# ── mega 7 函数在 parser.sx ──
 MISS=0
 for fn in $MEGA7_FUNCS; do
   if ! grep -qE "function ${fn}\\(" "$PARSER_SU" 2>/dev/null; then

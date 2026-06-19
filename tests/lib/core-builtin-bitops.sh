@@ -7,7 +7,7 @@
 #   core_builtin_emit_ok SHU SU_FILE TSV
 #   core_builtin_emit_report status found total
 
-CORE_BUILTIN_PREFIX="${SHU_CORE_BUILTIN_BITOPS_PREFIX:-shu: [SHU_CORE_BUILTIN_BITOPS]}"
+CORE_BUILTIN_PREFIX="${SHUX_CORE_BUILTIN_BITOPS_PREFIX:-shux: [SHUX_CORE_BUILTIN_BITOPS]}"
 
 # 校验 codegen.c 映射；echo 缺失数。
 core_builtin_mappings_ok() {
@@ -47,18 +47,18 @@ core_builtin_c_impl_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# SHU_DEBUG_C emit 烟测。
+# SHUX_DEBUG_C emit 烟测。
 core_builtin_emit_ok() {
-  local shu="$1"
+  local shux="$1"
   local su_file="$2"
   local tsv="$3"
-  local gen_c="/tmp/shu_debug.c"
+  local gen_c="/tmp/shux_debug.c"
   local found=0
   local total=0
   rm -f "$gen_c"
-  SHU_DEBUG_C=1 "$shu" -L . "$su_file" -o "/tmp/shu_core_builtin_emit_$$" >/dev/null 2>&1 || true
+  SHUX_DEBUG_C=1 "$shux" -L . "$su_file" -o "/tmp/shux_core_builtin_emit_$$" >/dev/null 2>&1 || true
   if [ ! -f "$gen_c" ]; then
-    echo "core-builtin-bitops FAIL: SHU_DEBUG_C did not write $gen_c" >&2
+    echo "core-builtin-bitops FAIL: SHUX_DEBUG_C did not write $gen_c" >&2
     echo 0
     return 1
   fi

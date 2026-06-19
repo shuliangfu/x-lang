@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助
 
-STD_SYNC_LOCK_DIAG_PREFIX="${SHU_STD111_SYNC_LOCK_DIAG_PREFIX:-shu: [SHU_STD111_SYNC_LOCK_DIAG]}"
+STD_SYNC_LOCK_DIAG_PREFIX="${SHUX_STD111_SYNC_LOCK_DIAG_PREFIX:-shux: [SHUX_STD111_SYNC_LOCK_DIAG]}"
 
 # 校验 manifest 中 api/symbol/file。
 std_sync_lock_diag_symbols_ok() {
@@ -40,15 +40,15 @@ std_sync_lock_diag_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
-std_sync_lock_diag_run_su_smoke() {
-  local shu="$1"
+# 编译并运行 .sx 烟测。
+std_sync_lock_diag_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
   local tag="${3:-lock_diag}"
-  local exe="/tmp/shu_std_sync_lock_diag_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_sync_lock_diag_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sync-lock-diag FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -68,7 +68,7 @@ std_sync_lock_diag_run_su_smoke() {
 std_sync_lock_diag_run_c_smoke() {
   local sync_c="$1"
   local src="tests/sync/lock_diag_smoke_ok.c"
-  local out="/tmp/shu_std_sync_lock_diag_c_$$"
+  local out="/tmp/shux_std_sync_lock_diag_c_$$"
   local sync_o
   sync_o="$(dirname "$sync_c")/sync.o"
   if [ ! -f "$sync_o" ]; then

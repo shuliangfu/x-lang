@@ -2,8 +2,8 @@
 # PERF-002：IO 吞吐对标 Zig 门禁（顺序 + 随机）
 #
 # 检查：
-#   1) Shu median ≤ Zig -O2（SHU_PERF_FAIL_ON_IO_ZIG=1）
-#   2) Shu median ≤ tests/baseline/io-perf.tsv（SHU_PERF_FAIL_ON_IO_REGRESSION=1）
+#   1) Shu median ≤ Zig -O2（SHUX_PERF_FAIL_ON_IO_ZIG=1）
+#   2) Shu median ≤ tests/baseline/io-perf.tsv（SHUX_PERF_FAIL_ON_IO_REGRESSION=1）
 #
 # 用法：./tests/run-perf-io-zig-gate.sh
 set -e
@@ -21,26 +21,26 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "perf-io-zig gate SKIP (no native shu; run in Docker/Linux)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "perf-io-zig gate SKIP (no native shux; run in Docker/Linux)" >&2
   exit 0
 fi
 
 echo "=== PERF-002: IO throughput vs Zig (sequential + random) ==="
 chmod +x tests/run-perf-io.sh
-SHU="$SHU_BIN" \
-  SHU_PERF_FAIL_ON_IO_ZIG=1 \
-  SHU_PERF_FAIL_ON_IO_REGRESSION=1 \
+SHUX="$SHUX_BIN" \
+  SHUX_PERF_FAIL_ON_IO_ZIG=1 \
+  SHUX_PERF_FAIL_ON_IO_REGRESSION=1 \
   ./tests/run-perf-io.sh --bench
 
 echo "perf-io-zig gate OK"

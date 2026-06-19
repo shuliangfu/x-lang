@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
-MANIFEST="${SHU_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
-VECTORS="${SHU_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
-MOD_SU="std/ffi/mod.su"
+DOC="${SHUX_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
+MANIFEST="${SHUX_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
+VECTORS="${SHUX_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
+MOD_SU="std/ffi/mod.sx"
 FFI_C="std/ffi/ffi.c"
 LIB="tests/lib/std-ffi-cstring-lifecycle.sh"
-SMOKE_SU="tests/std-ffi/cstring_try_new.su"
+SMOKE_SU="tests/std-ffi/cstring_try_new.sx"
 SMOKE_C="tests/std-ffi/cstring_lifecycle_ok.c"
 SAFE_HOOK="tests/run-safe-ffi-contract-gate.sh"
 MIN_APIS=4
@@ -89,7 +89,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -101,28 +101,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-055: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-055: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-ffi-cstring gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
-  if std_ffi_cstring_run_smoke "$SHU_BIN" "$SMOKE_SU" "try"; then
+  if std_ffi_cstring_run_smoke "$SHUX_BIN" "$SMOKE_SU" "try"; then
     SU_OK=1
   else
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
 else
-  echo "std-ffi-cstring gate SKIP .su smoke (no native shu)" >&2
+  echo "std-ffi-cstring gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

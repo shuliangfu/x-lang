@@ -1,0 +1,19 @@
+// B-20 v0：std.sys os_read_file_into 烟测（Darwin 常规链接 / Linux freestanding 可选）。
+const sys = import("std.sys");
+
+function main(): i32 {
+  // 固定路径 "/tmp/shux_read_file_gate.txt\0"（gate 脚本写入 "ABC"）
+  let path: [29]u8 = [
+    47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 114, 101, 97, 100, 95,
+    102, 105, 108, 101, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0,
+  ];
+  let buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = sys.os_read_file_into(&path[0], &buf[0], 8);
+  if (n != 3) {
+    return 1;
+  }
+  if (buf[0] != 65 || buf[1] != 66 || buf[2] != 67) {
+    return 2;
+  }
+  return 0;
+}

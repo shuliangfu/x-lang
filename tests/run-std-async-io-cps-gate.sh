@@ -5,29 +5,30 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
-MANIFEST="${SHU_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
-MOD_SU="std/async/mod.su"
-IO_SU="std/io/mod.su"
+DOC="${SHUX_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
+MANIFEST="${SHUX_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
+MOD_SU="std/async/mod.sx"
+IO_SU="std/io/mod.sx"
 SCHED_C="std/async/scheduler.c"
 IO_C="std/io/io.c"
 LIB="tests/lib/std-async-io-cps.sh"
-ALIGN_SU="tests/async/io_cps_align.su"
-EMIT_SU="tests/parser/async_await_io.su"
+ALIGN_SU="tests/async/io_cps_align.sx"
+IO_URING_SU="tests/async/io_uring_facade.sx"
+EMIT_SU="tests/parser/async_await_io.sx"
 MIN_SYMS=4
 
 # shellcheck source=tests/lib/std-async-io-cps.sh
 . "$LIB"
 
 echo "=== STD-042: async IO CPS manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$IO_SU" "$SCHED_C" "$IO_C" "$ALIGN_SU" "$EMIT_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$IO_SU" "$SCHED_C" "$IO_C" "$ALIGN_SU" "$IO_URING_SU" "$EMIT_SU"; do
   if [ ! -f "$f" ]; then
     echo "std-async-io-cps gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 
-for kw in STD-042 poll_async_completions cps_suspend_io IO_ASYNC_NOT_READY drain_until_idle; do
+for kw in STD-042 STD-049 poll_async_completions cps_suspend_io IO_ASYNC_NOT_READY drain_until_idle io_uring_is_available; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-async-io-cps gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -65,7 +66,7 @@ fi
 
 sym_miss="$(std_async_io_cps_symbols_ok "$MOD_SU" "$IO_SU" "$SCHED_C" "$IO_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_async_io_cps_emit_report "fail" 0 0 0
+  std_async_io_cps_emit_report "fail" 0 0 0 0
   echo "std-async-io-cps gate FAIL: symbol_miss=${sym_miss}" >&2
   exit 1
 fi
@@ -84,42 +85,55 @@ stdlib_cm_native_shu() {
 }
 
 ALIGN_OK=0
+IO_URING_OK=0
 EMIT_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-042: typeck + smoke + emit (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-042: typeck + smoke + emit (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$ALIGN_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$ALIGN_SU" >/dev/null 2>&1; then
     echo "std-async-io-cps gate FAIL: typeck $ALIGN_SU" >&2
-    "$SHU_BIN" check -L . "$ALIGN_SU" 2>&1 | tail -10 >&2 || true
-    std_async_io_cps_emit_report "fail" 0 0 0
+    "$SHUX_BIN" check -L . "$ALIGN_SU" 2>&1 | tail -10 >&2 || true
+    std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_run_smoke "$SHU_BIN" "$ALIGN_SU" "align"; then
+  if ! "$SHUX_BIN" check -L . "$IO_URING_SU" >/dev/null 2>&1; then
+    echo "std-async-io-cps gate FAIL: typeck $IO_URING_SU" >&2
+    "$SHUX_BIN" check -L . "$IO_URING_SU" 2>&1 | tail -10 >&2 || true
+    std_async_io_cps_emit_report "fail" 0 0 0 0
+    exit 1
+  fi
+  if std_async_io_cps_run_smoke "$SHUX_BIN" "$ALIGN_SU" "align"; then
     ALIGN_OK=1
   else
-    std_async_io_cps_emit_report "fail" 0 0 0
+    std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_check_emit "$SHU_BIN" "$EMIT_SU"; then
+  if std_async_io_cps_run_smoke "$SHUX_BIN" "$IO_URING_SU" "io_uring"; then
+    IO_URING_OK=1
+  else
+    std_async_io_cps_emit_report "fail" "$ALIGN_OK" 0 0 0
+    exit 1
+  fi
+  if std_async_io_cps_check_emit "$SHUX_BIN" "$EMIT_SU"; then
     EMIT_OK=1
   else
-    std_async_io_cps_emit_report "fail" "$ALIGN_OK" 0 0
+    std_async_io_cps_emit_report "fail" "$ALIGN_OK" "$IO_URING_OK" 0 0
     exit 1
   fi
   SKIP=0
 else
-  echo "std-async-io-cps gate SKIP smoke (no native shu)" >&2
+  echo "std-async-io-cps gate SKIP smoke (no native shux)" >&2
 fi
 
-std_async_io_cps_emit_report "ok" "$ALIGN_OK" "$EMIT_OK" "$SKIP"
+std_async_io_cps_emit_report "ok" "$ALIGN_OK" "$IO_URING_OK" "$EMIT_OK" "$SKIP"
 echo "std-async-io-cps gate OK"

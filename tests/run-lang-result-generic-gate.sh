@@ -5,17 +5,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG010_DOC:-analysis/lang-result-generic-v1.md}"
-MANIFEST="${SHU_LANG010_TSV:-tests/baseline/lang-result-generic.tsv}"
-SMOKE1="tests/lang-result-generic/result_three.su"
-SMOKE2="tests/lang-result-generic/with_core_import.su"
+DOC="${SHUX_LANG010_DOC:-analysis/lang-result-generic-v1.md}"
+MANIFEST="${SHUX_LANG010_TSV:-tests/baseline/lang-result-generic.tsv}"
+SMOKE1="tests/lang-result-generic/result_three.sx"
+SMOKE2="tests/lang-result-generic/with_core_import.sx"
 MIN_GOLDEN=2
 
 # shellcheck source=tests/lib/lang-result-generic.sh
 . tests/lib/lang-result-generic.sh
 
 echo "=== LANG-010: Result<T,E> generic struct manifest ==="
-for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/result/mod.su; do
+for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/result/mod.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-result-generic gate FAIL: missing $f" >&2
     exit 1
@@ -59,36 +59,36 @@ stdlib_cm_native_shu() {
   esac
 }
 
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   echo "=== LANG-010: typeck + smoke ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   TC_OK=0
   for su in "$SMOKE1" "$SMOKE2"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "lang-result-generic gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       lang_result_generic_emit_report "fail" 0 0 0
       exit 1
     fi
     TC_OK=$((TC_OK + 1))
   done
   TYPECK_OK=1
-  exe="/tmp/shu_lang010_$$"
+  exe="/tmp/shux_lang010_$$"
   set +e
   run_ec=0
   for su in "$SMOKE1" "$SMOKE2"; do
-    link_log=$("$SHU_BIN" -L . "$su" -o "$exe" 2>&1)
+    link_log=$("$SHUX_BIN" -L . "$su" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
-      if echo "$link_log" | grep -qE "library 'zstd' not found|shulang_panic_"; then
+      if echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
         echo "lang-result-generic gate SKIP runnable link (typeck passed)" >&2
         SKIP=1
         break
@@ -117,7 +117,7 @@ if [ -n "$SHU_BIN" ]; then
     GOLDEN_OK=0
   fi
 else
-  echo "lang-result-generic gate SKIP smoke (no native shu-c)" >&2
+  echo "lang-result-generic gate SKIP smoke (no native shux-c)" >&2
 fi
 
 lang_result_generic_emit_report "ok" "$GOLDEN_OK" "$TYPECK_OK" "$SKIP"

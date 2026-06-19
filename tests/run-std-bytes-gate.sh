@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
-MANIFEST="${SHU_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
-VECTORS="${SHU_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
-MOD_SU="std/bytes/mod.su"
+DOC="${SHUX_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
+MANIFEST="${SHUX_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
+VECTORS="${SHUX_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
+MOD_SU="std/bytes/mod.sx"
 LIB="tests/lib/std-bytes.sh"
-SMOKE_SU="tests/std-bytes/roundtrip.su"
+SMOKE_SU="tests/std-bytes/roundtrip.sx"
 MIN_APIS=12
 
 # shellcheck source=tests/lib/std-bytes.sh
@@ -62,7 +62,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-bytes manifest OK"
 
-if [ "${SHU_STD_BYTES_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_BYTES_MANIFEST_ONLY:-0}" = "1" ]; then
   std_bytes_emit_report "ok" 0 1
   echo "std-bytes gate OK (manifest only)"
   exit 0
@@ -71,25 +71,25 @@ fi
 SU_OK=0
 SKIP=0
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-072: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-072: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-bytes gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_bytes_emit_report "fail" 0 0
     exit 1
   fi
-  if std_bytes_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then
+  if std_bytes_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then
     SU_OK=1
   else
     std_bytes_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-bytes gate SKIP .su smoke (no shu)" >&2
+  echo "std-bytes gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

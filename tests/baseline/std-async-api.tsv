@@ -1,5 +1,5 @@
 # std.async Tier-S stable public API (import std.async)
-# One symbol per line; run-std-async-api-gate.sh greps std/async/mod.su
+# One symbol per line; run-std-async-api-gate.sh greps std/async/mod.sx
 # Matches: function NAME( or extern function NAME(
 # Updated: 2026-06-17 (STD-004)
 wait_completion

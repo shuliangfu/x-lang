@@ -5,9 +5,9 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/csv/csv.o
-SHU="${SHU:-./compiler/shu}"
-exe="/tmp/shu_csv_$$"
-if ! $SHU -L . tests/csv/main.su -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
+SHUX="${SHUX:-./compiler/shux}"
+exe="/tmp/shux_csv_$$"
+if ! $SHUX -L . tests/csv/main.sx -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
 set +e
 $exe 2>/dev/null
 exitcode=$?

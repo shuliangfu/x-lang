@@ -1,8 +1,8 @@
 /**
- * std/simd/simd.c — STD-153 自动向量化策略探测（SHU_SIMD_AUTovec / SHU_SIMD_HW）
+ * std/simd/simd.c — STD-153 自动向量化策略探测（SHUX_SIMD_AUTovec / SHUX_SIMD_HW）
  *
  * 【文件职责】宿主 SIMD 可用性、`recommend_simd_path` 策略分派、C 烟测报告。
- * 【所属模块/组件】标准库 std.simd；与 std/simd/mod.su 同属一模块。
+ * 【所属模块/组件】标准库 std.simd；与 std/simd/mod.sx 同属一模块。
  */
 
 #include <stdint.h>
@@ -15,19 +15,19 @@
 /** 硬件向量 emit（编译器内联 shuffle/select/add 等）。 */
 #define SIMD_PATH_HW     1
 
-/** 读取 SHU_SIMD_HW=0 或 SHU_SIMD_AUTovec=scalar 强制标量。 */
+/** 读取 SHUX_SIMD_HW=0 或 SHUX_SIMD_AUTovec=scalar 强制标量。 */
 static int32_t simd_env_force_scalar(void) {
-  const char *hw = getenv("SHU_SIMD_HW");
+  const char *hw = getenv("SHUX_SIMD_HW");
   if (hw && hw[0] == '0' && hw[1] == '\0') return 1;
-  const char *aut = getenv("SHU_SIMD_AUTovec");
+  const char *aut = getenv("SHUX_SIMD_AUTovec");
   if (!aut) return 0;
   if (strcmp(aut, "scalar") == 0 || strcmp(aut, "0") == 0) return 1;
   return 0;
 }
 
-/** 读取 SHU_SIMD_AUTovec=hw 强制硬件路径（不可用则仍标量）。 */
+/** 读取 SHUX_SIMD_AUTovec=hw 强制硬件路径（不可用则仍标量）。 */
 static int32_t simd_env_force_hw(void) {
-  const char *aut = getenv("SHU_SIMD_AUTovec");
+  const char *aut = getenv("SHUX_SIMD_AUTovec");
   if (!aut) return 0;
   if (strcmp(aut, "hw") == 0 || strcmp(aut, "1") == 0) return 1;
   return 0;
@@ -62,7 +62,7 @@ int32_t simd_recommend_path_c(void) {
 }
 
 /**
- * STD-153 C 烟测：校验 auto 策略并输出 `shu: [SHU_SIMD_AUTovec]` 报告行。
+ * STD-153 C 烟测：校验 auto 策略并输出 `shux: [SHUX_SIMD_AUTovec]` 报告行。
  * 成功 0，失败非 0。
  */
 int32_t simd_autovec_smoke_c(void) {
@@ -78,9 +78,9 @@ int32_t simd_autovec_smoke_c(void) {
 #endif
   int32_t hw = simd_hw_available_c();
   int32_t path = simd_recommend_path_c();
-  fprintf(stderr, "shu: [SHU_SIMD_AUTovec] platform=%s hw=%d path=%d\n", plat, (int)hw, (int)path);
+  fprintf(stderr, "shux: [SHUX_SIMD_AUTovec] platform=%s hw=%d path=%d\n", plat, (int)hw, (int)path);
   if (hw && path == SIMD_PATH_SCALAR && !simd_env_force_scalar()) {
-    if (getenv("SHU_SIMD_AUTovec") == NULL && getenv("SHU_SIMD_HW") == NULL) {
+    if (getenv("SHUX_SIMD_AUTovec") == NULL && getenv("SHUX_SIMD_HW") == NULL) {
       return 1;
     }
   }

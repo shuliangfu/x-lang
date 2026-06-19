@@ -6,9 +6,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/io/mod.su"
-SMOKE="tests/io/context_read_write.su"
-PREFIX="shu: [SHU_STD091_IO_CTX]"
+MOD_SU="std/io/mod.sx"
+SMOKE="tests/io/context_read_write.sx"
+PREFIX="shux: [SHUX_STD091_IO_CTX]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -52,23 +52,23 @@ echo "io-context manifest OK"
 ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
 SU_OK=0
 SKIP=0
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-091: smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-091: smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "io-context gate FAIL: typeck $SMOKE" >&2
     exit 1
   fi
-  exe="/tmp/shu_std091_io_ctx_$$"
-  if ! "$SHU_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  exe="/tmp/shux_std091_io_ctx_$$"
+  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
     echo "io-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi
@@ -83,7 +83,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SU_OK=1
 else
-  echo "io-context gate SKIP .su (no native shu)" >&2
+  echo "io-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

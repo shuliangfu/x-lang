@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
-MANIFEST="${SHU_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
-VECTORS="${SHU_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
-MOD_SU="std/codec/mod.su"
+DOC="${SHUX_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
+MANIFEST="${SHUX_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
+VECTORS="${SHUX_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
+MOD_SU="std/codec/mod.sx"
 LIB="tests/lib/std-codec.sh"
-SMOKE_SU="tests/std-codec/roundtrip.su"
+SMOKE_SU="tests/std-codec/roundtrip.sx"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-codec.sh
@@ -62,7 +62,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-codec manifest OK"
 
-if [ "${SHU_STD_CODEC_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_CODEC_MANIFEST_ONLY:-0}" = "1" ]; then
   std_codec_emit_report "ok" 0 1
   echo "std-codec gate OK (manifest only)"
   exit 0
@@ -76,26 +76,26 @@ COMPRESS_O="$(cd compiler && pwd)/../std/compress/compress.o"
 SU_OK=0
 SKIP=0
 
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-073: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-073: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-codec gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip" "$COMPRESS_O"; then
+  if std_codec_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip" "$COMPRESS_O"; then
     SU_OK=1
   else
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-codec gate SKIP .su smoke (no shu)" >&2
+  echo "std-codec gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

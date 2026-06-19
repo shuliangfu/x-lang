@@ -2,14 +2,14 @@
 # COMP-003：codegen 稳定性回归门禁
 #
 # 读取 tests/baseline/codegen-regression-matrix.tsv：
-#   policy=run  — 编译运行 .su
+#   policy=run  — 编译运行 .sx
 #   policy=hook — 调用 tests/run-*.sh
 #
 # 用法：./tests/run-codegen-regression-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_CODEGEN_REGRESSION_TSV:-tests/baseline/codegen-regression-matrix.tsv}"
+MATRIX="${SHUX_CODEGEN_REGRESSION_TSV:-tests/baseline/codegen-regression-matrix.tsv}"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -51,32 +51,32 @@ echo "codegen-regression manifest OK (host=$(ci_host_summary))"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "codegen-regression gate SKIP bench (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "codegen-regression gate SKIP bench (no native shux)" >&2
   exit 0
 fi
 
-run_su_case() {
+run_sx_case() {
   local src="$1"
   local want_ec="$2"
-  local out="/tmp/shu_codegen_${src##*/}"
-  out="${out%.su}"
+  local out="/tmp/shux_codegen_${src##*/}"
+  out="${out%.sx}"
   if [ ! -f "$src" ]; then
     echo "codegen-regression FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHU_BIN" -L . "$src" -o "$out" >/tmp/shu_codegen_compile.log 2>&1; then
-    cat /tmp/shu_codegen_compile.log >&2
+  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_codegen_compile.log 2>&1; then
+    cat /tmp/shux_codegen_compile.log >&2
     return 1
   fi
   local ec=0
@@ -89,7 +89,7 @@ run_su_case() {
 }
 
 FAILS=0
-echo "=== COMP-003: codegen smoke (SHU=$SHU_BIN) ==="
+echo "=== COMP-003: codegen smoke (SHUX=$SHUX_BIN) ==="
 
 while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -101,21 +101,21 @@ while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
   echo "── $case_id: $notes ──"
   case "$policy" in
     run)
-      if run_su_case "$src" "${want_ec:-0}"; then
+      if run_sx_case "$src" "${want_ec:-0}"; then
         echo "codegen-regression OK $case_id"
       else
         FAILS=$((FAILS + 1))
       fi
       ;;
     hook)
-      # asm hook 优先 shu_asm
-      hook_shu="$SHU_BIN"
-      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/shu_asm ] && native_shu ./compiler/shu_asm; then
-        hook_shu=./compiler/shu_asm
+      # asm hook 优先 shux_asm
+      hook_shu="$SHUX_BIN"
+      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/shux_asm ] && native_shu ./compiler/shux_asm; then
+        hook_shu=./compiler/shux_asm
       fi
       hook="tests/${src}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHU="$hook_shu" "$hook"; then
+      if SHUX="$hook_shu" "$hook"; then
         echo "codegen-regression OK $case_id ($src)"
       else
         echo "codegen-regression FAIL $case_id ($src)" >&2

@@ -142,6 +142,20 @@ static int32_t simd_x86_mulps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append(elf_ctx, insn, 3);
 }
 
+/** x86：movups xmm2, [rbp+disp32]（0F 10 95 disp32）。 */
+static int32_t simd_x86_movups_xmm2_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
+    static const uint8_t prefix[3] = {0x0f, 0x10, 0x95};
+    if (simd_append(elf_ctx, prefix, 3) != 0)
+        return -1;
+    return simd_append_disp32(elf_ctx, disp);
+}
+
+/** x86 FMA3：vfmadd231ps xmm0, xmm1, xmm2（xmm0 = xmm1 * xmm2 + xmm0）。 */
+static int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+    static const uint8_t insn[5] = {0xc4, 0xe2, 0x71, 0xa9, 0xc1};
+    return simd_append(elf_ctx, insn, 5);
+}
+
 /** 发射整型向量 add/sub 公共路径（SSE paddd/psubd 或 AVX2 vpaddd/vpsubd）。 */
 static int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                                     int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
@@ -157,7 +171,7 @@ static int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodeg
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
     dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
-    if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0)
@@ -173,7 +187,7 @@ static int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodeg
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHU_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
@@ -220,7 +234,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
     dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
-    if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0)
@@ -231,7 +245,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHU_CPU_FEAT_SSE41) != 0) {
+    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE41) != 0) {
         if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
@@ -256,7 +270,7 @@ int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_c
         return -1;
     if (ta != 0)
         return -1;
-    if ((cpu_features & SHU_CPU_FEAT_SSE2) == 0)
+    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
         return -1;
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -283,7 +297,7 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
         return -1;
     if (ta != 0)
         return -1;
-    if ((cpu_features & SHU_CPU_FEAT_SSE2) == 0)
+    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
         return -1;
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -294,6 +308,51 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
         return -1;
     if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0)
         return -1;
+    if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0)
+        return -1;
+    return 0;
+}
+
+int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                       int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
+                                       int32_t esz, int32_t ta, uint32_t cpu_features) {
+    int32_t da;
+    int32_t db;
+    int32_t dc;
+    int32_t dd;
+
+    if (!elf_ctx || slot_off_a < 0 || slot_off_b < 0 || slot_off_c < 0 || slot_off_dst < 0 || esz != 4 || lanes != 4)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
+        return -1;
+    da = simd_rbp_disp32(slot_off_a, lanes, esz);
+    db = simd_rbp_disp32(slot_off_b, lanes, esz);
+    dc = simd_rbp_disp32(slot_off_c, lanes, esz);
+    dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
+    if ((cpu_features & SHUX_CPU_FEAT_FMA) != 0) {
+        if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
+            return -1;
+        if (simd_x86_movups_xmm2_from_rbp(elf_ctx, dc) != 0)
+            return -1;
+        if (simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf_ctx) != 0)
+            return -1;
+    } else {
+        /* b*c → xmm0；xmm0 += a */
+        if (simd_x86_movups_xmm0_from_rbp(elf_ctx, dc) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
+            return -1;
+        if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0)
+            return -1;
+        if (simd_x86_movups_xmm1_from_rbp(elf_ctx, da) != 0)
+            return -1;
+        if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0)
+            return -1;
+    }
     if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0)
         return -1;
     return 0;
@@ -361,7 +420,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         return -1;
     if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta) != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbx_rax4(elf_ctx) != 0)
             return -1;
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0)
@@ -385,9 +444,9 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         return 0;
     }
     if (lanes == 4) {
-        if (binop_ko == 6 && (cpu_features & SHU_CPU_FEAT_SSE41) == 0)
+        if (binop_ko == 6 && (cpu_features & SHUX_CPU_FEAT_SSE41) == 0)
             return -1;
-        if (binop_ko != 6 && (cpu_features & SHU_CPU_FEAT_SSE2) == 0)
+        if (binop_ko != 6 && (cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
             return -1;
         if (simd_x86_movups_xmm0_from_rbx_rax4(elf_ctx) != 0)
             return -1;
@@ -527,7 +586,7 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     ds = simd_rbp_disp32(slot_off_src, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
     if (ta == 1) {
-        if ((cpu_features & SHU_CPU_FEAT_NEON) == 0)
+        if ((cpu_features & SHUX_CPU_FEAT_NEON) == 0)
             return -1;
         ds = simd_arm64_rbp_lea_off_128half(slot_off_src, 0, 4);
         dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
@@ -548,7 +607,7 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     }
     if (ta != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, ds) != 0)
             return -1;
         if (simd_x86_vpshufd_ymm0_imm8(elf_ctx, imm8) != 0)
@@ -557,7 +616,7 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHU_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp(elf_ctx, ds) != 0)
             return -1;
         if (simd_x86_pshufd_xmm0_imm8(elf_ctx, imm8) != 0)
@@ -567,14 +626,6 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
         return 0;
     }
     return -1;
-}
-
-/** x86：movups xmm2, [rbp+disp32]（0F 10 95 disp32）。 */
-static int32_t simd_x86_movups_xmm2_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[3] = {0x0f, 0x10, 0x95};
-    if (simd_append(elf_ctx, prefix, 3) != 0)
-        return -1;
-    return simd_append_disp32(elf_ctx, disp);
 }
 
 /** x86 AVX2：vmovups ymm2, [rbp+disp32]（C5 FE 10 95 disp32）。 */
@@ -780,7 +831,7 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
     db = simd_rbp_disp32(slot_off_b, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
     if (ta == 1) {
-        if ((cpu_features & SHU_CPU_FEAT_NEON) == 0)
+        if ((cpu_features & SHUX_CPU_FEAT_NEON) == 0)
             return -1;
         dm = simd_arm64_rbp_lea_off_128half(slot_off_mask, 0, 4);
         da = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
@@ -807,7 +858,7 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
     }
     if (ta != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHU_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0)
@@ -825,7 +876,7 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHU_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)

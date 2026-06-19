@@ -34,18 +34,18 @@ SELECT_RE = re.compile(
 
 
 def resolve_module_file(import_path: str, su_file: Path, root: Path) -> Path | None:
-    """解析逻辑模块名或相对 .su 路径到文件。"""
-    if import_path.endswith(".su"):
+    """解析逻辑模块名或相对 .sx 路径到文件。"""
+    if import_path.endswith(".sx"):
         for c in [su_file.parent / import_path, root / import_path.lstrip("/")]:
             if c.is_file():
                 return c
         return None
     parts = import_path.split(".")
-    for c in [root / "/".join(parts) / "mod.su", root / f"{'/'.join(parts)}.su"]:
+    for c in [root / "/".join(parts) / "mod.sx", root / f"{'/'.join(parts)}.sx"]:
         if c.is_file():
             return c
     if len(parts) == 1:
-        local = su_file.parent / f"{parts[0]}.su"
+        local = su_file.parent / f"{parts[0]}.sx"
         if local.is_file():
             return local
     return None
@@ -153,7 +153,7 @@ def main() -> int:
     n = 0
     for p in args.paths:
         path = Path(p)
-        files = sorted(path.rglob("*.su")) if path.is_dir() else [path]
+        files = sorted(path.rglob("*.sx")) if path.is_dir() else [path]
         for f in files:
             if sync_file(f, ROOT, args.write):
                 n += 1

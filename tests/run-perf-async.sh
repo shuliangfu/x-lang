@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # B-ASYNC：1M 双任务 ping-pong 切换开销（NEXT §1.2 B-ASYNC）
 # 用法：./tests/run-perf-async.sh [--bench]
-# 门禁：SHU_PERF_FAIL_ON_ASYNC_REGRESSION=1 — median ≤ tests/baseline/async-perf.tsv
-# 更新：SHU_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
+# 门禁：SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 — median ≤ tests/baseline/async-perf.tsv
+# 更新：SHUX_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 shu-c）时保留；否则 shu 优先。
-if [ -z "${SHU:-}" ]; then
-  if [ -x ./compiler/shu ]; then
-    SHU=./compiler/shu
-  elif [ -x ./compiler/shu-c ]; then
-    SHU=./compiler/shu-c
+# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 shux-c）时保留；否则 shux 优先。
+if [ -z "${SHUX:-}" ]; then
+  if [ -x ./compiler/shux ]; then
+    SHUX=./compiler/shux
+  elif [ -x ./compiler/shux-c ]; then
+    SHUX=./compiler/shux-c
   else
-    echo "run-perf-async FAIL: no compiler/shu or compiler/shu-c" >&2
+    echo "run-perf-async FAIL: no compiler/shux or compiler/shux-c" >&2
     exit 1
   fi
 fi
 
-# Linux x86_64 可用 seed asm；其它平台 shu-c/-backend c（Darwin asm 链接 __TEXT 非 r-x）。
+# Linux x86_64 可用 seed asm；其它平台 shux-c/-backend c（Darwin asm 链接 __TEXT 非 r-x）。
 perf_async_is_linux_x64_asm() {
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Linux-x86_64|Linux-amd64) return 0 ;;
@@ -28,26 +28,26 @@ perf_async_is_linux_x64_asm() {
   return 1
 }
 
-# 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shu-c 或 seed -backend c。
+# 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shux-c 或 seed -backend c。
 perf_async_compile_bench() {
   local su="$1"
   local out="$2"
   rm -f "$out"
   if perf_async_is_linux_x64_asm; then
-    "$SHU" -L . "$su" -o "$out"
-  elif [ -x ./compiler/shu-c ]; then
-    ./compiler/shu-c -L . "$su" -o "$out"
-  elif [ -x ./compiler/shu ]; then
-    ./compiler/shu -L . "$su" -backend c -o "$out"
+    "$SHUX" -L . "$su" -o "$out"
+  elif [ -x ./compiler/shux-c ]; then
+    ./compiler/shux-c -L . "$su" -o "$out"
+  elif [ -x ./compiler/shux ]; then
+    ./compiler/shux -L . "$su" -backend c -o "$out"
   else
-    "$SHU" -L . "$su" -o "$out"
+    "$SHUX" -L . "$su" -o "$out"
   fi
 }
 
 RUNS=3
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHU_PERF_FAIL_ON_ASYNC_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
+[ "${SHUX_PERF_FAIL_ON_ASYNC_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
 
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
@@ -70,7 +70,7 @@ median_real() {
 }
 
 async_baseline_cap() {
-  awk -F'\t' -v n="$1" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHU_PERF_ASYNC_BASELINE:-tests/baseline/async-perf.tsv}"
+  awk -F'\t' -v n="$1" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHUX_PERF_ASYNC_BASELINE:-tests/baseline/async-perf.tsv}"
 }
 
 check_async_regress() {
@@ -94,7 +94,7 @@ link_with_scheduler() {
   local su="$1"
   local out="$2"
   rm -f "$out"
-  if ! "$SHU" -L . "$su" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$SHUX" -L . "$su" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi
@@ -140,17 +140,17 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-bench_async_case async_switch tests/bench/async_switch.su
+bench_async_case async_switch tests/bench/async_switch.sx
 # scheduler jmp 烟测仅 Linux x86_64 seed asm；macOS/ARM64/Windows 记 N/A。
 if perf_async_is_linux_x64_asm; then
-  bench_async_case async_switch_jmp tests/bench/async_switch_sched.su
+  bench_async_case async_switch_jmp tests/bench/async_switch_sched.sx
 else
   echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
 fi
 
-if [ "${SHU_PERF_UPDATE_ASYNC_BASELINE:-0}" = "1" ]; then
+if [ "${SHUX_PERF_UPDATE_ASYNC_BASELINE:-0}" = "1" ]; then
   echo "# async 1M ping-pong 中位数上限（秒）；门禁：median ≤ cap" >tests/baseline/async-perf.tsv
-  echo "# 更新：SHU_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench" >>tests/baseline/async-perf.tsv
+  echo "# 更新：SHUX_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench" >>tests/baseline/async-perf.tsv
   echo "async_switch	$(median_real /tmp/bench_async_async_switch 2>/dev/null || echo 0.05)" >>tests/baseline/async-perf.tsv
   echo "async_switch_jmp	$(median_real /tmp/bench_async_async_switch_jmp 2>/dev/null || echo 0.05)" >>tests/baseline/async-perf.tsv
 fi

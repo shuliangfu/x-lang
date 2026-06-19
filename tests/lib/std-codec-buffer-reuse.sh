@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-codec-buffer-reuse.sh — STD-139 manifest 与烟测辅助
 
-STD_CODEC_BR_PREFIX="${SHU_STD139_CODEC_BUFFER_REUSE_PREFIX:-shu: [SHU_STD139_CODEC_BUFFER_REUSE]}"
+STD_CODEC_BR_PREFIX="${SHUX_STD139_CODEC_BUFFER_REUSE_PREFIX:-shux: [SHUX_STD139_CODEC_BUFFER_REUSE]}"
 
 # 遍历 manifest 校验 api/file/smoke 锚点。
 std_codec_buffer_reuse_symbols_ok() {
@@ -16,7 +16,7 @@ std_codec_buffer_reuse_symbols_ok() {
     case "$kind" in
       api)
         local su="$codec_su"
-        if [ "$mod_path" = "std/bytes/mod.su" ]; then
+        if [ "$mod_path" = "std/bytes/mod.sx" ]; then
           su="$bytes_su"
         fi
         if ! grep -qE "function ${anchor}\\(" "$su" 2>/dev/null; then
@@ -38,13 +38,13 @@ std_codec_buffer_reuse_symbols_ok() {
 
 # 编译并运行 buffer_reuse 烟测（须链 std/compress/compress.o 解析 codec→gzip 符号）。
 std_codec_buffer_reuse_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local compress_o="${3:-std/compress/compress.o}"
-  local exe="/tmp/shu_std_codec_br_$$"
-  if ! "$shu" -L . "$src" -o "$exe" "$compress_o" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_codec_br_$$"
+  if ! "$shux" -L . "$src" -o "$exe" "$compress_o" >/dev/null 2>&1; then
     echo "std-codec-buffer-reuse FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" "$compress_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$compress_o" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

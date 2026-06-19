@@ -2,7 +2,7 @@
 # LANG-007：unsafe 语法与边界门禁
 #
 # 读取 tests/baseline/lang-unsafe-api.tsv：
-#   policy=run          — 编译运行 .su
+#   policy=run          — 编译运行 .sx
 #   policy=compile_fail — 编译须失败且 stderr 含 implicit padding
 #   policy=hook         — 调用 tests/run-*.sh
 #
@@ -10,7 +10,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
+MATRIX="${SHUX_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
 
 native_shu() {
   local f="$1"
@@ -29,10 +29,10 @@ for f in \
   analysis/lang-unsafe-v1-rfc.md \
   analysis/type-region-v1-rfc.md \
   "$MATRIX" \
-  tests/unsafe/allow_padding_ok.su \
-  tests/unsafe/padding_rejected.su \
-  tests/unsafe/raw_ptr_null.su \
-  tests/unsafe/extern_putchar.su; do
+  tests/unsafe/allow_padding_ok.sx \
+  tests/unsafe/padding_rejected.sx \
+  tests/unsafe/raw_ptr_null.sx \
+  tests/unsafe/extern_putchar.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-unsafe gate FAIL: missing $f" >&2
     exit 1
@@ -40,7 +40,7 @@ for f in \
 done
 # U4：unsafe 关键字须在 lexer 保留列表中
 if ! grep -q '"unsafe"' compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c 2>/dev/null \
-  && ! grep -q 'unsafe' compiler/src/lexer/token.su 2>/dev/null; then
+  && ! grep -q 'unsafe' compiler/src/lexer/token.sx 2>/dev/null; then
   echo "lang-unsafe gate FAIL: unsafe keyword not reserved in lexer" >&2
   exit 1
 fi
@@ -48,32 +48,32 @@ echo "lang-unsafe manifest OK"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "lang-unsafe gate SKIP bench (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "lang-unsafe gate SKIP bench (no native shux)" >&2
   exit 0
 fi
 
-run_su_case() {
+run_sx_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/unsafe/${script}"
-  local out="/tmp/shu_unsafe_${script%.su}"
+  local out="/tmp/shux_unsafe_${script%.sx}"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHU_BIN" -L . "$src" -o "$out" >/tmp/shu_unsafe_compile.log 2>&1; then
-    cat /tmp/shu_unsafe_compile.log >&2
+  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
+    cat /tmp/shux_unsafe_compile.log >&2
     return 1
   fi
   local ec=0
@@ -88,13 +88,13 @@ run_su_case() {
 compile_fail_case() {
   local script="$1"
   local src="tests/unsafe/${script}"
-  local out="/tmp/shu_unsafe_fail_${script%.su}"
-  local err="/tmp/shu_unsafe_fail_compile.log"
+  local out="/tmp/shux_unsafe_fail_${script%.sx}"
+  local err="/tmp/shux_unsafe_fail_compile.log"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  if "$SHU_BIN" -L . "$src" -o "$out" >"$err" 2>&1; then
+  if "$SHUX_BIN" -L . "$src" -o "$out" >"$err" 2>&1; then
     echo "lang-unsafe FAIL $script: expected compile error" >&2
     return 1
   fi
@@ -107,7 +107,7 @@ compile_fail_case() {
 }
 
 FAILS=0
-echo "=== LANG-007: unsafe boundary smoke (SHU=$SHU_BIN) ==="
+echo "=== LANG-007: unsafe boundary smoke (SHUX=$SHUX_BIN) ==="
 
 while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -115,7 +115,7 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
   echo "── $case_id [$mode]: $notes ──"
   case "$policy" in
     run)
-      if run_su_case "$script" "${want_ec:-0}"; then
+      if run_sx_case "$script" "${want_ec:-0}"; then
         echo "lang-unsafe OK $case_id"
       else
         FAILS=$((FAILS + 1))
@@ -131,7 +131,7 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHU="$SHU_BIN" "$hook"; then
+      if SHUX="$SHUX_BIN" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"
       else
         echo "lang-unsafe FAIL $case_id ($script)" >&2

@@ -1,5 +1,5 @@
 # crt0_x86_64.s - 无 C 自举: _start 与 driver_get_argv_i (x86_64 Linux)
-# 替代 main.c / runtime_asm_build.c; 链接时用本 .o + main.su 等 .o + -lc
+# 替代 main.c / runtime_asm_build.c; 链接时用本 .o + main.sx 等 .o + -lc
 
 	.text
 	.globl	_start

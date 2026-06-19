@@ -3,7 +3,7 @@
  *
  * 【文件职责】
  * 为 std.heap 提供与 libc 一致的堆分配接口，供 std.vec、std.map 等使用。
- * 所有函数对 .su 通过 extern 暴露；指针与大小由调用方保证合法。
+ * 所有函数对 .sx 通过 extern 暴露；指针与大小由调用方保证合法。
  *
  * 【约定】
  * - 分配失败返回 NULL；free(NULL) 不操作；realloc(ptr, 0) 等价于 free(ptr) 并返回 NULL。
@@ -16,19 +16,19 @@
 #include <string.h>
 #include <stdio.h>
 
-/** SHU_HEAP_TRACE=1 时统计 alloc/free 次数与字节（STD-017）。 */
+/** SHUX_HEAP_TRACE=1 时统计 alloc/free 次数与字节（STD-017）。 */
 static int32_t shu_heap_trace_on = -1;
 static uint64_t shu_heap_trace_alloc_count;
 static uint64_t shu_heap_trace_free_count;
 static uint64_t shu_heap_trace_realloc_count;
 static uint64_t shu_heap_trace_bytes;
 
-/** 懒加载环境变量 SHU_HEAP_TRACE。 */
+/** 懒加载环境变量 SHUX_HEAP_TRACE。 */
 static int32_t heap_trace_is_on(void) {
   const char *env;
   if (shu_heap_trace_on >= 0)
     return shu_heap_trace_on;
-  env = getenv("SHU_HEAP_TRACE");
+  env = getenv("SHUX_HEAP_TRACE");
   shu_heap_trace_on = (env && env[0] == '1') ? 1 : 0;
   return shu_heap_trace_on;
 }
@@ -160,7 +160,7 @@ void heap_copy_f32_at_c(float *dst, int32_t dst_offset, const float *src, int32_
 }
 
 /**
- * std.heap/mod.su 薄包装符号（asm 路径跳过 std.heap dep emit 时由 heap.o 解析）。
+ * std.heap/mod.sx 薄包装符号（asm 路径跳过 std.heap dep emit 时由 heap.o 解析）。
  * 与 pipeline_asm_redirect_std_c_wrapper_sym 中 alloc_f32→heap_alloc_f32_c 双轨，保证 ld 可链。
  */
 float *alloc_f32(int32_t count) {
@@ -177,7 +177,7 @@ void free_f32(float *ptr) {
   heap_free_f32_c(ptr);
 }
 
-/** std.map 查找快路径：在 keys/occupied 中线性探测找 key；存在返回下标，否则 -1。与 .su map_i32_i32_slot 一致。 */
+/** std.map 查找快路径：在 keys/occupied 中线性探测找 key；存在返回下标，否则 -1。与 .sx map_i32_i32_slot 一致。 */
 static inline int32_t map_slot(int32_t key, int32_t cap) {
   int32_t h = key % cap;
   return h < 0 ? h + cap : h;

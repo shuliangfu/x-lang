@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_ZC_DASHBOARD_DOC:-analysis/zc-dashboard-v1.md}"
-MANIFEST="${SHU_ZC_DASHBOARD_MANIFEST:-tests/baseline/zc-dashboard-manifest.tsv}"
-METRICS="${SHU_ZC_DASHBOARD_METRICS:-tests/baseline/zc-dashboard-metrics.tsv}"
-HISTORY="${SHU_ZC_DASHBOARD_HISTORY:-tests/baseline/zc-dashboard-history.tsv}"
+DOC="${SHUX_ZC_DASHBOARD_DOC:-analysis/zc-dashboard-v1.md}"
+MANIFEST="${SHUX_ZC_DASHBOARD_MANIFEST:-tests/baseline/zc-dashboard-manifest.tsv}"
+METRICS="${SHUX_ZC_DASHBOARD_METRICS:-tests/baseline/zc-dashboard-metrics.tsv}"
+HISTORY="${SHUX_ZC_DASHBOARD_HISTORY:-tests/baseline/zc-dashboard-history.tsv}"
 LIB="tests/lib/zc-dashboard.sh"
 RUNNER="tests/run-zc-dashboard.sh"
 MIN_METRICS=8
@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$METRICS" "$HISTORY" "$LIB" "$RUNNER"; do
   fi
 done
 
-for kw in dashboard daily runnable report sparkline SHU_ZC_DASHBOARD; do
+for kw in dashboard daily runnable report sparkline SHUX_ZC_DASHBOARD; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "zc-dashboard gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -109,7 +109,7 @@ echo "zc-dashboard manifest OK (metrics=${METRIC_N} layers=${LAYER_N} days=${HIS
 echo "=== ZC-008: dashboard runnable report ==="
 chmod +x "$RUNNER" 2>/dev/null || true
 if "$RUNNER" 2>/tmp/zc_dashboard_smoke.log; then
-  grep -q 'SHU_ZC_DASHBOARD' /tmp/zc_dashboard_smoke.log || {
+  grep -q 'SHUX_ZC_DASHBOARD' /tmp/zc_dashboard_smoke.log || {
     echo "zc-dashboard gate FAIL: missing report prefix" >&2
     exit 1
   }

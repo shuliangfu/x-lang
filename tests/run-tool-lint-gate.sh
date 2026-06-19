@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TOOL_LINT_DOC:-analysis/tool-lint-rules-v1.md}"
-MANIFEST="${SHU_TOOL_LINT_MANIFEST:-tests/baseline/tool-lint-rules.tsv}"
-PROFILE="${SHU_TOOL_LINT_PROFILE_TSV:-tests/baseline/tool-lint-ci-profile.tsv}"
+DOC="${SHUX_TOOL_LINT_DOC:-analysis/tool-lint-rules-v1.md}"
+MANIFEST="${SHUX_TOOL_LINT_MANIFEST:-tests/baseline/tool-lint-rules.tsv}"
+PROFILE="${SHUX_TOOL_LINT_PROFILE_TSV:-tests/baseline/tool-lint-ci-profile.tsv}"
 MIN_RULES=6
 MIN_CASES=4
 MIN_PROFILE_ROWS=6
@@ -136,23 +136,23 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-lint manifest OK (rules=${RULE_N} cases=${CASE_N} profile=${PROFILE_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== TOOL-002: lint hooks (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== TOOL-002: lint hooks (SHUX=$SHUX_BIN) ==="
   chmod +x tests/run-lint-check.sh
   ./tests/run-lint-check.sh
   echo "tool-lint hooks OK"
 else
-  echo "tool-lint gate SKIP hooks (no native shu)" >&2
+  echo "tool-lint gate SKIP hooks (no native shux)" >&2
 fi
 
 echo "tool-lint gate OK"

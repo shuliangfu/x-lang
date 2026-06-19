@@ -1,5 +1,5 @@
 /**
- * Shulang HoverProvider — 悬停提示
+ * Shux HoverProvider — 悬停提示
  *
  * 悬停函数名 / 结构体名 / 变量时显示其签名、类型、文档注释。
  * 在 LSP 未启动或 LSP 不支持 hover 时作为本地回退。
@@ -8,7 +8,7 @@
 import * as vscode from 'vscode';
 import { buildImportResolveHover, importPathAtPosition } from './symbolSearch';
 
-export class ShulangHoverProvider implements vscode.HoverProvider {
+export class ShuxHoverProvider implements vscode.HoverProvider {
   public async provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -36,7 +36,7 @@ export class ShulangHoverProvider implements vscode.HoverProvider {
     if (funcDef) {
       return new vscode.Hover(
         {
-          language: 'shulang',
+          language: 'sx',
           value: funcDef,
         },
         wordRange
@@ -47,7 +47,7 @@ export class ShulangHoverProvider implements vscode.HoverProvider {
     const structDef = this.findStructDef(lines, word);
     if (structDef) {
       return new vscode.Hover({
-        language: 'shulang',
+        language: 'sx',
         value: structDef,
       }, wordRange);
     }
@@ -56,7 +56,7 @@ export class ShulangHoverProvider implements vscode.HoverProvider {
     const enumDef = this.findEnumDef(lines, word);
     if (enumDef) {
       return new vscode.Hover({
-        language: 'shulang',
+        language: 'sx',
         value: enumDef,
       }, wordRange);
     }
@@ -65,7 +65,7 @@ export class ShulangHoverProvider implements vscode.HoverProvider {
     const varDef = this.findVariableDef(lines, word, position.line);
     if (varDef) {
       return new vscode.Hover({
-        language: 'shulang',
+        language: 'sx',
         value: varDef,
       }, wordRange);
     }
@@ -74,7 +74,7 @@ export class ShulangHoverProvider implements vscode.HoverProvider {
     const externDef = this.findExternDef(lines, word);
     if (externDef) {
       return new vscode.Hover({
-        language: 'shulang',
+        language: 'sx',
         value: `extern ${externDef}`,
       }, wordRange);
     }

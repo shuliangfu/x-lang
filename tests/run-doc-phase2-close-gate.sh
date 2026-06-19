@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
-MANIFEST="${SHU_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
-COOKBOOK="examples/cookbook/http_chunked_decode.su"
+DOC="${SHUX_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
+MANIFEST="${SHUX_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
+COOKBOOK="examples/cookbook/http_chunked_decode.sx"
 MIN_ANCHORS=6
 
 # shellcheck source=tests/lib/doc-phase2-close.sh
@@ -58,26 +58,26 @@ stdlib_cm_native_shu() {
   esac
 }
 
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   echo "=== DOC-008: cookbook HTTP-02 typeck ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
     echo "doc-phase2-close gate FAIL: typeck $COOKBOOK" >&2
-    "$SHU_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
     doc_phase2_close_emit_report "fail" "$ANCHORS_OK" 0 0
     exit 1
   fi
   COOKBOOK_OK=1
 else
-  echo "doc-phase2-close gate SKIP typeck (no native shu)" >&2
+  echo "doc-phase2-close gate SKIP typeck (no native shux)" >&2
   SKIP=1
 fi
 

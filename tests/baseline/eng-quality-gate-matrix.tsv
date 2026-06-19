@@ -13,7 +13,7 @@ typeck_hotpath	Qp	portable	run-typeck-hotpath-gate.sh		COMP-002 热路径
 s2_typeck	Q	yes	run-s2-typeck-gate.sh		typeck.o 质量
 s3_pipeline	Q	yes	run-s3-pipeline-gate.sh		pipeline EMIT_HEAVY
 check_asm_o_quality	Q	yes	compiler/scripts/check_asm_o_quality.sh		.o 段质量
-shu_asm_size	S	no	run-size-shu-asm-gate.sh	B-SIZE_hard_fail	advisory ≤8MiB 追踪
+shux_asm_size	S	no	run-size-shux-asm-gate.sh	B-SIZE_hard_fail	advisory ≤8MiB 追踪
 size_baseline	T	no	run-size-baseline.sh		可选体积 baseline
 parser_combined_audit	T	no	run-parser-second-pass-gate.sh	combined_bytes_ratchet	EMIT_HEAVY audit 指标 only
 wpo_glue_text_track	T	no	run-wpo-strict-glue-text-gate.sh		WPO .text A/B 追踪

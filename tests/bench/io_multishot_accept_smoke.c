@@ -2,7 +2,7 @@
  * tests/bench/io_multishot_accept_smoke.c — IO-A4 multishot accept Linux 烟测
  *
  * 监听 127.0.0.1 动态端口，4 客户端建连后 io_uring_accept_many 批量 accept；
- * 在 liburing + 内核 6.0+ 下 shu_io_uring_multishot_accept_hits() 应 > 0。
+ * 在 liburing + 内核 6.0+ 下 shux_io_uring_multishot_accept_hits() 应 > 0。
  *
  * 编译（Linux）：cc -std=c11 -Wall -Wextra -o io_multishot_accept_smoke \
  *   tests/bench/io_multishot_accept_smoke.c std/io/io.o -luring -lpthread
@@ -18,8 +18,8 @@
 #include <unistd.h>
 
 extern int io_uring_accept_many(int listener_fd, int32_t *out_fds, int n, unsigned timeout_ms);
-extern unsigned shu_io_uring_multishot_accept_hits(void);
-extern void shu_io_uring_multishot_accept_stats_reset(void);
+extern unsigned shux_io_uring_multishot_accept_hits(void);
+extern void shux_io_uring_multishot_accept_stats_reset(void);
 
 /** 创建监听 socket 并 bind 127.0.0.1:0；成功返回 listener fd，失败 -1。 */
 static int listen_on_ephemeral(void) {
@@ -93,8 +93,8 @@ int main(void) {
     return 0;
 #endif
 
-    setenv("SHU_IO_URING_MULTISHOT_ACCEPT", "1", 1);
-    shu_io_uring_multishot_accept_stats_reset();
+    setenv("SHUX_IO_URING_MULTISHOT_ACCEPT", "1", 1);
+    shux_io_uring_multishot_accept_stats_reset();
 
     listener = listen_on_ephemeral();
     if (listener < 0) {
@@ -128,7 +128,7 @@ int main(void) {
         (void)close(out_fds[i]);
     (void)close(listener);
 
-    hits = shu_io_uring_multishot_accept_hits();
+    hits = shux_io_uring_multishot_accept_hits();
     if (hits == 0) {
         fprintf(stderr, "io_multishot_accept_smoke: multishot hits=0 (need kernel 6.0+ multishot accept)\n");
         return 5;

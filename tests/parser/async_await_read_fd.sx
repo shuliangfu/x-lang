@@ -1,0 +1,13 @@
+// async_await_read_fd.sx — IO-A5 v1：`await read_fd(...)` → submit_read_async + complete
+extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
+
+/** await 从 fd 读；codegen 将 fd 转为 handle。 */
+async function io_read_fd_demo(): i32 {
+  let buf: [8]u8 = [];
+  let n: i32 = await read_fd(0, buf as *u8, 8);
+  return n;
+}
+
+function main(): i32 {
+  return io_read_fd_demo();
+}

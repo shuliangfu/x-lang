@@ -5,18 +5,18 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
-MANIFEST="${SHU_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
-MAP_SU="std/map/mod.su"
-VEC_SU="std/vec/mod.su"
-HEAP_SU="std/heap/mod.su"
+DOC="${SHUX_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
+MANIFEST="${SHUX_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
+MAP_SU="std/map/mod.sx"
+VEC_SU="std/vec/mod.sx"
+HEAP_SU="std/heap/mod.sx"
 LIB="tests/lib/std-map-vec-extend.sh"
 
 # shellcheck source=tests/lib/std-map-vec-extend.sh
 . tests/lib/std-map-vec-extend.sh
 
 echo "=== STD-013/014: map/vec extend manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SU" "$VEC_SU" "$HEAP_SU" tests/map/boundary.su tests/vec/append_roundtrip.su; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SU" "$VEC_SU" "$HEAP_SU" tests/map/boundary.sx tests/vec/append_roundtrip.sx; do
   if [ ! -f "$f" ]; then
     echo "std-map-vec-extend gate FAIL: missing $f" >&2
     exit 1
@@ -55,7 +55,7 @@ VEC_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -63,28 +63,28 @@ resolve_shu() {
   done
   return 1
 }
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-013/014: typeck (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if "$SHU_BIN" check -L . tests/map/boundary.su >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-013/014: typeck (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if "$SHUX_BIN" check -L . tests/map/boundary.sx >/dev/null 2>&1; then
     MAP_OK=1
   else
     echo "std-map-vec-extend gate FAIL: map boundary typeck" >&2
-    "$SHU_BIN" check -L . tests/map/boundary.su 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/map/boundary.sx 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHU_BIN" check -L . tests/vec/append_roundtrip.su >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/vec/append_roundtrip.sx >/dev/null 2>&1; then
     VEC_OK=1
   else
     echo "std-map-vec-extend gate FAIL: vec append typeck" >&2
-    "$SHU_BIN" check -L . tests/vec/append_roundtrip.su 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/vec/append_roundtrip.sx 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" "$MAP_OK" 0 0
     exit 1
   fi
   SKIP=0
 else
-  echo "std-map-vec-extend gate SKIP typeck (no native shu-c)" >&2
+  echo "std-map-vec-extend gate SKIP typeck (no native shux-c)" >&2
 fi
 
 std_mve_emit_report "ok" "$MAP_OK" "$VEC_OK" "$SKIP"

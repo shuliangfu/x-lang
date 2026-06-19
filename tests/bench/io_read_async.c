@@ -10,20 +10,20 @@
 #include <string.h>
 #include <unistd.h>
 
-extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_complete_read_async(void);
-extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);
+extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_read_async(void);
+extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
 
-#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
 
 /** Linux io_uring：complete 返回 NOT_READY 时先 poll CQE 再重试。 */
 static int32_t io_read_async_complete_with_poll(void) {
-    int32_t n = shu_io_complete_read_async();
-    if (n == SHU_IO_ASYNC_NOT_READY) {
+    int32_t n = shux_io_complete_read_async();
+    if (n == SHUX_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shu_io_poll_async_completions(500);
+        (void)shux_io_poll_async_completions(500);
 #endif
-        n = shu_io_complete_read_async();
+        n = shux_io_complete_read_async();
     }
     return n;
 }
@@ -47,7 +47,7 @@ int main(void) {
     (void)close(fds[1]);
 
     memset(buf, 0, sizeof(buf));
-    if (shu_io_submit_read_async(buf, sizeof(buf), (size_t)(unsigned)fds[0]) != 0) {
+    if (shux_io_submit_read_async(buf, sizeof(buf), (size_t)(unsigned)fds[0]) != 0) {
         fprintf(stderr, "io_read_async: submit failed\n");
         return 3;
     }

@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_FMT_MULTI_DOC:-analysis/std-fmt-multi-v1.md}"
-MANIFEST="${SHU_STD_FMT_MULTI_TSV:-tests/baseline/std-fmt-multi.tsv}"
-FMT_SU="std/fmt/mod.su"
+DOC="${SHUX_STD_FMT_MULTI_DOC:-analysis/std-fmt-multi-v1.md}"
+MANIFEST="${SHUX_STD_FMT_MULTI_TSV:-tests/baseline/std-fmt-multi.tsv}"
+FMT_SU="std/fmt/mod.sx"
 LIB="tests/lib/std-fmt-multi.sh"
-SMOKE="tests/fmt-std/format_multi.su"
+SMOKE="tests/fmt-std/format_multi.sx"
 RUNNER="tests/run-fmt-std.sh"
 
 # shellcheck source=tests/lib/std-fmt-multi.sh
@@ -51,7 +51,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -63,25 +63,25 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-019: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-019: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-fmt-multi gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     std_fmt_multi_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/shu-link-env.sh
-  . "$(dirname "$0")/lib/shu-link-env.sh"
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if $RUN_SHU -L . "$SMOKE" -o /tmp/shu_std_fmt_multi 2>/tmp/shu_std_fmt_multi_build.log; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/shux-link-env.sh
+  . "$(dirname "$0")/lib/shux-link-env.sh"
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_std_fmt_multi 2>/tmp/shux_std_fmt_multi_build.log; then
     exitcode=0
-    /tmp/shu_std_fmt_multi >/dev/null 2>&1 || exitcode=$?
+    /tmp/shux_std_fmt_multi >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -90,17 +90,17 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
       exit 1
     fi
   else
-    if grep -qE "library 'zstd' not found|cannot find -lzstd" /tmp/shu_std_fmt_multi_build.log 2>/dev/null; then
-      echo "std-fmt-multi gate FAIL: libzstd missing (install zstd or rebuild compress.o without SHU_USE_ZSTD)" >&2
+    if grep -qE "library 'zstd' not found|cannot find -lzstd" /tmp/shux_std_fmt_multi_build.log 2>/dev/null; then
+      echo "std-fmt-multi gate FAIL: libzstd missing (install zstd or rebuild compress.o without SHUX_USE_ZSTD)" >&2
     else
       echo "std-fmt-multi gate FAIL: link" >&2
     fi
-    tail -8 /tmp/shu_std_fmt_multi_build.log 2>/dev/null >&2 || true
+    tail -8 /tmp/shux_std_fmt_multi_build.log 2>/dev/null >&2 || true
     std_fmt_multi_emit_report "fail" "$CHECK_OK" 0 0
     exit 1
   fi
 else
-  echo "std-fmt-multi gate SKIP typeck (no native shu)" >&2
+  echo "std-fmt-multi gate SKIP typeck (no native shux)" >&2
 fi
 
 std_fmt_multi_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

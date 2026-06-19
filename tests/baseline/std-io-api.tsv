@@ -1,5 +1,5 @@
 # std.io Tier-S stable public API (import std.io)
-# One symbol per line; run-std-io-api-gate.sh greps std/io/mod.su
+# One symbol per line; run-std-io-api-gate.sh greps std/io/mod.sx
 # Updated: 2026-06-17 (STD-001)
 handle_stdin
 handle_stdout

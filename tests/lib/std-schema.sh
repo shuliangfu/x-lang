@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-schema.sh — STD-090 manifest 与烟测辅助
 
-STD_SCHEMA_PREFIX="${SHU_STD_SCHEMA_PREFIX:-shu: [SHU_STD_SCHEMA]}"
+STD_SCHEMA_PREFIX="${SHUX_STD_SCHEMA_PREFIX:-shux: [SHUX_STD_SCHEMA]}"
 
 std_schema_symbols_ok() {
   local mod_su="$1"
@@ -40,13 +40,13 @@ std_schema_symbols_ok() {
 }
 
 std_schema_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-schema}"
-  local exe="/tmp/shu_std_schema_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_schema_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-schema FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

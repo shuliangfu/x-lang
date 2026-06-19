@@ -8,15 +8,15 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/tool-lsp-diag-perf.sh
 . tests/lib/tool-lsp-diag-perf.sh
 
-SHU="${SHU:-./compiler/shu}"
-FIXTURE=tests/lsp/diag_large_ok.su
-URI="file:///$(pwd)/tests/lsp/diag_large_ok.su"
-MAX_WALL_MS="${SHU_LSP_DIAG_MAX_WALL_MS:-15000}"
-MIN_FUNCS="${SHU_LSP_DIAG_MIN_FUNCS:-30}"
+SHUX="${SHUX:-./compiler/shux}"
+FIXTURE=tests/lsp/diag_large_ok.sx
+URI="file:///$(pwd)/tests/lsp/diag_large_ok.sx"
+MAX_WALL_MS="${SHUX_LSP_DIAG_MAX_WALL_MS:-15000}"
+MIN_FUNCS="${SHUX_LSP_DIAG_MIN_FUNCS:-30}"
 
-if ! "$SHU" --help 2>/dev/null | grep -q '\-\-lsp'; then
+if ! "$SHUX" --help 2>/dev/null | grep -q '\-\-lsp'; then
   make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler
-  SHU=./compiler/shu
+  SHUX=./compiler/shux
 fi
 
 FUNCS=$(tool_lsp_count_funcs "$FIXTURE")
@@ -51,7 +51,7 @@ trap 'rm -f "$OUT" "$ERR" "$LSP_IN"' EXIT
   tool_lsp_send_frame "$DIAG_REQ"
   tool_lsp_send_frame "$COMP_REQ1"
   tool_lsp_send_frame "$COMP_REQ2"
-  tool_lsp_send_frame "$SHUTDOWN"
+  tool_lsp_send_frame "$SHUXXTDOWN"
   tool_lsp_send_frame "$EXIT_NOTIF"
 } >"$LSP_IN"
 
@@ -59,15 +59,15 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 T0=$(tool_lsp_ms_now)
 LSP_EC=0
 if command -v timeout >/dev/null 2>&1; then
-  timeout 30 "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  timeout 30 "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 else
-  "$SHU" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 fi
 T1=$(tool_lsp_ms_now)
 WALL_MS=$((T1 - T0))
 
 if [ "$LSP_EC" -ne 0 ] && [ "$LSP_EC" -ne 124 ]; then
-  echo "run-lsp-diag-perf FAIL: shu --lsp exit $LSP_EC wall_ms=${WALL_MS}" >&2
+  echo "run-lsp-diag-perf FAIL: shux --lsp exit $LSP_EC wall_ms=${WALL_MS}" >&2
   [ -s "$ERR" ] && cat "$ERR" >&2
   [ -s "$OUT" ] && cat "$OUT"
   exit 1

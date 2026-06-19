@@ -4,13 +4,13 @@
 read_path	section	## 1. 阅读路径	analysis/core-option-result-unify-v1.md
 rules	section	## 2. 统一规则	analysis/core-option-result-unify-v1.md
 golden	section	## 3. 金样向量	analysis/core-option-result-unify-v1.md
-symbol_option_template	symbol	struct Option<T>	core/option/mod.su
-symbol_result_template	symbol	struct Result<T, E>	core/result/mod.su
-symbol_result_i32	symbol	Result_i32	core/result/mod.su
+symbol_option_template	symbol	struct Option<T>	core/option/mod.sx
+symbol_result_template	symbol	struct Result<T, E>	core/result/mod.sx
+symbol_result_i32	symbol	Result_i32	core/result/mod.sx
 parser_condensed	symbol	result_e_i32_condensed	compiler/src/parser/parser.c	压缩 mangling
 typeck_expand	symbol	typeck_expand_result_e_i32_args	compiler/src/typeck/typeck_generic_struct.c	demangle 展开
-smoke_option	smoke	tests/core016/unify_option.su	Option 互操作
-smoke_result	smoke	tests/core016/unify_result.su	Result 互操作
+smoke_option	smoke	tests/core016/unify_option.sx	Option 互操作
+smoke_result	smoke	tests/core016/unify_result.sx	Result 互操作
 cross_lang009	cross_ref	lang-option-generic-v1.md	analysis/lang-option-generic-v1.md
 cross_lang010	cross_ref	lang-result-generic-v1.md	analysis/lang-result-generic-v1.md
 lib	script	lib/core-option-result-unify.sh	tests/lib/core-option-result-unify.sh

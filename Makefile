@@ -1,9 +1,9 @@
-# Shulang 顶层 Makefile
-# 委托 compiler 目录构建，产出 shu；测试等目标在此统一入口
+# Shux 顶层 Makefile
+# 委托 compiler 目录构建，产出 shux；测试等目标在此统一入口
 
-.PHONY: all clean test test_c test_su bootstrap-lexer bootstrap-token
+.PHONY: all clean test test_c test_sx bootstrap-lexer bootstrap-token
 
-# 默认目标：构建编译器 shu
+# 默认目标：构建编译器 shux
 all:
 	$(MAKE) -C compiler
 
@@ -19,14 +19,14 @@ test:
 test_c:
 	$(MAKE) -C compiler test_c
 
-# 仅 su 自举测试（bootstrap-driver-seed + run-lsp + run-all-su 全量）
-test_su:
-	$(MAKE) -C compiler test_su
+# 仅 su 自举测试（bootstrap-driver-seed + run-lsp + run-all-sx 全量）
+test_sx:
+	$(MAKE) -C compiler test_sx
 
-# 自举：用当前 shu 编译 .su 词法分析器并运行，验证通过则打印 bootstrap-lexer OK
+# 自举：用当前 shux 编译 .sx 词法分析器并运行，验证通过则打印 bootstrap-lexer OK
 bootstrap-lexer:
 	$(MAKE) -C compiler bootstrap-lexer
 
-# 自举：用当前 shu 编译 token.su 并运行（若 compiler 有该目标）
+# 自举：用当前 shux 编译 token.sx 并运行（若 compiler 有该目标）
 bootstrap-token:
 	$(MAKE) -C compiler bootstrap-token

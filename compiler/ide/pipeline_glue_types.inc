@@ -4,14 +4,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+typedef struct { void *ptr; size_t len; size_t handle; } shux_buffer_abi_t;
+static inline int32_t shux_io_register_buf(intptr_t buf) { const shux_buffer_abi_t *b = (const shux_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shux_buffer_abi_t *b = (const shux_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shux_buffer_abi_t *b = (const shux_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
 extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }

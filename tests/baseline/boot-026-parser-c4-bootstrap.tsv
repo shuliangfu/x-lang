@@ -5,7 +5,7 @@
 section_goal	section	## 1. 目标	C4 SU bootstrap
 bootstrap_matrix	section	## 2. C4 Bootstrap 矩阵	c4_su_emit
 gate_section	section	## 3. Gate	run-boot-026-parser-c4-bootstrap-gate
-hook_su_emit	hook_gate	run-parser-parse-bootstrap-su-emit-gate.sh	c4_su_emit
+hook_su_emit	hook_gate	run-parser-parse-bootstrap-sx-emit-gate.sh	c4_su_emit
 hook_bisect	hook_ref	run-parser-parse-bootstrap-bisect-gate.sh	c4_bisect
 hook_boot025	hook_ref	run-boot-025-parser-gen12-consistency-gate.sh	c4_boot025
 hook_link	hook_ref	run-parser-parse-bootstrap-link-smoke.sh	c4_link
@@ -13,7 +13,7 @@ repro_matrix	cross_ref	tests/baseline/bootstrap-repro.tsv	boot026_su_c4
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C5 su bootstrap
 parent_boot025	cross_ref	analysis/boot-025-parser-gen12-consistency-v1.md	C3
 parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 C4
-su_emit_gate	cross_ref	tests/run-parser-parse-bootstrap-su-emit-gate.sh	SU 探测
+su_emit_gate	cross_ref	tests/run-parser-parse-bootstrap-sx-emit-gate.sh	SU 探测
 doc	file	boot-026-parser-c4-bootstrap-v1.md	analysis/boot-026-parser-c4-bootstrap-v1.md	RFC
 lib	script	lib/boot-026-parser-c4-bootstrap.sh	tests/lib/boot-026-parser-c4-bootstrap.sh
 gate	script	run-boot-026-parser-c4-bootstrap-gate.sh	tests/run-boot-026-parser-c4-bootstrap-gate.sh

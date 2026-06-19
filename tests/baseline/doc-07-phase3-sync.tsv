@@ -1,0 +1,16 @@
+# STD-171 docs/07 + cookbook Phase 3 同步 manifest
+# 列：item_id	kind	anchor	target	notes
+read_path	section	## 1. 目标	analysis/doc-07-phase3-sync-v1.md
+doc07_phase3	section	## 2. docs/07 增量	analysis/doc-07-phase3-sync-v1.md
+kw_async79	keyword	await_read_fd	docs07	#79 std.async
+kw_dt80	keyword	timezone_iana	docs07	#80 std.datetime
+kw_cmp81	keyword	compress_format_brotli	docs07	#81 std.compress
+kw_sql82	keyword	row_col_blob_read	docs07	#82 std.sqlite
+recipe_async4	recipe	examples/cookbook/async_net_fs.sx	cookbook	ASYNC-04
+recipe_dt1	recipe	examples/cookbook/datetime_iana.sx	cookbook	DT-01
+recipe_cmp2	recipe	examples/cookbook/compress_stream_br_zs.sx	cookbook	CMP-02
+recipe_db2	recipe	examples/cookbook/sqlite_blob_stream.sx	cookbook	DB-02
+recipe_db3	recipe	examples/cookbook/db_kv_arrow.sx	cookbook	DB-03
+doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
+cookbook_doc	file	analysis/doc-cookbook-expand-v1.md	cookbook	§17
+gate	script	run-doc-07-phase3-sync-gate.sh	tests/run-doc-07-phase3-sync-gate.sh	gate

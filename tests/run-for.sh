@@ -3,16 +3,16 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
 # for ( ; n < 1 ; ) { break }; 42 -> 42
-$SHU tests/for/simple.su -o /tmp/shu_for_simple 2>&1
+$SHUX tests/for/simple.sx -o /tmp/shux_for_simple 2>&1
 exitcode=0
-/tmp/shu_for_simple >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_for_simple >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (for simple), got $exitcode"; exit 1; }
 
 # 边界：continue 不在循环内，应报 only allowed inside a loop
-err=$($SHU tests/for/continue_outside.su -o /tmp/shu_for_fail 2>&1) || true
+err=$($SHUX tests/for/continue_outside.sx -o /tmp/shux_for_fail 2>&1) || true
 echo "$err" | grep -q "only allowed inside a loop" || { echo "expected continue outside loop error, got: $err"; exit 1; }
 
 echo "for test OK"

@@ -3,8 +3,8 @@
  *
  * 供 pipeline_glue 在向量 let 初值 binop 路径调用；lane-scalar 回退仍保留。
  */
-#ifndef SHU_SIMD_ENC_H
-#define SHU_SIMD_ENC_H
+#ifndef SHUX_SIMD_ENC_H
+#define SHUX_SIMD_ENC_H
 
 #include <stdint.h>
 
@@ -52,6 +52,13 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                         int32_t ta, uint32_t cpu_features);
 
 /**
+ * f32 向量 FMA（Vec4f）：dst = a + b * c；x86 vfmadd231ps 或 mulps+addps 回退。
+ */
+int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                       int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
+                                       int32_t esz, int32_t ta, uint32_t cpu_features);
+
+/**
  * 在动态下标 i 处发射整型向量 binop（[a[i..i+lanes)] op [b[...]] → dst[...]）。
  * @param off_i  归纳变量 i 的 rbp 槽偏移
  * @param array_n  定长数组 compile-time 元素个数（用于 elem0 基址）
@@ -97,4 +104,4 @@ int32_t simd_enc_x86_movss_xmm0_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_
 int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_col0,
                                                 int32_t off_i, int32_t ta);
 
-#endif /* SHU_SIMD_ENC_H */
+#endif /* SHUX_SIMD_ENC_H */

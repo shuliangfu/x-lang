@@ -1,0 +1,10 @@
+// STD-HTTP-H2-v25：PING/PONG 连接保活烟测
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_ping_smoke() != 0) { return 1; }
+  if (http.http2_frame_ping() != 6) { return 2; }
+  if (http.http2_err_ping() != -1245) { return 3; }
+  if (http.http2_conn_ping_smoke() != 0) { return 4; }
+  return 0;
+}

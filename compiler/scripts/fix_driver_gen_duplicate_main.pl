@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# shu-c -E-extern 生成 driver_gen.c 时可能重复 main_run_compiler_c（后者自递归）。
+# shux-c -E-extern 生成 driver_gen.c 时可能重复 main_run_compiler_c（后者自递归）。
 # 保留转调 impl 的版本，删掉多余的自调用副本。
 use strict;
 use warnings;
@@ -16,16 +16,15 @@ $src =~ s/\nint32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  r
 # 去重连续相同前向声明。
 while ($src =~ s/(int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\);\n)\1/$1/s) { }
 
-# main.su 调用 preprocess_su_buf；-E-extern 导出 preprocess_preprocess_su_buf（由 preprocess_su.o 提供）。
-if (index($src, 'preprocess_preprocess_su_buf') >= 0 && index($src, '#define preprocess_su_buf') < 0) {
-  $src =~ s/(extern int32_t preprocess_preprocess_su_buf[^\n]*\n)/$1#define preprocess_su_buf preprocess_preprocess_su_buf\n/s
-    or warn "fix_driver_gen: preprocess_su_buf alias anchor not found\n";
+# main.sx 调用 preprocess_sx_buf；-E-extern 导出 preprocess_sx_buf（由 preprocess_sx.o 提供）。
+if (index($src, 'preprocess_sx_buf') >= 0 && index($src, '#define preprocess_sx_buf preprocess_sx_buf') < 0) {
+  # 已是单名 preprocess_sx_buf，无需 #define 别名。
 }
 
 # -E-extern 瘦 driver_gen：生成体为 main_*，build_asm/main.o 导出多为单前缀（eq_minus_E 等）；补声明与 #define。
 if ($path =~ /driver_gen\.c$/ && index($src, 'driver_gen thin TU aliases') < 0) {
   my $aliases = <<'DGEN';
-/* driver_gen thin TU aliases: main.su -E-extern 调用 main_*，build_asm/main.o 为单前缀符号 */
+/* driver_gen thin TU aliases: main.sx -E-extern 调用 main_*，build_asm/main.o 为单前缀符号 */
 extern int32_t eq_minus_E(uint8_t *buf, int32_t len);
 extern int32_t eq_minus_E_extern(uint8_t *buf, int32_t len);
 extern int32_t eq_asm(uint8_t *buf, int32_t len);

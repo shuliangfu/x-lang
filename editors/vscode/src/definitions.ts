@@ -1,5 +1,5 @@
 /**
- * Shulang DefinitionProvider — LSP 跳转定义的本地回退与增强。
+ * Shux DefinitionProvider — LSP 跳转定义的本地回退与增强。
  */
 
 import * as vscode from 'vscode';
@@ -12,14 +12,14 @@ import {
 } from './symbolSearch';
 
 /** 创建定义跳转 Provider */
-export function createShulangDefinitionProvider(): vscode.DefinitionProvider {
+export function createShuxDefinitionProvider(): vscode.DefinitionProvider {
   return {
     async provideDefinition(
       document: vscode.TextDocument,
       position: vscode.Position,
       _token: vscode.CancellationToken
     ): Promise<vscode.Definition | vscode.DefinitionLink[] | null> {
-      if (document.languageId !== 'su') {
+      if (document.languageId !== 'sx') {
         return null;
       }
 

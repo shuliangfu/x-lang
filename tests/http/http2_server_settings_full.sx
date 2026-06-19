@@ -1,0 +1,10 @@
+// STD-HTTP-H2-v21：server 全量 SETTINGS 协商烟测（HEADER_TABLE_SIZE/MAX_FRAME_SIZE）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_server_settings_full_smoke() != 0) { return 1; }
+  if (http.http2_setting_header_table_size() != 1) { return 2; }
+  if (http.http2_setting_max_frame_size() != 5) { return 3; }
+  if (http.http2_settings_smoke() != 0) { return 4; }
+  return 0;
+}

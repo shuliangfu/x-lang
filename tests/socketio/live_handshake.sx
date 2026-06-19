@@ -1,0 +1,23 @@
+/**
+ * STD-SOCKETIO-001 live 烟测：对 mock Engine.IO polling 服务执行握手。
+ * 由 tests/run-std-socketio-live.sh 启动 mock 后运行。
+ */
+const sio = import("std.socketio");
+
+function main(): i32 {
+  let base: [32]u8 = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
+    48, 48, 49, 0];
+  let sid: [16]u8 = [];
+  let has_ws: i32 = 0;
+  let n: i32 = sio.polling_handshake(&base[0], 22, &sid[0], 16, 5000, &has_ws);
+  if (n != 5) {
+    return 1;
+  }
+  if (sid[0] != 108 || sid[4] != 49) {
+    return 2;
+  }
+  if (has_ws != 1) {
+    return 3;
+  }
+  return 0;
+}

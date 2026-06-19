@@ -1,0 +1,8 @@
+// STD-HTTP-H2-v16：h2c server 多 stream 并发 serve 烟测（离线 + C 集成）
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_server_multistream_smoke() != 0) { return 1; }
+  if (http.http2_server_multistream_is_available() == false) { return 2; }
+  return 0;
+}

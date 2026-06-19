@@ -2,18 +2,18 @@
 # ZC-5 门禁：fs_pipe_splice smoke +（Linux）16MiB proxy bench + strace splice 验证。
 # 用法：
 #   ./tests/run-zc5-gate.sh
-#   SHU=./compiler/shu_asm ./tests/run-zc5-gate.sh
+#   SHUX=./compiler/shux_asm ./tests/run-zc5-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/perf-syscall-batch.sh
 . "$(dirname "$0")/lib/perf-syscall-batch.sh"
 
-SHU_BIN="${SHU:-}"
-case "$SHU_BIN" in
-  /*) SHU_ABS="$SHU_BIN" ;;
-  "") SHU_ABS="" ;;
-  *) SHU_ABS="$(pwd)/$SHU_BIN" ;;
+SHUX_BIN="${SHUX:-}"
+case "$SHUX_BIN" in
+  /*) SHUX_ABS="$SHUX_BIN" ;;
+  "") SHUX_ABS="" ;;
+  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
 esac
 
 zc5_native_exe() {
@@ -28,38 +28,38 @@ zc5_native_exe() {
   esac
 }
 
-if [ -z "$SHU_ABS" ] || ! zc5_native_exe "$SHU_ABS"; then
-  SHU_ABS=""
-  for cand in ./compiler/shu-c ./compiler/shu ./compiler/shu_asm; do
+if [ -z "$SHUX_ABS" ] || ! zc5_native_exe "$SHUX_ABS"; then
+  SHUX_ABS=""
+  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux_asm; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if zc5_native_exe "$abs"; then
-      SHU_ABS="$abs"
+      SHUX_ABS="$abs"
       break
     fi
   done
 fi
 
-CHECK_SHU="$SHU_ABS"
-if [ -z "$CHECK_SHU" ] && [ -x ./compiler/shu-c ]; then
-  CHECK_SHU=./compiler/shu-c
+CHECK_SHUX="$SHUX_ABS"
+if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
+  CHECK_SHUX=./compiler/shux-c
 fi
 
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-SMOKE_OUT="$OUT_DIR/shu_zc5_splice_smoke"
-BENCH_OUT="$OUT_DIR/shu_zc5_splice_bench"
+SMOKE_OUT="$OUT_DIR/shux_zc5_splice_smoke"
+BENCH_OUT="$OUT_DIR/shux_zc5_splice_bench"
 rm -f "$SMOKE_OUT" "$BENCH_OUT"
 
 echo "=== ZC-5: fs_pipe_splice smoke + bench ==="
 
-if [ -z "$CHECK_SHU" ]; then
-  if make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null; then
-    [ -x ./compiler/shu-c ] && CHECK_SHU=./compiler/shu-c
+if [ -z "$CHECK_SHUX" ]; then
+  if make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null; then
+    [ -x ./compiler/shux-c ] && CHECK_SHUX=./compiler/shux-c
   fi
 fi
 
-if [ -z "$CHECK_SHU" ]; then
-  echo "zc5 gate SKIP (no working shu-c/shu)"
+if [ -z "$CHECK_SHUX" ]; then
+  echo "zc5 gate SKIP (no working shux-c/shux)"
   exit 0
 fi
 
@@ -68,40 +68,40 @@ fi
 ensure_std_c_o ../std/fs/fs.o
 ensure_std_c_o ../std/net/net.o
 
-SMOKE_SRC="tests/fs/splice_smoke.su"
-BENCH_SRC="tests/bench/zero_copy_splice.su"
+SMOKE_SRC="tests/fs/splice_smoke.sx"
+BENCH_SRC="tests/bench/zero_copy_splice.sx"
 
-if ! "$CHECK_SHU" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_SHUX" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
   echo "zc5 FAIL: typeck $SMOKE_SRC" >&2
-  "$CHECK_SHU" check -L . "$SMOKE_SRC" 2>&1 || true
+  "$CHECK_SHUX" check -L . "$SMOKE_SRC" 2>&1 || true
   exit 1
 fi
-if ! "$CHECK_SHU" check -L . "$BENCH_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_SHUX" check -L . "$BENCH_SRC" >/dev/null 2>&1; then
   echo "zc5 FAIL: typeck $BENCH_SRC" >&2
-  "$CHECK_SHU" check -L . "$BENCH_SRC" 2>&1 || true
+  "$CHECK_SHUX" check -L . "$BENCH_SRC" 2>&1 || true
   exit 1
 fi
 echo "zc5: splice typeck OK"
 
-RUN_SHU="$CHECK_SHU"
-# -o 链接 fs/net 须 shu-c/shu；shu_asm 缺 fs_read_c 等 C 互操作符号。
-LINK_SHU=""
-for cand in ./compiler/shu-c ./compiler/shu; do
+RUN_SHUX="$CHECK_SHUX"
+# -o 链接 fs/net 须 shux-c/shux；shux_asm 缺 fs_read_c 等 C 互操作符号。
+LINK_SHUX=""
+for cand in ./compiler/shux-c ./compiler/shux; do
   case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
   if zc5_native_exe "$abs"; then
-    LINK_SHU="$abs"
+    LINK_SHUX="$abs"
     break
   fi
 done
-if [ -n "$LINK_SHU" ]; then
-  RUN_SHU="$LINK_SHU"
-elif [ -n "$SHU_ABS" ] && zc5_native_exe "$SHU_ABS"; then
-  RUN_SHU="$SHU_ABS"
+if [ -n "$LINK_SHUX" ]; then
+  RUN_SHUX="$LINK_SHUX"
+elif [ -n "$SHUX_ABS" ] && zc5_native_exe "$SHUX_ABS"; then
+  RUN_SHUX="$SHUX_ABS"
 fi
 
-if ! SHU="$RUN_SHU" "$RUN_SHU" -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/shu_zc5_smoke_build.log; then
+if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/shux_zc5_smoke_build.log; then
   echo "zc5 FAIL: compile $SMOKE_SRC" >&2
-  tail -8 /tmp/shu_zc5_smoke_build.log 2>/dev/null || true
+  tail -8 /tmp/shux_zc5_smoke_build.log 2>/dev/null || true
   exit 1
 fi
 
@@ -118,20 +118,20 @@ else
 fi
 
 # Linux：16MiB bench + strace splice（复用 sendfile sink）
-if [ "$(uname -s)" != "Linux" ] || ! zc5_native_exe "$RUN_SHU"; then
-  echo "zc5: bench/strace SKIP (Linux + native shu required)"
+if [ "$(uname -s)" != "Linux" ] || ! zc5_native_exe "$RUN_SHUX"; then
+  echo "zc5: bench/strace SKIP (Linux + native shux required)"
   echo "zc5 gate OK"
   exit 0
 fi
 
-BENCH_MB="${SHU_IO_BENCH_MB:-16}"
+BENCH_MB="${SHUX_IO_BENCH_MB:-16}"
 BENCH_FILE="tests/bench/.io_mmap_bench_tmp"
 if [ ! -f "$BENCH_FILE" ]; then
   dd if=/dev/zero of="$BENCH_FILE" bs=1M count="$BENCH_MB" status=none 2>/dev/null || \
     dd if=/dev/zero of="$BENCH_FILE" bs=1048576 count="$BENCH_MB" 2>/dev/null
 fi
 
-SINK_BIN="/tmp/shu_zc5_splice_sink"
+SINK_BIN="/tmp/shux_zc5_splice_sink"
 SINK_PORT=38460
 cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
   echo "zc5: bench SKIP (compile sink failed)"
@@ -143,7 +143,7 @@ cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
 SINK_PID=$!
 sleep 0.3
 
-if ! SHU="$RUN_SHU" "$RUN_SHU" -L . "$BENCH_SRC" -o "$BENCH_OUT" 2>/tmp/shu_zc5_bench_build.log; then
+if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$BENCH_SRC" -o "$BENCH_OUT" 2>/tmp/shux_zc5_bench_build.log; then
   kill "$SINK_PID" 2>/dev/null || true
   wait "$SINK_PID" 2>/dev/null || true
   echo "zc5 FAIL: compile $BENCH_SRC" >&2
@@ -175,7 +175,7 @@ echo "zc5: zero_copy_splice 16MiB exit=$RC OK"
 zc5_strace_captures_syscalls() {
   local probe_out rc=1
   command -v strace >/dev/null 2>&1 || return 1
-  probe_out="$(mktemp /tmp/shu_zc5_strace_probe.XXXXXX)"
+  probe_out="$(mktemp /tmp/shux_zc5_strace_probe.XXXXXX)"
   strace -o "$probe_out" /bin/ls / >/dev/null 2>&1 || true
   if grep -qE '^openat\(' "$probe_out" 2>/dev/null; then
     rc=0
@@ -186,8 +186,8 @@ zc5_strace_captures_syscalls() {
 
 if command -v strace >/dev/null 2>&1; then
   if ! zc5_strace_captures_syscalls; then
-    if [ "${SHU_ZC5_REQUIRE_STRACE:-0}" = "1" ]; then
-      echo "zc5 FAIL: strace probe failed (SHU_ZC5_REQUIRE_STRACE=1; need native Linux ptrace)" >&2
+    if [ "${SHUX_ZC5_REQUIRE_STRACE:-0}" = "1" ]; then
+      echo "zc5 FAIL: strace probe failed (SHUX_ZC5_REQUIRE_STRACE=1; need native Linux ptrace)" >&2
       exit 1
     fi
     echo "zc5: strace splice SKIP (strace cannot capture syscalls on this runner; e.g. Mac Docker Desktop ptrace)"
@@ -195,7 +195,7 @@ if command -v strace >/dev/null 2>&1; then
     "$SINK_BIN" "$SINK_PORT" >/dev/null 2>&1 &
     SINK_PID=$!
     sleep 0.3
-    strace_out="$(mktemp /tmp/shu_zc5_strace.XXXXXX)"
+    strace_out="$(mktemp /tmp/shux_zc5_strace.XXXXXX)"
     RC=0
     strace -e trace=splice,read,write -o "$strace_out" "$BENCH_OUT" "$SINK_PORT" >/dev/null 2>&1 || RC=$?
     kill "$SINK_PID" 2>/dev/null || true

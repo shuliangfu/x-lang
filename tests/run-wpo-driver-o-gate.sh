@@ -3,17 +3,17 @@
 # 用法：
 #   ./tests/run-wpo-driver-o-gate.sh
 #   ./tests/run-wpo-driver-o-gate.sh compiler/build_asm/driver_compile.o
-#   SHU_WPO_DRIVER_O_FAIL=1 ./tests/run-wpo-driver-o-gate.sh
+#   SHUX_WPO_DRIVER_O_FAIL=1 ./tests/run-wpo-driver-o-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . tests/lib/wpo-ab-proxy.sh
 
 DRIVER_O="${1:-compiler/build_asm/driver_compile.o}"
-BASELINE="${SHU_WPO_DRIVER_O_BASELINE:-tests/baseline/wpo-driver-o.tsv}"
+BASELINE="${SHUX_WPO_DRIVER_O_BASELINE:-tests/baseline/wpo-driver-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="driver_o_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MAX_TEXT=${MAX_TEXT:-768}
-FAIL=${SHU_WPO_DRIVER_O_FAIL:-1}
+FAIL=${SHUX_WPO_DRIVER_O_FAIL:-1}
 
 if [ ! -f "$DRIVER_O" ]; then
   echo "run-wpo-driver-o-gate FAIL: missing $DRIVER_O" >&2

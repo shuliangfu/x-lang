@@ -3,17 +3,17 @@
 #
 # 1) zc-copy-proof-v1.md + 模板 + manifest
 # 2) 模板 metadata 键；PR checklist 字段
-# 3) matrix run 行：编译运行 proof（native shu）
+# 3) matrix run 行：编译运行 proof（native shux）
 #
 # 用法：./tests/run-zc-copy-proof-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
-MATRIX="${SHU_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
-PR_TPL="${SHU_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
-SU_TPL="${SHU_ZC_SU_COPY_TPL:-tests/templates/zc-copy-proof-test.su}"
-SEM="${SHU_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
+DOC="${SHUX_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
+MATRIX="${SHUX_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
+PR_TPL="${SHUX_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
+SU_TPL="${SHUX_ZC_SU_COPY_TPL:-tests/templates/zc-copy-proof-test.sx}"
+SEM="${SHUX_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
 MIN_PROOFS=1
 
 # shellcheck source=tests/lib/ci-host.sh
@@ -76,7 +76,7 @@ while IFS=$'\t' read -r proof_id source policy want_ec copies tier notes; do
   case "$policy" in
     template)
       case "$source" in
-        zc-copy-proof-test.su)
+        zc-copy-proof-test.sx)
           [ -f "$SU_TPL" ] || { echo "zc-copy-proof FAIL: $SU_TPL" >&2; FAILS=$((FAILS + 1)); }
           ;;
         zc-pr-copy-declaration.txt)
@@ -145,18 +145,18 @@ fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "zc-copy-proof gate SKIP smoke (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "zc-copy-proof gate SKIP smoke (no native shux)" >&2
   echo "zc-copy-proof gate OK"
   exit 0
 fi
@@ -165,9 +165,9 @@ run_proof() {
   local script="$1"
   local want_ec="$2"
   local src="tests/zc/$script"
-  local out="/tmp/shu_zc_proof_${script%.su}"
-  if ! "$SHU_BIN" -L . "$src" -o "$out" >/tmp/shu_zc_proof_compile.log 2>&1; then
-    cat /tmp/shu_zc_proof_compile.log >&2
+  local out="/tmp/shux_zc_proof_${script%.sx}"
+  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_zc_proof_compile.log 2>&1; then
+    cat /tmp/shux_zc_proof_compile.log >&2
     return 1
   fi
   local ec=0
@@ -180,7 +180,7 @@ run_proof() {
 }
 
 SMOKE_FAILS=0
-echo "=== ZC-007: proof smoke (SHU=$SHU_BIN) ==="
+echo "=== ZC-007: proof smoke (SHUX=$SHUX_BIN) ==="
 while IFS=$'\t' read -r proof_id source policy want_ec _c _t _n; do
   [ -z "${proof_id:-}" ] && continue
   case "$proof_id" in \#*|min_proofs|template_meta|pr_checklist) continue ;; esac

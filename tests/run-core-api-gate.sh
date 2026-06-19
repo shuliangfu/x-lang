@@ -7,9 +7,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_API_DOC:-analysis/core-api-gate-v1.md}"
-REGISTRY="${SHU_CORE_API_TSV:-tests/baseline/core-api.tsv}"
-MATRIX="${SHU_CORE_API_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
+DOC="${SHUX_CORE_API_DOC:-analysis/core-api-gate-v1.md}"
+REGISTRY="${SHUX_CORE_API_TSV:-tests/baseline/core-api.tsv}"
+MATRIX="${SHUX_CORE_API_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
 LIB="tests/lib/core-api.sh"
 MIN_MOD=11
 

@@ -5,7 +5,7 @@
 #   std_env_iter_symbols_ok ENV_SU ENV_C TSV
 #   std_env_iter_emit_report status check_ok run_ok skip
 
-STD_ENV_ITER_PREFIX="${SHU_STD_ENV_ITER_PREFIX:-shu: [SHU_STD_ENV_ITER]}"
+STD_ENV_ITER_PREFIX="${SHUX_STD_ENV_ITER_PREFIX:-shux: [SHUX_STD_ENV_ITER]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数。
 std_env_iter_symbols_ok() {

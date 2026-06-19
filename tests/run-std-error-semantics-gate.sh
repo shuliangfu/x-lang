@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-error-semantics-v1.md"
 MANIFEST="tests/baseline/std-error-semantics.tsv"
-ERR_MOD="std/error/mod.su"
+ERR_MOD="std/error/mod.sx"
 LIB="tests/lib/std-error-semantics.sh"
-SMOKE="tests/std/error_semantics_smoke.su"
-RECIPE="examples/cookbook/error_semantic_class.su"
+SMOKE="tests/std/error_semantics_smoke.sx"
+RECIPE="examples/cookbook/error_semantic_class.sx"
 MIN_SYM=6
 
 # shellcheck source=tests/lib/std-error-semantics.sh
@@ -63,7 +63,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -75,24 +75,24 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-158: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
-    && "$SHU_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-158: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
+    && "$SHUX_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-error-semantics gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -5 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -5 >&2 || true
     std_error_semantics_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if $RUN_SHU -L . "$SMOKE" -o /tmp/shu_std_error_semantics 2>/tmp/shu_std_error_sem_build.log; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_std_error_semantics 2>/tmp/shux_std_error_sem_build.log; then
     ec=0
-    /tmp/shu_std_error_semantics >/dev/null 2>&1 || ec=$?
+    /tmp/shux_std_error_semantics >/dev/null 2>&1 || ec=$?
     if [ "$ec" -eq 0 ]; then
       RUN_OK=1
     else
@@ -102,11 +102,11 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "std-error-semantics gate SKIP runnable (link failed)" >&2
-    tail -5 /tmp/shu_std_error_sem_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/shux_std_error_sem_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "std-error-semantics gate SKIP typeck (no native shu)" >&2
+  echo "std-error-semantics gate SKIP typeck (no native shux)" >&2
 fi
 
 std_error_semantics_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

@@ -6,9 +6,9 @@
 #   comp_incr_prod_hook_runnable HOOK_SCRIPT
 #   comp_incr_prod_emit_report status prod_ok prod_run prod_skip skip
 
-COMP021_PREFIX="${SHU_COMP021_PREFIX:-shu: [SHU_COMP021_INCR_PROD]}"
+COMP021_PREFIX="${SHUX_COMP021_PREFIX:-shux: [SHUX_COMP021_INCR_PROD]}"
 
-# 复用 COMP-020 native shu 探测。
+# 复用 COMP-020 native shux 探测。
 comp_incr_prod_native_shu() {
   # shellcheck source=tests/lib/comp-incr-compile-wave.sh
   . tests/lib/comp-incr-compile-wave.sh

@@ -2,15 +2,15 @@
 # parser_asm_thin_glue.o 符号完整性门禁：校验关键 C glue / stretch 符号存在，不依赖体积 ratchet。
 # 用法：
 #   ./tests/run-parser-thin-glue-symbol-integrity-gate.sh
-#   SHU_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 ./tests/run-parser-thin-glue-symbol-integrity-gate.sh
+#   SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 ./tests/run-parser-thin-glue-symbol-integrity-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHU_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL:-0}
-BASELINE="${SHU_PARSER_THIN_GLUE_SYMBOL_BASELINE:-tests/baseline/parser-thin-glue-symbols.tsv}"
+FAIL=${SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL:-0}
+BASELINE="${SHUX_PARSER_THIN_GLUE_SYMBOL_BASELINE:-tests/baseline/parser-thin-glue-symbols.tsv}"
 THIN_SRC="compiler/src/asm/parser_asm_thin_c.c"
 GLUE_OBJ="compiler/parser_asm_thin_glue.o"
-NM_LIST="/tmp/shu_parser_thin_glue_syms.$$.txt"
+NM_LIST="/tmp/shux_parser_thin_glue_syms.$$.txt"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "parser-thin-glue-symbol-integrity-gate: N/A on Darwin"

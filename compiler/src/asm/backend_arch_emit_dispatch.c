@@ -1,7 +1,7 @@
 /**
  * backend_arch_emit_dispatch.c — backend_arch_emit_* 的 C 侧 ta 分派
  *
- * M8 自举：backend.su arch_emit_* 单行委托本 TU，避免 SU if(ta) 真 emit 未绑定跳转。
+ * M8 自举：backend.sx arch_emit_* 单行委托本 TU，避免 SU if(ta) 真 emit 未绑定跳转。
  */
 #include <stdint.h>
 

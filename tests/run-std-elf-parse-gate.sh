@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
-MANIFEST="${SHU_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
-VECTORS="${SHU_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
-MOD_SU="std/elf/mod.su"
+DOC="${SHUX_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
+MANIFEST="${SHUX_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
+VECTORS="${SHUX_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
+MOD_SU="std/elf/mod.sx"
 ELF_C="std/elf/elf.c"
 LIB="tests/lib/std-elf-parse.sh"
-SMOKE_SU="tests/std-elf/parse_hdr.su"
+SMOKE_SU="tests/std-elf/parse_hdr.sx"
 SMOKE_C="tests/std-elf/parse_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_reloc.bin"
 MIN_APIS=3
@@ -80,7 +80,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-elf-parse manifest OK"
 
-if [ "${SHU_STD_ELF_PARSE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD_ELF_PARSE_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "std-elf-parse gate OK (manifest only)"
   exit 0
 fi
@@ -99,7 +99,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -111,28 +111,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-058: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-058: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-elf-parse gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_elf_parse_run_smoke "$SHU_BIN" "$SMOKE_SU" "hdr"; then
+  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_SU" "hdr"; then
     SU_OK=1
   else
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-elf-parse gate SKIP .su smoke (no native shu)" >&2
+  echo "std-elf-parse gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

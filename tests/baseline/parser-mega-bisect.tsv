@@ -1,4 +1,4 @@
-# parser mega bisect sweep (linux/amd64 experimental shu_asm)
+# parser mega bisect sweep (linux/amd64 experimental shux_asm)
 baseline_text	25651
 min_delta_pass	8192
 parse_into_buf	0	25651	0	stub

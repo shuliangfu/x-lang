@@ -1,0 +1,65 @@
+// std.sort — 排序（对标 Zig std.sort、Rust Vec::sort）
+//
+// 【文件职责】sort_i32、sort_u8 原地不稳定升序；sort_stable_* 稳定归并；
+// sort_i32_cmp 自定义比较器；sort_stable_by_key 按 KeyTag.key 稳定排序。
+// 【依赖】core；与 std/sort/sort.c 同属一模块。
+extern function sort_i32_c(ptr: *i32, len: i32): void;
+extern function sort_u8_c(ptr: *u8, len: i32): void;
+extern function sort_stable_i32_c(ptr: *i32, len: i32): void;
+extern function sort_stable_u8_c(ptr: *u8, len: i32): void;
+extern function sort_i32_cmp_c(ptr: *i32, len: i32, cmp_fn: usize): void;
+extern function sort_stable_key_tag_c(ptr: *KeyTag, len: i32): void;
+extern function sort_cmp_i32_desc_fn_c(): usize;
+extern function sort_cmp_i32_asc_fn_c(): usize;
+extern function sort_cmp_key_i32_fn_c(): usize;
+
+/** key+payload 对：稳定排序时仅比较 key，保留 tag 相对顺序（STD-150）。 */
+struct KeyTag {
+  key: i32
+  tag: i32
+}
+
+/** 原地对 ptr[0..len] 升序排序（i32）；不稳定。 */
+function sort_i32(ptr: *i32, len: i32): void {
+  sort_i32_c(ptr, len);
+}
+
+/** 原地对 ptr[0..len] 升序排序（u8）；不稳定。 */
+function sort_u8(ptr: *u8, len: i32): void {
+  sort_u8_c(ptr, len);
+}
+
+/** 原地稳定升序排序 ptr[0..len]（i32）。 */
+function sort_stable_i32(ptr: *i32, len: i32): void {
+  sort_stable_i32_c(ptr, len);
+}
+
+/** 原地稳定升序排序 ptr[0..len]（u8）。 */
+function sort_stable_u8(ptr: *u8, len: i32): void {
+  sort_stable_u8_c(ptr, len);
+}
+
+/** 原地稳定排序 ptr[0..len]（i32）；cmp_fn 为 usize 承载的 C 比较器。 */
+function sort_i32_cmp(ptr: *i32, len: i32, cmp_fn: usize): void {
+  sort_i32_cmp_c(ptr, len, cmp_fn);
+}
+
+/** KeyTag 数组按 key 稳定升序排序。 */
+function sort_stable_by_key(ptr: *KeyTag, len: i32): void {
+  sort_stable_key_tag_c(ptr, len);
+}
+
+/** 返回降序 i32 比较器函数地址（usize）。 */
+function cmp_i32_desc_fn(): usize {
+  return sort_cmp_i32_desc_fn_c();
+}
+
+/** 返回升序 i32 比较器函数地址（usize）。 */
+function cmp_i32_asc_fn(): usize {
+  return sort_cmp_i32_asc_fn_c();
+}
+
+/** 返回 KeyTag key 比较器函数地址（usize）。 */
+function cmp_key_i32_fn(): usize {
+  return sort_cmp_key_i32_fn_c();
+}

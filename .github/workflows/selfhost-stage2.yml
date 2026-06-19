@@ -1,4 +1,4 @@
-# 可选：更严自举对比（shu-su -su -E 生成 _gen2.c 链 shu-su2）。
+# 可选：更严自举对比（shux-sx -sx -E 生成 _gen2.c 链 shux-sx2）。
 # 默认不阻塞 PR；手动 workflow_dispatch 或每周 schedule 触发。
 
 name: Selfhost Stage2
@@ -10,26 +10,26 @@ on:
 
 jobs:
   stage2:
-    name: verify-selfhost-stage2 (shu-su -su -E)
+    name: verify-selfhost-stage2 (shux-sx -sx -E)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
-      - name: Build shu and shu-c
+      - name: Build shux and shux-c
         run: make -C compiler OPT=1 all
       - name: Run verify-selfhost-stage2.sh
         run: cd compiler && sh ./verify-selfhost-stage2.sh
         timeout-minutes: 45
 
   stage2-bstrict:
-    name: verify-selfhost-stage2-bstrict (shu_asm -> shu_asm2)
+    name: verify-selfhost-stage2-bstrict (shux_asm -> shux_asm2)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
-      - name: Build seed shu
+      - name: Build seed shux
         run: make -C compiler OPT=1 all
       - name: Run verify-selfhost-stage2-bstrict.sh
         run: cd compiler && sh ./verify-selfhost-stage2-bstrict.sh

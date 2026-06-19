@@ -1,14 +1,14 @@
-# BOOT-016 shu_asm std 符号完整性 manifest（Top-12）
+# BOOT-016 shux_asm std 符号完整性 manifest（Top-12）
 # 列：item_id	kind	obj_rel	anchor_symbol	getter	notes
 # min_top_n	12
-section_goal	section	## 1. 目标	shu_asm Top-N
+section_goal	section	## 1. 目标	shux_asm Top-N
 section_gate	section	## 4. Gate	boot-016 gate
 section_runtime	section	## 2. runtime.c 路径	asm_ld_append
 std_io	std_obj	std/io/io.o	io_read	get_io_o_path	STD-001
 std_fs	std_obj	std/fs/fs.o	fs_open_read_c	get_std_fs_o_path	STD-001
 std_heap	std_obj	std/heap/heap.o	heap_alloc_c	get_std_heap_o_path	BOOT-015
 std_process	std_obj	std/process/process.o	process_getpid_c	get_std_process_o_path	STD-023
-std_string	std_obj	std/string/string.o	shulang_string_memcmp_c	get_std_string_o_path	STD-016
+std_string	std_obj	std/string/string.o	shux_string_memcmp_c	get_std_string_o_path	STD-016
 std_path	std_obj	std/path/path.o	path_sep_c	get_std_path_o_path	STD-021
 std_runtime	std_obj	std/runtime/runtime.o	runtime_panic	get_std_runtime_o_path	panic
 std_env	std_obj	std/env/env.o	env_iter_count_c	get_std_env_o_path	STD-025

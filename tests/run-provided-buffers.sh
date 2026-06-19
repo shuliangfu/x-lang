@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ZC-1 Provided Buffers 烟测（Linux + liburing 5.19+ provide_buffers）
 # 用法：./tests/run-provided-buffers.sh
-# SHU_CI_NO_SKIP=1 且 Linux：禁止 silent SKIP，须 io_uring + liburing 可用。
+# SHUX_CI_NO_SKIP=1 且 Linux：禁止 silent SKIP，须 io_uring + liburing 可用。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
@@ -33,7 +33,7 @@ fi
 
 make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
 
-OUT="/tmp/shu_provided_smoke"
+OUT="/tmp/shux_provided_smoke"
 if ! cc -O2 -Wall tests/bench/provided_buffers_smoke.c std/io/io.o -o "$OUT" -luring -lpthread 2>/dev/null; then
   _provided_fail "link failed (check liburing)"
 fi

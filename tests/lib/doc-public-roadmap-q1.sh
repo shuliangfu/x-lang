@@ -5,7 +5,7 @@
 #   doc_roadmap_q1_check MANIFEST
 #   doc_roadmap_q1_emit_report status quarter roadmap_gate_ok
 
-DOC_ROADMAP_Q1_PREFIX="${SHU_DOC011_PREFIX:-shu: [SHU_DOC011_ROADMAP_Q1]}"
+DOC_ROADMAP_Q1_PREFIX="${SHUX_DOC011_PREFIX:-shux: [SHUX_DOC011_ROADMAP_Q1]}"
 
 # 校验 manifest 锚点与交叉引用；echo 缺失数。
 doc_roadmap_q1_check() {

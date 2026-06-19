@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-ffi-struct-callback-v1.md"
 MANIFEST="tests/baseline/std-ffi-struct-callback-manifest.tsv"
-MOD_SU="std/ffi/mod.su"
+MOD_SU="std/ffi/mod.sx"
 FFI_C="std/ffi/ffi.c"
 LIB="tests/lib/std-ffi-struct-callback.sh"
-SMOKE_SU="tests/std-ffi/struct_callback.su"
+SMOKE_SU="tests/std-ffi/struct_callback.sx"
 SMOKE_C="tests/std-ffi/struct_callback_ok.c"
 
 # shellcheck source=tests/lib/std-ffi-struct-callback.sh
@@ -58,17 +58,17 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-ffi-struct-callback gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_ffi_struct_callback_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_ffi_struct_callback_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "$FFI_O"; then
+  if std_ffi_struct_callback_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "$FFI_O"; then
     SU_OK=1
   else
     std_ffi_struct_callback_emit_report "fail" "$C_OK" 0 0

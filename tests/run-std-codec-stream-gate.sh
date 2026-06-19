@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD110_DOC:-analysis/std-codec-stream-v1.md}"
-MANIFEST="${SHU_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
-VECTORS="${SHU_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
-MOD_SU="std/codec/mod.su"
+DOC="${SHUX_STD110_DOC:-analysis/std-codec-stream-v1.md}"
+MANIFEST="${SHUX_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
+VECTORS="${SHUX_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
+MOD_SU="std/codec/mod.sx"
 LIB="tests/lib/std-codec-stream.sh"
-SMOKE_SU="tests/std-codec/stream_roundtrip.su"
+SMOKE_SU="tests/std-codec/stream_roundtrip.sx"
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-codec-stream.sh
@@ -69,19 +69,19 @@ echo "std-codec-stream manifest OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-110: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-110: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-codec-stream gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_codec_stream_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_stream_run_smoke "$SHU_BIN" "$SMOKE_SU" "stream"; then
+  if std_codec_stream_run_smoke "$SHUX_BIN" "$SMOKE_SU" "stream"; then
     SU_OK=1
   else
     std_codec_stream_emit_report "fail" 0 0

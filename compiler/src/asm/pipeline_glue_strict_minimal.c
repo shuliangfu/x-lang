@@ -1,7 +1,7 @@
 /**
  * pipeline_glue_strict_minimal.c — B-strict 链最小 glue（不含 ast_pool / pipeline_glue_types.inc）
  *
- * strict_core partial 已含 pipeline_su 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
+ * strict_core partial 已含 pipeline_sx 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -22,7 +22,7 @@ int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
 }
 
 /** pipeline 非 asm 分支 weak 桩（asm 路径不走此符号）。 */
-__attribute__((weak)) int32_t codegen_su_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
+__attribute__((weak)) int32_t codegen_sx_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
   (void)module;
   (void)arena;
   (void)out_buf;

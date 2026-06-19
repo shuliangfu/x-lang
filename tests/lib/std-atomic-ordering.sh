@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_atomic_ord_symbols_ok MOD_SU ATOMIC_C TSV
-#   std_atomic_ord_run_smoke SHU_BIN SU TAG
+#   std_atomic_ord_run_smoke SHUX_BIN SU TAG
 #   std_atomic_ord_emit_report status fence_ok main_ok skip
 
-STD_ATOMIC_ORD_PREFIX="${SHU_STD_ATOMIC_ORDERING_PREFIX:-shu: [SHU_STD_ATOMIC_ORDERING]}"
+STD_ATOMIC_ORD_PREFIX="${SHUX_STD_ATOMIC_ORDERING_PREFIX:-shux: [SHUX_STD_ATOMIC_ORDERING]}"
 
 std_atomic_ord_symbols_ok() {
   local mod_su="$1"
@@ -47,17 +47,17 @@ std_atomic_ord_symbols_ok() {
 }
 
 std_atomic_ord_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_atomic_ord_${tag}_$$"
+  local exe="/tmp/shux_std_atomic_ord_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-atomic-ordering FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-atomic-ordering FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

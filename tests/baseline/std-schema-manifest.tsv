@@ -4,21 +4,21 @@
 read_path	section	## 1. 阅读路径	analysis/std-schema-v1.md
 api_doc	section	## 2. API	analysis/std-schema-v1.md
 verify	section	## 3. Gate	analysis/std-schema-v1.md
-api_new	api	schema_new	std/schema/mod.su	创建
-api_free	api	schema_free	std/schema/mod.su	释放
-api_clear	api	schema_clear	std/schema/mod.su	清空
-api_add	api	schema_add_field	std/schema/mod.su	注册字段
-api_json	api	decode_json	std/schema/mod.su	JSON
-api_csv	api	decode_csv_row	std/schema/mod.su	CSV
-api_map	api	map_columns	std/schema/mod.su	列映射
-api_get_str	api	get_string	std/schema/mod.su	字符串
-api_get_i32	api	get_i32	std/schema/mod.su	整数
-api_get_bool	api	get_bool	std/schema/mod.su	布尔
-api_err_field	api	last_error_field	std/schema/mod.su	错误字段
-api_err_msg	api	last_error_message	std/schema/mod.su	错误消息
+api_new	api	schema_new	std/schema/mod.sx	创建
+api_free	api	schema_free	std/schema/mod.sx	释放
+api_clear	api	schema_clear	std/schema/mod.sx	清空
+api_add	api	schema_add_field	std/schema/mod.sx	注册字段
+api_json	api	decode_json	std/schema/mod.sx	JSON
+api_csv	api	decode_csv_row	std/schema/mod.sx	CSV
+api_map	api	map_columns	std/schema/mod.sx	列映射
+api_get_str	api	get_string	std/schema/mod.sx	字符串
+api_get_i32	api	get_i32	std/schema/mod.sx	整数
+api_get_bool	api	get_bool	std/schema/mod.sx	布尔
+api_err_field	api	last_error_field	std/schema/mod.sx	错误字段
+api_err_msg	api	last_error_message	std/schema/mod.sx	错误消息
 symbol_smoke	symbol	schema_smoke_c	std/schema/schema.c	C烟测
 impl_c	file	std/schema/schema.c	std/schema/schema.c
-smoke_su	smoke	tests/std-schema/decode_smoke.su	.su烟测
+smoke_su	smoke	tests/std-schema/decode_smoke.sx	.su烟测
 vectors	file	tests/baseline/std-schema-vectors.tsv	向量
 lib	script	lib/std-schema.sh	tests/lib/std-schema.sh
 gate	script	run-std-schema-gate.sh	tests/run-std-schema-gate.sh

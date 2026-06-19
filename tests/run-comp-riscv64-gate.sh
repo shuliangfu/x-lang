@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
-MANIFEST="${SHU_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
-MATRIX="${SHU_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
+DOC="${SHUX_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
+MANIFEST="${SHUX_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
+MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 
@@ -17,8 +17,8 @@ MIN_CASES=6
 echo "=== COMP-012: riscv64 regression manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-riscv64.sh tests/run-comp-riscv64.sh \
-  compiler/src/asm/arch/riscv64.su compiler/src/asm/arch/riscv64_enc.su \
-  compiler/src/asm/backend.su tests/asm/riscv64_min.su tests/run-asm.sh; do
+  compiler/src/asm/arch/riscv64.sx compiler/src/asm/arch/riscv64_enc.sx \
+  compiler/src/asm/backend.sx tests/asm/riscv64_min.sx tests/run-asm.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-riscv64 gate FAIL: missing $f" >&2
     exit 1
@@ -137,8 +137,8 @@ for kw in riscv64 regression ELF runnable report stable; do
   fi
 done
 
-if ! grep -q 'ta == 2' compiler/src/asm/backend.su 2>/dev/null; then
-  echo "comp-riscv64 gate FAIL: backend.su missing riscv64 dispatch" >&2
+if ! grep -q 'ta == 2' compiler/src/asm/backend.sx 2>/dev/null; then
+  echo "comp-riscv64 gate FAIL: backend.sx missing riscv64 dispatch" >&2
   exit 1
 fi
 
@@ -148,7 +148,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-riscv64 manifest OK (layers=${LAYER_N} matrix=${CASE_M})"
 
-if [ "${SHU_COMP_RISCV64_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP_RISCV64_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-riscv64 gate OK (manifest only)"
   exit 0
 fi

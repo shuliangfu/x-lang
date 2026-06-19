@@ -5,7 +5,7 @@
 #   doc_roadmap_q4_2027_check MANIFEST
 #   doc_roadmap_q4_2027_emit_report status quarter roadmap_gate_ok
 
-DOC_ROADMAP_Q4_2027_PREFIX="${SHU_DOC014_PREFIX:-shu: [SHU_DOC014_ROADMAP_Q4Y7]}"
+DOC_ROADMAP_Q4_2027_PREFIX="${SHUX_DOC014_PREFIX:-shux: [SHUX_DOC014_ROADMAP_Q4Y7]}"
 
 # 校验 manifest 锚点与交叉引用；echo 缺失数。
 doc_roadmap_q4_2027_check() {

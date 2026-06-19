@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-csv-stream.sh — STD-128 manifest 与烟测辅助
 
-STD_CSV_STREAM_PREFIX="${SHU_STD128_CSV_STREAM_PREFIX:-shu: [SHU_STD128_CSV_STREAM]}"
+STD_CSV_STREAM_PREFIX="${SHUX_STD128_CSV_STREAM_PREFIX:-shux: [SHUX_STD128_CSV_STREAM]}"
 
 # 校验 manifest 条目。
 std_csv_stream_symbols_ok() {
@@ -42,12 +42,12 @@ std_csv_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_csv_stream_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_csv_stream_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_csv_stream_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-csv-stream FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -64,7 +64,7 @@ std_csv_stream_run_smoke() {
 std_csv_stream_run_c_smoke() {
   local csv_o="$1"
   local src="tests/csv/stream_smoke_ok.c"
-  local out="/tmp/shu_std_csv_stream_c_$$"
+  local out="/tmp/shux_std_csv_stream_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

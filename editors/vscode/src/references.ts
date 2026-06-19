@@ -1,12 +1,12 @@
 /**
- * Shulang ReferenceProvider — LSP 查找引用的本地回退。
+ * Shux ReferenceProvider — LSP 查找引用的本地回退。
  */
 
 import * as vscode from 'vscode';
 import { findReferencesInWorkspace } from './symbolSearch';
 
 /** 创建引用查找 Provider */
-export function createShulangReferenceProvider(): vscode.ReferenceProvider {
+export function createShuxReferenceProvider(): vscode.ReferenceProvider {
   return {
     async provideReferences(
       document: vscode.TextDocument,
@@ -14,7 +14,7 @@ export function createShulangReferenceProvider(): vscode.ReferenceProvider {
       _context: vscode.ReferenceContext,
       _token: vscode.CancellationToken
     ): Promise<vscode.Location[]> {
-      if (document.languageId !== 'su') {
+      if (document.languageId !== 'sx') {
         return [];
       }
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # S5：确保 build_asm 五模块 WPO dogfood 产物齐全（main + driver + pipeline_wpo + typeck_wpo + backend_wpo）。
-# 在 bootstrap-driver-bstrict / chain gate 前调用；缺文件时用 ./shu_asm 快速重编（跳过全量 BUILD 循环）。
+# 在 bootstrap-driver-bstrict / chain gate 前调用；缺文件时用 ./shux_asm 快速重编（跳过全量 BUILD 循环）。
 # 用法：
 #   ./tests/ensure-wpo-build-asm-artifacts.sh
-#   SHU_WPO_ENSURE_FAIL=1 ./tests/ensure-wpo-build-asm-artifacts.sh
+#   SHUX_WPO_ENSURE_FAIL=1 ./tests/ensure-wpo-build-asm-artifacts.sh
 set -e
 cd "$(dirname "$0")/.."
 
-BUILD_ASM="${SHU_WPO_BUILD_ASM_DIR:-compiler/build_asm}"
-FAIL=${SHU_WPO_ENSURE_FAIL:-1}
-COMPILER="${SHU_WPO_ENSURE_COMPILER:-./compiler/shu_asm}"
+BUILD_ASM="${SHUX_WPO_BUILD_ASM_DIR:-compiler/build_asm}"
+FAIL=${SHUX_WPO_ENSURE_FAIL:-1}
+COMPILER="${SHUX_WPO_ENSURE_COMPILER:-./compiler/shux_asm}"
 
 # Darwin gen_driver：build_asm/parser.o 常为空，parser partial ld + main.o WPO 重编失败；Linux 覆盖五模块产物。
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -47,11 +47,11 @@ if [ ! -x "$COMPILER" ]; then
   exit 0
 fi
 
-echo "ensure-wpo-build-asm-artifacts: SHU_WPO_REBUILD_ARTIFACTS_ONLY=1 via $COMPILER ..."
+echo "ensure-wpo-build-asm-artifacts: SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 via $COMPILER ..."
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 (
   cd compiler
-  SHU_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_shu_asm.sh
+  SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_shux_asm.sh
 )
 
 # reach 硬门禁：五模块 WPO .o 编排链 callee 须已定义（rebuild 后必验）。
@@ -60,15 +60,15 @@ run_wpo_reach_gates() {
     tests/run-wpo-typeck-reach-gate.sh \
     tests/run-wpo-backend-reach-gate.sh 2>/dev/null || true
   if [ -f "$BUILD_ASM/pipeline_wpo.o" ] && [ -x tests/run-wpo-pipeline-reach-gate.sh ]; then
-    SHU_WPO_PIPELINE_REACH_FAIL="${SHU_WPO_PIPELINE_REACH_FAIL:-1}" \
+    SHUX_WPO_PIPELINE_REACH_FAIL="${SHUX_WPO_PIPELINE_REACH_FAIL:-1}" \
       ./tests/run-wpo-pipeline-reach-gate.sh "$BUILD_ASM/pipeline_wpo.o" || return 1
   fi
   if [ -f "$BUILD_ASM/typeck_wpo.o" ] && [ -x tests/run-wpo-typeck-reach-gate.sh ]; then
-    SHU_WPO_TYPECK_REACH_FAIL="${SHU_WPO_TYPECK_REACH_FAIL:-1}" \
+    SHUX_WPO_TYPECK_REACH_FAIL="${SHUX_WPO_TYPECK_REACH_FAIL:-1}" \
       ./tests/run-wpo-typeck-reach-gate.sh "$BUILD_ASM/typeck_wpo.o" || return 1
   fi
   if [ -f "$BUILD_ASM/backend_wpo.o" ] && [ -x tests/run-wpo-backend-reach-gate.sh ]; then
-    SHU_WPO_BACKEND_REACH_FAIL="${SHU_WPO_BACKEND_REACH_FAIL:-1}" \
+    SHUX_WPO_BACKEND_REACH_FAIL="${SHUX_WPO_BACKEND_REACH_FAIL:-1}" \
       ./tests/run-wpo-backend-reach-gate.sh "$BUILD_ASM/backend_wpo.o" || return 1
   fi
   return 0

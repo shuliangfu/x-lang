@@ -5,16 +5,16 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_ZIG_STRATEGY_DOC:-analysis/perf-zig-strategy-dashboard-v1.md}"
-MANIFEST="${SHU_PERF_ZIG_STRATEGY_TSV:-tests/baseline/perf-zig-strategy-dashboard.tsv}"
-CASES="${SHU_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
-HISTORY="${SHU_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
+DOC="${SHUX_PERF_ZIG_STRATEGY_DOC:-analysis/perf-zig-strategy-dashboard-v1.md}"
+MANIFEST="${SHUX_PERF_ZIG_STRATEGY_TSV:-tests/baseline/perf-zig-strategy-dashboard.tsv}"
+CASES="${SHUX_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
+HISTORY="${SHUX_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
 LIB="tests/lib/zig-strategy-dashboard.sh"
 RUNNER="tests/run-perf-zig-strategy-dashboard.sh"
 ZIG_GATE="tests/run-zig-baseline-gate.sh"
 MIN_CASES=6
 MIN_MONTHS=2
-PREFIX="shu: [SHU_ZIG_STRATEGY]"
+PREFIX="shux: [SHUX_ZIG_STRATEGY]"
 
 # shellcheck source=tests/lib/zig-strategy-dashboard.sh
 . tests/lib/zig-strategy-dashboard.sh
@@ -139,13 +139,13 @@ echo "perf-zig-strategy manifest OK (cases=${CASES_N} months=${HIST_MONTHS})"
 if command -v zig >/dev/null 2>&1; then
   echo "=== PERF-011: dashboard live smoke (advisory) ==="
   chmod +x "$RUNNER"
-  if SHU_ZIG_STRATEGY_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_zig_strategy_smoke.log | tail -12; then
+  if SHUX_ZIG_STRATEGY_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_zig_strategy_smoke.log | tail -12; then
     if grep -qF "$PREFIX" /tmp/perf_zig_strategy_smoke.log; then
       echo "perf-zig-strategy live smoke OK"
     elif grep -q 'zig-strategy dashboard SKIP' /tmp/perf_zig_strategy_smoke.log; then
       echo "perf-zig-strategy gate SKIP live smoke (runner skipped)" >&2
     else
-      echo "perf-zig-strategy gate SKIP live smoke (no SHU_ZIG_STRATEGY lines; compile skip OK)" >&2
+      echo "perf-zig-strategy gate SKIP live smoke (no SHUX_ZIG_STRATEGY lines; compile skip OK)" >&2
     fi
   else
     echo "perf-zig-strategy gate SKIP live smoke (runner non-fatal)" >&2

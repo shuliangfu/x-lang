@@ -3,7 +3,7 @@
  *
  * 【文件职责】next_field：在 ptr[0..len] 内找下一字段（逗号或换行分隔），写回 start 与 field_len；escape：引号包裹并转义。
  *
- * 【所属模块/组件】标准库 std.csv；依赖 std.string、std.io；与 std/csv/mod.su 同属一模块。
+ * 【所属模块/组件】标准库 std.csv；依赖 std.string、std.io；与 std/csv/mod.sx 同属一模块。
  */
 
 #include <stdint.h>
@@ -54,8 +54,8 @@ int32_t csv_next_field_c(const uint8_t *ptr, int32_t len, int32_t offset, int32_
 }
 
 /**
- * Shulang std.csv.next_field（_std_csv_next_field）：由 csv.o 提供实现。
- * seed asm 对同模块五实参 bl 会错传 out_len；.su 侧仅 extern 声明，链接本符号。
+ * Shux std.csv.next_field（_std_csv_next_field）：由 csv.o 提供实现。
+ * seed asm 对同模块五实参 bl 会错传 out_len；.sx 侧仅 extern 声明，链接本符号。
  */
 int32_t std_csv_next_field(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *out_start,
                            int32_t *out_len) {
@@ -98,7 +98,7 @@ int32_t csv_unescape_c(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t bu
   return i;
 }
 
-/** Shulang std.csv.unescape：由 csv.o 提供（seed asm 在 3+ 定长数组函数内 while+else 可能死循环）。 */
+/** Shux std.csv.unescape：由 csv.o 提供（seed asm 在 3+ 定长数组函数内 while+else 可能死循环）。 */
 int32_t std_csv_unescape(const uint8_t *ptr, int32_t len, uint8_t *buf, int32_t buf_cap) {
   return csv_unescape_c(ptr, len, buf, buf_cap);
 }
@@ -118,7 +118,7 @@ int32_t std_csv_csv_test_unescape_fail(void) {
 
 /**
  * import std.csv 裸名调用与 std_csv_* 的链接别名（codegen 未加模块前缀时由 csv.o 解析）。
- * 与 std/csv/mod.su 中 extern 名称一致，实现仍由上方 std_csv_* 提供。
+ * 与 std/csv/mod.sx 中 extern 名称一致，实现仍由上方 std_csv_* 提供。
  */
 int32_t next_field(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *out_start,
                    int32_t *out_len) {
@@ -202,7 +202,7 @@ int32_t csv_write_row_c(const uint8_t *blob, const int32_t *starts, const int32_
   return o;
 }
 
-/** 链接别名：与 mod.su / schema.c 裸名一致。 */
+/** 链接别名：与 mod.sx / schema.c 裸名一致。 */
 int32_t parse_row(const uint8_t *ptr, int32_t len, int32_t offset, int32_t *field_starts,
                   int32_t *field_lens, int32_t max_fields, int32_t *out_count) {
   return csv_parse_row_c(ptr, len, offset, field_starts, field_lens, max_fields, out_count);

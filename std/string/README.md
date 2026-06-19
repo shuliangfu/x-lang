@@ -30,7 +30,7 @@
 | 思路 | Zig / Rust / Go 做法 | 我们的做法 |
 |------|----------------------|------------|
 | **字符串即切片/视图** | Go `string`、Zig `[]const u8`、Rust `&str` 都是 (ptr, len)，不限制长度。 | **StrView** = (ptr, len)，零拷贝、不限制长度；大块数据一律用 StrView，不拷入 String。 |
-| **长串用 libc 快路径** | 比较/查找用 memcmp、memchr、strstr 等。 | 长 StrView（≥32 或 needle≥8）走 **memcmp / memmem**（std/string/string.c），短串保留 .su 循环并做 4 字节展开与超短串特判。 |
+| **长串用 libc 快路径** | 比较/查找用 memcmp、memchr、strstr 等。 | 长 StrView（≥32 或 needle≥8）走 **memcmp / memmem**（std/string/string.c），短串保留 .sx 循环并做 4 字节展开与超短串特判。 |
 | **零拷贝传参** | 函数普遍接受 `&str` / `string` / `[]const u8`，不强制拷贝。 | API 接受 **StrView** 或 (ptr, len)；输出用 **string_data_ptr + string_len**，避免 string_copy_to。 |
 | **只读与可变分离** | Rust String vs &str；Go string 只读。 | **StrView** 只读；**String** 可原地修改，但固定 256 字节。 |
 
@@ -125,10 +125,10 @@
 
 ## 测试
 
-- `tests/string/main.su` — string_empty
-- `tests/string/from_slice_eq.su` — from_slice、len、is_empty、eq
-- `tests/string/compare_append_find.su` — compare、append、find_char、starts_with、ends_with、copy_to
-- `tests/string/contains_trim_replace.su` — contains、find_slice、rfind_char、trim_space、replace_char
-- `tests/string/view_zerocopy.su` — StrView、string_view_*、string_data_ptr、string_eq_view
+- `tests/string/main.sx` — string_empty
+- `tests/string/from_slice_eq.sx` — from_slice、len、is_empty、eq
+- `tests/string/compare_append_find.sx` — compare、append、find_char、starts_with、ends_with、copy_to
+- `tests/string/contains_trim_replace.sx` — contains、find_slice、rfind_char、trim_space、replace_char
+- `tests/string/view_zerocopy.sx` — StrView、string_view_*、string_data_ptr、string_eq_view
 
 运行：`./tests/run-string.sh`

@@ -8,14 +8,14 @@
 #   perf_ah_report_emit case_id malloc calloc realloc cap_m cap_c cap_r ok_flag
 #
 # 环境：
-#   SHU_ALLOC_HOTSPOT_PREFIX — 默认 shu: [SHU_ALLOC_HOTSPOT]
+#   SHUX_ALLOC_HOTSPOT_PREFIX — 默认 shux: [SHUX_ALLOC_HOTSPOT]
 
 # strace 在本机能否捕获 syscall（Docker Desktop ptrace 常失效）。
 perf_ah_strace_probe_ok() {
   local probe_out
   [ "$(uname -s)" = "Linux" ] || return 1
   command -v strace >/dev/null 2>&1 || return 1
-  probe_out="$(mktemp /tmp/shu_ah_strace_probe.XXXXXX)"
+  probe_out="$(mktemp /tmp/shux_ah_strace_probe.XXXXXX)"
   strace -o "$probe_out" /bin/true >/dev/null 2>&1 || true
   if grep -qE 'execve|newfstatat|getdents' "$probe_out" 2>/dev/null; then
     rm -f "$probe_out"
@@ -49,7 +49,7 @@ perf_ah_strace_heap_counts() {
   if ! perf_ah_strace_probe_ok; then
     return 1
   fi
-  strace_out="$(mktemp /tmp/shu_ah_strace.XXXXXX)"
+  strace_out="$(mktemp /tmp/shux_ah_strace.XXXXXX)"
   rc=0
   strace -e trace=memory -o "$strace_out" "$exe" >/dev/null 2>&1 || rc=$?
   if [ "$rc" != "$expect_rc" ]; then
@@ -112,7 +112,7 @@ perf_ah_report_emit() {
   local cap_c="$6"
   local cap_r="$7"
   local ok_flag="$8"
-  local prefix="${SHU_ALLOC_HOTSPOT_PREFIX:-shu: [SHU_ALLOC_HOTSPOT]}"
+  local prefix="${SHUX_ALLOC_HOTSPOT_PREFIX:-shux: [SHUX_ALLOC_HOTSPOT]}"
   printf '%s case=%s malloc=%s calloc=%s realloc=%s cap_malloc=%s cap_calloc=%s cap_realloc=%s ok=%s\n' \
     "$prefix" "$case_id" "$malloc_n" "$calloc_n" "$realloc_n" \
     "$cap_m" "$cap_c" "$cap_r" "$ok_flag" >&2

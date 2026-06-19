@@ -38,7 +38,7 @@ extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t 
 extern int32_t pipeline_asm_block_final_expr_ref_at(struct ast_ASTArena *a, int32_t br);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *a, int32_t type_ref);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out);
-extern int32_t typeck_su_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t layout_idx, int32_t depth);
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t bi);
@@ -190,7 +190,7 @@ static int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Modul
                 }
             }
             if (eq) {
-                int32_t sz = typeck_su_type_size_from_layout_glue(m, a, k, 0);
+                int32_t sz = typeck_sx_type_size_from_layout_glue(m, a, k, 0);
                 return sz > 0 ? sz : 8;
             }
         }

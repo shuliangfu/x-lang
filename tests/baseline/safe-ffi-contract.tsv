@@ -5,14 +5,14 @@ read_path	section	## 1. 阅读路径	analysis/safe-ffi-contract-v1.md	-	15min
 rules	section	## 2. 契约规则 C1–C7	analysis/safe-ffi-contract-v1.md	-	FFI 边界
 matrix	section	## 3. 回归矩阵	safe-ffi-contract.tsv	-	权威
 verify	section	## 5. 验证与门禁	analysis/safe-ffi-contract-v1.md	-	gate
-case_null_cstr	C1-null	cstr_len	tests/ffi/contract_null_cstr.su	0	core	null→-1
-case_cstr_empty	C2-empty	cstr_len	tests/ffi/contract_cstr_empty.su	0	core	空串 len=0
-case_cstring_null0	C3-owned	cstring_new	tests/ffi/contract_cstring_null_len0.su	0	core	null len0
-case_roundtrip	C4-copy	cstring_new	tests/ffi/contract_cstring_roundtrip.su	0	core	复制+NUL
-case_free_null	C5-free	cstring_free	tests/ffi/contract_cstring_free_null.su	0	core	free null
-case_owned	C6-lifetime	cstring_new	tests/ffi/contract_owned_lifetime.su	0	core	new→free
-case_putchar	C7-extern	putchar	tests/ffi/contract_extern_putchar.su	0	extern	ABI
-case_smoke	agg	std.ffi	tests/ffi/contract_smoke.su	0	smoke	聚合
+case_null_cstr	C1-null	cstr_len	tests/ffi/contract_null_cstr.sx	0	core	null→-1
+case_cstr_empty	C2-empty	cstr_len	tests/ffi/contract_cstr_empty.sx	0	core	空串 len=0
+case_cstring_null0	C3-owned	cstring_new	tests/ffi/contract_cstring_null_len0.sx	0	core	null len0
+case_roundtrip	C4-copy	cstring_new	tests/ffi/contract_cstring_roundtrip.sx	0	core	复制+NUL
+case_free_null	C5-free	cstring_free	tests/ffi/contract_cstring_free_null.sx	0	core	free null
+case_owned	C6-lifetime	cstring_new	tests/ffi/contract_owned_lifetime.sx	0	core	new→free
+case_putchar	C7-extern	putchar	tests/ffi/contract_extern_putchar.sx	0	extern	ABI
+case_smoke	agg	std.ffi	tests/ffi/contract_smoke.sx	0	smoke	聚合
 lib	script	lib/safe-ffi.sh	tests/lib/safe-ffi.sh	-	运行库
 gate	script	run-safe-ffi-contract-gate.sh	tests/run-safe-ffi-contract-gate.sh	-	manifest
 hook_ffi	hook_script	run-ffi.sh	tests/run-ffi.sh	-	原回归

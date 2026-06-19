@@ -1,7 +1,7 @@
 # BOOT-026 parser C4 SU bootstrap 波次矩阵
 # 列：c4_id	hook	role	notes
 # min_rows	4
-c4_su_emit	run-parser-parse-bootstrap-su-emit-gate.sh	lead	SU 无 C TU 探测
+c4_su_emit	run-parser-parse-bootstrap-sx-emit-gate.sh	lead	SU 无 C TU 探测
 c4_bisect	run-parser-parse-bootstrap-bisect-gate.sh	wave	MINIMAL+FULL
 c4_boot025	run-boot-025-parser-gen12-consistency-gate.sh	ref	C3 父波次
 c4_link	run-parser-parse-bootstrap-link-smoke.sh	link	experimental 链

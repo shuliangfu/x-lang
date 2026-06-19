@@ -1,16 +1,16 @@
 #!/bin/sh
-# build_seed_asm_host.sh — 用 shu-c -E 将 asm 后端编成宿主 .o，供 bootstrap-driver-seed 链入（无 weak 桩、无 runtime 回退）。
+# build_seed_asm_host.sh — 用 shux-c -E 将 asm 后端编成宿主 .o，供 bootstrap-driver-seed 链入（无 weak 桩、无 runtime 回退）。
 # 用法：在 compiler 目录 ./scripts/build_seed_asm_host.sh
-# 依赖：./shu-c（make shu-c）
+# 依赖：./shux-c（make shux-c）
 
 set -e
 cd "$(dirname "$0")/.."
 OUT_DIR=build_asm/seed_host
 mkdir -p "$OUT_DIR"
 
-SHU_E=./shu-c
-if [ ! -x "$SHU_E" ]; then
-  echo "build_seed_asm_host: 缺少 ./shu-c，请先 make shu-c" >&2
+SHUX_E=./shux-c
+if [ ! -x "$SHUX_E" ]; then
+  echo "build_seed_asm_host: 缺少 ./shux-c，请先 make shux-c" >&2
   exit 1
 fi
 
@@ -23,7 +23,7 @@ fi
 LIB_ASM="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline -L src/codegen"
 
 dedupe_slice() {
-  perl -i -ne 'print unless /^struct shulang_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
+  perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
 }
 
 # Mach-O nm 带前导 _；ELF (Linux/Alpine) 不带。统一检测符号是否存在。
@@ -95,34 +95,34 @@ ld_partial_export() {
   localize_elf_partial_non_exported "$_out_o" "$_syms"
 }
 
-# asm.su 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_su.o / codegen_su.o 重复符号
+# asm.sx 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_sx.o / codegen_su.o 重复符号
 ASM_FULL_C="$OUT_DIR/asm_full_gen.c"
 ASM_FULL_O="$OUT_DIR/asm_full.o"
 BACKEND_PARTIAL="$OUT_DIR/asm_backend_partial.o"
 SYMS="$OUT_DIR/asm_backend_export.txt"
 
-if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/asm.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/peephole.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/platform/elf.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64_enc.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64_enc.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64_enc.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64.su" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_enc_dispatch.o" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_arch_emit_dispatch.o" -nt "$BACKEND_PARTIAL" ]; then
-  echo "build_seed_asm_host: asm.su 全量 -E ..."
+if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/asm.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_enc_dispatch.o" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_arch_emit_dispatch.o" -nt "$BACKEND_PARTIAL" ]; then
+  echo "build_seed_asm_host: asm.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
-  if ! "$SHU_E" $LIB_ASM -E src/asm/asm.su >"$ASM_TMP" 2>"$OUT_DIR/asm_full_gen.err"; then
+  if ! "$SHUX_E" $LIB_ASM -E src/asm/asm.sx >"$ASM_TMP" 2>"$OUT_DIR/asm_full_gen.err"; then
     if [ -s "$OUT_DIR/asm_full_gen.err" ]; then
       tail -20 "$OUT_DIR/asm_full_gen.err" >&2
     fi
     if [ -f "$BACKEND_PARTIAL" ]; then
-      echo "build_seed_asm_host: asm.su -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
+      echo "build_seed_asm_host: asm.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
       rm -f "$ASM_TMP"
       exit 0
     fi
     rm -f "$ASM_TMP"
-    echo "build_seed_asm_host: asm.su -E 失败且无已有 $BACKEND_PARTIAL" >&2
+    echo "build_seed_asm_host: asm.sx -E 失败且无已有 $BACKEND_PARTIAL" >&2
     exit 1
   fi
   mv -f "$ASM_TMP" "$ASM_FULL_C"
   dedupe_slice "$ASM_FULL_C"
   perl scripts/fix_slim_arena_gen_c.pl "$ASM_FULL_C"
   perl scripts/fix_backend_enc_recursive_gen_c.pl "$ASM_FULL_C"
-  # shu-c -E 偶发插入自递归 stub，保留下方多 arch 真实现。
+  # shux-c -E 偶发插入自递归 stub，保留下方多 arch 真实现。
   perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$ASM_FULL_C" 2>/dev/null || true
   if ! $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O"; then
     if [ -f "$BACKEND_PARTIAL" ]; then

@@ -2,7 +2,7 @@
 
 **标准库的 core 层**：不依赖操作系统，可在裸机、内核、嵌入式环境使用。
 
-- **用途**：用户通过 `import("core.xxx")` 引用；编译器解析到本目录下对应模块（如 `core/types.su`）。
+- **用途**：用户通过 `import("core.xxx")` 引用；编译器解析到本目录下对应模块（如 `core/types.sx`）。
 - **内容**：按模块单文件或子目录，例如：
   - 基础类型（types, mem, alloc, atomic）
   - 可选/错误（option, result）、比较（cmp）、格式化核心（fmt）

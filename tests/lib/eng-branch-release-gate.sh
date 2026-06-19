@@ -9,7 +9,7 @@
 
 # 预检 stderr 前缀（与 manifest output_prefix 一致）。
 eng_release_prefix() {
-  echo "shu: [SHU_RELEASE_PRECHECK]"
+  echo "shux: [SHUX_RELEASE_PRECHECK]"
 }
 
 # 校验语义化 tag：vX.Y.Z 或 vX.Y.Z-beta.1。

@@ -5,15 +5,15 @@ read_path	section	## 1. 目标	analysis/std-sqlite-pool-v1.md
 api_doc	section	## 2. pool API（v1）	analysis/std-sqlite-pool-v1.md
 vectors_doc	section	## 3. 金样向量	reuse_handle
 verify	section	## 4. Gate	analysis/std-sqlite-pool-v1.md
-api_open	api	pool_open	std/sqlite/mod.su	开池
-api_acquire	api	pool_acquire	std/sqlite/mod.su	借连
-api_release	api	pool_release	std/sqlite/mod.su	归还
-api_close	api	pool_close	std/sqlite/mod.su	关池
-symbol_pool_c	symbol	db_pool_open_c	std/sqlite/sqlite.c	开池
-symbol_acquire_c	symbol	db_pool_acquire_c	std/sqlite/sqlite.c	借连
-symbol_smoke_c	symbol	db_sqlite_pool_smoke_c	std/sqlite/sqlite.c	烟测
+api_open	api	pool_open	std/db/sqlite/mod.sx	开池
+api_acquire	api	pool_acquire	std/db/sqlite/mod.sx	借连
+api_release	api	pool_release	std/db/sqlite/mod.sx	归还
+api_close	api	pool_close	std/db/sqlite/mod.sx	关池
+symbol_pool_c	symbol	db_pool_open_c	std/db/sqlite/sqlite.c	开池
+symbol_acquire_c	symbol	db_pool_acquire_c	std/db/sqlite/sqlite.c	借连
+symbol_smoke_c	symbol	db_sqlite_pool_smoke_c	std/db/sqlite/sqlite.c	烟测
 smoke_c	file	tests/std-sqlite/pool_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/pool_roundtrip.su	.su 往返
+smoke_su	smoke	tests/std-sqlite/pool_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-pool-vectors.tsv	向量
 lib	script	lib/std-sqlite-pool.sh	tests/lib/std-sqlite-pool.sh
 gate	script	run-std-sqlite-pool-gate.sh	tests/run-std-sqlite-pool-gate.sh

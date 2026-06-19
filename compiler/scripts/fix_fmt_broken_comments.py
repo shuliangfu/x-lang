@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-修复 shu fmt 折行时丢失 // 或块注释 * 前缀导致的「伪代码行」。
+修复 shux fmt 折行时丢失 // 或块注释 * 前缀导致的「伪代码行」。
 
 用法（仓库根目录）：
   python3 compiler/scripts/fix_fmt_broken_comments.py [目录...]
@@ -45,7 +45,7 @@ def looks_like_comment_text(stripped: str) -> bool:
         return True
     if re.search(r"[。）；，、：」』】）]$", stripped):
         return True
-    if re.search(r"^(runtime|scripts/|\.\./|asm_|pipeline_|build_|mod\.su)", stripped):
+    if re.search(r"^(runtime|scripts/|\.\./|asm_|pipeline_|build_|mod\.sx)", stripped):
         return True
     if re.search(r"^[a-z_.][a-z0-9_./*-]*[.;)]?$", stripped, re.I):
         return True
@@ -198,7 +198,7 @@ def fix_file_lines(lines: list[str]) -> tuple[list[str], int]:
 
 
 def main() -> None:
-    """遍历目录并写回有改动的 .su 文件。"""
+    """遍历目录并写回有改动的 .sx 文件。"""
     roots = sys.argv[1:] or ["compiler", "core", "std", "tests", "examples"]
     total = 0
     files = 0
@@ -209,7 +209,7 @@ def main() -> None:
         for dp, dns, fns in os.walk(root):
             dns[:] = [d for d in dns if d not in skip_dirs]
             for fn in fns:
-                if not fn.endswith(".su"):
+                if not fn.endswith(".sx"):
                     continue
                 path = os.path.join(dp, fn)
                 with open(path, encoding="utf-8", errors="replace") as f:

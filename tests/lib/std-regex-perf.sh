@@ -5,7 +5,7 @@
 #   std_regex_perf_has_cc
 #   std_regex_perf_emit_report status bench_ok bench_skip skip ratio host
 
-STD_REGEX_PERF_PREFIX="${SHU_STD062_PREFIX:-shu: [SHU_STD062_REGEX_PERF]}"
+STD_REGEX_PERF_PREFIX="${SHUX_STD062_PREFIX:-shux: [SHUX_STD062_REGEX_PERF]}"
 
 # 本机是否有 C 编译器可跑 bench。
 std_regex_perf_has_cc() {

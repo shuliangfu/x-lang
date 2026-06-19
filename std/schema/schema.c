@@ -3,9 +3,9 @@
  *
  * 【文件职责】
  * Schema 字段注册；JSON 对象 typed decode；CSV 行 / SQLite 列文本映射；
- * 字段级错误路径；供 mod.su 与 gate 烟测调用。
+ * 字段级错误路径；供 mod.sx 与 gate 烟测调用。
  *
- * 【所属模块】标准库 std.schema；与 std/schema/mod.su 同属一模块。
+ * 【所属模块】标准库 std.schema；与 std/schema/mod.sx 同属一模块。
  * 【依赖】std/json/json.o（游标解析）；std/csv/csv.o（parse_row）。
  */
 
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <ctype.h>
 
-/** 与 mod.su 错误码一致。 */
+/** 与 mod.sx 错误码一致。 */
 enum {
     SCH_OK = 0,
     SCH_ERR_NULL = -1,
@@ -25,7 +25,7 @@ enum {
     SCH_ERR_FULL = -5,
 };
 
-/** 字段类型常量（与 mod.su 一致）。 */
+/** 字段类型常量（与 mod.sx 一致）。 */
 enum {
     SCH_TYPE_STRING = 0,
     SCH_TYPE_I32 = 1,
@@ -50,6 +50,9 @@ extern int32_t json_cursor_enter_object_c(json_cursor_t *cur);
 extern int32_t json_cursor_object_next_c(json_cursor_t *cur, uint8_t *key_buf, int32_t key_cap,
                                           int32_t *key_len);
 extern int32_t json_cursor_skip_value_c(json_cursor_t *cur);
+extern int32_t json_cursor_enter_array_c(json_cursor_t *cur);
+extern int32_t json_cursor_array_has_elem_c(json_cursor_t *cur);
+extern int32_t json_cursor_value_type_c(json_cursor_t *cur);
 extern int32_t json_parse_string_c(const uint8_t *ptr, int32_t len, uint8_t *out, int32_t out_cap,
                                    int32_t *consumed);
 extern int32_t json_parse_number_c(const uint8_t *ptr, int32_t len, double *out_val, int32_t *consumed);
@@ -196,6 +199,192 @@ static int32_t sch_check_required(sch_schema_t *sch) {
     return SCH_OK;
 }
 
+/** 拼接 prefix.local 为点分键名；prefix 为空时仅复制 local。 */
+static int32_t sch_build_dotted_key(char *out, int32_t out_cap, const char *prefix, const char *local) {
+    size_t pl;
+    size_t ll;
+    if (!out || out_cap <= 0 || !local) return SCH_ERR_NULL;
+    pl = (prefix && prefix[0]) ? strlen(prefix) : 0;
+    ll = strlen(local);
+    if (pl == 0) {
+        if (ll + 1 > (size_t)out_cap) return SCH_ERR_INVALID;
+        memcpy(out, local, ll + 1);
+        return SCH_OK;
+    }
+    if (pl + 1 + ll + 1 > (size_t)out_cap) return SCH_ERR_INVALID;
+    memcpy(out, prefix, pl);
+    out[pl] = '.';
+    memcpy(out + pl + 1, local, ll);
+    out[pl + 1 + ll] = '\0';
+    return SCH_OK;
+}
+
+/** 在游标当前 value 处解码标量到已注册字段 full_key。 */
+static int32_t sch_decode_json_scalar(sch_schema_t *sch, json_cursor_t *cur, const char *full_key) {
+    int32_t idx;
+    int32_t consumed = 0;
+    const uint8_t *vp;
+    int32_t vlen;
+    if (!sch || !cur || !full_key) return SCH_ERR_NULL;
+    idx = sch_find_field(sch, full_key);
+    if (idx < 0) {
+        if (json_cursor_skip_value_c(cur) != 0) return SCH_ERR_INVALID;
+        return SCH_OK;
+    }
+    vp = cur->ptr + cur->off;
+    vlen = cur->len - cur->off;
+    switch (sch->fields[idx].type) {
+    case SCH_TYPE_STRING: {
+        uint8_t out[SCH_VAL_MAX];
+        int32_t sl = json_parse_string_c(vp, vlen, out, SCH_VAL_MAX, &consumed);
+        if (sl < 0) {
+            sch_set_error(sch, sch->fields[idx].name, "expected string");
+            return SCH_ERR_TYPE;
+        }
+        out[sl] = '\0';
+        sch->values[idx].present = 1;
+        strncpy(sch->values[idx].str, (char *)out, SCH_VAL_MAX - 1);
+        sch->values[idx].str[SCH_VAL_MAX - 1] = '\0';
+        break;
+    }
+    case SCH_TYPE_I32: {
+        double dv = 0.0;
+        if (json_parse_number_c(vp, vlen, &dv, &consumed) != 0) {
+            sch_set_error(sch, sch->fields[idx].name, "expected number");
+            return SCH_ERR_TYPE;
+        }
+        sch->values[idx].present = 1;
+        sch->values[idx].i32 = (int32_t)dv;
+        break;
+    }
+    case SCH_TYPE_F64: {
+        if (json_parse_number_c(vp, vlen, &sch->values[idx].f64, &consumed) != 0) {
+            sch_set_error(sch, sch->fields[idx].name, "expected number");
+            return SCH_ERR_TYPE;
+        }
+        sch->values[idx].present = 1;
+        break;
+    }
+    case SCH_TYPE_BOOL: {
+        if (json_parse_bool_c(vp, vlen, &sch->values[idx].bool_v, &consumed) != 1) {
+            sch_set_error(sch, sch->fields[idx].name, "expected bool");
+            return SCH_ERR_TYPE;
+        }
+        sch->values[idx].present = 1;
+        break;
+    }
+    default:
+        return SCH_ERR_INVALID;
+    }
+    if (json_cursor_skip_value_c(cur) != 0) {
+        sch_set_error(sch, sch->fields[idx].name, "JSON value skip failed");
+        return SCH_ERR_INVALID;
+    }
+    return SCH_OK;
+}
+
+/** 拼接 prefix.index 为数组元素键名（如 tags.0）。 */
+static int32_t sch_build_index_key(char *out, int32_t out_cap, const char *prefix, int32_t index) {
+    char idx_buf[16];
+    size_t pl;
+    int32_t n;
+    if (!out || out_cap <= 0 || !prefix) return SCH_ERR_NULL;
+    n = snprintf(idx_buf, sizeof(idx_buf), "%d", index);
+    if (n <= 0 || n >= (int32_t)sizeof(idx_buf)) return SCH_ERR_INVALID;
+    pl = strlen(prefix);
+    if (pl + 1 + (size_t)n + 1 > (size_t)out_cap) return SCH_ERR_INVALID;
+    memcpy(out, prefix, pl);
+    out[pl] = '.';
+    memcpy(out + pl + 1, idx_buf, (size_t)n);
+    out[pl + 1 + (size_t)n] = '\0';
+    return SCH_OK;
+}
+
+/** 前向声明：object/array 互递归 decode。 */
+static int32_t sch_decode_json_object(sch_schema_t *sch, json_cursor_t *cur, const char *prefix);
+
+/** 递归解码 JSON array（元素键 prefix.0 / prefix.1 …）。 */
+static int32_t sch_decode_json_array(sch_schema_t *sch, json_cursor_t *cur, const char *prefix) {
+    int32_t idx = 0;
+    char elem_key[SCH_NAME_MAX];
+    int32_t has;
+    int32_t vtype;
+    int32_t rc;
+    if (!sch || !cur || !prefix) return SCH_ERR_NULL;
+    if (json_cursor_enter_array_c(cur) != 0) {
+        sch_set_error(sch, prefix, "expected array");
+        return SCH_ERR_INVALID;
+    }
+    for (;;) {
+        has = json_cursor_array_has_elem_c(cur);
+        if (has < 0) {
+            sch_set_error(sch, prefix, "JSON array parse error");
+            return SCH_ERR_INVALID;
+        }
+        if (has == 0) break;
+        if (sch_build_index_key(elem_key, SCH_NAME_MAX, prefix, idx) != SCH_OK) {
+            sch_set_error(sch, prefix, "array key too long");
+            return SCH_ERR_INVALID;
+        }
+        vtype = json_cursor_value_type_c(cur);
+        if (vtype == 3) {
+            if (json_cursor_enter_object_c(cur) != 0) {
+                sch_set_error(sch, elem_key, "expected object");
+                return SCH_ERR_INVALID;
+            }
+            rc = sch_decode_json_object(sch, cur, elem_key);
+            if (rc != SCH_OK) return rc;
+        } else if (vtype == 4) {
+            rc = sch_decode_json_array(sch, cur, elem_key);
+            if (rc != SCH_OK) return rc;
+        } else {
+            rc = sch_decode_json_scalar(sch, cur, elem_key);
+            if (rc != SCH_OK) return rc;
+        }
+        idx++;
+    }
+    return SCH_OK;
+}
+
+/** 递归解码 JSON object（支持 nested object → 点分字段名）。 */
+static int32_t sch_decode_json_object(sch_schema_t *sch, json_cursor_t *cur, const char *prefix) {
+    uint8_t key_buf[SCH_NAME_MAX];
+    char full_key[SCH_NAME_MAX];
+    int32_t key_len = 0;
+    int32_t rc;
+    int32_t vtype;
+    if (!sch || !cur) return SCH_ERR_NULL;
+    for (;;) {
+        rc = json_cursor_object_next_c(cur, key_buf, SCH_NAME_MAX, &key_len);
+        if (rc == 0) break;
+        if (rc < 0) {
+            sch_set_error(sch, NULL, "JSON parse error");
+            return SCH_ERR_INVALID;
+        }
+        key_buf[key_len] = '\0';
+        if (sch_build_dotted_key(full_key, SCH_NAME_MAX, prefix, (char *)key_buf) != SCH_OK) {
+            sch_set_error(sch, NULL, "key too long");
+            return SCH_ERR_INVALID;
+        }
+        vtype = json_cursor_value_type_c(cur);
+        if (vtype == 3) {
+            if (json_cursor_enter_object_c(cur) != 0) {
+                sch_set_error(sch, full_key, "expected object");
+                return SCH_ERR_INVALID;
+            }
+            rc = sch_decode_json_object(sch, cur, full_key);
+            if (rc != SCH_OK) return rc;
+        } else if (vtype == 4) {
+            rc = sch_decode_json_array(sch, cur, full_key);
+            if (rc != SCH_OK) return rc;
+        } else {
+            rc = sch_decode_json_scalar(sch, cur, full_key);
+            if (rc != SCH_OK) return rc;
+        }
+    }
+    return SCH_OK;
+}
+
 /** 创建空 Schema；失败返回 0。 */
 int64_t schema_create_c(void) {
     sch_schema_t *sch = (sch_schema_t *)calloc(1, sizeof(sch_schema_t));
@@ -241,12 +430,10 @@ int32_t schema_add_field_c(int64_t handle, const uint8_t *name, int32_t name_len
     return SCH_OK;
 }
 
-/** 从 JSON 对象缓冲 decode；仅支持 flat object + 标量字段。 */
+/** 从 JSON 对象缓冲 decode；支持 flat + nested object 点分字段（如 user.name）。 */
 int32_t schema_decode_json_c(int64_t handle, const uint8_t *json, int32_t json_len) {
     sch_schema_t *sch = sch_from_handle(handle);
     json_cursor_t cur;
-    uint8_t key_buf[SCH_NAME_MAX];
-    int32_t key_len = 0;
     int32_t rc;
     if (!sch || !json || json_len <= 0) return SCH_ERR_NULL;
     sch_clear_values(sch);
@@ -255,72 +442,8 @@ int32_t schema_decode_json_c(int64_t handle, const uint8_t *json, int32_t json_l
         sch_set_error(sch, NULL, "expected JSON object");
         return SCH_ERR_INVALID;
     }
-    for (;;) {
-        rc = json_cursor_object_next_c(&cur, key_buf, SCH_NAME_MAX, &key_len);
-        if (rc == 0) break;
-        if (rc < 0) {
-            sch_set_error(sch, NULL, "JSON parse error");
-            return SCH_ERR_INVALID;
-        }
-        key_buf[key_len] = '\0';
-        {
-            int32_t idx = sch_find_field(sch, (char *)key_buf);
-            int32_t consumed = 0;
-            const uint8_t *vp = cur.ptr + cur.off;
-            int32_t vlen = cur.len - cur.off;
-            if (idx < 0) {
-                if (json_cursor_skip_value_c(&cur) != 0) return SCH_ERR_INVALID;
-                continue;
-            }
-            switch (sch->fields[idx].type) {
-            case SCH_TYPE_STRING: {
-                uint8_t out[SCH_VAL_MAX];
-                int32_t sl = json_parse_string_c(vp, vlen, out, SCH_VAL_MAX, &consumed);
-                if (sl < 0) {
-                    sch_set_error(sch, sch->fields[idx].name, "expected string");
-                    return SCH_ERR_TYPE;
-                }
-                out[sl] = '\0';
-                sch->values[idx].present = 1;
-                strncpy(sch->values[idx].str, (char *)out, SCH_VAL_MAX - 1);
-                sch->values[idx].str[SCH_VAL_MAX - 1] = '\0';
-                break;
-            }
-            case SCH_TYPE_I32: {
-                double dv = 0.0;
-                if (json_parse_number_c(vp, vlen, &dv, &consumed) != 0) {
-                    sch_set_error(sch, sch->fields[idx].name, "expected number");
-                    return SCH_ERR_TYPE;
-                }
-                sch->values[idx].present = 1;
-                sch->values[idx].i32 = (int32_t)dv;
-                break;
-            }
-            case SCH_TYPE_F64: {
-                if (json_parse_number_c(vp, vlen, &sch->values[idx].f64, &consumed) != 0) {
-                    sch_set_error(sch, sch->fields[idx].name, "expected number");
-                    return SCH_ERR_TYPE;
-                }
-                sch->values[idx].present = 1;
-                break;
-            }
-            case SCH_TYPE_BOOL: {
-                if (json_parse_bool_c(vp, vlen, &sch->values[idx].bool_v, &consumed) != 1) {
-                    sch_set_error(sch, sch->fields[idx].name, "expected bool");
-                    return SCH_ERR_TYPE;
-                }
-                sch->values[idx].present = 1;
-                break;
-            }
-            default:
-                return SCH_ERR_INVALID;
-            }
-            if (json_cursor_skip_value_c(&cur) != 0) {
-                sch_set_error(sch, sch->fields[idx].name, "JSON value skip failed");
-                return SCH_ERR_INVALID;
-            }
-        }
-    }
+    rc = sch_decode_json_object(sch, &cur, "");
+    if (rc != SCH_OK) return rc;
     return sch_check_required(sch);
 }
 
@@ -512,6 +635,46 @@ int32_t schema_smoke_c(void) {
     if (schema_map_columns_c(sch, csv, starts, lens, count) != SCH_OK) return 16;
     if (schema_decode_json_c(sch, (const uint8_t *)"{\"name\":\"x\"}", 14) != SCH_ERR_NOT_FOUND) return 17;
     if (schema_last_error_field_c(sch, name, 64) <= 0) return 18;
+    /* nested object → 点分字段（新 Schema 实例） */
+    schema_free_c(sch);
+    sch = schema_create_c();
+    if (sch == 0) return 19;
+    if (schema_add_field_c(sch, (const uint8_t *)"user.name", 9, SCH_TYPE_STRING, 0, 0) != SCH_OK) return 20;
+    if (schema_add_field_c(sch, (const uint8_t *)"user.age", 8, SCH_TYPE_I32, 0, 1) != SCH_OK) return 21;
+    {
+        static const uint8_t nested[] = "{\"user\":{\"name\":\"carol\",\"age\":42}}";
+        if (schema_decode_json_c(sch, nested, (int32_t)(sizeof(nested) - 1)) != SCH_OK) return 22;
+        if (schema_get_string_c(sch, (const uint8_t *)"user.name", 9, name, 64) <= 0) return 23;
+        if (strcmp((char *)name, "carol") != 0) return 24;
+        if (schema_get_i32_c(sch, (const uint8_t *)"user.age", 8, &age) != SCH_OK || age != 42) return 25;
+    }
+    /* JSON array → 索引点分键 items.0 / items.1 */
+    schema_free_c(sch);
+    sch = schema_create_c();
+    if (sch == 0) return 26;
+    if (schema_add_field_c(sch, (const uint8_t *)"items.0", 7, SCH_TYPE_I32, 0, 0) != SCH_OK) return 27;
+    if (schema_add_field_c(sch, (const uint8_t *)"items.1", 7, SCH_TYPE_I32, 0, 1) != SCH_OK) return 28;
+    {
+        static const uint8_t arr_json[] = "{\"items\":[10,20]}";
+        if (schema_decode_json_c(sch, arr_json, (int32_t)(sizeof(arr_json) - 1)) != SCH_OK) return 29;
+        if (schema_get_i32_c(sch, (const uint8_t *)"items.0", 7, &age) != SCH_OK || age != 10) return 30;
+        if (schema_get_i32_c(sch, (const uint8_t *)"items.1", 7, &age) != SCH_OK || age != 20) return 31;
+    }
+    /* JSON array-of-objects → users.0.name / users.1.name */
+    schema_free_c(sch);
+    sch = schema_create_c();
+    if (sch == 0) return 32;
+    if (schema_add_field_c(sch, (const uint8_t *)"users.0.name", 12, SCH_TYPE_STRING, 0, 0) != SCH_OK) return 33;
+    if (schema_add_field_c(sch, (const uint8_t *)"users.1.name", 12, SCH_TYPE_STRING, 0, 1) != SCH_OK) return 34;
+    {
+        static const uint8_t arr_obj[] =
+            "{\"users\":[{\"name\":\"alice\"},{\"name\":\"bob\"}]}";
+        if (schema_decode_json_c(sch, arr_obj, (int32_t)(sizeof(arr_obj) - 1)) != SCH_OK) return 35;
+        if (schema_get_string_c(sch, (const uint8_t *)"users.0.name", 12, name, 64) <= 0) return 36;
+        if (strcmp((char *)name, "alice") != 0) return 37;
+        if (schema_get_string_c(sch, (const uint8_t *)"users.1.name", 12, name, 64) <= 0) return 38;
+        if (strcmp((char *)name, "bob") != 0) return 39;
+    }
     schema_free_c(sch);
     return 0;
 }

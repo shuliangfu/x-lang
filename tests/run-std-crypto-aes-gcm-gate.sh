@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CRYPTO_AES_GCM_DOC:-analysis/std-crypto-aes-gcm-v1.md}"
-MANIFEST="${SHU_STD_CRYPTO_AES_GCM_TSV:-tests/baseline/std-crypto-aes-gcm.tsv}"
-VECTORS="${SHU_STD_CRYPTO_AES_GCM_VECTORS:-tests/baseline/std-crypto-aes-gcm-vectors.tsv}"
-MOD_SU="std/crypto/mod.su"
+DOC="${SHUX_STD_CRYPTO_AES_GCM_DOC:-analysis/std-crypto-aes-gcm-v1.md}"
+MANIFEST="${SHUX_STD_CRYPTO_AES_GCM_TSV:-tests/baseline/std-crypto-aes-gcm.tsv}"
+VECTORS="${SHUX_STD_CRYPTO_AES_GCM_VECTORS:-tests/baseline/std-crypto-aes-gcm-vectors.tsv}"
+MOD_SU="std/crypto/mod.sx"
 CRYPTO_C="std/crypto/crypto.c"
 LIB="tests/lib/std-crypto-aes-gcm.sh"
-SMOKE_SU="tests/std-crypto/aes_gcm_nist2.su"
-MAIN_SU="tests/crypto/main.su"
+SMOKE_SU="tests/std-crypto/aes_gcm_nist2.sx"
+MAIN_SU="tests/crypto/main.sx"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/std-crypto-aes-gcm.sh
@@ -95,33 +95,33 @@ SEAL_OK=0
 OPEN_OK=0
 MAIN_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-049: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-049: typeck + smoke (SHUX=$SHUX_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/crypto/crypto.o
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-crypto-aes-gcm gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_crypto_aes_gcm_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_crypto_aes_gcm_run_smoke "$SHU_BIN" "$SMOKE_SU" "nist2"; then
+  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$SMOKE_SU" "nist2"; then
     SEAL_OK=1
     OPEN_OK=1
   else
     std_crypto_aes_gcm_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_crypto_aes_gcm_run_smoke "$SHU_BIN" "$MAIN_SU" "main"; then
+  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
     MAIN_OK=1
   else
     std_crypto_aes_gcm_emit_report "fail" "$SEAL_OK" "$OPEN_OK" 0 0
@@ -129,7 +129,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-crypto-aes-gcm gate SKIP smoke (no native shu)" >&2
+  echo "std-crypto-aes-gcm gate SKIP smoke (no native shux)" >&2
 fi
 
 std_crypto_aes_gcm_emit_report "ok" "$SEAL_OK" "$OPEN_OK" "$MAIN_OK" "$SKIP"

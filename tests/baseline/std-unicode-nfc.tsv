@@ -5,12 +5,12 @@ read_path	section	## 1. 阅读路径	15min
 nfc_api	section	## 2. NFC 规范化	nfc_buf
 supplementary_api	section	## 3. 非 BMP 码点	is_supplementary
 verify	section	## 4. 验证与门禁	gate
-api_nfc	api	nfc_buf	std/unicode/mod.su	缓冲 NFC
-api_supplementary	api	is_supplementary	std/unicode/mod.su	>U+FFFF
-api_rune_len	api	rune_utf8_len	std/unicode/mod.su	UTF-8 长
+api_nfc	api	nfc_buf	std/unicode/mod.sx	缓冲 NFC
+api_supplementary	api	is_supplementary	std/unicode/mod.sx	>U+FFFF
+api_rune_len	api	rune_utf8_len	std/unicode/mod.sx	UTF-8 长
 symbol_nfc_c	symbol	unicode_nfc_buf_c	std/unicode/unicode.c	C NFC
 symbol_supp_c	symbol	unicode_is_supplementary_c	std/unicode/unicode.c	C 非 BMP
-smoke_nfc	smoke	tests/unicode/nfc_gold.su	金样
-smoke_main	smoke	tests/unicode/main.su	分类
+smoke_nfc	smoke	tests/unicode/nfc_gold.sx	金样
+smoke_main	smoke	tests/unicode/main.sx	分类
 lib	script	lib/std-unicode-nfc.sh	tests/lib/std-unicode-nfc.sh
 gate	script	run-std-unicode-nfc-gate.sh	tests/run-std-unicode-nfc-gate.sh

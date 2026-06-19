@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
 BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
-BENCH_MB="${SHU_IO_BENCH_MB:-16}"
+BENCH_MB="${SHUX_IO_BENCH_MB:-16}"
 RUNS=3
 
 extract_real_sec() {
@@ -48,8 +48,8 @@ bench_one() {
   local su="$2"
   local ring="$3"
   local out="/tmp/bench_io_ring_ab_${label}"
-  export SHU_IO_URING_RING_ENTRIES="$ring"
-  ./compiler/shu -L . "$su" -o "$out" 2>&1
+  export SHUX_IO_URING_RING_ENTRIES="$ring"
+  ./compiler/shux -L . "$su" -o "$out" 2>&1
   if [ ! -x "$out" ]; then
     echo "nan"
     return
@@ -64,9 +64,9 @@ if [ "$(uname -s)" != "Linux" ]; then
   echo "note: ring size A/B 仅在 Linux io_uring 生效；本机 $(uname -s) 仍跑 fixed vs 普通对照。"
 fi
 
-M512=$(bench_one "512" tests/bench/io_batch_readv.su 512)
-M2048=$(bench_one "2048" tests/bench/io_batch_readv.su 2048)
-MFIX=$(bench_one "fixed512" tests/bench/io_batch_readv_fixed.su 512)
+M512=$(bench_one "512" tests/bench/io_batch_readv.sx 512)
+M2048=$(bench_one "2048" tests/bench/io_batch_readv.sx 2048)
+MFIX=$(bench_one "fixed512" tests/bench/io_batch_readv_fixed.sx 512)
 
 printf '\n| 配置 | median real (s) |\n'
 printf '|---|----------------|\n'

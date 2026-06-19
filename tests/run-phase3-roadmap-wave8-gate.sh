@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PLAN008_DOC:-analysis/phase3-roadmap-wave8-v1.md}"
-MANIFEST="${SHU_PLAN008_TSV:-tests/baseline/phase3-roadmap-wave8.tsv}"
+DOC="${SHUX_PLAN008_DOC:-analysis/phase3-roadmap-wave8-v1.md}"
+MANIFEST="${SHUX_PLAN008_TSV:-tests/baseline/phase3-roadmap-wave8.tsv}"
 NEXT_MD="NEXT.md"
 LIB="tests/lib/phase3-roadmap-wave8.sh"
 MIN_TASKS=4
@@ -19,7 +19,7 @@ MIN_DONE=4
 echo "=== PLAN-008: Phase 3 wave8 manifest ==="
 for f in "$DOC" "$MANIFEST" "$NEXT_MD" "$LIB" \
   analysis/phase3-roadmap-wave7-v1.md tests/run-phase3-roadmap-wave7-gate.sh \
-  tests/run-boot-027-shu-asm2-cross-gate.sh \
+  tests/run-boot-027-shux-asm2-cross-gate.sh \
   tests/run-comp-incr-compile-prod-gate.sh \
   tests/run-std-sqlite-row-col-blob-gate.sh; do
   if [ ! -f "$f" ]; then
@@ -37,7 +37,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in Phase 3 BOOT-027 COMP-021 STD-069 SHU_PLAN008; do
+for kw in Phase 3 BOOT-027 COMP-021 STD-069 SHUX_PLAN008; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "phase3-roadmap-wave8 gate FAIL: doc missing '$kw'" >&2
     exit 1

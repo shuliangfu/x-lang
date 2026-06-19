@@ -7,8 +7,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 VSCODE_DIR="editors/vscode"
-EXPECTED_VER="${SHU_TOOL009_VERSION:-0.2.0}"
-VSIX="${VSCODE_DIR}/vscode-shulang-${EXPECTED_VER}.vsix"
+EXPECTED_VER="${SHUX_TOOL009_VERSION:-0.2.0}"
+VSIX="${VSCODE_DIR}/vscode-shux-${EXPECTED_VER}.vsix"
 
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
   echo "run-tool-vscode-pack SKIP (no node/npm)"
@@ -27,9 +27,9 @@ if [ ! -d node_modules ]; then
 fi
 npm run compile
 # vsce 打包；允许无 git 仓库元数据
-npx --yes @vscode/vsce package --allow-missing-repository --out "vscode-shulang-${EXPECTED_VER}.vsix"
+npx --yes @vscode/vsce package --allow-missing-repository --out "vscode-shux-${EXPECTED_VER}.vsix"
 
-if [ ! -f "vscode-shulang-${EXPECTED_VER}.vsix" ]; then
+if [ ! -f "vscode-shux-${EXPECTED_VER}.vsix" ]; then
   echo "run-tool-vscode-pack FAIL: vsix not created" >&2
   exit 1
 fi

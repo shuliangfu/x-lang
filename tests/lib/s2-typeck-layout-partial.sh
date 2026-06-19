@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 从 build_asm/typeck.o 导出 layout 符号子集 → typeck_asm_layout_partial.o（与 build_shu_asm.sh 一致）。
+# 从 build_asm/typeck.o 导出 layout 符号子集 → typeck_asm_layout_partial.o（与 build_shux_asm.sh 一致）。
 # 供 strict 链与 typeck_su_no_layout_partial 分工：layout 走 asm EMIT_HEAVY，编排走 typeck_su.o。
 # 用法：source tests/lib/s2-typeck-layout-partial.sh && s2_rebuild_typeck_layout_partial
 

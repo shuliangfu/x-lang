@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 从含 T parser_parse_into_buf 的旧 shu_asm 可执行文件提取 .text → ET_REL .o，供 seed/experimental 链入真 parse。
+# 从含 T parser_parse_into_buf 的旧 shux_asm 可执行文件提取 .text → ET_REL .o，供 seed/experimental 链入真 parse。
 # 用法：cd compiler && ./scripts/extract_parser_legacy_text.sh [legacy_bin] [out.o]
 set -e
 cd "$(dirname "$0")/.."
-LEGACY_BIN="${1:-./shu_asm2_refreshed}"
+LEGACY_BIN="${1:-./shux_asm2_refreshed}"
 OUT="${2:-build_asm/parser_legacy_text.o}"
 if [ ! -x "$LEGACY_BIN" ]; then
   echo "extract_parser_legacy_text: skip (no executable $LEGACY_BIN)" >&2

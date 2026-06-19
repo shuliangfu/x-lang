@@ -5,12 +5,12 @@
 #
 # 用法：
 #   ./tests/run-eng-rollback-drill.sh
-#   SHU_ROLLBACK_TARGET_TAG=v0.1.0-beta.1 ./tests/run-eng-rollback-drill.sh
+#   SHUX_ROLLBACK_TARGET_TAG=v0.1.0-beta.1 ./tests/run-eng-rollback-drill.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHU_ENG_ROLLBACK_TSV:-tests/baseline/eng-rollback-emergency.tsv}"
-PLAYBOOK="${SHU_ENG_ROLLBACK_PLAYBOOK:-tests/templates/eng-rollback-playbook.txt}"
+MANIFEST="${SHUX_ENG_ROLLBACK_TSV:-tests/baseline/eng-rollback-emergency.tsv}"
+PLAYBOOK="${SHUX_ENG_ROLLBACK_PLAYBOOK:-tests/templates/eng-rollback-playbook.txt}"
 
 # shellcheck source=tests/lib/eng-rollback-emergency.sh
 . tests/lib/eng-rollback-emergency.sh
@@ -52,11 +52,11 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
   esac
 done < "$MANIFEST"
 
-if [ -n "${SHU_ROLLBACK_TARGET_TAG:-}" ]; then
-  if ! eng_release_tag_valid "$SHU_ROLLBACK_TARGET_TAG"; then
-    echo "${PREFIX} WARN target tag format suspicious: ${SHU_ROLLBACK_TARGET_TAG}" >&2
+if [ -n "${SHUX_ROLLBACK_TARGET_TAG:-}" ]; then
+  if ! eng_release_tag_valid "$SHUX_ROLLBACK_TARGET_TAG"; then
+    echo "${PREFIX} WARN target tag format suspicious: ${SHUX_ROLLBACK_TARGET_TAG}" >&2
   fi
-  echo "${PREFIX} target_tag=${SHU_ROLLBACK_TARGET_TAG} (dry_run only)" >&2
+  echo "${PREFIX} target_tag=${SHUX_ROLLBACK_TARGET_TAG} (dry_run only)" >&2
 fi
 
 TAGS="$(eng_rollback_list_recent_tags 5)"

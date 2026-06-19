@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-BOUNDARY="${SHU_FEB_CONTRACT_BOUNDARY:-$ROOT/tests/baseline/comp-feb-contract-boundary.tsv}"
+BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-$ROOT/tests/baseline/comp-feb-contract-boundary.tsv}"
 
 # 在源码文件中查找符号定义或声明（function / extern function）。
 comp_feb_contract_symbol_present() {
@@ -16,7 +16,7 @@ comp_feb_contract_symbol_present() {
     || grep -qE "^[a-zA-Z_].*\\b${sym}\\s*\\(" "$src" 2>/dev/null
 }
 
-# 解析 boundary TSV 中的 .su/.c 路径（相对仓库根）。
+# 解析 boundary TSV 中的 .sx/.c 路径（相对仓库根）。
 comp_feb_contract_src_path() {
   local rel="$1"
   if [ -f "$ROOT/$rel" ]; then

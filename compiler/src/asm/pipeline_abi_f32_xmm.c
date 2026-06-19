@@ -1,5 +1,5 @@
 /**
- * pipeline_abi_f32_xmm.c — SysV f32 xmm 实/形参 ABI 开关（SHU_ABI_F32_XMM=1）。
+ * pipeline_abi_f32_xmm.c — SysV f32 xmm 实/形参 ABI 开关（SHUX_ABI_F32_XMM=1）。
  *
  * 独立 TU，供 backend_call_dispatch.o 链接；形参 homing 仍须在 pipeline_glue.c 重编后生效。
  */
@@ -11,11 +11,11 @@ static int32_t g_pipeline_asm_emit_call_f32_xmm;
 
 /**
  * 是否启用 SysV f32 xmm 实/形参 ABI。
- * 默认开启（unset 或非 "0"）；显式 SHU_ABI_F32_XMM=0 回落 legacy f64 widen + cvtsd2ss。
+ * 默认开启（unset 或非 "0"）；显式 SHUX_ABI_F32_XMM=0 回落 legacy f64 widen + cvtsd2ss。
  */
 int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
   const char *env;
-  env = getenv("SHU_ABI_F32_XMM");
+  env = getenv("SHUX_ABI_F32_XMM");
   if (env && env[0] == '0' && env[1] == '\0')
     return 0;
   return 1;

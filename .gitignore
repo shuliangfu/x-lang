@@ -2,10 +2,10 @@
 analysis/
 
 # --- 构建产物 ---
-# 可执行文件（编译器 shu / shu_su / shu-c 等）
-shu
+# 可执行文件（编译器 shux / shu_su / shux-c 等）
+shux
 shu_su
-shu-c
+shux-c
 su
 *.exe
 *.out
@@ -57,7 +57,7 @@ node_modules/
 # --- 开发环境 ---
 # clangd 本地配置（非仓库约定）
 .clangd
-# IDE（保留团队共享的工作区 Shulang 配置）
+# IDE（保留团队共享的工作区 Shux 配置）
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
@@ -67,7 +67,7 @@ node_modules/
 *~
 .project
 .settings/
-*.sublime-*
+*.sxblime-*
 
 # Hermes / 相关工具链本地缓存目录（不提交）
 .hermes/
@@ -84,37 +84,37 @@ Thumbs.db
 compiler/compile_commands.json
 # 类型检查错误转储（与 tests/*_err.txt 同类）
 compiler/typeck_err.txt
-# lexer/typeck 等临时调试 .su
-compiler/**/tmp_*.su
-# 可执行文件（根已有 shu/shu-c，此处补 compiler 下特有）
-compiler/shu_driver
+# lexer/typeck 等临时调试 .sx
+compiler/**/tmp_*.sx
+# 可执行文件（根已有 shux/shux-c，此处补 compiler 下特有）
+compiler/shux_driver
 compiler/build_tool
 # 构建目录（含历史手工 build_v* / build_final 等）
 compiler/build_asm/
 compiler/build/
 compiler/build_*/
 compiler/su/
-# 本地调试 scratch（保留已提交的 _stubs.c / _su_stubs*.c）
+# 本地调试 scratch（保留已提交的 _stubs.c / _sx_stubs*.c）
 compiler/_*
 !compiler/_stubs.c
-!compiler/_su_stubs.c
-!compiler/_su_stubs2.c
+!compiler/_sx_stubs.c
+!compiler/_sx_stubs2.c
 !compiler/_stubs_driver.c
 compiler/0
-compiler/bootstrap_shu
-compiler/shu_stage1
-compiler/shu_stage2
-compiler/shu_su_dbg
-compiler/shu_asm2
-compiler/shu-su
-compiler/shu-su2
-compiler/shu_asm
+compiler/bootstrap_shux
+compiler/shux_stage1
+compiler/shux_stage2
+compiler/shux_sx_dbg
+compiler/shux_asm2
+compiler/shux-sx
+compiler/shux-sx2
+compiler/shux_asm
 compiler/lsp_gen_full.c
-compiler/shu-su.hide
-compiler/shu_seed_backup
+compiler/shux-sx.hide
+compiler/shux_seed_backup
 compiler/asm_min
 compiler/asm_v2
-compiler/shu_stage1_test
+compiler/shux_stage1_test
 # 由 -E 或脚本生成的 C 源文件（parser_gen.c, driver_gen.c, pipeline_gen.c, typeck_gen.c, codegen_gen.c 等）
 compiler/*_gen.c
 compiler/**/*_gen.c
@@ -126,7 +126,7 @@ compiler/**/*_gen2.c
 compiler/std_fs_gen.c
 # 生成 C 的快照/副本（与 *_gen.c 等价，构建时产出，不提交）
 compiler/*_gen_new.c
-# .su 自举时生成的中间 C（typeck_su_su.c, codegen_su_su.c）
+# .sx 自举时生成的中间 C（typeck_su_su.c, codegen_sx_su.c）
 compiler/*_su_su.c
 # 备份与临时（含 .bak2, .bak3 等）
 compiler/*.new
@@ -140,7 +140,7 @@ compiler/test_perl.txt
 compiler/test_pre_out.s
 *.o.tmp
 /rvwbuf.tmp
-**/*.su.bak
+**/*.sx.bak
 # LLDB：本地导出的会话/断点命令脚本（非仓库约定资产）
 compiler/.lldb_*
 # 本地 scratch：tmp_* 调试草稿（compiler/ 与仓库根目录）
@@ -152,33 +152,38 @@ compiler/.tmp_*
 # -E / 脚本中间 C（*.tmp 后缀与 asm_full_gen 原子写）
 **/*_gen.c.tmp
 **/asm_full_gen.c.tmp
-# build.su / build_runner.su -E 产出（build_gen.c 亦匹配 *_gen.c，此处显式列出）
+# build.sx / build_runner.sx -E 产出（build_gen.c 亦匹配 *_gen.c，此处显式列出）
 compiler/build_gen.c
 compiler/build_runner_gen.c
 compiler/build_runner.o
 # pipeline 实验/单测生成 C（非 Makefile 常规 pipeline_gen.c）
 compiler/pipeline_gen_extern.c
 compiler/pipeline_gen2_test.c
-# shu_asm 实验链路、备份与调试二进制（shu_asm / shu_asm2 已在上方）
-compiler/shu_asm.*
-compiler/shu_asm_*
-compiler/shu_asm_stage1
-compiler/shu-test
-compiler/shu_test
-compiler/shu_test_*
-compiler/shu-new-*
+# shux_asm 实验链路、备份与调试二进制（shux_asm / shux_asm2 已在上方）
+compiler/shux_asm.*
+compiler/shux_asm_*
+compiler/shux_asm_stage1
+
+# gdb/core dump 与本地调试二进制（勿提交）
+compiler/core
+compiler/shux_asm2_raw
+compiler/shux-su.hide
+compiler/shux-test
+compiler/shux_test
+compiler/shux_test_*
+compiler/shux-new-*
 # 类型检查/测试错误转储
 compiler/tests/tck_err.txt
 compiler/tests/*_err.txt
-/tmp_*.su
+/tmp_*.sx
 /tmp_*.c
 
 # --- 测试与临时 ---
 # 测试 ABI 脚本编译出的可执行文件
 tests/abi/layout_abi
 tests/tmp_out.txt
-tests/fmt/.fmt_wrap_out.su
-tests/fmt/.fmt_comprehensive_out.su
+tests/fmt/.fmt_wrap_out.sx
+tests/fmt/.fmt_comprehensive_out.sx
 # 测试输出、临时目录
 tmp/
 temp/
@@ -186,7 +191,7 @@ temp/
 *.temp
 # 根目录测试编译 scratch 二进制/输出
 /tmp_*
-!/tests/**/tmp_*.su
+!/tests/**/tmp_*.sx
 .cache/
 # Python 脚本缓存（verify_comment_prefixes / scan_fmt_damage 等）
 __pycache__/
@@ -195,7 +200,7 @@ __pycache__/
 # 本地会话/完成标记（非仓库资产）
 DONE
 .done/
-# 根目录 build.su -E 产物（若在仓库根执行 build.sh）
+# 根目录 build.sx -E 产物（若在仓库根执行 build.sh）
 /build_gen.c
 /build_runner_gen.c
 /build_tool

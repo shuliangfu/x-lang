@@ -7,4 +7,4 @@
 - `cancel` / `is_cancelled`（原子、可重复查询）
 - `deadline_ns` / `remaining_ns`
 - 轻量键值 bag：`set_value` / `get_value`
-- 烟测：`tests/std-context/cancel_smoke.su`
+- 烟测：`tests/std-context/cancel_smoke.sx`

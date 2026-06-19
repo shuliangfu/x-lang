@@ -10,9 +10,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
-DOGFOOD="${SHU_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
-REG="${SHU_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+MATRIX="${SHUX_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
+DOGFOOD="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 MIN_BOOT=3
 
 echo "=== BOOT-012: bootstrap perf manifest ==="

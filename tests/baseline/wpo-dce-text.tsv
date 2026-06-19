@@ -1,4 +1,4 @@
-# WPO asm DCE __text A/B：dead_user 跨 import dead_export 剔除后相对 SHU_ASM_WPO_DCE=0 的节省
-# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-text.sh
+# WPO asm DCE __text A/B：dead_user 跨 import dead_export 剔除后相对 SHUX_ASM_WPO_DCE=0 的节省
+# 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-text.sh
 dead_user_min_text_save_bytes	16
 dead_user_min_text_save_pct	5

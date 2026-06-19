@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-feb-contract.sh
 . tests/lib/comp-feb-contract.sh
 
-BOUNDARY="${SHU_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
+BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
 
 echo "=== COMP-009: FEB contract boundary smoke ==="
 FAILS=0

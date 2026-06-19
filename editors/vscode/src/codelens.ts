@@ -1,9 +1,9 @@
 /**
- * Shulang CodeLensProvider — 行内代码提示
+ * Shux CodeLensProvider — 行内代码提示
  *
  * 在定义行上方插入 CodeLens：
  * - "▶ Run" — main 函数运行入口
- * - "fn" / "extern fn" — 可选（shulang.features.codeLensFunctionLabels，默认关）
+ * - "fn" / "extern fn" — 可选（shux.features.codeLensFunctionLabels，默认关）
  * - struct / enum 字段与变体计数
  */
 
@@ -12,11 +12,11 @@ import * as vscode from 'vscode';
 /** 是否显示 function / extern function 上方的 fn 标签。 */
 function showFunctionLabels(): boolean {
   return vscode.workspace
-    .getConfiguration('shulang')
+    .getConfiguration('shux')
     .get<boolean>('features.codeLensFunctionLabels', false);
 }
 
-export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
+export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   public readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
@@ -46,8 +46,8 @@ export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
         const range = new vscode.Range(i, 0, i, 0);
         const lens = new vscode.CodeLens(range, {
           title: '▶ Run',
-          command: 'shulang.runFile',
-          tooltip: '运行此文件（shu <file>）',
+          command: 'shux.runFile',
+          tooltip: '运行此文件（shux <file>）',
           arguments: [document.uri],
         });
         lenses.push(lens);
@@ -55,7 +55,7 @@ export class ShulangCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // 普通函数定义（fn 标签默认关，见 shulang.features.codeLensFunctionLabels）
+      // 普通函数定义（fn 标签默认关，见 shux.features.codeLensFunctionLabels）
       const fm = funcRegex.exec(line);
       if (fm && fnLabels) {
         const range = new vscode.Range(i, 0, i, 0);

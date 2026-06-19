@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STDLIB_CHECK_DOC:-analysis/boot-stdlib-check-matrix-v1.md}"
-MANIFEST="${SHU_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
+DOC="${SHUX_STDLIB_CHECK_DOC:-analysis/boot-stdlib-check-matrix-v1.md}"
+MANIFEST="${SHUX_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
 LIB="tests/lib/stdlib-check-matrix.sh"
 RUNNER="tests/run-stdlib-check-matrix.sh"
 MIN_MOD=55
-PREFIX="shu: [SHU_STDLIB_CHECK]"
+PREFIX="shux: [SHUX_STDLIB_CHECK]"
 
 # shellcheck source=tests/lib/stdlib-check-matrix.sh
 . tests/lib/stdlib-check-matrix.sh
@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER"; do
   fi
 done
 
-for kw in runnable SHU_STDLIB_CHECK 模块矩阵 shu check; do
+for kw in runnable SHUX_STDLIB_CHECK 模块矩阵 shux check; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "stdlib-check-matrix gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -47,10 +47,10 @@ while IFS=$'\t' read -r item_id kind anchor layer _notes; do
   case "$kind" in
     module)
       MOD_N=$((MOD_N + 1))
-      mod_path="${anchor//./\/}/mod.su"
+      mod_path="${anchor//./\/}/mod.sx"
       case "$layer" in
-        core) CORE_N=$((CORE_N + 1)); mod_path="core/${anchor#core.}/mod.su" ;;
-        std) STD_N=$((STD_N + 1)); mod_path="std/${anchor#std.}/mod.su" ;;
+        core) CORE_N=$((CORE_N + 1)); mod_path="core/${anchor#core.}/mod.sx" ;;
+        std) STD_N=$((STD_N + 1)); mod_path="std/${anchor#std.}/mod.sx" ;;
       esac
       if [ ! -f "$mod_path" ]; then
         echo "stdlib-check-matrix FAIL: missing $mod_path ($anchor)" >&2
@@ -87,10 +87,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "stdlib-check-matrix manifest OK (modules=${MOD_N}, core=${CORE_N}, std=${STD_N})"
 
-if SHU_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
-  echo "=== BOOT-013: runnable matrix (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
+  echo "=== BOOT-013: runnable matrix (SHUX=$SHUX_BIN) ==="
   chmod +x "$RUNNER" "$LIB"
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   set -o pipefail
   if ! ./"$RUNNER" 2>&1 | tee /tmp/stdlib_check_matrix.log; then
     set +o pipefail
@@ -103,7 +103,7 @@ if SHU_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
     exit 1
   }
 else
-  echo "stdlib-check-matrix gate SKIP runnable (no shu)" >&2
+  echo "stdlib-check-matrix gate SKIP runnable (no shux)" >&2
 fi
 
 echo "stdlib-check-matrix gate OK"

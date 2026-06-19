@@ -1,7 +1,0 @@
-# shu.pkg.tsv — TOOL-007 原型项目清单（demo-app）
-# 列：kind	key	value	notes
-meta	name	demo-app	项目名
-meta	version	0.1.0	semver
-lib_root	.	../../..	仓库根（自 fixtures/pkgmgr）
-require	core.mem	bundled	内存 API
-require	core.types	bundled	类型大小

@@ -528,11 +528,11 @@ static void frame_mangle_ident(const char *fn, char *out, size_t n) {
     out[j] = '\0';
 }
 
-/** 构造协程帧 C 类型名 __shu_async_frame_<mangled>。 */
+/** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。 */
 static void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
-    (void)snprintf(buf, n, "__shu_async_frame_%s", m);
+    (void)snprintf(buf, n, "__shux_async_frame_%s", m);
 }
 
 /** 在函数体/形参中查找变量类型。 */
@@ -742,34 +742,34 @@ int async_liveness_analyze_func(const struct ASTFunc *f, AsyncFrameLive *out) {
 void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out || layout->num_awaits <= 0) return;
-    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shu_async_frame_fn";
-    fprintf(out, "#ifndef SHU_ASYNC_CPS_RT_DECL\n");
-    fprintf(out, "#define SHU_ASYNC_CPS_RT_DECL\n");
-    fprintf(out, "extern int shu_async_cps_suspend(int32_t *phase, int32_t next_phase);\n");
-    fprintf(out, "extern int shu_async_cps_suspend_io(int32_t *phase, int32_t next_phase);\n");
-    fprintf(out, "extern int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n");
-    fprintf(out, "extern int32_t shu_io_complete_read_async(void);\n");
-    fprintf(out, "extern int32_t shu_io_complete_read_async_slot(int slot);\n");
-    fprintf(out, "extern int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);\n");
-    fprintf(out, "extern int32_t shu_io_complete_write_async(void);\n");
-    fprintf(out, "extern int32_t shu_io_complete_write_async_slot(int slot);\n");
-    fprintf(out, "extern void shu_async_run_seed_reset(void);\n");
-    fprintf(out, "extern void shu_async_run_seed_push_i32(int32_t v);\n");
-    fprintf(out, "extern void shu_async_run_seed_push_u32(uint32_t v);\n");
-    fprintf(out, "extern void shu_async_run_seed_push_i64(int64_t v);\n");
-    fprintf(out, "extern void shu_async_run_seed_push_usize(size_t v);\n");
-    fprintf(out, "extern void shu_async_run_seed_set_i32(int32_t v);\n");
-    fprintf(out, "extern int shu_async_run_seed_valid(void);\n");
-    fprintf(out, "extern int32_t shu_async_run_seed_take_i32(void);\n");
-    fprintf(out, "extern uint32_t shu_async_run_seed_take_u32(void);\n");
-    fprintf(out, "extern int64_t shu_async_run_seed_take_i64(void);\n");
-    fprintf(out, "extern size_t shu_async_run_seed_take_usize(void);\n");
-    fprintf(out, "extern int shu_async_task_submit(int32_t (*fn)(void));\n");
-    fprintf(out, "extern int32_t shu_async_run_drain_until_idle(void);\n");
-    fprintf(out, "extern void shu_async_queue_reset(void);\n");
-    fprintf(out, "extern unsigned shu_io_poll_async_completions(unsigned timeout_ms);\n");
-    fprintf(out, "#define SHU_ASYNC_SUSPENDED ((int32_t)0x41535700)\n");
-    fprintf(out, "#define SHU_IO_ASYNC_NOT_READY ((int32_t)-2)\n");
+    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shux_async_frame_fn";
+    fprintf(out, "#ifndef SHUX_ASYNC_CPS_RT_DECL\n");
+    fprintf(out, "#define SHUX_ASYNC_CPS_RT_DECL\n");
+    fprintf(out, "extern int shux_async_cps_suspend(int32_t *phase, int32_t next_phase);\n");
+    fprintf(out, "extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);\n");
+    fprintf(out, "extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n");
+    fprintf(out, "extern int32_t shux_io_complete_read_async(void);\n");
+    fprintf(out, "extern int32_t shux_io_complete_read_async_slot(int slot);\n");
+    fprintf(out, "extern int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);\n");
+    fprintf(out, "extern int32_t shux_io_complete_write_async(void);\n");
+    fprintf(out, "extern int32_t shux_io_complete_write_async_slot(int slot);\n");
+    fprintf(out, "extern void shux_async_run_seed_reset(void);\n");
+    fprintf(out, "extern void shux_async_run_seed_push_i32(int32_t v);\n");
+    fprintf(out, "extern void shux_async_run_seed_push_u32(uint32_t v);\n");
+    fprintf(out, "extern void shux_async_run_seed_push_i64(int64_t v);\n");
+    fprintf(out, "extern void shux_async_run_seed_push_usize(size_t v);\n");
+    fprintf(out, "extern void shux_async_run_seed_set_i32(int32_t v);\n");
+    fprintf(out, "extern int shux_async_run_seed_valid(void);\n");
+    fprintf(out, "extern int32_t shux_async_run_seed_take_i32(void);\n");
+    fprintf(out, "extern uint32_t shux_async_run_seed_take_u32(void);\n");
+    fprintf(out, "extern int64_t shux_async_run_seed_take_i64(void);\n");
+    fprintf(out, "extern size_t shux_async_run_seed_take_usize(void);\n");
+    fprintf(out, "extern int shux_async_task_submit(int32_t (*fn)(void));\n");
+    fprintf(out, "extern int32_t shux_async_run_drain_until_idle(void);\n");
+    fprintf(out, "extern void shux_async_queue_reset(void);\n");
+    fprintf(out, "extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);\n");
+    fprintf(out, "#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)\n");
+    fprintf(out, "#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)\n");
     fprintf(out, "#endif\n");
     fprintf(out, "typedef struct %s {\n", tag);
     fprintf(out, "  int32_t __phase;\n");
@@ -789,15 +789,15 @@ void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
 void async_liveness_emit_frame_local(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out || layout->num_awaits <= 0) return;
-    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shu_async_frame_fn";
-    fprintf(out, "  static %s __shu_frame;\n", tag);
+    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shux_async_frame_fn";
+    fprintf(out, "  static %s __shux_frame;\n", tag);
 }
 
 void async_liveness_emit_codegen_comment(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out) return;
     const char *fn = (f->name && f->name[0]) ? f->name : "?";
-    fprintf(out, "  /* SHU_ASYNC_FRAME func=%s slots=%d bytes=%d awaits=%d",
+    fprintf(out, "  /* SHUX_ASYNC_FRAME func=%s slots=%d bytes=%d awaits=%d",
         fn, layout->live.n, layout->frame_bytes, layout->num_awaits);
     if (layout->has_io_rd_slot || layout->has_io_wr_slot) {
         fprintf(out, " io_slots=");

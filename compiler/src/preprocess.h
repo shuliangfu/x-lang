@@ -1,12 +1,12 @@
 /**
- * preprocess.h — .su 条件编译预处理（#if / #else / #endif）
+ * preprocess.h — .sx 条件编译预处理（#if / #else / #endif）
  *
  * 文件职责：声明预处理接口，供 main 在将源码交给 lexer 前按「已定义符号」过滤 #if 块，实现标准库按 OS 选实现。
  * 约定：支持 #if SYMBOL、#elseif SYMBOL、#else、#endif；SYMBOL 为单个标识符（字母数字下划线）；无 #ifdef 或表达式。
  */
 
-#ifndef SHU_PREPROCESS_H
-#define SHU_PREPROCESS_H
+#ifndef SHUX_PREPROCESS_H
+#define SHUX_PREPROCESS_H
 
 #include <stddef.h>
 
@@ -20,7 +20,7 @@
  */
 char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
-/** C 实现：供 runtime.c 在 ndefines>0 或 .su 不可用时调用；6.4 迁 .su 后由 preprocess_su 处理 ndefines==0。 */
+/** C 实现：供 runtime.c 在 ndefines>0 或 .sx 不可用时调用；6.4 迁 .sx 后由 preprocess_su 处理 ndefines==0。 */
 char *preprocess_c_fallback(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
-#endif /* SHU_PREPROCESS_H */
+#endif /* SHUX_PREPROCESS_H */

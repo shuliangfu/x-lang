@@ -5,25 +5,25 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_SQLITE_DOC:-analysis/std-sqlite-prereq-v1.md}"
-MANIFEST="${SHU_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
-MOD_SU="${SHU_STD_SQLITE_MOD:-std/sqlite/mod.su}"
+DOC="${SHUX_STD_SQLITE_DOC:-analysis/std-sqlite-prereq-v1.md}"
+MANIFEST="${SHUX_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
+MOD_SU="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
 MIN_APIS=9
 MIN_LAYERS=4
-PREFIX="shu: [SHU_STD_SQLITE]"
+PREFIX="shux: [SHUX_STD_SQLITE]"
 
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
 
 echo "=== STD-010: std.sqlite prereq manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" std/sqlite/README.md tests/lib/std-sqlite.sh tests/run-std-sqlite.sh; do
+for f in "$DOC" "$MANIFEST" "$MOD_SU" std/db/sqlite/README.md tests/lib/std-sqlite.sh tests/run-std-sqlite.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 
-for kw in draft RFC runnable report SHU_STD_SQLITE D1-connection DB_NOT_IMPL; do
+for kw in draft RFC runnable report SHUX_STD_SQLITE D1-connection DB_NOT_IMPL; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-sqlite gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -112,16 +112,16 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-sqlite manifest OK (apis=${API_N}, layers=${LAYER_N})"
 
-SHU_BIN=""
-if SHU_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
-  echo "=== STD-010: draft typeck smoke (SHU=$SHU_BIN) ==="
+SHUX_BIN=""
+if SHUX_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
+  echo "=== STD-010: draft typeck smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
-  if ! std_sqlite_run_typeck "$SHU_BIN" tests/std-sqlite/draft_typeck.su draft_typeck; then
+  if ! std_sqlite_run_typeck "$SHUX_BIN" tests/std-sqlite/draft_typeck.sx draft_typeck; then
     echo "std-sqlite gate FAIL: typeck" >&2
     exit 1
   fi
 else
-  echo "std-sqlite gate SKIP typeck (no native shu)" >&2
+  echo "std-sqlite gate SKIP typeck (no native shux)" >&2
 fi
 
 echo "=== STD-010: runnable report ==="

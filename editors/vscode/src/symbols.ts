@@ -1,5 +1,5 @@
 /**
- * Shulang DocumentSymbolProvider — 提供大纲视图（面包屑 + 大纲面板）
+ * Shux DocumentSymbolProvider — 提供大纲视图（面包屑 + 大纲面板）
  *
  * 从文档源码中提取函数、结构体、枚举、trait、extern 声明。
  * 支持嵌套：struct 内部的字段作为子符号。
@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode';
 
-export class ShulangDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
+export class ShuxDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public provideDocumentSymbols(
     document: vscode.TextDocument,
     _token: vscode.CancellationToken

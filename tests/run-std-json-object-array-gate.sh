@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
-MANIFEST="${SHU_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
-JSON_SU="std/json/mod.su"
+DOC="${SHUX_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
+MANIFEST="${SHUX_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
+JSON_SU="std/json/mod.sx"
 JSON_C="std/json/json.c"
 LIB="tests/lib/std-json-object-array.sh"
-OA_SU="tests/json/object_array_parse.su"
+OA_SU="tests/json/object_array_parse.sx"
 
 # shellcheck source=tests/lib/std-json-object-array.sh
 . tests/lib/std-json-object-array.sh
@@ -57,7 +57,7 @@ OA_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -66,20 +66,20 @@ resolve_shu() {
   return 1
 }
 
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-034: typeck + smoke (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-034: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$OA_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$OA_SU" >/dev/null 2>&1; then
     echo "std-json-object-array gate FAIL: typeck $OA_SU" >&2
-    "$SHU_BIN" check -L . "$OA_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$OA_SU" 2>&1 | tail -10 >&2 || true
     std_joa_emit_report "fail" 0 0
     exit 1
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
-  if std_json_run_smoke "$SHU_BIN" "$OA_SU" "object_array"; then
+  if std_json_run_smoke "$SHUX_BIN" "$OA_SU" "object_array"; then
     OA_OK=1
   else
     std_joa_emit_report "fail" 0 0
@@ -87,7 +87,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
   fi
   SKIP=0
 else
-  echo "std-json-object-array gate SKIP smoke (no native shu-c)" >&2
+  echo "std-json-object-array gate SKIP smoke (no native shux-c)" >&2
 fi
 
 std_joa_emit_report "ok" "$OA_OK" "$SKIP"

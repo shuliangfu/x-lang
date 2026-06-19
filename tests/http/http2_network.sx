@@ -1,0 +1,18 @@
+// STD-HTTP-H2-TLS：ALPN wire + 网络层烟测（离线，不建连）
+const http = import("std.http");
+const net = import("std.net");
+
+function main(): i32 {
+  if (http.http2_network_smoke() != 0) { return 1; }
+
+  let wire: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  if (net.tls_alpn_h2_http1_wire(&wire[0], 16) != 12) { return 2; }
+  if (wire[0] != 2 || wire[1] != 104 || wire[2] != 50) { return 3; }
+
+  if (http.http2_err_network_h2() != -1231) { return 4; }
+
+  // 桩环境 network 不可用；有 TLS 时为 true
+  let _avail: bool = http.http2_network_is_available();
+
+  return 0;
+}

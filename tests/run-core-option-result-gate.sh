@@ -5,18 +5,18 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_OR_DOC:-analysis/core-option-result-combinators-v1.md}"
-MANIFEST="${SHU_CORE_OR_TSV:-tests/baseline/core-option-result.tsv}"
-OPTION_SU="core/option/mod.su"
-RESULT_SU="core/result/mod.su"
+DOC="${SHUX_CORE_OR_DOC:-analysis/core-option-result-combinators-v1.md}"
+MANIFEST="${SHUX_CORE_OR_TSV:-tests/baseline/core-option-result.tsv}"
+OPTION_SX="core/option/mod.sx"
+RESULT_SX="core/result/mod.sx"
 LIB="tests/lib/core-option-result.sh"
-PREFIX="shu: [SHU_CORE_OPTION_RESULT]"
+PREFIX="shux: [SHUX_CORE_OPTION_RESULT]"
 
 # shellcheck source=tests/lib/core-option-result.sh
 . tests/lib/core-option-result.sh
 
 echo "=== CORE-002/003: Option/Result manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$OPTION_SU" "$RESULT_SU" tests/option/main.su tests/result/main.su; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$OPTION_SX" "$RESULT_SX" tests/option/main.sx tests/result/main.sx; do
   if [ ! -f "$f" ]; then
     echo "core-option-result gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in eager EXC-001 Option_ptr_u8 Result_u8 or_else_i32; do
   fi
 done
 
-sym_miss="$(core_or_symbols_ok "$OPTION_SU" "$RESULT_SU" "$MANIFEST" || true)"
+sym_miss="$(core_or_symbols_ok "$OPTION_SX" "$RESULT_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_or_emit_report "fail" 0 0 0
   echo "core-option-result gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -38,7 +38,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "core-option-result manifest OK"
 
-# 本机可执行 shu 时跑 check + 可选 runnable
+# 本机可执行 shux 时跑 check + 可选 runnable
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -52,7 +52,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -64,21 +64,21 @@ resolve_shu() {
 OPT_OK=0
 RES_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-002/003: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . tests/option/main.su >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-002/003: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . tests/option/main.sx >/dev/null 2>&1; then
     OPT_OK=1
   else
     echo "core-option-result gate FAIL: option typeck" >&2
-    "$SHU_BIN" check -L . tests/option/main.su 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/option/main.sx 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHU_BIN" check -L . tests/result/main.su >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/result/main.sx >/dev/null 2>&1; then
     RES_OK=1
   else
     echo "core-option-result gate FAIL: result typeck" >&2
-    "$SHU_BIN" check -L . tests/result/main.su 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/result/main.sx 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" "$OPT_OK" 0 0
     exit 1
   fi
@@ -95,7 +95,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "core-option-result gate SKIP typeck (no native shu)" >&2
+  echo "core-option-result gate SKIP typeck (no native shux)" >&2
 fi
 
 core_or_emit_report "ok" "$OPT_OK" "$RES_OK" "$SKIP"

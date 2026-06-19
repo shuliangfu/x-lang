@@ -24,10 +24,10 @@ extern int32_t parser_asm_stretch_struct_lit_fields_probe_c(struct parser_asm_le
 extern int32_t parser_asm_stretch_struct_lit_fields_body_audit_c(struct parser_asm_lexer lex,
                                                                  struct parser_asm_slice_u8 *source);
 
-/** EXPR_STRUCT_LIT 序值（与 ast.su ExprKind 一致）。 */
+/** EXPR_STRUCT_LIT 序值（与 ast.sx ExprKind 一致）。 */
 #define PARSER_ASM_FINISH_STRUCT_LIT_KIND 77
 
-/** expr_set_common_zeros：与 parser.su 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
 static void parser_asm_finish_struct_lit_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;

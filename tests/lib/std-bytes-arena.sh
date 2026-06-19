@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_bytes_arena_symbols_ok MOD_SU TSV
-#   std_bytes_arena_run_smoke SHU_BIN SU
+#   std_bytes_arena_run_smoke SHUX_BIN SU
 #   std_bytes_arena_emit_report status su_ok skip
 
-STD155_PREFIX="${SHU_STD155_BYTES_ARENA_PREFIX:-shu: [SHU_STD155_BYTES_ARENA]}"
+STD155_PREFIX="${SHUX_STD155_BYTES_ARENA_PREFIX:-shux: [SHUX_STD155_BYTES_ARENA]}"
 
 # 校验 manifest；echo 缺失数。
 std_bytes_arena_symbols_ok() {
@@ -48,18 +48,18 @@ std_bytes_arena_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_bytes_arena_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std155_bytes_arena_$$"
+  local exe="/tmp/shux_std155_bytes_arena_$$"
   if [ ! -f "$src" ]; then
     echo "std-bytes-arena FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-bytes-arena FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

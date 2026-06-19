@@ -4,14 +4,14 @@
  * 【文件职责】
  * elf64_parse_hdr_c、elf64_read_shdr_c、elf64_sec_name_c、elf64_read_phdr_c、
  * elf64_read_sym_c、elf64_read_rela_c（STD-103）；工具链烟测金样。
- * 【所属模块】标准库 std.elf；与 std/elf/mod.su 同属一模块。无外部依赖。
+ * 【所属模块】标准库 std.elf；与 std/elf/mod.sx 同属一模块。无外部依赖。
  */
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-/** 与 mod.su ELF_* 常量一致。 */
+/** 与 mod.sx ELF_* 常量一致。 */
 enum {
   ELF_OK = 0,
   ELF_ERR_NULL = -1,
@@ -30,7 +30,7 @@ enum {
 #define ELFCLASS64 2
 #define ELFDATA2LSB 1
 
-/** 输出：与 .su Elf64Hdr 字段顺序一致。 */
+/** 输出：与 .sx Elf64Hdr 字段顺序一致。 */
 typedef struct {
   int32_t e_type;
   int32_t machine;
@@ -42,7 +42,7 @@ typedef struct {
   int32_t shstrndx;
 } elf64_hdr_out_t;
 
-/** 输出：与 .su Elf64Phdr 一致。 */
+/** 输出：与 .sx Elf64Phdr 一致。 */
 typedef struct {
   int32_t p_type;
   int32_t p_flags;
@@ -52,7 +52,7 @@ typedef struct {
   uint64_t memsz;
 } elf64_phdr_out_t;
 
-/** 输出：与 .su Elf64Sec 一致。 */
+/** 输出：与 .sx Elf64Sec 一致。 */
 typedef struct {
   int32_t name_off;
   int32_t sh_type;
@@ -61,7 +61,7 @@ typedef struct {
   uint64_t size;
 } elf64_sec_out_t;
 
-/** 输出：与 .su Elf64Sym 一致。 */
+/** 输出：与 .sx Elf64Sym 一致。 */
 typedef struct {
   int32_t name_off;
   int32_t bind;
@@ -71,7 +71,7 @@ typedef struct {
   uint64_t size;
 } elf64_sym_out_t;
 
-/** 输出：与 .su Elf64Rela 一致。 */
+/** 输出：与 .sx Elf64Rela 一致。 */
 typedef struct {
   uint64_t offset;
   int32_t sym_idx;

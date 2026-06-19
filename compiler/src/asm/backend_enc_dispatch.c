@@ -1,7 +1,7 @@
 /**
  * backend_enc_dispatch.c — backend_enc_*_arch 的 C 侧 ta 分派
  *
- * M8 自举：backend.su 中 enc_*_arch 改为单行委托本 TU，避免 SU if(ta) 真 emit 产生未绑定 .LfN_ 跳转。
+ * M8 自举：backend.sx 中 enc_*_arch 改为单行委托本 TU，避免 SU if(ta) 真 emit 产生未绑定 .LfN_ 跳转。
  * 依赖 asm_backend_partial.o 导出的 arch_*_enc_enc_* 符号。
  */
 #include <stdint.h>
@@ -16,7 +16,7 @@ extern int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_o
                                               int32_t imm_bits);
 
 /**
- * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.su enc_jle/enc_jl 一致）。
+ * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.sx enc_jle/enc_jl 一致）。
  * 供 pipeline_glue LCG 计数循环；bootstrap partial.o 未导出 enc_jle/enc_jl 时用 C 路由。
  */
 static int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
@@ -1069,7 +1069,7 @@ int32_t backend_enc_add_imm_to_index_scratch_arch(struct platform_elf_ElfCodegen
     imm12 = imm;
     if (imm12 > 4095)
       imm12 = 4095;
-    /** 0x11000442 = add w2,w2,#1；每 +1 步进 1024（C 侧合成，避免 .su -E 失精）。 */
+    /** 0x11000442 = add w2,w2,#1；每 +1 步进 1024（C 侧合成，避免 .sx -E 失精）。 */
     ins = 285213762u + (uint32_t)((imm12 - 1) << 10);
     return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)ins);
   }

@@ -12,7 +12,7 @@
 #   zcd_report_emit metric_id value cap status trend
 #
 # 环境：
-#   SHU_ZC_DASHBOARD_PREFIX — 默认 shu: [SHU_ZC_DASHBOARD]
+#   SHUX_ZC_DASHBOARD_PREFIX — 默认 shux: [SHUX_ZC_DASHBOARD]
 
 # 取当前日期 YYYY-MM-DD（UTC 优先）。
 zcd_current_date() {
@@ -173,7 +173,7 @@ zcd_report_emit() {
   local cap="$3"
   local status="$4"
   local trend="$5"
-  local prefix="${SHU_ZC_DASHBOARD_PREFIX:-shu: [SHU_ZC_DASHBOARD]}"
+  local prefix="${SHUX_ZC_DASHBOARD_PREFIX:-shux: [SHUX_ZC_DASHBOARD]}"
   printf '%s metric=%s value=%s cap=%s status=%s trend=%s\n' \
     "$prefix" "$metric_id" "$value" "$cap" "$status" "$trend" >&2
 }

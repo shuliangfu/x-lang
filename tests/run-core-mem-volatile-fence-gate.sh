@@ -6,12 +6,12 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="core/mem/mod.su"
+MOD_SU="core/mem/mod.sx"
 MEM_C="core/mem/mem.c"
 MANIFEST="tests/baseline/core-mem-volatile-fence.tsv"
-SMOKE_SU="tests/core-mem/volatile_fence.su"
+SMOKE_SU="tests/core-mem/volatile_fence.sx"
 SMOKE_C="tests/core-mem/volatile_fence_smoke.c"
-PREFIX="shu: [SHU_CORE017_MEM_VOLATILE]"
+PREFIX="shux: [SHUX_CORE017_MEM_VOLATILE]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -69,7 +69,7 @@ ensure_std_c_o ../core/mem/mem.o
 
 C_OK=0
 echo "=== CORE-017: C smoke ==="
-c_exe="/tmp/shu_core017_mem_vf_$$"
+c_exe="/tmp/shux_core017_mem_vf_$$"
 if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" core/mem/mem.o 2>/dev/null; then
   set +e
   "$c_exe" >/dev/null 2>&1
@@ -88,19 +88,19 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
-if [ -n "$SHU_BIN" ]; then
-  echo "=== CORE-017: .su compile+run (SHU=$SHU_BIN) ==="
-  su_exe="/tmp/shu_core017_mem_vf_run_$$"
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== CORE-017: .sx compile+run (SHUX=$SHUX_BIN) ==="
+  su_exe="/tmp/shux_core017_mem_vf_run_$$"
   rm -f "$su_exe"
-  if ! "$SHU_BIN" -L . "$SMOKE_SU" -o "$su_exe" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" -L . "$SMOKE_SU" -o "$su_exe" >/dev/null 2>&1; then
     echo "core-mem-volatile gate FAIL: compile $SMOKE_SU" >&2
-    "$SHU_BIN" -L . "$SMOKE_SU" -o "$su_exe" 2>&1 | tail -15 >&2 || true
+    "$SHUX_BIN" -L . "$SMOKE_SU" -o "$su_exe" 2>&1 | tail -15 >&2 || true
     exit 1
   fi
   set +e
@@ -112,15 +112,15 @@ if [ -n "$SHU_BIN" ]; then
     echo "core-mem-volatile gate FAIL: run $SMOKE_SU exit=$su_ec" >&2
     exit 1
   fi
-  echo "=== CORE-017: .su typeck (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  echo "=== CORE-017: .sx typeck (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "core-mem-volatile gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     exit 1
   fi
   SU_OK=2
 else
-  echo "core-mem-volatile gate SKIP .su (no native shu)" >&2
+  echo "core-mem-volatile gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

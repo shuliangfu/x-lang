@@ -1,7 +1,7 @@
 # COMP-004 WPO prototype catalog
 # 列：capability	script	status	notes
 # min_capabilities	6
-dce_dead_export	run-wpo-dce-emit.sh	done	shu-c
+dce_dead_export	run-wpo-dce-emit.sh	done	shux-c
 callgraph_json	run-wpo-s1.sh	done	JSON
 const_spec_fold	run-wpo-s2.sh	done	v2 graph
 stack_promote	run-wpo-s3-gate.sh	asm	linux

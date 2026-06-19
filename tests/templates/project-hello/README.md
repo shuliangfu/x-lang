@@ -1,17 +1,17 @@
-# myapp（Shulang 脚手架）
+# myapp（Shux 脚手架）
 
-由 `scripts/shu-new.sh` 生成的最小项目。
+由 `scripts/shux-new.sh` 生成的最小项目。
 
 ## 运行
 
 ```bash
-shu run main.su
+shux run main.sx
 ```
 
 ## 编译
 
 ```bash
-shu build main.su -o myapp
+shux build main.sx -o myapp
 ./myapp
 echo $?   # 42
 ```
@@ -19,6 +19,6 @@ echo $?   # 42
 ## 格式化（可选）
 
 ```bash
-shu fmt main.su
-shu fmt --check main.su
+shux fmt main.sx
+shux fmt --check main.sx
 ```

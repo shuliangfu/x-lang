@@ -5,7 +5,7 @@
 #   core_fmt_widths_symbols_ok FMT_SU TSV
 #   core_fmt_widths_emit_report status check_ok run_ok skip
 
-CORE_FMT_WIDTHS_PREFIX="${SHU_CORE_FMT_WIDTHS_PREFIX:-shu: [SHU_CORE_FMT_WIDTHS]}"
+CORE_FMT_WIDTHS_PREFIX="${SHUX_CORE_FMT_WIDTHS_PREFIX:-shux: [SHUX_CORE_FMT_WIDTHS]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_fmt_widths_symbols_ok() {

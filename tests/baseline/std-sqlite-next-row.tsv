@@ -5,18 +5,18 @@ read_path	section	## 1. 目标	analysis/std-sqlite-next-row-v1.md
 api_doc	section	## 2. next_row API（v1）	next_row
 vectors_doc	section	## 3. 金样向量	cursor_row1
 verify	section	## 4. Gate	gate
-api_query_begin	api	query_begin	std/sqlite/mod.su	游标
-api_next_row	api	next_row	std/sqlite/mod.su	推进
-api_row_col	api	row_col_i32	std/sqlite/mod.su	列值
-api_query_end	api	query_end	std/sqlite/mod.su	释放
-symbol_begin_c	symbol	db_query_begin_c	std/sqlite/sqlite.c	准备
-symbol_next_c	symbol	db_next_row_c	std/sqlite/sqlite.c	推进
-symbol_col_c	symbol	db_row_col_i32_c	std/sqlite/sqlite.c	列读
-symbol_end_c	symbol	db_query_end_c	std/sqlite/sqlite.c	释放
-symbol_cursor_smoke_c	symbol	db_sqlite_next_row_smoke_c	std/sqlite/sqlite.c	烟测
-impl_c	file	std/sqlite/sqlite.c	std/sqlite/sqlite.c	实现
+api_query_begin	api	query_begin	std/db/sqlite/mod.sx	游标
+api_next_row	api	next_row	std/db/sqlite/mod.sx	推进
+api_row_col	api	row_col_i32	std/db/sqlite/mod.sx	列值
+api_query_end	api	query_end	std/db/sqlite/mod.sx	释放
+symbol_begin_c	symbol	db_query_begin_c	std/db/sqlite/sqlite.c	准备
+symbol_next_c	symbol	db_next_row_c	std/db/sqlite/sqlite.c	推进
+symbol_col_c	symbol	db_row_col_i32_c	std/db/sqlite/sqlite.c	列读
+symbol_end_c	symbol	db_query_end_c	std/db/sqlite/sqlite.c	释放
+symbol_cursor_smoke_c	symbol	db_sqlite_next_row_smoke_c	std/db/sqlite/sqlite.c	烟测
+impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
 smoke_c	file	tests/std-sqlite/next_row_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/next_row_roundtrip.su	.su 往返
+smoke_su	smoke	tests/std-sqlite/next_row_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-next-row-vectors.tsv	向量
 lib	script	lib/std-sqlite-next-row.sh	tests/lib/std-sqlite-next-row.sh
 gate	script	run-std-sqlite-next-row-gate.sh	tests/run-std-sqlite-next-row-gate.sh

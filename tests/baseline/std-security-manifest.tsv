@@ -4,19 +4,19 @@
 read_path	section	## 1. 阅读路径	analysis/std-security-v1.md
 api_doc	section	## 2. API	analysis/std-security-v1.md
 verify	section	## 3. Gate	analysis/std-security-v1.md
-api_ct	api	ct_compare	std/security/mod.su	常量时间
-api_key	api	random_key	std/security/mod.su	密钥
-api_salt	api	random_salt	std/security/mod.su	盐
-api_hkdf	api	hkdf_sha256	std/security/mod.su	HKDF
-api_zero	api	secure_zero	std/security/mod.su	清零
-api_lock	api	sensitive_lock	std/security/mod.su	mlock
-api_unlock	api	sensitive_unlock	std/security/mod.su	munlock
-api_buf_init	api	sensitive_buf_init	std/security/mod.su	缓冲
-api_buf_wipe	api	sensitive_buf_wipe	std/security/mod.su	释放
-api_err	api	security_err_ok	std/security/mod.su	错误码
+api_ct	api	ct_compare	std/security/mod.sx	常量时间
+api_key	api	random_key	std/security/mod.sx	密钥
+api_salt	api	random_salt	std/security/mod.sx	盐
+api_hkdf	api	hkdf_sha256	std/security/mod.sx	HKDF
+api_zero	api	secure_zero	std/security/mod.sx	清零
+api_lock	api	sensitive_lock	std/security/mod.sx	mlock
+api_unlock	api	sensitive_unlock	std/security/mod.sx	munlock
+api_buf_init	api	sensitive_buf_init	std/security/mod.sx	缓冲
+api_buf_wipe	api	sensitive_buf_wipe	std/security/mod.sx	释放
+api_err	api	security_err_ok	std/security/mod.sx	错误码
 symbol_smoke	symbol	security_smoke_c	std/security/security.c	C烟测
 impl_c	file	std/security/security.c	std/security/security.c
-smoke_su	smoke	tests/std-security/roundtrip.su	.su烟测
+smoke_su	smoke	tests/std-security/roundtrip.sx	.su烟测
 vectors	file	tests/baseline/std-security-vectors.tsv	向量
 lib	script	lib/std-security.sh	tests/lib/std-security.sh
 gate	script	run-std-security-gate.sh	tests/run-std-security-gate.sh

@@ -1,11 +1,11 @@
 /**
  * tls_mbedtls.inc.c — STD-085：mbedTLS TLS 客户端实现
  *
- * 由 net.c 在 -DSHU_NET_USE_MBEDTLS 下 #include。
+ * 由 net.c 在 -DSHUX_NET_USE_MBEDTLS 下 #include。
  * v1：mbedTLS 4.x PSA 路径；证书校验默认关闭（测试/自签）。
  */
 
-#if defined(SHU_NET_USE_MBEDTLS)
+#if defined(SHUX_NET_USE_MBEDTLS)
 
 #include "mbedtls/ssl.h"
 #include "mbedtls/error.h"
@@ -25,6 +25,7 @@
 /** mbedTLS 会话：config + ssl + 底层 fd。 */
 typedef struct {
     int fd;
+    int32_t has_conf;
     mbedtls_ssl_context ssl;
     mbedtls_ssl_config conf;
 } shu_tls_mbedtls_sess_t;
@@ -109,6 +110,7 @@ int64_t net_tls_connect_client_c(int32_t fd, const char *sni) {
         return 0;
     }
     sess->fd = fd;
+    sess->has_conf = 1;
 
     mbedtls_ssl_config_init(&sess->conf);
     ret = mbedtls_ssl_config_defaults(&sess->conf, MBEDTLS_SSL_IS_CLIENT,
@@ -160,12 +162,134 @@ int64_t net_tls_connect_client_c(int32_t fd, const char *sni) {
     return (int64_t)(uintptr_t)sess;
 }
 
+/** 带 ALPN（h2 + http/1.1）的 TLS 客户端握手。 */
+int64_t net_tls_connect_client_alpn_c(int32_t fd, const char *sni, const uint8_t *alpn_wire,
+                                      int32_t alpn_wire_len) {
+    static const char *alpn_list[] = {"h2", "http/1.1", NULL};
+    shu_tls_mbedtls_sess_t *sess = NULL;
+    psa_status_t psa_st;
+    int ret;
+    (void)alpn_wire;
+    (void)alpn_wire_len;
+
+    shu_tls_last_error = 0;
+    if (fd < 0) {
+        shu_tls_last_error = -2;
+        return 0;
+    }
+    if (!sni || !sni[0]) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+
+    psa_st = psa_crypto_init();
+    if (psa_st != PSA_SUCCESS && psa_st != PSA_ERROR_BAD_STATE) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+
+    sess = (shu_tls_mbedtls_sess_t *)calloc(1, sizeof(*sess));
+    if (!sess) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    sess->fd = fd;
+    sess->has_conf = 1;
+
+    mbedtls_ssl_config_init(&sess->conf);
+    ret = mbedtls_ssl_config_defaults(&sess->conf, MBEDTLS_SSL_IS_CLIENT,
+                                      MBEDTLS_SSL_TRANSPORT_STREAM,
+                                      MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0) {
+        mbedtls_ssl_config_free(&sess->conf);
+        free(sess);
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    mbedtls_ssl_conf_authmode(&sess->conf, MBEDTLS_SSL_VERIFY_NONE);
+    if (mbedtls_ssl_conf_alpn_protocols(&sess->conf, alpn_list) != 0) {
+        mbedtls_ssl_config_free(&sess->conf);
+        free(sess);
+        shu_tls_last_error = -1;
+        return 0;
+    }
+
+    mbedtls_ssl_init(&sess->ssl);
+    ret = mbedtls_ssl_setup(&sess->ssl, &sess->conf);
+    if (ret != 0) {
+        mbedtls_ssl_free(&sess->ssl);
+        mbedtls_ssl_config_free(&sess->conf);
+        free(sess);
+        shu_tls_last_error = -1;
+        return 0;
+    }
+
+    if (mbedtls_ssl_set_hostname(&sess->ssl, sni) != 0) {
+        mbedtls_ssl_free(&sess->ssl);
+        mbedtls_ssl_config_free(&sess->conf);
+        free(sess);
+        shu_tls_last_error = -1;
+        return 0;
+    }
+
+    mbedtls_ssl_set_bio(&sess->ssl, &sess->fd, shu_mbedtls_net_send, shu_mbedtls_net_recv, NULL);
+
+#if !defined(_WIN32) && !defined(_WIN64)
+    shu_tls_mbedtls_set_blocking(fd, 1);
+#endif
+
+    while ((ret = mbedtls_ssl_handshake(&sess->ssl)) != 0) {
+        if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+            mbedtls_ssl_free(&sess->ssl);
+            mbedtls_ssl_config_free(&sess->conf);
+            free(sess);
+            shu_tls_last_error = -1;
+            return 0;
+        }
+    }
+
+    shu_tls_last_error = 0;
+    return (int64_t)(uintptr_t)sess;
+}
+
+/** 读取协商后的 ALPN 协议名；返回长度。 */
+int32_t net_tls_alpn_selected_c(int64_t ctx_handle, uint8_t *out, int32_t out_cap) {
+    shu_tls_mbedtls_sess_t *sess = shu_tls_mbedtls_sess_ptr(ctx_handle);
+    const char *sel;
+    int32_t len;
+    if (!sess) {
+        shu_tls_last_error = -2;
+        return -1;
+    }
+    sel = mbedtls_ssl_get_alpn_protocol(&sess->ssl);
+    if (!sel || !sel[0])
+        return 0;
+    len = (int32_t)strlen(sel);
+    if (out && out_cap > 0) {
+        int32_t n = len;
+        if (n > out_cap)
+            n = out_cap;
+        memcpy(out, sel, (size_t)n);
+    }
+    return len;
+}
+
+/** 协商协议是否为 h2。 */
+int32_t net_tls_alpn_is_h2_c(int64_t ctx_handle) {
+    uint8_t buf[4];
+    int32_t n = net_tls_alpn_selected_c(ctx_handle, buf, 4);
+    if (n == 2 && buf[0] == (uint8_t)'h' && buf[1] == (uint8_t)'2')
+        return 1;
+    return 0;
+}
+
 int32_t net_tls_close_c(int64_t ctx_handle) {
     shu_tls_mbedtls_sess_t *sess = shu_tls_mbedtls_sess_ptr(ctx_handle);
     if (!sess) return 0;
     mbedtls_ssl_close_notify(&sess->ssl);
     mbedtls_ssl_free(&sess->ssl);
-    mbedtls_ssl_config_free(&sess->conf);
+    if (sess->has_conf != 0)
+        mbedtls_ssl_config_free(&sess->conf);
     free(sess);
     shu_tls_last_error = 0;
     return 0;
@@ -234,10 +358,10 @@ static int shu_tls_mbedtls_smoke_tcp_connect(int port) {
 }
 
 /**
- * mbedTLS 烟测：连接 SHU_TLS_SMOKE_PORT 上的 s_server 并完成握手。
+ * mbedTLS 烟测：连接 SHUX_TLS_SMOKE_PORT 上的 s_server 并完成握手。
  */
 int32_t net_tls_mbedtls_smoke_c(void) {
-    const char *port_env = getenv("SHU_TLS_SMOKE_PORT");
+    const char *port_env = getenv("SHUX_TLS_SMOKE_PORT");
     int port = port_env ? atoi(port_env) : 0;
     int fd;
     int64_t ctx;
@@ -268,4 +392,115 @@ int32_t net_tls_openssl_smoke_c(void) {
 }
 #endif /* !Windows smoke */
 
-#endif /* SHU_NET_USE_MBEDTLS */
+/** mbedTLS 服务端 TLS 上下文。 */
+typedef struct {
+    mbedtls_ssl_config conf;
+    mbedtls_x509_crt cert;
+    mbedtls_pk_context key;
+    int32_t ready;
+} shu_tls_mbedtls_server_ctx_t;
+
+/** 从内存 PEM 创建 TLS 服务端上下文（ALPN h2）；失败返回 0。 */
+int64_t net_tls_server_ctx_create_mem_c(const uint8_t *cert_pem, int32_t cert_len,
+                                        const uint8_t *key_pem, int32_t key_len) {
+    static const char *alpn_list[] = {"h2", NULL};
+    shu_tls_mbedtls_server_ctx_t *srv;
+    psa_status_t psa_st;
+    int ret;
+
+    shu_tls_last_error = 0;
+    if (!cert_pem || cert_len <= 0 || !key_pem || key_len <= 0) {
+        shu_tls_last_error = -2;
+        return 0;
+    }
+    psa_st = psa_crypto_init();
+    if (psa_st != PSA_SUCCESS && psa_st != PSA_ERROR_BAD_STATE) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    srv = (shu_tls_mbedtls_server_ctx_t *)calloc(1, sizeof(*srv));
+    if (!srv) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    mbedtls_ssl_config_init(&srv->conf);
+    mbedtls_x509_crt_init(&srv->cert);
+    mbedtls_pk_init(&srv->key);
+    ret = mbedtls_ssl_config_defaults(&srv->conf, MBEDTLS_SSL_IS_SERVER,
+                                      MBEDTLS_SSL_TRANSPORT_STREAM,
+                                      MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0)
+        goto fail;
+    mbedtls_ssl_conf_authmode(&srv->conf, MBEDTLS_SSL_VERIFY_NONE);
+    if (mbedtls_ssl_conf_alpn_protocols(&srv->conf, alpn_list) != 0)
+        goto fail;
+    if (mbedtls_x509_crt_parse(&srv->cert, cert_pem, (size_t)cert_len) != 0)
+        goto fail;
+    if (mbedtls_pk_parse_key(&srv->key, key_pem, (size_t)key_len, NULL, 0, NULL, NULL) != 0)
+        goto fail;
+    if (mbedtls_ssl_conf_own_cert(&srv->conf, &srv->cert, &srv->key) != 0)
+        goto fail;
+    srv->ready = 1;
+    return (int64_t)(uintptr_t)srv;
+fail:
+    mbedtls_pk_free(&srv->key);
+    mbedtls_x509_crt_free(&srv->cert);
+    mbedtls_ssl_config_free(&srv->conf);
+    free(srv);
+    shu_tls_last_error = -1;
+    return 0;
+}
+
+/** 释放 TLS 服务端上下文。 */
+void net_tls_server_ctx_destroy_c(int64_t srv_ctx_h) {
+    shu_tls_mbedtls_server_ctx_t *srv = (shu_tls_mbedtls_server_ctx_t *)(uintptr_t)srv_ctx_h;
+    if (!srv)
+        return;
+    mbedtls_pk_free(&srv->key);
+    mbedtls_x509_crt_free(&srv->cert);
+    mbedtls_ssl_config_free(&srv->conf);
+    free(srv);
+}
+
+/** 在已 accept 的 TCP fd 上完成 TLS 服务端握手；失败返回 0。 */
+int64_t net_tls_accept_server_c(int64_t srv_ctx_h, int32_t fd) {
+    shu_tls_mbedtls_server_ctx_t *srv = (shu_tls_mbedtls_server_ctx_t *)(uintptr_t)srv_ctx_h;
+    shu_tls_mbedtls_sess_t *sess = NULL;
+    int ret;
+
+    shu_tls_last_error = 0;
+    if (!srv || srv->ready == 0 || fd < 0) {
+        shu_tls_last_error = -2;
+        return 0;
+    }
+    sess = (shu_tls_mbedtls_sess_t *)calloc(1, sizeof(*sess));
+    if (!sess) {
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    sess->fd = fd;
+    sess->has_conf = 0;
+    mbedtls_ssl_init(&sess->ssl);
+    ret = mbedtls_ssl_setup(&sess->ssl, &srv->conf);
+    if (ret != 0) {
+        mbedtls_ssl_free(&sess->ssl);
+        free(sess);
+        shu_tls_last_error = -1;
+        return 0;
+    }
+    mbedtls_ssl_set_bio(&sess->ssl, &sess->fd, shu_mbedtls_net_send, shu_mbedtls_net_recv, NULL);
+#if !defined(_WIN32) && !defined(_WIN64)
+    shu_tls_mbedtls_set_blocking(fd, 1);
+#endif
+    while ((ret = mbedtls_ssl_handshake(&sess->ssl)) != 0) {
+        if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+            mbedtls_ssl_free(&sess->ssl);
+            free(sess);
+            shu_tls_last_error = -1;
+            return 0;
+        }
+    }
+    return (int64_t)(uintptr_t)sess;
+}
+
+#endif /* SHUX_NET_USE_MBEDTLS */

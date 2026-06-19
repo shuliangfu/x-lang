@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# experimental 链 + parser_parse_bootstrap.o（C seed TU）须能 asm 编任意 .su（parse_into_buf 强符号）。
+# experimental 链 + parser_parse_bootstrap.o（C seed TU）须能 asm 编任意 .sx（parse_into_buf 强符号）。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-link-smoke.sh
-#   SHU_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
+#   SHUX_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHU_PARSER_PARSE_BOOTSTRAP_LINK_FAIL:-0}
+FAIL=${SHUX_PARSER_PARSE_BOOTSTRAP_LINK_FAIL:-0}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -14,11 +14,11 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-COMP_IN="./shu_asm"
-if [ -n "${SHU_PARSER_PARSE_BOOTSTRAP_COMPILER:-}" ]; then
-  case "${SHU_PARSER_PARSE_BOOTSTRAP_COMPILER}" in
-    compiler/*) COMP_IN="./${SHU_PARSER_PARSE_BOOTSTRAP_COMPILER#compiler/}" ;;
-    *) COMP_IN="${SHU_PARSER_PARSE_BOOTSTRAP_COMPILER}" ;;
+COMP_IN="./shux_asm"
+if [ -n "${SHUX_PARSER_PARSE_BOOTSTRAP_COMPILER:-}" ]; then
+  case "${SHUX_PARSER_PARSE_BOOTSTRAP_COMPILER}" in
+    compiler/*) COMP_IN="./${SHUX_PARSER_PARSE_BOOTSTRAP_COMPILER#compiler/}" ;;
+    *) COMP_IN="${SHUX_PARSER_PARSE_BOOTSTRAP_COMPILER}" ;;
   esac
 fi
 if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
@@ -28,7 +28,7 @@ fi
 
 BOOT_O="compiler/build_asm/parser_parse_bootstrap.o"
 if [ ! -f "$BOOT_O" ]; then
-  echo "parser-parse-bootstrap-link-smoke: SKIP (missing $BOOT_O; run relink_shu_asm_experimental_bootstrap.sh)" >&2
+  echo "parser-parse-bootstrap-link-smoke: SKIP (missing $BOOT_O; run relink_shux_asm_experimental_bootstrap.sh)" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
@@ -38,7 +38,7 @@ if ! nm -g "$BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
   exit 0
 fi
 
-# shu_asm 链入 liburing；裸容器无运行时库时 SKIP（bootstrap-ci 已装 liburing-dev）。
+# shux_asm 链入 liburing；裸容器无运行时库时 SKIP（bootstrap-ci 已装 liburing-dev）。
 if [ -x "compiler/$COMP_IN" ]; then
   LDD_MISS=$(ldd "compiler/$COMP_IN" 2>/dev/null | grep 'not found' || true)
   if [ -n "$LDD_MISS" ]; then
@@ -49,18 +49,18 @@ if [ -x "compiler/$COMP_IN" ]; then
   fi
 fi
 
-SRC="/tmp/shu_parser_boot_link_smoke.$$.su"
-OUT="/tmp/shu_parser_boot_link_smoke.$$.o"
-LOG="/tmp/shu_parser_boot_link_smoke.log"
+SRC="/tmp/shux_parser_boot_link_smoke.$$.sx"
+OUT="/tmp/shux_parser_boot_link_smoke.$$.o"
+LOG="/tmp/shux_parser_boot_link_smoke.log"
 rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
 printf 'function main(): i32 { return 42; }\n' > "$SRC"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-echo "parser-parse-bootstrap-link-smoke: asm compile minimal .su with compiler/$COMP_IN ..."
+echo "parser-parse-bootstrap-link-smoke: asm compile minimal .sx with compiler/$COMP_IN ..."
 if ! (
   cd compiler
-  env -u SHU_ASM_START_FUNC SHU_ASM_BUILD_SKIP_TYPECK=1 \
+  env -u SHUX_ASM_START_FUNC SHUX_ASM_BUILD_SKIP_TYPECK=1 \
     "$COMP_IN" -backend asm -o "$OUT" $LIBROOT "$SRC"
 ) > "$LOG" 2>&1; then
   echo "parser-parse-bootstrap-link-smoke FAIL: compile command failed" >&2
@@ -88,7 +88,7 @@ fi
 TEXT_HEX=$(objdump -h "$OUT" 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
 [ -z "$TEXT_HEX" ] && TEXT_HEX=$(objdump -h "$OUT" 2>/dev/null | awk '$2 == "__text" { print $3; exit }')
 TEXT=$(perl -e 'print hex(shift)' "$TEXT_HEX" 2>/dev/null || echo 0)
-MIN_TEXT=${SHU_PARSER_PARSE_BOOTSTRAP_LINK_MIN_TEXT:-8}
+MIN_TEXT=${SHUX_PARSER_PARSE_BOOTSTRAP_LINK_MIN_TEXT:-8}
 rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
 
 if [ "${TEXT:-0}" -lt "$MIN_TEXT" ] 2>/dev/null; then

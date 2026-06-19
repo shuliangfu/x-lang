@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD115_DOC:-analysis/std-math-special-v1.md}"
-MANIFEST="${SHU_STD115_TSV:-tests/baseline/std-math-special.tsv}"
-VECTORS="${SHU_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
-MOD_SU="std/math/mod.su"
+DOC="${SHUX_STD115_DOC:-analysis/std-math-special-v1.md}"
+MANIFEST="${SHUX_STD115_TSV:-tests/baseline/std-math-special.tsv}"
+VECTORS="${SHUX_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
+MOD_SU="std/math/mod.sx"
 MATH_C="std/math/math.c"
 LIB="tests/lib/std-math-special.sh"
-SMOKE_SU="tests/std-math/special_funcs.su"
+SMOKE_SU="tests/std-math/special_funcs.sx"
 SMOKE_C="tests/std-math/special_smoke_ok.c"
 MIN_APIS=5
 
@@ -84,15 +84,15 @@ fi
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  echo "=== STD-115: .su smoke (SHU=./compiler/shu-c) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -x ./compiler/shux-c ]; then
+  echo "=== STD-115: .sx smoke (SHUX=./compiler/shux-c) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-math-special gate FAIL: typeck $SMOKE_SU" >&2
     std_math_special_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_math_special_run_su_smoke ./compiler/shu-c "$SMOKE_SU"; then
+  if std_math_special_run_sx_smoke ./compiler/shux-c "$SMOKE_SU"; then
     SU_OK=1
   else
     std_math_special_emit_report "fail" "$C_OK" 0 0

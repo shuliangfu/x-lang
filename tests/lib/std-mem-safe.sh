@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-mem-safe.sh — STD-144 manifest 与烟测辅助
 
-STD_MEM_SAFE_PREFIX="${SHU_STD144_MEM_SAFE_PREFIX:-shu: [SHU_STD144_MEM_SAFE]}"
+STD_MEM_SAFE_PREFIX="${SHUX_STD144_MEM_SAFE_PREFIX:-shux: [SHUX_STD144_MEM_SAFE]}"
 
 # 校验 manifest；echo 缺失数。
 std_mem_safe_symbols_ok() {
@@ -39,12 +39,12 @@ std_mem_safe_symbols_ok() {
 
 # 编译并运行 mem_safe_boundary 烟测。
 std_mem_safe_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_std_mem_safe_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_mem_safe_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-mem-safe FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# shu-c -E 对 slim ASTArena 仍可能生成 arena->exprs[] / blocks[] 直访；替换为 grow pool get_copy 调用，
+# shux-c -E 对 slim ASTArena 仍可能生成 arena->exprs[] / blocks[] 直访；替换为 grow pool get_copy 调用，
 # 并注入 pipeline_arena_* / ast_arena_* 原型与符号别名供 _gen2.c / pipeline_gen.c 单文件编译。
 use strict;
 use warnings;
@@ -39,12 +39,12 @@ my %seen;
 my @fwd_lines;
 my @pipe_extern_lines;
 
-# 返回值含 struct T * 时 shu-c -E 形如 extern struct ast_Module * ast_pipeline_*；
+# 返回值含 struct T * 时 shux-c -E 形如 extern struct ast_Module * ast_pipeline_*；
 my $extern_ret = qr/(?:int32_t|void|int|uint8_t|size_t|intptr_t|struct\s+[A-Za-z0-9_]+\s*\*?)\s+/;
 
 my $is_pipeline_gen2 = ($path =~ /pipeline_gen2\.c$/);
 # parser_gen.c / lexer_gen.c / typeck_gen.c / codegen_gen.c 与 *_gen2.c 均需 TU 别名与 cross-module extern。
-my $is_module_gen2   = ($path =~ /(?:parser|typeck|codegen|driver|lexer)_gen(?:2)?\.c$/);
+my $is_module_gen2   = ($path =~ /(?:parser|typeck|codegen|driver|lexer|lsp_diag|lsp_io|lsp)_gen(?:2)?\.c$/);
 
 if ($is_pipeline_gen2) {
   # pipeline_gen2 同 TU 含 ast_pool.c（实现 pipeline_*）；仅补 extern 原型，禁止 #define 别名（会宏展开冲突）。
@@ -91,7 +91,7 @@ if ($is_pipeline_gen2) {
     next if $seen{"abx_$suffix"}++;
     push @fwd_lines, "#define ast_$suffix ast_ast_$suffix\n";
   }
-  # inject 的 extern ast_block_* / ast_arena_*（单 ast_ 前缀）→ pipeline_su.o 中 ast_ast_*。
+  # inject 的 extern ast_block_* / ast_arena_*（单 ast_ 前缀）→ pipeline_sx.o 中 ast_ast_*。
   while ($src =~ /^extern\s+${extern_ret}ast_(block_\w+|expr_\w+)\s*\(/mg) {
     my $suffix = $1;
     next if $seen{"abx1_$suffix"}++;
@@ -115,7 +115,7 @@ if ($path =~ /lexer_gen(?:2)?\.c$/) {
 }
 
 # parser_gen.c 顶部「parser extern ast helpers」与 inject 块重复，去掉前者避免 conflicting types。
-if ($path =~ /parser_gen\.c$/) {
+if ($path =~ /parser_gen(?:2)?\.c$/) {
   $src =~ s/\n\/\* parser extern ast helpers \*\/\n(?:extern )?void ast_expr_init_match_enum\([^\n]*\n//s;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
   $src =~ s/^extern void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
@@ -165,10 +165,12 @@ if ($is_module_gen2 && @rev_fwd_lines && index($src, 'pipeline reverse aliases')
     or warn "fix_slim_arena_gen_c: reverse alias anchor not found in $path\n";
 }
 if ($is_module_gen2 && ($path =~ /pipeline_gen/ || @fwd_lines)) {
+  if (index($src, 'C-04 -E-extern TU aliases') < 0) {
   $src =~ s/\n\/\* pipeline call aliases \(ast_pipeline_\* extern, pipeline_\* call\) \*\/\n(?:#define[^\n]*\n)*//s;
   my $fwd_block = "/* pipeline call aliases (ast_pipeline_* extern, pipeline_* call) */\n" . join("", @fwd_lines);
   $src =~ s/(struct ast_ASTArena \{.*?\};\n)/$1\n$fwd_block/s
     or warn "fix_slim_arena_gen_c: forward alias anchor not found in $path\n";
+  }
 }
 if ($is_pipeline_gen2 && @pipe_extern_lines) {
   $src =~ s/\n\/\* pipeline call aliases \(ast_pipeline_\* extern, pipeline_\* call\) \*\/\n(?:#define[^\n]*\n)*//s;
@@ -228,7 +230,7 @@ if ($is_module_gen2) {
   $src = inject_cross_module_externs($src, $dir, 'ast', 'ast cross-module externs');
   $src = inject_cross_module_externs($src, $dir, 'lexer', 'lexer cross-module externs');
   $src = inject_ast_gen2_single_prefix_externs($src, $dir);
-  if ($path =~ /parser_gen\.c$/) {
+  if ($path =~ /parser_gen(?:2)?\.c$/) {
     $src = inject_lexer_gen_single_prefix_externs($src, $dir);
   }
   $src = append_ast_gen2_link_aliases($src);
@@ -382,19 +384,25 @@ sub inject_pipeline_glue_from_usage {
 
 # inject_pipeline_glue_from_usage 定义见上；module gen2 已在 reverse alias 前调用。
 
-# parser_gen.c：所有 inject 完成后，将 shulang_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
-sub hoist_shulang_slice_struct {
+# parser_gen.c：所有 inject 完成后，将 shux_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
+sub hoist_shux_slice_struct {
   my ($s) = @_;
-  my $def = "struct shulang_slice_uint8_t { uint8_t *data; size_t length; };\n";
+  my $def = "struct shux_slice_uint8_t { uint8_t *data; size_t length; };\n";
   return $s unless index($s, $def) >= 0;
   return $s if $s =~ /struct ast_ASTArena \{[^\}]+\};\n\Q$def\E/s;
   $s =~ s/\Q$def\E//g;
   $s =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$def/s
-    or warn "fix_slim_arena_gen_c: hoist shulang_slice anchor not found in $path\n";
+    or warn "fix_slim_arena_gen_c: hoist shux_slice anchor not found in $path\n";
   return $s;
 }
-if ($path =~ /parser_gen\.c$/) {
-  $src = hoist_shulang_slice_struct($src);
+if ($path =~ /parser_gen(?:2)?\.c$/) {
+  $src = hoist_shux_slice_struct($src);
+}
+
+# ast_gen2 weak 辅助：typeck/codegen/parser -E 生成体直接调用，单 TU 须 extern 声明。
+if ($is_module_gen2 && index($src, 'ast_ref_is_null(') >= 0 && $src !~ /extern\s+int\s+ast_ref_is_null\s*\(/) {
+  $src =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1extern int ast_ref_is_null(int32_t ref);\n/s
+    or warn "fix_slim_arena_gen_c: ast_ref_is_null extern anchor not found in $path\n";
 }
 
 if ($src ne $orig) {

@@ -1,0 +1,7 @@
+# typeck.sx asm ENTRY_MODULE_ONLY parse 指标（A-11）
+# 列：key	value
+# 金标准：num_defined（非 extern）≥ target_funcs；num_funcs = extern + defined
+# 更新：SHUX_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh
+min_funcs	80
+target_funcs	146
+source_funcs	146

@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD109_DOC:-analysis/std-base64-stream-v1.md}"
-MANIFEST="${SHU_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
-VECTORS="${SHU_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
-MOD_SU="std/base64/mod.su"
+DOC="${SHUX_STD109_DOC:-analysis/std-base64-stream-v1.md}"
+MANIFEST="${SHUX_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
+VECTORS="${SHUX_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
+MOD_SU="std/base64/mod.sx"
 B64_C="std/base64/base64.c"
 LIB="tests/lib/std-base64-stream.sh"
-SMOKE_SU="tests/std-base64/stream.su"
+SMOKE_SU="tests/std-base64/stream.sx"
 SMOKE_C="tests/std-base64/stream_smoke_ok.c"
 MIN_APIS=5
 
@@ -83,7 +83,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -95,21 +95,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-109: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-109: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-base64-stream gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_base64_stream_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_base64_stream_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "b64"; then
+  if std_base64_stream_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "b64"; then
     SU_OK=1
   else
     std_base64_stream_emit_report "fail" "$C_OK" 0 0

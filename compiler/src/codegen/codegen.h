@@ -7,8 +7,8 @@
  * 重要约定：阶段 4 方案 B，入口模块生成 Hello World 的 printf 且 return 使用 main 体表达式的值（当前仅整数字面量）；库模块仅生成注释行（阶段 7.3）。阶段 8.1 DCE：可选传入 is_func_used/is_mono_used 仅生成被引用的函数与单态化实例。
  */
 
-#ifndef SHU_CODEGEN_H
-#define SHU_CODEGEN_H
+#ifndef SHUX_CODEGEN_H
+#define SHUX_CODEGEN_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -28,7 +28,7 @@ typedef int (*codegen_is_type_used_fn)(void *ctx, const struct ASTModule *mod, c
 /** pipeline 单文件时 preamble（write_io_net_abi_inline）已输出 core.option/core.result 的 Option_i32/Result_i32；置 1 时 codegen_library_module_to_c 跳过二者避免重定义。 */
 void codegen_set_preamble_has_core_option_result(int on);
 
-/** write_io_net_abi_inline 可选段：codegen.su 在 emit 与 preamble 重叠符号时 OR 入 mask，runtime 写 preamble 时跳过对应行。 */
+/** write_io_net_abi_inline 可选段：codegen.sx 在 emit 与 preamble 重叠符号时 OR 入 mask，runtime 写 preamble 时跳过对应行。 */
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE  2u
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
@@ -50,7 +50,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
  * 将库模块（无 main 或仅 import）生成 C 写入 out；若 is_*_used 非 NULL 则仅生成被引用部分（阶段 8.1 DCE）。
  * lib_dep_mods / lib_dep_paths / n_lib_dep 为该库模块的 import 依赖，用于生成跨模块调用时的 C 前缀（传递依赖）。
  * emitted_type_names/n_emitted_inout/max_emitted 非 NULL 时用于单文件去重。
- * emit_entry_path：单文件 -E-extern 时传入入口 .su 路径（如 src/lsp/lsp_io.su），用于内嵌原 lsp_*_extern.h 等价块；其它情况传 NULL。
+ * emit_entry_path：单文件 -E-extern 时传入入口 .sx 路径（如 src/lsp/lsp_io.sx），用于内嵌原 lsp_*_extern.h 等价块；其它情况传 NULL。
  */
 int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     struct ASTModule **lib_dep_mods, const char **lib_dep_paths, int n_lib_dep,
@@ -71,7 +71,7 @@ void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, 
 struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry);
 
 /**
- * WPO v0（S5 前置）：全程序 call graph 可达性；`SHU_WPO_DCE=1` 时 runtime 用于跨模块 dead export 剔除。
+ * WPO v0（S5 前置）：全程序 call graph 可达性；`SHUX_WPO_DCE=1` 时 runtime 用于跨模块 dead export 剔除。
  */
 #define CODEGEN_WPO_REACH_MAX_FUNCS 4096
 typedef struct CodegenWpoReach {
@@ -99,18 +99,26 @@ void codegen_compute_used_types(struct ASTModule *entry, struct ASTModule **dep_
 /**
  * 阶段 3.1（完全脱离 C 路线图）：仅输出依赖模块的类型定义（enum/struct，带 import 前缀），不输出函数体。
  * 供 -E-extern 生成「瘦」pipeline_gen.c 时先输出 ast/parser/typeck/codegen 等类型，再输出入口模块（extern + 本体）。
+ * emitted_type_names：与入口模块共享去重表，避免 shux_slice_* 等跨阶段重复定义（C-04 v3）。
  */
-int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out);
+int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
+    char (*emitted_type_names)[CODEGEN_EMITTED_TYPE_NAME_MAX], int *n_emitted_inout, int max_emitted);
 
 /**
- * .su pipeline 用：在调用 pipeline_run_su_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
+ * C-04 -E-extern：设置入口 .sx 路径（parser.sx 等），供 dep 阶段 post-struct extern 与 import 剪枝。
+ * runtime/driver 在 emit_extern_imports 写 dep 类型前调用；传 NULL 清空。
+ */
+void codegen_set_eextern_entry_path(const char *entry_path);
+
+/**
+ * .sx pipeline 用：在调用 pipeline_run_sx_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
  */
 void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n);
 
 /**
  * WPO-S1/S2：从 entry + 全部传递依赖模块构建 call graph 并输出 JSON（version 2）。
  * 节点=函数、边=静态 CALL/METHOD_CALL；call_sites 含全整型常量实参 profile（WPO-S2 特化前置）。
- * 由 runtime 在 typeck 通过后、SHU_WPO_DUMP_CALLGRAPH 指向路径（或 "-"=stdout）时调用。
+ * 由 runtime 在 typeck 通过后、SHUX_WPO_DUMP_CALLGRAPH 指向路径（或 "-"=stdout）时调用。
  */
 void codegen_dump_wpo_callgraph_json(FILE *out,
     struct ASTModule *entry, const char *entry_path,
@@ -146,4 +154,4 @@ void codegen_wpo_collect_mono_thunks(CodegenWpoMonoThunks *out,
 /** 格式化单态符号：base + __wpo + _arg0 + _arg1（负实参用 _n123）。成功返回 sym 长度，失败 -1。 */
 int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
 
-#endif /* SHU_CODEGEN_H */
+#endif /* SHUX_CODEGEN_H */

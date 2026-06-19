@@ -5,7 +5,7 @@
 #   core_types_gl_symbols_ok TYPES_SU TSV
 #   core_types_gl_emit_report status generic_ok scalar_ok skip
 
-CORE_TYPES_GL_PREFIX="${SHU_CORE_TYPES_GL_PREFIX:-shu: [SHU_CORE_TYPES_GL]}"
+CORE_TYPES_GL_PREFIX="${SHUX_CORE_TYPES_GL_PREFIX:-shux: [SHUX_CORE_TYPES_GL]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 core_types_gl_symbols_ok() {

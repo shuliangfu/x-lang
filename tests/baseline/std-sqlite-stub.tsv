@@ -1,0 +1,14 @@
+# STD-139 std.sqlite stub manifest
+# min_stub_apis	2
+read_path	section	## 1. 目标	analysis/std-sqlite-stub-v1.md
+api_doc	section	## 3. stub API 行为（v1）	open
+verify	section	## 4. Gate	gate
+const_not_impl	const	DB_NOT_IMPL	std/db/sqlite/mod.sx	错误码
+api_avail	api	sqlite_is_available	std/db/sqlite/mod.sx	探测
+api_backend	api	backend_name	std/db/sqlite/mod.sx	后端名
+symbol_stub_smoke_c	symbol	db_sqlite_stub_smoke_c	std/db/sqlite/sqlite.c	烟测
+smoke_c	file	tests/std-sqlite/stub_behavior_ok.c	C 入口
+smoke_su	smoke	tests/std-sqlite/stub_behavior.sx	.sx 双模式
+readme_stub	readme	std/db/sqlite/README.md	stub 节
+gate	script	run-std-sqlite-stub-gate.sh	tests/run-std-sqlite-stub-gate.sh
+cross_std167	cross_ref	analysis/std-sqlite-docs-sync-v1.md	STD-167

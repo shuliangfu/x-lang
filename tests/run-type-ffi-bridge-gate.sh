@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TYPE_FFI_DOC:-analysis/type-ffi-bridge-v1.md}"
-MANIFEST="${SHU_TYPE_FFI_MANIFEST:-tests/baseline/type-ffi-bridge.tsv}"
-MAP="${SHU_TYPE_FFI_MAP:-tests/baseline/type-ffi-bridge-map.tsv}"
+DOC="${SHUX_TYPE_FFI_DOC:-analysis/type-ffi-bridge-v1.md}"
+MANIFEST="${SHUX_TYPE_FFI_MANIFEST:-tests/baseline/type-ffi-bridge.tsv}"
+MAP="${SHUX_TYPE_FFI_MAP:-tests/baseline/type-ffi-bridge-map.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_MAPPINGS=12
@@ -18,7 +18,7 @@ MIN_MAPPINGS=12
 echo "=== TYPE-004: FFI type bridge manifest ==="
 for f in "$DOC" "$MANIFEST" "$MAP" \
   compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c \
-  tests/ffi/putchar.su tests/ffi/main.su \
+  tests/ffi/putchar.sx tests/ffi/main.sx \
   analysis/safe-ffi-contract-v1.md; do
   if [ ! -f "$f" ]; then
     echo "type-ffi-bridge gate FAIL: missing $f" >&2

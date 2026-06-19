@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT021_DOC:-analysis/boot-021-mega7-promote-v1.md}"
-MANIFEST="${SHU_BOOT021_TSV:-tests/baseline/boot-021-mega7-promote.tsv}"
-WAVE="${SHU_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
+DOC="${SHUX_BOOT021_DOC:-analysis/boot-021-mega7-promote-v1.md}"
+MANIFEST="${SHUX_BOOT021_TSV:-tests/baseline/boot-021-mega7-promote.tsv}"
+WAVE="${SHUX_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-021-mega7-promote.sh"
 MIN_ROWS=7
@@ -51,8 +51,8 @@ while IFS=$'\t' read -r promote_id mega_fn _phase hook _notes; do
     echo "boot-021 FAIL: doc missing $promote_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.su 2>/dev/null; then
-    echo "boot-021 FAIL: parser.su missing $mega_fn" >&2
+  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.sx 2>/dev/null; then
+    echo "boot-021 FAIL: parser.sx missing $mega_fn" >&2
     MISS=$((MISS + 1))
   fi
   if [ ! -f "tests/$hook" ]; then
@@ -95,7 +95,7 @@ PROMOTE_EMIT=0
 SKIP=1
 
 if boot021_mega7_linux_asm; then
-  echo "=== BOOT-021: promote wave (Linux shu_asm) ==="
+  echo "=== BOOT-021: promote wave (Linux shux_asm) ==="
   chmod +x tests/run-parser-mega7-promote-wave.sh
   WAVE_OUT="/tmp/boot021_wave_$$.log"
   if ./tests/run-parser-mega7-promote-wave.sh 2>&1 | tee "$WAVE_OUT"; then
@@ -110,7 +110,7 @@ if boot021_mega7_linux_asm; then
   fi
   rm -f "$WAVE_OUT"
 else
-  echo "boot-021-mega7-promote gate SKIP wave (Darwin or no shu_asm)" >&2
+  echo "boot-021-mega7-promote gate SKIP wave (Darwin or no shux_asm)" >&2
   RUNNABLE_OK=$ROW_N
 fi
 

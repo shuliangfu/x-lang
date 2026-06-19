@@ -6,8 +6,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-PATTERNS="${SHU_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
-FIXTURES="${SHU_BOOT_STAGE_FIXTURES:-tests/baseline/bootstrap-stage-diag-fixtures.tsv}"
+PATTERNS="${SHUX_BOOT_STAGE_PATTERNS:-tests/baseline/bootstrap-stage-patterns.tsv}"
+FIXTURES="${SHUX_BOOT_STAGE_FIXTURES:-tests/baseline/bootstrap-stage-diag-fixtures.tsv}"
 LIB="tests/lib/bootstrap-stage-diag.sh"
 FIX_DIR="tests/fixtures/bootstrap-stage-diag"
 
@@ -44,8 +44,8 @@ while IFS=$'\t' read -r fid logfile exp_stage exp_repro; do
   got_repro=""
   while IFS='=' read -r k v; do
     case "$k" in
-      SHU_BOOT_STAGE) got_stage="$v" ;;
-      SHU_BOOT_REPRO) got_repro="$v" ;;
+      SHUX_BOOT_STAGE) got_stage="$v" ;;
+      SHUX_BOOT_REPRO) got_repro="$v" ;;
     esac
   done < <(bootstrap_stage_classify "$log" 2>/dev/null || true)
 

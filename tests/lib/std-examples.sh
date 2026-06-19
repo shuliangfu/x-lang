@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   std_ex_catalog_count [catalog_tsv]
 #   std_ex_validate_paths [catalog_tsv]
-#   std_ex_check_example SHU_BIN path
+#   std_ex_check_example SHUX_BIN path
 
 # 统计 catalog 中示例行数（不含注释）。
 std_ex_catalog_count() {
@@ -27,17 +27,17 @@ std_ex_validate_paths() {
   [ "$miss" -eq 0 ]
 }
 
-# 对单个示例跑 shu check；失败返回 1。
+# 对单个示例跑 shux check；失败返回 1。
 std_ex_check_example() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if "$shu" check -L . "$src" >/dev/null 2>&1; then
+  if "$shux" check -L . "$src" >/dev/null 2>&1; then
     return 0
   fi
-  "$shu" check -L . "$src" 2>&1 | tail -5 >&2 || true
+  "$shux" check -L . "$src" 2>&1 | tail -5 >&2 || true
   return 1
 }
 

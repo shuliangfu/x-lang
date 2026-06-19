@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_RUNTIME_PANIC_DOC:-analysis/std-runtime-panic-hook-v1.md}"
-MANIFEST="${SHU_STD_RUNTIME_PANIC_TSV:-tests/baseline/std-runtime-panic-hook.tsv}"
-RUNTIME_SU="std/runtime/mod.su"
+DOC="${SHUX_STD_RUNTIME_PANIC_DOC:-analysis/std-runtime-panic-hook-v1.md}"
+MANIFEST="${SHUX_STD_RUNTIME_PANIC_TSV:-tests/baseline/std-runtime-panic-hook.tsv}"
+RUNTIME_SU="std/runtime/mod.sx"
 RUNTIME_C="std/runtime/runtime.c"
 README="std/runtime/README.md"
 LIB="tests/lib/std-runtime-panic-hook.sh"
-HOOK_SU="tests/exc/panic_hook_align.su"
-READY_SU="tests/exc/runtime_ready.su"
+HOOK_SU="tests/exc/panic_hook_align.sx"
+READY_SU="tests/exc/runtime_ready.sx"
 EXC_GATE="tests/run-exc-panic-abort-gate.sh"
 
 # shellcheck source=tests/lib/std-runtime-panic-hook.sh
@@ -29,7 +29,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$RUNTIME_SU" "$RUNTIME_C" "$README" \
   fi
 done
 
-for kw in panic_hook_collect shulang_crash_evidence_collect_c EXC-002 abort; do
+for kw in panic_hook_collect shux_crash_evidence_collect_c EXC-002 abort; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-runtime-panic gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -57,7 +57,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -69,21 +69,21 @@ resolve_shu() {
 CHECK_OK=0
 EXC_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-028: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$HOOK_SU" >/dev/null 2>&1 && \
-     "$SHU_BIN" check -L . "$READY_SU" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-028: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$HOOK_SU" >/dev/null 2>&1 && \
+     "$SHUX_BIN" check -L . "$READY_SU" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-runtime-panic gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$HOOK_SU" 2>&1 | tail -6 >&2 || true
+    "$SHUX_BIN" check -L . "$HOOK_SU" 2>&1 | tail -6 >&2 || true
     std_runtime_panic_emit_report "fail" 1 0 0 0
     exit 1
   fi
   SKIP=0
   if [ -x "$EXC_GATE" ]; then
     echo "=== STD-028: delegate EXC-002 panic/abort gate ==="
-    if SHU="$SHU_BIN" "$EXC_GATE" >/tmp/std_runtime_exc_panic.log 2>&1; then
+    if SHUX="$SHUX_BIN" "$EXC_GATE" >/tmp/std_runtime_exc_panic.log 2>&1; then
       EXC_OK=1
     elif grep -qE 'library .zstd. not found|exc-panic-abort gate SKIP' /tmp/std_runtime_exc_panic.log 2>/dev/null; then
       echo "std-runtime-panic gate SKIP EXC-002 runnable (link/zstd)" >&2
@@ -96,7 +96,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "std-runtime-panic gate SKIP typeck (no native shu)" >&2
+  echo "std-runtime-panic gate SKIP typeck (no native shux)" >&2
 fi
 
 std_runtime_panic_emit_report "ok" 1 "$CHECK_OK" "$EXC_OK" "$SKIP"

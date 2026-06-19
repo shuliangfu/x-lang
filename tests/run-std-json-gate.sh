@@ -3,16 +3,16 @@
 #
 # 1) std-json-zc-v1.md + manifest
 # 2) parse_string_view + json_parse_string_view_c
-# 3) native shu：main + zc_parse_string_view 烟测
+# 3) native shux：main + zc_parse_string_view 烟测
 #
 # 用法：./tests/run-std-json-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
-MANIFEST="${SHU_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
-MOD_SU="${SHU_STD_JSON_MOD:-std/json/mod.su}"
-JSON_C="${SHU_STD_JSON_C:-std/json/json.c}"
+DOC="${SHUX_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
+MANIFEST="${SHUX_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
+MOD_SU="${SHUX_STD_JSON_MOD:-std/json/mod.sx}"
+JSON_C="${SHUX_STD_JSON_C:-std/json/json.c}"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-json.sh
@@ -126,26 +126,26 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-json manifest OK (apis=${API_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== STD-008: std.json smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== STD-008: std.json smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
   FAIL=0
-  for smoke in tests/json/main.su tests/json/zc_parse_string_view.su; do
-    tag="$(basename "$smoke" .su)"
-    if std_json_run_smoke "$SHU_BIN" "$smoke" "$tag"; then
+  for smoke in tests/json/main.sx tests/json/zc_parse_string_view.sx; do
+    tag="$(basename "$smoke" .sx)"
+    if std_json_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
       echo "std-json smoke OK $tag"
     else
       FAIL=$((FAIL + 1))
@@ -156,7 +156,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     exit 1
   fi
 else
-  echo "std-json gate SKIP smoke (no native shu)" >&2
+  echo "std-json gate SKIP smoke (no native shux)" >&2
 fi
 
 echo "std-json gate OK"

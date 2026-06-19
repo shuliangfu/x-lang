@@ -1,0 +1,19 @@
+# BOOT-027 shux_asm2 跨平台发布 manifest
+# 列：item_id	kind	anchor	target	notes
+# min_c5_hooks	4
+# min_wave_rows	4
+section_goal	section	## 1. 目标	C5 shux_asm2
+bootstrap_matrix	section	## 2. C5 跨平台矩阵	c5_smoke
+gate_section	section	## 3. Gate	run-boot-027-shux-asm2-cross-gate
+hook_smoke	hook_gate	run-shux-asm2-cross-smoke.sh	c5_smoke
+hook_stage2	hook_ref	run-stage2-bstrict-gate.sh	c5_stage2
+hook_cross	hook_ref	run-bootstrap-crossplatform-gate.sh	c5_cross
+hook_boot026	hook_ref	run-boot-026-parser-c4-bootstrap-gate.sh	c5_boot026
+repro_matrix	cross_ref	tests/baseline/bootstrap-repro.tsv	boot027_shux_asm2_cross
+mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C6 shux_asm2
+parent_boot026	cross_ref	analysis/boot-026-parser-c4-bootstrap-v1.md	C4
+parent_cross	cross_ref	analysis/boot-crossplatform-v1.md	BOOT-011
+smoke_gate	cross_ref	tests/run-shux-asm2-cross-smoke.sh	rv=42
+doc	file	boot-027-shux-asm2-cross-v1.md	analysis/boot-027-shux-asm2-cross-v1.md	RFC
+lib	script	lib/boot-027-shux-asm2-cross.sh	tests/lib/boot-027-shux-asm2-cross.sh
+gate	script	run-boot-027-shux-asm2-cross-gate.sh	tests/run-boot-027-shux-asm2-cross-gate.sh

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Audit import syntax migration completeness in .su source (non-comment code lines).
+Audit import syntax migration completeness in .sx source (non-comment code lines).
 
 Exit 0 if clean; prints violations and exits 1 otherwise.
 """
@@ -68,7 +68,7 @@ def audit_file(path: Path) -> list[str]:
 
 def main() -> int:
     all_issues: list[str] = []
-    for path in sorted(ROOT.rglob("*.su")):
+    for path in sorted(ROOT.rglob("*.sx")):
         if ".git" in path.parts:
             continue
         all_issues.extend(audit_file(path))
@@ -77,7 +77,7 @@ def main() -> int:
         for x in all_issues:
             print(f"  {x}")
         return 1
-    print(f"import migration audit OK ({len(list(ROOT.rglob('*.su')))} .su files scanned)")
+    print(f"import migration audit OK ({len(list(ROOT.rglob('*.sx')))} .sx files scanned)")
     return 0
 
 

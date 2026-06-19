@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-portable-suite.sh — Tier P 便携测试套件（全平台必过）。
 #
-# 统一 .su / shu-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
+# 统一 .sx / shux-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
 # 由 tests/run-ci-full-suite.sh 在所有 job 上调用。
 #
 # 用法：./tests/run-portable-suite.sh [--with-c-regression]
@@ -28,9 +28,9 @@ done
 
 echo "run-portable-suite: Tier P (host=$(ci_host_summary))"
 
-# 非 x86_64 / MSYS2：-o 链接优先 shu-c（与 bootstrap-link-shu 一致）。
+# 非 x86_64 / MSYS2：-o 链接优先 shux-c（与 bootstrap-link-shux 一致）。
 if ci_is_arm64_host || ci_is_windows_msys; then
-  export SHULANG_LINK_SHU=./compiler/shu-c
+  export SHUX_LINK_SHUX=./compiler/shux-c
 fi
 
 run_grep() {
@@ -45,9 +45,9 @@ echo "── M-3 region typeck ──"
 chmod +x tests/run-typeck-region.sh
 run_grep /tmp/typeck_region.log 'region typeck OK' ./tests/run-typeck-region.sh
 
-echo "── migrate SU gen gate ──"
-chmod +x tests/run-migrate-su-gen-gate.sh
-run_grep /tmp/migrate_su_gen.log 'migrate su gen gate OK' ./tests/run-migrate-su-gen-gate.sh
+echo "── migrate sx gen gate ──"
+chmod +x tests/run-migrate-sx-gen-gate.sh
+run_grep /tmp/migrate_sx_gen.log 'migrate sx gen gate OK' ./tests/run-migrate-sx-gen-gate.sh
 
 echo "── M-4 linear typeck ──"
 chmod +x tests/run-typeck-linear.sh
@@ -173,6 +173,10 @@ run_grep /tmp/std_path_extreme_gate.log 'std-path-extreme gate OK' ./tests/run-s
 echo "── STD-141 docs/07 Phase 2 sync ──"
 chmod +x tests/run-doc-07-phase2-sync-gate.sh tests/lib/doc-07-phase2-sync.sh
 run_grep /tmp/std141_doc07_gate.log 'doc-07-phase2-sync gate OK' ./tests/run-doc-07-phase2-sync-gate.sh
+
+echo "── STD-171 docs/07 Phase 3 sync ──"
+chmod +x tests/run-doc-07-phase3-sync-gate.sh tests/lib/doc-07-phase3-sync.sh
+run_grep /tmp/std171_doc07_gate.log 'doc-07-phase3-sync gate OK' ./tests/run-doc-07-phase3-sync-gate.sh
 
 echo "── STD-142 process xplat ──"
 chmod +x tests/run-std-process-xplat-gate.sh tests/lib/std-process-xplat.sh
@@ -331,6 +335,10 @@ echo "── STD-125 compress Brotli optional backend ──"
 chmod +x tests/run-std-compress-brotli-gate.sh tests/lib/std-compress-brotli.sh
 run_grep /tmp/std_compress_brotli_gate.log 'std-compress-brotli gate OK' ./tests/run-std-compress-brotli-gate.sh
 
+echo "── STD-136 compress brotli/zstd stream ──"
+chmod +x tests/run-std-compress-brotli-zstd-stream-gate.sh
+run_grep /tmp/std_compress_br_zs_stream_gate.log 'std-compress-brotli-zstd-stream gate OK' ./tests/run-std-compress-brotli-zstd-stream-gate.sh
+
 echo "── STD-040 encoding hex/base64 string interop ──"
 chmod +x tests/run-std-encoding-hex-base64-gate.sh tests/lib/std-encoding-hex-base64.sh
 run_grep /tmp/std_encoding_hex_b64_gate.log 'std-encoding-hex-b64 gate OK' ./tests/run-std-encoding-hex-base64-gate.sh
@@ -398,6 +406,10 @@ run_grep /tmp/std_atomic_widen_gate.log 'std-atomic-widen gate OK' ./tests/run-s
 echo "── STD-047 simd shuffle/select ──"
 chmod +x tests/run-std-simd-shuffle-select-gate.sh tests/lib/std-simd-shuffle-select.sh
 run_grep /tmp/std_simd_shuffle_select_gate.log 'std-simd-shuffle-select gate OK' ./tests/run-std-simd-shuffle-select-gate.sh
+
+echo "── STD-SIMD-INTRINSIC simd mul/sub/dot ──"
+chmod +x tests/run-std-simd-intrinsic-gate.sh tests/lib/std-simd-intrinsic.sh
+run_grep /tmp/std_simd_intrinsic_gate.log 'std-simd-intrinsic gate OK' ./tests/run-std-simd-intrinsic-gate.sh
 
 echo "── STD-061 simd prod bench ──"
 chmod +x tests/run-std-simd-prod-gate.sh tests/run-perf-simd-shuffle-select.sh tests/lib/std-simd-prod.sh
@@ -505,6 +517,18 @@ run_grep /tmp/std_sqlite_row_col_text_gate.log 'std-sqlite-row-col-text gate OK'
 chmod +x tests/run-std-sqlite-row-col-blob-gate.sh tests/lib/std-sqlite-row-col-blob.sh
 run_grep /tmp/std_sqlite_row_col_blob_gate.log 'std-sqlite-row-col-blob gate OK' ./tests/run-std-sqlite-row-col-blob-gate.sh
 
+echo "── STD-137 sqlite blob stream ──"
+chmod +x tests/run-std-sqlite-blob-stream-gate.sh tests/lib/std-sqlite-blob-stream.sh
+run_grep /tmp/std_sqlite_blob_stream_gate.log 'std-sqlite-blob-stream gate OK' ./tests/run-std-sqlite-blob-stream-gate.sh
+
+echo "── STD-138 sqlite threading doc ──"
+chmod +x tests/run-std-sqlite-threading-gate.sh
+run_grep /tmp/std_sqlite_threading_gate.log 'std-sqlite-threading gate OK' ./tests/run-std-sqlite-threading-gate.sh
+
+echo "── STD-139 sqlite stub backend ──"
+chmod +x tests/run-std-sqlite-stub-gate.sh tests/lib/std-sqlite-stub.sh
+run_grep /tmp/std_sqlite_stub_gate.log 'std-sqlite-stub gate OK' ./tests/run-std-sqlite-stub-gate.sh
+
 echo "── STD-058 elf ELF64 parse ──"
 chmod +x tests/run-std-elf-parse-gate.sh tests/lib/std-elf-parse.sh
 run_grep /tmp/std_elf_parse_gate.log 'std-elf-parse gate OK' ./tests/run-std-elf-parse-gate.sh
@@ -549,7 +573,7 @@ echo "── BOOT-015 semantic smoke vec/map/heap ──"
 chmod +x tests/run-boot-015-semantic-smoke-gate.sh tests/run-bootstrap-semantic-smoke-vec-map-heap.sh tests/lib/boot-015-semantic-smoke.sh
 run_grep /tmp/boot015_semantic_gate.log 'boot-015-semantic-smoke gate OK' ./tests/run-boot-015-semantic-smoke-gate.sh
 
-echo "── BOOT-016 shu_asm std symbol Top-12 ──"
+echo "── BOOT-016 shux_asm std symbol Top-12 ──"
 chmod +x tests/run-boot-016-std-asm-symbols-gate.sh tests/lib/boot-016-std-asm-symbols.sh
 run_grep /tmp/boot016_std_sym_gate.log 'boot-016-std-asm-symbols gate OK' ./tests/run-boot-016-std-asm-symbols-gate.sh
 
@@ -604,7 +628,7 @@ echo "── TST-004 std sanitizer nightly ──"
 chmod +x tests/run-tst-004-std-sanitize-gate.sh tests/run-tst-004-std-sanitize-nightly.sh tests/lib/tst-004-std-sanitize.sh
 run_grep /tmp/tst004_sanitize_gate.log 'tst-004-std-sanitize gate OK' ./tests/run-tst-004-std-sanitize-gate.sh
 
-echo "── IO unified gate (同一套 .su 全平台) ──"
+echo "── IO unified gate (同一套 .sx 全平台) ──"
 chmod +x tests/run-io-unified-gate.sh
 ./tests/run-io-unified-gate.sh | tee /tmp/io_unified_gate.log
 grep -q 'io unified gate OK' /tmp/io_unified_gate.log
@@ -745,7 +769,7 @@ chmod +x tests/run-lang-generic-gate.sh tests/run-lang-generic.sh tests/lib/lang
 grep -q 'lang-generic gate OK' /tmp/lang_generic_gate.log
 
 echo "── LANG-001 feature gate manifest ──"
-chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/shu-lang-edition.sh
+chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/shux-lang-edition.sh
 ./tests/run-lang-feature-gate-gate.sh | tee /tmp/lang_feature_gate.log
 grep -q 'lang-feature-gate gate OK' /tmp/lang_feature_gate.log
 
@@ -845,17 +869,17 @@ chmod +x tests/run-tool-debug-symbols-gate.sh tests/run-debug-symbols.sh tests/l
 grep -q 'tool-debug-symbols gate OK' /tmp/tool_debug_symbols_gate.log
 
 echo "── TOOL-006 project scaffold manifest ──"
-chmod +x tests/run-tool-scaffold-gate.sh tests/run-tool-scaffold.sh tests/lib/tool-scaffold.sh scripts/shu-new.sh
+chmod +x tests/run-tool-scaffold-gate.sh tests/run-tool-scaffold.sh tests/lib/tool-scaffold.sh scripts/shux-new.sh
 ./tests/run-tool-scaffold-gate.sh | tee /tmp/tool_scaffold_gate.log
 grep -q 'tool-scaffold gate OK' /tmp/tool_scaffold_gate.log
 
 echo "── TOOL-007 pkgmgr design manifest ──"
-chmod +x tests/run-tool-pkgmgr-gate.sh tests/run-pkgmgr-resolve.sh tests/lib/tool-pkgmgr.sh scripts/shu-deps-resolve.sh
+chmod +x tests/run-tool-pkgmgr-gate.sh tests/run-pkgmgr-resolve.sh tests/lib/tool-pkgmgr.sh scripts/shux-deps-resolve.sh
 ./tests/run-tool-pkgmgr-gate.sh | tee /tmp/tool_pkgmgr_gate.log
 grep -q 'tool-pkgmgr gate OK' /tmp/tool_pkgmgr_gate.log
 
 echo "── TOOL-008 deps lock manifest ──"
-chmod +x tests/run-tool-deps-lock-gate.sh tests/run-deps-lock.sh tests/lib/tool-deps-lock.sh scripts/shu-deps-lock.sh scripts/shu-deps-verify.sh
+chmod +x tests/run-tool-deps-lock-gate.sh tests/run-deps-lock.sh tests/lib/tool-deps-lock.sh scripts/shux-deps-lock.sh scripts/shux-deps-verify.sh
 ./tests/run-tool-deps-lock-gate.sh | tee /tmp/tool_deps_lock_gate.log
 grep -q 'tool-deps-lock gate OK' /tmp/tool_deps_lock_gate.log
 
@@ -937,6 +961,10 @@ echo "── BOOT-011 bootstrap cross-platform report ──"
 chmod +x tests/run-bootstrap-crossplatform-gate.sh
 ./tests/run-bootstrap-crossplatform-gate.sh | tee /tmp/bootstrap_crossplatform.log
 grep -q 'bootstrap-crossplatform gate OK' /tmp/bootstrap_crossplatform.log
+
+echo "── BOOT-029 std.sys freestanding write ──"
+chmod +x tests/run-std-sys-gate.sh
+run_grep /tmp/std_sys_gate.log 'std-sys gate OK' ./tests/run-std-sys-gate.sh
 
 echo "── DOC-002 selfhost architecture doc ──"
 chmod +x tests/run-doc-selfhost-architecture-gate.sh
@@ -1042,6 +1070,14 @@ echo "── STD-009 std.http server bench ──"
 chmod +x tests/run-std-http-gate.sh tests/run-perf-http.sh tests/lib/perf-http.sh
 ./tests/run-std-http-gate.sh | tee /tmp/std_http.log
 grep -q 'std-http gate OK' /tmp/std_http.log
+
+echo "── STD-HTTP-HTTPS std.http HTTPS client ──"
+chmod +x tests/run-std-http-https-gate.sh tests/lib/std-http-https.sh
+run_grep /tmp/std_http_https_gate.log 'std-http-https gate OK' ./tests/run-std-http-https-gate.sh
+
+echo "── STD-HTTP-H2 http/2 wire format ──"
+chmod +x tests/run-std-http-h2-gate.sh tests/lib/std-http-h2.sh
+run_grep /tmp/std_http_h2_gate.log 'std-http-h2 gate OK' ./tests/run-std-http-h2-gate.sh
 
 echo "── STD-010 std.sqlite prereq RFC draft ──"
 chmod +x tests/run-std-sqlite-prereq-gate.sh tests/run-std-sqlite.sh tests/lib/std-sqlite.sh
@@ -1173,15 +1209,15 @@ chmod +x tests/run-boot-026-parser-c4-bootstrap-gate.sh tests/lib/boot-026-parse
 ./tests/run-boot-026-parser-c4-bootstrap-gate.sh | tee /tmp/boot026_c4.log
 grep -q 'boot-026-parser-c4-bootstrap gate OK' /tmp/boot026_c4.log
 
-echo "── BOOT-028 shu_asm2 CI matrix ──"
-chmod +x tests/run-boot-028-shu-asm2-ci-matrix-gate.sh tests/lib/boot-028-shu-asm2-ci-matrix.sh
-./tests/run-boot-028-shu-asm2-ci-matrix-gate.sh | tee /tmp/boot028_asm2_ci.log
-grep -q 'boot-028-shu-asm2-ci-matrix gate OK' /tmp/boot028_asm2_ci.log
+echo "── BOOT-028 shux_asm2 CI matrix ──"
+chmod +x tests/run-boot-028-shux-asm2-ci-matrix-gate.sh tests/lib/boot-028-shux-asm2-ci-matrix.sh
+./tests/run-boot-028-shux-asm2-ci-matrix-gate.sh | tee /tmp/boot028_asm2_ci.log
+grep -q 'boot-028-shux-asm2-ci-matrix gate OK' /tmp/boot028_asm2_ci.log
 
-echo "── BOOT-027 shu_asm2 cross-platform ──"
-chmod +x tests/run-boot-027-shu-asm2-cross-gate.sh tests/lib/boot-027-shu-asm2-cross.sh tests/run-shu-asm2-cross-smoke.sh
-./tests/run-boot-027-shu-asm2-cross-gate.sh | tee /tmp/boot027_asm2_cross.log
-grep -q 'boot-027-shu-asm2-cross gate OK' /tmp/boot027_asm2_cross.log
+echo "── BOOT-027 shux_asm2 cross-platform ──"
+chmod +x tests/run-boot-027-shux-asm2-cross-gate.sh tests/lib/boot-027-shux-asm2-cross.sh tests/run-shux-asm2-cross-smoke.sh
+./tests/run-boot-027-shux-asm2-cross-gate.sh | tee /tmp/boot027_asm2_cross.log
+grep -q 'boot-027-shux-asm2-cross gate OK' /tmp/boot027_asm2_cross.log
 
 echo "── ZC-006 zero-copy semantics whitepaper ──"
 chmod +x tests/run-zc-semantics-gate.sh

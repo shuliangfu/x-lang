@@ -6,7 +6,7 @@
 #   core_mem_intrinsic_emit_ok SHU SU_FILE TSV
 #   core_mem_intrinsic_emit_report status found total
 
-CORE_MEM_INTRINSIC_PREFIX="${SHU_CORE_MEM_INTRINSIC_PREFIX:-shu: [SHU_CORE_MEM_INTRINSIC]}"
+CORE_MEM_INTRINSIC_PREFIX="${SHUX_CORE_MEM_INTRINSIC_PREFIX:-shux: [SHUX_CORE_MEM_INTRINSIC]}"
 
 # 校验 codegen.c 中四条 C 符号 → intrinsic 映射；缺失数 echo 到 stdout，成功返回 0。
 core_mem_intrinsic_mappings_ok() {
@@ -32,21 +32,21 @@ core_mem_intrinsic_mappings_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 对本机 shu 跑 -o 编译（SHU_DEBUG_C 落盘生成 C）并统计 manifest emit_grep 锚点。
+# 对本机 shux 跑 -o 编译（SHUX_DEBUG_C 落盘生成 C）并统计 manifest emit_grep 锚点。
 # 注：有 import 时 -E 不输出 main 体，须走 -o 的 codegen_module_to_c 路径（见 RFC §3.2）。
 core_mem_intrinsic_emit_ok() {
-  local shu="$1"
+  local shux="$1"
   local su_file="$2"
   local tsv="$3"
-  local gen_c="/tmp/shu_debug.c"
+  local gen_c="/tmp/shux_debug.c"
   local found=0
   local total=0
   local anchor
   rm -f "$gen_c"
   # 链接可能因 runtime 符号缺失失败；只要生成 C 已写入 shu_debug.c 即可验 intrinsic。
-  SHU_DEBUG_C=1 "$shu" -L . "$su_file" -o "/tmp/shu_core_mem_intrinsic_$$" >/dev/null 2>&1 || true
+  SHUX_DEBUG_C=1 "$shux" -L . "$su_file" -o "/tmp/shux_core_mem_intrinsic_$$" >/dev/null 2>&1 || true
   if [ ! -f "$gen_c" ]; then
-    echo "core-mem-intrinsic FAIL: SHU_DEBUG_C did not write $gen_c for $su_file" >&2
+    echo "core-mem-intrinsic FAIL: SHUX_DEBUG_C did not write $gen_c for $su_file" >&2
     echo 0
     return 1
   fi

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
-MANIFEST="${SHU_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
-MATRIX="${SHU_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
+DOC="${SHUX_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
+MANIFEST="${SHUX_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
+MATRIX="${SHUX_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 
@@ -17,8 +17,8 @@ MIN_CASES=6
 echo "=== COMP-011: Windows backend manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-win-backend.sh tests/run-comp-win-backend.sh \
-  compiler/src/asm/platform/coff.su compiler/src/asm/platform/README.md \
-  tests/asm/windows_min.su tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
+  compiler/src/asm/platform/coff.sx compiler/src/asm/platform/README.md \
+  tests/asm/windows_min.sx tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
   if [ ! -f "$f" ]; then
     echo "comp-win-backend gate FAIL: missing $f" >&2
     exit 1
@@ -139,8 +139,8 @@ for kw in windows backend COFF runnable report sample; do
   fi
 done
 
-if ! grep -qF 'use_coff_o' compiler/src/ast/ast.su 2>/dev/null; then
-  echo "comp-win-backend gate FAIL: ast.su missing use_coff_o" >&2
+if ! grep -qF 'use_coff_o' compiler/src/ast/ast.sx 2>/dev/null; then
+  echo "comp-win-backend gate FAIL: ast.sx missing use_coff_o" >&2
   exit 1
 fi
 

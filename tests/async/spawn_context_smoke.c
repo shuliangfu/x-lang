@@ -3,8 +3,8 @@
  */
 #include <stdint.h>
 
-extern int32_t shu_async_spawn_ctx_smoke_c(void);
+extern int32_t shux_async_spawn_ctx_smoke_c(void);
 
 int main(void) {
-  return shu_async_spawn_ctx_smoke_c();
+  return shux_async_spawn_ctx_smoke_c();
 }

@@ -5,17 +5,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE016_DOC:-analysis/core-option-result-unify-v1.md}"
-MANIFEST="${SHU_CORE016_TSV:-tests/baseline/core-option-result-unify.tsv}"
-SMOKE1="tests/core016/unify_option.su"
-SMOKE2="tests/core016/unify_result.su"
+DOC="${SHUX_CORE016_DOC:-analysis/core-option-result-unify-v1.md}"
+MANIFEST="${SHUX_CORE016_TSV:-tests/baseline/core-option-result-unify.tsv}"
+SMOKE1="tests/core016/unify_option.sx"
+SMOKE2="tests/core016/unify_result.sx"
 MIN_GOLDEN=2
 
 # shellcheck source=tests/lib/core-option-result-unify.sh
 . tests/lib/core-option-result-unify.sh
 
 echo "=== CORE-016: Option/Result unify manifest ==="
-for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/option/mod.su core/result/mod.su; do
+for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/option/mod.sx core/result/mod.sx; do
   if [ ! -f "$f" ]; then
     echo "core-option-result-unify gate FAIL: missing $f" >&2
     exit 1
@@ -59,33 +59,33 @@ stdlib_cm_native_shu() {
   esac
 }
 
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   echo "=== CORE-016: typeck + smoke ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   for su in "$SMOKE1" "$SMOKE2"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "core-option-result-unify gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       core016_emit_report "fail" 0 0 0
       exit 1
     fi
     TYPECK_OK=$((TYPECK_OK + 1))
   done
-  exe="/tmp/shu_core016_$$"
+  exe="/tmp/shux_core016_$$"
   set +e
   for su in "$SMOKE1" "$SMOKE2"; do
-    link_log=$("$SHU_BIN" -L . "$su" -o "$exe" 2>&1)
+    link_log=$("$SHUX_BIN" -L . "$su" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
-      if echo "$link_log" | grep -qE "library 'zstd' not found|shulang_panic_"; then
+      if echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
         echo "core-option-result-unify gate SKIP runnable link (typeck passed)" >&2
         SKIP=1
         break
@@ -115,7 +115,7 @@ if [ -n "$SHU_BIN" ]; then
     TYPECK_OK=1
   fi
 else
-  echo "core-option-result-unify gate SKIP smoke (no native shu-c)" >&2
+  echo "core-option-result-unify gate SKIP smoke (no native shux-c)" >&2
 fi
 
 core016_emit_report "ok" "$GOLDEN_OK" "$TYPECK_OK" "$SKIP"

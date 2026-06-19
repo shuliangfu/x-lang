@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT025_DOC:-analysis/boot-025-parser-gen12-consistency-v1.md}"
-MANIFEST="${SHU_BOOT025_TSV:-tests/baseline/boot-025-parser-gen12-consistency.tsv}"
-WAVE="${SHU_BOOT025_WAVE_TSV:-tests/baseline/parser-gen12-consistency-wave.tsv}"
+DOC="${SHUX_BOOT025_DOC:-analysis/boot-025-parser-gen12-consistency-v1.md}"
+MANIFEST="${SHUX_BOOT025_TSV:-tests/baseline/boot-025-parser-gen12-consistency.tsv}"
+WAVE="${SHUX_BOOT025_WAVE_TSV:-tests/baseline/parser-gen12-consistency-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 REPRO="tests/baseline/bootstrap-repro.tsv"
 LIB="tests/lib/boot-025-parser-gen12-consistency.sh"
@@ -104,7 +104,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "boot-025-parser-gen12-consistency manifest OK (rows=${ROW_N} hooks=${HOOK_N})"
 
-if [ "${SHU_BOOT025_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_BOOT025_MANIFEST_ONLY:-0}" = "1" ]; then
   boot025_emit_report "ok" 0 0 1
   echo "boot-025-parser-gen12-consistency gate OK (manifest only)"
   exit 0
@@ -112,14 +112,14 @@ fi
 
 echo "=== BOOT-025: parent BOOT-024 manifest ==="
 chmod +x tests/run-boot-024-parser-bootstrap-emit-gate.sh
-SHU_BOOT024_MANIFEST_ONLY=1 ./tests/run-boot-024-parser-bootstrap-emit-gate.sh
+SHUX_BOOT024_MANIFEST_ONLY=1 ./tests/run-boot-024-parser-bootstrap-emit-gate.sh
 
 GEN12_OK=0
 DOGFOOD_OK=0
 SKIP=1
 
 if boot025_gen12_linux_asm; then
-  echo "=== BOOT-025: stage2 bstrict (Linux shu_asm) ==="
+  echo "=== BOOT-025: stage2 bstrict (Linux shux_asm) ==="
   chmod +x tests/run-stage2-bstrict-gate.sh
   if ./tests/run-stage2-bstrict-gate.sh 2>&1 | tee "/tmp/boot025_stage2_$$.log" | grep -q 'stage2-bstrict-gate OK'; then
     GEN12_OK=1
@@ -130,10 +130,10 @@ if boot025_gen12_linux_asm; then
   fi
   rm -f "/tmp/boot025_stage2_$$.log"
 
-  if [ -x "./compiler/shu" ]; then
+  if [ -x "./compiler/shux" ]; then
     echo "=== BOOT-025: parser/typeck dogfood ==="
     chmod +x tests/run-bootstrap-stage2-dogfood-parser-typeck.sh
-    if SHU=./compiler/shu ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh >/dev/null 2>&1; then
+    if SHUX=./compiler/shux ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh >/dev/null 2>&1; then
       DOGFOOD_OK=1
       echo "boot-025 dogfood OK"
     else
@@ -141,7 +141,7 @@ if boot025_gen12_linux_asm; then
     fi
   fi
 else
-  echo "boot-025-parser-gen12-consistency gate SKIP wave (Darwin or no shu_asm)" >&2
+  echo "boot-025-parser-gen12-consistency gate SKIP wave (Darwin or no shux_asm)" >&2
 fi
 
 boot025_emit_report "ok" "$GEN12_OK" "$DOGFOOD_OK" "$SKIP"

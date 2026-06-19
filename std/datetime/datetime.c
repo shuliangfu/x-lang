@@ -22,12 +22,12 @@ extern int64_t time_now_wall_sec_c(void);
 extern int64_t time_now_wall_ns_c(void);
 
 /** 闰年判定。 */
-static int dt_is_leap(int y) {
+int dt_is_leap(int y) {
     return (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
 }
 
 /** 月天数（month 1..12）。 */
-static int dt_days_in_month(int y, int mo) {
+int dt_days_in_month(int y, int mo) {
     static const int d[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     if (mo < 1 || mo > 12) return 0;
     if (mo == 2 && dt_is_leap(y)) return 29;
@@ -35,7 +35,7 @@ static int dt_days_in_month(int y, int mo) {
 }
 
 /** UTC 日历字段 → Unix 秒（1970-01-01 起）。 */
-static int64_t dt_utc_to_unix(int y, int mo, int d, int h, int mi, int s) {
+int64_t dt_utc_to_unix(int y, int mo, int d, int h, int mi, int s) {
     int64_t days = 0;
     int yy;
     if (y >= 1970) {
@@ -52,7 +52,7 @@ static int64_t dt_utc_to_unix(int y, int mo, int d, int h, int mi, int s) {
 }
 
 /** Unix 秒 → UTC 日历字段。 */
-static void dt_unix_to_utc(int64_t sec, int *y, int *mo, int *d, int *h, int *mi, int *s) {
+void dt_unix_to_utc(int64_t sec, int *y, int *mo, int *d, int *h, int *mi, int *s) {
     int64_t days;
     int yy, mm;
     int rem = (int)(sec % 86400);
@@ -418,6 +418,8 @@ int datetime_timezone_smoke_c(void) {
     return 0;
 }
 
+#include "timezone_iana.inc.c"
+
 /** C 烟测：RFC3339 往返 + 已知时间戳。 */
 int datetime_smoke_c(void) {
     int64_t sec = 0;
@@ -434,5 +436,6 @@ int datetime_smoke_c(void) {
     if (datetime_add_duration_ns_c(sec, nsec, 1000000000LL, &sec, &nsec) != 0) return 7;
     if (sec != 1577934246LL) return 8;
     if (datetime_timezone_smoke_c() != 0) return 9;
+    if (datetime_iana_dst_smoke_c() != 0) return 10;
     return 0;
 }

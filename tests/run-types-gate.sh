@@ -5,17 +5,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
-SHU="${SHU:-./compiler/shu-c}"
+SHUX="${SHUX:-./compiler/shux-c}"
 CHECK_CASES=(
-  tests/types/overload.su
-  tests/types/union_int.su
+  tests/types/overload.sx
+  tests/types/union_int.sx
 )
 RUN_CASES=(
-  tests/types/overload.su
+  tests/types/overload.sx
 )
 
-# shellcheck source=tests/lib/shu-link-env.sh
-. tests/lib/shu-link-env.sh
+# shellcheck source=tests/lib/shux-link-env.sh
+. tests/lib/shux-link-env.sh
 
 for f in "${CHECK_CASES[@]}" "${RUN_CASES[@]}"; do
   if [ ! -f "$f" ]; then
@@ -24,28 +24,28 @@ for f in "${CHECK_CASES[@]}" "${RUN_CASES[@]}"; do
   fi
 done
 
-if [ ! -x "$SHU" ]; then
-  make -C compiler shu-c
-  SHU=./compiler/shu-c
+if [ ! -x "$SHUX" ]; then
+  make -C compiler shux-c
+  SHUX=./compiler/shux-c
 fi
 
 echo "=== types gate: typeck ==="
 for f in "${CHECK_CASES[@]}"; do
-  if ! "$SHU" check -L . "$f" >/dev/null 2>&1; then
+  if ! "$SHUX" check -L . "$f" >/dev/null 2>&1; then
     echo "types gate FAIL: typeck $f" >&2
-    "$SHU" check -L . "$f" 2>&1 | tail -6 >&2 || true
+    "$SHUX" check -L . "$f" 2>&1 | tail -6 >&2 || true
     exit 1
   fi
   echo "types gate OK: check $f"
 done
 
-# shellcheck source=tests/lib/bootstrap-link-shu.sh
-. tests/lib/bootstrap-link-shu.sh
+# shellcheck source=tests/lib/bootstrap-link-shux.sh
+. tests/lib/bootstrap-link-shux.sh
 
 echo "=== types gate: link + run ==="
 for f in "${RUN_CASES[@]}"; do
-  base="/tmp/shu_types_$(basename "$f" .su)"
-  if ! $RUN_SHU -L . "$f" -o "$base" 2>"${base}_build.log"; then
+  base="/tmp/shux_types_$(basename "$f" .sx)"
+  if ! $RUN_SHUX -L . "$f" -o "$base" 2>"${base}_build.log"; then
     echo "types gate FAIL: link $f" >&2
     tail -8 "${base}_build.log" 2>/dev/null >&2 || true
     exit 1

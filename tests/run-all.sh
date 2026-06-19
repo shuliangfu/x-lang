@@ -1,74 +1,74 @@
 #!/usr/bin/env bash
 # 全量回归套件：运行所有 run-*.sh（与 compiler/Makefile 的 test 目标一致）。
-# 自举测试不跑：run-su-pipeline、run-su-multi-file、run-asm、run-without-c、run-bootstrap-verify 均不执行。
-# 入口：./tests/run-all.sh；不设 SHU 时 make all 后优先 export SHU=./compiler/shu-c（与 Makefile test_c 一致），避免本机 compiler/shu 为 seed 时子脚本误用 .su 路径。
+# 自举测试不跑：run-sx-pipeline、run-sx-multi-file、run-asm、run-without-c、run-bootstrap-verify 均不执行。
+# 入口：./tests/run-all.sh；不设 SHU 时 make all 后优先 export SHUX=./compiler/shux-c（与 Makefile test_c 一致），避免本机 compiler/shux 为 seed 时子脚本误用 .sx 路径。
 
 set -e
 cd "$(dirname "$0")/.."
 
-# RUN_ALL_PORTABLE=1：全平台可移植子集（shu-c、无 asm/自举）；供 run-portable-c.sh / lite CI 使用。
+# RUN_ALL_PORTABLE=1：全平台可移植子集（shux-c、无 asm/自举）；供 run-portable-c.sh / lite CI 使用。
 if [ -n "${RUN_ALL_PORTABLE:-}" ]; then
     export RUN_ALL_USE_C=1
-    export SHULANG_SKIP_SUBSCRIPT_MAKE=1
+    export SHUX_SKIP_SUBSCRIPT_MAKE=1
     make -C compiler -q all 2>/dev/null || make -C compiler all
-    if [ -x ./compiler/shu-c ]; then
-        export SHU=./compiler/shu-c
+    if [ -x ./compiler/shux-c ]; then
+        export SHUX=./compiler/shux-c
     fi
 fi
 
-if [ -n "$SHU" ]; then
-    export SHU
+if [ -n "$SHUX" ]; then
+    export SHUX
     export RUN_ALL_USE_C=
-    # B-strict run-all（tests/run-all-bstrict.sh）：勿 bootstrap-driver-seed 覆盖 shu_asm。
-    if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ]; then
-        if [ ! -x "$SHU" ]; then
-            echo "run-all.sh: SHULANG_BSTRICT_RUN_ALL but $SHU not executable" >&2
+    # B-strict run-all（tests/run-all-bstrict.sh）：勿 bootstrap-driver-seed 覆盖 shux_asm。
+    if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
+        if [ ! -x "$SHUX" ]; then
+            echo "run-all.sh: SHUX_BSTRICT_RUN_ALL but $SHUX not executable" >&2
             exit 127
         fi
-        export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
-        export SHULANG_LINK_SHU="${SHULANG_LINK_SHU:-$SHU}"
-        # 非白名单脚本仍走 shu-c，须确保 shu-c 已构建。
-        make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+        export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
+        export SHUX_LINK_SHUX="${SHUX_LINK_SHUX:-$SHUX}"
+        # 非白名单脚本仍走 shux-c，须确保 shux-c 已构建。
+        make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
     else
-    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shu 覆盖 .su pipeline 链。
-    export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
-    # 子脚本不再各自 make，避免长回归中反复链接 shu 产生竞态；入口统一构建一次 seed。
+    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shux 覆盖 .sx pipeline 链。
+    export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
+    # 子脚本不再各自 make，避免长回归中反复链接 shux 产生竞态；入口统一构建一次 seed。
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
     fi
-    if [ -z "${SHULANG_BSTRICT_RUN_ALL:-}" ]; then
-        # stdlib-import 等用 shu-c 链多模块可执行；seed 仅 check/typeck。
-        make -C compiler shu-c -q 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-        # 可执行链接/退出码回归优先 shu-c；typeck/check 仍用 SHU（seed）。
-        if [ -x ./compiler/shu-c ]; then
-            export SHULANG_LINK_SHU=./compiler/shu-c
+    if [ -z "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
+        # stdlib-import 等用 shux-c 链多模块可执行；seed 仅 check/typeck。
+        make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+        # 可执行链接/退出码回归优先 shux-c；typeck/check 仍用 SHU（seed）。
+        if [ -x ./compiler/shux-c ]; then
+            export SHUX_LINK_SHUX=./compiler/shux-c
         fi
     fi
-    export SHULANG_SKIP_SUBSCRIPT_MAKE=1
-    # SHU 与 compiler/shu 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHU=./compiler/shu）。
-    if [ -f compiler/shu ] && [ compiler/shu -ef "$SHU" ]; then
+    export SHUX_SKIP_SUBSCRIPT_MAKE=1
+    # SHU 与 compiler/shux 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHUX=./compiler/shux）。
+    if [ -f compiler/shux ] && [ compiler/shux -ef "$SHUX" ]; then
         :
-    elif [ -f compiler/shu ]; then
-        mv compiler/shu compiler/shu.bak
-        cp "$SHU" compiler/shu
-        trap '[ -f compiler/shu.bak ] && mv compiler/shu.bak compiler/shu 2>/dev/null || true' EXIT
+    elif [ -f compiler/shux ]; then
+        mv compiler/shux compiler/shux.bak
+        cp "$SHUX" compiler/shux
+        trap '[ -f compiler/shux.bak ] && mv compiler/shux.bak compiler/shux 2>/dev/null || true' EXIT
     else
-        cp "$SHU" compiler/shu
-        trap '[ -f compiler/shu.bak ] && mv compiler/shu.bak compiler/shu 2>/dev/null || true' EXIT
+        cp "$SHUX" compiler/shux
+        trap '[ -f compiler/shux.bak ] && mv compiler/shux.bak compiler/shux 2>/dev/null || true' EXIT
     fi
 else
-    # 无 SHU 时默认使用 C 流水线：仅构建 all（C 版 shu），子脚本不构建 bootstrap-driver-seed
+    # 无 SHU 时默认使用 C 流水线：仅构建 all（C 版 shux），子脚本不构建 bootstrap-driver-seed
     export RUN_ALL_USE_C=1
     make -C compiler -q all 2>/dev/null || make -C compiler all
-    # 与 Makefile test_c 一致：子脚本用 shu-c 走纯 C 前端，避免本机 compiler/shu 已是
-    # bootstrap-driver-seed（链 .su pipeline）时仍当「默认 C 回归」却误走 .su typeck 失败
-    if [ -x "./compiler/shu-c" ]; then
-        export SHU=./compiler/shu-c
+    # 与 Makefile test_c 一致：子脚本用 shux-c 走纯 C 前端，避免本机 compiler/shux 已是
+    # bootstrap-driver-seed（链 .sx pipeline）时仍当「默认 C 回归」却误走 .sx typeck 失败
+    if [ -x "./compiler/shux-c" ]; then
+        export SHUX=./compiler/shux-c
     fi
 fi
 
-# 无 shu 则直接失败，避免整次跑完仍打印 all tests OK
-if [ ! -f compiler/shu ] || [ ! -x compiler/shu ]; then
-    echo "run-all.sh: compiler/shu not found or not executable (run 'make -C compiler' first)." >&2
+# 无 shux 则直接失败，避免整次跑完仍打印 all tests OK
+if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
+    echo "run-all.sh: compiler/shux not found or not executable (run 'make -C compiler' first)." >&2
     exit 127
 fi
 
@@ -77,9 +77,9 @@ fi
 RUN_FAILED_COUNT=0
 RUN_FAILED_SCRIPTS=""
 RUN_BSTRICT_SKIP_COUNT=0
-# bootstrap seed 下：typeck/check/lexer/preprocess 用 seed；其余 -o 走 shu-c（L5 白名单仅 B-strict/shu_asm 门禁用）。
+# bootstrap seed 下：typeck/check/lexer/preprocess 用 seed；其余 -o 走 shux-c（L5 白名单仅 B-strict/shux_asm 门禁用）。
 # L5 白名单增量与三链矩阵：tests/docs/run-all-l5-whitelist.md
-# 白名单脚本列表（run_shu_for_script / SHULANG_BSTRICT_RUN_ALL 门禁共用）。
+# 白名单脚本列表（run_shu_for_script / SHUX_BSTRICT_RUN_ALL 门禁共用）。
 run_all_l5_whitelist_case() {
     case "$1" in
         run-lexer.sh|run-typeck.sh|run-check.sh|run-types-gate.sh|run-stdlib-import.sh|run-import.sh|run-std.sh|run-hello.sh|run-io.sh|run-http.sh|run-tar.sh|run-json.sh|run-csv.sh|run-net.sh|run-process.sh|run-set.sh|run-queue.sh|run-vec.sh|run-heap.sh|run-fs.sh|run-path.sh|run-map.sh|run-error.sh|run-compress.sh|run-thread.sh|run-fmt.sh|run-fmt-std.sh|run-debug.sh|run-io-driver.sh|run-multi-file-generic.sh|run-env.sh|run-crypto.sh|run-log.sh|run-stdtest.sh|run-channel.sh|run-backtrace.sh|run-hash.sh|run-math.sh|run-sort.sh|run-unicode.sh|run-dynlib.sh|run-random.sh|run-runtime.sh|run-abi-layout.sh|run-ub.sh|run-target.sh|run-fmt-cmd.sh|run-test-cmd.sh|run-multi-file.sh|run-multi-func.sh|run-toplevel-let.sh|run-let-const.sh|run-return-value.sh|run-return-expr.sh|run-struct.sh|run-parser.sh|run-for.sh|run-array.sh|run-pointer.sh|run-if-expr.sh|run-enum-asm.sh|run-match.sh|run-enum.sh|run-dual-chain-struct-return.sh|run-float.sh|run-slice.sh|run-defer.sh|run-vector.sh|run-asm-binop-var.sh|run-asm-binop-block-var.sh|run-asm-binop-cfg-merge.sh|run-asm-binop-field-index.sh|run-asm-binop-nested-var.sh|run-asm-binop-index-lit.sh|run-asm-index-var.sh|run-asm-vector-var.sh|run-asm-assign-var.sh|run-asm-assign-index-binop.sh|run-asm-assign-index-lit.sh|run-asm-assign-index-lit-to-index.sh|run-asm-binop-block-var.sh|run-asm-assign-index-var.sh|run-asm-assign-index-expr.sh|run-asm-assign-index-block.sh|run-asm-assign-index-param.sh|run-asm-binop-div-index.sh|run-asm-cmp-index-binop.sh|run-panic.sh|run-result.sh|run-bool.sh|run-while.sh|run-option.sh|run-binary-expr.sh|run-compound-assign.sh|run-ternary.sh|run-boundary-encodings.sh|run-pool-limits.sh|run-preprocess.sh|run-goto.sh|run-mem.sh|run-string.sh|run-core-types.sh|run-builtin.sh|run-generic.sh|run-trait.sh|run-encoding.sh|run-base64.sh|run-time.sh|run-sync.sh|run-atomic.sh|run-ffi.sh)
@@ -90,44 +90,44 @@ run_all_l5_whitelist_case() {
 }
 run_shu_for_script() {
     local script="$1"
-    # bootstrap seed（非 B-strict）：仅 typeck/check/lexer/preprocess 用 seed；其余 -o 一律 shu-c（ubuntu seed asm 全链路易 SIGSEGV/ld 失败）。
-    if [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] && [ -z "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
+    # bootstrap seed（非 B-strict）：仅 typeck/check/lexer/preprocess 用 seed；其余 -o 一律 shux-c（ubuntu seed asm 全链路易 SIGSEGV/ld 失败）。
+    if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -z "${SHUX_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shux-c ]; then
         case "$script" in
           run-typeck.sh|run-check.sh|run-lexer.sh|run-preprocess.sh)
-            echo "$SHU"
+            echo "$SHUX"
             return 0
             ;;
           *)
-            echo "./compiler/shu-c"
+            echo "./compiler/shux-c"
             return 0
             ;;
         esac
     fi
-    # 非 x86_64 bootstrap：可执行 -o 优先 shu-c；typeck/check/lexer 仍用 seed SHU 验 .su 流水线。
+    # 非 x86_64 bootstrap：可执行 -o 优先 shux-c；typeck/check/lexer 仍用 seed SHU 验 .sx 流水线。
     case "$(uname -m 2>/dev/null)" in
       x86_64|amd64) ;;
       *)
-        if [ -x ./compiler/shu-c ] && { [ -n "${SHULANG_RUN_ALL_BOOTSTRAP_SHU:-}" ] || [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ]; }; then
+        if [ -x ./compiler/shux-c ] && { [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] || [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ]; }; then
             case "$script" in
               run-typeck.sh|run-check.sh|run-lexer.sh|run-preprocess.sh) ;;
               *)
-                echo "./compiler/shu-c"
+                echo "./compiler/shux-c"
                 return 0
                 ;;
             esac
         fi
         ;;
     esac
-    # B-strict：白名单脚本一律用 SHU（shu_asm），其余仍 shu-c（与 L4 拓扑相同，仅编译器二进制不同）。
-    if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shu-c ]; then
+    # B-strict：白名单脚本一律用 SHU（shux_asm），其余仍 shux-c（与 L4 拓扑相同，仅编译器二进制不同）。
+    if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/shux-c ]; then
         if run_all_l5_whitelist_case "$script"; then
-            echo "$SHU"
+            echo "$SHUX"
             return 0
         fi
-        echo "./compiler/shu-c"
+        echo "./compiler/shux-c"
         return 0
     fi
-    echo "$SHU"
+    echo "$SHUX"
 }
 run() {
     local script="$1"
@@ -141,11 +141,11 @@ run() {
             ;;
         esac
     fi
-    # CI Linux：run-asm-* 依赖 macOS otool 验 arm64 spill；asm 由 asm-smoke / build_shu_asm job 覆盖。
-    if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${SHU_CI_FORCE_ASM:-}" ]; then
+    # CI Linux：run-asm-* 依赖 macOS otool 验 arm64 spill；asm 由 asm-smoke / build_shux_asm job 覆盖。
+    if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${SHUX_CI_FORCE_ASM:-}" ]; then
         case "$script" in
           run-asm*.sh|run-enum-asm.sh)
-            echo "run-all SKIP (CI: $script; asm otool gates need macOS or SHU_CI_FORCE_ASM=1)"
+            echo "run-all SKIP (CI: $script; asm otool gates need macOS or SHUX_CI_FORCE_ASM=1)"
             return 0
             ;;
         esac
@@ -158,11 +158,11 @@ run() {
     chmod +x "tests/$script"
     if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
         echo "run-all: → $script"
-        s=0; SHU="$run_shu" ./tests/$script || s=$?
+        s=0; SHUX="$run_shu" ./tests/$script || s=$?
         if [ "$s" -ne 0 ]; then
-            # B-strict 全量：非白名单走 shu-c，失败仅记 SKIP（L5 只门禁 shu_asm 白名单）。
-            if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && ! run_all_l5_whitelist_case "$script"; then
-                echo "run-all SKIP (non-whitelist shu-c): $script (exit $s)"
+            # B-strict 全量：非白名单走 shux-c，失败仅记 SKIP（L5 只门禁 shux_asm 白名单）。
+            if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ] && ! run_all_l5_whitelist_case "$script"; then
+                echo "run-all SKIP (non-whitelist shux-c): $script (exit $s)"
                 RUN_BSTRICT_SKIP_COUNT=$((RUN_BSTRICT_SKIP_COUNT + 1))
                 return 0
             fi
@@ -173,7 +173,7 @@ run() {
             RUN_FAILED_SCRIPTS="$RUN_FAILED_SCRIPTS $script"
         fi
     else
-        SHU="$run_shu" ./tests/$script
+        SHUX="$run_shu" ./tests/$script
     fi
 }
 
@@ -189,6 +189,7 @@ run_required() {
 }
 
 # 词法 / 类型检查 / 最小可运行
+run_required run-no-legacy-shux-gate.sh
 run run-lexer.sh
 run run-typeck.sh
 run run-hello.sh
@@ -211,7 +212,7 @@ run run-multi-file-generic.sh
 run run-binary-expr.sh
 run run-compound-assign.sh
 run run-let-const.sh
-# toplevel let：C 与 .su 流水线均已支持，自举后始终跑
+# toplevel let：C 与 .sx 流水线均已支持，自举后始终跑
 run run-toplevel-let.sh
 run run-bool.sh
 run run-if-expr.sh
@@ -263,10 +264,10 @@ run run-panic.sh
 run run-defer.sh
 run run-goto.sh
 run run-preprocess.sh
-# 自举测试不执行：run-su-pipeline / run-su-multi-file / run-asm / run-without-c / run-bootstrap-verify 已全部排除
+# 自举测试不执行：run-sx-pipeline / run-sx-multi-file / run-asm / run-without-c / run-bootstrap-verify 已全部排除
 run run-vector.sh
-# asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shu-c）仅验 C 流水线语义，见 test_su / linux-asm-smoke
-# 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_su 仍验 .su 语义）。
+# asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shux-c）仅验 C 流水线语义，见 test_sx / linux-asm-smoke
+# 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_sx 仍验 .sx 语义）。
 # RUN_ALL_PORTABLE：便携全平台回归不含 asm 专测。
 if [ -z "${RUN_ALL_USE_C:-}" ] && [ -z "${RUN_ALL_PORTABLE:-}" ]; then
 case "$(uname -m 2>/dev/null)" in
@@ -325,7 +326,7 @@ if [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; then
         exit 1
     fi
 fi
-if [ -n "${SHULANG_BSTRICT_RUN_ALL:-}" ] && [ "${RUN_BSTRICT_SKIP_COUNT:-0}" -gt 0 ]; then
-    echo "run-all-bstrict: L5 whitelist OK; skipped $RUN_BSTRICT_SKIP_COUNT non-whitelist shu-c script(s)"
+if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ] && [ "${RUN_BSTRICT_SKIP_COUNT:-0}" -gt 0 ]; then
+    echo "run-all-bstrict: L5 whitelist OK; skipped $RUN_BSTRICT_SKIP_COUNT non-whitelist shux-c script(s)"
 fi
 echo "all tests OK"

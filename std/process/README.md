@@ -2,7 +2,7 @@
 
 本模块提供与 Rust std::process、Go os、Zig std.process 对齐的常用 API。实现分为：
 
-- **mod.su**：对外 API
+- **mod.sx**：对外 API
 - **process.c**：平台实现（POSIX + Windows），链接用户程序时由编译器链入 **process.o**
 
 ---
@@ -66,7 +66,7 @@
 ## 约定
 
 - **入口 main**：仅入口模块的 `main` 由 codegen 生成 `int main(int argc, char **argv)` 并写入全局 argc/argv，`args_count()` / `arg(i)` 在此之后才有意义。
-- **spawn/exec 的 argv**：在 C 侧为 `char **`（指针数组，以 NULL 结尾）。.su 侧传 `*u8` 表示该指针；调用方需自行在内存中构造 argv 数组（如 `[ptr0, ptr1, ..., 0]`）并传其首地址。
+- **spawn/exec 的 argv**：在 C 侧为 `char **`（指针数组，以 NULL 结尾）。.sx 侧传 `*u8` 表示该指针；调用方需自行在内存中构造 argv 数组（如 `[ptr0, ptr1, ..., 0]`）并传其首地址。
 - **链接**：使用本模块时编译器会自动链入 process.o，无需用户指定。
 
 ---
@@ -75,16 +75,16 @@
 
 | 文件 | 覆盖 API |
 |------|----------|
-| main.su | exit(code) |
-| args.su | args_count、arg、getenv |
-| setenv_unsetenv.su | setenv、getenv、unsetenv |
-| getpid.su | getpid |
-| getppid.su | getppid |
-| getcwd.su | getcwd |
-| chdir.su | chdir、getcwd |
-| self_exe_path.su | self_exe_path |
-| spawn_wait.su | spawn_simple、waitpid |
-| exec_fail.su | exec_simple 失败路径（不存在的程序返回 -1） |
+| main.sx | exit(code) |
+| args.sx | args_count、arg、getenv |
+| setenv_unsetenv.sx | setenv、getenv、unsetenv |
+| getpid.sx | getpid |
+| getppid.sx | getppid |
+| getcwd.sx | getcwd |
+| chdir.sx | chdir、getcwd |
+| self_exe_path.sx | self_exe_path |
+| spawn_wait.sx | spawn_simple、waitpid |
+| exec_fail.sx | exec_simple 失败路径（不存在的程序返回 -1） |
 
 运行：`./tests/run-process.sh`（spawn_wait 在 Windows 上无 /usr/bin/true 会 SKIP）
 

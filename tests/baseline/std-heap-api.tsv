@@ -1,5 +1,5 @@
 # std.heap Tier-S stable public API (import std.heap)
-# One symbol per line; STBL-001 registry gate greps std/heap/mod.su
+# One symbol per line; STBL-001 registry gate greps std/heap/mod.sx
 alloc
 free
 realloc

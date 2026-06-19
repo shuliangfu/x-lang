@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-fenv.sh — STD-059 manifest 与烟测辅助
 
-STD_MATH_FENV_PREFIX="${SHU_STD_MATH_FENV_PREFIX:-shu: [SHU_STD_MATH_FENV]}"
+STD_MATH_FENV_PREFIX="${SHUX_STD_MATH_FENV_PREFIX:-shux: [SHUX_STD_MATH_FENV]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_math_fenv_symbols_ok() {
@@ -50,7 +50,7 @@ std_math_fenv_symbols_ok() {
 std_math_fenv_run_c_smoke() {
   local math_c="$1"
   local src="tests/std-math/fenv_smoke_ok.c"
-  local out="/tmp/shu_std_math_fenv_$$"
+  local out="/tmp/shux_std_math_fenv_$$"
   local math_o
   math_o="$(dirname "$math_c")/math.o"
   if [ ! -f "$math_o" ]; then
@@ -73,15 +73,15 @@ std_math_fenv_run_c_smoke() {
   return 0
 }
 
-# .su 烟测。
+# .sx 烟测。
 std_math_fenv_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-fenv}"
-  local exe="/tmp/shu_std_math_fenv_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_math_fenv_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-math-fenv FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

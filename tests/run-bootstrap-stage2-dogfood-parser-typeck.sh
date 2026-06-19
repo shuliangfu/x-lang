@@ -1,51 +1,51 @@
 #!/usr/bin/env bash
-# BOOT-019 子集：两代 shu 上对 parser/typeck dogfood 做 check（可选 link+run）。
+# BOOT-019 子集：两代 shux 上对 parser/typeck dogfood 做 check（可选 link+run）。
 #
 # 用于扩展 bootstrap-verify / check-7.2 Stage2 扩面；不替代全量 run-parser/run-typeck。
 # 用法：
-#   SHU=./compiler/shu_stage2 ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh
+#   SHUX=./compiler/shux_stage2 ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh
 #   BOOT019_SKIP_LINK=1 …  # 仅 typeck
 set -e
 cd "$(dirname "$0")/.."
 
-SHU="${SHU:-./compiler/shu}"
+SHUX="${SHUX:-./compiler/shux}"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 
 # shellcheck source=tests/lib/boot-019-stage2-dogfood.sh
 . tests/lib/boot-019-stage2-dogfood.sh
 
-if [ ! -x "$SHU" ]; then
-  echo "bootstrap-stage2-dogfood FAIL: SHU not executable: $SHU" >&2
+if [ ! -x "$SHUX" ]; then
+  echo "bootstrap-stage2-dogfood FAIL: SHUX not executable: $SHUX" >&2
   exit 127
 fi
 
-# MSYS2 / 非 x86_64：链接回退 shu-c（与 BOOT-015 一致）。
+# MSYS2 / 非 x86_64：链接回退 shux-c（与 BOOT-015 一致）。
 if [ -n "${MSYSTEM:-}" ] || case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*) true ;; *) false ;; esac; then
-  if [ -x ./compiler/shu-c ]; then
-    export SHULANG_LINK_SHU=./compiler/shu-c
+  if [ -x ./compiler/shux-c ]; then
+    export SHUX_LINK_SHUX=./compiler/shux-c
   fi
 fi
 case "$(uname -m 2>/dev/null)" in
   x86_64|amd64) ;;
   *)
-    if [ -x ./compiler/shu-c ]; then
-      export SHULANG_LINK_SHU=./compiler/shu-c
+    if [ -x ./compiler/shux-c ]; then
+      export SHUX_LINK_SHUX=./compiler/shux-c
     fi
     ;;
 esac
 
 # parser 子集：语法/多函数/表达式
 PARSER_SMOKES=(
-  tests/parser/semicolon_required.su
-  tests/parser/two_functions.su
-  tests/parser/binary_expr_return.su
+  tests/parser/semicolon_required.sx
+  tests/parser/two_functions.sx
+  tests/parser/binary_expr_return.sx
 )
 # typeck 子集：Option/Result/泛型
 TYPECK_SMOKES=(
-  tests/option/main.su
-  tests/result/main.su
-  tests/generic/main.su
+  tests/option/main.sx
+  tests/result/main.sx
+  tests/generic/main.sx
 )
 
 CHECK_FAIL=0
@@ -58,7 +58,7 @@ run_smoke_list() {
   shift
   local src
   for src in "$@"; do
-    if ! boot019_check_one "$SHU" "$src"; then
+    if ! boot019_check_one "$SHUX" "$src"; then
       echo "bootstrap-stage2-dogfood FAIL: check $label $src" >&2
       CHECK_FAIL=$((CHECK_FAIL + 1))
       continue
@@ -70,10 +70,10 @@ run_smoke_list() {
       continue
     fi
     local base
-    base=$(basename "$src" .su)
-    local out="${OUT_DIR}/shu_boot019_${base}"
+    base=$(basename "$src" .sx)
+    local out="${OUT_DIR}/shux_boot019_${base}"
     local lr=0
-    boot019_link_run_one "$SHU" "$src" "$out" || lr=$?
+    boot019_link_run_one "$SHUX" "$src" "$out" || lr=$?
     if [ "$lr" -eq 0 ]; then
       LINK_OK=$((LINK_OK + 1))
       echo "bootstrap-stage2-dogfood link+run OK $label $(basename "$src")"
@@ -100,4 +100,4 @@ if [ "$CHECK_FAIL" -gt 0 ]; then
 fi
 
 boot019_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$LINK_SKIP"
-echo "bootstrap-stage2-dogfood parser/typeck OK (SHU=$SHU check_ok=$CHECK_OK)"
+echo "bootstrap-stage2-dogfood parser/typeck OK (SHUX=$SHUX check_ok=$CHECK_OK)"

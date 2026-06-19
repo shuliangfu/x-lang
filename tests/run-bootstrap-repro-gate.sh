@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_BOOTSTRAP_REPRO_TSV:-tests/baseline/bootstrap-repro.tsv}"
+MATRIX="${SHUX_BOOTSTRAP_REPRO_TSV:-tests/baseline/bootstrap-repro.tsv}"
 
 echo "=== BOOT-003: bootstrap repro manifest ==="
 for f in \
@@ -43,9 +43,9 @@ fi
 echo "bootstrap-repro list OK"
 
 # 默认不跑完整 repro（耗时）；显式开启时跑 verify_semantic 或指定 case。
-if [ -n "${SHU_BOOTSTRAP_REPRO_GATE_RUN:-}" ]; then
-  echo "=== BOOT-003: smoke repro (${SHU_BOOTSTRAP_REPRO_GATE_RUN}) ==="
-  ./tests/run-bootstrap-repro.sh "${SHU_BOOTSTRAP_REPRO_GATE_RUN}"
+if [ -n "${SHUX_BOOTSTRAP_REPRO_GATE_RUN:-}" ]; then
+  echo "=== BOOT-003: smoke repro (${SHUX_BOOTSTRAP_REPRO_GATE_RUN}) ==="
+  ./tests/run-bootstrap-repro.sh "${SHUX_BOOTSTRAP_REPRO_GATE_RUN}"
 fi
 
 echo "bootstrap-repro gate OK"

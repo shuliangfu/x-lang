@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${SHU_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
-MANIFEST="${SHU_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
-VECTORS="${SHU_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
-MOD_SU="std/backtrace/mod.su"
+DOC="${SHUX_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
+MANIFEST="${SHUX_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
+VECTORS="${SHUX_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
+MOD_SU="std/backtrace/mod.sx"
 BT_C="std/backtrace/backtrace.c"
 LIB="tests/lib/std-backtrace-symbolicate.sh"
-SMOKE_SU="tests/backtrace/symbolicate_known.su"
+SMOKE_SU="tests/backtrace/symbolicate_known.sx"
 SMOKE_C="tests/backtrace/symbolicate_gold.c"
 MIN_APIS=2
 
@@ -96,7 +96,7 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
+SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -109,28 +109,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-052: .su smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-052: .sx smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-backtrace-symbolicate gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  if std_backtrace_sym_run_smoke "$SHU_BIN" "$SMOKE_SU" "known"; then
+  if std_backtrace_sym_run_smoke "$SHUX_BIN" "$SMOKE_SU" "known"; then
     SU_OK=1
   else
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
 else
-  echo "std-backtrace-symbolicate gate SKIP .su smoke (no native shu)" >&2
+  echo "std-backtrace-symbolicate gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 

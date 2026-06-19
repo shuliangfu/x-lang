@@ -6,9 +6,9 @@
 #   perf_sqlite_median_real exe runs
 #   perf_sqlite_emit_report status check_ok run_ok skip
 
-PERF_SQL_PREFIX="${SHU_PERF_SQL_PREFIX:-shu: [SHU_PERF_SQL]}"
+PERF_SQL_PREFIX="${SHUX_PERF_SQL_PREFIX:-shux: [SHUX_PERF_SQL]}"
 
-# 判断 shu 是否可在本机执行。
+# 判断 shux 是否可在本机执行。
 perf_sqlite_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1

@@ -10,11 +10,11 @@ verify	section	## 6. 验证与门禁	analysis/tool-project-scaffold-v1.md	-	gate
 rule_s1	rules	S1-main	analysis/tool-project-scaffold-v1.md	main	entry
 rule_s2	rules	S2-readme	analysis/tool-project-scaffold-v1.md	readme	run/build
 rule_s3	rules	S3-template-dir	analysis/tool-project-scaffold-v1.md	dir	hello
-rule_s4	rules	S4-shu-new	analysis/tool-project-scaffold-v1.md	script	shu-new
+rule_s4	rules	S4-shux-new	analysis/tool-project-scaffold-v1.md	script	shux-new
 rule_s5	rules	S5-runnable	analysis/tool-project-scaffold-v1.md	smoke	exit 42
-tpl_main	template	main.su	tests/templates/project-hello/main.su	core	entry
+tpl_main	template	main.sx	tests/templates/project-hello/main.sx	core	entry
 tpl_readme	template	README.md	tests/templates/project-hello/README.md	docs	quickstart
-script_new	script	shu-new.sh	scripts/shu-new.sh	init	一命令
+script_new	script	shux-new.sh	scripts/shux-new.sh	init	一命令
 lib	script	lib/tool-scaffold.sh	tests/lib/tool-scaffold.sh	-	共享库
 gate	script	run-tool-scaffold-gate.sh	tests/run-tool-scaffold-gate.sh	-	manifest
 hook_scaffold	hook_script	run-tool-scaffold.sh	run-tool-scaffold.sh	-	烟测

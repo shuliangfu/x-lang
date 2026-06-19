@@ -1,7 +1,7 @@
 /**
  * asm_backend_compat_stubs.c — pipeline_glue 与 asm_backend_partial.o 的符号桥
  *
- * pipeline_glue.c（编入 pipeline_su.o）仍引用若干 backend_* 名，全量 asm.su -E 后部分已改名或未导出；
+ * pipeline_glue.c（编入 pipeline_sx.o）仍引用若干 backend_* 名，全量 asm.sx -E 后部分已改名或未导出；
  * 本 TU 提供薄转发，使 bootstrap-driver-seed / shu_stage2 在 macOS arm64 上可链通。
  */
 #include <stdint.h>
@@ -11,10 +11,10 @@ struct platform_elf_ElfCodegenCtx;
 struct ast_ASTArena;
 struct codegen_CodegenOutBuf;
 
-/** 与 codegen.su CodegenOutBuf 一致（8MiB + len）。 */
-#define SHU_CODEGEN_OUTBUF_CAP 9437184
+/** 与 codegen.sx CodegenOutBuf 一致（8MiB + len）。 */
+#define SHUX_CODEGEN_OUTBUF_CAP 9437184
 typedef struct {
-  uint8_t data[SHU_CODEGEN_OUTBUF_CAP];
+  uint8_t data[SHUX_CODEGEN_OUTBUF_CAP];
   int32_t len;
 } ShuCodegenOutBuf;
 
@@ -29,11 +29,11 @@ __attribute__((weak)) int32_t append_asm_line(struct codegen_CodegenOutBuf *out,
   if (!buf || !ptr || len < 0)
     return -1;
   for (i = 0; i < len; i++) {
-    if (buf->len >= SHU_CODEGEN_OUTBUF_CAP)
+    if (buf->len >= SHUX_CODEGEN_OUTBUF_CAP)
       return -1;
     buf->data[buf->len++] = ptr[i];
   }
-  if (buf->len >= SHU_CODEGEN_OUTBUF_CAP)
+  if (buf->len >= SHUX_CODEGEN_OUTBUF_CAP)
     return -1;
   buf->data[buf->len++] = (uint8_t)'\n';
   return 0;
@@ -67,7 +67,7 @@ static int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uin
 }
 
 /**
- * 将 i32 十进制写入 buf[off..]；与 types.su format_i32_to_buf 语义一致。
+ * 将 i32 十进制写入 buf[off..]；与 types.sx format_i32_to_buf 语义一致。
  * weak：strict 链 build_asm/types.o 已提供时勿 duplicate。
  */
 __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
@@ -99,14 +99,14 @@ __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32
 }
 
 /**
- * ast.su ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
+ * ast.sx ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
  * weak：build_asm/ast.o 真 emit 时由其覆盖。
  */
 __attribute__((weak)) void expr_layout_prime_call_resolved(void) {
 }
 
 /**
- * arm64 call 实参恢复：ldr x{reg}, [sp] 或 [sp, #slot*16]；与 arm64.su 一致。
+ * arm64 call 实参恢复：ldr x{reg}, [sp] 或 [sp, #slot*16]；与 arm64.sx 一致。
  * weak：build_asm/arm64.o 已 emit 时由其覆盖。
  */
 __attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOutBuf *out, int32_t slot, int32_t reg) {
@@ -145,7 +145,7 @@ __attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOut
   return append_asm_line(out, buf, 15 + n);
 }
 
-/** ast_pool.c：与 elf.su / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
+/** ast_pool.c：与 elf.sx / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
 /**
@@ -178,7 +178,7 @@ static int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *el
   return 0;
 }
 
-/** 与 backend.su AsmFuncCtx 前缀一致，供 block_slot_base_for 读 num_locals。 */
+/** 与 backend.sx AsmFuncCtx 前缀一致，供 block_slot_base_for 读 num_locals。 */
 struct backend_AsmFuncCtx {
   int32_t frame_size;
   int32_t next_offset;

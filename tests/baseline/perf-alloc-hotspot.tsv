@@ -1,7 +1,7 @@
 # PERF-007 内存分配热点治理 manifest
 # 列：item_id	kind	anchor	notes
 # min_cases	2
-output_prefix	bracket_component	SHU_ALLOC_HOTSPOT	stderr 前缀
+output_prefix	bracket_component	SHUX_ALLOC_HOTSPOT	stderr 前缀
 field_case	output_field	case=	用例 id
 field_malloc	output_field	malloc=	实测 malloc 次数
 field_calloc	output_field	calloc=	实测 calloc 次数

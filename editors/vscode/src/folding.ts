@@ -1,5 +1,5 @@
 /**
- * Shulang FoldingRangeProvider — 语义代码折叠
+ * Shux FoldingRangeProvider — 语义代码折叠
  *
  * 支持折叠：
  * - 函数体（function ... { ... }）
@@ -11,7 +11,7 @@
 
 import * as vscode from 'vscode';
 
-export class ShulangFoldingRangeProvider implements vscode.FoldingRangeProvider {
+export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
   public provideFoldingRanges(
     document: vscode.TextDocument,
     _context: vscode.FoldingContext,

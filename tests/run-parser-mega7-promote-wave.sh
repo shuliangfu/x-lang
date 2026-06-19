@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # BOOT-021：mega7 B1–B7 逐项 bisect 晋升波次 runner
 #
-# 对 7 个 mega 函数各跑一次 SHU_ASM_PARSER_MEGA_BISECT，记录 ec/text/delta/status。
+# 对 7 个 mega 函数各跑一次 SHUX_ASM_PARSER_MEGA_BISECT，记录 ec/text/delta/status。
 # 用法：./tests/run-parser-mega7-promote-wave.sh
 set -e
 cd "$(dirname "$0")/.."
 
-WAVE="${SHU_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
-MIN_DELTA="${SHU_PARSER_MEGA_BISECT_MIN_DELTA:-8192}"
+WAVE="${SHUX_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
+MIN_DELTA="${SHUX_PARSER_MEGA_BISECT_MIN_DELTA:-8192}"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
-COMP_IN="./shu_asm"
+COMP_IN="./shux_asm"
 MEGAS=()
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "parser-mega7-promote-wave SKIP (Darwin N/A)"
   exit 0
 fi
-if [ -x "./compiler/shu_asm.experimental" ]; then
-  COMP_IN="./shu_asm.experimental"
-elif [ ! -x "./compiler/shu_asm" ]; then
-  echo "parser-mega7-promote-wave SKIP (no compiler/shu_asm)"
+if [ -x "./compiler/shux_asm.experimental" ]; then
+  COMP_IN="./shux_asm.experimental"
+elif [ ! -x "./compiler/shux_asm" ]; then
+  echo "parser-mega7-promote-wave SKIP (no compiler/shux_asm)"
   exit 0
 fi
 
@@ -44,16 +44,16 @@ text_bytes() {
 
 compile_one() {
   local name="$1"
-  local out="/tmp/shu_mega_promote_${name}.$$.o"
+  local out="/tmp/shux_mega_promote_${name}.$$.o"
   local ec text
   rm -f "$out" 2>/dev/null || true
   set +e
   (
     cd compiler
-    env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 \
-      SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
-      ${name:+SHU_ASM_PARSER_MEGA_BISECT=$name} \
-      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.su
+    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+      SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
+      ${name:+SHUX_ASM_PARSER_MEGA_BISECT=$name} \
+      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.sx
   ) >/dev/null 2>&1
   ec=$?
   set -e

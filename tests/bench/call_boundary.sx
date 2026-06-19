@@ -1,0 +1,27 @@
+// call_boundary.sx — 性能基线：深调用链（5 层）+ 大量 call/ret
+function f0(x: i32): i32 {
+  return x + 1;
+}
+function f1(x: i32): i32 {
+  return f0(x) + 1;
+}
+function f2(x: i32): i32 {
+  return f1(x) + 1;
+}
+function f3(x: i32): i32 {
+  return f2(x) + 1;
+}
+function f4(x: i32): i32 {
+  return f3(x) + 1;
+}
+
+function main(): i32 {
+  let n: i32 = 200000000;
+  let s: i32 = 0;
+  let i: i32 = 0;
+  while (i < n) {
+    s = s + f4(i);
+    i = i + 1;
+  }
+  return s;
+}

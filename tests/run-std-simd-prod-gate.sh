@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD061_DOC:-analysis/std-simd-prod-v1.md}"
-WAVE="${SHU_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
-PARENT_DOC="${SHU_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
-MOD_SU="std/simd/mod.su"
+DOC="${SHUX_STD061_DOC:-analysis/std-simd-prod-v1.md}"
+WAVE="${SHUX_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
+PARENT_DOC="${SHUX_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+MOD_SU="std/simd/mod.sx"
 LIB="tests/lib/std-simd-prod.sh"
 MIN_BENCHES=3
 
@@ -17,7 +17,7 @@ MIN_BENCHES=3
 
 echo "=== STD-061: simd prod bench manifest ==="
 for f in "$DOC" "$WAVE" "$LIB" "$PARENT_DOC" "$MOD_SU" \
-  tests/bench/simd_shuffle_select.su tests/bench/simd_shuffle_select_stub.c \
+  tests/bench/simd_shuffle_select.sx tests/bench/simd_shuffle_select_stub.c \
   tests/run-perf-simd-shuffle-select.sh; do
   if [ ! -f "$f" ]; then
     echo "std-simd-prod gate FAIL: missing $f" >&2
@@ -83,10 +83,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-simd-prod manifest OK (benches=${BENCH_N})"
 
-SHU_ASM="${SHU:-}"
-for cand in ./compiler/shu_asm ./compiler/shu_asm.strict ./compiler/shu_asm_working; do
+SHUX_ASM="${SHUX:-}"
+for cand in ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm_working; do
   if std_simd_prod_native_asm "$cand"; then
-    SHU_ASM="$cand"
+    SHUX_ASM="$cand"
     break
   fi
 done
@@ -96,13 +96,13 @@ BENCH_SKIP=0
 SKIP=1
 RATIO=""
 
-if [ -n "$SHU_ASM" ] && command -v cc >/dev/null 2>&1; then
-  echo "=== STD-061: perf bench (SHU=$SHU_ASM) ==="
+if [ -n "$SHUX_ASM" ] && command -v cc >/dev/null 2>&1; then
+  echo "=== STD-061: perf bench (SHUX=$SHUX_ASM) ==="
   chmod +x tests/run-perf-simd-shuffle-select.sh
   PERF_LOG="/tmp/std_simd_prod_perf_$$.log"
   set +e
   set -o pipefail
-  SHU="$SHU_ASM" SHU_SIMD_SS_FAIL=1 ./tests/run-perf-simd-shuffle-select.sh 2>&1 | tee "$PERF_LOG"
+  SHUX="$SHUX_ASM" SHUX_SIMD_SS_FAIL=1 ./tests/run-perf-simd-shuffle-select.sh 2>&1 | tee "$PERF_LOG"
   perf_ec=$?
   set +o pipefail
   set -e
@@ -121,7 +121,7 @@ if [ -n "$SHU_ASM" ] && command -v cc >/dev/null 2>&1; then
   fi
   rm -f "$PERF_LOG"
 else
-  echo "std-simd-prod gate SKIP perf bench (no shu_asm or cc)" >&2
+  echo "std-simd-prod gate SKIP perf bench (no shux_asm or cc)" >&2
   BENCH_SKIP=1
 fi
 

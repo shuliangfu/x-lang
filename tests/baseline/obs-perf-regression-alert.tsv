@@ -1,19 +1,19 @@
 # OBS-004 性能回归告警 manifest
 # 列：item_id	kind	anchor	notes
 # min_alerts	6
-output_prefix	bracket_component	SHU_PERF_ALERT	stderr 前缀
+output_prefix	bracket_component	SHUX_PERF_ALERT	stderr 前缀
 field_severity	output_field	severity=	critical/warn
 field_baseline	output_field	baseline_id=	registry id
 field_metric	output_field	metric=	case/指标
 field_measured	output_field	measured=	实测
 field_cap	output_field	cap=	上限
 field_gate	output_field	gate=	gate 脚本
-alert_zig	regression_alert	zig-perf	SHU_PERF_FAIL_ON_ZIG	run-zig-baseline-gate.sh
-alert_io	regression_alert	io-perf	SHU_PERF_FAIL_ON_IO_REGRESSION	run-perf-io-zig-gate.sh
-alert_net	regression_alert	net-perf	SHU_PERF_FAIL_ON_NET_REGRESSION	run-perf-net-zig-gate.sh
-alert_compile	regression_alert	compile-dogfood	SHU_PERF_FAIL_ON_COMPILE_REGRESSION	run-perf-compile-dogfood-gate.sh
-alert_async	regression_alert	async-perf	SHU_PERF_FAIL_ON_ASYNC_REGRESSION	run-perf-async.sh
-alert_coldstart	regression_alert	coldstart-perf	SHU_PERF_FAIL_ON_COLDSTART_REGRESSION	run-perf-coldstart.sh
+alert_zig	regression_alert	zig-perf	SHUX_PERF_FAIL_ON_ZIG	run-zig-baseline-gate.sh
+alert_io	regression_alert	io-perf	SHUX_PERF_FAIL_ON_IO_REGRESSION	run-perf-io-zig-gate.sh
+alert_net	regression_alert	net-perf	SHUX_PERF_FAIL_ON_NET_REGRESSION	run-perf-net-zig-gate.sh
+alert_compile	regression_alert	compile-dogfood	SHUX_PERF_FAIL_ON_COMPILE_REGRESSION	run-perf-compile-dogfood-gate.sh
+alert_async	regression_alert	async-perf	SHUX_PERF_FAIL_ON_ASYNC_REGRESSION	run-perf-async.sh
+alert_coldstart	regression_alert	coldstart-perf	SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION	run-perf-coldstart.sh
 hook_dogfood	emit_hook	run-perf-compile-dogfood.sh	Python SLOW 路径
 lib	script	lib/obs-perf-regression-alert.sh	emit API
 runner	script	run-obs-perf-regression-alert.sh	--smoke

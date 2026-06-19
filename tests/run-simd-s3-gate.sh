@@ -2,18 +2,18 @@
 # SIMD-S3 门禁：Vec8i/Vec4f 硬件向量 add/sub/mul（x86 paddd/psubd/pmulld/vp*、mulps）；无 objdump 时仅编译 smoke。
 # 用法：
 #   ./tests/run-simd-s3-gate.sh
-#   SHU=./compiler/shu_asm ./tests/run-simd-s3-gate.sh
+#   SHUX=./compiler/shux_asm ./tests/run-simd-s3-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-host-backend.sh
 source "$(dirname "$0")/lib/dod-host-backend.sh"
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
-SHU_BIN="${SHU:-}"
-case "$SHU_BIN" in
-  /*) SHU_ABS="$SHU_BIN" ;;
-  "") SHU_ABS="" ;;
-  *) SHU_ABS="$(pwd)/$SHU_BIN" ;;
+SHUX_BIN="${SHUX:-}"
+case "$SHUX_BIN" in
+  /*) SHUX_ABS="$SHUX_BIN" ;;
+  "") SHUX_ABS="" ;;
+  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
 esac
 
 simd_s3_native_exe() {
@@ -28,12 +28,12 @@ simd_s3_native_exe() {
   esac
 }
 
-if [ -z "$SHU_ABS" ] || ! simd_s3_native_exe "$SHU_ABS"; then
-  SHU_ABS=""
-  for cand in ./compiler/shu_asm ./compiler/shu; do
+if [ -z "$SHUX_ABS" ] || ! simd_s3_native_exe "$SHUX_ABS"; then
+  SHUX_ABS=""
+  for cand in ./compiler/shux_asm ./compiler/shux; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if simd_s3_native_exe "$abs"; then
-      SHU_ABS="$abs"
+      SHUX_ABS="$abs"
       break
     fi
   done
@@ -41,91 +41,98 @@ fi
 
 echo "=== SIMD-S3: hw vector add/sub/mul smoke ==="
 
-if [ -z "$SHU_ABS" ] || ! simd_s3_native_exe "$SHU_ABS"; then
-  echo "simd-s3 gate SKIP (no native shu/shu_asm)"
+if [ -z "$SHUX_ABS" ] || ! simd_s3_native_exe "$SHUX_ABS"; then
+  echo "simd-s3 gate SKIP (no native shux/shux_asm)"
   exit 0
 fi
 
-# Darwin / Linux ARM64 lite：refresh shu_asm asm vec peel 编译器 SIGSEGV；整数 SoA 由 dod-s1 覆盖，SIMD 实锤由 x86_64 承担。
+# Darwin / Linux ARM64 lite：refresh shux_asm asm vec peel 编译器 SIGSEGV；整数 SoA 由 dod-s1 覆盖，SIMD 实锤由 x86_64 承担。
 if dod_host_simd_s3_run_na; then
-  echo "simd-s3: compile/run N/A on $(uname -s)-$(uname -m) (refresh shu_asm asm vec peel SIGSEGV; Linux x86_64 covers)"
+  echo "simd-s3: compile/run N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm vec peel SIGSEGV; Linux x86_64 covers)"
   echo "simd-s3 gate OK"
   exit 0
 fi
 
-SIMD_S3_EXE_SHU="$(dod_host_exe_shu "$SHU_ABS")"
+SIMD_S3_EXE_SHUX="$(dod_host_exe_shu "$SHUX_ABS")"
 
-SMOKE_SRC="tests/simd/vec8i_hw_add_smoke.su"
-SUB_SMOKE_SRC="tests/simd/vec8i_hw_sub_smoke.su"
-MUL_SMOKE_SRC="tests/simd/vec8i_hw_mul_smoke.su"
-FMUL_SMOKE_SRC="tests/simd/vec4f_hw_mul_smoke.su"
-LOOP_SMOKE_SRC="tests/simd/vec8i_loop_peel_smoke.su"
-LOOP_SUB_SMOKE_SRC="tests/simd/vec8i_loop_peel_sub_smoke.su"
-LOOP_MUL_SMOKE_SRC="tests/simd/vec8i_loop_peel_mul_smoke.su"
-STRIP_SMOKE_SRC="tests/simd/vec8i_loop_strip_var_n_smoke.su"
-PEEL64_SMOKE_SRC="tests/simd/vec8i_loop_peel_n64_smoke.su"
-F32_SOA_SUM_SRC="tests/simd/f32_soa_sum_peel_smoke.su"
-F32_SOA_STRIP_SRC="tests/simd/f32_soa_sum_strip_smoke.su"
-F32_SOA_STRIP_VAR_N_SRC="tests/simd/f32_soa_sum_strip_var_n_smoke.su"
-SMOKE_O="/tmp/shu_simd_s3_smoke.o"
-SUB_SMOKE_O="/tmp/shu_simd_s3_sub_smoke.o"
-MUL_SMOKE_O="/tmp/shu_simd_s3_mul_smoke.o"
-FMUL_SMOKE_O="/tmp/shu_simd_s3_fmul_smoke.o"
-LOOP_SMOKE_O="/tmp/shu_simd_s3_loop_smoke.o"
-LOOP_SUB_SMOKE_O="/tmp/shu_simd_s3_loop_sub_smoke.o"
-LOOP_MUL_SMOKE_O="/tmp/shu_simd_s3_loop_mul_smoke.o"
-STRIP_SMOKE_O="/tmp/shu_simd_s3_strip_smoke.o"
-PEEL64_SMOKE_O="/tmp/shu_simd_s3_peel64_smoke.o"
-F32_SOA_SUM_O="/tmp/shu_simd_s3_f32_soa_sum.o"
-F32_SOA_STRIP_O="/tmp/shu_simd_s3_f32_soa_strip.o"
-F32_SOA_STRIP_VAR_N_O="/tmp/shu_simd_s3_f32_soa_strip_var_n.o"
-F32_SOA_SUM_BIN="/tmp/shu_simd_s3_f32_soa_sum"
-F32_SOA_STRIP_BIN="/tmp/shu_simd_s3_f32_soa_strip"
-F32_SOA_STRIP_VAR_N_BIN="/tmp/shu_simd_s3_f32_soa_strip_var_n"
+SMOKE_SRC="tests/simd/vec8i_hw_add_smoke.sx"
+SUB_SMOKE_SRC="tests/simd/vec8i_hw_sub_smoke.sx"
+MUL_SMOKE_SRC="tests/simd/vec8i_hw_mul_smoke.sx"
+FMUL_SMOKE_SRC="tests/simd/vec4f_hw_mul_smoke.sx"
+FMA_SMOKE_SRC="tests/simd/vec4f_hw_fma_smoke.sx"
+LOOP_SMOKE_SRC="tests/simd/vec8i_loop_peel_smoke.sx"
+LOOP_SUB_SMOKE_SRC="tests/simd/vec8i_loop_peel_sub_smoke.sx"
+LOOP_MUL_SMOKE_SRC="tests/simd/vec8i_loop_peel_mul_smoke.sx"
+STRIP_SMOKE_SRC="tests/simd/vec8i_loop_strip_var_n_smoke.sx"
+PEEL64_SMOKE_SRC="tests/simd/vec8i_loop_peel_n64_smoke.sx"
+F32_SOA_SUM_SRC="tests/simd/f32_soa_sum_peel_smoke.sx"
+F32_SOA_STRIP_SRC="tests/simd/f32_soa_sum_strip_smoke.sx"
+F32_SOA_STRIP_VAR_N_SRC="tests/simd/f32_soa_sum_strip_var_n_smoke.sx"
+SMOKE_O="/tmp/shux_simd_s3_smoke.o"
+SUB_SMOKE_O="/tmp/shux_simd_s3_sub_smoke.o"
+MUL_SMOKE_O="/tmp/shux_simd_s3_mul_smoke.o"
+FMUL_SMOKE_O="/tmp/shux_simd_s3_fmul_smoke.o"
+FMA_SMOKE_O="/tmp/shux_simd_s3_fma_smoke.o"
+LOOP_SMOKE_O="/tmp/shux_simd_s3_loop_smoke.o"
+LOOP_SUB_SMOKE_O="/tmp/shux_simd_s3_loop_sub_smoke.o"
+LOOP_MUL_SMOKE_O="/tmp/shux_simd_s3_loop_mul_smoke.o"
+STRIP_SMOKE_O="/tmp/shux_simd_s3_strip_smoke.o"
+PEEL64_SMOKE_O="/tmp/shux_simd_s3_peel64_smoke.o"
+F32_SOA_SUM_O="/tmp/shux_simd_s3_f32_soa_sum.o"
+F32_SOA_STRIP_O="/tmp/shux_simd_s3_f32_soa_strip.o"
+F32_SOA_STRIP_VAR_N_O="/tmp/shux_simd_s3_f32_soa_strip_var_n.o"
+F32_SOA_SUM_BIN="/tmp/shux_simd_s3_f32_soa_sum"
+F32_SOA_STRIP_BIN="/tmp/shux_simd_s3_f32_soa_strip"
+F32_SOA_STRIP_VAR_N_BIN="/tmp/shux_simd_s3_f32_soa_strip_var_n"
 CRT0="compiler/src/runtime/crt0_linux_x86_64.o"
-rm -f "$SMOKE_O" "$SUB_SMOKE_O" "$MUL_SMOKE_O" "$FMUL_SMOKE_O" "$LOOP_SMOKE_O" "$LOOP_SUB_SMOKE_O" "$LOOP_MUL_SMOKE_O" "$STRIP_SMOKE_O" "$PEEL64_SMOKE_O" "$F32_SOA_SUM_O" "$F32_SOA_STRIP_O" "$F32_SOA_STRIP_VAR_N_O" "$F32_SOA_SUM_BIN" "$F32_SOA_STRIP_BIN" "$F32_SOA_STRIP_VAR_N_BIN"
+rm -f "$SMOKE_O" "$SUB_SMOKE_O" "$MUL_SMOKE_O" "$FMUL_SMOKE_O" "$FMA_SMOKE_O" "$LOOP_SMOKE_O" "$LOOP_SUB_SMOKE_O" "$LOOP_MUL_SMOKE_O" "$STRIP_SMOKE_O" "$PEEL64_SMOKE_O" "$F32_SOA_SUM_O" "$F32_SOA_STRIP_O" "$F32_SOA_STRIP_VAR_N_O" "$F32_SOA_SUM_BIN" "$F32_SOA_STRIP_BIN" "$F32_SOA_STRIP_VAR_N_BIN"
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
   echo "simd-s3 FAIL: compile $SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$SUB_SMOKE_SRC" -o "$SUB_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$SUB_SMOKE_SRC" -o "$SUB_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $SUB_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$MUL_SMOKE_SRC" -o "$MUL_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$MUL_SMOKE_SRC" -o "$MUL_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $MUL_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$FMUL_SMOKE_SRC" -o "$FMUL_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$FMUL_SMOKE_SRC" -o "$FMUL_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $FMUL_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$LOOP_SMOKE_SRC" -o "$LOOP_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$FMA_SMOKE_SRC" -o "$FMA_SMOKE_O"; then
+  echo "simd-s3 FAIL: compile $FMA_SMOKE_SRC" >&2
+  exit 1
+fi
+
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$LOOP_SMOKE_SRC" -o "$LOOP_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $LOOP_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$LOOP_SUB_SMOKE_SRC" -o "$LOOP_SUB_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$LOOP_SUB_SMOKE_SRC" -o "$LOOP_SUB_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $LOOP_SUB_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$LOOP_MUL_SMOKE_SRC" -o "$LOOP_MUL_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$LOOP_MUL_SMOKE_SRC" -o "$LOOP_MUL_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $LOOP_MUL_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$STRIP_SMOKE_SRC" -o "$STRIP_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$STRIP_SMOKE_SRC" -o "$STRIP_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $STRIP_SMOKE_SRC" >&2
   exit 1
 fi
 
-if ! SHU="$SHU_ABS" "$SHU_ABS" "$PEEL64_SMOKE_SRC" -o "$PEEL64_SMOKE_O"; then
+if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$PEEL64_SMOKE_SRC" -o "$PEEL64_SMOKE_O"; then
   echo "simd-s3 FAIL: compile $PEEL64_SMOKE_SRC" >&2
   exit 1
 fi
@@ -133,17 +140,17 @@ fi
 if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
   echo "simd-s3: skip f32 .o compile (f32 exe run N/A on $(uname -s)-$(uname -m); x86_64 covers)"
 else
-  if ! SHU="$SHU_ABS" "$SHU_ABS" "$F32_SOA_SUM_SRC" -o "$F32_SOA_SUM_O"; then
+  if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$F32_SOA_SUM_SRC" -o "$F32_SOA_SUM_O"; then
     echo "simd-s3 FAIL: compile $F32_SOA_SUM_SRC" >&2
     exit 1
   fi
 
-  if ! SHU="$SHU_ABS" "$SHU_ABS" "$F32_SOA_STRIP_SRC" -o "$F32_SOA_STRIP_O"; then
+  if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$F32_SOA_STRIP_SRC" -o "$F32_SOA_STRIP_O"; then
     echo "simd-s3 FAIL: compile $F32_SOA_STRIP_SRC" >&2
     exit 1
   fi
 
-  if ! SHU="$SHU_ABS" "$SHU_ABS" "$F32_SOA_STRIP_VAR_N_SRC" -o "$F32_SOA_STRIP_VAR_N_O"; then
+  if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$F32_SOA_STRIP_VAR_N_SRC" -o "$F32_SOA_STRIP_VAR_N_O"; then
     echo "simd-s3 FAIL: compile $F32_SOA_STRIP_VAR_N_SRC" >&2
     exit 1
   fi
@@ -169,6 +176,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     SUB_DISAS="$(objdump -d "$SUB_SMOKE_O" 2>/dev/null || true)"
     MUL_DISAS="$(objdump -d "$MUL_SMOKE_O" 2>/dev/null || true)"
     FMUL_DISAS="$(objdump -d "$FMUL_SMOKE_O" 2>/dev/null || true)"
+    FMA_DISAS="$(objdump -d "$FMA_SMOKE_O" 2>/dev/null || true)"
     LOOP_DISAS="$(objdump -d "$LOOP_SMOKE_O" 2>/dev/null || true)"
     LOOP_SUB_DISAS="$(objdump -d "$LOOP_SUB_SMOKE_O" 2>/dev/null || true)"
     LOOP_MUL_DISAS="$(objdump -d "$LOOP_MUL_SMOKE_O" 2>/dev/null || true)"
@@ -179,15 +187,15 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     F32_SOA_STRIP_VAR_N_DISAS="$(objdump -d "$F32_SOA_STRIP_VAR_N_O" 2>/dev/null || true)"
     if echo "$DISAS" | grep -qE 'vpaddd|paddd'; then
       echo "simd-s3: hw vector iadd insn present (vpaddd/paddd)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
-      echo "simd-s3 FAIL: no vpaddd/paddd in $SMOKE_O (set SHU_SIMD_HW=0 to allow lane-scalar fallback)" >&2
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s3 FAIL: no vpaddd/paddd in $SMOKE_O (set SHUX_SIMD_HW=0 to allow lane-scalar fallback)" >&2
       exit 1
     else
-      echo "simd-s3 WARN: no vpaddd/paddd in var+var smoke (rebuild shu_asm with simd_enc.o or SHU_SIMD_HW=0)"
+      echo "simd-s3 WARN: no vpaddd/paddd in var+var smoke (rebuild shux_asm with simd_enc.o or SHUX_SIMD_HW=0)"
     fi
     if echo "$SUB_DISAS" | grep -qE 'vpsubd|psubd'; then
       echo "simd-s3: hw vector isub insn present (vpsubd/psubd)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpsubd/psubd in $SUB_SMOKE_O" >&2
       exit 1
     else
@@ -195,7 +203,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$MUL_DISAS" | grep -qE 'vpmulld|pmulld'; then
       echo "simd-s3: hw vector imul insn present (vpmulld/pmulld)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpmulld/pmulld in $MUL_SMOKE_O" >&2
       exit 1
     else
@@ -203,15 +211,25 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$FMUL_DISAS" | grep -qE 'mulps'; then
       echo "simd-s3: hw vector fmul insn present (mulps)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no mulps in $FMUL_SMOKE_O" >&2
       exit 1
     else
       echo "simd-s3 WARN: no mulps in vec4f mul smoke"
     fi
+    if echo "$FMA_DISAS" | grep -qE 'vfmadd231ps|vfmadd213ps|vfmadd132ps'; then
+      echo "simd-s3: hw vector fma insn present (vfmadd)"
+    elif echo "$FMA_DISAS" | grep -qE 'mulps' && echo "$FMA_DISAS" | grep -qE 'addps'; then
+      echo "simd-s3: hw vector fma fallback present (mulps+addps)"
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
+      echo "simd-s3 FAIL: no vfmadd/mulps+addps in $FMA_SMOKE_O" >&2
+      exit 1
+    else
+      echo "simd-s3 WARN: no vfmadd in vec4f fma smoke (rebuild shux_asm with simd_enc fma path)"
+    fi
     if echo "$LOOP_DISAS" | grep -qE 'vpaddd|paddd'; then
       echo "simd-s3: loop peel hw vector iadd present (vpaddd/paddd)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpaddd/paddd in $LOOP_SMOKE_O (loop peel)" >&2
       exit 1
     else
@@ -219,7 +237,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$LOOP_SUB_DISAS" | grep -qE 'vpsubd|psubd'; then
       echo "simd-s3: loop peel hw vector isub present (vpsubd/psubd)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpsubd/psubd in $LOOP_SUB_SMOKE_O (loop peel sub)" >&2
       exit 1
     else
@@ -227,7 +245,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$LOOP_MUL_DISAS" | grep -qE 'vpmulld|pmulld'; then
       echo "simd-s3: loop peel hw vector imul present (vpmulld/pmulld)"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpmulld/pmulld in $LOOP_MUL_SMOKE_O (loop peel mul)" >&2
       exit 1
     else
@@ -235,7 +253,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$STRIP_DISAS" | grep -qE 'vpaddd|paddd'; then
       echo "simd-s3: runtime strip loop hw vector iadd present"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpaddd/paddd in $STRIP_SMOKE_O (runtime strip)" >&2
       exit 1
     else
@@ -243,7 +261,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$PEEL64_DISAS" | grep -qE 'vpaddd|paddd'; then
       echo "simd-s3: n=64 const-propagated peel hw vector iadd present"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no vpaddd/paddd in $PEEL64_SMOKE_O" >&2
       exit 1
     else
@@ -251,7 +269,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$F32_SOA_DISAS" | grep -qE 'movups|addps'; then
       echo "simd-s3: f32 SoA sum peel movups/addps present"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no movups/addps in $F32_SOA_SUM_O (f32 SoA reduce peel)" >&2
       exit 1
     else
@@ -259,7 +277,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$F32_SOA_STRIP_DISAS" | grep -qE 'movups|addps'; then
       echo "simd-s3: f32 SoA strip n=10 movups/addps present"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no movups/addps in $F32_SOA_STRIP_O (f32 SoA strip epilogue)" >&2
       exit 1
     else
@@ -267,7 +285,7 @@ if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
     fi
     if echo "$F32_SOA_STRIP_VAR_N_DISAS" | grep -qE 'movups|addps'; then
       echo "simd-s3: f32 SoA strip var n movups/addps present"
-    elif [ -n "${SHU_SIMD_HW_STRICT:-}" ]; then
+    elif [ -n "${SHUX_SIMD_HW_STRICT:-}" ]; then
       echo "simd-s3 FAIL: no movups/addps in $F32_SOA_STRIP_VAR_N_O (f32 SoA var n strip)" >&2
       exit 1
     else
@@ -287,7 +305,7 @@ simd_s3_run_f32_expect() {
   local bin="$3"
   local expect="$4"
   local label="$5"
-  local link_shu="$SHU_ABS"
+  local link_shu="$SHUX_ABS"
   local backend_args=""
   if [ -n "$DOD_F32_BACKEND_ARGS" ]; then
     link_shu="$SIMD_S3_EXE_SHU"
@@ -297,7 +315,7 @@ simd_s3_run_f32_expect() {
     echo "simd-s3: $label run N/A on $(uname -s)-$(uname -m) (gen_driver -backend c f32 WIP; Linux x86_64 covers)"
     return 0
   fi
-  if SHU="$SHU_ABS" "$link_shu" $backend_args "$src" -o "$bin" 2>/dev/null && [ -x "$bin" ]; then
+  if SHUX="$SHUX_ABS" "$link_shu" $backend_args "$src" -o "$bin" 2>/dev/null && [ -x "$bin" ]; then
     RC=0
     "$bin" >/dev/null 2>&1 || RC=$?
     if [ "$RC" -ne "$expect" ]; then

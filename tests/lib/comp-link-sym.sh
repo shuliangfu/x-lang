@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PATTERNS="${SHU_LINK_SYM_PATTERNS:-$ROOT/tests/baseline/comp-link-sym-patterns.tsv}"
+PATTERNS="${SHUX_LINK_SYM_PATTERNS:-$ROOT/tests/baseline/comp-link-sym-patterns.tsv}"
 
 # 剥 Mach-O 前导下划线，便于与 manifest 期望比对。
 comp_link_sym_normalize() {
@@ -40,7 +40,7 @@ comp_link_sym_guess_symbol() {
   comp_link_sym_normalize "$sym"
 }
 
-# 对整段 linker log 分类；stdout 输出 SHU_LINK_* 变量（可 source）。
+# 对整段 linker log 分类；stdout 输出 SHUX_LINK_* 变量（可 source）。
 comp_link_sym_classify() {
   local log="$1"
   local best_prio=999999
@@ -72,13 +72,13 @@ comp_link_sym_classify() {
   done < "$PATTERNS"
 
   if [ -z "$best_kind" ]; then
-    echo "SHU_LINK_KIND=unknown"
-    echo "SHU_LINK_SYMBOL="
-    echo "SHU_LINK_HINT=unclassified"
-    echo "SHU_LINK_REPRO=full_ci"
-    echo "SHU_LINK_PATTERN="
-    echo "SHU_LINK_OBJECT="
-    echo "SHU_LINK_CONFIDENCE=low"
+    echo "SHUX_LINK_KIND=unknown"
+    echo "SHUX_LINK_SYMBOL="
+    echo "SHUX_LINK_HINT=unclassified"
+    echo "SHUX_LINK_REPRO=full_ci"
+    echo "SHUX_LINK_PATTERN="
+    echo "SHUX_LINK_OBJECT="
+    echo "SHUX_LINK_CONFIDENCE=low"
     echo "comp-link-sym: no pattern match" >&2
     return 1
   fi
@@ -88,21 +88,21 @@ comp_link_sym_classify() {
   local obj=""
   obj="$(comp_link_sym_extract_object "$log")"
 
-  echo "SHU_LINK_KIND=$best_kind"
+  echo "SHUX_LINK_KIND=$best_kind"
   if [ -n "$best_symbol" ]; then
-    echo "SHU_LINK_SYMBOL=$best_symbol"
+    echo "SHUX_LINK_SYMBOL=$best_symbol"
   else
-    echo "SHU_LINK_SYMBOL="
+    echo "SHUX_LINK_SYMBOL="
   fi
-  echo "SHU_LINK_HINT=$best_hint"
-  echo "SHU_LINK_REPRO=$best_repro"
-  echo "SHU_LINK_PATTERN=$best_pid"
+  echo "SHUX_LINK_HINT=$best_hint"
+  echo "SHUX_LINK_REPRO=$best_repro"
+  echo "SHUX_LINK_PATTERN=$best_pid"
   if [ -n "$obj" ]; then
-    echo "SHU_LINK_OBJECT=$obj"
+    echo "SHUX_LINK_OBJECT=$obj"
   else
-    echo "SHU_LINK_OBJECT="
+    echo "SHUX_LINK_OBJECT="
   fi
-  echo "SHU_LINK_CONFIDENCE=classified"
+  echo "SHUX_LINK_CONFIDENCE=classified"
   echo "comp-link-sym: kind=$best_kind symbol=${best_symbol:-?} hint=$best_hint repro=$best_repro" >&2
   return 0
 }

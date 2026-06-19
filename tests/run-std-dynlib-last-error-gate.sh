@@ -6,12 +6,12 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/dynlib/mod.su"
+MOD_SU="std/dynlib/mod.sx"
 DYNLIB_C="std/dynlib/dynlib.c"
 MANIFEST="tests/baseline/std-dynlib-last-error.tsv"
-SMOKE_SU="tests/dynlib/last_error.su"
+SMOKE_SU="tests/dynlib/last_error.sx"
 SMOKE_C="tests/dynlib/last_error_smoke.c"
-PREFIX="shu: [SHU_STD096_DYNLIB_ERR]"
+PREFIX="shux: [SHUX_STD096_DYNLIB_ERR]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -48,7 +48,7 @@ ensure_std_c_o ../std/dynlib/dynlib.o
 
 C_OK=0
 echo "=== STD-096: C smoke ==="
-c_exe="/tmp/shu_std096_dynlib_err_$$"
+c_exe="/tmp/shux_std096_dynlib_err_$$"
 if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/dynlib/dynlib.o 2>/dev/null; then
   set +e
   "$c_exe" >/dev/null 2>&1
@@ -67,22 +67,22 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-096: .su typeck (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-096: .sx typeck (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "dynlib-last-error gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     exit 1
   fi
   SU_OK=1
 else
-  echo "dynlib-last-error gate SKIP .su (no native shu)" >&2
+  echo "dynlib-last-error gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 

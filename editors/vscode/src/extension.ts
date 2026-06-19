@@ -1,7 +1,7 @@
 /**
- * Shulang VSCode 扩展入口 — LSP 客户端 + 编辑器增强
+ * Shux VSCode 扩展入口 — LSP 客户端 + 编辑器增强
  *
- * 诊断 / 跳转 / 补全 / 悬停 / 格式化 / 大纲：仅走 shu --lsp，不注册本地 LSP 回退 Provider。
+ * 诊断 / 跳转 / 补全 / 悬停 / 格式化 / 大纲：仅走 shux --lsp，不注册本地 LSP 回退 Provider。
  */
 
 import * as path from 'path';
@@ -10,8 +10,8 @@ import type { LanguageClient, Trace } from 'vscode-languageclient/node';
 
 import { readEnvJsonSetting, readExtraArgsSetting, readLibRootsSetting } from './configSettings';
 import { getLibRootsEnvColon } from './importResolve';
-import { startShulangLanguageClient, stopShulangLanguageClient } from './lspClient';
-import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuPath';
+import { startShuxLanguageClient, stopShuxLanguageClient } from './lspClient';
+import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuxPath';
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
@@ -22,7 +22,7 @@ let heavyFeaturesPromise: Promise<void> | undefined;
 let configChangeDebounce: ReturnType<typeof setTimeout> | undefined;
 let serverConfigSnapshot: string | undefined;
 
-/** 将 shulang.server.trace 映射为 LanguageClient Trace */
+/** 将 shux.server.trace 映射为 LanguageClient Trace */
 function traceFromString(s: string): Trace {
   const { Trace: TraceEnum } = require('vscode-languageclient/node') as typeof import('vscode-languageclient/node');
   switch (s) {
@@ -35,11 +35,11 @@ function traceFromString(s: string): Trace {
   }
 }
 
-/** 读取 shulang.compiler.envJson 与 libRoots，构造 LSP 进程 env */
+/** 读取 shux.compiler.envJson 与 libRoots，构造 LSP 进程 env */
 function buildServerEnv(): Record<string, string> | undefined {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   const env: Record<string, string> = { ...(process.env as Record<string, string>) };
-  env.SHULANG_LSP_LIB_ROOTS = getLibRootsEnvColon();
+  env.SHUX_LSP_LIB_ROOTS = getLibRootsEnvColon();
 
   const envObj = readEnvJsonSetting(config, outputChannel);
   if (Object.keys(envObj).length > 0) {
@@ -48,9 +48,9 @@ function buildServerEnv(): Record<string, string> | undefined {
   return env;
 }
 
-/** 构造 shu --lsp 参数列表 */
+/** 构造 shux --lsp 参数列表 */
 function buildServerArgs(): string[] {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   const baseArgs = ['--lsp'];
 
   const diagnosticLevel = config.get<string>('compiler.diagnosticLevel', 'warning');
@@ -80,7 +80,7 @@ function isFeatureEnabled(
 }
 
 function snapshotServerConfig(): string {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   return JSON.stringify({
     serverPath: config.get<string>('serverPath', DEFAULT_SERVER_PATH),
     extraArgs: readExtraArgsSetting(config),
@@ -93,9 +93,9 @@ function snapshotServerConfig(): string {
   });
 }
 
-/** 格式化 .su 文档（走 LSP documentFormattingProvider） */
+/** 格式化 .sx 文档（走 LSP documentFormattingProvider） */
 async function formatSuDocument(document: vscode.TextDocument): Promise<void> {
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   if (!config.get<boolean>('format.enabled', true)) {
     return;
   }
@@ -134,13 +134,13 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   }
 
   const [
-    { ShulangFoldingRangeProvider },
-    { ShulangCodeLensProvider },
-    { ShulangOnTypeFormattingProvider },
-    { ShulangDocumentLinkProvider },
-    { ShulangTaskProvider },
-    { registerShulangStatusBar, refreshShulangStatusBar },
-    { createShulangSelectionRangeProvider },
+    { ShuxFoldingRangeProvider },
+    { ShuxCodeLensProvider },
+    { ShuxOnTypeFormattingProvider },
+    { ShuxDocumentLinkProvider },
+    { ShuxTaskProvider },
+    { registerShuxStatusBar, refreshShuxStatusBar },
+    { createShuxSelectionRangeProvider },
   ] = await Promise.all([
     import('./folding'),
     import('./codelens'),
@@ -151,19 +151,19 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     import('./selection'),
   ]);
 
-  const config = vscode.workspace.getConfiguration('shulang');
+  const config = vscode.workspace.getConfiguration('shux');
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
   if (!workspaceFolder) {
     outputChannel?.appendLine(
-      '[Shulang] 无工作区文件夹：LSP 未启动。请 Open Folder 打开 shulang 仓库根目录以启用诊断。'
+      '[Shux] 无工作区文件夹：LSP 未启动。请 Open Folder 打开 shux 仓库根目录以启用诊断。'
     );
     void vscode.window.showWarningMessage(
-      'Shulang 需要打开文件夹才能启动语言服务（语法/类型诊断、跳转等）。请 Open Folder 打开项目根目录。'
+      'Shux 需要打开文件夹才能启动语言服务（语法/类型诊断、跳转等）。请 Open Folder 打开项目根目录。'
     );
   } else {
     const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
-    client = await startShulangLanguageClient({
+    client = await startShuxLanguageClient({
       command: resolveServerCommand(serverPath),
       args: buildServerArgs(),
       cwd: workspaceFolder.uri.fsPath,
@@ -177,29 +177,29 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'folding')) {
     context.subscriptions.push(
       vscode.languages.registerFoldingRangeProvider(
-        { scheme: 'file', language: 'su' },
-        new ShulangFoldingRangeProvider()
+        { scheme: 'file', language: 'sx' },
+        new ShuxFoldingRangeProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'codeLens')) {
-    const provider = new ShulangCodeLensProvider();
+    const provider = new ShuxCodeLensProvider();
     codeLensProvider = provider;
     context.subscriptions.push(
-      vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'su' }, provider)
+      vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'sx' }, provider)
     );
   }
 
   context.subscriptions.push(
-    vscode.tasks.registerTaskProvider(ShulangTaskProvider.ShulangType, new ShulangTaskProvider())
+    vscode.tasks.registerTaskProvider(ShuxTaskProvider.ShuxType, new ShuxTaskProvider())
   );
 
   if (isFeatureEnabled(config, 'formatOnType')) {
     context.subscriptions.push(
       vscode.languages.registerOnTypeFormattingEditProvider(
-        { scheme: 'file', language: 'su' },
-        new ShulangOnTypeFormattingProvider(),
+        { scheme: 'file', language: 'sx' },
+        new ShuxOnTypeFormattingProvider(),
         '{',
         '\n',
         '}',
@@ -211,20 +211,20 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'documentLinks')) {
     context.subscriptions.push(
       vscode.languages.registerDocumentLinkProvider(
-        { scheme: 'file', language: 'su' },
-        new ShulangDocumentLinkProvider()
+        { scheme: 'file', language: 'sx' },
+        new ShuxDocumentLinkProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'statusBar')) {
-    registerShulangStatusBar(context);
-    refreshShulangStatusBar(vscode.window.activeTextEditor);
+    registerShuxStatusBar(context);
+    refreshShuxStatusBar(vscode.window.activeTextEditor);
     context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor((e) => refreshShulangStatusBar(e)),
+      vscode.window.onDidChangeActiveTextEditor((e) => refreshShuxStatusBar(e)),
       vscode.workspace.onDidChangeTextDocument((e) => {
-        if (e.document.languageId === 'su') {
-          refreshShulangStatusBar(vscode.window.activeTextEditor);
+        if (e.document.languageId === 'sx') {
+          refreshShuxStatusBar(vscode.window.activeTextEditor);
         }
       })
     );
@@ -233,14 +233,14 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'selectionRange')) {
     context.subscriptions.push(
       vscode.languages.registerSelectionRangeProvider(
-        { scheme: 'file', language: 'su' },
-        createShulangSelectionRangeProvider()
+        { scheme: 'file', language: 'sx' },
+        createShuxSelectionRangeProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'formatOnBlur')) {
-    let lastSuEditor: vscode.TextEditor | undefined;
+    let lastSxEditor: vscode.TextEditor | undefined;
     let initialized = false;
     setTimeout(() => {
       initialized = true;
@@ -248,8 +248,8 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
 
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-        const prev = lastSuEditor;
-        lastSuEditor = editor?.document.languageId === 'su' ? editor : undefined;
+        const prev = lastSxEditor;
+        lastSxEditor = editor?.document.languageId === 'sx' ? editor : undefined;
         if (!initialized || !prev || prev.document.isClosed || prev === editor) {
           return;
         }
@@ -260,7 +260,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
 
   registerConfigurationListener(context);
   heavyFeaturesReady = true;
-  outputChannel?.appendLine('[Shulang] 编辑器增强与 LSP 已就绪。');
+  outputChannel?.appendLine('[Shux] 编辑器增强与 LSP 已就绪。');
 }
 
 function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
@@ -271,7 +271,7 @@ function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
     heavyFeaturesPromise = loadHeavyFeatures(context).catch((err: unknown) => {
       heavyFeaturesPromise = undefined;
       const message = err instanceof Error ? err.message : String(err);
-      outputChannel?.appendLine(`[Shulang] 加载编辑器功能失败: ${message}`);
+      outputChannel?.appendLine(`[Shux] 加载编辑器功能失败: ${message}`);
       throw err;
     });
   }
@@ -283,7 +283,7 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('shulang')) {
+      if (!e.affectsConfiguration('shux')) {
         return;
       }
 
@@ -301,9 +301,9 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
         const prevSnapshot = serverConfigSnapshot;
         serverConfigSnapshot = newSnapshot;
-        outputChannel?.appendLine('[Shulang] 检测到配置变更，正在应用...');
+        outputChannel?.appendLine('[Shux] 检测到配置变更，正在应用...');
 
-        const newConfig = vscode.workspace.getConfiguration('shulang');
+        const newConfig = vscode.workspace.getConfiguration('shux');
         const prev = JSON.parse(prevSnapshot ?? '{}') as Record<string, unknown>;
         const nextExtraArgs = readExtraArgsSetting(newConfig);
         const nextLibRoots = readLibRootsSetting(newConfig);
@@ -315,8 +315,8 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
         if (
           JSON.stringify(prev.extraArgs) !== JSON.stringify(nextExtraArgs) ||
           JSON.stringify(prev.libRoots) !== JSON.stringify(nextLibRoots) ||
-          e.affectsConfiguration('shulang.compiler') ||
-          e.affectsConfiguration('shulang.features')
+          e.affectsConfiguration('shux.compiler') ||
+          e.affectsConfiguration('shux.features')
         ) {
           codeLensProvider?.refresh();
         }
@@ -333,13 +333,13 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
         if (restartKeysChanged) {
           void vscode.window
             .showInformationMessage(
-              'Shulang 服务端配置已变更，需要重启语言服务才能生效。',
+              'Shux 服务端配置已变更，需要重启语言服务才能生效。',
               '立即重启',
               '稍后'
             )
             .then((selection) => {
               if (selection === '立即重启') {
-                void vscode.commands.executeCommand('shulang.restartServer');
+                void vscode.commands.executeCommand('shux.restartServer');
               }
             });
         }
@@ -348,7 +348,7 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
   );
 }
 
-async function openShulangSettingsSafe(): Promise<void> {
+async function openShuxSettingsSafe(): Promise<void> {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (ws) {
     const settingsUri = vscode.Uri.joinPath(ws.uri, '.vscode', 'settings.json');
@@ -360,18 +360,18 @@ async function openShulangSettingsSafe(): Promise<void> {
       // fall through
     }
   }
-  await vscode.commands.executeCommand('workbench.action.openSettings', 'shulang');
+  await vscode.commands.executeCommand('workbench.action.openSettings', 'shux');
 }
 
 function registerCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('shulang.openSettings', () => {
-      void openShulangSettingsSafe();
+    vscode.commands.registerCommand('shux.openSettings', () => {
+      void openShuxSettingsSafe();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shulang.restartServer', async () => {
+    vscode.commands.registerCommand('shux.restartServer', async () => {
       await ensureHeavyFeatures(context);
       try {
         const wf = vscode.workspace.workspaceFolders?.[0];
@@ -379,10 +379,10 @@ function registerCommands(context: vscode.ExtensionContext): void {
           vscode.window.showWarningMessage('请先 Open Folder 打开工作区后再重启 LSP。');
           return;
         }
-        outputChannel?.appendLine('[Shulang] 正在重启语言服务...');
-        await stopShulangLanguageClient(client);
-        const config = vscode.workspace.getConfiguration('shulang');
-        client = await startShulangLanguageClient({
+        outputChannel?.appendLine('[Shux] 正在重启语言服务...');
+        await stopShuxLanguageClient(client);
+        const config = vscode.workspace.getConfiguration('shux');
+        client = await startShuxLanguageClient({
           command: resolveServerCommand(config.get<string>('serverPath', DEFAULT_SERVER_PATH)),
           args: buildServerArgs(),
           cwd: wf.uri.fsPath,
@@ -391,38 +391,38 @@ function registerCommands(context: vscode.ExtensionContext): void {
           outputChannel: outputChannel!,
           restartOnCrash: config.get<boolean>('server.restartOnCrash', true),
         });
-        outputChannel?.appendLine('[Shulang] 语言服务已重启。');
-        vscode.window.showInformationMessage('Shulang 语言服务已重启');
+        outputChannel?.appendLine('[Shux] 语言服务已重启。');
+        vscode.window.showInformationMessage('Shux 语言服务已重启');
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        outputChannel?.appendLine(`[Shulang] 重启失败: ${message}`);
-        vscode.window.showErrorMessage(`Shulang 重启失败: ${message}`);
+        outputChannel?.appendLine(`[Shux] 重启失败: ${message}`);
+        vscode.window.showErrorMessage(`Shux 重启失败: ${message}`);
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shulang.showServerOutput', () => {
+    vscode.commands.registerCommand('shux.showServerOutput', () => {
       outputChannel?.show(true);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shulang.refreshCodeLens', async () => {
+    vscode.commands.registerCommand('shux.refreshCodeLens', async () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== 'su') {
-        vscode.window.showWarningMessage('请先打开一个 .su 文件。');
+      if (!editor || editor.document.languageId !== 'sx') {
+        vscode.window.showWarningMessage('请先打开一个 .sx 文件。');
         return;
       }
       await ensureHeavyFeatures(context);
       codeLensProvider?.refresh();
-      vscode.window.showInformationMessage('Shulang CodeLens 已刷新。');
+      vscode.window.showInformationMessage('Shux CodeLens 已刷新。');
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shulang.runFile', async (uri?: vscode.Uri) => {
-      const { ShulangTaskProvider } = await import('./tasks');
+    vscode.commands.registerCommand('shux.runFile', async (uri?: vscode.Uri) => {
+      const { ShuxTaskProvider } = await import('./tasks');
       await ensureHeavyFeatures(context);
 
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
@@ -430,14 +430,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('没有打开的文件可运行。');
         return;
       }
-      const cfg = vscode.workspace.getConfiguration('shulang');
+      const cfg = vscode.workspace.getConfiguration('shux');
       const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
 
       const task = new vscode.Task(
-        { type: ShulangTaskProvider.ShulangType, task: 'run-codelens' },
+        { type: ShuxTaskProvider.ShuxType, task: 'run-codelens' },
         vscode.TaskScope.Workspace,
-        `shu run ${path.basename(targetUri.fsPath)}`,
-        'Shulang',
+        `shux run ${path.basename(targetUri.fsPath)}`,
+        'Shux',
         new vscode.ProcessExecution(cmd, ['run', targetUri.fsPath], {
           cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
         })
@@ -459,31 +459,31 @@ function scheduleHeavyFeaturesOnSu(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((doc) => {
-      if (doc.languageId === 'su') {
+      if (doc.languageId === 'sx') {
         tryLoad();
       }
     }),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor?.document.languageId === 'su') {
+      if (editor?.document.languageId === 'sx') {
         tryLoad();
       }
     })
   );
 
   if (
-    vscode.window.activeTextEditor?.document.languageId === 'su' ||
-    vscode.workspace.textDocuments.some((d) => d.languageId === 'su')
+    vscode.window.activeTextEditor?.document.languageId === 'sx' ||
+    vscode.workspace.textDocuments.some((d) => d.languageId === 'sx')
   ) {
     tryLoad();
   }
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  outputChannel = vscode.window.createOutputChannel('Shulang');
-  outputChannel.appendLine('[Shulang] 扩展正在激活（轻量模式）...');
+  outputChannel = vscode.window.createOutputChannel('Shux');
+  outputChannel.appendLine('[Shux] 扩展正在激活（轻量模式）...');
   registerCommands(context);
   scheduleHeavyFeaturesOnSu(context);
-  outputChannel.appendLine('[Shulang] 扩展已激活。打开 .su 文件时将立即加载 LSP。');
+  outputChannel.appendLine('[Shux] 扩展已激活。打开 .sx 文件时将立即加载 LSP。');
 }
 
 export function deactivate(): Thenable<void> | undefined {
@@ -491,7 +491,7 @@ export function deactivate(): Thenable<void> | undefined {
     clearTimeout(configChangeDebounce);
     configChangeDebounce = undefined;
   }
-  outputChannel?.appendLine('[Shulang] 扩展已停用。');
+  outputChannel?.appendLine('[Shux] 扩展已停用。');
   outputChannel?.dispose();
-  return stopShulangLanguageClient(client);
+  return stopShuxLanguageClient(client);
 }

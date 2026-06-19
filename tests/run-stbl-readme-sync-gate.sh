@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STBL_README_DOC:-analysis/stbl-readme-sync-v1.md}"
-MANIFEST="${SHU_STBL_README_TSV:-tests/baseline/stbl-readme-sync.tsv}"
+DOC="${SHUX_STBL_README_DOC:-analysis/stbl-readme-sync-v1.md}"
+MANIFEST="${SHUX_STBL_README_TSV:-tests/baseline/stbl-readme-sync.tsv}"
 README="std/README.md"
-PREFIX="shu: [SHU_STBL_README]"
+PREFIX="shux: [SHUX_STBL_README]"
 
 # shellcheck source=tests/lib/stbl-readme-sync.sh
 . tests/lib/stbl-readme-sync.sh

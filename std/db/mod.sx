@@ -1,0 +1,36 @@
+// std.db — 数据库与存储门面（sqlite / kv / arrow）
+//
+// 【子模块】
+// - std.db.sqlite — SQLite3（SQL 关系型，可选 -lsqlite3）
+// - std.db.kv     — mmap LSM Append-Only 键值/时序底座（无 SQL）
+// - std.db.arrow  — 零拷贝列式内存（Apache Arrow 风格布局）
+//
+// 【用法】
+//   const db = import("std.db");
+//   const kv = import("std.db.kv");
+//   const arrow = import("std.db.arrow");
+//   const sqlite = import("std.db.sqlite");
+
+const sqlite_m = import("std.db.sqlite");
+const kv_m = import("std.db.kv");
+const arrow_m = import("std.db.arrow");
+
+/** SQLite 后端是否可用（委托 std.db.sqlite）。 */
+function sqlite_is_available(): i32 {
+  return sqlite_m.sqlite_is_available();
+}
+
+/** KV mmap 引擎是否导出（委托 std.db.kv）。 */
+function kv_mmap_available(): i32 {
+  return kv_m.mmap_available();
+}
+
+/** Arrow 列式模块是否导出（恒 1）。 */
+function arrow_available(): i32 {
+  return 1;
+}
+
+/** SIMD 是否可用于 Arrow 列计算（委托 std.db.arrow）。 */
+function arrow_simd_hw_available(): i32 {
+  return arrow_m.simd_hw_available();
+}

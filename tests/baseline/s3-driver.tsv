@@ -1,6 +1,6 @@
-# S3 driver SU：compile.su → driver_compile_su.o 符号 baseline
-# 更新：SHU_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh
-# argv 解析在 .su；后端 compile_dispatch_* 薄编排 + impl_c mega（见 NEXT.md §2.2）
+# S3 driver SU：compile.sx → driver_compile_su.o 符号 baseline
+# 更新：SHUX_S3_DRIVER_UPDATE_BASELINE=1 ./tests/run-s3-driver-gate.sh
+# argv 解析在 .sx；后端 compile_dispatch_* 薄编排 + impl_c mega（见 NEXT.md §2.2）
 require_driver_run_compiler_full_su	1
 require_compile_dispatch_asm_backend	1
 require_compile_dispatch_emit_c_path	1

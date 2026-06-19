@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
-MANIFEST="${SHU_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
+DOC="${SHUX_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
+MANIFEST="${SHUX_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
 LIB="tests/lib/stbl-import-std-layout.sh"
 PKG_LIB="tests/lib/tool-pkgmgr.sh"
-SMOKE_SU="tests/import-std-layout/check_imports.su"
+SMOKE_SU="tests/import-std-layout/check_imports.sx"
 MIN_RESOLVE=12
 LIB_ROOT="."
 
@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$PKG_LIB" "$SMOKE_SU"; do
   fi
 done
 
-for kw in STBL-004 import std -L TOOL-007 TOOL-008 mod.su; do
+for kw in STBL-004 import std -L TOOL-007 TOOL-008 mod.sx; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "stbl-import-std gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -80,26 +80,26 @@ stdlib_cm_native_shu() {
 
 CHECK_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STBL-004: typeck smoke (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STBL-004: typeck smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "stbl-import-std gate FAIL: check $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0
     exit 1
   fi
   CHECK_OK=1
   SKIP=0
 else
-  echo "stbl-import-std gate SKIP typeck (no native shu-c)" >&2
+  echo "stbl-import-std gate SKIP typeck (no native shux-c)" >&2
 fi
 
 stbl_import_std_emit_report "ok" "$RESOLVE_OK" "$CHECK_OK" "$SKIP"

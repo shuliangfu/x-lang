@@ -8,11 +8,11 @@ north_star	section	## 2. 北极星目标	analysis/phase3-roadmap-wave8-v1.md
 success_criteria	section	## 3. 成功判据	analysis/phase3-roadmap-wave8-v1.md
 task_index	section	## 4. 第八批待办索引	analysis/phase3-roadmap-wave8-v1.md
 gate_section	section	## 5. Gate	analysis/phase3-roadmap-wave8-v1.md
-task_boot027	task	BOOT-027	NEXT.md	shu_asm2 跨平台
+task_boot027	task	BOOT-027	NEXT.md	shux_asm2 跨平台
 task_comp021	task	COMP-021	NEXT.md	incr prod
 task_std069	task	STD-069	NEXT.md	row_col_blob
 task_plan008	task	PLAN-008	NEXT.md	wave8 定版
-gate_boot027	gate_ref	run-boot-027-shu-asm2-cross-gate.sh	tests/run-boot-027-shu-asm2-cross-gate.sh	BOOT-027
+gate_boot027	gate_ref	run-boot-027-shux-asm2-cross-gate.sh	tests/run-boot-027-shux-asm2-cross-gate.sh	BOOT-027
 gate_comp021	gate_ref	run-comp-incr-compile-prod-gate.sh	tests/run-comp-incr-compile-prod-gate.sh	COMP-021
 gate_std069	gate_ref	run-std-sqlite-row-col-blob-gate.sh	tests/run-std-sqlite-row-col-blob-gate.sh	STD-069
 cross_plan007	cross_ref	PLAN-007	analysis/phase3-roadmap-wave7-v1.md	第七批

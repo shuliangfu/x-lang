@@ -1,0 +1,8 @@
+// 测试绑定 import：const io = import("std.io"); → io.print_str(...)
+const io = import("std.io");
+
+function main(): i32 {
+  let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
+  let n: i32 = io.print_str(msg, 12);
+  return if (n >= 0) { 0 } else { 1 };
+}

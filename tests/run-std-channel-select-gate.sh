@@ -5,17 +5,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_CHANNEL_SELECT_DOC:-analysis/std-channel-select-v1.md}"
-MANIFEST="${SHU_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
-MOD_SU="std/channel/mod.su"
+DOC="${SHUX_STD_CHANNEL_SELECT_DOC:-analysis/std-channel-select-v1.md}"
+MANIFEST="${SHUX_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
+MOD_SU="std/channel/mod.sx"
 CHANNEL_C="std/channel/channel.c"
 LIB="tests/lib/std-channel-select.sh"
-SEL2_SU="tests/channel/select_2.su"
-SELN_SU="tests/channel/select_n.su"
-SEL_SEND2_SU="tests/channel/select_send_2.su"
-SEL_SENDN_SU="tests/channel/select_send_n.su"
-SEL_MIXED2_SU="tests/channel/select_mixed_2.su"
-SEL_MIXEDN_SU="tests/channel/select_mixed_n.su"
+SEL2_SU="tests/channel/select_2.sx"
+SELN_SU="tests/channel/select_n.sx"
+SEL_SEND2_SU="tests/channel/select_send_2.sx"
+SEL_SENDN_SU="tests/channel/select_send_n.sx"
+SEL_MIXED2_SU="tests/channel/select_mixed_2.sx"
+SEL_MIXEDN_SU="tests/channel/select_mixed_n.sx"
 MIN_APIS=13
 
 # shellcheck source=tests/lib/std-channel-select.sh
@@ -97,33 +97,33 @@ stdlib_cm_native_shu() {
 
 SEL_OK=0
 SKIP=1
-SHU_BIN=""
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+SHUX_BIN=""
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-098/102/104/108: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-098/102/104/108: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/channel/channel.o
   for su in "$SEL2_SU" "$SELN_SU" "$SEL_SEND2_SU" "$SEL_SENDN_SU" "$SEL_MIXED2_SU" "$SEL_MIXEDN_SU"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "std-channel-select gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       std_channel_select_emit_report "fail" 0 0
       exit 1
     fi
   done
-  if std_channel_select_run_smoke "$SHU_BIN" "$SEL2_SU" "select2" \
-    && std_channel_select_run_smoke "$SHU_BIN" "$SELN_SU" "selectn" \
-    && std_channel_select_run_smoke "$SHU_BIN" "$SEL_SEND2_SU" "selectsend2" \
-    && std_channel_select_run_smoke "$SHU_BIN" "$SEL_SENDN_SU" "selectsendn" \
-    && std_channel_select_run_smoke "$SHU_BIN" "$SEL_MIXED2_SU" "selectmixed2" \
-    && std_channel_select_run_smoke "$SHU_BIN" "$SEL_MIXEDN_SU" "selectmixedn"; then
+  if std_channel_select_run_smoke "$SHUX_BIN" "$SEL2_SU" "select2" \
+    && std_channel_select_run_smoke "$SHUX_BIN" "$SELN_SU" "selectn" \
+    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_SEND2_SU" "selectsend2" \
+    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_SENDN_SU" "selectsendn" \
+    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_MIXED2_SU" "selectmixed2" \
+    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_MIXEDN_SU" "selectmixedn"; then
     SEL_OK=1
   else
     std_channel_select_emit_report "fail" 0 0
@@ -131,7 +131,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-channel-select gate SKIP smoke (no native shu)" >&2
+  echo "std-channel-select gate SKIP smoke (no native shux)" >&2
 fi
 
 std_channel_select_emit_report "ok" "$SEL_OK" "$SKIP"

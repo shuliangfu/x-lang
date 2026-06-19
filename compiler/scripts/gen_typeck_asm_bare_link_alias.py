@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-从 typeck.su 函数签名生成 typeck_asm_bare_link_alias.c：
+从 typeck.sx 函数签名生成 typeck_asm_bare_link_alias.c：
 build_asm/typeck.o 裸符号 → pipeline_glue 期望的 typeck_ 前缀名。
 """
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SU = ROOT / "src/typeck/typeck.su"
+SU = ROOT / "src/typeck/typeck.sx"
 OUT = ROOT / "typeck_asm_bare_link_alias.c"
 
 TYPE_MAP = {
@@ -41,7 +41,7 @@ def parse_func(su_src: str, name: str):
     pat = re.compile(rf"function {re.escape(name)}\((.*?)\):\s*(\w+)\s*\{{", re.DOTALL)
     m = pat.search(su_src)
     if not m:
-        raise SystemExit(f"missing function {name} in typeck.su")
+        raise SystemExit(f"missing function {name} in typeck.sx")
     params_raw = re.sub(r"\s+", " ", m.group(1).strip())
     ret = su_to_c_type(m.group(2))
     params = []
@@ -84,7 +84,7 @@ def main() -> None:
         "/**",
         " * typeck_asm_bare_link_alias.c — build_asm/typeck.o 裸符号 → pipeline_glue 的 typeck_ 前缀名",
         " *",
-        " * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.su 签名生成。",
+        " * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.sx 签名生成。",
         " */",
         "#include <stdint.h>",
         "",

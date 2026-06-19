@@ -6,8 +6,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHU_OBS_PERF_ALERT_TSV:-tests/baseline/obs-perf-regression-alert.tsv}"
-REG="${SHU_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+MANIFEST="${SHUX_OBS_PERF_ALERT_TSV:-tests/baseline/obs-perf-regression-alert.tsv}"
+REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 MODE="${1:-}"
 
 # shellcheck source=tests/lib/obs-perf-regression-alert.sh

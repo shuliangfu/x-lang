@@ -1,7 +1,7 @@
 # PERF-006 CPU cache miss 热点治理 manifest
 # 列：item_id	kind	anchor	notes
 # min_cases	2
-output_prefix	bracket_component	SHU_CACHE_MISS	stderr 前缀
+output_prefix	bracket_component	SHUX_CACHE_MISS	stderr 前缀
 field_case	output_field	case=	用例 id
 field_layout	output_field	layout=	soa/aos
 field_miss	output_field	l1_miss_pct=	实测 miss%

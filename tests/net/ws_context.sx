@@ -1,0 +1,57 @@
+// STD-031：std.websocket Context 取消/超时离线烟测
+const ws = import("std.websocket");
+const context = import("std.context");
+const err = import("std.error");
+
+function main(): i32 {
+  let bg: Context = context.background();
+  if (ws.ws_timeout_ms_from_ctx(bg) != 0) {
+    return 1;
+  }
+  if (ws.ws_ctx_check(bg) != 0) {
+    return 2;
+  }
+
+  let cancelled: Context = context.with_cancel(bg);
+  context.cancel(cancelled);
+  if (ws.ws_timeout_ms_from_ctx(cancelled) != err.net_err_cancelled()) {
+    context.free(cancelled);
+    return 3;
+  }
+  if (ws.ws_ctx_check(cancelled) != err.net_err_cancelled()) {
+    context.free(cancelled);
+    return 4;
+  }
+
+  let host: [10]u8 = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+  let path: [4]u8 = [47, 119, 115, 0];
+  let fd: i32 = ws.ws_connect_ctx_fd(&host[0], 0, &path[0], 0 as *u8, 0, cancelled);
+  if (fd != err.net_err_cancelled()) {
+    context.free(cancelled);
+    return 5;
+  }
+
+  let stream: WsStream = WsStream { fd: -1, tls_ctx: 0 };
+  let payload: [3]u8 = [97, 98, 99];
+  let wr: i32 = ws.ws_write_text_ctx(stream, &payload[0], 3, cancelled);
+  if (wr != err.net_err_cancelled()) {
+    context.free(cancelled);
+    return 6;
+  }
+
+  let opcode: i32 = 0;
+  let buf: [8]u8 = [];
+  let plen: i32 = 0;
+  let rr: i32 = ws.ws_read_frame_ctx(stream, &opcode, &buf[0], 8, &plen, cancelled);
+  if (rr != err.net_err_cancelled()) {
+    context.free(cancelled);
+    return 7;
+  }
+
+  context.free(cancelled);
+
+  if (ws.ws_map_c_result(ws.ws_err_tls_not_impl()) != ws.ws_err_tls_not_impl()) {
+    return 8;
+  }
+  return 0;
+}

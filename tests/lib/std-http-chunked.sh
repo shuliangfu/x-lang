@@ -5,7 +5,7 @@
 #   std_http_chunked_symbols_ok MOD_SU CHUNKED_INC HTTP_C TSV
 #   std_http_chunked_emit_report status chunked_ok keepalive_ok typeck_ok skip
 
-STD_HTTP_CHUNKED_PREFIX="${SHU_STD_HTTP_CHUNKED_PREFIX:-shu: [SHU_STD_HTTP_CHUNKED]}"
+STD_HTTP_CHUNKED_PREFIX="${SHUX_STD_HTTP_CHUNKED_PREFIX:-shux: [SHUX_STD_HTTP_CHUNKED]}"
 
 # 校验 manifest；echo 缺失数。
 std_http_chunked_symbols_ok() {

@@ -1,0 +1,10 @@
+// STD-HTTP-H2-v14：h2c server listen/serve 烟测
+const http = import("std.http");
+
+function main(): i32 {
+  if (http.http2_server_smoke() != 0) { return 1; }
+  if (http.http2_server_is_available() == false) { return 2; }
+  if (http.http2_err_server() != -1240) { return 3; }
+  if (http.http2_err_server_tls() != -1241) { return 4; }
+  return 0;
+}

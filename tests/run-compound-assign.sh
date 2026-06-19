@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-LINK_SHU="$RUN_SHU"
+SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
 
-$LINK_SHU tests/compound-assign/main.su -o /tmp/shu_compound_assign 2>&1
+$LINK_SHUX tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
 exitcode=0
-/tmp/shu_compound_assign >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_compound_assign >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 0 ]; then
   echo "compound-assign: expected exit 0, got $exitcode"
   exit 1

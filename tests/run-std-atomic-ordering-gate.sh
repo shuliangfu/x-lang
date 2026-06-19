@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_ATOMIC_ORDERING_DOC:-analysis/std-atomic-ordering-v1.md}"
-MANIFEST="${SHU_STD_ATOMIC_ORDERING_TSV:-tests/baseline/std-atomic-ordering.tsv}"
-MOD_SU="std/atomic/mod.su"
+DOC="${SHUX_STD_ATOMIC_ORDERING_DOC:-analysis/std-atomic-ordering-v1.md}"
+MANIFEST="${SHUX_STD_ATOMIC_ORDERING_TSV:-tests/baseline/std-atomic-ordering.tsv}"
+MOD_SU="std/atomic/mod.sx"
 ATOMIC_C="std/atomic/atomic.c"
 LIB="tests/lib/std-atomic-ordering.sh"
-SMOKE_SU="tests/atomic/ordering_fence.su"
-MAIN_SU="tests/atomic/main.su"
+SMOKE_SU="tests/atomic/ordering_fence.sx"
+MAIN_SU="tests/atomic/main.sx"
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-atomic-ordering.sh
@@ -88,33 +88,33 @@ stdlib_cm_native_shu() {
 FENCE_OK=0
 MAIN_OK=0
 SKIP=1
-if SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu-c && echo ./compiler/shu-c || true)"; then
+if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
   :
-elif SHU_BIN="$(stdlib_cm_native_shu ./compiler/shu && echo ./compiler/shu || true)"; then
+elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 else
-  SHU_BIN=""
+  SHUX_BIN=""
 fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-046: typeck + smoke (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-046: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/atomic/atomic.o
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-atomic-ordering gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_atomic_ord_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_atomic_ord_run_smoke "$SHU_BIN" "$SMOKE_SU" "ordering"; then
+  if std_atomic_ord_run_smoke "$SHUX_BIN" "$SMOKE_SU" "ordering"; then
     FENCE_OK=1
   else
     std_atomic_ord_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_atomic_ord_run_smoke "$SHU_BIN" "$MAIN_SU" "main"; then
+  if std_atomic_ord_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
     MAIN_OK=1
   else
     std_atomic_ord_emit_report "fail" "$FENCE_OK" 0 0
@@ -122,7 +122,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-atomic-ordering gate SKIP smoke (no native shu)" >&2
+  echo "std-atomic-ordering gate SKIP smoke (no native shux)" >&2
 fi
 
 std_atomic_ord_emit_report "ok" "$FENCE_OK" "$MAIN_OK" "$SKIP"

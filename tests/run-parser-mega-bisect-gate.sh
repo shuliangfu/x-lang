@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# mega 单项 bisect 门禁：SHU_ASM_PARSER_MEGA_BISECT=parse_into 时跳过 ret0 桩，探测 SU 真 emit 是否可链。
+# mega 单项 bisect 门禁：SHUX_ASM_PARSER_MEGA_BISECT=parse_into 时跳过 ret0 桩，探测 SU 真 emit 是否可链。
 # 判定：与无 bisect 基线比 __text 增量 <8KB 视为仍桩化/不可迁（PASS）；编译失败亦 PASS。
 # 用法：
 #   ./tests/run-parser-mega-bisect-gate.sh
-#   SHU_PARSER_MEGA_BISECT_FAIL=1 ./tests/run-parser-mega-bisect-gate.sh
+#   SHUX_PARSER_MEGA_BISECT_FAIL=1 ./tests/run-parser-mega-bisect-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHU_PARSER_MEGA_BISECT_FAIL:-0}
-TARGET=${SHU_PARSER_MEGA_BISECT_TARGET:-parse_into}
-MIN_DELTA=${SHU_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
+FAIL=${SHUX_PARSER_MEGA_BISECT_FAIL:-0}
+TARGET=${SHUX_PARSER_MEGA_BISECT_TARGET:-parse_into}
+MIN_DELTA=${SHUX_PARSER_MEGA_BISECT_MIN_DELTA:-8192}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -17,11 +17,11 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-COMP_IN="./shu_asm"
-if [ -n "${SHU_PARSER_MEGA_BISECT_COMPILER:-}" ]; then
-  case "${SHU_PARSER_MEGA_BISECT_COMPILER}" in
-    compiler/*) COMP_IN="./${SHU_PARSER_MEGA_BISECT_COMPILER#compiler/}" ;;
-    *) COMP_IN="${SHU_PARSER_MEGA_BISECT_COMPILER}" ;;
+COMP_IN="./shux_asm"
+if [ -n "${SHUX_PARSER_MEGA_BISECT_COMPILER:-}" ]; then
+  case "${SHUX_PARSER_MEGA_BISECT_COMPILER}" in
+    compiler/*) COMP_IN="./${SHUX_PARSER_MEGA_BISECT_COMPILER#compiler/}" ;;
+    *) COMP_IN="${SHUX_PARSER_MEGA_BISECT_COMPILER}" ;;
   esac
 fi
 if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
@@ -42,17 +42,17 @@ text_bytes() {
 
 compile_parser_o() {
   local mega_bisect="$1"
-  local out="/tmp/shu_parser_mega_bisect_${mega_bisect:-base}.$$.o"
-  local log="/tmp/shu_parser_mega_bisect_${mega_bisect:-base}.log"
+  local out="/tmp/shux_parser_mega_bisect_${mega_bisect:-base}.$$.o"
+  local log="/tmp/shux_parser_mega_bisect_${mega_bisect:-base}.log"
   local ec text
   rm -f "$out" "$log" 2>/dev/null || true
   set +e
   (
     cd compiler
-    env -u SHU_ASM_START_FUNC SHU_ASM_ENTRY_MODULE_ONLY=1 SHU_ASM_BUILD_SKIP_TYPECK=1 \
-      SHU_ASM_ENTRY_EMIT_HEAVY=1 SHU_ASM_WPO_DCE=0 \
-      ${mega_bisect:+SHU_ASM_PARSER_MEGA_BISECT=$mega_bisect} \
-      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.su
+    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+      SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
+      ${mega_bisect:+SHUX_ASM_PARSER_MEGA_BISECT=$mega_bisect} \
+      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.sx
   ) > "$log" 2>&1
   ec=$?
   set -e

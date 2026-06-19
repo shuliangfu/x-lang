@@ -1,7 +1,7 @@
-# WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 SHU_ASM_WPO_DCE=0 的节省
-# main.su call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
+# WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 SHUX_ASM_WPO_DCE=0 的节省
+# main.sx call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
 # build_asm chain：仅 main.o + driver_compile.o（勿含 glue mega .o）
-# 更新：SHU_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+# 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 min_dead_pct_graph	5
 dead_multi_min_text_save_bytes	48
 dead_multi_min_text_save_pct	8

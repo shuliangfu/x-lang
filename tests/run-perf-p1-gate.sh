@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
 
 echo "=== perf P1 gate: compute baseline (Zig) ==="
-SHU_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_p1_baseline.log
+SHUX_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_p1_baseline.log
 grep -q 'perf baseline OK' /tmp/perf_p1_baseline.log
 
 echo "=== perf P1 gate: B-CMP (Shu -O3 codegen-fair vs C -O3, 1.0×) ==="
@@ -16,7 +16,7 @@ chmod +x tests/run-bcmp-gate.sh
 ./tests/run-bcmp-gate.sh | tee /tmp/perf_p1_bcmp.log
 
 echo "=== perf P1 gate: IO (Zig + regression) ==="
-SHU_PERF_FAIL_ON_IO_ZIG=1 SHU_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_p1_io.log
+SHUX_PERF_FAIL_ON_IO_ZIG=1 SHUX_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench | tee /tmp/perf_p1_io.log
 grep -q 'io perf OK' /tmp/perf_p1_io.log
 
 echo "=== perf P1 gate: net (regression; Linux io_uring 时含 ZC-1 --perf) ==="
@@ -28,11 +28,11 @@ if [ "$(uname -s)" = "Linux" ]; then
     ./tests/run-zc1-gate.sh --perf | tee /tmp/perf_p1_net.log
   else
     echo "perf P1 gate: ZC-1 SKIP (io_uring unavailable on this kernel)"
-    SHU_PERF_FAIL_ON_NET_REGRESSION=1 ./tests/run-perf-net.sh --bench | tee /tmp/perf_p1_net.log
+    SHUX_PERF_FAIL_ON_NET_REGRESSION=1 ./tests/run-perf-net.sh --bench | tee /tmp/perf_p1_net.log
     grep -q 'net perf OK' /tmp/perf_p1_net.log
   fi
 else
-  SHU_PERF_FAIL_ON_NET_REGRESSION=1 ./tests/run-perf-net.sh --bench | tee /tmp/perf_p1_net.log
+  SHUX_PERF_FAIL_ON_NET_REGRESSION=1 ./tests/run-perf-net.sh --bench | tee /tmp/perf_p1_net.log
   grep -q 'net perf OK' /tmp/perf_p1_net.log
 fi
 

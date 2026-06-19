@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-url.sh — STD-076 manifest 与烟测辅助
 
-STD_URL_PREFIX="${SHU_STD_URL_PREFIX:-shu: [SHU_STD_URL]}"
+STD_URL_PREFIX="${SHUX_STD_URL_PREFIX:-shux: [SHUX_STD_URL]}"
 
 # 遍历 manifest 校验 symbol/file/smoke。
 std_url_symbols_ok() {
@@ -40,15 +40,15 @@ std_url_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_url_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-url}"
-  local exe="/tmp/shu_std_url_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_url_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-url FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

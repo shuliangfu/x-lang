@@ -1,5 +1,5 @@
 # async 1M ping-pong 中位数上限（秒）；门禁：median ≤ cap
-# 更新：SHU_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
+# 更新：SHUX_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
 # 2M steps/ run；B-ASYNC stretch ≤15ns/step ≈ 0.03s total
 async_switch	0.08
 async_switch_jmp	0.08

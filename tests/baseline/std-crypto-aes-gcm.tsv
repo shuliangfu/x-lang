@@ -6,13 +6,13 @@ api_doc	section	## 2. AES-GCM API	aes_gcm_seal
 vectors	section	## 3. NIST 金样向量	Test Case 2
 link_opt	section	## 4. 可选链入	crypto.o
 verify	section	## 5. 门禁	gate
-api_seal	api	aes_gcm_seal	std/crypto/mod.su	加密
-api_open	api	aes_gcm_open	std/crypto/mod.su	解密
-const_tag	const	AES_GCM_TAG_LEN	std/crypto/mod.su	16
+api_seal	api	aes_gcm_seal	std/crypto/mod.sx	加密
+api_open	api	aes_gcm_open	std/crypto/mod.sx	解密
+const_tag	const	AES_GCM_TAG_LEN	std/crypto/mod.sx	16
 symbol_seal_c	symbol	crypto_aes_gcm_seal_c	std/crypto/aes_gcm.inc.c	C seal
 symbol_open_c	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.inc.c	C open
 vectors_tsv	file	tests/baseline/std-crypto-aes-gcm-vectors.tsv	金样表
-smoke_nist2	smoke	tests/std-crypto/aes_gcm_nist2.su	烟测
-smoke_main	smoke	tests/crypto/main.su	回归
+smoke_nist2	smoke	tests/std-crypto/aes_gcm_nist2.sx	烟测
+smoke_main	smoke	tests/crypto/main.sx	回归
 lib	script	lib/std-crypto-aes-gcm.sh	tests/lib/std-crypto-aes-gcm.sh
 gate	script	run-std-crypto-aes-gcm-gate.sh	tests/run-std-crypto-aes-gcm-gate.sh

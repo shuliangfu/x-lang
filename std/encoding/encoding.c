@@ -157,3 +157,47 @@ int32_t encoding_hex_encode_c(const uint8_t *src, int32_t src_len, uint8_t *out,
   }
   return src_len * 2;
 }
+
+/** hex 解码所需输出字节上界（与 src_len 字符数对应）。 */
+int32_t encoding_hex_encoded_len_c(int32_t src_len) {
+  if (src_len < 0) {
+    return -1;
+  }
+  return src_len * 2;
+}
+
+/** 解析单个 hex 字符为半字节；非法返回 -1。 */
+static int32_t shu_hex_nibble(uint8_t c) {
+  if (c >= '0' && c <= '9') {
+    return (int32_t)(c - '0');
+  }
+  if (c >= 'a' && c <= 'f') {
+    return (int32_t)(c - 'a' + 10);
+  }
+  if (c >= 'A' && c <= 'F') {
+    return (int32_t)(c - 'A' + 10);
+  }
+  return -1;
+}
+
+/** 小写/大写 hex 解码；返回写入字节数，非法字符返回 -1。 */
+int32_t encoding_hex_decode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  int32_t out_len;
+  int32_t i;
+  if (!src || !out || src_len < 0 || (src_len & 1) != 0) {
+    return -1;
+  }
+  out_len = src_len / 2;
+  if (out_cap < out_len) {
+    return -1;
+  }
+  for (i = 0; i < out_len; i++) {
+    int32_t hi = shu_hex_nibble(src[i * 2]);
+    int32_t lo = shu_hex_nibble(src[i * 2 + 1]);
+    if (hi < 0 || lo < 0) {
+      return -1;
+    }
+    out[i] = (uint8_t)((hi << 4) | lo);
+  }
+  return out_len;
+}

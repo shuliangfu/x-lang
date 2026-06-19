@@ -9,7 +9,7 @@ io_uring_available() {
   if ! pkg-config --exists liburing 2>/dev/null && [ ! -f /usr/include/liburing.h ]; then
     return 1
   fi
-  local probe="/tmp/shu_io_uring_probe_$$"
+  local probe="/tmp/shux_io_uring_probe_$$"
   if ! cc -O2 -Wall "${BASH_SOURCE%/*}/../bench/io_uring_probe.c" -o "$probe" -luring 2>/dev/null; then
     return 1
   fi

@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-path-extreme-v1.md"
 MANIFEST="tests/baseline/std-path-extreme-manifest.tsv"
 VECTORS="tests/baseline/std-path-extreme.tsv"
-MOD_SU="std/path/mod.su"
+MOD_SU="std/path/mod.sx"
 LIB="tests/lib/std-path-extreme.sh"
-SMOKE_SU="tests/path/extreme_clean.su"
+SMOKE_SU="tests/path/extreme_clean.sx"
 MIN_VECTORS=8
 
 # shellcheck source=tests/lib/std-path-extreme.sh
@@ -45,24 +45,24 @@ echo "std-path-extreme registry OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-path-extreme gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_path_extreme_emit_report "fail" 0 0
     exit 1
   fi
-  if std_path_extreme_run_smoke "$SHU_BIN" "$SMOKE_SU"; then
+  if std_path_extreme_run_smoke "$SHUX_BIN" "$SMOKE_SU"; then
     SU_OK=1
   else
     std_path_extreme_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-path-extreme gate SKIP .su smoke (no shu)" >&2
+  echo "std-path-extreme gate SKIP .sx smoke (no shux)" >&2
   SKIP=1
 fi
 

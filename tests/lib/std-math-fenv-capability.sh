@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-fenv-capability.sh — STD-149 manifest 与烟测辅助
 
-STD149_PREFIX="${SHU_STD149_MATH_FENV_CAP_PREFIX:-shu: [SHU_STD149_MATH_FENV_CAP]}"
+STD149_PREFIX="${SHUX_STD149_MATH_FENV_CAP_PREFIX:-shux: [SHUX_STD149_MATH_FENV_CAP]}"
 
 # 校验 manifest；echo 缺失数。
 std_math_fenv_cap_symbols_ok() {
@@ -76,13 +76,13 @@ std_math_fenv_cap_expect_available() {
   return 1
 }
 
-# C 能力烟测；校验 stderr 含 SHU_MATH_FENV_CAP。
+# C 能力烟测；校验 stderr 含 SHUX_MATH_FENV_CAP。
 std_math_fenv_cap_run_c_smoke() {
   local math_c="$1"
   local expect_avail="$2"
   local src="tests/std-math/fenv_capability_ok.c"
-  local out="/tmp/shu_math_fenv_cap_c_$$"
-  local err="/tmp/shu_math_fenv_cap_err_$$.log"
+  local out="/tmp/shux_math_fenv_cap_c_$$"
+  local err="/tmp/shux_math_fenv_cap_err_$$.log"
   local math_o
   math_o="$(dirname "$math_c")/math.o"
   if [ ! -f "$math_o" ]; then
@@ -104,7 +104,7 @@ std_math_fenv_cap_run_c_smoke() {
     echo "std-math-fenv-cap FAIL: C smoke exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shu: [SHU_MATH_FENV_CAP]' "$err" 2>/dev/null; then
+  if ! grep -qF 'shux: [SHUX_MATH_FENV_CAP]' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-math-fenv-cap FAIL: missing cap line" >&2
@@ -122,14 +122,14 @@ std_math_fenv_cap_run_c_smoke() {
   return 0
 }
 
-# .su 烟测（需 math.o + -lm）。
-std_math_fenv_cap_run_su_smoke() {
-  local shu="$1"
+# .sx 烟测（需 math.o + -lm）。
+std_math_fenv_cap_run_sx_smoke() {
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_math_fenv_cap_su_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_math_fenv_cap_su_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-math-fenv-cap FAIL: compile $src" >&2
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

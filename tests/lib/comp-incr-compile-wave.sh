@@ -6,14 +6,14 @@
 #   comp_incr_wave_hook_runnable HOOK_SCRIPT
 #   comp_incr_wave_emit_report status wave_ok wave_run wave_skip skip
 
-COMP020_PREFIX="${SHU_COMP020_PREFIX:-shu: [SHU_COMP020_INCR_WAVE]}"
+COMP020_PREFIX="${SHUX_COMP020_PREFIX:-shux: [SHUX_COMP020_INCR_WAVE]}"
 
-# 复用 COMP-007 native shu 探测。
+# 复用 COMP-007 native shux 探测。
 comp_incr_wave_native_shu() {
   # shellcheck source=tests/lib/comp-incr-compile.sh
   . tests/lib/comp-incr-compile.sh
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu ./compiler/shu_asm; do
+  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux_asm; do
     if comp_incr_compile_native_shu "$cand"; then
       return 0
     fi

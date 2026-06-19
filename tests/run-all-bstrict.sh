@@ -1,44 +1,46 @@
 #!/usr/bin/env bash
-# M3-b / F1–F2：B-strict 白名单（含 run-io/http/tar/json；与 run-shu-asm-gate + L4 核心子集一致）。
+# M3-b / F1–F2：B-strict 白名单（含 run-io/http/tar/json；与 run-shux-asm-gate + L4 核心子集一致）。
 # 用法：./tests/run-all-bstrict.sh
-# 不跑全量 run-all（其余用例仍走 shu-c）；验收 shu_asm 替代 seed 后白名单不回归。
+# 不跑全量 run-all（其余用例仍走 shux-c）；验收 shux_asm 替代 seed 后白名单不回归。
 
 set -e
 cd "$(dirname "$0")/.."
 
-if [ ! -f compiler/shu_asm ] || [ ! -x compiler/shu_asm ]; then
-  echo "run-all-bstrict: build shu_asm first: make -C compiler bootstrap-driver-bstrict" >&2
+if [ ! -f compiler/shux_asm ] || [ ! -x compiler/shux_asm ]; then
+  echo "run-all-bstrict: build shux_asm first: make -C compiler bootstrap-driver-bstrict" >&2
   exit 127
 fi
 
-# run-bootstrap-bstrict-ci.sh 已构建 shu_asm 时跳过重复全量编译。
-if [ -n "${SHU_BSTRICT_SKIP_BUILD:-}" ]; then
-  echo "run-all-bstrict: SHU_BSTRICT_SKIP_BUILD=1, cp shu_asm -> shu ..."
-  cp -f compiler/shu_asm compiler/shu
+# run-bootstrap-bstrict-ci.sh 已构建 shux_asm 时跳过重复全量编译。
+if [ -n "${SHUX_BSTRICT_SKIP_BUILD:-}" ]; then
+  echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1, cp shux_asm -> shux ..."
+  cp -f compiler/shux_asm compiler/shux
 else
-  echo "run-all-bstrict: bootstrap-driver-bstrict (M7: shu_asm -> shu by default) ..."
+  echo "run-all-bstrict: bootstrap-driver-bstrict (M7: shux_asm -> shux by default) ..."
   make -C compiler bootstrap-driver-bstrict
 fi
 
-export SHU=./compiler/shu
-export SHULANG_SKIP_SUBSCRIPT_MAKE=1
-export SHULANG_RUN_ALL_BOOTSTRAP_SHU=1
-export SHULANG_BSTRICT_RUN_ALL=1
-# refresh 后 shu/shu_asm 为 seed 链；-o 链接用 shu-c（与 run-option/run-pool-limits 分流一致）。
-export SHULANG_LINK_SHU=./compiler/shu-c
-# CI 全量（SHU_CI_NO_SKIP=1）须跑 parse 烟测；本地可 SHU_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
-if [ -z "${SHU_CI_NO_SKIP:-}" ]; then
-  export SHU_SKIP_PARSE_SMOKE=1
+export SHUX=./compiler/shux
+export SHUX_SKIP_SUBSCRIPT_MAKE=1
+export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
+export SHUX_BSTRICT_RUN_ALL=1
+# refresh 后 shux/shux_asm 为 seed 链；-o 链接用 shux-c（与 run-option/run-pool-limits 分流一致）。
+export SHUX_LINK_SHUX=./compiler/shux-c
+# CI 全量（SHUX_CI_NO_SKIP=1）须跑 parse 烟测；本地可 SHUX_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
+if [ -z "${SHUX_CI_NO_SKIP:-}" ]; then
+  export SHUX_SKIP_PARSE_SMOKE=1
 fi
 
-# 与 run-shu-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
+# 与 run-shux-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
 BSTRICT_SCRIPTS=(
   run-lexer.sh
   run-typeck.sh
   run-check.sh
+  run-types-gate.sh
   run-hello.sh
   run-import.sh
   run-stdlib-import.sh
+  run-std.sh
   run-while.sh
   run-option.sh
   run-compound-assign.sh
@@ -46,6 +48,7 @@ BSTRICT_SCRIPTS=(
   run-struct.sh
   run-return-value.sh
   run-return-expr.sh
+  run-target.sh
   run-parser.sh
   run-for.sh
   run-array.sh
@@ -149,30 +152,30 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   fi
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
-  # asm 白名单须 asm-capable 编译器 -o；refresh 后 shu 为 seed 链，experimental 仍保留真 asm。
-  script_shu="$SHU"
-  script_link="${SHULANG_LINK_SHU:-}"
+  # asm 白名单须 asm-capable 编译器 -o；refresh 后 shux 为 seed 链，experimental 仍保留真 asm。
+  script_shu="$SHUX"
+  script_link="${SHUX_LINK_SHUX:-}"
   case "$script" in
     run-asm-*.sh)
-      if [ -x ./compiler/shu_asm.experimental ]; then
-        script_shu=./compiler/shu_asm.experimental
-      elif [ -x ./compiler/shu_asm ]; then
-        script_shu=./compiler/shu_asm
+      if [ -x ./compiler/shux_asm.experimental ]; then
+        script_shu=./compiler/shux_asm.experimental
+      elif [ -x ./compiler/shux_asm ]; then
+        script_shu=./compiler/shux_asm
       fi
-      script_link=./compiler/shu-c
+      script_link=./compiler/shux-c
       ;;
     *)
-      # 仍直接用 $SHU -o 且未 source bootstrap-link-shu 的脚本：refresh 后 seed shu asm 不可用。
-      if [ -x ./compiler/shu-c ] && grep -qE '[[:space:]]-o[[:space:]]' "tests/$script" \
-         && ! grep -q 'bootstrap-link-shu' "tests/$script"; then
-        script_shu=./compiler/shu-c
-        script_link=./compiler/shu-c
+      # 仍直接用 $SHUX -o 且未 source bootstrap-link-shux 的脚本：refresh 后 seed shux asm 不可用。
+      if [ -x ./compiler/shux-c ] && grep -qE '[[:space:]]-o[[:space:]]' "tests/$script" \
+         && ! grep -q 'bootstrap-link-shux' "tests/$script"; then
+        script_shu=./compiler/shux-c
+        script_link=./compiler/shux-c
       fi
       ;;
   esac
   attempt=1
   while [ "$attempt" -le 3 ]; do
-    if SHU="$script_shu" SHULANG_LINK_SHU="$script_link" ./tests/"$script"; then
+    if SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
       break
     fi
     if [ "$attempt" -ge 3 ]; then
@@ -184,4 +187,4 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   done
 done
 
-echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/shu is shu_asm)"
+echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/shux is shux_asm)"

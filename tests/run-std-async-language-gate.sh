@@ -6,13 +6,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_ALANG_DOC:-analysis/std-async-language-v1.md}"
-MANIFEST="${SHU_STD_ALANG_TSV:-tests/baseline/std-async-language.tsv}"
-MOD_SU="std/async/mod.su"
+DOC="${SHUX_STD_ALANG_DOC:-analysis/std-async-language-v1.md}"
+MANIFEST="${SHUX_STD_ALANG_TSV:-tests/baseline/std-async-language.tsv}"
+MOD_SU="std/async/mod.sx"
 SCHED_C="std/async/scheduler.c"
 LIB="tests/lib/std-async-language.sh"
-RUN_SU="tests/async/await_scheduler_run.su"
-MOD_TEST_SU="tests/async/await_scheduler_mod.su"
+RUN_SU="tests/async/await_scheduler_run.sx"
+MOD_TEST_SU="tests/async/await_scheduler_mod.sx"
 
 # shellcheck source=tests/lib/std-async-language.sh
 . tests/lib/std-async-language.sh
@@ -32,8 +32,8 @@ for kw in scheduler_reset drain_until_idle await_scheduler_run async_1m_coop ext
   fi
 done
 
-if ! grep -qF "shu_async_run_i32" "$SCHED_C" 2>/dev/null; then
-  echo "std-async-language gate FAIL: scheduler.c missing shu_async_run_i32" >&2
+if ! grep -qF "shux_async_run_i32" "$SCHED_C" 2>/dev/null; then
+  echo "std-async-language gate FAIL: scheduler.c missing shux_async_run_i32" >&2
   exit 1
 fi
 
@@ -62,7 +62,7 @@ MOD_OK=0
 SKIP_1M=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -71,25 +71,25 @@ resolve_shu() {
   return 1
 }
 
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-041: typeck + smoke (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-041: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   for su in "$RUN_SU" "$MOD_TEST_SU"; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "std-async-language gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
       std_alang_emit_report "fail" "$RUN_OK" "$MOD_OK" 1
       exit 1
     fi
   done
-  if std_alang_run_smoke "$SHU_BIN" "$RUN_SU" "/tmp/shu_async_alang_run"; then
+  if std_alang_run_smoke "$SHUX_BIN" "$RUN_SU" "/tmp/shux_async_alang_run"; then
     RUN_OK=1
   else
     std_alang_emit_report "fail" 0 0 1
     exit 1
   fi
-  if std_alang_run_smoke "$SHU_BIN" "$MOD_TEST_SU" "/tmp/shu_async_alang_mod"; then
+  if std_alang_run_smoke "$SHUX_BIN" "$MOD_TEST_SU" "/tmp/shux_async_alang_mod"; then
     MOD_OK=1
   else
     std_alang_emit_report "fail" "$RUN_OK" 0 1
@@ -98,12 +98,12 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
   SKIP_1M=0
   echo "=== STD-041: delegate 1M task stress ==="
   chmod +x tests/run-std-async-1m-gate.sh
-  if ! SHU="$SHU_BIN" ./tests/run-std-async-1m-gate.sh; then
+  if ! SHUX="$SHUX_BIN" ./tests/run-std-async-1m-gate.sh; then
     std_alang_emit_report "fail" "$RUN_OK" "$MOD_OK" 0
     exit 1
   fi
 else
-  echo "std-async-language gate SKIP smoke/1m (no native shu-c)" >&2
+  echo "std-async-language gate SKIP smoke/1m (no native shux-c)" >&2
 fi
 
 std_alang_emit_report "ok" "$RUN_OK" "$MOD_OK" "$SKIP_1M"

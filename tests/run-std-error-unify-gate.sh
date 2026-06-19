@@ -3,17 +3,17 @@
 #
 # 1) std-error-unify-v1.md + matrix
 # 2) error_base_* / <mod>_err_* 符号；sidecar 存在
-# 3) native shu：tests/std/error_unify_smoke.su
+# 3) native shux：tests/std/error_unify_smoke.sx
 #
 # 用法：./tests/run-std-error-unify-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
-MATRIX="${SHU_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
-ERR_MOD="${SHU_STD_ERROR_MOD:-std/error/mod.su}"
+DOC="${SHUX_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+MATRIX="${SHUX_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
+ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.sx}"
 MIN_MOD=6
-SMOKE="tests/std/error_unify_smoke.su"
+SMOKE="tests/std/error_unify_smoke.sx"
 
 native_shu() {
   local f="$1"
@@ -121,18 +121,18 @@ echo "std-error-unify manifest OK (modules=${MOD_N})"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-error-unify gate SKIP smoke (no native shu)" >&2
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-error-unify gate SKIP smoke (no native shux)" >&2
   echo "std-error-unify gate OK"
   exit 0
 fi
@@ -142,10 +142,10 @@ if [ ! -f "$SMOKE" ]; then
   exit 1
 fi
 
-OUT=/tmp/shu_std_error_unify
-echo "=== STD-011: error unify smoke (SHU=$SHU_BIN) ==="
-if ! "$SHU_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shu_std_error_unify_compile.log 2>&1; then
-  cat /tmp/shu_std_error_unify_compile.log >&2
+OUT=/tmp/shux_std_error_unify
+echo "=== STD-011: error unify smoke (SHUX=$SHUX_BIN) ==="
+if ! "$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_std_error_unify_compile.log 2>&1; then
+  cat /tmp/shux_std_error_unify_compile.log >&2
   exit 1
 fi
 EC=0

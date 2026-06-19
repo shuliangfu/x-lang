@@ -5,7 +5,7 @@ read_path_1h	## 1. 一小时阅读路径	阅读预算
 target_abc	## 2. 目标 A / B / C	三层目标
 overview_mermaid	```mermaid	总览图
 frontend_stages	## 4. 编译前端阶段	lex→link
-build_chain	## 5. 构建主链	build_shu_asm
+build_chain	## 5. 构建主链	build_shux_asm
 ci_gates	## 6. CI 与门禁	Tier P/B/A
 diagnose_flow	## 7. 失败诊断	stage-diag
 index_links	## 8. 索引	深入阅读

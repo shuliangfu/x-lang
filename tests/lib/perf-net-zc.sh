@@ -11,7 +11,7 @@
 #   perf_nz_report_emit case_id cycles bytes cycles_per_mib cap ref_case ref_cpm ok_flag
 #
 # 环境：
-#   SHU_NET_ZC_PREFIX — 默认 shu: [SHU_NET_ZC]
+#   SHUX_NET_ZC_PREFIX — 默认 shux: [SHUX_NET_ZC]
 
 # 解析 perf 可执行路径。
 perf_nz_resolve_bin() {
@@ -108,7 +108,7 @@ perf_nz_run_echo_cycles() {
   local server_c="$2"
   local port="$3"
   local srv spid rc
-  srv="$(mktemp /tmp/shu_nz_echo_srv.XXXXXX)"
+  srv="$(mktemp /tmp/shux_nz_echo_srv.XXXXXX)"
   if ! cc -O2 "$server_c" -o "$srv" 2>/dev/null; then
     return 1
   fi
@@ -172,7 +172,7 @@ perf_nz_report_emit() {
   local ref_case="$6"
   local ref_cpm="$7"
   local ok_flag="$8"
-  local prefix="${SHU_NET_ZC_PREFIX:-shu: [SHU_NET_ZC]}"
+  local prefix="${SHUX_NET_ZC_PREFIX:-shux: [SHUX_NET_ZC]}"
   printf '%s case=%s cycles=%s bytes=%s cycles_per_mib=%s cap_cycles_per_mib=%s ref_case=%s ref_cycles_per_mib=%s ok=%s\n' \
     "$prefix" "$case_id" "$cycles" "$bytes" "$cpm" "$cap_cpm" "${ref_case:--}" "${ref_cpm:--}" "$ok_flag" >&2
 }

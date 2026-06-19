@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
-MANIFEST="${SHU_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
-PROC_SU="std/process/mod.su"
+DOC="${SHUX_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
+MANIFEST="${SHUX_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
+PROC_SU="std/process/mod.sx"
 PROC_C="std/process/process.c"
 LIB="tests/lib/std-process-pipe-spawn.sh"
-PIPE_SU="tests/process/spawn_pipe_echo.su"
-WIN_SU="tests/process/spawn_wait_win.su"
+PIPE_SU="tests/process/spawn_pipe_echo.sx"
+WIN_SU="tests/process/spawn_wait_win.sx"
 
 # shellcheck source=tests/lib/std-process-pipe-spawn.sh
 . tests/lib/std-process-pipe-spawn.sh
@@ -65,7 +65,7 @@ WIN_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -74,23 +74,23 @@ resolve_shu() {
   return 1
 }
 
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-023/024: typeck (SHU=$SHU_BIN) ==="
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-023/024: typeck (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o 2>/dev/null || true
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if "$SHU_BIN" check -L . "$PIPE_SU" >/dev/null 2>&1; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if "$SHUX_BIN" check -L . "$PIPE_SU" >/dev/null 2>&1; then
     PIPE_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_pipe_echo typeck" >&2
-    "$SHU_BIN" check -L . "$PIPE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$PIPE_SU" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHU_BIN" check -L . "$WIN_SU" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$WIN_SU" >/dev/null 2>&1; then
     WIN_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_wait_win typeck" >&2
-    "$SHU_BIN" check -L . "$WIN_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$WIN_SU" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" "$PIPE_OK" 0 0
     exit 1
   fi
@@ -98,7 +98,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
   if [ -x tests/run-process.sh ]; then
     echo "=== STD-023/024: delegate run-process (runnable subset) ==="
     chmod +x tests/run-process.sh
-    if SHU="$SHU_BIN" ./tests/run-process.sh >/tmp/std_pps_process.log 2>&1; then
+    if SHUX="$SHUX_BIN" ./tests/run-process.sh >/tmp/std_pps_process.log 2>&1; then
       grep -qF 'process test OK' /tmp/std_pps_process.log || true
     else
       if ci_is_windows_msys; then
@@ -110,7 +110,7 @@ if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "std-process-pipe-spawn gate SKIP typeck (no native shu-c)" >&2
+  echo "std-process-pipe-spawn gate SKIP typeck (no native shux-c)" >&2
 fi
 
 std_pps_emit_report "ok" "$PIPE_OK" "$WIN_OK" "$SKIP"

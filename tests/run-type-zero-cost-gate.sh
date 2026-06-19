@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TYPE_ZC_DOC:-analysis/type-zero-cost-v1.md}"
-MANIFEST="${SHU_TYPE_ZC_MANIFEST:-tests/baseline/type-zero-cost.tsv}"
-BENCH="${SHU_TYPE_ZC_BENCH:-tests/baseline/type-zero-cost-bench.tsv}"
+DOC="${SHUX_TYPE_ZC_DOC:-analysis/type-zero-cost-v1.md}"
+MANIFEST="${SHUX_TYPE_ZC_MANIFEST:-tests/baseline/type-zero-cost.tsv}"
+BENCH="${SHUX_TYPE_ZC_BENCH:-tests/baseline/type-zero-cost-bench.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_BENCHES=6
@@ -18,8 +18,8 @@ MIN_BENCHES=6
 echo "=== TYPE-005: zero-cost abstraction manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
   analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
-  tests/bench/{loop_i32,mem_copy,struct_param,call_boundary}.su \
-  tests/bench/generic_id_i32.su tests/typeck/linear/move_ok.su \
+  tests/bench/{loop_i32,mem_copy,struct_param,call_boundary}.sx \
+  tests/bench/generic_id_i32.sx tests/typeck/linear/move_ok.sx \
   tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "type-zero-cost gate FAIL: missing $f" >&2

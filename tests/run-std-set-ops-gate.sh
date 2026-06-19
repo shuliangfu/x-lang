@@ -4,9 +4,9 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-set-ops-v1.md"
 MANIFEST="tests/baseline/std-set-ops-manifest.tsv"
-MOD_SU="std/set/mod.su"
+MOD_SU="std/set/mod.sx"
 LIB="tests/lib/std-set-ops.sh"
-SMOKE_SU="tests/set/ops.su"
+SMOKE_SU="tests/set/ops.sx"
 . "$LIB"
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$SMOKE_SU"; do
   [ -f "$f" ] || { echo "std-set-ops gate FAIL: missing $f" >&2; exit 1; }
@@ -16,9 +16,9 @@ sym_miss="$(std_set_ops_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_set_ops_run_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_set_ops_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

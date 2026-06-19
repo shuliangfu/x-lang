@@ -2,14 +2,14 @@
 # comp-regalloc-quality.sh — COMP-013 regalloc 质量波次 gate 辅助
 #
 # 用法（source 后）：
-#   comp_regalloc_quality_run_metric SHU script_path
+#   comp_regalloc_quality_run_metric SHUX script_path
 #   comp_regalloc_quality_emit_report status metrics_ok metrics_skip skip
 
-COMP_REGALLOC_QUALITY_PREFIX="${SHU_COMP013_PREFIX:-shu: [SHU_COMP013_REGALLOC_QUALITY]}"
+COMP_REGALLOC_QUALITY_PREFIX="${SHUX_COMP013_PREFIX:-shux: [SHUX_COMP013_REGALLOC_QUALITY]}"
 
-# 执行单条 quality 指标脚本；成功返回 0，SKIP（无 shu_asm）返回 2。
+# 执行单条 quality 指标脚本；成功返回 0，SKIP（无 shux_asm）返回 2。
 comp_regalloc_quality_run_metric() {
-  local shu="$1"
+  local shux="$1"
   local script="$2"
   local path="tests/$script"
   if [ ! -f "$path" ]; then
@@ -17,8 +17,8 @@ comp_regalloc_quality_run_metric() {
     return 1
   fi
   chmod +x "$path" 2>/dev/null || true
-  if ! SHU="$shu" "$path" >/dev/null 2>&1; then
-    SHU="$shu" "$path" 2>&1 | tail -6 >&2 || true
+  if ! SHUX="$shux" "$path" >/dev/null 2>&1; then
+    SHUX="$shux" "$path" 2>&1 | tail -6 >&2 || true
     return 1
   fi
   return 0

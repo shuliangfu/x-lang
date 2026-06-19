@@ -1,9 +1,9 @@
 /**
  * runtime.c — 编译器运行时（6.3/6.4：自 main.c 迁出的驱动逻辑与 C 辅助）
  *
- * 文件职责：提供 run_compiler_c、driver_*、pipeline_*、get_dep_* 及 read_file/preprocess/resolve_import 等；无 SHU_USE_SU_DRIVER 时提供弱符号 main_entry 转调 run_compiler_c，供默认构建链接；有 main.su 时由 main_entry 覆盖。
- * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.su 一一对应构建 shu。
- * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .su（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.su + compiler/build_tool。
+ * 文件职责：提供 run_compiler_c、driver_*、pipeline_*、get_dep_* 及 read_file/preprocess/resolve_import 等；无 SHUX_USE_SX_DRIVER 时提供弱符号 main_entry 转调 run_compiler_c，供默认构建链接；有 main.sx 时由 main_entry 覆盖。
+ * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.sx 一一对应构建 shux。
+ * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .sx（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.sx + compiler/build_tool。
  */
 
 #include "lexer/lexer.h"
@@ -14,8 +14,8 @@
 #include "ast.h"
 #include "target_cpu.h"
 #include "lsp/lsp_diag.h"
-#ifdef SHU_USE_SU_CODEGEN
-/* 6.2：.su codegen 入口；由 codegen.su 提供（库模块形式，符号带 codegen_ 前缀），转调 C codegen */
+#ifdef SHUX_USE_SX_CODEGEN
+/* 6.2：.sx codegen 入口；由 codegen.sx 提供（库模块形式，符号带 codegen_ 前缀），转调 C codegen */
 extern int codegen_codegen_entry_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_mods, const char **dep_import_paths, int ndep,
     codegen_is_func_used_fn is_func_used, codegen_is_mono_used_fn is_mono_used, codegen_is_type_used_fn is_type_used, void *dce_ctx,
     char (*emitted_type_names)[CODEGEN_EMITTED_TYPE_NAME_MAX], int *n_emitted_inout, int max_emitted);
@@ -45,17 +45,17 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
-/* 提前声明，供 SHU_USE_SU_PIPELINE 块内 pipeline_* 调用 */
+/* 提前声明，供 SHUX_USE_SX_PIPELINE 块内 pipeline_* 调用 */
 static char *read_file(const char *path, size_t *out_len);
 static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir, const char *import_path, char *path, size_t path_size);
-#ifdef SHU_USE_SU_TYPECK
-/* 6.1：.su typeck 入口；由 typeck.su 提供（库模块形式生成，符号为 typeck_typeck_entry），转调 C typeck_module */
+#ifdef SHUX_USE_SX_TYPECK
+/* 6.1：.sx typeck 入口；由 typeck.sx 提供（库模块形式生成，符号为 typeck_typeck_entry），转调 C typeck_module */
 extern int typeck_typeck_entry(struct ASTModule *mod, struct ASTModule **deps, int ndep);
 #endif
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
 /**
- * pipeline / run_compiler 路径在条目 251x/325x 等处调用，实现位于本文件后部 #if SHU_USE_SU_PIPELINE 静态区；
- * 此处前置声明以满足 C99「先声明后调用」，避免编译 runtime_su.o / runtime_driver.o 时出现隐式声明与类型冲突。
+ * pipeline / run_compiler 路径在条目 251x/325x 等处调用，实现位于本文件后部 #if SHUX_USE_SX_PIPELINE 静态区；
+ * 此处前置声明以满足 C99「先声明后调用」，避免编译 runtime_sx.o / runtime_driver.o 时出现隐式声明与类型冲突。
  */
 void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n);
 void driver_dep_seeded_clear_all(void);
@@ -63,24 +63,24 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
 int32_t driver_dep_slot_for_path(const char *path);
 #endif
 
-/** shu check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 SU pipeline 共用）。 */
+/** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 SU pipeline 共用）。 */
 static int driver_check_only_flag;
 void driver_check_only_set(int32_t v) { driver_check_only_flag = (v != 0); }
 int32_t driver_check_only_get(void) { return driver_check_only_flag ? 1 : 0; }
 
-/** `-freestanding` / SHU_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
+/** `-freestanding` / SHUX_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
 static int driver_freestanding_flag;
 void driver_freestanding_set(int32_t v) { driver_freestanding_flag = (v != 0); }
 int32_t driver_freestanding_get(void) { return driver_freestanding_flag ? 1 : 0; }
 
-/** M-6：`-fsanitize=address` / SHU_SANITIZE_ADDRESS=1 时强制数组/切片 INDEX 边界检查（仅 debug 插桩）。 */
+/** M-6：`-fsanitize=address` / SHUX_SANITIZE_ADDRESS=1 时强制数组/切片 INDEX 边界检查（仅 debug 插桩）。 */
 static int driver_sanitize_address_flag;
 void driver_sanitize_address_set(int32_t v) { driver_sanitize_address_flag = (v != 0); }
 int32_t driver_sanitize_address_get(void) {
     if (driver_sanitize_address_flag)
         return 1;
     {
-        const char *e = getenv("SHU_SANITIZE_ADDRESS");
+        const char *e = getenv("SHUX_SANITIZE_ADDRESS");
         if (e && e[0] && e[0] != '0')
             return 1;
     }
@@ -88,7 +88,7 @@ int32_t driver_sanitize_address_get(void) {
 }
 
 static int driver_fmt_check_only_flag;
-/** shu fmt --check：仅校验格式，不写回；需 reform 时返回 1。 */
+/** shux fmt --check：仅校验格式，不写回；需 reform 时返回 1。 */
 void driver_fmt_check_only_set(int32_t v) { driver_fmt_check_only_flag = (v != 0); }
 int32_t driver_fmt_check_only_get(void) { return driver_fmt_check_only_flag ? 1 : 0; }
 
@@ -97,7 +97,7 @@ __attribute__((weak)) int driver_check_quiet_ok_get(void) {
     return 0;
 }
 
-/** 统一 shu check 成功行；deno 风格批量 check 成功时由 fmt_check_cmd 保持静默。 */
+/** 统一 shux check 成功行；deno 风格批量 check 成功时由 fmt_check_cmd 保持静默。 */
 static void driver_print_check_ok(const char *input_path) {
     if (driver_check_quiet_ok_get())
         return;
@@ -105,10 +105,10 @@ static void driver_print_check_ok(const char *input_path) {
     fflush(stderr);
 }
 
-/** 非 0 时 pipeline_impl_typecheck 跳过 .su typeck（C 预检已通过，见 driver_run_asm_backend）。 */
+/** 非 0 时 pipeline_impl_typecheck 跳过 .sx typeck（C 预检已通过，见 driver_run_asm_backend）。 */
 static int driver_su_pipeline_skip_typeck_flag;
 
-/** 供 pipeline.su 读取：是否跳过 SU typeck。 */
+/** 供 pipeline.sx 读取：是否跳过 SU typeck。 */
 int32_t driver_su_pipeline_skip_typeck_get(void) {
     return driver_su_pipeline_skip_typeck_flag ? 1 : 0;
 }
@@ -118,10 +118,10 @@ void driver_su_pipeline_skip_typeck_set(int32_t v) {
     driver_su_pipeline_skip_typeck_flag = (v != 0);
 }
 
-/** 非 0 时 pipeline_impl_run_all 跳过 .su C codegen（用户 asm -o 由 asm_codegen_elf_o 单路径 emit）。 */
+/** 非 0 时 pipeline_impl_run_all 跳过 .sx C codegen（用户 asm -o 由 asm_codegen_elf_o 单路径 emit）。 */
 static int driver_su_pipeline_skip_codegen_flag;
 
-/** 供 pipeline.su 读取：是否跳过 SU C codegen。 */
+/** 供 pipeline.sx 读取：是否跳过 SU C codegen。 */
 int32_t driver_su_pipeline_skip_codegen_get(void) {
     return driver_su_pipeline_skip_codegen_flag ? 1 : 0;
 }
@@ -131,29 +131,29 @@ void driver_su_pipeline_skip_codegen_set(int32_t v) {
     driver_su_pipeline_skip_codegen_flag = (v != 0);
 }
 
-#if defined(SHU_USE_SU_PIPELINE) || defined(SHU_USE_SU_DRIVER)
-/** asm emit 桩判定：build_shu_asm 编 typeck/parser 等大模块前须设置 ctx（ast_pool.c）。形参用 void* 避免 GCC 15 参数列表内 struct 不可见导致 -Wincompatible-pointer-types 报错（Alpine/musl）。 */
+#if defined(SHUX_USE_SX_PIPELINE) || defined(SHUX_USE_SX_DRIVER)
+/** asm emit 桩判定：build_shux_asm 编 typeck/parser 等大模块前须设置 ctx（ast_pool.c）。形参用 void* 避免 GCC 15 参数列表内 struct 不可见导致 -Wincompatible-pointer-types 报错（Alpine/musl）。 */
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
-/** C 预检跳过 .su typeck 后：为块内 ARRAY_LIT 回填 resolved_type_ref（pipeline_glue.c）。 */
+/** C 预检跳过 .sx typeck 后：为块内 ARRAY_LIT 回填 resolved_type_ref（pipeline_glue.c）。 */
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
 /** asm emit 前：DOD-S1 SoA arr[i].field 补 stride（pipeline_glue.c）。 */
 extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
 
 /**
- * asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型（C typeck 路径无 .su typeck）。
+ * asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型（C typeck 路径无 .sx typeck）。
  */
 static void driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
     pipeline_fill_soa_field_access_for_asm_emit(module, arena);
 }
-#endif /* SHU_USE_SU_PIPELINE || SHU_USE_SU_DRIVER */
+#endif /* SHUX_USE_SX_PIPELINE || SHUX_USE_SX_DRIVER */
 
 /**
- * 非 0 时入口模块 typeck 走 C 的 typeck_module（build_shu_asm 编 typeck/parser 等大模块时设置，避免 .su typeck 栈过深）。
+ * 非 0 时入口模块 typeck 走 C 的 typeck_module（build_shux_asm 编 typeck/parser 等大模块时设置，避免 .sx typeck 栈过深）。
  */
 int32_t driver_typeck_force_c_enabled(void) {
-    const char *e = getenv("SHU_TYPECK_FORCE_C");
+    const char *e = getenv("SHUX_TYPECK_FORCE_C");
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
@@ -168,8 +168,8 @@ int driver_is_large_stack_thread(void) {
 }
 
 /**
- * 大模块 .su pipeline（parse/typeck/codegen）栈帧深；macOS 默认栈约 512KiB 易 segfault(139)。
- * run_compiler_c / run_compiler_su_path / driver_run_asm_backend 均在进入 pipeline 前调用。
+ * 大模块 .sx pipeline（parse/typeck/codegen）栈帧深；macOS 默认栈约 512KiB 易 segfault(139)。
+ * run_compiler_c / run_compiler_sx_path / driver_run_asm_backend 均在进入 pipeline 前调用。
  */
 static void driver_bump_stack_limit_if_needed(void) {
     struct rlimit rl;
@@ -179,7 +179,7 @@ static void driver_bump_stack_limit_if_needed(void) {
     }
 }
 
-/** 舒 IO 后端 .o 路径（分析/舒IO实现路线图.md 阶段 1）；源码在 std/io/io.c，产出 std/io/io.o（与 shu 所在目录的上一级 std/io/ 下）；C 与 -su 路径均需链入。 */
+/** 舒 IO 后端 .o 路径（分析/舒IO实现路线图.md 阶段 1）；源码在 std/io/io.c，产出 std/io/io.o（与 shux 所在目录的上一级 std/io/ 下）；C 与 -sx 路径均需链入。 */
 static const char *get_io_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
@@ -203,7 +203,7 @@ static const char *get_io_o_path(const char *argv0) {
     if (realpath(buf, resolved) != NULL) return resolved;
     if (realpath("std/io/io.o", resolved) != NULL) return resolved;
 #ifdef __APPLE__
-    /* macOS 下从 PATH 运行 shu 时 argv[0] 可能无目录，用 cwd 再试一次 */
+    /* macOS 下从 PATH 运行 shux 时 argv[0] 可能无目录，用 cwd 再试一次 */
     {
         char cwd_buf[512];
         if (getcwd(cwd_buf, sizeof(cwd_buf) - 16) != NULL) {
@@ -215,7 +215,7 @@ static const char *get_io_o_path(const char *argv0) {
     return buf;
 }
 
-#if defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_PIPELINE)
 /** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
 static int write_io_net_abi_inline(FILE *cf) {
     static const char *lines[] = {
@@ -239,34 +239,34 @@ static int write_io_net_abi_inline(FILE *cf) {
         "extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);\n",
         "extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int io_read_ptr_len(void);\n",
-        "extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shu_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern int32_t shu_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern uint8_t *shu_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
-        "extern int32_t shu_io_read_ptr_len(void);\n",
+        "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
+        "extern int32_t shux_io_read_ptr_len(void);\n",
         "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n",
-        "static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shu_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shu_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t std_io_driver_submit_read(ptrdiff_t buf, uint32_t timeout_ms) { return shu_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "static inline int32_t std_io_driver_submit_write(ptrdiff_t buf, uint32_t timeout_ms) { return shu_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "#define shu_io_register(buf) shu_io_register_buf(buf)\n",
-        "#define shu_io_submit_read(buf, timeout_m) shu_io_submit_read_buf(buf, timeout_m)\n",
-        "#define shu_io_submit_write(buf, timeout_m) shu_io_submit_write_buf(buf, timeout_m)\n",
-        "/* 撤销宏：SU codegen 会生成同名函数定义(shu_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
-        "#undef shu_io_register\n",
-        "#undef shu_io_submit_read\n",
-        "#undef shu_io_submit_write\n",
+        "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
+        "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t std_io_driver_submit_read(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "static inline int32_t std_io_driver_submit_write(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "#define shux_io_register(buf) shux_io_register_buf(buf)\n",
+        "#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)\n",
+        "#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)\n",
+        "/* 撤销宏：SU codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
+        "#undef shux_io_register\n",
+        "#undef shux_io_submit_read\n",
+        "#undef shux_io_submit_write\n",
         "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);\n",
-        "#define std_io_driver_driver_read_ptr_len shu_io_read_ptr_len\n",
-        "#define std_io_driver_driver_read_ptr shu_io_read_ptr\n",
+        "#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len\n",
+        "#define std_io_driver_driver_read_ptr shux_io_read_ptr\n",
         "#define driver_read_ptr_len std_io_driver_driver_read_ptr_len\n",
         "#define driver_read_ptr std_io_driver_driver_read_ptr\n",
         "#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf\n",
@@ -292,17 +292,17 @@ static int write_io_net_abi_inline(FILE *cf) {
         "#define std_io_core_io_write_batch io_write_batch\n",
         "#define std_io_core_io_read_fixed io_read_fixed\n",
         "#define std_io_core_io_write_fixed io_write_fixed\n",
-        "#define std_io_core_shu_io_register shu_io_register\n",
-        "#define std_io_core_shu_io_register_buffers shu_io_register_buffers\n",
-        "#define std_io_core_shu_io_unregister_buffers shu_io_unregister_buffers\n",
-        "#define std_io_core_shu_io_submit_read shu_io_submit_read\n",
-        "#define std_io_core_shu_io_read_ptr shu_io_read_ptr\n",
-        "#define std_io_core_shu_io_read_ptr_len shu_io_read_ptr_len\n",
-        "#define std_io_core_shu_io_submit_write shu_io_submit_write\n",
-        "#define std_io_core_shu_io_submit_read_batch shu_io_submit_read_batch\n",
-        "#define std_io_core_shu_io_submit_write_batch shu_io_submit_write_batch\n",
-        "#define std_io_core_shu_io_read_fixed shu_io_read_fixed\n",
-        "#define std_io_core_shu_io_write_fixed shu_io_write_fixed\n",
+        "#define std_io_core_shux_io_register shux_io_register\n",
+        "#define std_io_core_shux_io_register_buffers shux_io_register_buffers\n",
+        "#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers\n",
+        "#define std_io_core_shux_io_submit_read shux_io_submit_read\n",
+        "#define std_io_core_shux_io_read_ptr shux_io_read_ptr\n",
+        "#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len\n",
+        "#define std_io_core_shux_io_submit_write shux_io_submit_write\n",
+        "#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch\n",
+        "#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch\n",
+        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
+        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         "extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
         "extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
@@ -315,29 +315,29 @@ static int write_io_net_abi_inline(FILE *cf) {
         "struct std_net_TcpListener { int32_t fd; };\n",
         "struct std_net_UdpSocket { int32_t fd; };\n",
         "#if defined(__clang__)\n",
-        "#define shu_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#elif defined(__GNUC__)\n",
         "/* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */\n",
-        "#define shu_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
+        "#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
         "#else\n",
-        "#define shu_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#endif\n",
-        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shu_io_net_fd(x), a, b, c, d)\n",
-        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shu_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
         "/* SU 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */\n",
         "#undef std_io_driver_io_register_buffers_buf\n",
         "#undef std_io_read_fixed_fd\n",
         "#undef std_io_write_fixed_fd\n",
-        "#undef std_io_core_shu_io_register_buffers\n",
-        "#undef std_io_core_shu_io_unregister_buffers\n",
-        "#undef std_io_core_shu_io_read_fixed\n",
-        "#undef std_io_core_shu_io_write_fixed\n",
-        "#undef std_io_core_shu_io_wait_readable\n",
-        "#define std_io_core_shu_io_register_buffers io_register_buffers_4\n",
-        "#define std_io_core_shu_io_unregister_buffers io_unregister_buffers\n",
-        "#define std_io_core_shu_io_read_fixed shu_io_read_fixed\n",
-        "#define std_io_core_shu_io_write_fixed shu_io_write_fixed\n",
-        "#define std_io_core_shu_io_wait_readable io_wait_readable\n",
+        "#undef std_io_core_shux_io_register_buffers\n",
+        "#undef std_io_core_shux_io_unregister_buffers\n",
+        "#undef std_io_core_shux_io_read_fixed\n",
+        "#undef std_io_core_shux_io_write_fixed\n",
+        "#undef std_io_core_shux_io_wait_readable\n",
+        "#define std_io_core_shux_io_register_buffers io_register_buffers_4\n",
+        "#define std_io_core_shux_io_unregister_buffers io_unregister_buffers\n",
+        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
+        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
+        "#define std_io_core_shux_io_wait_readable io_wait_readable\n",
         "/* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */\n",
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
@@ -359,15 +359,15 @@ static int write_io_net_abi_inline(FILE *cf) {
         "#define handle_from_fd std_io_handle_from_fd\n",
         "#define submit_read_batch_buf std_io_submit_read_batch_buf\n",
         "#define submit_write_batch_buf std_io_submit_write_batch_buf\n",
-        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shu_io_net_fd(x), a, b, c, d)\n",
-        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shu_io_net_fd(x), a, b, c, d)\n",
+        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
         "/* 实际符号用 _real 后缀，避免宏 net_close_socket_c(x) 展开时再触发自身。 */\n",
         "extern int32_t net_close_socket_c_real(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
-        "#define net_close_socket_c(x) net_close_socket_c_real(shu_io_net_fd(x))\n",
-        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shu_io_net_fd(x))\n",
-        "#define net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shu_io_net_fd(x), n, t)\n",
-        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shu_io_net_fd(x), n, t)\n",
+        "#define net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
+        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
+        "#define net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
+        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
         "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n",
         "struct std_map_Map_i32_i32 { int32_t *keys; int32_t *vals; uint8_t *occupied; int32_t cap; int32_t len; };\n",
         "typedef struct std_io_driver_Buffer std_net_Buffer;\n",
@@ -423,7 +423,7 @@ static int write_io_net_abi_inline(FILE *cf) {
     }
     return 0;
 }
-#endif /* SHU_USE_SU_PIPELINE */
+#endif /* SHUX_USE_SX_PIPELINE */
 
 /** 由 argv0 推导仓库根目录（用于 -I 以便生成 .c 能 #include std/fs、path、map、error 等 ABI 头）；基于 get_io_o_path 的路径向上取三级目录。 */
 static const char *get_repo_root(const char *argv0) {
@@ -442,11 +442,11 @@ static const char *get_repo_root(const char *argv0) {
 }
 
 /**
- * parser.su 聚合成单文件 .c 写在 /tmp 时，#include "pipeline_glue.c" 会先搜含入文件目录（/tmp），
+ * parser.sx 聚合成单文件 .c 写在 /tmp 时，#include "pipeline_glue.c" 会先搜含入文件目录（/tmp），
  * find 不到编译器目录下的 glue；此处写出 #include "\"<绝对路径>/pipeline_glue.c\""。
- * argv0 一般为 shu 路径（如 ./shu）；与 pipeline_glue.c 同位于 compiler/ 目录即可解析。
+ * argv0 一般为 shux 路径（如 ./shux）；与 pipeline_glue.c 同位于 compiler/ 目录即可解析。
  */
-#if !defined(SHU_USE_SU_DRIVER)
+#if !defined(SHUX_USE_SX_DRIVER)
 static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
     static char canon[PATH_MAX];
@@ -454,8 +454,8 @@ static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     canon[0] = '\0';
     if (!out)
         return;
-    /* 缩减版：无 pipeline.su 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
-    fprintf(out, "\n#define SHU_PARSER_EXE_PIPELINE_GLUE 1\n");
+    /* 缩减版：无 pipeline.sx 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
+    fprintf(out, "\n#define SHUX_PARSER_EXE_PIPELINE_GLUE 1\n");
     if (!argv0 || !argv0[0]) {
         if (realpath("pipeline_glue.c", canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
@@ -481,7 +481,7 @@ static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
         fprintf(out, "\n#include \"%s\"\n", canon);
     }
 }
-#endif /* !SHU_USE_SU_DRIVER */
+#endif /* !SHUX_USE_SX_DRIVER */
 
 /** std.fs 高性能 .o 路径（mmap/munmap）；优先 cwd 以兼容多工作区，产出 std/fs/fs.o。 */
 static const char *get_std_fs_o_path(const char *argv0) {
@@ -949,15 +949,41 @@ static const char *get_std_ffi_o_path(const char *argv0) {
     return buf;
 }
 
-/** 根据 cwd 或 argv[0] 得到 std/sqlite/sqlite.o 路径；优先 cwd。链接时需 -lsqlite3（SQLite 构建）。 */
+/** 根据 cwd 或 argv[0] 得到 std/db/sqlite/sqlite.o 路径；优先 cwd。链接时需 -lsqlite3（SQLite 构建）。 */
 static const char *get_std_sqlite_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
-    if (realpath("std/sqlite/sqlite.o", resolved) != NULL) return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/std/sqlite/sqlite.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (realpath("std/db/sqlite/sqlite.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/std/db/sqlite/sqlite.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
         char *last = strrchr(buf, '/');
-        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/sqlite/sqlite.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/db/sqlite/sqlite.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** 根据 cwd 或 argv[0] 得到 std/db/kv/kv.o 路径。 */
+static const char *get_std_db_kv_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/db/kv/kv.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 18) != NULL) { size_t L = strlen(cwd); if (L + 18 <= sizeof(cwd)) { memcpy(cwd + L, "/std/db/kv/kv.o", 16); cwd[L+16] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/db/kv/kv.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+
+/** 根据 cwd 或 argv[0] 得到 std/db/arrow/arrow.o 路径。 */
+static const char *get_std_db_arrow_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/db/arrow/arrow.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/db/arrow/arrow.o", 20); cwd[L+20] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 26 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/db/arrow/arrow.o"); if (realpath(buf, resolved) != NULL) return resolved; }
     }
     return buf;
 }
@@ -1050,6 +1076,18 @@ static const char *get_std_http_o_path(const char *argv0) {
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
         char *last = strrchr(buf, '/');
         if (last && (size_t)(last - buf) + 22 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/http/http.o"); if (realpath(buf, resolved) != NULL) return resolved; }
+    }
+    return buf;
+}
+/** std.socketio（P3 可选；std/socketio/socketio.o）。 */
+static const char *get_std_socketio_o_path(const char *argv0) {
+    static char buf[PATH_MAX], resolved[PATH_MAX];
+    buf[0] = resolved[0] = '\0';
+    if (realpath("std/socketio/socketio.o", resolved) != NULL) return resolved;
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 28) != NULL) { size_t L = strlen(cwd); if (L + 28 <= sizeof(cwd)) { memcpy(cwd + L, "/std/socketio/socketio.o", 24); cwd[L+24] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+        char *last = strrchr(buf, '/');
+        if (last && (size_t)(last - buf) + 30 < sizeof(buf)) { *last = '\0'; strcat(buf, "/../std/socketio/socketio.o"); if (realpath(buf, resolved) != NULL) return resolved; }
     }
     return buf;
 }
@@ -1261,7 +1299,7 @@ static const char *get_runtime_panic_o_path(const char *argv0) {
     return buf;
 }
 
-/** crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 SHU_FREESTANDING 链入。 */
+/** crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 SHUX_FREESTANDING 链入。 */
 static const char *get_crt0_user_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
@@ -1304,7 +1342,7 @@ static const char *get_crt0_user_o_path(const char *argv0) {
     return buf;
 }
 
-/** freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 SHU_FREESTANDING syscall write。 */
+/** freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 SHUX_FREESTANDING syscall write。 */
 static const char *get_freestanding_io_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
@@ -1347,7 +1385,7 @@ static const char *get_freestanding_io_o_path(const char *argv0) {
     return buf;
 }
 
-/** SHU_FREESTANDING=1 或 `-freestanding`：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。 */
+/** SHUX_FREESTANDING=1 或 `-freestanding`：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。 */
 static int shu_ld_freestanding_enabled(void) {
     const char *e;
 #if !defined(__linux__)
@@ -1355,8 +1393,33 @@ static int shu_ld_freestanding_enabled(void) {
 #endif
     if (driver_freestanding_get())
         return 1;
-    e = getenv("SHU_FREESTANDING");
+    e = getenv("SHUX_FREESTANDING");
     return e && e[0] && e[0] != '0';
+}
+
+/**
+ * B-20 v1：POSIX read_file 扫描生成 C 是否含任一子串（替代 fopen/fgets 按需链判定）。
+ * needles 以 NULL 结尾，或传入 n_needles>0 的数组。
+ */
+static int generated_c_contains_any_substr(const char *c_path, const char **needles, int n_needles) {
+    size_t len = 0;
+    char *text;
+    int i;
+    int found = 0;
+
+    if (!c_path || !c_path[0] || !needles || n_needles <= 0)
+        return 0;
+    text = read_file(c_path, &len);
+    if (!text)
+        return 0;
+    for (i = 0; i < n_needles; i++) {
+        if (needles[i] && strstr(text, needles[i])) {
+            found = 1;
+            break;
+        }
+    }
+    free(text);
+    return found;
 }
 
 /**
@@ -1364,84 +1427,65 @@ static int shu_ld_freestanding_enabled(void) {
  * 全平台可用：仅扫描文本，不依赖 nm（Windows invoke_cc 亦需此判定）。
  */
 static int generated_c_needs_async_scheduler(const char *c_path) {
-    FILE *fp;
-    char buf[4096];
-    if (!c_path || !c_path[0])
-        return 0;
-    fp = fopen(c_path, "r");
-    if (!fp)
-        return 0;
-    while (fgets(buf, sizeof buf, fp)) {
-        if (strstr(buf, "shu_async_run_i32") || strstr(buf, "shu_async_cps_suspend")
-            || strstr(buf, "shu_async_task_submit") || strstr(buf, "shu_async_run_seed_")) {
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
-    return 0;
+    static const char *needles[] = {
+        "shux_async_run_i32", "shux_async_cps_suspend",
+        "shux_async_task_submit", "shux_async_run_seed_",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
 /**
  * 生成的 .c 是否引用 core.builtin 位运算 C 实现（按需链 core/builtin/builtin.o）。
  */
 static int generated_c_needs_core_builtin(const char *c_path) {
-    FILE *fp;
-    char buf[4096];
-    if (!c_path || !c_path[0])
-        return 0;
-    fp = fopen(c_path, "r");
-    if (!fp)
-        return 0;
-    while (fgets(buf, sizeof buf, fp)) {
-        if (strstr(buf, "shulang_builtin_clz_u32") || strstr(buf, "shulang_builtin_ctz_u32")
-            || strstr(buf, "shulang_builtin_popcount_u32")
-            || strstr(buf, "shulang_builtin_bswap_u32") || strstr(buf, "shulang_builtin_rotl_u32")
-            || strstr(buf, "shulang_builtin_rotr_u32")) {
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
-    return 0;
+    static const char *needles[] = {
+        "shux_builtin_clz_u32", "shux_builtin_ctz_u32", "shux_builtin_popcount_u32",
+        "shux_builtin_bswap_u32", "shux_builtin_rotl_u32", "shux_builtin_rotr_u32",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
 /** 扫描生成 C 是否引用 core.mem volatile/fence 符号（按需链 core/mem/mem.o）。 */
 static int generated_c_needs_core_mem(const char *c_path) {
-    FILE *fp;
-    char buf[4096];
-    if (!c_path || !c_path[0])
-        return 0;
-    fp = fopen(c_path, "r");
-    if (!fp)
-        return 0;
-    while (fgets(buf, sizeof buf, fp)) {
-        if (strstr(buf, "mem_volatile_") || strstr(buf, "mem_fence_") || strstr(buf, "mem_compiler_fence")) {
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
-    return 0;
+    static const char *needles[] = {
+        "mem_volatile_", "mem_fence_", "mem_compiler_fence",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
+/** 扫描生成 C 是否引用 std.db.kv 符号（按需链 std/db/kv/kv.o）。 */
+static int generated_c_needs_db_kv(const char *c_path) {
+    static const char *needles[] = {
+        "db_kv_open_c", "db_kv_put_c", "db_kv_get_c", "db_kv_append_ts_c",
+        "db_kv_wal_flush_c", "db_kv_compact_c", "db_kv_sst_level_count_c",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
+/** 扫描生成 C 是否引用 std.db.arrow 符号（按需链 std/db/arrow/arrow.o）。 */
+static int generated_c_needs_db_arrow(const char *c_path) {
+    static const char *needles[] = {
+        "arrow_column_", "arrow_batch_", "arrow_smoke_c",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
 /** 扫描生成 C 是否引用 core.slice C 辅助符号（按需链 core/slice/slice.o）。 */
 static int generated_c_needs_core_slice(const char *c_path) {
-    FILE *fp;
-    char buf[4096];
+    size_t len = 0;
+    char *text;
+    int found = 0;
+
     if (!c_path || !c_path[0])
         return 0;
-    fp = fopen(c_path, "r");
-    if (!fp)
+    text = read_file(c_path, &len);
+    if (!text)
         return 0;
-    while (fgets(buf, sizeof buf, fp)) {
-        if (strstr(buf, "core_subslice_") || (strstr(buf, "core_slice_") && strstr(buf, "_from_ptr_c"))) {
-            fclose(fp);
-            return 1;
-        }
-    }
-    fclose(fp);
-    return 0;
+    if (strstr(text, "core_subslice_")
+        || (strstr(text, "core_slice_") && strstr(text, "_from_ptr_c")))
+        found = 1;
+    free(text);
+    return found;
 }
 
 /** 根据仓库根或 cwd 得到 core/builtin/builtin.o 路径。 */
@@ -1543,87 +1587,94 @@ static int freestanding_o_needs_undef_sym(const char *o_path, const char *sym) {
     return 0;
 }
 
-/** 用户模块是否引用 shulang_sys_write（按需链 freestanding_io.o）。 */
+/** 用户模块是否引用 shux_sys_*（按需链 freestanding_io.o）。 */
 static int freestanding_user_o_needs_io(const char *user_o) {
-    return freestanding_o_needs_undef_sym(user_o, "shulang_sys_write");
+    return freestanding_o_needs_undef_sym(user_o, "shux_sys_write")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_read")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_close")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_exit")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_open")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_openat")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_mmap")
+        || freestanding_o_needs_undef_sym(user_o, "shux_sys_munmap");
 }
 
-/** 用户模块是否引用 shulang_panic_（按需链 runtime_panic.o）。 */
+/** 用户模块是否引用 shux_panic_（按需链 runtime_panic.o）。 */
 static int freestanding_user_o_needs_panic(const char *user_o) {
-    return freestanding_o_needs_undef_sym(user_o, "shulang_panic_");
+    return freestanding_o_needs_undef_sym(user_o, "shux_panic_");
 }
 
 /** 用户是否引用 std.async scheduler（按需链 std/async/scheduler.o）。 */
 static int asm_user_o_needs_async_scheduler(const char *user_o) {
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_coop_pingpong"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_coop_pingpong"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_coop_pingpong_jmp"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_coop_pingpong_jmp"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_cps_suspend"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_cps_suspend"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_phase_by_id"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_asm_frame_phase_by_id"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_store_from_ptr"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_asm_frame_store_from_ptr"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_load_to_ptr"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_asm_frame_load_to_ptr"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_asm_frame_reset_by_id"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_asm_frame_reset_by_id"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_cps_suspend_io"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_cps_suspend_io"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_i32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_i32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_task_submit"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_task_submit"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_task_submit_to"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_task_submit_to"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_scheduler_drain"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_scheduler_drain"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_drain"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_worker_drain"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_count"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_worker_count"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_worker_pending"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_worker_pending"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_queue_reset"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_queue_reset"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_scheduler_pending"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_scheduler_pending"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_wake_all"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_io_wake_all"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_waiters_pending"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_io_waiters_pending"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_io_completions_ready"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_io_completions_ready"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_set_i32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_set_i32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_reset"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_reset"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_i32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_push_i32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_u32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_push_u32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_push_i64"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_push_i64"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_valid"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_valid"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_i32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_take_i32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_u32"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_take_u32"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_async_run_seed_take_i64"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_async_run_seed_take_i64"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_submit_read_async"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_submit_read_async"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_read_async"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_complete_read_async"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_read_async_slot"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_complete_read_async_slot"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_submit_write_async"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_submit_write_async"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_write_async"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_complete_write_async"))
         return 1;
-    if (freestanding_o_needs_undef_sym(user_o, "shu_io_complete_write_async_slot"))
+    if (freestanding_o_needs_undef_sym(user_o, "shux_io_complete_write_async_slot"))
         return 1;
     return 0;
 }
@@ -1704,7 +1755,7 @@ static int shu_waitpid_retry(pid_t pid, int *status_out) {
         }
         if (w == -1 && errno == EINTR)
             continue;
-        perror("shu: waitpid");
+        perror("shux: waitpid");
         return -1;
     }
 }
@@ -1907,8 +1958,8 @@ static void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, con
 }
 
 /**
- * 若 net.o 仍为 TLS 桩且 SHU_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
- * SHU_NET_TLS：stub | openssl | mbedtls | auto（默认 auto）。
+ * 若 net.o 仍为 TLS 桩且 SHUX_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
+ * SHUX_NET_TLS：stub | openssl | mbedtls | auto（默认 auto）。
  */
 static void ensure_std_net_o_auto_tls(const char *repo_root) {
     char cmd[640];
@@ -1916,7 +1967,7 @@ static void ensure_std_net_o_auto_tls(const char *repo_root) {
     const char *mode;
     if (!repo_root || !repo_root[0])
         return;
-    mode = getenv("SHU_NET_TLS");
+    mode = getenv("SHUX_NET_TLS");
     if (!mode || !mode[0])
         return;
     if (strcmp(mode, "stub") == 0) {
@@ -1990,15 +2041,15 @@ static int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const
     return 0;
 }
 
-#if defined(SHU_USE_SU_PIPELINE) || defined(SHU_USE_SU_DRIVER)
+#if defined(SHUX_USE_SX_PIPELINE) || defined(SHUX_USE_SX_DRIVER)
 /**
- * 解析当前 shu 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
+ * 解析当前 shux 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
  * Linux 用 /proc/self/exe，macOS 用 _NSGetExecutablePath；皆可不依赖 argv0。
  * 再回退 realpath(argv0)（ argv0 须含路径分隔符）。
  * 成功返回 0 并将 NUL 结尾绝对路径写入 out_dir；失败返回 -1。
  */
 static int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
-    /* argv0 可选：macOS/Linux 优先用内核/ dyld 提供的可执行路径，裸 `shu`（PATH）或 argv 异常时仍可定位 compiler/。 */
+    /* argv0 可选：macOS/Linux 优先用内核/ dyld 提供的可执行路径，裸 `shux`（PATH）或 argv 异常时仍可定位 compiler/。 */
     if (!out_dir || out_dir_sz < 2)
         return -1;
     char buf[PATH_MAX];
@@ -2068,7 +2119,7 @@ static const char *get_runtime_asm_io_stubs_o_path(const char *argv0) {
 }
 
 /**
- * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shu 同目录，以便 ASM -o exe 链接能提供 shulang_panic_。
+ * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shux 同目录，以便 ASM -o exe 链接能提供 shux_panic_。
  * 与 verify-selfhost.sh / Makefile 规则对齐：Linux 优先 x86_64 .s；Apple arm64 优先 runtime_panic_arm64.c；否则 runtime_panic.c。
  * 成功返回 0；失败返回 -1 并已写 stderr。
  */
@@ -2077,7 +2128,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
         return 0;
     char comp[PATH_MAX];
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shu: cannot resolve compiler directory to build runtime_panic.o (try: make -C compiler runtime_panic.o)\n");
+        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_panic.o (try: make -C compiler runtime_panic.o)\n");
         return -1;
     }
     char out_o[PATH_MAX];
@@ -2102,7 +2153,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
 #endif
     if (!src) {
         if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_panic.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-            fprintf(stderr, "shu: runtime_panic source not found under %s/src/asm/\n", comp);
+            fprintf(stderr, "shux: runtime_panic source not found under %s/src/asm/\n", comp);
             return -1;
         }
         src = src_c;
@@ -2113,7 +2164,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
         return -1;
     pid_t pid = fork();
     if (pid < 0) {
-        perror("shu: fork (runtime_panic.o)");
+        perror("shux: fork (runtime_panic.o)");
         return -1;
     }
     if (pid == 0) {
@@ -2121,7 +2172,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
             execlp("cc", "cc", "-c", "-o", out_o, src, (char *)NULL);
         else
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src, (char *)NULL);
-        perror("shu: cc (runtime_panic.o)");
+        perror("shux: cc (runtime_panic.o)");
         _exit(127);
     }
     {
@@ -2129,12 +2180,12 @@ static int ensure_runtime_panic_o(const char *argv0) {
         if (shu_waitpid_retry(pid, &st) != 0)
             return -1;
         if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-            fprintf(stderr, "shu: failed to build runtime_panic.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+            fprintf(stderr, "shux: failed to build runtime_panic.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
             return -1;
         }
     }
     if (!asm_link_obj_skip_missing(get_runtime_panic_o_path(argv0))) {
-        fprintf(stderr, "shu: runtime_panic.o missing after cc -c (expected near %s)\n", out_o);
+        fprintf(stderr, "shux: runtime_panic.o missing after cc -c (expected near %s)\n", out_o);
         return -1;
     }
     return 0;
@@ -2143,7 +2194,7 @@ static int ensure_runtime_panic_o(const char *argv0) {
 #if defined(__linux__)
 /**
  * freestanding：仅当用户 .o 引用 panic 时才 ensure runtime_panic.o；非 freestanding 始终 ensure。
- * 须与 ensure_runtime_panic_o 同处 SHU_USE_SU_* 块，避免 plain runtime.o（shu-c）仅见前向声明而无定义导致链接失败。
+ * 须与 ensure_runtime_panic_o 同处 SHUX_USE_SX_* 块，避免 plain runtime.o（shux-c）仅见前向声明而无定义导致链接失败。
  */
 static int freestanding_prepare_runtime_panic_o(const char *argv0, const char *user_o) {
     if (shu_ld_freestanding_enabled()) {
@@ -2155,7 +2206,7 @@ static int freestanding_prepare_runtime_panic_o(const char *argv0, const char *u
 #endif /* __linux__ */
 
 /**
- * 若 crt0_user.o 尚不存在则从 crt0_user_x86_64.s 编译到 shu 同目录（仅 SHU_FREESTANDING 路径需要）。
+ * 若 crt0_user.o 尚不存在则从 crt0_user_x86_64.s 编译到 shux 同目录（仅 SHUX_FREESTANDING 路径需要）。
  * 成功返回 0；未启用 freestanding 时 no-op 返回 0。
  */
 static int ensure_crt0_user_o(const char *argv0) {
@@ -2167,25 +2218,25 @@ static int ensure_crt0_user_o(const char *argv0) {
     if (asm_link_obj_skip_missing(get_crt0_user_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shu: cannot resolve compiler directory to build crt0_user.o\n");
+        fprintf(stderr, "shux: cannot resolve compiler directory to build crt0_user.o\n");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/crt0_user.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/crt0_user_x86_64.s", comp) >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        fprintf(stderr, "shu: crt0_user source not found at %s\n", src_s);
+        fprintf(stderr, "shux: crt0_user source not found at %s\n", src_s);
         return -1;
     }
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shu: fork (crt0_user.o)");
+            perror("shux: fork (crt0_user.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("shu: cc (crt0_user.o)");
+            perror("shux: cc (crt0_user.o)");
             _exit(127);
         }
         {
@@ -2193,20 +2244,20 @@ static int ensure_crt0_user_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shu: failed to build crt0_user.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                fprintf(stderr, "shux: failed to build crt0_user.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(get_crt0_user_o_path(argv0))) {
-        fprintf(stderr, "shu: crt0_user.o missing after cc -c (expected %s)\n", out_o);
+        fprintf(stderr, "shux: crt0_user.o missing after cc -c (expected %s)\n", out_o);
         return -1;
     }
     return 0;
 }
 
 /**
- * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHU_FREESTANDING 链入 shulang_sys_write）。
+ * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHUX_FREESTANDING 链入 shux_sys_write）。
  */
 static int ensure_freestanding_io_o(const char *argv0) {
     char comp[PATH_MAX];
@@ -2217,25 +2268,25 @@ static int ensure_freestanding_io_o(const char *argv0) {
     if (asm_link_obj_skip_missing(get_freestanding_io_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shu: cannot resolve compiler directory to build freestanding_io.o\n");
+        fprintf(stderr, "shux: cannot resolve compiler directory to build freestanding_io.o\n");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/freestanding_io.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/freestanding_io_x86_64.s", comp) >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        fprintf(stderr, "shu: freestanding_io source not found at %s\n", src_s);
+        fprintf(stderr, "shux: freestanding_io source not found at %s\n", src_s);
         return -1;
     }
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shu: fork (freestanding_io.o)");
+            perror("shux: fork (freestanding_io.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("shu: cc (freestanding_io.o)");
+            perror("shux: cc (freestanding_io.o)");
             _exit(127);
         }
         {
@@ -2243,13 +2294,13 @@ static int ensure_freestanding_io_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shu: failed to build freestanding_io.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                fprintf(stderr, "shux: failed to build freestanding_io.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(get_freestanding_io_o_path(argv0))) {
-        fprintf(stderr, "shu: freestanding_io.o missing after cc -c (expected %s)\n", out_o);
+        fprintf(stderr, "shux: freestanding_io.o missing after cc -c (expected %s)\n", out_o);
         return -1;
     }
     return 0;
@@ -2276,7 +2327,7 @@ typedef struct ShuAsmLdStdLinkFlags {
 } ShuAsmLdStdLinkFlags;
 
 /** 将 path 复制到 bank 下一槽（path 常为栈上 snprintf 结果）；成功返回持久指针；满则返回 NULL。 */
-static const char *shu_asm_ld_bank_push(struct ShuAsmLdPathBank *b, const char *path) {
+static const char *shux_asm_ld_bank_push(struct ShuAsmLdPathBank *b, const char *path) {
     if (!b || !path || !path[0] || b->n >= (int)(sizeof(b->slots) / sizeof(b->slots[0])))
         return NULL;
     if (snprintf(b->slots[b->n], sizeof(b->slots[0]), "%s", path) >= (int)sizeof(b->slots[0]))
@@ -2287,7 +2338,7 @@ static const char *shu_asm_ld_bank_push(struct ShuAsmLdPathBank *b, const char *
 /**
  * 在每个 -L（lib root）根下尝试 rel（如 std/io/io.o）；命中则拷入 bank 并返回指针。
  */
-static const char *shu_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, struct ShuAsmLdPathBank *bank) {
+static const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, struct ShuAsmLdPathBank *bank) {
     int i;
     char tmp[PATH_MAX];
     if (!rel || !rel[0] || !bank || !lib_roots || n_lib_roots <= 0)
@@ -2309,15 +2360,15 @@ static const char *shu_asm_ld_try_under_lib_roots(const char *rel, const char **
         }
         if (!asm_link_obj_skip_missing(tmp))
             continue;
-        return shu_asm_ld_bank_push(bank, tmp);
+        return shux_asm_ld_bank_push(bank, tmp);
     }
     return NULL;
 }
 
 /**
- * argv0/getcwd 推导失败时构造 «compiler-dir/shu» 供 get_*_path 走 ../std/…；shu 毋须真实存在。
+ * argv0/getcwd 推导失败时构造 «compiler-dir/shux» 供 get_*_path 走 ../std/…；shux 毋须真实存在。
  */
-static const char *shu_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+static const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
     char comp_dir[PATH_MAX];
     int nn;
     if (link_argv0 && link_argv0[0])
@@ -2327,7 +2378,7 @@ static const char *shu_asm_ld_effective_link_argv0(const char *link_argv0, char 
     syn_buf[0] = '\0';
     if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
         return NULL;
-    nn = snprintf(syn_buf, syn_sz, "%s/shu", comp_dir);
+    nn = snprintf(syn_buf, syn_sz, "%s/shux", comp_dir);
     if (nn < 0 || (size_t)nn >= syn_sz)
         return NULL;
     return syn_buf;
@@ -2346,21 +2397,36 @@ static void asm_ld_append_on_demand_user_objs(const char *link_argv0, const char
     if (asm_user_o_needs_async_scheduler(user_o)) {
         p = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
         if (!p && bank)
-            p = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
         if (p && *la < max_la - 1)
             argv[(*la)++] = p;
     }
     if (asm_user_o_needs_core_mem(user_o)) {
         p = asm_link_obj_skip_missing(get_core_mem_o_path(NULL));
         if (!p && bank)
-            p = shu_asm_ld_try_under_lib_roots("core/mem/mem.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots("core/mem/mem.o", lib_roots, n_lib_roots, bank);
         if (p && *la < max_la - 1)
             argv[(*la)++] = p;
     }
     if (asm_user_o_needs_core_slice(user_o)) {
         p = asm_link_obj_skip_missing(get_core_slice_o_path(NULL));
         if (!p && bank)
-            p = shu_asm_ld_try_under_lib_roots("core/slice/slice.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots("core/slice/slice.o", lib_roots, n_lib_roots, bank);
+        if (p && *la < max_la - 1)
+            argv[(*la)++] = p;
+    }
+    if (freestanding_o_needs_undef_sym(user_o, "db_kv_open_c") || freestanding_o_needs_undef_sym(user_o, "db_kv_get_c")) {
+        p = asm_link_obj_skip_missing(get_std_db_kv_o_path(link_argv0));
+        if (!p && bank)
+            p = shux_asm_ld_try_under_lib_roots("std/db/kv/kv.o", lib_roots, n_lib_roots, bank);
+        if (p && *la < max_la - 1)
+            argv[(*la)++] = p;
+    }
+    if (freestanding_o_needs_undef_sym(user_o, "arrow_column_i32_create_c")
+        || freestanding_o_needs_undef_sym(user_o, "arrow_column_adopt_f32_c")) {
+        p = asm_link_obj_skip_missing(get_std_db_arrow_o_path(link_argv0));
+        if (!p && bank)
+            p = shux_asm_ld_try_under_lib_roots("std/db/arrow/arrow.o", lib_roots, n_lib_roots, bank);
         if (p && *la < max_la - 1)
             argv[(*la)++] = p;
     }
@@ -2390,61 +2456,61 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_io_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/io/io.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/io/io.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_io = 1;
     }
     p = asm_link_obj_skip_missing(get_runtime_asm_io_stubs_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
     p = asm_link_obj_skip_missing(get_std_fs_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/fs/fs.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/fs/fs.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_process_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/process/process.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/process/process.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_string_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/string/string.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/string/string.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_heap_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/heap/heap.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/heap/heap.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_path_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/path/path.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/path/path.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_runtime_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/runtime/runtime.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/runtime/runtime.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_runtime_panic_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("compiler/runtime_panic.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("compiler/runtime_panic.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_net_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/net/net.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/net/net.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_net = 1;
@@ -2452,7 +2518,7 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_thread_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/thread/thread.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/thread/thread.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_thread = 1;
@@ -2460,25 +2526,25 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_time_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/time/time.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/time/time.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_random_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/random/random.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/random/random.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_env_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/env/env.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/env/env.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_sync_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/sync/sync.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/sync/sync.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_sync = 1;
@@ -2486,37 +2552,37 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_encoding_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/encoding/encoding.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/encoding/encoding.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_base64_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/base64/base64.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/base64/base64.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_crypto_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/crypto/crypto.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/crypto/crypto.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_log_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/log/log.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/log/log.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_atomic_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/atomic/atomic.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/atomic/atomic.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_channel_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/channel/channel.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/channel/channel.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_channel = 1;
@@ -2524,19 +2590,19 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_backtrace_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/backtrace/backtrace.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/backtrace/backtrace.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_hash_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/hash/hash.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/hash/hash.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_math_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/math/math.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/math/math.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_math = 1;
@@ -2544,19 +2610,19 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_sort_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/sort/sort.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/sort/sort.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_ffi_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/ffi/ffi.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/ffi/ffi.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_sqlite_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/sqlite/sqlite.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/db/sqlite/sqlite.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_sqlite = 1;
@@ -2564,7 +2630,7 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_elf_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/elf/elf.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/elf/elf.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_elf = 1;
@@ -2572,25 +2638,25 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_json_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/json/json.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/json/json.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_csv_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/csv/csv.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/csv/csv.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_regex_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/regex/regex.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/regex/regex.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_compress_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/compress/compress.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/compress/compress.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_compress = 1;
@@ -2598,13 +2664,13 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_unicode_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/unicode/unicode.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/unicode/unicode.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_dynlib_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/dynlib/dynlib.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/dynlib/dynlib.o", lib_roots, n_lib_roots, bank);
     if (p) {
         if (*la < max_la - 1) argv[(*la)++] = p;
         if (flags) flags->have_dynlib = 1;
@@ -2612,79 +2678,85 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_http_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/http/http.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/http/http.o", lib_roots, n_lib_roots, bank);
+    if (p && *la < max_la - 1)
+        argv[(*la)++] = p;
+
+    p = asm_link_obj_skip_missing(get_std_socketio_o_path(link_argv0));
+    if (!p && bank)
+        p = shux_asm_ld_try_under_lib_roots("std/socketio/socketio.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_tar_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/tar/tar.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/tar/tar.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_simd_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/simd/simd.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/simd/simd.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_context_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/context/context.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/context/context.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_datetime_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/datetime/datetime.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/datetime/datetime.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_uuid_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/uuid/uuid.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/uuid/uuid.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_url_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/url/url.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/url/url.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_cli_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/cli/cli.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/cli/cli.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_security_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/security/security.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/security/security.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_config_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/config/config.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/config/config.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_cache_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/cache/cache.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/cache/cache.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_trace_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/trace/trace.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/trace/trace.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_task_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/task/task.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/task/task.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1) {
         const char *task_o = p;
         argv[(*la)++] = p;
@@ -2694,7 +2766,7 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
             if (!sched)
                 sched = asm_link_obj_skip_missing(get_std_async_scheduler_o_path(link_argv0));
             if (!sched && bank)
-                sched = shu_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+                sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
             if (sched && *la < max_la - 1)
                 argv[(*la)++] = sched;
         }
@@ -2702,19 +2774,19 @@ static void asm_ld_append_std_objs(const char *link_argv0, const char **lib_root
 
     p = asm_link_obj_skip_missing(get_std_schema_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/schema/schema.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/schema/schema.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 
     p = asm_link_obj_skip_missing(get_std_test_o_path(link_argv0));
     if (!p && bank)
-        p = shu_asm_ld_try_under_lib_roots("std/test/test.o", lib_roots, n_lib_roots, bank);
+        p = shux_asm_ld_try_under_lib_roots("std/test/test.o", lib_roots, n_lib_roots, bank);
     if (p && *la < max_la - 1)
         argv[(*la)++] = p;
 }
 
 /** ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld（逻辑供 invoke_ld 与 driver_asm_invoke_ld 共用；调用方须先 ensure_runtime_panic_o）。 */
-#define SHU_LD_ARGV_CAP 96
+#define SHUX_LD_ARGV_CAP 96
 static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0,
     const char **lib_roots, int n_lib_roots) {
     char link_argv_syn[PATH_MAX];
@@ -2723,19 +2795,19 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
     (void)target;
     if (!o_path || !exe_path)
         return -1;
-    link_eff = shu_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
+    link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
 
     pid_t pid = fork();
     if (pid < 0) {
-        perror("shu: fork (ld)");
+        perror("shux: fork (ld)");
         return -1;
     }
     if (pid == 0) {
         struct ShuAsmLdPathBank ld_bank_child;
         struct ShuAsmLdStdLinkFlags ldflags;
-        const char *argv[SHU_LD_ARGV_CAP];
+        const char *argv[SHUX_LD_ARGV_CAP];
         int la = 0;
         int need_pt;
         memset(&ld_bank_child, 0, sizeof ld_bank_child);
@@ -2745,16 +2817,16 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
-            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
+            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP);
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
-            if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
+            if (ldflags.have_math && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if (ldflags.have_sqlite && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if (ldflags.have_sqlite && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
-            if (need_pt && la < SHU_LD_ARGV_CAP - 1)
+            if (need_pt && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-pthread";
             /* clang 已隐式链接 libSystem，勿再传 -lSystem，否则 ld 报 duplicate libraries */
             argv[la] = NULL;
@@ -2768,22 +2840,22 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
-            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
+            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP);
             need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
-            if (ldflags.have_math && la < SHU_LD_ARGV_CAP - 1)
+            if (ldflags.have_math && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if (ldflags.have_sqlite && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if (ldflags.have_sqlite && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
-            if (need_pt && la < SHU_LD_ARGV_CAP - 1)
+            if (need_pt && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-pthread";
-            if (la < SHU_LD_ARGV_CAP - 1)
+            if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lSystem";
             argv[la] = NULL;
             execvp("ld", (char *const *)argv);
-            perror("shu: ld/clang");
+            perror("shux: ld/clang");
             _exit(127);
         }
 #endif
@@ -2799,14 +2871,14 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = "/entry:_main";
             argv[la++] = out_opt;
             argv[la++] = o_path;
-            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
-            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
+            asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
             execvp("lld-link", (char *const *)argv);
             argv[0] = "link";
             execvp("link", (char *const *)argv);
-            perror("shu: lld-link/link");
+            perror("shux: lld-link/link");
             _exit(127);
         }
         la = 0;
@@ -2825,40 +2897,40 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = "ld";
             argv[la++] = "-nostdlib";
             argv[la++] = "-static";
-            if (la < SHU_LD_ARGV_CAP - 1)
+            if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "--gc-sections";
             argv[la++] = "-o";
             argv[la++] = exe_path;
             crt0_p = asm_link_obj_skip_missing(get_crt0_user_o_path(link_eff));
             if (!crt0_p) {
-                fprintf(stderr, "shu: freestanding link missing crt0_user.o\n");
+                fprintf(stderr, "shux: freestanding link missing crt0_user.o\n");
                 _exit(127);
             }
             panic_p = NULL;
             if (need_panic)
                 panic_p = asm_link_obj_skip_missing(get_runtime_panic_o_path(link_eff));
             if (need_panic && !panic_p) {
-                fprintf(stderr, "shu: freestanding link missing runtime_panic.o (user references shulang_panic_)\n");
+                fprintf(stderr, "shux: freestanding link missing runtime_panic.o (user references shux_panic_)\n");
                 _exit(127);
             }
             io_p = NULL;
             if (need_io)
                 io_p = asm_link_obj_skip_missing(get_freestanding_io_o_path(link_eff));
             if (need_io && !io_p) {
-                fprintf(stderr, "shu: freestanding link missing freestanding_io.o (user references shulang_sys_write)\n");
+                fprintf(stderr, "shux: freestanding link missing freestanding_io.o (user references shux_sys_write)\n");
                 _exit(127);
             }
-            if (la < SHU_LD_ARGV_CAP - 1)
+            if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = crt0_p;
-            if (need_panic && la < SHU_LD_ARGV_CAP - 1)
+            if (need_panic && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = panic_p;
-            if (need_io && la < SHU_LD_ARGV_CAP - 1)
+            if (need_io && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = io_p;
-            if (la < SHU_LD_ARGV_CAP - 1)
+            if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = o_path;
             argv[la] = NULL;
             execvp("ld", (char *const *)argv);
-            perror("shu: ld (freestanding)");
+            perror("shux: ld (freestanding)");
             _exit(127);
         }
 #endif
@@ -2872,11 +2944,11 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            if (la < SHU_LD_ARGV_CAP - 1)
+            if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
             argv[la] = NULL;
             execvp("gcc", (char *const *)argv);
-            perror("shu: gcc (minimal user.o)");
+            perror("shux: gcc (minimal user.o)");
             _exit(127);
         }
 #endif
@@ -2892,74 +2964,74 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
         argv[la++] = "-o";
         argv[la++] = exe_path;
         argv[la++] = o_path;
-        asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP, &ldflags);
-        asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHU_LD_ARGV_CAP);
+        asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+        asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, &ld_bank_child, argv, &la, SHUX_LD_ARGV_CAP);
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
         if (ldflags.have_io) {
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-luring";
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
-            if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-luring";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
+            if ((ldflags.have_math) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
 #if defined(__linux__)
-            if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
+            if ((ldflags.have_dynlib) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else if (ldflags.have_net && need_pt) {
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
-            if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
+            if ((ldflags.have_math) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
 #if defined(__linux__)
-            if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
+            if ((ldflags.have_dynlib) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else if (ldflags.have_net) {
-            if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
+            if ((ldflags.have_math) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
 #if defined(__linux__)
-            if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
+            if ((ldflags.have_dynlib) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else if (need_pt) {
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
-            if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lpthread";
+            if ((ldflags.have_math) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
 #if defined(__linux__)
-            if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
+            if ((ldflags.have_dynlib) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lc";
         } else {
-            if ((ldflags.have_math) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lm";
+            if ((ldflags.have_math) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lm";
             if (ldflags.have_compress)
-                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHU_LD_ARGV_CAP);
-            if ((ldflags.have_sqlite) && la < SHU_LD_ARGV_CAP - 1)
+                asm_ld_append_compress_libs(get_std_compress_o_path(link_eff), (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+            if ((ldflags.have_sqlite) && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lsqlite3";
 #if defined(__linux__)
-            if ((ldflags.have_dynlib) && la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
+            if ((ldflags.have_dynlib) && la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-ldl";
 #endif
             /* 与 invoke_cc 一致：Unix 上最终链 libc，解析仅含 std 各 .o 时仍可能出现的 C 符号 */
 #if defined(__linux__) || defined(__APPLE__)
-            if (la < SHU_LD_ARGV_CAP - 1) argv[la++] = "-lc";
+            if (la < SHUX_LD_ARGV_CAP - 1) argv[la++] = "-lc";
 #endif
         }
         argv[la] = NULL;
 #if defined(__linux__)
         execvp("gcc", (char *const *)argv);
-        perror("shu: gcc");
+        perror("shux: gcc");
 #else
         execvp("ld", (char *const *)argv);
-        perror("shu: ld");
+        perror("shux: ld");
 #endif
         _exit(127);
     }
@@ -2969,24 +3041,24 @@ static int asm_invoke_ld_platform(const char *o_path, const char *exe_path, cons
             return -1;
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
             if (WIFSIGNALED(status))
-                fprintf(stderr, "shu: ld failed (signal %d)\n", WTERMSIG(status));
+                fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
             else
-                fprintf(stderr, "shu: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
             return -1;
         }
     }
     return 0;
 }
-#undef SHU_LD_ARGV_CAP
+#undef SHUX_LD_ARGV_CAP
 
-#endif /* SHU_USE_SU_PIPELINE || SHU_USE_SU_DRIVER */
+#endif /* SHUX_USE_SX_PIPELINE || SHUX_USE_SX_DRIVER */
 
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
 #include <stdint.h>
 #include <stddef.h>
-/* 9.1：纯 .su 流水线；由 pipeline_gen.c 提供；6.1 dep 通过 ctx 传入，.su 不再 extern get_dep_*。 */
-struct shulang_slice_uint8_t { uint8_t *data; size_t length; };
-/* 与 ast.su PipelineDepCtx 布局一致（含 4MiB 内嵌源缓冲）；dep/lib_root 在 C grow sidecar（ast_pool.c）。 */
+/* 9.1：纯 .sx 流水线；由 pipeline_gen.c 提供；6.1 dep 通过 ctx 传入，.sx 不再 extern get_dep_*。 */
+struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+/* 与 ast.sx PipelineDepCtx 布局一致（含 4MiB 内嵌源缓冲）；dep/lib_root 在 C grow sidecar（ast_pool.c）。 */
 #define PIPELINE_CTX_BUF_SIZE 4194304
 struct ast_Module;
 struct ast_ASTArena;
@@ -3023,7 +3095,7 @@ struct ast_PipelineDepCtx {
     uint8_t entry_module_import_path_mirror[64];
     int32_t entry_module_import_path_len;
 };
-/** 读 SHU_ASM_ENTRY_MODULE_ONLY 环境变量；定义见本文件后部。 */
+/** 读 SHUX_ASM_ENTRY_MODULE_ONLY 环境变量；定义见本文件后部。 */
 static int asm_entry_module_only_from_env(void);
 /** asm 单模块 -o 的 dep 预跑（定义在 parser_ParseIntoResult 之后）。 */
 static int pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
@@ -3037,11 +3109,11 @@ extern void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int3
 extern void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_ASTArena *a);
 extern void ast_pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
 extern void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
-/* 形参顺序与 pipeline.su 一致：第一为 module，第二为 arena，避免 entry 被错位导致 main 空体。 */
-extern int pipeline_run_su_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf, void *ctx);
+/* 形参顺序与 pipeline.sx 一致：第一为 module，第二为 arena，避免 entry 被错位导致 main 空体。 */
+extern int pipeline_run_sx_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf, void *ctx);
 extern int pipeline_pipeline_impl_typecheck(void *module, void *arena, void *ctx);
 
-/** pipeline_run_su_pipeline 线程参数：在独立 pthread 栈上跑 .su 流水线，避免 macOS 主线程 8MiB 硬顶导致 typeck 等大模块 segfault。 */
+/** pipeline_run_sx_pipeline 线程参数：在独立 pthread 栈上跑 .sx 流水线，避免 macOS 主线程 8MiB 硬顶导致 typeck 等大模块 segfault。 */
 typedef struct {
     void *module;
     void *arena;
@@ -3052,7 +3124,7 @@ typedef struct {
     int result;
 } PipelineRunSuArgs;
 
-/** 当前 pipeline 入口源码长度；供 .su 按体积跳过大库 merge/typeck。 */
+/** 当前 pipeline 入口源码长度；供 .sx 按体积跳过大库 merge/typeck。 */
 static size_t g_pipeline_entry_source_len;
 
 void driver_set_pipeline_entry_source_len(size_t len) {
@@ -3060,29 +3132,29 @@ void driver_set_pipeline_entry_source_len(size_t len) {
 }
 
 size_t driver_pipeline_entry_source_len(void) {
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] entry_source_len_global=%zu\n", g_pipeline_entry_source_len);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] entry_source_len_global=%zu\n", g_pipeline_entry_source_len);
     return g_pipeline_entry_source_len;
 }
 
-/** 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.su 路径上易 segfault）。 */
+/** 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.sx 路径上易 segfault）。 */
 int32_t driver_typeck_skip_large_entry(void) {
     int32_t skip = g_pipeline_entry_source_len > 150000u ? 1 : 0;
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] typeck_skip_large_entry=%d len=%zu\n", (int)skip,
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_skip_large_entry=%d len=%zu\n", (int)skip,
                 g_pipeline_entry_source_len);
     return skip;
 }
 
 /**
- * build_shu_asm 单模块 -o：跳过 .su typeck，仅 parse+asm codegen（C typeck 已覆盖语义；避免 elf/types 等 SU 假阳性）。
+ * build_shux_asm 单模块 -o：跳过 .sx typeck，仅 parse+asm codegen（C typeck 已覆盖语义；避免 elf/types 等 SU 假阳性）。
  */
 int32_t driver_asm_build_skip_typeck(void) {
-    const char *e = getenv("SHU_ASM_BUILD_SKIP_TYPECK");
+    const char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
-/** asm 用户程序：std.io/fs/net dep 跳过 .su typeck（符号由 io.o/fs.o/net.o 提供；见 ast_pool.c）。 */
+/** asm 用户程序：std.io/fs/net dep 跳过 .sx typeck（符号由 io.o/fs.o/net.o 提供；见 ast_pool.c）。 */
 extern int32_t pipeline_asm_user_dep_skip_su_typeck(uint8_t *path);
 extern int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path);
 extern void pipeline_asm_seed_std_net_struct_layouts(struct ast_Module *m);
@@ -3095,7 +3167,7 @@ static int asm_user_std_dep_skip_su_typeck(const char *dep_path) {
     return pipeline_asm_user_dep_skip_su_typeck((uint8_t *)dep_path) != 0;
 }
 
-/** std.net dep 路径：须 co-emit listen/accept_many 等，但 seed .su typeck 对 stream_* 假阳性。 */
+/** std.net dep 路径：须 co-emit listen/accept_many 等，但 seed .sx typeck 对 stream_* 假阳性。 */
 static int asm_user_std_net_dep_path(const char *dep_path) {
     if (!dep_path || dep_path[0] == '\0')
         return 0;
@@ -3117,19 +3189,19 @@ static int asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
  * typeck 第二遍 EMIT_HEAVY：pipeline 跳过文本 asm codegen，由 runtime asm_codegen_elf_o 单路径真 emit。
  */
 int32_t driver_asm_entry_emit_heavy(void) {
-    const char *e = getenv("SHU_ASM_ENTRY_EMIT_HEAVY");
+    const char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
-/** pthread 入口：执行 pipeline_run_su_pipeline 并将返回码写入 args->result。 */
-static void *pipeline_run_su_thread_fn(void *arg) {
+/** pthread 入口：执行 pipeline_run_sx_pipeline 并将返回码写入 args->result。 */
+static void *pipeline_run_sx_thread_fn(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     driver_set_pipeline_entry_source_len(a->source_len);
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] pipeline thread start len=%zu\n", a->source_len);
-    a->result = pipeline_run_su_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] pipeline thread done ec=%d\n", a->result);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] pipeline thread start len=%zu\n", a->source_len);
+    a->result = pipeline_run_sx_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] pipeline thread done ec=%d\n", a->result);
     return NULL;
 }
 
@@ -3156,7 +3228,7 @@ static void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
 }
 
 /**
- * 在 256MiB 栈 pthread 上执行 fn(arg)；SHU_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
+ * 在 256MiB 栈 pthread 上执行 fn(arg)；SHUX_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，C typeck / asm_codegen_elf_o 深递归须与大 pipeline 同路径。
  */
 static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
@@ -3164,7 +3236,7 @@ static void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_t tid;
     void *stk = NULL;
     size_t stack_sz = (size_t)256 * 1024 * 1024;
-    const char *no_large = getenv("SHU_PIPELINE_NO_LARGE_STACK");
+    const char *no_large = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
     typedef struct {
         void *(*fn)(void *);
         void *arg;
@@ -3221,10 +3293,10 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
 }
 
 /**
- * 在 64MiB 栈的 pthread 上调用 pipeline_run_su_pipeline；失败时回退到当前线程直接调用。
- * 大模块（typeck/parser）经 .su 编译后栈帧极深，setrlimit 无法突破 macOS RLIMIT_STACK 硬顶时需此路径。
+ * 在 64MiB 栈的 pthread 上调用 pipeline_run_sx_pipeline；失败时回退到当前线程直接调用。
+ * 大模块（typeck/parser）经 .sx 编译后栈帧极深，setrlimit 无法突破 macOS RLIMIT_STACK 硬顶时需此路径。
  */
-static int pipeline_run_su_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+static int pipeline_run_sx_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     driver_set_pipeline_entry_source_len(source_len);
     PipelineRunSuArgs args;
@@ -3235,14 +3307,14 @@ static int pipeline_run_su_pipeline_large_stack(void *module, void *arena, const
     args.out_buf = out_buf;
     args.ctx = ctx;
     args.result = -99;
-    driver_run_thread_on_large_stack(pipeline_run_su_thread_fn, &args);
+    driver_run_thread_on_large_stack(pipeline_run_sx_thread_fn, &args);
     if (args.result == -99)
-        return pipeline_run_su_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+        return pipeline_run_sx_pipeline(module, arena, source_data, source_len, out_buf, ctx);
     return args.result;
 }
 
 /**
- * dep 预跑：完整 pipeline parse，跳过 .su typeck/codegen；供 std.net 等 co-emit 前填 funcs（parse_only 对库模块常 funcs=0）。
+ * dep 预跑：完整 pipeline parse，跳过 .sx typeck/codegen；供 std.net 等 co-emit 前填 funcs（parse_only 对库模块常 funcs=0）。
  */
 static int pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
@@ -3257,7 +3329,7 @@ static int pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena,
     }
     driver_su_pipeline_skip_typeck_set(1);
     driver_su_pipeline_skip_codegen_set(1);
-    ec = pipeline_run_su_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    ec = pipeline_run_sx_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
     driver_su_pipeline_skip_codegen_set(0);
     driver_su_pipeline_skip_typeck_set(0);
     if (pctx)
@@ -3267,26 +3339,26 @@ static int pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena,
 }
 
 /**
- * build_shu_asm / -backend asm 的 dep 预跑：仅 parse+typeck 填 dep 槽，跳过 codegen（避免对 codegen.su 等大 dep 生成 C/asm 导致栈溢出）。
+ * build_shux_asm / -backend asm 的 dep 预跑：仅 parse+typeck 填 dep 槽，跳过 codegen（避免对 codegen.sx 等大 dep 生成 C/asm 导致栈溢出）。
  */
 static int pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int saved = driver_check_only_get();
     driver_check_only_set(1);
-    int ec = pipeline_run_su_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    int ec = pipeline_run_sx_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
     driver_check_only_set(saved ? 1 : 0);
     return ec;
 }
 
-/** preprocess.su 生成；与 preprocess_su.o 中 typeck_* 名同源实现，pipeline_gen.c 导出此符号（shu_su 仅链 pipeline_su.o 时须调此名）。 */
-extern int32_t preprocess_preprocess_su_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+/** preprocess.sx 生成；与 preprocess_su.o 中 typeck_* 名同源实现，pipeline_gen.c 导出此符号（shu_su 仅链 pipeline_sx.o 时须调此名）。 */
+extern int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                             int32_t out_cap);
 extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
 
 /**
- * 对原始 .su 做 preprocess.su 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
+ * 对原始 .sx 做 preprocess.sx 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
  *
  * 【返回】0 成功；否则写 stderr（过大或预处理失败）、不分配 *out。
  */
@@ -3295,7 +3367,7 @@ static int su_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len,
     int di;
     if (raw_len > (size_t)PIPELINE_CTX_BUF_SIZE) {
         fprintf(stderr,
-            "shu: entry file too large for .su preprocessor (%zu > %d): '%s'\n",
+            "shux: entry file too large for .sx preprocessor (%zu > %d): '%s'\n",
             raw_len,
             PIPELINE_CTX_BUF_SIZE,
             path_diag ? path_diag : "?");
@@ -3308,13 +3380,13 @@ static int su_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len,
     for (di = 0; di < ndefines; di++)
         if (defines && defines[di])
             preprocess_define_add(defines[di]);
-    int32_t n = preprocess_preprocess_su_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)PIPELINE_CTX_BUF_SIZE);
+    int32_t n = preprocess_sx_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)PIPELINE_CTX_BUF_SIZE);
     if (n < 0) {
         free(scratch);
         if (preprocess_if_stack_len() != 0)
             fprintf(stderr, "preprocess: unclosed #if\n");
         else
-            fprintf(stderr, "shu: .su preprocess failed for '%s'\n", path_diag ? path_diag : "?");
+            fprintf(stderr, "shux: .sx preprocess failed for '%s'\n", path_diag ? path_diag : "?");
         return -1;
     }
     if (preprocess_if_stack_len() != 0) {
@@ -3339,7 +3411,7 @@ static int su_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len,
 extern int driver_get_module_num_funcs(void *m);
 extern int driver_get_module_main_func_index(void *m);
 
-/** 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.su pipeline_dep_ctx_* 对齐）。 */
+/** 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.sx pipeline_dep_ctx_* 对齐）。 */
 static void runtime_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
     int i;
@@ -3361,7 +3433,7 @@ static void pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const
 static const char *runtime_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
 static void runtime_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void *mod, void *ar);
 
-/** 6.1：填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .su 内 resolve_path_su 使用。 */
+/** 6.1：填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .sx 内 resolve_path_su 使用。 */
 static void pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
     ctx->loaded_len = 0;
     ctx->preprocess_len = 0;
@@ -3384,14 +3456,14 @@ static void pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const
 }
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
-extern int32_t pipeline_typeck_su_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
+extern int32_t pipeline_typeck_sx_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
 /** 7.4：ELF .o 路径；由 Makefile 追加到 pipeline_gen.c，用于分配 ElfCodegenCtx */
 extern size_t pipeline_sizeof_elf_ctx(void);
-/** 7.4：直接生成 ELF64 .o 到 out_buf（仅 x86_64）；由 asm.su 提供，pipeline_su.o 链接；ElfCodegenCtx 在 platform/elf.su，C 侧为 platform_elf_ElfCodegenCtx。out_buf 用 void* 避免不同 GCC 下「形参内 struct 声明不可见」导致 -Wincompatible-pointer-types。 */
+/** 7.4：直接生成 ELF64 .o 到 out_buf（仅 x86_64）；由 asm.sx 提供，pipeline_sx.o 链接；ElfCodegenCtx 在 platform/elf.sx，C 侧为 platform_elf_ElfCodegenCtx。out_buf 用 void* 避免不同 GCC 下「形参内 struct 声明不可见」导致 -Wincompatible-pointer-types。 */
 struct platform_elf_ElfCodegenCtx;
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 
-/** asm_codegen_elf_o 大栈线程参数（与 pipeline_run_su_pipeline_large_stack 同策略）。 */
+/** asm_codegen_elf_o 大栈线程参数（与 pipeline_run_sx_pipeline_large_stack 同策略）。 */
 typedef struct {
     void *module;
     void *arena;
@@ -3427,7 +3499,7 @@ static int32_t asm_asm_codegen_elf_o_large_stack(void *module, void *arena, void
 }
 extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
 
-#if !defined(SHU_USE_SU_DRIVER)
+#if !defined(SHUX_USE_SX_DRIVER)
 /** 判断 -o 路径是否写出对象文件（.o / .obj 则写 ELF/Mach-O/COFF 而非 .s） */
 static int output_is_elf_o(const char *path) {
     if (!path) return 0;
@@ -3460,7 +3532,7 @@ static int invoke_ld(const char *o_path, const char *exe_path, const char *targe
     const char *link_eff;
     if (!o_path || !exe_path)
         return -1;
-    link_eff = shu_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
+    link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
 #if defined(__linux__)
@@ -3479,12 +3551,12 @@ static int invoke_ld(const char *o_path, const char *exe_path, const char *targe
     }
 #endif
     if (shu_ld_freestanding_enabled() && (use_macho_o || use_coff_o)) {
-        fprintf(stderr, "shu: -freestanding / SHU_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
+        fprintf(stderr, "shux: -freestanding / SHUX_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
         return -1;
     }
     return asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
 }
-#endif /* !SHU_USE_SU_DRIVER */
+#endif /* !SHUX_USE_SX_DRIVER */
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
 /* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..len-1] 写到 FILE* */
@@ -3497,7 +3569,7 @@ struct codegen_CodegenOutBuf {
 _Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == SU_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: len must follow data[] for ABI");
 #endif
 /** asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42），便于 pipeline 不 import asm 仍可构建 shu_su。
- * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.su 导出的 asm_codegen_ast 重复定义。 */
+ * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.sx 导出的 asm_codegen_ast 重复定义。 */
 __attribute__((weak)) int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
     (void)module;
     (void)arena;
@@ -3524,30 +3596,30 @@ __attribute__((weak)) int32_t asm_codegen_ast(void *module, void *arena, struct 
     out->len = (int32_t)n;
     return 0;
 }
-/* 诊断 -su 失败阶段：pipeline_gen.c 中 parser 符号 */
+/* 诊断 -sx 失败阶段：pipeline_gen.c 中 parser 符号 */
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
 extern void parser_parse_into_init(void *arena, void *module);
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
-extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shulang_slice_uint8_t *source);
+extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
 
 /**
- * SHU_ASM_ENTRY_MODULE_ONLY=1 时 dep 预跑：仅 parse_into，不做 dep 全量 .su typeck（各 dep 将单独 -o）。
- * collect_deps_transitive 已 preprocess；勿二次 preprocess_preprocess_su_buf（会破坏源码导致 parse 失败）。
+ * SHUX_ASM_ENTRY_MODULE_ONLY=1 时 dep 预跑：仅 parse_into，不做 dep 全量 .sx typeck（各 dep 将单独 -o）。
+ * collect_deps_transitive 已 preprocess；勿二次 preprocess_sx_buf（会破坏源码导致 parse 失败）。
  */
 static int pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
     struct parser_ParseIntoResult pr;
-    struct shulang_slice_uint8_t slice;
+    struct shux_slice_uint8_t slice;
     if (!dep_mod || !dep_arena || !src || len == 0)
         return -1;
     parser_parse_into_init(dep_mod, dep_arena);
     slice.data = (uint8_t *)src;
     slice.length = len;
     pr = parser_parse_into(dep_arena, dep_mod, &slice);
-    /* parser.su：ok==0 成功；ok==-2 库模块单函数失败但 import 槽仍可用（与 collect_deps 一致）。 */
+    /* parser.sx：ok==0 成功；ok==-2 库模块单函数失败但 import 槽仍可用（与 collect_deps 一致）。 */
     return (pr.ok == 0 || pr.ok == -2) ? 0 : -1;
 }
 
-/** asm 单模块构建：dep 预跑仍走 pipeline（含 preprocess）；入口/dep 的 .su typeck 由 SHU_ASM_BUILD_SKIP_TYPECK 在 pipeline.su 内跳过。 */
+/** asm 单模块构建：dep 预跑仍走 pipeline（含 preprocess）；入口/dep 的 .sx typeck 由 SHUX_ASM_BUILD_SKIP_TYPECK 在 pipeline.sx 内跳过。 */
 static int pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     (void)asm_entry_module_only_from_env;
@@ -3556,19 +3628,19 @@ static int pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, 
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t i, uint8_t *out);
-extern int32_t parser_diag_fail_at_token_kind(struct shulang_slice_uint8_t *source);
-extern int32_t parser_diag_token_after_collect_imports(struct shulang_slice_uint8_t *source, void *module);
-extern int32_t pipeline_parse_one_function_ok(struct shulang_slice_uint8_t *source, void *arena);
-extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shulang_slice_uint8_t *source, void *ctx);
-#ifdef SHU_USE_SU_DRIVER
-/* run_compiler_c 由 C 在此定义，转调 main.su 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
+extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
+extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module);
+extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
+extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
+#ifdef SHUX_USE_SX_DRIVER
+/* run_compiler_c 由 C 在此定义，转调 main.sx 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
 int run_compiler_c(int argc, char **argv) {
   return main_run_compiler_c(argc, (uint8_t *)argv);
 }
 #endif
-/* 6.1 后 typeck/pipeline 用 ctx，以下仅保留供旧 pipeline_gen.c 或未链入 .su 时兼容；可逐步移除。 */
-#if defined(SHU_USE_SU_PIPELINE) || defined(SHU_USE_SU_DRIVER)
+/* 6.1 后 typeck/pipeline 用 ctx，以下仅保留供旧 pipeline_gen.c 或未链入 .sx 时兼容；可逐步移除。 */
+#if defined(SHUX_USE_SX_PIPELINE) || defined(SHUX_USE_SX_DRIVER)
 void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
 int typeck_ndep;
@@ -3600,16 +3672,16 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
 }
 #endif
 
-#ifdef SHU_USE_SU_PREPROCESS
-/* 6.4：预处理由 preprocess.su（与 pipeline 同源的 preprocess_preprocess_su_buf）提供；ndefines==0 走 .su，否则回退 C preprocess_c_fallback。 */
-#ifndef SHU_USE_SU_PIPELINE
-extern int32_t typeck_preprocess_su(struct shulang_slice_uint8_t *source, struct shulang_slice_uint8_t *out_buf);
+#ifdef SHUX_USE_SX_PREPROCESS
+/* 6.4：预处理由 preprocess.sx（与 pipeline 同源的 preprocess_sx_buf）提供；ndefines==0 走 .sx，否则回退 C preprocess_c_fallback。 */
+#ifndef SHUX_USE_SX_PIPELINE
+extern int32_t typeck_preprocess_sx(struct shux_slice_uint8_t *source, struct shux_slice_uint8_t *out_buf);
 #endif
 static char *preprocess_via_su(const char *source, size_t source_len, const char **defines, int ndefines,
     size_t *out_length) {
     if (!source) return NULL;
     size_t slen = source_len ? source_len : strlen(source);
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     /* 与 pipeline/import 路径一致，避免 slice API 与 buf 路径行为分叉；-D 经 preprocess_define_* 注入。 */
     char *out = NULL;
     size_t olen = 0;
@@ -3623,9 +3695,9 @@ static char *preprocess_via_su(const char *source, size_t source_len, const char
     if (out_cap < slen) return NULL;
     uint8_t *out_buf = (uint8_t *)malloc(out_cap);
     if (!out_buf) return NULL;
-    struct shulang_slice_uint8_t src_slice = { (uint8_t *)source, slen };
-    struct shulang_slice_uint8_t out_slice = { out_buf, out_cap };
-    int32_t ret = typeck_preprocess_su(&src_slice, &out_slice);
+    struct shux_slice_uint8_t src_slice = { (uint8_t *)source, slen };
+    struct shux_slice_uint8_t out_slice = { out_buf, out_cap };
+    int32_t ret = typeck_preprocess_sx(&src_slice, &out_slice);
     if (ret < 0) {
         free(out_buf);
         return NULL;
@@ -3647,14 +3719,14 @@ char *preprocess(const char *source, size_t source_len, const char **defines, in
     if (!source) return NULL;
     /*
      * driver -o / run-preprocess：仅用 C 实现（#if 栈、边界诊断与 -D 一致）。
-     * pipeline/import 仍直接调 preprocess_preprocess_su_buf（su_preprocess_raw_to_malloc）。
+     * pipeline/import 仍直接调 preprocess_sx_buf（su_preprocess_raw_to_malloc）。
      * 勿在 C 失败后再试 SU：部分链上 SU 可能 passthrough 源码，导致 unclosed #if 仍被编过。
      */
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
 }
 #endif
 
-/* 阶段 5.3 / 6.2：.su 内写编排逻辑，C 只提供最小 I/O 原语。 */
+/* 阶段 5.3 / 6.2：.sx 内写编排逻辑，C 只提供最小 I/O 原语。 */
 #define PIPELINE_IMPORT_BUF_CAP 4194304
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
@@ -3678,7 +3750,7 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
         pipeline_dep_module_slots[i] = modules ? modules[i] : NULL;
     }
 }
-/** 原语：仅把 import 路径解析成文件系统路径并写入内部 buffer，返回 0 成功 -1 失败。由 .su 决定何时、对谁调用。 */
+/** 原语：仅把 import 路径解析成文件系统路径并写入内部 buffer，返回 0 成功 -1 失败。由 .sx 决定何时、对谁调用。 */
 int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
     char path_c[65];
     size_t k = 0;
@@ -3692,24 +3764,24 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
     resolve_import_file_path_multi(lib_roots, 1, pipeline_entry_dir, path_c, pipeline_resolved_path_buf, sizeof(pipeline_resolved_path_buf));
     return 0;
 }
-/** 原语：把当前 resolved 路径对应的文件读入并预处理，结果写入 loaded buffer，返回 0 成功 -1 失败。由 .su 在 resolve_path 之后按需调用。 */
+/** 原语：把当前 resolved 路径对应的文件读入并预处理，结果写入 loaded buffer，返回 0 成功 -1 失败。由 .sx 在 resolve_path 之后按需调用。 */
 int32_t pipeline_read_file(void) {
     size_t raw_len = 0;
     char *raw = read_file(pipeline_resolved_path_buf, &raw_len);
     if (!raw) {
-        fprintf(stderr, "shu: cannot open import (tried %s)\n", pipeline_resolved_path_buf);
+        fprintf(stderr, "shux: cannot open import (tried %s)\n", pipeline_resolved_path_buf);
         return -1;
     }
     char *prep = NULL;
     size_t prep_len = 0;
     if (su_preprocess_raw_to_malloc((const unsigned char *)raw, raw_len, &prep, &prep_len, pipeline_resolved_path_buf, NULL, 0) != 0) {
         free(raw);
-        fprintf(stderr, "shu: preprocess failed for import\n");
+        fprintf(stderr, "shux: preprocess failed for import\n");
         return -1;
     }
     free(raw);
     if (!prep) {
-        fprintf(stderr, "shu: preprocess failed for import\n");
+        fprintf(stderr, "shux: preprocess failed for import\n");
         return -1;
     }
     if (prep_len > pipeline_loaded_import_cap || !pipeline_loaded_import_buf) {
@@ -3743,7 +3815,7 @@ void pipeline_set_ndep(int32_t n) {
     typeck_ndep = n <= 32 ? n : 32;
 }
 int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
-    struct shulang_slice_uint8_t slice = {
+    struct shux_slice_uint8_t slice = {
         .data = pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL,
         .length = pipeline_loaded_import_len
     };
@@ -3753,11 +3825,11 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     return pr.ok == 0 ? 0 : -1;
 }
 
-/** 6.1 原 C 桥接：已由 pipeline.su 的 pipeline_parse_into_buf（调 parser.parse_into_buf）替代，此处不再编译以免重复符号。 */
+/** 6.1 原 C 桥接：已由 pipeline.sx 的 pipeline_parse_into_buf（调 parser.parse_into_buf）替代，此处不再编译以免重复符号。 */
 #if 0
 int32_t pipeline_parse_into_buf(void *arena, void *module, const uint8_t *buf, int32_t buf_len) {
     if (!buf) return -1;
-    struct shulang_slice_uint8_t slice = { .data = (uint8_t *)buf, .length = (size_t)buf_len };
+    struct shux_slice_uint8_t slice = { .data = (uint8_t *)buf, .length = (size_t)buf_len };
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
@@ -3770,7 +3842,7 @@ int32_t pipeline_parse_into_buf(void *arena, void *module, const uint8_t *buf, i
 
 /**
  * 读入整个文件为 NUL 结尾的堆分配字符串。
- * 功能说明：用于读入 .su 源码或 import 的模块文件，供 Lexer/Parser 使用。
+ * 功能说明：用于读入 .sx 源码或 import 的模块文件，供 Lexer/Parser 使用。
  * 参数：path 文件系统路径，只读；须可访问且为普通文件。
  * 返回值：成功返回 malloc 的缓冲区（含结尾 NUL），调用方须 free；失败（无法打开、seek/read 错误）返回 NULL。
  * 错误与边界：空文件返回非 NULL 且 buf[0]='\0'；path 为 NULL 或不可打开时返回 NULL。
@@ -3780,8 +3852,8 @@ int32_t pipeline_parse_into_buf(void *arena, void *module, const uint8_t *buf, i
 static char *read_file(const char *path, size_t *out_len);
 
 /**
- * 将 import 路径字符串转为库根下的 .su 文件路径。
- * 功能说明：例如 "core.types" 在 lib_root 为 "." 时得到 "./core/types.su"，供 read_file 打开。
+ * 将 import 路径字符串转为库根下的 .sx 文件路径。
+ * 功能说明：例如 "core.types" 在 lib_root 为 "." 时得到 "./core/types.sx"，供 read_file 打开。
  * 参数：lib_root 标准库根目录，若为 NULL 或空则视为 "."；import_path 如 "core.types"；path 输出缓冲区；path_size 缓冲区字节数，建议至少 512。
  * 返回值：无；结果写入 path，保证 NUL 结尾（若 path_size>0）。
  * 错误与边界：path_size 过小可能导致截断；import_path 中的 '.' 均替换为 '/'。
@@ -3797,12 +3869,12 @@ static void import_path_to_file_path(const char *lib_root, const char *import_pa
             path[off++] = *s;
     }
     if (off + 4 <= path_size)
-        snprintf(path + off, path_size - off, ".su");
+        snprintf(path + off, path_size - off, ".sx");
 }
 
 /**
  * 从入口文件路径得到其所在目录，用于多文件时从同目录解析 import（阶段 7.3）。
- * 参数：input_path 入口 .su 路径；entry_dir 输出缓冲区；size 缓冲区大小。
+ * 参数：input_path 入口 .sx 路径；entry_dir 输出缓冲区；size 缓冲区大小。
  * 无目录时写入 "."。
  */
 static void get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
@@ -3822,7 +3894,7 @@ static void get_entry_dir(const char *input_path, char *entry_dir, size_t size) 
 }
 
 /**
- * 判断 import 字符串是否为文件路径（相对/绝对/.su），而非逻辑模块名 std.io。
+ * 判断 import 字符串是否为文件路径（相对/绝对/.sx），而非逻辑模块名 std.io。
  */
 static int import_path_is_file_path(const char *import_path) {
     if (!import_path || !import_path[0])
@@ -3832,13 +3904,13 @@ static int import_path_is_file_path(const char *import_path) {
     if (strchr(import_path, '/') != NULL)
         return 1;
     size_t n = strlen(import_path);
-    if (n >= 3 && strcmp(import_path + n - 3, ".su") == 0)
+    if (n >= 3 && strcmp(import_path + n - 3, ".sx") == 0)
         return 1;
     return 0;
 }
 
 /**
- * 将相对/绝对文件路径解析为可打开的 .su 路径（相对 entry_dir）。
+ * 将相对/绝对文件路径解析为可打开的 .sx 路径（相对 entry_dir）。
  */
 static void resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
     char tmp[1024];
@@ -3862,8 +3934,8 @@ static void resolve_file_import_path(const char *entry_dir, const char *import_p
 }
 
 /**
- * 解析 import 路径到实际 .su 文件路径：依次在 lib_roots[0..n_lib_roots-1] 下查找；先试单文件再试 mod.su；若均无且为单段路径则试 entry_dir（多文件 7.3）。支持多 -L（9.1 联调 std+lexer）。
- * 参数：lib_roots 库根数组；n_lib_roots 个数；entry_dir 入口所在目录（可为 NULL 或 ""）；import_path 如 "foo" 或 "core.types" 或 "../lib/helper.su"；path 输出；path_size 缓冲区大小。
+ * 解析 import 路径到实际 .sx 文件路径：依次在 lib_roots[0..n_lib_roots-1] 下查找；先试单文件再试 mod.sx；若均无且为单段路径则试 entry_dir（多文件 7.3）。支持多 -L（9.1 联调 std+lexer）。
+ * 参数：lib_roots 库根数组；n_lib_roots 个数；entry_dir 入口所在目录（可为 NULL 或 ""）；import_path 如 "foo" 或 "core.types" 或 "../lib/helper.sx"；path 输出；path_size 缓冲区大小。
  */
 static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir, const char *import_path, char *path, size_t path_size) {
     if (import_path_is_file_path(import_path)) {
@@ -3880,11 +3952,11 @@ static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roo
         const char *lib_root = lib_roots[r] && lib_roots[r][0] ? lib_roots[r] : ".";
         import_path_to_file_path(lib_root, import_path, path, path_size);
         if (access(path, R_OK) == 0) return;
-        /* 单段 import（如 preprocess）：再试 lib_root/import/import.su，与 pipeline.su 内 resolve 一致 */
+        /* 单段 import（如 preprocess）：再试 lib_root/import/import.sx，与 pipeline.sx 内 resolve 一致 */
         if (strchr(import_path, '.') == NULL && path_size >= 16) {
             int n = (int)strlen(import_path);
             if (n > 0 && n < 64) {
-                (void)snprintf(path, path_size, "%s/%.64s/%.64s.su", lib_root, import_path, import_path);
+                (void)snprintf(path, path_size, "%s/%.64s/%.64s.sx", lib_root, import_path, import_path);
                 if (access(path, R_OK) == 0) return;
             }
         }
@@ -3893,7 +3965,7 @@ static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roo
             for (const char *s = import_path; *s && off + 1 < path_size; s++)
                 path[off++] = (char)(*s == '.' ? '/' : *s);
             if (off + 9 <= path_size)
-                (void)snprintf(path + off, path_size - off, "/mod.su");
+                (void)snprintf(path + off, path_size - off, "/mod.sx");
             if (access(path, R_OK) == 0) return;
             import_path_to_file_path(lib_root, import_path, path, path_size);
             if (access(path, R_OK) == 0) return;
@@ -3901,11 +3973,11 @@ static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roo
     }
     /* 入口同目录的单段 fallback：须在写 path 后立即 access，否则会带着错误路径去读文件并报 import 打不开。 */
     if (entry_dir && entry_dir[0] && strchr(import_path, '.') == NULL) {
-        (void)snprintf(path, path_size, "%s/%.255s.su", entry_dir, import_path);
+        (void)snprintf(path, path_size, "%s/%.255s.sx", entry_dir, import_path);
         if (access(path, R_OK) == 0)
             return;
     }
-    /* 带点 import（如 arch.x86_64）也应在 dep 所在目录查找：backend.su 在 src/asm/ 导入 arch.x86_64 → src/asm/arch/x86_64.su。
+    /* 带点 import（如 arch.x86_64）也应在 dep 所在目录查找：backend.sx 在 src/asm/ 导入 arch.x86_64 → src/asm/arch/x86_64.sx。
      * 若 import 首段与 entry_dir 末段同名（如 src/asm/ 中 import asm.types），则跳过首段避免重复。 */
     if (entry_dir && entry_dir[0] && strchr(import_path, '.') != NULL && path_size >= 16) {
         const char *eff = import_path;
@@ -3916,17 +3988,17 @@ static void resolve_import_file_path_multi(const char **lib_roots, int n_lib_roo
         const char *first_dot = strchr(import_path, '.');
         if (first_dot && (size_t)(first_dot - import_path) == tail_len &&
             strncmp(import_path, dir_tail, tail_len) == 0) {
-            eff = first_dot + 1; /* 跳过去重的包前缀：src/asm/asm/types.su → src/asm/types.su */
+            eff = first_dot + 1; /* 跳过去重的包前缀：src/asm/asm/types.sx → src/asm/types.sx */
         }
         size_t off = (size_t)snprintf(path, path_size, "%s/", entry_dir);
         for (const char *s = eff; *s && off + 1 < path_size; s++)
             path[off++] = (char)(*s == '.' ? '/' : *s);
         if (off + 5 <= path_size)
-            snprintf(path + off, path_size - off, ".su");
+            snprintf(path + off, path_size - off, ".sx");
         if (access(path, R_OK) == 0) return;
-        /* 也试 /mod.su：off 为「.su」起点，须在 dot 处覆写；勿用 path+(off-1) 否则会吞掉末尾段最后一个字符（如 time→tim）。 */
+        /* 也试 /mod.sx：off 为「.sx」起点，须在 dot 处覆写；勿用 path+(off-1) 否则会吞掉末尾段最后一个字符（如 time→tim）。 */
         if (off + (size_t)8 <= path_size)
-            (void)snprintf(path + off, path_size - off, "/mod.su");
+            (void)snprintf(path + off, path_size - off, "/mod.sx");
         if (access(path, R_OK) == 0) return;
     }
 }
@@ -3947,20 +4019,20 @@ static int find_loaded_index(const char *import_path, char **all_paths, int n_al
 
 /**
  * 从入口文件路径推导 -E 时库模块的 C 前缀（用于 codegen_library_module_to_c）。
- * 例如 src/pipeline/pipeline.su -> "pipeline"，src/typeck/typeck.su -> "typeck"。
+ * 例如 src/pipeline/pipeline.sx -> "pipeline"，src/typeck/typeck.sx -> "typeck"。
  * 供 -E 单文件展开时入口为无 main 的库模块使用。
  */
-#if !defined(SHU_USE_SU_DRIVER) || !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_USE_SX_DRIVER) || !defined(SHUX_NO_C_FRONTEND)
 static const char *entry_lib_name_from_path(const char *input_path) {
     if (!input_path) return "typeck";
-    if (strstr(input_path, "main") != NULL) return "main";   /* src/main.su 与 main.c 一一对应 */
-    if (strstr(input_path, "build") != NULL) return "build"; /* 阶段 7：根目录 build.su → build_entry */
+    if (strstr(input_path, "main") != NULL) return "main";   /* src/main.sx 与 main.c 一一对应 */
+    if (strstr(input_path, "build") != NULL) return "build"; /* 阶段 7：根目录 build.sx → build_entry */
     if (strstr(input_path, "pipeline") != NULL) return "pipeline";
     if (strstr(input_path, "driver") != NULL) return "driver";
     if (strstr(input_path, "codegen") != NULL) return "codegen";
     if (strstr(input_path, "typeck") != NULL) return "typeck";
     if (strstr(input_path, "parser") != NULL) return "parser";
-    /* token 须在 lexer 前，否则 src/lexer/token.su 会误得 lexer_ 前缀 */
+    /* token 须在 lexer 前，否则 src/lexer/token.sx 会误得 lexer_ 前缀 */
     if (strstr(input_path, "token") != NULL) return "token";
     if (strstr(input_path, "lexer") != NULL) return "lexer";
     if (strstr(input_path, "ast") != NULL) return "ast";
@@ -3968,7 +4040,7 @@ static const char *entry_lib_name_from_path(const char *input_path) {
 }
 
 /**
- * -E 且入口为 pipeline.su 时，向 stdout 输出一行 #include "pipeline_glue.c"，
+ * -E 且入口为 pipeline.sx 时，向 stdout 输出一行 #include "pipeline_glue.c"，
  * 由编译器在编译 pipeline_gen.c 时包含胶水（cwd 需为 compiler/ 或 -I 含之）。不再追写整份文件内容。
  */
 static void emit_pipeline_glue_include(void) {
@@ -3981,7 +4053,7 @@ static void emit_pipeline_glue_include(void) {
  * 参数：import_path 如 "std.io.driver"；lib_root、entry_dir、defines/ndefines 同 resolve_import_file_path；all_dep_mods/all_dep_paths 输出列表；n_all 当前个数（会递增）；max_all 上限。
  * 返回值：成功返回对应 ASTModule*；失败返回 NULL（调用方须释放已写入的 all_dep_*）。
  */
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
 static ASTModule *load_one_import(const char *import_path, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines,
     ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][512], int *n_all, int max_all) {
@@ -3989,14 +4061,14 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     if (idx >= 0)
         return all_dep_mods[idx];
     if (*n_all >= max_all) {
-        fprintf(stderr, "shu: too many transitive imports\n");
+        fprintf(stderr, "shux: too many transitive imports\n");
         return NULL;
     }
     char path[512];
     resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_path, path, sizeof(path));
     /* 从 path 提取所在目录，供递归加载子 import 时使用（而非沿用顶层 entry_dir）。
-     * 例如 pipeline.su 在 src/pipeline/ 导入 asm；asm.su 在 src/asm/ 导入 backend；
-     * 若不切换 dep_dir，递归会去 src/pipeline/ 找 backend.su 而失败。 */
+     * 例如 pipeline.sx 在 src/pipeline/ 导入 asm；asm.sx 在 src/asm/ 导入 backend；
+     * 若不切换 dep_dir，递归会去 src/pipeline/ 找 backend.sx 而失败。 */
     char dep_dir[512];
     {
         const char *slash = strrchr(path, '/');
@@ -4011,13 +4083,13 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     }
     char *raw = read_file(path, NULL);
     if (!raw) {
-        fprintf(stderr, "shu: cannot open import '%s' (tried %s)\n", import_path, path);
+        fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", import_path, path);
         return NULL;
     }
     char *src = preprocess(raw, 0, defines, ndefines, NULL);
     free(raw);
     if (!src) {
-        fprintf(stderr, "shu: preprocess failed for import '%s'\n", import_path);
+        fprintf(stderr, "shux: preprocess failed for import '%s'\n", import_path);
         return NULL;
     }
     Lexer *lex = lexer_new(src);
@@ -4026,11 +4098,11 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     lexer_free(lex);
     free(src);
     if (pr != 0 || !dep) {
-        fprintf(stderr, "shu: failed to parse import '%s'\n", import_path);
+        fprintf(stderr, "shux: failed to parse import '%s'\n", import_path);
         return NULL;
     }
     if (dep->num_imports > 0 && !dep->import_paths) {
-        fprintf(stderr, "shu: internal error: module has num_imports but import_paths is NULL\n");
+        fprintf(stderr, "shux: internal error: module has num_imports but import_paths is NULL\n");
         ast_module_free(dep);
         return NULL;
     }
@@ -4052,7 +4124,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             deps[ndeps++] = all_dep_mods[idx];
     }
     if (typeck_module(dep, deps, ndeps, NULL, 0) != 0) {
-        fprintf(stderr, "shu: typeck failed for import '%s'\n", import_path);
+        fprintf(stderr, "shux: typeck failed for import '%s'\n", import_path);
         ast_module_free(dep);
         return NULL;
     }
@@ -4067,21 +4139,21 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     (*n_all)++;
     return dep;
 }
-#endif /* !SHU_NO_C_FRONTEND */
+#endif /* !SHUX_NO_C_FRONTEND */
 
 /**
  * 解析并类型检查所有 import 依赖（含传递依赖）；填入 direct dep_mods（与 mod->import_paths 一一对应）供 typeck/codegen 入口使用，并填入 all_dep_mods/all_dep_paths（拓扑序）供 -o 时为每个依赖生成 .c（阶段 7.3 跨模块调用 + 传递依赖）。
  * 参数：mod 入口模块；lib_root、entry_dir 同 resolve_import_file_path；defines/ndefines 条件编译符号；dep_mods/ndep_out 仅直接依赖；all_dep_mods、all_dep_paths、n_all_out 为全部传递依赖（all_dep_paths 由本函数 strdup，调用方须 free）；max_deps 为 direct 与 all 共用上限。
  * 返回值：0 成功；-1 失败且已释放已写入的 all_dep_*。
  */
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
 static int resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines,
     ASTModule **dep_mods, int *ndep_out,
     ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][512], int *n_all_out, int max_deps) {
     int n_all = 0;
     if (mod->num_imports > 0 && !mod->import_paths) {
-        fprintf(stderr, "shu: internal error: entry module has num_imports but import_paths is NULL\n");
+        fprintf(stderr, "shux: internal error: entry module has num_imports but import_paths is NULL\n");
         return -1;
     }
     for (int i = 0; i < mod->num_imports && i < max_deps; i++) {
@@ -4102,7 +4174,7 @@ static int resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int 
 }
 
 /**
- * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块对应的 .su 文件路径（供跨文件 Location.uri）。
+ * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块对应的 .sx 文件路径（供跨文件 Location.uri）。
  * all_dep_fs 可为 NULL（与编译路径相同，不写 fs 路径）。
  */
 int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
@@ -4130,7 +4202,7 @@ void shu_lsp_free_loaded_imports(ASTModule **all_dep_mods, char **all_dep_paths,
         }
     }
 }
-#endif /* !SHU_NO_C_FRONTEND */
+#endif /* !SHUX_NO_C_FRONTEND */
 
 /**
  * 将 Token 类型枚举转为可读字符串，用于控制台打印。
@@ -4140,7 +4212,7 @@ void shu_lsp_free_loaded_imports(ASTModule **all_dep_mods, char **all_dep_paths,
  * 错误与边界：无；不分配内存。
  * 副作用与约定：无副作用；返回值不得被 free。
  */
-#if !defined(SHU_USE_SU_DRIVER)
+#if !defined(SHUX_USE_SX_DRIVER)
 static const char *token_kind_str(TokenKind k) {
     switch (k) {
         case TOKEN_EOF:     return "EOF";
@@ -4162,6 +4234,8 @@ static const char *token_kind_str(TokenKind k) {
         case TOKEN_PACKED:  return "PACKED";
         case TOKEN_SOA:     return "SOA";
         case TOKEN_ATTR_SOA: return "ATTR_SOA";
+        case TOKEN_ATTR_CFG: return "ATTR_CFG";
+        case TOKEN_ATTR_REPR_C: return "ATTR_REPR_C";
         case TOKEN_ENUM:    return "ENUM";
         case TOKEN_GOTO:    return "GOTO";
         case TOKEN_TRAIT:   return "TRAIT";
@@ -4242,24 +4316,133 @@ static const char *token_kind_str(TokenKind k) {
         default:            return "?";
     }
 }
-#endif /* !SHU_USE_SU_DRIVER */
+#endif /* !SHUX_USE_SX_DRIVER */
 
-/* read_file 实现：见上方声明处注释 */
+/**
+ * B-20：POSIX open/fstat/read 读整文件到堆缓冲（替代 C stdio fopen/fread）。
+ * 成功返回 NUL 结尾缓冲；失败返回 NULL。out_len 非 NULL 时写入字节数（不含 NUL）。
+ */
 static char *read_file(const char *path, size_t *out_len) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return NULL;
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
-    long size = ftell(f);
-    if (size < 0) { fclose(f); return NULL; }
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return NULL; }
-    char *buf = malloc((size_t)size + 1);
-    if (!buf) { fclose(f); return NULL; }
-    size_t n = fread(buf, 1, (size_t)size, f);
-    fclose(f);
-    if (n != (size_t)size) { free(buf); return NULL; }
-    buf[n] = '\0';
-    if (out_len) *out_len = n;
+    int fd;
+    struct stat st;
+    size_t size, off;
+    char *buf;
+    ssize_t n;
+
+    if (!path)
+        return NULL;
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return NULL;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
+        close(fd);
+        return NULL;
+    }
+    size = (size_t)st.st_size;
+    buf = (char *)malloc(size + 1);
+    if (!buf) {
+        close(fd);
+        return NULL;
+    }
+    off = 0;
+    while (off < size) {
+        n = read(fd, buf + off, size - off);
+        if (n < 0) {
+            free(buf);
+            close(fd);
+            return NULL;
+        }
+        if (n == 0)
+            break;
+        off += (size_t)n;
+    }
+    close(fd);
+    if (off != size) {
+        free(buf);
+        return NULL;
+    }
+    buf[size] = '\0';
+    if (out_len)
+        *out_len = size;
     return buf;
+}
+
+/**
+ * B-20：POSIX read 循环读 fd 到 buf[0..cap)；成功返回读入字节数，失败 -1。
+ */
+static int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
+    size_t off;
+    ssize_t n;
+
+    if (fd < 0 || !buf || cap == 0 || cap > (size_t)INT32_MAX)
+        return -1;
+    off = 0;
+    while (off < cap) {
+        n = read(fd, (char *)buf + off, cap - off);
+        if (n < 0)
+            return -1;
+        if (n == 0)
+            break;
+        off += (size_t)n;
+    }
+    return (int)off;
+}
+
+/**
+ * B-20：POSIX open/read/close 将文件读入 buf[0..cap)；成功返回读入字节数，失败 -1。
+ * 供 ast_pool pipeline_read_file_su_impl_c 与 .sx std.sys 语义对齐的 C 回退。
+ */
+int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
+    int fd;
+    int n;
+
+    if (!path || !buf || cap == 0 || cap > (size_t)INT32_MAX)
+        return -1;
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    n = shux_read_fd_into_buf(fd, buf, cap);
+    close(fd);
+    return n;
+}
+
+/**
+ * B-20：POSIX open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件；成功 0，失败 -1。
+ * 供 fmt 写回、调试 dump 等替代 fopen/fwrite/fclose。
+ */
+static int shux_write_path_bytes(const char *path, const void *data, size_t len) {
+    int fd;
+    size_t off;
+    ssize_t n;
+
+    if (!path || !data)
+        return -1;
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, (mode_t)0644);
+    if (fd < 0)
+        return -1;
+    off = 0;
+    while (off < len) {
+        n = write(fd, (const char *)data + off, len - off);
+        if (n < 0) {
+            close(fd);
+            return -1;
+        }
+        if (n == 0)
+            break;
+        off += (size_t)n;
+    }
+    close(fd);
+    return off == len ? 0 : -1;
+}
+
+/**
+ * B-20：读源文件前缀到 content（最多 cap-1 字节）；成功返回读入字节数，失败 -1。
+ * 供 driver 语法探测（generic/compound-assign）替代 fopen/fread。
+ */
+static int driver_peek_source_file(const char *path, char *content, size_t cap) {
+    if (!path || !content || cap <= 1)
+        return -1;
+    return shux_read_file_into_path(path, content, cap - 1);
 }
 
 /** 多文件编译时 C 文件数量上限（入口 + import 闭包） */
@@ -4275,7 +4458,7 @@ static char *read_file(const char *path, size_t *out_len) {
  * string_o：可选，std.string 长串快路径 .o（memcmp/memmem）；NULL 则不链入。
  * heap_o：可选，std.heap 堆分配 .o（malloc/free）；NULL 则不链入。
  * runtime_o：可选，std.runtime .o（panic/abort）；NULL 则不链入。
- * runtime_panic_o：可选，提供 shulang_panic_ 的 .o（与 runtime_o 同链，否则 std/runtime/runtime.o 缺符号）；NULL 则不链入。
+ * runtime_panic_o：可选，提供 shux_panic_ 的 .o（与 runtime_o 同链，否则 std/runtime/runtime.o 缺符号）；NULL 则不链入。
  * net_o：可选，std.net .o（TCP socket）；NULL 则不链入。
  * thread_o：可选，std.thread .o（线程）；NULL 则不链入；Unix 需 -lpthread。
  * time_o：可选，std.time .o（时间与睡眠）；NULL 则不链入。
@@ -4294,11 +4477,11 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         ensure_std_net_o_auto_tls(include_root);
     pid_t pid = fork();
     if (pid < 0) {
-        perror("shu: fork");
+        perror("shux: fork");
         return -1;
     }
     if (pid == 0) {
-        /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHU_CC_EXTRA(至多 8) + NULL */
+        /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
         char *argv[MAX_C_FILES + 48];
         int i = 0;
         const int argv_cap = MAX_C_FILES + 48;
@@ -4333,6 +4516,8 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             int needs_core_builtin = 0;
             int needs_core_mem = 0;
             int needs_core_slice = 0;
+            int needs_db_kv = 0;
+            int needs_db_arrow = 0;
             for (int j = 0; j < n; j++) {
                 if (generated_c_needs_core_builtin(c_paths[j]))
                     needs_core_builtin = 1;
@@ -4340,6 +4525,10 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
                     needs_core_mem = 1;
                 if (generated_c_needs_core_slice(c_paths[j]))
                     needs_core_slice = 1;
+                if (generated_c_needs_db_kv(c_paths[j]))
+                    needs_db_kv = 1;
+                if (generated_c_needs_db_arrow(c_paths[j]))
+                    needs_db_arrow = 1;
             }
             if (needs_core_builtin) {
                 const char *abi_h = get_core_builtin_abi_h_path(include_root);
@@ -4355,6 +4544,10 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_core_mem_o_path(include_root));
             if (needs_core_slice)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_core_slice_o_path(include_root));
+            if (needs_db_kv)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_kv_o_path(include_root));
+            if (needs_db_arrow)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, io_o)) {
 #if defined(__linux__)
@@ -4415,6 +4608,7 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
 #endif
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o);
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_socketio_o_path(include_root));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
@@ -4466,14 +4660,14 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
         argv[0] = (char *)"gcc";
         execvp("gcc", argv);
 #endif
-        perror("shu: cc/gcc");
+        perror("shux: cc/gcc");
         _exit(127);
     }
     int status;
     if (shu_waitpid_retry(pid, &status) != 0)
         return -1;
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "shu: cc failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        fprintf(stderr, "shux: cc failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         return -1;
     }
     /* 阶段 8：非调试（-O0）时对产出执行 strip，减小体积（避免传 -s 给 cc 触发 ld 的 obsolete 警告） */
@@ -4491,7 +4685,7 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
     return 0;
 }
 
-#if !defined(SHU_USE_SU_DRIVER)
+#if !defined(SHUX_USE_SX_DRIVER)
 /** 阶段 8.1 DCE 上下文：供 dce_is_func_used / dce_is_mono_used / dce_is_type_used 回调使用。 */
 struct dce_ctx {
     ASTFunc **used;
@@ -4577,34 +4771,34 @@ static int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_na
         if (c->used_type_names[i] && strcmp(c->used_type_names[i], type_name) == 0) return 1;
     return 0;
 }
-#endif /* !SHU_USE_SU_DRIVER */
+#endif /* !SHUX_USE_SX_DRIVER */
 
 /**
  * 编译器主入口：解析命令行，执行 lexer→parser→typeck，可选 codegen→cc 产出可执行文件。
  * 功能说明：支持 -L、-target、-o；无 -o 时打印 Token 与 parse/typeck OK（供测试）；有 -o 时生成 C（含 import 占位）、调用 cc 链接。
- * 参数：argc、argv 为标准 C 程序参数；argv[0] 为程序名，后续为可选 -L/-target/-o 及其参数与一个输入 .su 路径。
+ * 参数：argc、argv 为标准 C 程序参数；argv[0] 为程序名，后续为可选 -L/-target/-o 及其参数与一个输入 .sx 路径。
  * 返回值：0 表示成功（含无参数时打印用法）；1 表示读文件失败、解析/typeck 失败、codegen 或 cc 失败。
  * 错误与边界：无输入文件时打印用法并返回 0；-o 指定但无 main 时返回 1；import 数量超过 32 时仅处理前 32 个。
- * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("SHULANG_LIB")；多文件时可能多次解析同一 import 的 .su。
+ * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("SHUX_LIB")；多文件时可能多次解析同一 import 的 .sx。
  */
 #define MAX_DEFINES 64
 #define MAX_LIB_ROOTS 16
 /** 从 argv 收集 -D 与平台宏（实现见 driver_run_asm_backend 前）。 */
 static int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
 /**
- * 编译器 pipeline 实现（原 main 逻辑）；供 C main 直接调用，或由 .su driver 入口转调（6.3）。
- * SHU_USE_SU_DRIVER 时 run_compiler_c_impl 由 main.su 提供（桩），C 不定义以免重复符号。
+ * 编译器 pipeline 实现（原 main 逻辑）；供 C main 直接调用，或由 .sx driver 入口转调（6.3）。
+ * SHUX_USE_SX_DRIVER 时 run_compiler_c_impl 由 main.sx 提供（桩），C 不定义以免重复符号。
  */
-#if defined(SHU_USE_SU_DRIVER)
-/* run_compiler_c_impl 由 main.su 提供（桩），C 不定义。 */
+#if defined(SHUX_USE_SX_DRIVER)
+/* run_compiler_c_impl 由 main.sx 提供（桩），C 不定义。 */
 #else
 #define RUN_CC_FUNC run_compiler_c
 int RUN_CC_FUNC(int argc, char **argv) {
-#ifdef SHU_USE_SU_FRONTEND
-    /* 阶段 3.2：链入 _su.o 时不再提供 typeck_module/codegen_* 等 C 符号，run_compiler_c 不应被调用；main 已走 run_compiler_su_path。 */
+#ifdef SHUX_USE_SX_FRONTEND
+    /* 阶段 3.2：链入 _su.o 时不再提供 typeck_module/codegen_* 等 C 符号，run_compiler_c 不应被调用；main 已走 run_compiler_sx_path。 */
     (void)argc;
     (void)argv;
-    fprintf(stderr, "shu: internal error: run_compiler_c called with SHU_USE_SU_FRONTEND\n");
+    fprintf(stderr, "shux: internal error: run_compiler_c called with SHUX_USE_SX_FRONTEND\n");
     return 1;
 #else
     /* typeck/codegen 等大模块自举 parse/typeck 栈帧深；须早于 pipeline 入口扩容。 */
@@ -4618,24 +4812,24 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int use_lto = 0;       /* -flto：传 -flto 给 cc，发布/性能构建时建议（2.3） */
     int emit_c_only = 0;  /* -E：仅生成 C 到 stdout，不调用 cc */
     int emit_extern_imports = 0;  /* 阶段 3.1：-E-extern 时仅展开入口，import 用 extern，生成瘦 C */
-    #ifdef SHU_USE_SU_PIPELINE
-    int use_su_pipeline = 0;  /* -su：使用纯 .su 流水线（需链接 pipeline_gen.o） */
-    int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 -su pipeline */
+    #ifdef SHUX_USE_SX_PIPELINE
+    int use_su_pipeline = 0;  /* -su：使用纯 .sx 流水线（需链接 pipeline_gen.o） */
+    int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 -sx pipeline */
     #endif
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
 
     for (int i = 1; i < argc; i++) {
-        #ifdef SHU_USE_SU_PIPELINE
-        if (strcmp(argv[i], "-su") == 0) {
+        #ifdef SHUX_USE_SX_PIPELINE
+        if (strcmp(argv[i], "-sx") == 0) {
             use_su_pipeline = 1;
         } else if (strcmp(argv[i], "-backend") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "shu: -backend requires an argument (e.g. asm)\n");
+                fprintf(stderr, "shux: -backend requires an argument (e.g. asm)\n");
                 return 1;
             }
             if (strcmp(argv[i + 1], "asm") == 0) use_asm_backend = 1;
-            use_su_pipeline = 1;  /* -backend asm 必须走 .su pipeline */
+            use_su_pipeline = 1;  /* -backend asm 必须走 .sx pipeline */
             i++;
         } else
         #endif
@@ -4646,11 +4840,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
             emit_extern_imports = 1;
         } else if (strcmp(argv[i], "-D") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
                 return 1;
             }
             if (ndefines >= MAX_DEFINES) {
-                fprintf(stderr, "shu: too many -D defines\n");
+                fprintf(stderr, "shux: too many -D defines\n");
                 return 1;
             }
             defines[ndefines++] = argv[i + 1];
@@ -4658,18 +4852,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strncmp(argv[i], "-D", 2) == 0 && argv[i][2] != '\0') {
             /* -DSYMBOL 形式 */
             if (ndefines >= MAX_DEFINES) {
-                fprintf(stderr, "shu: too many -D defines\n");
+                fprintf(stderr, "shux: too many -D defines\n");
                 return 1;
             }
             defines[ndefines++] = argv[i] + 2;
         } else if (strcmp(argv[i], "-O") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
                 return 1;
             }
             opt_level = argv[i + 1];
             if (strcmp(opt_level, "0") != 0 && strcmp(opt_level, "1") != 0 && strcmp(opt_level, "2") != 0 && strcmp(opt_level, "3") != 0 && strcmp(opt_level, "s") != 0) {
-                fprintf(stderr, "shu: -O expects 0, 1, 2, 3, or s (got '%s')\n", opt_level);
+                fprintf(stderr, "shux: -O expects 0, 1, 2, 3, or s (got '%s')\n", opt_level);
                 return 1;
             }
             i++;
@@ -4680,17 +4874,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strcmp(argv[i], "-freestanding") == 0) {
             driver_freestanding_set(1);
         } else if (strcmp(argv[i], "-legacy-f32-abi") == 0) {
-            setenv("SHU_ABI_F32_XMM", "0", 1);
+            setenv("SHUX_ABI_F32_XMM", "0", 1);
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
                 return 1;
             }
             out_path = argv[i + 1];
             i++;
         } else if (strcmp(argv[i], "-L") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
                 return 1;
             }
             if (n_lib_roots < MAX_LIB_ROOTS)
@@ -4698,17 +4892,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-target") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
                 return 1;
             }
             target = argv[i + 1];
-            i++;  /* 只多跳 1：for 末尾还有 i++，会再跳过 triple，避免多跳把 <file.su> 也跳过导致 input_path 未设 */
+            i++;  /* 只多跳 1：for 末尾还有 i++，会再跳过 triple，避免多跳把 <file.sx> 也跳过导致 input_path 未设 */
         } else if (argv[i][0] == '-') {
             /* 未知选项（如 -backend 在未链 pipeline 的构建中）：提示而非当作输入文件 */
             if (strcmp(argv[i], "-backend") == 0) {
-                fprintf(stderr, "shu: -backend asm not available in this build. Use: make bootstrap-driver\n");
+                fprintf(stderr, "shux: -backend asm not available in this build. Use: make bootstrap-driver\n");
             } else {
-                fprintf(stderr, "shu: unknown option '%s'\n", argv[i]);
+                fprintf(stderr, "shux: unknown option '%s'\n", argv[i]);
             }
             return 1;
         } else if (!input_path) {
@@ -4725,14 +4919,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
             defines[ndefines++] = "OS_WINDOWS";
         }
     }
-    /* §3.4 条件编译与平台选择：无 -target 时用 uname 注入 SHU_OS_<SYSNAME>、SHU_ARCH_<MACHINE>（全大写）供 .su #if 使用 */
+    /* §3.4 条件编译与平台选择：无 -target 时用 uname 注入 SHUX_OS_<SYSNAME>、SHUX_ARCH_<MACHINE>（全大写）供 .sx #if 使用 */
     if (ndefines + 2 <= MAX_DEFINES) {
         struct utsname u;
-        /* utsname.sysname/machine can be up to 65 bytes; "SHU_OS_"=7, "SHU_ARCH_"=9, so 80 suffices */
+        /* utsname.sysname/machine can be up to 65 bytes; "SHUX_OS_"=7, "SHUX_ARCH_"=9, so 80 suffices */
         static char shu_os_def[80], shu_arch_def[80];
         if (uname(&u) == 0) {
-            (void)snprintf(shu_os_def, sizeof(shu_os_def), "SHU_OS_%s", u.sysname);
-            (void)snprintf(shu_arch_def, sizeof(shu_arch_def), "SHU_ARCH_%s", u.machine);
+            (void)snprintf(shu_os_def, sizeof(shu_os_def), "SHUX_OS_%s", u.sysname);
+            (void)snprintf(shu_arch_def, sizeof(shu_arch_def), "SHUX_ARCH_%s", u.machine);
             for (char *p = shu_os_def + 7; *p; p++) *p = (char)toupper((unsigned char)*p);
             for (char *p = shu_arch_def + 9; *p; p++) *p = (char)toupper((unsigned char)*p);
             defines[ndefines++] = shu_os_def;
@@ -4740,19 +4934,25 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("SHULANG_LIB");
+        lib_roots_arr[0] = getenv("SHUX_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
-    if (!opt_level) opt_level = getenv("SHULANG_OPT");
+    if (!opt_level) opt_level = getenv("SHUX_OPT");
     if (!opt_level || !*opt_level) opt_level = "2";
-    if (!use_lto && getenv("SHULANG_LTO") && strcmp(getenv("SHULANG_LTO"), "1") == 0)
+    if (!use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
         use_lto = 1;
 
     if (!input_path) {
-        fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.su> [ -o <out> ]\n", argv[0] ? argv[0] : "shu");
+        fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
         return 0;
     }
+
+    /** B-02：#[cfg] 与 -target triple 联动（shux-c 主路径 run_compiler_c）。 */
+    if (target)
+        cfg_apply_compile_target_from_triple(target, (int)strlen(target));
+    else
+        cfg_reset_compile_target();
 
     size_t raw_src_len = 0;
     char *raw_src = read_file(input_path, &raw_src_len);
@@ -4762,7 +4962,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
     }
     size_t src_len = 0;
     char *src = NULL;
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     if (use_su_pipeline) {
         if (su_preprocess_raw_to_malloc((const unsigned char *)raw_src, raw_src_len, &src, &src_len, input_path,
                 ndefines > 0 ? defines : NULL, ndefines) != 0) {
@@ -4776,19 +4976,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
         src = preprocess(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
         free(raw_src);
         if (!src) {
-            fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+            fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
             return 1;
         }
     }
 
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     if (use_su_pipeline) {
         size_t arena_sz = pipeline_sizeof_arena();
         size_t module_sz = pipeline_sizeof_module();
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            fprintf(stderr, "shu: -su pipeline: malloc failed\n");
+            fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
             if (arena) free(arena);
             if (module) free(module);
             free(src);
@@ -4796,9 +4996,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        struct shulang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+        struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
         if (src_len > (size_t)INT32_MAX) {
-            fprintf(stderr, "shu: -su pipeline: source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+            fprintf(stderr, "shux: -sx pipeline: source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
             free(arena);
             free(module);
             free(src);
@@ -4807,7 +5007,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         parser_parse_into_init(module, arena);
         struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
-            fprintf(stderr, "shu: -su pipeline failed (parse_into)\n");
+            fprintf(stderr, "shux: -sx pipeline failed (parse_into)\n");
             free(arena);
             free(module);
             free(src);
@@ -4824,7 +5024,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         size_t dep_lens[MAX_ALL_DEPS];
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
         /*
          * 与 emit-C 路径一致：传递闭包（如 hello→std.io→driver/core）；merge 保证槽 0..n_imports-1 与入口 import 对齐，
          * asm_codegen_elf_o 才能把 driver/core 的定义编入同一 Mach-O/ELF。
@@ -4873,7 +5073,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 size_t raw_len = 0;
                 char *raw = read_file(resolved, &raw_len);
                 if (!raw) {
-                    fprintf(stderr, "shu: cannot open import '%s' (tried %s)\n", path_c, resolved);
+                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
                     while (n_deps--) {
                         free(dep_sources[n_deps]);
                         free(dep_paths[n_deps]);
@@ -4926,10 +5126,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (use_asm_backend && out_path) {
             asm_want_exe = output_want_exe(out_path);
             if (asm_want_exe) {
-                strcpy(asm_tmp_o_path, "/tmp/shu_asm_XXXXXX");
+                strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
                 int fd = mkstemp(asm_tmp_o_path);
                 if (fd < 0) {
-                    perror("shu: mkstemp (asm)");
+                    perror("shux: mkstemp (asm)");
                     free(arena);
                     free(module);
                     free(src);
@@ -4948,7 +5148,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             } else {
                 asm_out = fopen(out_path, "wb");
                 if (!asm_out) {
-                    perror("shu: -o (asm)");
+                    perror("shux: -o (asm)");
                     free(arena);
                     free(module);
                     free(src);
@@ -4959,7 +5159,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             if (emit_elf_o) {
                 elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
                 if (!elf_ctx_ptr) {
-                    fprintf(stderr, "shu: elf_ctx alloc failed\n");
+                    fprintf(stderr, "shux: elf_ctx alloc failed\n");
                     fclose(asm_out);
                     free(arena);
                     free(module);
@@ -4976,7 +5176,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                fprintf(stderr, "shu: -su pipeline: dep alloc failed\n");
+                fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
                 if (asm_out) fclose(asm_out);
                 if (elf_ctx_ptr) free(elf_ctx_ptr);
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
@@ -4995,7 +5195,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
         if (!out_buf || !pctx) {
-            fprintf(stderr, "shu: -su pipeline: out_buf/pctx alloc failed\n");
+            fprintf(stderr, "shux: -sx pipeline: out_buf/pctx alloc failed\n");
             if (asm_out) fclose(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -5018,7 +5218,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
                 struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
                 if (!one_ctx || !dep_out) {
-                    fprintf(stderr, "shu: -su pipeline: dep_one_ctx/out alloc failed\n");
+                    fprintf(stderr, "shux: -sx pipeline: dep_one_ctx/out alloc failed\n");
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     free(out_buf);
@@ -5049,7 +5249,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 if (ec != 0) {
-                    fprintf(stderr, "shu: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec);
+                    fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec);
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -5094,7 +5294,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
         codegen_set_dep_slots_for_su_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
         codegen_set_preamble_has_core_option_result(1);
-        /* asm 后端：必须让 pipeline_run_su_pipeline 内完整地 parse_into + typeck + asm codegen，
+        /* asm 后端：必须让 pipeline_run_sx_pipeline 内完整地 parse_into + typeck + asm codegen，
          * 禁止沿用 C 侧预解析后的 entry_already_parsed=1 捷径——否则入口 module/arena 与汇编后端期望不一致，
          * 曾为 Mach-O __text 长度为 0；纯库模块（无 main、仅 num_funcs）同样依赖完整重解析后才会编出 TEXT。
          * 不只 -o xxx.o（emit_elf_o）：-o xxx.s  listings 也需一致，故条件与 emit_elf_o 解耦。
@@ -5106,7 +5306,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             pctx->entry_already_parsed = 0;
         } else {
             /**
-             * 须始终在 pipeline 内完整 parse_into：C 预填的 module 与 .su Module 的 struct_layouts 等字段不同步时，
+             * 须始终在 pipeline 内完整 parse_into：C 预填的 module 与 .sx Module 的 struct_layouts 等字段不同步时，
              * entry_already_parsed=1 会跳过解析导致 num_struct_layouts=0，§11.1 隐式 padding 等 typeck 成为空操作。
              */
             memset(arena, 0, arena_sz);
@@ -5115,17 +5315,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             pctx->entry_already_parsed = 0;
         }
         /*
-         * run_compiler_c + import 降级路径：仍可能 -o .o 并走 asm_codegen_elf_o；与 driver_run_asm_backend 一致跳过 .su typeck。
+         * run_compiler_c + import 降级路径：仍可能 -o .o 并走 asm_codegen_elf_o；与 driver_run_asm_backend 一致跳过 .sx typeck。
          */
         if (emit_elf_o && out_path && !driver_check_only_get()) {
             driver_su_pipeline_skip_typeck_set(1);
             driver_su_pipeline_skip_codegen_set(1);
         }
-        int ec = pipeline_run_su_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+        int ec = pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
         driver_su_pipeline_skip_typeck_set(0);
         driver_su_pipeline_skip_codegen_set(0);
-        if (getenv("SHU_ASM_ENTRY_DEBUG")) {
-            fprintf(stderr, "shu: asm entry dbg ec=%d num_funcs=%d out_asm_len=%zu\n",
+        if (getenv("SHUX_ASM_ENTRY_DEBUG")) {
+            fprintf(stderr, "shux: asm entry dbg ec=%d num_funcs=%d out_asm_len=%zu\n",
                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
         }
         driver_dep_seeded_clear_all();
@@ -5135,7 +5335,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = asm_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
                 if (elf_ec != 0 || out_buf->len <= 0) {
-                    fprintf(stderr, "shu: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
+                    fprintf(stderr, "shux: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
                             (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
                     if (elf_ec != 0 && elf_ctx_ptr)
                         pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx_ptr);
@@ -5165,7 +5365,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 int ld_ok = invoke_ld(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
                 unlink(asm_tmp_o_path);
                 if (ld_ok != 0) {
-                    fprintf(stderr, "shu: ld failed (asm -o exe)\n");
+                    fprintf(stderr, "shux: ld failed (asm -o exe)\n");
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     free(arena);
@@ -5177,7 +5377,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else {
             /* ec != 0 或 ec == 0 但 out_buf->len == 0（且非 emit_elf_o） */
             if (ec == 0 && out_buf->len == 0 && !emit_elf_o && !asm_out) {
-                /* -su -E 时 pipeline 成功但 codegen 产出 0 字节（如库模块或 codegen 路径未写 main），写最小 C 桩使 run-su-pipeline 等测试能通过 */
+                /* -sx -E 时 pipeline 成功但 codegen 产出 0 字节（如库模块或 codegen 路径未写 main），写最小 C 桩使 run-sx-pipeline 等测试能通过 */
                 fprintf(stdout, "int main(void){return 0;}\n");
                 fflush(stdout);
             }
@@ -5192,7 +5392,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
-                fprintf(stderr, "shu: -su pipeline failed (parse_into / typeck_su_ast / codegen_su_ast)\n");
+                fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
                 /* 诊断：单独试 parse_into 以区分失败阶段 */
                 {
                 void *diag_arena = malloc(arena_sz);
@@ -5207,13 +5407,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         struct ast_PipelineDepCtx *diag_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*diag_ctx));
                         if (diag_ctx) {
                             int32_t tck = pipeline_typeck_after_parse_ok(diag_arena, diag_module, &src_slice, (void *)diag_ctx);
-                            fprintf(stderr, "shu: (diagnostic) parse_into OK, typeck_after_parse=%d (0=ok -2=parse_fail -10=main_idx<0 -11=main_idx>=num_funcs -1=impl)\n", (int)tck);
+                            fprintf(stderr, "shux: (diagnostic) parse_into OK, typeck_after_parse=%d (0=ok -2=parse_fail -10=main_idx<0 -11=main_idx>=num_funcs -1=impl)\n", (int)tck);
                             pipeline_dep_ctx_heap_destroy(diag_ctx);
                         }
                     } else {
                         int32_t fail_tok = parser_diag_fail_at_token_kind(&src_slice);
                         int32_t one_ok = pipeline_parse_one_function_ok(&src_slice, diag_arena);
-                        fprintf(stderr, "shu: (diagnostic) parse_into failed (len=%zu, diag_fail=%d, parse_one_func_ok=%d)\n",
+                        fprintf(stderr, "shux: (diagnostic) parse_into failed (len=%zu, diag_fail=%d, parse_one_func_ok=%d)\n",
                                 (size_t)src_slice.length, (int)fail_tok, (int)one_ok);
                     }
                     free(diag_arena);
@@ -5239,7 +5439,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
     if (pr != 0 || !mod) {
         if (mod) ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shu: parse failed for '%s' (pr=%d)\n", input_path, pr);
+        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path, pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -5256,8 +5456,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         free(src);
         return 1;
     }
-/* 6.3：与 pipeline_su.o 同链时不再链 typeck_su/codegen_su，非 -su 路径用 C typeck/codegen 避免重复符号 */
-#if defined(SHU_USE_SU_TYPECK) && !defined(SHU_USE_SU_PIPELINE)
+/* 6.3：与 pipeline_sx.o 同链时不再链 typeck_su/codegen_su，非 -sx 路径用 C typeck/codegen 避免重复符号 */
+#if defined(SHUX_USE_SX_TYPECK) && !defined(SHUX_USE_SX_PIPELINE)
     if (typeck_typeck_entry(mod, ndep > 0 ? dep_mods : NULL, ndep) != 0) {
 #else
     /* 传入全部传递依赖供布局阶段解析跨模块类型；直接依赖仍为 dep_mods/ndep */
@@ -5269,9 +5469,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 1;
     }
 
-    /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（SHU_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
+    /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（SHUX_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
     {
-        const char *wpo_out = getenv("SHU_WPO_DUMP_CALLGRAPH");
+        const char *wpo_out = getenv("SHUX_WPO_DUMP_CALLGRAPH");
         if (wpo_out && wpo_out[0]) {
             FILE *wf = (strcmp(wpo_out, "-") == 0) ? stdout : fopen(wpo_out, "w");
             if (wf) {
@@ -5283,7 +5483,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
 
-    /** shu check（C 路径）：typeck 通过后跳过 codegen 与链接。 */
+    /** shux check（C 路径）：typeck 通过后跳过 codegen 与链接。 */
     if (driver_check_only_get()) {
         while (n_all--) {
             free(all_dep_paths[n_all]);
@@ -5312,7 +5512,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         runtime_prepare_dce_ctx(mod, all_dep_mods, n_all, used_funcs, &n_used, used_mono, used_type_names, &n_used_types, &wpo_reach, &dce, &dce_ready);
         void *dce_ctx_arg = dce_ready ? (void *)&dce : NULL;
         /* -E-extern 瘦 TU（typeck_gen/parser_gen/codegen_gen）：入口无 main/entry 根，WPO/classic DCE 会误删
-         * 入口模块全体符号；须 emit 全量函数供 pipeline_su.o 链接 C 依赖实现。 */
+         * 入口模块全体符号；须 emit 全量函数供 pipeline_sx.o 链接 C 依赖实现。 */
         if (emit_extern_imports)
             dce_ctx_arg = NULL;
 
@@ -5325,26 +5525,28 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#include <stdlib.h>\n");
             fprintf(stdout, "#include <stdio.h>\n");
             fprintf(stdout, "#include <string.h>\n");
-            fprintf(stdout, "static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-            fprintf(stdout, "static inline void shulang_panic_(int has_msg, int msg_val) {\n");
+            fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+            fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
             fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(stdout, "  abort();\n");
             fprintf(stdout, "}\n");
-            /* pipeline.su 及可能拉入 std.io 的 parser/typeck/codegen/preprocess 等 -E 产出均需 _buf 声明，以便单文件编译通过；main.su 产出 driver_gen.c 不调这些，不输出以免 -Wunused-function。 */
-            if (input_path && (strstr(input_path, "pipeline.su") != NULL || strstr(input_path, "parser.su") != NULL || strstr(input_path, "typeck.su") != NULL || strstr(input_path, "codegen.su") != NULL || strstr(input_path, "preprocess.su") != NULL)) {
-                fprintf(stdout, "extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-                fprintf(stdout, "extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-                fprintf(stdout, "extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            /* pipeline.sx 及可能拉入 std.io 的 parser/typeck/codegen/preprocess 等 -E 产出均需 _buf 声明，以便单文件编译通过；main.sx 产出 driver_gen.c 不调这些，不输出以免 -Wunused-function。 */
+            if (input_path && (strstr(input_path, "pipeline.sx") != NULL || strstr(input_path, "parser.sx") != NULL || strstr(input_path, "typeck.sx") != NULL || strstr(input_path, "codegen.sx") != NULL || strstr(input_path, "preprocess.sx") != NULL)) {
+                fprintf(stdout, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+                fprintf(stdout, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+                fprintf(stdout, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
                 fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-                fprintf(stdout, "static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-                fprintf(stdout, "static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+                fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
                 fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
                 fprintf(stdout, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
                 fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             }
             if (emit_extern_imports) {
-                if (codegen_emit_dep_types_only(all_dep_mods, (const char **)all_dep_paths, n_all, stdout) != 0) {
+                codegen_set_eextern_entry_path(input_path);
+                if (codegen_emit_dep_types_only(all_dep_mods, (const char **)all_dep_paths, n_all, stdout,
+                        emitted_type_buf, &n_emitted, max_emitted) != 0) {
                     ec = -1;
                 }
             } else {
@@ -5360,7 +5562,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                             n_lib++;
                         }
                     }
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                     if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted) != 0) {
 #else
                     if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
@@ -5374,44 +5576,44 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 /* 阶段 3 -E-extern：入口一律按库模块输出（带 lib 前缀），避免 main 与 main.o 冲突、且仅 extern 依赖不内联。 */
                 const char *lib_name = entry_lib_name_from_path(input_path);
                 if (mod->num_funcs > 0) {
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                     ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
                     ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, input_path);
 #endif
                 } else if (mod->main_func && mod->main_func->body) {
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                     ec = codegen_codegen_entry_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
                     ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #endif
                 } else {
-                    fprintf(stderr, "shu: no main function (cannot emit C)\n");
+                    fprintf(stderr, "shux: no main function (cannot emit C)\n");
                     ec = -1;
                 }
             }
         } else {
             /* 无依赖：仅输出入口模块（保持原有行为） */
             if (mod->main_func && mod->main_func->body) {
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                 ec = codegen_codegen_entry_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
                 ec = codegen_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #endif
             } else if (mod->num_funcs > 0) {
                 const char *lib_name = entry_lib_name_from_path(input_path);
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                 ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
                 ec = codegen_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0, input_path);
 #endif
             } else {
-                fprintf(stderr, "shu: no main function (cannot emit C)\n");
+                fprintf(stderr, "shux: no main function (cannot emit C)\n");
                 ec = -1;
             }
         }
-        /* -E 且入口为 pipeline.su 时输出 #include "pipeline_glue.c"，编译时由 cc 包含，不再追写整份内容 */
-        if (ec == 0 && input_path && strstr(input_path, "pipeline.su") != NULL)
+        /* -E 且入口为 pipeline.sx 时输出 #include "pipeline_glue.c"，编译时由 cc 包含，不再追写整份内容 */
+        if (ec == 0 && input_path && strstr(input_path, "pipeline.sx") != NULL)
             emit_pipeline_glue_include();
         while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
         ast_module_free(mod);
@@ -5424,7 +5626,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         codegen_set_preamble_has_core_option_result(0); /* C 路径 preamble 无 Option/Result，由 codegen 输出 */
         ASTFunc *root_func = codegen_entry_root_func(mod);
         if (!root_func || !root_func->body) {
-            fprintf(stderr, "shu: no main function (cannot emit executable)\n");
+            fprintf(stderr, "shux: no main function (cannot emit executable)\n");
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
             free(src);
@@ -5446,10 +5648,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
         char tmp_c[256];
 
         /* 入口模块 → 临时 .c（有依赖时同一文件内先写依赖再写入口） */
-        char tmp[] = "/tmp/shu_XXXXXX";
+        char tmp[] = "/tmp/shux_XXXXXX";
         int fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shu: mkstemp");
+            perror("shux: mkstemp");
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
             free(src);
@@ -5476,9 +5678,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#include <stddef.h>\n");
             fprintf(cf, "#include <stdlib.h>\n");
             fprintf(cf, "#include <stdio.h>\n");
-            fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.su) */
-            fprintf(cf, "static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-            fprintf(cf, "static inline void shulang_panic_(int has_msg, int msg_val) {\n");
+            fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.sx) */
+            fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+            fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
             fprintf(cf, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(cf, "  abort();\n");
             fprintf(cf, "}\n");
@@ -5486,8 +5688,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "struct std_io_driver_Buffer;\n");
             fprintf(cf, "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
             fprintf(cf, "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n");
-            /* parser.su 路径将 #include pipeline_glue.c，其中已有 std_io_driver_submit_*_batch_buf；再输出 static 版会重复定义。 */
-            if (!input_path || strstr(input_path, "parser.su") == NULL) {
+            /* parser.sx 路径将 #include pipeline_glue.c，其中已有 std_io_driver_submit_*_batch_buf；再输出 static 版会重复定义。 */
+            if (!input_path || strstr(input_path, "parser.sx") == NULL) {
                 fprintf(cf, "static int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n");
                 fprintf(cf, "  ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);\n");
                 fprintf(cf, "  return (r < 0) ? -1 : (int32_t)r;\n");
@@ -5500,16 +5702,16 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#define std_io_submit_read_batch_buf std_io_driver_submit_read_batch_buf\n");
             fprintf(cf, "#define std_io_submit_write_batch_buf std_io_driver_submit_write_batch_buf\n");
             /* driver 的 read_ptr/read_ptr_len 由 core/io.o 提供，与 pipeline 内联 ABI 一致 */
-            fprintf(cf, "#define std_io_driver_driver_read_ptr_len shu_io_read_ptr_len\n");
-            fprintf(cf, "#define std_io_driver_driver_read_ptr shu_io_read_ptr\n");
+            fprintf(cf, "#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len\n");
+            fprintf(cf, "#define std_io_driver_driver_read_ptr shux_io_read_ptr\n");
             /* std.io.driver 的 register/submit_read/submit_write 体需调 _buf 包装；io_register_buffers_buf_i32 供 submit_register_fixed_buffers_buf 体 */
-            fprintf(cf, "extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-            fprintf(cf, "extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-            fprintf(cf, "extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            fprintf(cf, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+            fprintf(cf, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            fprintf(cf, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
             fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-            fprintf(cf, "static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-            fprintf(cf, "static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+            fprintf(cf, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
             fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
             fprintf(cf, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
@@ -5530,7 +5732,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         n_lib++;
                     }
                 }
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
                 if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, cf, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted) != 0) {
 #else
                 if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, cf, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
@@ -5544,8 +5746,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
             }
             /* parser 入口随后在单文件内生成，会调用 glue 导出符号；完整定义在文末 #include pipeline_glue.c。依赖模块已写出后 token/ExprKind 等才完整，故前向声明放在 for 之后、入口 codegen 之前。 */
-            if (input_path && strstr(input_path, "parser.su") != NULL) {
-                fprintf(cf, "struct shulang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
+            if (input_path && strstr(input_path, "parser.sx") != NULL) {
+                fprintf(cf, "struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
                 fprintf(cf, "void parser_pipeline_module_reset_parse_counters(struct ast_Module *m);\n");
                 fprintf(cf, "enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(enum token_TokenKind kind);\n");
                 fprintf(cf, "int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref);\n");
@@ -5569,7 +5771,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(cf, "size_t pipeline_sizeof_arena(void);\n");
             }
         }
-#if defined(SHU_USE_SU_CODEGEN) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_CODEGEN) && !defined(SHUX_USE_SX_PIPELINE)
         if (codegen_codegen_entry_module_to_c(mod, cf, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL, n_all > 0 ? max_emitted : 0) != 0) {
 #else
         if (codegen_module_to_c(mod, cf, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL, n_all > 0 ? max_emitted : 0) != 0) {
@@ -5582,22 +5784,22 @@ int RUN_CC_FUNC(int argc, char **argv) {
             return 1;
         }
         /* 与 pipeline_gen.c 末尾含 glue 同序：先有完整类型定义再 #include pipeline_glue.c（见 pipeline_glue.c 头注释）。 */
-        if (input_path && strstr(input_path, "parser.su") != NULL)
+        if (input_path && strstr(input_path, "parser.sx") != NULL)
             codegen_emit_include_pipeline_glue_c(cf, argv[0]);
         fclose(cf);
         snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
         if (rename(tmp, tmp_c) != 0) {
-            perror("shu: rename");
+            perror("shux: rename");
             unlink(tmp);
             while (ndep--) ast_module_free(dep_mods[ndep]);
             ast_module_free(mod);
             free(src);
             return 1;
         }
-        if (getenv("SHU_DEBUG_C")) {
+        if (getenv("SHUX_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
-                FILE *out = fopen("/tmp/shu_debug.c", "w");
+                FILE *out = fopen("/tmp/shux_debug.c", "w");
                 if (out) {
                     int ch;
                     while ((ch = getc(dc)) != EOF) putc(ch, out);
@@ -5709,18 +5911,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
     ast_module_free(mod);
     free(src);
     return 0;
-#endif /* !SHU_USE_SU_FRONTEND */
+#endif /* !SHUX_USE_SX_FRONTEND */
 }
 #undef RUN_CC_FUNC
-#endif /* !SHU_USE_SU_DRIVER */
+#endif /* !SHUX_USE_SX_DRIVER */
 
 /**
- * 阶段 3 全 .su 前端：当 SHU_USE_SU_FRONTEND 且 SHU_USE_SU_PIPELINE 时，用 pipeline 生成 C 并调用 cc，不依赖 C 的 typeck/codegen。
- * 否则直接转调 run_compiler_c。完全自举时 run_compiler_su_path 由 main.su 提供，C 不定义以免重复符号。
+ * 阶段 3 全 .sx 前端：当 SHUX_USE_SX_FRONTEND 且 SHUX_USE_SX_PIPELINE 时，用 pipeline 生成 C 并调用 cc，不依赖 C 的 typeck/codegen。
+ * 否则直接转调 run_compiler_c。完全自举时 run_compiler_sx_path 由 main.sx 提供，C 不定义以免重复符号。
  */
-#if !defined(SHU_USE_SU_DRIVER)
-int run_compiler_su_path(int argc, char **argv) {
-#if !defined(SHU_USE_SU_FRONTEND) || !defined(SHU_USE_SU_PIPELINE)
+#if !defined(SHUX_USE_SX_DRIVER)
+int run_compiler_sx_path(int argc, char **argv) {
+#if !defined(SHUX_USE_SX_FRONTEND) || !defined(SHUX_USE_SX_PIPELINE)
     return run_compiler_c(argc, argv);
 #else
     driver_bump_stack_limit_if_needed();
@@ -5752,13 +5954,13 @@ int run_compiler_su_path(int argc, char **argv) {
             continue;
         }
         if (strcmp(argv[i], "-flto") == 0) { use_lto = 1; continue; }
-        /* 跳过 -su，避免被当作 input_path 导致无 -o 时向 stdout 打 C（run-all-su 时 run-hello 会传 -su） */
-        if (strcmp(argv[i], "-su") == 0) continue;
+        /* 跳过 -su，避免被当作 input_path 导致无 -o 时向 stdout 打 C（run-all-sx 时 run-hello 会传 -su） */
+        if (strcmp(argv[i], "-sx") == 0) continue;
         if (!input_path) input_path = argv[i];
     }
-    if (!use_lto && getenv("SHULANG_LTO") && strcmp(getenv("SHULANG_LTO"), "1") == 0) use_lto = 1;
+    if (!use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0) use_lto = 1;
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("SHULANG_LIB");
+        lib_roots_arr[0] = getenv("SHUX_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
@@ -5777,10 +5979,10 @@ int run_compiler_su_path(int argc, char **argv) {
     char *src = preprocess(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
     free(raw_src);
     if (!src) {
-        fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
     }
-    /* 有 -o 且源码含泛型语法（如 <T> 或 <i32>）时走 C 流水线，因 .su 流水线暂不支持泛型单态化。 */
+    /* 有 -o 且源码含泛型语法（如 <T> 或 <i32>）时走 C 流水线，因 .sx 流水线暂不支持泛型单态化。 */
     if (!emit_to_stdout && src_len > 0) {
         const char *p = (const char *)src;
         size_t n = src_len;
@@ -5811,14 +6013,14 @@ int run_compiler_su_path(int argc, char **argv) {
     }
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
-    struct shulang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+    struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &src_slice);
     if (pr.ok != 0) {
-        fprintf(stderr, "shu: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
-        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shu: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
+        fprintf(stderr, "shux: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
+        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shux: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
         if (src_len > 0 && src_len < 200)
-            fprintf(stderr, "shu: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
+            fprintf(stderr, "shux: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
         free(arena);
         free(module);
         free(src);
@@ -5846,7 +6048,7 @@ int run_compiler_su_path(int argc, char **argv) {
     }
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[] = "/tmp/shu_su.XXXXXX";
+    char tmp[] = "/tmp/shux_su.XXXXXX";
     char tmp_c[32];
     int fd = -1;
     FILE *cf;
@@ -5855,7 +6057,7 @@ int run_compiler_su_path(int argc, char **argv) {
     } else {
         fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shu: mkstemp");
+            perror("shux: mkstemp");
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
@@ -5886,7 +6088,7 @@ int run_compiler_su_path(int argc, char **argv) {
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shu: -su path: dep alloc failed\n");
+            fprintf(stderr, "shux: -sx path: dep alloc failed\n");
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -5899,7 +6101,7 @@ int run_compiler_su_path(int argc, char **argv) {
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shu: -su path: out_buf/pctx alloc failed\n");
+        fprintf(stderr, "shux: -sx path: out_buf/pctx alloc failed\n");
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -5916,7 +6118,7 @@ int run_compiler_su_path(int argc, char **argv) {
         struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
         struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
         if (!one_ctx || !dep_out) {
-            fprintf(stderr, "shu: -su path: dep_one_ctx/out alloc failed\n");
+            fprintf(stderr, "shux: -sx path: dep_one_ctx/out alloc failed\n");
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             free(out_buf);
@@ -5930,12 +6132,12 @@ int run_compiler_su_path(int argc, char **argv) {
         runtime_one_ctx_for_dep_prerun(one_ctx, j, dep_modules[j], dep_arenas[j]);
         pipeline_fill_ctx_path_buffers(one_ctx, runtime_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots), lib_roots_arr, n_lib_roots);
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
-        int ec_loop = pipeline_run_su_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
+        int ec_loop = pipeline_run_sx_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
         driver_set_current_dep_path_for_codegen(NULL);
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
         if (ec_loop != 0) {
-            fprintf(stderr, "shu: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
+            fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -5956,7 +6158,7 @@ int run_compiler_su_path(int argc, char **argv) {
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
     codegen_set_dep_slots_for_su_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
     codegen_set_preamble_has_core_option_result(1); /* preamble（write_io_net_abi_inline）已含 Option_i32/Result_i32，codegen 跳过避免重定义 */
-    codegen_reset_preamble_skip_mask(); /* codegen.su emit 过程中 OR 重叠段 skip；pipeline 完成后写 preamble 时读取 */
+    codegen_reset_preamble_skip_mask(); /* codegen.sx emit 过程中 OR 重叠段 skip；pipeline 完成后写 preamble 时读取 */
     {
         int has_std_io_core = 0;
         for (int j = 0; j < n_deps; j++)
@@ -5965,10 +6167,10 @@ int run_compiler_su_path(int argc, char **argv) {
             codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
                 | CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
     }
-    /* 入口在 pipeline 内用 .su 重新解析以保持 Module 布局一致。 */
+    /* 入口在 pipeline 内用 .sx 重新解析以保持 Module 布局一致。 */
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
-    int ec = pipeline_run_su_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+    int ec = pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_su_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -5977,7 +6179,7 @@ int run_compiler_su_path(int argc, char **argv) {
     free(module);
     free(src);
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        fprintf(stderr, "shu: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
+        fprintf(stderr, "shux: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -6071,11 +6273,11 @@ int run_compiler_su_path(int argc, char **argv) {
             const char *test_o = get_std_test_o_path(argv[0]);
             int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
-                fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
-            } else if (!getenv("SHULANG_KEEP_C")) {
+                fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+            } else if (!getenv("SHUX_KEEP_C")) {
                 unlink(tmp_c);
             } else {
-                fprintf(stderr, "shu: kept generated C: %s\n", tmp_c);
+                fprintf(stderr, "shux: kept generated C: %s\n", tmp_c);
             }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -6088,10 +6290,10 @@ int run_compiler_su_path(int argc, char **argv) {
 #undef SU_PATH_MAX_LIB_ROOTS
 #endif
 }
-#endif /* !defined(SHU_USE_SU_DRIVER)：run_compiler_su_path 仅在不使用 .su driver 时由 C 提供 */
+#endif /* !defined(SHUX_USE_SX_DRIVER)：run_compiler_sx_path 仅在不使用 .sx driver 时由 C 提供 */
 
-#if defined(SHU_USE_SU_PIPELINE)
-/** pipeline_su.o / pipeline_gen.c 所需符号，shu_su 链接时由 runtime_su.o 提供（仅 -DSHU_USE_SU_PIPELINE）。 */
+#if defined(SHUX_USE_SX_PIPELINE)
+/** pipeline_sx.o / pipeline_gen.c 所需符号，shu_su 链接时由 runtime_sx.o 提供（仅 -DSHUX_USE_SX_PIPELINE）。 */
 static void *driver_dep_arena_ptrs[32];
 static void *driver_dep_module_ptrs[32];
 /** dep 预跑后各全局槽对应的 import 逻辑路径（如 std.io.core），供 pipeline 按路径对齐 import 下标。 */
@@ -6104,7 +6306,7 @@ int32_t driver_dep_seeded_get(int32_t i) {
     return driver_dep_seeded[i] ? 1 : 0;
 }
 
-/** 由 run_compiler_su_path 在预填 dep 后调用，使 pipeline 使用已有 buffer 且不再清零。 */
+/** 由 run_compiler_sx_path 在预填 dep 后调用，使 pipeline 使用已有 buffer 且不再清零。 */
 void driver_dep_seeded_set(int32_t i, int32_t v) {
     if (i >= 0 && i < 32) driver_dep_seeded[i] = (v != 0);
 }
@@ -6156,7 +6358,7 @@ static void runtime_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j
      */
     ast_pipeline_dep_ctx_set_ndep(ctx, 0);
     /**
-     * dep 预跑须 parse+typeck 填槽、跳过 codegen。pipeline.su 经 driver_check_only_get / pipeline_dep_ctx_check_only_mode。
+     * dep 预跑须 parse+typeck 填槽、跳过 codegen。pipeline.sx 经 driver_check_only_get / pipeline_dep_ctx_check_only_mode。
      * 否则 build_asm/pipeline.o 在 use_asm_backend 非 0 时对 std.io 等 dep 走 asm_codegen_ast → rc=-6。
      */
     ctx->use_asm_backend = 0;
@@ -6207,7 +6409,7 @@ uint8_t *driver_dep_module_buf(int32_t i) {
     return (uint8_t *)driver_dep_module_ptrs[i];
 }
 
-/** typeck.su codegen 导出为 typeck_driver_dep_*；转发至本文件 driver_dep_* 全局槽。 */
+/** typeck.sx codegen 导出为 typeck_driver_dep_*；转发至本文件 driver_dep_* 全局槽。 */
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
     return driver_dep_module_buf(i);
 }
@@ -6217,14 +6419,14 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
 }
 
 void driver_pipeline_fail_code(int rc, const uint8_t *path) {
-    fprintf(stderr, "shu: pipeline failed rc=%d\n", rc);
+    fprintf(stderr, "shux: pipeline failed rc=%d\n", rc);
     if (rc == -7 && path != NULL) {
-        fprintf(stderr, "shu: resolve path tried: %s\n", (const char *)path);
+        fprintf(stderr, "shux: resolve path tried: %s\n", (const char *)path);
     }
 }
 
 /**
- * .su driver_run_su_emit_su 在无 -o、pipeline/typeck/codegen 全成功结束时调用 stderr 烟测两行。
+ * .sx driver_run_sx_emit_sx 在无 -o、pipeline/typeck/codegen 全成功结束时调用 stderr 烟测两行。
  * 首行前缀保留「parse OK:」，次行保留「typeck OK」，grep 仍可匹配 run-import/run-stdlib 脚本；
  * num_funcs/main_idx/codegen_bytes 避免「实为库模块或未 emit 却仍冒用 main()/expr」的误导。
  */
@@ -6236,7 +6438,7 @@ void driver_print_su_smoke_summary(void *module, size_t codegen_len) {
             main_ix,
             codegen_len);
     fflush(stderr);
-    /** 解析未产出任何函数时不宣称 typeck OK（如含 += 的 .su 在 SU parse 失败）。 */
+    /** 解析未产出任何函数时不宣称 typeck OK（如含 += 的 .sx 在 SU parse 失败）。 */
     if (num_funcs <= 0) {
         fputs("parse fail: no functions in module\n", stderr);
         fflush(stderr);
@@ -6254,29 +6456,29 @@ void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t a
         lsp_diag_add(1, 1, 1, msg);
         return;
     }
-    fprintf(stderr, "shu: parse fail main_idx=%d num_funcs=%d arena_num_types=%d\n", (int)main_idx, (int)num_funcs,
+    fprintf(stderr, "shux: parse fail main_idx=%d num_funcs=%d arena_num_types=%d\n", (int)main_idx, (int)num_funcs,
             (int)arena_num_types);
 }
 
 /**
  * 非 0 时 parse_into_buf 在单函数 impl/buf 均失败时返回 -2，不再静默 skip（与 parse_into slice 路径对齐）。
- * 环境变量 SHU_PARSE_STRICT=1。
+ * 环境变量 SHUX_PARSE_STRICT=1。
  */
 int32_t driver_parse_strict_enabled(void) {
-    const char *e = getenv("SHU_PARSE_STRICT");
+    const char *e = getenv("SHUX_PARSE_STRICT");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
 /**
- * parse_into_buf 跳过无法解析的 function 时打印诊断（SHU_DEBUG_PARSE=1 或 SHU_PARSE_STRICT=1）。
+ * parse_into_buf 跳过无法解析的 function 时打印诊断（SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1）。
  * byte_pos 为源缓冲字节偏移；name 可为 NULL。
  */
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                            const uint8_t *name) {
     const char *tag;
-    if (!getenv("SHU_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
-    tag = getenv("SHU_DEBUG_PARSE") ? "debug" : "strict";
+    tag = getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
     if (lsp_diag_enabled) {
         char msg[240];
         char nb[72];
@@ -6289,7 +6491,7 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
         lsp_diag_add(1, 1, 1, msg);
         return;
     }
-    fprintf(stderr, "shu: parse skip at byte %d (num_funcs=%d)", (int)byte_pos, (int)num_funcs_so_far);
+    fprintf(stderr, "shux: parse skip at byte %d (num_funcs=%d)", (int)byte_pos, (int)num_funcs_so_far);
     if (name && name_len > 0 && name_len < 64) {
         fprintf(stderr, " name=");
         fwrite(name, 1, (size_t)name_len, stderr);
@@ -6299,12 +6501,12 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
 }
 
 /**
- * .su 流水线中 typeck_su_ast / typeck_su_ast_library 失败时打印一行 stderr。
- * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.su typeck 当前不向 stderr 逐条报原因）。
+ * .sx 流水线中 typeck_sx_ast / typeck_sx_ast_library 失败时打印一行 stderr。
+ * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.sx typeck 当前不向 stderr 逐条报原因）。
  */
 void driver_diagnostic_typeck_fail(void) {
-    const char *msg = driver_check_only_get() ? "check failed: .su pipeline type check failed"
-                                              : "typeck error: .su pipeline type check failed";
+    const char *msg = driver_check_only_get() ? "check failed: .sx pipeline type check failed"
+                                              : "typeck error: .sx pipeline type check failed";
     if (lsp_diag_enabled) {
         lsp_diag_add(1, 1, 1, msg);
         return;
@@ -6314,7 +6516,7 @@ void driver_diagnostic_typeck_fail(void) {
 }
 
 /**
- * .su typeck：标注失败函数（下标 + 名称）与失败类别；在 driver_diagnostic_typeck_fail 一行之前打印，便于定位大模块。
+ * .sx typeck：标注失败函数（下标 + 名称）与失败类别；在 driver_diagnostic_typeck_fail 一行之前打印，便于定位大模块。
  * kind：5 = check_block 失败；-6 = 非 void 函数块末隐式尾表达式。
  */
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind) {
@@ -6329,12 +6531,12 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
             namebuf[0] = '\0';
             (void)strcpy(namebuf, "(unknown)");
         }
-        (void)snprintf(msg, sizeof(msg), "shu: typeck func_idx=%d %s (%s)", (int)func_idx, namebuf,
+        (void)snprintf(msg, sizeof(msg), "shux: typeck func_idx=%d %s (%s)", (int)func_idx, namebuf,
                        kind == -6 ? "implicit tail return" : "check_block failed");
         lsp_diag_add(1, 1, 1, msg);
         return;
     }
-    fprintf(stderr, "shu: typeck func_idx=%d ", (int)func_idx);
+    fprintf(stderr, "shux: typeck func_idx=%d ", (int)func_idx);
     if (name && name_len > 0 && name_len <= 64)
         (void)fwrite(name, 1, (size_t)name_len, stderr);
     else
@@ -6346,28 +6548,28 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
     fflush(stderr);
 }
 
-/** 诊断：FIELD_ACCESS 时 base 的类型与 *T 指向名；SHU_TYPECK_PTR=1 时打印（含模块已登记的 struct_layouts 条数）。 */
+/** 诊断：FIELD_ACCESS 时 base 的类型与 *T 指向名；SHUX_TYPECK_PTR=1 时打印（含模块已登记的 struct_layouts 条数）。 */
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
                                       int32_t num_struct_layouts) {
-    if (!getenv("SHU_TYPECK_PTR"))
+    if (!getenv("SHUX_TYPECK_PTR"))
         return;
     fprintf(stderr,
-            "shu: [SHU_TYPECK_PTR] FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d "
+            "shux: [SHUX_TYPECK_PTR] FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d "
             "num_struct_layouts=%d\n",
             (int)bt_kind, (int)inner_kind, (int)inner_nlen, (int)base_resolved_ref, (int)num_struct_layouts);
     fflush(stderr);
 }
 
-/** 诊断：EXPR_RETURN 失败；SHU_TYPECK_RET=1 时额外打印 ref 调试。stage 1=operand check_expr -1；2=got 与期望 return_type_ref 不一致。 */
+/** 诊断：EXPR_RETURN 失败；SHUX_TYPECK_RET=1 时额外打印 ref 调试。stage 1=operand check_expr -1；2=got 与期望 return_type_ref 不一致。 */
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref) {
-    if (getenv("SHU_TYPECK_RET")) {
-        fprintf(stderr, "shu: [RET_FAIL] stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d\n", (int)stage,
+    if (getenv("SHUX_TYPECK_RET")) {
+        fprintf(stderr, "shux: [RET_FAIL] stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d\n", (int)stage,
                 (int)op_expr_ref, (int)expect_ty_ref, (int)got_ty_ref);
         fflush(stderr);
     }
 }
 
-/** .su typeck：`return expr` 表达式类型与函数返回类型不符；行文与 assignment type mismatch 对齐。 */
+/** .sx typeck：`return expr` 表达式类型与函数返回类型不符；行文与 assignment type mismatch 对齐。 */
 void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
                                                const uint8_t *expect_buf, int32_t expect_len,
                                                const uint8_t *found_buf, int32_t found_len) {
@@ -6414,21 +6616,21 @@ void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
 }
 
 /**
- * .su 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
- * 以便 run-typeck、负例与 shu-c 对齐（含 "assignment type mismatch: expected …, found …"）。
+ * .sx 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
+ * 以便 run-typeck、负例与 shux-c 对齐（含 "assignment type mismatch: expected …, found …"）。
  */
-/** .su typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/** .sx typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break) {
     const char *kw = is_break ? "break" : "continue";
     lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
 }
 
-/** .su typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
+/** .sx typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
     lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");
 }
 
-/** .su typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
+/** .sx typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     const char *msg = "typeck error: enum has no variant";
     if (lsp_diag_enabled) {
@@ -6439,7 +6641,7 @@ void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     (void)fputc('\n', stderr);
 }
 
-/** .su typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/** .sx typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
     const char *msg = "subscript base must be array, slice or pointer";
     if (lsp_diag_enabled) {
@@ -6451,7 +6653,7 @@ void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
     (void)fputc('\n', stderr);
 }
 
-/** .su typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
+/** .sx typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len) {
     lsp_diag_report_typeck(
@@ -6520,29 +6722,29 @@ void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line,
     fflush(stderr);
 }
 
-/** 非重入也没关系：赋值诊断双缓冲（.su check_expr_impl 格式化 expected/found 类型名）；单线程流水线专用。 */
+/** 非重入也没关系：赋值诊断双缓冲（.sx check_expr_impl 格式化 expected/found 类型名）；单线程流水线专用。 */
 static uint8_t g_type_diag_scratch_expect[96];
 static uint8_t g_type_diag_scratch_found[96];
 
 uint8_t *driver_typeck_diag_scratch_expect(void) { return g_type_diag_scratch_expect; }
 uint8_t *driver_typeck_diag_scratch_found(void) { return g_type_diag_scratch_found; }
 
-/** 诊断：check_block_impl 入口打印块计数；SHU_TYPECK_BLOCK=1（常与 SHU_TYPECK_FN 同用）。 */
+/** 诊断：check_block_impl 入口打印块计数；SHUX_TYPECK_BLOCK=1（常与 SHUX_TYPECK_FN 同用）。 */
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
                                           int32_t n_for, int32_t n_expr, int32_t final_ref) {
-    if (!getenv("SHU_TYPECK_BLOCK"))
+    if (!getenv("SHUX_TYPECK_BLOCK"))
         return;
     fprintf(stderr,
-            "shu: [SHU_TYPECK_BLOCK] func_idx=%d block_ref=%d const=%d let=%d while=%d for=%d expr_stmt=%d final_expr=%d\n",
+            "shux: [SHUX_TYPECK_BLOCK] func_idx=%d block_ref=%d const=%d let=%d while=%d for=%d expr_stmt=%d final_expr=%d\n",
             (int)func_idx, (int)block_ref, (int)n_const, (int)n_let, (int)n_loop, (int)n_for, (int)n_expr, (int)final_ref);
     fflush(stderr);
 }
 
-/** 诊断：typeck_su_ast_impl 逐函数入口；SHU_TYPECK_FN=1 时打印 func_idx 与名称。 */
+/** 诊断：typeck_sx_ast_impl 逐函数入口；SHUX_TYPECK_FN=1 时打印 func_idx 与名称。 */
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len) {
-    if (!getenv("SHU_TYPECK_FN"))
+    if (!getenv("SHUX_TYPECK_FN"))
         return;
-    fprintf(stderr, "shu: [SHU_TYPECK_FN] func_idx=%d ", (int)func_idx);
+    fprintf(stderr, "shux: [SHUX_TYPECK_FN] func_idx=%d ", (int)func_idx);
     if (name && name_len > 0 && name_len <= 64)
         (void)fwrite(name, 1, (size_t)name_len, stderr);
     else
@@ -6551,45 +6753,88 @@ void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, in
     fflush(stderr);
 }
 
-/** -su -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
+/** -sx -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] before_codegen num_funcs=%d out_len=%d\n", (int)num_funcs, (int)out_len);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before_codegen num_funcs=%d out_len=%d\n", (int)num_funcs, (int)out_len);
 }
 
-/** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.su 调用。需要时取消注释 fprintf。 */
+/** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_entry_already(int32_t v) {
     (void)v;
 }
 
-/** 诊断：解析前 source_len。由 pipeline.su 调用。需要时取消注释 fprintf。 */
+/** 诊断：解析前 source_len。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_source_len(int32_t len) {
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] entry_source_len=%d\n", (int)len);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] entry_source_len=%d\n", (int)len);
 }
 
-/** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.su 调用。需要时取消注释 fprintf。 */
+/** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_after_entry_parse(int32_t num_funcs) {
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] after_entry_parse num_funcs=%d\n", (int)num_funcs);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] after_entry_parse num_funcs=%d\n", (int)num_funcs);
 }
 
-/** 诊断：pipeline/typeck 阶段 marker；SHU_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
+
+/**
+ * 诊断：parse_into_buf commit 失败（arena/侧车池满等）；SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1。
+ * 大模块 typeck 单函数 commit 失败时不应整文件 abort，由 seed parse 改 skip+continue。
+ */
+void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                         const uint8_t *name) {
+    const char *tag;
+    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+        return;
+    tag = getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
+    fprintf(stderr, "shux: parse commit fail at byte %d (num_funcs=%d)", (int)byte_pos, (int)num_funcs_so_far);
+    if (name && name_len > 0 && name_len < 64) {
+        fprintf(stderr, " name=");
+        fwrite(name, 1, (size_t)name_len, stderr);
+    }
+    fprintf(stderr, " [%s]\n", tag);
+    fflush(stderr);
+}
+
+/**
+ * 诊断：entry 解析后 num_funcs / num_defined / num_extern 分项（A-11 typeck 截断：target num_defined=146）。
+ */
+void driver_diagnostic_after_entry_parse_module(void *module) {
+    int32_t nf, i, ndef, next;
+    if (!getenv("SHUX_DEBUG_PIPE") || !module)
+        return;
+    nf = pipeline_module_num_funcs(module);
+    ndef = 0;
+    next = 0;
+    for (i = 0; i < nf; i++) {
+        if (pipeline_module_func_is_extern_at(module, i) != 0)
+            next++;
+        else
+            ndef++;
+    }
+    fprintf(stderr,
+            "shux: [SHUX_DEBUG_PIPE] after_entry_parse num_funcs=%d num_defined=%d num_extern=%d\n", (int)nf,
+            (int)ndef, (int)next);
+}
+
+/** 诊断：pipeline/typeck 阶段 marker；SHUX_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
 void driver_diagnostic_pipe_marker(int32_t id) {
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] pipe_marker=%d\n", (int)id);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] pipe_marker=%d\n", (int)id);
 }
 
 /** OBS-001：编译阶段耗时埋点；phase 0=parse(+dep load) 1=typeck 2=codegen。 */
-#define SHU_COMPILE_PHASE_MAX 3
+#define SHUX_COMPILE_PHASE_MAX 3
 
-static double g_compile_phase_acc_ms[SHU_COMPILE_PHASE_MAX];
-static double g_compile_phase_start_sec[SHU_COMPILE_PHASE_MAX];
-static int g_compile_phase_active[SHU_COMPILE_PHASE_MAX];
+static double g_compile_phase_acc_ms[SHUX_COMPILE_PHASE_MAX];
+static double g_compile_phase_start_sec[SHUX_COMPILE_PHASE_MAX];
+static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 
-/** 是否启用 SHU_COMPILE_PHASE_TIMING=1 阶段计时。 */
+/** 是否启用 SHUX_COMPILE_PHASE_TIMING=1 阶段计时。 */
 static int compile_phase_timing_enabled(void) {
-    return getenv("SHU_COMPILE_PHASE_TIMING") != NULL;
+    return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
 
 /** 单调 wall-clock 秒（gettimeofday，跨 Linux/macOS）。 */
@@ -6599,9 +6844,9 @@ static double compile_phase_now_sec(void) {
     return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
 
-/** 标记阶段开始；由 pipeline.su run_su_pipeline_impl 调用。 */
+/** 标记阶段开始；由 pipeline.sx run_sx_pipeline_impl 调用。 */
 void driver_compile_phase_timing_begin(int32_t phase) {
-    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHU_COMPILE_PHASE_MAX)
+    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX)
         return;
     g_compile_phase_start_sec[phase] = compile_phase_now_sec();
     g_compile_phase_active[phase] = 1;
@@ -6609,7 +6854,7 @@ void driver_compile_phase_timing_begin(int32_t phase) {
 
 /** 累加阶段耗时（毫秒）；可多次 begin/end 同 phase 时叠加。 */
 void driver_compile_phase_timing_end(int32_t phase) {
-    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHU_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
+    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
         return;
     g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
     g_compile_phase_active[phase] = 0;
@@ -6621,7 +6866,7 @@ void driver_compile_phase_timing_flush(void) {
         return;
     double total = g_compile_phase_acc_ms[0] + g_compile_phase_acc_ms[1] + g_compile_phase_acc_ms[2];
     fprintf(stderr,
-            "shu: [SHU_COMPILE_PHASE_TIMING] parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f\n",
+            "shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f\n",
             g_compile_phase_acc_ms[0], g_compile_phase_acc_ms[1], g_compile_phase_acc_ms[2], total);
     fflush(stderr);
     memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
@@ -6636,19 +6881,19 @@ void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
 
 /** codegen 失败时打印是第几个 dep（is_dep!=0）还是当前模块（is_dep==0），便于定位 -6。需要时取消注释 fprintf。 */
 void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep) {
-    /* 始终打印简要失败位置；SHU_DEBUG_PIPE=1 时前缀一致便于 grep。 */
-    fprintf(stderr, "shu: codegen fail dep_index=%d is_dep=%d\n", (int)dep_index, (int)is_dep);
+    /* 始终打印简要失败位置；SHUX_DEBUG_PIPE=1 时前缀一致便于 grep。 */
+    fprintf(stderr, "shux: codegen fail dep_index=%d is_dep=%d\n", (int)dep_index, (int)is_dep);
 }
 
-/** asm 后端：不支持的 ExprKind 时由 backend.su 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
+/** asm 后端：不支持的 ExprKind 时由 backend.sx 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
 void driver_diagnostic_asm_unsupported_expr(int32_t kind) {
-    fprintf(stderr, "shu: asm codegen unsupported ExprKind=%d\n", (int)kind);
+    fprintf(stderr, "shux: asm codegen unsupported ExprKind=%d\n", (int)kind);
     fflush(stderr);
 }
 
 /** asm 后端：elf_resolve_patches 找不到补丁目标标签。 */
 void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len) {
-    fprintf(stderr, "shu: elf unresolved patch label name_len=%d name='", (int)len);
+    fprintf(stderr, "shux: elf unresolved patch label name_len=%d name='", (int)len);
     if (name && len > 0) {
         for (int32_t i = 0; i < len && i < 64; i++)
             fputc((char)name[i], stderr);
@@ -6660,13 +6905,13 @@ void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len
 
 /** asm 后端：Mach-O 写出时 reloc 符号名为空。 */
 void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx) {
-    fprintf(stderr, "shu: macho empty reloc symbol at idx=%d\n", (int)reloc_idx);
+    fprintf(stderr, "shux: macho empty reloc symbol at idx=%d\n", (int)reloc_idx);
     fflush(stderr);
 }
 
 /** asm 后端：Mach-O 写出时外部 reloc 未命中 und 池（常与 macho_leading_underscore 未置 1 有关）。 */
 void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx) {
-    fprintf(stderr, "shu: macho undef reloc not in und pool at idx=%d\n", (int)reloc_idx);
+    fprintf(stderr, "shux: macho undef reloc not in und pool at idx=%d\n", (int)reloc_idx);
     fflush(stderr);
 }
 
@@ -6686,8 +6931,8 @@ void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
         for (int i = 0; i < driver_diagnostic_asm_current_func_len; i++)
             driver_diagnostic_asm_current_func[i] = name[i];
     }
-    /** SHU_ASM_FUNC_TRACE=1：打印当前 asm emit 函数名，便于二分大模块失败点。 */
-    trace = getenv("SHU_ASM_FUNC_TRACE");
+    /** SHUX_ASM_FUNC_TRACE=1：打印当前 asm emit 函数名，便于二分大模块失败点。 */
+    trace = getenv("SHUX_ASM_FUNC_TRACE");
     if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
         fprintf(stderr, "asm_trace: %.*s\n", driver_diagnostic_asm_current_func_len,
                 (const char *)driver_diagnostic_asm_current_func);
@@ -6695,20 +6940,20 @@ void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
     }
 }
 
-/** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHU_ASM_DEBUG）。 */
+/** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHUX_ASM_DEBUG）。 */
 void driver_diagnostic_asm_print_current_func(void) {
     if (driver_diagnostic_asm_current_func_len > 0)
-        fprintf(stderr, "shu: asm codegen failed in func=%.*s\n", driver_diagnostic_asm_current_func_len,
+        fprintf(stderr, "shux: asm codegen failed in func=%.*s\n", driver_diagnostic_asm_current_func_len,
                 (const char *)driver_diagnostic_asm_current_func);
     else
-        fprintf(stderr, "shu: asm codegen failed (func unknown)\n");
+        fprintf(stderr, "shux: asm codegen failed (func unknown)\n");
     fflush(stderr);
 }
 
-/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.su 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
+/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.sx 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
 void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32_t num_locals,
     const uint8_t *first_slot, int32_t first_len) {
-    fprintf(stderr, "shu: asm codegen EXPR_VAR not in ctx: \"");
+    fprintf(stderr, "shux: asm codegen EXPR_VAR not in ctx: \"");
     if (name && len > 0 && len <= 64) {
         for (int i = 0; i < len; i++) fputc((char)name[i], stderr);
     }
@@ -6732,20 +6977,20 @@ void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32
 /** asm 后端：返回 -1 前调用，loc 表示失败位置（1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue），便于定位 rc=-6。 */
 void driver_diagnostic_asm_fail_at(int32_t loc) {
     if (driver_diagnostic_asm_current_func_len > 0) {
-        fprintf(stderr, "shu: asm codegen func=%.*s ",
+        fprintf(stderr, "shux: asm codegen func=%.*s ",
                 driver_diagnostic_asm_current_func_len, (const char *)driver_diagnostic_asm_current_func);
     }
     fprintf(stderr, "fail_at=%d (last_expr_kind=%d)\n", (int)loc, driver_diagnostic_asm_last_expr_kind);
     fflush(stderr);
 }
 
-/* 非 0 时 asm -o 单模块仅编入口（build_shu_asm 并列链 build_asm 各 .o）；读 SHU_ASM_ENTRY_MODULE_ONLY 环境变量。 */
+/* 非 0 时 asm -o 单模块仅编入口（build_shux_asm 并列链 build_asm 各 .o）；读 SHUX_ASM_ENTRY_MODULE_ONLY 环境变量。 */
 static int asm_entry_module_only_from_env(void) {
-    const char *e = getenv("SHU_ASM_ENTRY_MODULE_ONLY");
+    const char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
     return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
-/** 供 compile.su / driver 分派：build_shu_asm 单模块 -o 时勿因 import 降级 shu-c（-backend asm 须保留）。 */
+/** 供 compile.sx / driver 分派：build_shux_asm 单模块 -o 时勿因 import 降级 shux-c（-backend asm 须保留）。 */
 int32_t driver_asm_entry_module_only_from_env(void) {
     return asm_entry_module_only_from_env();
 }
@@ -6755,7 +7000,7 @@ static int driver_skip_codegen_dep_0_flag;
 void driver_skip_codegen_dep_0_set(int32_t v) { driver_skip_codegen_dep_0_flag = (v != 0); }
 int32_t driver_skip_codegen_dep_0_get(void) { return driver_skip_codegen_dep_0_flag ? 1 : 0; }
 
-/** 当前 codegen 的 dep 路径（如 "std.io.driver"），供 .su codegen 生成带前缀的 C 名（避免与 C 关键字 register 等冲突）。 */
+/** 当前 codegen 的 dep 路径（如 "std.io.driver"），供 .sx codegen 生成带前缀的 C 名（避免与 C 关键字 register 等冲突）。 */
 static const char *driver_current_dep_path_for_codegen;
 
 void driver_set_current_dep_path_for_codegen(const char *path) {
@@ -6782,17 +7027,17 @@ void parser_diag_ident_len(int32_t len) {
 }
 
 void parser_diag_scan_fail(int32_t step) {
-    fprintf(stderr, "shu: library_scan fail step=%d\n", (int)step);
+    fprintf(stderr, "shux: library_scan fail step=%d\n", (int)step);
 }
 
 int parser_is_ident_allow(const uint8_t *ident, int len) {
     if (!ident || len != 5) return 0;
     return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
 }
-#endif /* SHU_USE_SU_PIPELINE */
+#endif /* SHUX_USE_SX_PIPELINE */
 
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
- * 须在 #if SHU_USE_SU_PIPELINE 外：C 前端 typeck.o（shu-c）也调用。 */
+ * 须在 #if SHUX_USE_SX_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
                                                        int32_t f0_len, const uint8_t *f1, int32_t f1_len) {
     char msg[384];
@@ -6823,7 +7068,7 @@ void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t snam
         fprintf(stderr, "%s\n", msg);
 }
 
-/** L6-unused-hint：未使用的 let/const/import 绑定（SHU_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
+/** L6-unused-hint：未使用的 let/const/import 绑定（SHUX_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
 void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len) {
     char msg[160];
     int ln = (line > 0) ? (int)line : 1;
@@ -6836,18 +7081,18 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
         fprintf(stderr, "info: %s\n", msg);
 }
 
-#ifdef SHU_USE_SU_DRIVER
-/* 阶段 6.2：main.su 内实现 argv 解析与 -su -E 执行逻辑；C 仅提供极薄原语 driver_get_argv_i。 */
-/* 保留旧符号供未迁完时链接；main.su 自实现后不再调用。 */
+#ifdef SHUX_USE_SX_DRIVER
+/* 阶段 6.2：main.sx 内实现 argv 解析与 -sx -E 执行逻辑；C 仅提供极薄原语 driver_get_argv_i。 */
+/* 保留旧符号供未迁完时链接；main.sx 自实现后不再调用。 */
 static const char *driver_su_emit_c_path;
 #define SU_EMIT_MAX_LIB_ROOTS 16
 static const char *driver_su_emit_lib_roots[SU_EMIT_MAX_LIB_ROOTS];
 static int driver_su_emit_n_lib_roots;
-/* 供 main.su 在 -su -E 时把 path/lib_roots 灌入 C 侧，再调 driver_run_su_emit_c，以走完整多文件（deps+main）路径。 */
+/* 供 main.sx 在 -sx -E 时把 path/lib_roots 灌入 C 侧，再调 driver_run_sx_emit_c，以走完整多文件（deps+main）路径。 */
 static char driver_su_emit_path_buf[512];
 static char driver_su_emit_lib_bufs[SU_EMIT_MAX_LIB_ROOTS][256];
 
-int driver_run_su_emit_c_set_path(const uint8_t *path, int path_len) {
+int driver_run_sx_emit_c_set_path(const uint8_t *path, int path_len) {
     driver_su_emit_c_path = NULL;
     if (!path || path_len <= 0 || path_len >= (int)sizeof(driver_su_emit_path_buf)) return 0;
     memcpy(driver_su_emit_path_buf, path, (size_t)path_len);
@@ -6856,7 +7101,7 @@ int driver_run_su_emit_c_set_path(const uint8_t *path, int path_len) {
     return 0;
 }
 
-int driver_run_su_emit_c_set_lib(int i, const uint8_t *buf, int len) {
+int driver_run_sx_emit_c_set_lib(int i, const uint8_t *buf, int len) {
     if (i < 0 || i >= SU_EMIT_MAX_LIB_ROOTS || !buf || len < 0 || len >= 256) return 0;
     memcpy(driver_su_emit_lib_bufs[i], buf, (size_t)len);
     driver_su_emit_lib_bufs[i][len] = '\0';
@@ -6864,15 +7109,15 @@ int driver_run_su_emit_c_set_lib(int i, const uint8_t *buf, int len) {
     return 0;
 }
 
-int driver_run_su_emit_c_set_n_lib_roots(int n) {
+int driver_run_sx_emit_c_set_n_lib_roots(int n) {
     driver_su_emit_n_lib_roots = (n >= 0 && n <= SU_EMIT_MAX_LIB_ROOTS) ? n : 0;
     return 0;
 }
 
-/** main.su 在解析到 -E-extern 后置 1；driver_run_su_emit_c 消费后清零。与 C 路径 emit_extern_imports 对齐。 */
+/** main.sx 在解析到 -E-extern 后置 1；driver_run_sx_emit_c 消费后清零。与 C 路径 emit_extern_imports 对齐。 */
 static int driver_su_emit_c_want_extern;
 
-int driver_run_su_emit_c_set_emit_extern(int v) {
+int driver_run_sx_emit_c_set_emit_extern(int v) {
     driver_su_emit_c_want_extern = v ? 1 : 0;
     return 0;
 }
@@ -6883,9 +7128,9 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
 /**
  * 是否与 \c driver_run_compiler_full 默认一致：默认可走 asm 后端；仅当 argv 含 \c `-backend c` 时为 0。
  *
- * 【历史说明】曾仅靠 `-backend asm` 为真；现 shu 默认 asm，`driver_run_asm_backend` 仍由 \c driver_run_compiler_full 在无 \c `-backend c` 时选用。
+ * 【历史说明】曾仅靠 `-backend asm` 为真；现 shux 默认 asm，`driver_run_asm_backend` 仍由 \c driver_run_compiler_full 在无 \c `-backend c` 时选用。
  *
- * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_su_pipeline_impl 轻路径（主要为兼容未再生成的 driver_gen.c）。
+ * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_sx_pipeline_impl 轻路径（主要为兼容未再生成的 driver_gen.c）。
  */
 int driver_want_asm_emit_to_file(int argc, char **argv) {
     int want_asm = 1;
@@ -6894,8 +7139,8 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
     int i;
     if (!argv || argc < 2)
         return 0;
-    /* 与 driver_run_compiler_full 一致：经 main.su 传入的 argv 在 ABI 上与 char** 同址，但若用错位索引会破坏 -L；
-     * 必须用 driver_get_argv_i 逐项拷贝，与同文件 main.su/driver_get_argv_i 语义对齐。 */
+    /* 与 driver_run_compiler_full 一致：经 main.sx 传入的 argv 在 ABI 上与 char** 同址，但若用错位索引会破坏 -L；
+     * 必须用 driver_get_argv_i 逐项拷贝，与同文件 main.sx/driver_get_argv_i 语义对齐。 */
     for (i = 1; i < argc; i++) {
         if (driver_get_argv_i(argc, argv, i, cur, (int)sizeof cur) < 0)
             continue;
@@ -6916,7 +7161,7 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
     return want_asm ? 1 : 0;
 }
 
-/** 6.2 极薄原语：将 argv[i] 复制到 buf，最多 max-1 字节并加 NUL，返回长度（不含 NUL）；i 越界或失败返回 -1。供 main.su 自实现 argv 解析。 */
+/** 6.2 极薄原语：将 argv[i] 复制到 buf，最多 max-1 字节并加 NUL，返回长度（不含 NUL）；i 越界或失败返回 -1。供 main.sx 自实现 argv 解析。 */
 int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
     if (!argv || !buf || max <= 0 || i < 0 || i >= argc || !argv[i]) return -1;
     size_t n = (size_t)max - 1;
@@ -6945,7 +7190,7 @@ int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_fla
 }
 
 /**
- * main.su entry() 子命令路由：去掉 argv[1]（子命令名），保留 argv[0] 与原 argv[2..argc-1]。
+ * main.sx entry() 子命令路由：去掉 argv[1]（子命令名），保留 argv[0] 与原 argv[2..argc-1]。
  * 返回指针与 (char **) 同址，供 cmd_build/cmd_run 等与直编共享的 driver_get_argv_i 路径读取。
  * 使用静态槽（容量 512），单次 main 内单线程安全；argc 超界时原样返回 argv_opaque 以免越界。
  */
@@ -6967,7 +7212,7 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque)
 }
 
 /**
- * cmd_run（driver/run.su）：编译成功后 exec 产物。从 argv 扫描 `-o` 下一参数为可执行路径，缺省 `a.out`。
+ * cmd_run（driver/run.sx）：编译成功后 exec 产物。从 argv 扫描 `-o` 下一参数为可执行路径，缺省 `a.out`。
  * 子进程 argv 仅为 [ exe, NULL ]；ABI 上 argv 与 char** 同址。
  */
 int driver_exec_compiled(int argc, uint8_t *argv_opaque)
@@ -6985,7 +7230,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
         }
     }
     /*
-     * `shu` / `shu run` 默认在编译成功后 exec 产物。-o 为对象文件或汇编列表时不应执行（execv(.o) → EACCES）。
+     * `shux` / `shux run` 默认在编译成功后 exec 产物。-o 为对象文件或汇编列表时不应执行（execv(.o) → EACCES）。
      * 与 driver_asm_output_want_exe_cstr 后缀规则对齐。
      */
     {
@@ -7000,7 +7245,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shu: fork (driver_exec_compiled)");
+            perror("shux: fork (driver_exec_compiled)");
             return 1;
         }
         if (pid == 0) {
@@ -7008,7 +7253,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
             av[0] = (char *)exe;
             av[1] = NULL;
             execv(exe, av);
-            perror("shu: execv (driver_exec_compiled)");
+            perror("shux: execv (driver_exec_compiled)");
             _exit(127);
         }
         {
@@ -7026,31 +7271,31 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
 int driver_run_compiler_full(int argc, char **argv);
 
 /**
- * cmd_build（driver/build.su）：在当前工作目录查找 build.su，编译后执行默认产物 ./a.out。
- * - access("build.su", R_OK) 失败则 fprintf stderr 报错并返回 1。
- * - 构造 argv {"shu","build.su",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
+ * cmd_build（driver/build.sx）：在当前工作目录查找 build.sx，编译后执行默认产物 ./a.out。
+ * - access("build.sx", R_OK) 失败则 fprintf stderr 报错并返回 1。
+ * - 构造 argv {"shux","build.sx",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
  * - 编译成功后 fork / execv("./a.out", av)、waitpid，返回子进程正常退出码；信号等非正常退出返回 1。
  */
 int driver_build_build_su(void)
 {
-    /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shu。
-       build.su 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
+    /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shux。
+       build.sx 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
        Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
     int rc = system("cd compiler && make -s build-tool 2>&1");
     if (rc != 0) {
-        fprintf(stderr, "shu: make build-tool failed (exit %d)\n", rc);
+        fprintf(stderr, "shux: make build-tool failed (exit %d)\n", rc);
         return 1;
     }
-    rc = system("cd compiler && ./build_tool ./shu 2>&1");
+    rc = system("cd compiler && ./build_tool ./shux 2>&1");
     if (rc != 0) {
-        fprintf(stderr, "shu: build_tool failed (exit %d)\n", rc);
+        fprintf(stderr, "shux: build_tool failed (exit %d)\n", rc);
         return 1;
     }
     return 0;
 }
 
-/** 6.2 静态 arena/module 缓冲，供 driver_run_su_emit_su 避免栈上超大数组。
- * arena 对应 .su codegen 之 `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
+/** 6.2 静态 arena/module 缓冲，供 driver_run_sx_emit_sx 避免栈上超大数组。
+ * arena 对应 .sx codegen 之 `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
  * 池扩大后（types/exprs/blocks/funcs 四倍）宿主约 ~90MiB，预留 128MiB 避免静默越界。 */
 #define DRIVER_ARENA_STATIC_SIZE (128 * 1024 * 1024)
 #define DRIVER_MODULE_STATIC_SIZE (2 * 1024 * 1024)
@@ -7062,7 +7307,7 @@ extern size_t pipeline_arena_offset_num_types(void);
 
 uint8_t *driver_arena_buf(void) {
     memset(driver_arena_static, 0, DRIVER_ARENA_STATIC_SIZE);
-    /* 强制 num_types=0，避免与 .su 生成 struct 布局/对齐不一致时 type_alloc 读到未清零值 */
+    /* 强制 num_types=0，避免与 .sx 生成 struct 布局/对齐不一致时 type_alloc 读到未清零值 */
     size_t off = pipeline_arena_offset_num_types();
     if (off + sizeof(int32_t) <= DRIVER_ARENA_STATIC_SIZE) {
         *(int32_t *)(driver_arena_static + off) = 0;
@@ -7075,7 +7320,7 @@ uint8_t *driver_module_buf(void) {
     return driver_module_static;
 }
 
-/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。供 driver_run_su_emit_su 读入口文件，避免生成代码顺序导致 path_buf 未填就 open。 */
+/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。供 driver_run_sx_emit_sx 读入口文件，避免生成代码顺序导致 path_buf 未填就 open。 */
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
@@ -7084,7 +7329,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     return open(buf, O_RDONLY);
 }
 
-/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时 main.su 写 -o 文件。 */
+/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时 main.sx 写 -o 文件。 */
 int driver_fs_open_write(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
@@ -7100,7 +7345,7 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
     return -1;
 }
 
-/** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.su 流水线不支持，需走 C 路径）。 */
+/** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.sx 流水线不支持，需走 C 路径）。 */
 static int content_has_generic_syntax(const char *content, size_t n) {
     if (!content || n == 0) return 0;
     const char *end = content + n;
@@ -7113,7 +7358,7 @@ static int content_has_generic_syntax(const char *content, size_t n) {
         p++;
     }
     /*
-     * trait / 独立 impl 关键字：.su 流水线不解析，走 C 路径。
+     * trait / 独立 impl 关键字：.sx 流水线不解析，走 C 路径。
      * impl 须匹配完整词元 " impl "（前后空白）；勿用 memcmp(..., " impl ", 5)，否则
      * `implicit_*` 等标识符在首字符前有空格时会被误判为泛型，进而关掉 asm 并误走「无 main 链可执行」路径见 driver_run_compiler_full。
      */
@@ -7127,21 +7372,25 @@ static int content_has_generic_syntax(const char *content, size_t n) {
     return 0;
 }
 
-/** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .su driver 在 run_compiler_su_path_impl 中决定是否走 C 流水线。 */
+/** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .sx driver 在 run_compiler_sx_path_impl 中决定是否走 C 流水线。 */
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
-    if (!path || path_len <= 0 || path_len >= 512) return 0;
-    char buf[512];
-    memcpy(buf, path, (size_t)path_len);
-    buf[path_len] = '\0';
-    FILE *f = fopen(buf, "rb");
-    if (!f) return 0;
     char content[65536];
-    size_t n = fread(content, 1, sizeof(content) - 1, f);
-    fclose(f);
+    int rn;
+    size_t n;
+
+    if (!path || path_len <= 0 || path_len >= 512) return 0;
+    {
+        char buf[512];
+        memcpy(buf, path, (size_t)path_len);
+        buf[path_len] = '\0';
+        rn = driver_peek_source_file(buf, content, sizeof(content));
+    }
+    if (rn < 0) return 0;
+    n = (size_t)rn;
     return content_has_generic_syntax(content, n);
 }
 
-/** 检测内存源码是否含复合赋值（+= 等）；.su 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
+/** 检测内存源码是否含复合赋值（+= 等）；.sx 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
 static int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
@@ -7185,24 +7434,29 @@ static int content_has_compound_assign_syntax(const char *content, size_t n) {
     return 0;
 }
 
-/** 供 compile.su：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
+/** 供 compile.sx：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
 int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
+    char content[65536];
+    int rn;
+    size_t n;
+
     if (!path || path_len <= 0 || path_len >= 512)
         return 0;
-    char buf[512];
-    memcpy(buf, path, (size_t)path_len);
-    buf[path_len] = '\0';
-    FILE *f = fopen(buf, "rb");
-    if (!f)
+    {
+        char buf[512];
+        memcpy(buf, path, (size_t)path_len);
+        buf[path_len] = '\0';
+        rn = driver_peek_source_file(buf, content, sizeof(content));
+    }
+    if (rn < 0)
         return 0;
-    char content[65536];
-    size_t n = fread(content, 1, sizeof(content) - 1, f);
-    fclose(f);
-    content[n] = '\0';
+    n = (size_t)rn;
+    if (n < sizeof(content))
+        content[n] = '\0';
     return content_has_compound_assign_syntax(content, n);
 }
 
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
 /**
  * 判断 import 路径 \p path 是否已在输出 dep 列表 \p out_paths[0..n_out) 中（strcmp），用于合并 closure 时去重。
  * 同一模块若因 closure 构造重复出现两次，只保留一条，避免 asm 后端同一 .o 内重复定义。
@@ -7216,7 +7470,7 @@ static int merge_deps_path_already_out(const char *path, char *out_paths[], int 
 }
 
 /**
- * build_shu_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
+ * build_shux_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
  * 供 parse-only 填 dep struct layout；避免 collect_deps_transitive 耗时/失败，且 LexerResult 等跨模块 layout 可 merge。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
@@ -7248,13 +7502,13 @@ static int load_direct_imports_for_asm_layout(void *module, const char **lib_roo
         resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
         raw = read_file(resolved, &raw_len);
         if (!raw) {
-            fprintf(stderr, "shu: cannot open direct import '%s' (tried %s)\n", path_c, resolved);
+            fprintf(stderr, "shux: cannot open direct import '%s' (tried %s)\n", path_c, resolved);
             goto fail_partial;
         }
         prep = preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
         free(raw);
         if (!prep) {
-            fprintf(stderr, "shu: preprocess failed for direct import '%s'\n", path_c);
+            fprintf(stderr, "shux: preprocess failed for direct import '%s'\n", path_c);
             goto fail_partial;
         }
         dep_sources[mi] = prep;
@@ -7310,7 +7564,7 @@ static int merge_direct_then_transitive_deps(void *module, int32_t n_imports, ch
             kk++;
         }
         if (found < 0) {
-            fprintf(stderr, "shu: merge deps: direct import '%s' not found in transitive closure\n", path_c);
+            fprintf(stderr, "shux: merge deps: direct import '%s' not found in transitive closure\n", path_c);
             return 1;
         }
         out_src[mi] = cls[found];
@@ -7367,7 +7621,7 @@ static int collect_deps_transitive(void *module, size_t arena_sz, size_t module_
         size_t raw_len = 0;
         char *raw = read_file(resolved, &raw_len);
         if (!raw) {
-            fprintf(stderr, "shu: cannot open import '%s' (tried %s)\n", path_c, resolved);
+            fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
             free(path_c);
             goto fail_to_load;
         }
@@ -7375,7 +7629,7 @@ static int collect_deps_transitive(void *module, size_t arena_sz, size_t module_
         char *prep = preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
         free(raw);
         if (!prep) {
-            fprintf(stderr, "shu: preprocess failed for import '%s'\n", path_c);
+            fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
             free(path_c);
             goto fail_to_load;
         }
@@ -7389,14 +7643,14 @@ static int collect_deps_transitive(void *module, size_t arena_sz, size_t module_
         if (tmp_arena && tmp_module) {
             memset(tmp_arena, 0, arena_sz);
             memset(tmp_module, 0, module_sz);
-            struct shulang_slice_uint8_t dep_slice = { (uint8_t *)dep_sources[n - 1], dep_lens[n - 1] };
+            struct shux_slice_uint8_t dep_slice = { (uint8_t *)dep_sources[n - 1], dep_lens[n - 1] };
             parser_parse_into_init(tmp_module, tmp_arena);
             struct parser_ParseIntoResult pr_dep = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
             /* 传递闭包：import 在文件头已写入 module；即使整文件 parse 失败（库模块 pr_ok=-2 等）仍须展开子 import，否则 hello 等仅 import std.io 时 n_deps=1、dep 预跑 resolve 失败。 */
             {
                 int n_imp = parser_get_module_num_imports(tmp_module);
-                if (getenv("SHU_DEBUG_PIPE")) {
-                    fprintf(stderr, "shu: [SHU_DEBUG_PIPE] collect parse dep=%s pr_ok=%d n_imp=%d\n",
+                if (getenv("SHUX_DEBUG_PIPE")) {
+                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] collect parse dep=%s pr_ok=%d n_imp=%d\n",
                             dep_paths[n - 1] ? dep_paths[n - 1] : "?", (int)pr_dep.ok, n_imp);
                 }
                 if (n_imp > 0) {
@@ -7429,7 +7683,7 @@ fail_to_load:
     return 1;
 }
 
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
 /**
  * asm 后端写出 FILE *：若为 stdout（无 \c -o 时打印汇编文本）则不得 \c fclose，仅 \c fflush。
  */
@@ -7457,7 +7711,7 @@ static int driver_asm_output_want_exe_cstr(const char *path) {
     return 1;
 }
 
-/** compile.su extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
+/** compile.sx extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
 int32_t driver_asm_output_want_exe(uint8_t *path) {
     return driver_asm_output_want_exe_cstr(path ? (const char *)path : NULL);
 }
@@ -7469,7 +7723,7 @@ static int driver_asm_invoke_ld(const char *o_path, const char *exe_path, const 
     (void)target;
     if (!o_path || !exe_path)
         return -1;
-    link_eff = shu_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
+    link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
 #if defined(__linux__)
@@ -7488,7 +7742,7 @@ static int driver_asm_invoke_ld(const char *o_path, const char *exe_path, const 
     }
 #endif
     if (shu_ld_freestanding_enabled() && (use_macho_o || use_coff_o)) {
-        fprintf(stderr, "shu: -freestanding / SHU_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
+        fprintf(stderr, "shux: -freestanding / SHUX_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
         return -1;
     }
     return asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
@@ -7509,20 +7763,20 @@ static int driver_asm_out_buf_is_object(const struct codegen_CodegenOutBuf *out)
     return 0;
 }
 
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
 static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
     int print_ok);
 #endif
 
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
 static int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 static int driver_source_has_top_level_import(const char *src, size_t src_len);
 #endif
 
 /**
- * 从 argv 收集 -D / -DFOO 与 -target 推导的 OS_*、uname 的 SHU_OS_/SHU_ARCH_（与 run_compiler_c 一致）。
+ * 从 argv 收集 -D / -DFOO 与 -target 推导的 OS_*、uname 的 SHUX_OS_/SHUX_ARCH_（与 run_compiler_c 一致）。
  * 【参数】defines 至少 max_defines 个槽；返回 ndefines。
  */
 static int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
@@ -7561,8 +7815,8 @@ static int driver_argv_collect_defines(int argc, char **argv, const char **defin
         struct utsname u;
         static char shu_os_def[80], shu_arch_def[80];
         if (uname(&u) == 0) {
-            snprintf(shu_os_def, sizeof shu_os_def, "SHU_OS_%s", u.sysname);
-            snprintf(shu_arch_def, sizeof shu_arch_def, "SHU_ARCH_%s", u.machine);
+            snprintf(shu_os_def, sizeof shu_os_def, "SHUX_OS_%s", u.sysname);
+            snprintf(shu_arch_def, sizeof shu_arch_def, "SHUX_ARCH_%s", u.machine);
             for (char *p = shu_os_def + 7; *p; p++)
                 *p = (char)toupper((unsigned char)*p);
             for (char *p = shu_arch_def + 9; *p; p++)
@@ -7575,7 +7829,7 @@ static int driver_argv_collect_defines(int argc, char **argv, const char **defin
 }
 
 /**
- * -backend asm 专用：读文件、跑 .su pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
+ * -backend asm 专用：读文件、跑 .sx pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
 int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
@@ -7584,6 +7838,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     driver_bump_stack_limit_if_needed();
     if (argv && argc > 0)
         ndefines = driver_argv_collect_defines(argc, argv, defines, MAX_DEFINES);
+    /** B-02：#[cfg] 与 -target triple 联动（asm 后端路径）。 */
+    if (target)
+        cfg_apply_compile_target_from_triple(target, (int)strlen(target));
+    else
+        cfg_reset_compile_target();
     size_t raw_src_len = 0;
     char *raw_src = read_file(input_path, &raw_src_len);
     if (!raw_src) {
@@ -7594,21 +7853,21 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     char *src = preprocess(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
     free(raw_src);
     if (!src) {
-        fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
     }
-#if !defined(SHU_NO_C_FRONTEND)
-    /* 无 -o 烟测走 C 前端（含 import 时 SU asm parse 易 0 func）；shu check 不走烟测。 */
+#if !defined(SHUX_NO_C_FRONTEND)
+    /* 无 -o 烟测走 C 前端（含 import 时 SU asm parse 易 0 func）；shux check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
         int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
         free(src);
         return smoke_rc;
     }
     /*
-     * shu check + asm 后端：优先走下方 SU pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
+     * shux check + asm 后端：优先走下方 SU pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
      * 无 SU pipeline 时回退 C typeck。
      */
-#if !defined(SHU_USE_SU_PIPELINE)
+#if !defined(SHUX_USE_SX_PIPELINE)
     if (driver_check_only_get()) {
         int ck = driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
         free(src);
@@ -7621,7 +7880,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     void *arena = malloc(arena_sz);
     void *module = malloc(module_sz);
     if (!arena || !module) {
-        fprintf(stderr, "shu: -su pipeline: malloc failed\n");
+        fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
         if (arena) free(arena);
         if (module) free(module);
         free(src);
@@ -7632,7 +7891,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr_imp = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr_imp.ok != 0) {
-        fprintf(stderr, "shu: driver asm backend: parse_into_buf failed\n");
+        fprintf(stderr, "shux: driver asm backend: parse_into_buf failed\n");
         free(arena);
         free(module);
         free(src);
@@ -7640,8 +7899,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] driver_first_parse num_funcs=%d src_len=%zu\n",
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] driver_first_parse num_funcs=%d src_len=%zu\n",
             driver_get_module_num_funcs(module), src_len);
     int32_t n_imports_entry = parser_get_module_num_imports(module);
     char entry_dir_buf[512];
@@ -7653,7 +7912,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     char *dep_paths[MAX_ALL_DEPS];
     int n_deps = 0;
     /*
-     * build_shu_asm 单模块 -o（SHU_ASM_ENTRY_MODULE_ONLY + SHU_ASM_BUILD_SKIP_TYPECK）：
+     * build_shux_asm 单模块 -o（SHUX_ASM_ENTRY_MODULE_ONLY + SHUX_ASM_BUILD_SKIP_TYPECK）：
      * 并列链 build_asm/*.o，勿 collect_deps 读 import 源（无 lib_root 时 rc=1 → 4B stub）。
      */
     const int skip_dep_file_load =
@@ -7707,7 +7966,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     /*
      * 入口已在上方 parser_parse_into_buf 解析（driver_first_parse）；勿再 memset module/arena，
-     * 否则 pipeline 二次 strict parse 大模块仅 ~4 func（parser.su）；见 run-parser-parse-count-gate.sh。
+     * 否则 pipeline 二次 strict parse 大模块仅 ~4 func（parser.sx）；见 run-parser-parse-count-gate.sh。
      */
     typeck_ndep = 0;
     FILE *asm_out = NULL;
@@ -7728,10 +7987,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     } else {
         asm_want_exe = driver_asm_output_want_exe_cstr(out_path);
         if (asm_want_exe) {
-            strcpy(asm_tmp_o_path, "/tmp/shu_asm_XXXXXX");
+            strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
             int fd = mkstemp(asm_tmp_o_path);
             if (fd < 0) {
-                perror("shu: mkstemp (asm)");
+                perror("shux: mkstemp (asm)");
                 free(arena);
                 free(module);
                 free(src);
@@ -7750,7 +8009,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         } else {
             asm_out = fopen(out_path, "wb");
             if (!asm_out) {
-                perror("shu: -o (asm)");
+                perror("shux: -o (asm)");
                 free(arena);
                 free(module);
                 free(src);
@@ -7762,7 +8021,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (emit_elf_o) {
         elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
         if (!elf_ctx_ptr) {
-            fprintf(stderr, "shu: elf_ctx alloc failed\n");
+            fprintf(stderr, "shux: elf_ctx alloc failed\n");
             driver_asm_fclose_asm_out(asm_out);
             free(arena);
             free(module);
@@ -7778,7 +8037,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shu: -su pipeline: dep alloc failed\n");
+            fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
             driver_asm_fclose_asm_out(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
@@ -7798,7 +8057,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shu: -su pipeline: out_buf/pctx alloc failed\n");
+        fprintf(stderr, "shux: -sx pipeline: out_buf/pctx alloc failed\n");
         driver_asm_fclose_asm_out(asm_out);
         if (elf_ctx_ptr) free(elf_ctx_ptr);
         for (j = 0; j < n_deps; j++) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -7812,8 +8071,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
     /*
-     * 入口 pipeline 阶段 use_asm_backend=0：与 shu check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
-     * 避免 use_asm_backend=1 时在 typeck_merge / typeck_su_ast 上对 core.option 等 dep 崩溃（134/139）。
+     * 入口 pipeline 阶段 use_asm_backend=0：与 shux check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
+     * 避免 use_asm_backend=1 时在 typeck_merge / typeck_sx_ast 上对 core.option 等 dep 崩溃（134/139）。
      * 真 .o/.Mach-O 由下方 asm_asm_codegen_elf_o 在 use_asm_backend=1 时 emit。
      * dep 槽在预跑结束后再 runtime_pctx_seed_dep_slots（见下方 typeck_ndep 块）。
      */
@@ -7839,27 +8098,27 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (emit_elf_o)
         pctx->asm_entry_module_only = asm_entry_module_only_from_env();
     /**
-     * build_shu_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
+     * build_shux_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
      * 用户多文件（tests/multi-file 等）：须在 asm_codegen_elf_o 内编入各 dep，否则 ld 缺 _foo_bar 等符号。
      */
     if (asm_want_exe && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() != 0)
         pctx->asm_entry_module_only = 1;
     /**
-     * 用户单文件 -o（无 dep、非 build_shu_asm SKIP_TYPECK）：强制 ENTRY_MODULE_ONLY，
-     * 与 asm_skip_heavy 用户完整 emit 分支对齐（seed shu return42 等 freestanding 烟测）。
+     * 用户单文件 -o（无 dep、非 build_shux_asm SKIP_TYPECK）：强制 ENTRY_MODULE_ONLY，
+     * 与 asm_skip_heavy 用户完整 emit 分支对齐（seed shux return42 等 freestanding 烟测）。
      */
     if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0)
         pctx->asm_entry_module_only = 1;
     driver_dep_seeded_clear_all();
     /*
-     * build_shu_asm（SHU_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
-     * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.su）。
+     * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
+     * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.sx）。
      */
     if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() != 0) {
         for (j = 0; j < n_deps; j++) {
             if (pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     dep_lens[j]) != 0) {
-                fprintf(stderr, "shu: asm layout dep parse-only failed for '%s'\n",
+                fprintf(stderr, "shux: asm layout dep parse-only failed for '%s'\n",
                     dep_paths[j] ? dep_paths[j] : "?");
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -7887,7 +8146,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             if (!one_ctx || !dep_out) {
-                fprintf(stderr, "shu: -su pipeline: dep_one_ctx/out alloc failed\n");
+                fprintf(stderr, "shux: -sx pipeline: dep_one_ctx/out alloc failed\n");
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 free(out_buf);
@@ -7905,7 +8164,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             pipeline_fill_ctx_path_buffers(one_ctx, runtime_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                 lib_roots_arr, n_lib_roots);
             /*
-             * 无 -o 烟测：dep 仅 parse 填槽；全量 .su typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
+             * 无 -o 烟测：dep 仅 parse 填槽；全量 .sx typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
              * 有 -o 用户链仍 typeck dep（std.io 经 seed bridge）；入口走 C typeck。
              */
             int ec_loop;
@@ -7915,7 +8174,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             } else if (emit_elf_o && asm_user_std_dep_skip_su_typeck(dep_paths[j])) {
                 /*
                  * 用户 asm -o：std.io/fs 由并列 *.o 提供 *_c，dep 仅 parse 填 import 槽；
-                 * 勿对 read_fd 等跑 .su typeck（与 user_asm_seed_bridge dep skip emit 对齐）。
+                 * 勿对 read_fd 等跑 .sx typeck（与 user_asm_seed_bridge dep skip emit 对齐）。
                  */
                 ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
@@ -7929,16 +8188,16 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
             } else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0) {
                 /*
-                 * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .su typeck（栈/耗时）。
+                 * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .sx typeck（栈/耗时）。
                  * 入口模块类型由 driver_c_typeck_entry 与并列 build_asm/*.o 保证。
                  */
                 ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
+#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
             } else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck()) {
                 /*
-                 * B-strict shu_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .su typeck（见下方 set）。
-                 * 注：std.string/heap 等 .su 符号须 shu-c 链 exe，或后续改 co-emit 填全量 func 槽。
+                 * B-strict shux_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .sx typeck（见下方 set）。
+                 * 注：std.string/heap 等 .sx 符号须 shux-c 链 exe，或后续改 co-emit 填全量 func 槽。
                  */
                 ec_loop = pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
@@ -7950,7 +8209,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             if (ec_loop != 0) {
-                fprintf(stderr, "shu: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
+                fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
                 for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -7977,34 +8236,34 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     codegen_set_preamble_has_core_option_result(1);
     /**
      * 入口已在上方 parser_parse_into_buf 解析进 module/arena；pipeline 内勿 pipeline_strict_parse_into_init 重 parse
-     * （大模块 parser.su 二次 parse 仅 ~4 func，见 run-parser-parse-count-gate.sh）。
+     * （大模块 parser.sx 二次 parse 仅 ~4 func，见 run-parser-parse-count-gate.sh）。
      */
     pctx->entry_already_parsed = 1;
     int ec = 0;
     {
-        /* === SHU_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
+        /* === SHUX_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
             fprintf(stderr, ">> [ASM_ENTRY_DEBUG] entry=%s n_deps=%d\n", entry_name, n_deps);
             fflush(stderr);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
             fprintf(stderr, ">> [ASM_ENTRY_DEBUG] src_len=%zu entry_funcs=%d\n", src_len, driver_get_module_num_funcs(module));
         }
-        /* 2. 调 pipeline_run_su_pipeline */
-        if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] BEFORE pipeline_run_su_pipeline\n");
+        /* 2. 调 pipeline_run_sx_pipeline */
+        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] BEFORE pipeline_run_sx_pipeline\n");
             fflush(stderr);
         }
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
         /*
          * 用户程序 asm 编译：C typeck 预检（strict 链 typeck_c_orchestration_partial 提供真 typeck_module），
-         * 再 skip pipeline 内 .su typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
+         * 再 skip pipeline 内 .sx typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("SHU_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = getenv("SHUX_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -8027,7 +8286,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
 #endif
         /*
-         * 用户 asm -o：入口 pipeline 跳过 .su typeck（须在 #endif 外：shu_asm 为 SHU_NO_C_FRONTEND 时仍要 skip）。
+         * 用户 asm -o：入口 pipeline 跳过 .sx typeck（须在 #endif 外：shux_asm 为 SHUX_NO_C_FRONTEND 时仍要 skip）。
          * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
          */
         if (!asm_smoke_only) {
@@ -8035,22 +8294,22 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             /** 仅 parse+填槽；真机器码由 asm_asm_codegen_elf_o 生成。 */
             driver_su_pipeline_skip_codegen_set(1);
         }
-        ec = pipeline_run_su_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
+        ec = pipeline_run_sx_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_su_pipeline_skip_typeck_set(0);
         driver_su_pipeline_skip_codegen_set(0);
-        if (getenv("SHU_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] AFTER pipeline_run_su_pipeline ec=%d funcs=%d out_len=%zu\n",
+        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] AFTER pipeline_run_sx_pipeline ec=%d funcs=%d out_len=%zu\n",
                 ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
             fflush(stderr);
         }
         /* 3. 如果是 segfault，上面的 fprintf 不会执行；需要更前置的分段日志 */
         if (ec != 0) {
-            fprintf(stderr, "shu: sm_diag: main pipeline returned %d\n", ec);
+            fprintf(stderr, "shux: sm_diag: main pipeline returned %d\n", ec);
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("SHU_ASM_DEBUG")) {
-        fprintf(stderr, "shu: asm backend after pipeline: ec=%d num_funcs=%d out_asm_len=%zu\n",
+    if (getenv("SHUX_ASM_DEBUG")) {
+        fprintf(stderr, "shux: asm backend after pipeline: ec=%d num_funcs=%d out_asm_len=%zu\n",
                 ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
         pipeline_debug_module_funcs(module);
     }
@@ -8068,9 +8327,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             int smoke_ec = ec;
             int smoke_num_funcs = driver_get_module_num_funcs(module);
             if (smoke_ec != 0)
-                fprintf(stderr, "shu: -su pipeline failed (parse_into / typeck_su_ast / codegen_su_ast)\n");
+                fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
             else if (smoke_num_funcs <= 0)
-                fprintf(stderr, "shu: parse produced no functions for '%s'\n", input_path ? input_path : "?");
+                fprintf(stderr, "shux: parse produced no functions for '%s'\n", input_path ? input_path : "?");
             else if (driver_check_only_get()) {
                 driver_print_su_smoke_summary(module, (size_t)out_buf->len);
                 if (input_path)
@@ -8116,7 +8375,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
                 runtime_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
                 /*
-                 * 多文件 -o 须编 dep 机器码；显式 SHU_ASM_ENTRY_MODULE_ONLY=1（build_shu_asm / M8 单模块 -o）
+                 * 多文件 -o 须编 dep 机器码；显式 SHUX_ASM_ENTRY_MODULE_ONLY=1（build_shux_asm / M8 单模块 -o）
                  * 时保持仅入口，dep 由并列 build_asm/*.o 提供，勿对 arch/x86_64 等 dep 再跑 asm emit。
                  */
                 if (!asm_entry_module_only_from_env())
@@ -8125,11 +8384,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             int32_t elf_ec = asm_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("SHU_ASM_DEBUG")) {
-                fprintf(stderr, "shu: asm_codegen_elf_o: elf_ec=%d elf_len=%zu\n", (int)elf_ec, (size_t)out_buf->len);
+            if (getenv("SHUX_ASM_DEBUG")) {
+                fprintf(stderr, "shux: asm_codegen_elf_o: elf_ec=%d elf_len=%zu\n", (int)elf_ec, (size_t)out_buf->len);
             }
             if (elf_ec != 0 || out_buf->len <= 0) {
-                fprintf(stderr, "shu: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
+                fprintf(stderr, "shux: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
                         (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
                 if (elf_ec != 0 && elf_ctx_ptr)
                     pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx_ptr);
@@ -8163,7 +8422,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 lib_roots_arr, n_lib_roots);
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
-                fprintf(stderr, "shu: ld failed (asm -> %s)\n", asm_exe_out);
+                fprintf(stderr, "shux: ld failed (asm -> %s)\n", asm_exe_out);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
                 free(arena);
@@ -8183,11 +8442,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             free(dep_paths[n_deps]);
         }
         if (ec != 0) {
-            fprintf(stderr, "shu: -su pipeline failed (parse_into / typeck_su_ast / codegen_su_ast)\n");
+            fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
         }
     }
     if (ec == 0 && emit_elf_o && driver_get_module_num_funcs(module) <= 0) {
-        fprintf(stderr, "shu: asm: parse produced no functions in '%s'\n", input_path ? input_path : "?");
+        fprintf(stderr, "shux: asm: parse produced no functions in '%s'\n", input_path ? input_path : "?");
         ec = -1;
     }
     driver_dep_seeded_clear_all();
@@ -8199,11 +8458,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     free(src);
     return (ec != 0) ? 1 : 0;
 }
-#endif /* SHU_USE_SU_DRIVER && SHU_USE_SU_PIPELINE */
+#endif /* SHUX_USE_SX_DRIVER && SHUX_USE_SX_PIPELINE */
 
 #define SU_FULL_MAX_LIB_ROOTS 16
 
-/** compile.su 解析 argv 后的分派参数（库根由 sidecar 键在 dispatch 中展开）。 */
+/** compile.sx 解析 argv 后的分派参数（库根由 sidecar 键在 dispatch 中展开）。 */
 typedef struct DriverCompileParsed {
     const char *input_path;
     const char *out_path;
@@ -8215,10 +8474,10 @@ typedef struct DriverCompileParsed {
     int use_lto;
 } DriverCompileParsed;
 
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
 /**
- * C 前端 parse + resolve deps + typeck_module（与 shu-c 一致）。
- * print_ok 非 0 时成功打印 check OK（shu check）；否则静默（asm 编译前预检）。
+ * C 前端 parse + resolve deps + typeck_module（与 shux-c 一致）。
+ * print_ok 非 0 时成功打印 check OK（shux check）；否则静默（asm 编译前预检）。
  * 【返回】0 成功；1 失败。
  */
 /** 预处理后源码是否含顶层 import（seed asm 对这类入口 SU parse 易 0 func，改走 C 前端）。 */
@@ -8237,7 +8496,7 @@ static int driver_source_has_top_level_import(const char *src, size_t src_len) {
     return 0;
 }
 
-/** 读入口文件并检测顶层 import（供 compile.su 在 asm 分派前降级 C 后端）。 */
+/** 读入口文件并检测顶层 import（供 compile.sx 在 asm 分派前降级 C 后端）。 */
 int driver_source_has_top_level_import_path(const char *path) {
     size_t raw_len = 0;
     char *raw = read_file(path, &raw_len);
@@ -8262,7 +8521,7 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     if (pr != 0 || !mod) {
         if (mod)
             ast_module_free(mod);
-        fprintf(stderr, "shu: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
+        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -8296,8 +8555,8 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     return 0;
 }
 
-#if defined(SHU_USE_SU_PIPELINE)
-/** shu check 后 SU 栈逃逸 gate 大栈线程参数。 */
+#if defined(SHUX_USE_SX_PIPELINE)
+/** shux check 后 SU 栈逃逸 gate 大栈线程参数。 */
 typedef struct {
     uint8_t *src;
     int32_t src_len;
@@ -8307,7 +8566,7 @@ typedef struct {
 /** pthread 入口：WPO-S3 post-scan gate。 */
 static void *driver_stack_esc_gate_thread_fn(void *arg) {
     DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
-    a->result = pipeline_typeck_su_stack_escape_gate_from_src_c(a->src, a->src_len);
+    a->result = pipeline_typeck_sx_stack_escape_gate_from_src_c(a->src, a->src_len);
     return NULL;
 }
 
@@ -8321,7 +8580,7 @@ static int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) 
     args.result = -99;
     driver_run_thread_on_large_stack(driver_stack_esc_gate_thread_fn, &args);
     if (args.result == -99)
-        return pipeline_typeck_su_stack_escape_gate_from_src_c(src, src_len);
+        return pipeline_typeck_sx_stack_escape_gate_from_src_c(src, src_len);
     return args.result;
 }
 #endif
@@ -8334,7 +8593,7 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
     if (pr != 0 || !mod) {
         if (mod)
             ast_module_free(mod);
-        fprintf(stderr, "shu: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
+        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -8349,7 +8608,7 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
         ast_module_free(mod);
         return 1;
     }
-#if defined(SHU_USE_SU_TYPECK) && !defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_TYPECK) && !defined(SHUX_USE_SX_PIPELINE)
     if (typeck_typeck_entry(mod, ndep > 0 ? dep_mods : NULL, ndep) != 0) {
 #else
     if (typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
@@ -8361,7 +8620,7 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
         ast_module_free(mod);
         return 1;
     }
-#if defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_PIPELINE)
     if (print_ok && mod->num_imports == 0) {
         int32_t slen = (int32_t)strlen(src);
         if (slen > 0 && driver_stack_esc_gate_large_stack((uint8_t *)src, slen) != 0) {
@@ -8419,8 +8678,8 @@ static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, 
     return args.result;
 }
 
-/** shu check：C typeck 入口（库模块无 main 时比 SU pipeline 更稳；bootstrap 与 shu-c 共用）。 */
-#if !defined(SHU_NO_C_FRONTEND)
+/** shux check：C typeck 入口（库模块无 main 时比 SU pipeline 更稳；bootstrap 与 shux-c 共用）。 */
+#if !defined(SHUX_NO_C_FRONTEND)
 static int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
 }
@@ -8428,7 +8687,7 @@ static int driver_check_only_c_typeck(const char *input_path, char *src, const c
 
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
- * 由 driver/compile.su 经 driver_run_compiler_dispatch_c 调用。
+ * 由 driver/compile.sx 经 driver_run_compiler_dispatch_c 调用。
  */
 static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     const char *defines[MAX_DEFINES];
@@ -8446,10 +8705,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     if (!input_path)
         return 1;
     driver_bump_stack_limit_if_needed();
-    /* shu check：强制走 SU pipeline 的 typeck 路径，不做 asm 后端与链接。 */
+    /* shux check：强制走 SU pipeline 的 typeck 路径，不做 asm 后端与链接。 */
     if (driver_check_only_get())
         want_asm_backend = 0;
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
     /*
      * 默认 asm：入口源码若含泛型/trait 且输出将链成可执行（无 -o 仍视作需降级场景），asm 后端无法单态化，降级为 C/pipeline。
      * -o 为 .o/.obj/.s 时仅生成对象或汇编、不链 exe，跳过泛型扫描，不改 want_asm_backend（逻辑同 output_want_exe / driver_asm_output_want_exe_cstr）。
@@ -8464,9 +8723,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
      * 默认走 asm：一律走 SU pipeline + asm_asm_codegen_*（有无 -o 均如此）；`-backend c` 已在上方关闭 want_asm_backend。
      * 无 \c out_path 时向 stdout 打汇编文本；否则写 \c .o / \c .s / 或可执行路径（参见 driver_run_asm_backend）。
      */
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
     /*
-     * shu-c 路径：顶层 import 时 SU asm parse 易 0 func，降级 C；shu_asm（SHU_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
+     * shux-c 路径：顶层 import 时 SU asm parse 易 0 func，降级 C；shux_asm（SHUX_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
      */
     if (want_asm_backend) {
         size_t imp_raw_len = 0;
@@ -8496,12 +8755,12 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     char *src = preprocess(raw_src, raw_src_len, NULL, 0, &src_len);
     free(raw_src);
     if (!src) {
-        fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
     }
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
     /*
-     * shu check：优先 C parse+typeck（支持库模块、import -L）；SU pipeline check 待与 compile 对齐后再切回。
+     * shux check：优先 C parse+typeck（支持库模块、import -L）；SU pipeline check 待与 compile 对齐后再切回。
      */
     if (driver_check_only_get()) {
         int ck = driver_check_only_c_typeck(input_path, src, lib_roots_arr, n_lib_roots);
@@ -8514,9 +8773,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         return smoke_rc;
     }
 #endif
-    /* 若预处理后源码含泛型语法，.su 流水线不解析泛型，改走 C 流水线（parse + typeck_module + codegen）以保证 id<i32>(42) 等正确单态化。
+    /* 若预处理后源码含泛型语法，.sx 流水线不解析泛型，改走 C 流水线（parse + typeck_module + codegen）以保证 id<i32>(42) 等正确单态化。
      * 无 import 时内联 C 路径，避免 run_compiler_c 重入导致崩溃；有 import 时仍调 run_compiler_c。 */
-#if !defined(SHU_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND)
     if (content_has_generic_syntax(src, src_len)) {
         {
             Lexer *lex = lexer_new(src);
@@ -8526,10 +8785,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             if (pr != 0 || !c_mod) {
                 if (c_mod) ast_module_free(c_mod);
                 free(src);
-                fprintf(stderr, "shu: parse failed for '%s' (pr=%d)\n", input_path, pr);
+                fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path, pr);
                 return 1;
             }
-            /* 有 import 时 run_compiler_c 从 driver 重入会崩溃，一律回退 .su pipeline；泛型+import 的 multi-file-generic 依赖 pipeline 产出带 preamble 的 C（见下方 pipeline 写 C 逻辑） */
+            /* 有 import 时 run_compiler_c 从 driver 重入会崩溃，一律回退 .sx pipeline；泛型+import 的 multi-file-generic 依赖 pipeline 产出带 preamble 的 C（见下方 pipeline 写 C 逻辑） */
             if (c_mod->num_imports > 0) {
                 ast_module_free(c_mod);
                 /* 不 free(src)，fall through 到 pipeline */
@@ -8548,7 +8807,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 }
                 ast_module_free(c_mod);
                 free(src);
-                fprintf(stderr, "shu: no main function (cannot emit executable)\n");
+                fprintf(stderr, "shux: no main function (cannot emit executable)\n");
                 return 1;
             }
             if (typeck_module(c_mod, NULL, 0, NULL, 0) != 0) {
@@ -8563,10 +8822,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 return 0;
             }
             codegen_set_preamble_has_core_option_result(0);
-            char tmp[] = "/tmp/shu_XXXXXX";
+            char tmp[] = "/tmp/shux_XXXXXX";
             int fd = mkstemp(tmp);
             if (fd < 0) {
-                perror("shu: mkstemp");
+                perror("shux: mkstemp");
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
@@ -8590,7 +8849,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             char tmp_c[32];
             snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
             if (rename(tmp, tmp_c) != 0) {
-                perror("shu: rename");
+                perror("shux: rename");
                 unlink(tmp);
                 ast_module_free(c_mod);
                 free(src);
@@ -8648,8 +8907,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *test_o = get_std_test_o_path(argv[0]);
                 int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
                 if (cc_ret != 0)
-                    fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
-                else if (!getenv("SHULANG_KEEP_C"))
+                    fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+                else if (!getenv("SHUX_KEEP_C"))
                     unlink(tmp_c);
                 ast_module_free(c_mod);
                 free(src);
@@ -8658,20 +8917,17 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             }
         }
     }
-#else  /* SHU_NO_C_FRONTEND */
+#else  /* SHUX_NO_C_FRONTEND */
     if (content_has_generic_syntax(src, src_len)) {
         fprintf(stderr,
-                "shu: generic/trait monomorphization requires C parser (build without -DSHU_NO_C_FRONTEND)\n");
+                "shux: generic/trait monomorphization requires C parser (build without -DSHUX_NO_C_FRONTEND)\n");
         free(src);
         return 1;
     }
-#endif /* !SHU_NO_C_FRONTEND */
-    if (getenv("SHU_DUMP_PREP")) {
-        FILE *df = fopen("/tmp/shu_prep_entry.bin", "wb");
-        if (df) {
-            fwrite(src, 1, src_len, df);
-            fclose(df);
-            fprintf(stderr, "shu: dumped prep entry (%zu bytes) to /tmp/shu_prep_entry.bin\n", src_len);
+#endif /* !SHUX_NO_C_FRONTEND */
+    if (getenv("SHUX_DUMP_PREP")) {
+        if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len) == 0) {
+            fprintf(stderr, "shux: dumped prep entry (%zu bytes) to /tmp/shux_prep_entry.bin\n", src_len);
         }
     }
     size_t arena_sz = pipeline_sizeof_arena();
@@ -8686,9 +8942,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
-    struct shulang_slice_uint8_t src_slice = { (uint8_t *)src, src_len }; /* 仅 diagnostics，入口解析必须与 pipeline 一致走 parse_into_buf */
+    struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len }; /* 仅 diagnostics，入口解析必须与 pipeline 一致走 parse_into_buf */
     if (src_len > (size_t)INT32_MAX) {
-        fprintf(stderr, "shu: entry source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+        fprintf(stderr, "shux: entry source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
         free(arena);
         free(module);
         free(src);
@@ -8697,10 +8953,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr.ok != 0) {
-        fprintf(stderr, "shu: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
-        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shu: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
+        fprintf(stderr, "shux: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
+        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shux: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
         if (src_len > 0 && src_len < 200)
-            fprintf(stderr, "shu: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
+            fprintf(stderr, "shux: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
         free(arena);
         free(module);
         free(src);
@@ -8708,9 +8964,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (getenv("SHU_DEBUG_PIPE"))
+    if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr,
-                "shu: [SHU_DEBUG_PIPE] driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d "
+                "shux: [SHUX_DEBUG_PIPE] driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d "
                 "src_len=%zu\n",
                 driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
     char entry_dir_buf[512];
@@ -8730,8 +8986,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             free(src);
             return 1;
         }
-        if (getenv("SHU_DEBUG_PIPE")) {
-            fprintf(stderr, "shu: [SHU_DEBUG_PIPE] n_deps=%d", n_deps);
+        if (getenv("SHUX_DEBUG_PIPE")) {
+            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
                 fprintf(stderr, " dep[%d]=%s", dj, dep_paths[dj] ? dep_paths[dj] : "?");
             fputc('\n', stderr);
@@ -8739,7 +8995,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[] = "/tmp/shu_su.XXXXXX";
+    char tmp[] = "/tmp/shux_su.XXXXXX";
     char tmp_c[32];
     int fd = -1;
     FILE *cf;
@@ -8748,7 +9004,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     } else {
         fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shu: mkstemp");
+            perror("shux: mkstemp");
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
@@ -8771,7 +9027,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         }
     }
     /*
-     * CodegenOutBuf / PipelineDepCtx 体积大；driver_run_compiler_full 与 run_compiler_su_path 同理，先 dep 再堆上分配二者。
+     * CodegenOutBuf / PipelineDepCtx 体积大；driver_run_compiler_full 与 run_compiler_sx_path 同理，先 dep 再堆上分配二者。
      */
     void *dep_arenas[32];
     void *dep_modules[32];
@@ -8779,7 +9035,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shu: -su path: dep alloc failed\n");
+            fprintf(stderr, "shux: -sx path: dep alloc failed\n");
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -8792,7 +9048,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shu: -su path (driver full): out_buf/pctx alloc failed\n");
+        fprintf(stderr, "shux: -sx path (driver full): out_buf/pctx alloc failed\n");
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -8803,13 +9059,13 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
     pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
     runtime_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
-    pctx->skip_codegen_dep_0 = 0; /* 不再跳过 dep 0：io.o 仅提供 C 层，std.io.driver 的 .su 包装须由 codegen 生成。 */
+    pctx->skip_codegen_dep_0 = 0; /* 不再跳过 dep 0：io.o 仅提供 C 层，std.io.driver 的 .sx 包装须由 codegen 生成。 */
     /* 先对每个 dep 跑 pipeline 仅做 parse+typecheck，填充 dep_arenas/dep_modules，不写 C 到文件。 */
     driver_dep_seeded_clear_all();
     {
         int *dep_ready = (int *)calloc((size_t)n_deps, sizeof(int));
         if (!dep_ready) {
-            fprintf(stderr, "shu: dep prerun: dep_ready alloc failed\n");
+            fprintf(stderr, "shux: dep prerun: dep_ready alloc failed\n");
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -8829,7 +9085,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
                 dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
                 if (!one_ctx || !dep_out) {
-                    fprintf(stderr, "shu: -su path (driver full): dep_one_ctx/out alloc failed\n");
+                    fprintf(stderr, "shux: -sx path (driver full): dep_one_ctx/out alloc failed\n");
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     free(dep_ready);
@@ -8844,7 +9100,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 runtime_one_ctx_for_dep_prerun(one_ctx, j, dep_modules[j], dep_arenas[j]);
                 pipeline_fill_ctx_path_buffers(one_ctx, runtime_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots), lib_roots_arr, n_lib_roots);
                 driver_set_current_dep_path_for_codegen(dep_paths[j]);
-                ec_dep = pipeline_run_su_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                ec_dep = pipeline_run_sx_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
                 driver_set_current_dep_path_for_codegen(NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
@@ -8852,8 +9108,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     dep_ready[j] = 1;
                     driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
                     progress = 1;
-                } else if (getenv("SHU_DEBUG_PIPE")) {
-                    fprintf(stderr, "shu: dep prerun j=%d path=%s ec=%d\n", j,
+                } else if (getenv("SHUX_DEBUG_PIPE")) {
+                    fprintf(stderr, "shux: dep prerun j=%d path=%s ec=%d\n", j,
                             dep_paths[j] ? dep_paths[j] : "?", ec_dep);
                 }
             }
@@ -8862,7 +9118,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         }
         for (int j = 0; j < n_deps; j++) {
             if (!dep_ready[j]) {
-                fprintf(stderr, "shu: pipeline failed for import '%s' (dep not ready after prerun)\n", dep_paths[j] ? dep_paths[j] : "?");
+                fprintf(stderr, "shux: pipeline failed for import '%s' (dep not ready after prerun)\n", dep_paths[j] ? dep_paths[j] : "?");
                 free(dep_ready);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -8900,27 +9156,27 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] before entry memset arena_sz=%zu\n", arena_sz);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before entry memset arena_sz=%zu\n", arena_sz);
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
     pctx->entry_already_parsed = 0;
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] before pipeline_run entry=%s src_len=%zu\n",
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before pipeline_run entry=%s src_len=%zu\n",
                 input_path ? input_path : "?", (size_t)src_slice.length);
-    int ec = pipeline_run_su_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
-    if (getenv("SHU_DEBUG_PIPE"))
-        fprintf(stderr, "shu: [SHU_DEBUG_PIPE] after pipeline_run ec=%d\n", ec);
+    int ec = pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+    if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] after pipeline_run ec=%d\n", ec);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_su_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        fprintf(stderr, "shu: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
-        if (getenv("SHU_DEBUG_PIPE") && out_buf->len > 0) {
+        fprintf(stderr, "shux: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
+        if (getenv("SHUX_DEBUG_PIPE") && out_buf->len > 0) {
             size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
-            fprintf(stderr, "shu: [SHU_DEBUG_PIPE] out (first %zu bytes):\n%.*s\n", show, (int)show,
+            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] out (first %zu bytes):\n%.*s\n", show, (int)show,
                     (const char *)out_buf->data);
         }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -8944,7 +9200,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         pipeline_dep_ctx_heap_destroy(pctx);
         return 0;
     }
-    /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_su_emit_su 及 run-std/run-stdlib-import 的 grep 一致。 */
+    /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_sx_emit_sx 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
         driver_print_su_smoke_summary(module, (size_t)out_buf->len);
     free(arena);
@@ -9042,11 +9298,11 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *test_o = get_std_test_o_path(argv[0]);
             int cc_ret = invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, get_repo_root(argv[0]), NULL);
             if (cc_ret != 0) {
-                fprintf(stderr, "shu: cc failed, keeping generated C: %s\n", tmp_c);
-            } else if (!getenv("SHULANG_KEEP_C")) {
+                fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+            } else if (!getenv("SHUX_KEEP_C")) {
                 unlink(tmp_c);
             } else {
-                fprintf(stderr, "shu: kept generated C: %s\n", tmp_c);
+                fprintf(stderr, "shux: kept generated C: %s\n", tmp_c);
             }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -9058,7 +9314,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     return 0;
 }
 
-/** compile.su 可调用的栈上限提升。 */
+/** compile.sx 可调用的栈上限提升。 */
 void driver_bump_stack_limit(void) {
     driver_bump_stack_limit_if_needed();
 }
@@ -9074,7 +9330,7 @@ static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, cha
     int n = (int)driver_emit_lib_root_count(lib_key);
     int i;
     if (n <= 0) {
-        const char *def = getenv("SHULANG_LIB");
+        const char *def = getenv("SHUX_LIB");
         if (!def || !def[0])
             def = ".";
         out_arr[0] = def;
@@ -9097,7 +9353,7 @@ static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, cha
 }
 
 /**
- * compile.su DriverCompileState 布局（字段顺序与 compile.su 一致；EMIT_HEAVY impl_c 与 SU parse_argv 共用）。
+ * compile.sx DriverCompileState 布局（字段顺序与 compile.sx 一致；EMIT_HEAVY impl_c 与 SU parse_argv 共用）。
  * 须在 driver_run_asm_backend_impl_c 之前可见（lib_key 即 DriverCompileStateSU*）。
  */
 typedef struct DriverCompileStateSU {
@@ -9136,14 +9392,14 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
                                   target && target[0] ? (const char *)target : NULL, (int)argc, (char **)argv);
 }
 
-/** 兼容旧符号名；新路径 compile.su 经 compile_dispatch_* 调 impl_c。 */
+/** 兼容旧符号名；新路径 compile.sx 经 compile_dispatch_* 调 impl_c。 */
 int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  int32_t argc, uint8_t *argv) {
     return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
 }
 
-/** C 后端 C 桥：供 compile.su 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
-/** 含 import 时 seed 的 SU codegen 易重复符号；若同目录有 shu-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
+/** C 后端 C 桥：供 compile.sx 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
+/** 含 import 时 seed 的 SU codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
 static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     char shu_c[512];
     const char *self;
@@ -9165,9 +9421,9 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
             return -1;
         memcpy(shu_c, self, dir_len);
         shu_c[dir_len] = '\0';
-        strcat(shu_c, "/shu-c");
+        strcat(shu_c, "/shux-c");
     } else {
-        strcpy(shu_c, "shu-c");
+        strcpy(shu_c, "shux-c");
     }
     if (access(shu_c, X_OK) != 0)
         return -1;
@@ -9188,7 +9444,7 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     }
 }
 
-/** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shu-c；否则 driver_run_compiler_parsed。 */
+/** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     const char *lib_roots[SU_FULL_MAX_LIB_ROOTS];
@@ -9204,10 +9460,10 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     p.target = target && target[0] ? (const char *)target : NULL;
     p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
     p.use_lto = use_lto != 0;
-    if (!p.use_lto && getenv("SHULANG_LTO") && strcmp(getenv("SHULANG_LTO"), "1") == 0)
+    if (!p.use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
         p.use_lto = 1;
-    /* check 走本进程 C typeck，避免子进程 shu-c 与双 -L 导致 core.* import 误解析。
-     * build_shu_asm 单模块 -o（SHU_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec shu-c（其不支持 -backend asm）。 */
+    /* check 走本进程 C typeck，避免子进程 shux-c 与双 -L 导致 core.* import 误解析。
+     * build_shux_asm 单模块 -o（SHUX_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec shux-c（其不支持 -backend asm）。 */
     if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
         !asm_entry_module_only_from_env()) {
         int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
@@ -9217,7 +9473,7 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
 }
 
-/** 兼容旧符号名；新路径 compile.su 经 compile_dispatch_* 调 impl_c。 */
+/** 兼容旧符号名；新路径 compile.sx 经 compile_dispatch_* 调 impl_c。 */
 int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
@@ -9230,7 +9486,7 @@ void driver_compile_argv_set_sanitize_address_c(void);
 void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
 
 /**
- * 堆分配 DriverCompileState（与 impl_c 默认字段一致）；供 compile.su run_compiler_full_su SU emit。
+ * 堆分配 DriverCompileState（与 impl_c 默认字段一致）；供 compile.sx run_compiler_full_su SU emit。
  */
 DriverCompileStateSU *driver_compile_state_alloc_c(void) {
     DriverCompileStateSU *state;
@@ -9251,7 +9507,7 @@ void driver_compile_state_free_c(DriverCompileStateSU *state) {
         free(state);
 }
 
-/** compile.su EMIT_HEAVY 真 emit 的 parse_argv 链；impl_c 在 C 栈上持 state 后调用。 */
+/** compile.sx EMIT_HEAVY 真 emit 的 parse_argv 链；impl_c 在 C 栈上持 state 后调用。 */
 extern int32_t driver_compile_parse_argv(int32_t argc, uint8_t *argv, DriverCompileStateSU *state);
 
 void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
@@ -9259,7 +9515,7 @@ void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
 void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 
-/** argv 令牌比较与 path 后缀检测（与 compile.su 同名 helper 语义一致）。 */
+/** argv 令牌比较与 path 后缀检测（与 compile.sx 同名 helper 语义一致）。 */
 static int drv_eq_minus_o(const char *buf, int len) {
     return len == 2 && buf[0] == '-' && buf[1] == 'o';
 }
@@ -9397,7 +9653,7 @@ static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompile
 }
 
 /**
- * argv[1..] 扫描 loop（C step_c）；compile.su parse_argv SU 编排调本符号。
+ * argv[1..] 扫描 loop（C step_c）；compile.sx parse_argv SU 编排调本符号。
  */
 void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     char **argv = (char **)argv_opaque;
@@ -9425,8 +9681,20 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, Dri
     if (state->path_len <= 0)
         return 1;
     state->target_arch = driver_resolve_target_arch(state->target_arch, state->parse_saw_target);
+    cfg_sync_compile_target_from_state_c(state);
     driver_compile_ensure_default_lib_c((uint8_t *)state);
     return 0;
+}
+
+/**
+ * B-02：按 DriverCompileState 的 -target 同步 #[cfg] 求值上下文。
+ */
+void cfg_sync_compile_target_from_state_c(void *state) {
+    DriverCompileStateSU *st = (DriverCompileStateSU *)state;
+    if (st && st->parse_saw_target && st->target_len > 0)
+        cfg_apply_compile_target_from_triple((const char *)st->target_buf, st->target_len);
+    else
+        cfg_reset_compile_target();
 }
 
 /**
@@ -9447,7 +9715,7 @@ void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_b
 }
 
 /**
- * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.su ensure_default_lib 语义一致）。
+ * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.sx ensure_default_lib 语义一致）。
  * EMIT_HEAVY driver_compile.o 中 SU 体常为 ret0 桩；finalize 与薄包装均 bl 本符号。
  */
 void driver_compile_ensure_default_lib_c(uint8_t *key) {
@@ -9459,12 +9727,13 @@ void driver_compile_ensure_default_lib_c(uint8_t *key) {
 }
 
 /**
- * 重置 DriverCompileState 默认值并清空 lib_root sidecar（与 compile.su parse_argv_init 语义一致）。
+ * 重置 DriverCompileState 默认值并清空 lib_root sidecar（与 compile.sx parse_argv_init 语义一致）。
  * EMIT_HEAVY 下对 *DriverCompileState 形参的 field store 易写成 fp 槽地址+offset，须走 C。
  */
 void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
     if (!state)
         return;
+    cfg_reset_compile_target();
     state->path_len = 0;
     state->out_path_len = 0;
     state->use_asm_backend = 1;
@@ -9544,9 +9813,9 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     driver_freestanding_set(1);
 }
 
-/** `-legacy-f32-abi`：等价 SHU_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
+/** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
 void driver_compile_argv_set_legacy_f32_abi_c(void) {
-    setenv("SHU_ABI_F32_XMM", "0", 1);
+    setenv("SHUX_ABI_F32_XMM", "0", 1);
 }
 
 /** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关闭，零开销）。 */
@@ -9634,13 +9903,13 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
         spec_len = (size_t)state->target_cpu_len;
     }
     if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
-        fprintf(stderr, "shu: unknown -target-cpu '%.*s'; using generic baseline\n", (int)spec_len, spec);
+        fprintf(stderr, "shux: unknown -target-cpu '%.*s'; using generic baseline\n", (int)spec_len, spec);
         feats = shu_target_cpu_generic_for_host();
     }
     state->target_cpu_features = (int32_t)feats;
 }
 
-/** parse 完成后后端选择 + 分派；compile.su 薄包装 bl 本符号（EMIT_HEAVY 勿 SU 真 emit，宿主 SIGSEGV）。 */
+/** parse 完成后后端选择 + 分派；compile.sx 薄包装 bl 本符号（EMIT_HEAVY 勿 SU 真 emit，宿主 SIGSEGV）。 */
 int32_t driver_run_compiler_full_su_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv) {
     uint8_t *out_ptr;
     uint8_t *target_ptr;
@@ -9669,8 +9938,8 @@ int32_t driver_run_compiler_full_su_post_parse_impl_c(DriverCompileStateSU *stat
     target_ptr = NULL;
     if (state->target_len > 0)
         target_ptr = state->target_buf;
-#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
-    /** B-strict shu_asm 有 -o 时默认显式 asm，避免 top-level import 被降级到 C 后端（hello.su）。 */
+#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+    /** B-strict shux_asm 有 -o 时默认显式 asm，避免 top-level import 被降级到 C 后端（hello.sx）。 */
     if (state->out_path_len > 0 && !state->backend_asm_explicit)
         state->backend_asm_explicit = 1;
 #endif
@@ -9712,18 +9981,18 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     return 0;
 }
 
-/** 打印 shu 用法摘要（stdout）；含 `-legacy-f32-abi` 与 release 默认说明。 */
+/** 打印 shux 用法摘要（stdout）；含 `-legacy-f32-abi` 与 release 默认说明。 */
 void driver_print_usage_c(void) {
     fputs(
-        "Shulang (shu) compiler\n"
+        "Shux (shux) compiler\n"
         "\n"
         "Usage:\n"
-        "  shu [options] file.su          compile and run\n"
-        "  shu build [file.su] [-o exe]   compile (default a.out)\n"
-        "  shu run file.su                compile and run\n"
-        "  shu check [paths...]           parse + typeck only\n"
-        "  shu fmt [--check] [paths...]   format .su sources\n"
-        "  shu test [script.sh]           run test script\n"
+        "  shux [options] file.sx          compile and run\n"
+        "  shux build [file.sx] [-o exe]   compile (default a.out)\n"
+        "  shux run file.sx                compile and run\n"
+        "  shux check [paths...]           parse + typeck only\n"
+        "  shux fmt [--check] [paths...]   format .sx sources\n"
+        "  shux test [script.sh]           run test script\n"
         "\n"
         "Common options:\n"
         "  -backend asm|c    backend (default asm)\n"
@@ -9740,10 +10009,10 @@ void driver_print_usage_c(void) {
         "  -h, --help         show this help\n"
         "\n"
         "Environment:\n"
-        "  SHU_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
-        "  SHULANG_OPT          default -O level if omitted\n"
+        "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
+        "  SHUX_OPT          default -O level if omitted\n"
         "\n"
-        "Release default: shu_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+        "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
         "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n",
         stdout);
 }
@@ -9778,10 +10047,10 @@ int32_t driver_run_compiler_full_su_impl_c(int32_t argc, uint8_t *argv) {
 }
 
 /**
- * 完整编译入口：argv 解析在 driver/compile.su；B-strict shu_asm 走 impl_c（完整 parse_argv+finalize），避免 SU emit 的 driver_run_compiler_full_su 在 strict 链 silent fail。
+ * 完整编译入口：argv 解析在 driver/compile.sx；B-strict shux_asm 走 impl_c（完整 parse_argv+finalize），避免 SU emit 的 driver_run_compiler_full_su 在 strict 链 silent fail。
  */
 int driver_run_compiler_full(int argc, char **argv) {
-#if defined(SHU_ASM_USE_COMPILER_IMPL_C)
+#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
     return (int)driver_run_compiler_full_su_impl_c((int32_t)argc, (uint8_t *)argv);
 #else
     extern int32_t driver_run_compiler_full_su(int32_t argc, uint8_t *argv);
@@ -9790,7 +10059,7 @@ int driver_run_compiler_full(int argc, char **argv) {
 }
 
 /**
- * shu test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
+ * shux test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
  */
 int driver_run_test(int argc, char **argv) {
     const char *root = get_repo_root(argc > 0 ? argv[0] : NULL);
@@ -9805,20 +10074,20 @@ int driver_run_test(int argc, char **argv) {
     else
         snprintf(script, sizeof script, "%s/%s", root, rel);
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
-    fprintf(stderr, "shu test: %s\n", script);
+    fprintf(stderr, "shux test: %s\n", script);
     int st = system(cmd);
     if (st == -1) {
-        fprintf(stderr, "shu test: failed to run script\n");
+        fprintf(stderr, "shux test: failed to run script\n");
         return 1;
     }
     if (WIFEXITED(st))
         return WEXITSTATUS(st) != 0 ? 1 : 0;
-    fprintf(stderr, "shu test: script terminated abnormally\n");
+    fprintf(stderr, "shux test: script terminated abnormally\n");
     return 1;
 }
-#endif /* SHU_USE_SU_DRIVER && SHU_USE_SU_PIPELINE */
+#endif /* SHUX_USE_SX_DRIVER && SHUX_USE_SX_PIPELINE */
 
-/** 扫描 argv：若存在 -su -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
+/** 扫描 argv：若存在 -sx -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
 int driver_argv_parse_su_emit_c(int argc, char **argv) {
     char ab[512];
     char nx[512];
@@ -9830,7 +10099,7 @@ int driver_argv_parse_su_emit_c(int argc, char **argv) {
         if (driver_get_argv_i(argc, argv, i, ab, (int)sizeof ab) < 0)
             continue;
         if (strcmp(ab, "-L") == 0 && i + 1 < argc) {
-            /* 与 driver_run_compiler_full：满则仍跳过路径令牌；-L 根拷入 driver_su_emit_lib_bufs，与 driver_run_su_emit_c_set_lib 一致 */
+            /* 与 driver_run_compiler_full：满则仍跳过路径令牌；-L 根拷入 driver_su_emit_lib_bufs，与 driver_run_sx_emit_c_set_lib 一致 */
             int k = driver_su_emit_n_lib_roots;
             if (k < SU_EMIT_MAX_LIB_ROOTS) {
                 int ln = driver_get_argv_i(argc, argv, i + 1, driver_su_emit_lib_bufs[k], 256);
@@ -9842,7 +10111,7 @@ int driver_argv_parse_su_emit_c(int argc, char **argv) {
             i++;
             continue;
         }
-        if (strcmp(ab, "-su") == 0 && i + 2 < argc) {
+        if (strcmp(ab, "-sx") == 0 && i + 2 < argc) {
             if (driver_get_argv_i(argc, argv, i + 1, nx, (int)sizeof nx) < 0 || strcmp(nx, "-E") != 0)
                 continue;
             if (driver_get_argv_i(argc, argv, i + 2, driver_su_emit_path_buf, (int)sizeof driver_su_emit_path_buf) < 0)
@@ -9854,13 +10123,13 @@ int driver_argv_parse_su_emit_c(int argc, char **argv) {
     return 0;
 }
 
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
 /**
- * -su -E -E-extern：用 C 前端 parse/typeck 与 C codegen 的 emit_extern 路径写 stdout。
- * 说明：codegen_emit_dep_types_only / codegen_library_module_to_c 依赖 C ASTModule；parser_parse_into 的 .su Module 布局不同，故不能复用 su parse 结果。
+ * -sx -E -E-extern：用 C 前端 parse/typeck 与 C codegen 的 emit_extern 路径写 stdout。
+ * 说明：codegen_emit_dep_types_only / codegen_library_module_to_c 依赖 C ASTModule；parser_parse_into 的 .sx Module 布局不同，故不能复用 su parse 结果。
  */
-#if !defined(SHU_NO_C_FRONTEND)
-static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
+#if !defined(SHUX_NO_C_FRONTEND)
+static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     (void)setvbuf(stdout, NULL, _IONBF, 0);
     size_t raw_src_len = 0;
     char *raw_src = read_file(input_path, &raw_src_len);
@@ -9872,7 +10141,7 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
     char *src = preprocess(raw_src, raw_src_len, NULL, 0, &src_len);
     free(raw_src);
     if (!src) {
-        fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
     }
     Lexer *lex = lexer_new(src);
@@ -9882,7 +10151,7 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
     if (pr != 0 || !mod) {
         if (mod) ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shu: -su -E-extern parse failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: -sx -E-extern parse failed for '%s'\n", input_path);
         return 1;
     }
     char entry_dir_buf[512];
@@ -9914,7 +10183,7 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
         }
         ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shu: -su -E-extern typeck failed for '%s'\n", input_path);
+        fprintf(stderr, "shux: -sx -E-extern typeck failed for '%s'\n", input_path);
         return 1;
     }
     fprintf(stdout, "/* generated (single-file with deps) */\n");
@@ -9923,19 +10192,19 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#include <stdlib.h>\n");
     fprintf(stdout, "#include <stdio.h>\n");
     fprintf(stdout, "#include <string.h>\n");
-    fprintf(stdout, "static inline void shulang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-    fprintf(stdout, "static inline void shulang_panic_(int has_msg, int msg_val) {\n");
+    fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+    fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
     fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
     fprintf(stdout, "  abort();\n");
     fprintf(stdout, "}\n");
-    if (input_path && (strstr(input_path, "pipeline.su") != NULL || strstr(input_path, "parser.su") != NULL || strstr(input_path, "typeck.su") != NULL || strstr(input_path, "codegen.su") != NULL || strstr(input_path, "preprocess.su") != NULL)) {
-        fprintf(stdout, "extern int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-        fprintf(stdout, "extern int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-        fprintf(stdout, "extern int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+    if (input_path && (strstr(input_path, "pipeline.sx") != NULL || strstr(input_path, "parser.sx") != NULL || strstr(input_path, "typeck.sx") != NULL || strstr(input_path, "codegen.sx") != NULL || strstr(input_path, "preprocess.sx") != NULL)) {
+        fprintf(stdout, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+        fprintf(stdout, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+        fprintf(stdout, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
         fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-        fprintf(stdout, "static inline int32_t shu_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-        fprintf(stdout, "static inline int32_t shu_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "static inline int32_t shu_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shu_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+        fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
         fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
         fprintf(stdout, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
         fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
@@ -9945,7 +10214,9 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
     int n_emitted = 0;
     const int max_emitted = (int)(sizeof(emitted_type_buf) / sizeof(emitted_type_buf[0]));
     if (n_all > 0) {
-        if (codegen_emit_dep_types_only(all_dep_mods, (const char **)all_dep_paths, n_all, stdout) != 0)
+        codegen_set_eextern_entry_path(input_path);
+        if (codegen_emit_dep_types_only(all_dep_mods, (const char **)all_dep_paths, n_all, stdout,
+                emitted_type_buf, &n_emitted, max_emitted) != 0)
             ec = -1;
     }
     if (ec == 0) {
@@ -9956,11 +10227,11 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
         } else if (mod->main_func && mod->main_func->body) {
             ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
         } else {
-            fprintf(stderr, "shu: -su -E-extern: no main and no lib functions (cannot emit C)\n");
+            fprintf(stderr, "shux: -sx -E-extern: no main and no lib functions (cannot emit C)\n");
             ec = -1;
         }
     }
-    if (ec == 0 && input_path && strstr(input_path, "pipeline.su") != NULL)
+    if (ec == 0 && input_path && strstr(input_path, "pipeline.sx") != NULL)
         emit_pipeline_glue_include();
     fflush(stdout);
     while (n_all--) {
@@ -9971,28 +10242,28 @@ static int driver_run_su_emit_c_extern_via_cparser(const char *input_path) {
     free(src);
     return ec != 0 ? 1 : 0;
 }
-#endif /* !SHU_NO_C_FRONTEND */
-#endif /* SHU_USE_SU_DRIVER && SHU_USE_SU_PIPELINE */
+#endif /* !SHUX_NO_C_FRONTEND */
+#endif /* SHUX_USE_SX_DRIVER && SHUX_USE_SX_PIPELINE */
 
-/** 执行刚解析的 -su -E（读文件、.su pipeline、写 stdout）；成功 0，失败 1。无 SHU_USE_SU_PIPELINE 时返回 1。 */
-int driver_run_su_emit_c(void) {
+/** 执行刚解析的 -sx -E（读文件、.sx pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_SX_PIPELINE 时返回 1。 */
+int driver_run_sx_emit_c(void) {
     const char *input_path = driver_su_emit_c_path;
     driver_su_emit_c_path = NULL;
     if (!input_path) return 1;
-#ifdef SHU_USE_SU_PIPELINE
+#ifdef SHUX_USE_SX_PIPELINE
     {
         /* 关闭 stdout 缓冲，避免重定向或管道下输出被截断（平台差异见 analysis/下一步开发分析.md §4.4） */
         (void)setvbuf(stdout, NULL, _IONBF, 0);
-#if defined(SHU_USE_SU_DRIVER) && defined(SHU_USE_SU_PIPELINE)
+#if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
         {
             const int want_extern = driver_su_emit_c_want_extern;
             driver_su_emit_c_want_extern = 0;
             if (want_extern) {
-#if !defined(SHU_NO_C_FRONTEND)
-                return driver_run_su_emit_c_extern_via_cparser(input_path);
+#if !defined(SHUX_NO_C_FRONTEND)
+                return driver_run_sx_emit_c_extern_via_cparser(input_path);
 #else
                 fprintf(stderr,
-                    "shu: -su -E -E-extern requires C parser/codegen (rebuild without -DSHU_NO_C_FRONTEND)\n");
+                    "shux: -sx -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)\n");
                 return 1;
 #endif
             }
@@ -10008,7 +10279,7 @@ int driver_run_su_emit_c(void) {
         char *src = preprocess(raw_src, raw_src_len, NULL, 0, &src_len);
         free(raw_src);
         if (!src) {
-            fprintf(stderr, "shu: preprocess failed for '%s'\n", input_path);
+            fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
             return 1;
         }
         size_t arena_sz = pipeline_sizeof_arena();
@@ -10016,7 +10287,7 @@ int driver_run_su_emit_c(void) {
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            fprintf(stderr, "shu: -su pipeline: malloc failed\n");
+            fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
             free(arena);
             free(module);
             free(src);
@@ -10024,11 +10295,11 @@ int driver_run_su_emit_c(void) {
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        struct shulang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+        struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
         parser_parse_into_init(module, arena);
         struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &src_slice);
         if (pr.ok != 0) {
-            fprintf(stderr, "shu: -su pipeline failed (parse_into)\n");
+            fprintf(stderr, "shux: -sx pipeline failed (parse_into)\n");
             free(arena);
             free(module);
             free(src);
@@ -10069,7 +10340,7 @@ int driver_run_su_emit_c(void) {
                 size_t raw_len = 0;
                 char *raw = read_file(resolved, &raw_len);
                 if (!raw) {
-                    fprintf(stderr, "shu: cannot open import '%s' (tried %s)\n", path_c, resolved);
+                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
                     while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                     free(arena); free(module); free(src);
                     return 1;
@@ -10078,7 +10349,7 @@ int driver_run_su_emit_c(void) {
                 char *prep = preprocess(raw, raw_len, NULL, 0, &prep_len);
                 free(raw);
                 if (!prep) {
-                    fprintf(stderr, "shu: preprocess failed for import '%s'\n", path_c);
+                    fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
                     while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                     free(arena); free(module); free(src);
                     return 1;
@@ -10097,7 +10368,7 @@ int driver_run_su_emit_c(void) {
         }
         typeck_ndep = 0;
         /*
-         * CodegenOutBuf / PipelineDepCtx 体积大；-su -E 路径同样堆分配避免栈溢出。
+         * CodegenOutBuf / PipelineDepCtx 体积大；-sx -E 路径同样堆分配避免栈溢出。
          */
         void *dep_arenas[32];
         void *dep_modules[32];
@@ -10105,7 +10376,7 @@ int driver_run_su_emit_c(void) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                fprintf(stderr, "shu: -su pipeline: dep alloc failed\n");
+                fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                 free(arena); free(module); free(src);
@@ -10117,7 +10388,7 @@ int driver_run_su_emit_c(void) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx_e = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx_e));
         if (!out_buf || !pctx_e) {
-            fprintf(stderr, "shu: -su -E: out_buf/pctx_e alloc failed\n");
+            fprintf(stderr, "shux: -sx -E: out_buf/pctx_e alloc failed\n");
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
@@ -10137,11 +10408,11 @@ int driver_run_su_emit_c(void) {
         pipeline_set_dep_slots(dep_arenas, dep_modules);
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        int ec = pipeline_run_su_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx_e);
+        int ec = pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx_e);
         if (ec == 0 && out_buf->len > 0) {
             /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
             if (out_buf->len < 20) {
-                fprintf(stderr, "shu: -su -E diagnostic: out_buf.len=%d first bytes:", (int)out_buf->len);
+                fprintf(stderr, "shux: -sx -E diagnostic: out_buf.len=%d first bytes:", (int)out_buf->len);
                 for (int di = 0; di < out_buf->len && di < 16; di++)
                     fprintf(stderr, " %02x", (unsigned char)out_buf->data[di]);
                 fprintf(stderr, "\n");
@@ -10154,11 +10425,11 @@ int driver_run_su_emit_c(void) {
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             if (ec != 0) {
-                fprintf(stderr, "shu: -su pipeline failed\n");
+                fprintf(stderr, "shux: -sx pipeline failed\n");
             } else if (out_buf->len <= 0) {
-                /* CI / cross-host: distinguish -su -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
+                /* CI / cross-host: distinguish -sx -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
                 fprintf(stderr,
-                        "shu: -su -E diagnostic: pipeline ok but codegen buffer empty "
+                        "shux: -sx -E diagnostic: pipeline ok but codegen buffer empty "
                         "(ec=0 out_buf.len=%d); check typeck/codegen/pipeline CodegenOutBuf\n",
                         (int)out_buf->len);
             }
@@ -10178,10 +10449,10 @@ int driver_run_su_emit_c(void) {
 }
 #endif
 
-#endif /* SHU_USE_SU_DRIVER */
+#endif /* SHUX_USE_SX_DRIVER */
 
 /**
- * shu fmt 单文件：读入 .su、按 LSP 规则格式化；内容变化时写回。供 fmt.su argv 循环调用。
+ * shux fmt 单文件：读入 .sx、按 LSP 规则格式化；内容变化时写回。供 fmt.sx argv 循环调用。
  * path 为 NUL 终止路径（path_len 不含 NUL）；成功 0，失败 1。
  */
 int driver_fmt_one_file(const uint8_t *path, int path_len) {
@@ -10191,16 +10462,15 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     size_t cap;
     uint8_t *out;
     int fmt_len;
-    FILE *wf;
     if (!path || path_len <= 0 || path_len >= (int)sizeof pathbuf)
         return 1;
     memcpy(pathbuf, path, (size_t)path_len);
     pathbuf[path_len] = '\0';
-    if (path_len < 3 || strcmp(pathbuf + path_len - 3, ".su") != 0)
+    if (path_len < 3 || strcmp(pathbuf + path_len - 3, ".sx") != 0)
         return 1;
     raw = read_file(pathbuf, &raw_len);
     if (!raw) {
-        fprintf(stderr, "shu fmt: cannot read '%s'\n", pathbuf);
+        fprintf(stderr, "shux fmt: cannot read '%s'\n", pathbuf);
         return 1;
     }
     cap = raw_len * 2 + 4096;
@@ -10209,14 +10479,14 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     out = (uint8_t *)malloc(cap);
     if (!out) {
         free(raw);
-        fprintf(stderr, "shu fmt: out of memory for '%s'\n", pathbuf);
+        fprintf(stderr, "shux fmt: out of memory for '%s'\n", pathbuf);
         return 1;
     }
     fmt_len = shu_format_su_document((const uint8_t *)raw, (int)raw_len, out, (int)cap);
     if (fmt_len < 0) {
         free(out);
         free(raw);
-        fprintf(stderr, "shu fmt: format failed for '%s'\n", pathbuf);
+        fprintf(stderr, "shux fmt: format failed for '%s'\n", pathbuf);
         return 1;
     }
     {
@@ -10228,16 +10498,12 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
             return changed ? 1 : 0;
         }
         if (changed) {
-            wf = fopen(pathbuf, "wb");
-            if (!wf || (size_t)fwrite(out, 1, (size_t)fmt_len, wf) != (size_t)fmt_len) {
-                if (wf)
-                    fclose(wf);
+            if (shux_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
                 free(out);
                 free(raw);
-                fprintf(stderr, "shu fmt: write failed for '%s'\n", pathbuf);
+                fprintf(stderr, "shux fmt: write failed for '%s'\n", pathbuf);
                 return 1;
             }
-            fclose(wf);
             /* 与 deno fmt 一致：仅在实际写回时输出路径，已规范文件保持静默。 */
             fprintf(stderr, "fmt OK: %s\n", pathbuf);
         }
@@ -10255,15 +10521,15 @@ extern int driver_run_fmt(int argc, char **argv);
  */
 int driver_fmt_report_no_files(void) {
     char *argv_fmt[2];
-    argv_fmt[0] = "shu";
+    argv_fmt[0] = "shux";
     argv_fmt[1] = "fmt";
     return driver_run_fmt(2, argv_fmt);
 }
 
-#ifndef SHU_USE_SU_DRIVER
+#ifndef SHUX_USE_SX_DRIVER
 /**
- * C 版 shu（shu-c）子命令路由：去掉 argv[1] 后调用 check/fmt/test。
- * 与 main.su 中 build/run/fmt/check/test 关键字一致；首参不以 `-` 开头以免与 `-su` 等标志冲突。
+ * C 版 shux（shux-c）子命令路由：去掉 argv[1] 后调用 check/fmt/test。
+ * 与 main.sx 中 build/run/fmt/check/test 关键字一致；首参不以 `-` 开头以免与 `-su` 等标志冲突。
  */
 static char **runtime_argv_drop_subcommand_c(int argc, char **argv) {
     static char *adj[512];
@@ -10276,17 +10542,17 @@ static char **runtime_argv_drop_subcommand_c(int argc, char **argv) {
     return adj;
 }
 
-/** shu check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
+/** shux check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
 static int runtime_run_compiler_check_c(int argc, char **argv) {
     return driver_run_compiler_check(argc, argv);
 }
 
-/** shu fmt（C 前端）：读入 .su、按 LSP 规则格式化，变化时写回。 */
+/** shux fmt（C 前端）：读入 .sx、按 LSP 规则格式化，变化时写回。 */
 static int runtime_run_fmt_c(int argc, char **argv) {
     return driver_run_fmt(argc, argv);
 }
 
-/** shu test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
+/** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
 static int runtime_run_test_c(int argc, char **argv) {
     const char *root = get_repo_root(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
@@ -10299,19 +10565,19 @@ static int runtime_run_test_c(int argc, char **argv) {
     else
         snprintf(script, sizeof script, "%s/%s", root, rel);
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
-    fprintf(stderr, "shu test: %s\n", script);
+    fprintf(stderr, "shux test: %s\n", script);
     int st = system(cmd);
     if (st == -1) {
-        fprintf(stderr, "shu test: failed to run script\n");
+        fprintf(stderr, "shux test: failed to run script\n");
         return 1;
     }
     if (WIFEXITED(st))
         return WEXITSTATUS(st) != 0 ? 1 : 0;
-    fprintf(stderr, "shu test: script terminated abnormally\n");
+    fprintf(stderr, "shux test: script terminated abnormally\n");
     return 1;
 }
 
-/** 6.3：无 .su 入口时由 runtime 提供 main_entry 桩；链接 main.su 时由 main.su 的 main_entry 覆盖。
+/** 6.3：无 .sx 入口时由 runtime 提供 main_entry 桩；链接 main.sx 时由 main.sx 的 main_entry 覆盖。
  * Cygwin/MinGW 上 weak 符号可能不被链接器解析，故仅在非 Windows 环境使用 weak。 */
 #if !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(_WIN32)
 __attribute__((weak))

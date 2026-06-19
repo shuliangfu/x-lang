@@ -3,12 +3,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_METRICS_DOC:-analysis/std-metrics-v1.md}"
-MANIFEST="${SHU_STD_METRICS_MANIFEST:-tests/baseline/std-metrics-manifest.tsv}"
-VECTORS="${SHU_STD_METRICS_VECTORS:-tests/baseline/std-metrics-vectors.tsv}"
-MOD_SU="std/metrics/mod.su"
+DOC="${SHUX_STD_METRICS_DOC:-analysis/std-metrics-v1.md}"
+MANIFEST="${SHUX_STD_METRICS_MANIFEST:-tests/baseline/std-metrics-manifest.tsv}"
+VECTORS="${SHUX_STD_METRICS_VECTORS:-tests/baseline/std-metrics-vectors.tsv}"
+MOD_SU="std/metrics/mod.sx"
 LIB="tests/lib/std-metrics.sh"
-SMOKE_SU="tests/std-metrics/roundtrip.su"
+SMOKE_SU="tests/std-metrics/roundtrip.sx"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-metrics.sh
@@ -60,19 +60,19 @@ echo "std-metrics manifest OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-078: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-078: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-metrics gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_metrics_emit_report "fail" 0 0
     exit 1
   fi
-  if std_metrics_run_smoke "$SHU_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
+  if std_metrics_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
     std_metrics_emit_report "fail" 0 0
     exit 1
   fi

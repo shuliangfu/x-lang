@@ -1,8 +1,21 @@
-# std.tar
+# std.tar — tar 归档
 
-tar 归档读/写（P4 可选）。当前 read_header/write_header 为占位，返回 -1。后续可基于 std.fs、std.io 实现。
+UStar 读写 + 长路径（prefix）+ Pax（STD-038/152）。
 
 ## API
 
-- **read_header(buf, len, name_out, name_cap, size_out): i32** — 占位，返回 -1
-- **write_header(buf, buf_cap, name, name_len, file_size): i32** — 占位，返回 -1
+| API | 说明 |
+|-----|------|
+| `read_header` / `write_header` | 512 字节 UStar 头 |
+| `append_entry` | 追加文件/目录（`is_dir=1`） |
+| `next_entry` / `read_entry_data` | 遍历与读内容 |
+| `path_max()` | 最大路径 512 |
+
+长路径：101–255 用 UStar `prefix`；256–512 用 Pax typeflag `'x'`。
+
+## Gate
+
+```bash
+./tests/run-std-tar-ustar-gate.sh
+./tests/run-std-tar-extended-gate.sh
+```

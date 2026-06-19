@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/tool-debug-symbols.sh
 . tests/lib/tool-debug-symbols.sh
 
-SHU="${SHU:-./compiler/shu}"
-SRC=tests/debug/symbols_marker.su
-EXE="/tmp/shu_debug_symbols_$$"
+SHUX="${SHUX:-./compiler/shux}"
+SRC=tests/debug/symbols_marker.sx
+EXE="/tmp/shux_debug_symbols_$$"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-if ! "$SHU" -O 0 -L . "$SRC" -o "$EXE" 2>&1; then
+if ! "$SHUX" -O 0 -L . "$SRC" -o "$EXE" 2>&1; then
   echo "run-debug-symbols FAIL: compile $SRC" >&2
   rm -f "$EXE"
   exit 1

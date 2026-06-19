@@ -4,14 +4,14 @@ min_cases	2
 read_path	section	## 1. 阅读路径	analysis/safe-race-detect-v1.md	-	10min
 tsan	section	## 2. 实验轨 T1–T4	analysis/safe-race-detect-v1.md	-	TSAN
 cases	section	## 3. 用例矩阵	safe-race-detect.tsv	-	正例
-report	section	## 4. 报告格式	analysis/safe-race-detect-v1.md	-	SHU_RACE_DETECT
+report	section	## 4. 报告格式	analysis/safe-race-detect-v1.md	-	SHUX_RACE_DETECT
 schedule	section	## 5. 调度与门禁	analysis/safe-race-detect-v1.md	-	nightly
 track_t1	track	T1-tsan-probe	analysis/safe-race-detect-v1.md	probe	race_probe.c
 track_t2	track	T2-mutex-safe	analysis/safe-race-detect-v1.md	mutex	race_mutex_ok
 track_t3	track	T3-atomic-safe	analysis/safe-race-detect-v1.md	atomic	race_atomic_ok
-track_t4	track	T4-report	analysis/safe-race-detect-v1.md	report	SHU_RACE_DETECT
-case_mutex	case	race_mutex_ok	tests/safe/race_mutex_ok.su	sync	mutex 保护
-case_atomic	case	race_atomic_ok	tests/safe/race_atomic_ok.su	atomic	fetch_add
+track_t4	track	T4-report	analysis/safe-race-detect-v1.md	report	SHUX_RACE_DETECT
+case_mutex	case	race_mutex_ok	tests/safe/race_mutex_ok.sx	sync	mutex 保护
+case_atomic	case	race_atomic_ok	tests/safe/race_atomic_ok.sx	atomic	fetch_add
 probe	file	race_probe.c	tests/safe/race_probe.c	probe	故意竞争
 lib	script	lib/safe-race.sh	tests/lib/safe-race.sh	-	共享库
 runner	script	run-safe-race-detect.sh	tests/run-safe-race-detect.sh	-	实验 runner

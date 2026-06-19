@@ -12,7 +12,7 @@
 
 ## 实现
 
-- panic/abort 经 `std/runtime/runtime.c` 调用 `shulang_panic_(0, 0)`，该符号由编译器链接时提供的 runtime_panic.o（或 libc abort）提供。
+- panic/abort 经 `std/runtime/runtime.c` 调用 `shux_panic_(0, 0)`，该符号由编译器链接时提供的 runtime_panic.o（或 libc abort）提供。
 
 ## 对标说明
 

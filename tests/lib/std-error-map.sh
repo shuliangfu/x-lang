@@ -5,7 +5,7 @@
 #   std_error_map_manifest_ok ERR_MOD TSV
 #   std_error_map_emit_report status check_ok run_ok skip
 
-STD_ERROR_MAP_PREFIX="${SHU_STD_ERROR_MAP_PREFIX:-shu: [SHU_STD_ERROR_MAP]}"
+STD_ERROR_MAP_PREFIX="${SHUX_STD_ERROR_MAP_PREFIX:-shux: [SHUX_STD_ERROR_MAP]}"
 
 # 校验 manifest：lookup 符号、模块 src、侧车函数；echo 缺失数。
 std_error_map_manifest_ok() {

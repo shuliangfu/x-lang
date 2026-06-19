@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # core-str-find-split.sh — STD-131 manifest 与烟测辅助
 
-CORE_STR_FIND_SPLIT_PREFIX="${SHU_STD131_CORE_STR_FIND_SPLIT_PREFIX:-shu: [SHU_STD131_CORE_STR_FIND_SPLIT]}"
+CORE_STR_FIND_SPLIT_PREFIX="${SHUX_STD131_CORE_STR_FIND_SPLIT_PREFIX:-shux: [SHUX_STD131_CORE_STR_FIND_SPLIT]}"
 
 # 校验 manifest 条目。
 core_str_find_split_symbols_ok() {
@@ -31,12 +31,12 @@ core_str_find_split_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 core_str_find_split_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
-  local exe="/tmp/shu_core_str_find_split_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_core_str_find_split_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "core-str-find-split FAIL: compile $src" >&2
     rm -f "$exe"
     return 1

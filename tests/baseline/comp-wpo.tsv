@@ -17,11 +17,11 @@ stage_w4	stages	W4-stack-promote-s3	tests/run-wpo-s3-gate.sh	s3	asm
 stage_w5	stages	W5-pgo-s4	tests/run-wpo-s4-gate.sh	s4	hot
 stage_w6	stages	W6-optin-prototype	tests/run-pipeline-wpo-optin-smoke.sh	optin	prototype
 sym_reach	symbol	codegen_wpo_reach_compute	compiler/src/codegen/codegen.c	wpo	构建
-sym_dump	symbol	SHU_WPO_DUMP_CALLGRAPH	compiler/src/runtime.c	env	导出
-case_dead	case	case_dead_fn	tests/wpo/dead_fn.su	dce	-E
-case_user	case	case_dead_user	tests/wpo/dead_user.su	import	7
-case_if	case	case_if_reach	tests/wpo/if_block_reach.su	branch	reach
-case_const	case	case_const_spec	tests/wpo/const_spec.su	s2	v2
+sym_dump	symbol	SHUX_WPO_DUMP_CALLGRAPH	compiler/src/runtime.c	env	导出
+case_dead	case	case_dead_fn	tests/wpo/dead_fn.sx	dce	-E
+case_user	case	case_dead_user	tests/wpo/dead_user.sx	import	7
+case_if	case	case_if_reach	tests/wpo/if_block_reach.sx	branch	reach
+case_const	case	case_const_spec	tests/wpo/const_spec.sx	s2	v2
 hook_dce	hook_script	run-wpo-dce-emit.sh	run-wpo-dce-emit.sh	-	DCE
 hook_s1	hook_script	run-wpo-s1.sh	run-wpo-s1.sh	-	graph
 hook_full	hook_ref	run-wpo-full-chain-gate.sh	tests/run-wpo-full-chain-gate.sh	Linux	全链

@@ -5,7 +5,7 @@
 #   boot020_source_symbols_ok BASELINE THIN_SRC
 #   boot020_emit_report status symbol_ok mega7_ok skip
 
-BOOT020_PREFIX="${SHU_BOOT020_PREFIX:-shu: [SHU_BOOT020]}"
+BOOT020_PREFIX="${SHUX_BOOT020_PREFIX:-shux: [SHUX_BOOT020]}"
 
 # Darwin 回退：校验 thin_c 源文件含 baseline 所列符号名；echo 缺失数。
 boot020_source_symbols_ok() {

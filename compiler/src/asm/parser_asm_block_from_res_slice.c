@@ -27,7 +27,7 @@ extern int32_t pipeline_block_append_let(void *a, int32_t br, uint8_t *name, int
 extern uint8_t *parser_asm_onefunc_result_pool_ptr_c(struct parser_asm_onefunc_result *res);
 extern int32_t parser_asm_stretch_block_bind_name_audit_c(const uint8_t *name, int32_t name_len);
 
-/** expr_set_common_zeros：与 parser.su / parser_asm_thin_c.c 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.sx / parser_asm_thin_c.c 字段清零顺序一致。 */
 static void parser_asm_block_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;

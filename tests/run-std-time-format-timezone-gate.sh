@@ -4,10 +4,10 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-time-format-timezone-v1.md"
 MANIFEST="tests/baseline/std-time-format-timezone-manifest.tsv"
-MOD_SU="std/time/mod.su"
+MOD_SU="std/time/mod.sx"
 TIME_C="std/time/time.c"
 LIB="tests/lib/std-time-format-timezone.sh"
-SMOKE_SU="tests/time/format_timezone.su"
+SMOKE_SU="tests/time/format_timezone.sx"
 . "$LIB"
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$TIME_C" "$SMOKE_SU"; do
   [ -f "$f" ] || { echo "std-time-format-timezone gate FAIL: missing $f" >&2; exit 1; }
@@ -24,9 +24,9 @@ C_OK=0
 std_time_format_tz_run_c_smoke "$TIME_O" "$DT_O" && C_OK=1 || exit 1
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_time_format_tz_run_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_time_format_tz_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

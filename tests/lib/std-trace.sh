@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-trace.sh — STD-088 manifest 与烟测辅助
 
-STD_TRACE_PREFIX="${SHU_STD_TRACE_PREFIX:-shu: [SHU_STD_TRACE]}"
+STD_TRACE_PREFIX="${SHUX_STD_TRACE_PREFIX:-shux: [SHUX_STD_TRACE]}"
 
 std_trace_symbols_ok() {
   local mod_su="$1"
@@ -40,13 +40,13 @@ std_trace_symbols_ok() {
 }
 
 std_trace_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-trace}"
-  local exe="/tmp/shu_std_trace_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_trace_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-trace FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

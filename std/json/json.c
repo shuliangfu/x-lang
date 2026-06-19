@@ -471,6 +471,17 @@ int32_t json_decode_i32_at_c(const uint8_t *ptr, int32_t len, int32_t *consumed,
   return 0;
 }
 
+/** 在 ptr 起点解码 f64；成功 0 并写 consumed/out。 */
+int32_t json_decode_f64_at_c(const uint8_t *ptr, int32_t len, int32_t *consumed, double *out) {
+  double dv = 0.0;
+  int32_t con = 0;
+  if (!ptr || !consumed || !out) return -1;
+  if (json_parse_number_c(ptr, len, &dv, &con) != 0) return -1;
+  *consumed = con;
+  *out = dv;
+  return 0;
+}
+
 /** 在 ptr 起点解码 bool；成功 0。 */
 int32_t json_decode_bool_at_c(const uint8_t *ptr, int32_t len, int32_t *consumed, int32_t *out) {
   int32_t con = 0;
@@ -565,6 +576,160 @@ int32_t json_object_decode_string_c(json_cursor_t *cur, const uint8_t *key, int3
   return JSON_DECODE_MISSING;
 }
 
+/** 在当前 object 游标内查找 key；成功时 out_at 指向 value 起始。 */
+static int32_t json_cursor_find_key(json_cursor_t *cur, const uint8_t *key, int32_t key_len,
+                                    json_cursor_t *out_at) {
+  json_cursor_t scan;
+  uint8_t kbuf[64];
+  int32_t kl = 0;
+  int32_t nr = 0;
+  if (!cur || !key || !out_at) return -1;
+  scan = *cur;
+  while ((nr = json_cursor_object_next_c(&scan, kbuf, (int32_t)sizeof kbuf, &kl)) == 1) {
+    if (json_key_eq(kbuf, kl, key, key_len)) {
+      *out_at = scan;
+      return 0;
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) return -1;
+  }
+  if (nr < 0) return -1;
+  return JSON_DECODE_MISSING;
+}
+
+/** 路径段是否为非负整数数组下标。 */
+static int32_t json_path_seg_is_index(const uint8_t *seg, int32_t seg_len, int32_t *out_idx) {
+  int32_t i = 0;
+  int32_t v = 0;
+  if (!seg || seg_len <= 0 || !out_idx) return 0;
+  for (i = 0; i < seg_len; i++) {
+    if (seg[i] < (uint8_t)'0' || seg[i] > (uint8_t)'9') return 0;
+    v = v * 10 + (int32_t)(seg[i] - (uint8_t)'0');
+  }
+  *out_idx = v;
+  return 1;
+}
+
+/** 在 array 游标处取第 index 个元素；out_at 指向元素 value 起始。 */
+static int32_t json_cursor_find_array_index(json_cursor_t *cur, int32_t index, json_cursor_t *out_at) {
+  json_cursor_t scan;
+  int32_t i = 0;
+  int32_t has = 0;
+  if (!cur || !out_at || index < 0) return -1;
+  scan = *cur;
+  if (json_cursor_enter_array_c(&scan) != 0) return -1;
+  for (;;) {
+    has = json_cursor_array_has_elem_c(&scan);
+    if (has < 0) return -1;
+    if (has == 0) return JSON_DECODE_MISSING;
+    if (i == index) {
+      *out_at = scan;
+      return 0;
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) return -1;
+    i++;
+  }
+}
+
+/** 跟随单段路径（object key 或 array index）。 */
+static int32_t json_cursor_follow_path_seg(json_cursor_t *cur, const uint8_t *seg, int32_t seg_len,
+                                           json_cursor_t *out_at) {
+  int32_t idx = 0;
+  if (!cur || !seg || !out_at || seg_len <= 0) return -1;
+  if (json_path_seg_is_index(seg, seg_len, &idx)) return json_cursor_find_array_index(cur, idx, out_at);
+  return json_cursor_find_key(cur, seg, seg_len, out_at);
+}
+
+/** 为下一段路径准备 scan（下一段为 index 时保持 array 头；否则 enter object）。 */
+static int32_t json_cursor_descend_for_next(json_cursor_t *at, const uint8_t *path, int32_t next_i,
+                                            int32_t path_len, json_cursor_t *scan) {
+  int32_t j = next_i;
+  int32_t idx = 0;
+  if (!at || !scan || next_i >= path_len) return -1;
+  while (j < path_len && path[j] != (uint8_t)'.') j++;
+  *scan = *at;
+  if (json_path_seg_is_index(path + next_i, j - next_i, &idx)) {
+    if (json_cursor_value_type_c(at) != 4) return -1;
+    return 0;
+  }
+  if (json_cursor_value_type_c(at) != 3) return -1;
+  return json_cursor_enter_object_c(scan);
+}
+
+/** 点分路径逐步导航（支持 object 键与 array 下标，如 items.0 / users.0.name）。 */
+static int32_t json_object_decode_dotted_at(json_cursor_t *cur, const uint8_t *path, int32_t path_len,
+                                            json_cursor_t *out_at) {
+  json_cursor_t scan;
+  int32_t i = 0;
+  if (!cur || !path || !out_at || path_len <= 0) return -1;
+  scan = *cur;
+  if (json_cursor_enter_object_c(&scan) != 0) return -1;
+  while (i < path_len) {
+    json_cursor_t at;
+    int32_t j = i;
+    int32_t rc;
+    while (j < path_len && path[j] != (uint8_t)'.') j++;
+    if (j <= i) return -1;
+    rc = json_cursor_follow_path_seg(&scan, path + i, j - i, &at);
+    if (rc != 0) return rc;
+    if (j >= path_len) {
+      *out_at = at;
+      return 0;
+    }
+    rc = json_cursor_descend_for_next(&at, path, j + 1, path_len, &scan);
+    if (rc != 0) return rc;
+    i = j + 1;
+  }
+  return -1;
+}
+
+/** 按点分路径（如 user.age / items.0）在 object 根解码 i32；缺键 JSON_DECODE_MISSING。 */
+int32_t json_object_decode_dotted_i32_c(json_cursor_t *cur, const uint8_t *path, int32_t path_len,
+                                        int32_t *out) {
+  json_cursor_t at;
+  int32_t consumed = 0;
+  int32_t rc;
+  if (!cur || !path || !out || path_len <= 0) return -1;
+  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
+  if (rc != 0) return rc;
+  return json_decode_i32_at_c(at.ptr + at.off, at.len - at.off, &consumed, out);
+}
+
+/** 按点分路径在 object 根解码 string。 */
+int32_t json_object_decode_dotted_string_c(json_cursor_t *cur, const uint8_t *path, int32_t path_len,
+                                           uint8_t *out, int32_t out_cap, int32_t *out_len) {
+  json_cursor_t at;
+  int32_t consumed = 0;
+  int32_t rc;
+  if (!cur || !path || !out || !out_len || path_len <= 0) return -1;
+  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
+  if (rc != 0) return rc;
+  return json_decode_string_at_c(at.ptr + at.off, at.len - at.off, out, out_cap, out_len, &consumed);
+}
+
+/** 按点分路径（如 ok / flags.0）在 object 根解码 bool；缺键 JSON_DECODE_MISSING。 */
+int32_t json_object_decode_dotted_bool_c(json_cursor_t *cur, const uint8_t *path, int32_t path_len,
+                                         int32_t *out) {
+  json_cursor_t at;
+  int32_t consumed = 0;
+  int32_t rc;
+  if (!cur || !path || !out || path_len <= 0) return -1;
+  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
+  if (rc != 0) return rc;
+  return json_decode_bool_at_c(at.ptr + at.off, at.len - at.off, &consumed, out);
+}
+
+/** 按点分路径（如 metrics.cpu / values.0）在 object 根解码 f64。 */
+int32_t json_object_decode_dotted_f64_c(json_cursor_t *cur, const uint8_t *path, int32_t path_len,
+                                        double *out) {
+  json_cursor_t at;
+  int32_t consumed = 0;
+  int32_t rc;
+  if (!cur || !path || !out || path_len <= 0) return -1;
+  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
+  if (rc != 0) return rc;
+  return json_decode_f64_at_c(at.ptr + at.off, at.len - at.off, &consumed, out);
+}
+
 /** 类型化 decode C 烟测：{"age":30,"ok":true,"name":"alice"}。 */
 int32_t json_typed_decode_smoke_c(void) {
   static const uint8_t doc[] =
@@ -585,6 +750,61 @@ int32_t json_typed_decode_smoke_c(void) {
   json_cursor_init_c(&cur, doc, (int32_t)(sizeof doc - 1));
   if (json_object_decode_i32_c(&cur, (const uint8_t *)"xxx", 3, &age) != JSON_DECODE_MISSING)
     return -1;
+  {
+    static const uint8_t nested[] = "{\"user\":{\"name\":\"carol\",\"age\":42}}";
+    json_cursor_init_c(&cur, nested, (int32_t)(sizeof nested - 1));
+    if (json_object_decode_dotted_i32_c(&cur, (const uint8_t *)"user.age", 8, &age) != 0 || age != 42)
+      return -1;
+    json_cursor_init_c(&cur, nested, (int32_t)(sizeof nested - 1));
+    if (json_object_decode_dotted_string_c(&cur, (const uint8_t *)"user.name", 9, name, 16, &name_len) !=
+            0 ||
+        name_len != 5)
+      return -1;
+  }
+  {
+    static const uint8_t arr_doc[] = "{\"items\":[10,20,30]}";
+    json_cursor_init_c(&cur, arr_doc, (int32_t)(sizeof arr_doc - 1));
+    if (json_object_decode_dotted_i32_c(&cur, (const uint8_t *)"items.0", 7, &age) != 0 || age != 10)
+      return -1;
+    json_cursor_init_c(&cur, arr_doc, (int32_t)(sizeof arr_doc - 1));
+    if (json_object_decode_dotted_i32_c(&cur, (const uint8_t *)"items.2", 7, &age) != 0 || age != 30)
+      return -1;
+  }
+  {
+    static const uint8_t obj_arr[] = "{\"users\":[{\"name\":\"a\"},{\"name\":\"b\"}]}";
+    json_cursor_init_c(&cur, obj_arr, (int32_t)(sizeof obj_arr - 1));
+    if (json_object_decode_dotted_string_c(&cur, (const uint8_t *)"users.0.name", 12, name, 16,
+                                            &name_len) != 0 ||
+        name_len != 1)
+      return -1;
+    json_cursor_init_c(&cur, obj_arr, (int32_t)(sizeof obj_arr - 1));
+    if (json_object_decode_dotted_string_c(&cur, (const uint8_t *)"users.1.name", 12, name, 16,
+                                            &name_len) != 0 ||
+        name_len != 1)
+      return -1;
+  }
+  {
+    static const uint8_t bool_arr[] = "{\"flags\":[true,false,true]}";
+    json_cursor_init_c(&cur, bool_arr, (int32_t)(sizeof bool_arr - 1));
+    ok = 0;
+    if (json_object_decode_dotted_bool_c(&cur, (const uint8_t *)"flags.0", 7, &ok) != 0 || ok != 1)
+      return -1;
+    json_cursor_init_c(&cur, bool_arr, (int32_t)(sizeof bool_arr - 1));
+    if (json_object_decode_dotted_bool_c(&cur, (const uint8_t *)"flags.1", 7, &ok) != 0 || ok != 0)
+      return -1;
+  }
+  {
+    static const uint8_t f64_doc[] = "{\"metrics\":{\"cpu\":0.75},\"values\":[1.5,2.5]}";
+    double dv = 0.0;
+    json_cursor_init_c(&cur, f64_doc, (int32_t)(sizeof f64_doc - 1));
+    if (json_object_decode_dotted_f64_c(&cur, (const uint8_t *)"metrics.cpu", 11, &dv) != 0 ||
+        dv < 0.74 || dv > 0.76)
+      return -1;
+    json_cursor_init_c(&cur, f64_doc, (int32_t)(sizeof f64_doc - 1));
+    if (json_object_decode_dotted_f64_c(&cur, (const uint8_t *)"values.1", 8, &dv) != 0 ||
+        dv < 2.49 || dv > 2.51)
+      return -1;
+  }
   return 0;
 }
 

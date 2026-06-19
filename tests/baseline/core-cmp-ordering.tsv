@@ -1,12 +1,12 @@
 # CORE-005 core.cmp manifest
 # 列：item_id	kind	anchor	notes
 min_cmp_apis	3
-ordering_struct	symbol	Ordering	core/cmp/mod.su
-cmp_i32	symbol	cmp_i32	core/cmp/mod.su
-cmp_u8	symbol	cmp_u8	core/cmp/mod.su
-cmp_ptr	symbol	cmp_ptr	core/cmp/mod.su
-ordering_reverse	symbol	reverse	core/cmp/mod.su
-ordering_then	symbol	then	core/cmp/mod.su
-test_smoke	file	tests/cmp/main.su	烟测
+ordering_struct	symbol	Ordering	core/cmp/mod.sx
+cmp_i32	symbol	cmp_i32	core/cmp/mod.sx
+cmp_u8	symbol	cmp_u8	core/cmp/mod.sx
+cmp_ptr	symbol	cmp_ptr	core/cmp/mod.sx
+ordering_reverse	symbol	reverse	core/cmp/mod.sx
+ordering_then	symbol	then	core/cmp/mod.sx
+test_smoke	file	tests/cmp/main.sx	烟测
 doc	file	core-cmp-ordering-v1.md	analysis/core-cmp-ordering-v1.md	RFC
 gate	script	run-core-cmp-ordering-gate.sh	tests/run-core-cmp-ordering-gate.sh	manifest

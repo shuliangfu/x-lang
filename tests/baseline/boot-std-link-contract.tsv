@@ -37,14 +37,18 @@ dynlib	std_always	get_std_dynlib_o_path	std/dynlib/dynlib.o	-	-ldl	have_dynlib
 http	std_always	get_std_http_o_path	std/http/http.o	-	-	
 tar	std_always	get_std_tar_o_path	std/tar/tar.o	-	-	
 test	std_always	get_std_test_o_path	std/test/test.o	-	-	
-async_sched	std_on_demand	get_std_async_scheduler_o_path	std/async/scheduler.o	shu_async_run_i32	-	nm on_demand
+async_sched	std_on_demand	get_std_async_scheduler_o_path	std/async/scheduler.o	shux_async_run_i32	-	nm on_demand
 core_mem	std_on_demand	get_core_mem_o_path	core/mem/mem.o	mem_compiler_fence_c	-	nm on_demand
-freestanding_io	freestanding	get_freestanding_io_o_path	compiler/freestanding_io.o	shulang_sys_write	-	Linux x86_64
-freestanding_panic	freestanding	-	compiler/runtime_panic.o	shulang_panic_	-	nm panic
-c_async_on_demand	c_backend	generated_c_needs_async_scheduler	std/async/scheduler.o	shu_async_cps_suspend	-	invoke_cc C
+freestanding_io	freestanding	get_freestanding_io_o_path	compiler/freestanding_io.o	shux_sys_write	-	Linux x86_64
+freestanding_panic	freestanding	-	compiler/runtime_panic.o	shux_panic_	-	nm panic
+c_async_on_demand	c_backend	generated_c_needs_async_scheduler	std/async/scheduler.o	shux_async_cps_suspend	-	invoke_cc C
 c_core_mem_on_demand	c_backend	generated_c_needs_core_mem	core/mem/mem.o	mem_compiler_fence_c	-	invoke_cc C
-hook_json	smoke	tests/json/object_array_parse.su	std/json/json.o	-	-	link smoke
-hook_async	smoke	tests/async/await_scheduler_mod.su	std/async/scheduler.o	-	-	on_demand smoke
-hook_core_mem	smoke	tests/core-mem/volatile_fence.su	core/mem/mem.o	-	-	on_demand smoke
+c_db_kv_on_demand	c_backend	generated_c_needs_db_kv	std/db/kv/kv.o	db_kv_open_c	-	invoke_cc C
+c_db_arrow_on_demand	c_backend	generated_c_needs_db_arrow	std/db/arrow/arrow.o	arrow_column_i32_create_c	-	invoke_cc C
+hook_kv	smoke	tests/std-db/kv_tick_smoke.sx	std/db/kv/kv.o	db_kv_open_c	-	on_demand
+hook_arrow	smoke	tests/std-db/arrow_column_smoke.sx	std/db/arrow/arrow.o	arrow_column_f32_create_c	-	on_demand
+hook_json	smoke	tests/json/object_array_parse.sx	std/json/json.o	-	-	link smoke
+hook_async	smoke	tests/async/await_scheduler_mod.sx	std/async/scheduler.o	-	-	on_demand smoke
+hook_core_mem	smoke	tests/core-mem/volatile_fence.sx	core/mem/mem.o	-	-	on_demand smoke
 doc	file	analysis/boot-std-link-contract-v1.md	analysis/boot-std-link-contract-v1.md	-	-	RFC
 gate	script	run-boot-std-link-contract-gate.sh	tests/run-boot-std-link-contract-gate.sh	-	-	manifest

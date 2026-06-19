@@ -16,7 +16,7 @@ struct ast_Module;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfCodegenCtx;
 
-/** 与 backend.su / pipeline_glue AsmFuncCtx 前缀一致（含 dep_pipe，WPO-S3 跨模块内联解析 import callee）。 */
+/** 与 backend.sx / pipeline_glue AsmFuncCtx 前缀一致（含 dep_pipe，WPO-S3 跨模块内联解析 import callee）。 */
 struct glue_AsmFuncCtx {
   int32_t frame_size;
   int32_t next_offset;
@@ -181,7 +181,7 @@ extern int32_t pipeline_asm_var_is_emit_func_param_ptr_c(struct ast_ASTArena *ar
 extern int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTArena *arena,
                                                                        struct ast_Module *mod, int32_t var_expr_ref);
 
-/** TypeKind：与 ast.su 序数一致。 */
+/** TypeKind：与 ast.sx 序数一致。 */
 enum {
   GLUE_TYPE_NAMED = 8,
   GLUE_TYPE_PTR = 9,
@@ -235,7 +235,7 @@ extern void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, 
 extern int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int32_t li, int32_t j);
 extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref);
 
-/** 向上取整到 8 字节（与 backend.su asm_align_up8 一致）。 */
+/** 向上取整到 8 字节（与 backend.sx asm_align_up8 一致）。 */
 static int32_t glue_align_up8_c(int32_t n) {
   int32_t m = n % 8;
   if (m != 0)
@@ -482,7 +482,7 @@ static int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *
 }
 
 /**
- * 模块内是否存在与 name 同名的 struct_layout（与 backend.su asm_module_named_type_has_struct_layout 一致）。
+ * 模块内是否存在与 name 同名的 struct_layout（与 backend.sx asm_module_named_type_has_struct_layout 一致）。
  */
 static int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t k;
@@ -1392,7 +1392,7 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
 }
 
 /**
- * WPO-S2 monomorphize：SHU_WPO_MONO=1 时将全常量实参 call 改调单态符号（零实参 thunk）。
+ * WPO-S2 monomorphize：SHUX_WPO_MONO=1 时将全常量实参 call 改调单态符号（零实参 thunk）。
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
 int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -1411,7 +1411,7 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
   int sym_len;
   uint8_t cname[64];
   int32_t clen;
-  if (!getenv("SHU_WPO_MONO"))
+  if (!getenv("SHUX_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
@@ -1486,7 +1486,7 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *are
   int sym_len;
   uint8_t outer_name[64];
   int32_t olen;
-  if (!getenv("SHU_WPO_MONO"))
+  if (!getenv("SHUX_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
@@ -1639,13 +1639,13 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
   if (pipeline_expr_call_num_args_at(arena, call_ref) != 0)
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &callee_arena, &callee_mod, &fi) == 0) {
-    if (getenv("SHU_ASM_DEBUG"))
-      fprintf(stderr, "shu: const_struct_call_inline miss lookup call_ref=%d\n", (int)call_ref);
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: const_struct_call_inline miss lookup call_ref=%d\n", (int)call_ref);
     return 0;
   }
   if (glue_fold_func_returns_const_struct_lit(callee_arena, callee_mod, fi, &lit_ref) == 0) {
-    if (getenv("SHU_ASM_DEBUG"))
-      fprintf(stderr, "shu: const_struct_call_inline miss fold fi=%d\n", (int)fi);
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: const_struct_call_inline miss fold fi=%d\n", (int)fi);
     return 0;
   }
   nf = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
@@ -1664,8 +1664,8 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
       return -1;
     fj = fj + 1;
   }
-  if (getenv("SHU_ASM_DEBUG"))
-    fprintf(stderr, "shu: const_struct_call_inline OK lit_ref=%d nf=%d fi=%d\n", (int)lit_ref, (int)nf, (int)fi);
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: const_struct_call_inline OK lit_ref=%d nf=%d fi=%d\n", (int)lit_ref, (int)nf, (int)fi);
   return 1;
 }
 

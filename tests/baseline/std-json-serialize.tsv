@@ -1,14 +1,14 @@
 # STD-035 std.json object/array 序列化 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	8
-append_object	symbol	append_object	std/json/mod.su
-append_array	symbol	append_array	std/json/mod.su
-append_key	symbol	append_key	std/json/mod.su
-append_string_value	symbol	append_string_value	std/json/mod.su
-append_number_at	symbol	append_number_at	std/json/mod.su
+append_object	symbol	append_object	std/json/mod.sx
+append_array	symbol	append_array	std/json/mod.sx
+append_key	symbol	append_key	std/json/mod.sx
+append_string_value	symbol	append_string_value	std/json/mod.sx
+append_number_at	symbol	append_number_at	std/json/mod.sx
 json_append_object_c	symbol	json_append_object_c	std/json/json.c
 json_append_array_c	symbol	json_append_array_c	std/json/json.c
 roundtrip_doc	anchor	object_array_roundtrip	analysis/std-json-serialize-v1.md	RFC
-test_rt	file	tests/json/object_array_roundtrip.su		金样
+test_rt	file	tests/json/object_array_roundtrip.sx		金样
 doc	file	analysis/std-json-serialize-v1.md	analysis/std-json-serialize-v1.md	RFC
 gate	script	tests/run-std-json-serialize-gate.sh	tests/run-std-json-serialize-gate.sh	manifest

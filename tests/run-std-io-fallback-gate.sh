@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD_IO_FALLBACK_DOC:-analysis/std-io-fallback-v1.md}"
-MANIFEST="${SHU_STD_IO_FALLBACK_TSV:-tests/baseline/std-io-fallback.tsv}"
+DOC="${SHUX_STD_IO_FALLBACK_DOC:-analysis/std-io-fallback-v1.md}"
+MANIFEST="${SHUX_STD_IO_FALLBACK_TSV:-tests/baseline/std-io-fallback.tsv}"
 IO_C="std/io/io.c"
-MOD_SU="std/io/mod.su"
+MOD_SU="std/io/mod.sx"
 README="std/io/README.md"
 LIB="tests/lib/std-io-fallback.sh"
-SMOKE="tests/io/fallback_matrix.su"
+SMOKE="tests/io/fallback_matrix.sx"
 RUNNER="tests/run-io.sh"
 
 # shellcheck source=tests/lib/std-io-fallback.sh
@@ -55,7 +55,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shu-c ./compiler/shu; do
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -66,19 +66,19 @@ resolve_shu() {
 
 CHECK_OK=0
 SKIP=1
-if SHU_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-026: typeck (SHU=$SHU_BIN) ==="
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-026: typeck (SHUX=$SHUX_BIN) ==="
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-io-fallback gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     std_io_fallback_emit_report "fail" 1 1 1 0 0
     exit 1
   fi
   SKIP=0
 else
-  echo "std-io-fallback gate SKIP typeck (no native shu)" >&2
+  echo "std-io-fallback gate SKIP typeck (no native shux)" >&2
 fi
 
 std_io_fallback_emit_report "ok" 1 1 1 "$CHECK_OK" "$SKIP"

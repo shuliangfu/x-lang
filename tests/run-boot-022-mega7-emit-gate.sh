@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT022_DOC:-analysis/boot-022-mega7-emit-v1.md}"
-MANIFEST="${SHU_BOOT022_TSV:-tests/baseline/boot-022-mega7-emit.tsv}"
-WAVE="${SHU_BOOT022_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
+DOC="${SHUX_BOOT022_DOC:-analysis/boot-022-mega7-emit-v1.md}"
+MANIFEST="${SHUX_BOOT022_TSV:-tests/baseline/boot-022-mega7-emit.tsv}"
+WAVE="${SHUX_BOOT022_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-022-mega7-emit.sh"
 MIN_EMIT=1
@@ -62,8 +62,8 @@ while IFS=$'\t' read -r emit_id mega_fn role hook _notes; do
     echo "boot-022 FAIL: doc missing $emit_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.su 2>/dev/null; then
-    echo "boot-022 FAIL: parser.su missing $mega_fn" >&2
+  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.sx 2>/dev/null; then
+    echo "boot-022 FAIL: parser.sx missing $mega_fn" >&2
     MISS=$((MISS + 1))
   fi
   if [ ! -f "tests/$hook" ]; then
@@ -96,7 +96,7 @@ EMIT_LEAD=""
 SKIP=1
 
 if boot022_mega7_linux_asm; then
-  echo "=== BOOT-022: emit wave (Linux shu_asm) ==="
+  echo "=== BOOT-022: emit wave (Linux shux_asm) ==="
   chmod +x tests/run-parser-mega7-emit-wave.sh
   WAVE_OUT="/tmp/boot022_emit_wave_$$.log"
   if ./tests/run-parser-mega7-emit-wave.sh 2>&1 | tee "$WAVE_OUT"; then
@@ -111,7 +111,7 @@ if boot022_mega7_linux_asm; then
   fi
   rm -f "$WAVE_OUT"
 else
-  echo "boot-022-mega7-emit gate SKIP wave (Darwin or no shu_asm)" >&2
+  echo "boot-022-mega7-emit gate SKIP wave (Darwin or no shux_asm)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$PROMOTE_EMIT" -lt "$MIN_EMIT" ]; then

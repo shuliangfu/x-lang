@@ -6,7 +6,7 @@
 #   stbl_import_std_sections_ok DOC TSV
 #   stbl_import_std_emit_report status resolve_ok check_ok skip
 
-STBL_IMPORT_STD_PREFIX="${SHU_STBL_IMPORT_STD_PREFIX:-shu: [SHU_STBL_IMPORT_STD]}"
+STBL_IMPORT_STD_PREFIX="${SHUX_STBL_IMPORT_STD_PREFIX:-shux: [SHUX_STBL_IMPORT_STD]}"
 
 # 依赖 TOOL-007 解析子集（须先 source tests/lib/tool-pkgmgr.sh）。
 stbl_import_std_resolve_probe() {

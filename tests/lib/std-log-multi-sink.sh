@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-log-multi-sink.sh — STD-053 manifest 与烟测辅助
 
-STD_LOG_MULTI_SINK_PREFIX="${SHU_STD_LOG_MULTI_SINK_PREFIX:-shu: [SHU_STD_LOG_MULTI_SINK]}"
+STD_LOG_MULTI_SINK_PREFIX="${SHUX_STD_LOG_MULTI_SINK_PREFIX:-shux: [SHUX_STD_LOG_MULTI_SINK]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_log_multi_sink_symbols_ok() {
@@ -46,15 +46,15 @@ std_log_multi_sink_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_log_multi_sink_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_log_ms_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_log_ms_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-log-multi-sink FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -74,7 +74,7 @@ std_log_multi_sink_run_smoke() {
 std_log_multi_sink_run_c_smoke() {
   local log_c="$1"
   local src="tests/std-log/multi_sink_ok.c"
-  local out="/tmp/shu_std_log_multi_sink_$$"
+  local out="/tmp/shux_std_log_multi_sink_$$"
   local log_o
   log_o="$(dirname "$log_c")/log.o"
   if [ ! -f "$log_o" ]; then

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_ABI_DOC:-analysis/lang-abi-stability-v1.md}"
-MANIFEST="${SHU_LANG_ABI_MANIFEST:-tests/baseline/lang-abi-stability.tsv}"
-LEVELS="${SHU_LANG_ABI_LEVELS:-tests/baseline/lang-abi-compat-levels.tsv}"
+DOC="${SHUX_LANG_ABI_DOC:-analysis/lang-abi-stability-v1.md}"
+MANIFEST="${SHUX_LANG_ABI_MANIFEST:-tests/baseline/lang-abi-stability.tsv}"
+LEVELS="${SHUX_LANG_ABI_LEVELS:-tests/baseline/lang-abi-compat-levels.tsv}"
 MIN_LAYERS=6
 MIN_CASES=2
 MIN_LEVELS=6
@@ -17,7 +17,7 @@ MIN_LEVELS=6
 
 echo "=== LANG-005: ABI stability manifest ==="
 for f in "$DOC" "$MANIFEST" "$LEVELS" \
-  tests/abi/layout_abi.c tests/abi/f32_call_xmm_smoke.su \
+  tests/abi/layout_abi.c tests/abi/f32_call_xmm_smoke.sx \
   compiler/docs/F32_XMM_ABI.md std/fs/fs_abi.h \
   tests/baseline/safe-ffi-contract.tsv; do
   if [ ! -f "$f" ]; then

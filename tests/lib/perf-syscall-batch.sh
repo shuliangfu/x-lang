@@ -10,14 +10,14 @@
 #   perf_sb_report_emit case_id counts... caps... ok_flag
 #
 # 环境：
-#   SHU_SYSCALL_BATCH_PREFIX — 默认 shu: [SHU_SYSCALL_BATCH]
+#   SHUX_SYSCALL_BATCH_PREFIX — 默认 shux: [SHUX_SYSCALL_BATCH]
 
 # strace 能否捕获 syscall（Docker Desktop ptrace 常失效）。
 perf_sb_strace_probe_ok() {
   local probe_out
   [ "$(uname -s)" = "Linux" ] || return 1
   command -v strace >/dev/null 2>&1 || return 1
-  probe_out="$(mktemp /tmp/shu_sb_strace_probe.XXXXXX)"
+  probe_out="$(mktemp /tmp/shux_sb_strace_probe.XXXXXX)"
   strace -o "$probe_out" /bin/ls / >/dev/null 2>&1 || true
   if grep -qE '^openat\(' "$probe_out" 2>/dev/null; then
     rm -f "$probe_out"
@@ -67,7 +67,7 @@ perf_sb_strace_io_counts() {
   if ! perf_sb_strace_probe_ok; then
     return 1
   fi
-  strace_out="$(mktemp /tmp/shu_sb_strace.XXXXXX)"
+  strace_out="$(mktemp /tmp/shux_sb_strace.XXXXXX)"
   rc=0
   strace -e trace=read,write,readv,writev,splice,sendfile -o "$strace_out" "$exe" "$@" >/dev/null 2>&1 || rc=$?
   if [ "$rc" != "$expect_rc" ]; then
@@ -161,7 +161,7 @@ perf_sb_report_emit() {
   local ref_case="$9"
   local ref_total="${10:--}"
   local ok_flag="${11:-0}"
-  local prefix="${SHU_SYSCALL_BATCH_PREFIX:-shu: [SHU_SYSCALL_BATCH]}"
+  local prefix="${SHUX_SYSCALL_BATCH_PREFIX:-shux: [SHUX_SYSCALL_BATCH]}"
   printf '%s case=%s read=%s write=%s readv=%s writev=%s splice=%s sendfile=%s io_total=%s ref_case=%s ref_io_total=%s ok=%s\n' \
     "$prefix" "$case_id" "$read_n" "$write_n" "$readv_n" "$writev_n" \
     "$splice_n" "$sendfile_n" "$io_total" "$ref_case" "$ref_total" "$ok_flag" >&2

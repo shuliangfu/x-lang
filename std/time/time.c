@@ -6,7 +6,7 @@
  * 睡眠（sleep_ns/us/ms/sec）、时间差 duration_ns。全平台一套 API，内部条件编译（POSIX / Windows）。
  *
  * 【所属模块/组件】
- * 标准库 std.time；与 std/time/mod.su 同目录，mod.su 为对外 API，本文件为平台实现。
+ * 标准库 std.time；与 std/time/mod.sx 同目录，mod.sx 为对外 API，本文件为平台实现。
  *
  * 【与其它文件的关系】
  * - 被依赖：用户 import std.time 且 -o exe 时，编译器将本文件产出的 time.o 链入可执行文件。

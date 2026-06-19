@@ -3,14 +3,14 @@
 #
 # 1) boot-015-semantic-smoke-v1.md 必需章节
 # 2) 三模块烟测存在且文档引用
-# 3) native shu 时跑 bootstrap 子集 runner（check 必绿；link 可选）
+# 3) native shux 时跑 bootstrap 子集 runner（check 必绿；link 可选）
 #
 # 用法：./tests/run-boot-015-semantic-smoke-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
-MANIFEST="${SHU_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
+DOC="${SHUX_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
+MANIFEST="${SHUX_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
 RUNNER="tests/run-bootstrap-semantic-smoke-vec-map-heap.sh"
 LIB="tests/lib/boot-015-semantic-smoke.sh"
 MIN_SMOKE=3
@@ -106,11 +106,11 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "boot-015-semantic-smoke manifest OK (smokes=${SMOKE})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
@@ -119,11 +119,11 @@ fi
 CHECK_OK=0
 LINK_OK=0
 SKIP=1
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
-  echo "=== BOOT-015: bootstrap subset runner (SHU=$SHU_BIN) ==="
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  echo "=== BOOT-015: bootstrap subset runner (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   chmod +x "$RUNNER"
-  if SHU="$SHU_BIN" BOOT015_SKIP_LINK="${BOOT015_SKIP_LINK:-}" "$RUNNER" >/tmp/boot015_subset.log 2>&1; then
+  if SHUX="$SHUX_BIN" BOOT015_SKIP_LINK="${BOOT015_SKIP_LINK:-}" "$RUNNER" >/tmp/boot015_subset.log 2>&1; then
     grep -q 'bootstrap-semantic-smoke vec/map/heap OK' /tmp/boot015_subset.log
     CHECK_OK=3
     if grep -q 'link+run OK' /tmp/boot015_subset.log; then
@@ -136,7 +136,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     exit 1
   fi
 else
-  echo "boot-015-semantic-smoke gate SKIP runner (no native shu)" >&2
+  echo "boot-015-semantic-smoke gate SKIP runner (no native shux)" >&2
 fi
 
 boot015_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$SKIP"

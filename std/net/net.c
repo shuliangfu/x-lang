@@ -1,7 +1,7 @@
 /**
  * std/net/net.c — 高吞吐网络 C 层：TCP socket 创建、连接、监听、接受
  *
- * 与 std/net/mod.su 同目录；供 std.net connect/listen/accept 调用。
+ * 与 std/net/mod.sx 同目录；供 std.net connect/listen/accept 调用。
  * 约定：所有 socket 创建后立即设为非阻塞，与 std.io.driver 统一调度。
  * 链接用户程序时由编译器链入本目录产出的 net.o；Unix 需 -lc，Windows 需 ws2_32。
  *
@@ -36,9 +36,9 @@ extern int io_uring_prefetch_fd(int fd);
 #ifndef socklen_t
 #define socklen_t int
 #endif
-#define SHU_NET_ERRNO WSAGetLastError()
-#define SHU_NET_EINPROGRESS WSAEWOULDBLOCK
-#define SHU_NET_EAGAIN WSAEWOULDBLOCK
+#define SHUX_NET_ERRNO WSAGetLastError()
+#define SHUX_NET_EINPROGRESS WSAEWOULDBLOCK
+#define SHUX_NET_EAGAIN WSAEWOULDBLOCK
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -49,9 +49,9 @@ extern int io_uring_prefetch_fd(int fd);
 #include <poll.h>
 #include <errno.h>
 #include <pthread.h>
-#define SHU_NET_ERRNO errno
-#define SHU_NET_EINPROGRESS EINPROGRESS
-#define SHU_NET_EAGAIN EAGAIN
+#define SHUX_NET_ERRNO errno
+#define SHUX_NET_EINPROGRESS EINPROGRESS
+#define SHUX_NET_EAGAIN EAGAIN
 #endif
 #if defined(_WIN32) || defined(_WIN64)
 #include <process.h>
@@ -165,7 +165,7 @@ int32_t net_tcp_connect_c(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout
     if (s == INVALID_SOCKET) return -1;
     if (shu_net_set_nonblock((int)s) != 0) { closesocket(s); return -1; }
     if (connect(s, (struct sockaddr *)&sin, (int)sizeof(sin)) != 0) {
-        if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { closesocket(s); return -1; }
+        if (SHUX_NET_ERRNO != SHUX_NET_EINPROGRESS) { closesocket(s); return -1; }
         if (shu_net_poll_writable((int)s, timeout_ms) != 0) { closesocket(s); return -1; }
         int err = 0;
         int errlen = (int)sizeof(err);
@@ -188,7 +188,7 @@ int32_t net_tcp_connect_c(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout
     if (fd < 0) return -1;
     if (shu_net_set_nonblock(fd) != 0) { close(fd); return -1; }
     if (connect(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0) {
-        if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { close(fd); return -1; }
+        if (SHUX_NET_ERRNO != SHUX_NET_EINPROGRESS) { close(fd); return -1; }
         if (shu_net_poll_writable(fd, timeout_ms) != 0) { close(fd); return -1; }
         int err = 0;
         socklen_t errlen = sizeof(err);
@@ -219,7 +219,7 @@ int32_t net_tcp_connect_blocking_c(uint32_t addr_u32, uint32_t port_u32, uint32_
         if (timeout_ms != 0) {
             if (shu_net_set_nonblock((int)s) != 0) { closesocket(s); return -1; }
             if (connect(s, (struct sockaddr *)&sin, (int)sizeof(sin)) != 0) {
-                if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { closesocket(s); return -1; }
+                if (SHUX_NET_ERRNO != SHUX_NET_EINPROGRESS) { closesocket(s); return -1; }
                 if (shu_net_poll_writable((int)s, timeout_ms) != 0) { closesocket(s); return -1; }
                 {
                     int err = 0;
@@ -370,8 +370,8 @@ int net_connect_many_c(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, i
 }
 
 /* ---------- 多核易用：多 worker 共享 listener，每线程循环 accept_many + close（压测/多核压榨） ---------- */
-#define SHU_NET_ACCEPT_BATCH 64
-#define SHU_NET_MAX_WORKERS 64
+#define SHUX_NET_ACCEPT_BATCH 64
+#define SHUX_NET_MAX_WORKERS 64
 
 /* 前向声明：worker 内调用的接口在文件后部定义 */
 extern int net_accept_many_c(int32_t listener_fd, int32_t *out_fds, int n, uint32_t timeout_ms);
@@ -396,9 +396,9 @@ static void *shu_net_worker_accept_loop(void *arg) {
 #if defined(__GNUC__) || defined(__clang__)
     (void)thread_set_affinity_self_c(a->worker_index);
 #endif
-    int32_t fds[SHU_NET_ACCEPT_BATCH];
+    int32_t fds[SHUX_NET_ACCEPT_BATCH];
     for (;;) {
-        int n = net_accept_many_c(a->listener_fd, fds, SHU_NET_ACCEPT_BATCH, a->timeout_ms);
+        int n = net_accept_many_c(a->listener_fd, fds, SHUX_NET_ACCEPT_BATCH, a->timeout_ms);
         int i;
         for (i = 0; i < n; i++)
             (void)net_close_socket_c_real(fds[i]);
@@ -420,8 +420,8 @@ static DWORD WINAPI shu_net_thread_wrap(LPVOID arg) {
  */
 int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms) {
     if (listener_fd < 0 || n_workers <= 0) return -1;
-    if (n_workers > SHU_NET_MAX_WORKERS) n_workers = SHU_NET_MAX_WORKERS;
-    static struct shu_net_worker_arg s_args[SHU_NET_MAX_WORKERS];
+    if (n_workers > SHUX_NET_MAX_WORKERS) n_workers = SHUX_NET_MAX_WORKERS;
+    static struct shu_net_worker_arg s_args[SHUX_NET_MAX_WORKERS];
     int i;
     for (i = 0; i < n_workers; i++) {
         s_args[i].listener_fd = listener_fd;
@@ -430,7 +430,7 @@ int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, ui
     }
 #if defined(_WIN32) || defined(_WIN64)
     {
-        HANDLE th[SHU_NET_MAX_WORKERS];
+        HANDLE th[SHUX_NET_MAX_WORKERS];
         for (i = 0; i < n_workers; i++) {
             th[i] = CreateThread(NULL, 0, shu_net_thread_wrap, &s_args[i], 0, NULL);
             if (th[i] == NULL) {
@@ -443,7 +443,7 @@ int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, ui
     }
 #else
     {
-        pthread_t th[SHU_NET_MAX_WORKERS];
+        pthread_t th[SHUX_NET_MAX_WORKERS];
         for (i = 0; i < n_workers; i++) {
             if (pthread_create(&th[i], NULL, shu_net_worker_accept_loop, &s_args[i]) != 0) {
                 while (i > 0) pthread_join(th[--i], NULL);
@@ -553,16 +553,16 @@ int32_t net_udp_recv_from_c(int32_t fd, uint8_t *buf, size_t len, uint32_t timeo
     struct sockaddr_in peer;
     socklen_t peer_len = sizeof(peer);
     ssize_t n = recvfrom(fd, buf, len, 0, (struct sockaddr *)&peer, &peer_len);
-    if (n < 0) return (SHU_NET_ERRNO == SHU_NET_EAGAIN) ? 0 : -1;
+    if (n < 0) return (SHUX_NET_ERRNO == SHUX_NET_EAGAIN) ? 0 : -1;
     if (out_addr_u32) *out_addr_u32 = ntohl(peer.sin_addr.s_addr);
     if (out_port_u32) *out_port_u32 = (uint32_t)ntohs(peer.sin_port);
     return (int32_t)n;
 #endif
 }
 
-/* 阶段 5 性能压榨：UDP 批量 recv/send；最多 2 报文（.su 参数个数限制），C 内仍可用 4 槽扩展。 */
+/* 阶段 5 性能压榨：UDP 批量 recv/send；最多 2 报文（.sx 参数个数限制），C 内仍可用 4 槽扩展。 */
 #define UDP_BATCH_MAX 2
-/** 与 .su std.io.driver.Buffer ABI 一致，供 udp_recv_many_buf/udp_send_many_buf 按「指针+段数」使用。 */
+/** 与 .sx std.io.driver.Buffer ABI 一致，供 udp_recv_many_buf/udp_send_many_buf 按「指针+段数」使用。 */
 #define UDP_BATCH_BUF_MAX 8
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_net_buf_t;
 
@@ -591,7 +591,7 @@ int net_udp_recv_many_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t 
             if (shu_net_poll_readable(fd, timeout_ms) != 0) return -1;
         }
         int r = recvmmsg(fd, msgvec, (unsigned int)n, 0, NULL);
-        if (r < 0) return (SHU_NET_ERRNO == SHU_NET_EAGAIN) ? 0 : -1;
+        if (r < 0) return (SHUX_NET_ERRNO == SHUX_NET_EAGAIN) ? 0 : -1;
         for (i = 0; i < (unsigned int)r; i++) {
             out_sizes[i] = (int32_t)msgvec[i].msg_len;
             out_addrs[i] = ntohl(addrs[i].sin_addr.s_addr);
@@ -685,7 +685,7 @@ int net_udp_recv_many_buf_c(int32_t fd, shu_net_buf_t *bufs, int n, uint32_t tim
             if (shu_net_poll_readable(fd, timeout_ms) != 0) return -1;
         }
         int r = recvmmsg(fd, msgvec, (unsigned int)n, 0, NULL);
-        if (r < 0) return (SHU_NET_ERRNO == SHU_NET_EAGAIN) ? 0 : -1;
+        if (r < 0) return (SHUX_NET_ERRNO == SHUX_NET_EAGAIN) ? 0 : -1;
         for (i = 0; i < (unsigned int)r; i++) {
             out_sizes[i] = (int32_t)msgvec[i].msg_len;
             out_addrs[i] = ntohl(addrs[i].sin_addr.s_addr);
@@ -804,7 +804,7 @@ int32_t net_tcp_connect_ipv6_c(const uint8_t *addr_16, uint32_t port_u32, uint32
     if (s == INVALID_SOCKET) return -1;
     if (shu_net_set_nonblock((int)s) != 0) { closesocket(s); return -1; }
     if (connect(s, (struct sockaddr *)&sin6, (int)sizeof(sin6)) != 0) {
-        if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { closesocket(s); return -1; }
+        if (SHUX_NET_ERRNO != SHUX_NET_EINPROGRESS) { closesocket(s); return -1; }
         if (shu_net_poll_writable((int)s, timeout_ms) != 0) { closesocket(s); return -1; }
         int err = 0;
         int errlen = (int)sizeof(err);
@@ -816,7 +816,7 @@ int32_t net_tcp_connect_ipv6_c(const uint8_t *addr_16, uint32_t port_u32, uint32
     if (fd < 0) return -1;
     if (shu_net_set_nonblock(fd) != 0) { close(fd); return -1; }
     if (connect(fd, (struct sockaddr *)&sin6, sizeof(sin6)) != 0) {
-        if (SHU_NET_ERRNO != SHU_NET_EINPROGRESS) { close(fd); return -1; }
+        if (SHUX_NET_ERRNO != SHUX_NET_EINPROGRESS) { close(fd); return -1; }
         if (shu_net_poll_writable(fd, timeout_ms) != 0) { close(fd); return -1; }
         int err = 0;
         socklen_t errlen = sizeof(err);
@@ -1011,3 +1011,33 @@ int32_t net_stream_read_batch_provided_c(int32_t stream_fd, int32_t n, uint32_t 
         return 2147483647;
     return (int32_t)r;
 }
+/** TLS 线程局部最后错误码；tls_*.inc.c 内赋值。 */
+int32_t shu_tls_last_error;
+
+/** 读取 TLS 最后一次错误码（对接 std.net tls_last_error）。 */
+int32_t net_tls_last_error_c(void) {
+    return shu_tls_last_error;
+}
+
+/**
+ * ALPN 线格式：优先 h2，回退 http/1.1（RFC 7301 长度前缀列表）。
+ * 成功返回 12 字节写入 out。
+ */
+int32_t net_tls_alpn_h2_http1_wire_c(uint8_t *out, int32_t out_cap) {
+    static const uint8_t wire[] = {2, 'h', '2', 8, 'h', 't', 't', 'p', '/', '1', '.', '1'};
+    if (!out || out_cap < (int32_t)sizeof(wire))
+        return -1;
+    memcpy(out, wire, sizeof(wire));
+    return (int32_t)sizeof(wire);
+}
+
+#if defined(SHUX_NET_USE_OPENSSL)
+#include "tls_openssl.inc.c"
+#elif defined(SHUX_NET_USE_MBEDTLS)
+#include "tls_mbedtls.inc.c"
+#else
+#include "tls_stub.inc.c"
+#endif
+
+#include "ws.inc.c"
+#include "tcp_pool.inc.c"

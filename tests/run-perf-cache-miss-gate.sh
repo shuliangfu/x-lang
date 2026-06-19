@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_CACHE_MISS_DOC:-analysis/perf-cache-miss-v1.md}"
-MANIFEST="${SHU_PERF_CACHE_MISS_TSV:-tests/baseline/perf-cache-miss.tsv}"
-BASELINE="${SHU_CACHE_MISS_BASELINE:-tests/baseline/cache-miss-perf.tsv}"
+DOC="${SHUX_PERF_CACHE_MISS_DOC:-analysis/perf-cache-miss-v1.md}"
+MANIFEST="${SHUX_PERF_CACHE_MISS_TSV:-tests/baseline/perf-cache-miss.tsv}"
+BASELINE="${SHUX_CACHE_MISS_BASELINE:-tests/baseline/cache-miss-perf.tsv}"
 LIB="tests/lib/perf-cache-miss.sh"
 DOD_PERF="tests/run-perf-dod-soa.sh"
 MIN_CASES=2
-PREFIX="shu: [SHU_CACHE_MISS]"
+PREFIX="shux: [SHUX_CACHE_MISS]"
 
 # shellcheck source=tests/lib/perf-cache-miss.sh
 . tests/lib/perf-cache-miss.sh
@@ -115,7 +115,7 @@ echo "perf-cache-miss manifest OK (cases=${CASES})"
 if [ "$(uname -s)" = "Linux" ] && perf_cm_probe_ok; then
   echo "=== PERF-006: dod-soa L1 hook smoke (advisory) ==="
   chmod +x "$DOD_PERF"
-  if SHU_DOD_SOA_FAIL=0 ./"$DOD_PERF" 2>&1 | tee /tmp/perf_cache_miss_smoke.log | tail -5; then
+  if SHUX_DOD_SOA_FAIL=0 ./"$DOD_PERF" 2>&1 | tee /tmp/perf_cache_miss_smoke.log | tail -5; then
     grep -qF "$PREFIX" /tmp/perf_cache_miss_smoke.log || {
       echo "perf-cache-miss gate FAIL: missing $PREFIX in dod-soa output" >&2
       exit 1

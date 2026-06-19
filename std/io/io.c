@@ -1,7 +1,7 @@
 /**
  * std/io/io.c — 舒 IO 后端统一入口（分析/舒IO实现路线图.md 阶段 1/2）
  *
- * 与 std.io .su（core/driver/mod）同目录；供 std.io.core 调用的 C 侧读写实现。
+ * 与 std.io .sx（core/driver/mod）同目录；供 std.io.core 调用的 C 侧读写实现。
  * 阶段 1：按平台接入 io_uring（Linux）/ kqueue（macOS）/ IOCP（Windows）；失败或不可用时回退到 read/write。
  * 链接用户程序（-o exe）时由编译器链入本目录产出的 io.o；Linux 下需 -luring -lpthread。
  *
@@ -9,13 +9,13 @@
  * ZC-2：macOS dispatch_data / Linux mmap 绝对视图；read_ptr_gen 校验跨 read_ptr 调用生命周期。
  *
  * Linux io_uring 调优（NEXT IO-A3/A4）：
- *   SHU_IO_URING_SQPOLL=1（默认）— 尝试 SQPOLL + fixed files；0 关闭。
- *   SHU_IO_URING_MULTISHOT_ACCEPT=1（默认）— 内核支持时用 multishot accept（IO-A4）。
- *   SHU_IO_URING_PROVIDE_BUFFERS=1（默认）— ZC-1 Provided Buffers（Linux 5.19+）。
+ *   SHUX_IO_URING_SQPOLL=1（默认）— 尝试 SQPOLL + fixed files；0 关闭。
+ *   SHUX_IO_URING_MULTISHOT_ACCEPT=1（默认）— 内核支持时用 multishot accept（IO-A4）。
+ *   SHUX_IO_URING_PROVIDE_BUFFERS=1（默认）— ZC-1 Provided Buffers（Linux 5.19+）。
  *   connect/accept 成功后自动 io_uring_prefetch_fd（SQPOLL fixed files 槽预热）。
- *   SHU_IO_URING_RING_ENTRIES — ring 深度（64..4096，默认 512）。
- *   SHU_IO_ASYNC_SLOTS — IO-A5 read/write async 并行槽数（1..32，默认 8）。
- *   IO-A5 v3：shu_io_poll_async_completions 收割 CQE 至 slot 并唤醒 async scheduler。
+ *   SHUX_IO_URING_RING_ENTRIES — ring 深度（64..4096，默认 512）。
+ *   SHUX_IO_ASYNC_SLOTS — IO-A5 read/write async 并行槽数（1..32，默认 8）。
+ *   IO-A5 v3：shux_io_poll_async_completions 收割 CQE 至 slot 并唤醒 async scheduler。
  */
 
 /* Linux io_uring：须在任意 #include 之前定义，否则 liburing 缺 cpu_set_t/loff_t（Alpine/musl）。 */
@@ -29,24 +29,24 @@
 #include <stdlib.h>
 
 /** IO-A5：io_uring 完成时唤醒 async IO 等待队列（weak；链 scheduler.o 时由强符号覆盖）。 */
-void shu_async_io_completions_ready(unsigned n) __attribute__((weak));
-void shu_async_io_completions_ready(unsigned n) {
+void shux_async_io_completions_ready(unsigned n) __attribute__((weak));
+void shux_async_io_completions_ready(unsigned n) {
     (void)n;
 }
 
 /** 在 reap CQE 后通知 async scheduler（got 为本次完成数）。 */
-static void shu_io_async_notify_cq(unsigned got) {
+static void shux_io_async_notify_cq(unsigned got) {
     if (got > 0)
-        shu_async_io_completions_ready(got);
+        shux_async_io_completions_ready(got);
 }
 
 #define IO_FIXED_MAX 8
-/* 阶段 2 超越：ring 扩大；默认 512，可用 SHU_IO_URING_RING_ENTRIES 覆盖（64..4096，I6 A/B）。 */
+/* 阶段 2 超越：ring 扩大；默认 512，可用 SHUX_IO_URING_RING_ENTRIES 覆盖（64..4096，I6 A/B）。 */
 #define IO_URING_RING_ENTRIES_DEFAULT 512u
 #define IO_URING_RING_ENTRIES_MIN 64u
 #define IO_URING_RING_ENTRIES_MAX 4096u
 #define IO_FILES_MAX 32
-/** 与 .su std.io.driver.Buffer ABI 一致（ptr+len+handle），供 io_read_batch_buf/io_write_batch_buf 接收「指针+段数」式调用（对齐 Zig/Rust 切片语义）。 */
+/** 与 .sx std.io.driver.Buffer ABI 一致（ptr+len+handle），供 io_read_batch_buf/io_write_batch_buf 接收「指针+段数」式调用（对齐 Zig/Rust 切片语义）。 */
 #define IO_READV_BUF_MAX 16
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
 #ifndef IOSQE_FIXED_FILE
@@ -98,7 +98,7 @@ typedef struct {
 static pthread_key_t g_uring_key;
 static pthread_once_t g_uring_key_once = PTHREAD_ONCE_INIT;
 
-/** 读取 io_uring ring 深度：环境变量 SHU_IO_URING_RING_ENTRIES，默认 512。 */
+/** 读取 io_uring ring 深度：环境变量 SHUX_IO_URING_RING_ENTRIES，默认 512。 */
 static unsigned io_uring_ring_entries(void) {
     static unsigned cached;
     static int inited;
@@ -106,7 +106,7 @@ static unsigned io_uring_ring_entries(void) {
         const char *e;
         inited = 1;
         cached = IO_URING_RING_ENTRIES_DEFAULT;
-        e = getenv("SHU_IO_URING_RING_ENTRIES");
+        e = getenv("SHUX_IO_URING_RING_ENTRIES");
         if (e && e[0]) {
             unsigned long v = strtoul(e, NULL, 10);
             if (v >= IO_URING_RING_ENTRIES_MIN && v <= IO_URING_RING_ENTRIES_MAX)
@@ -146,7 +146,7 @@ static int io_uring_sqpoll_wanted(void) {
     if (io_uring_disabled_by_admin())
         cached = 0;
     else
-        cached = io_uring_env_enabled("SHU_IO_URING_SQPOLL", 1);
+        cached = io_uring_env_enabled("SHUX_IO_URING_SQPOLL", 1);
     return cached;
 }
 
@@ -158,7 +158,7 @@ static int io_uring_multishot_wanted(void) {
     if (io_uring_disabled_by_admin())
         cached = 0;
     else
-        cached = io_uring_env_enabled("SHU_IO_URING_MULTISHOT_ACCEPT", 1);
+        cached = io_uring_env_enabled("SHUX_IO_URING_MULTISHOT_ACCEPT", 1);
     return cached;
 }
 
@@ -194,7 +194,7 @@ static int io_uring_provide_wanted(void) {
     if (io_uring_disabled_by_admin())
         cached = 0;
     else
-        cached = io_uring_env_enabled("SHU_IO_URING_PROVIDE_BUFFERS", 1);
+        cached = io_uring_env_enabled("SHUX_IO_URING_PROVIDE_BUFFERS", 1);
     return cached;
 }
 
@@ -264,7 +264,7 @@ static int io_provide_buffers_init_pool(uring_thread_t *ut, unsigned nr, unsigne
         }
     }
     ut->provided_ok = 1;
-    if (getenv("SHU_IO_URING_DEBUG") != NULL)
+    if (getenv("SHUX_IO_URING_DEBUG") != NULL)
         (void)fprintf(stderr, "shu_io: provided_buffers nr=%u bufsz=%u ok\n", nr, bufsz);
     return 1;
 }
@@ -328,11 +328,11 @@ static void io_provide_drain_all_pending(uring_thread_t *ut) {
     } while (n > 0);
 }
 
-/** SHU_IO_PROVIDE_LAZY=1（默认）：re-provide 后不同步 drain PROVIDE CQE，下轮读前批量收割。 */
+/** SHUX_IO_PROVIDE_LAZY=1（默认）：re-provide 后不同步 drain PROVIDE CQE，下轮读前批量收割。 */
 static int io_provide_lazy_enabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char *e = getenv("SHU_IO_PROVIDE_LAZY");
+        const char *e = getenv("SHUX_IO_PROVIDE_LAZY");
         cached = (!e || e[0] != '0' || (e[1] != '\0' && e[1] != ' ')) ? 1 : 0;
     }
     return cached;
@@ -423,7 +423,7 @@ static uring_thread_t *uring_get_thread(void) {
                     ut->ok = 1;
                     ut->use_sqpoll = 1;
                     ut->registered_fds[0] = 0; ut->registered_fds[1] = 1; ut->registered_fds[2] = 2;
-                    if (getenv("SHU_IO_URING_DEBUG") != NULL)
+                    if (getenv("SHUX_IO_URING_DEBUG") != NULL)
                         (void)fprintf(stderr, "shu_io: SQPOLL+fixed_files ok (ring=%u)\n", io_uring_ring_entries());
                     pthread_setspecific(g_uring_key, ut);
                     return ut;
@@ -497,7 +497,7 @@ int32_t io_uring_accept(int listener_fd, unsigned timeout_ms) {
     }
     int res = (int)cqe->res;
     io_uring_cqe_seen(ring, cqe);
-    shu_io_async_notify_cq(1);
+    shux_io_async_notify_cq(1);
     if (res < 0) return -1;
     int fd = res;
     int flags = fcntl(fd, F_GETFL, 0);
@@ -556,12 +556,12 @@ int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, unsigned timeout_
 static unsigned g_io_uring_multishot_accept_hits;
 
 /** 返回 multishot accept 路径成功收割次数（IO-A4 烟测）。 */
-unsigned shu_io_uring_multishot_accept_hits(void) {
+unsigned shux_io_uring_multishot_accept_hits(void) {
     return g_io_uring_multishot_accept_hits;
 }
 
 /** 清零 multishot accept 统计（烟测用）。 */
-void shu_io_uring_multishot_accept_stats_reset(void) {
+void shux_io_uring_multishot_accept_stats_reset(void) {
     g_io_uring_multishot_accept_hits = 0;
 }
 
@@ -939,7 +939,7 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
                             cqe = cqe_ptrs[0];
                             ptrdiff_t res = (ptrdiff_t)cqe->res;
                             io_uring_cqe_seen(ring, cqe);
-                            shu_io_async_notify_cq(1);
+                            shux_io_async_notify_cq(1);
                             return res >= 0 ? res : -1;
                         }
                         return -1;
@@ -950,7 +950,7 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
                         if (wait_ret == 0 && cqe) {
                             ptrdiff_t res = (ptrdiff_t)cqe->res;
                             io_uring_cqe_seen(ring, cqe);
-                            shu_io_async_notify_cq(1);
+                            shux_io_async_notify_cq(1);
                             return res >= 0 ? res : -1;
                         }
                         if (cqe) io_uring_cqe_seen(ring, cqe);
@@ -1031,8 +1031,8 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
 /** IO-A5：非阻塞 write 的 SQE user_data 魔数。 */
 #define IO_SQE_UDATA_WRITE_ASYNC 0x57524144u
 
-/** IO-A5 v2：每方向最大 async in-flight 槽（可用 SHU_IO_ASYNC_SLOTS 调 1..32）。 */
-#define SHU_IO_ASYNC_MAX_SLOTS 32
+/** IO-A5 v2：每方向最大 async in-flight 槽（可用 SHUX_IO_ASYNC_SLOTS 调 1..32）。 */
+#define SHUX_IO_ASYNC_MAX_SLOTS 32
 
 /** read async 单槽状态。 */
 typedef struct {
@@ -1042,7 +1042,7 @@ typedef struct {
     size_t handle;
     uint8_t *ptr;
     size_t len;
-} shu_io_read_async_slot_t;
+} shux_io_read_async_slot_t;
 
 /** write async 单槽状态。 */
 typedef struct {
@@ -1052,49 +1052,49 @@ typedef struct {
     size_t handle;
     const uint8_t *ptr;
     size_t len;
-} shu_io_write_async_slot_t;
+} shux_io_write_async_slot_t;
 
-static shu_io_read_async_slot_t shu_io_read_slots[SHU_IO_ASYNC_MAX_SLOTS];
-static shu_io_write_async_slot_t shu_io_write_slots[SHU_IO_ASYNC_MAX_SLOTS];
-static int shu_io_async_slot_cap = 8;
-static int shu_io_async_slot_cap_inited;
+static shux_io_read_async_slot_t shux_io_read_slots[SHUX_IO_ASYNC_MAX_SLOTS];
+static shux_io_write_async_slot_t shux_io_write_slots[SHUX_IO_ASYNC_MAX_SLOTS];
+static int shux_io_async_slot_cap = 8;
+static int shux_io_async_slot_cap_inited;
 
-/** 解析 SHU_IO_ASYNC_SLOTS（默认 8，范围 1..32）。 */
-static int shu_io_async_slot_count(void) {
-    if (!shu_io_async_slot_cap_inited) {
-        const char *e = getenv("SHU_IO_ASYNC_SLOTS");
+/** 解析 SHUX_IO_ASYNC_SLOTS（默认 8，范围 1..32）。 */
+static int shux_io_async_slot_count(void) {
+    if (!shux_io_async_slot_cap_inited) {
+        const char *e = getenv("SHUX_IO_ASYNC_SLOTS");
         int n = 8;
         if (e && e[0]) {
             char *end = NULL;
             long v = strtol(e, &end, 10);
-            if (end && end > e && v >= 1 && v <= SHU_IO_ASYNC_MAX_SLOTS)
+            if (end && end > e && v >= 1 && v <= SHUX_IO_ASYNC_MAX_SLOTS)
                 n = (int)v;
         }
-        shu_io_async_slot_cap = n;
-        shu_io_async_slot_cap_inited = 1;
+        shux_io_async_slot_cap = n;
+        shux_io_async_slot_cap_inited = 1;
     }
-    return shu_io_async_slot_cap;
+    return shux_io_async_slot_cap;
 }
 
 /** read async SQE user_data：低 32 位魔数 + 高 32 位 slot。 */
-static uintptr_t shu_io_read_slot_udata(unsigned slot) {
+static uintptr_t shux_io_read_slot_udata(unsigned slot) {
     return ((uintptr_t)slot << 32) | (uintptr_t)IO_SQE_UDATA_READ_ASYNC;
 }
 
 /** write async SQE user_data：低 32 位魔数 + 高 32 位 slot。 */
-static uintptr_t shu_io_write_slot_udata(unsigned slot) {
+static uintptr_t shux_io_write_slot_udata(unsigned slot) {
     return ((uintptr_t)slot << 32) | (uintptr_t)IO_SQE_UDATA_WRITE_ASYNC;
 }
 
 /** 从 CQE user_data 解析 read slot；-1 表示非 read async。 */
-static int shu_io_read_udata_to_slot(uintptr_t u) {
+static int shux_io_read_udata_to_slot(uintptr_t u) {
     if ((u & 0xFFFFFFFFu) != (uintptr_t)IO_SQE_UDATA_READ_ASYNC)
         return -1;
     return (int)(u >> 32);
 }
 
 /** 从 CQE user_data 解析 write slot；-1 表示非 write async。 */
-static int shu_io_write_udata_to_slot(uintptr_t u) {
+static int shux_io_write_udata_to_slot(uintptr_t u) {
     if ((u & 0xFFFFFFFFu) != (uintptr_t)IO_SQE_UDATA_WRITE_ASYNC)
         return -1;
     return (int)(u >> 32);
@@ -1104,7 +1104,7 @@ static int shu_io_write_udata_to_slot(uintptr_t u) {
  * IO-A5 v3：窥视/等待 async read/write CQE，收割至 slot 后唤醒 scheduler。
  * timeout_ms=0 仅 peek；>0 无 CQE 时 wait_cqe_timeout。返回本次收割的 async 完成数。
  */
-unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
+unsigned shux_io_poll_async_completions(unsigned timeout_ms) {
 #if defined(__linux__)
     uring_thread_t *ut = uring_get_thread();
     struct io_uring *ring;
@@ -1130,10 +1130,10 @@ unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
     for (i = 0; i < got; i++) {
         struct io_uring_cqe *cqe_i = cqe_ptrs[i];
         uintptr_t u = (uintptr_t)io_uring_cqe_get_data(cqe_i);
-        int rs = shu_io_read_udata_to_slot(u);
+        int rs = shux_io_read_udata_to_slot(u);
         int ws;
         if (rs >= 0) {
-            shu_io_read_async_slot_t *st = &shu_io_read_slots[rs];
+            shux_io_read_async_slot_t *st = &shux_io_read_slots[rs];
             if (st->pending && !st->reaped) {
                 st->reaped = 1;
                 st->reaped_res = (int32_t)cqe_i->res;
@@ -1142,9 +1142,9 @@ unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
             }
             continue;
         }
-        ws = shu_io_write_udata_to_slot(u);
+        ws = shux_io_write_udata_to_slot(u);
         if (ws >= 0) {
-            shu_io_write_async_slot_t *st = &shu_io_write_slots[ws];
+            shux_io_write_async_slot_t *st = &shux_io_write_slots[ws];
             if (st->pending && !st->reaped) {
                 st->reaped = 1;
                 st->reaped_res = (int32_t)cqe_i->res;
@@ -1154,7 +1154,7 @@ unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
         }
     }
     if (async_n > 0)
-        shu_io_async_notify_cq(async_n);
+        shux_io_async_notify_cq(async_n);
     return async_n;
 #else
     (void)timeout_ms;
@@ -1162,23 +1162,36 @@ unsigned shu_io_poll_async_completions(unsigned timeout_ms) {
 #endif
 }
 
+/**
+ * STD-049：探测当前线程 io_uring 是否可用（lazy init 后 ut->ok）。
+ * Linux 且 ring 初始化成功返回 1，否则 0。
+ */
+int shux_io_uring_is_available_c(void) {
+#if defined(__linux__)
+    uring_thread_t *ut = uring_get_thread();
+    return (ut && ut->ok) ? 1 : 0;
+#else
+    return 0;
+#endif
+}
+
 /** 分配 read async 槽；无空闲返回 -1。 */
-static int shu_io_read_slot_alloc(void) {
-    int cap = shu_io_async_slot_count();
+static int shux_io_read_slot_alloc(void) {
+    int cap = shux_io_async_slot_count();
     int i;
     for (i = 0; i < cap; i++) {
-        if (!shu_io_read_slots[i].pending && !shu_io_read_slots[i].reaped)
+        if (!shux_io_read_slots[i].pending && !shux_io_read_slots[i].reaped)
             return i;
     }
     return -1;
 }
 
 /** 分配 write async 槽；无空闲返回 -1。 */
-static int shu_io_write_slot_alloc(void) {
-    int cap = shu_io_async_slot_count();
+static int shux_io_write_slot_alloc(void) {
+    int cap = shux_io_async_slot_count();
     int i;
     for (i = 0; i < cap; i++) {
-        if (!shu_io_write_slots[i].pending && !shu_io_write_slots[i].reaped)
+        if (!shux_io_write_slots[i].pending && !shux_io_write_slots[i].reaped)
             return i;
     }
     return -1;
@@ -1188,11 +1201,11 @@ static int shu_io_write_slot_alloc(void) {
  * IO-A5：提交非阻塞 read（io_uring submit 不 wait；非 Linux 登记状态供 complete 同步读）。
  * 成功返回 slot 索引（>=0），失败或槽满返回 -1。
  */
-int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
     int slot;
     if (!ptr || len == 0)
         return -1;
-    slot = shu_io_read_slot_alloc();
+    slot = shux_io_read_slot_alloc();
     if (slot < 0)
         return -1;
 #if defined(__linux__)
@@ -1216,22 +1229,22 @@ int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
         } else {
             io_uring_prep_read(sqe, fd, ptr, len, 0);
         }
-        io_uring_sqe_set_data(sqe, (void *)shu_io_read_slot_udata((unsigned)slot));
+        io_uring_sqe_set_data(sqe, (void *)shux_io_read_slot_udata((unsigned)slot));
         if (io_uring_submit(ring) < 0)
             return -1;
-        shu_io_read_slots[slot].pending = 1;
-        shu_io_read_slots[slot].reaped = 0;
-        shu_io_read_slots[slot].handle = handle;
-        shu_io_read_slots[slot].ptr = ptr;
-        shu_io_read_slots[slot].len = len;
+        shux_io_read_slots[slot].pending = 1;
+        shux_io_read_slots[slot].reaped = 0;
+        shux_io_read_slots[slot].handle = handle;
+        shux_io_read_slots[slot].ptr = ptr;
+        shux_io_read_slots[slot].len = len;
         return slot;
     }
 #else
-    shu_io_read_slots[slot].pending = 1;
-    shu_io_read_slots[slot].reaped = 0;
-    shu_io_read_slots[slot].handle = handle;
-    shu_io_read_slots[slot].ptr = ptr;
-    shu_io_read_slots[slot].len = len;
+    shux_io_read_slots[slot].pending = 1;
+    shux_io_read_slots[slot].reaped = 0;
+    shux_io_read_slots[slot].handle = handle;
+    shux_io_read_slots[slot].ptr = ptr;
+    shux_io_read_slots[slot].len = len;
     return slot;
 #endif
 }
@@ -1239,11 +1252,11 @@ int shu_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
 /**
  * IO-A5 v2：收割指定 slot 的 read async；>0 字节数，0=EOF，-1=错误，-2=尚未完成。
  */
-int32_t shu_io_complete_read_async_slot(int slot) {
-    shu_io_read_async_slot_t *st;
-    if (slot < 0 || slot >= shu_io_async_slot_count())
+int32_t shux_io_complete_read_async_slot(int slot) {
+    shux_io_read_async_slot_t *st;
+    if (slot < 0 || slot >= shux_io_async_slot_count())
         return -1;
-    st = &shu_io_read_slots[slot];
+    st = &shux_io_read_slots[slot];
     if (st->reaped) {
         int32_t out = st->reaped_res >= 0 ? st->reaped_res : -1;
         st->reaped = 0;
@@ -1267,12 +1280,12 @@ int32_t shu_io_complete_read_async_slot(int slot) {
         for (i = 0; i < got; i++) {
             struct io_uring_cqe *cqe = cqe_ptrs[i];
             uintptr_t u = (uintptr_t)io_uring_cqe_get_data(cqe);
-            int s = shu_io_read_udata_to_slot(u);
+            int s = shux_io_read_udata_to_slot(u);
             if (s != slot)
                 continue;
             res = (int32_t)cqe->res;
             io_uring_cqe_seen(ring, cqe);
-            shu_io_async_notify_cq(1);
+            shux_io_async_notify_cq(1);
             st->pending = 0;
             st->reaped = 0;
             return res >= 0 ? res : -1;
@@ -1283,7 +1296,7 @@ int32_t shu_io_complete_read_async_slot(int slot) {
     {
         ptrdiff_t r = io_read((int)st->handle, st->ptr, st->len, 0);
         st->pending = 0;
-        shu_io_async_notify_cq(1);
+        shux_io_async_notify_cq(1);
         if (r < 0)
             return -1;
         return (int32_t)r;
@@ -1294,19 +1307,19 @@ int32_t shu_io_complete_read_async_slot(int slot) {
 /**
  * IO-A5：收割在途 read async（v1 兼容：仅当恰有 1 个 read in-flight 时无 slot 完成）。
  */
-int32_t shu_io_complete_read_async(void) {
-    int cap = shu_io_async_slot_count();
+int32_t shux_io_complete_read_async(void) {
+    int cap = shux_io_async_slot_count();
     int pending = 0;
     int only = -1;
     int i;
     for (i = 0; i < cap; i++) {
-        if (shu_io_read_slots[i].pending) {
+        if (shux_io_read_slots[i].pending) {
             pending++;
             only = i;
         }
     }
     if (pending == 1)
-        return shu_io_complete_read_async_slot(only);
+        return shux_io_complete_read_async_slot(only);
     return -1;
 }
 
@@ -1345,7 +1358,7 @@ ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms
                             cqe = cqe_ptrs[0];
                             ptrdiff_t res = (ptrdiff_t)cqe->res;
                             io_uring_cqe_seen(ring, cqe);
-                            shu_io_async_notify_cq(1);
+                            shux_io_async_notify_cq(1);
                             return res >= 0 ? res : -1;
                         }
                         return -1;
@@ -1356,7 +1369,7 @@ ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms
                         if (wait_ret == 0 && cqe) {
                             ptrdiff_t res = (ptrdiff_t)cqe->res;
                             io_uring_cqe_seen(ring, cqe);
-                            shu_io_async_notify_cq(1);
+                            shux_io_async_notify_cq(1);
                             return res >= 0 ? res : -1;
                         }
                         if (cqe) io_uring_cqe_seen(ring, cqe);
@@ -1423,11 +1436,11 @@ ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms
  * IO-A5：提交非阻塞 write（io_uring submit 不 wait；非 Linux 登记状态供 complete 同步写）。
  * 成功返回 slot 索引（>=0），失败或槽满返回 -1。
  */
-int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
+int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
     int slot;
     if (!ptr || len == 0)
         return -1;
-    slot = shu_io_write_slot_alloc();
+    slot = shux_io_write_slot_alloc();
     if (slot < 0)
         return -1;
 #if defined(__linux__)
@@ -1451,22 +1464,22 @@ int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
         } else {
             io_uring_prep_write(sqe, fd, (void *)ptr, len, 0);
         }
-        io_uring_sqe_set_data(sqe, (void *)shu_io_write_slot_udata((unsigned)slot));
+        io_uring_sqe_set_data(sqe, (void *)shux_io_write_slot_udata((unsigned)slot));
         if (io_uring_submit(ring) < 0)
             return -1;
-        shu_io_write_slots[slot].pending = 1;
-        shu_io_write_slots[slot].reaped = 0;
-        shu_io_write_slots[slot].handle = handle;
-        shu_io_write_slots[slot].ptr = ptr;
-        shu_io_write_slots[slot].len = len;
+        shux_io_write_slots[slot].pending = 1;
+        shux_io_write_slots[slot].reaped = 0;
+        shux_io_write_slots[slot].handle = handle;
+        shux_io_write_slots[slot].ptr = ptr;
+        shux_io_write_slots[slot].len = len;
         return slot;
     }
 #else
-    shu_io_write_slots[slot].pending = 1;
-    shu_io_write_slots[slot].reaped = 0;
-    shu_io_write_slots[slot].handle = handle;
-    shu_io_write_slots[slot].ptr = ptr;
-    shu_io_write_slots[slot].len = len;
+    shux_io_write_slots[slot].pending = 1;
+    shux_io_write_slots[slot].reaped = 0;
+    shux_io_write_slots[slot].handle = handle;
+    shux_io_write_slots[slot].ptr = ptr;
+    shux_io_write_slots[slot].len = len;
     return slot;
 #endif
 }
@@ -1474,11 +1487,11 @@ int shu_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
 /**
  * IO-A5 v2：收割指定 slot 的 write async；>0 字节数，-1=错误，-2=尚未完成。
  */
-int32_t shu_io_complete_write_async_slot(int slot) {
-    shu_io_write_async_slot_t *st;
-    if (slot < 0 || slot >= shu_io_async_slot_count())
+int32_t shux_io_complete_write_async_slot(int slot) {
+    shux_io_write_async_slot_t *st;
+    if (slot < 0 || slot >= shux_io_async_slot_count())
         return -1;
-    st = &shu_io_write_slots[slot];
+    st = &shux_io_write_slots[slot];
     if (st->reaped) {
         int32_t out = st->reaped_res >= 0 ? st->reaped_res : -1;
         st->reaped = 0;
@@ -1502,12 +1515,12 @@ int32_t shu_io_complete_write_async_slot(int slot) {
         for (i = 0; i < got; i++) {
             struct io_uring_cqe *cqe = cqe_ptrs[i];
             uintptr_t u = (uintptr_t)io_uring_cqe_get_data(cqe);
-            int s = shu_io_write_udata_to_slot(u);
+            int s = shux_io_write_udata_to_slot(u);
             if (s != slot)
                 continue;
             res = (int32_t)cqe->res;
             io_uring_cqe_seen(ring, cqe);
-            shu_io_async_notify_cq(1);
+            shux_io_async_notify_cq(1);
             st->pending = 0;
             st->reaped = 0;
             return res >= 0 ? res : -1;
@@ -1518,7 +1531,7 @@ int32_t shu_io_complete_write_async_slot(int slot) {
     {
         ptrdiff_t r = io_write((int)st->handle, st->ptr, st->len, 0);
         st->pending = 0;
-        shu_io_async_notify_cq(1);
+        shux_io_async_notify_cq(1);
         if (r < 0)
             return -1;
         return (int32_t)r;
@@ -1529,19 +1542,19 @@ int32_t shu_io_complete_write_async_slot(int slot) {
 /**
  * IO-A5：收割在途 write async（v1 兼容：仅当恰有 1 个 write in-flight 时无 slot 完成）。
  */
-int32_t shu_io_complete_write_async(void) {
-    int cap = shu_io_async_slot_count();
+int32_t shux_io_complete_write_async(void) {
+    int cap = shux_io_async_slot_count();
     int pending = 0;
     int only = -1;
     int i;
     for (i = 0; i < cap; i++) {
-        if (shu_io_write_slots[i].pending) {
+        if (shux_io_write_slots[i].pending) {
             pending++;
             only = i;
         }
     }
     if (pending == 1)
-        return shu_io_complete_write_async_slot(only);
+        return shux_io_complete_write_async_slot(only);
     return -1;
 }
 
@@ -1875,7 +1888,7 @@ ptrdiff_t io_write_batch(int fd, const uint8_t *p0, size_t l0, const uint8_t *p1
     return total + r3;
 }
 
-/** 阶段 2 超越：批量读最多 8 段（路线图 §4.2 更大批量）；C 侧 API，.su 仍用 4 段 batch。n 为 1..8。 */
+/** 阶段 2 超越：批量读最多 8 段（路线图 §4.2 更大批量）；C 侧 API，.sx 仍用 4 段 batch。n 为 1..8。 */
 ptrdiff_t io_read_batch_8(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
     uint8_t *p4, size_t l4, uint8_t *p5, size_t l5, uint8_t *p6, size_t l6, uint8_t *p7, size_t l7,
     int n, unsigned timeout_ms) {
@@ -2425,7 +2438,7 @@ int io_register_buffer(uint8_t *ptr, size_t len) {
         1);
 }
 
-/** 供 .su 调用：最多 4 块 buffer（避免 .su 参数个数限制）；内部转调 io_register_buffers，p4..p7 传 0。 */
+/** 供 .sx 调用：最多 4 块 buffer（避免 .sx 参数个数限制）；内部转调 io_register_buffers，p4..p7 传 0。 */
 int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
     if (nr > 4) return 0;
     return io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3,
@@ -3214,70 +3227,70 @@ int32_t io_read_ptr_backend(void) {
     return g_io_read_ptr_backend;
 }
 
-/** M-5：[]u8 slice 视图；与 pipeline/parser 侧 shulang_slice_uint8_t ABI 一致。 */
+/** M-5：[]u8 slice 视图；与 pipeline/parser 侧 shux_slice_uint8_t ABI 一致。 */
 typedef struct {
     uint8_t *data;
     size_t length;
-} shulang_slice_uint8_t;
+} shux_slice_uint8_t;
 
 /**
  * M-5：零拷贝读并返回 []u8 slice（data 指向 g_io_read_ptr_buf，length 为本次读入字节数）。
  * typeck 将 callee read_ptr_slice 绑定域 io_read_ptr；失败时 data=NULL、length=0。
  */
-shulang_slice_uint8_t io_read_ptr_slice(unsigned int handle, unsigned int timeout_ms) {
-    shulang_slice_uint8_t s;
+shux_slice_uint8_t io_read_ptr_slice(unsigned int handle, unsigned int timeout_ms) {
+    shux_slice_uint8_t s;
     s.data = io_read_ptr(handle, timeout_ms);
     s.length = s.data ? (size_t)g_io_read_ptr_len : (size_t)0;
     return s;
 }
 
-/* duplicate symbol with asm backend：user .o 与 io.o 同时含同名 Shulang 符号时，
- * Darwin ld 报错；弱化 io.o 里这些可被 core.su/driver.su 机器码替代的入口，若有强符号则由其覆盖。 */
+/* duplicate symbol with asm backend：user .o 与 io.o 同时含同名 Shux 符号时，
+ * Darwin ld 报错；弱化 io.o 里这些可被 core.sx/driver.sx 机器码替代的入口，若有强符号则由其覆盖。 */
 #if defined(__APPLE__) || defined(__ELF__)
 #ifdef __GNUC__
-#define SHU_IO_BACKEND_WEAK __attribute__((weak))
+#define SHUX_IO_BACKEND_WEAK __attribute__((weak))
 #else
-#define SHU_IO_BACKEND_WEAK
+#define SHUX_IO_BACKEND_WEAK
 #endif
 #else
-#define SHU_IO_BACKEND_WEAK
+#define SHUX_IO_BACKEND_WEAK
 #endif
 /** std.io.core / pipeline 所用符号：与内联 ABI 声明一致，供自举链接 io.o 时解析；pipeline 若未生成 core 的 register/submit 体则由 io.o 提供。 */
-SHU_IO_BACKEND_WEAK int32_t shu_io_register(uint8_t *ptr, size_t len, size_t handle) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) {
     (void)handle;
     return (int32_t)io_register_buffer(ptr, len);
 }
-SHU_IO_BACKEND_WEAK int32_t shu_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
     ptrdiff_t r = io_read((int)handle, ptr, len, timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
-SHU_IO_BACKEND_WEAK int32_t shu_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
     ptrdiff_t r = io_write((int)handle, ptr, len, timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
-SHU_IO_BACKEND_WEAK uint8_t *shu_io_read_ptr(size_t handle, unsigned timeout_ms) {
+SHUX_IO_BACKEND_WEAK uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms) {
     return io_read_ptr(handle, timeout_ms);
 }
 /** C 流水线（非 driver）时由 io.o 提供；driver 流水线若生成 core 则 codegen 跳过此符号以免重复。 */
-SHU_IO_BACKEND_WEAK int32_t shu_io_read_ptr_len(void) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_read_ptr_len(void) {
     return io_read_ptr_len();
 }
-SHU_IO_BACKEND_WEAK uint64_t shu_io_read_ptr_gen(void) {
+SHUX_IO_BACKEND_WEAK uint64_t shux_io_read_ptr_gen(void) {
     return io_read_ptr_gen();
 }
-SHU_IO_BACKEND_WEAK int32_t shu_io_read_ptr_gen_valid(uint64_t saved) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_read_ptr_gen_valid(uint64_t saved) {
     return io_read_ptr_gen_valid(saved);
 }
-SHU_IO_BACKEND_WEAK int32_t shu_io_read_ptr_backend(void) {
+SHUX_IO_BACKEND_WEAK int32_t shux_io_read_ptr_backend(void) {
     return io_read_ptr_backend();
 }
-SHU_IO_BACKEND_WEAK shulang_slice_uint8_t shu_io_read_ptr_slice(size_t handle, unsigned timeout_ms) {
+SHUX_IO_BACKEND_WEAK shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, unsigned timeout_ms) {
     return io_read_ptr_slice((unsigned int)handle, timeout_ms);
 }
 
 /**
- * ASM 后端链 io.o（见 compiler asm_ld_append_std_objs）但不把 std.io core/driver 的 .su 再编成 .o 时，
- * CALL 仍会引用下面这些与 core.su / mod.su / driver.su 导出名一致的符号；在此用 C 实现对齐语义。
+ * ASM 后端链 io.o（见 compiler asm_ld_append_std_objs）但不把 std.io core/driver 的 .sx 再编成 .o 时，
+ * CALL 仍会引用下面这些与 core.sx / mod.sx / driver.sx 导出名一致的符号；在此用 C 实现对齐语义。
  */
 
 /** std.io(mod)：fd 视作 usize handle，占位参数忽略。 */
@@ -3287,30 +3300,30 @@ size_t handle_from_fd(int32_t fd, int32_t unused) {
     return (size_t)(unsigned)fd;
 }
 
-int32_t shu_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
     int fd = (int)handle;
     ptrdiff_t r = io_read_fixed(fd, buf_index, offset, len, (unsigned)timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-int32_t shu_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
     int fd = (int)handle;
     ptrdiff_t r = io_write_fixed(fd, buf_index, offset, len, (unsigned)timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-int32_t shu_io_submit_read_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
+int32_t shux_io_submit_read_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
     size_t handle, int32_t n, uint32_t timeout_ms) {
-    /* 与 core.su：仅 handle==0 或 handle>=2 走读路径。 */
+    /* 与 core.sx：仅 handle==0 或 handle>=2 走读路径。 */
     if (!(handle == (size_t)0 || handle >= (size_t)2))
         return -1;
     ptrdiff_t r = io_read_batch((int)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, (unsigned)timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-int32_t shu_io_submit_write_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
+int32_t shux_io_submit_write_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
     size_t handle, int32_t n, uint32_t timeout_ms) {
-    /* 与 core.su：handle>=1 可写（含 stdout）。 */
+    /* 与 core.sx：handle>=1 可写（含 stdout）。 */
     if (handle < (size_t)1)
         return -1;
     ptrdiff_t r = io_write_batch((int)handle, (const uint8_t *)p0, l0, (const uint8_t *)p1, l1,
@@ -3318,7 +3331,7 @@ int32_t shu_io_submit_write_batch(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-/** driver.su：切片式批量读（Buffer 数组同 shu_batch_buf_t）。 */
+/** driver.sx：切片式批量读（Buffer 数组同 shu_batch_buf_t）。 */
 int32_t submit_read_batch_buf(size_t handle, shu_batch_buf_t *bufs, int32_t n, uint32_t timeout_ms) {
     ptrdiff_t r = io_read_batch_buf((int)handle, (const shu_batch_buf_t *)bufs, (int)n, (unsigned)timeout_ms);
     return (r < 0) ? -1 : (int32_t)r;
@@ -3329,31 +3342,31 @@ int32_t submit_write_batch_buf(size_t handle, shu_batch_buf_t *bufs, int32_t n, 
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-/** driver.su：`io_register_buffers_buf` 在历史上用 intptr 传指针，此处对齐该 ABI。 */
+/** driver.sx：`io_register_buffers_buf` 在历史上用 intptr 传指针，此处对齐该 ABI。 */
 int32_t submit_register_fixed_buffers_buf(shu_batch_buf_t *bufs, uint32_t nr) {
     int ok = io_register_buffers_buf((int32_t)(uintptr_t)bufs, (int)nr);
     return ok ? (int32_t)ok : (int32_t)0;
 }
 
 /** std.io.core：provided buffer 池注册（ZC-1）。 */
-int32_t shu_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
+int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
     return (int32_t)io_register_provided_buffers((unsigned)nr, (unsigned)bufsz);
 }
 
-void shu_io_unregister_provided_buffers(void) {
+void shux_io_unregister_provided_buffers(void) {
     io_unregister_provided_buffers();
 }
 
-uint8_t *shu_io_provided_buffer_ptr(uint32_t bid) {
+uint8_t *shux_io_provided_buffer_ptr(uint32_t bid) {
     return io_provided_buffer_ptr((unsigned)bid);
 }
 
-uint32_t shu_io_provided_buffer_size(void) {
+uint32_t shux_io_provided_buffer_size(void) {
     return (uint32_t)io_provided_buffer_size();
 }
 
 /** 批量 provided recv；out_bids/out_lens 各 n 元素。 */
-int32_t shu_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens) {
+int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens) {
     ptrdiff_t r;
     if (!(handle == (size_t)0 || handle >= (size_t)2))
         return -1;
@@ -3361,7 +3374,7 @@ int32_t shu_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms
     return (r < 0) ? -1 : (int32_t)r;
 }
 
-int32_t shu_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len) {
+int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len) {
     ptrdiff_t r;
     if (!(handle == (size_t)0 || handle >= (size_t)2))
         return -1;

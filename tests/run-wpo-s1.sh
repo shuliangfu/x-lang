@@ -4,10 +4,10 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
-GRAPH="/tmp/shu_wpo_dead_fn.json"
+GRAPH="/tmp/shux_wpo_dead_fn.json"
 rm -f "$GRAPH"
 
-SHU_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shu-c check tests/wpo/dead_fn.su >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check tests/wpo/dead_fn.sx >/dev/null
 [ -s "$GRAPH" ] || { echo "WPO graph not written"; exit 1; }
 
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --expect-dead dead_helper | tee /tmp/wpo_dce.log

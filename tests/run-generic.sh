@@ -3,18 +3,18 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHU=${SHU:-./compiler/shu}
+SHUX=${SHUX:-./compiler/shux}
 
-$SHU tests/generic/main.su -o /tmp/shu_generic 2>&1
+$SHUX tests/generic/main.sx -o /tmp/shux_generic 2>&1
 exitcode=0
-/tmp/shu_generic >/dev/null 2>&1 || exitcode=$?
+/tmp/shux_generic >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 42 ]; then
     echo "expected exit code 42 (id<i32>(42)), got $exitcode"
     exit 1
 fi
 
 # 边界：泛型调用类型实参数量错误，应报 expects N type arguments, got M
-err=$($SHU tests/generic/wrong_type_args.su -o /tmp/shu_generic_fail 2>&1) || true
+err=$($SHUX tests/generic/wrong_type_args.sx -o /tmp/shux_generic_fail 2>&1) || true
 echo "$err" | grep -q "typeck error" && echo "$err" | grep -q "type arguments" || { echo "expected generic type args error, got: $err"; exit 1; }
 
 echo "generic test OK"

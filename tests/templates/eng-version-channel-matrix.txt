@@ -2,4 +2,4 @@
 # 列：channel	tag_pattern	cadence	gate_min	notes
 alpha	v0.x.y-alpha.N	weekly_or_on_demand	run-portable-suite.sh	dev 快照
 beta	v0.x.y-beta.N	biweekly_or_milestone	run-eng-release-precheck.sh	main 候选
-stable	vX.Y.Z	quarterly_or_p0_block	SHU_RELEASE_FULL=1 precheck	无后缀 stable
+stable	vX.Y.Z	quarterly_or_p0_block	SHUX_RELEASE_FULL=1 precheck	无后缀 stable

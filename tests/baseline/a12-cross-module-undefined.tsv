@@ -1,0 +1,4 @@
+# A-12：shux_asm strict link 跨模块 arch_/backend 符号 undefined 基线（track-only 允许列表）
+# 列：key	value
+# 更新：Linux 上 nm compiler/shux_asm | awk '/ U /{print $3}' | grep -E 'arch_|backend_asm' 后手工维护
+allowed_undefined	

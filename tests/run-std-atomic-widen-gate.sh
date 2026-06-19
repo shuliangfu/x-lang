@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-atomic-widen-v1.md"
 MANIFEST="tests/baseline/std-atomic-widen-manifest.tsv"
-MOD_SU="std/atomic/mod.su"
+MOD_SU="std/atomic/mod.sx"
 ATOMIC_C="std/atomic/atomic.c"
 LIB="tests/lib/std-atomic-widen.sh"
-SMOKE_SU="tests/atomic/widen_16_64.su"
+SMOKE_SU="tests/atomic/widen_16_64.sx"
 
 # shellcheck source=tests/lib/std-atomic-widen.sh
 . "$LIB"
@@ -44,17 +44,17 @@ ATOMIC_O="$(cd compiler && pwd)/../std/atomic/atomic.o"
 
 EXEC_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-atomic-widen gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_atomic_widen_emit_report "fail" 0 0
     exit 1
   fi
-  if std_atomic_widen_run_smoke "$SHU_BIN" "$SMOKE_SU" "$ATOMIC_O"; then
+  if std_atomic_widen_run_smoke "$SHUX_BIN" "$SMOKE_SU" "$ATOMIC_O"; then
     EXEC_OK=1
   else
     std_atomic_widen_emit_report "fail" 0 0

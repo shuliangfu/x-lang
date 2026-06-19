@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
-MANIFEST="${SHU_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
-MOD_SU="std/sync/mod.su"
+DOC="${SHUX_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
+MANIFEST="${SHUX_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
+MOD_SU="std/sync/mod.sx"
 SYNC_C="std/sync/sync.c"
 LIB="tests/lib/std-sync-lock-diag.sh"
-SMOKE_SU="tests/sync/lock_diag.su"
+SMOKE_SU="tests/sync/lock_diag.sx"
 SMOKE_C="tests/sync/lock_diag_smoke_ok.c"
 MIN_APIS=8
 
@@ -77,19 +77,19 @@ fi
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-111: .su smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-111: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
     echo "std-sync-lock-diag gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHU_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_sync_lock_diag_run_su_smoke "$SHU_BIN" "$SMOKE_SU" "diag"; then
+  if std_sync_lock_diag_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "diag"; then
     SU_OK=1
   else
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0

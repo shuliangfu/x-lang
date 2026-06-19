@@ -3,20 +3,20 @@
 #
 # 1) doc-public-roadmap-v1.md 必需章节与交叉引用
 # 2) 季度版本与 template 对齐
-# 3) runner 烟测 + SHU_DOC_ROADMAP 报告
+# 3) runner 烟测 + SHUX_DOC_ROADMAP 报告
 #
 # 用法：./tests/run-doc-public-roadmap-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
-MANIFEST="${SHU_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
+DOC="${SHUX_DOC_ROADMAP_DOC:-analysis/doc-public-roadmap-v1.md}"
+MANIFEST="${SHUX_DOC_ROADMAP_MANIFEST:-tests/baseline/doc-public-roadmap.tsv}"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
 LIB="tests/lib/doc-public-roadmap.sh"
 RUNNER="tests/run-doc-public-roadmap.sh"
 MIN_SEC=8
 MIN_XREF=5
-PREFIX="shu: [SHU_DOC_ROADMAP]"
+PREFIX="shux: [SHUX_DOC_ROADMAP]"
 
 # shellcheck source=tests/lib/doc-public-roadmap.sh
 . tests/lib/doc-public-roadmap.sh
@@ -31,7 +31,7 @@ done
 
 QUARTER="$(doc_roadmap_quarter_from_manifest "$MANIFEST")"
 
-for kw in quarterly public SHU_DOC_ROADMAP runnable report; do
+for kw in quarterly public SHUX_DOC_ROADMAP runnable report; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "doc-public-roadmap gate FAIL: doc missing '$kw'" >&2
     exit 1

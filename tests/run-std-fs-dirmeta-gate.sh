@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-fs-dirmeta-v1.md"
 MANIFEST="tests/baseline/std-fs-dirmeta-manifest.tsv"
-MOD_SU="std/fs/mod.su"
+MOD_SU="std/fs/mod.sx"
 FS_C="std/fs/fs.c"
 LIB="tests/lib/std-fs-dirmeta.sh"
-SMOKE_SU="tests/fs/dirmeta_roundtrip.su"
+SMOKE_SU="tests/fs/dirmeta_roundtrip.sx"
 SMOKE_C="tests/fs/dirmeta_smoke_ok.c"
 MIN_APIS=10
 
@@ -52,10 +52,10 @@ std_fs_dirmeta_run_c_smoke "$FS_O" && C_OK=1 || exit 1
 
 SU_OK=0
 SKIP=0
-if [ -x ./compiler/shu-c ]; then
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
-  ./compiler/shu-c check -L . "$SMOKE_SU" >/dev/null
-  std_fs_dirmeta_run_su_smoke ./compiler/shu-c "$SMOKE_SU" && SU_OK=1 || exit 1
+if [ -x ./compiler/shux-c ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
+  std_fs_dirmeta_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
   SKIP=1
 fi

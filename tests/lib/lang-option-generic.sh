@@ -5,7 +5,7 @@
 #   lang_option_generic_check MANIFEST
 #   lang_option_generic_emit_report status golden_ok typeck_ok skip
 
-LANG_OPTION_GENERIC_PREFIX="${SHU_LANG009_PREFIX:-shu: [SHU_LANG009_OPTION_GENERIC]}"
+LANG_OPTION_GENERIC_PREFIX="${SHUX_LANG009_PREFIX:-shux: [SHUX_LANG009_OPTION_GENERIC]}"
 
 # 校验 manifest；echo 缺失数。
 lang_option_generic_check() {

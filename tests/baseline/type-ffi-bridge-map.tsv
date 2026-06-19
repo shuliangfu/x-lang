@@ -13,4 +13,4 @@ usize	size_t	yes	scalar
 isize	ptrdiff_t	yes	scalar
 ptr_star	<T>*	yes	recursive c_type_to_buf
 ptr_u8_bridge	uint8_t *	yes	void pointer interop
-slice_arr	struct shulang_slice_*	no	codegen only
+slice_arr	struct shux_slice_*	no	codegen only

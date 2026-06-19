@@ -1,0 +1,293 @@
+# STD-HTTP-H2 std.http HTTP/2 v0 wire manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# min_apis	171
+read_path	section	## 1. 阅读路径	15min
+scope	section	## 2. v0 范围	preface
+wire_api	section	## 3. 线格式 API	http2_parse_frame_header
+client_api	section	## 6. v1 客户端 API	http2_hpack_encode_get_request
+dyn_api	section	## 9. v3 动态 HPACK/多方法	http2_hpack_encode_request
+network_api	section	## 8. v2 TLS/ALPN 网络	h2_get
+flow_api	section	## 10. v5 流控状态机	http2_flow_state_init
+recv_api	section	## 11. v6 接收侧流控 / push / h2c	http2_flow_recv_init
+h2c_push_api	section	## 12. v7 h2c/push 资源	http2_h2c_session_begin
+h2c_v8_api	section	## 13. v8 h2c TCP/push 网络	http2_h2c_is_available
+h2c_v9_api	section	## 14. v9 h2c URL 客户端 / 多 stream	h2c_get
+h2c_v10_api	section	## 15. v10 SETTINGS 协商 / 并发客户端	http2_multistream_client_init
+h2c_v11_api	section	## 16. v11 单连接复用	http2_conn_init
+h2c_v12_api	section	## 17. v12 连接池 / 长连接 URL	h2_pool_get
+h2c_v13_api	section	## 18. v13 全局连接池 / URL 路由	http2_global_pool_get
+h2c_v14_api	section	## 19. v14 h2c server / listen+serve	serve_h2c_one
+h2c_v15_api	section	## 20. v15 h2 over TLS server / ALPN	serve_h2_one
+h2c_v16_api	section	## 21. v16 server 多 stream 并发	serve_h2c_multi_one
+h2c_v17_api	section	## 22. v17 server push 响应	serve_h2c_one_with_push
+h2c_v18_api	section	## 23. v18 TLS server push 响应	serve_h2_one_with_push
+h2c_v19_api	section	## 24. v19 server 多 stream + push	serve_h2c_multi_one_with_push
+h2c_v20_api	section	## 25. v20 push ENABLE_PUSH 协商	http2_peer_settings_enable_push
+h2c_v21_api	section	## 26. v21 server SETTINGS 全量协商	http2_build_server_settings
+h2c_v22_api	section	## 27. v22 server HPACK 动态表 / HEADER_TABLE_SIZE	http2_hpack_server_dyn_create
+h2c_v23_api	section	## 28. v23 server MAX_FRAME_SIZE 分片 DATA	http2_frame_payload_limit
+h2c_v24_api	section	## 29. v24 GOAWAY / 连接优雅关闭	http2_build_goaway
+h2c_v25_api	section	## 30. v25 PING/PONG 连接保活	http2_build_ping
+h2c_v26_api	section	## 31. v26 连接池 GOAWAY 感知	http2_conn_goaway_seen
+h2c_v27_api	section	## 32. v27 HTTP/2 v1 收口（RST + 全局池 GOAWAY）	http2_http2_complete_smoke
+h2_complete	section	## 33. HTTP/2 v1 能力全集（不再逐步扩展）	http2_http2_complete_smoke
+future	section	## 4. 远期（HTTP/3 等，非 std.http v1 目标）	http2_err_network_h2
+verify	section	## 5. 验证与门禁	gate
+api_preface	api	http2_is_connection_preface	std/http/mod.sx	preface 检测
+api_parse	api	http2_parse_frame_header	std/http/mod.sx	帧头解析
+api_ack	api	http2_build_settings_ack	std/http/mod.sx	SETTINGS ACK
+api_wire	api	http2_wire_is_available	std/http/mod.sx	线格式可用
+api_client	api	http2_client_is_available	std/http/mod.sx	客户端可用
+api_hpack_get	api	http2_hpack_encode_get_request	std/http/mod.sx	GET HPACK
+api_hpack_status	api	http2_hpack_decode_status	std/http/mod.sx	:status 解析
+api_hpack_dyn	api	http2_hpack_encode_request	std/http/mod.sx	多 method HPACK
+api_hpack_dyn_smoke	api	http2_hpack_dyn_smoke	std/http/mod.sx	动态表烟测
+api_req_headers	api	http2_build_request_headers_frame	std/http/mod.sx	多 method HEADERS
+api_headers_frame	api	http2_build_headers_frame	std/http/mod.sx	HEADERS 帧
+api_client_smoke	api	http2_client_smoke	std/http/mod.sx	多路复用烟测
+api_network	api	http2_network_is_available	std/http/mod.sx	TLS 网络
+api_h2_get	api	h2_get	std/http/mod.sx	h2 GET
+api_h2_request	api	h2_request	std/http/mod.sx	h2 多 method
+api_client_req_h2	api	client_request_h2	std/http/mod.sx	统一入口
+api_network_smoke	api	http2_network_smoke	std/http/mod.sx	网络烟测
+api_flow_state_init	api	http2_flow_state_init	std/http/mod.sx	流控 init
+api_flow_state_max_send	api	http2_flow_state_max_send	std/http/mod.sx	背压 max_send
+api_flow_state_consume	api	http2_flow_state_consume_send	std/http/mod.sx	扣减窗口
+api_flow_state_wu	api	http2_flow_state_apply_window_update	std/http/mod.sx	WINDOW_UPDATE
+api_flow_blocked	api	http2_err_flow_blocked	std/http/mod.sx	背压错误码
+api_flow_state_smoke	api	http2_flow_state_smoke	std/http/mod.sx	流控烟测
+api_flow_recv_init	api	http2_flow_recv_init	std/http/mod.sx	recv init
+api_flow_recv_on_data	api	http2_flow_recv_on_data	std/http/mod.sx	recv DATA
+api_flow_recv_release	api	http2_flow_recv_release	std/http/mod.sx	recv WU
+api_flow_recv_smoke	api	http2_flow_recv_smoke	std/http/mod.sx	recv 烟测
+api_push_promise	api	http2_frame_push_promise	std/http/mod.sx	PUSH 帧
+api_is_push	api	http2_is_push_promise_frame	std/http/mod.sx	PUSH 检测
+api_parse_push	api	http2_parse_push_promise_stream	std/http/mod.sx	promised id
+api_h2c_upgrade	api	http2_is_h2c_upgrade_response	std/http/mod.sx	h2c 101
+api_err_push	api	http2_err_push_not_impl	std/http/mod.sx	push 错误码
+api_err_h2c	api	http2_err_h2c_not_impl	std/http/mod.sx	h2c 错误码
+api_push_h2c_smoke	api	http2_push_h2c_smoke	std/http/mod.sx	push/h2c 烟测
+api_h2c_wire	api	http2_h2c_wire_is_available	std/http/mod.sx	h2c wire
+api_h2c_begin	api	http2_h2c_session_begin	std/http/mod.sx	h2c preface
+api_push_fetch_smoke	api	http2_push_fetch_smoke	std/http/mod.sx	push 收集烟测
+api_push_network_smoke	api	http2_push_network_smoke	std/http/mod.sx	push 网络烟测
+api_push_last_copy	api	http2_push_last_copy	std/http/mod.sx	push 最近资源
+api_h2c_avail	api	http2_h2c_is_available	std/http/mod.sx	h2c TCP
+api_h2c_network_smoke	api	http2_h2c_network_smoke	std/http/mod.sx	h2c 烟测
+api_h2c_get	api	h2c_get	std/http/mod.sx	h2c GET
+api_h2c_request	api	h2c_request	std/http/mod.sx	h2c 多 method
+api_client_req_h2c	api	client_request_h2c	std/http/mod.sx	h2c 统一入口
+api_err_h2c_scheme	api	http2_err_h2c_scheme	std/http/mod.sx	h2c scheme
+api_h2c_client_smoke	api	http2_h2c_client_smoke	std/http/mod.sx	h2c 客户端烟测
+api_stream_reg_init	api	http2_stream_registry_init	std/http/mod.sx	注册表 init
+api_stream_reg_open	api	http2_stream_registry_open	std/http/mod.sx	分配 stream
+api_stream_reg_close	api	http2_stream_registry_close	std/http/mod.sx	关闭 stream
+api_stream_reg_smoke	api	http2_stream_registry_smoke	std/http/mod.sx	注册表烟测
+struct_stream_reg	struct	Http2StreamRegistry	std/http/mod.sx	多 stream
+symbol_h2c_get_c	symbol	http_h2c_get_c	std/http/http.c	h2c GET C
+symbol_h2c_request_c	symbol	http_h2c_request_c	std/http/http.c	h2c 多 method C
+symbol_h2c_client_smoke_c	symbol	http_h2c_client_smoke_c	std/http/http.c	h2c 烟测 C
+symbol_stream_reg_c	symbol	http2_stream_registry_smoke_c	std/http/http2_stream_registry.inc.c	注册表 C
+smoke_h2c_client	smoke	tests/http/h2c_client.sx	h2c URL 烟测
+smoke_stream_registry	smoke	tests/http/http2_stream_registry.sx	多 stream 烟测
+api_settings_smoke	api	http2_settings_smoke	std/http/mod.sx	SETTINGS 烟测
+api_build_client_settings	api	http2_build_client_settings	std/http/mod.sx	客户端 SETTINGS
+api_peer_settings_init	api	http2_peer_settings_init	std/http/mod.sx	对端 SETTINGS
+api_ms_client_init	api	http2_multistream_client_init	std/http/mod.sx	并发客户端 init
+api_ms_client_open	api	http2_multistream_client_open_stream	std/http/mod.sx	并发 open
+api_ms_client_parallel	api	http2_multistream_client_build_parallel_get	std/http/mod.sx	并行 GET
+api_ms_client_smoke	api	http2_multistream_client_smoke	std/http/mod.sx	并发烟测
+api_err_max_streams	api	http2_err_max_streams	std/http/mod.sx	并发上限
+struct_peer_settings	struct	Http2PeerSettings	std/http/mod.sx	对端 SETTINGS
+struct_ms_client	struct	Http2MultistreamClient	std/http/mod.sx	并发客户端
+symbol_settings_c	symbol	http2_settings_smoke_c	std/http/http2_settings.inc.c	SETTINGS C
+symbol_ms_client_c	symbol	http2_multistream_client_smoke_c	std/http/http2_multistream_client.inc.c	并发 C
+smoke_multistream	smoke	tests/http/http2_multistream_client.sx	v10 并发烟测
+api_conn_init	api	http2_conn_init	std/http/mod.sx	连接 init
+api_conn_handshake	api	http2_conn_handshake	std/http/mod.sx	SETTINGS 握手
+api_conn_request	api	http2_conn_request	std/http/mod.sx	复用请求
+api_conn_close	api	http2_conn_close	std/http/mod.sx	关闭
+api_conn_reuse_smoke	api	http2_conn_reuse_smoke	std/http/mod.sx	复用烟测
+api_err_conn_ready	api	http2_err_conn_not_ready	std/http/mod.sx	未握手 -1237
+struct_conn	struct	Http2Conn	std/http/mod.sx	可复用连接
+symbol_conn_reuse_c	symbol	http2_conn_reuse_smoke_c	std/http/http2_conn_reuse.inc.c	复用 C
+smoke_conn_reuse	smoke	tests/http/http2_conn_reuse.sx	v11 复用烟测
+api_pool_create_h2c	api	http2_conn_pool_create_h2c	std/http/mod.sx	h2c 池
+api_pool_create_h2	api	http2_conn_pool_create_h2	std/http/mod.sx	h2 池
+api_pool_destroy	api	http2_conn_pool_destroy	std/http/mod.sx	销毁池
+api_h2c_pool_get	api	h2c_pool_get	std/http/mod.sx	h2c 池 GET
+api_h2_pool_get	api	h2_pool_get	std/http/mod.sx	h2 池 GET
+api_pool_request	api	http2_conn_pool_request	std/http/mod.sx	池请求
+api_pool_smoke	api	http2_conn_pool_smoke	std/http/mod.sx	池烟测
+api_err_pool_scheme	api	http2_err_pool_scheme	std/http/mod.sx	scheme -1238
+symbol_pool_c	symbol	http2_conn_pool_smoke_c	std/http/http2_conn_pool.inc.c	池 C
+smoke_conn_pool	smoke	tests/http/http2_conn_pool.sx	v12 池烟测
+api_global_create	api	http2_global_pool_create	std/http/mod.sx	全局池
+api_global_destroy	api	http2_global_pool_destroy	std/http/mod.sx	销毁全局池
+api_global_get	api	http2_global_pool_get	std/http/mod.sx	URL 路由 GET
+api_global_request	api	http2_global_pool_request	std/http/mod.sx	URL 路由请求
+api_global_entry_count	api	http2_global_pool_entry_count	std/http/mod.sx	子池计数
+api_global_smoke	api	http2_global_pool_smoke	std/http/mod.sx	全局池烟测
+api_err_global_full	api	http2_err_global_pool_full	std/http/mod.sx	满池 -1239
+symbol_global_c	symbol	http2_global_pool_smoke_c	std/http/http2_global_pool.inc.c	全局池 C
+smoke_global_pool	smoke	tests/http/http2_global_pool.sx	v13 全局池烟测
+api_serve_h2c_one	api	serve_h2c_one	std/http/mod.sx	h2c accept+serve
+api_server_serve	api	http2_server_serve_h2c	std/http/mod.sx	已连接 fd serve
+api_server_smoke	api	http2_server_smoke	std/http/mod.sx	server 烟测
+api_err_server	api	http2_err_server	std/http/mod.sx	server -1240
+api_hpack_decode_get	api	http2_hpack_decode_get_request	std/http/mod.sx	GET 头解析
+api_hpack_encode_status	api	http2_hpack_encode_status	std/http/mod.sx	:status 编码
+symbol_server_c	symbol	http2_server_smoke_c	std/http/http2_server.inc.c	server C
+smoke_h2_server	smoke	tests/http/http2_server.sx	v14 server 烟测
+api_serve_h2_one	api	serve_h2_one	std/http/mod.sx	TLS h2 accept+serve
+api_server_serve_h2	api	http2_server_serve_h2	std/http/mod.sx	TLS h2 已握手 serve
+api_tls_srv_create	api	http2_tls_server_ctx_create	std/http/mod.sx	TLS 服务端 ctx
+api_tls_srv_destroy	api	http2_tls_server_ctx_destroy	std/http/mod.sx	销毁 TLS ctx
+api_err_server_tls	api	http2_err_server_tls	std/http/mod.sx	TLS server -1241
+api_serve_h2c_multi	api	serve_h2c_multi_one	std/http/mod.sx	h2c 多 stream serve
+api_server_h2c_multi	api	http2_server_serve_h2c_multi	std/http/mod.sx	h2c 多 stream fd
+api_serve_h2_multi	api	serve_h2_multi_one	std/http/mod.sx	TLS 多 stream serve
+api_server_h2_multi	api	http2_server_serve_h2_multi	std/http/mod.sx	TLS 多 stream 会话
+api_server_ms_smoke	api	http2_server_multistream_smoke	std/http/mod.sx	多 stream 烟测
+smoke_h2_server_ms	smoke	tests/http/http2_server_multistream.sx	v16 多 stream 烟测
+api_serve_h2c_push	api	serve_h2c_one_with_push	std/http/mod.sx	h2c push serve
+api_server_h2c_push	api	http2_server_serve_h2c_with_push	std/http/mod.sx	h2c push fd
+api_err_server_push	api	http2_err_server_push	std/http/mod.sx	push -1242
+api_server_push_smoke	api	http2_server_push_smoke	std/http/mod.sx	push 烟测
+api_server_push_avail	api	http2_server_push_is_available	std/http/mod.sx	push 可用
+smoke_h2_server_push	smoke	tests/http/http2_server_push.sx	v17 push 烟测
+api_serve_h2_push	api	serve_h2_one_with_push	std/http/mod.sx	TLS push serve
+api_server_h2_push	api	http2_server_serve_h2_with_push	std/http/mod.sx	TLS push 会话
+api_server_push_tls_smoke	api	http2_server_push_tls_smoke	std/http/mod.sx	TLS push 烟测
+smoke_h2_server_push_tls	smoke	tests/http/http2_server_push_tls.sx	v18 TLS push 烟测
+api_serve_h2c_ms_push	api	serve_h2c_multi_one_with_push	std/http/mod.sx	h2c 多 stream push
+api_server_h2c_ms_push	api	http2_server_serve_h2c_multi_with_push	std/http/mod.sx	h2c 多 stream push fd
+api_serve_h2_ms_push	api	serve_h2_multi_one_with_push	std/http/mod.sx	TLS 多 stream push
+api_server_h2_ms_push	api	http2_server_serve_h2_multi_with_push	std/http/mod.sx	TLS 多 stream push 会话
+api_server_ms_push_smoke	api	http2_server_multistream_push_smoke	std/http/mod.sx	多 stream push 烟测
+api_server_ms_push_avail	api	http2_server_multistream_push_is_available	std/http/mod.sx	多 stream push 可用
+smoke_h2_server_ms_push	smoke	tests/http/http2_server_multistream_push.sx	v19 多 stream push 烟测
+api_setting_enable_push	api	http2_setting_enable_push	std/http/mod.sx	ENABLE_PUSH id
+api_peer_enable_push	api	http2_peer_settings_enable_push	std/http/mod.sx	对端 push 开关
+api_build_settings_ex	api	http2_build_client_settings_ex	std/http/mod.sx	含 ENABLE_PUSH
+api_conn_hs_enable_push	api	http2_conn_handshake_with_enable_push	std/http/mod.sx	client ENABLE_PUSH
+api_err_push_disabled	api	http2_err_server_push_disabled	std/http/mod.sx	push 软拒绝 -1243
+api_push_settings_smoke	api	http2_server_push_settings_smoke	std/http/mod.sx	SETTINGS 烟测
+smoke_h2_push_settings	smoke	tests/http/http2_server_push_settings.sx	v20 SETTINGS 烟测
+api_setting_hdr_table	api	http2_setting_header_table_size	std/http/mod.sx	HEADER_TABLE_SIZE id
+api_setting_max_frame	api	http2_setting_max_frame_size	std/http/mod.sx	MAX_FRAME_SIZE id
+api_setting_max_hdr_list	api	http2_setting_max_header_list_size	std/http/mod.sx	MAX_HEADER_LIST_SIZE id
+api_peer_hdr_table	api	http2_peer_settings_header_table_size	std/http/mod.sx	对端表大小
+api_peer_max_frame	api	http2_peer_settings_max_frame_size	std/http/mod.sx	对端帧上限
+api_peer_max_hdr_list	api	http2_peer_settings_max_header_list_size	std/http/mod.sx	对端头列表上限
+api_build_server_settings	api	http2_build_server_settings	std/http/mod.sx	server SETTINGS
+api_server_settings_full_smoke	api	http2_server_settings_full_smoke	std/http/mod.sx	全量协商烟测
+smoke_h2_server_settings_full	smoke	tests/http/http2_server_settings_full.sx	v21 SETTINGS 烟测
+api_hpack_server_dyn_create	api	http2_hpack_server_dyn_create	std/http/mod.sx	server 动态表 create
+api_hpack_server_dyn_set	api	http2_hpack_server_dyn_set_table_size	std/http/mod.sx	动态表上限
+api_hpack_server_dyn_max	api	http2_hpack_server_dyn_max_size	std/http/mod.sx	HEADER_TABLE_SIZE
+api_hpack_server_dyn_count	api	http2_hpack_server_dyn_count	std/http/mod.sx	动态表条目
+api_hpack_server_encode_status	api	http2_hpack_server_encode_status	std/http/mod.sx	server :status
+api_hpack_server_dyn_smoke	api	http2_hpack_server_dyn_smoke	std/http/mod.sx	离线烟测
+api_server_hpack_dyn_smoke	api	http2_server_hpack_dyn_smoke	std/http/mod.sx	集成烟测
+smoke_h2_server_hpack_dyn	smoke	tests/http/http2_server_hpack_dyn.sx	v22 HPACK 烟测
+symbol_server_dyn_create_c	symbol	http2_hpack_server_dyn_create_c	std/http/http2_hpack_server_dyn.inc.c	server dyn create
+symbol_server_encode_status_c	symbol	http2_hpack_server_encode_status_c	std/http/http2_hpack_server_dyn.inc.c	server :status C
+symbol_server_hpack_dyn_smoke_c	symbol	http2_server_hpack_dyn_smoke_c	std/http/http2_server.inc.c	集成 C
+api_frame_payload_limit	api	http2_frame_payload_limit	std/http/mod.sx	单帧 payload 上限
+api_frame_check_payload	api	http2_frame_check_payload	std/http/mod.sx	payload 校验
+api_frame_count_chunks	api	http2_frame_count_data_chunks	std/http/mod.sx	DATA 分片数
+api_frame_capped_smoke	api	http2_frame_capped_smoke	std/http/mod.sx	离线烟测
+api_build_settings_max_frame	api	http2_build_client_settings_with_max_frame	std/http/mod.sx	client MAX_FRAME
+api_conn_hs_max_frame	api	http2_conn_handshake_with_max_frame	std/http/mod.sx	client handshake
+api_server_max_frame_smoke	api	http2_server_max_frame_smoke	std/http/mod.sx	集成烟测
+smoke_h2_server_max_frame	smoke	tests/http/http2_server_max_frame.sx	v23 MAX_FRAME 烟测
+symbol_frame_capped_smoke_c	symbol	http2_frame_capped_smoke_c	std/http/http2_frame_capped.inc.c	分片 C
+symbol_server_max_frame_smoke_c	symbol	http2_server_max_frame_smoke_c	std/http/http2_server.inc.c	集成 C
+api_frame_goaway	api	http2_frame_goaway	std/http/mod.sx	GOAWAY 帧类型
+api_goaway_no_error	api	http2_goaway_error_no_error	std/http/mod.sx	NO_ERROR 码
+api_err_goaway	api	http2_err_goaway	std/http/mod.sx	语义码 -1244
+api_build_goaway	api	http2_build_goaway	std/http/mod.sx	构建 GOAWAY
+api_parse_goaway	api	http2_parse_goaway	std/http/mod.sx	解析 payload
+api_goaway_smoke	api	http2_goaway_smoke	std/http/mod.sx	离线烟测
+api_conn_shutdown_graceful	api	http2_conn_shutdown_graceful	std/http/mod.sx	发 GOAWAY 后 shutdown
+api_conn_read_goaway	api	http2_conn_read_goaway	std/http/mod.sx	读 GOAWAY
+api_serve_h2c_goaway	api	serve_h2c_one_with_goaway	std/http/mod.sx	accept+serve+GOAWAY
+api_server_serve_goaway	api	http2_server_serve_h2c_with_goaway	std/http/mod.sx	已连接 serve+GOAWAY
+api_conn_goaway_smoke	api	http2_conn_goaway_smoke	std/http/mod.sx	集成烟测
+smoke_h2_conn_goaway	smoke	tests/http/http2_conn_goaway.sx	v24 GOAWAY 烟测
+symbol_goaway_smoke_c	symbol	http2_goaway_smoke_c	std/http/http2_goaway.inc.c	离线 C
+symbol_h2c_goaway_smoke_c	symbol	http2_h2c_server_goaway_smoke_c	std/http/http2_server.inc.c	fork C
+symbol_conn_goaway_smoke_c	symbol	http2_conn_goaway_smoke_c	std/http/http2_conn_reuse.inc.c	集成 C
+symbol_conn_read_goaway_c	symbol	http2_conn_read_goaway_c	std/http/http2_conn_reuse.inc.c	读 GOAWAY C
+goaway_inc	file	std/http/http2_goaway.inc.c	GOAWAY 帧
+api_frame_ping	api	http2_frame_ping	std/http/mod.sx	PING 帧类型
+api_err_ping	api	http2_err_ping	std/http/mod.sx	语义码 -1245
+api_build_ping	api	http2_build_ping	std/http/mod.sx	构建 PING
+api_build_ping_ack	api	http2_build_ping_ack	std/http/mod.sx	构建 PONG
+api_parse_ping	api	http2_parse_ping	std/http/mod.sx	解析 payload
+api_ping_smoke	api	http2_ping_smoke	std/http/mod.sx	离线烟测
+api_conn_ping	api	http2_conn_ping	std/http/mod.sx	client 往返
+api_serve_ping_echo	api	serve_h2c_one_ping_echo	std/http/mod.sx	accept+PONG
+api_server_ping_echo	api	http2_server_serve_h2c_ping_echo	std/http/mod.sx	已连接 PONG
+api_conn_ping_smoke	api	http2_conn_ping_smoke	std/http/mod.sx	集成烟测
+smoke_h2_conn_ping	smoke	tests/http/http2_conn_ping.sx	v25 PING 烟测
+symbol_ping_smoke_c	symbol	http2_ping_smoke_c	std/http/http2_ping.inc.c	离线 C
+symbol_h2c_ping_smoke_c	symbol	http2_h2c_server_ping_smoke_c	std/http/http2_server.inc.c	fork C
+symbol_conn_ping_smoke_c	symbol	http2_conn_ping_smoke_c	std/http/http2_conn_reuse.inc.c	集成 C
+symbol_conn_ping_c	symbol	http2_conn_ping_c	std/http/http2_conn_reuse.inc.c	client PING C
+ping_inc	file	std/http/http2_ping.inc.c	PING 帧
+api_conn_goaway_seen	api	http2_conn_goaway_seen	std/http/mod.sx	GOAWAY 标志
+api_conn_pool_reusable	api	http2_conn_is_pool_reusable	std/http/mod.sx	池复用判定
+api_pool_connect_count	api	http2_conn_pool_connect_count	std/http/mod.sx	新建连计数
+api_pool_goaway_smoke	api	http2_conn_pool_goaway_smoke	std/http/mod.sx	集成烟测
+smoke_h2_pool_goaway	smoke	tests/http/http2_conn_pool_goaway.sx	v26 池 GOAWAY 烟测
+symbol_pool_goaway_smoke_c	symbol	http2_conn_pool_goaway_smoke_c	std/http/http2_conn_pool.inc.c	集成 C
+symbol_h2c_pool_goaway_smoke_c	symbol	http2_h2c_pool_goaway_smoke_c	std/http/http2_conn_pool.inc.c	fork C
+symbol_conn_goaway_seen_c	symbol	http2_conn_goaway_seen_c	std/http/http2_conn_reuse.inc.c	GOAWAY 标志 C
+symbol_conn_pool_reusable_c	symbol	http2_conn_is_pool_reusable_c	std/http/http2_conn_reuse.inc.c	池复用 C
+api_frame_rst	api	http2_frame_rst_stream	std/http/mod.sx	RST 帧类型
+api_err_rst	api	http2_err_rst_stream	std/http/mod.sx	语义码 -1246
+api_build_rst	api	http2_build_rst_stream	std/http/mod.sx	构建 RST
+api_parse_rst	api	http2_parse_rst_stream	std/http/mod.sx	解析 payload
+api_rst_smoke	api	http2_rst_stream_smoke	std/http/mod.sx	离线烟测
+api_conn_reset_stream	api	http2_conn_reset_stream	std/http/mod.sx	client 发 RST
+api_global_pool_connect_count	api	http2_global_pool_connect_count	std/http/mod.sx	全局池连计数
+api_http2_complete_smoke	api	http2_http2_complete_smoke	std/http/mod.sx	v1 收口烟测
+smoke_h2_complete	smoke	tests/http/http2_http2_complete.sx	v27 收口烟测
+symbol_rst_smoke_c	symbol	http2_rst_stream_smoke_c	std/http/http2_rst_stream.inc.c	离线 C
+symbol_h2c_global_goaway_smoke_c	symbol	http2_h2c_global_pool_goaway_smoke_c	std/http/http2_global_pool.inc.c	fork C
+symbol_http2_complete_smoke_c	symbol	http2_http2_complete_smoke_c	std/http/http2_global_pool.inc.c	收口 C
+rst_inc	file	std/http/http2_rst_stream.inc.c	RST_STREAM 帧
+symbol_send_push_respect_c	symbol	http2_server_send_push_respecting_peer_c	std/http/http2_server_push.inc.c	软拒绝 push
+symbol_push_promise_c	symbol	http2_build_push_promise_frame_c	std/http/http2_server_push.inc.c	PUSH_PROMISE
+symbol_server_send_push_c	symbol	http2_server_send_push_c	std/http/http2_server_push.inc.c	server push
+struct_push_last	struct	Http2PushLast	std/http/mod.sx	push 元数据
+api_smoke	api	http2_smoke	std/http/mod.sx	C 烟测
+symbol_h2c_net_c	symbol	http2_h2c_network_smoke_c	std/http/http2_network.inc.c	h2c C
+symbol_push_net_c	symbol	http2_push_network_smoke_c	std/http/http2_push_fetch.inc.c	push 网络 C
+symbol_push_last_c	symbol	http2_push_last_copy_c	std/http/http2_push_fetch.inc.c	push last C
+symbol_push_fetch_c	symbol	http2_push_fetch_smoke_c	std/http/http2_push_fetch.inc.c	push C
+symbol_flow_recv_c	symbol	http2_flow_recv_smoke_c	std/http/http2_flow_recv.inc.c	recv C
+symbol_push_h2c_c	symbol	http2_push_h2c_smoke_c	std/http/http2_push_h2c.inc.c	push/h2c C
+symbol_flow_state_c	symbol	http2_flow_state_smoke_c	std/http/http2_flow_state.inc.c	流控 C
+symbol_network_c	symbol	http2_network_smoke_c	std/http/http2_network.inc.c	网络 C
+symbol_h2_request_c	symbol	http_h2_request_c	std/http/http.c	h2 多 method C
+symbol_h2_get_c	symbol	http_h2_get_c	std/http/http.c	h2 GET C
+symbol_dyn_smoke_c	symbol	http2_hpack_dyn_smoke_c	std/http/http2_hpack_dyn.inc.c	动态表 C
+symbol_encode_request_c	symbol	http2_hpack_encode_request_c	std/http/http2_hpack_dyn.inc.c	多 method HPACK
+symbol_req_headers_c	symbol	http2_build_request_headers_frame_c	std/http/http2_client.inc.c	多 method HEADERS
+smoke_network	smoke	tests/http/http2_network.sx	TLS/ALPN 烟测
+smoke_flow_state	smoke	tests/http/http2_flow_state.sx	流控状态机烟测
+smoke_flow_recv_push_h2c	smoke	tests/http/http2_flow_recv_push_h2c.sx	v6 recv/push/h2c
+smoke_dyn	smoke	tests/http/http2_hpack_dyn.sx	动态 HPACK 烟测
+symbol_smoke_c	symbol	http2_smoke_c	std/http/http2.inc.c	C 烟测
+symbol_preface_c	symbol	http2_is_connection_preface_c	std/http/http2.inc.c	preface
+symbol_parse_c	symbol	http2_parse_frame_header_c	std/http/http2.inc.c	帧头
+symbol_hpack_smoke_c	symbol	http2_hpack_smoke_c	std/http/http2_hpack.inc.c	HPACK
+symbol_client_smoke_c	symbol	http2_client_smoke_c	std/http/http2_client.inc.c	客户端
+smoke_wire	smoke	tests/http/http2_wire.sx	线格式烟测
+smoke_client	smoke	tests/http/http2_client.sx	客户端烟测
+doc	file	analysis/std-http-h2-v0.md	RFC
+lib	script	lib/std-http-h2.sh	tests/lib/std-http-h2.sh
+gate	script	run-std-http-h2-gate.sh	tests/run-std-http-h2-gate.sh

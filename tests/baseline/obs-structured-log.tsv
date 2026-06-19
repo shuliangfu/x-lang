@@ -1,22 +1,22 @@
 # OBS-003 结构化日志 manifest
 # 列：item_id	kind	anchor	notes
 # min_components	12
-line_prefix	field	shu:	level 前缀
+line_prefix	field	shux:	level 前缀
 format_struct	section	level=info component=	结构化行
-format_bracket	section	shu: [COMPONENT]	遗留 bracket
+format_bracket	section	shux: [COMPONENT]	遗留 bracket
 impl_struct	runtime_fn	log_write_structured_kv_c	std/log/log.c
-impl_su	su_fn	log_structured_kv	std/log/mod.su
-comp_phase_timing	bracket_component	SHU_COMPILE_PHASE_TIMING	OBS-001
-comp_async_trace	bracket_component	SHU_ASYNC_RUNTIME_TRACE	OBS-002
-comp_release_precheck	bracket_component	SHU_RELEASE_PRECHECK	ENG-004
-comp_flamegraph	bracket_component	SHU_PERF_FLAMEGRAPH	PERF-005
-comp_rollback_drill	bracket_component	SHU_ROLLBACK_DRILL	ENG-006
-comp_perf_alert	bracket_component	SHU_PERF_ALERT	OBS-004
-comp_cache_miss	bracket_component	SHU_CACHE_MISS	PERF-006
-comp_alloc_hotspot	bracket_component	SHU_ALLOC_HOTSPOT	PERF-007
-comp_syscall_batch	bracket_component	SHU_SYSCALL_BATCH	PERF-008
-comp_net_zc	bracket_component	SHU_NET_ZC	PERF-009
-comp_zig_strategy	bracket_component	SHU_ZIG_STRATEGY	PERF-011
+impl_su	su_fn	log_structured_kv	std/log/mod.sx
+comp_phase_timing	bracket_component	SHUX_COMPILE_PHASE_TIMING	OBS-001
+comp_async_trace	bracket_component	SHUX_ASYNC_RUNTIME_TRACE	OBS-002
+comp_release_precheck	bracket_component	SHUX_RELEASE_PRECHECK	ENG-004
+comp_flamegraph	bracket_component	SHUX_PERF_FLAMEGRAPH	PERF-005
+comp_rollback_drill	bracket_component	SHUX_ROLLBACK_DRILL	ENG-006
+comp_perf_alert	bracket_component	SHUX_PERF_ALERT	OBS-004
+comp_cache_miss	bracket_component	SHUX_CACHE_MISS	PERF-006
+comp_alloc_hotspot	bracket_component	SHUX_ALLOC_HOTSPOT	PERF-007
+comp_syscall_batch	bracket_component	SHUX_SYSCALL_BATCH	PERF-008
+comp_net_zc	bracket_component	SHUX_NET_ZC	PERF-009
+comp_zig_strategy	bracket_component	SHUX_ZIG_STRATEGY	PERF-011
 smoke_component	struct_component	obs_smoke	gate 烟测
 smoke_harness	file	tests/bench/obs_structured_log_smoke.c	C harness
 smoke_log_o	object	std/log/log.o	链接

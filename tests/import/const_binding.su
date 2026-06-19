@@ -1,8 +1,0 @@
-// 测试第 2 种导入：const xxx = import("std.xxx")（绑定 + 前缀调用）
-const process = import("std.process");
-
-function main(): i32 {
-  let pid: i32 = process.getpid();
-  if (pid <= 0) { return 1; }
-  return 0;
-}

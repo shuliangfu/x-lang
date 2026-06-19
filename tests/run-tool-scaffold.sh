@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/tool-scaffold.sh
 . tests/lib/tool-scaffold.sh
 
-SHU="${SHU:-./compiler/shu}"
-EXPECT_EXIT="${SHU_SCAFFOLD_EXPECT_EXIT:-42}"
-WORKDIR="/tmp/shu_scaffold_test_$$"
+SHUX="${SHUX:-./compiler/shux}"
+EXPECT_EXIT="${SHUX_SCAFFOLD_EXPECT_EXIT:-42}"
+WORKDIR="/tmp/shux_scaffold_test_$$"
 EXE="$WORKDIR/app"
 
 cleanup() { rm -rf "$WORKDIR"; }
@@ -20,8 +20,8 @@ make -C compiler -q 2>/dev/null || make -C compiler
 
 tool_scaffold_copy_to "$WORKDIR"
 
-if ! "$SHU" -L . "$WORKDIR/main.su" -o "$EXE" 2>&1; then
-  echo "run-tool-scaffold FAIL: compile template main.su" >&2
+if ! "$SHUX" -L . "$WORKDIR/main.sx" -o "$EXE" 2>&1; then
+  echo "run-tool-scaffold FAIL: compile template main.sx" >&2
   exit 1
 fi
 

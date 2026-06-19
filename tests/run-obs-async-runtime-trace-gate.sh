@@ -3,20 +3,20 @@
 #
 # 1) obs-async-runtime-trace-v1.md + manifest
 # 2) scheduler.c 符号与 env 锚点
-# 3) async_runtime_trace_smoke.c：SHU_ASYNC_RUNTIME_TRACE=1 须输出 summary + rank
+# 3) async_runtime_trace_smoke.c：SHUX_ASYNC_RUNTIME_TRACE=1 须输出 summary + rank
 #
 # 用法：./tests/run-obs-async-runtime-trace-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
-MANIFEST="${SHU_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
-SCHED="${SHU_OBS_ASYNC_TRACE_SCHED:-std/async/scheduler.c}"
-SMOKE_SRC="${SHU_OBS_ASYNC_TRACE_SMOKE:-tests/bench/async_runtime_trace_smoke.c}"
+DOC="${SHUX_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
+MANIFEST="${SHUX_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
+SCHED="${SHUX_OBS_ASYNC_TRACE_SCHED:-std/async/scheduler.c}"
+SMOKE_SRC="${SHUX_OBS_ASYNC_TRACE_SMOKE:-tests/bench/async_runtime_trace_smoke.c}"
 SCHED_O="std/async/scheduler.o"
 MIN_ITEMS=8
 MIN_TOPN=5
-PREFIX="shu: [SHU_ASYNC_RUNTIME_TRACE]"
+PREFIX="shux: [SHUX_ASYNC_RUNTIME_TRACE]"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -99,7 +99,7 @@ if [ "$MISS" -gt 0 ]; then
   echo "obs-async-runtime-trace gate FAIL: missing=${MISS}" >&2
   exit 1
 fi
-for kw in SHU_ASYNC_RUNTIME_TRACE 长尾 drain_idle poll_completions; do
+for kw in SHUX_ASYNC_RUNTIME_TRACE 长尾 drain_idle poll_completions; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "obs-async-runtime-trace gate FAIL: doc missing keyword $kw" >&2
     exit 1
@@ -113,15 +113,15 @@ if [ ! -f "$SCHED_O" ]; then
   echo "obs-async-runtime-trace gate FAIL: missing $SCHED_O" >&2
   exit 1
 fi
-SMOKE_BIN="/tmp/shu_obs_async_trace_smoke_$$"
+SMOKE_BIN="/tmp/shux_obs_async_trace_smoke_$$"
 cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE_SRC" "$SCHED_O" 2>/tmp/obs_async_trace_build.log || {
   cat /tmp/obs_async_trace_build.log >&2
   echo "obs-async-runtime-trace gate FAIL: smoke compile" >&2
   rm -f "$SMOKE_BIN"
   exit 1
 }
-SHU_ASYNC_RUNTIME_TRACE=1 \
-  SHU_ASYNC_RUNTIME_TRACE_TOPN="$MIN_TOPN" \
+SHUX_ASYNC_RUNTIME_TRACE=1 \
+  SHUX_ASYNC_RUNTIME_TRACE_TOPN="$MIN_TOPN" \
   "$SMOKE_BIN" 2>/tmp/obs_async_trace_run.log || {
   cat /tmp/obs_async_trace_run.log >&2
   echo "obs-async-runtime-trace gate FAIL: smoke run" >&2

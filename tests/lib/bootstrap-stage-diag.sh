@@ -10,17 +10,17 @@
 #   cat ci.log | ./tests/lib/bootstrap-stage-diag.sh --stdin
 #
 # 输出（stdout，可 source）：
-#   SHU_BOOT_STAGE=parser
-#   SHU_BOOT_REPRO=parser_second_pass
-#   SHU_BOOT_PATTERN=ci_banner_parser_second
-#   SHU_BOOT_CONFIDENCE=classified
+#   SHUX_BOOT_STAGE=parser
+#   SHUX_BOOT_REPRO=parser_second_pass
+#   SHUX_BOOT_PATTERN=ci_banner_parser_second
+#   SHUX_BOOT_CONFIDENCE=classified
 #
 # 环境：
-#   SHU_BOOT_STAGE_PATTERNS — 覆盖模式表路径
+#   SHUX_BOOT_STAGE_PATTERNS — 覆盖模式表路径
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PATTERNS="${SHU_BOOT_STAGE_PATTERNS:-$ROOT/tests/baseline/bootstrap-stage-patterns.tsv}"
+PATTERNS="${SHUX_BOOT_STAGE_PATTERNS:-$ROOT/tests/baseline/bootstrap-stage-patterns.tsv}"
 
 read_log() {
   if [ "${1:-}" = "--stdin" ]; then
@@ -61,18 +61,18 @@ bootstrap_stage_classify() {
   done < "$PATTERNS"
 
   if [ -n "$best_stage" ]; then
-    echo "SHU_BOOT_STAGE=$best_stage"
-    echo "SHU_BOOT_REPRO=$best_repro"
-    echo "SHU_BOOT_PATTERN=$best_pid"
-    echo "SHU_BOOT_CONFIDENCE=classified"
+    echo "SHUX_BOOT_STAGE=$best_stage"
+    echo "SHUX_BOOT_REPRO=$best_repro"
+    echo "SHUX_BOOT_PATTERN=$best_pid"
+    echo "SHUX_BOOT_CONFIDENCE=classified"
     echo "bootstrap-stage-diag: stage=$best_stage repro=$best_repro pattern=$best_pid" >&2
     return 0
   fi
 
-  echo "SHU_BOOT_STAGE=unknown"
-  echo "SHU_BOOT_REPRO=full_ci"
-  echo "SHU_BOOT_PATTERN="
-  echo "SHU_BOOT_CONFIDENCE=low"
+  echo "SHUX_BOOT_STAGE=unknown"
+  echo "SHUX_BOOT_REPRO=full_ci"
+  echo "SHUX_BOOT_PATTERN="
+  echo "SHUX_BOOT_CONFIDENCE=low"
   echo "bootstrap-stage-diag: no pattern match — try ./tests/run-bootstrap-repro.sh full_ci" >&2
   return 1
 }

@@ -7,8 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TST004_DOC:-analysis/tst-004-std-sanitize-v1.md}"
-MANIFEST="${SHU_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
+DOC="${SHUX_TST004_DOC:-analysis/tst-004-std-sanitize-v1.md}"
+MANIFEST="${SHUX_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
 LIB="tests/lib/tst-004-std-sanitize.sh"
 MIN_CASES=2
 
@@ -17,7 +17,7 @@ MIN_CASES=2
 
 echo "=== TST-004: std sanitizer manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" tests/run-tst-004-std-sanitize-nightly.sh \
-  tests/sanitize/std_heap_asan.su tests/sanitize/std_channel_asan.su; do
+  tests/sanitize/std_heap_asan.sx tests/sanitize/std_channel_asan.sx; do
   if [ ! -f "$f" ]; then
     echo "tst-004-sanitize gate FAIL: missing $f" >&2
     exit 1

@@ -1,12 +1,12 @@
 # BOOT-004 阶段诊断 fixture 期望
 # Format: fixture_id<TAB>log_file<TAB>expected_stage<TAB>expected_repro
 parser_second_pass_ci	parser_second_pass_ci.log	parser	parser_second_pass
-typeck_return_mismatch	typeck_return_mismatch.log	typeck	shu_asm_gate
-codegen_emit_fail	codegen_emit_fail.log	codegen	shu_asm_gate
+typeck_return_mismatch	typeck_return_mismatch.log	typeck	shux_asm_gate
+codegen_emit_fail	codegen_emit_fail.log	codegen	shux_asm_gate
 link_undefined	link_undefined.log	link	bstrict_build
 build_pipeline_gen	build_pipeline_gen.log	build	bstrict_build
 stage2_fail	stage2_fail.log	selfhost	stage2_bstrict
 wpo_strict_fail	wpo_strict_fail.log	wpo	wpo_strict_link
 asm_73_segv	asm_73_segv.log	asm	asm_73
-preprocess_unclosed	preprocess_unclosed.log	preprocess	shu_asm_gate
+preprocess_unclosed	preprocess_unclosed.log	preprocess	shux_asm_gate
 parser_parse_error	parser_parse_error.log	parser	parser_second_pass

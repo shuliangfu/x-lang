@@ -5,7 +5,7 @@
 #   std_jsz_symbols_ok JSON_SU JSON_C TSV
 #   std_jsz_emit_report status rt_ok skip
 
-STD_JSZ_PREFIX="${SHU_STD_JSON_SERIALIZE_PREFIX:-shu: [SHU_STD_JSON_SERIALIZE]}"
+STD_JSZ_PREFIX="${SHUX_STD_JSON_SERIALIZE_PREFIX:-shux: [SHUX_STD_JSON_SERIALIZE]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 std_jsz_symbols_ok() {

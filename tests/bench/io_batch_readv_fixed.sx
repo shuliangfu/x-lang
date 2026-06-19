@@ -1,0 +1,42 @@
+// io_batch_readv_fixed.sx — I6：register_fixed_buffers + read_batch_fd（Linux read_fixed 路径）
+// 与 io_batch_readv.sx 同 workload；供 tests/run-perf-io-ring-ab.sh A/B。
+const fs = import("std.fs");
+const io = import("std.io");
+
+function main(): i32 {
+  // 路径 "tests/bench/.io_mmap_bench_tmp"
+  let path: [31]u8 =
+  [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
+  98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
+  let fd: i32 = fs.fs_open_read(&path[0]);
+  if (fd < 0) { return 1; }
+  let b0: [4096]u8 = [];
+  let b1: [4096]u8 = [];
+  let b2: [4096]u8 = [];
+  let b3: [4096]u8 = [];
+  /** 注册 4×4KiB 为 fixed buffer 池，read_batch_fd 走 io_uring read_fixed。 */
+  if (io.register_fixed_buffers(&b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4) != 1) {
+    fs.fs_close(fd);
+    return 4;
+  }
+  let sum: i32 = 0;
+  let rounds: i32 = 0;
+  while (rounds < 1024) {
+    let nr: i32 = read_batch_fd(fd, &b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4);
+    if (nr != 16384) {
+      fs.fs_close(fd);
+      return 2;
+    }
+    let si: i32 = 0;
+    while (si < 4096) {
+      sum = sum + (b0[si] as i32);
+      sum = sum + (b1[si] as i32);
+      sum = sum + (b2[si] as i32);
+      sum = sum + (b3[si] as i32);
+      si = si + 1;
+    }
+    rounds = rounds + 1;
+  }
+  if (fs.fs_close(fd) != 0) { return 3; }
+  return sum & 255;
+}

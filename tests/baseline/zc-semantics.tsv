@@ -19,9 +19,9 @@ zc3_tier	zc_tier	ZC-3	run-zc3-gate.sh
 zc4_tier	zc_tier	ZC-4	run-zc4-gate.sh
 zc5_tier	zc_tier	ZC-5	run-zc5-gate.sh
 cross_type_region	cross_ref	analysis/type-region-v1-rfc.md	TYPE-002
-cross_io_mod	cross_ref	std/io/mod.su	生命周期注释
+cross_io_mod	cross_ref	std/io/mod.sx	生命周期注释
 cross_fs_readme	cross_ref	std/fs/README.md	mmap/sendfile
-example_read_ptr	example	tests/io/read_ptr.su	IO 烟测
-example_region	example	tests/slice/region_array_smoke.su	ZC-3
-example_strview	example	tests/string/view_zerocopy.su	ZC-4
+example_read_ptr	example	tests/io/read_ptr.sx	IO 烟测
+example_region	example	tests/slice/region_array_smoke.sx	ZC-3
+example_strview	example	tests/string/view_zerocopy.sx	ZC-4
 hook_zc_gates	hook_script	run-zc-gates.sh	统一门禁

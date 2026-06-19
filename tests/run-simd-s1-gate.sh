@@ -2,18 +2,18 @@
 # SIMD-S1 门禁：`-target-cpu` 解析 + 宿主机 feature 探测（--print-target-cpu）。
 # 用法：
 #   ./tests/run-simd-s1-gate.sh
-#   SHU=./compiler/shu ./tests/run-simd-s1-gate.sh
+#   SHUX=./compiler/shux ./tests/run-simd-s1-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-SHU_BIN="${SHU:-}"
-case "$SHU_BIN" in
-  /*) SHU_ABS="$SHU_BIN" ;;
-  "") SHU_ABS="" ;;
-  *) SHU_ABS="$(pwd)/$SHU_BIN" ;;
+SHUX_BIN="${SHUX:-}"
+case "$SHUX_BIN" in
+  /*) SHUX_ABS="$SHUX_BIN" ;;
+  "") SHUX_ABS="" ;;
+  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
 esac
 
-# 优先选择与宿主机 ABI 匹配的可执行文件（避免 Linux shu-c 在 macOS 上误选）。
+# 优先选择与宿主机 ABI 匹配的可执行文件（避免 Linux shux-c 在 macOS 上误选）。
 simd_s1_native_exe() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -26,12 +26,12 @@ simd_s1_native_exe() {
   esac
 }
 
-if [ -z "$SHU_ABS" ] || ! simd_s1_native_exe "$SHU_ABS"; then
-  SHU_ABS=""
-  for cand in ./compiler/shu_asm ./compiler/shu; do
+if [ -z "$SHUX_ABS" ] || ! simd_s1_native_exe "$SHUX_ABS"; then
+  SHUX_ABS=""
+  for cand in ./compiler/shux_asm ./compiler/shux; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if simd_s1_native_exe "$abs"; then
-      SHU_ABS="$abs"
+      SHUX_ABS="$abs"
       break
     fi
   done
@@ -39,15 +39,15 @@ fi
 
 echo "=== SIMD-S1: --print-target-cpu (host probe) ==="
 
-if [ -z "$SHU_ABS" ] || ! simd_s1_native_exe "$SHU_ABS"; then
-  echo "simd-s1 gate SKIP (no native shu/shu_asm)"
+if [ -z "$SHUX_ABS" ] || ! simd_s1_native_exe "$SHUX_ABS"; then
+  echo "simd-s1 gate SKIP (no native shux/shux_asm)"
   exit 0
 fi
 
 OUT="$(mktemp)"
 trap 'rm -f "$OUT"' EXIT
 
-if ! "$SHU_ABS" --print-target-cpu >"$OUT" 2>&1; then
+if ! "$SHUX_ABS" --print-target-cpu >"$OUT" 2>&1; then
   echo "simd-s1 FAIL: --print-target-cpu exit non-zero" >&2
   cat "$OUT" >&2
   exit 1
@@ -92,7 +92,7 @@ echo "=== SIMD-S1: -target-cpu generic (baseline subset) ==="
 GEN_OUT="$(mktemp)"
 trap 'rm -f "$OUT" "$GEN_OUT"' EXIT
 
-if ! "$SHU_ABS" --print-target-cpu -target-cpu generic >"$GEN_OUT" 2>&1; then
+if ! "$SHUX_ABS" --print-target-cpu -target-cpu generic >"$GEN_OUT" 2>&1; then
   echo "simd-s1 FAIL: --print-target-cpu -target-cpu generic" >&2
   cat "$GEN_OUT" >&2
   exit 1

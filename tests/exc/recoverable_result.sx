@@ -1,0 +1,13 @@
+// tests/exc/recoverable_result.sx — EXC-002：Layer A 可恢复错误（unwrap_or，不 panic）
+const result = import("core.result");
+const err = import("std.error");
+
+function main(): i32 {
+  let bad: Result_i32 = result.err_i32(error_code_invalid());
+  let v: i32 = result.unwrap_or_i32(bad, 99);
+  if (v != 99) { return 1; }
+  let good: Result_i32 = result.ok_i32(7);
+  if (result.unwrap_or_i32(good, 0) != 7) { return 2; }
+  if (!result.is_err_i32(bad) || result.is_ok_i32(bad)) { return 3; }
+  return 0;
+}

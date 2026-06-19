@@ -3,16 +3,16 @@
 #
 # 1) comp-incr-compile-wave-v1.md + comp-incr-compile-wave.tsv + comp-incr-compile.tsv wave 行
 # 2) 父 COMP-007 manifest 绿
-# 3) 有 native shu 时逐条执行 wave hook
+# 3) 有 native shux 时逐条执行 wave hook
 #
 # 用法：./tests/run-comp-incr-compile-wave-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP020_DOC:-analysis/comp-incr-compile-wave-v1.md}"
-WAVE="${SHU_COMP020_WAVE_TSV:-tests/baseline/comp-incr-compile-wave.tsv}"
-MANIFEST="${SHU_COMP020_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
-BENCH="${SHU_COMP020_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+DOC="${SHUX_COMP020_DOC:-analysis/comp-incr-compile-wave-v1.md}"
+WAVE="${SHUX_COMP020_WAVE_TSV:-tests/baseline/comp-incr-compile-wave.tsv}"
+MANIFEST="${SHUX_COMP020_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
+BENCH="${SHUX_COMP020_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
 LIB="tests/lib/comp-incr-compile-wave.sh"
 MIN_WAVE=4
 MIN_BENCH=5
@@ -114,7 +114,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-incr-compile-wave manifest OK (wave_hooks=${WAVE_HOOK_N} benches=${BENCH_N})"
 
-if [ "${SHU_COMP020_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP020_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_incr_wave_emit_report "ok" "$WAVE_HOOK_N" 0 0 1
   echo "comp-incr-compile-wave gate OK (manifest only)"
   exit 0
@@ -122,7 +122,7 @@ fi
 
 echo "=== COMP-020: parent COMP-007 manifest ==="
 chmod +x tests/run-comp-incr-compile-gate.sh
-SHU_COMP_INCR_COMPILE_MANIFEST_ONLY=1 ./tests/run-comp-incr-compile-gate.sh
+SHUX_COMP_INCR_COMPILE_MANIFEST_ONLY=1 ./tests/run-comp-incr-compile-gate.sh
 
 WAVE_RUN=0
 WAVE_SKIP=0
@@ -142,13 +142,13 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
   chmod +x "$hook" 2>/dev/null || true
 
   if ! comp_incr_wave_hook_runnable "$anchor"; then
-    echo "comp-incr-compile-wave SKIP $item_id ($anchor no native shu)"
+    echo "comp-incr-compile-wave SKIP $item_id ($anchor no native shux)"
     WAVE_SKIP=$((WAVE_SKIP + 1))
     continue
   fi
 
   if [ "$anchor" = "run-comp-incr-compile-gate.sh" ]; then
-    if SHU_COMP_INCR_COMPILE_MANIFEST_ONLY=1 "$hook"; then
+    if SHUX_COMP_INCR_COMPILE_MANIFEST_ONLY=1 "$hook"; then
       WAVE_RUN=$((WAVE_RUN + 1))
       echo "comp-incr-compile-wave runnable OK $item_id"
     else

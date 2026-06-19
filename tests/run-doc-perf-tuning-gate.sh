@@ -3,15 +3,15 @@
 #
 # 1) doc-perf-tuning-v1.md 必需章节与交叉引用
 # 2) perf baseline registry + hook 脚本存在
-# 3) 文档须引用 SHU_COMPILE_PHASE_TIMING 与关键 gate 名
+# 3) 文档须引用 SHUX_COMPILE_PHASE_TIMING 与关键 gate 名
 #
 # 用法：./tests/run-doc-perf-tuning-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_DOC_PERF_TUNING:-analysis/doc-perf-tuning-v1.md}"
-MANIFEST="${SHU_DOC_PERF_TUNING_TSV:-tests/baseline/doc-perf-tuning.tsv}"
-REG="${SHU_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+DOC="${SHUX_DOC_PERF_TUNING:-analysis/doc-perf-tuning-v1.md}"
+MANIFEST="${SHUX_DOC_PERF_TUNING_TSV:-tests/baseline/doc-perf-tuning.tsv}"
+REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 MIN_SEC=7
 MIN_XREF=6
 
@@ -103,7 +103,7 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-for kw in SHU_COMPILE_PHASE_TIMING run-perf-compile-dogfood run-bootstrap-stage-diag; do
+for kw in SHUX_COMPILE_PHASE_TIMING run-perf-compile-dogfood run-bootstrap-stage-diag; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "doc-perf-tuning gate FAIL: doc missing keyword $kw" >&2
     exit 1

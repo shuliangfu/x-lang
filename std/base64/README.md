@@ -1,6 +1,6 @@
 # std.base64 — Base64 编解码
 
-**路径**：`std/base64/`（mod.su + base64.c）  
+**路径**：`std/base64/`（mod.sx + base64.c）  
 **依赖**：core。**性能**：单遍、静态表、无分配，对标 Zig std.base64。
 
 | API | 说明 |

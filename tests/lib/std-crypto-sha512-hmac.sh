@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-crypto-sha512-hmac.sh — STD-050 manifest 与烟测辅助
 
-STD_CRYPTO_SHA512_HMAC_PREFIX="${SHU_STD_CRYPTO_SHA512_HMAC_PREFIX:-shu: [SHU_STD_CRYPTO_SHA512_HMAC]}"
+STD_CRYPTO_SHA512_HMAC_PREFIX="${SHUX_STD_CRYPTO_SHA512_HMAC_PREFIX:-shux: [SHUX_STD_CRYPTO_SHA512_HMAC]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_crypto_sha512_hmac_symbols_ok() {
@@ -47,15 +47,15 @@ std_crypto_sha512_hmac_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .su；期望退出码 0。
+# 编译并运行烟测 .sx；期望退出码 0。
 std_crypto_sha512_hmac_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_crypto_sha512_hmac_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_crypto_sha512_hmac_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-crypto-sha512-hmac FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

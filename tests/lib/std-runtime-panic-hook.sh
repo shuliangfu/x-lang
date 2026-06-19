@@ -5,7 +5,7 @@
 #   std_runtime_panic_manifest_ok DOC README RUNTIME_SU TSV [extra files...]
 #   std_runtime_panic_emit_report status matrix_ok check_ok exc_ok skip
 
-STD_RUNTIME_PANIC_PREFIX="${SHU_STD_RUNTIME_PANIC_PREFIX:-shu: [SHU_STD_RUNTIME_PANIC]}"
+STD_RUNTIME_PANIC_PREFIX="${SHUX_STD_RUNTIME_PANIC_PREFIX:-shux: [SHUX_STD_RUNTIME_PANIC]}"
 
 # 校验 manifest；echo "miss"。
 std_runtime_panic_manifest_ok() {

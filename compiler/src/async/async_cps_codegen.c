@@ -1,8 +1,8 @@
 /**
  * async_cps_codegen.c — async CPS switch 状态机 emit 实现（A3）
  *
- * 文件职责：线性 async 函数体生成 switch(__shu_frame.__phase)；await 边界 suspend 或 fallthrough。
- * 约定：帧/let 用 static 持久化；SHU_ASYNC_YIELD=1 时 await 边界 return SHU_ASYNC_SUSPENDED。
+ * 文件职责：线性 async 函数体生成 switch(__shux_frame.__phase)；await 边界 suspend 或 fallthrough。
+ * 约定：帧/let 用 static 持久化；SHUX_ASYNC_YIELD=1 时 await 边界 return SHUX_ASYNC_SUSPENDED。
  */
 #include "async_cps_codegen.h"
 #include <stdio.h>
@@ -171,15 +171,15 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
                 has_seed_param = 1;
         }
         if (has_seed_param) {
-            fprintf(out, "  if (shu_async_run_seed_valid())\n");
-            fprintf(out, "    __shu_frame.__phase = 0;\n");
+            fprintf(out, "  if (shux_async_run_seed_valid())\n");
+            fprintf(out, "    __shux_frame.__phase = 0;\n");
         }
-        fprintf(out, "  /* SHU_ASYNC_CPS switch=1 awaits=%d */\n", layout->num_awaits);
-        fprintf(out, "  switch (__shu_frame.__phase) {\n");
+        fprintf(out, "  /* SHUX_ASYNC_CPS switch=1 awaits=%d */\n", layout->num_awaits);
+        fprintf(out, "  switch (__shux_frame.__phase) {\n");
         fprintf(out, "  default:\n");
         fprintf(out, "  case 0:\n");
         if (has_seed_param) {
-        fprintf(out, "    if (__shu_frame.__phase == 0 && shu_async_run_seed_valid()) {\n");
+        fprintf(out, "    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n");
         for (int pi = 0; pi < f->num_params; pi++) {
             const char *pname;
             const struct ASTType *pty;
@@ -188,13 +188,13 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
             pname = f->params[pi].name;
             pty = f->params[pi].type;
             if (pty->kind == AST_TYPE_U32)
-                fprintf(out, "      %s = shu_async_run_seed_take_u32();\n", pname);
+                fprintf(out, "      %s = shux_async_run_seed_take_u32();\n", pname);
             else if (pty->kind == AST_TYPE_I64)
-                fprintf(out, "      %s = shu_async_run_seed_take_i64();\n", pname);
+                fprintf(out, "      %s = shux_async_run_seed_take_i64();\n", pname);
             else if (pty->kind == AST_TYPE_USIZE)
-                fprintf(out, "      %s = shu_async_run_seed_take_usize();\n", pname);
+                fprintf(out, "      %s = shux_async_run_seed_take_usize();\n", pname);
             else if (pty->kind == AST_TYPE_I32)
-                fprintf(out, "      %s = shu_async_run_seed_take_i32();\n", pname);
+                fprintf(out, "      %s = shux_async_run_seed_take_i32();\n", pname);
         }
         fprintf(out, "    }\n");
         }
@@ -209,13 +209,13 @@ void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
     ctx->switch_open = 0;
 }
 
-/** callee 是否为 IO-A5 await 目标（std.io 同步 API / shu_io_* C 入口）。 */
+/** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
 static int async_cps_callee_is_io(const struct ASTFunc *callee) {
     const char *name;
     if (!callee || !callee->name || !callee->name[0])
         return 0;
     name = callee->name;
-    if (strncmp(name, "shu_io_", 7) == 0)
+    if (strncmp(name, "shux_io_", 7) == 0)
         return 1;
     if (strcmp(name, "read") == 0 || strcmp(name, "write") == 0)
         return 1;
@@ -302,6 +302,72 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
     return op->value.call.num_args >= 3;
 }
 
+/** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
+static int async_cps_callee_is_future_wait_by_name(const char *n) {
+    if (!n || !n[0])
+        return 0;
+    if (strcmp(n, "future_wait") == 0)
+        return 1;
+    if (strcmp(n, "runtime_wait_future") == 0)
+        return 1;
+    if (strcmp(n, "shux_async_future_wait_c") == 0)
+        return 1;
+    if (strcmp(n, "std_async_future_wait") == 0)
+        return 1;
+    if (strcmp(n, "std_async_runtime_wait_future") == 0)
+        return 1;
+    if (strstr(n, "future_wait") != NULL)
+        return 1;
+    if (strstr(n, "runtime_wait_future") != NULL)
+        return 1;
+    return 0;
+}
+
+static int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
+    if (!callee || !callee->name)
+        return 0;
+    return async_cps_callee_is_future_wait_by_name(callee->name);
+}
+
+/** await future_wait(...)：Pending 时走 suspend_io 循环（STD-041 Future 绑定）。 */
+int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
+    const struct ASTExpr *op;
+    const struct ASTFunc *callee;
+    const struct ASTExpr *call_callee;
+    const char *field_name;
+    const char *method_name;
+    if (!await_expr || await_expr->kind != AST_EXPR_AWAIT)
+        return 0;
+    op = await_expr->value.unary.operand;
+    if (!op)
+        return 0;
+    if (op->kind == AST_EXPR_METHOD_CALL) {
+        method_name = op->value.method_call.method_name;
+        if (method_name && async_cps_callee_is_future_wait_by_name(method_name))
+            return 1;
+        callee = op->value.method_call.resolved_impl_func;
+        if (callee && async_cps_callee_is_future_wait(callee))
+            return 1;
+        return 0;
+    }
+    if (op->kind != AST_EXPR_CALL)
+        return 0;
+    callee = op->value.call.resolved_callee_func;
+    if (callee && async_cps_callee_is_future_wait(callee))
+        return 1;
+    call_callee = op->value.call.callee;
+    if (call_callee && call_callee->kind == AST_EXPR_FIELD_ACCESS) {
+        field_name = call_callee->value.field_access.field_name;
+        if (field_name && async_cps_callee_is_future_wait_by_name(field_name))
+            return 1;
+    }
+    if (call_callee && call_callee->kind == AST_EXPR_VAR && call_callee->value.var.name) {
+        if (async_cps_callee_is_future_wait_by_name(call_callee->value.var.name))
+            return 1;
+    }
+    return 0;
+}
+
 /** await 边界公共 emit：保存 live、推进 phase、开下一 case 并恢复 live。 */
 static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out,
     const char *pad, const char *suspend_fn) {
@@ -316,49 +382,49 @@ static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out
     for (int i = 0; i < layout->live.n; i++) {
         const char *v = layout->live.names[i];
         if (!v || !v[0]) continue;
-        fprintf(out, "%s__shu_frame.%s = %s;\n", p, v, v);
+        fprintf(out, "%s__shux_frame.%s = %s;\n", p, v, v);
     }
-    fprintf(out, "%s__shu_frame.__phase = %d;\n", p, phase);
-    fprintf(out, "%sif (%s(&__shu_frame.__phase, %d)) return (int32_t)SHU_ASYNC_SUSPENDED;\n",
+    fprintf(out, "%s__shux_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%sif (%s(&__shux_frame.__phase, %d)) return (int32_t)SHUX_ASYNC_SUSPENDED;\n",
         p, suspend_fn, phase);
-    fprintf(out, "%s/* SHU_ASYNC_CPS fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%s/* SHUX_ASYNC_CPS fallthrough phase=%d */\n", p, phase);
     fprintf(out, "%scase %d:\n", p, phase);
     for (int i = 0; i < layout->live.n; i++) {
         const char *v = layout->live.names[i];
         if (!v || !v[0]) continue;
-        fprintf(out, "%s%s = __shu_frame.%s;\n", p, v, v);
+        fprintf(out, "%s%s = __shux_frame.%s;\n", p, v, v);
     }
     return 0;
 }
 
 int async_cps_codegen_after_await(AsyncCpsCodegenCtx *ctx, FILE *out, const char *pad) {
-    return async_cps_codegen_after_await_impl(ctx, out, pad, "shu_async_cps_suspend");
+    return async_cps_codegen_after_await_impl(ctx, out, pad, "shux_async_cps_suspend");
 }
 
 int async_cps_codegen_after_await_io(AsyncCpsCodegenCtx *ctx, FILE *out, const char *pad) {
-    return async_cps_codegen_after_await_impl(ctx, out, pad, "shu_async_cps_suspend_io");
+    return async_cps_codegen_after_await_impl(ctx, out, pad, "shux_async_cps_suspend_io");
 }
 
 void async_cps_codegen_emit_phase_reset(FILE *out, const char *pad) {
     const char *p = pad ? pad : "  ";
     if (!out) return;
-    fprintf(out, "%s__shu_frame.__phase = 0;\n", p);
+    fprintf(out, "%s__shux_frame.__phase = 0;\n", p);
 }
 
 void async_cps_codegen_emit_sched_wrapper(const struct ASTFunc *f, const char *c_fname, FILE *out) {
     if (!f || !f->name || !c_fname || !out) return;
-    fprintf(out, "/* A4: scheduler entry shu_async_sched_%s */\n", f->name);
-    fprintf(out, "#ifndef SHU_ASYNC_SCHED_RT_DECL\n");
-    fprintf(out, "#define SHU_ASYNC_SCHED_RT_DECL\n");
-    fprintf(out, "extern int32_t shu_async_run_i32(int32_t (*fn)(void));\n");
+    fprintf(out, "/* A4: scheduler entry shux_async_sched_%s */\n", f->name);
+    fprintf(out, "#ifndef SHUX_ASYNC_SCHED_RT_DECL\n");
+    fprintf(out, "#define SHUX_ASYNC_SCHED_RT_DECL\n");
+    fprintf(out, "extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n");
     fprintf(out, "#endif\n");
-    fprintf(out, "int32_t shu_async_sched_%s(void) {\n", f->name);
-    fprintf(out, "  return shu_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
+    fprintf(out, "int32_t shux_async_sched_%s(void) {\n", f->name);
+    fprintf(out, "  return shux_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
     fprintf(out, "}\n");
 }
 
 int async_cps_is_sched_wrapper_name(const char *name) {
-    return name && strncmp(name, "shu_async_sched_", 16) == 0;
+    return name && strncmp(name, "shux_async_sched_", 16) == 0;
 }
 
 struct ASTFunc *async_cps_resolve_sched_target(const struct ASTModule *m, const char *sched_name) {
@@ -382,7 +448,7 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
     char sched_name[128];
     if (!m || !async_fn || !async_fn->name || !async_fn->is_async || !async_liveness_func_has_await(async_fn))
         return 0;
-    snprintf(sched_name, sizeof(sched_name), "shu_async_sched_%s", async_fn->name);
+    snprintf(sched_name, sizeof(sched_name), "shux_async_sched_%s", async_fn->name);
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         struct ASTFunc *ef = m->funcs[i];
         if (ef && ef->is_extern && ef->name && strcmp(ef->name, sched_name) == 0)

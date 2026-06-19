@@ -16,7 +16,7 @@
 #include <string.h>
 
 /** pipeline_glue.c 中 parser_slice_from_buf 等依赖；真 TU 由 pipeline_gen.c 定义。 */
-struct shulang_slice_uint8_t {
+struct shux_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # lang-trait.sh — LANG-004 trait/interface 共享辅助
 
-# 判断本机能否直接执行给定 shu 二进制。
+# 判断本机能否直接执行给定 shux 二进制。
 lang_trait_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1

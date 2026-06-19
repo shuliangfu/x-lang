@@ -2,10 +2,10 @@
 # core-option-result.sh — CORE-002/003：Option/Result 类型族 manifest 辅助
 #
 # 用法（source 后）：
-#   core_or_symbols_ok OPTION_SU RESULT_SU TSV
+#   core_or_symbols_ok OPTION_SX RESULT_SX TSV
 #   core_or_emit_report status option_ok result_ok skip
 
-CORE_OR_PREFIX="${SHU_CORE_OPTION_RESULT_PREFIX:-shu: [SHU_CORE_OPTION_RESULT]}"
+CORE_OR_PREFIX="${SHUX_CORE_OPTION_RESULT_PREFIX:-shux: [SHUX_CORE_OPTION_RESULT]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_or_symbols_ok() {
@@ -20,7 +20,7 @@ core_or_symbols_ok() {
       symbol)
         sym="$anchor"
         case "$mod_path" in
-          core/result/mod.su) mod_path="$result_su" ;;
+          core/result/mod.sx) mod_path="$result_su" ;;
           *) mod_path="$option_su" ;;
         esac
         if [ "$sym" = "unwrap_or<T>" ]; then

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-security.sh — STD-079 manifest 与烟测辅助
 
-STD_SECURITY_PREFIX="${SHU_STD_SECURITY_PREFIX:-shu: [SHU_STD_SECURITY]}"
+STD_SECURITY_PREFIX="${SHUX_STD_SECURITY_PREFIX:-shux: [SHUX_STD_SECURITY]}"
 
 std_security_symbols_ok() {
   local mod_su="$1"
@@ -40,13 +40,13 @@ std_security_symbols_ok() {
 }
 
 std_security_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-security}"
-  local exe="/tmp/shu_std_security_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_security_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-security FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

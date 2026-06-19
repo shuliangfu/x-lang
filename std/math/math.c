@@ -6,7 +6,7 @@
  * sqrt、cbrt、pow、exp、log、fabs、signum。f64 双精度，对接 libm。
  *
  * 【所属模块/组件】
- * 标准库 std.math；与 std/math/mod.su 同属一模块。链接需 -lm。
+ * 标准库 std.math；与 std/math/mod.sx 同属一模块。链接需 -lm。
  */
 
 #include <stdint.h>

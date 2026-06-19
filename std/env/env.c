@@ -6,7 +6,7 @@
  * setenv、unsetenv、temp_dir。key 支持 (ptr,len) 无需 NUL，与 std.string/StrView 友好。
  *
  * 【所属模块/组件】
- * 标准库 std.env；与 std/env/mod.su 同目录。
+ * 标准库 std.env；与 std/env/mod.sx 同目录。
  *
  * 【与其它文件的关系】
  * - 被依赖：用户 import std.env 且 -o exe 时链入 std/env/env.o。

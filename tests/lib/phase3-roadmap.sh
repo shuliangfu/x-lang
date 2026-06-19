@@ -5,7 +5,7 @@
 #   phase3_roadmap_check MANIFEST NEXT_MD
 #   phase3_roadmap_emit_report status tasks_ok sections_ok
 
-PHASE3_ROADMAP_PREFIX="${SHU_PLAN001_PREFIX:-shu: [SHU_PLAN001_PHASE3]}"
+PHASE3_ROADMAP_PREFIX="${SHUX_PLAN001_PREFIX:-shux: [SHUX_PLAN001_PHASE3]}"
 
 # 校验 manifest；echo 缺失数。
 phase3_roadmap_check() {

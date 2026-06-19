@@ -7,7 +7,7 @@
 #   doc07_anchor_miss_split README DOC07 TSV
 #   doc07_emit_report status forbidden_miss readme_miss doc_miss
 
-DOC07_PREFIX="${SHU_DOC07_PREFIX:-shu: [SHU_DOC07]}"
+DOC07_PREFIX="${SHUX_DOC07_PREFIX:-shux: [SHUX_DOC07]}"
 
 # 按 target 列扫描禁止措辞；echo 命中数。
 doc07_forbidden_ok() {

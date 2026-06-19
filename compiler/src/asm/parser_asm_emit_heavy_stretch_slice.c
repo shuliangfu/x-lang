@@ -2,7 +2,7 @@
  * parser_asm_emit_heavy_stretch_slice.c — parser EMIT_HEAVY 第二遍 thin_glue 扩面（audit stretch）。
  *
  * 提供 TokenKind 元数据表、import 路径校验与标号探测辅助；由 parser_asm_thin_c.c #include。
- * 符号名均 parser_asm_stretch_* 前缀，勿与 parser_su.o / seed slice 冲突。
+ * 符号名均 parser_asm_stretch_* 前缀，勿与 parser_sx.o / seed slice 冲突。
  */
 #ifndef PARSER_ASM_EMIT_HEAVY_STRETCH_SLICE_INCLUDED
 #define PARSER_ASM_EMIT_HEAVY_STRETCH_SLICE_INCLUDED
@@ -44,7 +44,7 @@ enum {
 };
 
 /**
- * token_start==0 时按 kind 推断的字面量/关键字字节长度（与 parser.su lexer_token_run_len 一致）。
+ * token_start==0 时按 kind 推断的字面量/关键字字节长度（与 parser.sx lexer_token_run_len 一致）。
  * 未列 kind 由 parser_asm_stretch_token_run_len_fallback_c 返回 1。
  */
 static const int16_t k_parser_asm_stretch_token_run_len[STRETCH_TOKEN_TABLE_SIZE] = {
@@ -190,7 +190,7 @@ static const uint8_t k_parser_asm_stretch_ident_continue[256] = {
 };
 
 /**
- * 按 TokenKind 查表得 run_len；表外 kind 走显式 switch 兜底（与 parser.su 分支对齐）。
+ * 按 TokenKind 查表得 run_len；表外 kind 走显式 switch 兜底（与 parser.sx 分支对齐）。
  */
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind) {
   if (kind >= 0 && kind < STRETCH_TOKEN_TABLE_SIZE) {

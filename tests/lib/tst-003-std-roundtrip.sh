@@ -4,10 +4,10 @@
 # 用法（source 后）：
 #   tst003_verify_manifest TSV
 #   tst003_ensure_o REL_O
-#   tst003_run_vector SHU_BIN TEST_PATH TAG
+#   tst003_run_vector SHUX_BIN TEST_PATH TAG
 #   tst003_emit_report status vectors pass skip
 
-TST003_PREFIX="${SHU_TST003_ROUNDTRIP_PREFIX:-shu: [SHU_TST003_ROUNDTRIP]}"
+TST003_PREFIX="${SHUX_TST003_ROUNDTRIP_PREFIX:-shux: [SHUX_TST003_ROUNDTRIP]}"
 
 # 校验 manifest 中 roundtrip 行文件存在；echo 缺失数。
 tst003_verify_manifest() {
@@ -47,21 +47,21 @@ tst003_ensure_o() {
 
 # 编译运行烟测；0=成功，2=链接环境 SKIP（如缺 libzstd），1=硬失败。
 tst003_run_vector() {
-  local shu="$1"
+  local shux="$1"
   local test_path="$2"
   local tag="$3"
-  local exe="/tmp/shu_tst003_rt_${tag}_$$"
-  local log="/tmp/shu_tst003_build_${tag}_$$.log"
+  local exe="/tmp/shux_tst003_rt_${tag}_$$"
+  local log="/tmp/shux_tst003_build_${tag}_$$.log"
   if [ ! -f "$test_path" ]; then
     echo "tst-003-roundtrip FAIL: missing $test_path" >&2
     return 1
   fi
-  if ! "$shu" check -L . "$test_path" >/dev/null 2>&1; then
+  if ! "$shux" check -L . "$test_path" >/dev/null 2>&1; then
     echo "tst-003-roundtrip FAIL: typeck $test_path" >&2
-    "$shu" check -L . "$test_path" 2>&1 | tail -8 >&2 || true
+    "$shux" check -L . "$test_path" 2>&1 | tail -8 >&2 || true
     return 1
   fi
-  if ! "$shu" -L . "$test_path" -o "$exe" >"$log" 2>&1; then
+  if ! "$shux" -L . "$test_path" -o "$exe" >"$log" 2>&1; then
     if grep -qE "library 'zstd' not found|cannot find -lzstd" "$log" 2>/dev/null; then
       rm -f "$exe" "$log"
       return 2

@@ -8,8 +8,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_BOOT_CROSSPLATFORM_TSV:-tests/baseline/bootstrap-crossplatform-matrix.tsv}"
-CI_MATRIX="${SHU_CI_PLATFORM_MATRIX:-tests/baseline/ci-platform-matrix.tsv}"
+MATRIX="${SHUX_BOOT_CROSSPLATFORM_TSV:-tests/baseline/bootstrap-crossplatform-matrix.tsv}"
+CI_MATRIX="${SHUX_CI_PLATFORM_MATRIX:-tests/baseline/ci-platform-matrix.tsv}"
 MIN_LINUX_MUST=4
 MIN_MACOS_MUST=3
 MIN_MANIFEST=4

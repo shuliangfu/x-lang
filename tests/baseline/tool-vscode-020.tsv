@@ -7,23 +7,23 @@ read_path	section	## 1. 目标	analysis/tool-vscode-020-v1.md	-	15min
 grammar_matrix	section	## 2. Grammar 规则矩阵	analysis/tool-vscode-020-v1.md	-	G1-G8
 release_section	section	## 3. 发布物	analysis/tool-vscode-020-v1.md	-	vsix
 gate_section	section	## 4. Gate	analysis/tool-vscode-020-v1.md	-	runnable
-rule_import	grammar_rule	keyword.control.import	tests/vscode-grammar/import_core.su	G1	import
-rule_struct	grammar_rule	meta.block.struct	tests/vscode-grammar/match_arm.su	G2	struct
-rule_generic	grammar_rule	meta.type.generic	tests/vscode-grammar/option_generic.su	G3	generic
-rule_async	grammar_rule	\\b(async|await)\\b	tests/vscode-grammar/async_await.su	G4	async
-rule_unsafe	grammar_rule	\\b(unsafe)\\b	tests/vscode-grammar/unsafe_ptr.su	G5	unsafe
-rule_match	grammar_rule	(if|else|match)	tests/vscode-grammar/match_arm.su	G6	match
-rule_trait	grammar_rule	\\btrait\\b	editors/vscode/grammars/su.tmLanguage.json	G7	trait
-rule_primitives	grammar_rule	support.type.primitive	tests/vscode-grammar/option_generic.su	G8	primitive
-golden_import	golden	tests/vscode-grammar/import_core.su	tests/vscode-grammar/import_core.su	-	import
-golden_generic	golden	tests/vscode-grammar/option_generic.su	tests/vscode-grammar/option_generic.su	-	Option Result
-golden_async	golden	tests/vscode-grammar/async_await.su	tests/vscode-grammar/async_await.su	-	async
-golden_match	golden	tests/vscode-grammar/match_arm.su	tests/vscode-grammar/match_arm.su	-	match
-golden_unsafe	golden	tests/vscode-grammar/unsafe_ptr.su	tests/vscode-grammar/unsafe_ptr.su	-	unsafe
+rule_import	grammar_rule	keyword.control.import	tests/vscode-grammar/import_core.sx	G1	import
+rule_struct	grammar_rule	meta.block.struct	tests/vscode-grammar/match_arm.sx	G2	struct
+rule_generic	grammar_rule	meta.type.generic	tests/vscode-grammar/option_generic.sx	G3	generic
+rule_async	grammar_rule	\\b(async|await)\\b	tests/vscode-grammar/async_await.sx	G4	async
+rule_unsafe	grammar_rule	\\b(unsafe)\\b	tests/vscode-grammar/unsafe_ptr.sx	G5	unsafe
+rule_match	grammar_rule	(if|else|match)	tests/vscode-grammar/match_arm.sx	G6	match
+rule_trait	grammar_rule	\\btrait\\b	editors/vscode/grammars/sx.tmLanguage.json	G7	trait
+rule_primitives	grammar_rule	support.type.primitive	tests/vscode-grammar/option_generic.sx	G8	primitive
+golden_import	golden	tests/vscode-grammar/import_core.sx	tests/vscode-grammar/import_core.sx	-	import
+golden_generic	golden	tests/vscode-grammar/option_generic.sx	tests/vscode-grammar/option_generic.sx	-	Option Result
+golden_async	golden	tests/vscode-grammar/async_await.sx	tests/vscode-grammar/async_await.sx	-	async
+golden_match	golden	tests/vscode-grammar/match_arm.sx	tests/vscode-grammar/match_arm.sx	-	match
+golden_unsafe	golden	tests/vscode-grammar/unsafe_ptr.sx	tests/vscode-grammar/unsafe_ptr.sx	-	unsafe
 pkg	file	editors/vscode/package.json	editors/vscode/package.json	-	0.2.0
-grammar	file	editors/vscode/grammars/su.tmLanguage.json	editors/vscode/grammars/su.tmLanguage.json	-	tm
+grammar	file	editors/vscode/grammars/sx.tmLanguage.json	editors/vscode/grammars/sx.tmLanguage.json	-	tm
 version_file	file	VERSION	VERSION	-	sync
-vsix_pattern	artifact	vscode-shulang-0.2.0.vsix	editors/vscode	-	release
+vsix_pattern	artifact	vscode-shux-0.2.0.vsix	editors/vscode	-	release
 lib	script	lib/tool-vscode-020.sh	tests/lib/tool-vscode-020.sh	-	helper
 gate	script	run-tool-vscode-020-gate.sh	tests/run-tool-vscode-020-gate.sh	-	manifest
 hook_pack	hook_script	run-tool-vscode-pack.sh	run-tool-vscode-pack.sh	-	vsix

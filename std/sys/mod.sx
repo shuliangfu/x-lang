@@ -1,0 +1,172 @@
+// std.sys — OS 原语门面（BOOT-029 / 自举 §关卡三 v0～v3 + B-19 #[cfg] 分平台）
+//
+// 【文件职责】
+// 上层仅 `import("std.sys")`；平台子模块经 #[cfg(target_os)] 按需 import，
+// 统一 `os_write` / `os_write_stdout` 在 Linux freestanding 与 macOS POSIX 间分流。
+//
+// 【依赖】
+// - Linux x86_64 + `-freestanding -backend asm`：按需链 `freestanding_io_x86_64.s`（shux_sys_read/write/close/exit）。
+// - macOS 常规 `-o exe`：`os_write` → libSystem write(2)。
+
+#[cfg(target_os = "linux")]
+const linux = import("std.sys.linux");
+
+#[cfg(target_os = "macos")]
+const macos = import("std.sys.macos");
+
+#[cfg(target_os = "windows")]
+const win32 = import("std.sys.win32");
+
+const mmap_m = import("std.sys.mmap");
+
+/** 标准输出 fd（POSIX）。 */
+const STDOUT_FD: i32 = 1;
+/** 标准错误 fd（POSIX）。 */
+const STDERR_FD: i32 = 2;
+
+/** Linux write(2) freestanding 桩（compiler/src/asm/freestanding_io_x86_64.s）。 */
+#[cfg(target_os = "linux")]
+extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+
+/**
+ * v0：freestanding write 是否在 mod 层可用（Linux=1，macOS=0）。
+ */
+#[cfg(target_os = "linux")]
+function freestanding_write_available(): i32 {
+  return 1;
+}
+
+#[cfg(target_os = "macos")]
+function freestanding_write_available(): i32 {
+  return 0;
+}
+
+/**
+ * 统一 write：Linux freestanding → shux_sys_write；macOS → macos.macos_write。
+ */
+#[cfg(target_os = "linux")]
+function os_write(fd: i32, buf: *u8, len: i32): i32 {
+  if (len <= 0) {
+    return 0;
+  }
+  if (buf == 0 as *u8) {
+    return -1;
+  }
+  return shux_sys_write(fd, buf, len);
+}
+
+#[cfg(target_os = "macos")]
+function os_write(fd: i32, buf: *u8, len: i32): i32 {
+  return macos.macos_write(fd, buf, len);
+}
+
+/** Windows v0：占位 win32_write（B-17 深化前返回 -1）。 */
+#[cfg(target_os = "windows")]
+function os_write(fd: i32, buf: *u8, len: i32): i32 {
+  return win32.win32_write(fd, buf, len);
+}
+
+/** 写 stdout；等价 os_write(STDOUT_FD, buf, len)。 */
+function os_write_stdout(buf: *u8, len: i32): i32 {
+  return os_write(STDOUT_FD, buf, len);
+}
+
+/** 写 stderr；等价 os_write(STDERR_FD, buf, len)。 */
+function os_write_stderr(buf: *u8, len: i32): i32 {
+  return os_write(STDERR_FD, buf, len);
+}
+
+/**
+ * v1：Linux syscall 号表是否在 mod 层导出（仅 Linux host 编译保留）。
+ */
+#[cfg(target_os = "linux")]
+function linux_syscall_table_available(): i32 {
+  return linux.linux_syscall_table_available();
+}
+
+/** Linux x86_64 write(2) 号；与 freestanding_io_x86_64.s 一致。 */
+#[cfg(target_os = "linux")]
+function linux_syscall_nr_write_amd64(): i64 {
+  return linux.syscall_nr_write_amd64();
+}
+
+/** Linux aarch64 write(2) 号。 */
+#[cfg(target_os = "linux")]
+function linux_syscall_nr_write_arm64(): i64 {
+  return linux.syscall_nr_write_arm64();
+}
+
+/**
+ * v2：macOS POSIX write 是否在 mod 层导出（仅 macOS host 编译保留）。
+ */
+#[cfg(target_os = "macos")]
+function macos_write_available(): i32 {
+  return macos.macos_write_available();
+}
+
+/** Darwin write(2) 薄转发；见 import("std.sys.macos")。 */
+#[cfg(target_os = "macos")]
+function macos_write(fd: i32, buf: *u8, len: i32): i32 {
+  return macos.macos_write(fd, buf, len);
+}
+
+/** Darwin stdout write 薄转发。 */
+#[cfg(target_os = "macos")]
+function macos_write_stdout(buf: *u8, len: i32): i32 {
+  return macos.macos_write_stdout(buf, len);
+}
+
+/** Darwin stderr write 薄转发。 */
+#[cfg(target_os = "macos")]
+function macos_write_stderr(buf: *u8, len: i32): i32 {
+  return macos.macos_write_stderr(buf, len);
+}
+
+/** B-16 v0：macOS mmap 是否在 mod 层导出。 */
+#[cfg(target_os = "macos")]
+function macos_mmap_available(): i32 {
+  return macos.macos_mmap_available();
+}
+
+/**
+ * v3：mmap 是否在 mod 层导出（委托 std.sys.mmap）。
+ * 供 std.db.kv 等模块在硬盘开辟连续扇区。
+ */
+function mmap_available(): i32 {
+  return mmap_m.mmap_available();
+}
+
+/** 可写 mmap 薄转发。 */
+function os_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+  return mmap_m.os_mmap_rw(path, min_size, out_size);
+}
+
+/** 解除 mmap 薄转发。 */
+function os_munmap(ptr: *u8, size: usize): i32 {
+  return mmap_m.os_munmap(ptr, size);
+}
+
+/** msync 薄转发。 */
+function os_msync(ptr: *u8, size: usize): i32 {
+  return mmap_m.os_msync(ptr, size);
+}
+
+/**
+ * B-20 v0：读文件到 buf[0..cap)（单次 read；小文件烟测 / driver 过渡用）。
+ * 成功返回读入字节数；失败返回 -1。
+ */
+#[cfg(target_os = "linux")]
+function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+  return linux.linux_read_file_into(path, buf, cap);
+}
+
+#[cfg(target_os = "macos")]
+function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+  return macos.macos_read_file_into(path, buf, cap);
+}
+
+/** Windows v0：占位 win32_read_file_into（B-17 深化前返回 -1）。 */
+#[cfg(target_os = "windows")]
+function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+  return win32.win32_read_file_into(path, buf, cap);
+}

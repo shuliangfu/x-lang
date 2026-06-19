@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-sqlite-docs-sync-v1.md"
 MANIFEST="tests/baseline/std-sqlite-docs-sync-manifest.tsv"
 DOC07="docs/07-内置与标准库.md"
-README_SQLITE="std/sqlite/README.md"
+README_SQLITE="std/db/sqlite/README.md"
 README_STD="std/README.md"
 LIB="tests/lib/std-sqlite-docs-sync.sh"
 
@@ -31,7 +31,7 @@ for kw in STD-154 prepare_cached pool_acquire DB_NOT_IMPL sqlite-o-stub; do
 done
 
 if ! grep -qF "sqlite-o-stub" "$README_SQLITE" 2>/dev/null; then
-  echo "std-sqlite-docs-sync gate FAIL: std/sqlite/README missing sqlite-o-stub" >&2
+  echo "std-sqlite-docs-sync gate FAIL: std/db/sqlite/README missing sqlite-o-stub" >&2
   exit 1
 fi
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # doc-07-phase2-sync.sh — STD-141 manifest 与食谱 typeck 辅助
 
-STD141_PREFIX="${SHU_STD141_DOC07_PHASE2_SYNC_PREFIX:-shu: [SHU_STD141_DOC07_PHASE2_SYNC]}"
+STD141_PREFIX="${SHUX_STD141_DOC07_PHASE2_SYNC_PREFIX:-shux: [SHUX_STD141_DOC07_PHASE2_SYNC]}"
 
 # 校验 manifest 条目；echo 缺失数。
 doc07_phase2_symbols_ok() {

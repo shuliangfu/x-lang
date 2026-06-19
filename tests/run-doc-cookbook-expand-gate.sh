@@ -3,14 +3,14 @@
 #
 # 1) doc-cookbook-expand-v1.md 必需章节
 # 2) 35 个 examples/cookbook 食谱存在且文档引用
-# 3) 可选：native shu 时对全部食谱跑 check
+# 3) 可选：native shux 时对全部食谱跑 check
 #
 # 用法：./tests/run-doc-cookbook-expand-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_DOC_COOKBOOK_EXPAND:-analysis/doc-cookbook-expand-v1.md}"
-MANIFEST="${SHU_DOC_COOKBOOK_EXPAND_TSV:-tests/baseline/doc-cookbook-expand.tsv}"
+DOC="${SHUX_DOC_COOKBOOK_EXPAND:-analysis/doc-cookbook-expand-v1.md}"
+MANIFEST="${SHUX_DOC_COOKBOOK_EXPAND_TSV:-tests/baseline/doc-cookbook-expand.tsv}"
 MIN_SEC=8
 MIN_REC=40
 
@@ -117,23 +117,23 @@ for kw in STD-013 STD-131 cookbook 40; do
 done
 echo "doc-cookbook-expand manifest OK (sections=${SEC} recipes=${REC})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   echo "=== DOC-006: recipe typeck smoke (40) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   CHECK_FAIL=0
   while IFS=$'\t' read -r item_id kind anchor _notes; do
     [ "$kind" = "recipe" ] || continue
-    if doc_cb_check_recipe "$SHU_BIN" "$anchor"; then
+    if doc_cb_check_recipe "$SHUX_BIN" "$anchor"; then
       echo "doc-cookbook-expand typeck OK $anchor"
     else
       echo "doc-cookbook-expand typeck FAIL $anchor" >&2
@@ -145,7 +145,7 @@ if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
     exit 1
   fi
 else
-  echo "doc-cookbook-expand gate SKIP typeck (no native shu)" >&2
+  echo "doc-cookbook-expand gate SKIP typeck (no native shux)" >&2
 fi
 
 echo "doc-cookbook-expand gate OK"

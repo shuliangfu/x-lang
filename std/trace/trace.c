@@ -3,9 +3,9 @@
  *
  * 【文件职责】
  * Span 创建/结束/嵌套；trace_id/span_id 生成；text 导出；
- * 供 mod.su 与 std.context 集成及 gate 烟测调用。
+ * 供 mod.sx 与 std.context 集成及 gate 烟测调用。
  *
- * 【所属模块】标准库 std.trace；与 std/trace/mod.su 同属一模块。
+ * 【所属模块】标准库 std.trace；与 std/trace/mod.sx 同属一模块。
  * 【依赖】std/time/time.c、std/random/random.c。
  */
 

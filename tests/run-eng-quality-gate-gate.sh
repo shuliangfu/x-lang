@@ -3,15 +3,15 @@
 #
 # 1) eng-quality-gate-v1.md + matrix manifest
 # 2) gate_script 存在；tier=Q ci_hard=yes 计数 ≥ min_quality_ci
-# 3) ci-full-suite 不含 SHU_SIZE_FAIL=1（体积 advisory）
+# 3) ci-full-suite 不含 SHUX_SIZE_FAIL=1（体积 advisory）
 # 4) bootstrap-bstrict-ci 含 symbol-integrity
-# 5) run-size-shu-asm-gate.sh 默认 advisory
+# 5) run-size-shux-asm-gate.sh 默认 advisory
 #
 # 用法：./tests/run-eng-quality-gate-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHU_ENG_QUALITY_GATE_TSV:-tests/baseline/eng-quality-gate-matrix.tsv}"
+MATRIX="${SHUX_ENG_QUALITY_GATE_TSV:-tests/baseline/eng-quality-gate-matrix.tsv}"
 MIN_QCI=8
 
 echo "=== ENG-002: quality gate manifest ==="
@@ -20,7 +20,7 @@ for f in \
   "$MATRIX" \
   tests/run-ci-full-suite.sh \
   tests/run-bootstrap-bstrict-ci.sh \
-  tests/run-size-shu-asm-gate.sh; do
+  tests/run-size-shux-asm-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "eng-quality-gate gate FAIL: missing $f" >&2
     exit 1
@@ -73,17 +73,17 @@ echo "eng-quality-gate matrix OK (${N} rows, quality_ci=${QCI})"
 
 # ── CI 不得 hard-fail 体积 ──
 echo "=== ENG-002: size gate advisory policy ==="
-if grep -q 'SHU_SIZE_FAIL=1' tests/run-ci-full-suite.sh; then
-  echo "eng-quality-gate gate FAIL: run-ci-full-suite.sh still uses SHU_SIZE_FAIL=1" >&2
+if grep -q 'SHUX_SIZE_FAIL=1' tests/run-ci-full-suite.sh; then
+  echo "eng-quality-gate gate FAIL: run-ci-full-suite.sh still uses SHUX_SIZE_FAIL=1" >&2
   exit 1
 fi
 if ! grep -q 'run-parser-thin-glue-symbol-integrity-gate.sh' tests/run-bootstrap-bstrict-ci.sh; then
   echo "eng-quality-gate gate FAIL: bootstrap-bstrict-ci missing symbol-integrity gate" >&2
   exit 1
 fi
-# size gate 默认 advisory：不得 CI+Linux 自动 SHU_SIZE_FAIL
-if grep -q '\[ -n "\${CI:-}" \]' tests/run-size-shu-asm-gate.sh 2>/dev/null; then
-  echo "eng-quality-gate gate FAIL: run-size-shu-asm-gate.sh still auto-fails on CI" >&2
+# size gate 默认 advisory：不得 CI+Linux 自动 SHUX_SIZE_FAIL
+if grep -q '\[ -n "\${CI:-}" \]' tests/run-size-shux-asm-gate.sh 2>/dev/null; then
+  echo "eng-quality-gate gate FAIL: run-size-shux-asm-gate.sh still auto-fails on CI" >&2
   exit 1
 fi
 echo "eng-quality-gate policy OK (size advisory, symbol-integrity in bstrict)"

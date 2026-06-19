@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# SIMD-S4 验收：tests/bench/simd_dot.su ≥ 0.90× tests/bench/simd_dot.c（-O2 -msse2）。
+# SIMD-S4 验收：tests/bench/simd_dot.sx ≥ 0.90× tests/bench/simd_dot.c（-O2 -msse2）。
 # 用法：
 #   ./tests/run-perf-simd-dot.sh
-#   SHU=./compiler/shu_asm ./tests/run-perf-simd-dot.sh
-#   SHU_SIMD_DOT_FAIL=1 ./tests/run-perf-simd-dot.sh  # 低于 0.90× 时 exit 1
+#   SHUX=./compiler/shux_asm ./tests/run-perf-simd-dot.sh
+#   SHUX_SIMD_DOT_FAIL=1 ./tests/run-perf-simd-dot.sh  # 低于 0.90× 时 exit 1
 set -e
 cd "$(dirname "$0")/.."
 
-SHU_BIN="${SHU:-./compiler/shu_asm}"
-SU_SRC="tests/bench/simd_dot.su"
+SHUX_BIN="${SHUX:-./compiler/shux_asm}"
+SU_SRC="tests/bench/simd_dot.sx"
 C_SRC="tests/bench/simd_dot.c"
-SU_EXE="/tmp/shu_simd_dot_bench"
-C_EXE="/tmp/shu_simd_dot_c_bench"
-RUNS="${SHU_SIMD_DOT_RUNS:-3}"
-MIN_RATIO="${SHU_SIMD_DOT_MIN_RATIO:-0.90}"
+SU_EXE="/tmp/shux_simd_dot_bench"
+C_EXE="/tmp/shux_simd_dot_c_bench"
+RUNS="${SHUX_SIMD_DOT_RUNS:-3}"
+MIN_RATIO="${SHUX_SIMD_DOT_MIN_RATIO:-0.90}"
 
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
@@ -49,8 +49,8 @@ simd_dot_native_exe() {
   esac
 }
 
-if ! simd_dot_native_exe "$SHU_BIN"; then
-  echo "simd-dot SKIP: ${SHU_BIN} not native (rebuild shu_asm on Linux)"
+if ! simd_dot_native_exe "$SHUX_BIN"; then
+  echo "simd-dot SKIP: ${SHUX_BIN} not native (rebuild shux_asm on Linux)"
   exit 0
 fi
 
@@ -62,8 +62,8 @@ fi
 SU_O="${SU_EXE}.o"
 rm -f "$SU_EXE" "$SU_O" "$C_EXE"
 
-# 先 -o .o 再 cc 链 exe：shu_asm 直链 exe 可能缺 main 符号。
-if ! SHU="$SHU_BIN" "$SHU_BIN" "$SU_SRC" -o "$SU_O"; then
+# 先 -o .o 再 cc 链 exe：shux_asm 直链 exe 可能缺 main 符号。
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SU_SRC" -o "$SU_O"; then
   echo "simd-dot FAIL: compile $SU_SRC" >&2
   exit 1
 fi
@@ -72,7 +72,7 @@ if ! nm "$SU_O" 2>/dev/null | grep -q '[[:space:]]T[[:space:]]main$'; then
   exit 1
 fi
 if ! cc -O2 -o "$SU_EXE" "$SU_O" -lm 2>/dev/null; then
-  if ! SHU="$SHU_BIN" "$SHU_BIN" "$SU_SRC" -o "$SU_EXE"; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SU_SRC" -o "$SU_EXE"; then
     echo "simd-dot FAIL: link $SU_EXE from $SU_O" >&2
     exit 1
   fi
@@ -103,7 +103,7 @@ if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1
   echo "simd-dot perf OK"
 else
   echo "simd-dot perf FAIL: ratio ${RATIO} < ${MIN_RATIO}" >&2
-  if [ "${SHU_SIMD_DOT_FAIL:-0}" = "1" ]; then
+  if [ "${SHUX_SIMD_DOT_FAIL:-0}" = "1" ]; then
     exit 1
   fi
 fi

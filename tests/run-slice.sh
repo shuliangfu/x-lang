@@ -2,45 +2,45 @@
 # 切片 []T：从数组初始化、下标访问；core.slice len_i32；[]u8 字段 .data/.length
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
+make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 
-if [ -n "$SHU" ]; then
+if [ -n "$SHUX" ]; then
   :
-elif [ -x ./compiler/shu ]; then
-  SHU=./compiler/shu
-elif [ -x ./compiler/shu-c ]; then
-  SHU=./compiler/shu-c
+elif [ -x ./compiler/shux ]; then
+  SHUX=./compiler/shux
+elif [ -x ./compiler/shux-c ]; then
+  SHUX=./compiler/shux-c
 else
-  SHU=./compiler/shu-c
+  SHUX=./compiler/shux-c
 fi
 
-# 非 x86_64：seed shu -o 可能走 asm 产出 x86_64 .o，链接 EM:62 失败；可执行链用 shu-c。
-# shellcheck source=lib/bootstrap-link-shu.sh
-. "$(dirname "$0")/lib/bootstrap-link-shu.sh"
+# 非 x86_64：seed shux -o 可能走 asm 产出 x86_64 .o，链接 EM:62 失败；可执行链用 shux-c。
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 make -C compiler -q ../std/process/process.o ../core/slice/slice.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../core/slice/slice.o
 
-$RUN_SHU tests/slice/main.su -o /tmp/shu_slice 2>&1
-exitcode=0; /tmp/shu_slice >/dev/null 2>&1 || exitcode=$?
+$RUN_SHUX tests/slice/main.sx -o /tmp/shux_slice 2>&1
+exitcode=0; /tmp/shux_slice >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 20 ] && { echo "expected 20 (slice s[1]), got $exitcode"; exit 1; }
 
-$RUN_SHU tests/slice/data_field.su -o /tmp/shu_slice_data_field 2>&1
-exitcode=0; /tmp/shu_slice_data_field >/dev/null 2>&1 || exitcode=$?
+$RUN_SHUX tests/slice/data_field.sx -o /tmp/shux_slice_data_field 2>&1
+exitcode=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (data_field), got $exitcode"; exit 1; }
 
 # core.slice + core.option 全链（Linux CI 有完整链接环境）
-$RUN_SHU -L . tests/slice/length.su -o /tmp/shu_slice_length 2>&1
-exitcode=0; /tmp/shu_slice_length >/dev/null 2>&1 || exitcode=$?
+$RUN_SHUX -L . tests/slice/length.sx -o /tmp/shux_slice_length 2>&1
+exitcode=0; /tmp/shux_slice_length >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (len_i32), got $exitcode"; exit 1; }
 
 # CORE-004：subslice / split_at / chunks
-$RUN_SHU -L . tests/slice/subslice_split_chunks.su -o /tmp/shu_slice_subsplit 2>&1
-exitcode=0; /tmp/shu_slice_subsplit >/dev/null 2>&1 || exitcode=$?
+$RUN_SHUX -L . tests/slice/subslice_split_chunks.sx -o /tmp/shux_slice_subsplit 2>&1
+exitcode=0; /tmp/shux_slice_subsplit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (subslice_split_chunks), got $exitcode"; exit 1; }
 
 # 边界：对非数组/切片取下标，应报 subscript base must be array, slice or pointer
-err=$($SHU tests/slice/subscript_not_slice.su -o /tmp/shu_slice_fail 2>&1) || true
+err=$($SHUX tests/slice/subscript_not_slice.sx -o /tmp/shux_slice_fail 2>&1) || true
 echo "$err" | grep -q "subscript base must be array" || { echo "expected subscript base error, got: $err"; exit 1; }
 
 echo "slice test OK"

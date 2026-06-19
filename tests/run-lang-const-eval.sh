@@ -10,7 +10,7 @@ if tests/lib/lang-const-eval.sh "${1:-}"; then
 else
   ec=$?
   if [ "$ec" -eq 2 ]; then
-    echo "lang-const-eval hook SKIP (no native shu)"
+    echo "lang-const-eval hook SKIP (no native shux)"
     exit 0
   fi
   echo "lang-const-eval hook FAIL" >&2

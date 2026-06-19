@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-hash-hasher-trait.sh — STD-056 manifest 与烟测辅助
 
-STD_HASH_HASHER_TRAIT_PREFIX="${SHU_STD_HASH_HASHER_TRAIT_PREFIX:-shu: [SHU_STD_HASH_HASHER_TRAIT]}"
+STD_HASH_HASHER_TRAIT_PREFIX="${SHUX_STD_HASH_HASHER_TRAIT_PREFIX:-shux: [SHUX_STD_HASH_HASHER_TRAIT]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_hash_hasher_trait_symbols_ok() {
@@ -46,15 +46,15 @@ std_hash_hasher_trait_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_hash_hasher_trait_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_hash_ht_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_hash_ht_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-hash-hasher-trait FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -74,7 +74,7 @@ std_hash_hasher_trait_run_smoke() {
 std_hash_hasher_trait_run_c_smoke() {
   local hash_c="$1"
   local src="tests/std-hash/hasher_switch_ok.c"
-  local out="/tmp/shu_std_hash_hasher_$$"
+  local out="/tmp/shux_std_hash_hasher_$$"
   local hash_o
   hash_o="$(dirname "$hash_c")/hash.o"
   if [ ! -f "$hash_o" ]; then

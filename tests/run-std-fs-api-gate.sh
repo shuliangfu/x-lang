@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STD-003：std.fs 稳定 API manifest 门禁 + 跨平台 smoke。
-# 1) tests/baseline/std-fs-api.tsv 中每个符号须在 std/fs/mod.su 存在
+# 1) tests/baseline/std-fs-api.tsv 中每个符号须在 std/fs/mod.sx 存在
 # 2) tests/run-std-fs-crossplatform-gate.sh 三平台对齐烟测
 #
 # 用法：./tests/run-std-fs-api-gate.sh
@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-fs-api.tsv"
-MOD="std/fs/mod.su"
+MOD="std/fs/mod.sx"
 MISS=0
 N=0
 

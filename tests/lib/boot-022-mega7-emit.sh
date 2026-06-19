@@ -6,12 +6,12 @@
 #   boot022_parse_emit_lead LOG_FILE
 #   boot022_emit_report status promote_emit emit_lead skip
 
-BOOT022_PREFIX="${SHU_BOOT022_PREFIX:-shu: [SHU_BOOT022]}"
+BOOT022_PREFIX="${SHUX_BOOT022_PREFIX:-shux: [SHUX_BOOT022]}"
 
-# Linux 且存在 experimental shu_asm 则可跑 emit wave。
+# Linux 且存在 experimental shux_asm 则可跑 emit wave。
 boot022_mega7_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shu_asm" ] || [ -x "./compiler/shu_asm.experimental" ] || return 1
+  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
   return 0
 }
 

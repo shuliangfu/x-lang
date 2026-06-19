@@ -16,11 +16,11 @@ cross_exc_panic	cross_ref	analysis/exc-panic-abort-v1-rfc.md	EXC-002
 cross_exc_code	cross_ref	analysis/exc-error-code-layer-v1.md	EXC-003
 cross_safe_api	cross_ref	analysis/safe-unsafe-api-v1.md	SAFE-002
 cross_safe_audit	cross_ref	analysis/safe-unsafe-audit-v1.md	SAFE-003
-example_recoverable	example	tests/exc/recoverable_result.su	Layer A
-example_layer_c	example	tests/exc/layer_c_recoverable.su	Layer C
-example_code_layer	example	tests/exc/error_code_layer.su	EXC-003
-example_padding_ok	example	tests/unsafe/allow_padding_ok.su	U1
-example_raw_ptr	example	tests/unsafe/raw_ptr_null.su	U2
+example_recoverable	example	tests/exc/recoverable_result.sx	Layer A
+example_layer_c	example	tests/exc/layer_c_recoverable.sx	Layer C
+example_code_layer	example	tests/exc/error_code_layer.sx	EXC-003
+example_padding_ok	example	tests/unsafe/allow_padding_ok.sx	U1
+example_raw_ptr	example	tests/unsafe/raw_ptr_null.sx	U2
 hook_exc_panic	hook_script	run-exc-panic-abort-gate.sh	EXC-002
 hook_exc_code	hook_script	run-exc-error-code-layer-gate.sh	EXC-003
 hook_lang_unsafe	hook_script	run-lang-unsafe-gate.sh	LANG-007

@@ -6,8 +6,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_TST001_DOC:-analysis/tst-001-boundary-wave1-v1.md}"
-MANIFEST="${SHU_TST001_TSV:-tests/baseline/tst-001-boundary-wave1.tsv}"
+DOC="${SHUX_TST001_DOC:-analysis/tst-001-boundary-wave1-v1.md}"
+MANIFEST="${SHUX_TST001_TSV:-tests/baseline/tst-001-boundary-wave1.tsv}"
 LIB="tests/lib/tst-001-boundary.sh"
 MIN_CASES=8
 
@@ -82,47 +82,47 @@ FS_OK=0
 NET_OK=0
 STR_OK=0
 SKIP=1
-SHU_BIN=""
+SHUX_BIN=""
 
-for cand in ./compiler/shu-c ./compiler/shu; do
+for cand in ./compiler/shux-c ./compiler/shux; do
   if stdlib_cm_native_shu "$cand"; then
-    SHU_BIN="$cand"
+    SHUX_BIN="$cand"
     break
   fi
 done
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== TST-001: typeck + smoke (SHU=$SHU_BIN) ==="
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c 2>/dev/null || true
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== TST-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   make -C compiler -q ../std/net/net.o ../std/fs/fs.o 2>/dev/null \
     || make -C compiler ../std/net/net.o ../std/fs/fs.o 2>/dev/null || true
-  for su in tests/io/boundary.su tests/fs/boundary.su tests/net/boundary.su tests/string/boundary.su; do
-    if ! "$SHU_BIN" check -L . "$su" >/dev/null 2>&1; then
+  for su in tests/io/boundary.sx tests/fs/boundary.sx tests/net/boundary.sx tests/string/boundary.sx; do
+    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
       echo "tst-001-boundary gate FAIL: typeck $su" >&2
-      "$SHU_BIN" check -L . "$su" 2>&1 | tail -8 >&2 || true
+      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -8 >&2 || true
       tst001_emit_report "fail" "$IO_OK" "$FS_OK" "$NET_OK" "$STR_OK" 0
       exit 1
     fi
   done
-  if tst001_run_boundary "$SHU_BIN" tests/io/boundary.su /tmp/shu_tst001_io; then
+  if tst001_run_boundary "$SHUX_BIN" tests/io/boundary.sx /tmp/shux_tst001_io; then
     IO_OK=1
   else
     tst001_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHU_BIN" tests/fs/boundary.su /tmp/shu_tst001_fs; then
+  if tst001_run_boundary "$SHUX_BIN" tests/fs/boundary.sx /tmp/shux_tst001_fs; then
     FS_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" 0 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHU_BIN" tests/net/boundary.su /tmp/shu_tst001_net; then
+  if tst001_run_boundary "$SHUX_BIN" tests/net/boundary.sx /tmp/shux_tst001_net; then
     NET_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" "$FS_OK" 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHU_BIN" tests/string/boundary.su /tmp/shu_tst001_str; then
+  if tst001_run_boundary "$SHUX_BIN" tests/string/boundary.sx /tmp/shux_tst001_str; then
     STR_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" "$FS_OK" "$NET_OK" 0 0
@@ -130,7 +130,7 @@ if [ -n "$SHU_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "tst-001-boundary gate SKIP smoke (no native shu-c)" >&2
+  echo "tst-001-boundary gate SKIP smoke (no native shux-c)" >&2
 fi
 
 tst001_emit_report "ok" "$IO_OK" "$FS_OK" "$NET_OK" "$STR_OK" "$SKIP"

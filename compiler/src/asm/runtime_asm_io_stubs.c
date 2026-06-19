@@ -1,7 +1,7 @@
 /**
  * runtime_asm_io_stubs.c — seed asm 用户程序链接桩
  *
- * std.io 族 .su 模块在 pipeline/asm_codegen_elf_o 中跳过机器码生成；
+ * std.io 族 .sx 模块在 pipeline/asm_codegen_elf_o 中跳过机器码生成；
  * 本 TU 提供 print_* / write_* / read_ptr 等 C ABI 符号，与 ../std/io/io.o 一并链入用户可执行文件。
  */
 #include <stddef.h>

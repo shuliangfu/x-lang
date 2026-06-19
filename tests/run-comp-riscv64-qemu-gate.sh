@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP018_DOC:-analysis/comp-riscv64-qemu-v1.md}"
-WAVE="${SHU_COMP018_WAVE_TSV:-tests/baseline/comp-riscv64-qemu.tsv}"
-MANIFEST="${SHU_COMP018_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
-MATRIX="${SHU_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
+DOC="${SHUX_COMP018_DOC:-analysis/comp-riscv64-qemu-v1.md}"
+WAVE="${SHUX_COMP018_WAVE_TSV:-tests/baseline/comp-riscv64-qemu.tsv}"
+MANIFEST="${SHUX_COMP018_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
+MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 LIB="tests/lib/comp-riscv64-qemu.sh"
 MIN_QEMU=2
 MIN_CASES=11
@@ -96,12 +96,12 @@ echo "comp-riscv64-qemu manifest OK (qemu=${QEMU_N} total=${CASE_TOTAL})"
 
 echo "=== COMP-018: parent COMP-016 manifest ==="
 chmod +x tests/run-comp-riscv64-wave-gate.sh
-SHU_COMP016_MANIFEST_ONLY=1 ./tests/run-comp-riscv64-wave-gate.sh
+SHUX_COMP016_MANIFEST_ONLY=1 ./tests/run-comp-riscv64-wave-gate.sh
 
-SHU_BIN=""
-for cand in ./compiler/shu ./compiler/shu-c; do
+SHUX_BIN=""
+for cand in ./compiler/shux ./compiler/shux-c; do
   if comp_riscv64_native_shu "$cand"; then
-    SHU_BIN="$cand"
+    SHUX_BIN="$cand"
     break
   fi
 done
@@ -111,15 +111,15 @@ QEMU_OK=0
 QEMU_SKIP=0
 HOST_SKIP=1
 
-if [ -n "$SHU_BIN" ] && [ -n "$QEMU" ]; then
-  echo "=== COMP-018: qemu user run (SHU=$SHU_BIN QEMU=$QEMU) ==="
+if [ -n "$SHUX_BIN" ] && [ -n "$QEMU" ]; then
+  echo "=== COMP-018: qemu user run (SHUX=$SHUX_BIN QEMU=$QEMU) ==="
   HOST_SKIP=0
   while IFS=$'\t' read -r case_id sample _check expect policy _notes; do
     [ -z "${case_id:-}" ] && continue
     case "$case_id" in \#*|min_*) continue ;; esac
     [ "${policy:-}" = "qemu" ] || continue
     want="$(comp_riscv64_qemu_expect_exit "$expect")"
-    if comp_riscv64_qemu_run_case "$SHU_BIN" "$sample" "$want" "$QEMU"; then
+    if comp_riscv64_qemu_run_case "$SHUX_BIN" "$sample" "$want" "$QEMU"; then
       QEMU_OK=$((QEMU_OK + 1))
       echo "comp-riscv64-qemu runnable OK $case_id"
     else
@@ -128,7 +128,7 @@ if [ -n "$SHU_BIN" ] && [ -n "$QEMU" ]; then
     fi
   done < "$MATRIX"
 else
-  echo "comp-riscv64-qemu gate SKIP runnable (shu=${SHU_BIN:-none} qemu=${QEMU:-none})" >&2
+  echo "comp-riscv64-qemu gate SKIP runnable (shux=${SHUX_BIN:-none} qemu=${QEMU:-none})" >&2
   QEMU_SKIP=$MIN_QEMU
 fi
 

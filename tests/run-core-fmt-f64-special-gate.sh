@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_CORE_FMT_F64_SPECIAL_DOC:-analysis/core-fmt-f64-special-v1.md}"
-MANIFEST="${SHU_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
-FMT_SU="core/fmt/mod.su"
-STD_FMT_SU="std/fmt/mod.su"
+DOC="${SHUX_CORE_FMT_F64_SPECIAL_DOC:-analysis/core-fmt-f64-special-v1.md}"
+MANIFEST="${SHUX_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
+FMT_SU="core/fmt/mod.sx"
+STD_FMT_SU="std/fmt/mod.sx"
 LIB="tests/lib/core-fmt-f64-special.sh"
-SMOKE="tests/fmt/f64_special.su"
+SMOKE="tests/fmt/f64_special.sx"
 MIN_SYMBOLS=6
 
 # shellcheck source=tests/lib/core-fmt-f64-special.sh
@@ -86,27 +86,27 @@ echo "core-fmt-f64-special manifest OK (symbols=${SYM_N})"
 
 SKIP=1
 CHECK_OK=0
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$SHU_BIN" ] && native_shu "$SHU_BIN"; then
+if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if "$SHU_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
     SKIP=0
   else
-    "$SHU_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_fmt_f64_special_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "core-fmt-f64-special gate SKIP typeck (no native shu)" >&2
+  echo "core-fmt-f64-special gate SKIP typeck (no native shux)" >&2
 fi
 
 core_fmt_f64_special_emit_report "ok" "$CHECK_OK" "$SKIP"

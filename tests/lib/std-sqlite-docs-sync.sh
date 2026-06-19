@@ -6,7 +6,7 @@
 #   std_sqlite_docs_sync_forbidden_ok DOC07
 #   std_sqlite_docs_sync_emit_report status miss skip
 
-STD154_PREFIX="${SHU_STD154_SQLITE_DOCS_PREFIX:-shu: [SHU_STD154_SQLITE_DOCS]}"
+STD154_PREFIX="${SHUX_STD154_SQLITE_DOCS_PREFIX:-shux: [SHUX_STD154_SQLITE_DOCS]}"
 
 # 校验 manifest；echo 缺失数。
 std_sqlite_docs_sync_symbols_ok() {
@@ -41,7 +41,7 @@ std_sqlite_docs_sync_symbols_ok() {
         case "$target" in
           docs07) [ -f "$doc07" ] || { echo "std-sqlite-docs-sync FAIL: missing $doc07" >&2; miss=$((miss + 1)); } ;;
           readme)
-            if [ "$anchor" = "std/sqlite/README.md" ]; then
+            if [ "$anchor" = "std/db/sqlite/README.md" ]; then
               [ -f "$readme_sqlite" ] || { echo "std-sqlite-docs-sync FAIL: missing $readme_sqlite" >&2; miss=$((miss + 1)); }
             elif [ "$anchor" = "std/README.md" ]; then
               [ -f "$readme_std" ] || { echo "std-sqlite-docs-sync FAIL: missing $readme_std" >&2; miss=$((miss + 1)); }

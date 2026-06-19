@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   comp_riscv64_wave_count MATRIX
-#   comp_riscv64_wave_run_case SHU_BIN SAMPLE
+#   comp_riscv64_wave_run_case SHUX_BIN SAMPLE
 #   comp_riscv64_wave_emit_report status wave_ok wave_skip skip
 
-COMP016_PREFIX="${SHU_COMP016_PREFIX:-shu: [SHU_COMP016_RISCV_WAVE]}"
+COMP016_PREFIX="${SHUX_COMP016_PREFIX:-shux: [SHUX_COMP016_RISCV_WAVE]}"
 
 # 统计矩阵中 policy=wave 的 case 数。
 comp_riscv64_wave_count() {
@@ -23,13 +23,13 @@ comp_riscv64_wave_count() {
 
 # 对单样例跑 riscv64 asm_text 烟测。
 comp_riscv64_wave_run_case() {
-  local shu="$1"
+  local shux="$1"
   local sample="$2"
   local path
   # shellcheck source=tests/lib/comp-riscv64.sh
   . tests/lib/comp-riscv64.sh
   path="$(comp_riscv64_sample_path "$sample")" || return 1
-  comp_riscv64_check_asm_text "$shu" "$path"
+  comp_riscv64_check_asm_text "$shux" "$path"
 }
 
 # 输出结构化报告行。

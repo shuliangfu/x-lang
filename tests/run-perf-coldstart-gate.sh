@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_PERF_COLDSTART_DOC:-analysis/perf-coldstart-v1.md}"
-MANIFEST="${SHU_PERF_COLDSTART_MANIFEST:-tests/baseline/perf-coldstart.tsv}"
-CAP="${SHU_PERF_COLDSTART_CAP:-tests/baseline/coldstart-perf.tsv}"
+DOC="${SHUX_PERF_COLDSTART_DOC:-analysis/perf-coldstart-v1.md}"
+MANIFEST="${SHUX_PERF_COLDSTART_MANIFEST:-tests/baseline/perf-coldstart.tsv}"
+CAP="${SHUX_PERF_COLDSTART_CAP:-tests/baseline/coldstart-perf.tsv}"
 MIN_LAYERS=6
 MIN_METRICS=5
 
@@ -17,8 +17,8 @@ MIN_METRICS=5
 echo "=== PERF-010: coldstart manifest ==="
 for f in "$DOC" "$MANIFEST" "$CAP" \
   tests/lib/perf-coldstart.sh tests/run-perf-coldstart.sh \
-  examples/hello.su tests/freestanding/return42/main.su \
-  tests/freestanding/hello/main.su tests/baseline/compile-dogfood.tsv \
+  examples/hello.sx tests/freestanding/return42/main.sx \
+  tests/freestanding/hello/main.sx tests/baseline/compile-dogfood.tsv \
   tests/baseline/perf-baseline-registry.tsv tests/run-ci-full-suite.sh; do
   if [ ! -f "$f" ]; then
     echo "perf-coldstart gate FAIL: missing $f" >&2
@@ -120,21 +120,21 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "perf-coldstart manifest OK (layers=${LAYER_N} metrics=${METRIC_N})"
 
-# 烟测：少量 runs、不硬失败回归（portable）；无 native shu 时 SKIP。
+# 烟测：少量 runs、不硬失败回归（portable）；无 native shux 时 SKIP。
 chmod +x tests/run-perf-coldstart.sh
-SHU_GATE=""
-for cand in ./compiler/shu ./compiler/shu-c; do
+SHUX_GATE=""
+for cand in ./compiler/shux ./compiler/shux-c; do
   if perf_coldstart_native_shu "$cand"; then
-    SHU_GATE="$cand"
+    SHUX_GATE="$cand"
     break
   fi
 done
-if [ -n "$SHU_GATE" ]; then
-  SHU="$SHU_GATE" SHU_COLDSTART_RUNS="${SHU_COLDSTART_GATE_RUNS:-3}" \
-    SHU_PERF_FAIL_ON_COLDSTART_REGRESSION=0 \
+if [ -n "$SHUX_GATE" ]; then
+  SHUX="$SHUX_GATE" SHUX_COLDSTART_RUNS="${SHUX_COLDSTART_GATE_RUNS:-3}" \
+    SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=0 \
     ./tests/run-perf-coldstart.sh
 else
-  echo "perf-coldstart SKIP smoke (no native shu on $(uname -s)/$(uname -m 2>/dev/null))"
+  echo "perf-coldstart SKIP smoke (no native shux on $(uname -s)/$(uname -m 2>/dev/null))"
 fi
 
 echo "perf-coldstart gate OK"

@@ -2,15 +2,15 @@
 # COMP-013：regalloc 质量波次 runnable 门禁
 #
 # 1) comp-regalloc-quality-v1.md + quality.tsv（≥9 metric）
-# 2) 有 native shu_asm 时逐条执行 metric 脚本
+# 2) 有 native shux_asm 时逐条执行 metric 脚本
 #
 # 用法：./tests/run-comp-regalloc-quality-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP013_DOC:-analysis/comp-regalloc-quality-v1.md}"
-MANIFEST="${SHU_COMP013_WAVE_TSV:-tests/baseline/comp-regalloc-quality-wave.tsv}"
-QUALITY="${SHU_COMP013_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
+DOC="${SHUX_COMP013_DOC:-analysis/comp-regalloc-quality-v1.md}"
+MANIFEST="${SHUX_COMP013_WAVE_TSV:-tests/baseline/comp-regalloc-quality-wave.tsv}"
+QUALITY="${SHUX_COMP013_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
 LIB="tests/lib/comp-regalloc-quality.sh"
 MIN_METRICS=9
 
@@ -71,13 +71,13 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-regalloc-quality manifest OK (metrics=${METRIC_N})"
 
-SHU_ASM="${SHU:-./compiler/shu_asm}"
+SHUX_ASM="${SHUX:-./compiler/shux_asm}"
 METRICS_OK=0
 METRICS_SKIP=0
 SKIP=1
 
-if comp_regalloc_native_shu_asm "$SHU_ASM"; then
-  echo "=== COMP-013: run quality metrics (SHU=$SHU_ASM) ==="
+if comp_regalloc_native_shux_asm "$SHUX_ASM"; then
+  echo "=== COMP-013: run quality metrics (SHUX=$SHUX_ASM) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   while IFS=$'\t' read -r metric_id _arch _strategy _threshold script _notes; do
     [ -z "${metric_id:-}" ] && continue
@@ -88,7 +88,7 @@ if comp_regalloc_native_shu_asm "$SHU_ASM"; then
       echo "comp-regalloc-quality OK metric_full (deferred to asm-73)"
       continue
     fi
-    if comp_regalloc_quality_run_metric "$SHU_ASM" "$script"; then
+    if comp_regalloc_quality_run_metric "$SHUX_ASM" "$script"; then
       METRICS_OK=$((METRICS_OK + 1))
       echo "comp-regalloc-quality runnable OK $metric_id"
     else
@@ -98,7 +98,7 @@ if comp_regalloc_native_shu_asm "$SHU_ASM"; then
   done < "$QUALITY"
   SKIP=0
 else
-  echo "comp-regalloc-quality gate SKIP runnable (no native shu_asm)" >&2
+  echo "comp-regalloc-quality gate SKIP runnable (no native shux_asm)" >&2
   METRICS_SKIP=$METRIC_N
 fi
 

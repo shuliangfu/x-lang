@@ -2,17 +2,17 @@
 # ENG-004：发布前自动预检（checklist 脚本化）
 #
 # 默认：manifest 快速 gate（ENG-001/002/003 + 分支锚点 + 可选 tag/干净工作区）
-# 全量：SHU_RELEASE_FULL=1 追加 run-portable-suite.sh
+# 全量：SHUX_RELEASE_FULL=1 追加 run-portable-suite.sh
 #
 # 用法：
 #   ./tests/run-eng-release-precheck.sh
-#   SHU_RELEASE_TAG=v0.2.0 ./tests/run-eng-release-precheck.sh
-#   SHU_RELEASE_REQUIRE_CLEAN=1 ./tests/run-eng-release-precheck.sh
+#   SHUX_RELEASE_TAG=v0.2.0 ./tests/run-eng-release-precheck.sh
+#   SHUX_RELEASE_REQUIRE_CLEAN=1 ./tests/run-eng-release-precheck.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHU_ENG_RELEASE_MANIFEST:-tests/baseline/eng-branch-release-gate.tsv}"
-PREFIX="shu: [SHU_RELEASE_PRECHECK]"
+MANIFEST="${SHUX_ENG_RELEASE_MANIFEST:-tests/baseline/eng-branch-release-gate.tsv}"
+PREFIX="shux: [SHUX_RELEASE_PRECHECK]"
 
 # shellcheck source=tests/lib/eng-branch-release-gate.sh
 . tests/lib/eng-branch-release-gate.sh
@@ -30,17 +30,17 @@ if ! eng_release_ci_branch_ok ".github/workflows/ci.yml"; then
 fi
 echo "${PREFIX} ci branch anchors OK" >&2
 
-if [ -n "${SHU_RELEASE_TAG:-}" ]; then
-  if ! eng_release_tag_valid "$SHU_RELEASE_TAG"; then
-    echo "${PREFIX} FAIL invalid tag '${SHU_RELEASE_TAG}' (want vX.Y.Z)" >&2
+if [ -n "${SHUX_RELEASE_TAG:-}" ]; then
+  if ! eng_release_tag_valid "$SHUX_RELEASE_TAG"; then
+    echo "${PREFIX} FAIL invalid tag '${SHUX_RELEASE_TAG}' (want vX.Y.Z)" >&2
     exit 1
   fi
-  echo "${PREFIX} tag OK ${SHU_RELEASE_TAG}" >&2
+  echo "${PREFIX} tag OK ${SHUX_RELEASE_TAG}" >&2
 fi
 
-if [ "${SHU_RELEASE_REQUIRE_CLEAN:-0}" = "1" ]; then
+if [ "${SHUX_RELEASE_REQUIRE_CLEAN:-0}" = "1" ]; then
   if ! eng_release_worktree_clean; then
-    echo "${PREFIX} FAIL working tree not clean (SHU_RELEASE_REQUIRE_CLEAN=1)" >&2
+    echo "${PREFIX} FAIL working tree not clean (SHUX_RELEASE_REQUIRE_CLEAN=1)" >&2
     git status --short >&2 || true
     exit 1
   fi
@@ -60,8 +60,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       chmod +x "$script"
       echo "${PREFIX} running $anchor ..." >&2
-      if ! "./$script" >/tmp/shu_release_precheck_"${item_id}".log 2>&1; then
-        tail -20 /tmp/shu_release_precheck_"${item_id}".log >&2 || true
+      if ! "./$script" >/tmp/shux_release_precheck_"${item_id}".log 2>&1; then
+        tail -20 /tmp/shux_release_precheck_"${item_id}".log >&2 || true
         echo "${PREFIX} FAIL gate $anchor" >&2
         FAIL=$((FAIL + 1))
       else
@@ -69,8 +69,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       ;;
     release_hook)
-      if [ "${SHU_RELEASE_FULL:-0}" != "1" ]; then
-        echo "${PREFIX} skip $anchor (set SHU_RELEASE_FULL=1 for full portable suite)" >&2
+      if [ "${SHUX_RELEASE_FULL:-0}" != "1" ]; then
+        echo "${PREFIX} skip $anchor (set SHUX_RELEASE_FULL=1 for full portable suite)" >&2
         continue
       fi
       script="tests/$anchor"
@@ -81,8 +81,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       chmod +x "$script"
       echo "${PREFIX} running full $anchor ..." >&2
-      if ! "./$script" >/tmp/shu_release_precheck_full.log 2>&1; then
-        tail -30 /tmp/shu_release_precheck_full.log >&2 || true
+      if ! "./$script" >/tmp/shux_release_precheck_full.log 2>&1; then
+        tail -30 /tmp/shux_release_precheck_full.log >&2 || true
         echo "${PREFIX} FAIL hook $anchor" >&2
         FAIL=$((FAIL + 1))
       else

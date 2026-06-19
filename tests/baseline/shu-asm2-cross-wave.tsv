@@ -1,7 +1,0 @@
-# BOOT-027 shu_asm2 跨平台波次矩阵
-# 列：c5_id	hook	role	notes
-# min_rows	4
-c5_smoke	run-shu-asm2-cross-smoke.sh	lead	rv=42 烟测
-c5_stage2	run-stage2-bstrict-gate.sh	ref	Stage2 gen2
-c5_cross	run-bootstrap-crossplatform-gate.sh	matrix	跨平台 manifest
-c5_boot026	run-boot-026-parser-c4-bootstrap-gate.sh	ref	C4 父波次

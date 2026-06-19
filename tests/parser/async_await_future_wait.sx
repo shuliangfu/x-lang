@@ -1,0 +1,16 @@
+// STD-041：`await future_wait(...)` → CPS suspend_io 循环直至 Ready
+const async_mod = import("std.async");
+
+async function wait_fut(): i32 {
+  let fut: async_mod.Future = async_mod.future_new();
+  async_mod.future_complete(&fut, 42);
+  let st: i32 = await async_mod.future_wait(&fut, 8);
+  if (st != async_mod.poll_ready()) {
+    return 1;
+  }
+  return 0;
+}
+
+function main(): i32 {
+  return wait_fut();
+}

@@ -3,7 +3,7 @@
  *
  * 【文件职责】open(path)、sym(lib, name)、close(lib)；POSIX dlopen/dlsym/dlclose，Windows LoadLibrary/GetProcAddress/FreeLibrary。
  *
- * 【所属模块/组件】标准库 std.dynlib；与 std/dynlib/mod.su 同属一模块。按需链接。
+ * 【所属模块/组件】标准库 std.dynlib；与 std/dynlib/mod.sx 同属一模块。按需链接。
  */
 
 #include <stdint.h>
@@ -97,7 +97,7 @@ int32_t dynlib_last_error_copy_c(uint8_t *buf, int32_t cap) {
 
 /** C 烟测：打开不存在路径后 last_error 非空。 */
 int32_t dynlib_last_error_smoke_c(void) {
-  static const uint8_t bad[] = "/nonexistent/shu_dynlib_missing.so";
+  static const uint8_t bad[] = "/nonexistent/shux_dynlib_missing.so";
   uint8_t msg[128];
   void *lib = dynlib_open_c(bad);
   int32_t n;

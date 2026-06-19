@@ -37,10 +37,10 @@ tool_lint_ci_fail_on_tier() {
 
 # 对金样执行 check；期望静默成功。
 tool_lint_expect_check_silent() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
-  out=$("$shu" check "$src" 2>&1) && ec=0 || ec=$?
+  out=$("$shux" check "$src" 2>&1) && ec=0 || ec=$?
   if [ "$ec" -ne 0 ]; then
     echo "tool-lint FAIL: expected silent check on $src ec=$ec out=$out" >&2
     return 1
@@ -54,10 +54,10 @@ tool_lint_expect_check_silent() {
 
 # 对金样执行 check；期望失败且输出含 error 诊断。
 tool_lint_expect_check_error() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
-  out=$("$shu" check "$src" 2>&1) && ec=0 || ec=$?
+  out=$("$shux" check "$src" 2>&1) && ec=0 || ec=$?
   if [ "$ec" -eq 0 ]; then
     echo "tool-lint FAIL: expected check error on $src" >&2
     return 1
@@ -69,12 +69,12 @@ tool_lint_expect_check_error() {
   return 0
 }
 
-# SHU_PAD_FIELDS=1：期望含 -pad-fields warning 且 exit 0（默认 profile）。
+# SHUX_PAD_FIELDS=1：期望含 -pad-fields warning 且 exit 0（默认 profile）。
 tool_lint_expect_warn_pad() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
-  out=$(SHU_PAD_FIELDS=1 "$shu" check "$src" 2>&1) && ec=0 || ec=$?
+  out=$(SHUX_PAD_FIELDS=1 "$shux" check "$src" 2>&1) && ec=0 || ec=$?
   if ! echo "$out" | grep -qE 'warning:.*-pad-fields| - warning: .*-pad-fields'; then
     echo "tool-lint FAIL: missing -pad-fields warning on $src out=$out" >&2
     return 1
@@ -86,12 +86,12 @@ tool_lint_expect_warn_pad() {
   return 0
 }
 
-# SHU_HOT_REORDER=1：期望含 -hot-reorder warning 且 exit 0。
+# SHUX_HOT_REORDER=1：期望含 -hot-reorder warning 且 exit 0。
 tool_lint_expect_warn_reorder() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
-  out=$(SHU_HOT_REORDER=1 "$shu" check "$src" 2>&1) && ec=0 || ec=$?
+  out=$(SHUX_HOT_REORDER=1 "$shux" check "$src" 2>&1) && ec=0 || ec=$?
   if ! echo "$out" | grep -qE 'warning:.*-hot-reorder| - warning: .*-hot-reorder'; then
     echo "tool-lint FAIL: missing -hot-reorder warning on $src out=$out" >&2
     return 1
@@ -103,12 +103,12 @@ tool_lint_expect_warn_reorder() {
   return 0
 }
 
-# SHU_UNUSED_HINT=1：期望含 unused binding info 且 exit 0。
+# SHUX_UNUSED_HINT=1：期望含 unused binding info 且 exit 0。
 tool_lint_expect_info_unused() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local out
-  out=$(SHU_UNUSED_HINT=1 "$shu" check "$src" 2>&1) && ec=0 || ec=$?
+  out=$(SHUX_UNUSED_HINT=1 "$shux" check "$src" 2>&1) && ec=0 || ec=$?
   if ! echo "$out" | grep -qE 'unused binding| - info: unused'; then
     echo "tool-lint FAIL: missing unused hint on $src out=$out" >&2
     return 1

@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_STD067_DOC:-analysis/std-sqlite-next-row-v1.md}"
-MANIFEST="${SHU_STD067_TSV:-tests/baseline/std-sqlite-next-row.tsv}"
-VECTORS="${SHU_STD067_VECTORS:-tests/baseline/std-sqlite-next-row-vectors.tsv}"
-MOD_SU="std/sqlite/mod.su"
-DB_C="std/sqlite/sqlite.c"
+DOC="${SHUX_STD067_DOC:-analysis/std-sqlite-next-row-v1.md}"
+MANIFEST="${SHUX_STD067_TSV:-tests/baseline/std-sqlite-next-row.tsv}"
+VECTORS="${SHUX_STD067_VECTORS:-tests/baseline/std-sqlite-next-row-vectors.tsv}"
+MOD_SU="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.c"
 LIB="tests/lib/std-sqlite-next-row.sh"
-SMOKE_SU="tests/std-sqlite/next_row_roundtrip.su"
+SMOKE_SU="tests/std-sqlite/next_row_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/next_row_roundtrip_ok.c"
 MIN_CURSOR=3
 
@@ -74,9 +74,9 @@ echo "std-sqlite-next-row manifest OK"
 
 echo "=== STD-067: parent STD-066 manifest ==="
 chmod +x tests/run-std-sqlite-query-rows-gate.sh
-SHU_STD066_MANIFEST_ONLY=1 ./tests/run-std-sqlite-query-rows-gate.sh
+SHUX_STD066_MANIFEST_ONLY=1 ./tests/run-std-sqlite-query-rows-gate.sh
 
-if [ "${SHU_STD067_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_STD067_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_next_row_emit_report "ok" 0 0 1
   echo "std-sqlite-next-row gate OK (manifest only)"
   exit 0
@@ -100,7 +100,7 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHU_BIN=""
+  SHUX_BIN=""
   stdlib_cm_native_shu() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -112,26 +112,26 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shu-c; then
-    SHU_BIN=./compiler/shu-c
-  elif stdlib_cm_native_shu ./compiler/shu; then
-    SHU_BIN=./compiler/shu
+  if stdlib_cm_native_shu ./compiler/shux-c; then
+    SHUX_BIN=./compiler/shux-c
+  elif stdlib_cm_native_shu ./compiler/shux; then
+    SHUX_BIN=./compiler/shux
   fi
 
-  if [ -n "$SHU_BIN" ]; then
-    echo "=== STD-067: .su next_row smoke (SHU=$SHU_BIN) ==="
-    if ! "$SHU_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-      echo "std-sqlite-next-row gate SKIP .su smoke (typeck fail)" >&2
+  if [ -n "$SHUX_BIN" ]; then
+    echo "=== STD-067: .sx next_row smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+      echo "std-sqlite-next-row gate SKIP .sx smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHU_BIN" "$SMOKE_SU" "cursor"; then
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "cursor"; then
       CURSOR_SU=1
       SKIP=0
     else
-      echo "std-sqlite-next-row gate SKIP .su smoke (link/compile)" >&2
+      echo "std-sqlite-next-row gate SKIP .sx smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-next-row gate SKIP .su smoke (no native shu)" >&2
+    echo "std-sqlite-next-row gate SKIP .sx smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -139,7 +139,7 @@ else
   echo "std-sqlite-next-row gate SKIP cursor smoke (no libsqlite3)" >&2
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/sqlite/sqlite.o
+  ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
 std_sqlite_next_row_emit_report "ok" "$CURSOR_C" "$CURSOR_SU" "$SKIP"

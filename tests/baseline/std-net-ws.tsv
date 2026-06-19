@@ -1,18 +1,56 @@
 # STD-031 std.net WebSocket 客户端 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_apis	5
+# min_apis	30
 read_path	section	## 1. 阅读路径	15min
-stack	section	## 2. 栈位置	std.net
+stack	section	## 2. 栈位置	std.websocket
 api_draft	section	## 3. API（v1）	ws_
 golden	section	## 4. 金样向量	Accept
-api_accept	api	ws_compute_accept	std/net/mod.su	Accept
-api_encode	api	ws_encode_text_frame	std/net/mod.su	编码
-api_decode	api	ws_decode_frame	std/net/mod.su	解码
-api_handshake	api	ws_build_handshake_request	std/net/mod.su	握手写
-api_validate	api	ws_validate_handshake_response	std/net/mod.su	握手验
+api_accept	api	ws_compute_accept	std/websocket/mod.sx	Accept
+api_encode	api	ws_encode_text_frame	std/websocket/mod.sx	编码
+api_decode	api	ws_decode_frame	std/websocket/mod.sx	解码
+api_handshake	api	ws_build_handshake_request	std/websocket/mod.sx	握手写
+api_validate	api	ws_validate_handshake_response	std/websocket/mod.sx	握手验
+api_ping	api	ws_encode_ping_frame	std/websocket/mod.sx	PING
+api_pong	api	ws_encode_pong_frame	std/websocket/mod.sx	PONG
+api_close	api	ws_encode_close_frame	std/websocket/mod.sx	CLOSE
+api_opcode_ping	api	ws_opcode_ping	std/websocket/mod.sx	opcode
+api_connect	api	ws_connect	std/websocket/mod.sx	一站式连接
+api_handshake_fd	api	ws_client_handshake	std/websocket/mod.sx	已连接fd握手
+api_gen_key	api	ws_generate_key	std/websocket/mod.sx	Sec-WebSocket-Key
+api_write_text	api	ws_write_text	std/websocket/mod.sx	发送TEXT
+api_read_frame	api	ws_read_frame	std/websocket/mod.sx	读帧
+api_close	api	ws_close	std/websocket/mod.sx	关闭
+api_wss_avail	api	wss_is_available	std/websocket/mod.sx	WSS探测
+api_connect_url	api	ws_connect_url	std/websocket/mod.sx	URL连接
+api_connect_tls	api	ws_connect_tls	std/websocket/mod.sx	wss连接
+api_parse_url	api	ws_parse_url	std/websocket/mod.sx	URL解析
+api_extract_key	api	ws_extract_key_from_request	std/websocket/mod.sx	服务端Key
+api_validate_upg	api	ws_validate_upgrade_request	std/websocket/mod.sx	Upgrade校验
+api_srv_accept	api	ws_server_accept	std/websocket/mod.sx	服务端101
+api_srv_handshake	api	ws_server_handshake	std/websocket/mod.sx	服务端握手
+api_srv_encode	api	ws_encode_server_text_frame	std/websocket/mod.sx	服务端TEXT
+api_srv_write	api	ws_server_write_text	std/websocket/mod.sx	服务端发送
+symbol_parse_url_c	symbol	net_ws_parse_url_c	std/net/ws.inc.c	C URL解析
+symbol_connect_tls_c	symbol	net_ws_connect_tls_c	std/net/ws.inc.c	C wss
+symbol_connect_url_c	symbol	net_ws_connect_url_c	std/net/ws.inc.c	C URL连接
+symbol_hs_smoke	symbol	net_ws_client_handshake_smoke_c	std/net/ws.inc.c	握手烟测
+symbol_ping_c	symbol	net_ws_encode_ping_frame_c	std/net/ws.inc.c	C PING
+symbol_close_c	symbol	net_ws_encode_close_frame_c	std/net/ws.inc.c	C CLOSE
 symbol_accept_c	symbol	net_ws_compute_accept_c	std/net/ws.inc.c	C Accept
 symbol_encode_c	symbol	net_ws_encode_text_frame_c	std/net/ws.inc.c	C 编码
-smoke_frame	smoke	tests/net/ws_frame.su	帧烟测
+symbol_srv_accept_c	symbol	net_ws_server_accept_request_c	std/net/ws.inc.c	C 服务端101
+symbol_srv_hs_c	symbol	net_ws_server_handshake_c	std/net/ws.inc.c	C 服务端握手
+symbol_srv_smoke	symbol	net_ws_server_accept_smoke_c	std/net/ws.inc.c	服务端烟测
+api_ctx_timeout	api	ws_timeout_ms_from_ctx	std/websocket/mod.sx	Context→毫秒
+api_ctx_check	api	ws_ctx_check	std/websocket/mod.sx	前置检查
+api_connect_ctx	api	ws_connect_ctx_fd	std/websocket/mod.sx	ws连接+ctx
+api_read_ctx	api	ws_read_frame_ctx	std/websocket/mod.sx	读帧+ctx
+api_write_ctx	api	ws_write_text_ctx	std/websocket/mod.sx	写TEXT+ctx
+api_url_ctx	api	ws_connect_url_ctx	std/websocket/mod.sx	URL+ctx
+api_handshake_ctx	api	ws_client_handshake_ctx	std/websocket/mod.sx	握手+ctx
+api_srv_accept_ctx	api	ws_server_accept_ctx	std/websocket/mod.sx	服务端+ctx
+smoke_context	smoke	tests/net/ws_context.sx	Context离线烟测
+smoke_frame	smoke	tests/net/ws_frame.sx	帧烟测
 cross_std030	cross_ref	analysis/std-net-tls-v1.md	STD-030
 lib	script	lib/std-net-ws.sh	tests/lib/std-net-ws.sh
 gate	script	run-std-net-ws-gate.sh	tests/run-std-net-ws-gate.sh

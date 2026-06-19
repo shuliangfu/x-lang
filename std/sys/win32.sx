@@ -1,0 +1,104 @@
+// std.sys.win32 — Windows 最小 I/O 门面（B-17 v1/v2）
+//
+// 【文件职责】
+// 为 Windows 宿主提供 WriteFile/ReadFile/CreateFile 的 .sx FFI 声明与薄封装；
+// v1：stdout/stderr 经 GetStdHandle + WriteFile；
+// v2：读文件经 CreateFileA + ReadFile（win32.inc.c）。
+//
+// 【链接】
+// 目标平台 Windows x86_64/aarch64；非 Windows host 编译 win32.inc.c 占位返回 -1。
+
+/** kernel32 GetStdHandle；n 为 STD_*_HANDLE 常量。 */
+extern function shux_win32_get_std_handle(n: i32): *u8;
+
+/** kernel32 WriteFile；成功返回写入字节数，失败 -1。 */
+extern function shux_win32_write_file(handle: *u8, buf: *u8, len: i32, written_out: *u32): i32;
+
+/** C 侧平台探测（Windows=1，其它=0）。 */
+extern function shux_win32_write_available_c(): i32;
+
+/** CreateFileA + ReadFile 读 path 到 buf[0..cap)；成功返回字节数，失败 -1。 */
+extern function shux_win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32;
+
+/** C 侧读文件探测（Windows=1，其它=0）。 */
+extern function shux_win32_read_available_c(): i32;
+
+/** GetStdHandle(STD_OUTPUT_HANDLE)。 */
+const WIN32_STD_OUTPUT_HANDLE: i32 = -11;
+
+/** GetStdHandle(STD_ERROR_HANDLE)。 */
+const WIN32_STD_ERROR_HANDLE: i32 = -12;
+
+/** v1 探测：win32 WriteFile 是否在宿主可用。 */
+function win32_write_available(): i32 {
+  return shux_win32_write_available_c();
+}
+
+/**
+ * 将 POSIX fd（1=stdout, 2=stderr）映射为 GetStdHandle 参数；其它 fd v1 返回 -1。
+ */
+function win32_std_handle_id_for_fd(fd: i32): i32 {
+  if (fd == 1) {
+    return WIN32_STD_OUTPUT_HANDLE;
+  }
+  if (fd == 2) {
+    return WIN32_STD_ERROR_HANDLE;
+  }
+  return -1;
+}
+
+/**
+ * v1 write：fd 1/2 → GetStdHandle + WriteFile；其它 fd 暂不支持。
+ * 成功返回写入字节数；失败或 count 非法返回 -1。
+ */
+function win32_write(fd: i32, buf: *u8, len: i32): i32 {
+  if (len <= 0) {
+    return 0;
+  }
+  if (buf == 0 as *u8) {
+    return -1;
+  }
+  let std_id: i32 = win32_std_handle_id_for_fd(fd);
+  if (std_id < 0) {
+    return -1;
+  }
+  let h: *u8 = shux_win32_get_std_handle(std_id);
+  let h_i: i64 = h as i64;
+  if (h_i <= 0) {
+    return -1;
+  }
+  let written: u32 = 0;
+  let r: i32 = shux_win32_write_file(h, buf, len, &written);
+  if (r < 0) {
+    return -1;
+  }
+  return r;
+}
+
+/** stdout write 薄封装。 */
+function win32_write_stdout(buf: *u8, len: i32): i32 {
+  return win32_write(1, buf, len);
+}
+
+/** stderr write 薄封装。 */
+function win32_write_stderr(buf: *u8, len: i32): i32 {
+  return win32_write(2, buf, len);
+}
+
+/**
+ * v2 读文件：CreateFileA + ReadFile 循环；成功返回读入字节数，失败 -1。
+ */
+function win32_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+  if (path == 0 as *u8 || buf == 0 as *u8 || cap <= 0) {
+    return -1;
+  }
+  if (shux_win32_read_available_c() != 1) {
+    return -1;
+  }
+  return shux_win32_read_file_into_path(path, buf, cap);
+}
+
+/** v2 探测：ReadFile 读文件是否在 win32 层可用。 */
+function win32_read_available(): i32 {
+  return shux_win32_read_available_c();
+}

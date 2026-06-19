@@ -6,9 +6,9 @@
 #   . tests/lib/perf-baseline-governance.sh
 #
 # 环境：
-#   SHU_PERF_BASELINE_REGISTRY — 默认 tests/baseline/perf-baseline-registry.tsv
+#   SHUX_PERF_BASELINE_REGISTRY — 默认 tests/baseline/perf-baseline-registry.tsv
 
-PERF_BASELINE_REGISTRY="${SHU_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+PERF_BASELINE_REGISTRY="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 
 # 读取 registry 某 baseline_id 的列（2=path 3=version 4=gate 5=update_env）。
 perf_baseline_registry_get() {
@@ -56,9 +56,9 @@ perf_baseline_registry_validate() {
 }
 
 # 若 baseline 文件相对 base_ref 有变更，registry 中 version 须变化。
-# SHU_ENG_BASELINE_BASE_REF 默认 origin/main，回退 HEAD~1 / HEAD。
+# SHUX_ENG_BASELINE_BASE_REF 默认 origin/main，回退 HEAD~1 / HEAD。
 perf_baseline_diff_requires_version_bump() {
-  local base_ref="${SHU_ENG_BASELINE_BASE_REF:-}"
+  local base_ref="${SHUX_ENG_BASELINE_BASE_REF:-}"
   if [ -z "$base_ref" ]; then
     if git rev-parse origin/main >/dev/null 2>&1; then
       base_ref="origin/main"

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# boot-016-std-asm-symbols.sh — BOOT-016：shu_asm Top-N std .o 符号完整性辅助
+# boot-016-std-asm-symbols.sh — BOOT-016：shux_asm Top-N std .o 符号完整性辅助
 #
 # 用法（source 后）：
 #   boot016_nm_has_symbol OBJ SYM
 #   boot016_verify_std_objs RUNTIME TSV
 #   boot016_emit_report status obj_ok sym_miss runtime_miss skip
 
-BOOT016_PREFIX="${SHU_BOOT016_PREFIX:-shu: [SHU_BOOT016]}"
+BOOT016_PREFIX="${SHUX_BOOT016_PREFIX:-shux: [SHUX_BOOT016]}"
 
 # 判断 .o 中是否已定义符号 sym（兼容 macOS `_` 前缀与 GNU nm）。
 boot016_nm_has_symbol() {

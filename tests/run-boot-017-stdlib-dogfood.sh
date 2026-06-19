@@ -1,46 +1,46 @@
 #!/usr/bin/env bash
-# BOOT-017：std/core 全模块 shu check 分模块耗时 dogfood（PERF-004 扩展）
+# BOOT-017：std/core 全模块 shux check 分模块耗时 dogfood（PERF-004 扩展）
 #
 # 用法：
 #   ./tests/run-boot-017-stdlib-dogfood.sh
-#   SHU_BOOT017_UPDATE_BASELINE=1 SHU_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
-#   SHU_BOOT017_FAIL_ON_REGRESSION=1 ./tests/run-boot-017-stdlib-dogfood.sh
+#   SHUX_BOOT017_UPDATE_BASELINE=1 SHUX_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
+#   SHUX_BOOT017_FAIL_ON_REGRESSION=1 ./tests/run-boot-017-stdlib-dogfood.sh
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
-MATRIX="${SHU_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
-BASELINE="${SHU_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"
-RUNS="${SHU_BOOT017_RUNS:-1}"
+MATRIX="${SHUX_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
+BASELINE="${SHUX_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"
+RUNS="${SHUX_BOOT017_RUNS:-1}"
 FAIL_REGRESS=0
 UPDATE_BASELINE=0
-[ "${SHU_BOOT017_FAIL_ON_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1
-[ "${SHU_BOOT017_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
+[ "${SHUX_BOOT017_FAIL_ON_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1
+[ "${SHUX_BOOT017_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
 
-SHU="${SHU:-./compiler/shu}"
-if [ -x ./compiler/shu-c ]; then
-  SHU=./compiler/shu-c
+SHUX="${SHUX:-./compiler/shux}"
+if [ -x ./compiler/shux-c ]; then
+  SHUX=./compiler/shux-c
 fi
 ROOT=$(pwd)
-case "$SHU" in
-  /*) SHU_EXE="$SHU" ;;
-  *) SHU_EXE="$ROOT/$SHU" ;;
+case "$SHUX" in
+  /*) SHUX_EXE="$SHUX" ;;
+  *) SHUX_EXE="$ROOT/$SHUX" ;;
 esac
-if [ ! -x "$SHU_EXE" ]; then
-  echo "run-boot-017-stdlib-dogfood: missing executable: $SHU_EXE" >&2
+if [ ! -x "$SHUX_EXE" ]; then
+  echo "run-boot-017-stdlib-dogfood: missing executable: $SHUX_EXE" >&2
   exit 1
 fi
 
 # shellcheck source=tests/lib/boot-017-stdlib-dogfood.sh
 . tests/lib/boot-017-stdlib-dogfood.sh
 
-echo "=== BOOT-017: stdlib per-module check dogfood (SHU=$SHU RUNS=$RUNS) ==="
+echo "=== BOOT-017: stdlib per-module check dogfood (SHUX=$SHUX RUNS=$RUNS) ==="
 
-export SHU_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT MATRIX
+export SHUX_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT MATRIX
 python3 <<'PY'
 import os, statistics, subprocess, sys, tempfile, time
 
-shu = os.environ["SHU_EXE"]
+shux = os.environ["SHUX_EXE"]
 runs = int(os.environ["RUNS"])
 baseline_path = os.environ["BASELINE"]
 fail_regress = os.environ["FAIL_REGRESS"] == "1"
@@ -113,12 +113,12 @@ medians = []
 
 for mod, layer in modules:
     safe = mod.replace(".", "_")
-    probe = os.path.join(tmpdir, f"probe_{safe}.su")
+    probe = os.path.join(tmpdir, f"probe_{safe}.sx")
     with open(probe, "w", encoding="utf-8") as f:
         f.write(f"// BOOT-017 check probe for {mod}\n")
         f.write(f"import {mod};\n")
         f.write("function main(): i32 { return 0; }\n")
-    cmd = f'"{shu}" check -L . "{probe}"'
+    cmd = f'"{shux}" check -L . "{probe}"'
     med, detail = median_time(cmd, runs, root)
     if med is None:
         print(f"run-boot-017-stdlib-dogfood: FAIL {mod}: {detail}", file=sys.stderr)
@@ -129,7 +129,7 @@ for mod, layer in modules:
     eff_cap = cap
     if os.environ.get("CI", "").lower() in ("1", "true"):
         ci_mult = 1.4
-        if os.path.isfile("/.dockerenv") or os.environ.get("SHU_CI_DOCKER"):
+        if os.path.isfile("/.dockerenv") or os.environ.get("SHUX_CI_DOCKER"):
             ci_mult = 1.65
         eff_cap = cap * ci_mult
     status = "OK"
@@ -154,8 +154,8 @@ for mod, layer, med, cap, status in rows:
 if update_baseline:
     os.makedirs(os.path.dirname(baseline_path) or ".", exist_ok=True)
     with open(baseline_path, "w", encoding="utf-8") as f:
-        f.write("# BOOT-017 std/core 单模块 shu check 中位数上限（秒）；median ≤ 本列\n")
-        f.write("# 更新：SHU_BOOT017_UPDATE_BASELINE=1 SHU_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh\n")
+        f.write("# BOOT-017 std/core 单模块 shux check 中位数上限（秒）；median ≤ 本列\n")
+        f.write("# 更新：SHUX_BOOT017_UPDATE_BASELINE=1 SHUX_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh\n")
         f.write("# 列：module_id\tceiling_s\ttier\n")
         for mod, layer, med, _, _ in rows:
             tier = "heavy" if mod in HEAVY else layer
@@ -165,7 +165,7 @@ if update_baseline:
 
 # 报告行（gate grep）
 print(
-    f"shu: [SHU_BOOT017_STDLIB_DOGFOOD] status="
+    f"shux: [SHUX_BOOT017_STDLIB_DOGFOOD] status="
     f"{'fail' if check_fail or failures else 'ok'} "
     f"modules={len(rows)} slow={slow_n} p50={p50:.4f} p95={p95:.4f} skip=0"
 )

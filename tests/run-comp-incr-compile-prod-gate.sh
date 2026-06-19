@@ -3,16 +3,16 @@
 #
 # 1) comp-incr-compile-prod-v1.md + comp-incr-compile-prod-wave.tsv + comp-incr-compile.tsv prod 行
 # 2) 父 COMP-020 manifest 绿
-# 3) 有 native shu 时逐条执行 prod hook
+# 3) 有 native shux 时逐条执行 prod hook
 #
 # 用法：./tests/run-comp-incr-compile-prod-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_COMP021_DOC:-analysis/comp-incr-compile-prod-v1.md}"
-WAVE="${SHU_COMP021_WAVE_TSV:-tests/baseline/comp-incr-compile-prod-wave.tsv}"
-MANIFEST="${SHU_COMP021_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
-BENCH="${SHU_COMP021_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+DOC="${SHUX_COMP021_DOC:-analysis/comp-incr-compile-prod-v1.md}"
+WAVE="${SHUX_COMP021_WAVE_TSV:-tests/baseline/comp-incr-compile-prod-wave.tsv}"
+MANIFEST="${SHUX_COMP021_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
+BENCH="${SHUX_COMP021_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
 LIB="tests/lib/comp-incr-compile-prod.sh"
 MIN_PROD=4
 
@@ -98,9 +98,9 @@ echo "comp-incr-compile-prod manifest OK (prod_hooks=${PROD_HOOK_N})"
 
 echo "=== COMP-021: parent COMP-020 manifest ==="
 chmod +x tests/run-comp-incr-compile-wave-gate.sh
-SHU_COMP020_MANIFEST_ONLY=1 ./tests/run-comp-incr-compile-wave-gate.sh
+SHUX_COMP020_MANIFEST_ONLY=1 ./tests/run-comp-incr-compile-wave-gate.sh
 
-if [ "${SHU_COMP021_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${SHUX_COMP021_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_incr_prod_emit_report "ok" "$PROD_HOOK_N" 0 0 1
   echo "comp-incr-compile-prod gate OK (manifest only)"
   exit 0
@@ -124,13 +124,13 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
   chmod +x "$hook" 2>/dev/null || true
 
   if ! comp_incr_prod_hook_runnable "$anchor"; then
-    echo "comp-incr-compile-prod SKIP $item_id ($anchor no native shu)"
+    echo "comp-incr-compile-prod SKIP $item_id ($anchor no native shux)"
     PROD_SKIP=$((PROD_SKIP + 1))
     continue
   fi
 
   if [ "$anchor" = "run-comp-incr-compile-gate.sh" ]; then
-    if SHU_COMP_INCR_COMPILE_MANIFEST_ONLY=1 "$hook"; then
+    if SHUX_COMP_INCR_COMPILE_MANIFEST_ONLY=1 "$hook"; then
       PROD_RUN=$((PROD_RUN + 1))
       echo "comp-incr-compile-prod runnable OK $item_id"
     else
@@ -141,7 +141,7 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
   fi
 
   if [ "$anchor" = "run-comp-incr-compile-wave-gate.sh" ]; then
-    if SHU_COMP020_MANIFEST_ONLY=1 "$hook"; then
+    if SHUX_COMP020_MANIFEST_ONLY=1 "$hook"; then
       PROD_RUN=$((PROD_RUN + 1))
       echo "comp-incr-compile-prod runnable OK $item_id"
     else

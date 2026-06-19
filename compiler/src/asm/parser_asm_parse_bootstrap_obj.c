@@ -1,8 +1,8 @@
 /**
  * parser_asm_parse_bootstrap_obj.c — experimental 链 parser_parse_bootstrap.o 独立 TU。
  *
- * 瘦 parser_su.o + PARSER_ASM_THIN_GLUE_NO_SEED_PARSE 时须强符号 parse_into_buf；
- * SHU_ASM_PARSER_PARSE_BOOTSTRAP_EMIT 对全量 parser.su 真 emit 在 seed/shu_asm 上仍会 139，
+ * 瘦 parser_sx.o + PARSER_ASM_THIN_GLUE_NO_SEED_PARSE 时须强符号 parse_into_buf；
+ * SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT 对全量 parser.sx 真 emit 在 seed/shux_asm 上仍会 139，
  * 故由本 TU #include seed slice，链接时 thin_c glue 解析 extern 依赖。
  * 勿与含 seed slice 的 parser_asm_thin_c.c 同链（experimental 已定义 NO_SEED_PARSE）。
  */
@@ -13,7 +13,7 @@
 #include "token.h"
 #include "ast.h"
 
-/** 与 parser_asm_thin_c.c / token.su 布局一致。 */
+/** 与 parser_asm_thin_c.c / token.sx 布局一致。 */
 struct parser_asm_token {
   int32_t kind;
   int32_t line;
@@ -104,7 +104,7 @@ struct parser_asm_top_level_let_result {
   struct parser_asm_lexer next_lex;
 };
 
-/** 与 parser_asm_type_ref_slice.c / ast.su Type 布局一致。 */
+/** 与 parser_asm_type_ref_slice.c / ast.sx Type 布局一致。 */
 struct ast_Type {
   int32_t kind;
   uint8_t name[64];
@@ -171,7 +171,7 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
-/** 与 parser_asm_library_slice.c / ast.su Block 布局一致。 */
+/** 与 parser_asm_library_slice.c / ast.sx Block 布局一致。 */
 struct ast_Block {
   int32_t const_base;
   int32_t num_consts;

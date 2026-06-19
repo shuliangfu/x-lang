@@ -1,14 +1,14 @@
 # TOOL-007 bundled core 包目录（v1 原型）
 # 列：package_id	tier	path_glob	notes
 # min_packages	11
-core.builtin	bundled	core/builtin/mod.su	builtin
-core.cmp	bundled	core/cmp/mod.su	cmp
-core.iterator	bundled	core/iterator/mod.su	iterator
-core.str	bundled	core/str/mod.su	str
-core.debug	bundled	core/debug/mod.su	debug
-core.fmt	bundled	core/fmt/mod.su	fmt
-core.mem	bundled	core/mem/mod.su	mem
-core.option	bundled	core/option/mod.su	option
-core.result	bundled	core/result/mod.su	result
-core.slice	bundled	core/slice/mod.su	slice
-core.types	bundled	core/types/mod.su	types
+core.builtin	bundled	core/builtin/mod.sx	builtin
+core.cmp	bundled	core/cmp/mod.sx	cmp
+core.iterator	bundled	core/iterator/mod.sx	iterator
+core.str	bundled	core/str/mod.sx	str
+core.debug	bundled	core/debug/mod.sx	debug
+core.fmt	bundled	core/fmt/mod.sx	fmt
+core.mem	bundled	core/mem/mod.sx	mem
+core.option	bundled	core/option/mod.sx	option
+core.result	bundled	core/result/mod.sx	result
+core.slice	bundled	core/slice/mod.sx	slice
+core.types	bundled	core/types/mod.sx	types

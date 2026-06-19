@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-context-cookbook-v1.md"
 MANIFEST="tests/baseline/std-context-cookbook.tsv"
-MOD_SU="std/context/mod.su"
+MOD_SU="std/context/mod.sx"
 LIB="tests/lib/std-context-cookbook.sh"
-RECIPE="examples/cookbook/context_cancel_deadline.su"
+RECIPE="examples/cookbook/context_cancel_deadline.sx"
 MIN_REC=1
 
 # shellcheck source=tests/lib/std-context-cookbook.sh
@@ -56,28 +56,28 @@ echo "std-context-cookbook manifest OK"
 
 SU_OK=0
 SKIP=0
-SHU_BIN=""
-if [ -x ./compiler/shu-c ]; then SHU_BIN=./compiler/shu-c; fi
+SHUX_BIN=""
+if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
-if [ -n "$SHU_BIN" ]; then
-  echo "=== STD-156: cookbook typeck (SHU=$SHU_BIN) ==="
-  if ! "$SHU_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
+if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-156: cookbook typeck (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
     echo "std-context-cookbook gate FAIL: typeck" >&2
-    "$SHU_BIN" check -L . "$RECIPE" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$RECIPE" 2>&1 | tail -10 >&2 || true
     std_context_cookbook_emit_report "fail" 0 0
     exit 1
   fi
-  make -C compiler -q shu-c 2>/dev/null || make -C compiler shu-c
-  # shellcheck source=tests/lib/bootstrap-link-shu.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shu.sh"
-  if std_context_cookbook_run_smoke "$RUN_SHU" "$RECIPE"; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if std_context_cookbook_run_smoke "$RUN_SHUX" "$RECIPE"; then
     SU_OK=1
   else
     std_context_cookbook_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-context-cookbook gate SKIP runnable (no shu)" >&2
+  echo "std-context-cookbook gate SKIP runnable (no shux)" >&2
   SKIP=1
 fi
 

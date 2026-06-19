@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_LANG_LIFETIME_DIAG_DOC:-analysis/lang-lifetime-diag-v1.md}"
-MANIFEST="${SHU_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
-MATRIX="${SHU_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
+DOC="${SHUX_LANG_LIFETIME_DIAG_DOC:-analysis/lang-lifetime-diag-v1.md}"
+MANIFEST="${SHUX_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
+MATRIX="${SHUX_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 
@@ -18,7 +18,7 @@ echo "=== LANG-008: lifetime diagnostic manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   analysis/type-region-v1-rfc.md \
   compiler/src/lsp/lsp_diag.c compiler/src/typeck/typeck.c \
-  tests/typeck/slice_lifetime/region_assign_escape.su; do
+  tests/typeck/slice_lifetime/region_assign_escape.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-lifetime-diag gate FAIL: missing $f" >&2
     exit 1

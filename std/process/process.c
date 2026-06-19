@@ -5,18 +5,18 @@
  * 实现 std.process 模块的 C 侧逻辑：保存入口 main 的 argc/argv；提供环境变量（getenv/setenv/unsetenv）、
  * 进程 ID（getpid/getppid）、当前工作目录（getcwd/chdir）、可执行路径（self_exe_path）、
  * 子进程创建与等待（spawn/spawn_simple、exec/exec_simple、waitpid）。所有接口按 POSIX + Windows 双平台实现，
- * 供 std/process/mod.su 通过 extern 调用。
+ * 供 std/process/mod.sx 通过 extern 调用。
  *
  * 【所属模块/组件】
- * 标准库 std.process，依赖 core 无；与 std/process/mod.su 同目录，mod.su 为对外 API 层，本文件为平台实现层。
+ * 标准库 std.process，依赖 core 无；与 std/process/mod.sx 同目录，mod.sx 为对外 API 层，本文件为平台实现层。
  *
  * 【与其它文件的关系】
  * - 被依赖：compiler 在用户使用「-o exe」且程序 import std.process 时，将本文件编译产出的 process.o 链入可执行文件。
  * - 依赖：无项目内头文件；依赖系统 C 库（stdlib、string、unistd/sys/wait 或 Windows API）。
- * - 与 codegen：codegen 对入口 main 生成「写 shulang_process_argc/argv」的代码，本文件定义该全局供 args_count_c/arg_c 读取。
+ * - 与 codegen：codegen 对入口 main 生成「写 shux_process_argc/argv」的代码，本文件定义该全局供 args_count_c/arg_c 读取。
  *
  * 【重要约定与说明】
- * - 全局变量 shulang_process_argc、shulang_process_argv 仅在入口 main 执行后有效；库模块的 main 不会写入。
+ * - 全局变量 shux_process_argc、shux_process_argv 仅在入口 main 执行后有效；库模块的 main 不会写入。
  * - 所有 *name、*path、*program 等指针均要求 NUL 结尾的 C 字符串；buf 与 buf_size 由调用方保证不越界。
  * - spawn/exec 的 argv 在 C 侧为 char**，以 NULL 结尾；spawn_simple/exec_simple 内部构造 [program, NULL]。
  * - Windows 上 getppid 返回 -1；exec/exec_simple 返回 -1（不实现替换当前进程）。
@@ -41,7 +41,7 @@
 #include <string.h>
 /* Windows: process & env & cwd */
 #include <windows.h>
-#define SHU_GETENV(name) getenv((const char *)(name))
+#define SHUX_GETENV(name) getenv((const char *)(name))
 #else
 #include <stdlib.h>
 #include <string.h>
@@ -54,30 +54,30 @@
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
-#define SHU_GETENV(name) getenv((const char *)(name))
+#define SHUX_GETENV(name) getenv((const char *)(name))
 extern char **environ;
 #endif
 
 /** 由 codegen 生成的 main(int argc, char **argv) 在入口处赋值；供 args_count_c / arg_c 读取。 */
-int shulang_process_argc = 0;
-char **shulang_process_argv = NULL;
+int shux_process_argc = 0;
+char **shux_process_argv = NULL;
 
 /** 热路径：仅读全局，零分配；链接时 -flto 可跨 TU 内联以压榨调用开销。 */
 int32_t process_args_count_c(void) {
-    return (int32_t)shulang_process_argc;
+    return (int32_t)shux_process_argc;
 }
 
 /** 热路径：边界检查 + 指针解引用，零分配；-flto 可内联。 */
 uint8_t *process_arg_c(int32_t i) {
-    if (shulang_process_argv == NULL || i < 0 || (int)i >= shulang_process_argc)
+    if (shux_process_argv == NULL || i < 0 || (int)i >= shux_process_argc)
         return NULL;
-    return (uint8_t *)shulang_process_argv[i];
+    return (uint8_t *)shux_process_argv[i];
 }
 
 /** 热路径：单次 getenv，零分配；-flto 可内联。 */
 uint8_t *process_getenv_c(uint8_t *name) {
     if (name == NULL) return NULL;
-    const char *v = SHU_GETENV(name);
+    const char *v = SHUX_GETENV(name);
     return v ? (uint8_t *)v : NULL;
 }
 

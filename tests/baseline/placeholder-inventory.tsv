@@ -4,4 +4,4 @@
 doc	file	analysis/placeholder-inventory-v1.md	STD-168
 gate	script	run-placeholder-inventory-gate.sh	gate
 lib	script	tests/lib/placeholder-inventory.sh	helper
-smoke_ref	file	tests/stdlib-import/main.su	core.types 烟测
+smoke_ref	file	tests/stdlib-import/main.sx	core.types 烟测

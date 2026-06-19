@@ -3,16 +3,16 @@
 #
 # 用法（source 后）：
 #   safe_race_tsan_ok
-#   safe_race_run_su SHU_BIN src tag
+#   safe_race_run_su SHUX_BIN src tag
 #   safe_race_run_probe
 #   safe_race_emit_report status cases_ok cases_fail probe_status
 
-SAFE_RACE_PREFIX="${SHU_RACE_DETECT_PREFIX:-shu: [SHU_RACE_DETECT]}"
+SAFE_RACE_PREFIX="${SHUX_RACE_DETECT_PREFIX:-shux: [SHUX_RACE_DETECT]}"
 
 # 检测 cc 是否支持 -fsanitize=thread。
 safe_race_tsan_ok() {
-  local tmp="/tmp/shu_race_tsan_probe_$$.c"
-  local out="/tmp/shu_race_tsan_probe_$$"
+  local tmp="/tmp/shux_race_tsan_probe_$$.c"
+  local out="/tmp/shux_race_tsan_probe_$$"
   cat >"$tmp" <<'EOF'
 #include <pthread.h>
 static void *f(void *a) { (void)a; return 0; }
@@ -26,18 +26,18 @@ EOF
   return 1
 }
 
-# 编译并运行正例 .su；期望退出码 0。
+# 编译并运行正例 .sx；期望退出码 0。
 safe_race_run_su() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-race}"
-  local exe="/tmp/shu_safe_race_${tag}_$$"
+  local exe="/tmp/shux_safe_race_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "safe-race FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shu" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -53,7 +53,7 @@ safe_race_run_su() {
 
 # 运行故意竞争 probe；TSAN 应检出（非 0 退出）。
 safe_race_run_probe() {
-  local exe="/tmp/shu_race_probe_$$"
+  local exe="/tmp/shux_race_probe_$$"
   if ! cc -fsanitize=thread -pthread tests/safe/race_probe.c -o "$exe" 2>/dev/null; then
     echo "safe-race probe SKIP: compile" >&2
     return 2

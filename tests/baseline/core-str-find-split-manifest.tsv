@@ -1,8 +1,8 @@
 # STD-131 core.str find/split manifest
 min_apis	4
-api_index_byte	api	bytes_view_index_of_byte	core/str/mod.su
-api_index	api	bytes_view_index_of	core/str/mod.su
-api_contains	api	bytes_view_contains_byte	core/str/mod.su
-api_starts	api	bytes_view_starts_with	core/str/mod.su
-smoke_su	smoke	tests/str/find_split.su
+api_index_byte	api	bytes_view_index_of_byte	core/str/mod.sx
+api_index	api	bytes_view_index_of	core/str/mod.sx
+api_contains	api	bytes_view_contains_byte	core/str/mod.sx
+api_starts	api	bytes_view_starts_with	core/str/mod.sx
+smoke_su	smoke	tests/str/find_split.sx
 gate	script	run-core-str-find-split-gate.sh	tests/run-core-str-find-split-gate.sh

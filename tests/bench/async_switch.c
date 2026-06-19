@@ -3,9 +3,9 @@
  */
 #include <stdint.h>
 
-extern int64_t shu_async_coop_pingpong_jmp(int64_t rounds);
+extern int64_t shux_async_coop_pingpong_jmp(int64_t rounds);
 
 int main(void) {
-    int64_t r = shu_async_coop_pingpong_jmp(1000000);
+    int64_t r = shux_async_coop_pingpong_jmp(1000000);
     return (int)(r & 255);
 }

@@ -3,11 +3,11 @@
 #
 # 用法（source 后）：
 #   std_sync_rc_symbols_ok MOD_SU SYNC_C TSV
-#   std_sync_rc_run_smoke SHU_BIN SU TAG
+#   std_sync_rc_run_smoke SHUX_BIN SU TAG
 #   std_sync_rc_try_tsan SYNC_C
 #   std_sync_rc_emit_report status rwlock_ok condvar_ok main_ok tsan_ok skip
 
-STD_SYNC_RC_PREFIX="${SHU_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-shu: [SHU_STD_SYNC_RWLOCK_CONDVAR]}"
+STD_SYNC_RC_PREFIX="${SHUX_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-shux: [SHUX_STD_SYNC_RWLOCK_CONDVAR]}"
 
 std_sync_rc_symbols_ok() {
   local mod_su="$1"
@@ -48,17 +48,17 @@ std_sync_rc_symbols_ok() {
 }
 
 std_sync_rc_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shu_std_sync_rc_${tag}_$$"
+  local exe="/tmp/shux_std_sync_rc_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-sync-rwlock-condvar FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sync-rwlock-condvar FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -78,7 +78,7 @@ std_sync_rc_run_smoke() {
 std_sync_rc_try_tsan() {
   local sync_c="$1"
   local src="tests/sync/sync_tsan_ok.c"
-  local out="/tmp/shu_sync_tsan_ok_$$"
+  local out="/tmp/shux_sync_tsan_ok_$$"
   # shellcheck source=tests/lib/safe-race.sh
   if [ -f tests/lib/safe-race.sh ]; then
     . tests/lib/safe-race.sh

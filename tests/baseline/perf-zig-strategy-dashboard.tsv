@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 # min_cases	6
 # min_history_months	2
-output_prefix	bracket_component	SHU_ZIG_STRATEGY	stderr 前缀
+output_prefix	bracket_component	SHUX_ZIG_STRATEGY	stderr 前缀
 field_case	output_field	case=	用例 id
 field_ahead	output_field	ahead_pct=	领先 Zig %
 field_trend	output_field	trend=	sparkline

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHU_RACE_DOC:-analysis/safe-race-detect-v1.md}"
-MANIFEST="${SHU_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
+DOC="${SHUX_RACE_DOC:-analysis/safe-race-detect-v1.md}"
+MANIFEST="${SHUX_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
 MIN_CASES=2
 
 # shellcheck source=tests/lib/safe-race.sh
@@ -32,7 +32,7 @@ for f in "$DOC" "$MANIFEST" tests/lib/safe-race.sh tests/run-safe-race-detect.sh
   fi
 done
 
-for kw in runnable report SHU_RACE_DETECT T1-tsan-probe; do
+for kw in runnable report SHUX_RACE_DETECT T1-tsan-probe; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "safe-race-detect gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -127,18 +127,18 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "safe-race-detect manifest OK (cases=${CASE_N} tracks=${TRACK_N})"
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
-    if native_shu "$cand"; then SHU_BIN="$cand"; break; fi
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
+    if native_shu "$cand"; then SHUX_BIN="$cand"; break; fi
   done
 fi
 
-if [ -n "$SHU_BIN" ]; then
+if [ -n "$SHUX_BIN" ]; then
   echo "=== SAFE-006: runnable report ==="
   chmod +x tests/run-safe-race-detect.sh
-  if SHU="$SHU_BIN" tests/run-safe-race-detect.sh 2>/tmp/safe_race_smoke.log; then
-    grep -q 'SHU_RACE_DETECT' /tmp/safe_race_smoke.log || {
+  if SHUX="$SHUX_BIN" tests/run-safe-race-detect.sh 2>/tmp/safe_race_smoke.log; then
+    grep -q 'SHUX_RACE_DETECT' /tmp/safe_race_smoke.log || {
       echo "safe-race-detect gate FAIL: missing report prefix" >&2
       exit 1
     }
@@ -147,7 +147,7 @@ if [ -n "$SHU_BIN" ]; then
     exit 1
   fi
 else
-  echo "safe-race-detect gate SKIP bench (no native shu)" >&2
+  echo "safe-race-detect gate SKIP bench (no native shux)" >&2
 fi
 
 echo "safe-race-detect gate OK"

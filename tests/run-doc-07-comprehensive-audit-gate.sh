@@ -9,7 +9,7 @@ DOC="analysis/doc-07-comprehensive-audit-v1.md"
 MANIFEST="tests/baseline/doc-07-comprehensive-audit.tsv"
 DOC07="docs/07-内置与标准库.md"
 MIN_KW=18
-PREFIX="shu: [SHU_DOC07_COMPREHENSIVE]"
+PREFIX="shux: [SHUX_DOC07_COMPREHENSIVE]"
 
 echo "=== STD-168: docs/07 comprehensive audit ==="
 for f in "$DOC" "$MANIFEST" "$DOC07"; do

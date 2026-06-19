@@ -5,7 +5,7 @@
 #   std_net_ws_symbols_ok MOD_SU WS_INC TSV
 #   std_net_ws_emit_report status accept_ok frame_ok typeck_ok skip
 
-STD_NET_WS_PREFIX="${SHU_STD_NET_WS_PREFIX:-shu: [SHU_STD_NET_WS]}"
+STD_NET_WS_PREFIX="${SHUX_STD_NET_WS_PREFIX:-shux: [SHUX_STD_NET_WS]}"
 
 # 校验 manifest symbol/api/file；echo 缺失数。
 std_net_ws_symbols_ok() {

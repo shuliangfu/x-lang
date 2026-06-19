@@ -6,7 +6,7 @@
 #   stbl_crfc_examples_ok TSV
 #   stbl_crfc_emit_report status sections examples
 
-STBL_CRFC_PREFIX="${SHU_STBL_CHANGE_RFC_PREFIX:-shu: [SHU_STBL_CHANGE_RFC]}"
+STBL_CRFC_PREFIX="${SHUX_STBL_CHANGE_RFC_PREFIX:-shux: [SHUX_STBL_CHANGE_RFC]}"
 
 # 校验模板含 manifest 所列 section 锚点；echo 缺失数。
 stbl_crfc_sections_ok() {

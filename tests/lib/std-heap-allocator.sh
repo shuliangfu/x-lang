@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-heap-allocator.sh — STD-112 manifest 与烟测辅助
 
-STD_HEAP_ALLOC_PREFIX="${SHU_STD112_HEAP_ALLOC_PREFIX:-shu: [SHU_STD112_HEAP_ALLOC]}"
+STD_HEAP_ALLOC_PREFIX="${SHUX_STD112_HEAP_ALLOC_PREFIX:-shux: [SHUX_STD112_HEAP_ALLOC]}"
 
 # 校验 manifest 中 api/file/smoke。
 std_heap_alloc_symbols_ok() {
@@ -16,7 +16,7 @@ std_heap_alloc_symbols_ok() {
     case "$kind" in
       api)
         local path="$heap_su"
-        if [ "$mod_path" = "std/vec/mod.su" ]; then path="$vec_su"; fi
+        if [ "$mod_path" = "std/vec/mod.sx" ]; then path="$vec_su"; fi
         if ! grep -qE "function ${anchor}\\(" "$path" 2>/dev/null; then
           echo "std-heap-allocator FAIL: missing api '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -34,15 +34,15 @@ std_heap_alloc_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .su 烟测。
+# 编译并运行 .sx 烟测。
 std_heap_alloc_run_smoke() {
-  local shu="$1"
+  local shux="$1"
   local src="$2"
   local tag="${3:-alloc}"
-  local exe="/tmp/shu_std_heap_alloc_${tag}_$$"
-  if ! "$shu" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/shux_std_heap_alloc_${tag}_$$"
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-heap-allocator FAIL: compile $src" >&2
-    "$shu" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

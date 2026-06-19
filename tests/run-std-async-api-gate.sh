@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # STD-004：std.async 调度器稳定 API manifest + smoke + 1M 压测
 #
-# 1) tests/baseline/std-async-api.tsv 符号须在 std/async/mod.su
+# 1) tests/baseline/std-async-api.tsv 符号须在 std/async/mod.sx
 # 2) tests/run-async.sh 烟测
 # 3) tests/run-std-async-1m-gate.sh 1M task 无崩溃
 #
@@ -10,7 +10,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-async-api.tsv"
-MOD="std/async/mod.su"
+MOD="std/async/mod.sx"
 MISS=0
 N=0
 
@@ -58,28 +58,28 @@ native_shu() {
   esac
 }
 
-SHU_BIN="${SHU:-}"
-if [ -z "$SHU_BIN" ]; then
-  for cand in ./compiler/shu-c ./compiler/shu; do
+SHUX_BIN="${SHUX:-}"
+if [ -z "$SHUX_BIN" ]; then
+  for cand in ./compiler/shux-c ./compiler/shux; do
     if native_shu "$cand"; then
-      SHU_BIN="$cand"
+      SHUX_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHU_BIN" ]; then
-  echo "std-async-api gate SKIP bench (no native shu; manifest OK only)"
+if [ -z "$SHUX_BIN" ]; then
+  echo "std-async-api gate SKIP bench (no native shux; manifest OK only)"
   echo "std-async-api gate OK (manifest)"
   exit 0
 fi
 
 echo "=== STD-004: std.async smoke (run-async.sh) ==="
 chmod +x tests/run-async.sh
-SHU="$SHU_BIN" ./tests/run-async.sh
+SHUX="$SHUX_BIN" ./tests/run-async.sh
 
 echo "=== STD-004: async 1M task stress ==="
 chmod +x tests/run-std-async-1m-gate.sh
-SHU="$SHU_BIN" ./tests/run-std-async-1m-gate.sh
+SHUX="$SHUX_BIN" ./tests/run-std-async-1m-gate.sh
 
 echo "std-async-api gate OK"
