@@ -35,3 +35,10 @@ function align_of_usize(): i32 { return 8; }
 function align_of_isize(): i32 { return 8; }
 function align_of_f32(): i32 { return 4; }
 function align_of_f64(): i32 { return 8; }
+
+/**
+ * 泛型 compile-time 布局查询：typeck/codegen 折叠为常量（CORE-001）。
+ * 占位 return 0；单态化调用 `size_of<T>()` / `align_of<T>()` 由编译器替换为实际字节数。
+ */
+function size_of<T>(): i32 { return 0; }
+function align_of<T>(): i32 { return 0; }
