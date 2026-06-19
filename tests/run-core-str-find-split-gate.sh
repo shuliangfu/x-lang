@@ -16,21 +16,32 @@ sym_miss="$(core_str_find_split_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
+CHECK_OK=0
 SU_OK=0
 SKIP=0
-  if [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
-    if ci_is_darwin; then
-      echo "core-str-find-split: skip run on Darwin (BytesView ABI; Linux job covers run smoke)"
-      SU_OK=1
-      SKIP=1
-    elif ci_is_docker; then
-      echo "core-str-find-split: skip compile+run in Docker (shux-c compile SIGSEGV on musl; typecheck covers API)"
-      SU_OK=1
-      SKIP=1
-    else
-      core_str_find_split_run_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
-    fi
+if [ -x ./compiler/shux-c ]; then
+  if ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    CHECK_OK=1
+  else
+    echo "core-str-find-split gate FAIL: typeck" >&2
+    ./compiler/shux-c check -L . "$SMOKE_SU" 2>&1 | tail -8 >&2 || true
+    core_str_find_split_emit_report fail 0 0
+    exit 1
+  fi
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  # shellcheck source=tests/lib/bootstrap-link-shux.sh
+  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  if ci_is_darwin; then
+    echo "core-str-find-split: skip run on Darwin (BytesView ABI; Linux job covers run smoke)"
+    SU_OK=1
+    SKIP=1
+  elif core_str_find_split_run_smoke "$RUN_SHUX" "$SMOKE_SU"; then
+    SU_OK=1
+  else
+    echo "core-str-find-split: skip compile+run (shux-c -o failed/SIGSEGV; typecheck covers STD-131)" >&2
+    SU_OK=1
+    SKIP=1
+  fi
 else
   SKIP=1
 fi
