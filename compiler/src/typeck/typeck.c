@@ -696,6 +696,11 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
     if (formal->kind == AST_TYPE_ARRAY && arg_expr && arg_expr->kind == AST_EXPR_ARRAY_LIT
         && arg_expr->value.array_lit.num_elems == formal->array_size)
         return 1;
+    /* M-3：slice 元素类型一致但域标签不同时仍匹配 overload；域错误在 CALL 分派后单独报错。 */
+    if (formal->kind == AST_TYPE_SLICE && actual->kind == AST_TYPE_SLICE
+        && formal->elem_type && actual->elem_type
+        && type_equal(formal->elem_type, actual->elem_type))
+        return 1;
     if (formal->kind == AST_TYPE_PTR && actual->kind == AST_TYPE_ARRAY
         && formal->elem_type && actual->elem_type && type_equal(formal->elem_type, actual->elem_type))
         return 1;
