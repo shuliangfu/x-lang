@@ -36,7 +36,7 @@ core_str_find_split_run_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_core_str_find_split_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" 2>&1; then
     echo "core-str-find-split FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -46,7 +46,11 @@ core_str_find_split_run_smoke() {
   local ec=$?
   set -e
   rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  if [ "$ec" -ne 0 ]; then
+    echo "core-str-find-split FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
 # 输出 gate 报告。

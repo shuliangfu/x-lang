@@ -8625,6 +8625,12 @@ static int32_t asm_env_strict_orchestration(void) {
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
+/** parser 自举白名单条目：{ name, len }，minimal/full 数组须同一 typedef（MSYS2 -Wincompatible-pointer-types）。 */
+typedef struct {
+  const char *name;
+  int32_t len;
+} asm_boot_parse_sym_t;
+
 /** 非 0 表示入口源码过大，merge/library typeck 等应跳过（runtime.c）。 */
 extern int32_t driver_typeck_skip_large_entry(void);
 
@@ -8678,27 +8684,18 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
    */
   if (asm_module_is_parser_selfhost(m)) {
     if (getenv("SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
-      static const struct {
-        const char *name;
-        int32_t len;
-      } k_boot_parse_minimal[] = {
+      static const asm_boot_parse_sym_t k_boot_parse_minimal[] = {
           {"parse_into_init", 15},
           {"parse_into_set_main_index", 25},
       };
-      static const struct {
-        const char *name;
-        int32_t len;
-      } k_boot_parse_full[] = {
+      static const asm_boot_parse_sym_t k_boot_parse_full[] = {
           {"parse_into_buf", 14},
           {"parse_into", 10},
           {"parse_into_init", 15},
           {"parse_into_set_main_index", 25},
           {"collect_imports_buf", 19},
       };
-      const struct {
-        const char *name;
-        int32_t len;
-      } *k_boot_parse;
+      const asm_boot_parse_sym_t *k_boot_parse;
       int32_t k_boot_n;
       int32_t bi;
       if (getenv("SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
@@ -9795,27 +9792,18 @@ static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t fu
  */
 static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int32_t func_index, const char *name,
                                                       int32_t len) {
-  static const struct {
-    const char *name;
-    int32_t len;
-  } k_min[] = {
+  static const asm_boot_parse_sym_t k_min[] = {
       {"parse_into_init", 15},
       {"parse_into_set_main_index", 25},
   };
-  static const struct {
-    const char *name;
-    int32_t len;
-  } k_full[] = {
+  static const asm_boot_parse_sym_t k_full[] = {
       {"parse_into_buf", 14},
       {"parse_into", 10},
       {"parse_into_init", 15},
       {"parse_into_set_main_index", 25},
       {"collect_imports_buf", 19},
   };
-  const struct {
-    const char *name;
-    int32_t len;
-  } *k;
+  const asm_boot_parse_sym_t *k;
   int32_t kn;
   int32_t i;
   if (!m || func_index < 0 || getenv("SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)

@@ -153,6 +153,9 @@ if ci_is_linux_arm64_ci_lite; then
 elif ci_is_windows_msys_ci_lite; then
   echo "ci-full-suite: Windows MSYS2 — Tier P portable + Tier B; Tier A asm/bstrict by x86_64"
   export SHUX_LINK_SHUX=./compiler/shux-c
+elif ci_is_docker; then
+  echo "ci-full-suite: Docker — -o 链接强制 shux-c（避免 seed shux asm 在 musl 上 cc failed）"
+  export SHUX_LINK_SHUX=./compiler/shux-c
 fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true

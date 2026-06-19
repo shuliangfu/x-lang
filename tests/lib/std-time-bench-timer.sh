@@ -42,7 +42,7 @@ std_time_bench_timer_run_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_time_bench_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" 2>&1; then
     echo "std-time-bench-timer FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -52,7 +52,11 @@ std_time_bench_timer_run_smoke() {
   local ec=$?
   set -e
   rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  if [ "$ec" -ne 0 ]; then
+    echo "std-time-bench-timer FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
 # 输出 gate 报告。

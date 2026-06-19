@@ -29,7 +29,7 @@ done
 echo "run-portable-suite: Tier P (host=$(ci_host_summary))"
 
 # 非 x86_64 / MSYS2：-o 链接优先 shux-c（与 bootstrap-link-shux 一致）。
-if ci_is_arm64_host || ci_is_windows_msys; then
+if ci_is_arm64_host || ci_is_windows_msys || ci_is_docker; then
   export SHUX_LINK_SHUX=./compiler/shux-c
 fi
 

@@ -6,6 +6,10 @@ make -C compiler -q 2>/dev/null || make -C compiler shux-c
 make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# -o 可执行须走 C 前端（Docker/musl 上 seed shux asm 链会 cc failed）。
+if [ -x ./compiler/shux-c ]; then
+  RUN_SHUX=./compiler/shux-c
+fi
 
 $RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1
 exitcode=0; /tmp/shux_builtin >/dev/null 2>&1 || exitcode=$?
