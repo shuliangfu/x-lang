@@ -7190,9 +7190,9 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stddef.h>\n");
     fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.sx 中 let/const 数组 = 变量） */
-    /* std.process：入口 main 会保存 argc/argv 到此，供 args_count/arg 读取 */
-    fprintf(out, "extern int shux_process_argc;\n");
-    fprintf(out, "extern char **shux_process_argv;\n");
+    /* std.process：入口 main 写 argc/argv；weak 供 minimal 链，process.o 强符号覆盖。 */
+    fprintf(out, "__attribute__((weak)) int shux_process_argc = 0;\n");
+    fprintf(out, "__attribute__((weak)) char **shux_process_argv = NULL;\n");
     /* 单文件模式（emitted_type_names 非 NULL）时依赖类型已在前面写出，此处不再重复输出，避免 C 重定义 */
     if (!emitted_type_names && codegen_ndep > 0 && codegen_dep_mods && codegen_dep_paths) {
         /* 依赖模块中的 enum 须在 struct 之前输出，避免 struct 字段 "enum prefix_Name" 引用不完整类型 */
