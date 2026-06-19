@@ -212,3 +212,59 @@ int32_t write_row(const uint8_t *blob, const int32_t *starts, const int32_t *len
                   uint8_t *out, int32_t out_cap) {
   return csv_write_row_c(blob, starts, lens, count, out, out_cap);
 }
+
+/* --- STD-128：流式 writer / smoke --- */
+
+/**
+ * 向 out[out_len..) 追加一行 CSV 与换行；更新 *out_len。
+ * 0 成功；-1 失败。
+ */
+int32_t csv_stream_writer_append_row_c(uint8_t *out, int32_t out_cap, int32_t *out_len,
+                                       const uint8_t *blob, const int32_t *starts,
+                                       const int32_t *lens, int32_t count) {
+  int32_t n;
+  int32_t left;
+  if (!out || !out_len || !blob || !starts || !lens) return -1;
+  if (*out_len < 0 || *out_len > out_cap) return -1;
+  left = out_cap - *out_len;
+  if (left <= 1) return -1;
+  n = csv_write_row_c(blob, starts, lens, count, out + *out_len, left - 1);
+  if (n < 0) return -1;
+  *out_len += n;
+  out[*out_len] = '\n';
+  (*out_len)++;
+  return 0;
+}
+
+/** 多行 reader/writer 往返烟测；0 通过。 */
+int32_t csv_stream_smoke_c(void) {
+  static uint8_t blob[16] = {'a', 'l', 'i', 'c', 'e', 'b', 'o', 'b', '1', '2', '3',
+                             0, 0, 0, 0, 0};
+  static int32_t starts1[] = {0, 5, 8};
+  static int32_t lens1[] = {5, 3, 3};
+  static int32_t starts2[] = {10, 11, 12};
+  static int32_t lens2[] = {1, 0, 1};
+  uint8_t out[128];
+  int32_t out_len = 0;
+  int32_t field_starts[4];
+  int32_t field_lens[4];
+  int32_t cnt = 0;
+  int32_t off = 0;
+  int32_t rc;
+  if (csv_stream_writer_append_row_c(out, (int32_t)sizeof(out), &out_len, blob, starts1, lens1, 3) != 0)
+    return 1;
+  if (csv_stream_writer_append_row_c(out, (int32_t)sizeof(out), &out_len, blob, starts2, lens2, 3) != 0)
+    return 2;
+  if (out_len <= 0) return 3;
+  rc = csv_parse_row_c(out, out_len, 0, field_starts, field_lens, 4, &cnt);
+  if (rc < 0 || cnt != 3 || field_lens[0] != 5 || field_lens[1] != 3 || field_lens[2] != 3) return 4;
+  off = rc;
+  cnt = 0;
+  rc = csv_parse_row_c(out, out_len, off, field_starts, field_lens, 4, &cnt);
+  if (rc < 0 || cnt != 3 || field_lens[1] != 0) return 5;
+  off = rc;
+  cnt = 0;
+  rc = csv_parse_row_c(out, out_len, off, field_starts, field_lens, 4, &cnt);
+  if (rc < out_len || cnt != 0) return 6;
+  return 0;
+}

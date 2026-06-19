@@ -35,3 +35,78 @@ function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   i = i + 1;
   return i;
 }
+
+/* --- STD-128：流式 reader/writer（单缓冲区内 offset 迭代） --- */
+
+/** 流式读：在 ptr[0..len) 上顺序 parse_row。 */
+allow(padding) struct StreamCsvReader {
+  ptr: *u8;
+  len: i32;
+  offset: i32;
+}
+
+/** 流式写：多行 write_row 追加到同一 out 缓冲。 */
+allow(padding) struct StreamCsvWriter {
+  out: *u8;
+  out_cap: i32;
+  out_len: i32;
+}
+
+/** 绑定读缓冲；offset 置 0。 */
+function stream_reader_init(r: *StreamCsvReader, ptr: *u8, len: i32): void {
+  if (r == 0) { return; }
+  r.ptr = ptr;
+  r.len = len;
+  r.offset = 0;
+}
+
+/**
+ * 读下一行；0=成功，1=EOF，<0=错误。
+ * field_starts/lens 为行内字段在 ptr 上的绝对偏移（与 parse_row 一致）。
+ */
+function stream_reader_next_row(r: *StreamCsvReader, field_starts: *i32, field_lens: *i32, max_fields: i32, out_count: *i32): i32 {
+  let next: i32 = 0;
+  if (r == 0 || out_count == 0) { return -1; }
+  if (r.offset >= r.len) { return 1; }
+  next = parse_row(r.ptr, r.len, r.offset, field_starts, field_lens, max_fields, out_count);
+  if (next < 0) { return -1; }
+  if (*out_count <= 0 && next >= r.len) { return 1; }
+  r.offset = next;
+  return 0;
+}
+
+/** 是否已读完（offset >= len）。 */
+function stream_reader_eof(r: StreamCsvReader): i32 {
+  if (r.offset >= r.len) { return 1; }
+  return 0;
+}
+
+/** 绑定写缓冲；out_len 置 0。 */
+function stream_writer_init(w: *StreamCsvWriter, out: *u8, out_cap: i32): void {
+  if (w == 0) { return; }
+  w.out = out;
+  w.out_cap = out_cap;
+  w.out_len = 0;
+}
+
+extern function csv_stream_smoke_c(): i32;
+extern function csv_stream_writer_append_row_c(out: *u8, out_cap: i32, out_len: *i32, blob: *u8, starts: *i32, lens: *i32, count: i32): i32;
+
+/**
+ * 追加一行 CSV（字段来自 blob + starts/lens）；行末自动加 '\\n'。
+ * 0 成功；-1 缓冲不足或 write_row 失败。
+ */
+function stream_writer_append_row(w: *StreamCsvWriter, blob: *u8, starts: *i32, lens: *i32, count: i32): i32 {
+  if (w == 0) { return -1; }
+  return csv_stream_writer_append_row_c(w.out, w.out_cap, &w.out_len, blob, starts, lens, count);
+}
+
+/** 当前已写入字节数（含行尾换行）。 */
+function stream_writer_len(w: StreamCsvWriter): i32 {
+  return w.out_len;
+}
+
+/** STD-128：C 层多行流式烟测；0 通过。 */
+function csv_stream_smoke(): i32 {
+  return csv_stream_smoke_c();
+}
