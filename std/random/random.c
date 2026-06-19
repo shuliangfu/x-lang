@@ -124,3 +124,33 @@ uint64_t random_u64_c(void) {
     memcpy(&u, buf, 8);
     return u;
 }
+
+/* ——— STD-130：SplitMix64 PRNG（可复现，非 CSPRNG） ——— */
+
+typedef struct {
+    uint64_t state;
+} RngC;
+
+/** SplitMix64 单步；与 std/random/mod.sx rng_next_u64 算法一致。 */
+static uint64_t rng_next_u64_c(RngC *r) {
+    uint64_t z = r->state + 0x9e3779b97f4a7c15ULL;
+    r->state = z;
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+    return z ^ (z >> 31);
+}
+
+/** PRNG 烟测：同 seed 同序列、不同 seed 不同首值；0 成功。 */
+int32_t random_rng_smoke_c(void) {
+    RngC a = { 0 };
+    RngC b = { 0 };
+    uint64_t x = rng_next_u64_c(&a);
+    uint64_t y = rng_next_u64_c(&a);
+    if (rng_next_u64_c(&b) != x) return 1;
+    if (rng_next_u64_c(&b) != y) return 2;
+    {
+        RngC c = { 1 };
+        if (rng_next_u64_c(&c) == x) return 3;
+    }
+    return 0;
+}
