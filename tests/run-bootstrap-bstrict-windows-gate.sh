@@ -43,14 +43,28 @@ fi
 
 echo "bootstrap-bstrict-windows-gate: smoke return-value via shux_asm ..."
 RV_OUT="/tmp/shux_win_rv_$$"
-compiler/shux_asm tests/return-value/main.sx -o "$RV_OUT" || {
+# MSYS：shux_asm 默认 asm 链不完整；与 run_shux_asm_smoke 一致走 -backend c。
+RV_BACKEND_ARGS="-backend c"
+rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe"
+# shellcheck disable=SC2086
+compiler/shux_asm $RV_BACKEND_ARGS tests/return-value/main.sx -o "$RV_OUT" || {
   echo "bootstrap-bstrict-windows-gate FAIL: compile return-value" >&2
   exit 1
 }
 chmod +x "$RV_OUT" 2>/dev/null || true
+RV_BIN="$RV_OUT"
+if [ ! -x "$RV_BIN" ] && [ -f "${RV_OUT}.c" ]; then
+  cc -std=gnu11 -o "$RV_BIN" "${RV_OUT}.c" 2>/dev/null || cc -std=gnu11 -o "$RV_BIN" "$RV_OUT" || {
+    echo "bootstrap-bstrict-windows-gate FAIL: cc link return-value" >&2
+    exit 1
+  }
+fi
+if [ ! -x "$RV_BIN" ] && [ -f "$RV_OUT" ]; then
+  cc -std=gnu11 -o "${RV_BIN}.exe" "$RV_OUT" 2>/dev/null && RV_BIN="${RV_BIN}.exe" || true
+fi
 EX=0
-"$RV_OUT" >/dev/null 2>&1 || EX=$?
-rm -f "$RV_OUT"
+"$RV_BIN" >/dev/null 2>&1 || EX=$?
+rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "$RV_BIN"
 if [ "$EX" -ne 42 ]; then
   echo "bootstrap-bstrict-windows-gate FAIL: expected exit 42, got $EX" >&2
   exit 1
