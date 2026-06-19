@@ -32,12 +32,8 @@ if [ ! -f "$WIN32_O" ]; then
 fi
 
 rm -f "$OUT" 2>/dev/null || true
-EXTRA=()
-if [ -f "$WIN32_O" ]; then
-  EXTRA=("$WIN32_O")
-fi
-
-if ! "$SHUX" -o "$OUT" "${EXTRA[@]}" "$SU" 2>/tmp/shux_win32_write.log; then
+# win32.o 由 invoke_cc 按 shux_win32_* 符号按需链入，勿作为 shux 输入文件（会被当 .sx 解析）。
+if ! "$SHUX" -L . -o "$OUT" "$SU" 2>/tmp/shux_win32_write.log; then
   echo "win32-write-gate FAIL: compile $SU" >&2
   tail -n 10 /tmp/shux_win32_write.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
