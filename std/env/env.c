@@ -350,3 +350,75 @@ int32_t args_iter_count_c(void) {
 uint8_t *args_iter_at_c(int32_t i) {
     return process_arg_c(i);
 }
+
+/**
+ * 解析 environ 风格条目 `entry`（NUL 结尾）为 key/value 写入 out 缓冲。
+ * 无 `=` 时 value 为空串；仅首 `=` 分割。成功返回 0，cap 不足返回 -1。
+ */
+static int32_t env_parse_kv_entry(const char *entry, uint8_t *key_out, int32_t key_cap,
+                                  uint8_t *val_out, int32_t val_cap) {
+    const char *eq;
+    int32_t key_len;
+    int32_t val_len;
+    if (entry == NULL || key_out == NULL || val_out == NULL || key_cap <= 0 || val_cap <= 0)
+        return -1;
+    eq = strchr(entry, '=');
+    if (eq != NULL) {
+        key_len = (int32_t)(eq - entry);
+        val_len = (int32_t)strlen(eq + 1);
+    } else {
+        key_len = (int32_t)strlen(entry);
+        val_len = 0;
+    }
+    if (key_len + 1 > key_cap || val_len + 1 > val_cap)
+        return -1;
+    memcpy(key_out, entry, (size_t)key_len);
+    key_out[key_len] = '\0';
+    if (val_len > 0)
+        memcpy(val_out, eq + 1, (size_t)val_len);
+    val_out[val_len] = '\0';
+    return 0;
+}
+
+/**
+ * STD-132 C 金样：KV 解析 + setenv/getenv 空 value / value 含 '=' 往返。
+ * 成功返回 0，失败返回非 0 错误码。
+ */
+ENV_COLD
+int32_t env_platform_encoding_smoke_c(void) {
+    uint8_t key[64];
+    uint8_t val[64];
+    uint8_t out[32];
+    int32_t gl;
+    static const char test_empty[] = "SHUX_ENV_PE_EMPTY";
+    static const char test_eq[] = "SHUX_ENV_PE_EQ";
+
+    if (env_parse_kv_entry("KEY=", key, 64, val, 64) != 0) return 1;
+    if (strcmp((const char *)key, "KEY") != 0) return 2;
+    if (val[0] != '\0') return 3;
+
+    if (env_parse_kv_entry("K=V=W", key, 64, val, 64) != 0) return 4;
+    if (strcmp((const char *)key, "K") != 0) return 5;
+    if (strcmp((const char *)val, "V=W") != 0) return 6;
+
+    if (env_parse_kv_entry("NOEQ", key, 64, val, 64) != 0) return 7;
+    if (strcmp((const char *)key, "NOEQ") != 0) return 8;
+    if (val[0] != '\0') return 9;
+
+    if (env_parse_kv_entry("AB=CD", key, 2, val, 64) != -1) return 10;
+
+    env_unsetenv_c((const uint8_t *)test_empty);
+    if (env_setenv_c((const uint8_t *)test_empty, (const uint8_t *)"", 1) != 0) return 11;
+    gl = env_getenv_c((const uint8_t *)test_empty, (int32_t)strlen(test_empty), out, 32);
+    if (gl != 0) return 12;
+
+    env_unsetenv_c((const uint8_t *)test_eq);
+    if (env_setenv_c((const uint8_t *)test_eq, (const uint8_t *)"a=b", 1) != 0) return 13;
+    gl = env_getenv_c((const uint8_t *)test_eq, (int32_t)strlen(test_eq), out, 32);
+    if (gl != 3) return 14;
+    if (out[0] != (uint8_t)'a' || out[1] != (uint8_t)'=' || out[2] != (uint8_t)'b') return 15;
+
+    env_unsetenv_c((const uint8_t *)test_empty);
+    env_unsetenv_c((const uint8_t *)test_eq);
+    return 0;
+}
