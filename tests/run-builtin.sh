@@ -4,6 +4,8 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler shux-c
 make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
+# main 入口写 shux_process_argc/argv，minimal 链须 std/process/process.o。
+make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 # -o 可执行须走 C 前端（Docker/musl 上 seed shux asm 链会 cc failed）。
