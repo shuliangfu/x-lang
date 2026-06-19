@@ -8,17 +8,17 @@ struct Pair {
 
 function main(): i32 {
   // 标量
-  if (size_of<i32>() != 4) { return 1; }
-  if (align_of<i32>() != 4) { return 2; }
-  if (size_of<u8>() != 1) { return 3; }
+  if (types.size_of<i32>() != 4) { return 1; }
+  if (types.align_of<i32>() != 4) { return 2; }
+  if (types.size_of<u8>() != 1) { return 3; }
   // 指针
-  if (size_of<*u8>() != 8) { return 4; }
-  if (align_of<*u8>() != 8) { return 5; }
+  if (types.size_of<*u8>() != 8) { return 4; }
+  if (types.align_of<*u8>() != 8) { return 5; }
   // 结构体
-  if (size_of<Pair>() != 8) { return 6; }
-  if (align_of<Pair>() != 4) { return 7; }
+  if (types.size_of<Pair>() != 8) { return 6; }
+  if (types.align_of<Pair>() != 4) { return 7; }
   // 定长数组
-  if (size_of<[4]u8>() != 4) { return 8; }
-  if (align_of<[4]u8>() != 1) { return 9; }
+  if (types.size_of<[4]u8>() != 4) { return 8; }
+  if (types.align_of<[4]u8>() != 1) { return 9; }
   return 0;
 }
