@@ -35,7 +35,7 @@ function main(): i32 {
   let at: i32 = option.expect_i32(and_then_i32(option.some_i32(1), option.some_i32(9)));
   if (m1 != 6 || m2 != 8 || at != 9) { return -13; }
   // 泛型 unwrap_or<i32>
-  let g: i32 = unwrap_or_val<i32>(none_opt.is_some, none_opt.value, 11);
+  let g: i32 = unwrap_or<i32>(none_opt.is_some, none_opt.value, 11);
   if (g != 11) { return -14; }
   // Option_ptr_u8
   let buf: [4]u8 = [1, 2, 3, 4];

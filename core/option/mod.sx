@@ -108,8 +108,8 @@ function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
   return none_i32();
 }
 
-/** 泛型 unwrap_or：有值返回值，否则 default（字段解构版，避免与 unwrap_or_i32 重名）。 */
-function unwrap_or_val<T>(is_some: bool, value: T, default_val: T): T {
+/** 泛型 unwrap_or：有值返回值，否则 default（CORE-002）。 */
+function unwrap_or<T>(is_some: bool, value: T, default_val: T): T {
   if (is_some) {
     return value;
   }
