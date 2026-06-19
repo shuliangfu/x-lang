@@ -233,12 +233,63 @@ function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 {
   return off + n;
 }
 
-// ——— 浮点 f64（固定小数位，截断取整；NaN/Inf 未特判） ———
-// 将 x 的十进制表示写入 buf[0..cap)，格式为 "[−]整数部分.小数部分"（默认 6 位小数）；容量不足返回 -1。
-// 依赖：f64 as i64（截断）、i64 as f64（用于小数位计算）。
-function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
+// ——— 浮点 f64（NaN/Inf 特判 + 可配置精度，截断取整） ———
+/** 默认小数位数；`fmt_f64_to_buf` 委托本常量。 */
+const FMT_F64_DEFAULT_PREC: i32 = 6;
+
+/** IEEE 754 NaN 检测：`x != x`。 */
+function fmt_f64_is_nan(x: f64): bool {
+  return x != x;
+}
+
+/** 正/负 Inf 检测：非 NaN、非零且 `x + x == x`。 */
+function fmt_f64_is_inf(x: f64): bool {
+  if (fmt_f64_is_nan(x)) {
+    return false;
+  }
+  if (x == 0.0) {
+    return false;
+  }
+  return x + x == x;
+}
+
+/** 将 NaN/Inf 特殊值写入 buf；成功返回字节数，非特殊值返回 -1。 */
+function fmt_f64_write_special(buf: *u8, cap: i32, x: f64): i32 {
+  if (fmt_f64_is_nan(x)) {
+    if (cap < 3) { return -1; }
+    buf[0] = 78;
+    buf[1] = 97;
+    buf[2] = 110;
+    return 3;
+  }
+  if (fmt_f64_is_inf(x)) {
+    if (x < 0.0) {
+      if (cap < 4) { return -1; }
+      buf[0] = 45;
+      buf[1] = 73;
+      buf[2] = 110;
+      buf[3] = 102;
+      return 4;
+    }
+    if (cap < 3) { return -1; }
+    buf[0] = 73;
+    buf[1] = 110;
+    buf[2] = 102;
+    return 3;
+  }
+  return -1;
+}
+
+/**
+ * 将 x 的十进制写入 buf[0..cap)；`prec` 为 0–9 小数位（截断，不四舍五入）。
+ * NaN/Inf 走固定字符串；非法 prec 或容量不足返回 -1；prec=0 仅写整数部分。
+ */
+function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
   let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
+  if (prec < 0 || prec > 9) { return -1; }
+  let special: i32 = fmt_f64_write_special(buf, cap, x);
+  if (special >= 0) { return special; }
   let abs_x: f64 = x;
   if (x < 0.0) { abs_x = 0.0 - x; }
   let whole: i64 = (abs_x as i64);
@@ -255,19 +306,24 @@ function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
   let i: i32 = 0;
   while (i < n_whole) { buf[off + i] = tmp[i]; i = i + 1; }
   off = off + n_whole;
-  let frac_digits: i32 = 6;
-  if (off + 1 + frac_digits > cap) { return -1; }
+  if (prec == 0) { return off; }
+  if (off + 1 + prec > cap) { return -1; }
   buf[off] = 46;
   off = off + 1;
   let k: i32 = 0;
-  while (k < frac_digits) {
+  while (k < prec) {
     frac = frac * 10.0;
     let d: i64 = (frac as i64);
     buf[off + k] = digits[(d as i32)];
     frac = frac - (d as f64);
     k = k + 1;
   }
-  return off + frac_digits;
+  return off + prec;
+}
+
+/** 默认精度（FMT_F64_DEFAULT_PREC 位小数）写入 buf；不足返回 -1。 */
+function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
+  return fmt_f64_to_buf_prec(buf, cap, x, FMT_F64_DEFAULT_PREC);
 }
 
 /** 将任意整数标量 x 的十进制写入 buf（overload 分派到对应 *_to_buf）。 */
