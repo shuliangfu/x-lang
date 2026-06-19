@@ -15,8 +15,10 @@
 // 占位函数，表示本模块已可 import。
 /** 空路径长度 0；与 path_join 等配合使用。 */
 function path_empty_len(): i32 { return 0; }
-/** 当前平台路径分隔符（POSIX '/'=47；对标 Zig sep、Go filepath.Separator）。 */
-function path_sep(): u8 { return 47; }
+/** C 桥：POSIX '/'(47)，Windows '\\'(92)；见 std/path/path.c。 */
+extern function path_sep_c(): u8;
+/** 当前平台路径分隔符（POSIX '/'=47；Windows '\\'=92；对标 Zig sep、Go filepath.Separator）。 */
+function path_sep(): u8 { return path_sep_c(); }
 // 路径拼接：将 a[0..a_len-1] 与 b[0..b_len-1] 写入 out，中间按需加 '/'，不超过
 // out_max。返回写入长度，溢出返回 -1。
 function path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
