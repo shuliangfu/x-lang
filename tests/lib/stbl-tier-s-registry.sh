@@ -46,19 +46,35 @@ stbl_tier_s_validate_feature_manifest() {
     esac
     case "$kind" in
       symbol|api)
+        local sym="$anchor"
         local target="$default_mod"
-        if [ -n "${mod_path:-}" ] && [ "$mod_path" != "-" ]; then
-          target="$mod_path"
+        # manifest 列：doc_anchor | code_anchor | src — anchor 为 '-' 时符号名在 mod_path、文件在 src_col。
+        if [ "$sym" = "-" ] || [ -z "$sym" ]; then
+          sym="$mod_path"
+          if [ -n "${src_col:-}" ] && [ "$src_col" != "-" ]; then
+            target="$src_col"
+          fi
+        elif [ -n "${mod_path:-}" ] && [ "$mod_path" != "-" ]; then
+          if [ -f "$mod_path" ]; then
+            target="$mod_path"
+          elif [ -n "${src_col:-}" ] && [ "$src_col" != "-" ] && [ -f "$src_col" ]; then
+            target="$src_col"
+          fi
         elif [ -n "${src_col:-}" ] && [ "$src_col" != "-" ]; then
           target="$src_col"
+        fi
+        if [ -z "$sym" ] || [ "$sym" = "-" ]; then
+          echo "stbl-tier-s FAIL: empty symbol ($item_id)" >&2
+          miss=$((miss + 1))
+          continue
         fi
         if [ ! -f "$target" ]; then
           echo "stbl-tier-s FAIL: missing target $target ($item_id)" >&2
           miss=$((miss + 1))
           continue
         fi
-        if ! grep -qE "(function ${anchor}[[:space:](]|${anchor})" "$target" 2>/dev/null; then
-          echo "stbl-tier-s FAIL: missing anchor '${anchor}' in $target ($item_id)" >&2
+        if ! grep -qE "(function ${sym}[[:space:](]|${sym})" "$target" 2>/dev/null; then
+          echo "stbl-tier-s FAIL: missing anchor '${sym}' in $target ($item_id)" >&2
           miss=$((miss + 1))
         fi
         ;;

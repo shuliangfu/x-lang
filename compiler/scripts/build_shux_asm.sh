@@ -2729,7 +2729,7 @@ ensure_asm_gen_driver_su_objs() {
       -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len \
       -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr \
       -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_sx.o"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS \
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/sx_stubs.h \
       -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
       -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_su.o"
     "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_su.o"

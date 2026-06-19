@@ -31,8 +31,8 @@ int32_t std_io_core_shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle
 void std_io_core_shux_io_unregister_buffers(void);
 
 /* ---- fs ---- */
-extern ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count);
-extern ptrdiff_t fs_posix_write_c(int32_t fd, const uint8_t *buf, size_t count);
+extern int64_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count);
+extern int64_t fs_posix_write_c(int32_t fd, const uint8_t *buf, size_t count);
 extern int32_t fs_posix_close_c(int32_t fd);
 
 #ifdef __cplusplus

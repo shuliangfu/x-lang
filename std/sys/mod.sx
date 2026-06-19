@@ -67,11 +67,33 @@ function os_write(fd: i32, buf: *u8, len: i32): i32 {
 }
 
 /** 写 stdout；等价 os_write(STDOUT_FD, buf, len)。 */
+#[cfg(target_os = "linux")]
+function os_write_stdout(buf: *u8, len: i32): i32 {
+  return os_write(STDOUT_FD, buf, len);
+}
+
+#[cfg(target_os = "macos")]
+function os_write_stdout(buf: *u8, len: i32): i32 {
+  return os_write(STDOUT_FD, buf, len);
+}
+
+#[cfg(target_os = "windows")]
 function os_write_stdout(buf: *u8, len: i32): i32 {
   return os_write(STDOUT_FD, buf, len);
 }
 
 /** 写 stderr；等价 os_write(STDERR_FD, buf, len)。 */
+#[cfg(target_os = "linux")]
+function os_write_stderr(buf: *u8, len: i32): i32 {
+  return os_write(STDERR_FD, buf, len);
+}
+
+#[cfg(target_os = "macos")]
+function os_write_stderr(buf: *u8, len: i32): i32 {
+  return os_write(STDERR_FD, buf, len);
+}
+
+#[cfg(target_os = "windows")]
 function os_write_stderr(buf: *u8, len: i32): i32 {
   return os_write(STDERR_FD, buf, len);
 }
