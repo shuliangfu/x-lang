@@ -4644,7 +4644,7 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             }
             if (needs_win32) {
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_win32_o_path(include_root))) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
                     if (i < argv_cap - 1)
                         argv[i++] = (char *)"-lkernel32";
 #endif
