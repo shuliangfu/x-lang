@@ -648,10 +648,11 @@ static void lex_float_leading_dot(Lexer *l, Token *out) {
 static const char *cfg_host_os_lit(void) {
 #if defined(__APPLE__)
     return "macos";
+#elif defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MSYS__)
+    /** MSYS2 MSYS 子系统 gcc 常仅定义 __CYGWIN__，须与 std.sys #[cfg(windows)] 对齐。 */
+    return "windows";
 #elif defined(__linux__)
     return "linux";
-#elif defined(_WIN32)
-    return "windows";
 #else
     return "unknown";
 #endif
