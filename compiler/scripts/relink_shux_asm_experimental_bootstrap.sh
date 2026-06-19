@@ -361,10 +361,10 @@ ST_LSP_SU=""
 if [ -f "$BUILD_DIR/gen_driver/lsp_sx.o" ]; then
   ST_LSP_SU="$BUILD_DIR/gen_driver/lsp_sx.o $BUILD_DIR/gen_driver/lsp_io_sx.o $BUILD_DIR/gen_driver/lsp_io_std_heap_su.o $BUILD_DIR/gen_driver/lsp_diag_sx.o"
 fi
-if [ ! -f "$BUILD_DIR/asm_shu_lsp_diag_stub.o" ] || [ "scripts/asm_shu_lsp_diag_stub.c" -nt "$BUILD_DIR/asm_shu_lsp_diag_stub.o" ]; then
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_shu_lsp_diag_stub.o" scripts/asm_shu_lsp_diag_stub.c
+if [ ! -f "$BUILD_DIR/asm_shux_lsp_diag_stub.o" ] || [ "scripts/asm_shux_lsp_diag_stub.c" -nt "$BUILD_DIR/asm_shux_lsp_diag_stub.o" ]; then
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_shux_lsp_diag_stub.o" scripts/asm_shux_lsp_diag_stub.c
 fi
-ST_LSP_DIAG_STUB="$BUILD_DIR/asm_shu_lsp_diag_stub.o"
+ST_LSP_DIAG_STUB="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
 "$CC" $CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.experimental \
   src/asm/runtime_asm_build.o \
   src/runtime_driver_asm_strict.o \

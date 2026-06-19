@@ -10,9 +10,10 @@
 
 const ast = import("ast");
 const codegen = import("codegen");
-const preprocess = import("preprocess");
 const fs = import("std.fs");
 const sys = import("std.sys");
+/** 与 emit.sx / pipeline.sx 一致：指针版预处理，避免 import preprocess 模块在 -E-extern 时 method base 无类型。 */
+extern function preprocess_sx_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32;
 /** 子命令：build/run 在 main_cmd_build / main_cmd_run 内实现；fmt/check/test 仍由 src/driver/*.sx 提供（extern driver_cmd_*）。 */
 extern function driver_cmd_fmt(argc: i32, argv: *u8): i32;
 extern function driver_cmd_check(argc: i32, argv: *u8): i32;
@@ -497,7 +498,7 @@ function driver_run_sx_emit_sx(state: *DriverSuEmitState): i32 {
     return 1;
   }
   let preprocess_buf: [4194304]u8 = [];
-  let out_len: i32 = preprocess.preprocess_sx_buf(loaded_buf, n, preprocess_buf, 4194304);
+  let out_len: i32 = preprocess_sx_buf(&loaded_buf[0], n, &preprocess_buf[0], 4194304);
   if (out_len < 0) {
     return 1;
   }

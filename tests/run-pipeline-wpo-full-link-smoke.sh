@@ -30,7 +30,7 @@ fi
 echo "pipeline-wpo-full-link: relink strict_glue (whole pipeline_wpo.o) ..."
 rm -f compiler/build_asm/pipeline_strict_link_partial.o \
   compiler/build_asm/pipeline_wpo_helpers_partial.o \
-  compiler/build_asm/asm_shu_lsp_diag_stub.o \
+  compiler/build_asm/asm_shux_lsp_diag_stub.o \
   compiler/build_asm/typeck_lsp_io_stub.o
 (
   cd compiler

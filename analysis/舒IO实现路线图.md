@@ -1,0 +1,189 @@
+# 舒 IO 实现路线图：完整 IO 与超越 io_uring / macOS / Windows 高性能 IO
+
+> 目标：**完整可用的 IO 功能** + **自研舒 IO**，在 Linux / macOS / Windows 上**超越**现有系统 API（io_uring、kqueue、IOCP）。  
+> 关联：《[高并发IO与多平台](高并发IO与多平台.md)》《[自举前-极致IO与网络性能准备](自举前-极致IO与网络性能准备.md)》。
+
+---
+
+## 一、目标与阶段总览
+
+| 阶段 | 目标 | 产出 | 状态 |
+|------|------|------|------|
+| **阶段 0** | 完整 IO 功能可用（stdin/stdout/stderr/任意 fd、超时、批量、统一 handle） | std.io.core/driver/mod + read/write 后端 | ✅ 已完成 |
+| **阶段 1** | 三平台**高性能后端**：用各系统当前最优 API（io_uring / kqueue / IOCP）实现同一套 Buffer+submit 接口，达到「完整 IO + 高性能」 | C 侧后端选径；.sx 接口不变 | ✅ 已完成 |
+| **阶段 2** | **自研舒 IO**：在 Linux / macOS / Windows 上分别实现**超越** io_uring / kqueue / IOCP 的驱动与调度 | 内核/用户态自研实现，仍走同一套 .sx 接口 | 起步中（Linux 批量已走 io_uring） |
+
+---
+
+## 二、阶段 0 — 完整 IO 功能（✅ 已完成）
+
+已具备：
+
+- ✅ **std.io.core**：`shu_io_register`、`shu_io_submit_read`、`shu_io_submit_write`、`shu_io_submit_read_batch`、`shu_io_submit_write_batch`；handle 0=stdin、1=stdout、≥2=fd；底层经 `io_read`/`io_write`/`io_read_batch`/`io_write_batch` 走 io.c。
+- ✅ **std.io.driver**：Buffer(ptr,len,handle) 24 字节、IO_Result/Completion/AsyncContext、`submit_read`/`submit_write`；`submit_read_batch`/`submit_write_batch` 经 core 调 C 端 readv/writev（timeout_ms=0）。
+- ✅ **std.io**：`handle_stdin`/`handle_stdout`/`handle_stderr`；`read`/`write`(handle,ptr,len,timeout_ms)；`read_stdin`/`write_stdout`/`write_stderr`；`read_with_timeout`/`write_with_timeout`/`write_stderr_with_timeout`；`print_str`(ptr,len)；Reader/Writer、ReadOnlySlice/WriteOnlySlice；批量经 driver 的 `submit_*_batch`。
+- ✅ **read_into_slice / write_from_slice**：已实现；语言已支持 `[]u8` 的 `.data`（*u8）与 `.length`（usize），二者对接 read/write(handle, ptr, len, timeout_ms)。
+- **std.net**：connect/listen/accept(timeout_ms)、accept_many/connect_many 占位；数据读写约定走 std.io.driver。
+
+功能上已覆盖：标准输入输出及 stderr、任意 fd、超时参数、批量 submit、统一 handle 模型；阶段 0 与阶段 1 已完善；slice 版 API 已实现；阶段 2 自研超越未开始。
+
+---
+
+## 三、阶段 1 — 三平台高性能后端（用现有最优 API）（✅ 已完成）
+
+目标：**不改变 .sx 接口**，在 C 侧实现「单点 IO 后端」，按平台选用当前系统最优 API，使完整 IO 同时具备高性能。
+
+### 3.1 后端统一入口（C 侧）
+
+- 所有实际读写经**唯一入口**，便于后续替换为自研舒 IO：
+  - `io_read(fd, buf, count)` → 返回读入字节数 / 0=EOF / -1=错误
+  - `io_write(fd, buf, count)` → 返回写入字节数 / -1=错误
+- **std.io.core** 改为调用上述两个符号（不再直接 extern `read`/`write`），保证所有 IO 都走舒 IO 抽象。
+- 链接用户程序时需链入提供 `io_read`/`io_write` 的 C 实现（例如 `compiler/src/io.c` 或运行时库），否则会出现未定义符号。
+
+### 3.2 各平台后端实现要点
+
+| 平台 | 推荐 API | 实现要点 |
+|------|----------|----------|
+| **Linux** | **io_uring** | 初始化 ring（SQ/CQ）；submit 封装为 read/write op；**timeout**：io_uring_wait_cqe_timeout；fallback：read/write。 |
+| **macOS** | **kqueue** | fd≥3 走 kqueue，EVFILT_READ/EVFILT_WRITE；**timeout**：kevent 的 struct timespec；0/1/2 与失败时 fallback read/write。 |
+| **Windows** | **IOCP** | CreateIoCompletionPort + ReadFile/WriteFile 重叠 I/O；**timeout**：GetQueuedCompletionStatus(dwMilliseconds)、GetOverlappedResultEx；fallback：_read/_write。 |
+
+### 3.3 条件编译与选径
+
+- 在实现 `io_read`/`io_write` 的 C 文件（io.c）中用预处理器选径，例如：
+  - `#if defined(__linux__)` → io_uring 路径（可选 `#if defined(__NR_io_uring_setup)` 等）
+  - `#elif defined(__APPLE__)` → kqueue 路径
+  - `#elif defined(_WIN32)` → IOCP 路径
+  - `#else` → read/write 回退
+- 与《高并发IO与多平台》§六一致：用户 API 统一（std.io / std.net），平台差异仅在**后端 C 实现**内。
+
+### 3.4 阶段 1 实现清单
+
+1. 新增 **compiler/src/io.c**：✅ 已实现
+   - 实现 `io_read`、`io_write`，当前为直接调用 `read`/`write`（Windows 为 _read/_write）。
+   - 预留 `#if __linux__` / `__APPLE__` / `_WIN32` 分支，注释标明 io_uring / kqueue / IOCP 接入点。
+2. **std/io/core.sx**：✅ 已实现 — 已改为 `extern io_read`/`extern io_write`，所有读写经统一后端。
+3. **链接**：✅ 已实现 — runtime.c 中 `get_io_o_path(argv[0])`，C 后端 `invoke_cc` 与 asm 后端 `invoke_ld` 均链入 `io.o`；Makefile 构建 `src/io.o` 且 `all` 依赖之。
+4. 在 **Linux** 上实现 io_uring 分支：初始化、提交读/写、收割、超时与回退。✅ 已实现（liburing + fallback read/write）
+5. 在 **macOS** 上实现 kqueue 分支：注册 fd、就绪时 read/write、超时。✅ 已实现（fd≥3 走 kqueue，0/1/2 走 read/write）
+6. 在 **Windows** 上实现 IOCP 分支：重叠 I/O、完成端口、超时。✅ 已实现（CreateIoCompletionPort + ReadFile/WriteFile 重叠 + fallback）
+
+完成阶段 1 后：**完整 IO 功能** + **三平台高性能**（达到或接近各系统现有最优 API 水平），为阶段 2 的「超越」打好基础。
+
+---
+
+### 3.5 slice 版 API 与阶段 2 的先后顺序
+
+- **不必先完善 slice 再进阶段 2**。阶段 2 是**后端/调度**层面的自研超越（批处理、零拷贝、热路径等），与「read_into_slice / write_from_slice 是否实现」无直接依赖；两者可**并行**推进。
+- **建议**：
+  - 语言已支持从 `[]u8` 取 ptr/len：**slice.data**（*u8）与 **slice.length**（usize）；slice 版 API（read_into_slice / write_from_slice）已实现，可在此基础上进入阶段 2。
+  - 若语言尚未支持，可**先做阶段 2**（在 io.c 或自研驱动里做超越），待语言支持后再补 slice 版 API；当前用户仍可用 ptr+len 的 read/write 与 driver 的 Buffer 完成所有 IO。
+
+---
+
+## 四、阶段 2 — 自研舒 IO 超越三平台（用户态已推进）
+
+目标：在 Linux / macOS / Windows 上，用**自研驱动与调度**超越 io_uring / kqueue / IOCP（仍不暴露这些 API 的形状，接口保持 Buffer + submit + completion）。
+
+### 4.0 阶段 2 起步（用户态可完成）
+
+- ✅ **Linux 批量走 io_uring**：`io_read_batch` / `io_write_batch` 在 `timeout_ms==0` 且 io_uring 可用时，一次提交 n 个 SQE、批量收割 n 个 CQE，替代原先 POSIX readv/writev；**ring 大小 512**（阶段 2 扩大）以支持高并发。非 Linux 或带超时仍走 readv/writev 或逐段 io_read/io_write。
+- ✅ **Windows 批量走 IOCP**：`timeout_ms==0` 时一次投递 n 个 ReadFile/WriteFile（各用 OVERLAPPED），用 `GetQueuedCompletionStatusEx` 批量收割完成项，再按 `GetOverlappedResult` 取每段字节数并求和；失败或 handle 非 OVERLAPPED 时回退逐段 io_read/io_write。
+- ✅ **macOS**：batch 已用 readv/writev 一次调用；单次 io_read/io_write(fd≥3) 复用每线程 kqueue，避免每次 kqueue()+close()。
+
+### 4.0.1 极致压榨吞吐（阶段 2 深化）
+
+- ✅ **Linux**：单次/批量无超时路径均 **1 syscall**；**ring 512**（IO_URING_RING_ENTRIES）；DEFER_TASKRUN | SINGLE_ISSUER 当可用时启用。**极致压榨**：**每线程一个 io_uring**（uring_thread_t + pthread_key_t），无全局 mutex、多线程零竞争；线程退出时 destructor 做 io_uring_queue_exit + free，无泄漏。
+- ✅ **Windows**：batch 原用静态 OVERLAPPED + g_batch_cs；**与 Linux 同思路**：**每线程 OVERLAPPED 池**（win_ov_thread_t + TlsAlloc/TlsGetValue），去掉 g_batch_cs，多线程 batch 零竞争。保留 SetFileCompletionNotificationModes 与双槽缓存。
+- ✅ **macOS**：与 Linux 同思路已是**每线程一个 kqueue**（pthread_key_t），无全局锁；EV_ONESHOT + EV_CLEAR 再压榨。无「ring」概念，无进一步同构优化空间。
+- ✅ **Linux 批量再压榨**：n≥2 时用 **io_uring_prep_readv/prep_writev** 单 SQE + 单 CQE（scatter-gather 一次 op），ring 占用与完成路径更轻；未命中时仍走 n×prep_read/write。
+- ✅ **Windows 再压榨**：**双槽缓存**（g_win_skip_handle[2] + win_handle_skip_set），最多缓存 2 个 handle 的 SetFileCompletionNotificationModes，多 fd 交替 batch 时也少调用。
+
+### 4.0.2 固定 buffer 注册（Fixed Buffer Registration）— 已实现
+
+- **含义**（Linux io_uring）：用 `io_uring_register(IORING_REGISTER_BUFFERS, iovec_array, nr)` 把一批缓冲区提前在内核里注册并锁定；之后用 `io_uring_prep_read_fixed` / `prep_write_fixed` 时传 **buffer 下标** 而非指针，内核直接用已映射的缓冲区，减少每次 I/O 的 pin/unpin 与校验开销，利于零拷贝与高吞吐。
+- **已实现**：
+  - **C 侧（io.c）**：每线程固定池**最多 8 块**。`io_register_buffer(ptr, len)` 注册单 buffer；`io_register_buffers(p0,l0,…,p7,l7, nr)` 注册 1..8 块；`io_register_buffers_4(p0,l0,…,p3,l3, nr)` 供 .sx 调用（1..4 块，避免 .sx 参数个数限制）；`io_unregister_buffers()` 注销；`io_read_fixed`/`io_write_fixed(fd, buf_index, offset, len, timeout_ms)` 按已注册池的下标 buf_index（0..nr-1）读写。Linux 上走 `io_uring_register_buffers` + `prep_read_fixed`/`prep_write_fixed`；macOS/Windows 仅存 iov[] 于线程本地，读写走普通 `io_read`/`io_write`。
+  - **std.io.core**：`shu_io_register(ptr, len, handle)` 单块；`shu_io_register_buffers(p0,l0,…,p3,l3, nr)` 最多 4 块；`shu_io_unregister_buffers()`；`shu_io_read_fixed`/`shu_io_write_fixed(handle, buf_index, offset, len, timeout_ms)`。buf_index 为 0..nr-1，offset+len ≤ 该 buffer 注册长度。
+- **使用方式**：单块：`shu_io_register(ptr, len, 0)` 后 `shu_io_read_fixed(handle, 0, 0, len, timeout_ms)`。多块：`shu_io_register_buffers(p0,l0, p1,l1, p2,l2, p3,l3, nr)`（nr 1..4）后按 buf_index 0..nr-1 读写；用毕 `shu_io_unregister_buffers()`。C 直接调用可注册最多 8 块（`io_register_buffers`）。
+
+### 4.0.3 阶段 2 用户态超越（已实现）
+
+- ✅ **Linux**：**ring 512**（IO_URING_RING_ENTRIES）；**io_read_batch_8 / io_write_batch_8**（C 侧最多 8 段一次提交，readv/writev 或 n×prep_read/write），达到「批量攒 Buffer 后一次 io_uring 提交」更大上限。SQPOLL 需 fixed files 暂未启用。
+- ✅ **Windows**：**OVERLAPPED 池扩为 8**（IO_BATCH_MAX_WIN），支持 C 侧 8 段 batch；GetQueuedCompletionStatusEx 批量收割不变。
+- ✅ **macOS / Linux**：**io_wait_readable(fds, n, timeout_ms)**：一次 kevent（macOS）或 poll（Linux）等待 n 个 fd 中任意可读，返回就绪下标，实现「多 fd 批量注册、批量收割」。n 建议 ≤8。Windows 暂为 -1 占位。
+
+### 4.1 超越维度（对照《高并发IO与多平台》§七）
+
+- **批处理**：单次提交/收割的 Buffer 与 Completion 数量优于现有 API；减少系统边界与调度次数。
+- **零拷贝与预注册**：固定 buffer、内核/驱动侧预注册，减少映射与拷贝（见 §4.0.2）。
+- **热路径零成本**：submit/completion 路径零分配、无锁；结果经固定大小结构或 ring 传递。
+- **可选**：内核 bypass（DPDK/自研内核模块）、per-core 无锁队列、轮询与中断混合。
+
+### 4.2 Linux：超越 io_uring
+
+- **方向**：自研用户态 ring + 更少 syscall、更大批量、或与自研内核模块/新 syscall 配合。
+- **用户态已做**：ring 512；io_read_batch_8/io_write_batch_8（8 段一次提交）；每线程 ring、固定 buffer 见 §4.0.1/4.0.2。
+- **可选后续**：SQPOLL（需 fixed files）；内核侧新 syscall 或内核模块「舒 IO ring」。
+- **验收**：同负载下延迟/吞吐优于纯 io_uring 使用方式，或 syscall 次数/拷贝更少。
+
+### 4.3 macOS：超越 kqueue
+
+- **方向**：减少「一次事件一次系统边界」；批量化就绪与读写；可选内核扩展。
+- **用户态已做**：io_wait_readable(fds, n, timeout_ms) 一次 kevent 等待 n 个 fd 可读；每线程 kqueue、readv/writev 批量见 §4.0/4.0.1。
+- **可选后续**：结合 Mach 端口/自定义 runloop；内核扩展 kext。
+- **验收**：高并发下吞吐或延迟优于典型 kqueue 用法。
+
+### 4.4 Windows：超越 IOCP
+
+- **方向**：更少系统调用、更大批量、完成路径无锁与零分配。
+- **用户态已做**：每线程 OVERLAPPED 池 8 槽；io_read_batch_8/io_write_batch_8；GetQueuedCompletionStatusEx 批量收割；双槽 SetFileCompletionNotificationModes 缓存。
+- **可选后续**：内核/驱动 WDM/WDF 或 Hyper-V 专用通道。
+- **验收**：同负载下优于典型 IOCP 用法。
+
+### 4.5 阶段 2 与接口的对应
+
+- **std.io.core**：自举后可在 .sx 内实现舒 IO 逻辑，或通过 extern 调用 C 侧「舒 IO 内核/驱动」接口；当前 C 侧 `io_read`/`io_write`（io.c）在阶段 2 可改为仅调用自研实现（不再走 io_uring/kqueue/IOCP）。
+- **Buffer / Completion / AsyncContext**：已定 ABI 与语义，阶段 2 只替换后端实现，不改 .sx 接口。
+
+---
+
+## 五、与现有文档的对应
+
+- **《高并发IO与多平台》**：阶段 1 对应「用现有 API 实现完整高性能 IO」；阶段 2 对应「自研舒 IO 超越」及自举前准备清单的落地。
+- **《自举前-极致IO与网络性能准备》**：阶段 0 已完成接口与 ABI 预留；阶段 1/2 在该预留上接具体后端与自研实现。
+
+---
+
+## 六、总结
+
+- **完整 IO 功能**：✅ 阶段 0 已完成（stdin/stdout/stderr、任意 fd、超时、批量、统一 handle）；✅ 阶段 1 已完成，三平台高性能后端（io_uring/kqueue/IOCP）已接入。
+- **阶段 2 用户态**：✅ ring 512、8 段 batch（io_read_batch_8/io_write_batch_8）、Windows 8 槽 OVERLAPPED、io_wait_readable 多 fd 就绪；⬜ 内核/驱动侧超越（SQPOLL、自研内核模块等）为可选后续。
+- **超越 io_uring / macOS / Windows 高性能 IO**：阶段 2 在相同接口下替换为自研舒 IO（批处理、零拷贝、热路径零成本与可选内核/驱动）；slice 版 API 已完成，可按顺序推进阶段 2（见 §3.5）。
+- **实现入口**：后端统一在 C 的 `io_read`/`io_write`/`io_read_batch`/`io_write_batch`（io.c）；std.io.core 仅调用此四者；阶段 2 在此单点替换或扩展，不改 .sx 对外 API。
+
+---
+
+## 七、无 C 的完全自举时 IO 会怎样
+
+（对应《完全自举-无C无Makefile.md》《完全脱离C与Makefile路线图.md》。）
+
+### 7.1 目标含义
+
+- **无 C 的完全自举**：用 shuc 编全部 .sx 得到新 shuc，**不再依赖项目内 .c/.h**；构建由 build.sx/build_tool + bootstrap_shuxc 完成，无需 Makefile。
+- **仍可链接 libc**：文档约定「无 C 源码」指不写 .c；生成程序仍可 **-lc**（open/read/write/close 等由 libc 提供）。
+
+### 7.2 对 io.c 的影响
+
+| 方案 | 做法 | 优点 | 代价 |
+|------|------|------|------|
+| **A：保留 io.c 为「最小 C 运行时」** | io.c 仍提供 io_read/io_write/io_read_batch/io_write_batch；core.sx 继续 extern 这些符号；链接时链入 io.o（Linux 再加 -luring -lpthread）。 | 三平台高性能（io_uring/kqueue/IOCP）与超时、批量不变；改动最小。 | 仓库仍有一份 C（io.c），不算「零 C 源码」。 |
+| **B：删除 io.c，core.sx 直接 extern libc** | core.sx 改为 `extern read`/`extern write`/`extern readv`/`extern writev`（来自 -lc）；在 .sx 里实现 shu_io_submit_* 为调 read/write/readv/writev。 | 真正无 C 源码；仅链 -lc，各平台一致。 | 失去 io_uring/kqueue/IOCP 与现有时限语义；超时需在 .sx 里用 select/poll 等再封装，或暂不提供。 |
+| **C：.sx 中按平台 extern 系统 API** | core.sx（或分 core_linux.sx 等）extern libc 的 read/write，且 Linux 下 extern liburing 的 io_uring_*；.sx 里写「若 Linux 则用 io_uring，否则 read/write」。 | 无 io.c 且仍可用 io_uring。 | .sx 无 `#ifdef`，需运行时判平台；且 Linux 构建必须链 -luring，非 Linux 不能链 liburing（需构建/链接按平台选文件或库）。 |
+
+### 7.3 建议
+
+- **短期（完全自举、C 收口到极薄层）**：采用 **方案 A**，把 io.c 视为「最小运行时」的一部分（与 crt0、panic 等同级），不删；std.io 行为与阶段 1 一致。
+- **若坚持零 C 源码**：采用 **方案 B**，接受当前只做 libc read/write/readv/writev，高性能与超时后续在 .sx 或条件构建中再补；或投入方案 C 与构建/链接的按平台分支。
+- **路线图阶段 2（自研舒 IO）**：与是否无 C 解耦；实现可在 io.c（若保留）或未来 .sx 内调用自研内核/驱动接口完成。

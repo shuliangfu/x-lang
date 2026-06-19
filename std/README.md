@@ -126,6 +126,9 @@ runtime、io、io-driver、mem、fs、process、path、heap、string、vec、map
 | **std.sqlite** | std/sqlite/ | deprecated → `std.db.sqlite` |
 | **scheduler.c** | std/async/ | 异步调度 C 层（async C） |
 | **spawn_simple** | std/process/ | 最小 spawn 烟测路径 |
+| **run-http.sh** | tests/ | http 烟测脚本（STBL-002） |
+| **run-tar.sh** | tests/ | tar 烟测脚本（STBL-002） |
+| **run-stdlib-check-matrix** | tests/ | BOOT-013 stdlib check matrix gate |
 | **resolve_ex** | std/net/ | STD-029 可诊断 DNS（`resolve_err_*`） |
 | **env_iter** | std/env/ | STD-025 环境变量/参数迭代 |
 | **panic_hook_collect** | std/runtime/ | STD-028 panic 崩溃证据收集 |

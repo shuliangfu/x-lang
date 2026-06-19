@@ -2239,7 +2239,7 @@ filter_experimental_asm_objs() {
       backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
-      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shu_lsp_diag_stub.o|lsp_codegen_extern.o)
+      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o)
         continue
         ;;
     esac
@@ -2363,7 +2363,7 @@ filter_strict_asm_objs() {
       backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
-      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shu_lsp_diag_stub.o|lsp_codegen_extern.o|\
+      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
       parser_asm_link_alias.o|parser_asm_minimal_partial.o|\
       ast_pool_l5_bridge.o|\
       lexer.o|peephole.o|platform_elf.o|macho.o|coff.o)
@@ -2764,9 +2764,9 @@ ensure_lsp_diag_pipeline_sizes_obj() {
 }
 
 # B-hybrid 链 lsp_sx.o 需要 lsp_build_diagnostics_response 等；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.c。
-ensure_asm_shu_lsp_diag_stub_obj() {
-  STUB_C="scripts/asm_shu_lsp_diag_stub.c"
-  STUB_O="$BUILD_DIR/asm_shu_lsp_diag_stub.o"
+ensure_asm_shux_lsp_diag_stub_obj() {
+  STUB_C="scripts/asm_shux_lsp_diag_stub.c"
+  STUB_O="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
   LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.c"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
   if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
@@ -2840,9 +2840,12 @@ ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
   test -f /etc/alpine-release && ALPINE=1
-  if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
+  if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
     echo "  cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
     "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+  elif [ -f src/asm/runtime_panic_arm64.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
+    echo "  cc -c runtime_panic.o <- src/asm/runtime_panic_arm64.c"
+    "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic_arm64.c
   else
     echo "  cc -c runtime_panic.o <- src/asm/runtime_panic.c"
     "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic.c
@@ -2922,7 +2925,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
     ensure_std_fs_io_heap_objs
     ensure_asm_driver_seed_c_objs
     ensure_lsp_diag_pipeline_sizes_obj
-    ensure_asm_shu_lsp_diag_stub_obj
+    ensure_asm_shux_lsp_diag_stub_obj
     ensure_asm_lsp_codegen_extern_obj
     # Linux：crt0 失败后试 experimental bootstrap（pipeline_sx.o + SU companions）；SKIP_GEN 时 macOS 等同理。
     _try_experimental=0
@@ -2987,7 +2990,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/asm/simd_enc.o \
           src/asm/simd_loop.o \
           "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
-          "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+          "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
           "$BUILD_DIR/lsp_codegen_extern.o" \
           "$SEED_O/preprocess.o" \
           "$SEED_O/parser.o" \
@@ -3270,7 +3273,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 $ST_RUNTIME_PARTIAL \
                 "$BUILD_DIR/std_fs_shim.o" \
                 $ST_BRIDGE_OBJ \
-                "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+                "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
                 $ST_TYPECK_LSP_STUB \
                 "$BUILD_DIR/lsp_codegen_extern.o" \
                 "$SEED_O/preprocess.o" \
@@ -3311,7 +3314,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   "$BUILD_DIR/pipeline_runtime_bootstrap_partial.o" \
                   "$BUILD_DIR/std_fs_shim.o" \
                   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
-                  "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+                  "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
                   $ST_TYPECK_LSP_STUB \
                   "$BUILD_DIR/lsp_codegen_extern.o" \
                   "$SEED_O/preprocess.o" \
@@ -3488,7 +3491,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         $GEN_DRIVER_BSTRICT_COMPANIONS \
         $GEN_DRIVER_SU_PIPELINE_COMPANIONS \
         "$GEN_O/lsp_sx.o" \
-        "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+        "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
         "$BUILD_DIR/lsp_codegen_extern.o" \
         "$GEN_O/lsp_io_sx.o" \
         "$GEN_O/lsp_io_std_heap_su.o" \
@@ -3517,7 +3520,7 @@ else
   ensure_std_fs_io_heap_objs
   ensure_asm_driver_seed_c_objs
   ensure_lsp_diag_pipeline_sizes_obj
-  ensure_asm_shu_lsp_diag_stub_obj
+  ensure_asm_shux_lsp_diag_stub_obj
   ensure_asm_lsp_codegen_extern_obj
   ensure_asm_gen_driver_su_objs
   ensure_asm_bootstrap_su_companion_objs
@@ -3551,7 +3554,7 @@ else
     $GEN_DRIVER_BSTRICT_COMPANIONS \
     $GEN_DRIVER_SU_PIPELINE_COMPANIONS \
     "$GEN_O/lsp_sx.o" \
-    "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+    "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
     "$BUILD_DIR/typeck_lsp_io_stub.o" \
     "$BUILD_DIR/lsp_codegen_extern.o" \
     "$GEN_O/lsp_io_sx.o" \

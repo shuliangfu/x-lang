@@ -428,7 +428,7 @@ runtime_panic.o: src/asm/runtime_panic.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 endif
 else
-runtime_panic.o: src/asm/runtime_panic.c
+runtime_panic.o: src/asm/runtime_panic_arm64.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 endif
 else

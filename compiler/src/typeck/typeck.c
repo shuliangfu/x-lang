@@ -680,6 +680,11 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
         return 1;
     if (formal->kind == AST_TYPE_I64 && arg_expr && arg_expr->kind == AST_EXPR_LIT)
         return 1;
+    /* i32 可赋给 isize/usize（常见长度/计数实参）。 */
+    if (actual->kind == AST_TYPE_I32) {
+        if (formal->kind == AST_TYPE_ISIZE || formal->kind == AST_TYPE_USIZE)
+            return 1;
+    }
     if (formal->kind == AST_TYPE_U8 && arg_expr && arg_expr->kind == AST_EXPR_LIT) {
         int v = arg_expr->value.int_val;
         if (v >= 0 && v <= 255) return 1;
@@ -2834,6 +2839,10 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     int v = e->value.call.args[i]->value.int_val;
                     if (v >= 0 && v <= 255) ok = 1;
                 }
+                /* 允许 i32 传给 isize/usize 形参（长度/计数；C 会隐式转换）。 */
+                if (!ok && param_type && arg_type && arg_type->kind == AST_TYPE_I32
+                    && (param_type->kind == AST_TYPE_ISIZE || param_type->kind == AST_TYPE_USIZE))
+                    ok = 1;
                 /* 允许 f64 浮点字面量传给 f32 参数（默认浮点字面量为 f64，如 vec4f_splat(1.0)） */
                 if (!ok && param_type && param_type->kind == AST_TYPE_F32
                     && arg_type && arg_type->kind == AST_TYPE_F64

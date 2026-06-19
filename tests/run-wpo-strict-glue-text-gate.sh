@@ -40,7 +40,7 @@ if [ ! -f compiler/build_asm/pipeline_wpo.o ]; then
 fi
 
 # 强制重编 LSP/typeck_io 桩（strict_glue 链依赖）。
-rm -f compiler/build_asm/asm_shu_lsp_diag_stub.o 2>/dev/null || true
+rm -f compiler/build_asm/asm_shux_lsp_diag_stub.o 2>/dev/null || true
 
 wpo_strict_glue_rm_pipeline_partials() {
   rm -f compiler/build_asm/pipeline_strict_link_partial.o \

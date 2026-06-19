@@ -174,9 +174,9 @@ ensure_ast_asm_bare_link_alias_obj() {
   fi
 }
 
-ensure_asm_shu_lsp_diag_stub_obj() {
-  local STUB_C="scripts/asm_shu_lsp_diag_stub.c"
-  local STUB_O="$BUILD_DIR/asm_shu_lsp_diag_stub.o"
+ensure_asm_shux_lsp_diag_stub_obj() {
+  local STUB_C="scripts/asm_shux_lsp_diag_stub.c"
+  local STUB_O="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
   local LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.c"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
   if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
@@ -973,7 +973,7 @@ filter_strict_asm_objs() {
       backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
-      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shu_lsp_diag_stub.o|lsp_codegen_extern.o|\
+      parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
       ast_pool_l5_bridge.o|\
       lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
       parser_asm_link_alias.o|parser_asm_minimal_partial.o|parser_asm_thin_c.o|\
@@ -1199,7 +1199,7 @@ ensure_strict_glue_lsp_objs() {
   cp -f lsp_sx.o lsp_io_sx.o lsp_io_std_heap_su.o "$GEN_DIR/"
 }
 ensure_strict_glue_lsp_objs || true
-ensure_asm_shu_lsp_diag_stub_obj
+ensure_asm_shux_lsp_diag_stub_obj
 ensure_ast_asm_bare_link_alias_obj
 ST_AST_BARE_ALIAS=""
 if ! echo " $ASM_TRY_OBJS " | grep -q 'ast_asm_bare_link_alias.o'; then
@@ -1246,12 +1246,21 @@ echo "relink_shux_asm_strict_glue: linking shux_asm.strict_glue (glue_standalone
 ST_RUNTIME_PANIC=""
 ST_PIPELINE_LIBS="-lm -lc"
 if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
-  if [ ! -f runtime_panic.o ] || [ src/asm/runtime_panic_x86_64.s -nt runtime_panic.o ]; then
-    if [ -f src/asm/runtime_panic_x86_64.s ]; then
-      echo "relink_shux_asm_strict_glue: cc runtime_panic.o"
-      "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
-    elif [ -f src/asm/runtime_panic.c ]; then
-      "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic.c
+  _arch="$(uname -m 2>/dev/null)"
+  _panic_src=""
+  if [ "$_arch" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
+    _panic_src="src/asm/runtime_panic_x86_64.s"
+  elif { [ "$_arch" = "aarch64" ] || [ "$_arch" = "arm64" ]; } && [ -f src/asm/runtime_panic_arm64.c ]; then
+    _panic_src="src/asm/runtime_panic_arm64.c"
+  elif [ -f src/asm/runtime_panic.c ]; then
+    _panic_src="src/asm/runtime_panic.c"
+  fi
+  if [ -n "$_panic_src" ] && { [ ! -f runtime_panic.o ] || [ "$_panic_src" -nt runtime_panic.o ]; }; then
+    echo "relink_shux_asm_strict_glue: cc runtime_panic.o <- $_panic_src"
+    if [ "${_panic_src##*.}" = "s" ]; then
+      "$CC" -c -o runtime_panic.o "$_panic_src"
+    else
+      "$CC" $CFLAGS -c -o runtime_panic.o "$_panic_src"
     fi
   fi
   [ -f runtime_panic.o ] && ST_RUNTIME_PANIC="runtime_panic.o"
@@ -1272,7 +1281,7 @@ set +e
   $ST_RUNTIME_PARTIAL \
   "$BUILD_DIR/std_fs_shim.o" \
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
-  "$BUILD_DIR/asm_shu_lsp_diag_stub.o" \
+  "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
   "$BUILD_DIR/lsp_codegen_extern.o" \
   "$SEED_O/preprocess.o" \

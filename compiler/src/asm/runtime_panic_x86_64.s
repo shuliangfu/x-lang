@@ -6,6 +6,14 @@
  * 链接用户程序或 crt0 自举链时与 runtime_panic.o 一并链入即可替代 runtime_panic.c。
  */
 	.text
+	/* 弱默认：无 backtrace.o 时不收集证据；与 runtime_panic.c 一致，供 std/runtime/runtime.o 链接。 */
+	.weak	shux_crash_evidence_collect_c
+	.globl	shux_crash_evidence_collect_c
+	.type	shux_crash_evidence_collect_c, @function
+shux_crash_evidence_collect_c:
+	ret
+	.size	shux_crash_evidence_collect_c, .-shux_crash_evidence_collect_c
+
 	.globl	shux_panic_
 	.type	shux_panic_, @function
 shux_panic_:

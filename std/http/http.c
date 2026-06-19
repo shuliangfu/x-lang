@@ -326,6 +326,7 @@ int32_t http_request_method_c(uint8_t method_u8, const uint8_t *url, int32_t url
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/time.h>
 #endif
 
 /** 为 fd 设置收发超时（毫秒）；0 表示不设。 */

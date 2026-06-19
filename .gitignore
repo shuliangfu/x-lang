@@ -1,5 +1,6 @@
-# 分析文档目录不提交
-analysis/
+# 分析目录：构建产物等不提交；gate 所需的 analysis/*.md RFC 须入库（CI STBL/DOC/BOOT 等门禁）
+analysis/*
+!analysis/*.md
 
 # --- 构建产物 ---
 # 可执行文件（编译器 shux / shu_su / shux-c 等）

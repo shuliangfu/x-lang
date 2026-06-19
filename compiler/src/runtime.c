@@ -2141,13 +2141,13 @@ static int ensure_runtime_panic_o(const char *argv0) {
     char src_c[PATH_MAX];
     const char *src = NULL;
     int from_asm_s = 0;
-#if defined(__linux__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__amd64__))
     if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/runtime_panic_x86_64.s", comp) < sizeof src_s && access(src_s, R_OK) == 0) {
         src = src_s;
         from_asm_s = 1;
     }
 #endif
-#if defined(__APPLE__) && defined(__aarch64__)
+#if (defined(__linux__) || defined(__APPLE__)) && (defined(__aarch64__) || defined(__arm64__))
     if (!src && (size_t)snprintf(src_arm, sizeof src_arm, "%s/src/asm/runtime_panic_arm64.c", comp) < sizeof src_arm && access(src_arm, R_OK) == 0)
         src = src_arm;
 #endif
