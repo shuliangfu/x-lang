@@ -4564,17 +4564,8 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             if (needs_db_arrow)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
         }
-        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + 必要 std/process + -lc，勿全量 std/*.o。 */
+        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。 */
         if (getenv("SHUX_MINIMAL_CC_LINK")) {
-            {
-                int needs_process = 0;
-                for (int j = 0; j < n; j++) {
-                    if (generated_c_needs_process(c_paths[j]))
-                        needs_process = 1;
-                }
-                if (needs_process)
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o);
-            }
 #if defined(__linux__) || defined(__APPLE__)
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-lc";
@@ -4870,11 +4861,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
             use_su_pipeline = 1;
         } else if (strcmp(argv[i], "-backend") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "shux: -backend requires an argument (e.g. asm)\n");
+                fprintf(stderr, "shux: -backend requires an argument (asm or c)\n");
                 return 1;
             }
-            if (strcmp(argv[i + 1], "asm") == 0) use_asm_backend = 1;
-            use_su_pipeline = 1;  /* -backend asm 必须走 .sx pipeline */
+            if (strcmp(argv[i + 1], "asm") == 0) {
+                use_asm_backend = 1;
+                use_su_pipeline = 1;  /* -backend asm 必须走 .sx pipeline */
+            } else if (strcmp(argv[i + 1], "c") == 0) {
+                use_asm_backend = 0;  /* C 前端：勿强制 -sx pipeline（MSYS return-value 烟测） */
+            } else {
+                fprintf(stderr, "shux: -backend expects asm or c (got '%s')\n", argv[i + 1]);
+                return 1;
+            }
             i++;
         } else
         #endif
