@@ -3,7 +3,7 @@ const result = import("core.result");
 const err = import("std.error");
 
 function main(): i32 {
-  let bad: Result_i32 = result.err_i32(error_code_invalid());
+  let bad: Result_i32 = result.err_i32(err.error_code_invalid());
   let v: i32 = result.unwrap_or_i32(bad, 99);
   if (v != 99) { return 1; }
   let good: Result_i32 = result.ok_i32(7);
