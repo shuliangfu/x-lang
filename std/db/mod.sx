@@ -5,15 +5,52 @@
 // - std.db.kv     — mmap LSM Append-Only 键值/时序底座（无 SQL）
 // - std.db.arrow  — 零拷贝列式内存（Apache Arrow 风格布局）
 //
+// 【STD-120 兼容层】
+// `import("std.db")` 仍可用但已废弃；open/exec/close/changes 转发 std.db.sqlite，
+// 与 std/sqlite/sqlite.o 共享 C 实现（db_open_c 等符号）。
+//
 // 【用法】
-//   const db = import("std.db");
-//   const kv = import("std.db.kv");
-//   const arrow = import("std.db.arrow");
-//   const sqlite = import("std.db.sqlite");
+//   const db = import("std.db");          // deprecated
+//   const sqlite = import("std.db.sqlite"); // 推荐
 
 const sqlite_m = import("std.db.sqlite");
 const kv_m = import("std.db.kv");
 const arrow_m = import("std.db.arrow");
+
+/** 不透明连接句柄（与 std.db.sqlite.DbConn 布局一致）。 */
+struct DbConn {
+  handle: i64;
+}
+
+extern function db_open_c(path: *u8): i64;
+extern function db_close_c(handle: i64): i32;
+extern function db_exec_c(handle: i64, sql: *u8): i32;
+extern function db_changes_c(handle: i64): i32;
+
+/** STD-120：import("std.db") 已废弃；恒 1。 */
+function db_is_deprecated(): i32 {
+  return 1;
+}
+
+/** 打开数据库（转发 std.db.sqlite / db_open_c）。 */
+function open(path: *u8): DbConn {
+  return DbConn { handle: db_open_c(path) };
+}
+
+/** 关闭连接。 */
+function close(conn: DbConn): i32 {
+  return db_close_c(conn.handle);
+}
+
+/** 执行无结果集 SQL。 */
+function exec(conn: DbConn, sql: *u8): i32 {
+  return db_exec_c(conn.handle, sql);
+}
+
+/** 最近一次 exec 影响行数。 */
+function changes(conn: DbConn): i32 {
+  return db_changes_c(conn.handle);
+}
 
 /** SQLite 后端是否可用（委托 std.db.sqlite）。 */
 function sqlite_is_available(): i32 {
