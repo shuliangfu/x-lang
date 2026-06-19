@@ -545,7 +545,7 @@ static const char *get_std_path_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
     if (realpath("std/path/path.o", resolved) != NULL) return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/path/path.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 22) != NULL) { size_t L = strlen(cwd); if (L + 22 <= sizeof(cwd)) { memcpy(cwd + L, "/std/path/path.o", sizeof("/std/path/path.o")); if (realpath(cwd, resolved) != NULL) return resolved; } } }
     if (!argv0 || !argv0[0]) return buf;
     { const char *last_slash = strrchr(argv0, '/'); int n = last_slash ? (int)(last_slash - argv0) : 0;
       if (last_slash && n + 22 < (int)sizeof(buf)) { memcpy(buf, argv0, (size_t)n); buf[n] = '\0'; strcat(buf, "/../std/path/path.o"); if (realpath(buf, resolved) != NULL) return resolved; }
@@ -1496,6 +1496,30 @@ static int generated_c_needs_process(const char *c_path) {
     return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
+/** 扫描生成 C 是否引用 std.fs C 符号（按需链 std/fs/fs.o）。 */
+static int generated_c_needs_fs(const char *c_path) {
+    static const char *needles[] = {
+        "fs_open_read_c", "fs_last_error_c", "fs_close_c", "fs_read_c", "fs_write_c",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
+/** 扫描生成 C 是否引用 std.random C 符号（按需链 std/random/random.o）。 */
+static int generated_c_needs_random(const char *c_path) {
+    static const char *needles[] = {
+        "random_rng_smoke_c", "random_fill_bytes_c", "random_u64_c",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
+/** 扫描生成 C 是否引用 std.runtime C 符号（按需链 std/runtime/runtime.o）。 */
+static int generated_c_needs_runtime(const char *c_path) {
+    static const char *needles[] = {
+        "runtime_crash_evidence_collect_c", "runtime_panic", "runtime_abort",
+    };
+    return generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
 /** 根据仓库根或 cwd 得到 core/builtin/builtin.o 路径。 */
 static const char *get_core_builtin_o_path(const char *repo_root) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
@@ -1537,7 +1561,7 @@ static const char *get_core_mem_o_path(const char *repo_root) {
     }
     if (realpath("core/mem/mem.o", resolved) != NULL)
         return resolved;
-    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/core/mem/mem.o", 18); cwd[L+18] = '\0'; if (realpath(cwd, resolved) != NULL) return resolved; } } }
+    { char cwd[512]; if (getcwd(cwd, sizeof(cwd) - 20) != NULL) { size_t L = strlen(cwd); if (L + 20 <= sizeof(cwd)) { memcpy(cwd + L, "/core/mem/mem.o", sizeof("/core/mem/mem.o")); if (realpath(cwd, resolved) != NULL) return resolved; } } }
     return buf;
 }
 
@@ -4533,6 +4557,9 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
             int needs_core_slice = 0;
             int needs_db_kv = 0;
             int needs_db_arrow = 0;
+            int needs_fs = 0;
+            int needs_random = 0;
+            int needs_runtime = 0;
             for (int j = 0; j < n; j++) {
                 if (generated_c_needs_core_builtin(c_paths[j]))
                     needs_core_builtin = 1;
@@ -4544,6 +4571,12 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
                     needs_db_kv = 1;
                 if (generated_c_needs_db_arrow(c_paths[j]))
                     needs_db_arrow = 1;
+                if (generated_c_needs_fs(c_paths[j]))
+                    needs_fs = 1;
+                if (generated_c_needs_random(c_paths[j]))
+                    needs_random = 1;
+                if (generated_c_needs_runtime(c_paths[j]))
+                    needs_runtime = 1;
             }
             if (needs_core_builtin) {
                 const char *abi_h = get_core_builtin_abi_h_path(include_root);
@@ -4563,6 +4596,14 @@ static int invoke_cc(const char **c_paths, int n, const char *out_path, const ch
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_kv_o_path(include_root));
             if (needs_db_arrow)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, get_std_db_arrow_o_path(include_root));
+            if (needs_fs)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, fs_o);
+            if (needs_random)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
+            if (needs_runtime) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
+            }
         }
         /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。 */
         if (getenv("SHUX_MINIMAL_CC_LINK")) {
