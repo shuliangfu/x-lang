@@ -3749,7 +3749,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             if (e->value.call.resolved_callee_func && e->value.call.callee->kind == AST_EXPR_VAR) {
                 const struct ASTFunc *rf = e->value.call.resolved_callee_func;
                 const struct ASTModule *fmod = codegen_find_func_module(rf);
-                fprintf(out, "%s(", func_link_name(fmod, rf));
+                const char *link_name = func_link_name(fmod, rf);
+                fprintf(out, "%s(", builtin_intrinsic_name(link_name));
                 for (int i = 0; i < e->value.call.num_args; i++) {
                     if (i) fprintf(out, ", ");
                     if (codegen_emit_one_call_arg(out, e->value.call.args[i]) != 0) return -1;
@@ -3794,7 +3795,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                     (void)snprintf(mname, sizeof(mname), "%s", link ? link : (impl_func->name ? impl_func->name : ""));
                 else
                     codegen_join_import_prefix_func_name(pre, link ? link : (impl_func->name ? impl_func->name : ""), mname, sizeof(mname));
-                fprintf(out, "%s(", mname);
+                fprintf(out, "%s(", builtin_intrinsic_name(mname));
                 for (int i = 0; i < e->value.method_call.num_args; i++) {
                     if (i) fprintf(out, ", ");
                     {
