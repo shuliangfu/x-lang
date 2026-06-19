@@ -686,6 +686,24 @@ codegen_su.o: codegen_sx.o
 	cp codegen_sx.o codegen_su.o
 lexer_su.o: lexer_sx.o
 	cp lexer_sx.o lexer_su.o
+preprocess_su.o: preprocess_sx.o
+	cp preprocess_sx.o preprocess_su.o
+driver_fmt_su.o: driver_fmt_sx.o
+	cp driver_fmt_sx.o driver_fmt_su.o
+driver_check_su.o: driver_check_sx.o
+	cp driver_check_sx.o driver_check_su.o
+driver_test_su.o: driver_test_sx.o
+	cp driver_test_sx.o driver_test_su.o
+driver_build_su.o: driver_build_sx.o
+	cp driver_build_sx.o driver_build_su.o
+driver_run_su.o: driver_run_sx.o
+	cp driver_run_sx.o driver_run_su.o
+driver_compile_su.o: driver_compile_sx.o
+	cp driver_compile_sx.o driver_compile_su.o
+driver_emit_su.o: driver_emit_sx.o
+	cp driver_emit_sx.o driver_emit_su.o
+lsp_io_std_heap_su.o: lsp_io_std_heap_sx.o
+	cp lsp_io_std_heap_sx.o lsp_io_std_heap_su.o
 
 codegen_gen.c: $(SHUX_C) ast_gen2.c src/codegen/codegen.sx
 	./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.sx -E-extern > $@
