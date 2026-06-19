@@ -1828,6 +1828,14 @@ static int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const
             use = slot;
     }
 #endif
+    /* needs_fs/needs_runtime 按需块与后续全量链入勿重复同一 .o（EXC-002 ld duplicate）。 */
+    {
+        int k;
+        for (k = 0; k < *ia; k++) {
+            if (argv[k] && strcmp(argv[k], use) == 0)
+                return 0;
+        }
+    }
     argv[(*ia)++] = (char *)use;
     return 1;
 }
