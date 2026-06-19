@@ -28,17 +28,26 @@ std_db_compat_run_sx_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_db_compat_$$"
-  if ! "$shux" -L . "$src" -o "$exe" -l sqlite3 >/dev/null 2>&1; then
-    if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local log="/tmp/shux_std_db_compat_compile_$$.log"
+  if ! "$shux" -L . "$src" -o "$exe" -l sqlite3 >"$log" 2>&1; then
+    if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
+      echo "std-db-compat FAIL: compile $src" >&2
+      tail -12 "$log" >&2 || true
+      rm -f "$log" "$exe"
       return 1
     fi
   fi
+  rm -f "$log"
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
   rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  if [ "$ec" -ne 0 ]; then
+    echo "std-db-compat FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
 std_db_compat_emit_report() {
