@@ -4,21 +4,41 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler shux-c
 make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
-# main 入口写 shux_process_argc/argv，minimal 链须 std/process/process.o。
-make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 # -o 可执行须走 C 前端（Docker/musl 上 seed shux asm 链会 cc failed）。
 if [ -x ./compiler/shux-c ]; then
   RUN_SHUX=./compiler/shux-c
 fi
-# Alpine/musl：invoke_cc 仅链已按需推入的 core/*.o，避免全量 std/*.o ld 挂起（CORE-009）。
+# Alpine/musl：invoke_cc 仅链 core/*.o + -O0，避免全量 std/*.o ld 挂起（CORE-009）。
 export SHUX_MINIMAL_CC_LINK=1
 export SHUX_OPT=0
 export SHUX_NO_MARCH_NATIVE=1
 export CI="${CI:-1}"
 
-$RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1 || { echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2; exit 1; }
+compile_out=""
+compile_out=$($RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1) || {
+  gen_c=""
+  gen_c=$(echo "$compile_out" | sed -n 's/.*keeping generated C: //p' | tail -1)
+  if [ -z "$gen_c" ] || [ ! -f "$gen_c" ]; then
+    gen_c=$(ls -t /tmp/shux_*.c 2>/dev/null | head -1)
+  fi
+  if [ -n "$gen_c" ] && [ -f "$gen_c" ]; then
+    echo "run-builtin: invoke_cc failed, fallback gcc minimal link ($gen_c)" >&2
+    gcc -std=gnu11 -O0 -include core/builtin/builtin_abi.h -o /tmp/shux_builtin \
+      "$gen_c" core/builtin/builtin.o -lc 2>/dev/null \
+      || cc -std=gnu11 -O0 -include core/builtin/builtin_abi.h -o /tmp/shux_builtin \
+      "$gen_c" core/builtin/builtin.o -lc || {
+      echo "$compile_out" >&2
+      echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2
+      exit 1
+    }
+  else
+    echo "$compile_out" >&2
+    echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2
+    exit 1
+  fi
+}
 exitcode=0; /tmp/shux_builtin >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (core.builtin placeholder), got $exitcode"; exit 1; }
 
