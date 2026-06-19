@@ -243,8 +243,21 @@ net-o-mbedtls: ../std/net/net.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # std.sys.win32：kernel32 WriteFile（std/sys/win32.inc.c）
+# MSYS2 MSYS 子系统 gcc 常无 _WIN32，须显式 -D_WIN32 以启用 WriteFile 实现。
+WIN32_O_CFLAGS :=
+ifeq ($(OS),Windows_NT)
+WIN32_O_CFLAGS := -D_WIN32
+else
+ifneq ($(findstring MINGW,$(UNAME_S)),)
+WIN32_O_CFLAGS := -D_WIN32
+else
+ifneq ($(findstring MSYS,$(UNAME_S)),)
+WIN32_O_CFLAGS := -D_WIN32
+endif
+endif
+endif
 ../std/sys/win32.o: ../std/sys/win32.inc.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(WIN32_O_CFLAGS) -c -o $@ $<
 
 # std.sqlite：默认 SQLite3 后端（std/db/sqlite/sqlite.c）；无 libsqlite3 时用 sqlite-o-stub。
 ../std/db/sqlite/sqlite.o: ../std/db/sqlite/sqlite.c
