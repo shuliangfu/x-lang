@@ -32,12 +32,8 @@ if [ ! -f "$WIN32_O" ] && [ -f std/sys/win32.inc.c ]; then
 fi
 
 rm -f "$OUT" 2>/dev/null || true
-EXTRA=()
-if [ -f "$WIN32_O" ]; then
-  EXTRA=("$WIN32_O")
-fi
-
-if ! "$SHUX" -o "$OUT" "${EXTRA[@]}" "$SU" 2>/tmp/shux_win32_read_file.log; then
+# win32.o 由 invoke_cc 按需链入，勿作为 shux  positional 输入。
+if ! "$SHUX" -L . -o "$OUT" "$SU" 2>/tmp/shux_win32_read_file.log; then
   echo "win32-read-file-gate FAIL: compile $SU" >&2
   tail -n 10 /tmp/shux_win32_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
