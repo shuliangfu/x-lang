@@ -47,10 +47,10 @@ while IFS=$'\t' read -r item_id kind anchor layer _notes; do
   case "$kind" in
     module)
       MOD_N=$((MOD_N + 1))
-      mod_path="${anchor//./\/}/mod.sx"
+      mod_path="$(stdlib_cm_mod_to_path "$anchor" "$layer")"
       case "$layer" in
-        core) CORE_N=$((CORE_N + 1)); mod_path="core/${anchor#core.}/mod.sx" ;;
-        std) STD_N=$((STD_N + 1)); mod_path="std/${anchor#std.}/mod.sx" ;;
+        core) CORE_N=$((CORE_N + 1)) ;;
+        std) STD_N=$((STD_N + 1)) ;;
       esac
       if [ ! -f "$mod_path" ]; then
         echo "stdlib-check-matrix FAIL: missing $mod_path ($anchor)" >&2

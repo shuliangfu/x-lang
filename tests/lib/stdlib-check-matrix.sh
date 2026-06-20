@@ -8,6 +8,15 @@
 
 STDLIB_CM_PREFIX="${SHUX_STDLIB_CHECK_PREFIX:-shux: [SHUX_STDLIB_CHECK]}"
 
+# 将模块名解析为物理 mod.sx 路径（std.db.sqlite → std/db/sqlite/mod.sx）。
+stdlib_cm_mod_to_path() {
+  local mod="$1"
+  local layer="$2"
+  local rel
+  rel=$(printf '%s' "${mod#${layer}.}" | tr '.' '/')
+  echo "${layer}/${rel}/mod.sx"
+}
+
 # 判断 shux 是否可在本机执行（避免 Linux ELF 在 macOS 上误判）。
 stdlib_cm_native_shu() {
   local f="$1"
