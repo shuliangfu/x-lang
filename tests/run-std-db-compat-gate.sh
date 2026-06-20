@@ -49,6 +49,7 @@ SU_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  ensure_std_c_o ../std/db/sqlite/sqlite.o
   ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
   std_db_compat_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
 else
