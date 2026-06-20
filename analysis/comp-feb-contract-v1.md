@@ -24,7 +24,7 @@
 | 层级 | 边界 | 上游 → 下游 | 载荷（data contract） | 锚点符号 |
 |------|------|-------------|----------------------|----------|
 | **B1-parser-ast** | 词法/语法 → AST | lexer/parser → `ast` | `Module` + `ASTArena` + `ParseIntoResult` | `parse_into_buf` |
-| **B2-typeck-ast** | 类型检查 | parser → typeck | 已填充 `Module`；跨模块 `PipelineDepCtx` | `typeck_su_ast` |
+| **B2-typeck-ast** | 类型检查 | parser → typeck | 已填充 `Module`；跨模块 `PipelineDepCtx` | `typeck_sx_ast` |
 | **B3-codegen-out** | IR/文本发射 | typeck → codegen | `CodegenOutBuf`（C/asm 文本或 .o 路径） | `codegen_sx_ast` |
 | **B4-asm-backend** | 机器码后端 | codegen/asm 编排 → backend | `Module` + `CodegenOutBuf` + `PipelineDepCtx` | `asm_codegen_ast` |
 | **B5-pipeline** | 流水线编排 | driver → 各阶段 | `source_data`/`source_len` → `out_buf` | `run_sx_pipeline_impl` |
@@ -47,7 +47,7 @@
 |-------------|----------|------------|--------|---------|
 | `bd_parse_module` | parser | ast | `parse_into_buf` | Module, ASTArena, ParseIntoResult |
 | `bd_parse_slice` | pipeline_glue | parser | `parser_slice_from_buf` | ptr+len → []u8 |
-| `bd_typeck_entry` | pipeline | typeck | `typeck_su_ast` | Module, ASTArena, PipelineDepCtx |
+| `bd_typeck_entry` | pipeline | typeck | `typeck_sx_ast` | Module, ASTArena, PipelineDepCtx |
 | `bd_typeck_layout` | typeck | typeck | `typeck_merge_dep_struct_layouts_into_entry` | Module, ASTArena |
 | `bd_codegen_emit` | pipeline | codegen | `codegen_sx_ast` | CodegenOutBuf, dep_index |
 | `bd_asm_emit` | asm | backend | `asm_codegen_ast` | CodegenOutBuf, elf_ctx |
@@ -74,7 +74,7 @@
 |---------|------|------|
 | `case_pipeline` | `compiler/src/pipeline/pipeline.sx` | `run_sx_pipeline_impl` 存在 |
 | `case_parser` | `compiler/src/parser/parser.sx` | `parse_into_buf` 签名 |
-| `case_typeck` | `compiler/src/typeck/typeck.sx` | `typeck_su_ast` |
+| `case_typeck` | `compiler/src/typeck/typeck.sx` | `typeck_sx_ast` |
 | `case_codegen` | `compiler/src/codegen/codegen.sx` | `codegen_sx_ast` |
 | `case_asm` | `compiler/src/asm/backend.sx` | `asm_codegen_ast` |
 | `case_glue` | `compiler/pipeline_glue.c` | glue 表 + slice 桥 |
