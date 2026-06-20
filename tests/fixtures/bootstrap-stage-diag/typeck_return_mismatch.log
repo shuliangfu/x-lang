@@ -1,0 +1,1 @@
+typeck error: return expression type mismatch: expected i32, found i64
