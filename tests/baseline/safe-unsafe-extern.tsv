@@ -4,8 +4,15 @@
 std/ffi/mod.sx	ffi_cstr_len_c
 std/ffi/mod.sx	ffi_cstring_new_c
 std/ffi/mod.sx	ffi_cstring_free_c
+std/ffi/mod.sx	ffi_cstring_try_new_c
+std/ffi/mod.sx	ffi_point_pack_c
+std/ffi/mod.sx	ffi_point_unpack_c
+std/ffi/mod.sx	ffi_cb_double_i32_fn_c
+std/ffi/mod.sx	ffi_invoke_i32_cb_c
 std/runtime/mod.sx	runtime_panic
 std/runtime/mod.sx	runtime_abort
+std/runtime/mod.sx	runtime_crash_evidence_collect_c
 std/dynlib/mod.sx	dynlib_open_c
 std/dynlib/mod.sx	dynlib_sym_c
 std/dynlib/mod.sx	dynlib_close_c
+std/dynlib/mod.sx	dynlib_last_error_copy_c
