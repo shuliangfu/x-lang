@@ -6,6 +6,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# shellcheck source=tests/lib/ci-host.sh
+. "${ROOT}/tests/lib/ci-host.sh"
+
 # 判断本机能否执行指定编译器二进制。
 comp_incr_compile_native_shu() {
   local f="${1:-./compiler/shux-c}"
@@ -54,4 +57,27 @@ comp_incr_compile_proto_present() {
   local sym="$2"
   [ -f "$ROOT/$src" ] || return 1
   grep -qF "$sym" "$ROOT/$src" 2>/dev/null
+}
+
+# CI/Docker/Darwin 环境下放宽 bench ratio 上限（bind-mount / APFS 缓存抖动）。
+comp_incr_compile_effective_cap() {
+  local cap="$1"
+  if ci_is_docker; then
+    cap="$(awk -v c="$cap" 'BEGIN { printf "%.2f", c * 2.0 }')"
+  elif [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
+    cap="$(awk -v c="$cap" 'BEGIN { printf "%.2f", c * 1.4 }')"
+  elif ci_is_darwin; then
+    cap="$(awk -v c="$cap" 'BEGIN { printf "%.2f", c * 1.35 }')"
+  fi
+  printf '%s' "$cap"
+}
+
+# 探测 shux check 是否输出 SHUX_COMPILE_PHASE_TIMING（C-only shux-c 无 pipeline 时不输出）。
+comp_incr_compile_phase_timing_available() {
+  local shux="$1"
+  local fix="${2:-tests/bench/loop_i32.sx}"
+  local log=""
+  [ -x "$shux" ] && [ -f "$fix" ] || return 1
+  log="$(SHUX_COMPILE_PHASE_TIMING=1 "$shux" check "$fix" 2>&1)" || true
+  printf '%s' "$log" | grep -q 'SHUX_COMPILE_PHASE_TIMING'
 }
