@@ -18,9 +18,11 @@
  */
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include <time.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 /**
@@ -54,6 +56,156 @@ __attribute__((weak)) void ctx_free_c(int64_t handle) {
     (void)handle;
 }
 #endif
+
+/** OBS-002：async/runtime trace 采样（SHUX_ASYNC_RUNTIME_TRACE=1 启用；默认零开销）。 */
+#define SHUX_ASYNC_TRACE_RING_CAP 64
+#define SHUX_ASYNC_TRACE_PREFIX "shux: [SHUX_ASYNC_RUNTIME_TRACE]"
+
+/** v1 事件 kind 字符串（manifest event_kind 锚点）。 */
+static const char shu_async_trace_kind_task_run[] = "task_run";
+static const char shu_async_trace_kind_suspend[] = "suspend";
+static const char shu_async_trace_kind_io_wake[] = "io_wake";
+static const char shu_async_trace_kind_poll[] = "poll_completions";
+static const char shu_async_trace_kind_idle[] = "drain_idle";
+
+typedef struct {
+    const char *kind;
+    uint32_t worker;
+    uint32_t extra;
+    uint64_t us;
+    void *fn;
+} shu_async_trace_event_t;
+
+static shu_async_trace_event_t shu_async_trace_ring[SHUX_ASYNC_TRACE_RING_CAP];
+static unsigned shu_async_trace_ring_n;
+static unsigned shu_async_trace_events_total;
+static unsigned shu_async_trace_sample_tick;
+
+/** 是否启用 trace（SHUX_ASYNC_RUNTIME_TRACE 非空且非 0）。 */
+static int shu_async_runtime_trace_enabled(void) {
+    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
+    return e && e[0] && !(e[0] == '0' && e[1] == '\0');
+}
+
+/** 解析 SHUX_ASYNC_RUNTIME_TRACE_TOPN（1..64，默认 20）。 */
+static unsigned shu_async_trace_topn(void) {
+    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
+    long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
+    if (v < 1)
+        v = 1;
+    if (v > 64)
+        v = 64;
+    return (unsigned)v;
+}
+
+/** 解析 SHUX_ASYNC_RUNTIME_TRACE_SAMPLE（默认 1 = 每条）。 */
+static unsigned shu_async_trace_sample_rate(void) {
+    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
+    long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
+    if (v < 1)
+        v = 1;
+    return (unsigned)v;
+}
+
+/** 解析 SHUX_ASYNC_RUNTIME_TRACE_SLOW_US（默认 500）。 */
+static uint64_t shu_async_trace_slow_us(void) {
+    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
+    long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
+    if (v < 0)
+        v = 0;
+    return (uint64_t)v;
+}
+
+/** 单调时钟微秒（trace 耗时）。 */
+static uint64_t shu_async_trace_now_us(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        return 0;
+    return (uint64_t)ts.tv_sec * 1000000ull + (uint64_t)ts.tv_nsec / 1000ull;
+}
+
+/**
+ * 记录一条 trace 事件（采样 + 慢路径必录；ring 满时丢弃最慢旧项）。
+ * kind 须为 "task_run" / "suspend" / "io_wake" / "poll_completions" / "drain_idle"。
+ */
+void shu_async_trace_push(const char *kind, uint32_t worker, uint32_t extra, uint64_t us, void *fn) {
+    unsigned i;
+    unsigned min_i = 0;
+    uint64_t min_us;
+    if (!shu_async_runtime_trace_enabled() || !kind)
+        return;
+    shu_async_trace_events_total++;
+    if (us < shu_async_trace_slow_us()) {
+        shu_async_trace_sample_tick++;
+        if (shu_async_trace_sample_tick % shu_async_trace_sample_rate() != 0)
+            return;
+    }
+    if (shu_async_trace_ring_n < SHUX_ASYNC_TRACE_RING_CAP) {
+        shu_async_trace_event_t *ev = &shu_async_trace_ring[shu_async_trace_ring_n++];
+        ev->kind = kind;
+        ev->worker = worker;
+        ev->extra = extra;
+        ev->us = us;
+        ev->fn = fn;
+        return;
+    }
+    min_us = shu_async_trace_ring[0].us;
+    for (i = 1; i < SHUX_ASYNC_TRACE_RING_CAP; i++) {
+        if (shu_async_trace_ring[i].us < min_us) {
+            min_us = shu_async_trace_ring[i].us;
+            min_i = i;
+        }
+    }
+    if (us <= min_us)
+        return;
+    shu_async_trace_ring[min_i].kind = kind;
+    shu_async_trace_ring[min_i].worker = worker;
+    shu_async_trace_ring[min_i].extra = extra;
+    shu_async_trace_ring[min_i].us = us;
+    shu_async_trace_ring[min_i].fn = fn;
+}
+
+/** flush：stderr 输出 summary + Top-N 慢事件（按 us 降序）。 */
+void shu_async_runtime_trace_flush(void) {
+    unsigned n;
+    unsigned topn;
+    unsigned i;
+    unsigned j;
+    shu_async_trace_event_t tmp;
+    if (!shu_async_runtime_trace_enabled())
+        return;
+    n = shu_async_trace_ring_n;
+    topn = shu_async_trace_topn();
+    if (topn > n)
+        topn = n;
+    /* 简单降序排序（n ≤ 64）。 */
+    for (i = 0; i + 1 < n; i++) {
+        for (j = i + 1; j < n; j++) {
+            if (shu_async_trace_ring[j].us > shu_async_trace_ring[i].us) {
+                tmp = shu_async_trace_ring[i];
+                shu_async_trace_ring[i] = shu_async_trace_ring[j];
+                shu_async_trace_ring[j] = tmp;
+            }
+        }
+    }
+    fprintf(stderr, "%s summary events=%u slow_top=%u\n",
+            SHUX_ASYNC_TRACE_PREFIX, shu_async_trace_events_total, topn);
+    for (i = 0; i < topn; i++) {
+        fprintf(stderr, "%s rank=%u kind=%s worker=%u us=%llu extra=%u fn=%p\n",
+                SHUX_ASYNC_TRACE_PREFIX, i + 1, shu_async_trace_ring[i].kind,
+                (unsigned)shu_async_trace_ring[i].worker,
+                (unsigned long long)shu_async_trace_ring[i].us,
+                (unsigned)shu_async_trace_ring[i].extra, shu_async_trace_ring[i].fn);
+    }
+    shu_async_trace_ring_n = 0;
+    shu_async_trace_events_total = 0;
+    shu_async_trace_sample_tick = 0;
+}
+
+/** 烟测别名（async_runtime_trace_smoke.c）。 */
+void shux_async_runtime_trace_flush(void) {
+    shu_async_runtime_trace_flush();
+}
 
 /** 就绪队列容量（2 的幂便于取模；保留 1 空槽区分满/空）。 */
 #define SHUX_ASYNC_TASK_Q_CAP 64
@@ -477,8 +629,11 @@ uint32_t shux_async_io_waiters_pending(void) {
 void shux_async_io_wake(unsigned n) {
     unsigned moved = 0;
     unsigned limit = n;
+    uint64_t t0;
+    uint64_t dt;
     if (limit == 0)
         limit = (unsigned)shux_async_io_wait_n;
+    t0 = shu_async_trace_now_us();
     while (shux_async_io_wait_n > 0 && moved < limit) {
         shux_async_task_fn_t fn = shux_async_io_wait[--shux_async_io_wait_n];
         if (shux_async_task_submit(fn) != 0) {
@@ -487,6 +642,9 @@ void shux_async_io_wake(unsigned n) {
         }
         moved++;
     }
+    dt = shu_async_trace_now_us() - t0;
+    if (moved > 0)
+        shu_async_trace_push(shu_async_trace_kind_io_wake, shux_async_tls_worker, moved, dt, NULL);
 }
 
 /** IO-A5：唤醒全部 IO 等待任务。 */
@@ -584,8 +742,15 @@ static int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worke
         atomic_store_explicit(&q->head, h + 1, memory_order_release);
         if (!fn)
             continue;
-        r = fn();
+        {
+            uint64_t t0 = shu_async_trace_now_us();
+            r = fn();
+            shu_async_trace_push(shu_async_trace_kind_task_run, worker_id, 0,
+                                 shu_async_trace_now_us() - t0, (void *)(uintptr_t)fn);
+        }
         if (r == SHUX_ASYNC_SUSPENDED) {
+            shu_async_trace_push(shu_async_trace_kind_suspend, worker_id, 0, 0,
+                                 (void *)(uintptr_t)fn);
             if (shux_async_io_wait_enabled() || shux_async_take_suspend_io_flag()) {
                 if (shux_async_io_wait_push(fn) != 0)
                     return SHUX_ASYNC_SUSPENDED;
@@ -621,6 +786,7 @@ int32_t shux_async_scheduler_drain(void) {
         if (r != 0)
             last = r;
     }
+    shu_async_runtime_trace_flush();
     return last;
 }
 
@@ -634,15 +800,28 @@ int32_t shux_async_run_drain_until_idle(void) {
         int32_t batch = 0;
         uint32_t n = shux_async_worker_count();
         uint32_t w;
+        unsigned polled;
         for (w = 0; w < n; w++) {
             int32_t dr = shux_async_drain_queue(&shux_async_worker_q[w], w, &batch);
-            if (dr == SHUX_ASYNC_ERR_CTX_ABORT)
+            if (dr == SHUX_ASYNC_ERR_CTX_ABORT) {
+                shu_async_runtime_trace_flush();
                 return SHUX_ASYNC_ERR_CTX_ABORT;
+            }
         }
         sum += batch;
-        if (shux_async_scheduler_pending() == 0 && shux_async_io_waiters_pending() == 0)
+        if (shux_async_scheduler_pending() == 0 && shux_async_io_waiters_pending() == 0) {
+            shu_async_runtime_trace_flush();
             return sum;
-        if (shux_io_poll_async_completions(50) > 0) {
+        }
+        {
+            uint64_t t0 = shu_async_trace_now_us();
+            polled = shux_io_poll_async_completions(50);
+            if (polled > 0) {
+                shu_async_trace_push(shu_async_trace_kind_poll, shux_async_tls_worker, stall,
+                                     shu_async_trace_now_us() - t0, NULL);
+            }
+        }
+        if (polled > 0) {
             /* poll 窥视未消费 CQE 时可能反复 >0 却无任务进展，需有界退出。 */
             if (batch != 0)
                 stall = 0;
@@ -662,9 +841,12 @@ int32_t shux_async_run_drain_until_idle(void) {
             shux_async_io_wake_all();
 #endif
         stall++;
+        shu_async_trace_push(shu_async_trace_kind_idle, shux_async_tls_worker, stall, 0, NULL);
         /* 有界退出：poll=0 且仅 wake_all 时最多 64 轮（避免 CI 8min 挂死）。 */
-        if (stall >= 64u)
+        if (stall >= 64u) {
+            shu_async_runtime_trace_flush();
             return sum;
+        }
     }
 }
 
