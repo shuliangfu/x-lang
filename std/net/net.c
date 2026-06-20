@@ -955,6 +955,53 @@ int32_t net_resolve_ipv4_ex_c(const char *hostname, uint32_t *out_addr, int32_t 
   return 0;
 }
 
+/**
+ * 可诊断 IPv6 DNS：成功返回 0 并写 out_addr_16[16]；失败返回 -1 并写 *out_err（resolve_err_*）。
+ */
+int32_t net_resolve_ipv6_ex_c(const char *hostname, uint8_t *out_addr_16, int32_t *out_err) {
+#if defined(_WIN32) || defined(_WIN64)
+  static int wsa_done;
+  if (!wsa_done) {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+      if (out_err) *out_err = 4;
+      return -1;
+    }
+    wsa_done = 1;
+  }
+#endif
+  struct addrinfo hints;
+  struct addrinfo *res = NULL;
+  int ga;
+  if (!hostname || !out_addr_16) {
+    if (out_err) *out_err = 4;
+    return -1;
+  }
+  memset(out_addr_16, 0, 16);
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET6;
+  hints.ai_socktype = SOCK_STREAM;
+#ifdef AI_ADDRCONFIG
+  hints.ai_flags = AI_ADDRCONFIG;
+#endif
+  ga = getaddrinfo(hostname, NULL, &hints, &res);
+  if (ga != 0 || !res) {
+    if (out_err) *out_err = net_map_gai_error(ga);
+    if (res) freeaddrinfo(res);
+    return -1;
+  }
+  if (res->ai_family == AF_INET6 && res->ai_addr && res->ai_addrlen >= (socklen_t)sizeof(struct sockaddr_in6)) {
+    memcpy(out_addr_16, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr, 16);
+  } else {
+    if (out_err) *out_err = 2;
+    freeaddrinfo(res);
+    return -1;
+  }
+  freeaddrinfo(res);
+  if (out_err) *out_err = 0;
+  return 0;
+}
+
 /** std.io 批量读写（io.o）；TcpStream 首参 fd 与 AAPCS64 x0 低 32 位一致。 */
 extern ptrdiff_t io_read_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n,
                                unsigned timeout_ms);
