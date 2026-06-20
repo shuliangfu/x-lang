@@ -36,6 +36,7 @@
 2. **dep 优先**：多文件项目重复成本在 import 闭包；v1 以 `driver_dep_*` 预填为主。
 3. **check 与 -o 分轨**：`shux check` 可走 LSP 级 cache；`-o` 链路 v1 仅保证**二次编译可测量且不回退**（ratio ≤1.0）。
 4. **v2 目标**：二次编译 median ≤ **0.85×** 首次（`comp-incr-compile-bench.tsv` `target_ratio`）。
+5. **稳定 SKIP**：C-only `shux-c` 无 pipeline 阶段计时时 `bench_timing` SKIP；Docker/CI ratio 上限 ×1.65/×1.4 抗抖动。
 
 ---
 
