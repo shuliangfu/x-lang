@@ -1,6 +1,7 @@
 // core.result — Result<T,E> 与错误传播（自举前实现）
 // Result 寄存器化：双 8 字节槽布局，满足 x86-64 SysV 两寄存器返回（rax/rdx），错误检查零内存访问（见 analysis/Result寄存器化.md）。
 // 当前：Result_i32 全系列（ok/err、unwrap_or、is_ok/is_err、expect、expect_i32_or_panic、or/and）；泛型 Result<T,E> 与 map/and_then 待类型实参与函数类型支持后扩展。
+// LANG-010 泛型模板（parser 链暂不 import 模板体，避免 parser_gen 未单态化符号）：struct Result<T, E> { value: T; err: E; }
 
 // Result_i32：两对 (i32, padding) 共 16 字节，C 侧两寄存器返回；第二槽 err 为 0 表示成功
 allow(padding) struct Result_i32 {
@@ -28,6 +29,16 @@ function unwrap_or_i32(r: Result_i32, default_val: i32): i32 {
 // 是否为成功
 function is_ok_i32(r: Result_i32): bool {
   return r.err == 0;
+}
+
+/** 泛型成功判定占位：v1 gate 符号锚点；具象路径用 is_ok_i32。 */
+function is_ok_gen(r: Result_i32): bool {
+  return is_ok_i32(r);
+}
+
+/** 泛型 unwrap_or 占位：v1 gate 符号锚点；具象路径用 unwrap_or_i32。 */
+function unwrap_or_gen(r: Result_i32, default_val: i32): i32 {
+  return unwrap_or_i32(r, default_val);
 }
 
 // 是否为错误
