@@ -213,8 +213,7 @@ static int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
     n = (int32_t *)realloc(c->buf, (size_t)new_cap * sizeof(int32_t));
     if (!n) return -1;
     for (i = 0, j = c->head; i < c->len; i++, j = (j + 1) % c->cap)
-        n[i] = c->buf[j];
-    free(c->buf);
+        n[i] = n[j];
     c->buf = n;
     c->cap = new_cap;
     c->head = 0;
@@ -357,6 +356,20 @@ void channel_i32_free_c(void *ch) {
     channel_sync_destroy(c);
     free(c->buf);
     free(c);
+}
+
+/** 查询 channel 是否已关闭；无效句柄视为已关闭返回 1。 */
+int32_t channel_i32_is_closed_c(void *ch) {
+    channel_i32_impl_t *c;
+    int32_t closed;
+    if (!ch) {
+        return 1;
+    }
+    c = (channel_i32_impl_t *)ch;
+    channel_lock(c);
+    closed = c->closed ? 1 : 0;
+    channel_unlock(c);
+    return closed;
 }
 
 /** 从 i64 槽读取 channel 句柄。 */
