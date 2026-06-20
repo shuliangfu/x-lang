@@ -16,7 +16,7 @@ std.codec	tests/baseline/std-codec-manifest.tsv	std/codec/mod.sx	feature	run-std
 std.crypto	tests/baseline/std-crypto-manifest.tsv	std/crypto/mod.sx	feature	run-std-crypto-gate.sh
 std.csv	tests/baseline/std-csv-stream-manifest.tsv	std/csv/mod.sx	feature	run-std-csv-stream-gate.sh
 std.datetime	tests/baseline/std-datetime-manifest.tsv	std/datetime/mod.sx	feature	run-std-datetime-gate.sh
-std.sqlite	tests/baseline/std-sqlite-manifest.tsv	std/db/sqlite/mod.sx	feature	run-std-sqlite-gate.sh
+std.db.sqlite	tests/baseline/std-sqlite-manifest.tsv	std/db/sqlite/mod.sx	feature	run-std-sqlite-gate.sh
 std.dynlib	tests/baseline/std-dynlib-last-error.tsv	std/dynlib/mod.sx	api	run-std-dynlib-last-error-gate.sh
 std.elf	tests/baseline/std-elf-parse.tsv	std/elf/mod.sx	feature	run-std-elf-parse-gate.sh
 std.encoding	tests/baseline/std-encoding-extra-manifest.tsv	std/encoding/mod.sx	feature	run-std-encoding-extra-gate.sh

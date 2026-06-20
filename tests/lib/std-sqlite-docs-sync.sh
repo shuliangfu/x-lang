@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# std-sqlite-docs-sync.sh — STD-154 docs/07 与 std.sqlite 命名同步辅助
+# std-sqlite-docs-sync.sh — STD-154 docs/07 与 std.db.sqlite 命名同步辅助
 #
 # 用法（source 后）：
 #   std_sqlite_docs_sync_symbols_ok DOC07 README_SQLITE README_STD TSV
@@ -45,8 +45,8 @@ std_sqlite_docs_sync_symbols_ok() {
               [ -f "$readme_sqlite" ] || { echo "std-sqlite-docs-sync FAIL: missing $readme_sqlite" >&2; miss=$((miss + 1)); }
             elif [ "$anchor" = "std/README.md" ]; then
               [ -f "$readme_std" ] || { echo "std-sqlite-docs-sync FAIL: missing $readme_std" >&2; miss=$((miss + 1)); }
-              if ! grep -qF "std.sqlite" "$readme_std" 2>/dev/null; then
-                echo "std-sqlite-docs-sync FAIL: std/README.md missing std.sqlite" >&2
+              if ! grep -qF "std.db.sqlite" "$readme_std" 2>/dev/null; then
+                echo "std-sqlite-docs-sync FAIL: std/README.md missing std.db.sqlite" >&2
                 miss=$((miss + 1))
               fi
             fi
@@ -73,9 +73,9 @@ std_sqlite_docs_sync_forbidden_ok() {
     return 1
   fi
   local main_line
-  main_line=$(awk '/## std 已完善/{f=1} f && /\| `std\.sqlite`/{print; exit}' "$doc07")
+  main_line=$(awk '/## std 已完善/{f=1} f && /\| `std\.db\.sqlite`/{print; exit}' "$doc07")
   if [ -z "$main_line" ]; then
-    echo "std-sqlite-docs-sync FAIL: std.sqlite not in 已完善 main table" >&2
+    echo "std-sqlite-docs-sync FAIL: std.db.sqlite not in 已完善 main table" >&2
     return 1
   fi
   if echo "$main_line" | grep -qF 'STD-010 RFC'; then

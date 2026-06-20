@@ -1,4 +1,4 @@
-# STD-068 std.sqlite row_col_text manifest
+# STD-068 std.db.sqlite row_col_text manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_text_apis	1
 read_path	section	## 1. 目标	analysis/std-sqlite-row-col-text-v1.md

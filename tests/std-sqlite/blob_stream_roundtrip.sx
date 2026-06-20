@@ -1,5 +1,5 @@
 // STD-137：大 BLOB 分块读烟测（须 sqlite-o + -lsqlite3；stub 时 open 失败 exit 1）
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 /** 比较 buf 前 n 字节是否等于 0..n-1。 */
 function bytes_seq(buf: *u8, n: i32): i32 {

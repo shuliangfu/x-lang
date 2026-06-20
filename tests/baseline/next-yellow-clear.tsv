@@ -12,7 +12,7 @@ std163_queue	symbol	queue_u8_push_back	std/queue/mod.sx	STD-163
 std164_net	symbol	tcp_pool_new	std/net/mod.sx	STD-164
 std165_thread	symbol	thread_pool_stats	std/thread/mod.sx	STD-165
 std166_fmt	symbol	format_template_1_i32	std/fmt/mod.sx	STD-166
-std167_sqlite	symbol	sqlite_is_available	std/sqlite/mod.sx	STD-167
+std167_sqlite	symbol	sqlite_is_available	std/db/sqlite/mod.sx	STD-167
 doc	file	analysis/next-yellow-clear-v1.md	-	RFC
 gate	script	tests/run-next-yellow-clear-gate.sh	-	gate
 smoke_vec	smoke	tests/vec/u16_roundtrip.sx	-	STD-161

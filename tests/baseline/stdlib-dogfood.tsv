@@ -20,7 +20,7 @@ std.channel	0.0268	heavy
 std.compress	0.0271	heavy
 std.crypto	0.0268	heavy
 std.csv	0.0266	std
-std.sqlite	0.0258	heavy
+std.db.sqlite	0.0258	heavy
 std.dynlib	0.0253	heavy
 std.elf	0.0248	std
 std.encoding	0.0258	std

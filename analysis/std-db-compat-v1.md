@@ -1,7 +1,7 @@
 # STD-120 std.db 兼容层 v1
 
 > 更新时间：2026-06-18  
-> 状态：**可用** — deprecated 转发至 std.sqlite + gate
+> 状态：**可用** — deprecated `import("std.db")` 转发至 `std.db.sqlite` + gate
 
 ---
 
@@ -19,10 +19,10 @@
 
 | 旧路径 | 新路径 |
 |--------|--------|
-| `import("std.db")` | `import("std.sqlite")`（推荐） |
-| `std.db.open` | `std.sqlite.open` 或 `std.db.open`（转发） |
+| `import("std.db")` | `import("std.db.sqlite")`（推荐） |
+| `std.db.open` | `std.db.sqlite.open` 或 `std.db.open`（转发） |
 
-`std/db/mod.sx` 与 std.sqlite 共享 `std/sqlite/sqlite.o` C 实现；API 对齐。
+`std/db/mod.sx` 与 `std.db.sqlite` 共享 `std/db/sqlite/sqlite.o` C 实现；API 对齐。
 
 检测废弃：`db_is_deprecated()` 恒返回 1。
 

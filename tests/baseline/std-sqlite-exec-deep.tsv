@@ -1,4 +1,4 @@
-# STD-065 std.sqlite exec 深化 manifest
+# STD-065 std.db.sqlite exec 深化 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_tx_apis	3
 read_path	section	## 1. 目标	analysis/std-sqlite-exec-deep-v1.md

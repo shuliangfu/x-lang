@@ -1962,7 +1962,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     if (import_path_has_prefix(m->import_paths[j], name)) return 0;
                 }
             }
-            /* 依赖模块顶层 const（如 import std.sqlite 后 DB_ROW_OK） */
+            /* 依赖模块顶层 const（如 import std.db.sqlite 后 DB_ROW_OK） */
             {
                 const struct ASTLetDecl *mc = find_module_const_in_deps(name);
                 if (mc && mc->type) {

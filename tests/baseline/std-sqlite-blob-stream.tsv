@@ -1,4 +1,4 @@
-# STD-137 std.sqlite blob stream manifest
+# STD-137 std.db.sqlite blob stream manifest
 # min_stream_apis	2
 read_path	section	## 1. 目标	analysis/std-sqlite-blob-stream-v1.md
 api_doc	section	## 2. blob stream API（v1）	row_col_blob_len

@@ -21,7 +21,7 @@
 | STD-164 | std.net | `TcpConnPool` idle 复用 |
 | STD-165 | std.thread | `thread_pool_stats` |
 | STD-166 | std.fmt | `format_template_1_i32` |
-| STD-167 | std.sqlite | `sqlite_is_available` + stub 烟测 |
+| STD-167 | std.db.sqlite | `sqlite_is_available` + stub 烟测 |
 
 ---
 
@@ -35,5 +35,5 @@
 
 ## 3. 环境桩说明（§6 证据）
 
-- `std.sqlite`：`sqlite_is_available()==0` 于 stub 构建；全量链 `-lsqlite3` 时为 1。
+- `std.db.sqlite`：`sqlite_is_available()==0` 于 stub 构建；全量链 `-lsqlite3` 时为 1。
 - `std.net` TLS：`tls_is_available()` 已有；无 OpenSSL/mbedTLS 环境仍为桩，行为文档化。

@@ -1,4 +1,4 @@
-// STD-120：import("std.db") 兼容层烟测（转发 std.sqlite）
+// STD-120：import("std.db") 兼容层烟测（转发 std.db.sqlite）
 const db = import("std.db");
 
 function main(): i32 {

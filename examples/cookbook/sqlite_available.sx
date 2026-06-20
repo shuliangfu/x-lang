@@ -1,7 +1,7 @@
 /**
  * Cookbook DB-01：sqlite_is_available 运行时探测（STD-167）。
  */
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let av: i32 = sqlite.sqlite_is_available();

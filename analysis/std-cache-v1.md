@@ -41,6 +41,6 @@ std-cache gate OK
 
 ## 4. 后续（非 v1 阻塞）
 
-- 与 `std.sqlite` DbPool / `std.net` 客户端池统一抽象  
+- 与 `std.db.sqlite` DbPool / `std.net` 客户端池统一抽象  
 - 并发安全（mutex 包装）  
 - 字符串键 / 自定义 value 析构回调  

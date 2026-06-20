@@ -1,4 +1,4 @@
-# STD-070 std.sqlite stmt cache manifest
+# STD-070 std.db.sqlite stmt cache manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_stmt_apis	6
 read_path	section	## 1. 目标	analysis/std-sqlite-stmt-cache-v1.md

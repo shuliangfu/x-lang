@@ -21,8 +21,8 @@
 | 79 | `std.async` | `await_read_fd` / `net_read_async` / `fs_read_async` |
 | 80 | `std.datetime` | `timezone_iana` / `timezone_offset_at` IANA+DST |
 | 81 | `std.compress` | `compress_format_brotli/zstd` + `stream_compress_*` |
-| 82 | `std.sqlite` | `row_col_blob_len` / `row_col_blob_read` |
-| 83 | `std.sqlite` | stub `DB_NOT_IMPL` + `sqlite_is_available`（STD-139） |
+| 82 | `std.db.sqlite` | `row_col_blob_len` / `row_col_blob_read` |
+| 83 | `std.db.sqlite` | stub `DB_NOT_IMPL` + `sqlite_is_available`（STD-139） |
 
 ---
 

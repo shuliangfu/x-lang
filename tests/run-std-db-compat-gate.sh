@@ -7,7 +7,7 @@ DOC="analysis/std-db-compat-v1.md"
 MANIFEST="tests/baseline/std-db-compat-manifest.tsv"
 VECTORS="tests/baseline/std-db-compat-vectors.tsv"
 MOD_SU="std/db/mod.sx"
-SQLITE_SU="std/sqlite/mod.sx"
+SQLITE_SU="std/db/sqlite/mod.sx"
 LIB="tests/lib/std-db-compat.sh"
 SMOKE_SU="tests/std-db/compat_smoke.sx"
 MIN_APIS=5
@@ -19,7 +19,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SQLITE_SU" "$SMOKE_SU"
   [ -f "$f" ] || { echo "std-db-compat gate FAIL: missing $f" >&2; exit 1; }
 done
 
-grep -qF std.sqlite "$DOC" || exit 1
+grep -qF std.db.sqlite "$DOC" || exit 1
 grep -qF db_is_deprecated "$VECTORS" || exit 1
 grep -qF db_open_c "$MOD_SU" || exit 1
 

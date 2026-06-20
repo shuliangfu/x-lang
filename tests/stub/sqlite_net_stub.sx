@@ -1,5 +1,5 @@
 // STD-167：sqlite/net stub 可用性烟测
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 const net = import("std.net");
 
 function main(): i32 {

@@ -1,4 +1,4 @@
-# STD-084：std.sqlite 连接池 v1
+# STD-084：std.db.sqlite 连接池 v1
 
 > 更新时间：2026-06-18  
 > 状态：**可用**  

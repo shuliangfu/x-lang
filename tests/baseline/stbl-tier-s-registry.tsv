@@ -11,7 +11,7 @@ std.json	tests/baseline/std-json-manifest.tsv	std/json/mod.sx	feature	STD-008
 std.http	tests/baseline/std-http-manifest.tsv	std/http/mod.sx	feature	STD-006
 std.compress	tests/baseline/std-compress-manifest.tsv	std/compress/mod.sx	feature	STD-007
 std.crypto	tests/baseline/std-crypto-manifest.tsv	std/crypto/mod.sx	feature	STD-009
-std.sqlite	tests/baseline/std-sqlite-manifest.tsv	std/sqlite/mod.sx	feature	STD-010
+std.db.sqlite	tests/baseline/std-sqlite-manifest.tsv	std/db/sqlite/mod.sx	feature	STD-010
 std.process	tests/baseline/std-process-pipe-spawn.tsv	std/process/mod.sx	feature	STD-023/024
 std.path	tests/baseline/std-path-api.tsv	std/path/mod.sx	api	STD-021
 std.string	tests/baseline/std-strview-zc4.tsv	std/string/mod.sx	feature	STD-016

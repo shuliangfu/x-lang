@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-070：std.sqlite 预编译 bind + stmt 缓存门禁
+# STD-070：std.db.sqlite 预编译 bind + stmt 缓存门禁
 #
 # 用法：./tests/run-std-sqlite-stmt-cache-gate.sh
 set -e
@@ -19,7 +19,7 @@ MIN_STMT=6
 . "$LIB"
 std_sqlite_stmt_cache_source_sqlite
 
-echo "=== STD-070: std.sqlite stmt cache manifest ==="
+echo "=== STD-070: std.db.sqlite stmt cache manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$DB_C" "$SMOKE_SU" "$SMOKE_C" \
   analysis/std-sqlite-next-row-v1.md tests/run-std-sqlite-next-row-gate.sh; do
   if [ ! -f "$f" ]; then

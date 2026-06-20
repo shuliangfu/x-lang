@@ -1,4 +1,4 @@
-# STD-010 std.sqlite 预研 manifest
+# STD-010 std.db.sqlite 预研 manifest
 # 列：item_id	kind	anchor	src	tier	notes
 min_apis	9
 min_layers	4

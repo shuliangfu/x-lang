@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-154：std.sqlite 文档与 docs/07 统一门禁
+# STD-154：std.db.sqlite 文档与 docs/07 统一门禁
 #
 # 用法：./tests/run-std-sqlite-docs-sync-gate.sh
 set -e

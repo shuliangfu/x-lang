@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-010：std.sqlite 接口预研 manifest 门禁
+# STD-010：std.db.sqlite 接口预研 manifest 门禁
 #
 # 用法：./tests/run-std-sqlite-prereq-gate.sh
 set -e
@@ -15,7 +15,7 @@ PREFIX="shux: [SHUX_STD_SQLITE]"
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
 
-echo "=== STD-010: std.sqlite prereq manifest ==="
+echo "=== STD-010: std.db.sqlite prereq manifest ==="
 for f in "$DOC" "$MANIFEST" "$MOD_SU" std/db/sqlite/README.md tests/lib/std-sqlite.sh tests/run-std-sqlite.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2

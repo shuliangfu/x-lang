@@ -9,7 +9,7 @@ anchor_scheduler	anchor	scheduler.c	async C 实现
 anchor_spawn	anchor	spawn_simple	process API
 anchor_http	anchor	run-http.sh	http 烟测
 anchor_tar	anchor	run-tar.sh	tar 烟测
-anchor_db	anchor	std.sqlite	db 模块
+anchor_db	anchor	std.db.sqlite	db 模块
 anchor_next	anchor	NEXT.md	Phase 2
 anchor_check_matrix	anchor	run-stdlib-check-matrix	BOOT-013
 doc	file	stbl-readme-sync-v1.md	analysis/stbl-readme-sync-v1.md	RFC

@@ -1,7 +1,7 @@
 /**
  * PERF-170：sqlite_is_available 热路径循环烟测（stub/真实库均适用）。
  */
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let acc: i32 = 0;

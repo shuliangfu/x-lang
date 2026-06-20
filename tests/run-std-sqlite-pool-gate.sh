@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-084：std.sqlite 连接池门禁
+# STD-084：std.db.sqlite 连接池门禁
 set -e
 cd "$(dirname "$0")/.."
 
@@ -17,7 +17,7 @@ MIN_POOL=4
 . "$LIB"
 std_sqlite_pool_source_sqlite
 
-echo "=== STD-084: std.sqlite pool manifest ==="
+echo "=== STD-084: std.db.sqlite pool manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$DB_C" "$SMOKE_SU" "$SMOKE_C" \
   analysis/std-sqlite-stmt-cache-v1.md tests/run-std-sqlite-stmt-cache-gate.sh; do
   if [ ! -f "$f" ]; then

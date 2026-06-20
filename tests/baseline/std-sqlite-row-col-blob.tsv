@@ -1,4 +1,4 @@
-# STD-069 std.sqlite row_col_blob manifest
+# STD-069 std.db.sqlite row_col_blob manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_blob_apis	1
 read_path	section	## 1. 目标	analysis/std-sqlite-row-col-blob-v1.md

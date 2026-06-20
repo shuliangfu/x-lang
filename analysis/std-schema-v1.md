@@ -43,5 +43,5 @@ std-schema gate OK
 ## 4. 后续（非 v1 阻塞）
 
 - 嵌套 object / array 字段  
-- 与 std.sqlite stmt 一步 decode  
+- 与 std.db.sqlite stmt 一步 decode  
 - JSON Schema 子集导入  

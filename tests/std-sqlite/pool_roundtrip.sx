@@ -1,5 +1,5 @@
 // STD-084：内存库连接池 acquire/release 烟测
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];

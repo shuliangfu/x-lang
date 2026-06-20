@@ -1,5 +1,5 @@
 // STD-057：内存库 exec 往返烟测（须 sqlite-o + -lsqlite3 链接）
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];

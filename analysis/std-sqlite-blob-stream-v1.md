@@ -1,4 +1,4 @@
-# STD-137：std.sqlite 大 BLOB 分块读 v1
+# STD-137：std.db.sqlite 大 BLOB 分块读 v1
 
 > 更新时间：2026-06-19  
 > 状态：**可用**  

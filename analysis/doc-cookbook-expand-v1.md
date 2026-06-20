@@ -209,7 +209,7 @@ DOC-001 已覆盖 IO-01～03：`examples/cookbook/io_batch_rw.sx`、`io_read_chu
 | THREAD-01 | `examples/cookbook/thread_pool_stats.sx` | std.thread |
 | FMT-02 | `examples/cookbook/fmt_template_i32.sx` | std.fmt |
 | STR-02 | `examples/cookbook/string_case_fold.sx` | std.string |
-| DB-01 | `examples/cookbook/sqlite_available.sx` | std.sqlite |
+| DB-01 | `examples/cookbook/sqlite_available.sx` | std.db.sqlite |
 
 ---
 
@@ -258,7 +258,7 @@ DOC-001 已覆盖 IO-01～03：`examples/cookbook/io_batch_rw.sx`、`io_read_chu
 | THREAD-01 | `examples/cookbook/thread_pool_stats.sx` | std.thread |
 | FMT-02 | `examples/cookbook/fmt_template_i32.sx` | std.fmt |
 | STR-02 | `examples/cookbook/string_case_fold.sx` | std.string |
-| DB-01 | `examples/cookbook/sqlite_available.sx` | std.sqlite |
+| DB-01 | `examples/cookbook/sqlite_available.sx` | std.db.sqlite |
 
 ---
 

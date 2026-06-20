@@ -5,7 +5,7 @@ doc07_phase3	section	## 2. docs/07 增量	analysis/doc-07-phase3-sync-v1.md
 kw_async79	keyword	await_read_fd	docs07	#79 std.async
 kw_dt80	keyword	timezone_iana	docs07	#80 std.datetime
 kw_cmp81	keyword	compress_format_brotli	docs07	#81 std.compress
-kw_sql82	keyword	row_col_blob_read	docs07	#82 std.sqlite
+kw_sql82	keyword	row_col_blob_read	docs07	#82 std.db.sqlite
 recipe_async4	recipe	examples/cookbook/async_net_fs.sx	cookbook	ASYNC-04
 recipe_dt1	recipe	examples/cookbook/datetime_iana.sx	cookbook	DT-01
 recipe_cmp2	recipe	examples/cookbook/compress_stream_br_zs.sx	cookbook	CMP-02

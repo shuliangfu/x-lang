@@ -272,7 +272,7 @@ endif
 ../std/sys/win32.o: ../std/sys/win32.inc.c
 	$(CC) $(CFLAGS) $(WIN32_O_CFLAGS) -c -o $@ $<
 
-# std.sqlite：默认 SQLite3 后端（std/db/sqlite/sqlite.c）；无 libsqlite3 时用 sqlite-o-stub。
+# std.db.sqlite：默认 SQLite3 后端（std/db/sqlite/sqlite.c）；无 libsqlite3 时用 sqlite-o-stub。
 ../std/db/sqlite/sqlite.o: ../std/db/sqlite/sqlite.c
 	$(CC) $(CFLAGS) -DSHUX_DB_USE_SQLITE3 -c -o $@ $<
 sqlite-o: ../std/db/sqlite/sqlite.o

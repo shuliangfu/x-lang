@@ -1,4 +1,4 @@
-# STD-138：std.sqlite 跨线程连接语义 v1
+# STD-138：std.db.sqlite 跨线程连接语义 v1
 
 > 更新时间：2026-06-19  
 > 状态：**文档定版**  
@@ -40,7 +40,7 @@
 
 ## 3. 与 std.db 兼容层
 
-`import("std.db")` 转发至 `std.sqlite`；线程语义相同。
+`import("std.db")` 转发至 `std.db.sqlite`；线程语义相同。
 
 ---
 

@@ -10,8 +10,7 @@
 
 ## 迁移说明
 
-- 原 `std/sqlite/` 已迁至 **`std/db/sqlite/`**。
-- `import("std.sqlite")` 仍可用（deprecated 兼容层，见 `std/sqlite/mod.sx`）。
+- SQLite 实现位于 **`std/db/sqlite/`**（`mod.sx` + `sqlite.c`）。
 - 新代码请使用 `import("std.db.sqlite")` 或 `import("std.db")` 门面。
 
 ## kv — 高频时序 / 权重流

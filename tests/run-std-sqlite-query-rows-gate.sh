@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-066：std.sqlite query_rows 行迭代原型门禁
+# STD-066：std.db.sqlite query_rows 行迭代原型门禁
 #
 # 用法：./tests/run-std-sqlite-query-rows-gate.sh
 set -e

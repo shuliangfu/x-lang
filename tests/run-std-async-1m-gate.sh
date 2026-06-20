@@ -76,6 +76,13 @@ async_compile_bench() {
   rm -f "$out"
   if async_is_linux_x64_asm && [[ "$su" == *sched* ]]; then
     if ! "$SHUX_BIN" -L . "$su" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
+      if grep -qE 'backend asm not available|not available in this build' /tmp/async_1m_compile.log 2>/dev/null; then
+        echo "async 1M WARN: asm backend unavailable, fallback shux-c for $su" >&2
+        if [ -x ./compiler/shux-c ]; then
+          ./compiler/shux-c -L . "$su" -o "$out" || return 1
+          return 0
+        fi
+      fi
       cat /tmp/async_1m_compile.log >&2
       return 1
     fi

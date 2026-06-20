@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-065：std.sqlite SQLite exec 深化门禁
+# STD-065：std.db.sqlite SQLite exec 深化门禁
 #
 # 用法：./tests/run-std-sqlite-exec-deep-gate.sh
 set -e

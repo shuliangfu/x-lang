@@ -1,5 +1,5 @@
 // STD-070：内存库 stmt bind + 缓存烟测（须 sqlite-o + -lsqlite3 链接）
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 /** 比较 buf 前 n 字节与 expect（最多 5 字节）。 */
 function text_eq5(buf: *u8, n: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, expect_len: i32): i32 {

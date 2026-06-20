@@ -13,7 +13,7 @@ mod_fs	module	std.fs	error_base_fs	std/fs/mod.sx	std/fs/mod.sx	fs_last_error
 mod_net	module	std.net	error_base_net	std/net/mod.sx	std/net/mod.sx	无侧车 v1
 mod_async	module	std.async	error_base_async	std/async/mod.sx	std/async/mod.sx	占位
 mod_coll	module	coll/heap	error_base_coll	std/heap/mod.sx	std/heap/mod.sx	-1=alloc
-mod_db	module	std.sqlite	-	std/db/sqlite/mod.sx	std/db/sqlite/mod.sx	last_error DbError
+mod_db	module	std.db.sqlite	-	std/db/sqlite/mod.sx	std/db/sqlite/mod.sx	last_error DbError
 mod_process	module	std.process	-	std/process/mod.sx	std/process/mod.sx	Layer C -1
 mod_http	module	std.http	-	std/http/mod.sx	std/http/mod.sx	Layer C -1
 mod_json	module	std.json	-	std/json/mod.sx	std/json/mod.sx	本地负码

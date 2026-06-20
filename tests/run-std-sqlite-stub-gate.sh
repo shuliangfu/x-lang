@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-139：std.sqlite stub 后端文档与烟测门禁
+# STD-139：std.db.sqlite stub 后端文档与烟测门禁
 #
 # 用法：./tests/run-std-sqlite-stub-gate.sh
 set -e

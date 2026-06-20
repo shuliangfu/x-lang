@@ -530,7 +530,7 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 | std.http HTTP/1.1 + HTTP/2 v1                 | ✅   | 远期 HTTP/3 非目标             |
 | std.websocket / std.net TLS / TcpConnPool     | ✅   |                           |
 | std.async net/fs + datetime IANA + compress 流 | ✅   | #78～#81                   |
-| std.sqlite / std.db blob + kv/arrow + docs/07 | ✅   | #82～#93；**功能**收口          |
+| std.db.sqlite / std.db blob + kv/arrow + docs/07 | ✅   | #82～#93；**功能**收口          |
 | mod ✅ 计数（2026-06-18 审计）                       | ✅   | core 11/11；std 约 28 mod ✅ |
 | **std/*.c 清零（阶段 F）**                          | ⬜   | **完全自举必达**                |
 

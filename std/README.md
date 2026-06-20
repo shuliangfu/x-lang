@@ -123,7 +123,6 @@ runtime、io、io-driver、mem、fs、process、path、heap、string、vec、map
 | **std.db.sqlite** | std/db/sqlite/ | `sqlite_is_available`、按需 `-lsqlite3` |
 | **std.db.kv** | std/db/kv/ | mmap LSM Append-Only KV（无 SQL） |
 | **std.db.arrow** | std/db/arrow/ | 零拷贝列式内存（64B 对齐） |
-| **std.sqlite** | std/sqlite/ | deprecated → `std.db.sqlite` |
 | **scheduler.c** | std/async/ | 异步调度 C 层（async C） |
 | **spawn_simple** | std/process/ | 最小 spawn 烟测路径 |
 | **run-http.sh** | tests/ | http 烟测脚本（STBL-002） |

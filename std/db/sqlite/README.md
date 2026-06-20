@@ -1,6 +1,6 @@
 # std.db.sqlite — SQLite 数据库访问
 
-> **路径**：`import("std.db.sqlite")`；`import("std.sqlite")` 为 deprecated 兼容层。  
+> **路径**：`import("std.db.sqlite")`。
 > **RFC**：`analysis/std-sqlite-prereq-v1.md` · `analysis/std-sqlite-v1.md`
 
 ## 构建与后端

@@ -1,5 +1,5 @@
 // STD-139：stub / sqlite3 双模式行为烟测（sqlite3 时仅探测；stub 时断言 DB_NOT_IMPL）
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let av: i32 = sqlite.sqlite_is_available();

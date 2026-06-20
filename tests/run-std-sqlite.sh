@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-010：std.sqlite 预研 runner（草案 API + typeck）
+# STD-010：std.db.sqlite 预研 runner（草案 API + typeck）
 #
 # 用法：./tests/run-std-sqlite.sh
 set -e
@@ -11,7 +11,7 @@ MOD_SU="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
 
-echo "=== STD-010: std.sqlite prereq runner ==="
+echo "=== STD-010: std.db.sqlite prereq runner ==="
 
 API_N=0
 LAYER_N=0

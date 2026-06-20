@@ -30,7 +30,7 @@ std_codec	module	std.codec	std	check
 std_crypto	module	std.crypto	std	check
 std_csv	module	std.csv	std	check
 std_datetime	module	std.datetime	std	check
-std_sqlite	module	std.sqlite	std	check
+std_sqlite	module	std.db.sqlite	std	check
 std_dynlib	module	std.dynlib	std	check
 std_elf	module	std.elf	std	check
 std_encoding	module	std.encoding	std	check

@@ -1,4 +1,4 @@
-# STD-066 std.sqlite query_rows manifest
+# STD-066 std.db.sqlite query_rows manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_query_apis	1
 read_path	section	## 1. 目标	analysis/std-sqlite-query-rows-v1.md

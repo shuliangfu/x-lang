@@ -1079,7 +1079,7 @@ echo "── STD-HTTP-H2 http/2 wire format ──"
 chmod +x tests/run-std-http-h2-gate.sh tests/lib/std-http-h2.sh
 run_grep /tmp/std_http_h2_gate.log 'std-http-h2 gate OK' ./tests/run-std-http-h2-gate.sh
 
-echo "── STD-010 std.sqlite prereq RFC draft ──"
+echo "── STD-010 std.db.sqlite prereq RFC draft ──"
 chmod +x tests/run-std-sqlite-prereq-gate.sh tests/run-std-sqlite.sh tests/lib/std-sqlite.sh
 ./tests/run-std-sqlite-prereq-gate.sh | tee /tmp/std_sqlite_gate.log
 grep -q 'std-sqlite prereq gate OK' /tmp/std_sqlite_gate.log

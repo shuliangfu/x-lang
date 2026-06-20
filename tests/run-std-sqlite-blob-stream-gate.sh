@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-137：std.sqlite 大 BLOB 分块读门禁
+# STD-137：std.db.sqlite 大 BLOB 分块读门禁
 #
 # 用法：./tests/run-std-sqlite-blob-stream-gate.sh
 set -e

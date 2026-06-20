@@ -1,4 +1,4 @@
-# STD-138 std.sqlite threading manifest
+# STD-138 std.db.sqlite threading manifest
 # min_thread_docs	1
 read_path	section	## 1. 目标	analysis/std-sqlite-threading-v1.md
 sem_doc	section	## 2. 语义（v1）	DbConn

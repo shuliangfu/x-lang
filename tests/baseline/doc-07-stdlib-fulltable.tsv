@@ -51,7 +51,7 @@ anchor_tar	anchor	std.tar	both
 anchor_async	anchor	std.async	both
 anchor_regex	anchor	std.regex	both
 anchor_simd	anchor	std.simd	both
-anchor_db	anchor	std.sqlite	both
+anchor_db	anchor	std.db.sqlite	both
 anchor_elf	anchor	std.elf	both
 anchor_scheduler	anchor	scheduler.c	both	async C
 anchor_spawn	anchor	spawn_simple	both	process

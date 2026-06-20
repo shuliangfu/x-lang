@@ -1,4 +1,4 @@
-# STD-084 std.sqlite pool manifest
+# STD-084 std.db.sqlite pool manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_pool_apis	4
 read_path	section	## 1. 目标	analysis/std-sqlite-pool-v1.md

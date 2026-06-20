@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-069：std.sqlite row_col_blob BLOB 列门禁
+# STD-069：std.db.sqlite row_col_blob BLOB 列门禁
 #
 # 用法：./tests/run-std-sqlite-row-col-blob-gate.sh
 set -e

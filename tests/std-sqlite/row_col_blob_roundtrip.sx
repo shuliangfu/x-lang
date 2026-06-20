@@ -1,5 +1,5 @@
 // STD-069：内存库 row_col_blob BLOB 列烟测（须 sqlite-o + -lsqlite3 链接）
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 /** 比较 buf 前 n 字节是否与三元组一致。 */
 function bytes_eq3(buf: *u8, b0: u8, b1: u8, b2: u8, n: i32): i32 {

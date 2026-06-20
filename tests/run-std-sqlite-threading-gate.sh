@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-138：std.sqlite 跨线程连接语义文档门禁
+# STD-138：std.db.sqlite 跨线程连接语义文档门禁
 #
 # 用法：./tests/run-std-sqlite-threading-gate.sh
 set -e

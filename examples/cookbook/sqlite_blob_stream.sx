@@ -2,7 +2,7 @@
  * Cookbook DB-02：sqlite 大 BLOB 分块读（STD-082 #82）。
  * 无 libsqlite3（stub）时 `sqlite_is_available()==0`，直接 exit 0。
  */
-const sqlite = import("std.sqlite");
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   if (sqlite.sqlite_is_available() == 0) {

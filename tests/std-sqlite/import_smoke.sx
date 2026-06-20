@@ -1,5 +1,5 @@
-// STD-057：std.sqlite import 烟测（默认 SQLite3 后端 + -lsqlite3 链接）
-const sqlite = import("std.sqlite");
+// STD-057：std.db.sqlite import 烟测（默认 SQLite3 后端 + -lsqlite3 链接）
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];

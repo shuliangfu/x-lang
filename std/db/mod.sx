@@ -7,7 +7,7 @@
 //
 // 【STD-120 兼容层】
 // `import("std.db")` 仍可用但已废弃；open/exec/close/changes 转发 std.db.sqlite，
-// 与 std/sqlite/sqlite.o 共享 C 实现（db_open_c 等符号）。
+// 与 std/db/sqlite/sqlite.o 共享 C 实现（db_open_c 等符号）。
 //
 // 【用法】
 //   const db = import("std.db");          // deprecated

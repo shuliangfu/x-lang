@@ -51,7 +51,7 @@ matrix_path = os.environ["MATRIX"]
 HEAVY = {
     "std.async", "std.http", "std.json", "std.regex", "std.crypto",
     "std.compress", "std.fs", "std.net", "std.thread", "std.process",
-    "std.channel", "std.backtrace", "std.sqlite", "std.simd", "std.dynlib", "std.ffi",
+    "std.channel", "std.backtrace", "std.db.sqlite", "std.simd", "std.dynlib", "std.ffi",
 }
 
 def load_modules(path):

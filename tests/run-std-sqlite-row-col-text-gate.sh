@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-068：std.sqlite row_col_text 文本列门禁
+# STD-068：std.db.sqlite row_col_text 文本列门禁
 #
 # 用法：./tests/run-std-sqlite-row-col-text-gate.sh
 set -e

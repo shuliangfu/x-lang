@@ -1,5 +1,5 @@
-// STD-010：std.sqlite API typeck 金样（仅校验签名）
-const sqlite = import("std.sqlite");
+// STD-010：std.db.sqlite API typeck 金样（仅校验签名）
+const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
   let path: [8]u8 = [116, 101, 115, 116, 46, 100, 98, 0];

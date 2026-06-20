@@ -216,3 +216,16 @@ DONE
 # *.gcda
 # Clang/LLVM 插桩覆盖率原始数据（llvm-profdata merge 的输入）
 *.profraw
+
+# --- 不应提交的本地/运行时产物 ---
+# VS Code 扩展 vsix（vsce package 本地生成；TOOL-009 gate 无 node 时 SKIP 或现场 pack）
+*.vsix
+
+# IO benchmark 临时 mmap 文件（run-perf-io / zc5 / syscall-batch 等生成，体积大）
+tests/bench/.io_mmap_bench_tmp
+
+# std.db.kv 烟测运行时数据（gate 执行后生成，非源码）
+tests/std-db/.kv_smoke
+tests/std-db/.kv_smoke.*
+tests/std-db/.cb_kv_arrow
+tests/std-db/.cb_kv_arrow.*

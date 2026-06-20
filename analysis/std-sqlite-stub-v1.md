@@ -1,4 +1,4 @@
-# STD-139：std.sqlite stub 后端 v1
+# STD-139：std.db.sqlite stub 后端 v1
 
 > 更新时间：2026-06-19  
 > 状态：**文档定版**  
@@ -18,7 +18,7 @@
 
 | 模式 | 命令 | 链接 | `backend_name()` | `sqlite_is_available()` |
 |------|------|------|------------------|-------------------------|
-| **默认** | `make -C compiler ../std/sqlite/sqlite.o` | `-lsqlite3` | `"sqlite3"` | **1** |
+| **默认** | `make -C compiler ../std/db/sqlite/sqlite.o` | `-lsqlite3` | `"sqlite3"` | **1** |
 | **stub** | `make -C compiler sqlite-o-stub` | 无 | `"stub"` | **0** |
 
 ---

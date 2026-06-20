@@ -1,4 +1,4 @@
-# STD-057 std.sqlite SQLite3 manifest
+# STD-057 std.db.sqlite SQLite3 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	4
 read_path	section	## 1. 阅读路径	15min

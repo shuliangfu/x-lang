@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-067：std.sqlite next_row 列值游标门禁
+# STD-067：std.db.sqlite next_row 列值游标门禁
 #
 # 用法：./tests/run-std-sqlite-next-row-gate.sh
 set -e

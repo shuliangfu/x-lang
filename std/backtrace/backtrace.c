@@ -44,7 +44,13 @@
 #include <dbghelp.h>
 #endif
 
-/** 金样锚点：烟测 symbolicate 期望符号名含 gold_anchor。 */
+/** 金样锚点：烟测 symbolicate 期望符号名含 gold_anchor。
+ * noinline：-O2 下须保留栈帧，否则 capture 路径 dladdr 找不到 gold_anchor（CI OPT=1 回归）。 */
+#if defined(_MSC_VER)
+__declspec(noinline)
+#else
+__attribute__((noinline))
+#endif
 void backtrace_gold_anchor_c(void);
 
 /** 前向声明（capture 烟测辅助）。 */

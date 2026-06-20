@@ -1,4 +1,4 @@
-# STD-067 std.sqlite next_row manifest
+# STD-067 std.db.sqlite next_row manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_cursor_apis	3
 read_path	section	## 1. 目标	analysis/std-sqlite-next-row-v1.md

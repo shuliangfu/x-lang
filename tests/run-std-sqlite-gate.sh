@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-057：std.sqlite SQLite3 后端门禁
+# STD-057：std.db.sqlite SQLite3 后端门禁
 #
 # 用法：./tests/run-std-sqlite-gate.sh
 set -e
@@ -20,7 +20,7 @@ MIN_APIS=4
 # shellcheck source=tests/lib/std-sqlite-gate.sh
 . "$LIB"
 
-echo "=== STD-057: std.sqlite manifest ==="
+echo "=== STD-057: std.db.sqlite manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SQLITE_C" "$SMOKE_SU" "$SMOKE_IMPORT_SU" "$SMOKE_C" "$PREREQ_DOC" std/db/sqlite/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2
