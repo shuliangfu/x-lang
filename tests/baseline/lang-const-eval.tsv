@@ -18,7 +18,7 @@ case_binop_mix	case	c_binop_mix.sx	tests/lang-const/c_binop_mix.sx	v1	exit 20
 case_bitwise	case	c_bitwise.sx	tests/lang-const/c_bitwise.sx	v1	exit 131
 case_shift	case	c_shift.sx	tests/lang-const/c_shift.sx	v1	exit 0
 case_compare	case	c_compare.sx	tests/lang-const/c_compare.sx	v1	exit 2
-case_unary	case	c_unary.sx	tests/lang-const/c_unary.sx	v1	exit 260
+case_unary	case	c_unary.sx	tests/lang-const/c_unary.sx	v1	exit 4
 case_logical	case	c_logical.sx	tests/lang-const/c_logical.sx	v1	exit 1
 case_const_chain	case	c_const_chain.sx	tests/lang-const/c_const_chain.sx	v1	exit 20
 case_mod_div	case	c_mod_div.sx	tests/lang-const/c_mod_div.sx	v1	exit 7
