@@ -1,4 +1,5 @@
 // std.simd — SIMD-S2：标准向量类型 Vec4f / Vec8i（映射 f32x4 / i32x8 语义）
+// STD-047：vec4f_shuffle / vec8i_select lane-scalar 实装；STD-061：shuffle/select 生产级 perf bench 锚点。
 //
 // 【文件职责】
 //   - Vec4f：4×f32（128-bit，NEON / SSE / AVX 低半）
