@@ -1443,6 +1443,7 @@ static int generated_c_needs_async_scheduler(const char *c_path) {
     static const char *needles[] = {
         "shux_async_run_i32", "shux_async_cps_suspend",
         "shux_async_task_submit", "shux_async_run_seed_",
+        "shux_async_coop_pingpong_jmp", "shux_async_coop_pingpong",
         /* STD-118 hooks_smoke：runtime_drain/reset 走 scheduler 队列与 context 绑定 */
         "shux_async_run_drain_until_idle", "shux_async_queue_reset",
         "shux_async_bind_context_c",
@@ -1978,6 +1979,16 @@ static int compress_o_needs_zstd(const char *compress_o) {
     return obj_o_has_undef_sym(compress_o, "ZSTD_") || obj_o_has_undef_sym(compress_o, "_ZSTD");
 }
 
+/** compress.o 是否依赖 libbrotli（marker 或 Brotli 未定义符号）。 */
+static int compress_o_needs_brotli(const char *compress_o) {
+    if (!compress_o || !compress_o[0])
+        return 0;
+    if (net_o_exports_marker(compress_o, "shu_compress_brotli_marker"))
+        return 1;
+    return obj_o_has_undef_sym(compress_o, "BrotliEncoderCompress")
+        || obj_o_has_undef_sym(compress_o, "BrotliDecoderDecompress");
+}
+
 /** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
 static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
 #if defined(__APPLE__)
@@ -1992,7 +2003,7 @@ static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
 #endif
 }
 
-/** ASM 链接：按 compress.o 实际依赖追加 -lz / -lzstd。 */
+/** ASM 链接：按 compress.o 实际依赖追加 -lz / -lzstd / -lbrotli*。 */
 static void asm_ld_append_compress_libs(const char *compress_o, const char **argv, int *la, int max_la) {
     if (!compress_o || !compress_o[0] || !argv || !la)
         return;
@@ -2006,9 +2017,16 @@ static void asm_ld_append_compress_libs(const char *compress_o, const char **arg
         if (*la < max_la - 1)
             argv[(*la)++] = "-lzstd";
     }
+    if (compress_o_needs_brotli(compress_o)) {
+        ld_append_brew_lib_paths(argv, la, max_la);
+        if (*la < max_la - 1)
+            argv[(*la)++] = "-lbrotlienc";
+        if (*la < max_la - 1)
+            argv[(*la)++] = "-lbrotlidec";
+    }
 }
 
-/** invoke_cc 链接：按 compress.o 实际依赖追加 -lz / -lzstd。 */
+/** invoke_cc 链接：按 compress.o 实际依赖追加 -lz / -lzstd / -lbrotli*。 */
 static void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o) {
     if (!compress_o || !compress_o[0] || !argv || !i || *i >= argv_cap - 1)
         return;
@@ -2021,6 +2039,13 @@ static void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, con
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
         if (*i < argv_cap - 1)
             argv[(*i)++] = (char *)"-lzstd";
+    }
+    if (compress_o_needs_brotli(compress_o)) {
+        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lbrotlienc";
+        if (*i < argv_cap - 1)
+            argv[(*i)++] = (char *)"-lbrotlidec";
     }
 }
 
@@ -5666,8 +5691,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#include <stdlib.h>\n");
             fprintf(stdout, "#include <stdio.h>\n");
             fprintf(stdout, "#include <string.h>\n");
+            fprintf(stdout, "extern int getpid(void);\n");
+            fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+            fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+            fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
+            fprintf(stdout, "  int _pid = (int)getpid();\n");
+            fprintf(stdout, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+            fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+            fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
+            fprintf(stdout, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
             fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
             fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
+            fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
             fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(stdout, "  abort();\n");
             fprintf(stdout, "}\n");
@@ -5820,8 +5856,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#include <stdlib.h>\n");
             fprintf(cf, "#include <stdio.h>\n");
             fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.sx) */
+            fprintf(cf, "#include <string.h>\n");
+            fprintf(cf, "extern int getpid(void);\n");
+            fprintf(cf, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+            fprintf(cf, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+            fprintf(cf, "  if (!_ev || _ev[0] != '1') return;\n");
+            fprintf(cf, "  int _pid = (int)getpid();\n");
+            fprintf(cf, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+            fprintf(cf, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+            fprintf(cf, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
+            fprintf(cf, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
             fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
             fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
+            fprintf(cf, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
             fprintf(cf, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(cf, "  abort();\n");
             fprintf(cf, "}\n");
@@ -10337,8 +10385,20 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#include <stdlib.h>\n");
     fprintf(stdout, "#include <stdio.h>\n");
     fprintf(stdout, "#include <string.h>\n");
+    fprintf(stdout, "#include <string.h>\n");
+    fprintf(stdout, "extern int getpid(void);\n");
+    fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+    fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+    fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
+    fprintf(stdout, "  int _pid = (int)getpid();\n");
+    fprintf(stdout, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+    fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
+    fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+    fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
+    fprintf(stdout, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
     fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
     fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
+    fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
     fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
     fprintf(stdout, "  abort();\n");
     fprintf(stdout, "}\n");
