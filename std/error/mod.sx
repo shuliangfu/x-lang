@@ -3,12 +3,15 @@
 //
 // 【文件职责】
 // 提供错误码类型 Error、ok/from_code/code/is_ok/is_err、与 io/fs
-// 等返回的错误码约定一致。
+// 等返回的错误码约定一致；EXC-004 ErrorChain 上下文链。
 //
 // 【对标】
 // Zig: 错误集、Allocator.Error、anyerror；
 // Rust: Result<T,E>、std::error::Error、Option；
 // Go: error 接口、errors.New、nil。
+//
+// import core.result — ErrorChain 与 Result_i32 互操作（EXC-004）
+const _core_result = import("core.result");
 /** 错误码 0 表示无错误；非 0 表示错误（正/负由各模块约定，如 io/fs
 * 用负表示错误）。 */
 function error_ok(): i32 { return 0; }
@@ -50,6 +53,8 @@ function error_base_io(): i32 { return -1000; }
 function io_err_timeout(): i32 { return -1001; }
 /** I/O 已取消（Context cancel）。 */
 function io_err_cancelled(): i32 { return -1002; }
+/** std.io 模块通用错误码（段起点占位，STD-011 / EXC-003）。 */
+function io_err_generic(): i32 { return error_base_io(); }
 /** std.net 模块错误段起点。 */
 function error_base_net(): i32 { return -1200; }
 /** 网络操作超时。 */
@@ -200,5 +205,92 @@ function error_recommend_retry(code: i32): i32 {
   if (error_is_timeout(code) != 0) { return 1; }
   return 0;
 }
+
+// ——— EXC-004：ErrorChain 固定深度错误链（零堆 v1） ———
+/** ErrorChain 最大深度（栈上 c0..c3）。 */
+function error_chain_max_depth(): i32 { return 4; }
+
+/** 错误链：c0 为 root（最近 wrap），向内至 leaf。 */
+struct ErrorChain {
+  depth: i32;
+  c0: i32;
+  c1: i32;
+  c2: i32;
+  c3: i32;
+}
+
+/** 空链（depth=0）。 */
+function error_chain_empty(): ErrorChain {
+  return ErrorChain { depth: 0, c0: 0, c1: 0, c2: 0, c3: 0 };
+}
+
+/** 单码链。 */
+function error_chain_from_code(code: i32): ErrorChain {
+  return ErrorChain { depth: 1, c0: code, c1: 0, c2: 0, c3: 0 };
+}
+
+/** 自 Result_i32.err 构造单节点链。 */
+function error_chain_from_result(r: Result_i32): ErrorChain {
+  return error_chain_from_code(r.err);
+}
+
+/** 链深度 0..max。 */
+function error_chain_depth(chain: ErrorChain): i32 {
+  return chain.depth;
+}
+
+/** 最外层码（c0）；空链返回 0。 */
+function error_chain_root(chain: ErrorChain): i32 {
+  if (chain.depth <= 0) { return 0; }
+  return chain.c0;
+}
+
+/** 按外→内下标取码；越界返回 0。 */
+function error_chain_code_at(chain: ErrorChain, idx: i32): i32 {
+  if (idx == 0) { return chain.c0; }
+  if (idx == 1) { return chain.c1; }
+  if (idx == 2) { return chain.c2; }
+  if (idx == 3) { return chain.c3; }
+  return 0;
+}
+
+/** 最内层根因码；空链返回 0。 */
+function error_chain_leaf(chain: ErrorChain): i32 {
+  let d: i32 = chain.depth;
+  if (d <= 0) { return 0; }
+  if (d == 1) { return chain.c0; }
+  if (d == 2) { return chain.c1; }
+  if (d == 3) { return chain.c2; }
+  return chain.c3;
+}
+
+/**
+ * 在 root 侧追加 wrapper；超深时丢弃最旧 leaf（c3 侧）。
+ * 顺序：root=c0（新 wrapper）→ … → leaf。
+ */
+function error_chain_wrap(chain: ErrorChain, wrapper: i32): ErrorChain {
+  let d: i32 = chain.depth;
+  let max_d: i32 = error_chain_max_depth();
+  if (d <= 0) {
+    return error_chain_from_code(wrapper);
+  }
+  if (d >= max_d) {
+    return ErrorChain {
+      depth: max_d,
+      c0: wrapper,
+      c1: chain.c0,
+      c2: chain.c1,
+      c3: chain.c2,
+    };
+  }
+  if (d == 1) {
+    return ErrorChain { depth: 2, c0: wrapper, c1: chain.c0, c2: 0, c3: 0 };
+  }
+  if (d == 2) {
+    return ErrorChain { depth: 3, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: 0 };
+  }
+  return ErrorChain { depth: 4, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: chain.c2 };
+}
+
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function error_module_anchor(): i32 { return 0; }
