@@ -9,6 +9,7 @@
 | `capture(buf, max_frames)` | 将当前栈帧地址写入 `buf`（每帧 `sizeof(void*)` 字节），返回帧数；失败 0 |
 | `symbolicate(buf, len, out_ptrs, out_names, max)` | 将 capture 结果符号化；`out_names` 布局 `max × SYM_NAME_LEN`（128）；返回成功解析符号的帧数 |
 | `SYM_NAME_LEN` | 符号名每槽字节数（128） |
+| `backtrace_xplat_quality_c()` | STD-147 跨平台符号质量探测；stderr 输出 `shux: [SHUX_BT_XPLAT]` 行 |
 
 ## 平台说明
 
