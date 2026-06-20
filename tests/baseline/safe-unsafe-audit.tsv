@@ -35,6 +35,7 @@ tier-u	sym	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-u	close	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-u	panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
 tier-u	abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-u	panic_hook_collect	stdlib	STD-028 panic pre-exit evidence; weak shux_crash_evidence_collect_c bridge only	v1-baseline	2026-06-19
 tier-u	read	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
 tier-u	write	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
 tier-u	read_stdin	stdlib	*u8 buffer IO / read_ptr lifetime documented in mod.sx	v1-baseline	2026-06-17
@@ -56,8 +57,15 @@ tier-u	path_join	stdlib	Caller output buffer; must pass valid cap	v1-baseline	20
 tier-e	ffi_cstr_len_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
 tier-e	ffi_cstring_new_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
 tier-e	ffi_cstring_free_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
+tier-e	ffi_cstring_try_new_c	stdlib	C NUL-string FFI; caller validates out buffer and length	v1-baseline	2026-06-19
+tier-e	ffi_point_pack_c	stdlib	FFI struct pack; caller owns buf cap	v1-baseline	2026-06-19
+tier-e	ffi_point_unpack_c	stdlib	FFI struct unpack; caller owns buf/out pointers	v1-baseline	2026-06-19
+tier-e	ffi_cb_double_i32_fn_c	stdlib	FFI callback trampoline; untyped fn pointer	v1-baseline	2026-06-19
+tier-e	ffi_invoke_i32_cb_c	stdlib	FFI callback invoke; caller validates cb handle	v1-baseline	2026-06-19
 tier-e	runtime_panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
 tier-e	runtime_abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-e	runtime_crash_evidence_collect_c	stdlib	STD-028 weak crash evidence hook; panic path only	v1-baseline	2026-06-19
 tier-e	dynlib_open_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-e	dynlib_sym_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-e	dynlib_close_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
+tier-e	dynlib_last_error_copy_c	stdlib	dlerror copy; caller owns buf cap	v1-baseline	2026-06-19
