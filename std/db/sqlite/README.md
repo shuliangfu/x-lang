@@ -21,6 +21,15 @@
 | 预编译 | `prepare_cached` + `bind_*` |
 | 连接池 | `pool_acquire` / `pool_release` |
 
+## 跨线程（STD-138）
+
+v1 **单进程多线程** 约束见 [`analysis/std-sqlite-threading-v1.md`](../../analysis/std-sqlite-threading-v1.md)：
+
+- `DbConn` / `DbRowCursor` / `DbStmt`：**禁止**多线程共享同一 handle
+- `DbPool`：多线程可创建；每线程 `pool_acquire` 后独占至 `pool_release`
+- `last_error()`：进程静态缓冲，并发场景勿依赖
+- `prepare_cached`：per-connection，仅持有连接的线程可复用
+
 ## 测试与门禁
 
 - `./tests/run-std-sqlite-gate.sh`
