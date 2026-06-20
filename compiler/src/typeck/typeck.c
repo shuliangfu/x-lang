@@ -214,6 +214,38 @@ static const struct ASTStructDef *find_struct_def_with_deps(struct ASTStructDef 
 }
 
 /**
+ * 在依赖模块顶层 const 中按名查找（与 find_struct_def_with_deps 对齐，供 import 后裸名 DB_ROW_OK 等）。
+ * 参数：name 常量名。返回值：找到返回 ASTLetDecl*，否则 NULL。
+ */
+static const struct ASTLetDecl *find_module_const_in_deps(const char *name) {
+    if (!name || !typeck_dep_mods) return NULL;
+    for (int j = 0; j < typeck_num_deps; j++) {
+        struct ASTModule *dm = typeck_dep_mods[j];
+        if (!dm || !dm->top_level_lets) continue;
+        for (int i = 0; i < dm->num_top_level_lets; i++) {
+            if (!dm->top_level_lets[i].is_const || !dm->top_level_lets[i].name) continue;
+            if (strcmp(dm->top_level_lets[i].name, name) == 0)
+                return &dm->top_level_lets[i];
+        }
+    }
+    /* import select as 别名：本地 DB_ROW_OK → 依赖模块源名 */
+    if (typeck_current_mod) {
+        for (int j = 0; j < typeck_current_mod->num_imports && j < typeck_num_deps; j++) {
+            const char *src = import_select_source_for_local(typeck_current_mod, j, name);
+            if (!src) continue;
+            struct ASTModule *dm = typeck_dep_mods[j];
+            if (!dm || !dm->top_level_lets) continue;
+            for (int i = 0; i < dm->num_top_level_lets; i++) {
+                if (!dm->top_level_lets[i].is_const || !dm->top_level_lets[i].name) continue;
+                if (strcmp(dm->top_level_lets[i].name, src) == 0)
+                    return &dm->top_level_lets[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+/**
  * 绑定 import 限定 struct 名（如 process.SpawnIo）：在 import_binding_names 匹配的依赖模块内查找短名。
  * 仅当 qual_name 含 '.' 且首段为 binding 名时成功；否则返回 NULL。
  */
@@ -1540,6 +1572,19 @@ static void fold_expr(struct ASTExpr *e, const char **names, const int *const_va
         case AST_EXPR_AS:
             fold_expr(e->value.as_type.operand, names, const_values, n_consts, const_start, parent_n_consts);
             return;
+        case AST_EXPR_ARRAY_LIT: {
+            int ai;
+            for (ai = 0; ai < e->value.array_lit.num_elems; ai++)
+                fold_expr(e->value.array_lit.elems[ai], names, const_values, n_consts, const_start, parent_n_consts);
+            /* 整型上下文：数组字面量 CTFE 为元素个数（C5-array-len） */
+            if (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I32 || e->resolved_type->kind == AST_TYPE_I64 ||
+                    e->resolved_type->kind == AST_TYPE_U32 || e->resolved_type->kind == AST_TYPE_USIZE ||
+                    e->resolved_type->kind == AST_TYPE_ISIZE)) {
+                e->const_folded_val = e->value.array_lit.num_elems;
+                e->const_folded_valid = 1;
+            }
+            return;
+        }
         default:
             return;
     }
@@ -1915,6 +1960,14 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     if (!m->import_paths[j]) continue;
                     if (import_module_ref_matches(m, j, name)) return 0;
                     if (import_path_has_prefix(m->import_paths[j], name)) return 0;
+                }
+            }
+            /* 依赖模块顶层 const（如 import std.sqlite 后 DB_ROW_OK） */
+            {
+                const struct ASTLetDecl *mc = find_module_const_in_deps(name);
+                if (mc && mc->type) {
+                    ((struct ASTExpr *)e)->resolved_type = mc->type;
+                    return 0;
                 }
             }
             TYPECK_ERR(e, "undefined name '%s'", name ? name : "");
@@ -3096,7 +3149,7 @@ static int typeck_check_return_operand(const struct ASTExpr *ret_site, const str
         return 0;
     type_to_string_buf(func_return_type, ebuf, sizeof(ebuf));
     type_to_string_buf(got, fbuf, sizeof(fbuf));
-    TYPECK_ERR(ret_site, "return type mismatch: expected %s, found %s", ebuf, fbuf);
+    TYPECK_ERR(ret_site, "return expression type mismatch: expected %s, found %s", ebuf, fbuf);
     return -1;
 }
 
@@ -3242,6 +3295,15 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             return -1;
         const_values[n] = eval_const_int(b->const_decls[i].init, names, const_values, n);
         fold_expr((struct ASTExpr *)b->const_decls[i].init, names, const_values, i, const_start, parent_n_consts);
+        /* i32 等标量 const 初值为数组字面量：resolved_type 设为声明类型以便 CTFE 折叠为 len */
+        if (b->const_decls[i].type && b->const_decls[i].init && b->const_decls[i].init->kind == AST_EXPR_ARRAY_LIT &&
+            (b->const_decls[i].type->kind == AST_TYPE_I32 || b->const_decls[i].type->kind == AST_TYPE_I64 ||
+             b->const_decls[i].type->kind == AST_TYPE_U32 || b->const_decls[i].type->kind == AST_TYPE_USIZE ||
+             b->const_decls[i].type->kind == AST_TYPE_ISIZE)) {
+            ((struct ASTExpr *)b->const_decls[i].init)->resolved_type = b->const_decls[i].type;
+            ((struct ASTExpr *)b->const_decls[i].init)->const_folded_val = const_values[n];
+            ((struct ASTExpr *)b->const_decls[i].init)->const_folded_valid = 1;
+        }
         /* 数组初值：= [] 表示全零初始化；= [e1,e2,...] 可写不超过声明长度的元素，不足部分按 0 填充 */
         if (b->const_decls[i].type && b->const_decls[i].type->kind == AST_TYPE_ARRAY &&
             b->const_decls[i].init && b->const_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
