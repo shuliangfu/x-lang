@@ -24,6 +24,19 @@ endif
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 UNAME_M := $(shell uname -m 2>/dev/null || echo unknown)
 ALPINE := $(shell test -f /etc/alpine-release && echo 1)
+# Darwin：ld -r 须显式 -arch（与 cc 默认 triple 一致）。
+LD ?= ld
+ifeq ($(UNAME_S),Darwin)
+  ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
+    LD_RELFLAGS = -arch arm64
+  else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
+    LD_RELFLAGS = -arch x86_64
+  else
+    LD_RELFLAGS =
+  endif
+else
+  LD_RELFLAGS =
+endif
 TARGET  = shux
 SRCS    = src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：仅 C 前端 + pipeline 等；完整 shux 日后可 OBJS=$(OBJS_CORE) $(LSP_GEN_OBJS)，shux-c 仍链 CORE，避免与 -E 生成 lsp_gen 的规则循环依赖。
@@ -287,35 +300,35 @@ sqlite-o-stub: ../std/db/sqlite/sqlite.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 COMPRESS_PARTS = ../std/compress/zlib/zlib.o ../std/compress/gzip/gzip.o ../std/compress/brotli/brotli.o ../std/compress/zstd/zstd.o
 ../std/compress/compress.o: $(COMPRESS_PARTS)
-	$(LD) -r -o $@ $(COMPRESS_PARTS)
+	$(LD) $(LD_RELFLAGS) -r -o $@ $(COMPRESS_PARTS)
 # 可选：启用 zlib 的 compress.o，用于 tests/run-compress.sh 测试 gzip
 compress-o-zlib:
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -c -o ../std/compress/zlib/zlib.o ../std/compress/zlib/zlib.c
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -c -o ../std/compress/gzip/gzip.o ../std/compress/gzip/gzip.c
 	$(CC) $(CFLAGS) -c -o ../std/compress/brotli/brotli.o ../std/compress/brotli/brotli.c
 	$(CC) $(CFLAGS) -c -o ../std/compress/zstd/zstd.o ../std/compress/zstd/zstd.c
-	$(LD) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
+	$(LD) $(LD_RELFLAGS) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
 # 可选：启用 zlib + zstd，用于 STD-007 gzip/zstd 往返烟测
 compress-o-zlib-zstd:
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -DSHUX_USE_ZSTD -c -o ../std/compress/zlib/zlib.o ../std/compress/zlib/zlib.c
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -DSHUX_USE_ZSTD -c -o ../std/compress/gzip/gzip.o ../std/compress/gzip/gzip.c
 	$(CC) $(CFLAGS) -c -o ../std/compress/brotli/brotli.o ../std/compress/brotli/brotli.c
 	$(CC) $(CFLAGS) -DSHUX_USE_ZSTD -c -o ../std/compress/zstd/zstd.o ../std/compress/zstd/zstd.c
-	$(LD) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
+	$(LD) $(LD_RELFLAGS) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
 # 可选：启用 Brotli（STD-125）；链接时加 -lbrotlienc -lbrotlidec
 compress-o-brotli:
 	$(CC) $(CFLAGS) -c -o ../std/compress/zlib/zlib.o ../std/compress/zlib/zlib.c
 	$(CC) $(CFLAGS) -c -o ../std/compress/gzip/gzip.o ../std/compress/gzip/gzip.c
 	$(CC) $(CFLAGS) -DSHUX_USE_BROTLI -c -o ../std/compress/brotli/brotli.o ../std/compress/brotli/brotli.c
 	$(CC) $(CFLAGS) -c -o ../std/compress/zstd/zstd.o ../std/compress/zstd/zstd.c
-	$(LD) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
+	$(LD) $(LD_RELFLAGS) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
 # 可选：zlib + zstd + Brotli 全格式（STD-125 推荐矩阵）
 compress-o-zlib-zstd-brotli:
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -c -o ../std/compress/zlib/zlib.o ../std/compress/zlib/zlib.c
 	$(CC) $(CFLAGS) -DSHUX_USE_ZLIB -c -o ../std/compress/gzip/gzip.o ../std/compress/gzip/gzip.c
 	$(CC) $(CFLAGS) -DSHUX_USE_BROTLI -c -o ../std/compress/brotli/brotli.o ../std/compress/brotli/brotli.c
 	$(CC) $(CFLAGS) -DSHUX_USE_ZSTD -c -o ../std/compress/zstd/zstd.o ../std/compress/zstd/zstd.c
-	$(LD) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
+	$(LD) $(LD_RELFLAGS) -r -o ../std/compress/compress.o $(COMPRESS_PARTS)
 ../std/unicode/unicode.o: ../std/unicode/unicode.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 ../std/dynlib/dynlib.o: ../std/dynlib/dynlib.c
