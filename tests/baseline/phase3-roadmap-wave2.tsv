@@ -16,7 +16,7 @@ gate_boot021	gate_ref	run-boot-021-mega7-promote-gate.sh	tests/run-boot-021-mega
 gate_comp015	gate_ref	run-comp-wpo-prod-gate.sh	tests/run-comp-wpo-prod-gate.sh	COMP-015
 gate_std063	gate_ref	run-std-elf-deep-gate.sh	tests/run-std-elf-deep-gate.sh	STD-063
 cross_plan001	cross_ref	PLAN-001	analysis/phase3-roadmap-v1.md	首批
-cross_q4	cross_ref	2026-Q4	analysis/doc-public-roadmap-v1.md	Q4
+cross_q4	cross_ref	2027-Q4	analysis/doc-public-roadmap-v1.md	Q4
 cross_next	file	NEXT.md	NEXT.md	§2.13
 lib	script	lib/phase3-roadmap-wave2.sh	tests/lib/phase3-roadmap-wave2.sh
 gate	script	run-phase3-roadmap-wave2-gate.sh	tests/run-phase3-roadmap-wave2-gate.sh
