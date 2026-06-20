@@ -244,3 +244,222 @@ int32_t std_thread_thread_set_affinity_self_c(int32_t cpu_index) { return thread
 int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) { return thread_set_affinity_c(thread_id, cpu_index); }
 int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class) { return thread_set_qos_class_self_c(qos_class); }
 uintptr_t std_thread_thread_dummy_entry_ptr_c(void) { return thread_dummy_entry_ptr_c(); }
+
+/* --- STD-043：命名线程与固定 worker 线程池 --- */
+
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <stdlib.h>
+
+#define SHU_THREAD_POOL_CAP 128
+#define SHU_THREAD_POOL_MAX_WORKERS 8
+
+typedef struct {
+    void *(*entry)(void *);
+    void *arg;
+} shu_pool_job_t;
+
+static pthread_mutex_t g_pool_mu = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_pool_not_empty = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t g_pool_idle = PTHREAD_COND_INITIALIZER;
+static shu_pool_job_t g_pool_q[SHU_THREAD_POOL_CAP];
+static int g_pool_head;
+static int g_pool_tail;
+static int g_pool_count;
+static int g_pool_workers;
+static int g_pool_started;
+static int g_pool_stop_req;
+static int g_pool_in_flight;
+static pthread_t g_pool_tids[SHU_THREAD_POOL_MAX_WORKERS];
+
+/** worker 主循环：取队列任务执行，stop 时退出。 */
+static void *shu_thread_pool_worker(void *arg) {
+    (void)arg;
+    for (;;) {
+        shu_pool_job_t job;
+        pthread_mutex_lock(&g_pool_mu);
+        while (g_pool_count == 0 && !g_pool_stop_req) {
+            pthread_cond_wait(&g_pool_not_empty, &g_pool_mu);
+        }
+        if (g_pool_stop_req && g_pool_count == 0) {
+            pthread_mutex_unlock(&g_pool_mu);
+            break;
+        }
+        job = g_pool_q[g_pool_head];
+        g_pool_head = (g_pool_head + 1) % SHU_THREAD_POOL_CAP;
+        g_pool_count--;
+        g_pool_in_flight++;
+        pthread_mutex_unlock(&g_pool_mu);
+        if (job.entry) {
+            (void)job.entry(job.arg);
+        }
+        pthread_mutex_lock(&g_pool_mu);
+        g_pool_in_flight--;
+        if (g_pool_count == 0 && g_pool_in_flight == 0) {
+            pthread_cond_broadcast(&g_pool_idle);
+        }
+        pthread_mutex_unlock(&g_pool_mu);
+    }
+    return NULL;
+}
+#endif
+
+/** 设置当前线程名（≤15 字节）；成功 0，不支持 -1。 */
+int32_t thread_set_name_self_c(const uint8_t *name, int32_t len) {
+    char buf[16];
+    int32_t i;
+    if (!name || len < 0) {
+        return -1;
+    }
+    if (len > 15) {
+        len = 15;
+    }
+    for (i = 0; i < len; i++) {
+        buf[i] = (char)name[i];
+    }
+    buf[len] = '\0';
+#if defined(__linux__)
+    if (pthread_setname_np(pthread_self(), buf) != 0) {
+        return -1;
+    }
+    return 0;
+#elif defined(__APPLE__)
+    if (pthread_setname_np(buf) != 0) {
+        return -1;
+    }
+    return 0;
+#else
+    (void)buf;
+    return -1;
+#endif
+}
+
+/** 启动固定 worker 线程池；workers 1..8；成功 0。 */
+int32_t thread_pool_start_c(int32_t workers) {
+#if defined(_WIN32) || defined(_WIN64)
+    (void)workers;
+    return -1;
+#else
+    int i;
+    if (workers < 1 || workers > SHU_THREAD_POOL_MAX_WORKERS) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_pool_mu);
+    if (g_pool_started) {
+        pthread_mutex_unlock(&g_pool_mu);
+        return 0;
+    }
+    g_pool_head = 0;
+    g_pool_tail = 0;
+    g_pool_count = 0;
+    g_pool_in_flight = 0;
+    g_pool_stop_req = 0;
+    g_pool_workers = workers;
+    for (i = 0; i < workers; i++) {
+        if (pthread_create(&g_pool_tids[i], NULL, shu_thread_pool_worker, NULL) != 0) {
+            g_pool_stop_req = 1;
+            pthread_cond_broadcast(&g_pool_not_empty);
+            while (--i >= 0) {
+                pthread_join(g_pool_tids[i], NULL);
+            }
+            g_pool_workers = 0;
+            pthread_mutex_unlock(&g_pool_mu);
+            return -1;
+        }
+    }
+    g_pool_started = 1;
+    pthread_mutex_unlock(&g_pool_mu);
+    return 0;
+#endif
+}
+
+/** 向池提交任务；队列满时阻塞；成功 0。 */
+int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
+#if defined(_WIN32) || defined(_WIN64)
+    (void)entry;
+    (void)arg;
+    return -1;
+#else
+    shu_pool_job_t job;
+    if (!g_pool_started || entry == 0) {
+        return -1;
+    }
+    job.entry = (void *(*)(void *))entry;
+    job.arg = (void *)arg;
+    pthread_mutex_lock(&g_pool_mu);
+    while (g_pool_count >= SHU_THREAD_POOL_CAP && !g_pool_stop_req) {
+        pthread_cond_wait(&g_pool_idle, &g_pool_mu);
+    }
+    if (g_pool_stop_req) {
+        pthread_mutex_unlock(&g_pool_mu);
+        return -1;
+    }
+    g_pool_q[g_pool_tail] = job;
+    g_pool_tail = (g_pool_tail + 1) % SHU_THREAD_POOL_CAP;
+    g_pool_count++;
+    pthread_cond_signal(&g_pool_not_empty);
+    pthread_mutex_unlock(&g_pool_mu);
+    return 0;
+#endif
+}
+
+/** 阻塞直至队列与 in-flight 皆空；成功 0。 */
+int32_t thread_pool_drain_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    return -1;
+#else
+    if (!g_pool_started) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_pool_mu);
+    while (g_pool_count > 0 || g_pool_in_flight > 0) {
+        pthread_cond_wait(&g_pool_idle, &g_pool_mu);
+    }
+    pthread_mutex_unlock(&g_pool_mu);
+    return 0;
+#endif
+}
+
+/** 停止池并 join worker；成功 0。 */
+int32_t thread_pool_stop_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    return -1;
+#else
+    int i;
+    if (!g_pool_started) {
+        return 0;
+    }
+    pthread_mutex_lock(&g_pool_mu);
+    g_pool_stop_req = 1;
+    pthread_cond_broadcast(&g_pool_not_empty);
+    pthread_mutex_unlock(&g_pool_mu);
+    for (i = 0; i < g_pool_workers; i++) {
+        pthread_join(g_pool_tids[i], NULL);
+    }
+    pthread_mutex_lock(&g_pool_mu);
+    g_pool_started = 0;
+    g_pool_workers = 0;
+    g_pool_stop_req = 0;
+    g_pool_head = 0;
+    g_pool_tail = 0;
+    g_pool_count = 0;
+    g_pool_in_flight = 0;
+    pthread_mutex_unlock(&g_pool_mu);
+    return 0;
+#endif
+}
+
+/** 观测 pending（队列 + in-flight）；未启动 -1。 */
+int32_t thread_pool_pending_c(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    return -1;
+#else
+    int32_t n;
+    if (!g_pool_started) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_pool_mu);
+    n = g_pool_count + g_pool_in_flight;
+    pthread_mutex_unlock(&g_pool_mu);
+    return n;
+#endif
+}
