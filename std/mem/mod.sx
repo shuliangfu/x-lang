@@ -42,5 +42,38 @@ function set(ptr: *u8, byte: u8, n: i32): void {
 function compare(a: *u8, b: *u8, n: i32): i32 {
   return heap.heap_mem_compare_c(a, b, n);
 }
+
+// ——— 有界封装（STD-144） ———
+/** 有界拷贝：n>dst_cap 返回 -1；n<=0 返回 0；否则 copy 并返回 n。 */
+function copy_bounded(dst: *u8, dst_cap: i32, src: *u8, n: i32): i32 {
+  if (n > dst_cap) { return -1; }
+  if (n <= 0) { return 0; }
+  copy(dst, src, n);
+  return n;
+}
+/** 有界填充：n>cap 返回 -1；n<=0 返回 0；否则 set 并返回 n。 */
+function set_bounded(ptr: *u8, cap: i32, byte: u8, n: i32): i32 {
+  if (n > cap) { return -1; }
+  if (n <= 0) { return 0; }
+  set(ptr, byte, n);
+  return n;
+}
+/** 有界比较：先比公共前缀，再按长度决胜。 */
+function compare_bounded(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  let min_len: i32 = a_len;
+  if (b_len < min_len) { min_len = b_len; }
+  if (min_len > 0) {
+    let c: i32 = compare(a, b, min_len);
+    if (c != 0) { return c; }
+  }
+  if (a_len < b_len) { return -1; }
+  if (a_len > b_len) { return 1; }
+  return 0;
+}
+/** 从 ptr/len 构造 Buffer（handle=0）。 */
+function buffer_from(ptr: *u8, len: usize): Buffer {
+  return Buffer { ptr: ptr, len: len, handle: 0 };
+}
+
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function mem_module_anchor(): i32 { return 0; }
