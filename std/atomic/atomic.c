@@ -27,6 +27,11 @@
 #define ATOMIC_FXOR32(p,v)  __atomic_fetch_xor((p), (v), __ATOMIC_SEQ_CST)
 #define ATOMIC_FADD64(p,v)  __atomic_fetch_add((p), (v), __ATOMIC_SEQ_CST)
 #define ATOMIC_FSUB64(p,v)  __atomic_fetch_sub((p), (v), __ATOMIC_SEQ_CST)
+#define ATOMIC_LOAD16(p)    __atomic_load_n((p), __ATOMIC_SEQ_CST)
+#define ATOMIC_STORE16(p,v) __atomic_store_n((p), (v), __ATOMIC_SEQ_CST)
+#define ATOMIC_CAS16(p,e,d) __atomic_compare_exchange_n((p), (e), (d), 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+#define ATOMIC_FADD16(p,v)  __atomic_fetch_add((p), (v), __ATOMIC_SEQ_CST)
+#define ATOMIC_CAS64(p,e,d) __atomic_compare_exchange_n((p), (e), (d), 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 #endif
 
 /* ---------- i32 ---------- */
@@ -173,5 +178,180 @@ int64_t atomic_fetch_add_i64_c(int64_t *ptr, int64_t delta) {
   int64_t old = *ptr;
   *ptr = old + delta;
   return old;
+#endif
+}
+
+/* --- STD-046：内存栅栏 --- */
+
+/** 全序内存栅栏（seq_cst）。 */
+void atomic_fence_seq_cst_c(void) {
+#if defined(__GNUC__) || defined(__clang__)
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
+#elif USE_C11_ATOMICS
+  atomic_thread_fence(memory_order_seq_cst);
+#else
+  /* 无原子支持时为空操作。 */
+#endif
+}
+
+/** 获取侧内存栅栏。 */
+void atomic_fence_acquire_c(void) {
+#if defined(__GNUC__) || defined(__clang__)
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#elif USE_C11_ATOMICS
+  atomic_thread_fence(memory_order_acquire);
+#else
+#endif
+}
+
+/** 释放侧内存栅栏。 */
+void atomic_fence_release_c(void) {
+#if defined(__GNUC__) || defined(__clang__)
+  __atomic_thread_fence(__ATOMIC_RELEASE);
+#elif USE_C11_ATOMICS
+  atomic_thread_fence(memory_order_release);
+#else
+#endif
+}
+
+/* --- STD-146：i16/u16 与 i64/u64 扩展 --- */
+
+int16_t atomic_load_i16_c(const int16_t *ptr) {
+#if defined(ATOMIC_LOAD16)
+  return (int16_t)ATOMIC_LOAD16((int16_t *)ptr);
+#else
+  return *ptr;
+#endif
+}
+
+void atomic_store_i16_c(int16_t *ptr, int16_t val) {
+#if defined(ATOMIC_STORE16)
+  ATOMIC_STORE16(ptr, val);
+#else
+  *ptr = val;
+#endif
+}
+
+int16_t atomic_fetch_add_i16_c(int16_t *ptr, int16_t delta) {
+#if defined(ATOMIC_FADD16)
+  return (int16_t)ATOMIC_FADD16(ptr, delta);
+#else
+  int16_t old = *ptr;
+  *ptr = (int16_t)(old + delta);
+  return old;
+#endif
+}
+
+int32_t atomic_compare_exchange_i16_c(int16_t *ptr, int16_t *expected, int16_t desired) {
+#if defined(ATOMIC_CAS16)
+  int16_t e = *expected;
+  if (ATOMIC_CAS16(ptr, &e, desired)) return 1;
+  *expected = e;
+  return 0;
+#else
+  if (*ptr == *expected) { *ptr = desired; return 1; }
+  *expected = *ptr;
+  return 0;
+#endif
+}
+
+uint16_t atomic_load_u16_c(const uint16_t *ptr) {
+#if defined(ATOMIC_LOAD16)
+  return (uint16_t)ATOMIC_LOAD16((uint16_t *)ptr);
+#else
+  return *ptr;
+#endif
+}
+
+void atomic_store_u16_c(uint16_t *ptr, uint16_t val) {
+#if defined(ATOMIC_STORE16)
+  ATOMIC_STORE16(ptr, val);
+#else
+  *ptr = val;
+#endif
+}
+
+uint16_t atomic_fetch_add_u16_c(uint16_t *ptr, uint16_t delta) {
+#if defined(ATOMIC_FADD16)
+  return (uint16_t)ATOMIC_FADD16((uint16_t *)ptr, delta);
+#else
+  uint16_t old = *ptr;
+  *ptr = (uint16_t)(old + delta);
+  return old;
+#endif
+}
+
+int32_t atomic_compare_exchange_u16_c(uint16_t *ptr, uint16_t *expected, uint16_t desired) {
+#if defined(__GNUC__) || defined(__clang__)
+  uint16_t e = *expected;
+  if (__atomic_compare_exchange_n(ptr, &e, desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) return 1;
+  *expected = e;
+  return 0;
+#else
+  if (*ptr == *expected) { *ptr = desired; return 1; }
+  *expected = *ptr;
+  return 0;
+#endif
+}
+
+int32_t atomic_compare_exchange_i64_c(int64_t *ptr, int64_t *expected, int64_t desired) {
+#if defined(ATOMIC_CAS64)
+  int64_t e = *expected;
+  if (ATOMIC_CAS64(ptr, &e, desired)) return 1;
+  *expected = e;
+  return 0;
+#elif USE_C11_ATOMICS
+  int64_t e = *expected;
+  if (atomic_compare_exchange_strong_explicit((_Atomic int64_t *)ptr, &e, desired, memory_order_seq_cst, memory_order_seq_cst)) return 1;
+  *expected = e;
+  return 0;
+#else
+  if (*ptr == *expected) { *ptr = desired; return 1; }
+  *expected = *ptr;
+  return 0;
+#endif
+}
+
+int64_t atomic_fetch_sub_i64_c(int64_t *ptr, int64_t delta) {
+#if defined(ATOMIC_FSUB64)
+  return (int64_t)ATOMIC_FSUB64(ptr, delta);
+#else
+  return atomic_fetch_add_i64_c(ptr, -delta);
+#endif
+}
+
+uint64_t atomic_fetch_add_u64_c(uint64_t *ptr, uint64_t delta) {
+#if defined(ATOMIC_FADD64)
+  return (uint64_t)ATOMIC_FADD64((uint64_t *)ptr, delta);
+#else
+  uint64_t old = *ptr;
+  *ptr = old + delta;
+  return old;
+#endif
+}
+
+uint64_t atomic_fetch_sub_u64_c(uint64_t *ptr, uint64_t delta) {
+#if defined(ATOMIC_FSUB64)
+  return (uint64_t)ATOMIC_FSUB64((uint64_t *)ptr, delta);
+#else
+  return atomic_fetch_add_u64_c(ptr, (uint64_t)(0 - delta));
+#endif
+}
+
+int32_t atomic_compare_exchange_u64_c(uint64_t *ptr, uint64_t *expected, uint64_t desired) {
+#if defined(ATOMIC_CAS64)
+  uint64_t e = *expected;
+  if (ATOMIC_CAS64(ptr, &e, desired)) return 1;
+  *expected = e;
+  return 0;
+#elif USE_C11_ATOMICS
+  uint64_t e = *expected;
+  if (atomic_compare_exchange_strong_explicit((_Atomic uint64_t *)ptr, &e, desired, memory_order_seq_cst, memory_order_seq_cst)) return 1;
+  *expected = e;
+  return 0;
+#else
+  if (*ptr == *expected) { *ptr = desired; return 1; }
+  *expected = *ptr;
+  return 0;
 #endif
 }
