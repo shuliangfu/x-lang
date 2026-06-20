@@ -289,3 +289,4 @@
 5. **阶段 4**：Codegen 将上述 AST 转成一张 C 的 main() 调 printf；Driver 调用 `cc -o out out.c`；examples/hello.sx → 编译 → 运行输出 "Hello World"。
 
 完成以上后，再按阶段 5–9 加 import、core、std、泛型、自举。这样可保证**每一步都有明确依赖且不缺失**。
+
