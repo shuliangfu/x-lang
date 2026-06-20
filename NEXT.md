@@ -16,6 +16,7 @@
 | ✅   | **已完成**（有 gate / 脚本 / 文档可复验） |
 | 🟡  | **进行中**（部分平台或子路径已通，未达金标准）    |
 | ⬜   | **未开始**（依赖前置项）               |
+| ⏭   | **延后**（documented defer；自举闭环后再做，**不阻塞** A→B→C） |
 
 
 **阅读顺序**：§1 定义 → §2 当前站位 → §3 总时序 → §4～§9 按开发顺序执行 → §10 下一步 → §11 验收命令。
@@ -233,13 +234,22 @@ flowchart LR
 
 | 状态 | 含义 |
 | --- | --- |
-| ✅ | **该条验收标准已全部满足**（gate 硬失败模式亦通过，或平台 scope 内 CI 绿） |
+| ✅ | **该条验收标准已全部满足**（gate 硬失败模式亦通过，或平台 scope 内验收通过） |
 | 🟡 | gate/脚本**已落地**，但金标准/平台/指标**尚未闭合** |
 | ⬜ | 未开始或缺 gate |
+| ⏭ | **documented defer** — 明确延后至自举闭环后；**不阻塞**后续 A/B/C 推进 |
 
-**按 A 序号推进**：A-07 已绿 → 依次 A-08 → A-09 → …；**不要跳去 B/C** 直到当前条变绿或 documented skip（如 A-13）。
+**自举冲刺期：本地金标准（2026-06 决议）**
 
-**本机 Darwin 限制**：A-11 / A-12 的 parse count 与 `nm arch_*` **只能在 Linux x86_64 CI 变绿**；本地 gate 会 `N/A` 跳过。
+- **不等 GitHub 全平台 CI 绿**再推进；开发分支 push 不必阻塞在 Windows / Alpine / ARM CI。
+- **本机验收 = macOS 宿主** + **Docker Linux x86_64**（`./tests/run-local-linux-docker.sh`），与 CI Linux job 等价。
+- **macOS 本地**：`run-portable-suite.sh`、`make bootstrap-verify`、`run-pre-push-p0.sh`。
+- **Docker Linux 本地**：`run-local-linux-docker.sh portable|ci-full`；A-09～A-12 硬门禁在容器内跑（见 §11）。
+- **延后平台**（⏭，自举后再补）：Windows（A-08）、Alpine/其他 Linux 变体（A-13）。
+
+**按 A 序号推进**：A-07 已绿 → **A-09 → A-10 → A-11 → A-12**（A-08/A-13 已 ⏭ 不阻塞）→ 再进 B/C。**不要跳去 B/C** 直到 A-09～A-12 变绿或明确记录未达标原因。
+
+**本机 Darwin 限制**：A-11 / A-12 的 parse count 与 `nm arch_*` **在 macOS 宿主 gate 会 N/A**；须在 **Docker Linux x86_64** 变绿（不必等 GitHub）。
 
 
 | #    | 任务                                                    | 状态  | 验收                                                                                                 | 变绿条件 |
@@ -251,12 +261,12 @@ flowchart LR
 | A-05 | BOOT 门禁族（repro / stage-diag / bstrict-ci）             | ✅   | `run-bootstrap-bstrict-ci.sh`                                                                      | — |
 | A-06 | DOC-002 自举架构全景                                        | ✅   | `run-doc-selfhost-architecture-gate.sh`                                                            | — |
 | A-07 | push 前 P0 包（bstrict + asm-73 + perf）                  | ✅   | `run-pre-push-p0.sh`                                                                               | — |
-| A-08 | **Windows** B-hybrid 可构建 `shux_asm`                   | 🟡  | `run-bootstrap-bstrict-windows-gate.sh` + CI windows job；MSYS experimental 链                       | CI windows job 绿；**非** B-strict |
-| A-09 | **Stage2 SHA256 金标准**门禁                               | 🟡  | `run-stage2-hash-gate.sh` + `SHUX_STAGE2_HASH_STRICT=1` 硬失败通过                                  | stage1/stage2 **SHA256 一致** |
+| A-08 | **Windows** B-hybrid 可构建 `shux_asm`                   | ⏭  | `run-bootstrap-bstrict-windows-gate.sh`；MSYS experimental 链                                          | **自举闭环后**再补；本地 macOS+Docker 不阻塞 |
+| A-09 | **Stage2 SHA256 金标准**门禁                               | 🟡  | `run-stage2-hash-gate.sh` + `SHUX_STAGE2_HASH_STRICT=1` 硬失败通过                                  | stage1/stage2 **SHA256 一致**（Docker Linux 或 macOS 本地） |
 | A-10 | **L5 run-all**：bootstrap `shux` 真 parity（缩小 seed 白名单） | 🟡  | `run-l5-run-all-parity-gate.sh`；bstrict **110** 项 ⊆ whitelist                                      | 白名单 sync + **110 项全绿** |
-| A-11 | parser/typeck **第二遍 EMIT_HEAVY** 稳定（大 module 不截断）     | 🟡  | `run-typeck-parse-count-gate.sh`（**num_defined** target 146）+ bisect                               | **Linux**：num_defined≥146 且 FAIL=1 |
-| A-12 | 跨模块符号统一（`arch_arm64_*` 等）                             | 🟡  | `run-a12-cross-module-symbols-gate.sh` + baseline TSV                                                | **Linux**：`SHUX_A12_CROSS_MODULE_FAIL=1` 无新 U |
-| A-13 | Alpine / 其他 Linux 变体 B-strict 或 documented skip       | ⬜   | `run-bootstrap-crossplatform-gate.sh`                                                              | gate 绿或 documented skip |
+| A-11 | parser/typeck **第二遍 EMIT_HEAVY** 稳定（大 module 不截断）     | 🟡  | `run-typeck-parse-count-gate.sh`（**num_defined** target 146）+ bisect                               | **Docker Linux x86_64**：num_defined≥146 且 FAIL=1 |
+| A-12 | 跨模块符号统一（`arch_arm64_*` 等）                             | 🟡  | `run-a12-cross-module-symbols-gate.sh` + baseline TSV                                                | **Docker Linux x86_64**：`SHUX_A12_CROSS_MODULE_FAIL=1` 无新 U |
+| A-13 | Alpine / 其他 Linux 变体 B-strict 或 documented skip       | ⏭  | `run-bootstrap-crossplatform-gate.sh`                                                              | **自举闭环后**再补 Alpine/cross |
 | A-14 | Stage2 哈希门禁**脚本化**                                     | ✅   | `run-stage2-hash-gate.sh` 已落地并挂 `verify-selfhost-stage2-bstrict`                                     | 脚本 + 接入（**与 A-09 正交**） |
 
 
@@ -407,26 +417,30 @@ flowchart LR
 
 ## 10. 建议执行顺序（下一步动作）
 
-> **严格按 A 序号**：A-07 已绿 → **A-08 → A-09 → A-10 → A-11 → A-12 → A-13**；每项变绿后再进 B/C。  
+> **自举冲刺期**：**不等 GitHub 全平台 CI**；本地 macOS + Docker Linux 金标准即可推进。  
+> **A-08 / A-13 已 ⏭ 延后**（自举后再补 Windows / Alpine）。  
+> **当前主线**：A-09 → A-10 → A-11 → A-12 变绿后进 B/C。  
 > **完全自举 = D（哈希）+ E（编译器无 C）+ F（全仓库 std 无 C）**，缺一不可。
 
 | 序 | 条 | 动作 | 变绿命令 / 备注 |
 | --- | --- | --- | --- |
-| 1 | **A-08** | Windows B-hybrid CI 绿 | `./tests/run-bootstrap-bstrict-windows-gate.sh`（MSYS2）；CI `windows` job |
-| 2 | **A-09** | Stage2 SHA256 一致 | `verify-selfhost-stage2-bstrict` → `SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh` |
-| 3 | **A-10** | L5 110 项 shux_asm 全绿 | `make -C compiler bootstrap-driver-bstrict` 后 `./tests/run-l5-run-all-parity-gate.sh` |
-| 4 | **A-11** | typeck num_defined→146 | **Linux**：`SHUX_TYPECK_PARSE_COUNT_FAIL=1 ./tests/run-typeck-parse-count-gate.sh` |
-| 5 | **A-12** | 消除 arch_* U | **Linux**：`SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh` |
-| 6 | **A-13** | Alpine/cross 或 skip 文档 | `./tests/run-bootstrap-crossplatform-gate.sh` |
-| 7 | **B-01…** | 语言/std.sys | 见 §5；**须 A 阶段闭合后再默认推进** |
-| 8 | **C-04→C-06** | -E-extern / 只链 `*_sx.o` | 见 §6 |
-| 9 | **D/E/F** | 完全自举终局 | 见 §7–§9 |
+| 0 | **本地** | macOS 快验 + Docker Linux 全量 | `./tests/run-portable-suite.sh`；`./tests/run-local-linux-docker.sh portable` |
+| 1 | **A-09** | Stage2 SHA256 一致 | `make -C compiler bootstrap-verify-stage2-bstrict` → `SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh` |
+| 2 | **A-10** | L5 110 项 shux_asm 全绿 | `make -C compiler bootstrap-driver-bstrict` 后 `./tests/run-l5-run-all-parity-gate.sh` |
+| 3 | **A-11** | typeck num_defined→146 | Docker：`SHUX_TYPECK_PARSE_COUNT_FAIL=1 ./tests/run-typeck-parse-count-gate.sh` |
+| 4 | **A-12** | 消除 arch_* U | Docker：`SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh` |
+| — | **A-08** | ⏭ Windows | 自举闭环后：`run-bootstrap-bstrict-windows-gate.sh` |
+| — | **A-13** | ⏭ Alpine/cross | 自举闭环后：`run-bootstrap-crossplatform-gate.sh` |
+| 5 | **B-01…** | 语言/std.sys | 见 §5；**A-09～A-12 闭合后**默认推进 |
+| 6 | **C-04→C-06** | -E-extern / 只链 `*_sx.o` | 见 §6 |
+| 7 | **D/E/F** | 完全自举终局 | 见 §7–§9 |
 
 **当前阻塞（2026-06）**：
 
-- **Darwin 本地**：A-11 / A-12 gate 直接 `N/A`，**无法在本机变绿**，只能 Linux CI 或远程 runner。
-- **A-09**：行为 parity（A-04）已绿，**二进制 SHA256 仍不一致** → 故意 track-only，不能标绿。
-- **A-10**：白名单 sync 已 OK；缺 `shux_asm` 跑完 110 项（需 `bootstrap-driver-bstrict`）。
+- **A-09**：行为 parity（A-04）已绿，**二进制 SHA256 仍不一致** → 下一编码任务。
+- **A-10**：白名单 sync 已 OK；需 `bootstrap-driver-bstrict` 后跑完 110 项。
+- **A-11 / A-12**：macOS 宿主 N/A → 在 **Docker Linux x86_64** 验收（不必 GitHub CI）。
+- **A-08 / A-13**：⏭ 不阻塞；自举后再补。
 - **A-14**：脚本化已完成 → **已标 ✅**（与 A-09 分开）。
 
 ---
@@ -502,8 +516,12 @@ SHUX_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
 # 跨模块 arch/backend 符号（A-12；Linux）
 SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh
 
-# push 前
+# push 前（macOS 本地）
 SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
+
+# Docker Linux 本地金标准（替代等 GitHub CI）
+./tests/run-local-linux-docker.sh portable    # 快
+./tests/run-local-linux-docker.sh ci-full     # 全量
 
 # 自举文档门禁
 ./tests/run-doc-selfhost-architecture-gate.sh
