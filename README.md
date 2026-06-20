@@ -1,292 +1,323 @@
-# Shux 开发时序文档
+# Shux
 
-> 本文档说明**先开发什么、再开发什么**，按**依赖关系**排序，避免出现「下一步依赖尚未就绪」的情况。与 `architecture.md`、项目里程碑（M0–M5）对应，此处细化到可执行的开发顺序。
+> **用现代化语言写高性能、强安全代码** — 参考 C 的类型与执行模型，语法与语义尽量简单、易读、易维护；不靠复杂类型论，而靠「显式 + 少未定义 + 默认安全」达成性能与内存安全。
+
+| 项目 | 说明 |
+|------|------|
+| **语言名** | Shux |
+| **编译器** | `shux` |
+| **源文件后缀** | `.sx` |
+| **构建配置** | `build.sx`（对标 Zig 的 `build.zig`） |
+| **当前主线** | 完全自举（编译器 + 标准库逐步去 C） |
 
 ---
 
-## 构建方式（唯一推荐）
+## 一、项目定位
 
-**构建配置入口 = build.sx**（与 Zig 的 **build.zig** 一致：用项目语言描述「怎么编、编什么」；根目录 Makefile 仅做委托，**可由 build.sx 完全替代**）。
+Shux 是一门**系统级编程语言**：无 GC、零成本抽象、显式内存模型，目标生成代码质量**比肩 C 甚至超越 C**。与 C 相比，开发体验更简单——语法简洁、错误带位置与建议、工具链一体化；与 Rust 相比，类型系统刻意保持克制，在关键处（可空、边界、所有权/借用、别名）**足够显式**，让编译器能静态证明安全并放心优化。
 
-### 读者一次做对
+### 核心目标
 
-| 场景 | 命令 | 说明 |
-|------|------|------|
-| **首次 / 从零构建** | `make -C compiler build-tool` | 一条命令：先产出 **shux-c**（C 前端，与生成 lsp_gen / build_gen 同源），再产出 **build_tool**。等价目标 `first-time`（不依赖已链 driver 的完整 shux，避免生成规则环）。 |
-| **日常与自举** | `cd compiler && ./build_tool ./shux` | 用 build_tool 重新产出 shux，不依赖 Makefile。 |
-| **验收** | `./tests/run-all.sh` | 在仓库根执行；全过即自举验证等价通过。 |
+| 目标 | 含义 |
+|------|------|
+| **极致性能** | 无 GC、零成本抽象、ASM/LLVM 后端；别名与 noalias 驱动自动向量化 |
+| **内存安全** | 安全子集内无泄漏、无悬垂、无越界、无数据竞争；`unsafe` 边界清晰可审计 |
+| **轻量级** | 依赖少、可执行文件小、支持 freestanding 与嵌入式；标准库按需链接 |
+| **标准库丰富** | `core/` + `std/` 全量模块，一套 API 全平台 |
+| **易于上手** | 比 C 简单太多；学习曲线平缓，工具链顺手 |
+| **编译自举** | 编译器与标准库最终 100% `.sx`，宿主 C 仅作冷启动种子 |
 
-- 仅需 shux 跑测试时可直接 `make -C compiler`（默认产出 **shux** 与 **shux-c**）；首次建议 `make -C compiler build-tool` 以便日后用 `./build_tool ./shux`。CI 与本地回归均可用 `make -C compiler test` 或 `./tests/run-all.sh`。
-- 详见 `analysis/完全脱离C与Makefile路线图.md` 阶段 5；无 C/无 Makefile 时用 build.sx 作唯一入口见 `analysis/完全自举-无C无Makefile.md`。
+### 设计宗旨
 
-## shux 编译器用法
+- **目的**：极致压榨性能。
+- **宗旨**：代码可维护性强、开发简单易上手；**内存安全**（无泄漏、不崩溃、绝对安全）。
 
-默认走 **ASM 后端**直出机器码。常用命令如下：
+详细设计见 [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md)、[`analysis/需求分析.md`](analysis/需求分析.md)。
+
+---
+
+## 二、语言特性概览
+
+### 类型与语义
+
+- **基础类型**：`i8`/`i16`/`i32`/`i64`、`u8`/`u16`/`u32`/`u64`、`f32`/`f64`、`bool`、`usize`/`isize`
+- **结构体与泛型**：泛型函数/结构体 + 单态化；trait / impl 接口
+- **可空与错误**：`Option<T>`、`Result<T, E>`；显式处理，避免 C 式裸指针可空
+- **切片**：`[]T` 携带长度，越界可编译期排除或运行期检查
+- **模块**：`import("core.mem")` / `import("std.io")`；目录即模块，入口为 `mod.sx`
+
+### 内存与安全
+
+- **无 GC**：栈 + 堆 + Arena；编译期 region / linear / borrow 拒错
+- **编译期自动内存管理**：`defer`、`owned`、作用域 `Allocator`（`with_arena`）、SROA、BCE
+- **分级安全**：默认 Safe；仅 `unsafe { ... }` 内允许裸指针与底层 syscall
+- **别名分析**：`noalias`、scope borrow gate，为 autovec 与 DCE 提供依据
+
+详见 [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md)、[`analysis/安全与性能.md`](analysis/安全与性能.md)。
+
+### 条件编译与平台
+
+- 条件编译（`#if` / target 分支）支持多目标
+- **全平台一套 API**：平台差异封装在 `std/sys` 内部
+- 支持 **freestanding**（`-freestanding`、nostdlib 静态链）
+- 多目标：`x86_64-linux`、`arm64-macos` 等（`-target`）
+
+---
+
+## 三、快速开始
+
+### 环境要求
+
+- Linux 或 macOS（Windows 自举链推进中）
+- 系统 C 编译器与链接器（`cc` / `clang`），用于链接阶段与冷启动
+- 可选：Docker（Linux x86_64 回归与 Stage2 哈希门禁）
+
+### 首次构建
+
+```bash
+# 推荐：从零产出 shux-c、build_tool、shux
+make -C compiler build-tool
+
+# 或进入 compiler 目录
+cd compiler && sh bootstrap.sh
+```
+
+### 日常构建与自举
+
+```bash
+# 用 build_tool 重新编译 shux（不依赖 Makefile 规则环）
+cd compiler && ./build_tool ./shux
+
+# 语义自举烟测
+make -C compiler bootstrap-verify
+
+# B-strict 生产链（ASM 主链，Linux/macOS）
+make -C compiler bootstrap-driver-bstrict
+```
+
+### Hello World
+
+```sx
+// examples/hello.sx
+const io = import("std.io");
+
+function main(): i32 {
+  let msg: [12]u8 = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
+  let n: i32 = io.print_str(msg, 12);
+  return if (n >= 0) { 0 } else { 1 };
+}
+```
+
+```bash
+shux examples/hello.sx          # 编译并运行
+shux build examples/hello.sx -o hello && ./hello
+```
+
+更多示例见 [`examples/`](examples/)（含 cookbook：io、net、async、json、compress 等）。
+
+### 验收测试
+
+```bash
+./tests/run-all.sh              # 全量回归（仓库根目录）
+./tests/run-all-bstrict.sh      # B-strict 链等价 CI
+```
+
+---
+
+## 四、编译器用法（`shux`）
+
+默认走 **ASM 后端**直出机器码（`-backend asm`）。常用命令：
 
 | 命令 | 说明 |
 |------|------|
 | `shux file.sx` | 编译并运行（等同 `shux run file.sx`） |
-| `shux build` | 读取当前目录 `build.sx`，编译并运行 `build_runner`（项目构建） |
+| `shux build` | 读取当前目录 `build.sx`，编译并运行 `build_runner` |
 | `shux build file.sx` | 仅编译，默认产物 `a.out` |
 | `shux build file.sx -o exe` | 编译到指定可执行文件 |
 | `shux run file.sx` | 编译并运行 |
-| `shux -E file.sx` | 输出 C 源码（调试用） |
-| `shux -backend asm file.sx` | ASM 后端（默认已是，可显式写出） |
-| `shux -backend c file.sx` | 强制走 C 路径 |
-| `shux -O2 file.sx -o app` | 优化级别（**默认 -O2**；release 推荐 `shux_asm -backend asm -O2`） |
-| `shux -legacy-f32-abi …` | x86_64 SysV **legacy** f32 CALL（默认 **xmm ABI**；见 `compiler/docs/F32_XMM_ABI.md`） |
-| `shux -freestanding … -o app` | Linux x86_64 nostdlib 静态链（S4） |
-| `shux -h` / `shux --help` | 打印用法摘要 |
-| `shux fmt file.sx` | 格式化 .sx 源文件（缩进/换行，与 LSP 一致） |
-| `shux check file.sx` | 仅 parse+typeck（含 import），不链接 |
+| `shux check file.sx` | 仅 parse + typeck（含 import），不链接 |
+| `shux fmt file.sx` | 格式化源文件（与 LSP 一致） |
 | `shux test [script.sh]` | 运行测试脚本（默认 `tests/run-all.sh`） |
+| `shux -E file.sx` | 输出 C 源码（调试用） |
+| `shux -backend c file.sx` | 强制走 C 后端 |
+| `shux -O2 file.sx -o app` | 优化级别（**默认 -O2**） |
+| `shux -freestanding … -o app` | Linux x86_64 nostdlib 静态链 |
+| `shux -h` / `shux --help` | 打印用法摘要 |
+
+构建配置入口为根目录 [`build.sx`](build.sx)：对标 Zig 的 `build.zig`，描述「怎么编、编什么」；顶层 Makefile 仅做委托，长期由 `build.sx` 完全替代。
 
 ---
 
-## 当前进度小结（便于快速对照）
+## 五、仓库结构
 
-| 阶段 | 状态 | 说明 |
+```
+shux/
+├── README.md                 # 本文件
+├── build.sx                  # 构建配置（对标 build.zig）
+├── NEXT.md                   # 完全自举路线图与当前站位
+├── analysis/                 # 需求、架构、RFC、性能与安全分析
+├── compiler/                 # 编译器（C + .sx 混合，向 100% .sx 迁移）
+│   ├── src/
+│   │   ├── lexer/            # 词法
+│   │   ├── parser/           # 语法 → AST
+│   │   ├── ast/              # AST 定义
+│   │   ├── typeck/           # 类型检查、泛型单态化、borrow
+│   │   ├── codegen/          # 代码生成（C / ASM）
+│   │   ├── asm/              # 自研 ASM 后端
+│   │   ├── pipeline/         # 流水线 glue
+│   │   └── driver/           # CLI、多文件、链接
+│   ├── docs/                 # SELFHOST、ABI、运维文档
+│   └── scripts/              # build_shux_asm.sh 等
+├── core/                     # 标准库 core（无 OS 依赖）
+│   ├── types/ mem/ option/ result/ slice/ str/ fmt/ …
+├── std/                      # 标准库 std（依赖 OS）
+│   ├── io/ fs/ net/ heap/ vec/ json/ http/ async/ sys/ …
+├── runtime/                  # 最小运行时（可选）
+├── tests/                    # 回归测试与 gate 脚本
+├── examples/                 # 示例与 cookbook
+├── tools/                    # 格式化、测试运行器等
+├── editors/                  # VS Code 等 IDE 插件
+└── mcp/                      # MCP 服务（开发辅助）
+```
+
+- **core/** 不依赖 **std/**；**std/** 依赖 **core/**
+- 模块布局：**目录即模块**，入口为 `mod.sx`（如 `std/io/mod.sx`）
+- 用户引用：`import("core.mem")`、`import("std.io")`
+
+架构详解：[`analysis/构架分析.md`](analysis/构架分析.md)。
+
+---
+
+## 六、标准库
+
+### core（11 个模块，无 OS）
+
+| 模块 | 职责 |
+|------|------|
+| `core.types` | `size_of` / `align_of`、布局查询 |
+| `core.mem` | 内存操作、对齐、拷贝 |
+| `core.option` / `core.result` | 可空与错误类型 |
+| `core.slice` / `core.str` | 切片与字符串视图 |
+| `core.fmt` / `core.debug` | 格式化与调试 |
+| `core.builtin` / `core.iterator` / `core.cmp` | 内建与迭代、比较 |
+
+### std（70+ 模块，依赖 OS）
+
+覆盖 I/O、文件系统、网络、并发、压缩、编解码、数据库、HTTP、异步、加密、正则、配置等。代表性模块：
+
+| 类别 | 模块 |
+|------|------|
+| 基础 | `std.io`、`std.fs`、`std.path`、`std.process`、`std.env` |
+| 容器 | `std.vec`、`std.map`、`std.set`、`std.queue` |
+| 内存 | `std.heap`（Allocator、Arena）、`std.mem` |
+| 并发 | `std.thread`、`std.sync`、`std.channel`、`std.async` |
+| 网络 | `std.net`、`std.http`、`std.websocket` |
+| 数据 | `std.json`、`std.csv`、`std.compress`、`std.db` |
+| 系统 | `std.sys`（Linux syscall / macOS libSystem / Win32 规划中） |
+| 工具 | `std.test`、`std.fmt`、`std.log`、`std.cli` |
+
+标准库按需链接，不引入未引用模块，满足「轻量级、一切都要小」。
+
+---
+
+## 七、编译器架构
+
+### 流水线
+
+```
+.sx 源码
+  → [预处理] → #if / import 展开
+  → [词法 Lexer] → Token 流
+  → [语法 Parser] → AST
+  → [类型检查 Typeck] → 泛型单态化、borrow、region
+  → [代码生成 Codegen] → C 或 ASM
+  → [链接] → 可执行文件 / .o
+```
+
+### 两条构建路径
+
+| 路径 | 说明 |
+|------|------|
+| **用户编译（目标 A）** | `.sx` → driver → asm/c 后端 → ld → 可执行文件 |
+| **自举构建（目标 B）** | seed（shux-c）→ `build_shux_asm.sh` → `shux_asm` → Stage2 验证 |
+
+### 自举状态（2026-06）
+
+| 维度 | 状态 |
+|------|------|
+| 语义自举 | ✅ `make -C compiler bootstrap-verify` |
+| B-strict ASM 主链 | ✅ Linux / macOS arm64 |
+| Stage2 行为一致 | ✅ `verify-selfhost-stage2-bstrict.sh` |
+| Stage2 哈希金标准 | 🟡 Docker Linux x86_64 已 SHA256 一致 |
+| 编译器去 C | 🟡 前端主体已 `.sx`，仍有 `runtime.c` 等 |
+| 全仓库 std 无 C | ⬜ 终局必达（阶段 F） |
+
+源码规模约 **52% `.sx` / 48% C**；lexer、parser、ast 以 `.sx` 为主，codegen 仍在迁移。
+
+全景与验收：[`analysis/doc-selfhost-architecture-v1.md`](analysis/doc-selfhost-architecture-v1.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)、[`NEXT.md`](NEXT.md)。
+
+---
+
+## 八、里程碑
+
+| 里程碑 | 内容 | 状态 |
+|--------|------|------|
+| M0 | Lexer、AST、Parser | ✅ |
+| M1 | Typeck、Codegen、Driver，首版可运行 | ✅ |
+| M2 | import、core/std 最小子集、多目标 | ✅ |
+| M3 | 泛型、trait、模块系统、标准库扩展 | ✅ |
+| M4 | DCE、-O2/-Os、体积与性能基线 | ✅（部分） |
+| M5 | 自举（.sx 编译器可编译自身） | ✅ 语义自举；🟡 完全自举（去 C） |
+| **下一阶段** | 完全自举 + 全仓库 std 无 C | 见 [`NEXT.md`](NEXT.md) |
+
+---
+
+## 九、文档索引
+
+| 文档 | 内容 |
+|------|------|
+| [`analysis/需求分析.md`](analysis/需求分析.md) | 总体目标、性能与安全策略 |
+| [`analysis/构架分析.md`](analysis/构架分析.md) | 仓库结构、编译器模块划分 |
+| [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md) | 类型与语义设计原则 |
+| [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md) | Arena、SROA、autovec 路线 |
+| [`analysis/安全与性能.md`](analysis/安全与性能.md) | 编译器与语言安全防线 |
+| [`analysis/自举方案-当前状态.md`](analysis/自举方案-当前状态.md) | 自举进度与模块迁移 |
+| [`NEXT.md`](NEXT.md) | 完全自举路线图与门禁命令 |
+| [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md) | 自举运维与验收命令 |
+
+`analysis/` 下另有大量 RFC 与模块级设计（std-http、std-async、perf 等），按模块名检索即可。
+
+---
+
+## 十、测试与质量
+
+- **全量回归**：`./tests/run-all.sh`
+- **B-strict CI**：`SHUX=./compiler/shux_asm ./tests/run-bootstrap-bstrict-ci.sh`
+- **Push 前 P0**：`SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh`
+- **Gate 脚本**：`tests/run-*-gate.sh`（borrow、arena、sroa、autovec、allocator 等专项门禁）
+- **性能基线**：`tests/baseline/`、`analysis/perf-*.md`
+
+---
+
+## 十一、工具链生态
+
+| 组件 | 路径 | 说明 |
 |------|------|------|
-| 0–6 | ✅ 已完成 | 流水线、import、core/std 最小子集、多目标已打通 |
-| 7 | ✅ 已完成 | 泛型、trait/impl、多文件、core/std 扩展（最小实现） |
-| 8 | 部分完成 | 8.1 DCE ✅；8.2 后端 -O2/-Os、strip、NDEBUG、shux OPT=1 ✅；8.3 体积/性能基线脚本 ✅ |
-| 9 | ✅ 已完成 | 自举（typeck/codegen/driver 由 .sx 实现；生成 C 无补丁、从根源修；验收：`cd compiler && ./build_tool ./shux` 后 `./tests/run-all.sh`，或 `make -C compiler bootstrap-verify` 做自举验收） |
-| 10 | 规划中 | 见 **`analysis/下一步开发分析.md`**：修 -sx -E 多文件、pipeline 在 CI 可跑、asm 策略、脱离 C/Makefile。 |
+| VS Code 插件 | `editors/vscode/` | 语法高亮、诊断、格式化 |
+| MCP Server | `mcp/` | IDE/AI 通过 MCP 调用解析与诊断 |
+| LSP | `compiler/lsp_gen.c` | 补全与诊断（向 `.sx` 迁移中） |
 
 ---
 
-## 一、依赖关系总览
+## 十二、参与开发
 
-### 1.1 编译器流水线依赖（谁依赖谁）
+1. 克隆仓库后执行 `make -C compiler build-tool` 构建编译器。
+2. 修改代码后运行 `./tests/run-all.sh` 或相关 gate 脚本。
+3. 自举相关改动需额外跑 `make -C compiler bootstrap-verify`。
+4. 提交规范：Conventional Commits（`feat:` / `fix:` / `perf:` 等），英文描述；详见 `.cursor/rules/03-操作规则.mdc`。
 
-```
-                    ┌─────────┐
-                    │  AST    │  仅数据结构，无上游
-                    └────┬────┘
-                         │
-  ┌─────────┐      ┌─────▼─────┐
-  │ Lexer   │─────►│  Parser   │  依赖 Lexer + AST
-  └─────────┘      └─────┬─────┘
-                          │
-                    ┌─────▼─────┐
-                    │  Typeck   │  依赖 Parser 产出的 AST
-                    └─────┬─────┘
-                          │
-  ┌─────────┐        ┌────▼────┐
-  │  IR     │◄───────│ (可选)  │  IR 结构可先定义；生成 IR 依赖 Typeck
-  └────┬────┘        └─────────┘
-       │
-  ┌────▼─────┐
-  │ Codegen  │  依赖 IR（或直接依赖带类型 AST）
-  └────┬─────┘
-       │
-  ┌────▼─────┐
-  │  Driver  │  依赖上述全部，只做串联与调用链接器
-  └──────────┘
-```
-
-- **结论**：开发顺序必须满足 **AST → Lexer → Parser → Typeck → IR/Codegen → Driver**；其中 AST 与 Lexer 无编译器内部依赖，可最先做。
-
-### 1.2 标准库与编译器的依赖
-
-- **编译器**在「编译用户程序」时需要能**解析 import** 并**编译 core/std 模块**，因此：
-  - 先有「能生成可运行程序」的流水线（至少到 Codegen + Driver），再谈「用户程序 import core/std」；
-  - 第一版可运行程序（如 Hello World）可以**不 import**，由 codegen 直接生成调用 libc printf 的 C 或 LLVM IR，这样**不依赖任何 .sx 标准库**；
-  - 之后再实现 **import 解析** 与 **core/std 的编译与链接**，此时才需要先实现「自举前必须」的 core/std 子集。
-
-- **标准库自身**：core 不依赖 std；std 依赖 core。因此开发顺序为 **先 core 子集，再 std 子集**。当前 **core/** 与 **std/** 采用「目录即模块」布局：每模块对应一目录，入口为 `mod.sx`（如 `core/result/mod.sx`、`std/io/mod.sx`），便于按目录拆分与扩展代码。
-
-### 1.3 与里程碑的对应
-
-| 里程碑 | 开发时序中的阶段 |
-|--------|------------------|
-| M0     | 阶段 1–2（Lexer、AST、Parser） |
-| M1     | 阶段 3–4（Typeck、IR、Codegen、Driver，首版可运行） |
-| M2     | 阶段 5–6（最小 core/std、import、多目标） |
-| M3     | 阶段 7（泛型、trait、模块系统、标准库扩展） |
-| M4     | 阶段 8（优化、体积与性能） |
-| M5     | 阶段 9（自举） |
+**当前决议**（见 [`NEXT.md`](NEXT.md)）：标准库新功能暂停；**下一阶段唯一主线 = 完全自举**（含全仓库 std 无 C 终局）。
 
 ---
 
-## 二、开发阶段与顺序（按依赖严格排序）
-
-以下各阶段**必须按顺序**进行（或同一阶段内可并行的小项一起做）；每阶段末尾给出「完成标志」与「下一步前置条件」。
-
----
-
-### 阶段 0：基础设施（无编译器依赖）
-
-**目标**：构建与仓库可工作，无「写代码」依赖。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 0.1 | 顶层 Makefile（至少能进 compiler 并执行空构建或占位目标） | 无 | `make` 不报错 | ✅ |
-| 0.2 | compiler 目录下 Makefile 或 CMake，能编译单个 .c 占位（如 main 空实现） | 无 | 产出可执行文件 shux（哪怕只做 return 0） | ✅ |
-| 0.3 | 确定「阶段 1–2 要支持的 .sx 语法子集」（如：仅整数字面量、加减、main 无参返回 int） | 无 | 文档或注释写清子集 | ✅ |
-
-**下一步前置**：执行 `make` 得到 shux；有明确的最小语法子集。
-
----
-
-### 阶段 1：AST 定义 + Lexer
-
-**目标**：有 AST 数据结构；能从 .sx 源码得到 Token 流。**不依赖** Parser/Typeck/后端。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 1.1 | **AST 节点定义**（compiler/src/ast/）：表达式、语句、函数、模块等，与阶段 0 确定的语法子集一致；仅数据结构，不依赖 Lexer/Parser | 无 | 可编译的 AST 类型（C 的 struct 或 .sx 的 type） | ✅ |
-| 1.2 | **Lexer**（compiler/src/lexer/）：读入源码，产出 Token 流（关键字、标识符、字面量、运算符、括号等） | 无 | 对给定 .sx 文件输出 Token 序列（可打印或写测试断言） | ✅ |
-| 1.3 | **单元测试**：若干 .sx 片段只做词法，检查 Token 序列符合预期 | Lexer | tests/ 下用例通过 | ✅ |
-
-**下一步前置**：AST 类型已定；Lexer 对子集语法能稳定输出 Token；有测试可回归。
-
----
-
-### 阶段 2：Parser（语法分析）
-
-**目标**：Token 流 → AST。**依赖** Lexer + AST。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 2.1 | **Parser**（compiler/src/parser/）：递归下降（或等价）将 Token 流解析为 AST；覆盖阶段 0 的语法子集 | Lexer, AST | 对「合法子集」源码得到一棵 AST | ✅ |
-| 2.2 | **错误恢复**（可选最小）：未匹配括号、缺少分号等报错并带位置 | Parser | 错误信息含行号/列号 | ✅ |
-| 2.3 | **测试**：多组 .sx 源码 → 解析 → 对比 AST 或解析结果（dump AST 或与预期结构比对） | Parser | tests/ 中解析用例通过 | ✅ |
-
-**下一步前置**：对子集内任意合法 .sx 能产出正确 AST；非法输入能报错不崩溃。
-
----
-
-### 阶段 3：最小 Typeck + IR 设计
-
-**目标**：能对 AST 做**最小类型检查**并得到可被后端使用的信息；定义 **IR** 结构（或约定「直接由带类型 AST 生成代码」）。**依赖** Parser 产出之 AST。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 3.1 | **IR 数据结构设计**（compiler/src/ir/）：若采用「先生成 C」则 IR 可极简（如线性指令或树形 C 片段）；若采用 LLVM 则定义到 LLVM IR 的映射；仅定义与构建，不要求优化 | 无（与 Typeck 可并行设计） | 文档或代码中 IR 形态确定 | ✅ |
-| 3.2 | **最小 Typeck**（compiler/src/typeck/）：对子集做类型推断/检查（如 main 返回 int、表达式有类型、函数调用参数个数与类型匹配）；产出「带类型 AST」或直接产出 IR | Parser, AST | 合法程序通过，非法程序报类型错误 | ✅ |
-| 3.3 | **测试**：仅类型检查的用例（合法/非法） | Typeck | 类型错误用例被正确拒绝 | ✅ |
-
-**下一步前置**：对子集程序能给出类型信息或 IR；类型错误能报出且不崩溃。
-
----
-
-### 阶段 4：Codegen + Driver（首版可运行）
-
-**目标**：从「带类型 AST 或 IR」生成**可运行程序**；**Driver** 串联 Lexer → Parser → Typeck → Codegen，并调用系统编译器/链接器。本阶段**不要求**用户 .sx 里 import core/std，可生成「直接调 libc」的 C 或 LLVM IR，以最小化依赖。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 4.1 | **Codegen**（compiler/src/codegen/）：  
-  - 方案 A：带类型 AST / IR → **C 代码**（如 main 里调 printf），再调用系统 cc 编译 C；  
-  - 方案 B：→ **LLVM IR**，再调用 clang/llc 或 LLVM API 生成 .o 并链接。  
-  任选其一，先打通一条路 | Typeck, IR 或带类型 AST | 对「仅 main + 一两个表达式」的 .sx 能产出 C 或 LLVM IR | ✅ |
-| 4.2 | **Driver**（compiler/src/driver/）：命令行解析（如 `shux file.sx -o out`）；按序调用 lexer→parser→typeck→codegen；若 codegen 出 C，则调用系统 C 编译器；若出 .o，则调用链接器；输出可执行文件 | Lexer, Parser, Typeck, Codegen | `shux hello.sx -o hello && ./hello` 能运行 | ✅ |
-| 4.3 | **Hello World**：编写 examples/hello.sx（子集内，如 main 里调内置 print 或等价），编译并运行输出 "Hello World" | 上述全部 | Hello World 通过 | ✅ |
-
-**下一步前置**：存在一条从 .sx 到可执行文件的完整链路；无 import、无标准库依赖。
-
----
-
-### 阶段 5：import 与最小 core（无 OS）
-
-**目标**：编译器支持 **import("core.xxx")**；实现 **core** 的最小子集（types、mem、option、result、slice、fmt 等自举前必须的一部分），使「用户程序或后续编译器」能引用 core。**依赖** 阶段 4 的完整链路。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 5.1 | **Import 解析**：driver 解析 `import("core.xxx")` / `import("std.xxx")`，根据标准库根路径找模块：先试单文件 `core/xxx.sx`，若无则试目录模块 `core/xxx/mod.sx`（std 同理）；对该文件做 lex→parse→typeck，纳入同一编译单元 | Driver, 标准库路径配置 | 能编译含 `import("core.types")` 的 .sx（若 types 已实现） | ✅ 已完成 |
-| 5.2 | **core 最小子集**（**目录即模块**：每模块一目录，入口为 `mod.sx`，如 `core/result/mod.sx`）：core.types、core.mem、core.option、core.result、core.slice、core.fmt、core.builtin、core.debug；可先做「仅类型与函数声明 + 少量实现」，保证编译器能解析、类型检查通过 | 无（标准库与编译器可并行开发，但需 import 先通） | 至少 core.types + core.mem 可被 import 且通过 typeck | ✅ 已完成 |
-| 5.3 | **测试**：examples 或 tests 中「import("core.xxx") 并调用」的用例能编译通过 | Import + core 子集 | 用例通过 | ✅ 已完成 |
-
-**下一步前置**：用户 .sx 可 import core 的若干模块；编译器能解析并类型检查多文件/多模块。
-
----
-
-### 阶段 6：最小 std + 多目标（可选顺序微调）
-
-**目标**：实现 **std** 的最小子集（runtime、io、fs、path、process、env、heap、string、vec、map、error）；支持**多目标**（如 x86_64-linux、arm64-macos）。**依赖** import 与 core 可用；codegen/driver 能生成并链接多模块。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 6.1 | **std 最小子集**（**目录即模块**：每模块一目录，入口为 `mod.sx`，如 `std/io/mod.sx`，同目录可放 `driver.sx` 等拆分文件）：std.runtime、std.io、std.fs、std.path、std.process、std.heap、std.string、std.vec、std.map、std.error；实现可先「单平台」（当前 OS），内部条件编译留好接口 | core 可用, import | 能编译「import("std.io"); 打开文件读一行」之类用例 | ✅ 已完成 |
-| 6.2 | **多目标**：driver 支持 `-target`（如 x86_64-pc-linux-gnu）；codegen 与链接根据 target 选工具链与库；标准库内按 target 条件编译 | Codegen, Driver | 同一 .sx 可编译出 linux/macos 可执行文件（或至少两个目标之一） | ✅ 已完成 |
-| 6.3 | **测试**：多目标各编一例并运行（或交叉编译后交目标机运行） | 6.1, 6.2 | 多目标用例通过 | ✅ 已完成 |
-
-**下一步前置**：用户程序可 import std 并做简单 I/O、文件、进程；可针对不同目标编译。
-
----
-
-### 阶段 7：泛型、trait、模块系统与标准库扩展
-
-**目标**：语言上支持**泛型**与 **trait/接口**；**模块系统**完善（多文件、可见性）；标准库扩展到 M3 水平（core 其余、std.string/fmt/vec/map/thread/mutex/time/heap/error/test）。**依赖** 阶段 5–6；Typeck 需扩展以支持泛型与 trait。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 7.1 | **泛型**：typeck 支持泛型函数/结构体与单态化；IR/codegen 能正确生成单态化后的代码 | Typeck, IR, Codegen | 泛型 .sx 程序能编译并运行 | ✅ |
-| 7.2 | **Trait/接口**：类型系统支持 trait 与 impl；满足「自举前必须」的语法需求 | Typeck | 带 trait 的 .sx 能通过 typeck 并编译 | ✅ |
-| 7.3 | **模块系统**：多文件、export/import、可见性规则；与现有 import core/std 一致 | Driver, Parser, Typeck | 多文件项目能正确编译与链接 | ✅ |
-| 7.4 | **标准库扩展**：core 其余模块；std 的 string、fmt、vec、map、thread、mutex、time、heap、error、test 等 | 7.1–7.3 | 文档「自举前必须的库」全部可 import 并有最小实现 | ✅ |
-
-**下一步前置**：语言子集达到「可写编译器」所需；标准库达到自举前必须集合。
-
----
-
-### 阶段 8：优化与体积/性能（M4）
-
-**目标**：内联、DCE、LTO、strip；可执行文件小、性能达标。**依赖** 阶段 7；中端/后端需有优化 pass 或交给系统 cc 优化。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 8.1 | **死代码消除（DCE）**：未使用函数、未实例化泛型不进入目标码；未引用模块中的代码不进入二进制 | IR 或 Codegen | 从 main 做可达性分析，codegen 按 used 集合仅输出被引用函数与单态化实例 | ✅ |
-| 8.2 | **后端优化与 strip**：invoke_cc 默认 -O2，支持 -O 0/2/s、SHUX_OPT；非 -O0 时 strip 产出并传 -DNDEBUG；Makefile 支持 OPT=1 编译 shux | Codegen, Driver, Makefile | 用户产物可 -O2/-Os；体积可测 | ✅ |
-| 8.3 | **体积与性能基线**：run-size-baseline.sh（-O0/-O2/-Os 对比）、run-perf-baseline.sh；make size-baseline / perf-baseline | 8.2 | 有体积与耗时数字可对比 | ✅ |
-
-**下一步前置**：发布构建稳定；体积与性能满足「轻量级、比肩 C」目标。
-
----
-
-### 阶段 9：自举（M5）
-
-**目标**：用 **.sx** 重写编译器（前端→中端→后端），由宿主编译器（C 实现的 shux）或上一代 .sx 编译器编译，产出的新 shux **能编译自己的源码**。**依赖** 阶段 7 的语言与标准库；阶段 8 可选但建议有。
-
-| 序号 | 内容 | 依赖 | 完成标志 | 状态 |
-|------|------|------|----------|------|
-| 9.1 | **用 .sx 写编译器前端**：lexer、parser、ast、typeck、IR 生成改为 .sx 实现；宿主编译器编译该 .sx，与现有 C 后端或占位后端联调 | 阶段 7 的 .sx 子集 + core/std 自举子集 | 宿主编译器 + .sx 前端能编译示例 .sx | ✅ |
-| 9.2 | **用 .sx 写中端与后端**：优化、codegen、driver 改为 .sx；整机「.sx 编译器」由宿主编译器或上一代 shux 编译 | 9.1 | 用 .sx 写的完整编译器能编译任意 .sx（含自身源码） | ✅ |
-| 9.3 | **自举验证**：上述 .sx 编译器编译自身源码，得到新 shux；新 shux 再编译自身，得到第二代；两代行为一致（测试套件通过） | 9.2 | 自举成功；之后开发全在 .sx 内迭代 | ✅ |
-
-**自举验收命令**：在仓库根目录执行 `make -C compiler bootstrap-verify`。通过则输出 `bootstrap-verify OK (自举验证通过)`，表示 shu₁（宿主编译）与 shu₂（shu₁ 编出）对同一测试套件行为一致。
-
-**下一步前置**：无；自举已完成，后续开发可在 .sx 内迭代（typeck/codegen 逻辑可继续迁入 .sx，见 analysis/自举实现分析.md §7.2.1）。
-
----
-
-## 三、阶段依赖简表（便于核对）
-
-| 阶段 | 依赖阶段 | 必须就绪的产出 |
-|------|----------|----------------|
-| 0    | 无       | Makefile，shux 占位，语法子集文档 |
-| 1    | 0        | AST 定义，Lexer 可测 |
-| 2    | 1        | Parser：Token → AST |
-| 3    | 2        | Typeck 最小，IR 设计确定 |
-| 4    | 3        | Codegen + Driver，Hello World 可运行 |
-| 5    | 4        | import 解析，core 最小子集 |
-| 6    | 5        | std 最小子集，多目标 |
-| 7    | 6        | 泛型、trait、模块系统，标准库自举子集完整 |
-| 8    | 7        | DCE、内联、LTO，体积与性能达标 |
-| 9    | 7（8 建议） | .sx 编译器可编译自身，自举成功 |
-
----
-
-## 四、建议的「第一次可运行」最小路径
-
-若希望**尽快看到「.sx 编译并运行」**，可严格按以下最小路径推进，避免提前做依赖未就绪的事：
-
-1. **阶段 0**：Makefile + shux 占位 + 语法子集（仅 main 返回 0 或 main 调 print 一个字符串）。
-2. **阶段 1**：AST（仅 main + 字面量 + 一个 print 调用）+ Lexer。
-3. **阶段 2**：Parser 对该子集产出 AST。
-4. **阶段 3**：Typeck 只检查 main 存在且签名正确；IR 设计为「直接由 AST 生成 C」即可（一条线，无优化）。
-5. **阶段 4**：Codegen 将上述 AST 转成一张 C 的 main() 调 printf；Driver 调用 `cc -o out out.c`；examples/hello.sx → 编译 → 运行输出 "Hello World"。
-
-完成以上后，再按阶段 5–9 加 import、core、std、泛型、自举。这样可保证**每一步都有明确依赖且不缺失**。
-
+*Shux — 极致压榨性能，简单、易读、易维护，内存安全。*
