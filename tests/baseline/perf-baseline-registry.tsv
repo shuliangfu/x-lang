@@ -9,5 +9,6 @@ net-perf-latency	tests/baseline/net-perf-latency.tsv	v1.2026-06-17	tests/run-per
 compile-dogfood	tests/baseline/compile-dogfood.tsv	v1.2026-06-17	tests/run-perf-compile-dogfood-gate.sh	SHUX_PERF_UPDATE_BASELINE=1	PERF-004 编译 dogfood
 stdlib-dogfood	tests/baseline/stdlib-dogfood.tsv	v1.2026-06-18	tests/run-boot-017-stdlib-dogfood-gate.sh	SHUX_BOOT017_UPDATE_BASELINE=1	BOOT-017 std 分模块 check
 async-perf	tests/baseline/async-perf.tsv	v1.2026-06-17	tests/run-perf-async.sh	SHUX_PERF_UPDATE_ASYNC_BASELINE=1	async 调度压测
+coldstart-perf	tests/baseline/coldstart-perf.tsv	v1.2026-06-19	tests/run-perf-coldstart-gate.sh	SHUX_PERF_UPDATE_COLDSTART_BASELINE=1	PERF-010 coldstart stretch
 sqlite-perf	tests/baseline/perf-sqlite.tsv	v1.2026-06-18	tests/run-perf-sqlite-gate.sh	SHUX_PERF_UPDATE_SQLITE_BASELINE=1	PERF-170 sqlite stub loop
 phase3-perf	tests/baseline/perf-phase3.tsv	v1.2026-06-19	tests/run-perf-phase3-gate.sh	SHUX_PERF_UPDATE_PHASE3_BASELINE=1	PERF-172 Phase 3 std hotpath
