@@ -7,6 +7,8 @@ extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
 extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
 extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8):
 void;
+extern function crypto_hmac_sha512_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8):
+void;
 extern function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void;
 extern function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
 extern function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
@@ -27,6 +29,8 @@ function ED25519_SEED_LEN(): i32 { return 32; }
 const AES_GCM_TAG_LEN: i32 = 16;
 /** ChaCha20-Poly1305 密钥长度（字节）。 */
 function CHACHA20_POLY1305_KEY_LEN(): i32 { return 32; }
+/** SHA-512 摘要长度（字节，STD-050）。 */
+const SHA512_DIGEST_LEN: i32 = 64;
 
 /** 常量时间比较 a[0..len] 与 b[0..len]；相等返回 1，否则 0。 */
 function mem_eq(a: *u8, b: *u8, len: i32): i32 { return crypto_mem_eq_c(a, b, len); }
@@ -34,14 +38,23 @@ function mem_eq(a: *u8, b: *u8, len: i32): i32 { return crypto_mem_eq_c(a, b, le
 function sha256(msg: *u8, len: i32, out: *u8): void { crypto_sha256_c(msg, len, out); }
 /** SHA-512 哈希，写入 out[0..64]。 */
 function sha512(msg: *u8, len: i32, out: *u8): void { crypto_sha512_c(msg, len, out); }
+/** HMAC-SHA512(key, msg)，结果写入 out[0..64]（STD-050）。 */
+function hmac_sha512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+  crypto_hmac_sha512_c(key, key_len, msg, msg_len, out);
+}
 /** HMAC-SHA256(key, msg)，结果写入 out[0..32]。 */
 function hmac_sha256(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   crypto_hmac_sha256_c(key, key_len, msg, msg_len, out);
 }
 
-/** MAC 签名别名（STBL/crypto manifest：等同 hmac_sha256）。 */
+/** MAC 签名校验别名（256-bit，等同 hmac_sha256）。 */
 function mac_sign(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   hmac_sha256(key, key_len, msg, msg_len, out);
+}
+
+/** MAC 签名 512-bit（STD-050：等同 hmac_sha512）。 */
+function mac_sign_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+  hmac_sha512(key, key_len, msg, msg_len, out);
 }
 
 /** MAC 校验：重算 HMAC 与 tag[0..32] 常量时间比较；相等 1，否则 0。 */
@@ -49,6 +62,13 @@ function mac_verify(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i
   let calc: [32]u8 = [];
   hmac_sha256(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 32);
+}
+
+/** MAC 512-bit 校验：重算 HMAC-SHA512 与 tag[0..64] 比较（STD-050）。 */
+function mac_verify_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
+  let calc: [64]u8 = [];
+  hmac_sha512(key, key_len, msg, msg_len, &calc[0]);
+  return mem_eq(&calc[0], tag, 64);
 }
 
 /** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
