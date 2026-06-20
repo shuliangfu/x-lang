@@ -25,7 +25,7 @@ case_runtime_ready	runtime_ready.sx	run	0	R6-suite	runtime ready
 case_error_unify_smoke	tests/std/error_unify_smoke.sx	run_path	0	R4-layer-c	STD-011 段对齐
 case_slice_oob_recover	tests/slice/length.sx	run_path	0	R1-unwrap-or	Option 越界默认
 case_stdlib_import_recover	tests/stdlib-import/main.sx	run_path	0	R1-unwrap-or	import 链 unwrap
-case_result_main	tests/result/main.sx	run_path	50	R2-or-and	result 聚合 exit 50
+case_result_main	tests/result/main.sx	run_path	173	R2-or-and	result 聚合 exit 173 (42+3+5+map/and_then/u8)
 case_option_expect_if	tests/option/expect_if.sx	run_path	0	R2-or-and	option or 回退
 case_result_suite	run-result.sh	hook	0	R6-suite	core.result hook
 case_error_suite	run-error.sh	hook	0	R6-suite	std.error hook
