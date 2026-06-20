@@ -41,6 +41,8 @@ extern function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32;
 extern function net_resolve_ipv4_c(hostname: *u8): u32;
 /** STD-029：可诊断 IPv4 DNS；失败 -1 并写 out_err。 */
 extern function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
+/** STD-029：可诊断 IPv6 DNS；失败 -1 并写 out_err；成功写 16 字节地址。 */
+extern function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
 /** ZC-1：批量 provided recv 薄包装（Linux io_uring）。 */
 extern function net_stream_read_batch_provided_c(stream_fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32;
 extern function net_tls_is_available_c(): i32;
@@ -293,6 +295,13 @@ function resolve_err_system(): i32 { return 4; }
  */
 function resolve_ex(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
   return net_resolve_ipv4_ex_c(hostname, out_addr, out_err);
+}
+
+/**
+ * 可诊断 IPv6 DNS：成功返回 0 并写 out_addr_16[0..16)；失败 -1 并写 *out_err（STD-029）。
+ */
+function resolve_ipv6(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
+  return net_resolve_ipv6_ex_c(hostname, out_addr_16, out_err);
 }
 // ——— 批量上限：与 C 侧 IO_NET_BATCH_MAX 一致，单次 accept_many/connect_many 最多请求数；去魔数便于维护 ———
 function net_batch_max(): i32 { return 64; }
