@@ -41,7 +41,7 @@
 
 ## 3. 回归矩阵（stable report）
 
-`tests/baseline/comp-riscv64-matrix.tsv`（**9** 条 `case_*`；COMP-016 新增 wave ×3）。
+`tests/baseline/comp-riscv64-matrix.tsv`（**11** 条 `case_*`；COMP-016 wave ×3 + COMP-018 qemu ×2）。
 
 | case_id | 样例 | 检查 | 期望 |
 |---------|------|------|------|
@@ -54,8 +54,11 @@
 | `case_wave_binop` | `binop_return_four_add.sx` | asm_text | COMP-016 加链 |
 | `case_wave_cfg` | `binop_if_plus_eq_merge.sx` | asm_text | COMP-016 cfg |
 | `case_wave_index` | `binop_field_index_fast.sx` | asm_text | COMP-016 index |
+| `case_qemu_min` | `riscv64_min.sx` | qemu_run | exit **42**（COMP-018） |
+| `case_qemu_binop` | `binop_return_four_add.sx` | qemu_run | exit **10**（COMP-018） |
 
-Wave 深化 RFC：`analysis/comp-riscv64-wave-v1.md`（COMP-016）。
+Wave 深化 RFC：`analysis/comp-riscv64-wave-v1.md`（COMP-016）。  
+QEMU user 仿真：`analysis/comp-riscv64-qemu-v1.md`（COMP-018；`run-comp-riscv64-qemu-gate.sh`）。
 
 ---
 
@@ -75,7 +78,7 @@ Wave 深化 RFC：`analysis/comp-riscv64-wave-v1.md`（COMP-016）。
 
 - RVV / 向量扩展回归
 - riscv32 / embedded bare-metal
-- QEMU user 仿真自动化（CI 可选 v2）
+- QEMU user 仿真自动化由 COMP-018 独立 gate 承担（矩阵登记 `case_qemu_*`；CI 可选）
 
 ---
 
