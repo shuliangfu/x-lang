@@ -1,4 +1,5 @@
 // std.regex — 最小正则（字面量/字符类/量词/分组/capture，纯 C 引擎）
+// STD-062：match 引擎 perf 优化（字面量快路径 + 首字节跳跃）生产级 bench 锚点。
 //
 // 【文件职责】compile、regex_match、free；STD-064 capture：group_count/offset/length。
 // 【依赖】std.heap；与 std/regex/regex.c + regex_min.inc.c 同属一模块；全平台无 regex.h。
