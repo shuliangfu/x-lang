@@ -201,3 +201,197 @@ int32_t encoding_hex_decode_c(const uint8_t *src, int32_t src_len, uint8_t *out,
   }
   return out_len;
 }
+
+/* --- STD-127：Base32 / percent 编解码 --- */
+
+static const char shu_b32_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/** RFC 4648 Base32 编码（含 '=' 填充）；返回写入字符数，失败 -1。 */
+int32_t encoding_base32_encode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  int32_t o;
+  int32_t idx;
+  int32_t buffer;
+  int32_t bits;
+  if (!src || !out || src_len < 0) {
+    return -1;
+  }
+  if (out_cap < ((src_len + 4) / 5) * 8) {
+    return -1;
+  }
+  o = 0;
+  idx = 0;
+  buffer = 0;
+  bits = 0;
+  while (idx < src_len || bits > 0) {
+    if (bits < 5) {
+      if (idx < src_len) {
+        buffer = (buffer << 8) | src[idx++];
+        bits += 8;
+      } else if (bits > 0) {
+        buffer <<= (5 - bits);
+        bits = 5;
+      } else {
+        break;
+      }
+    }
+    if (bits >= 5) {
+      int32_t val = (buffer >> (bits - 5)) & 0x1f;
+      bits -= 5;
+      out[o++] = (uint8_t)shu_b32_alphabet[val];
+    }
+  }
+  while ((o % 8) != 0) {
+    out[o++] = (uint8_t)'=';
+  }
+  return o;
+}
+
+/** 解析 Base32 字符；非法 -1。 */
+static int32_t shu_b32_value(uint8_t c) {
+  if (c >= 'A' && c <= 'Z') {
+    return (int32_t)(c - 'A');
+  }
+  if (c >= '2' && c <= '7') {
+    return (int32_t)(c - '2' + 26);
+  }
+  if (c >= 'a' && c <= 'z') {
+    return (int32_t)(c - 'a');
+  }
+  return -1;
+}
+
+/** RFC 4648 Base32 解码；返回写入字节数，非法 -1。 */
+int32_t encoding_base32_decode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  int32_t i;
+  int32_t o;
+  int32_t buffer;
+  int32_t bits;
+  if (!src || !out || src_len < 0) {
+    return -1;
+  }
+  buffer = 0;
+  bits = 0;
+  o = 0;
+  for (i = 0; i < src_len; i++) {
+    uint8_t c = src[i];
+    int32_t v;
+    if (c == '=') {
+      break;
+    }
+    v = shu_b32_value(c);
+    if (v < 0) {
+      return -1;
+    }
+    buffer = (buffer << 5) | v;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      if (o >= out_cap) {
+        return -1;
+      }
+      out[o++] = (uint8_t)((buffer >> bits) & 0xff);
+    }
+  }
+  return o;
+}
+
+/** 判断 RFC 3986 unreserved 字符。 */
+static int shu_percent_unreserved(uint8_t c) {
+  if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+    return 1;
+  }
+  return c == '-' || c == '.' || c == '_' || c == '~';
+}
+
+/** percent 编码（unreserved 保留）；返回写入长度，失败 -1。 */
+int32_t encoding_percent_encode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  static const char hex[] = "0123456789ABCDEF";
+  int32_t i;
+  int32_t o = 0;
+  if (!src || !out || src_len < 0) {
+    return -1;
+  }
+  for (i = 0; i < src_len; i++) {
+    uint8_t c = src[i];
+    if (shu_percent_unreserved(c)) {
+      if (o + 1 > out_cap) {
+        return -1;
+      }
+      out[o++] = c;
+    } else {
+      if (o + 3 > out_cap) {
+        return -1;
+      }
+      out[o++] = (uint8_t)'%';
+      out[o++] = (uint8_t)hex[(c >> 4) & 0x0f];
+      out[o++] = (uint8_t)hex[c & 0x0f];
+    }
+  }
+  return o;
+}
+
+/** percent 解码；返回写入字节数，非法 -1。 */
+int32_t encoding_percent_decode_c(const uint8_t *src, int32_t src_len, uint8_t *out, int32_t out_cap) {
+  int32_t i;
+  int32_t o = 0;
+  if (!src || !out || src_len < 0) {
+    return -1;
+  }
+  for (i = 0; i < src_len; i++) {
+    uint8_t c = src[i];
+    if (c == '%') {
+      int32_t hi;
+      int32_t lo;
+      if (i + 2 >= src_len) {
+        return -1;
+      }
+      hi = shu_hex_nibble(src[i + 1]);
+      lo = shu_hex_nibble(src[i + 2]);
+      if (hi < 0 || lo < 0) {
+        return -1;
+      }
+      if (o >= out_cap) {
+        return -1;
+      }
+      out[o++] = (uint8_t)((hi << 4) | lo);
+      i += 2;
+    } else {
+      if (o >= out_cap) {
+        return -1;
+      }
+      out[o++] = c;
+    }
+  }
+  return o;
+}
+
+/** STD-127 C 烟测：Base32 `foo` 与 percent `a b` 往返。 */
+int32_t encoding_extra_smoke_c(void) {
+  static const uint8_t foo[] = "foo";
+  uint8_t b32[16];
+  uint8_t dec[8];
+  int32_t n;
+  int32_t m;
+  static const uint8_t plain[] = { 'a', ' ', 'b' };
+  uint8_t pct[16];
+  uint8_t back[8];
+  int32_t pn;
+  int32_t pd;
+  n = encoding_base32_encode_c(foo, 3, b32, 16);
+  if (n != 8 || b32[0] != 'M' || b32[1] != 'Z' || b32[2] != 'X' || b32[3] != 'W' || b32[4] != '6') {
+    return 1;
+  }
+  m = encoding_base32_decode_c(b32, n, dec, 8);
+  if (m != 3 || dec[0] != 'f' || dec[1] != 'o' || dec[2] != 'o') {
+    return 2;
+  }
+  pn = encoding_percent_encode_c(plain, 3, pct, 16);
+  if (pn != 5) {
+    return 3;
+  }
+  pd = encoding_percent_decode_c(pct, pn, back, 8);
+  if (pd != 3 || back[0] != 'a' || back[1] != ' ' || back[2] != 'b') {
+    return 4;
+  }
+  return 0;
+}
