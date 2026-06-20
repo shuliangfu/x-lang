@@ -12,6 +12,26 @@
 
 实现走 std.heap 的 C 层（memcpy/memset/memcmp），性能与 libc 一致。
 
+### 有界封装（STD-144）
+
+| 函数 | 说明 |
+|------|------|
+| `copy_bounded(dst, dst_cap, src, n)` | n>cap 返回 -1；否则 copy 并返回 n |
+| `set_bounded(ptr, cap, byte, n)` | n>cap 返回 -1；否则 set 并返回 n |
+| `compare_bounded(a, a_len, b, b_len)` | 先比公共前缀，再按长度决胜 |
+| `buffer_from(ptr, len)` | 构造 `Buffer { ptr, len, handle=0 }` |
+
+RFC：`analysis/std-mem-safe-v1.md`；门禁 `./tests/run-std-mem-safe-gate.sh`。
+
+## 与 core.mem 职责边界（STD-018）
+
+| 模块 | 职责 |
+|------|------|
+| **core.mem** | 无 OS/无堆：`mem_copy` / `mem_move` / `mem_zero` / 对齐辅助；编译器可内建化 |
+| **std.mem** | Buffer ABI + 经 **std.heap** 的 `copy` / `set` / `compare`；**禁止** `import("core.mem")` 双路径 |
+
+详细矩阵与选用指南：`analysis/std-mem-boundary-v1.md`；门禁 `./tests/run-std-mem-boundary-gate.sh`。
+
 ## 二、Buffer ABI 与舒 IO 预注册
 
 | 类型/函数 | 说明 |
