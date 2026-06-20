@@ -1,4 +1,5 @@
 // std.queue — 双端队列（对标 Rust VecDeque、Zig std.fifo）
+// STD-048：SyncQueue_i32 可选 mutex 封装（std.sync），单线程 Queue_i32 不变。
 //
 // 【文件职责】
 // Queue_i32：环形缓冲 +
@@ -7,6 +8,9 @@
 //
 // 【依赖】std.heap。
 const heap = import("std.heap");
+/** STD-048：并发安全封装依赖 std.sync mutex；out 写回经 std.atomic.store_i32。 */
+const sync = import("std.sync");
+const atomic = import("std.atomic");
 /** 双端队列：data 堆分配，cap 容量，len 元素个数，head
 * 为队首下标（0..cap-1）。 */
 allow(padding) struct Queue_i32 {
@@ -130,6 +134,82 @@ function queue_i32_deinit(q: *Queue_i32): void {
   q.cap = 0;
   q.len = 0;
   q.head = 0;
+}
+
+// ——— SyncQueue_i32（STD-048） ———
+/** 并发安全 i32 队列：Queue_i32 + mutex；v1 仅 try_pop，无阻塞 pop。 */
+allow(padding) struct SyncQueue_i32 {
+  q: Queue_i32;
+  lock: *u8;
+}
+
+/** C 层双线程竞争 push 烟测（queue.c）；0 通过，-1 失败。 */
+extern function sync_queue_contention_smoke_c(): i32;
+
+/** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
+function sync_queue_i32_new(): SyncQueue_i32 {
+  let lock: *u8 = sync.mutex_new();
+  return SyncQueue_i32 { q: queue_i32_new(), lock: lock };
+}
+
+/** 销毁队列并释放 mutex。 */
+function sync_queue_i32_deinit(sq: *SyncQueue_i32): void {
+  if (sq.lock != 0 as *u8) {
+    sync.mutex_lock(sq.lock);
+    queue_i32_deinit(&sq.q);
+    sync.mutex_unlock(sq.lock);
+    sync.mutex_free(sq.lock);
+    sq.lock = 0 as *u8;
+  } else {
+    queue_i32_deinit(&sq.q);
+  }
+}
+
+/** 加锁队尾插入；失败 -1。 */
+function sync_queue_i32_push_back(sq: *SyncQueue_i32, x: i32): i32 {
+  if (sq.lock == 0 as *u8) { return -1; }
+  if (sync.mutex_lock(sq.lock) != 0) { return -1; }
+  let r: i32 = queue_i32_push_back(&sq.q, x);
+  sync.mutex_unlock(sq.lock);
+  return r;
+}
+
+/**
+ * 加锁队首弹出：0 成功写入 *out，1 空队列，-1 失败。
+ */
+function sync_queue_i32_try_pop_front(sq: *SyncQueue_i32, out: *i32): i32 {
+  if (sq.lock == 0 as *u8) { return -1; }
+  if (sync.mutex_lock(sq.lock) != 0) { return -1; }
+  if (queue_i32_is_empty(sq.q) != 0) {
+    sync.mutex_unlock(sq.lock);
+    return 1;
+  }
+  atomic.store_i32(out, queue_i32_pop_front(&sq.q));
+  sync.mutex_unlock(sq.lock);
+  return 0;
+}
+
+/** 加锁读元素个数。 */
+function sync_queue_i32_len(sq: SyncQueue_i32): i32 {
+  if (sq.lock == 0 as *u8) { return 0; }
+  if (sync.mutex_lock(sq.lock) != 0) { return 0; }
+  let n: i32 = queue_i32_len(sq.q);
+  sync.mutex_unlock(sq.lock);
+  return n;
+}
+
+/** 加锁判空：1 空，0 非空。 */
+function sync_queue_i32_is_empty(sq: SyncQueue_i32): i32 {
+  if (sq.lock == 0 as *u8) { return 1; }
+  if (sync.mutex_lock(sq.lock) != 0) { return 1; }
+  let e: i32 = queue_i32_is_empty(sq.q);
+  sync.mutex_unlock(sq.lock);
+  return e;
+}
+
+/** 门面：C 层 sync_queue_contention_smoke_c 烟测。 */
+function sync_queue_contention_smoke(): i32 {
+  return sync_queue_contention_smoke_c();
 }
 
 // ——— Queue_u8（STD-163） ———
