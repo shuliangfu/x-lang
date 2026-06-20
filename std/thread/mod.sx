@@ -71,6 +71,45 @@ function thread_dummy_entry_ptr(): usize {
   return thread_dummy_entry_ptr_c();
 }
 
+/* --- STD-043：命名线程与固定 worker 线程池 --- */
+
+extern function thread_set_name_self_c(name: *u8, len: i32): i32;
+extern function thread_pool_start_c(workers: i32): i32;
+extern function thread_pool_submit_c(entry: usize, arg: usize): i32;
+extern function thread_pool_drain_c(): i32;
+extern function thread_pool_stop_c(): i32;
+extern function thread_pool_pending_c(): i32;
+
+/** 设置当前线程名（≤15 字节）；成功 0，不支持 -1。 */
+function thread_set_name_self(name: *u8, len: i32): i32 {
+  return thread_set_name_self_c(name, len);
+}
+
+/** 启动固定 worker 线程池；workers 1..8；成功 0（Windows v1 返回 -1）。 */
+function thread_pool_start(workers: i32): i32 {
+  return thread_pool_start_c(workers);
+}
+
+/** 向池提交 C 入口任务；成功 0。 */
+function thread_pool_submit(entry: usize, arg: usize): i32 {
+  return thread_pool_submit_c(entry, arg);
+}
+
+/** 阻塞直至队列与 in-flight 皆空；成功 0。 */
+function thread_pool_drain(): i32 {
+  return thread_pool_drain_c();
+}
+
+/** 停止池并 join worker；成功 0。 */
+function thread_pool_stop(): i32 {
+  return thread_pool_stop_c();
+}
+
+/** 观测 pending（队列 + in-flight）；未启动 -1。 */
+function thread_pool_pending(): i32 {
+  return thread_pool_pending_c();
+}
+
 /** 线程池统计快照（STD-165）。 */
 struct ThreadPoolStats {
   pending: i32;
