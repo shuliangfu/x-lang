@@ -1,18 +1,128 @@
 // tests/fs/crossplatform_core.sx — STD-003：std.fs 三平台对齐烟测（同一套 .sx）
 // 覆盖：open/read/write/pread/pwrite/mmap/readv/io_fd/append/create/last_error/path_readable
+// 注意：各 helper 内局部变量须唯一命名，避免 typeck 跨函数符号冲突。
 const fs = import("std.fs");
 
-/** 写入 tests/fs/.crossplatform_tmp 固定 payload；成功返回 0。 */
+/** 写入 path 固定 payload；成功返回 0。 */
 function cp_write_base(path: *u8, payload: *u8, len: usize): i32 {
-  let fd: i32 = fs.fs_open_write(path);
-  if (fd < 0) { return 1; }
-  let nw: isize = fs.fs_write(fd, payload, len);
-  if (fs.fs_sync(fd) != 0) {
-    fs.fs_close(fd);
+  let fd_w: i32 = fs.fs_open_write(path);
+  if (fd_w < 0) { return 1; }
+  let nw: isize = fs.fs_write(fd_w, payload, len);
+  if (fs.fs_sync(fd_w) != 0) {
+    fs.fs_close(fd_w);
     return 2;
   }
-  if (fs.fs_close(fd) != 0) { return 3; }
+  if (fs.fs_close(fd_w) != 0) { return 3; }
   if (nw != (len as isize)) { return 4; }
+  return 0;
+}
+
+/** read/pread/pwrite 往返；失败返回非零子码。 */
+function cp_test_rw(path: *u8, payload: *u8, pay_len: usize, buf: *u8): i32 {
+  let fd_r1: i32 = fs.fs_open_read(path);
+  if (fd_r1 < 0) { return 1; }
+  let nr1: isize = fs.fs_read(fd_r1, buf, pay_len);
+  if (fs.fs_close(fd_r1) != 0) { return 2; }
+  if (nr1 != (pay_len as isize)) { return 3; }
+  let fd_r2: i32 = fs.fs_open_read(path);
+  if (fd_r2 < 0) { return 4; }
+  let nr2: isize = fs.fs_pread(fd_r2, buf, 8 as usize, 4 as i64);
+  if (fs.fs_close(fd_r2) != 0) { return 5; }
+  if (nr2 != 8 as isize) { return 6; }
+  let fd_pw: i32 = fs.fs_open_write(path);
+  if (fd_pw < 0) { return 7; }
+  if (fs.fs_pwrite(fd_pw, payload, 4 as usize, 0 as i64) != 4 as isize) {
+    fs.fs_close(fd_pw);
+    return 8;
+  }
+  if (fs.fs_sync(fd_pw) != 0) {
+    fs.fs_close(fd_pw);
+    return 9;
+  }
+  if (fs.fs_close(fd_pw) != 0) { return 10; }
+  return 0;
+}
+
+/** append/create 模式；失败返回非零子码。 */
+function cp_test_append_create(path: *u8, payload: *u8, pay_len: usize): i32 {
+  let fd_a: i32 = fs.fs_open_append(path);
+  if (fd_a < 0) { return 1; }
+  if (fs.fs_write(fd_a, payload, 1 as usize) != 1 as isize) {
+    fs.fs_close(fd_a);
+    return 2;
+  }
+  fs.fs_close(fd_a);
+  let fd_c: i32 = fs.fs_open_create(path);
+  if (fd_c < 0) { return 3; }
+  if (fs.fs_write(fd_c, payload, pay_len) != (pay_len as isize)) {
+    fs.fs_close(fd_c);
+    return 4;
+  }
+  fs.fs_sync(fd_c);
+  fs.fs_close(fd_c);
+  return 0;
+}
+
+/** mmap 只读映射；失败返回非零子码。 */
+function cp_test_mmap(path: *u8, payload: *u8, pay_len: usize): i32 {
+  let sz_m: usize = 0;
+  let mp_m: *u8 = fs.fs_mmap_ro(path, &sz_m);
+  if (mp_m == 0 as *u8) { return 1; }
+  if (sz_m < pay_len) {
+    fs.fs_munmap(mp_m, sz_m);
+    return 2;
+  }
+  if (mp_m[0] != payload[0]) {
+    fs.fs_munmap(mp_m, sz_m);
+    return 3;
+  }
+  if (fs.fs_munmap(mp_m, sz_m) != 0) { return 4; }
+  return 0;
+}
+
+/** readv/writev2；失败返回非零子码。 */
+function cp_test_vectored(path: *u8, p0: *u8, p1: *u8): i32 {
+  let b0_v: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let b1_v: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let fd_vr: i32 = fs.fs_open_read(path);
+  if (fd_vr < 0) { return 1; }
+  let rv_v: i64 = fs.fs_readv2(fd_vr, &b0_v[0], 4 as usize, &b1_v[0], 4 as usize);
+  if (rv_v < 0) {
+    fs.fs_close(fd_vr);
+    return 2;
+  }
+  if (fs.fs_close(fd_vr) != 0) { return 3; }
+  let fd_vw: i32 = fs.fs_open_write(path);
+  if (fd_vw < 0) { return 4; }
+  let wv_v: i64 = fs.fs_writev2(fd_vw, p0, 4 as usize, p1, 4 as usize);
+  if (wv_v != 8) {
+    fs.fs_close(fd_vw);
+    return 5;
+  }
+  fs.fs_sync(fd_vw);
+  fs.fs_close(fd_vw);
+  return 0;
+}
+
+/** read_fd/write_fd 经 std.io；失败返回非零子码。 */
+function cp_test_io_fd(path: *u8, payload: *u8, buf: *u8): i32 {
+  let fd_ir: i32 = fs.fs_open_read(path);
+  if (fd_ir < 0) { return 1; }
+  let n_ir: i32 = read_fd(fd_ir, buf, 16 as usize);
+  if (n_ir <= 0) {
+    fs.fs_close(fd_ir);
+    return 2;
+  }
+  fs.fs_close(fd_ir);
+  let fd_iw: i32 = fs.fs_open_write(path);
+  if (fd_iw < 0) { return 3; }
+  let n_iw: i32 = write_fd(fd_iw, payload, 4 as usize);
+  if (n_iw != 4) {
+    fs.fs_close(fd_iw);
+    return 4;
+  }
+  fs.fs_sync(fd_iw);
+  fs.fs_close(fd_iw);
   return 0;
 }
 
@@ -23,143 +133,46 @@ function main(): i32 {
   let payload: [32]u8 =
   [83, 84, 68, 45, 48, 48, 51, 32, 102, 115, 32, 99, 114, 111, 115, 115, 112, 108, 97, 116, 102, 111, 114, 109, 10, 0, 0, 0, 0, 0, 0, 0];
   let pay_len: usize = 25 as usize;
-  let buf: [64]u8 = 0;
-  let fd: i32 = 0;
-  let nr: isize = 0;
-  let sum: i32 = 0;
-  let i: i32 = 0;
+  let buf: [64]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let sum_m: i32 = 0;
+  let i_m: i32 = 0;
+  let rc_m: i32 = 0;
 
   if (cp_write_base(&path[0], &payload[0], pay_len) != 0) { return 10; }
   if (fs.fs_path_readable(&path[0]) != 1) { return 11; }
 
-  fd = fs.fs_open_read(&path[0]);
-  if (fd < 0) { return 12; }
-  nr = fs.fs_read(fd, &buf[0], pay_len);
-  if (fs.fs_close(fd) != 0) { return 13; }
-  if (nr != (pay_len as isize)) { return 14; }
+  rc_m = cp_test_rw(&path[0], &payload[0], pay_len, &buf[0]);
+  if (rc_m != 0) { return 12 + rc_m; }
 
-  fd = fs.fs_open_read(&path[0]);
-  if (fd < 0) { return 15; }
-  nr = fs.fs_pread(fd, &buf[0], 8 as usize, 4 as i64);
-  if (fs.fs_close(fd) != 0) { return 16; }
-  if (nr != 8) { return 17; }
+  rc_m = cp_test_append_create(&path[0], &payload[0], pay_len);
+  if (rc_m != 0) { return 22 + rc_m; }
 
-  fd = fs.fs_open_write(&path[0]);
-  if (fd < 0) { return 18; }
-  if (fs.fs_pwrite(fd, &payload[0], 4 as usize, 0 as i64) != 4) {
-    fs.fs_close(fd);
-    return 19;
-  }
-  if (fs.fs_sync(fd) != 0) {
-    fs.fs_close(fd);
-    return 20;
-  }
-  if (fs.fs_close(fd) != 0) { return 21; }
+  rc_m = cp_test_mmap(&path[0], &payload[0], pay_len);
+  if (rc_m != 0) { return 30 + rc_m; }
 
-  {
-    let fd_a: i32 = fs.fs_open_append(&path[0]);
-    if (fd_a < 0) { return 22; }
-    if (fs.fs_write(fd_a, &payload[0], 1 as usize) != 1) {
-      fs.fs_close(fd_a);
-      return 23;
-    }
-    fs.fs_close(fd_a);
-  }
-  {
-    let fd_c: i32 = fs.fs_open_create(&path[0]);
-    if (fd_c < 0) { return 24; }
-    if (fs.fs_write(fd_c, &payload[0], pay_len) != (pay_len as isize)) {
-      fs.fs_close(fd_c);
-      return 25;
-    }
-    fs.fs_sync(fd_c);
-    fs.fs_close(fd_c);
-  }
+  rc_m = cp_test_vectored(&path[0], &payload[0], &payload[4]);
+  if (rc_m != 0) { return 40 + rc_m; }
 
-  {
-    let sz: usize = 0;
-    let mp: *u8 = fs.fs_mmap_ro(&path[0], &sz);
-    if (mp == 0 as *u8) { return 26; }
-    if (sz < pay_len) {
-      fs.fs_munmap(mp, sz);
-      return 27;
-    }
-    if (mp[0] != payload[0]) {
-      fs.fs_munmap(mp, sz);
-      return 28;
-    }
-    if (fs.fs_munmap(mp, sz) != 0) { return 29; }
-  }
+  rc_m = cp_test_io_fd(&path[0], &payload[0], &buf[0]);
+  if (rc_m != 0) { return 50 + rc_m; }
 
-  fd = fs.fs_open_read(&path[0]);
-  if (fd < 0) { return 30; }
-  {
-    let b0: [8]u8 = 0;
-    let b1: [8]u8 = 0;
-    let rv: i64 = fs.fs_readv2(fd, &b0[0], 4 as usize, &b1[0], 4 as usize);
-    if (rv < 0) {
-      fs.fs_close(fd);
-      return 31;
-    }
-  }
-  if (fs.fs_close(fd) != 0) { return 32; }
-
-  fd = fs.fs_open_write(&path[0]);
-  if (fd < 0) { return 33; }
-  {
-    let w0: [4]u8 = [65, 66, 67, 68];
-    let w1: [4]u8 = [69, 70, 71, 72];
-    let wv: i64 = fs.fs_writev2(fd, &w0[0], 4 as usize, &w1[0], 4 as usize);
-    if (wv != 8) {
-      fs.fs_close(fd);
-      return 34;
-    }
-  }
-  fs.fs_sync(fd);
-  fs.fs_close(fd);
-
-  fd = fs.fs_open_read(&path[0]);
-  if (fd < 0) { return 35; }
-  {
-    let n: i32 = read_fd(fd, &buf[0], 16 as usize);
-    if (n <= 0) {
-      fs.fs_close(fd);
-      return 36;
-    }
-    sum = sum + n;
-  }
-  fs.fs_close(fd);
-
-  fd = fs.fs_open_write(&path[0]);
-  if (fd < 0) { return 37; }
-  {
-    let n2: i32 = write_fd(fd, &payload[0], 4 as usize);
-    if (n2 != 4) {
-      fs.fs_close(fd);
-      return 38;
-    }
-  }
-  fs.fs_sync(fd);
-  fs.fs_close(fd);
-
-  fd = fs.fs_open_read(&bad_path_placeholder());
-  if (fd >= 0) {
-    fs.fs_close(fd);
-    return 39;
-  }
-  if (fs.fs_last_error() == 0) { return 40; }
-
-  i = 0;
-  while (i < 25) {
-    sum = sum + (payload[i] as i32);
-    i = i + 1;
-  }
-  return sum & 255;
-}
-
-/** 故意不存在的路径（NUL 结尾）。 */
-function bad_path_placeholder(): *u8 {
-  let p: [32]u8 =
+  let bad: [32]u8 =
   [116, 101, 115, 116, 115, 47, 102, 115, 47, 46, 110, 111, 95, 115, 117, 99, 104, 95, 102, 105, 108, 101, 95, 120, 120, 120, 0, 0, 0, 0, 0, 0];
-  return &p[0];
+  let fd_bad: i32 = fs.fs_open_read(&bad[0]);
+  if (fd_bad >= 0) {
+    fs.fs_close(fd_bad);
+    return 60;
+  }
+  if (fs.fs_last_error() == 0) { return 61; }
+
+  i_m = 0;
+  while (i_m < 25) {
+    sum_m = sum_m + (payload[i_m] as i32);
+    i_m = i_m + 1;
+  }
+  if (sum_m == 0) { return 62; }
+  return 0;
 }
