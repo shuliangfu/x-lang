@@ -350,6 +350,134 @@ int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n) {
         return total;
     }
 }
+
+/* --- STD-123：目录/元数据（Windows） --- */
+
+typedef struct {
+    int64_t size;
+    uint32_t mode;
+    int32_t is_dir;
+    int32_t is_file;
+    int64_t mtime_sec;
+} fs_stat_out_t;
+
+/** 路径 stat；成功 0。 */
+int32_t fs_stat_c(uint8_t *path, fs_stat_out_t *out) {
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+    if (!path || !out) return -1;
+    if (!GetFileAttributesExA((const char *)path, GetFileExInfoStandard, &fad)) {
+        fs_note_last_error_win();
+        return -1;
+    }
+    out->size = ((int64_t)fad.nFileSizeHigh << 32) | (int64_t)fad.nFileSizeLow;
+    out->mode = (fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? 493u : 420u;
+    out->is_dir = (fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+    out->is_file = (out->is_dir == 0) ? 1 : 0;
+    out->mtime_sec = 0;
+    return 0;
+}
+
+/** 修改权限（Windows _chmod 子集）。 */
+int32_t fs_chmod_c(uint8_t *path, uint32_t mode) {
+    (void)mode;
+    if (!path) return -1;
+    if (_chmod((const char *)path, (int)mode) != 0) {
+        fs_note_last_error_win();
+        return -1;
+    }
+    return 0;
+}
+
+/** 创建目录。 */
+int32_t fs_mkdir_c(uint8_t *path, uint32_t mode) {
+    (void)mode;
+    if (!path) return -1;
+    if (_mkdir((const char *)path) != 0) {
+        fs_note_last_error_win();
+        return -1;
+    }
+    return 0;
+}
+
+/** 删除文件。 */
+int32_t fs_unlink_c(uint8_t *path) {
+    if (!path) return -1;
+    if (_unlink((const char *)path) != 0) {
+        fs_note_last_error_win();
+        return -1;
+    }
+    return 0;
+}
+
+/** 删除空目录。 */
+int32_t fs_rmdir_c(uint8_t *path) {
+    if (!path) return -1;
+    if (_rmdir((const char *)path) != 0) {
+        fs_note_last_error_win();
+        return -1;
+    }
+    return 0;
+}
+
+typedef struct {
+    HANDLE find;
+    WIN32_FIND_DATAA fd;
+    int has_next;
+    int first;
+} fs_dir_handle_win_t;
+
+/** 打开目录；失败 -1。 */
+int64_t fs_dir_open_c(uint8_t *path) {
+    char pattern[MAX_PATH];
+    fs_dir_handle_win_t *h;
+    if (!path) return -1;
+    if (snprintf(pattern, sizeof(pattern), "%s\\*", (const char *)path) >= (int)sizeof(pattern)) return -1;
+    h = (fs_dir_handle_win_t *)malloc(sizeof(*h));
+    if (!h) return -1;
+    h->find = FindFirstFileA(pattern, &h->fd);
+    if (h->find == INVALID_HANDLE_VALUE) {
+        free(h);
+        fs_note_last_error_win();
+        return -1;
+    }
+    h->first = 1;
+    h->has_next = 1;
+    return (int64_t)(uintptr_t)h;
+}
+
+/** 读下一目录项：1=有项，0=EOF，-1=错误。 */
+int32_t fs_dir_read_c(int64_t handle, uint8_t *name_out, int32_t name_cap, int32_t *is_dir_out) {
+    fs_dir_handle_win_t *h;
+    if (handle < 0 || !name_out || name_cap <= 0) return -1;
+    h = (fs_dir_handle_win_t *)(uintptr_t)handle;
+    while (h->has_next) {
+        const char *name;
+        if (h->first) {
+            h->first = 0;
+        } else if (!FindNextFileA(h->find, &h->fd)) {
+            h->has_next = 0;
+            return 0;
+        }
+        name = h->fd.cFileName;
+        if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) continue;
+        if ((int32_t)strlen(name) + 1 > name_cap) return -1;
+        memcpy(name_out, name, strlen(name) + 1);
+        if (is_dir_out) *is_dir_out = (h->fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+        return 1;
+    }
+    return 0;
+}
+
+/** 关闭目录句柄。 */
+int32_t fs_dir_close_c(int64_t handle) {
+    fs_dir_handle_win_t *h;
+    if (handle < 0) return -1;
+    h = (fs_dir_handle_win_t *)(uintptr_t)handle;
+    FindClose(h->find);
+    free(h);
+    return 0;
+}
+
 #else
 #include <unistd.h>
 #include <fcntl.h>
@@ -357,6 +485,9 @@ int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n) {
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <dirent.h>
+#include <string.h>
+#include <stdlib.h>
 
 /** EXC-002：fs_open_read 等失败时立即保存，供 fs_last_error_c 读取（避免 glue 覆盖 errno）。 */
 static int32_t fs_saved_last_error;
@@ -832,4 +963,144 @@ int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n) {
         return r >= 0 ? (int64_t)r : -1;
     }
 }
+
+/* --- STD-123：目录/元数据（POSIX） --- */
+
+typedef struct {
+    int64_t size;
+    uint32_t mode;
+    int32_t is_dir;
+    int32_t is_file;
+    int64_t mtime_sec;
+} fs_stat_out_t;
+
+/** 从 struct stat 填充 FsStat 输出。 */
+static void fs_fill_stat_from_st(const struct stat *st, fs_stat_out_t *out) {
+    out->size = (int64_t)st->st_size;
+    out->mode = (uint32_t)(st->st_mode & 07777u);
+    out->is_dir = S_ISDIR(st->st_mode) ? 1 : 0;
+    out->is_file = S_ISREG(st->st_mode) ? 1 : 0;
+    out->mtime_sec = (int64_t)st->st_mtime;
+}
+
+/** 路径 stat；成功 0。 */
+int32_t fs_stat_c(uint8_t *path, fs_stat_out_t *out) {
+    struct stat st;
+    if (!path || !out) return -1;
+    if (stat((const char *)path, &st) != 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    fs_fill_stat_from_st(&st, out);
+    return 0;
+}
+
+/** 修改权限；成功 0。 */
+int32_t fs_chmod_c(uint8_t *path, uint32_t mode) {
+    if (!path) return -1;
+    if (chmod((const char *)path, (mode_t)(mode & 07777u)) != 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    return 0;
+}
+
+/** 创建目录；mode 如 0755。 */
+int32_t fs_mkdir_c(uint8_t *path, uint32_t mode) {
+    if (!path) return -1;
+    if (mkdir((const char *)path, (mode_t)(mode & 07777u)) != 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    return 0;
+}
+
+/** 删除文件。 */
+int32_t fs_unlink_c(uint8_t *path) {
+    if (!path) return -1;
+    if (unlink((const char *)path) != 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    return 0;
+}
+
+/** 删除空目录。 */
+int32_t fs_rmdir_c(uint8_t *path) {
+    if (!path) return -1;
+    if (rmdir((const char *)path) != 0) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    return 0;
+}
+
+typedef struct {
+    DIR *dir;
+} fs_dir_handle_posix_t;
+
+/** 打开目录；失败 -1。 */
+int64_t fs_dir_open_c(uint8_t *path) {
+    DIR *d;
+    fs_dir_handle_posix_t *h;
+    if (!path) return -1;
+    d = opendir((const char *)path);
+    if (!d) {
+        fs_note_last_error_posix();
+        return -1;
+    }
+    h = (fs_dir_handle_posix_t *)malloc(sizeof(*h));
+    if (!h) {
+        closedir(d);
+        return -1;
+    }
+    h->dir = d;
+    return (int64_t)(uintptr_t)h;
+}
+
+/** 读下一目录项：1=有项，0=EOF，-1=错误；跳过 . 与 ..。 */
+int32_t fs_dir_read_c(int64_t handle, uint8_t *name_out, int32_t name_cap, int32_t *is_dir_out) {
+    fs_dir_handle_posix_t *h;
+    struct dirent *de;
+    if (handle < 0 || !name_out || name_cap <= 0) return -1;
+    h = (fs_dir_handle_posix_t *)(uintptr_t)handle;
+    for (;;) {
+        errno = 0;
+        de = readdir(h->dir);
+        if (!de) {
+            if (errno != 0) {
+                fs_note_last_error_posix();
+                return -1;
+            }
+            return 0;
+        }
+        if (de->d_name[0] == '.' &&
+            (de->d_name[1] == '\0' || (de->d_name[1] == '.' && de->d_name[2] == '\0'))) {
+            continue;
+        }
+        if ((int32_t)strlen(de->d_name) + 1 > name_cap) return -1;
+        memcpy(name_out, de->d_name, strlen(de->d_name) + 1);
+        if (is_dir_out) {
+#if defined(DT_DIR)
+            if (de->d_type == DT_DIR) *is_dir_out = 1;
+            else if (de->d_type == DT_REG) *is_dir_out = 0;
+            else *is_dir_out = 0;
+#else
+            *is_dir_out = 0;
+#endif
+        }
+        return 1;
+    }
+}
+
+/** 关闭目录句柄。 */
+int32_t fs_dir_close_c(int64_t handle) {
+    fs_dir_handle_posix_t *h;
+    if (handle < 0) return -1;
+    h = (fs_dir_handle_posix_t *)(uintptr_t)handle;
+    closedir(h->dir);
+    free(h);
+    return 0;
+}
+
 #endif
