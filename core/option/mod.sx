@@ -1,6 +1,12 @@
 // core.option — Option<T> 与可空语义（自举前实现）
 // 当前：Option_i32 / Option_u8 具象类型及 some/none/unwrap_or/is_some/is_none/expect、or/and；泛型 Option<T> 与 map/and_then 待类型实参与函数类型支持后扩展。
 
+/** LANG-009：泛型 Option 模板（单态化 mangling 与 Option_i32 等 ABI 兼容）。 */
+allow(padding) struct Option<T> {
+  is_some: bool;
+  value: T;
+}
+
 // Option_i32：可空 i32，is_some 为真时 value 有效
 struct Option_i32 {
   is_some: bool;
