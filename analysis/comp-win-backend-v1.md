@@ -36,6 +36,7 @@
 2. **-o 后缀**：`.o` / `.obj` 触发 COFF；可执行 `-o prog.exe` 走 link 路径。
 3. **跨主机**：Linux/macOS 只验证 **COFF 对象可生成**；link+run 在 **MSYS CI** 执行。
 4. **最小样例**：`windows_min.sx` 单函数 `return 42`，与 `main.sx` 等价、专用于 manifest。
+5. **稳定 SKIP**：无 asm-capable shux（seed/C-only 构建）时 COFF emit 烟测 SKIP，不 fail manifest。
 
 ---
 
