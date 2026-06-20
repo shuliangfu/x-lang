@@ -18,6 +18,10 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#if defined(__unix__) || defined(__APPLE__)
+#include <unistd.h>
+#endif
 
 #define BACKTRACE_SYM_NAME_LEN 128
 
@@ -235,4 +239,85 @@ int32_t backtrace_symbolicate_smoke_c(void) {
   g_sym_capture_result = 12;
   backtrace_gold_anchor_c();
   return g_sym_capture_result;
+}
+
+/** 返回当前宿主平台名（STD-147 质量报告用）。 */
+static const char *backtrace_xplat_platform_name(void) {
+#if defined(__APPLE__)
+  return "Darwin";
+#elif defined(_WIN32) || defined(_WIN64)
+  return "Windows";
+#elif defined(__linux__)
+  return "Linux";
+#else
+  return "Unknown";
+#endif
+}
+
+/** STD-147 跨平台符号质量探测：stderr 输出 `shux: [SHUX_BT_XPLAT]` 行；成功 0。
+ * 验收：gold_anchor 可解析 + capture 栈 resolved >= 1。 */
+int32_t backtrace_xplat_quality_c(void) {
+  const char *plat = backtrace_xplat_platform_name();
+  uint8_t buf[512];
+  uint8_t names[32 * BACKTRACE_SYM_NAME_LEN];
+  int32_t gold = 0;
+  int32_t resolved = 0;
+  int32_t total = 0;
+
+  /* 直接符号化锚点地址，验证 gold_anchor 可解析 */
+  write_frame_addr(buf, 0, (void *)backtrace_gold_anchor_c);
+  if (backtrace_symbolicate_c(buf, 1, buf, names, 1) > 0) {
+    if (name_has_gold_anchor((char *)names)) {
+      gold = 1;
+    }
+  }
+
+  /* capture 当前栈并统计成功解析帧数 */
+  total = backtrace_capture_c(buf, 32);
+  if (total > 0) {
+    resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
+  }
+
+  fprintf(stderr, "shux: [SHUX_BT_XPLAT] platform=%s gold=%d resolved=%d total=%d\n", plat, gold,
+          resolved, total);
+
+  if (gold < 1 || resolved < 1 || total < 1) {
+    return 1;
+  }
+  return 0;
+}
+
+/** SAFE-007：强符号覆盖 runtime_panic.c 弱默认；SHUX_CRASH_EVIDENCE=1 时 capture 栈并 stderr/bundle 落盘。 */
+void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
+  const char *en = getenv("SHUX_CRASH_EVIDENCE");
+  if (!en || en[0] != '1') {
+    return;
+  }
+  uint8_t buf[512];
+  int32_t n = backtrace_capture_c(buf, 32);
+  int32_t pid = 0;
+#if defined(__unix__) || defined(__APPLE__)
+  pid = (int32_t)getpid();
+#elif defined(_WIN32) || defined(_WIN64)
+  pid = (int32_t)GetCurrentProcessId();
+#else
+  pid = 0;
+#endif
+  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
+          n, pid);
+  const char *dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
+  if (dir && dir[0]) {
+    char path[1024];
+    (void)snprintf(path, sizeof(path), "%s/shux-crash-%d.txt", dir, pid);
+    FILE *f = fopen(path, "w");
+    if (f) {
+      fprintf(f, "panic_has_msg=%d\npanic_msg=%d\nframes=%d\npid=%d\n", has_msg, msg_val, n, pid);
+      for (int32_t i = 0; i < n; i++) {
+        void *addr = read_frame_addr(buf, i);
+        fprintf(f, "frame%d=0x%zx\n", (int)i, (size_t)(uintptr_t)addr);
+      }
+      fclose(f);
+      fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", path);
+    }
+  }
 }
