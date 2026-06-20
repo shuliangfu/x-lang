@@ -53,7 +53,7 @@
 | **std.compress** | std/compress/ | zlib/gzip/brotli/zstd 块；gzip 流 + 统一 `stream_compress_*`（STD-122） |
 | **std.unicode** | std/unicode/ | category、NFC、grapheme_next、case_fold（v1 拉丁子集） |
 | **std.dynlib** | std/dynlib/ | open/sym/close（Linux -ldl） |
-| **std.http** | std/http/ | GET/POST/HEAD、Context 超时、server/pool、WebSocket Upgrade 辅助 |
+| **std.http** | std/http/ | GET/POST/HEAD、chunked/keep-alive（STD-033）、Context 超时、server/pool、WebSocket Upgrade 辅助 |
 | **std.websocket** | std/websocket/ | RFC6455 握手/帧（`ws_*`；gate STD-031） |
 | **std.tar** | std/tar/ | UStar + prefix 长路径 + Pax（STD-038/152） |
 | **std.elf** | std/elf/ | ELF64 解析、sym/rela、write_min_reloc（gate STD-058+） |
