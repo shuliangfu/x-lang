@@ -2,7 +2,8 @@
 //
 //
 // 【文件职责】PI、E、Tau；floor/ceil/trunc/round；sin/cos/tan、asin/acos/atan、atan2；sqr
-// t、cbrt、pow、exp、log、abs、signum；min/max。
+// t、cbrt、pow、exp、log、abs、signum；min/max；erf/erfc/log1p/expm1（STD-115）；
+// fenv 异常标志（STD-059/149）。
 // 【依赖】core；与 std/math/math.c 同属一模块。链接时需 -lm。
 extern function math_pi_c(): f64;
 extern function math_e_c(): f64;
@@ -50,3 +51,41 @@ function abs(x: f64): f64 { return math_fabs_c(x); }
 function signum(x: f64): f64 { return math_signum_c(x); }
 function min(a: f64, b: f64): f64 { return math_fmin_c(a, b); }
 function max(a: f64, b: f64): f64 { return math_fmax_c(a, b); }
+
+// --- 特殊函数（STD-115）---
+extern function math_erf_c(x: f64): f64;
+extern function math_erfc_c(x: f64): f64;
+extern function math_log1p_c(x: f64): f64;
+extern function math_expm1_c(x: f64): f64;
+extern function math_special_smoke_c(): i32;
+/** 误差函数 erf(x)。 */
+function erf(x: f64): f64 { return math_erf_c(x); }
+/** 互补误差函数 erfc(x) = 1 - erf(x)。 */
+function erfc(x: f64): f64 { return math_erfc_c(x); }
+/** log(1+x)，小 x 数值稳定。 */
+function log1p(x: f64): f64 { return math_log1p_c(x); }
+/** exp(x)-1，小 x 数值稳定。 */
+function expm1(x: f64): f64 { return math_expm1_c(x); }
+/** C 金样烟测；0=通过。 */
+function special_smoke(): i32 { return math_special_smoke_c(); }
+
+// --- fenv 异常标志（STD-059 / STD-149）---
+const FENV_INVALID: i32 = 1;
+const FENV_DIVBYZERO: i32 = 2;
+const FENV_OVERFLOW: i32 = 4;
+const FENV_UNDERFLOW: i32 = 8;
+const FENV_INEXACT: i32 = 16;
+const FENV_ALL: i32 = 31;
+const FENV_NOT_IMPL: i32 = -9;
+extern function math_fenv_available_c(): i32;
+extern function math_fenv_test_c(mask: i32): i32;
+extern function math_fenv_clear_c(mask: i32): i32;
+extern function math_fenv_raise_c(mask: i32): i32;
+/** 平台是否支持 fenv：1=是，0=stub。 */
+function fenv_available(): i32 { return math_fenv_available_c(); }
+/** 读取 sticky 异常标志；stub 返回 FENV_NOT_IMPL。 */
+function test_exceptions(mask: i32): i32 { return math_fenv_test_c(mask); }
+/** 清除异常标志；成功 0；stub 返回 FENV_NOT_IMPL。 */
+function clear_exceptions(mask: i32): i32 { return math_fenv_clear_c(mask); }
+/** 置位异常标志（诊断）；成功 0；stub 返回 FENV_NOT_IMPL。 */
+function raise_exceptions(mask: i32): i32 { return math_fenv_raise_c(mask); }
