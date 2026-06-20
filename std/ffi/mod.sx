@@ -6,6 +6,7 @@
 extern function ffi_cstr_len_c(ptr: *u8): i32;
 extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
 extern function ffi_cstring_free_c(ptr: *u8): void;
+extern function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32;
 extern function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32;
 extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
 extern function ffi_cb_double_i32_fn_c(): usize;
@@ -15,6 +16,10 @@ extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
 const FFI_OK: i32 = 0;
 /** 空指针错误。 */
 const FFI_ERR_NULL: i32 = -1;
+/** len < 0。 */
+const FFI_ERR_INVALID_LEN: i32 = -2;
+/** malloc 失败。 */
+const FFI_ERR_OOM: i32 = -3;
 /** 缓冲区过小（cap < 8）。 */
 const FFI_ERR_TOO_SMALL: i32 = -4;
 
@@ -34,8 +39,18 @@ function cstring_new(ptr: *u8, len: i32): *u8 {
   return ffi_cstring_new_c(ptr, len);
 }
 
-/** 释放由 cstring_new 返回的指针。 */
+/** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式（STD-055）。 */
+function cstring_try_new(ptr: *u8, len: i32, out: *usize): i32 {
+  return ffi_cstring_try_new_c(ptr, len, out);
+}
+
+/** 释放由 cstring_new / cstring_try_new 返回的指针。 */
 function cstring_free(ptr: *u8): void {
+  ffi_cstring_free_c(ptr);
+}
+
+/** cstring_free 别名（SAFE-004 C6：恰好一次释放）。 */
+function cstring_destroy(ptr: *u8): void {
   ffi_cstring_free_c(ptr);
 }
 
