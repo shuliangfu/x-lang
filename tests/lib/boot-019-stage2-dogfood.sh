@@ -3,7 +3,8 @@
 #
 # 用法（source 后）：
 #   boot019_check_one SHU tests/parser/two_functions.sx
-#   boot019_link_run_one SHU tests/option/main.sx OUT_PATH
+#   boot019_link_run_one SHU tests/option/main.sx OUT_PATH [EXPECTED_EXIT]
+#   boot019_expected_exit tests/option/main.sx  # 烟测约定退出码
 #   boot019_emit_report status check_ok link_ok skip
 
 BOOT019_PREFIX="${SHUX_BOOT019_PREFIX:-shux: [SHUX_BOOT019]}"
@@ -22,11 +23,23 @@ boot019_check_one() {
   return 1
 }
 
-# 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行失败返回 1。
+# 返回烟测 src 的约定进程退出码（与 run-option/run-result/run-generic 一致）。
+boot019_expected_exit() {
+  case "$1" in
+    tests/parser/binary_expr_return.sx) echo 3 ;;
+    tests/option/main.sx) echo 102 ;;
+    tests/result/main.sx) echo 173 ;;
+    tests/generic/main.sx) echo 42 ;;
+    *) echo 0 ;;
+  esac
+}
+
+# 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行 exit 不符返回 1。
 boot019_link_run_one() {
   local shux="$1"
   local src="$2"
   local out="$3"
+  local expect="${4:-0}"
   if [ ! -f "$src" ]; then
     return 1
   fi
@@ -35,8 +48,8 @@ boot019_link_run_one() {
   fi
   local ex=0
   "$out" >/dev/null 2>&1 || ex=$?
-  if [ "$ex" -ne 0 ]; then
-    echo "boot-019 FAIL: $src run exit=$ex" >&2
+  if [ "$ex" -ne "$expect" ]; then
+    echo "boot-019 FAIL: $src run exit=$ex (expected $expect)" >&2
     return 1
   fi
   return 0
