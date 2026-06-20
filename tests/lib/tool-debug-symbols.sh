@@ -20,13 +20,20 @@ tool_dbg_exe_has_sym() {
   return 1
 }
 
-# 检查 file(1) 输出含 not stripped（调试构建期望）。
+# 检查可执行文件未被 strip（调试构建期望）。
+# Linux ELF：file(1) 输出含 "not stripped"。
+# macOS Mach-O：file(1) 不标注 stripped 状态，改查 LC_SYMTAB nsyms（strip 后显著减少）。
 tool_dbg_exe_not_stripped() {
   local exe="$1"
   local info
   info=$(file "$exe" 2>/dev/null || true)
   if echo "$info" | grep -qi 'not stripped'; then
     return 0
+  fi
+  if echo "$info" | grep -qi 'Mach-O'; then
+    if otool -l "$exe" 2>/dev/null | awk '/^[[:space:]]*nsyms[[:space:]]/ { if ($2 > 300) ok = 1 } END { exit !ok }'; then
+      return 0
+    fi
   fi
   echo "tool-debug-symbols FAIL: expected not stripped: $info" >&2
   return 1
