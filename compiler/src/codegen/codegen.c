@@ -149,6 +149,18 @@ int32_t codegen_sx_expr_needs_addsub_parens(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && (e->kind == AST_EXPR_ADD || e->kind == AST_EXPR_SUB)) ? 1 : 0;
 }
+/** C 路径：加减操作数若含 shift/位运算/比较/逻辑，须加括号（C 中 + - 优先于 <<）。 */
+static int codegen_c_need_paren_additive_child(const struct ASTExpr *e) {
+    if (!e) return 0;
+    switch (e->kind) {
+    case AST_EXPR_ADD: case AST_EXPR_SUB:
+    case AST_EXPR_SHL: case AST_EXPR_SHR:
+    case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
+        return 1;
+    default:
+        return (e->kind >= AST_EXPR_EQ && e->kind <= AST_EXPR_LOGOR);
+    }
+}
 /** .sx 侧 CALL 访问器：返回 callee 子表达式指针。 */
 uint8_t *codegen_sx_call_callee(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
@@ -904,9 +916,20 @@ static const char *impl_method_c_name(const struct ASTFunc *f) {
     return buf;
 }
 
-/** 单态化实例的 C 函数名：name_t1_t2（如 id_i32、id_i32_bool）。返回值使用静态缓冲区。 */
-static const char *mono_instance_mangled_name(const struct ASTFunc *f,
-    struct ASTType **type_args, int num_type_args) {
+/** 模块内是否存在同名非泛型函数（用于单态化名与具象 API 符号去重）。 */
+static int module_has_non_generic_func(const struct ASTModule *mod, const char *name) {
+    if (!mod || !name || !mod->funcs) return 0;
+    for (int i = 0; i < mod->num_funcs; i++) {
+        const struct ASTFunc *fn = mod->funcs[i];
+        if (fn && fn->name && fn->num_generic_params == 0 && strcmp(fn->name, name) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+/** 单态化实例的 C 函数名：name_t1_t2（如 id_i32）；与具象函数同名时插入 _mono_（unwrap_or_i32 vs unwrap_or<i32>）。 */
+static const char *mono_instance_mangled_name_ex(const struct ASTModule *mod,
+    const struct ASTFunc *f, struct ASTType **type_args, int num_type_args) {
     static char buf[256];
     if (!f || !f->name || num_type_args <= 0 || !type_args) return f ? f->name : "";
     size_t n = (size_t)snprintf(buf, sizeof(buf), "%s", f->name);
@@ -915,7 +938,21 @@ static const char *mono_instance_mangled_name(const struct ASTFunc *f,
         type_to_suffix(type_args[i], suf, sizeof(suf));
         n += (size_t)snprintf(buf + n, sizeof(buf) - n, "_%s", suf);
     }
+    if (mod && module_has_non_generic_func(mod, buf)) {
+        n = (size_t)snprintf(buf, sizeof(buf), "%s_mono", f->name);
+        for (int i = 0; i < num_type_args && n < sizeof(buf) - 2; i++) {
+            char suf[64];
+            type_to_suffix(type_args[i], suf, sizeof(suf));
+            n += (size_t)snprintf(buf + n, sizeof(buf) - n, "_%s", suf);
+        }
+    }
     return buf;
+}
+
+/** 单态化实例 C 名（无模块上下文时不做具象符号去重）。 */
+static const char *mono_instance_mangled_name(const struct ASTFunc *f,
+    struct ASTType **type_args, int num_type_args) {
+    return mono_instance_mangled_name_ex(NULL, f, type_args, num_type_args);
 }
 
 /** 统计模块内同名函数个数（>1 时须 mangled C 符号）。 */
@@ -978,7 +1015,8 @@ static const char *func_link_name(const struct ASTModule *mod, const struct ASTF
 static const char *call_instance_mangled_name(const struct ASTFunc *f, const struct ASTExpr *e) {
     if (!f || !e || e->kind != AST_EXPR_CALL) return f ? f->name : "";
     if (e->value.call.num_type_args > 0 && e->value.call.type_args)
-        return mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args);
+        return mono_instance_mangled_name_ex(codegen_find_func_module(f), f,
+            e->value.call.type_args, e->value.call.num_type_args);
     return func_link_name(codegen_find_func_module(f), f);
 }
 
@@ -1866,6 +1904,31 @@ static const struct ASTStructDef *codegen_find_struct_def_by_name(const char *na
     return NULL;
 }
 
+/**
+ * 在依赖模块顶层 const 中按名查找，并写出 prefix+name 到 out_prefixed（供裸名 DB_ROW_OK 等引用）。
+ * 返回值：找到返回 ASTLetDecl*，否则 NULL。
+ */
+static const struct ASTLetDecl *codegen_find_module_const_in_deps(const char *name, char *out_prefixed, size_t out_size) {
+    if (!name) return NULL;
+    if (codegen_ndep > 0 && codegen_dep_mods && codegen_dep_paths) {
+        for (int di = 0; di < codegen_ndep; di++) {
+            const struct ASTModule *d = codegen_dep_mods[di];
+            if (!d || !d->top_level_lets) continue;
+            for (int i = 0; i < d->num_top_level_lets; i++) {
+                if (!d->top_level_lets[i].is_const || !d->top_level_lets[i].name) continue;
+                if (strcmp(d->top_level_lets[i].name, name) != 0) continue;
+                if (out_prefixed && out_size > 0) {
+                    char pre[256];
+                    import_path_to_c_prefix(codegen_dep_paths[di], pre, sizeof(pre));
+                    codegen_join_import_prefix_func_name(pre, name, out_prefixed, out_size);
+                }
+                return &d->top_level_lets[i];
+            }
+        }
+    }
+    return NULL;
+}
+
 /** CORE-001：与 typeck type_size_of 对齐的 codegen 侧大小查询。 */
 static int codegen_type_size_of(const struct ASTType *ty) {
     if (!ty) return 0;
@@ -2689,7 +2752,12 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                     fprintf(out, "_0");
                 }
             } else {
-                fprintf(out, "%s", name);
+                char dep_const[256];
+                if (codegen_find_module_const_in_deps(name, dep_const, sizeof(dep_const))) {
+                    fprintf(out, "%s", dep_const);
+                } else {
+                    fprintf(out, "%s", name);
+                }
             }
             return 0;
 #endif
@@ -2746,7 +2814,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " + "; int nl = codegen_sx_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_sx_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
 #else
-            { int need_l = (l->kind >= AST_EXPR_EQ && l->kind <= AST_EXPR_LOGOR); int need_r = (r->kind >= AST_EXPR_EQ && r->kind <= AST_EXPR_LOGOR); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " + "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
+            { int need_l = codegen_c_need_paren_additive_child(l); int need_r = codegen_c_need_paren_additive_child(r); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " + "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         }
         case AST_EXPR_SUB: {
@@ -2755,7 +2823,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " - "; int nl = codegen_sx_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_sx_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
 #else
-            { int need_l = (l->kind >= AST_EXPR_EQ && l->kind <= AST_EXPR_LOGOR); int need_r = (r->kind >= AST_EXPR_EQ && r->kind <= AST_EXPR_LOGOR); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " - "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
+            { int need_l = codegen_c_need_paren_additive_child(l); int need_r = codegen_c_need_paren_additive_child(r); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " - "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         }
         case AST_EXPR_MUL: {
@@ -4004,12 +4072,16 @@ static int codegen_emit_call_import_path_impl(FILE *out, const struct ASTExpr *e
     /* extern 或无 .sx 函数体：C 符号即为 f->name，不加模块前缀 */
     if (f->is_extern || !f->body) {
         if (e->value.call.num_type_args > 0 && e->value.call.type_args)
-            (void)snprintf(full_name, sizeof(full_name), "%s", mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args));
+            (void)snprintf(full_name, sizeof(full_name), "%s", mono_instance_mangled_name_ex(
+                codegen_module_for_import_path(e->value.call.resolved_import_path), f,
+                e->value.call.type_args, e->value.call.num_type_args));
         else
             (void)snprintf(full_name, sizeof(full_name), "%s", call_instance_mangled_name(f, e));
     } else {
         if (e->value.call.num_type_args > 0 && e->value.call.type_args)
-            codegen_join_import_prefix_func_name(pre, mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args), full_name, sizeof(full_name));
+            codegen_join_import_prefix_func_name(pre, mono_instance_mangled_name_ex(
+                codegen_module_for_import_path(e->value.call.resolved_import_path), f,
+                e->value.call.type_args, e->value.call.num_type_args), full_name, sizeof(full_name));
         else
             codegen_join_import_prefix_func_name(pre, call_instance_mangled_name(f, e), full_name, sizeof(full_name));
     }
@@ -4210,12 +4282,14 @@ int32_t codegen_sx_emit_call_import_path_target(uint8_t *out, uint8_t *expr) {
     const struct ASTFunc *f = e->value.call.resolved_callee_func;
     if (f->is_extern) {
         const char *name = (e->value.call.num_type_args > 0 && e->value.call.type_args)
-            ? mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args)
+            ? mono_instance_mangled_name_ex(codegen_module_for_import_path(e->value.call.resolved_import_path), f,
+                e->value.call.type_args, e->value.call.num_type_args)
             : (f->name ? f->name : "");
         fprintf((FILE *)out, "%s", name);
     } else {
         const char *name = (e->value.call.num_type_args > 0 && e->value.call.type_args)
-            ? mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args) : (f->name ? f->name : "");
+            ? mono_instance_mangled_name_ex(codegen_module_for_import_path(e->value.call.resolved_import_path), f,
+                e->value.call.type_args, e->value.call.num_type_args) : (f->name ? f->name : "");
         fprintf((FILE *)out, "%s%s", pre, name);
     }
     return 0;
@@ -4236,7 +4310,8 @@ int32_t codegen_sx_emit_call_library_same_target(uint8_t *out, uint8_t *expr) {
     if (!f || f->is_extern) return -1;
     char cname[256];
     if (e->value.call.num_type_args > 0 && e->value.call.type_args)
-        library_prefixed_name(mono_instance_mangled_name(f, e->value.call.type_args, e->value.call.num_type_args), cname, sizeof(cname));
+        library_prefixed_name(mono_instance_mangled_name_ex(codegen_library_module, f,
+            e->value.call.type_args, e->value.call.num_type_args), cname, sizeof(cname));
     else
         library_prefixed_name(f->name ? f->name : "", cname, sizeof(cname));
     fprintf((FILE *)out, "%s", cname);
@@ -6009,7 +6084,7 @@ static int codegen_one_mono_instance(const struct ASTFunc *f, struct ASTType **t
     if (!f || !f->body || !m || !out || !type_args || num_type_args <= 0 || !f->generic_param_names) return -1;
     const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, type_args, num_type_args);
     char mangled_buf[256];
-    library_prefixed_name(mono_instance_mangled_name(f, type_args, num_type_args), mangled_buf, sizeof(mangled_buf));
+    library_prefixed_name(mono_instance_mangled_name_ex(m, f, type_args, num_type_args), mangled_buf, sizeof(mangled_buf));
     fprintf(out, "%s %s(", c_type_str(ret_ty), mangled_buf);
     for (int i = 0; i < f->num_params; i++) {
         if (i) fprintf(out, ", ");
@@ -7153,7 +7228,8 @@ static void codegen_emit_module_import_extern_decls(struct ASTModule *m, FILE *o
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, ta, nta);
         char pre[256];
         import_path_to_c_prefix(gen_paths[i], pre, sizeof(pre));
-        fprintf(out, "extern %s %s%s(", c_type_str(ret_ty), pre, mono_instance_mangled_name(f, ta, nta));
+        fprintf(out, "extern %s %s%s(", c_type_str(ret_ty), pre, mono_instance_mangled_name_ex(
+            codegen_module_for_import_path(gen_paths[i]), f, ta, nta));
         for (int j = 0; j < f->num_params; j++) {
             if (j) fprintf(out, ", ");
             const struct ASTType *pt = subst_type(f->params[j].type, f->generic_param_names, ta, nta);
@@ -7228,7 +7304,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
             if (!d || !d->struct_defs) continue;
             char pre[256];
             import_path_to_c_prefix(codegen_dep_paths[i], pre, sizeof(pre));
-            for (int j = 0; j < d->num_structs; j++) {
+                for (int j = 0; j < d->num_structs; j++) {
                 const struct ASTStructDef *sd = d->struct_defs[j];
                 if (!sd || !sd->name) continue;
                 fprintf(out, "struct %s%s { ", pre, sd->name);
@@ -7238,6 +7314,23 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                     emit_struct_field_c_type(fty, fname, out);
                 }
                 fprintf(out, "};\n");
+            }
+        }
+        /* 依赖模块顶层 const：#define prefix_NAME init，供裸名 DB_ROW_OK 等跨模块引用。 */
+        for (int i = 0; i < codegen_ndep; i++) {
+            const struct ASTModule *d = codegen_dep_mods[i];
+            if (!d || !d->top_level_lets) continue;
+            char pre[256];
+            import_path_to_c_prefix(codegen_dep_paths[i], pre, sizeof(pre));
+            for (int j = 0; j < d->num_top_level_lets; j++) {
+                const struct ASTLetDecl *lc = &d->top_level_lets[j];
+                char cname[256];
+                if (!lc->is_const || !lc->name || !lc->init) continue;
+                codegen_join_import_prefix_func_name(pre, lc->name, cname, sizeof(cname));
+                fprintf(out, "#define %s ", cname);
+                if (codegen_expr(lc->init, out) != 0)
+                    fprintf(out, "0");
+                fprintf(out, "\n");
             }
         }
     }
@@ -7351,8 +7444,19 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     }
     /* 冷路径辅助：panic 分支标记 noreturn+cold；单文件时已在第一个库块中输出，此处仅多文件时输出；static inline 避免与 runtime_panic.o 重复符号且可被同 TU 内 inline 调用 */
     if (!emitted_type_names) {
+        fprintf(out, "extern int getpid(void);\n");
+        fprintf(out, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+        fprintf(out, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+        fprintf(out, "  if (!_ev || _ev[0] != '1') return;\n");
+        fprintf(out, "  int _pid = (int)getpid();\n");
+        fprintf(out, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+        fprintf(out, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
+        fprintf(out, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+        fprintf(out, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
+        fprintf(out, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
+        fprintf(out, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
         fprintf(out, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
         fprintf(out, "  abort();\n");
         fprintf(out, "}\n");
@@ -7457,7 +7561,8 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         if (!inst->template || !inst->type_args) continue;
         const struct ASTFunc *f = inst->template;
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, inst->type_args, inst->num_type_args);
-        fprintf(out, "static inline %s %s(", ret_ty ? c_type_str(ret_ty) : "int32_t", mono_instance_mangled_name(f, inst->type_args, inst->num_type_args));
+        fprintf(out, "static inline %s %s(", ret_ty ? c_type_str(ret_ty) : "int32_t",
+            mono_instance_mangled_name_ex(m, f, inst->type_args, inst->num_type_args));
         for (int p = 0; p < f->num_params; p++) {
             const struct ASTType *pt = subst_type(f->params[p].type, f->generic_param_names, inst->type_args, inst->num_type_args);
             if (p) fprintf(out, ", ");
@@ -7716,8 +7821,19 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     }
     /* 单文件时 panic 已在第一个库的 include 块中输出；仅多文件（无 emitted_type_names）时每库各自输出 panic */
     if (!emitted_type_names) {
+        fprintf(out, "extern int getpid(void);\n");
+        fprintf(out, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+        fprintf(out, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+        fprintf(out, "  if (!_ev || _ev[0] != '1') return;\n");
+        fprintf(out, "  int _pid = (int)getpid();\n");
+        fprintf(out, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+        fprintf(out, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
+        fprintf(out, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+        fprintf(out, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
+        fprintf(out, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
+        fprintf(out, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
         fprintf(out, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
         fprintf(out, "  abort();\n");
         fprintf(out, "}\n");
@@ -7774,7 +7890,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         const struct ASTFunc *f = inst->template;
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, inst->type_args, inst->num_type_args);
         char fwd_name[256];
-        library_prefixed_name(mono_instance_mangled_name(f, inst->type_args, inst->num_type_args), fwd_name, sizeof(fwd_name));
+        library_prefixed_name(mono_instance_mangled_name_ex(m, f, inst->type_args, inst->num_type_args), fwd_name, sizeof(fwd_name));
         fprintf(out, "%s %s(", ret_ty ? c_type_str(ret_ty) : "int32_t", fwd_name);
         for (int p = 0; p < f->num_params; p++) {
             const struct ASTType *pt = subst_type(f->params[p].type, f->generic_param_names, inst->type_args, inst->num_type_args);
