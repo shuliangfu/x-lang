@@ -49,6 +49,35 @@ function channel_i32_free(ch: *u8): void {
   channel_i32_free_c(ch);
 }
 
+/* --- STD-044：无界 channel 门面与关闭语义 --- */
+
+extern function channel_i32_is_closed_c(ch: *u8): i32;
+
+/** 无界 channel 发送；等同 channel_i32_send。 */
+function send_unbounded(ch: *u8, val: i32): i32 {
+  return channel_i32_send_c(ch, val);
+}
+
+/** 无界 channel 非阻塞接收；等同 channel_i32_try_recv。 */
+function try_recv_unbounded(ch: *u8, out: *i32): i32 {
+  return channel_i32_try_recv_c(ch, out);
+}
+
+/** 关闭无界 channel。 */
+function channel_unbounded_close(ch: *u8): void {
+  channel_i32_close_c(ch);
+}
+
+/** 无界 channel 是否已关闭；1=是，0=否。 */
+function channel_unbounded_is_closed(ch: *u8): i32 {
+  return channel_i32_is_closed_c(ch);
+}
+
+/** 通用 channel 是否已关闭；1=是，0=否。 */
+function channel_i32_is_closed(ch: *u8): i32 {
+  return channel_i32_is_closed_c(ch);
+}
+
 extern function channel_select_chs_set_c(slots: *i64, idx: i32, ch: *u8): void;
 extern function channel_select_dirs_set_c(dirs: *i32, idx: i32, dir: i32): void;
 extern function channel_select_try_recv_2_c(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32;
