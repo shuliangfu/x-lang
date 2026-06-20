@@ -13,6 +13,9 @@
 #ifdef SHUX_USE_BROTLI
 #include <brotli/encode.h>
 #include <brotli/decode.h>
+
+/** 链接 marker：runtime 据此追加 -lbrotlienc -lbrotlidec。 */
+const char shu_compress_brotli_marker = 1;
 #endif
 
 /** 压缩为 Brotli 格式（.br），返回写入字节数，失败或未启用 Brotli 返回 -1。 */
