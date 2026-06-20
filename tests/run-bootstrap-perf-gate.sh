@@ -10,6 +10,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+
 MATRIX="${SHUX_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
 DOGFOOD="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
@@ -91,6 +94,11 @@ echo "bootstrap-perf CI wiring OK"
 # ── hook：PERF-004 dogfood gate ──
 echo "=== BOOT-012: compile dogfood hook (PERF-004) ==="
 chmod +x tests/run-perf-compile-dogfood-gate.sh
-./tests/run-perf-compile-dogfood-gate.sh
+# Linux 原生硬门禁；Darwin/Docker 与 run-ci-full-suite 一致仅跑 bench 不硬失败（APFS/VM 抖动）。
+if ci_is_linux && ! ci_is_docker; then
+  ./tests/run-perf-compile-dogfood-gate.sh
+else
+  SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
+fi
 
 echo "bootstrap-perf gate OK"
