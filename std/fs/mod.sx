@@ -226,3 +226,68 @@ function fs_path_readable(path: *u8): i32 {
 }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function fs_module_anchor(): i32 { return 0; }
+
+/* --- STD-123：目录/元数据 stat/chmod/mkdir/readdir --- */
+
+/** 路径元数据（与 fs_stat_c 布局一致）。 */
+allow(padding) struct FsStat {
+  size: i64;
+  mode: u32;
+  is_dir: i32;
+  is_file: i32;
+  mtime_sec: i64;
+}
+
+extern function fs_stat_c(path: *u8, out: *FsStat): i32;
+extern function fs_chmod_c(path: *u8, mode: u32): i32;
+extern function fs_mkdir_c(path: *u8, mode: u32): i32;
+extern function fs_unlink_c(path: *u8): i32;
+extern function fs_rmdir_c(path: *u8): i32;
+extern function fs_dir_open_c(path: *u8): i64;
+extern function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32;
+extern function fs_dir_close_c(handle: i64): i32;
+
+/** 默认文件权限 0644。 */
+function fs_mode_file_default(): u32 { return 420; }
+/** 默认目录权限 0755。 */
+function fs_mode_dir_default(): u32 { return 493; }
+
+/** 路径 stat；成功 0。 */
+function fs_stat(path: *u8, out: *FsStat): i32 {
+  return fs_stat_c(path, out);
+}
+
+/** 修改权限；成功 0。 */
+function fs_chmod(path: *u8, mode: u32): i32 {
+  return fs_chmod_c(path, mode);
+}
+
+/** 创建目录；成功 0。 */
+function fs_mkdir(path: *u8, mode: u32): i32 {
+  return fs_mkdir_c(path, mode);
+}
+
+/** 删除文件；成功 0（不存在时仍尝试）。 */
+function fs_unlink(path: *u8): i32 {
+  return fs_unlink_c(path);
+}
+
+/** 删除空目录；成功 0。 */
+function fs_rmdir(path: *u8): i32 {
+  return fs_rmdir_c(path);
+}
+
+/** 打开目录遍历；失败 -1。 */
+function fs_dir_open(path: *u8): i64 {
+  return fs_dir_open_c(path);
+}
+
+/** 读下一目录项：1=有项，0=EOF，-1=错误。 */
+function fs_dir_read(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
+  return fs_dir_read_c(handle, name_out, name_cap, is_dir_out);
+}
+
+/** 关闭目录句柄；成功 0。 */
+function fs_dir_close(handle: i64): i32 {
+  return fs_dir_close_c(handle);
+}
