@@ -1,6 +1,6 @@
 # BOOT-017 std/core check 分模块 dogfood manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_modules	55
+# min_modules	71
 section_goal	section	## 1. 目标	docs
 section_matrix	section	## 2. 分模块矩阵	docs
 section_perf004	section	## 4. 与 PERF-004 分工	docs
