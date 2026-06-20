@@ -3,6 +3,29 @@
 
 STD_BACKTRACE_SYM_PREFIX="${SHUX_STD_BACKTRACE_SYM_PREFIX:-shux: [SHUX_STD_BACKTRACE_SYM]}"
 
+# 探测宿主是否支持 execinfo/backtrace（Alpine/musl 无 glibc execinfo）。
+std_backtrace_sym_gold_supported() {
+  local probe="/tmp/shux_bt_probe_$$"
+  if ! cc -std=c11 -x c - -o "$probe" 2>/dev/null <<'EOF'
+#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
+#include <execinfo.h>
+int main(void) { void *a[4]; return backtrace(a, 4) >= 0 ? 0 : 1; }
+#else
+int main(void) { return 2; }
+#endif
+EOF
+  then
+    rm -f "$probe"
+    return 1
+  fi
+  set +e
+  "$probe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$probe"
+  [ "$ec" -eq 0 ]
+}
+
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_backtrace_sym_symbols_ok() {
   local mod_su="$1"

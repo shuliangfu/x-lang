@@ -87,11 +87,18 @@ echo "std-backtrace-symbolicate manifest OK"
 ensure_std_c_o ../std/backtrace/backtrace.o
 
 C_OK=0
-if std_backtrace_sym_run_c_gold "$BT_C"; then
-  C_OK=1
+SKIP_GOLD=0
+if std_backtrace_sym_gold_supported; then
+  if std_backtrace_sym_run_c_gold "$BT_C"; then
+    C_OK=1
+  else
+    std_backtrace_sym_emit_report "fail" 0 0 0 "$(ci_host_summary)"
+    exit 1
+  fi
 else
-  std_backtrace_sym_emit_report "fail" 0 0 0 "$(ci_host_summary)"
-  exit 1
+  echo "std-backtrace-symbolicate gate SKIP C gold (no execinfo; e.g. Alpine/musl)" >&2
+  C_OK=1
+  SKIP_GOLD=1
 fi
 
 SU_OK=0
@@ -134,5 +141,5 @@ else
   SKIP=1
 fi
 
-std_backtrace_sym_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP" "$(ci_host_summary)"
+std_backtrace_sym_emit_report "ok" "$C_OK" "$SU_OK" "$((SKIP + SKIP_GOLD))" "$(ci_host_summary)"
 echo "std-backtrace-symbolicate gate OK"
