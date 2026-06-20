@@ -39,6 +39,43 @@ void ffi_cstring_free_c(uint8_t *ptr) {
   if (ptr) free(ptr);
 }
 
+/** 错误码（与 mod.sx FFI_* 一致）。 */
+#define FFI_OK 0
+#define FFI_ERR_NULL -1
+#define FFI_ERR_INVALID_LEN -2
+#define FFI_ERR_OOM -3
+
+/** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式。 */
+int32_t ffi_cstring_try_new_c(const uint8_t *ptr, int32_t len, uintptr_t *out) {
+  uint8_t *p;
+  if (!out) return FFI_ERR_NULL;
+  if (len < 0) {
+    *out = 0;
+    return FFI_ERR_INVALID_LEN;
+  }
+  p = ffi_cstring_new_c(ptr, len);
+  if (!p) {
+    *out = 0;
+    return FFI_ERR_OOM;
+  }
+  *out = (uintptr_t)p;
+  return FFI_OK;
+}
+
+/** STD-055 C 烟测：try_new 成功路径 + invalid len 错误码。 */
+int32_t ffi_cstring_lifecycle_smoke_c(void) {
+  const uint8_t src[] = "abc";
+  uintptr_t owned = 0;
+  if (ffi_cstring_try_new_c(src, 3, &owned) != FFI_OK) return 1;
+  if (owned == 0) return 2;
+  if (ffi_cstr_len_c((uint8_t *)owned) != 3) return 3;
+  ffi_cstring_free_c((uint8_t *)owned);
+  owned = 99;
+  if (ffi_cstring_try_new_c(src, -1, &owned) != FFI_ERR_INVALID_LEN) return 4;
+  if (owned != 0) return 5;
+  return 0;
+}
+
 /** FfiPoint POD（与 mod.sx 布局一致：x + y，各 i32）。 */
 typedef struct {
   int32_t x;
