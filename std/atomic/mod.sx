@@ -34,3 +34,73 @@ function store_i64(ptr: *i64, val: i64): void { atomic_store_i64_c(ptr, val); }
 function load_u64(ptr: *u64): u64 { return atomic_load_u64_c(ptr); }
 function store_u64(ptr: *u64, val: u64): void { atomic_store_u64_c(ptr, val); }
 function fetch_add_i64(ptr: *i64, delta: i64): i64 { return atomic_fetch_add_i64_c(ptr, delta); }
+
+/* --- STD-046：Ordering 常量与 fence API --- */
+
+/** C11 memory_order_relaxed。 */
+const ORDER_RELAXED: i32 = 0;
+/** C11 memory_order_acquire。 */
+const ORDER_ACQUIRE: i32 = 1;
+/** C11 memory_order_release。 */
+const ORDER_RELEASE: i32 = 2;
+/** C11 memory_order_acq_rel。 */
+const ORDER_ACQ_REL: i32 = 3;
+/** C11 memory_order_seq_cst（v1 默认）。 */
+const ORDER_SEQ_CST: i32 = 4;
+
+extern function atomic_fence_seq_cst_c(): void;
+extern function atomic_fence_acquire_c(): void;
+extern function atomic_fence_release_c(): void;
+
+/** 全序内存栅栏。 */
+function fence_seq_cst(): void {
+  atomic_fence_seq_cst_c();
+}
+
+/** 获取侧内存栅栏。 */
+function fence_acquire(): void {
+  atomic_fence_acquire_c();
+}
+
+/** 释放侧内存栅栏。 */
+function fence_release(): void {
+  atomic_fence_release_c();
+}
+
+/* --- STD-146：i16/u16 与 i64/u64 扩展 --- */
+
+extern function atomic_load_i16_c(ptr: *i16): i16;
+extern function atomic_store_i16_c(ptr: *i16, val: i16): void;
+extern function atomic_fetch_add_i16_c(ptr: *i16, delta: i16): i16;
+extern function atomic_compare_exchange_i16_c(ptr: *i16, expected: *i16, desired: i16): i32;
+extern function atomic_load_u16_c(ptr: *u16): u16;
+extern function atomic_store_u16_c(ptr: *u16, val: u16): void;
+extern function atomic_fetch_add_u16_c(ptr: *u16, delta: u16): u16;
+extern function atomic_compare_exchange_u16_c(ptr: *u16, expected: *u16, desired: u16): i32;
+extern function atomic_compare_exchange_i64_c(ptr: *i64, expected: *i64, desired: i64): i32;
+extern function atomic_fetch_sub_i64_c(ptr: *i64, delta: i64): i64;
+extern function atomic_fetch_add_u64_c(ptr: *u64, delta: u64): u64;
+extern function atomic_fetch_sub_u64_c(ptr: *u64, delta: u64): u64;
+extern function atomic_compare_exchange_u64_c(ptr: *u64, expected: *u64, desired: u64): i32;
+
+function load_i16(ptr: *i16): i16 { return atomic_load_i16_c(ptr); }
+function store_i16(ptr: *i16, val: i16): void { atomic_store_i16_c(ptr, val); }
+function fetch_add_i16(ptr: *i16, delta: i16): i16 { return atomic_fetch_add_i16_c(ptr, delta); }
+function compare_exchange_i16(ptr: *i16, expected: *i16, desired: i16): i32 {
+  return atomic_compare_exchange_i16_c(ptr, expected, desired);
+}
+function load_u16(ptr: *u16): u16 { return atomic_load_u16_c(ptr); }
+function store_u16(ptr: *u16, val: u16): void { atomic_store_u16_c(ptr, val); }
+function fetch_add_u16(ptr: *u16, delta: u16): u16 { return atomic_fetch_add_u16_c(ptr, delta); }
+function compare_exchange_u16(ptr: *u16, expected: *u16, desired: u16): i32 {
+  return atomic_compare_exchange_u16_c(ptr, expected, desired);
+}
+function compare_exchange_i64(ptr: *i64, expected: *i64, desired: i64): i32 {
+  return atomic_compare_exchange_i64_c(ptr, expected, desired);
+}
+function fetch_sub_i64(ptr: *i64, delta: i64): i64 { return atomic_fetch_sub_i64_c(ptr, delta); }
+function fetch_add_u64(ptr: *u64, delta: u64): u64 { return atomic_fetch_add_u64_c(ptr, delta); }
+function fetch_sub_u64(ptr: *u64, delta: u64): u64 { return atomic_fetch_sub_u64_c(ptr, delta); }
+function compare_exchange_u64(ptr: *u64, expected: *u64, desired: u64): i32 {
+  return atomic_compare_exchange_u64_c(ptr, expected, desired);
+}
