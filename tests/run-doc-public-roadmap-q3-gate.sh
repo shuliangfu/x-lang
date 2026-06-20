@@ -45,18 +45,22 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 
 q_manifest="$(doc_roadmap_quarter_from_manifest "$DOC005_MANIFEST")"
-if [ "$q_manifest" != "$QUARTER" ]; then
-  echo "doc-public-roadmap-q3 gate FAIL: doc005 manifest quarter=$q_manifest want $QUARTER" >&2
-  doc_roadmap_q3_emit_report "fail" "$QUARTER" 0
-  exit 1
-fi
+case "$q_manifest" in
+  2027-Q3|2027-Q4)
+    ;;
+  *)
+    echo "doc-public-roadmap-q3 gate FAIL: doc005 manifest quarter=$q_manifest want 2027-Q3+ after Q3 refresh" >&2
+    doc_roadmap_q3_emit_report "fail" "$QUARTER" 0
+    exit 1
+    ;;
+esac
 if ! doc_roadmap_quarter_ok "$ROADMAP" "$QUARTER"; then
-  echo "doc-public-roadmap-q3 gate FAIL: roadmap doc missing $QUARTER" >&2
+  echo "doc-public-roadmap-q3 gate FAIL: roadmap doc missing $QUARTER review/history" >&2
   doc_roadmap_q3_emit_report "fail" "$QUARTER" 0
   exit 1
 fi
-if ! grep -qF "$QUARTER" "$TEMPLATE" 2>/dev/null; then
-  echo "doc-public-roadmap-q3 gate FAIL: template missing $QUARTER" >&2
+if ! grep -qF "$QUARTER" "$DOC" 2>/dev/null; then
+  echo "doc-public-roadmap-q3 gate FAIL: Q3 refresh doc missing $QUARTER" >&2
   doc_roadmap_q3_emit_report "fail" "$QUARTER" 0
   exit 1
 fi

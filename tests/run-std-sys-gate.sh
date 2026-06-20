@@ -79,16 +79,40 @@ if [ -z "$SHUX_BIN" ] && [ -x ./compiler/shux ]; then
 fi
 
 if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
-  if "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1 \
-     && "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1 \
-     && "$SHUX_BIN" check -L . "$SMOKE_MACOS" >/dev/null 2>&1; then
+  TYPECK_FAIL=0
+  # 公共烟测：os_write_stdout 双平台 #[cfg] 均有定义。
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    TYPECK_FAIL=1
+  fi
+  HOSTOS="$(uname -s 2>/dev/null)"
+  # Linux：mod 层 linux_syscall_* + std.sys.linux 子模块烟测。
+  if [ "$HOSTOS" = "Linux" ]; then
+    if ! "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
+      TYPECK_FAIL=1
+    fi
+  fi
+  # Darwin：再验 macOS mod 层 macos_write_* 烟测（Linux host 无此 #[cfg] 符号）。
+  if [ "$HOSTOS" = "Darwin" ]; then
+    if ! "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
+      TYPECK_FAIL=1
+    fi
+    if ! "$SHUX_BIN" check -L . "$SMOKE_MACOS" >/dev/null 2>&1; then
+      TYPECK_FAIL=1
+    fi
+  fi
+  if [ "$TYPECK_FAIL" -eq 0 ]; then
     CHECK_OK=1
     echo "std-sys typeck OK"
   else
     echo "std-sys gate FAIL: typeck" >&2
     "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -5 >&2 || true
-    "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
-    "$SHUX_BIN" check -L . "$SMOKE_MACOS" 2>&1 | tail -5 >&2 || true
+    if [ "$HOSTOS" = "Linux" ]; then
+      "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
+    fi
+    if [ "$HOSTOS" = "Darwin" ]; then
+      "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
+      "$SHUX_BIN" check -L . "$SMOKE_MACOS" 2>&1 | tail -5 >&2 || true
+    fi
     echo "${PREFIX} status=fail"
     exit 1
   fi

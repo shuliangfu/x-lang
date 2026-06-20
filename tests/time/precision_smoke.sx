@@ -4,10 +4,9 @@
 // 【运行方式】由 tests/run-std-time-gate.sh 在 native shux 下编译执行。
 const time = import("std.time");
 
-/** 2020-01-01 00:00:00 UTC（秒）；墙钟应大于此值。 */
-const MIN_WALL_SEC: i64 = 1577836800;
-
 function main(): i32 {
+  // 2020-01-01 00:00:00 UTC（秒）；墙钟应大于此值。
+  let min_wall_sec: i64 = 1577836800 as i64;
   let ns0: i64 = time.now_monotonic_ns();
   let us0: i64 = time.now_monotonic_us();
   let ms0: i64 = time.now_monotonic_ms();
@@ -22,7 +21,7 @@ function main(): i32 {
   let wm: i64 = time.now_wall_ms();
   let wu: i64 = time.now_wall_us();
   let wn: i64 = time.now_wall_ns();
-  if (ws < MIN_WALL_SEC) {
+  if (ws < min_wall_sec) {
     return 10;
   }
   if (wm < ws * 1000) {

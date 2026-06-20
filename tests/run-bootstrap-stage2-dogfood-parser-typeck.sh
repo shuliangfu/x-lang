@@ -72,8 +72,9 @@ run_smoke_list() {
     local base
     base=$(basename "$src" .sx)
     local out="${OUT_DIR}/shux_boot019_${base}"
-    local lr=0
-    boot019_link_run_one "$SHUX" "$src" "$out" || lr=$?
+    local expect lr=0
+    expect=$(boot019_expected_exit "$src")
+    boot019_link_run_one "$SHUX" "$src" "$out" "$expect" || lr=$?
     if [ "$lr" -eq 0 ]; then
       LINK_OK=$((LINK_OK + 1))
       echo "bootstrap-stage2-dogfood link+run OK $label $(basename "$src")"

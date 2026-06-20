@@ -79,10 +79,14 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# B1 须为 emit_target
-if ! grep -F 'B1_parse_body_lets' "$MATRIX" 2>/dev/null | grep -qF 'emit_target'; then
-  echo "boot-022 FAIL: B1_parse_body_lets not emit_target in mega7 matrix" >&2
-  MISS=$((MISS + 1))
+# B1 须为 emit_target（仅 Linux+shux_asm 时硬门禁；Docker portable 无 shux_asm 则 SKIP）
+if boot022_mega7_linux_asm; then
+  if ! grep -F 'B1_parse_body_lets' "$MATRIX" 2>/dev/null | grep -qF 'emit_target'; then
+    echo "boot-022 FAIL: B1_parse_body_lets not emit_target in mega7 matrix" >&2
+    MISS=$((MISS + 1))
+  fi
+else
+  echo "boot-022-mega7-emit gate SKIP mega7 matrix emit_target check (no shux_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then

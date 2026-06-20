@@ -7,13 +7,19 @@
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# 计算文件 sha256（小写 hex）。
+# 计算文件 sha256（小写 hex）；Linux 用 sha256sum，macOS 用 shasum。
 tool_deps_sha256_file() {
   local f="$1"
   if [ ! -f "$f" ]; then
     return 1
   fi
-  shasum -a 256 "$f" 2>/dev/null | awk '{print $1}'
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$f" 2>/dev/null | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$f" 2>/dev/null | awk '{print $1}'
+  else
+    return 1
+  fi
 }
 
 # 将绝对路径转为相对仓库根的路径。

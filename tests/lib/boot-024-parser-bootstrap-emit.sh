@@ -7,12 +7,26 @@
 #   boot024_emit_report status bootstrap_minimal_ok bootstrap_full_emit skip
 
 BOOT024_PREFIX="${SHUX_BOOT024_PREFIX:-shux: [SHUX_BOOT024]}"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck source=tests/lib/comp-riscv64.sh
+. "$_LIB_DIR/comp-riscv64.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$_LIB_DIR/ci-host.sh"
 
-# Linux 且存在 compiler/shux seed 则可跑 bootstrap bisect。
+# Linux 且存在可用 shux/asm 链时可跑 bootstrap bisect。
+# Docker portable（make all 仅 shux-c）无 shux_asm 时 SKIP。
 boot024_parser_linux_shu() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shux" ] || return 1
-  return 0
+  if ci_is_docker && [ ! -x "./compiler/shux_asm" ]; then
+    return 1
+  fi
+  local cand
+  for cand in ./compiler/shux_asm ./compiler/shux_asm.experimental; do
+    if comp_riscv64_native_shu "$cand"; then
+      return 0
+    fi
+  done
+  comp_riscv64_native_shu "./compiler/shux"
 }
 
 # 从 bisect 日志解析 MINIMAL PASS 行。

@@ -13,15 +13,12 @@ MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 echo "=== COMP-012: riscv64 regression smoke ==="
 
 SHUX_BIN=""
-for cand in ./compiler/shux ./compiler/shux-c ./compiler/shux_asm; do
-  if comp_riscv64_native_shu "$cand"; then
-    SHUX_BIN="$cand"
-    break
-  fi
-done
+if SHUX_BIN="$(comp_riscv64_pick_shux 2>/dev/null || true)"; then
+  :
+fi
 
 if [ -z "$SHUX_BIN" ]; then
-  echo "comp-riscv64 SKIP (no native shux)"
+  echo "comp-riscv64 SKIP (no asm-capable shux; seed/C-only build)"
   echo "comp-riscv64 OK"
   exit 0
 fi

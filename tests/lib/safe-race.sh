@@ -19,6 +19,10 @@ static void *f(void *a) { (void)a; return 0; }
 int main(void) { pthread_t t; pthread_create(&t, 0, f, 0); pthread_join(t, 0); return 0; }
 EOF
   if cc -fsanitize=thread -pthread "$tmp" -o "$out" 2>/dev/null; then
+    if ! "$out" >/dev/null 2>&1; then
+      rm -f "$tmp" "$out"
+      return 1
+    fi
     rm -f "$tmp" "$out"
     return 0
   fi

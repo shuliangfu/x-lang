@@ -9,13 +9,13 @@ cd "$(dirname "$0")/.."
 . tests/lib/comp-wpo.sh
 
 SHUX_C="${SHUX:-./compiler/shux-c}"
-if ! comp_wpo_native_exe "$SHUXXX_C"; then
+if ! comp_wpo_native_exe "$SHUX_C"; then
   if comp_wpo_native_exe ./compiler/shux; then
     SHUX_C=./compiler/shux
   fi
 fi
 
-if ! comp_wpo_native_exe "$SHUXXX_C"; then
+if ! comp_wpo_native_exe "$SHUX_C"; then
   echo "comp-wpo SKIP (no native shux/shux-c, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "comp-wpo OK"
   exit 0
@@ -23,9 +23,9 @@ fi
 
 make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
-echo "=== COMP-004: WPO smoke (SHUX=$SHUXXX_C) ==="
+echo "=== COMP-004: WPO smoke (SHUX=$SHUX_C) ==="
 chmod +x tests/run-wpo-dce-emit.sh tests/run-wpo-s1.sh
-SHUX="$SHUXXX_C" ./tests/run-wpo-dce-emit.sh
+SHUX="$SHUX_C" ./tests/run-wpo-dce-emit.sh
 echo "comp-wpo OK dce"
 
 ./tests/run-wpo-s1.sh

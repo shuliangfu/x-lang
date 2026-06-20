@@ -20,6 +20,35 @@ comp_riscv64_native_shu() {
   esac
 }
 
+# 探测 shux 是否支持 -backend asm -target riscv64（C-only seed 返回 not available）。
+comp_riscv64_asm_capable() {
+  local shux="$1"
+  local sample="${2:-$ROOT/tests/asm/riscv64_min.sx}"
+  local err=""
+  [ -x "$shux" ] && [ -f "$sample" ] || return 1
+  err="$("$shux" -backend asm -target "$RISCV_TARGET" "$sample" 2>&1 >/dev/null || true)"
+  if echo "$err" | grep -qi 'not available'; then
+    return 1
+  fi
+  if "$shux" -backend asm -target "$RISCV_TARGET" "$sample" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+# 选择首个 native 且 asm-capable 的 shux；无则返回 1。
+comp_riscv64_pick_shux() {
+  local cand
+  for cand in ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm.experimental \
+              ./compiler/shux ./compiler/shux-c; do
+    if comp_riscv64_native_shu "$cand" && comp_riscv64_asm_capable "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # 解析 tests/asm 下样例路径。
 comp_riscv64_sample_path() {
   local name="$1"

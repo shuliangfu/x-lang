@@ -68,20 +68,24 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# comp-parser-mega7-matrix B1–B7 须为 runnable（非 stub）
+# comp-parser-mega7-matrix B1–B7 须为 runnable（非 stub）；仅 Linux+shux_asm 时硬门禁
 STUB_N=0
-while IFS=$'\t' read -r item_id kind phase status _hook _notes; do
-  [ "$kind" = "mega7" ] || continue
-  case "$status" in
-    runnable|emit|in_progress|emit_target) ;;
-    stub)
-      echo "boot-021 FAIL: $item_id still stub (want runnable)" >&2
-      STUB_N=$((STUB_N + 1))
-      ;;
-  esac
-done < "$MATRIX"
-if [ "$STUB_N" -gt 0 ]; then
-  MISS=$((MISS + STUB_N))
+if boot021_mega7_linux_asm; then
+  while IFS=$'\t' read -r item_id kind phase status _hook _notes; do
+    [ "$kind" = "mega7" ] || continue
+    case "$status" in
+      runnable|emit|in_progress|emit_target) ;;
+      stub)
+        echo "boot-021 FAIL: $item_id still stub (want runnable)" >&2
+        STUB_N=$((STUB_N + 1))
+        ;;
+    esac
+  done < "$MATRIX"
+  if [ "$STUB_N" -gt 0 ]; then
+    MISS=$((MISS + STUB_N))
+  fi
+else
+  echo "boot-021-mega7-promote gate SKIP mega7 matrix stub check (no shux_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then

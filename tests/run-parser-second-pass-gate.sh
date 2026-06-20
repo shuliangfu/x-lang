@@ -58,8 +58,13 @@ if [ -n "${SHUX_PARSER_SECOND_PASS_COMPILER:-}" ]; then
     *) COMP_IN="${SHUX_PARSER_SECOND_PASS_COMPILER}" ;;
   esac
 fi
-if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
-  echo "parser-second-pass-gate: SKIP (no compiler/$COMP_IN)"
+# shellcheck source=tests/lib/comp-riscv64.sh
+. tests/lib/comp-riscv64.sh
+COMP_PATH="compiler/$COMP_IN"
+[ -x "$COMP_PATH" ] || COMP_PATH="$COMP_IN"
+if [ ! -x "$COMP_PATH" ] || ! comp_riscv64_native_shu "$COMP_PATH"; then
+  echo "parser-second-pass-gate: SKIP (no native $COMP_IN; seed/C-only build)"
+  echo "parser-second-pass-gate OK (SKIP no native shux_asm)"
   exit 0
 fi
 

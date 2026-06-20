@@ -61,6 +61,7 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
   case "$bench_id" in \#*|min_*|max_*|target_*) continue ;; esac
 
   cap="${max_r:-$MAX_RATIO}"
+  cap="$(comp_incr_compile_effective_cap "$cap")"
   first_ms=0
   second_ms=0
   FIX="${fixture:-tests/bench/loop_i32.sx}"
@@ -94,6 +95,10 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
       rm -f "$out" 2>/dev/null || true
       ;;
     timing)
+      if ! comp_incr_compile_phase_timing_available "$SHUX_BIN" "$FIX"; then
+        echo "comp-incr-compile SKIP $bench_id (phase timing unavailable; seed/C-only shux-c)"
+        continue
+      fi
       log="$(SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$FIX" 2>&1)" || true
       if ! printf '%s' "$log" | grep -q 'SHUX_COMPILE_PHASE_TIMING'; then
         echo "comp-incr-compile FAIL: $bench_id no timing line" >&2

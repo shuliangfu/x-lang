@@ -492,7 +492,7 @@ chmod +x tests/run-std-hash-default-strategy-gate.sh tests/lib/std-hash-default-
 run_grep /tmp/std_hash_default_strategy_gate.log 'std-hash-default-strategy gate OK' ./tests/run-std-hash-default-strategy-gate.sh
 
 echo "── STD-057 db SQLite3 prototype ──"
-chmod +x tests/run-std-sqlite-gate.sh tests/lib/std-sqlite-sqlite.sh
+chmod +x tests/run-std-sqlite-gate.sh tests/lib/std-sqlite-gate.sh
 run_grep /tmp/std_sqlite_sqlite_gate.log 'std-sqlite gate OK' ./tests/run-std-sqlite-gate.sh
 
 echo "── STD-154 sqlite docs/07 sync ──"

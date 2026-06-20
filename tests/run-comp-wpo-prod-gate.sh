@@ -112,7 +112,7 @@ PROD_SKIP=0
 HOST_SKIP=0
 
 SHUX_C="${SHUX:-./compiler/shux-c}"
-if ! comp_wpo_native_exe "$SHUXXX_C"; then
+if ! comp_wpo_native_exe "$SHUX_C"; then
   if comp_wpo_native_exe ./compiler/shux; then
     SHUX_C=./compiler/shux
   fi
@@ -136,16 +136,31 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
 
   case "$anchor" in
     run-wpo-dce-emit.sh)
-      if ! comp_wpo_native_exe "$SHUXXX_C"; then
+      if ! comp_wpo_native_exe "$SHUX_C"; then
         echo "comp-wpo-prod SKIP $item_id (no native shux/shux-c)"
         PROD_SKIP=$((PROD_SKIP + 1))
         continue
       fi
-      if SHUX="$SHUXXX_C" "$hook"; then
+      if SHUX="$SHUX_C" "$hook"; then
         PROD_RUN=$((PROD_RUN + 1))
         echo "comp-wpo-prod runnable OK $item_id"
       else
         echo "comp-wpo-prod SKIP $item_id (dce smoke unavailable)" >&2
+        PROD_SKIP=$((PROD_SKIP + 1))
+      fi
+      continue
+      ;;
+    run-wpo-build-asm-chain-gate.sh|run-wpo-strict-link-gate.sh)
+      if ! comp_wpo_prod_linux_asm; then
+        echo "comp-wpo-prod SKIP $item_id (no native Linux shux_asm)"
+        PROD_SKIP=$((PROD_SKIP + 1))
+        continue
+      fi
+      if "$hook"; then
+        PROD_RUN=$((PROD_RUN + 1))
+        echo "comp-wpo-prod runnable OK $item_id"
+      else
+        echo "comp-wpo-prod SKIP $item_id (build_asm chain unavailable)" >&2
         PROD_SKIP=$((PROD_SKIP + 1))
       fi
       continue

@@ -76,7 +76,7 @@ while IFS=$'\t' read -r hot_id sym tier opt_status src hook notes; do
   if [ "$opt_status" = "done" ]; then
     DONE=$((DONE + 1))
   fi
-  if [ -n "${hook:-}" ] && [ "$hook" != "check_typeck" ]; then
+  if [ -n "${hook:-}" ] && [ "$hook" != "check_typeck" ] && [[ "$hook" == *.sh ]]; then
     case " $HOOKS " in
       *" $hook "*) ;;
       *) HOOKS="$HOOKS $hook" ;;

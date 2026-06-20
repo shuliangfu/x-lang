@@ -137,13 +137,18 @@ fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== SAFE-006: runnable report ==="
   chmod +x tests/run-safe-race-detect.sh
-  if SHUX="$SHUX_BIN" tests/run-safe-race-detect.sh 2>/tmp/safe_race_smoke.log; then
-    grep -q 'SHUX_RACE_DETECT' /tmp/safe_race_smoke.log || {
-      echo "safe-race-detect gate FAIL: missing report prefix" >&2
-      exit 1
-    }
-  else
+  set +e
+  SHUX="$SHUX_BIN" tests/run-safe-race-detect.sh >/tmp/safe_race_smoke.log 2>&1
+  _race_rc=$?
+  set -e
+  if [ "$_race_rc" -ne 0 ]; then
+    cat /tmp/safe_race_smoke.log >&2
     echo "safe-race-detect gate FAIL: runner" >&2
+    exit 1
+  fi
+  if ! grep -q 'SHUX_RACE_DETECT' /tmp/safe_race_smoke.log; then
+    cat /tmp/safe_race_smoke.log >&2
+    echo "safe-race-detect gate FAIL: missing report prefix" >&2
     exit 1
   fi
 else

@@ -19,6 +19,16 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
+# shellcheck source=tests/lib/comp-riscv64.sh
+. tests/lib/comp-riscv64.sh
+# seed/C-only 或 bind-mount Mach-O：无 native shux_asm 时 SKIP（native Linux GHA 覆盖 strict_glue）。
+if { [ ! -x compiler/shux_asm ] || ! comp_riscv64_native_shu compiler/shux_asm; } \
+  && [ ! -x "$COMPILER" ]; then
+  echo "run-wpo-strict-link-gate SKIP (no native shux_asm/strict_glue; seed/C-only build)"
+  echo "run-wpo-strict-link-gate OK (SKIP no asm chain)"
+  exit 0
+fi
+
 echo "=== wpo strict link gate (pipeline_wpo helpers + C orchestration in strict_glue) ==="
 
 SHUX_WPO_PIPELINE_REACH_FAIL="$FAIL" ./tests/run-wpo-pipeline-reach-gate.sh "$PIPE_WPO" || exit 1

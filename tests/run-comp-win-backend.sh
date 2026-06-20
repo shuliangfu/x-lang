@@ -16,15 +16,12 @@ trap 'rm -f "$COFF_OUT" /tmp/shux_comp_win_exe.$$.exe 2>/dev/null || true' EXIT
 echo "=== COMP-011: Windows backend smoke ==="
 
 SHUX_BIN=""
-for cand in ./compiler/shux ./compiler/shux-c ./compiler/shux_asm; do
-  if comp_win_backend_native_shu "$cand"; then
-    SHUX_BIN="$cand"
-    break
-  fi
-done
+if SHUX_BIN="$(comp_win_backend_pick_shux 2>/dev/null || true)"; then
+  :
+fi
 
 if [ -z "$SHUX_BIN" ]; then
-  echo "comp-win-backend SKIP (no native shux)"
+  echo "comp-win-backend SKIP (no asm-capable shux; seed/C-only build)"
   echo "comp-win-backend OK"
   exit 0
 fi

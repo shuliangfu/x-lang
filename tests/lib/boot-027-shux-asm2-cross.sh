@@ -7,10 +7,16 @@
 #   boot027_emit_report status c5_ok c5_smoke skip
 
 BOOT027_PREFIX="${SHUX_BOOT027_PREFIX:-shux: [SHUX_BOOT027]}"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck source=tests/lib/ci-host.sh
+. "$_LIB_DIR/ci-host.sh"
 
-# 探测 Linux 上可烟测的 shux_asm2 候选路径。
+# 探测 Linux 上可烟测的 shux_asm2 候选路径（Docker portable 无 shux_asm 链则 SKIP）。
 boot027_linux_asm2_candidate() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
+  if ci_is_docker && [ ! -x "./compiler/shux_asm" ]; then
+    return 1
+  fi
   local c
   for c in compiler/shux_asm2 compiler/shux_asm2_refreshed; do
     if [ -x "$c" ] && boot027_native_binary "$c"; then

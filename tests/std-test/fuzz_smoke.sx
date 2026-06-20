@@ -2,8 +2,8 @@
 const test = import("std.test");
 
 function main(): i32 {
-  let st: u32 = fuzz_seed();
-  let n: u32 = fuzz_next(&st);
+  let st: u32 = test.fuzz_seed();
+  let n: u32 = test.fuzz_next(&st);
   if (n == 0) {
     return 1;
   }

@@ -7,12 +7,25 @@
 #   boot026_emit_report status c4_minimal_ok c4_su_probe skip
 
 BOOT026_PREFIX="${SHUX_BOOT026_PREFIX:-shux: [SHUX_BOOT026]}"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck source=tests/lib/comp-riscv64.sh
+. "$_LIB_DIR/comp-riscv64.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$_LIB_DIR/ci-host.sh"
 
-# Linux 且存在 compiler/shux seed 则可跑 SU bootstrap 波次。
+# Linux 且存在可用 shux/asm 链时可跑 SU bootstrap 波次（Docker portable 无 shux_asm 则 SKIP）。
 boot026_parser_linux_shu() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shux" ] || return 1
-  return 0
+  if ci_is_docker && [ ! -x "./compiler/shux_asm" ]; then
+    return 1
+  fi
+  local cand
+  for cand in ./compiler/shux_asm ./compiler/shux_asm.experimental; do
+    if comp_riscv64_native_shu "$cand"; then
+      return 0
+    fi
+  done
+  comp_riscv64_native_shu "./compiler/shux"
 }
 
 # 从 SU emit 日志解析 MINIMAL OK / PASS。

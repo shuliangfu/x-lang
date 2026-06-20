@@ -15,7 +15,7 @@ lang_lifetime_diag_native_shu() {
   esac
 }
 
-# 校验 typeck 输出含子串且 at line:col（line 为 1-based 源行）。
+# 校验 typeck 输出含子串且 line:col 定位（line 为 1-based 源行；兼容 `at L:C` 与 `path:L:C`）。
 lang_lifetime_diag_expect_at_line() {
   local err_text="$1"
   local substr="$2"
@@ -24,10 +24,10 @@ lang_lifetime_diag_expect_at_line() {
     echo "lang-lifetime-diag FAIL: missing substr '$substr'" >&2
     return 1
   fi
-  if ! echo "$err_text" | grep -qE "at ${want_line}:[0-9]+"; then
-    echo "lang-lifetime-diag FAIL: missing at ${want_line}:col for '$substr'" >&2
-    echo "$err_text" >&2
-    return 1
+  if echo "$err_text" | grep -qE "(at ${want_line}:[0-9]+|[^0-9]${want_line}:[0-9]+)"; then
+    return 0
   fi
-  return 0
+  echo "lang-lifetime-diag FAIL: missing at ${want_line}:col for '$substr'" >&2
+  echo "$err_text" >&2
+  return 1
 }

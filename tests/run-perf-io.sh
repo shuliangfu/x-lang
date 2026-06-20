@@ -322,6 +322,10 @@ check_io_baseline_regress() {
   if [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 1.4 }')
   fi
+  # Docker bind-mount（尤其 macOS 宿主）：tests/bench 写放大，再放宽 cap。
+  if [ -f /.dockerenv ] || [ -n "${SHUX_CI_DOCKER:-}" ]; then
+    cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 3.5 }')
+  fi
   if awk -v shux="$med_gate" -v cap="$cap" 'BEGIN { exit (shux <= cap + 0.000001) ? 0 : 1 }'; then
     echo "io perf baseline OK: ${name} ${med_gate}s <= cap ${cap}s"
   else

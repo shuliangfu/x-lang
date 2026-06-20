@@ -71,21 +71,25 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# B1–B7 须均为 emit_target
+# B1–B7 须均为 emit_target（仅 Linux+shux_asm 时硬门禁）
 EMIT_TARGET_N=0
-while IFS=$'\t' read -r item_id kind _phase status _hook _notes; do
-  [ "$kind" = "mega7" ] || continue
-  case "$status" in
-    emit_target|emit) EMIT_TARGET_N=$((EMIT_TARGET_N + 1)) ;;
-    *)
-      echo "boot-023 FAIL: $item_id status=${status} (want emit_target)" >&2
-      MISS=$((MISS + 1))
-      ;;
-  esac
-done < "$MATRIX"
-if [ "$EMIT_TARGET_N" -lt 7 ]; then
-  echo "boot-023 FAIL: emit_target rows=${EMIT_TARGET_N} < 7" >&2
-  MISS=$((MISS + 1))
+if boot023_mega7_linux_asm; then
+  while IFS=$'\t' read -r item_id kind _phase status _hook _notes; do
+    [ "$kind" = "mega7" ] || continue
+    case "$status" in
+      emit_target|emit) EMIT_TARGET_N=$((EMIT_TARGET_N + 1)) ;;
+      *)
+        echo "boot-023 FAIL: $item_id status=${status} (want emit_target)" >&2
+        MISS=$((MISS + 1))
+        ;;
+    esac
+  done < "$MATRIX"
+  if [ "$EMIT_TARGET_N" -lt 7 ]; then
+    echo "boot-023 FAIL: emit_target rows=${EMIT_TARGET_N} < 7" >&2
+    MISS=$((MISS + 1))
+  fi
+else
+  echo "boot-023-mega7-full-emit gate SKIP mega7 matrix emit_target check (no shux_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then

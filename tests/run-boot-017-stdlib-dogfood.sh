@@ -116,7 +116,7 @@ for mod, layer in modules:
     probe = os.path.join(tmpdir, f"probe_{safe}.sx")
     with open(probe, "w", encoding="utf-8") as f:
         f.write(f"// BOOT-017 check probe for {mod}\n")
-        f.write(f"import {mod};\n")
+        f.write(f'const _m = import("{mod}");\n')
         f.write("function main(): i32 { return 0; }\n")
     cmd = f'"{shux}" check -L . "{probe}"'
     med, detail = median_time(cmd, runs, root)

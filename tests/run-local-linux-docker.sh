@@ -19,6 +19,7 @@ run_in_container() {
     -v "$(pwd):/src" \
     -w /src \
     -e CI=1 \
+    -e SHUX_CI_DOCKER=1 \
     -e SHUX_CI_NO_SKIP=1 \
     ubuntu:22.04 \
     bash -lc "$inner"

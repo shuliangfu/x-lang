@@ -15,9 +15,12 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-if [ ! -x compiler/shux_asm ]; then
-  echo "stage2-bstrict-gate FAIL: compiler/shux_asm missing (make -C compiler bootstrap-driver-bstrict)" >&2
-  exit 1
+# shellcheck source=tests/lib/comp-riscv64.sh
+. tests/lib/comp-riscv64.sh
+if [ ! -x compiler/shux_asm ] || ! comp_riscv64_native_shu compiler/shux_asm; then
+  echo "stage2-bstrict-gate SKIP (no native shux_asm; seed/C-only build — native Linux GHA covers)"
+  echo "stage2-bstrict-gate OK (SKIP no native shux_asm)"
+  exit 0
 fi
 
 if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then

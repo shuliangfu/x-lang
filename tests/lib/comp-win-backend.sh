@@ -26,9 +26,39 @@ comp_win_backend_native_shu() {
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
     Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
     Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
     MINGW*|MSYS*|CYGWIN*) return 0 ;;
     *) return 0 ;;
   esac
+}
+
+# 探测 shux 是否支持 -backend asm -target Windows MSVC（C-only seed 返回 not available）。
+comp_win_backend_asm_capable() {
+  local shux="$1"
+  local sample="${2:-$ROOT/tests/asm/windows_min.sx}"
+  local err=""
+  [ -x "$shux" ] && [ -f "$sample" ] || return 1
+  err="$("$shux" -backend asm -target "$WIN_TRIPLE" "$sample" 2>&1 >/dev/null || true)"
+  if echo "$err" | grep -qi 'not available'; then
+    return 1
+  fi
+  if "$shux" -backend asm -target "$WIN_TRIPLE" "$sample" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+# 选择首个 native 且 asm-capable 的 shux；无则返回 1。
+comp_win_backend_pick_shux() {
+  local cand
+  for cand in ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm.experimental \
+              ./compiler/shux ./compiler/shux-c; do
+    if comp_win_backend_native_shu "$cand" && comp_win_backend_asm_capable "$cand"; then
+      echo "$cand"
+      return 0
+    fi
+  done
+  return 1
 }
 
 # 粗判 COFF/PE 对象（file 或 x86_64 machine 0x8664 头）。
