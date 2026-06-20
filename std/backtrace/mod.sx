@@ -21,3 +21,14 @@ function capture(buf: *u8, max_frames: i32): i32 {
 function symbolicate(buf: *u8, len: i32, out_ptrs: *u8, out_names: *u8, max: i32): i32 {
   return backtrace_symbolicate_c(buf, len, out_ptrs, out_names, max);
 }
+
+/** SAFE-007：收集崩溃证据（须环境变量 SHUX_CRASH_EVIDENCE=1；可选 SHUX_CRASH_EVIDENCE_DIR 落盘）。 */
+extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+
+/** 手动或 panic 路径登记证据；has_msg 非 0 时 msg_val 为消息码。 */
+function collect_crash_evidence(has_msg: i32, msg_val: i32): void {
+  shux_crash_evidence_collect_c(has_msg, msg_val);
+}
+
+/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+function backtrace_module_anchor(): i32 { return 0; }
