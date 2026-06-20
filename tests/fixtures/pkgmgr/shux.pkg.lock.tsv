@@ -3,5 +3,5 @@
 meta	lock_version	1	-	-
 meta	name	demo-app	-	-
 lib_root	.	.	-	-
-locked	core.mem	bundled	core/mem/mod.sx	1ef3863a58e1133c2663412b3daecf43b96b2bbabe659b981adeab74620aa8f8
-locked	core.types	bundled	core/types/mod.sx	fbf2fce82fbfefba6787f05c06ce70805440070082f7080085eda296048aef7a
+locked	core.mem	bundled	core/mem/mod.sx	16661830729c9fa92050a4c93848249ad7b51c79282578f9add29920f365950f
+locked	core.types	bundled	core/types/mod.sx	d8435076ce25dcda7384271a9af9dac6a8c5243befcb9edbf4749e8d66ee7f89
