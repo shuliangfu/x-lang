@@ -17,7 +17,7 @@ layer_b5	layers	B5-pipeline	compiler/src/pipeline/pipeline.sx	pipeline	orchestra
 layer_b6	layers	B6-glue-c	compiler/pipeline_glue.c	glue	slice
 case_pipeline	case	case_pipeline	compiler/src/pipeline/pipeline.sx	impl	run_sx_pipeline_impl
 case_parser	case	case_parser	compiler/src/parser/parser.sx	parse	parse_into_buf
-case_typeck	case	case_typeck	compiler/src/typeck/typeck.sx	typeck	typeck_su_ast
+case_typeck	case	case_typeck	compiler/src/typeck/typeck.sx	typeck	typeck_sx_ast
 case_codegen	case	case_codegen	compiler/src/codegen/codegen.sx	emit	codegen_sx_ast
 case_asm	case	case_asm	compiler/src/asm/backend.sx	backend	asm_codegen_ast
 case_glue	case	case_glue	compiler/pipeline_glue.c	glue	parser_slice_from_buf
