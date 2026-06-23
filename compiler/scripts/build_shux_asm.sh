@@ -3778,6 +3778,19 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         else
           echo "build_shux_asm: E-06 v4 experimental link omit asm_driver_seed frontend .o (SU ready, no SKIP_GEN)"
         fi
+        # pipeline_sx / dispatch 引用的 arch_* enc/emit 须 weak 桩（与 bootstrap-driver-seed 同源）。
+        ASM_LINK_STUBS_O=""
+        if [ -f pipeline_sx.o ]; then
+          _stub_scan="pipeline_sx.o $BSTRICT_DISPATCH_OBJS"
+          if [ -f "$BUILD_DIR/seed_host/asm_full.o" ]; then
+            _stub_scan="$BUILD_DIR/seed_host/asm_full.o $_stub_scan"
+          fi
+          if perl scripts/gen_asm_full_link_stubs.pl "$BUILD_DIR/seed_host/asm_full_link_stubs.c" $_stub_scan 2>/dev/null \
+            && [ -s "$BUILD_DIR/seed_host/asm_full_link_stubs.c" ]; then
+            "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_host/asm_full_link_stubs.o" "$BUILD_DIR/seed_host/asm_full_link_stubs.c" 2>/dev/null \
+              && ASM_LINK_STUBS_O="$BUILD_DIR/seed_host/asm_full_link_stubs.o"
+          fi
+        fi
         # 首遍 bootstrap 不链 build_asm/*.o（stub 符号重复）；第二遍 strict 重链再并入 pipeline.o 等。
         echo "  linking shux_asm (experimental bootstrap: runtime + pipeline_sx + SU companions + seed C, no build_asm/*.o) ..."
         set +e
@@ -3806,6 +3819,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/std_sys_shim.o \
           "$BUILD_DIR/sx_seed_bridge.o" \
           "$BUILD_DIR/seed_host/asm_backend_partial.o" \
+          $ASM_LINK_STUBS_O \
           src/asm/user_asm_seed_bridge.o \
           src/asm/asm_backend_compat_stubs.o \
           $BSTRICT_DISPATCH_OBJS \
@@ -3816,6 +3830,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/driver/target_cpu.o \
           src/asm/simd_enc.o \
           src/asm/simd_loop.o \
+          src/asm/bootstrap_seed_io_stubs.o \
           "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
           "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
           "$BUILD_DIR/lsp_codegen_extern.o" \
