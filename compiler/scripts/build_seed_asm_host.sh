@@ -221,7 +221,14 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
     fi
     # -E OOM(137)/Killed 时若已有可用 asm_full_gen.c（上次 134 落盘），继续 fix+cc
     if [ -s "$ASM_FULL_C" ] && [ "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" -ge 50000 ] && grep -q 'backend_' "$ASM_FULL_C" 2>/dev/null; then
-      echo "build_seed_asm_host: -E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+      # OOM 落盘可能短于 .bak；优先用更大且含 seed_mega 的 bak 避免 cc 类型不兼容
+      if [ -f "${ASM_FULL_C}.bak" ] && [ "$(wc -c <"${ASM_FULL_C}.bak" | tr -d ' ')" -gt "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" ] \
+          && grep -q 'backend_asm_codegen_ast_seed_mega' "${ASM_FULL_C}.bak" 2>/dev/null; then
+        cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
+        echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+      else
+        echo "build_seed_asm_host: -E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+      fi
       rm -f "$ASM_TMP"
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
       echo "build_seed_asm_host: asm.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
@@ -249,6 +256,20 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
   if ! $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
     echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc FAILED ($(( $(date +%s) - _t0 ))s, $(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)" >&2
     tail -15 "$OUT_DIR/cc.err" >&2
+    # cc 失败时尝试 .bak → fix → cc 一次（-E OOM 落盘常比 bak 旧/截断）
+    if [ -f "${ASM_FULL_C}.bak" ] && grep -q 'backend_asm_codegen_ast_seed_mega' "${ASM_FULL_C}.bak" 2>/dev/null; then
+      echo "build_seed_asm_host: cc 失败，重试 ${ASM_FULL_C}.bak ..." >&2
+      cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
+      perl scripts/fix_slim_arena_gen_c.pl "$ASM_FULL_C"
+      perl scripts/fix_backend_enc_recursive_gen_c.pl "$ASM_FULL_C"
+      perl scripts/fix_asm_full_gen_c.pl "$ASM_FULL_C"
+      perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$ASM_FULL_C" 2>/dev/null || true
+      if $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
+        echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK from .bak" >&2
+      fi
+    fi
+  fi
+  if [ ! -f "$ASM_FULL_O" ] || [ ! -s "$ASM_FULL_O" ]; then
     if [ -f "$BACKEND_PARTIAL" ]; then
       echo "build_seed_asm_host: cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL" >&2
       exit 0
