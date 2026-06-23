@@ -162,7 +162,7 @@ asm_ci_host_skip_module() {
 # 仅保留 emit 仍会宿主 Abort 的特大模块走 SKIP+桩；其余默认 C 预检 + 真 emit（见 pipeline_should_skip_su_typeck）。
 asm_out_needs_skip_typeck() {
   case "$1" in
-    typeck.o|parser.o|backend.o|arm64_enc.o|x86_64_enc.o|riscv64_enc.o|lexer.o|pipeline.o|codegen.o|lsp.o|main.o)
+    ast.o|typeck.o|parser.o|backend.o|arm64_enc.o|x86_64_enc.o|riscv64_enc.o|lexer.o|pipeline.o|codegen.o|lsp.o|main.o)
       return 0
       ;;
     *)
