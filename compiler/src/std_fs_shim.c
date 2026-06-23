@@ -51,3 +51,17 @@ ptrdiff_t std_fs_fs_write(int32_t fd, uint8_t *buf, size_t count) {
   if (!buf) return -1;
   return (ptrdiff_t)write(fd, buf, count);
 }
+
+/** driver_gen.c -Dfs_*=fs_posix_* 链接别名。 */
+int32_t fs_posix_close_c(int32_t fd) {
+  return std_fs_fs_close(fd);
+}
+
+ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t *buf, size_t count) {
+  return std_fs_fs_write(fd, buf, count);
+}
+
+/** driver_gen.c -Dfs_read=fs_posix_read_c 链接别名。 */
+ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count) {
+  return std_fs_fs_read(fd, buf, count);
+}
