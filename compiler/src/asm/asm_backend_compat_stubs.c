@@ -99,6 +99,56 @@ __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32
 }
 
 /**
+ * Linux ELF：arch/*.sx 经 import types 解析为 asm_types_* 链名；build_asm/types.o 导出 append_asm_line。
+ * weak 转发，strict 链 types.o 真符号存在时仍可由 append_asm_line 覆盖本 TU 弱定义。
+ */
+__attribute__((weak)) int32_t asm_types_append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
+  return append_asm_line(out, ptr, len);
+}
+
+/** 与 asm_types_append_asm_line 同理：types.format_i32_to_buf → asm_types_format_i32_to_buf。 */
+__attribute__((weak)) int32_t asm_types_format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
+  return format_i32_to_buf(buf, off, max, val);
+}
+
+/** types.format_u32_to_buf → asm_types_format_u32_to_buf（partial seed -E 路径）。 */
+__attribute__((weak)) int32_t asm_types_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t u) {
+  return shu_format_u32_to_buf(buf, off, max, (uint32_t)u);
+}
+
+/** types.format_u32_hex8_to_buf：8 位十六进制，与 types.sx 一致。 */
+__attribute__((weak)) int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int32_t off, int32_t val) {
+  static const uint8_t hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  uint32_t v = (uint32_t)val;
+  int32_t i;
+  if (!buf)
+    return -1;
+  for (i = 0; i < 8; i++) {
+    buf[off + 7 - i] = hex[v & 15u];
+    v >>= 4;
+  }
+  return 8;
+}
+
+/**
+ * peephole/elf 路径：从 ElfCodegenCtx.code_data 读 u32 LE；与 elf.sx elf_read_u32_le 一致。
+ */
+extern uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes);
+
+__attribute__((weak)) int32_t asm_types_elf_read_u32_le(void *ctx, int32_t pos) {
+  uint8_t *base;
+  uint8_t *p;
+  if (!ctx || pos < 0)
+    return 0;
+  base = pipeline_elf_ctx_code_data_ptr((uint8_t *)ctx);
+  if (!base)
+    return 0;
+  p = base + pos;
+  return (int32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+}
+
+/**
  * ast.sx ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
  * weak：build_asm/ast.o 真 emit 时由其覆盖。
  */
@@ -399,4 +449,42 @@ extern int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, st
 int32_t pipeline_asm_emit_call_args_text(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
                                          struct backend_AsmFuncCtx *ctx, int32_t target_arch, int32_t nargs) {
   return pipeline_asm_emit_call_args_text_c(arena, out, expr_ref, ctx, target_arch, nargs);
+}
+
+/** partial 无 seed_mega 强符号时 pipeline_glue 仍须解析；转发到 backend_asm_codegen_ast*。 */
+extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf, void *ctx);
+extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
+
+__attribute__((weak)) int32_t backend_asm_codegen_ast_seed_mega(void *module, void *arena, void *out_buf, void *ctx) {
+  return backend_asm_codegen_ast(module, arena, out_buf, ctx);
+}
+
+__attribute__((weak)) int32_t backend_asm_codegen_ast_to_elf_seed_mega(void *module, void *arena, void *elf_ctx,
+                                                                         void *ctx) {
+  return backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
+}
+
+/** asm.sx -E partial 导出 peephole_peephole_*；user_asm_seed_bridge 引用无前缀 peephole_*。 */
+extern int32_t peephole_peephole_run(void *out_buf);
+extern int32_t peephole_peephole_elf_run(void *elf_ctx);
+
+int32_t peephole_run(void *out_buf) {
+  return peephole_peephole_run(out_buf);
+}
+
+int32_t peephole_elf_run(void *elf_ctx) {
+  return peephole_peephole_elf_run(elf_ctx);
+}
+
+/** lsp_diag_gen.c 尚未含 semanticTokens（pinned seed 旧版）；真 partial 不再携带 phase1 弱桩时须兜底。
+ * lsp_diag.sx 再生后由 lsp_diag_sx.o 强符号覆盖。
+ */
+__attribute__((weak)) int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+                                                                        uint8_t *out_buf, int32_t out_cap) {
+  (void)id_val;
+  (void)doc_buf;
+  (void)doc_len;
+  (void)out_buf;
+  (void)out_cap;
+  return -1;
 }
