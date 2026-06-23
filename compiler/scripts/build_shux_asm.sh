@@ -177,13 +177,17 @@ compile_su() {
   local skip_typeck=0
   local preserve_backup=""
   printf "  asm %s -> %s ... " "$src" "$out"
-  # ast.sx 首遍 SKIP 仍极慢（222 func elf emit）；真符号由 pipeline_sx/ast_pool 提供，首遍 text stub 即可。
-  if [ "$1" = "ast.o" ] && [ -z "${SHUX_ASM_ENTRY_EMIT_HEAVY:-}" ]; then
-    if emit_asm_text_stub_o "$out"; then
-      echo "OK-ast-stub"
-      return 0
-    fi
-  fi
+  # 特大编译器模块首遍 SKIP 仍极慢（全量 elf emit）；真符号由 pipeline_sx / SU companion / partial 提供；第二遍 rebuild_*_second_pass 再 EMIT_HEAVY。
+  case "$1" in
+    ast.o|codegen.o|typeck.o|parser.o|backend.o|pipeline.o|lexer.o|lsp.o|main.o|preprocess.o)
+      if [ -z "${SHUX_ASM_ENTRY_EMIT_HEAVY:-}" ]; then
+        if emit_asm_text_stub_o "$out"; then
+          echo "OK-${1%.o}-stub"
+          return 0
+        fi
+      fi
+      ;;
+  esac
   # CI：macOS/Windows 除 typeck.o 外 stub（experimental 链不依赖 build_asm；MSYS token.sx 会挂起）。
   if asm_ci_stub_build_asm_module "$1"; then
     if emit_asm_text_stub_o "$out"; then
