@@ -9783,6 +9783,13 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
   int32_t i;
   if (!m || m->num_funcs < 40)
     return 0;
+  /** ast.sx ndef 规模与 typeck 重叠；须排除 ast_arena_init/ast_placeholder 标记。 */
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_arena_init", 14))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
+      return 0;
+  }
   /** parser.sx ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
@@ -11477,16 +11484,14 @@ void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_c
 }
 
 /**
- * 模块是否 ast.sx 自举单元（~40–120 func；须桩化首遍 emit，否则 seed shux 全量真 emit 极慢）。
+ * 模块是否 ast.sx 自举单元（~40–222 func；须桩化首遍 emit，否则 seed shux 全量真 emit 极慢）。
+ * 须先于 typeck ndef 启发式识别（ast ndef≈75–155 会被误判为 typeck.sx）。
  */
 static int32_t asm_module_is_ast_selfhost(struct ast_Module *m) {
   int32_t i;
   int32_t has_arena_init;
   int32_t has_placeholder;
   if (!m || m->num_funcs < 15 || m->num_funcs > 250)
-    return 0;
-  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
-      asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
     return 0;
   has_arena_init = 0;
   has_placeholder = 0;
@@ -11496,7 +11501,12 @@ static int32_t asm_module_is_ast_selfhost(struct ast_Module *m) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
       has_placeholder = 1;
   }
-  return has_arena_init != 0 && has_placeholder != 0;
+  if (has_arena_init == 0 || has_placeholder == 0)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
+      asm_module_is_parser_selfhost(m))
+    return 0;
+  return 1;
 }
 
 /** 模块是否为 compiler .sx 自举单元；用户小程序（pool-limits / 普通 -o）不在此列。 */
@@ -11519,6 +11529,14 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
    */
   if (!asm_module_is_compiler_selfhost(m))
     return 0;
+  /**
+   * ast.sx 首遍 SKIP：除 whitelist 外一律 ret0 桩（含 extern 占位；真符号由 ast_pool/pipeline_sx 提供）。
+   */
+  if (asm_module_is_ast_selfhost(m) && asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0) {
+    if (asm_skip_typeck_entry_whitelist(m, func_index) != 0)
+      return 0;
+    return 1;
+  }
   /**
    * 用户 import+exe（asm_entry_module_only、非大入口）：须完整 emit 入口模块，禁止 ret0 桩。
    * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK）同为 ENTRY_MODULE_ONLY，须走下方白名单/桩路径，勿全量 emit。
