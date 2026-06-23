@@ -13,7 +13,46 @@
 | **B** | **构建编译器可执行文件**时不再依赖 **cc 编译 `pipeline_gen.c` 等大段 -E 产物** | 链接 `shux` / `shux_asm` 的命令行中**不出现**对 `pipeline_gen.c` 的 `cc -c`（允许保留 **cc 作链接器**、以及极小 C 桩如 `runtime_panic`）。 |
 | **C** | 生成程序 / 构建链弱化 **libc**（freestanding） | Linux：`runtime_panic_x86_64.s`、`crt0_x86_64.s` 等；与 std 分层长期相关。 |
 
-**「完全自举」**在仓库内建议默认指：**语义自举（shux 用 .sx 前端编自己）+ 目标 B 在目标平台上成立**。是否包含 C 冷启动种子不在此否定（仍允许 `shux-c` / `bootstrap.sh`）。
+### 1.1 阶段 D：Stage2 黄金自举（2026-06；D-01～D-06 v1 ✅）
+
+| 项 | 判据 | 验收 |
+|----|------|------|
+| **Stage 0→1** | seed / C 链出 `shux_asm`（Stage1） | `make bootstrap-driver-bstrict`；`./tests/run-d01-stage0-to-stage1-gate.sh` |
+| **Stage 1→2** | Stage1 再编同一 tree → `shux_asm2` | `make bootstrap-verify-stage2-bstrict`；`./tests/run-d02-stage1-to-stage2-gate.sh` |
+| **SHA256 金标准** | `sha256(shux_asm_stage1) == sha256(shux_asm2)` | `./tests/run-d03-stage2-hash-gate.sh`（**默认 `SHUX_STAGE2_HASH_STRICT=1`**；verify Step 4c 同） |
+| **行为扩面** | 10 条 portable 子集 stage1/stage2 outcome 一致 | `./tests/run-d04-stage2-portable-diff-gate.sh` |
+| **Docker 一键** | gen1/gen2 build + 哈希 + L5 + typeck | `./tests/run-linux-a09-a11-gate.sh` |
+
+**「黄金自举」**在仓库内指：**阶段 D 上述四项在 Linux x86_64 上成立**（行为 parity + 二进制哈希 + 子集扩面）。
+
+**「完全自举」**须 **D + E（编译器无 C/H）+ F（全仓库 std 无 C）** 三者齐备（即 **D+E+F**）；当前仍允许 `shux-c` / `bootstrap-driver-seed` **仅冷启动**（D-05 v1：日常已以 `shux` 为发布入口）。
+
+**语义自举**（较宽）：`make bootstrap-verify` — 两代 `shux` 跑约定测试一致；**不**蕴含 SHA256 一致。
+
+### 1.2 日常发布：单 `shux` 入口（D-05 v1 ✅）
+
+| 项 | 说明 |
+|----|------|
+| **发布二进制** | `make bootstrap-driver-bstrict` → `compiler/shux`（= `shux_asm` 拷贝） |
+| **日常命令** | `SHUX=./compiler/shux`；`./build_tool ./shux` |
+| **非日常** | `shux-c`、`bootstrap.sh`、`make all` — 仅冷启动/考古 |
+| **Gate** | `./tests/run-d05-single-shux-release-gate.sh` |
+
+### 1.3 完全自举发布清单（F-11 v1 ✅）
+
+终局 tag：**`vX.Y.Z-selfhost`**（发布时人工打；仓库 gate 仅验 checklist）。
+
+| 项 | Gate |
+|----|------|
+| D Stage2 | `run-d03-stage2-hash-gate.sh` + `run-d04-stage2-portable-diff-gate.sh` |
+| E 编译器 C 软退役 | `run-e-soft-retire-gate.sh` |
+| F std 去 C 进度 | `run-f-std-de-c-batch-gate.sh` + `run-f-phase-f-92-batch-gate.sh` |
+| 单 shux 发布 | `run-d05-single-shux-release-gate.sh` |
+
+```bash
+SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate.sh
+# 发布：git tag -a vX.Y.Z-selfhost -m "Release vX.Y.Z-selfhost"
+```
 
 ---
 
@@ -26,7 +65,11 @@
 | **语义自举 + 两代一致性** | `make bootstrap-verify`（或 `make bootstrap-self` 烟测） |
 | **Stage2 SU（shux-sx → shux-sx2，-sx -E 全模块）** | `make verify-selfhost-stage2` / `verify-selfhost-stage2.sh`（须 `shux-sx`；CI `selfhost-stage2.yml` job `stage2`） |
 | **Stage2 B-strict（shux_asm → shux_asm2）** | `make bootstrap-verify-stage2-bstrict` / `verify-selfhost-stage2-bstrict.sh`（二遍 `build_shux_asm`；CI job `stage2-bstrict`） |
-| **Stage2 SHA256 金标准（A-09）** | `./tests/run-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2`（默认 track-only；`SHUX_STAGE2_HASH_STRICT=1` 硬失败） |
+| **Stage 0→1 门禁（D-01）** | `./tests/run-d01-stage0-to-stage1-gate.sh`（manifest + 可选 B-strict 构建日志审计） |
+| **Stage 1→2 门禁（D-02）** | `./tests/run-d02-stage1-to-stage2-gate.sh`（委托 `run-stage2-bstrict-gate.sh`；Linux 硬门禁） |
+| **Stage2 SHA256 金标准（D-03 / A-09）** | `./tests/run-d03-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2`（**默认 `SHUX_STAGE2_HASH_STRICT=1`** 硬失败；verify Step 4c 同） |
+| **Stage2 portable 两代 diff（D-04）** | `./tests/run-d04-stage2-portable-diff-gate.sh`（10 用例 stage1/stage2 outcome 一致；须已有 stage 产物） |
+| **Docker Linux 黄金自举一键（A-09～A-12）** | `./tests/run-linux-a09-a11-gate.sh`（gen1/gen2 build + SHA256 + L5 bstrict + typeck + arch 符号） |
 | **Windows B-hybrid shux_asm（A-08）** | `./tests/run-bootstrap-bstrict-windows-gate.sh`（MSYS2；`make bootstrap-driver-hybrid` + return-value 42） |
 | **仅重编 SU 三件套 .o** | `make gen-su-driver-objs`（`pipeline_sx.o` + `driver_su.o` + `preprocess_su.o`；改 parser/main/preprocess 后 `make shux-sx` 会自动触发） |
 | **全量 .sx 测试** | `make test_sx` |
@@ -35,6 +78,7 @@
 | **asm smoke（可选 CI job）** | 仓库根：`SHUX_CI_FORCE_ASM=1 ./tests/run-asm.sh`（workflow 中该 job 会先 `make bootstrap-driver`）；见 `.github/workflows/ci.yml` 之 `linux-asm-smoke` |
 | **asm .o 段质量（非阻塞默认可选）** | `SHUX=./shux ./scripts/check_asm_o_quality.sh`；严格失败：`SHUX_ASM_QUALITY_STRICT=1 SHUX=./shux ./scripts/check_asm_o_quality.sh`；缺口列表见 `build_asm/.asm_empty_text_list` |
 | **P0 push 前（bstrict 107 + perf P1）** | 仓库根：`SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh`（= `run-bootstrap-bstrict-ci.sh` + `run-perf-p1-gate.sh`） |
+| **日常全量回归（流式进度，Linux x86_64）** | 仓库根：`./tests/run-full-suite-stream.sh`（Tier 1～5 经 `progress-run.sh` 实时 tee；`SHUX_FULL_SUITE_SKIP_CI=1` 可跳过数小时 Tier 5） |
 | **asm 计算门禁** | `run-asm-73-gate.sh`（8× binop + vector-var + call-inline **11 例**）；`make refresh-shux-asm-gate` 对齐 strict `shux_asm`；`run-bootstrap-bstrict-ci.sh` / `run-pre-push-p0.sh` |
 | **asm 7.3 寄存器/spill/φ** | `run-asm-binop-block-var.sh`（x10–**x15**）+ `run-asm-binop-cfg-merge.sh`（if/while/for/嵌套/φ）；见 `compiler/src/asm/README.md` |
 
