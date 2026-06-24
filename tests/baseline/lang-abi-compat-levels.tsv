@@ -2,9 +2,9 @@
 # 列：level_id	surface	stability	bump_policy	anchor
 # min_levels	6
 L0	primitive scalar	stable	major	lang-abi-stability-v1.md
-L1	slice []T	stable	major	tests/abi/layout_abi.c
+L1	slice T[]	stable	major	tests/abi/layout_abi.c
 L2	struct field layout	stable	major	implicit padding
 L3	extern C SysV	stable	major	safe-ffi-contract
 L4	f32 xmm x86_64	transitional	minor+flag	F32_XMM_ABI
-L5	std *_abi.h	stable	major	std/fs/fs_abi.h
+L5	shux_std_abi/*.h	stable	major	compiler/include/shux_std_abi/fs_abi.h
 L6	compiler wire ABI	internal	none	parser wire
