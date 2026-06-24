@@ -1,0 +1,5 @@
+# P1-4 布局算术溢出检查 manifest
+# 列：item_id	kind	anchor	src	notes
+header	file	shux_layout_arith.h	compiler/include/shux_layout_arith.h	__builtin_*_overflow
+typeck	hook	layout_offset_add	compiler/src/typeck/typeck.c	compute_struct_layouts
+gate	script	run-layout-overflow-gate.sh	tests/run-layout-overflow-gate.sh	烟测
