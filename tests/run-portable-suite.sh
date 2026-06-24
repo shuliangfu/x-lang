@@ -1204,7 +1204,7 @@ chmod +x tests/run-boot-025-parser-gen12-consistency-gate.sh tests/lib/boot-025-
 ./tests/run-boot-025-parser-gen12-consistency-gate.sh | tee /tmp/boot025_gen12.log
 grep -q 'boot-025-parser-gen12-consistency gate OK' /tmp/boot025_gen12.log
 
-echo "── BOOT-026 parser C4 SU bootstrap ──"
+echo "── BOOT-026 parser C4 SX bootstrap ──"
 chmod +x tests/run-boot-026-parser-c4-bootstrap-gate.sh tests/lib/boot-026-parser-c4-bootstrap.sh
 ./tests/run-boot-026-parser-c4-bootstrap-gate.sh | tee /tmp/boot026_c4.log
 grep -q 'boot-026-parser-c4-bootstrap gate OK' /tmp/boot026_c4.log
