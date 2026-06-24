@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/.."
 COMP="${SHUX_S2_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  # strict 重链 shux_asm 可用；优先 experimental bootstrap（全 SU 链），再 strict_glue / shux_asm。
+  # strict 重链 shux_asm 可用；优先 experimental bootstrap（全 SX 链），再 strict_glue / shux_asm。
   for cand in ./compiler/shux_asm.experimental ./compiler/shux_asm ./compiler/shux_asm.strict_glue; do
     if [ -x "$cand" ]; then
       COMP="$cand"
