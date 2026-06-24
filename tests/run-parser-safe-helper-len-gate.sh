@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 校验 ast_pool.c 中 parser EMIT_HEAVY safe_helper / thin_delegate 的 su_len 与符号名长度一致。
-# su_len 偏差会导致 PARSER_SAFE_EQ 永不命中，slice *_buf 包装无法真 emit、combined 指标虚低。
+# 校验 ast_pool.c 中 parser EMIT_HEAVY safe_helper / thin_delegate 的 sx_len 与符号名长度一致。
+# sx_len 偏差会导致 PARSER_SAFE_EQ 永不命中，slice *_buf 包装无法真 emit、combined 指标虚低。
 # 用法：./tests/run-parser-safe-helper-len-gate.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -20,7 +20,7 @@ def check_block(label, blob, pattern):
     for m in re.finditer(pattern, blob):
         name, ln = m.group(1), int(m.group(2))
         if len(name) != ln:
-            print(f"parser-safe-helper-len-gate FAIL: {label} {name!r} su_len={ln} expected={len(name)}")
+            print(f"parser-safe-helper-len-gate FAIL: {label} {name!r} sx_len={ln} expected={len(name)}")
             fail += 1
 
 safe = text.split("static int32_t asm_parser_emit_heavy_safe_helper", 1)
