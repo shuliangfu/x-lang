@@ -63,7 +63,7 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 | 目的 | 命令 |
 |------|------|
 | **语义自举 + 两代一致性** | `make bootstrap-verify`（或 `make bootstrap-self` 烟测） |
-| **Stage2 SU（shux-sx → shux-sx2，-sx -E 全模块）** | `make verify-selfhost-stage2` / `verify-selfhost-stage2.sh`（须 `shux-sx`；CI `selfhost-stage2.yml` job `stage2`） |
+| **Stage2 SX（shux-sx → shux-sx2，-sx -E 全模块）** | `make verify-selfhost-stage2` / `verify-selfhost-stage2.sh`（须 `shux-sx`；CI `selfhost-stage2.yml` job `stage2`） |
 | **Stage2 B-strict（shux_asm → shux_asm2）** | `make bootstrap-verify-stage2-bstrict` / `verify-selfhost-stage2-bstrict.sh`（二遍 `build_shux_asm`；CI job `stage2-bstrict`） |
 | **Stage 0→1 门禁（D-01）** | `./tests/run-d01-stage0-to-stage1-gate.sh`（manifest + 可选 B-strict 构建日志审计） |
 | **Stage 1→2 门禁（D-02）** | `./tests/run-d02-stage1-to-stage2-gate.sh`（委托 `run-stage2-bstrict-gate.sh`；Linux 硬门禁） |
@@ -71,7 +71,7 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 | **Stage2 portable 两代 diff（D-04）** | `./tests/run-d04-stage2-portable-diff-gate.sh`（10 用例 stage1/stage2 outcome 一致；须已有 stage 产物） |
 | **Docker Linux 黄金自举一键（A-09～A-12）** | `./tests/run-linux-a09-a11-gate.sh`（gen1/gen2 build + SHA256 + L5 bstrict + typeck + arch 符号） |
 | **Windows B-hybrid shux_asm（A-08）** | `./tests/run-bootstrap-bstrict-windows-gate.sh`（MSYS2；`make bootstrap-driver-hybrid` + return-value 42） |
-| **仅重编 SU 三件套 .o** | `make gen-su-driver-objs`（`pipeline_sx.o` + `driver_su.o` + `preprocess_su.o`；改 parser/main/preprocess 后 `make shux-sx` 会自动触发） |
+| **仅重编 SX 三件套 .o** | `make gen-sx-driver-objs`（`pipeline_sx.o` + `driver_sx.o` + `preprocess_sx.o`；改 parser/main/preprocess 后 `make shux-sx` 会自动触发） |
 | **全量 .sx 测试** | `make test_sx` |
 | **C 前端回归** | `make test_c` |
 | **asm 构建脚本（Goal 2）** | `SHUX=./shux ./scripts/build_shux_asm.sh`；成功应产出 `shux_asm`（或 Linux crt0 路径下等价信息） |
@@ -96,7 +96,7 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 
 ### 3.1 去掉 `cc -c pipeline_gen.c`（drop-cc）的前置条件
 
-- **当前**：非 Linux 或未导出拓扑时等价 **`pipeline_sx`**；Linux 且 `check_asm_o_quality.sh` 认定全部 `__text` 非空时，脚本**自动打上** `full_asm` 拓扑标签（§4）；**driver 回退分支仍可能执行** `ensure_asm_gen_driver_su_objs`（`shux-c -E` + `cc -c`），直至 **`full_asm` 单一链接线**（如 `SHUX_ASM_EXPERIMENTAL_SKIP_GEN`）落地并默认跳过 gen_driver。
+- **当前**：非 Linux 或未导出拓扑时等价 **`pipeline_sx`**；Linux 且 `check_asm_o_quality.sh` 认定全部 `__text` 非空时，脚本**自动打上** `full_asm` 拓扑标签（§4）；**driver 回退分支仍可能执行** `ensure_asm_gen_driver_sx_objs`（`shux-c -E` + `cc -c`），直至 **`full_asm` 单一链接线**（如 `SHUX_ASM_EXPERIMENTAL_SKIP_GEN`）落地并默认跳过 gen_driver。
 - **已满足部分**：Linux **crt0** 路径成功时，本次 `shux_asm` **未**使用 `pipeline_gen.c`（**B-partial**）。
 - **M7 默认**：`make bootstrap-driver` / `make bootstrap-driver-bstrict` / `./build_tool ./shux`（asm 路径）均设置 **`SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1`**，产出 `shux_asm` 并覆盖 `compiler/shux`；仅冷启动与语义自举仍依赖 **`make bootstrap-driver-seed`**（`shux-sx` 为 seed 副本）。B-hybrid 回退：`make bootstrap-driver-hybrid`。
 
@@ -108,7 +108,7 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 
 | 值 | 含义 |
 |----|------|
-| **`pipeline_sx`**（__text 未全绿 / B-hybrid 回退） | `-E` 生成 `pipeline_sx.o`、`driver_su.o`、LSP/preprocess 等 **gen_driver**，与 **C seed** 及 **runtime_driver** 链接；**不**把 `build_asm/*.o` 并入（避免重复符号）。非 Linux 且未设 `SKIP_GEN` 时走此路径。 |
+| **`pipeline_sx`**（__text 未全绿 / B-hybrid 回退） | `-E` 生成 `pipeline_sx.o`、`driver_sx.o`、LSP/preprocess 等 **gen_driver**，与 **C seed** 及 **runtime_driver** 链接；**不**把 `build_asm/*.o` 并入（避免重复符号）。非 Linux 且未设 `SKIP_GEN` 时走此路径。 |
 | **`full_asm`**（Linux/macOS 自动选择） | 当 **`SHUX_ASM_LINK_TOPOLOGY` 未导出**且 `check_asm_o_quality.sh` 写出 **`1`**（全部 `BUILD` 对应 `.o` 的 **`__text` 非空**）时自动设为 **`full_asm`**。配合 **`SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1`**（`make bootstrap-driver-bstrict` 默认）→ **`asm_only_strict`** 最终链，**无** `pipeline_sx.o` / `cc -c pipeline_gen.c`（M11 macOS 生产 B-strict）。 |
 
 **宿主策略（摘要）**：
@@ -124,14 +124,14 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
   - **质检脚本**对 **Mach-O** 读段名 `__text`，对 **ELF（Linux）** 读 `.text`；若仅在 Linux 上曾出现「24 条全 EMPTY」而 macOS 仅少数条，多半是段名误判而非 asm 未落码——以 `check_asm_o_quality.sh` 实现为准。
 - 近期已修：`let` 带显式数组类型时令 `LetDecl.type_ref`/索引赋值可走通 typeck，避免整块 parser 等在 asm 中空 `__text`（见 `parser.sx` 中 `let_type_refs`）。
 - **macOS arm64 实测（2026-05）**：`check_asm_o_quality.sh` → **24/24** 非空；`make bootstrap-driver-bstrict` → **`LINK_MODE=asm_only_strict`** + **`full_asm`**（M11），最终链无 `pipeline_gen.c`。B-hybrid 仅作 `bootstrap-driver-hybrid` 回退。
-- **实验链 `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1`**（2026-05-23 起演进）：Darwin 上 **两阶段**——① **bootstrap 首遍**链 `pipeline_sx.o`（`-E-extern` 瘦 TU）+ `parser_sx.o`/`typeck_su.o`/`codegen_su.o`/`lexer_su.o` + `seed_host/asm_backend_partial.o` + C seed（**不**并 `build_asm/*.o`，避免 `__shux_asm_mod_stub` 重复）；② **第二遍**用 bootstrap `shux_asm` 重编 `pipeline.o`/`typeck.o`/`parser.o`/`backend.o`，再 **strict 重链**（`run_bootstrap_trampoline` + `strict_core partial`，**无** `pipeline_sx.o`）。验收：`SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 ./scripts/build_shux_asm.sh` → `LINK_MODE=asm_only_strict` + `run_shux_asm_smoke.sh`。
+- **实验链 `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1`**（2026-05-23 起演进）：Darwin 上 **两阶段**——① **bootstrap 首遍**链 `pipeline_sx.o`（`-E-extern` 瘦 TU）+ `parser_sx.o`/`typeck_sx.o`/`codegen_sx.o`/`lexer_sx.o` + `seed_host/asm_backend_partial.o` + C seed（**不**并 `build_asm/*.o`，避免 `__shux_asm_mod_stub` 重复）；② **第二遍**用 bootstrap `shux_asm` 重编 `pipeline.o`/`typeck.o`/`parser.o`/`backend.o`，再 **strict 重链**（`run_bootstrap_trampoline` + `strict_core partial`，**无** `pipeline_sx.o`）。验收：`SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 ./scripts/build_shux_asm.sh` → `LINK_MODE=asm_only_strict` + `run_shux_asm_smoke.sh`。
 - **B-strict 下一跳**：**pipeline.sx** 第二遍 ✅；**typeck/backend** EMIT_HEAVY 第二遍 ✅；**parser**（2026-06-10）：`driver_run_asm_backend` 首遍 parse 保留 module（勿 memset 后 strict 重 parse）；**305 func** 进 module（`run-parser-parse-count-gate.sh` MIN=150）；`build_asm/parser.o` 第二遍 __text 93B/4509B（EMIT_HEAVY）；真 parse 机码仍在 **`parser_sx.o`** tail。
-- **dep 预跑 lib_root 回归（2026-05-22）**：`runtime_one_ctx_for_dep_prerun` 曾调用 `ast_pipeline_dep_ctx_reset` 抹掉 `pipeline_fill_ctx_path_buffers` 写入的 lib_root sidecar，导致 dep 预跑 `resolve_path_su` **rc=-7**、多数 `build_asm/*.o` EMPTY；已改为仅 `ast_pipeline_dep_ctx_set_ndep(0)` 且先 reset 再 fill。
+- **dep 预跑 lib_root 回归（2026-05-22）**：`runtime_one_ctx_for_dep_prerun` 曾调用 `ast_pipeline_dep_ctx_reset` 抹掉 `pipeline_fill_ctx_path_buffers` 写入的 lib_root sidecar，导致 dep 预跑 `resolve_path_sx` **rc=-7**、多数 `build_asm/*.o` EMPTY；已改为仅 `ast_pipeline_dep_ctx_set_ndep(0)` 且先 reset 再 fill。
 - **Darwin asm-only 链剩余阻塞（2026-05-21 实测）**：
-  1. **大模块 parse 截断**：如 `typeck.sx` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_su_ast` 等导出符号。
+  1. **大模块 parse 截断**：如 `typeck.sx` 解析后 `module.num_funcs=47`（约从 `check_expr_impl` 起后续函数未入 module），`.o` 缺 `typeck_sx_ast` 等导出符号。
   2. **跨模块符号名**：`backend.o` 引用 `arch_arm64_*`，而 `arm64.o` 导出 `_arch_arm64_*` 或 `append_byte` 等待定。
   3. Linux 仍可在上述问题解决后试全量 `build_asm/*.o` 实验链；成功时打印 `Target-B-experimental`。**B-partial（crt0）** 仅在 **Linux** 且 crt0 链接成功时成立。
-- **bootstrap shux 双轨（2026-05-22）**：`parser.sx` stmt_order 用 `out.num_lets`；`codegen.sx` 发射 break/continue；`typeck.sx` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import("std.io") `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-sx` 全绿；**bootstrap `shux`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shu_su` 有差异，待 10.4.2 收窄 runtime。
+- **bootstrap shux 双轨（2026-05-22）**：`parser.sx` stmt_order 用 `out.num_lets`；`codegen.sx` 发射 break/continue；`typeck.sx` 循环外 break/continue + `PipelineDepCtx.typeck_loop_depth`（C 镜像须同步 `lsp_diag_pipeline_sizes.c` 等）；`collect_deps_transitive` 在 `pr_ok!=0` 时仍展开 `num_imports>0` 的子 dep（修复 hello/import("std.io") `n_deps=1`）。验收：`run-while`/`run-check`/`run-all-c`/`run-all-sx` 全绿；**bootstrap `shux`（driver 链）** 对多 dep std.io 的 codegen preamble 仍与 `shux_sx` 有差异，待 10.4.2 收窄 runtime。
 
 ### 4.2 run-all 自举层级（L3 / L4 / L5）
 
