@@ -7,10 +7,10 @@ verify	section	## 3. Gate	analysis/std-elf-write-v1.md
 api_size	api	write_min_reloc_size	std/elf/mod.sx	容量
 api_write	api	write_min_reloc	std/elf/mod.sx	写入
 api_smoke	api	write_smoke	std/elf/mod.sx	烟测
-symbol_write_c	symbol	elf64_write_min_reloc_c	std/elf/elf.c	C 写入
-symbol_smoke_c	symbol	elf64_write_smoke_c	std/elf/elf.c	C round-trip
-impl_c	file	std/elf/elf.c	std/elf/elf.c
-smoke_su	smoke	tests/std-elf/write_roundtrip.sx	.su烟测
+symbol_write_c	symbol	elf64_write_min_reloc_c	std/elf/elf.sx	写入
+symbol_smoke_c	symbol	elf64_write_smoke_c	std/elf/elf.sx	round-trip
+impl_sx	file	std/elf/elf.sx	std/elf/elf.sx
+smoke_sx	smoke	tests/std-elf/write_roundtrip.sx	.sx烟测
 vectors	file	tests/baseline/std-elf-write-vectors.tsv	向量
 lib	script	lib/std-elf-write.sh	tests/lib/std-elf-write.sh
 gate	script	run-std-elf-write-gate.sh	tests/run-std-elf-write-gate.sh
