@@ -79,7 +79,7 @@ if [ -z "${SHUX:-}" ]; then
   fi
 fi
 
-# relink 后 seed shux 的 SU codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHUX 对齐用 shux-c。
+# relink 后 seed shux 的 SX codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHUX 对齐用 shux-c。
 COMPILE_SHUX="$SHUX"
 if [ -x ./compiler/shux-c ]; then
   COMPILE_SHUX=./compiler/shux-c
