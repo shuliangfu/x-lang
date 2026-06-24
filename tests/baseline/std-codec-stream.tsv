@@ -12,7 +12,7 @@ api_adapt_gz_end	api	adapter_compress_stream_end	std/codec/mod.sx	gzip 流 end
 api_adapt_b64_init	api	adapter_base64_stream_init	std/codec/mod.sx	base64 流 init
 api_adapt_b64_proc	api	adapter_base64_stream_process	std/codec/mod.sx	base64 流 process
 api_adapt_b64_end	api	adapter_base64_stream_end	std/codec/mod.sx	base64 流 end
-smoke_su	smoke	tests/std-codec/stream_roundtrip.sx	.sx 烟测
+smoke_sx	smoke	tests/std-codec/stream_roundtrip.sx	.sx 烟测
 vectors	vectors	tests/baseline/std-codec-stream-vectors.tsv	金样
 lib	script	lib/std-codec-stream.sh	tests/lib/std-codec-stream.sh
 gate	script	run-std-codec-stream-gate.sh	tests/run-std-codec-stream-gate.sh
