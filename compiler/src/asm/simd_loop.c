@@ -100,7 +100,7 @@ static int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_e
     return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
 }
 
-/** VAR 的 [N]i32 定长数组元素个数；失败 0。 */
+/** VAR 的 i32[N] 定长数组元素个数；失败 0。 */
 static int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t elem;
@@ -165,7 +165,7 @@ static int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t blo
     return 0;
 }
 
-/** VAR 是否为 [N]i32 栈数组（resolved 类型）。 */
+/** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
 static int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
     return glue_var_array_i32_size_c(arena, var_ref) == n ? 1 : 0;
 }
