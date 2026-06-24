@@ -74,6 +74,8 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
                                                  int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
+                                                int32_t ta);
 extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t bytes,
                                                    int32_t ta);
 extern int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
@@ -339,7 +341,38 @@ static int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_
     return (*out_cm != 0) ? 1 : 0;
   }
   callee_ref = pipeline_expr_call_callee_ref_at(caller_arena, call_ref);
-  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(caller_arena, callee_ref) != GLUE_EXPR_VAR)
+  if (callee_ref <= 0)
+    return 0;
+  /** import binding：`vec.vec_u8_new()` 等 FIELD_ACCESS callee。 */
+  if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) == 44) {
+    int32_t field_len = pipeline_expr_field_access_name_len(caller_arena, callee_ref);
+    uint8_t field_name[64];
+    if (field_len > 0 && field_len <= 63) {
+      pipeline_expr_field_access_name_into(caller_arena, callee_ref, field_name);
+      pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
+      if (!pctx)
+        pctx = pipeline_asm_emit_dep_pipe_c();
+      if (pctx) {
+        j = 0;
+        while (j < pipeline_dep_ctx_ndep(pctx)) {
+          struct ast_Module *dm = pipeline_dep_ctx_module_at(pctx, j);
+          struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(pctx, j);
+          if (dm) {
+            *out_fi = glue_module_func_index_by_name(dm, field_name, field_len);
+            if (*out_fi >= 0) {
+              *out_cm = dm;
+              if (da)
+                *out_ca = da;
+              return 1;
+            }
+          }
+          j = j + 1;
+        }
+      }
+    }
+    return 0;
+  }
+  if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) != GLUE_EXPR_VAR)
     return 0;
   clen = pipeline_expr_var_name_len(caller_arena, callee_ref);
   if (clen <= 0 || clen > 63)
@@ -1159,6 +1192,30 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
   k = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
   if (k < 0)
     return 0;
+  /**
+   * k==0 时须确认为真 identity（return param0）；backend fold 链式 +0 可能误匹配 vec_*_reserve_one 等，
+   * 内联后只剩实参 load，if (reserve_one(v)!=0) 等条件会变成 if (v!=0)。
+   */
+  if (k == 0) {
+    int32_t ret_ref;
+    uint8_t pname[64];
+    uint8_t rname[64];
+    int32_t plen;
+    int32_t rlen;
+    ret_ref = glue_fold_func_return_operand_ref_module(arena, mod_ref, fi);
+    if (ret_ref <= 0)
+      ret_ref = backend_fold_func_return_operand_ref(arena, mod_ref, fi);
+    if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != GLUE_EXPR_VAR)
+      return 0;
+    plen = pipeline_module_func_param_name_len_at(mod_ref, fi, 0);
+    rlen = pipeline_expr_var_name_len(arena, ret_ref);
+    if (plen <= 0 || plen > 63 || rlen != plen)
+      return 0;
+    pipeline_module_func_param_name_copy32(mod_ref, fi, 0, pname);
+    pipeline_expr_var_name_into(arena, ret_ref, rname);
+    if (memcmp(pname, rname, (size_t)plen) != 0)
+      return 0;
+  }
   arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
@@ -1578,6 +1635,92 @@ extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfC
                                                           int32_t store_size, int32_t ta);
 
 /**
+ * 零实参 CALL 的 callee 是否为 `default_allocator` / `heap.default_allocator`。
+ */
+static int32_t glue_call_is_zero_arg_default_allocator(struct ast_ASTArena *arena, int32_t call_ref) {
+  int32_t callee_ref;
+  int32_t nlen;
+  int32_t narg;
+  uint8_t nm[64];
+  if (!arena || call_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, call_ref) != GLUE_EXPR_CALL)
+    return 0;
+  narg = pipeline_expr_call_num_args_at(arena, call_ref);
+  if (narg != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: default_allocator call narg=%d ref=%d\n", (int)narg, (int)call_ref);
+    return 0;
+  }
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
+  if (callee_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, callee_ref) == GLUE_EXPR_VAR) {
+    nlen = pipeline_expr_var_name_len(arena, callee_ref);
+    if (nlen <= 0 || nlen > 63)
+      return 0;
+    pipeline_expr_var_name_into(arena, callee_ref, nm);
+    return (nlen == 17 && memcmp(nm, "default_allocator", 17) == 0) ? 1 : 0;
+  }
+  if (pipeline_expr_kind_ord_at(arena, callee_ref) == 44) {
+    nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
+    if (nlen <= 0 || nlen > 63)
+      return 0;
+    pipeline_expr_field_access_name_into(arena, callee_ref, nm);
+    if (nlen == 17 && memcmp(nm, "default_allocator", 17) == 0)
+      return 1;
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: default_allocator field callee nlen=%d ref=%d\n", (int)nlen, (int)callee_ref);
+    return 0;
+  }
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: default_allocator callee kind=%d ref=%d call=%d\n",
+            (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
+  return 0;
+}
+
+/**
+ * const struct lit 单字段是否可内联到 let 栈槽（仅校验，不发射指令）。
+ */
+static int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t lit_ref, int32_t fj) {
+  int32_t init_ref;
+  int32_t ko;
+  int32_t pix;
+  init_ref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fj);
+  if (init_ref <= 0)
+    return 0;
+  if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, lit_ref, fj, &pix) == 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ko == GLUE_EXPR_CALL)
+    return glue_call_is_zero_arg_default_allocator(arena, init_ref);
+  return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
+}
+
+/**
+ * default_allocator() 内联：call runtime default_allocator，按 fsz 写入 rbx+foff（8 或 16B）。
+ */
+static int32_t glue_emit_default_allocator_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+                                                         int32_t fsz, int32_t ta) {
+  static const uint8_t da_sym[28] = "std_heap_default_allocator";
+  if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
+    return -1;
+  if (fsz <= 0)
+    fsz = 8;
+  if (fsz > 16)
+    fsz = 16;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+    return -1;
+  /** Allocator 16B：仅写低 8B 时 kind=heap 但 arena 字段未清零，reserve 读 al.kind 越界。 */
+  if (fsz >= 16)
+    return 0;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
+}
+
+/**
  * 函数体是否为 `return Struct { f: 常量… }`（各字段 init 均为整型/浮点字面量，无形参）。
  */
 static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
@@ -1594,8 +1737,12 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
   ret_ref = glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
   if (ret_ref <= 0)
     ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
-  if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != GLUE_EXPR_STRUCT_LIT)
+  if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != GLUE_EXPR_STRUCT_LIT) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: const_struct fold miss ret fi=%d ret_ref=%d kind=%d\n", (int)func_idx, (int)ret_ref,
+              ret_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, ret_ref) : -1);
     return 0;
+  }
   nf = pipeline_expr_struct_lit_num_fields(arena, ret_ref);
   if (nf <= 0 || nf > GLUE_INLINE_MAX_STRUCT_LIT_FIELDS)
     return 0;
@@ -1607,8 +1754,20 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
     if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, ret_ref, fj, &pix) == 0)
       return 0;
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    if (ko != 0 && ko != 1 && ko != 2)
+    /** vec_u8_new 等：Struct 末字段可为零实参 default_allocator() CALL。 */
+    if (ko == GLUE_EXPR_CALL) {
+      if (glue_call_is_zero_arg_default_allocator(arena, init_ref) == 0) {
+        if (getenv("SHUX_ASM_DEBUG"))
+          fprintf(stderr, "shux: const_struct fold miss call fi=%d fj=%d init=%d\n", (int)func_idx, (int)fj,
+                  (int)init_ref);
+        return 0;
+      }
+    } else if (ko != 0 && ko != 1 && ko != 2) {
+      if (getenv("SHUX_ASM_DEBUG"))
+        fprintf(stderr, "shux: const_struct fold miss ko fi=%d fj=%d ko=%d init=%d\n", (int)func_idx, (int)fj, (int)ko,
+                (int)init_ref);
       return 0;
+    }
     fj = fj + 1;
   }
   *out_lit_ref = ret_ref;
@@ -1649,6 +1808,16 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
     return 0;
   }
   nf = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
+  /** 预检全部字段可内联后再发射，避免部分写入后回落 CALL+8B store 破坏栈槽。 */
+  fj = 0;
+  while (fj < nf) {
+    if (glue_const_struct_lit_field_can_inline(callee_arena, callee_mod, fi, lit_ref, fj) == 0) {
+      if (getenv("SHUX_ASM_DEBUG"))
+        fprintf(stderr, "shux: const_struct_call_inline miss field fj=%d fi=%d\n", (int)fj, (int)fi);
+      return 0;
+    }
+    fj = fj + 1;
+  }
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -1658,10 +1827,17 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
     init_ref = pipeline_expr_struct_lit_init_ref(callee_arena, lit_ref, fj);
     foff = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
     fsz = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
-    if (backend_emit_expr_elf_slow(callee_arena, elf_ctx, init_ref, ctx, ta) != 0)
+    if (pipeline_expr_kind_ord_at(callee_arena, init_ref) == GLUE_EXPR_CALL) {
+      /** default_allocator()：直写 kind=heap + null arena，勿 call 返回悬空栈指针。 */
+      if (glue_call_is_zero_arg_default_allocator(callee_arena, init_ref) == 0)
+        return 0;
+      if (glue_emit_default_allocator_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0)
+        return -1;
+    } else if (backend_emit_expr_elf_slow(callee_arena, elf_ctx, init_ref, ctx, ta) != 0) {
       return -1;
-    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+    } else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0) {
       return -1;
+    }
     fj = fj + 1;
   }
   if (getenv("SHUX_ASM_DEBUG"))
