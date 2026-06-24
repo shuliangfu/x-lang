@@ -8,8 +8,8 @@ const csv = import("std.csv");
 function main(): i32 {
   let start: i32 = 0;
   let flen: i32 = 0;
-  let buf: [64]u8 = [];
-  let line: [32]u8 = [97, 98, 44, 99, 100, 101, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let buf: u8[64] = [];
+  let line: u8[32] = [97, 98, 44, 99, 100, 101, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0];
   
   let next: i32 = csv.next_field(&line[0], 7, 0, &start, &flen);
@@ -36,7 +36,7 @@ function main(): i32 {
   if (off < 6) { return 12; }
   if (ln < 1) { return 18; }
   
-  let unesc_buf: [8]u8 = [];
+  let unesc_buf: u8[8] = [];
   let n_unesc: i32 = csv.csv_test_unescape_ok(&unesc_buf[0], 8);
   if (n_unesc != 2) { return 13; }
   if (unesc_buf[0] != 34 || unesc_buf[1] != 97) { return 14; }
