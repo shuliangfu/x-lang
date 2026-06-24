@@ -51,7 +51,7 @@
 ```
 
 ```
-shux: [SHUX_STD070_DB_STMT] status=ok bind_c=1 bind_su=1 skip=0
+shux: [SHUX_STD070_DB_STMT] status=ok bind_c=1 bind_sx=1 skip=0
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。
