@@ -52,7 +52,7 @@ trap "rm -f $OUT $ERR $LSP_IN" EXIT
   send_lsp "$FMT_REQ"
   send_lsp "$DID_OPEN_DEF"
   send_lsp "$DEF_REQ"
-  send_lsp "$SHUXXTDOWN"
+  send_lsp "$SHUTDOWN"
   send_lsp "$EXIT_NOTIF"
 } >"$LSP_IN"
 # 调试 stdin 每次 read 的请求/返回字节数：LSP_READ_DEBUG=1 时 LSP 的 stderr 会打 io_read 日志
