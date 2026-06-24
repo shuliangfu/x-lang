@@ -1,4 +1,4 @@
-# build_asm/typeck_wpo.o WPO 生产链：typeck_su_ast root + reach DCE
+# build_asm/typeck_wpo.o WPO 生产链：typeck_sx_ast root + reach DCE
 # 参考 dce_off proxy：typeck_dce_off_text（全量 EMIT_HEAVY ~79397B）
 # 实测 2026-06-03：79397B → 1253B（6 export）
 typeck_wpo_max_text_bytes	2048
