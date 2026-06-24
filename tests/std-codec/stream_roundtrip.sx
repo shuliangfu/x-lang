@@ -14,13 +14,13 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
 
 /** base64 流式经 codec 适配器分块往返。 */
 function test_base64_stream(): i32 {
-  let plain: [5]u8 = [104, 101, 108, 108, 111];
+  let plain: u8[5] = [104, 101, 108, 108, 111];
   let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
-  let st: [256]u8 = [];
+  let st: u8[256] = [];
   let cap: i32 = codec.stream_codec_state_bytes();
   if (cap > 256) { return 1; }
   if (codec.adapter_base64_stream_init(&sc, &st[0], 256, 0, 1) != 0) { return 2; }
-  let enc: [16]u8 = [];
+  let enc: u8[16] = [];
   let consumed: i32 = 0;
   let n1: i32 = codec.adapter_base64_stream_process(sc, &plain[0], 2, &enc[0], 16, 0, &consumed);
   if (n1 < 0 || consumed != 2) { return 3; }
@@ -31,9 +31,9 @@ function test_base64_stream(): i32 {
   if (codec.adapter_base64_stream_end(sc) != 0) { return 6; }
 
   let sc2: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
-  let st2: [256]u8 = [];
+  let st2: u8[256] = [];
   if (codec.adapter_base64_stream_init(&sc2, &st2[0], 256, 0, 0) != 0) { return 7; }
-  let dec: [8]u8 = [];
+  let dec: u8[8] = [];
   let dn: i32 = codec.adapter_base64_stream_process(sc2, &enc[0], 4, &dec[0], 8, 0, &consumed);
   if (dn < 0 || consumed != 4) { return 8; }
   dn = dn + codec.adapter_base64_stream_process(sc2, &enc[4], enc_len - 4, &dec[dn], 8 - dn, 1, &consumed);
@@ -45,18 +45,18 @@ function test_base64_stream(): i32 {
 
 /** gzip 流式经 codec 适配器往返；未链 zlib 时 init 失败仍 exit 0。 */
 function test_gzip_stream(): i32 {
-  let raw: [12]u8 = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33];
+  let raw: u8[12] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33];
   let raw_len: i32 = 12;
   let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
-  let st_c: [256]u8 = [];
+  let st_c: u8[256] = [];
   let cap: i32 = codec.stream_codec_state_bytes();
   if (cap <= 0 || cap > 256) { return 99; }
   if (codec.adapter_compress_stream_init(&sc, &st_c[0], cap, codec.stream_mode_compress()) != 0) {
     return 0;
   }
-  let comp: [512]u8 = [];
+  let comp: u8[512] = [];
   let comp_len: i32 = 0;
-  let scratch: [128]u8 = [];
+  let scratch: u8[128] = [];
   let off: i32 = 0;
   let chunk: i32 = 4;
   while (off < raw_len) {
@@ -103,9 +103,9 @@ function test_gzip_stream(): i32 {
   if (comp_len <= 0) { return 4; }
 
   let sc_d: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
-  let st_d: [256]u8 = [];
+  let st_d: u8[256] = [];
   if (codec.adapter_compress_stream_init(&sc_d, &st_d[0], cap, codec.stream_mode_decompress()) != 0) { return 5; }
-  let dec: [256]u8 = [];
+  let dec: u8[256] = [];
   let dec_len: i32 = 0;
   let cin: i32 = 0;
   let dchunk: i32 = 5;
