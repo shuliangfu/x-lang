@@ -157,7 +157,7 @@ PIPE_SAVE=""
 PIPE_PCT=""
 BUILD_ASM_DIR="compiler/build_asm"
 
-compile_main_su_ab() {
+compile_main_sx_ab() {
   local off_o="$1"
   local on_o="$2"
   local emit_heavy="${3:-0}"
@@ -173,7 +173,7 @@ compile_main_su_ab() {
 }
 
 # driver/compile.sx EMIT_HEAVY A/B（与 run-s3-driver-emit-heavy 同模式）。
-compile_driver_su_ab() {
+compile_driver_sx_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
@@ -187,7 +187,7 @@ compile_driver_su_ab() {
 }
 
 # pipeline.sx EMIT_HEAVY A/B（run_sx_pipeline_impl root + reach DCE）。
-compile_pipeline_su_ab() {
+compile_pipeline_sx_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
@@ -200,8 +200,8 @@ compile_pipeline_su_ab() {
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-# typeck.sx EMIT_HEAVY A/B（typeck_su_ast root + reach DCE）。
-compile_typeck_su_ab() {
+# typeck.sx EMIT_HEAVY A/B（typeck_sx_ast root + reach DCE）。
+compile_typeck_sx_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
@@ -215,7 +215,7 @@ compile_typeck_su_ab() {
 }
 
 # backend.sx EMIT_HEAVY A/B（asm_codegen_ast root + reach DCE）。
-compile_backend_su_ab() {
+compile_backend_sx_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
@@ -251,7 +251,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     MOFF="${main_fast%% *}"
     MON="${main_fast#* }"
     echo "wpo compiler self text: main.sx A/B fast-path (build_asm main.o __text=${MON}B, proxy off=${MOFF}B)"
-  elif compile_main_su_ab "$MAIN_OFF" "$MAIN_ON" 0; then
+  elif compile_main_sx_ab "$MAIN_OFF" "$MAIN_ON" 0; then
     MOFF=$(text_bytes "$MAIN_OFF") || MOFF=0
     MON=$(text_bytes "$MAIN_ON") || MON=0
   fi
@@ -278,7 +278,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     DOFF="${drv_fast%% *}"
     DON="${drv_fast#* }"
     echo "wpo compiler self text: driver A/B fast-path (build_asm __text=${DON}B, proxy off=${DOFF}B)"
-  elif compile_driver_su_ab "$DRIVER_OFF" "$DRIVER_ON"; then
+  elif compile_driver_sx_ab "$DRIVER_OFF" "$DRIVER_ON"; then
     DOFF=$(text_bytes "$DRIVER_OFF") || DOFF=0
     DON=$(text_bytes "$DRIVER_ON") || DON=0
   fi
@@ -303,7 +303,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     POFF="${pipe_fast%% *}"
     PON="${pipe_fast#* }"
     echo "wpo compiler self text: pipeline A/B fast-path ($pipe_tree __text=${PON}B, proxy off=${POFF}B)"
-  elif compile_pipeline_su_ab "$PIPE_OFF" "$PIPE_ON"; then
+  elif compile_pipeline_sx_ab "$PIPE_OFF" "$PIPE_ON"; then
     POFF=$(text_bytes "$PIPE_OFF") || POFF=0
     PON=$(text_bytes "$PIPE_ON") || PON=0
   fi
@@ -328,7 +328,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     TOFF="${tck_fast%% *}"
     TON="${tck_fast#* }"
     echo "wpo compiler self text: typeck A/B fast-path ($tck_tree __text=${TON}B, proxy off=${TOFF}B)"
-  elif compile_typeck_su_ab "$TCK_OFF" "$TCK_ON"; then
+  elif compile_typeck_sx_ab "$TCK_OFF" "$TCK_ON"; then
     TOFF=$(text_bytes "$TCK_OFF") || TOFF=0
     TON=$(text_bytes "$TCK_ON") || TON=0
   fi
@@ -353,7 +353,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     BOFF="${be_fast%% *}"
     BON="${be_fast#* }"
     echo "wpo compiler self text: backend A/B fast-path ($be_tree __text=${BON}B, proxy off=${BOFF}B)"
-  elif compile_backend_su_ab "$BE_OFF" "$BE_ON"; then
+  elif compile_backend_sx_ab "$BE_OFF" "$BE_ON"; then
     BOFF=$(text_bytes "$BE_OFF") || BOFF=0
     BON=$(text_bytes "$BE_ON") || BON=0
   fi
