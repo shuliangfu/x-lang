@@ -3,7 +3,7 @@
 //
 // 【文件职责】load/store、compare_exchange、fetch_add/sub（i32/u32/i64/u64）；顺序一致�
 // ��语义。
-// 【依赖】core；与 std/atomic/atomic.c 同属一模块。
+// 【依赖】core；与 std/atomic/atomic.sx + runtime_atomic_glue.c 同属一模块（F-atomic v2 / F-ZC）。
 extern function atomic_load_i32_c(ptr: *i32): i32;
 extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
 extern function atomic_compare_exchange_i32_c(ptr: *i32, expected: *i32, desired: i32): i32;
