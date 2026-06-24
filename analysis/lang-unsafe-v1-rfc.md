@@ -50,7 +50,7 @@ Layer U4 — 保留
 |------|------|--------|
 | `a[i]` / `s[i]` | 运行时 bounds check | `shux_panic_`（见 `tests/ub/`） |
 | `/` `%` 除零 | 运行时 check | panic |
-| `[]T<label>` 域 | 编译期域匹配/防逃逸 | `typeck error` |
+| `T[]<label>` 域 | 编译期域匹配/防逃逸 | `typeck error` |
 | struct 隐式 padding | 编译期拒绝 | `typeck error: implicit padding` |
 | `Linear(T)` | 编译期线性检查 | `typeck error`（TYPE-001） |
 
@@ -85,7 +85,7 @@ let p: *i32 = 0;  // null 合法
 | **类型** | `*T` 为裸地址；**无** lifetime/region 标注 |
 | **null** | 字面量 `0` 可初始化 null |
 | **解引用** | v1 无自动 null check；**解引用 null = 程序员责任**（未来 v2 可纳入 `unsafe` 块） |
-| **与 slice** | `[]T` 为安全视图；`*T` + 长度须自行保证有效 |
+| **与 slice** | `T[]` 为安全视图；`*T` + 长度须自行保证有效 |
 
 ### 3.4 U3：`extern function`（FFI）
 
