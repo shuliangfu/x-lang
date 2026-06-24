@@ -59,7 +59,7 @@ extern int32_t parser_asm_stretch_fn_summit_apexversal_maxversal_wholeversal_com
 extern int32_t parser_asm_stretch_fn_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_onefunc_buf_deep_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 
-/** 写失败 OneFuncResult（等价 parser.sx set_onefunc_fail；force_stub 勿 SU emit）。 */
+/** 写失败 OneFuncResult（等价 parser.sx set_onefunc_fail；force_stub 勿 SX emit）。 */
 static void parser_asm_set_onefunc_fail_c(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex) {
   if (!out)
     return;
@@ -88,13 +88,12 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   if (!out || !data || len <= 0)
     return;
   memset(dummy_name, 0, sizeof(dummy_name));
+  /* parse_into_buf 传入的 lex 已在 function 之后（首 token 为 IDENT）；与 parse_one_function_impl 一致。 */
   r = lexer_next_buf(lex, data, len);
-  if (r.tok.kind != (int32_t)TOKEN_FUNCTION) {
-    parser_asm_set_onefunc_fail_c(out, lex);
-    return;
+  if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
   }
-  parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_IDENT) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
@@ -106,6 +105,8 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   name_start_buf = r.next_lex.pos - (size_t)name_len;
   parser_asm_copy_slice_to_name64_buf_c(data, len, name_start_buf, name_len, dummy_name);
+  /* 消费函数名，后续须读到 '(' */
+  parser_lex_from_next_into_glue(&lex, r);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_name_audit_c(dummy_name, name_len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_deep_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_full_deep_audit_c(lex, data, len));
@@ -809,8 +810,6 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_fn_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_fn_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
   r = lexer_next_buf(lex, data, len);
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_fn_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
-  r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
@@ -847,6 +846,92 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   parser_lex_from_next_into_glue(&lex, r);
   r = lexer_next_buf(lex, data, len);
+  /** `return if (cond) { int } else { int }`：与 parse_one_function_impl legacy has_if_expr 对齐。 */
+  if (r.tok.kind == (int32_t)TOKEN_IF) {
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_TRUE || r.tok.kind == (int32_t)TOKEN_FALSE) {
+      out->if_cond_true = (r.tok.kind == (int32_t)TOKEN_TRUE) ? 1 : 0;
+      out->if_cond_expr_ref = 0;
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    } else {
+      out->if_cond_true = 0;
+      out->if_cond_expr_ref = 0;
+      while (r.tok.kind != (int32_t)TOKEN_RPAREN && r.tok.kind != (int32_t)TOKEN_EOF) {
+        parser_lex_from_next_into_glue(&lex, r);
+        r = lexer_next_buf(lex, data, len);
+      }
+      if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_INT) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    out->if_then_val = r.tok.int_val;
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_ELSE) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_INT) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    out->if_else_val = r.tok.int_val;
+    out->has_if_expr = 1;
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    out->ok = 1;
+    out->next_lex = lex;
+    out->name_len = name_len;
+    for (ni = 0; ni < 64; ni++)
+      out->name[ni] = dummy_name[ni];
+    return;
+  }
   if (r.tok.kind != (int32_t)TOKEN_INT) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
