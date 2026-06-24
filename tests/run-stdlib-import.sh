@@ -41,7 +41,9 @@ if [ -x ./compiler/shux-c ]; then
 fi
 LINK_SHUX="$(stdlib_import_pick_link_shu)"
 
-make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
+# main.sx 不 import std.process；process.o 需 asm backend，arm64 shux-c 上可选。
+make -C compiler -q ../std/process/process.o 2>/dev/null \
+  || make -C compiler ../std/process/process.o 2>/dev/null || true
 # run-all 入口已 make 时跳过（SHUX_SKIP_SUBSCRIPT_MAKE=1）。
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
