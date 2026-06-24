@@ -169,6 +169,8 @@ static struct ASTStructDef *typeck_clone_mono_struct(const struct ASTStructDef *
     sd->num_generic_params = 0;
     sd->generic_param_names = NULL;
     sd->allow_padding = tmpl->allow_padding;
+    sd->repr_c = tmpl->repr_c;
+    sd->repr_compatible = tmpl->repr_compatible;
     sd->packed = tmpl->packed;
     sd->soa = tmpl->soa;
     sd->num_fields = tmpl->num_fields;
