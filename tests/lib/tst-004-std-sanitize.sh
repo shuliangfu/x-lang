@@ -26,7 +26,7 @@ tst004_sanitize_run_case() {
   local shux="$1"
   local src="$2"
   local tag="${3:-case}"
-  safe_leak_run_su "$shux" "$src" "$tag"
+  safe_leak_run_sx "$shux" "$src" "$tag"
 }
 
 # 校验 manifest 文件与 case 行；echo 缺失数。
