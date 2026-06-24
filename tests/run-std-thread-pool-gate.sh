@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_THREAD_POOL_DOC:-analysis/std-thread-pool-v1.md}"
 MANIFEST="${SHUX_STD_THREAD_POOL_TSV:-tests/baseline/std-thread-pool.tsv}"
-MOD_SU="std/thread/mod.sx"
-THREAD_C="std/thread/thread.c"
+MOD_SX="std/thread/mod.sx"
+THREAD_RUNTIME="${SHUX_STD_THREAD_IMPL:-compiler/src/asm/runtime_thread_glue.c}"
 LIB="tests/lib/std-thread-pool.sh"
-POOL_SU="tests/thread/pool_roundtrip.sx"
-MAIN_SU="tests/thread/main.sx"
+POOL_SX="tests/thread/pool_roundtrip.sx"
+MAIN_SX="tests/thread/main.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-thread-pool.sh
 . "$LIB"
 
 echo "=== STD-043: thread pool manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$THREAD_C" "$POOL_SU" "$MAIN_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$THREAD_RUNTIME" "$POOL_SX" "$MAIN_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-thread-pool gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-thread-pool gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_thread_pool_symbols_ok "$MOD_SU" "$THREAD_C" "$MANIFEST" || true)"
+sym_miss="$(std_thread_pool_symbols_ok "$MOD_SX" "$THREAD_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_thread_pool_emit_report "fail" 0 0 0 0
   echo "std-thread-pool gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -103,20 +103,20 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/thread/thread.o
-  if ! "$SHUX_BIN" check -L . "$POOL_SU" >/dev/null 2>&1; then
-    echo "std-thread-pool gate FAIL: typeck $POOL_SU" >&2
-    "$SHUX_BIN" check -L . "$POOL_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$POOL_SX" >/dev/null 2>&1; then
+    echo "std-thread-pool gate FAIL: typeck $POOL_SX" >&2
+    "$SHUX_BIN" check -L . "$POOL_SX" 2>&1 | tail -10 >&2 || true
     std_thread_pool_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_thread_pool_run_smoke "$SHUX_BIN" "$POOL_SU" "pool"; then
+  if std_thread_pool_run_smoke "$SHUX_BIN" "$POOL_SX" "pool"; then
     POOL_OK=1
     NAME_OK=1
   else
     std_thread_pool_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_thread_pool_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
+  if std_thread_pool_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
     MAIN_OK=1
   else
     std_thread_pool_emit_report "fail" "$POOL_OK" "$NAME_OK" 0 0
