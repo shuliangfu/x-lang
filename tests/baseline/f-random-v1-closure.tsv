@@ -1,0 +1,10 @@
+# F-random v1 std.random 闭合 manifest
+# 列：item_id	kind	anchor	notes
+frandom_doc	doc	analysis/phase-f-random-v1.md	F-random v1
+frandom_gate	gate	tests/run-f-random-v1-gate.sh	聚合门禁
+random_sx	file	std/random/random.sx	非 OS 逻辑
+random_glue_absent	absent	std/random/random_os_glue.c	F-ZC 已删除
+runtime_random_fill	file	compiler/src/asm/runtime_random_fill.c	CSPRNG OS runtime
+random_mod	file	std/random/mod.sx	对外 API
+random_c_absent	absent	std/random/random.c	已删除
+makefile	makefile	compiler/Makefile	random.o 纯 .sx
