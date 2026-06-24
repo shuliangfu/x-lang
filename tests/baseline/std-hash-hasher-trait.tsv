@@ -13,10 +13,10 @@ api_free	api	hash_free_algo	std/hash/mod.sx	释放
 api_write_u32	api	hash_write_u32_algo	std/hash/mod.sx	u32
 const_sip	const	HASHER_SIPHASH	std/hash/mod.sx	0
 const_ahash	const	HASHER_AHASH	std/hash/mod.sx	1
-symbol_default_c	symbol	hash_default_algo_c	std/hash/hash.c	环境
-symbol_unified_new	symbol	hash_unified_new_c	std/hash/hash.c	新建
-symbol_smoke_c	symbol	hash_hasher_switch_smoke_c	std/hash/hash.c	C 烟测
+symbol_default_c	symbol	hash_default_algo_c	std/hash/hash.sx	环境
+symbol_unified_new	symbol	hash_unified_new_c	std/hash/hash.sx	新建
+symbol_smoke_c	symbol	hash_hasher_switch_smoke_c	std/hash/hash.sx	烟测
 smoke_c	file	tests/std-hash/hasher_switch_ok.c	C 入口
-smoke_su	smoke	tests/std-hash/hasher_switch.sx	.sx 切换
+smoke_sx	smoke	tests/std-hash/hasher_switch.sx	.sx 切换
 lib	script	lib/std-hash-hasher-trait.sh	tests/lib/std-hash-hasher-trait.sh
 gate	script	run-std-hash-hasher-trait-gate.sh	tests/run-std-hash-hasher-trait-gate.sh
