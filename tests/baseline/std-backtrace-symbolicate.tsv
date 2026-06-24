@@ -8,11 +8,11 @@ verify	section	## 5. 门禁	gate
 api_capture	api	capture	std/backtrace/mod.sx	捕获
 api_symbolicate	api	symbolicate	std/backtrace/mod.sx	符号化
 const_slot	const	SYM_NAME_LEN	std/backtrace/mod.sx	128
-symbol_sym_c	symbol	backtrace_symbolicate_c	std/backtrace/backtrace.c	C 实现
-symbol_gold_c	symbol	backtrace_gold_anchor_c	std/backtrace/backtrace.c	金样锚点
-symbol_smoke_c	symbol	backtrace_symbolicate_smoke_c	std/backtrace/backtrace.c	C 烟测
+symbol_sym_c	symbol	backtrace_symbolicate_c	compiler/src/asm/runtime_backtrace_platform.c	C 实现
+symbol_gold_c	symbol	backtrace_gold_anchor_c	compiler/src/asm/runtime_backtrace_platform.c	金样锚点
+symbol_smoke_c	symbol	backtrace_symbolicate_smoke_c	std/backtrace/backtrace.sx	C 烟测
 vectors_tsv	file	tests/baseline/std-backtrace-symbolicate-vectors.tsv	金样表
 smoke_c	file	tests/backtrace/symbolicate_gold.c	C 烟测
-smoke_su	smoke	tests/backtrace/symbolicate_known.sx	.sx 烟测
+smoke_sx	smoke	tests/backtrace/symbolicate_known.sx	.sx 烟测
 lib	script	lib/std-backtrace-symbolicate.sh	tests/lib/std-backtrace-symbolicate.sh
 gate	script	run-std-backtrace-symbolicate-gate.sh	tests/run-std-backtrace-symbolicate-gate.sh
