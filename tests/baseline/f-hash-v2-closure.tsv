@@ -1,0 +1,9 @@
+# F-hash v2 std.hash 逻辑全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+fhash2_doc	doc	analysis/phase-f-hash-v2.md	F-hash v2
+fhash2_gate	gate	tests/run-f-hash-v2-gate.sh	逻辑下沉门禁
+hash_sx	file	std/hash/hash.sx	SipHash/xxHash/FNV
+hash_glue_absent	absent	std/hash/hash_glue.c	已删除
+hash_mod	file	std/hash/mod.sx	对外 API
+hash_c_absent	absent	std/hash/hash.c	已删除
+makefile	makefile	compiler/Makefile	纯 hash.sx → hash.o
