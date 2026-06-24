@@ -1,0 +1,9 @@
+# F-url v1 std.url 闭合 manifest
+# 列：item_id	kind	anchor	notes
+furl_doc	doc	analysis/phase-f-url-v1.md	F-url v1
+furl_gate	gate	tests/run-f-url-v1-gate.sh	聚合门禁
+url_sx	file	std/url/url.sx	模块锚点 .sx
+url_glue_absent	absent	std/url/url_glue.c	F-ZC 已删除
+url_mod	file	std/url/mod.sx	对外 API
+url_c_absent	absent	std/url/url.c	已删除
+makefile	makefile	compiler/Makefile	url.o 纯 .sx
