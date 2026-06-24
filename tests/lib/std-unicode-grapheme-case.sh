@@ -4,7 +4,7 @@
 STD_UNICODE_GC_PREFIX="${SHUX_STD114_UNICODE_GC_PREFIX:-shux: [SHUX_STD114_UNICODE_GC]}"
 
 std_unicode_gc_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local uni_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,7 +14,7 @@ std_unicode_gc_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_su" || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_sx" || miss=$((miss + 1))
         ;;
       symbol)
         grep -qF "$anchor" "$uni_c" || miss=$((miss + 1))
@@ -42,5 +42,5 @@ std_unicode_gc_run_smoke() {
 }
 
 std_unicode_gc_emit_report() {
-  echo "${STD_UNICODE_GC_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_UNICODE_GC_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
