@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# parser_parse_bootstrap.o 轨道门禁：C seed slice 独立 TU 须导出 parse_into_buf（替代 SU PARSE_BOOTSTRAP_EMIT 139）。
+# parser_parse_bootstrap.o 轨道门禁：C seed slice 独立 TU 须导出 parse_into_buf（替代 SX PARSE_BOOTSTRAP_EMIT 139）。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-gate.sh
 #   SHUX_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
