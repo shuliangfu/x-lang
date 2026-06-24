@@ -14,12 +14,12 @@ allow(padding) struct Url {
   path_len: i32;
   query_len: i32;
   fragment_len: i32;
-  scheme: [32]u8;
-  host: [256]u8;
-  port: [8]u8;
-  path: [512]u8;
-  query: [512]u8;
-  fragment: [256]u8;
+  scheme: u8[32];
+  host: u8[256];
+  port: u8[8];
+  path: u8[512];
+  query: u8[512];
+  fragment: u8[256];
 }
 
 extern function url_parse_c(url: *u8, len: i32, out: *Url): i32;
