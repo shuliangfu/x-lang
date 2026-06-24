@@ -3,7 +3,7 @@
 set -e
 cd "$(dirname "$0")/.."
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 fi
 SHUX=${SHUX:-./compiler/shux}
 # shellcheck source=lib/bootstrap-link-shux.sh
@@ -18,7 +18,7 @@ $LINK_SHUX tests/struct/padding_allow.sx -o /tmp/shux_struct_pad 2>&1
 exitcode=0; /tmp/shux_struct_pad >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 2 ] && { echo "expected 2 (padding_allow x.b), got $exitcode"; exit 1; }
 
-if $SHUX tests/struct/padding_no_allow.sx -o /tmp/shux_struct_fail 2>&1 | grep -q "implicit padding"; then
+if ${TYPECK_SHUX:-$SHUX} check tests/struct/padding_no_allow.sx 2>&1 | grep -q "implicit padding"; then
   : # 预期 typeck 报错
 else
   echo "expected typeck error for struct without allow(padding)"
