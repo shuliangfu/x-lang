@@ -5,7 +5,7 @@ STD_METRICS_OBS_PREFIX="${SHUX_STD117_METRICS_OBS_PREFIX:-shux: [SHUX_STD117_MET
 
 # 校验 manifest 中 api/file/smoke 符号。
 std_metrics_obs_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,7 +14,7 @@ std_metrics_obs_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors)
         [ -f "$anchor" ] || miss=$((miss + 1))
@@ -46,5 +46,5 @@ std_metrics_obs_run_sx_smoke() {
 }
 
 std_metrics_obs_emit_report() {
-  echo "${STD_METRICS_OBS_PREFIX} status=$1 su=$2 skip=$3"
+  echo "${STD_METRICS_OBS_PREFIX} status=$1 sx=$2 skip=$3"
 }
