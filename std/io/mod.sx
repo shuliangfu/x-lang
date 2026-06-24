@@ -4,18 +4,18 @@
 // 提供：handle 常量、单次/批量读写、标准流（stdin/stdout/stderr）；fd 便捷 API（read_fd/write_fd/read_batch_fd/write_batch_fd）与 std.fs 联合走 io_uring/readv 极致压榨。
 // 零拷贝：写路径已零拷贝（write/write_fd 直接传用户 ptr 进内核，无库内二次拷贝）；读零拷贝为 read_ptr/read_ptr_len、read_stdin_ptr，返回内部缓冲只读指针。
 // read_ptr 生命周期（Z2）：
-//   1. 指针指向 io.c 单线程内部缓冲（g_io_read_ptr_buf）；只读，勿写入或 free。
+//   1. 指针指向 io_backend 单线程内部缓冲（g_io_read_ptr_buf）；只读，勿写入或 free。
 //   2. 有效至同线程下一次 read_ptr / read_stdin_ptr 成功返回新指针前；并发 read_ptr 不隔离（单缓冲）。
 //   3. read_ptr_len() 仅对最近一次成功的 read_ptr/read_stdin_ptr 有效；失败或 EOF 后 len 可能为 0。
-//   4. 与 []u8 slice 互操作：let p = read_ptr(h, 0); let n = read_ptr_len() as usize; 构造 ReadOnlySlice { data: { data: p, length: n } } 或 read_into 用户缓冲（勿对 p 越界写）。
-//   5. M-5/ZC-3：read_ptr_slice / shux_io_read_ptr_slice 等 callee 由 typeck 自动绑域 []u8<io_read_ptr>（TLS g_io_read_ptr_buf）；勿赋给未标注 []u8。
+//   4. 与 u8[] slice 互操作：let p = read_ptr(h, 0); let n = read_ptr_len() as usize; 构造 ReadOnlySlice { data: { data: p, length: n } } 或 read_into 用户缓冲（勿对 p 越界写）。
+//   5. M-5/ZC-3：read_ptr_slice / shux_io_read_ptr_slice 等 callee 由 typeck 自动绑域 u8[]<io_read_ptr>（TLS g_io_read_ptr_buf）；勿赋给未标注 u8[]。
 //   6. ZC-2：read_ptr_gen()/read_ptr_gen_valid(g) 与 ReadPtrView {ptr,len,gen} 校验跨 read_ptr 调用；macOS/Linux 常规文件 mmap 绝对视图。
 //   7. 大文件/长生命周期数据请用 read/read_fd 拷入用户缓冲，或 std.fs.fs_mmap_ro 映射只读页。
 // ZC-1 Provided Buffers 生命周期：
 //   1. 先 register_provided_buffers(nr, bufsz)；内核通过 IORING_OP_PROVIDE_BUFFERS 注册 buffer ring。
 //   2. read_provided_fd / read_batch_provided_fd 返回后，数据在 provided_buffer_ptr(bid)；只读，勿 free。
 //   3. 同线程下一次 provided recv 复用 bid 前有效；并发 provided recv 不隔离（每线程独立池）。
-//   4. Linux 5.19+ / io_uring；macOS 等非 Linux 返回失败，请回退 read_fixed_fd 或 read_batch_fd。
+//   4. Linux 5.19+ / io_uring；v1 stub 返回失败，请回退 read_fixed_fd 或 read_batch_fd。
 // 依赖：std.io.driver（Buffer、submit_read/submit_write、read_ptr/read_ptr_len）；std.io.core（固定 buffer 池多块注册）。
 const driver = import("std.io.driver");
 const core = import("std.io.core");
@@ -23,10 +23,10 @@ const context = import("std.context");
 const err = import("std.error");
 // ——— ReadOnlySlice / WriteOnlySlice（零拷贝只读/只写视图，预留与 driver 对接） ———
 struct ReadOnlySlice {
-  data: []u8
+  data: u8[]
 }
 struct WriteOnlySlice {
-  data: []u8
+  data: u8[]
 }
 /**
  * ZC-2：read_ptr 三元组视图（ptr + len + gen）。
@@ -48,7 +48,7 @@ trait Writer {
 // ——— 超时常量：timeout_ms 传 0 表示无超时（阻塞直到完成），与 driver 一致 ———
 // 使用示例：read_with_timeout(ptr, len, 0) 等价于 read_stdin(ptr, len)。
 // ——— 标准 handle（0=stdin，1=stdout，2=stderr；≥2 可与 std.fs/std.net fd 统一） ———
-// SU 流水线 return 字面量可由 typeck 隐式升格为 usize（与 std 内 read(数字,…) 的常见写法等价）。
+// SX 流水线 return 字面量可由 typeck 隐式升格为 usize（与 std 内 read(数字,…) 的常见写法等价）。
 function handle_stdin(): usize { return 0; }
 function handle_stdout(): usize { return 1; }
 function handle_stderr(): usize { return 2; }
@@ -162,7 +162,7 @@ function read_ptr_view(handle: usize, timeout_ms: u32): ReadPtrView {
 }
 /** ZC-2：ReadPtrView 是否仍对应当前有效 read_ptr 视图。 */
 function read_ptr_view_valid(v: ReadPtrView): i32 {
-  if (v.ptr == 0 as *u8) {
+  if (v.ptr == 0) {
     return 0;
   }
   return read_ptr_gen_valid(v.gen);
@@ -172,14 +172,14 @@ function read_stdin_ptr_view(): ReadPtrView {
   return read_ptr_view(handle_stdin(), 0 as u32);
 }
 /**
- * M-5：零拷贝读并返回 []u8 slice（域 io_read_ptr，指向 TLS g_io_read_ptr_buf）。
- * 生命周期同 read_ptr；勿赋给未标注 []u8（typeck 域逃逸检查）。
+ * M-5：零拷贝读并返回 u8[] slice（域 io_read_ptr，指向 TLS g_io_read_ptr_buf）。
+ * 生命周期同 read_ptr；勿赋给未标注 u8[]（typeck 域逃逸检查）。
  */
-function read_ptr_slice(handle: usize, timeout_ms: u32): []u8<io_read_ptr> {
+function read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
   return driver.driver_read_ptr_slice(handle, timeout_ms);
 }
 /** 零拷贝读 stdin slice；等价 read_ptr_slice(handle_stdin(), 0)。 */
-function read_stdin_ptr_slice(): []u8<io_read_ptr> {
+function read_stdin_ptr_slice(): u8[]<io_read_ptr> {
   return read_ptr_slice(handle_stdin(), 0 as u32);
 }
 /** 零拷贝读 stdin：读入内部缓冲，返回只读指针；失败返回 0。指针在下次 read_stdin_ptr/read_ptr 前有效；长度用 read_ptr_len()。 */
@@ -203,7 +203,7 @@ function write_with_timeout(ptr: *u8, len: usize, timeout_ms: u32): i32 {
 function write_stderr_with_timeout(ptr: *u8, len: usize, timeout_ms: u32): i32 {
   return write(handle_stderr(), ptr, len, timeout_ms);
 }
-// ——— 批量读写：解构 import("std.io.driver") 后直接使用 submit_read_batch / submit_write_batch（传 [4]Buffer + n + timeout_ms） ———
+// ——— 批量读写：解构 import("std.io.driver") 后直接使用 submit_read_batch / submit_write_batch（传 Buffer[4] + n + timeout_ms） ———
 // ——— 与 std.fs 联合极致压榨：fd 单次/批量走 io_uring（Linux）/readv/writev，一次 submit 多段 ———
 /** 从 fd 读入至 ptr[0..len]（timeout=0）；fd 可为 std.fs 打开的文件。推荐 len ≥ std.fs.fs_read_chunk() 压榨 syscall。返回读入字节数，0=EOF，-1=错误。 */
 function read_fd(fd: i32, ptr: *u8, len: usize): i32 {
@@ -216,7 +216,7 @@ function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
 /** 从 fd 批量读：一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4。Linux 走 io_uring 多 SQE 或 readv，极致压榨。返回总字节数，-1=错误。 */
 function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = handle_from_fd(fd, 0);
-  let bufs: [4]Buffer = [
+  let bufs: Buffer[4] = [
     Buffer { ptr: p0, len: l0, handle: h },
     Buffer { ptr: p1, len: l1, handle: h },
     Buffer { ptr: p2, len: l2, handle: h },
@@ -227,7 +227,7 @@ function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8,
 /** 向 fd 批量写：一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4。Linux 走 io_uring 多 SQE 或 writev，极致压榨。返回总字节数，-1=错误。 */
 function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = handle_from_fd(fd, 0);
-  let bufs: [4]Buffer = [
+  let bufs: Buffer[4] = [
     Buffer { ptr: p0, len: l0, handle: h },
     Buffer { ptr: p1, len: l1, handle: h },
     Buffer { ptr: p2, len: l2, handle: h },
@@ -296,7 +296,7 @@ function read_batch_provided_fd(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32
 function wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
   return core.shux_io_wait_readable(fds, n, timeout_ms);
 }
-// ——— slice 版 API：使用 []u8 的 .data（*u8）与 .length（usize）对接 read/write ———
+// ——— slice 版 API：使用 u8[] 的 .data（*u8）与 .length（usize）对接 read/write ———
 // IO-A5 v2：非阻塞 read；submit 返回 slot>=0，complete_read_async_slot(slot) 收割。
 const IO_ASYNC_NOT_READY: i32 = -2;
 /** 提交非阻塞 read；成功返回 slot>=0，失败 -1。 */
@@ -332,11 +332,11 @@ function io_uring_is_available(): i32 {
   return core.shux_io_uring_is_available_c();
 }
 // 从 stdin 读入至 buf[0..buf.length]，timeout_ms 毫秒（0=无超时）。返回读入字节数，0=EOF，-1=错误。
-function read_into_slice(buf: []u8, timeout_ms: u32): i32 {
+function read_into_slice(buf: u8[], timeout_ms: u32): i32 {
   return read(handle_stdin(), buf.data, buf.length, timeout_ms);
 }
 // 将 buf[0..buf.length] 写入 stdout，timeout_ms 毫秒（0=无超时）。返回写入字节数，-1=错误。
-function write_from_slice(buf: []u8, timeout_ms: u32): i32 {
+function write_from_slice(buf: u8[], timeout_ms: u32): i32 {
   return write(handle_stdout(), buf.data, buf.length, timeout_ms);
 }
 // ——— 标准输出（print_* 由 codegen 生成 printf 调用，此处占位保证可 import） ———
