@@ -1,7 +1,7 @@
 /**
  * _sx_stubs2.c — verify-selfhost-stage2.sh 链接 shux-sx2 时的桩与转发
  *
- * Stage2 用 shux-sx 生成的 *_gen2.c / *_su2.o 与 seed 拓扑混合链接；本文件补齐：
+ * Stage2 用 shux-sx 生成的 *_gen2.c / *_sx2.o 与 seed 拓扑混合链接；本文件补齐：
  * - asm_driver_* → runtime driver_* 转发（asm 后端由 asm_backend_partial.o 提供，勿在此占位）
  * - std_heap_*（parser_gen2 经 -E-extern 引用）
  * - driver_cmd_* 子命令桩（hello 烟测不走 fmt/check/test）
