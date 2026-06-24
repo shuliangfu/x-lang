@@ -14,12 +14,12 @@ api_write	api	tls_write	std/net/mod.sx	写
 api_close	api	tls_close	std/net/mod.sx	关闭
 api_last_err	api	tls_last_error	std/net/mod.sx	错误码
 const_not_impl	symbol	TLS_NOT_IMPL	std/net/mod.sx	桩错误
-symbol_avail_c	symbol	net_tls_is_available_c	std/net/tls_stub.inc.c	C 层
-symbol_read_c	symbol	net_tls_read_c	std/net/tls_stub.inc.c	读
-symbol_openssl_inc	file	std/net/tls_openssl.inc.c	OpenSSL
-symbol_smoke_openssl	symbol	net_tls_openssl_smoke_c	std/net/tls_openssl.inc.c	烟测
-symbol_smoke_mb	symbol	net_tls_mbedtls_smoke_c	std/net/tls_mbedtls.inc.c	烟测
-symbol_mbedtls_inc	file	std/net/tls_mbedtls.inc.c	mbedTLS
+symbol_avail_c	symbol	net_tls_is_available_c	std/net/tls_stub.sx	C 层
+symbol_read_c	symbol	net_tls_read_c	std/net/tls_stub.sx	读
+symbol_openssl_inc	file	std/net/tls_openssl.sx	OpenSSL F-04 v8
+symbol_smoke_openssl	symbol	net_tls_openssl_smoke_c	std/net/tls_openssl.sx	烟测
+symbol_smoke_mb	symbol	net_tls_mbedtls_smoke_c	std/net/tls_mbedtls.sx	烟测
+symbol_mbedtls_inc	file	std/net/tls_mbedtls.sx	mbedTLS F-04 v9
 smoke_mbedtls_c	smoke	tests/net/tls_mbedtls_smoke_ok.c	mbedTLS烟测
 smoke_stub	smoke	tests/net/tls_stub.sx	桩烟测
 smoke_runtime_link	smoke	tests/net/tls_runtime_link_smoke.sx	runtime自动链入
