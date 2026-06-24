@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
 MANIFEST="${SHUX_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
-MOD_SU="std/simd/mod.sx"
+MOD_SX="std/simd/mod.sx"
 LIB="tests/lib/std-simd-shuffle-select.sh"
-SMOKE_SU="tests/simd/shuffle_select_roundtrip.sx"
+SMOKE_SX="tests/simd/shuffle_select_roundtrip.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-simd-shuffle-select.sh
 . "$LIB"
 
 echo "=== STD-047: simd shuffle/select manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$SMOKE_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SMOKE_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-simd-shuffle-select gate FAIL: missing $f" >&2
     exit 1
@@ -31,12 +31,12 @@ for kw in STD-047 vec4f_shuffle vec8i_select lane-scalar SHUX_SIMD_HW; do
 done
 
 # mod.sx 须含 lane-scalar 实装（非零桩）
-if ! grep -qF 'v[mask[0]]' "$MOD_SU" 2>/dev/null; then
-  echo "std-simd-shuffle-select gate FAIL: missing lane-scalar shuffle in $MOD_SU" >&2
+if ! grep -qF 'v[mask[0]]' "$MOD_SX" 2>/dev/null; then
+  echo "std-simd-shuffle-select gate FAIL: missing lane-scalar shuffle in $MOD_SX" >&2
   exit 1
 fi
-if ! grep -qF 'vec8i_select_lane' "$MOD_SU" 2>/dev/null; then
-  echo "std-simd-shuffle-select gate FAIL: missing select_lane helper in $MOD_SU" >&2
+if ! grep -qF 'vec8i_select_lane' "$MOD_SX" 2>/dev/null; then
+  echo "std-simd-shuffle-select gate FAIL: missing select_lane helper in $MOD_SX" >&2
   exit 1
 fi
 
@@ -54,7 +54,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-simd-shuffle-select gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -73,7 +73,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_simd_ss_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_simd_ss_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_simd_ss_emit_report "fail" 0 0 0 0
   echo "std-simd-shuffle-select gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -133,9 +133,9 @@ done
 
 if [ -n "$SHUX_TYPECK" ]; then
   echo "=== STD-047: typeck ($SHUX_TYPECK) ==="
-  if ! "$SHUX_TYPECK" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-simd-shuffle-select gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_TYPECK" check -L . "$SMOKE_SU" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_TYPECK" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-simd-shuffle-select gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_TYPECK" check -L . "$SMOKE_SX" 2>&1 | tail -15 >&2 || true
     std_simd_ss_emit_report "fail" 0 0 0 0
     exit 1
   fi
@@ -143,7 +143,7 @@ fi
 
 if [ -n "$SHUX_ASM" ]; then
   echo "=== STD-047: roundtrip smoke (SHUX_ASM=$SHUX_ASM) ==="
-  if std_simd_ss_run_smoke "$SHUX_ASM" "$SMOKE_SU" "roundtrip"; then
+  if std_simd_ss_run_smoke "$SHUX_ASM" "$SMOKE_SX" "roundtrip"; then
     SHUFFLE_OK=1
     SELECT_OK=1
     SKIP=0
