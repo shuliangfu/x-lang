@@ -2,7 +2,7 @@
  * parser_asm_block_from_res_slice.c — fill_block_const_let_from_res / append_block_lets_from_res C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * OneFunc 侧车池 → block const/let 声明；Expr 按值初始化勿 SU emit（曾 elf_ec=-1 / code 缓冲触顶）。
+ * OneFunc 侧车池 → block const/let 声明；Expr 按值初始化勿 SX emit（曾 elf_ec=-1 / code 缓冲触顶）。
  */
 #ifndef PARSER_ASM_BLOCK_FROM_RES_SLICE_INCLUDED
 #define PARSER_ASM_BLOCK_FROM_RES_SLICE_INCLUDED
@@ -102,7 +102,10 @@ static int32_t parser_asm_block_append_one_let_c(void *arena, int32_t block_ref,
   if (pipeline_onefunc_let_type_ref(pool, src_i) != 0)
     let_decl_ty = pipeline_onefunc_let_type_ref(pool, src_i);
   init_ref = pipeline_onefunc_let_init_ref(pool, src_i);
-  if (init_ref == 0) {
+  /** -1：let x: T; 无初值；block 留 init_ref=0，勿合成 EXPR_LIT(0)（会与 let x: i32 = 0 混淆）。 */
+  if (init_ref == -1) {
+    init_ref = 0;
+  } else if (init_ref == 0) {
     init_ref = parser_asm_block_lit_init_ref_c(arena, let_decl_ty, pipeline_onefunc_let_init_val(pool, src_i));
     if (init_ref == 0)
       return 0;
