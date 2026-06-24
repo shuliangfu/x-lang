@@ -50,7 +50,7 @@
 | mbedTLS | `make net-o-mbedtls`（`-lmbedtls -lmbedx509 -lmbedcrypto`） |
 | **runtime 自动** | `invoke_cc` 检测 `net.o` marker 并追加 TLS 库；`SHUX_NET_TLS=auto` 在无 marker 时尝试 `net-o-openssl`；默认不改动现有 `net.o` |
 
-C 实现：`std/net/tls_mbedtls.inc.c`、`std/net/tls_openssl.inc.c`、`std/net/tls_stub.inc.c`。
+C 实现：**`std/net/tls_mbedtls.sx`** + 胶层 `tls_mbedtls_bio.c`（F-04 v9）、**`std/net/tls_openssl.sx`**（F-04 v8）；桩 **`std/net/tls_stub.sx`**（F-04 v1，已删 `tls_stub.inc.c`）。
 
 ---
 
