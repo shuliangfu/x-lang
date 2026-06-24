@@ -6,5 +6,5 @@ api_reset	api	timer_reset	std/time/mod.sx
 api_elapsed_ns	api	timer_elapsed_ns	std/time/mod.sx
 api_elapsed_ms	api	timer_elapsed_ms	std/time/mod.sx
 api_lap	api	timer_lap_ns	std/time/mod.sx
-smoke_su	smoke	tests/time/bench_timer.sx
+smoke_sx	smoke	tests/time/bench_timer.sx
 gate	script	run-std-time-bench-timer-gate.sh	tests/run-std-time-bench-timer-gate.sh
