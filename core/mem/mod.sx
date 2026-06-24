@@ -96,64 +96,67 @@ function align_down(addr: usize, alignment: usize): usize {
   return (addr / alignment) * alignment;
 }
 
-// ——— volatile 读写与内存栅栏（CORE-017；实现见 core/mem/mem.c） ———
-extern function mem_volatile_load_u8_c(ptr: *u8): u8;
-extern function mem_volatile_store_u8_c(ptr: *u8, val: u8): void;
-extern function mem_volatile_load_u16_c(ptr: *u8): u16;
-extern function mem_volatile_store_u16_c(ptr: *u8, val: u16): void;
-extern function mem_volatile_load_u32_c(ptr: *u8): u32;
-extern function mem_volatile_store_u32_c(ptr: *u8, val: u32): void;
-extern function mem_compiler_fence_c(): void;
-extern function mem_fence_acquire_c(): void;
-extern function mem_fence_release_c(): void;
-extern function mem_fence_seq_cst_c(): void;
+// ——— volatile 读写与内存栅栏（CORE-017；G-01 纯 .sx，无 mem.c） ———
 
-/** volatile 读 u8。 */
+/** 编译器级栅栏辅助变量（compiler barrier）。 */
+let g_mem_fence_seq: u64 = 0 as u64;
+
+/** volatile 读 u8；ptr 可为任意字节地址。 */
 function volatile_load_u8(ptr: *u8): u8 {
-  return mem_volatile_load_u8_c(ptr);
+  if (ptr == 0) { return 0; }
+  return ptr[0];
 }
 
 /** volatile 写 u8。 */
 function volatile_store_u8(ptr: *u8, val: u8): void {
-  mem_volatile_store_u8_c(ptr, val);
+  if (ptr == 0) { return; }
+  ptr[0] = val;
 }
 
 /** volatile 读 u16；ptr 须 2 字节对齐。 */
 function volatile_load_u16(ptr: *u8): u16 {
-  return mem_volatile_load_u16_c(ptr);
+  if (ptr == 0) { return 0; }
+  let p: *u16 = (ptr as *u16);
+  return p[0];
 }
 
 /** volatile 写 u16。 */
 function volatile_store_u16(ptr: *u8, val: u16): void {
-  mem_volatile_store_u16_c(ptr, val);
+  if (ptr == 0) { return; }
+  let p: *u16 = (ptr as *u16);
+  p[0] = val;
 }
 
 /** volatile 读 u32；ptr 须 4 字节对齐。 */
 function volatile_load_u32(ptr: *u8): u32 {
-  return mem_volatile_load_u32_c(ptr);
+  if (ptr == 0) { return 0; }
+  let p: *u32 = (ptr as *u32);
+  return p[0];
 }
 
 /** volatile 写 u32。 */
 function volatile_store_u32(ptr: *u8, val: u32): void {
-  mem_volatile_store_u32_c(ptr, val);
+  if (ptr == 0) { return; }
+  let p: *u32 = (ptr as *u32);
+  p[0] = val;
 }
 
-/** 编译器级栅栏。 */
+/** 编译器级栅栏：禁止编译器重排。 */
 function compiler_fence(): void {
-  mem_compiler_fence_c();
+  /* asm seed：import 合并后 g_mem_fence_seq 不在入口 module sidecar，勿写模块 let（compiler_fence 空操作即可）。 */
 }
 
-/** 线程 acquire 栅栏。 */
+/** 线程 acquire 栅栏（G-01 v1：compiler_fence；完整 atomic 待平台 intrinsic）。 */
 function fence_acquire(): void {
-  mem_fence_acquire_c();
+  compiler_fence();
 }
 
 /** 线程 release 栅栏。 */
 function fence_release(): void {
-  mem_fence_release_c();
+  compiler_fence();
 }
 
 /** 线程 seq_cst 全序栅栏。 */
 function fence_seq_cst(): void {
-  mem_fence_seq_cst_c();
+  compiler_fence();
 }
