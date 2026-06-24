@@ -11,7 +11,7 @@
 | **preprocess** | 已写全：`unclosed #if`、`#else/#endif/#elseif` 无 `#if`、`#elseif` 在 `#else` 后、重复 `#else`、多 `#endif` 等 7 类，均断言 stderr 含预期错误信息。 |
 | **parser** | 正例 `semicolon_required.sx`；负例 `semicolon_missing.sx`（缺分号）、`if_missing_paren.sx`（if 后缺 `(`）。 |
 | **lexer** | 正例与 expected.txt 比对；负例 `invalid_char.sx`（含 `$` 等非法字符，须编译失败）。 |
-| **typeck** | 正例 lexer/main.sx；负例 `type_mismatch_assign.sx`、`if_condition_not_bool.sx`、`undefined_name.sx`、`return_implicit.sx`、`ternary_condition_not_bool.sx`、`ternary_branches_mismatch.sx`，均断言 stderr 含 `typeck error`。`SHUX=shu_su` 时脚本仅对 `return_implicit.sx` 自动加 `-su`（与 .sx typeck 隐式返回检查对齐）；其余负例仍走 shu_su 内嵌的 C 前端。设 `TYPECK_SU=all` 可令所有负例带 `-su`（.sx typeck 未全覆盖前慎用）。 |
+| **typeck** | 正例 lexer/main.sx；负例 `type_mismatch_assign.sx`、`if_condition_not_bool.sx`、`undefined_name.sx`、`return_implicit.sx`、`ternary_condition_not_bool.sx`、`ternary_branches_mismatch.sx`，均断言 stderr 含 `typeck error`。`SHUX=shux_sx` 时脚本仅对 `return_implicit.sx` 自动加 `-sx`（与 .sx typeck 隐式返回检查对齐）；其余负例仍走 shux_sx 内嵌的 C 前端。设 `TYPECK_SX=all` 可令所有负例带 `-sx`（.sx typeck 未全覆盖前慎用）。 |
 | **struct** | 正例 `padding_allow` + 负例 `padding_no_allow.sx`（无 allow(padding) 时隐式 padding 报 typeck error）。 |
 | **float** | 正例多文件 + `boundary.sx` + 负例 `init_non_zero_int.sx`（f32=1 非字面量/0 报 typeck error）。 |
 | **while** | 正例多文件 + 负例 `break_outside.sx`（break 不在循环内报 typeck error）。 |
