@@ -6,7 +6,7 @@ api_copy_bounded	api	copy_bounded	std/mem/mod.sx	有界拷贝
 api_set_bounded	api	set_bounded	std/mem/mod.sx	有界填充
 api_compare_bounded	api	compare_bounded	std/mem/mod.sx	有界比较
 api_buffer_from	api	buffer_from	std/mem/mod.sx	Buffer 构造
-smoke_su	smoke	tests/mem/mem_safe_boundary.sx	烟测
+smoke_sx	smoke	tests/mem/mem_safe_boundary.sx	烟测
 gate_base	gate	tests/run-std-mem-boundary-gate.sh	STD-018
 lib	script	tests/lib/std-mem-safe.sh	lib
 gate	script	tests/run-std-mem-safe-gate.sh	gate
