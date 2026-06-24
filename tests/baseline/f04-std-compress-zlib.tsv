@@ -1,0 +1,7 @@
+# F-04 v4 std.compress zlib manifest
+# 列：item_id	kind	anchor	mod_path	notes
+symbol_deflate	symbol	compress_deflate_c	std/compress/zlib/zlib_libz.sx	deflate C ABI
+symbol_inflate	symbol	compress_inflate_c	std/compress/zlib/zlib_libz.sx	inflate C ABI
+symbol_marker	symbol	shu_compress_zlib_marker	std/compress/zlib/zlib_libz.sx	-lz marker
+import_libz	symbol	import("std.compress.zlib.zlib_libz")	std/compress/zlib/mod.sx	import 转发
+absent_c	absent	std/compress/zlib/zlib.c	删除 zlib.c
