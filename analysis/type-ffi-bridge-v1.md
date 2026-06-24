@@ -27,14 +27,14 @@
 | **F2-pointer-bridge** | `*T` | `T*`（递归 `c_type_to_buf`） | ✅ |
 | **F3-extern-syntax** | `extern function f(...)` | 无函数体；链接 C 符号 | ✅ |
 | **F4-struct-by-value** | 具名 struct | `struct Name` 同布局按值传递 | ✅ |
-| **F5-slice-codegen** | `[]T` | `struct shux_slice_<elem>` | ✅（**非**直接 extern 参数） |
-| **F6-coercion** | `*T`→`*u8`、`[N]T`→`*T` | typeck 放宽（C `void*` / 衰减） | ✅ |
+| **F5-slice-codegen** | `T[]` | `struct shux_slice_<elem>` | ✅（**非**直接 extern 参数） |
+| **F6-coercion** | `*T`→`*u8`、`T[N]`→`*T` | typeck 放宽（C `void*` / 衰减） | ✅ |
 
 **interop 原则**：
 
 1. **mapping** 以 `c_type_to_buf` 为准；变更须同步 TSV + gate。
 2. `extern` 参数可用 `*u8` 表示 C 侧 **void\*** 语义（任意 `*T` 可传入）。
-3. `[]T` 仅在 Shu 内部与 C 生成代码间桥接；跨语言边界优先 `*u8`+`len` 或 `*T`。
+3. `T[]` 仅在 Shu 内部与 C 生成代码间桥接；跨语言边界优先 `*u8`+`len` 或 `*T`。
 
 ```su
 extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
@@ -60,7 +60,7 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 | `isize` | `ptrdiff_t` | yes | |
 | `*T` | `<T>*` | yes | 指针递归 |
 | `*u8` | `uint8_t*` | yes | void\* 桥接目标 |
-| `[]T` | `struct shux_slice_*` | no | 仅 codegen 内部 |
+| `T[]` | `struct shux_slice_*` | no | 仅 codegen 内部 |
 
 实现锚点：`compiler/src/codegen/codegen.c` `c_type_to_buf`；typeck 放宽见 `typeck.c` call 实参路径。
 
