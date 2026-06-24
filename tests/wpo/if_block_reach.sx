@@ -3,8 +3,8 @@ const slice = import("core.slice");
 const option = import("core.option");
 
 function main(): i32 {
-  let a: [2]i32 = [10, 20];
-  let s: []i32 = a;
+  let a: i32[2] = [10, 20];
+  let s: i32[] = a;
   let o: Option_i32 = slice.get_i32(s, 0);
   if (!o.is_some) {
     return 1;
