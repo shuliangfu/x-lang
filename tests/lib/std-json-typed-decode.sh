@@ -4,7 +4,7 @@
 STD_JSON_TYPED_PREFIX="${SHUX_STD116_JSON_TYPED_PREFIX:-shux: [SHUX_STD116_JSON_TYPED]}"
 
 std_json_typed_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local json_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,11 +14,13 @@ std_json_typed_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/json/json.c" ] && path="$json_c"
+        case "$path" in
+          std/json/json.c|std/json/json_parse_glue.c|std/json/json.sx) path="$json_c" ;;
+        esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors)
@@ -56,5 +58,5 @@ std_json_typed_run_c_smoke() {
 }
 
 std_json_typed_emit_report() {
-  echo "${STD_JSON_TYPED_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_JSON_TYPED_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
