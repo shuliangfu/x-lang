@@ -70,10 +70,10 @@ fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== CORE-016: typeck + smoke ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  for su in "$SMOKE1" "$SMOKE2"; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "core-option-result-unify gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+  for sx in "$SMOKE1" "$SMOKE2"; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "core-option-result-unify gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
       core016_emit_report "fail" 0 0 0
       exit 1
     fi
@@ -81,8 +81,8 @@ if [ -n "$SHUX_BIN" ]; then
   done
   exe="/tmp/shux_core016_$$"
   set +e
-  for su in "$SMOKE1" "$SMOKE2"; do
-    link_log=$("$SHUX_BIN" -L . "$su" -o "$exe" 2>&1)
+  for sx in "$SMOKE1" "$SMOKE2"; do
+    link_log=$("$SHUX_BIN" -L . "$sx" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
       if echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
@@ -90,7 +90,7 @@ if [ -n "$SHUX_BIN" ]; then
         SKIP=1
         break
       fi
-      echo "core-option-result-unify gate FAIL: link $su" >&2
+      echo "core-option-result-unify gate FAIL: link $sx" >&2
       echo "$link_log" | tail -8 >&2 || true
       core016_emit_report "fail" 0 "$TYPECK_OK" 0
       exit 1
@@ -99,7 +99,7 @@ if [ -n "$SHUX_BIN" ]; then
     run_ec=$?
     rm -f "$exe"
     if [ "$run_ec" -ne 0 ]; then
-      echo "core-option-result-unify gate FAIL: run $su exit=$run_ec" >&2
+      echo "core-option-result-unify gate FAIL: run $sx exit=$run_ec" >&2
       core016_emit_report "fail" 0 "$TYPECK_OK" 0
       exit 1
     fi
