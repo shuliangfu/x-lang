@@ -5,7 +5,7 @@ STD145_PREFIX="${SHUX_STD145_TEST_RUNNER_PREFIX:-shux: [SHUX_STD145_TEST_RUNNER]
 
 # 校验 manifest；echo 缺失数。
 std_test_runner_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local test_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,14 +15,15 @@ std_test_runner_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-test-runner FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/test/test.c" ]; then path="$test_c"; fi
+        if [ "$path" = "std/test/test_glue.c" ]; then path="std/test/test.sx"; fi
+        if [ "$path" = "std/test/test.sx" ]; then path="std/test/test.sx"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-test-runner FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
