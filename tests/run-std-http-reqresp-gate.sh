@@ -7,23 +7,23 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_HTTP_REQRESP_DOC:-analysis/std-http-reqresp-v0.md}"
 MANIFEST="${SHUX_STD_HTTP_REQRESP_TSV:-tests/baseline/std-http-reqresp.tsv}"
-MOD_SU="std/http/mod.sx"
-HTTP_C="std/http/http.c"
-REQRESP_INC="std/http/http_reqresp.inc.c"
-HUFF_INC="std/http/http2_hpack_huffman.inc.c"
-FLOW_INC="std/http/http2_flow.inc.c"
+MOD_SX="std/http/mod.sx"
+HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
+REQRESP_INC="compiler/src/asm/http/http_reqresp.inc.c"
+HUFF_INC="compiler/src/asm/http/http2_hpack_huffman.inc.c"
+FLOW_INC="compiler/src/asm/http/http2_flow.inc.c"
 LIB="tests/lib/std-http-reqresp.sh"
-SMOKE_SU="tests/http/request_response.sx"
-URL_OWNED_SU="tests/http/request_url_owned.sx"
-OWNED_SU="tests/http/request_owned.sx"
-RESP_OWNED_SU="tests/http/response_owned.sx"
+SMOKE_SX="tests/http/request_response.sx"
+URL_OWNED_SX="tests/http/request_url_owned.sx"
+OWNED_SX="tests/http/request_owned.sx"
+RESP_OWNED_SX="tests/http/response_owned.sx"
 MIN_APIS=24
 
 # shellcheck source=tests/lib/std-http-reqresp.sh
 . "$LIB"
 
 echo "=== STD-HTTP-REQRESP: manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$HTTP_C" "$REQRESP_INC" "$HUFF_INC" "$FLOW_INC" "$SMOKE_SU" "$URL_OWNED_SU" "$OWNED_SU" "$RESP_OWNED_SU" std/http/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$HTTP_C" "$REQRESP_INC" "$HUFF_INC" "$FLOW_INC" "$SMOKE_SX" "$URL_OWNED_SX" "$OWNED_SX" "$RESP_OWNED_SX" std/http/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-http-reqresp gate FAIL: missing $f" >&2
     exit 1
@@ -69,7 +69,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_http_reqresp_symbols_ok "$MOD_SU" "$HTTP_C" "$MANIFEST" || true)"
+sym_miss="$(std_http_reqresp_symbols_ok "$MOD_SX" "$HTTP_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_http_reqresp_emit_report "fail" 0 0
   echo "std-http-reqresp gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -106,49 +106,49 @@ fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-HTTP-REQRESP: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-http-reqresp gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-http-reqresp gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$URL_OWNED_SU" >/dev/null 2>&1; then
-    echo "std-http-reqresp gate FAIL: typeck $URL_OWNED_SU" >&2
-    "$SHUX_BIN" check -L . "$URL_OWNED_SU" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$URL_OWNED_SX" >/dev/null 2>&1; then
+    echo "std-http-reqresp gate FAIL: typeck $URL_OWNED_SX" >&2
+    "$SHUX_BIN" check -L . "$URL_OWNED_SX" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$OWNED_SU" >/dev/null 2>&1; then
-    echo "std-http-reqresp gate FAIL: typeck $OWNED_SU" >&2
-    "$SHUX_BIN" check -L . "$OWNED_SU" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$OWNED_SX" >/dev/null 2>&1; then
+    echo "std-http-reqresp gate FAIL: typeck $OWNED_SX" >&2
+    "$SHUX_BIN" check -L . "$OWNED_SX" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$RESP_OWNED_SU" >/dev/null 2>&1; then
-    echo "std-http-reqresp gate FAIL: typeck $RESP_OWNED_SU" >&2
-    "$SHUX_BIN" check -L . "$RESP_OWNED_SU" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$RESP_OWNED_SX" >/dev/null 2>&1; then
+    echo "std-http-reqresp gate FAIL: typeck $RESP_OWNED_SX" >&2
+    "$SHUX_BIN" check -L . "$RESP_OWNED_SX" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$SMOKE_SU" "reqresp"; then
+  if std_http_reqresp_run_smoke "$SHUX_BIN" "$SMOKE_SX" "reqresp"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$URL_OWNED_SU" "url_owned"; then
+  if std_http_reqresp_run_smoke "$SHUX_BIN" "$URL_OWNED_SX" "url_owned"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$OWNED_SU" "owned"; then
+  if std_http_reqresp_run_smoke "$SHUX_BIN" "$OWNED_SX" "owned"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$RESP_OWNED_SU" "response_owned"; then
+  if std_http_reqresp_run_smoke "$SHUX_BIN" "$RESP_OWNED_SX" "response_owned"; then
     SMOKE_OK=1
   else
     std_http_reqresp_emit_report "fail" 0 0
