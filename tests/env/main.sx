@@ -10,8 +10,8 @@ const env = import("std.env");
 
 function main(): i32 {
   // key "PATH"（4 字节），用于可选测试：若不存在则跳过
-  let key_path: [8]u8 = [80, 65, 84, 72, 0, 0, 0, 0];
-  let buf: [256]u8 = [];
+  let key_path: u8[8] = [80, 65, 84, 72, 0, 0, 0, 0];
+  let buf: u8[256] = [];
   let n: i32 = env.getenv(&key_path[0], 4, &buf[0], 256);
   if (n < 0 && env.getenv_exists(&key_path[0], 4) == 0) {
     // PATH 在某些环境可能不存在，跳过
@@ -19,7 +19,7 @@ function main(): i32 {
   // PATH 存在时 n >= 0（可能大于 buf 容量，表示截断但成功）
   
   // temp_dir：应成功并返回非负长度
-  let tmp: [64]u8 = [];
+  let tmp: u8[64] = [];
   let td: i32 = env.temp_dir(&tmp[0], 64);
   if (td < 0) {
     return 1;
@@ -29,15 +29,15 @@ function main(): i32 {
   }
   
   // env.setenv("X_E", "v", 1)：设置后应存在，且 getenv 可取值
-  let name: [4]u8 = [88, 95, 69, 0];
-  let val: [4]u8 = [118, 0, 0, 0];
+  let name: u8[4] = [88, 95, 69, 0];
+  let val: u8[4] = [118, 0, 0, 0];
   if (env.setenv(&name[0], &val[0], 1) != 0) {
     return 2;
   }
   if (env.getenv_exists(&name[0], 3) != 1) {
     return 3;
   }
-  let out_val: [8]u8 = [];
+  let out_val: u8[8] = [];
   let got: i32 = env.getenv(&name[0], 3, &out_val[0], 8);
   if (got != 1) {
     return 6;
