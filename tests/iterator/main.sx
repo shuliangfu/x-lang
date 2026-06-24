@@ -3,8 +3,8 @@ const iterator = import("core.iterator");
 const option = import("core.option");
 
 function main(): i32 {
-  let a: [3]i32 = [10, 20, 30];
-  let s: []i32 = a;
+  let a: i32[3] = [10, 20, 30];
+  let s: i32[] = a;
   let it: SliceIter_i32 = iterator.iter_i32(s);
   if (iterator.iter_remaining_i32(&it) != 3 as usize) { return 1; }
 
@@ -18,15 +18,15 @@ function main(): i32 {
   if (!option.is_none_i32(o4)) { return 5; }
   if (iterator.iter_remaining_i32(&it) != 0 as usize) { return 6; }
 
-  let empty: [1]i32 = [0];
-  let es: []i32 = empty;
+  let empty: i32[1] = [0];
+  let es: i32[] = empty;
   es.length = 0 as usize;
   let eit: SliceIter_i32 = iterator.iter_i32(es);
   if (!option.is_none_i32(iterator.next_i32(&eit))) { return 7; }
 
-  let b: [2]u8 = [5, 15];
-  let su: []u8 = b;
-  let uit: SliceIter_u8 = iterator.iter_u8(su);
+  let b: u8[2] = [5, 15];
+  let sx: u8[] = b;
+  let uit: SliceIter_u8 = iterator.iter_u8(sx);
   let ou1: Option_u8 = iterator.next_u8(&uit);
   let ou2: Option_u8 = iterator.next_u8(&uit);
   let ou3: Option_u8 = iterator.next_u8(&uit);
