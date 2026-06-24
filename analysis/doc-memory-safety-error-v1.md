@@ -27,7 +27,7 @@ Shux **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe 
 |------|------|--------|
 | `a[i]` / `s[i]` | 运行时 bounds check | `shux_panic_` |
 | `/` `%` | 除零 check | panic |
-| `[]T<label>` | 编译期域匹配（TYPE-002） | typeck error |
+| `T[]<label>` | 编译期域匹配（TYPE-002） | typeck error |
 | struct 布局 | 无隐式 padding | typeck error |
 | `Linear(T)` | 线性类型（TYPE-001） | typeck error |
 
