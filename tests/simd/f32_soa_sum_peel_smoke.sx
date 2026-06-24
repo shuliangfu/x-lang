@@ -9,7 +9,7 @@ struct Particle soa {
 }
 
 function main(): i32 {
-  let arr: [8]Particle = [];
+  let arr: Particle[8] = [];
   let i: i32 = 0;
   while (i < 8) {
     arr[i].x = 1.0;
