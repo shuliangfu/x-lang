@@ -3,8 +3,8 @@
 #
 # 用法（source 后）：
 #   std_time_api_count [manifest_tsv]
-#   std_time_has_api MOD_SU fn_name
-#   std_time_run_smoke SHUX_BIN smoke_su
+#   std_time_has_api MOD_SX fn_name
+#   std_time_run_smoke SHUX_BIN smoke_sx
 
 # 统计 manifest 中 api 行数（不含注释）。
 std_time_api_count() {
