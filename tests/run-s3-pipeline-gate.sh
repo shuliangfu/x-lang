@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S3 pipeline SU 门禁：pipeline.sx check + build_asm/pipeline.o __text / safe_helper 真 emit。
+# S3 pipeline SX 门禁：pipeline.sx check + build_asm/pipeline.o __text / safe_helper 真 emit。
 # 用法：./tests/run-s3-pipeline-gate.sh
 # 可选：SHUX_S3_REQUIRE_PIPELINE_O=1 — 无 pipeline.o 时失败
 # 可选：SHUX_S3_FAIL_ON_REGRESSION=1 — 低于 baseline 时失败
@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
 SHUX=${SHUX:-./compiler/shux-c}
-PIPELINE_SU="compiler/src/pipeline/pipeline.sx"
+PIPELINE_SX="compiler/src/pipeline/pipeline.sx"
 PIPELINE_O="compiler/build_asm/pipeline.o"
 BASELINE="${SHUX_S3_PIPELINE_BASELINE:-tests/baseline/s3-pipeline-o.tsv}"
 # 已删 TU 的 stale .o 会与 build_asm/pipeline.o 重复符号（strict relink）
@@ -64,13 +64,13 @@ text_section_size() {
 }
 
 # ── 1) pipeline.sx check ──
-out=$("$SHUX" check "$PIPELINE_SU" 2>&1) || {
+out=$("$SHUX" check "$PIPELINE_SX" 2>&1) || {
   echo "$out"
-  echo "s3 pipeline gate: check failed on $PIPELINE_SU"
+  echo "s3 pipeline gate: check failed on $PIPELINE_SX"
   exit 1
 }
 if [ -n "$out" ]; then
-  echo "s3 pipeline gate: expected silent check on $PIPELINE_SU, got: $out"
+  echo "s3 pipeline gate: expected silent check on $PIPELINE_SX, got: $out"
   exit 1
 fi
 
@@ -125,26 +125,26 @@ if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHUX_S3_REQUIRE_PIPELINE
   fi
 fi
 
-# S3 起步：pipeline_should_skip_su_typeck 须 SU 真 emit（非 7-insn ret0 桩；薄 delegate 可 ≥8）
-skip_insns=$(func_insn_count "$PIPELINE_O" "pipeline_should_skip_su_typeck")
-echo "s3 pipeline gate: pipeline_should_skip_su_typeck insns=${skip_insns} (min=8; ret0 桩≈7)"
+# S3 起步：pipeline_should_skip_sx_typeck 须 SX 真 emit（非 7-insn ret0 桩；薄 delegate 可 ≥8）
+skip_insns=$(func_insn_count "$PIPELINE_O" "pipeline_should_skip_sx_typeck")
+echo "s3 pipeline gate: pipeline_should_skip_sx_typeck insns=${skip_insns} (min=8; ret0 桩≈7)"
 if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${skip_insns:-0}" -lt 8 ] 2>/dev/null; then
-  echo "s3 pipeline gate FAIL: pipeline_should_skip_su_typeck still stub (${skip_insns} insns)" >&2
+  echo "s3 pipeline gate FAIL: pipeline_should_skip_sx_typeck still stub (${skip_insns} insns)" >&2
   exit 1
 fi
 
-# S3 起步：resolve_path 探测链须 SU 真 emit（非 ret0 桩）
-probe_insns=$(func_insn_count "$PIPELINE_O" "resolve_path_probe_dot_su_and_mod")
-echo "s3 pipeline gate: resolve_path_probe_dot_su_and_mod insns=${probe_insns} (min=40)"
+# S3 起步：resolve_path 探测链须 SX 真 emit（非 ret0 桩）
+probe_insns=$(func_insn_count "$PIPELINE_O" "resolve_path_probe_dot_sx_and_mod")
+echo "s3 pipeline gate: resolve_path_probe_dot_sx_and_mod insns=${probe_insns} (min=40)"
 if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${probe_insns:-0}" -lt 40 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: resolve_path_probe still stub (${probe_insns} insns)" >&2
   exit 1
 fi
 
-resolve_insns=$(func_insn_count "$PIPELINE_O" "resolve_path_su")
-echo "s3 pipeline gate: resolve_path_su insns=${resolve_insns} (min=40)"
+resolve_insns=$(func_insn_count "$PIPELINE_O" "resolve_path_sx")
+echo "s3 pipeline gate: resolve_path_sx insns=${resolve_insns} (min=40)"
 if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${resolve_insns:-0}" -lt 40 ] 2>/dev/null; then
-  echo "s3 pipeline gate FAIL: resolve_path_su still stub (${resolve_insns} insns)" >&2
+  echo "s3 pipeline gate FAIL: resolve_path_sx still stub (${resolve_insns} insns)" >&2
   exit 1
 fi
 
@@ -176,10 +176,10 @@ if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${has_dot_insns:-0}" -lt 1
   exit 1
 fi
 
-read_insns=$(func_insn_count "$PIPELINE_O" "read_file_su")
-echo "s3 pipeline gate: read_file_su insns=${read_insns} (min=20)"
+read_insns=$(func_insn_count "$PIPELINE_O" "read_file_sx")
+echo "s3 pipeline gate: read_file_sx insns=${read_insns} (min=20)"
 if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${read_insns:-0}" -lt 20 ] 2>/dev/null; then
-  echo "s3 pipeline gate FAIL: read_file_su still stub (${read_insns} insns)" >&2
+  echo "s3 pipeline gate FAIL: read_file_sx still stub (${read_insns} insns)" >&2
   exit 1
 fi
 
@@ -233,7 +233,7 @@ if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_init_buf_insns:-0}
 fi
 
 parse_entry_do_insns=$(func_insn_count "$PIPELINE_O" "run_sx_pipeline_parse_entry_do_parse")
-echo "s3 pipeline gate: run_sx_pipeline_parse_entry_do_parse insns=${parse_entry_do_insns} (min=25; SU emit set_main+diag)"
+echo "s3 pipeline gate: run_sx_pipeline_parse_entry_do_parse insns=${parse_entry_do_insns} (min=25; SX emit set_main+diag)"
 if [ "${SHUX_S3_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${parse_entry_do_insns:-0}" -lt 25 ] 2>/dev/null; then
   echo "s3 pipeline gate FAIL: run_sx_pipeline_parse_entry_do_parse still stub (${parse_entry_do_insns} insns)" >&2
   exit 1
@@ -278,7 +278,7 @@ parse_init_insns=$(func_insn_count "$PIPELINE_O" "parse_into_with_init")
 echo "s3 pipeline gate: parse_into_with_init insns=${parse_init_insns} (info; thin_delegate→parse_into_with_init_c)"
 
 parse_set_main_insns=$(func_insn_count "$PIPELINE_O" "pipeline_parse_set_main_from_buf")
-echo "s3 pipeline gate: pipeline_parse_set_main_from_buf insns=${parse_set_main_insns} (info; entry 经 do_parse SU emit)"
+echo "s3 pipeline gate: pipeline_parse_set_main_from_buf insns=${parse_set_main_insns} (info; entry 经 do_parse SX emit)"
 
 lsp_parse_entry_insns=$(func_insn_count "$PIPELINE_O" "lsp_diag_parse_entry_buf")
 echo "s3 pipeline gate: lsp_diag_parse_entry_buf insns=${lsp_parse_entry_insns} (info; LSP 经 do_parse_c 路径)"
