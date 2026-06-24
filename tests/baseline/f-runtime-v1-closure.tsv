@@ -1,0 +1,8 @@
+# F-runtime v1 std.runtime 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fruntime_doc	doc	analysis/phase-f-runtime-v1.md	F-runtime v1
+fruntime_gate	gate	tests/run-f-runtime-v1-gate.sh	聚合门禁
+runtime_sx	file	std/runtime/runtime.sx	纯 .sx 实现
+runtime_mod	file	std/runtime/mod.sx	对外 API
+runtime_c_absent	absent	std/runtime/runtime.c	已删除
+makefile	makefile	compiler/Makefile	runtime.o from runtime.sx
