@@ -77,7 +77,7 @@ function main(): i32 {
   let mixed_rounds: i32 = 16;
   let payload: i32 = 512;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let lat_buf: [4096]i64 = 0;
+  let lat_buf: i64[4096] = 0;
   let lat: *i64 = lat_buf;
   let n_samples: i32 = 0;
   let sum: i32 = 0;
@@ -87,7 +87,7 @@ function main(): i32 {
     if (stream.fd < 0) { return 1; }
     let round: i32 = 0;
     while (round < mixed_rounds) {
-      let buf: [512]u8 = [];
+      let buf: u8[512] = [];
       let bi: i32 = 0;
       while (bi < payload) {
         buf[bi] = ((ci + round + bi) & 255) as u8;
@@ -155,8 +155,8 @@ function bench_u64_fill(buf: *u8, len: i32, v: i64): void {
 
 /** 向 stderr 打印 BENCH_P99_US=<p99>\\n（ASCII 手写，无 libc fprintf）。 */
 function bench_write_p99_line(p99: i64): void {
-  let hdr: [13]u8 = [66, 69, 78, 67, 72, 95, 80, 57, 57, 95, 85, 83, 61];
-  let dig: [24]u8 = 0;
+  let hdr: u8[13] = [66, 69, 78, 67, 72, 95, 80, 57, 57, 95, 85, 83, 61];
+  let dig: u8[24] = 0;
   let dlen: i32 = bench_u64_len(p99);
   bench_u64_fill(&dig[0], dlen, p99);
   io.write_stderr(&hdr[0], 13, 0);
