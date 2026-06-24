@@ -3,3 +3,4 @@
 # posix_memalign 不计入；仅治理 malloc/calloc/realloc 热路径
 string_arena_concat	tests/bench/string_arena_concat.sx	128	0	0	0	ZC-4 arena 链式拼接
 cl_arena64_smoke	tests/dod/cl_arena64_smoke.sx	0	0	0	0	DOD-CL-S2 Arena64 bump
+with_arena_vec_push	tests/bench/with_arena_vec_push.sx	0	0	0	0	MEM-C1 with_arena Vec bump push
