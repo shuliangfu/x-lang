@@ -2,7 +2,7 @@
 # parser/lexer/typeck/codegen/ast .sx → gen.c → .o 跨平台门禁（仅 shux-c 生成 + cc 编译，勿 relink shux_asm）。
 # Mac/Linux 均可跑；refresh gate 前置快速失败。
 # 用法：./tests/run-migrate-sx-gen-gate.sh
-# 环境：SHUX_FORCE_MIGRATE_SX_GEN=1 强制重编（忽略 mtime）；兼容 SHUX_FORCE_MIGRATE_SU_GEN。
+# 环境：SHUX_FORCE_MIGRATE_SX_GEN=1 强制重编（忽略 mtime）；兼容 SHUX_FORCE_MIGRATE_SX_GEN。
 set -e
 cd "$(dirname "$0")/.."
 
@@ -26,7 +26,7 @@ SX_OBJ=(
   compiler/ast_gen2.c
 )
 
-FORCE="${SHUX_FORCE_MIGRATE_SX_GEN:-${SHUX_FORCE_MIGRATE_SU_GEN:-0}}"
+FORCE="${SHUX_FORCE_MIGRATE_SX_GEN:-${SHUX_FORCE_MIGRATE_SX_GEN:-0}}"
 
 need_rebuild=0
 if [ "$FORCE" = "1" ] || [ "${SHUX_FORCE_REFRESH_ASM_GATE:-0}" = "1" ]; then
