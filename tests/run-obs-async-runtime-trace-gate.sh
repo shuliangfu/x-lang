@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
 MANIFEST="${SHUX_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
-SCHED="${SHUX_OBS_ASYNC_TRACE_SCHED:-std/async/scheduler.c}"
+SCHED="${SHUX_OBS_ASYNC_TRACE_SCHED:-compiler/src/asm/runtime_scheduler_glue.c}"
 SMOKE_SRC="${SHUX_OBS_ASYNC_TRACE_SMOKE:-tests/bench/async_runtime_trace_smoke.c}"
 SCHED_O="std/async/scheduler.o"
 MIN_ITEMS=8
