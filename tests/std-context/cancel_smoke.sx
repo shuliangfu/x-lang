@@ -29,7 +29,7 @@ function main(): i32 {
     context.free(timed);
     return 6;
   }
-  let key: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let key: u8[6] = [116, 114, 97, 99, 101, 0];
   let out: i64 = 0;
   if (context.set_value(timed, &key[0], 99) != 0) {
     context.free(timed);
