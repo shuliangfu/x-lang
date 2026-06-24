@@ -59,7 +59,7 @@
 列：`case_id` · `rank` · `pct` · `symbol`
 
 ```text
-check_typeck	1	18.42	typeck_su_ast
+check_typeck	1	18.42	typeck_sx_ast
 check_typeck	2	9.11	check_expr_impl_mega
 ...
 ```
