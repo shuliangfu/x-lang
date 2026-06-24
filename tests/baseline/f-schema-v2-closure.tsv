@@ -1,0 +1,9 @@
+# F-schema v2 std.schema 逻辑全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+fsch2_doc	doc	analysis/phase-f-schema-v2.md	F-schema v2
+fsch2_gate	gate	tests/run-f-schema-v2-gate.sh	逻辑下沉门禁
+sch_sx	file	std/schema/schema.sx	JSON/CSV decode/烟测
+sch_glue_absent	absent	std/schema/schema_glue.c	已删除
+sch_mod	file	std/schema/mod.sx	对外 API
+sch_c_absent	absent	std/schema/schema.c	已删除
+makefile	makefile	compiler/Makefile	纯 schema.sx → schema.o
