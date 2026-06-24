@@ -28,7 +28,7 @@
 
 ---
 
-## 3. 平台实现（`std/dynlib/dynlib.c`）
+## 3. 平台实现（`std/dynlib/dynlib_glue.c`）
 
 | 平台 | open | sym | close | 链接 |
 |------|------|-----|-------|------|
