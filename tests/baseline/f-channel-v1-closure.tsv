@@ -1,0 +1,10 @@
+# F-channel v1 std.channel 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fch_doc	doc	analysis/phase-f-channel-v1.md	F-channel v1
+fch_gate	gate	tests/run-f-channel-v1-gate.sh	聚合门禁
+ch_sx	file	std/channel/channel.sx	模块锚点 .sx
+ch_runtime	file	compiler/src/asm/runtime_channel_glue.c	channel 胶层 runtime
+ch_mod	file	std/channel/mod.sx	对外 API
+ch_glue_absent	absent	std/channel/channel_glue.c	已迁入 runtime
+ch_c_absent	absent	std/channel/channel.c	已删除
+makefile	makefile	compiler/Makefile	channel.o 纯 .sx + runtime_channel_glue.o
