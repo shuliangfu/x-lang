@@ -10,12 +10,12 @@ function bytes_eq(out: *u8, len: i32, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, 
 }
 
 function main(): i32 {
-  let base: [15]u8 = [
+  let base: u8[15] = [
     47, 102, 111, 111, 47, 98, 97, 114, 47, 98, 97, 122, 46, 116, 120
   ];
-  let rel: [6]u8 = [46, 46, 47, 113, 117, 120];
-  let abs_ref: [9]u8 = [47, 97, 98, 115, 47, 112, 97, 116, 104];
-  let out: [32]u8 = [];
+  let rel: u8[6] = [46, 46, 47, 113, 117, 120];
+  let abs_ref: u8[9] = [47, 97, 98, 115, 47, 112, 97, 116, 104];
+  let out: u8[32] = [];
   let n: i32 = 0;
 
   n = path.path_resolve(&out[0], 32, &base[0], 15, &rel[0], 6);
