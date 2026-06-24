@@ -34,7 +34,7 @@ std_sqlite_restore_default_o() {
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_sqlite_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local sqlite_c="$2"
   local tsv="$3"
   local miss=0
@@ -44,20 +44,20 @@ std_sqlite_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-sqlite FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-sqlite FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/db/sqlite/sqlite.c" ]; then path="$sqlite_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.sx" ]; then path="$sqlite_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -80,6 +80,12 @@ std_sqlite_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# sqlite.o 是否已合并 .sx 符号（无 shux-c 时仅含 glue）。
+std_sqlite_o_has_sx_symbols() {
+  local sqlite_o="$1"
+  [ -f "$sqlite_o" ] && nm "$sqlite_o" 2>/dev/null | grep -q ' db_sqlite_exec_smoke_c'
+}
+
 # C 烟测：exec_roundtrip_ok.c + sqlite.o + -lsqlite3。
 std_sqlite_run_c_smoke() {
   local sqlite_c="$1"
@@ -90,6 +96,10 @@ std_sqlite_run_c_smoke() {
   if [ ! -f "$sqlite_o" ]; then
     echo "std-sqlite FAIL: missing $sqlite_o" >&2
     return 1
+  fi
+  if ! std_sqlite_o_has_sx_symbols "$sqlite_o"; then
+    echo "std-sqlite SKIP c smoke (sqlite.o missing .sx symbols; need shux-c)" >&2
+    return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" -lsqlite3 2>/dev/null; then
     echo "std-sqlite FAIL: compile $src" >&2
@@ -137,5 +147,5 @@ std_sqlite_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SQLITE_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_SQLITE_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
 }
