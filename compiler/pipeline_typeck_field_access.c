@@ -6,7 +6,7 @@
  * 依赖 typeck_sx_no_layout_partial 导出的 typeck_* helper 与 pipeline_* 池访问器。
  */
 
-/* typeck_sx_no_layout_partial 符号（SU 经 C gen 带 typeck_ 前缀）；find_or_alloc_ptr 见 typeck_sx_link_alias.c。 */
+/* typeck_sx_no_layout_partial 符号（SX 经 C gen 带 typeck_ 前缀）；find_or_alloc_ptr 见 typeck_sx_link_alias.c。 */
 extern int32_t typeck_name_equal(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len);
 extern int32_t typeck_find_or_alloc_named_type_ref(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
 extern int32_t typeck_ensure_i32_type_ref(struct ast_ASTArena *arena);
@@ -375,7 +375,7 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
 }
 
 /**
- * EXPR_FIELD_ACCESS：[]T 的 .length（usize）与 .data（*elem，当前仅 []u8）。
+ * EXPR_FIELD_ACCESS：T[] 的 .length（usize）与 .data（*elem，当前仅 u8[]）。
  */
 void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
   int32_t base_ty;
