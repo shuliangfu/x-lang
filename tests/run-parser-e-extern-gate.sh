@@ -64,9 +64,11 @@ if ! grep -qE '#define lexer_init lexer_lexer_init' "$GEN"; then
   exit 0
 fi
 
-# shux-sx 旧 seed 无 C-04 块时仍走 perl 回退；有 codegen marker 则跳过 fix_parser_pool。
 if ! grep -q 'C-04 parser: ast_expr_init_match_enum after struct ast_Expr' "$GEN" 2>/dev/null; then
-  perl scripts/fix_parser_pool_access_gen_c.pl "$GEN"
+  echo "parser-e-extern-gate FAIL: missing C-04 parser pool marker (no perl fallback)" >&2
+  rm -rf "$GENDIR" 2>/dev/null || true
+  [ "$FAIL" = "1" ] && exit 1
+  exit 0
 fi
 
 if ! cc -I.. -I. -Iinclude -Isrc $PIPE_CFLAGS \
