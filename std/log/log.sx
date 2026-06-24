@@ -1,0 +1,127 @@
+// std/log/log.sx — 日志格式化层（F-log v1；替代 log.c 中非 OS 部分）
+//
+// 【文件职责】
+// log_write_c / log_write_structured_kv_c：级别前缀与 OBS-003 行组装；
+// 实际 sink 写入在 runtime_log_os.c（compiler runtime；log_emit_bytes_c）。
+
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function strlen(s: *u8): usize;
+
+extern function log_apply_env_once_c(): void;
+extern function log_get_min_level_c(): i32;
+extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
+
+/** 异步槽最大行宽（与 runtime_log_os.c LOG_ASYNC_SLOT_SIZE 一致）。 */
+const LOG_ASYNC_SLOT_SIZE: i32 = 512;
+
+/** 级别前缀字节长度。 */
+function log_prefix_len(level: i32): i32 {
+  if (level == 0) { return 8; }
+  if (level == 1) { return 7; }
+  if (level == 2) { return 7; }
+  if (level == 3) { return 8; }
+  return 7;
+}
+
+/** 将级别前缀写入 out；返回写入长度。 */
+function log_prefix_copy(level: i32, out: *u8): i32 {
+  let d0: u8[8] = [91, 68, 69, 66, 85, 71, 93, 32];
+  let i0: u8[7] = [91, 73, 78, 70, 79, 93, 32];
+  let w0: u8[7] = [91, 87, 65, 82, 78, 93, 32];
+  let e0: u8[8] = [91, 69, 82, 82, 79, 82, 93, 32];
+  let n: i32 = log_prefix_len(level);
+  if (level == 0) {
+    memcpy(out, &d0[0], 8);
+    return 8;
+  }
+  if (level == 1) {
+    memcpy(out, &i0[0], 7);
+    return 7;
+  }
+  if (level == 2) {
+    memcpy(out, &w0[0], 7);
+    return 7;
+  }
+  if (level == 3) {
+    memcpy(out, &e0[0], 8);
+    return 8;
+  }
+  memcpy(out, &i0[0], 7);
+  return n;
+}
+
+/** 返回级别名 C 串指针（debug/info/warn/error）。 */
+function log_level_name_ptr(level: i32): *u8 {
+  let dbg: u8[6] = [100, 101, 98, 117, 103, 0];
+  let inf: u8[5] = [105, 110, 102, 111, 0];
+  let wrn: u8[5] = [119, 97, 114, 110, 0];
+  let err: u8[6] = [101, 114, 114, 111, 114, 0];
+  if (level == 0) { return &dbg[0]; }
+  if (level == 1) { return &inf[0]; }
+  if (level == 2) { return &wrn[0]; }
+  if (level == 3) { return &err[0]; }
+  return &inf[0];
+}
+
+/** 追加 C 串到 out；返回新 offset，失败 -1。 */
+function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
+  let n: i32 = 0;
+  if (s == 0) { return off; }
+  n = strlen(s) as i32;
+  if (off + n >= cap) { return -1; }
+  memcpy(out + off, s, n);
+  return off + n;
+}
+
+/** 追加固定字面节串。 */
+function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: i32): i32 {
+  if (off + lit_len >= cap) { return -1; }
+  memcpy(out + off, lit, lit_len);
+  return off + lit_len;
+}
+
+/** 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。 */
+function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
+  let line: u8[512];
+  let pl: i32 = 0;
+  let total: i32 = 0;
+  log_apply_env_once_c();
+  if (level < 0 || level > 3 || ptr == 0) { return -1; }
+  if (level < log_get_min_level_c()) { return 0; }
+  pl = log_prefix_copy(level, &line[0]);
+  total = pl + len + 1;
+  if (total >= LOG_ASYNC_SLOT_SIZE) { return -1; }
+  if (len > 0) {
+    memcpy(&line[pl], ptr, len);
+  }
+  line[pl + len] = 10;
+  return log_emit_bytes_c(&line[0], total);
+}
+
+/** OBS-003 结构化行：shux: level=… component=… kv…。 */
+function log_write_structured_kv_c(component: *u8, level: i32, kv_body: *u8): i32 {
+  let line: u8[1024];
+  let n: i32 = 0;
+  let pfx: u8[13] = [115, 104, 117, 120, 58, 32, 108, 101, 118, 101, 108, 61, 0];
+  let sp: u8[1] = [32];
+  let mid: u8[12] = [32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 61, 0];
+  log_apply_env_once_c();
+  if (component == 0 || kv_body == 0 || level < 0 || level > 3) { return -1; }
+  if (level < log_get_min_level_c()) { return 0; }
+  n = log_append_lit(&line[0], 0, 1024, &pfx[0], 12);
+  if (n < 0) { return -1; }
+  n = log_append_cstr(&line[0], n, 1024, log_level_name_ptr(level));
+  if (n < 0) { return -1; }
+  n = log_append_lit(&line[0], n, 1024, &mid[0], 11);
+  if (n < 0) { return -1; }
+  n = log_append_cstr(&line[0], n, 1024, component);
+  if (n < 0) { return -1; }
+  n = log_append_lit(&line[0], n, 1024, &sp[0], 1);
+  if (n < 0) { return -1; }
+  n = log_append_cstr(&line[0], n, 1024, kv_body);
+  if (n < 0) { return -1; }
+  if (n + 1 >= 1024) { return -1; }
+  line[n] = 10;
+  n = n + 1;
+  return log_emit_bytes_c(&line[0], n);
+}
