@@ -2,7 +2,7 @@
  * parser_asm_finish_struct_lit_slice.c — finish_struct_lit_from_type_ident_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include（须在 body_let_slice 之后）；勿单独编译。
- * TypeName { a: e1 , b: e2 } 后缀字段填充；回调 parse_expr_into SU mega。
+ * TypeName { a: e1 , b: e2 } 后缀字段填充；回调 parse_expr_into SX mega。
  */
 #ifndef PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
 #define PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
@@ -24,8 +24,8 @@ extern int32_t parser_asm_stretch_struct_lit_fields_probe_c(struct parser_asm_le
 extern int32_t parser_asm_stretch_struct_lit_fields_body_audit_c(struct parser_asm_lexer lex,
                                                                  struct parser_asm_slice_u8 *source);
 
-/** EXPR_STRUCT_LIT 序值（与 ast.sx ExprKind 一致）。 */
-#define PARSER_ASM_FINISH_STRUCT_LIT_KIND 77
+/** EXPR_STRUCT_LIT 序值（与 ast.sx / ast.h AST_EXPR_STRUCT_LIT 一致，须为 45 勿用源文件行号）。 */
+#define PARSER_ASM_FINISH_STRUCT_LIT_KIND 45
 
 /** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
 static void parser_asm_finish_struct_lit_common_zeros_c(struct ast_Expr *e) {
