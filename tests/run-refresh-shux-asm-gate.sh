@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# parser/typeck/codegen/ast .sx 变更后：migrate-sx gen 门禁 + relink shux_asm + 烟测 import/hex + M-3 region typeck（SU 路径）。
+# parser/typeck/codegen/ast .sx 变更后：migrate-sx gen 门禁 + relink shux_asm + 烟测 import/hex + M-3 region typeck（SX 路径）。
 # 用法：./tests/run-refresh-shux-asm-gate.sh
 # 环境：SHUX_FORCE_REFRESH_ASM_GATE=1 强制重编 parser/lexer/typeck/codegen .o（忽略 mtime）。
 set -e
@@ -31,7 +31,7 @@ echo "$out_import" | grep -q 'shux_async_queue_reset' || {
   exit 1
 }
 
-echo "refresh shux asm gate: 0x const typeck (SU path via relinked shux) ..."
+echo "refresh shux asm gate: 0x const typeck (SX path via relinked shux) ..."
 ./compiler/shux check -L . tests/parser/const_hex.sx 2>&1 || {
   echo "refresh shux asm gate FAIL: shux check const_hex.sx" >&2
   exit 1
@@ -47,14 +47,14 @@ echo "$out_hex" | grep -q '1095980800' || {
   exit 1
 }
 
-echo "refresh shux asm gate: M-3 region typeck (SU path via relinked shux) ..."
+echo "refresh shux asm gate: M-3 region typeck (SX path via relinked shux) ..."
 SHUX=./compiler/shux ./tests/run-typeck-region.sh | tee /tmp/refresh_asm_region.log
 grep -q 'region typeck OK' /tmp/refresh_asm_region.log
 
-echo "refresh shux asm gate: M-4 linear typeck (SU path via relinked shux) ..."
+echo "refresh shux asm gate: M-4 linear typeck (SX path via relinked shux) ..."
 SHUX=./compiler/shux ./tests/run-typeck-linear.sh | tee /tmp/refresh_asm_linear.log
 grep -q 'linear typeck OK' /tmp/refresh_asm_linear.log || {
-  echo "refresh shux asm gate FAIL: SU path linear typeck" >&2
+  echo "refresh shux asm gate FAIL: SX path linear typeck" >&2
   exit 1
 }
 
