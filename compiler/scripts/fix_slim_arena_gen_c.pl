@@ -119,11 +119,11 @@ if ($path =~ /parser_gen(?:2)?\.c$/) {
   $src =~ s/\n\/\* parser extern ast helpers \*\/\n(?:extern )?void ast_expr_init_match_enum\([^\n]*\n//s;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
   $src =~ s/^extern void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
-  # -E-extern 误导出 lexer_lexer_*，生成体调用 lexer_*；补与 lexer_su.o 一致的声明。
+  # -E-extern 误导出 lexer_lexer_*，生成体调用 lexer_*；补与 lexer_sx.o 一致的声明。
   $src =~ s/^#define lexer_next_into lexer_lexer_next_into\n//mg;
   $src =~ s/^#define lexer_init lexer_lexer_init\n//mg;
   $src =~ s/^#define lexer_next_buf lexer_lexer_next_buf\n//mg;
-  $src =~ s/\n\/\* parser lexer single-prefix externs \(lexer_su\.o\) \*\/\nextern struct lexer_Lexer lexer_init\(void\);\nextern void lexer_next_into\([^\n]*\nextern struct lexer_LexerResult lexer_next_buf\([^\n]*\n\n//s;
+  $src =~ s/\n\/\* parser lexer single-prefix externs \(lexer_sx\.o\) \*\/\nextern struct lexer_Lexer lexer_init\(void\);\nextern void lexer_next_into\([^\n]*\nextern struct lexer_LexerResult lexer_next_buf\([^\n]*\n\n//s;
 }
 
 # ast_gen2.c：与 pipeline_glue.c 同链时辅助符号须 weak，避免 duplicate symbol（verify-selfhost-stage2）。
@@ -134,7 +134,7 @@ if ($path =~ /ast_gen2\.c$/) {
   }
 }
 
-# parser_gen2.c：-E-extern 导出 lexer_lexer_*，生成体调 lexer_*；链 lexer_su2.o（单前缀）时统一改声明名。
+# parser_gen2.c：-E-extern 导出 lexer_lexer_*，生成体调 lexer_*；链 lexer_sx2.o（单前缀）时统一改声明名。
 if ($path =~ /parser_gen2\.c$/) {
   $src =~ s/^#define lexer_next_into lexer_lexer_next_into\n//mg;
   $src =~ s/^#define lexer_init lexer_lexer_init\n//mg;
@@ -262,7 +262,7 @@ sub append_ast_gen2_link_aliases {
   return $src;
 }
 
-# parser 调用 lexer_init / lexer_next_into；lexer_gen.c 导出单前缀符号（lexer_su.o）。
+# parser 调用 lexer_init / lexer_next_into；lexer_gen.c 导出单前缀符号（lexer_sx.o）。
 sub inject_lexer_gen_single_prefix_externs {
   my ($src, $dir) = @_;
   # Stage2 仅生成 lexer_gen2.c；bootstrap 用 lexer_gen.c。
