@@ -1,10 +1,10 @@
 // M-3 负例：实参域与形参域不一致
-extern function slice_src(): []i32;
-extern function take_rb(x: []i32<rb>): i32;
+extern function slice_src(): i32[];
+extern function take_rb(x: i32[]<rb>): i32;
 
 function main(): i32 {
   region ra {
-    let s: []i32 = slice_src();
+    let s: i32[] = slice_src();
     take_rb(s);
   }
   return 0;
