@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PARSER_SU = ROOT / "compiler/src/parser/parser.sx"
+PARSER_SX = ROOT / "compiler/src/parser/parser.sx"
 THIN_C = ROOT / "compiler/src/asm/parser_asm_thin_c.c"
 
 GLUE_RE = re.compile(r"\b((?:parser_\w+|compound_assign_token_to_expr_kind_from)_glue)\s*\(")
 
 
-def glue_to_su(glue: str) -> str:
+def glue_to_sx(glue: str) -> str:
     """C glue 名映射到 parser.sx 函数名。"""
     if glue == "compound_assign_token_to_expr_kind_from_glue":
         return "compound_assign_token_to_expr_kind_from"
@@ -103,13 +103,13 @@ def find_func_region(name: str, text: str) -> tuple[int, int, str] | None:
     return doc_start, doc_start + len(block), block
 
 
-def is_thin_wrapper(block: str, su_name: str, glue: str) -> bool:
+def is_thin_wrapper(block: str, sx_name: str, glue: str) -> bool:
     """判断是否已是 extern+单行 glue 薄包装。"""
-    if f"function {su_name}" not in block:
+    if f"function {sx_name}" not in block:
         return False
     if f"{glue}(" not in block:
         return False
-    m = re.search(rf"function\s+{re.escape(su_name)}\s*\(.*?\)\s*:\s*[^{{]+\{{\s*(.*?)\s*\}}", block, re.S)
+    m = re.search(rf"function\s+{re.escape(sx_name)}\s*\(.*?\)\s*:\s*[^{{]+\{{\s*(.*?)\s*\}}", block, re.S)
     if not m:
         return False
     body = m.group(1).strip()
@@ -151,13 +151,13 @@ def extract_user_doc(block: str) -> str:
     return dm.group(1) if dm else ""
 
 
-def make_wrapper(glue: str, block: str, su_name: str) -> str | None:
+def make_wrapper(glue: str, block: str, sx_name: str) -> str | None:
     """生成 extern 声明 + function 薄包装。"""
     sig = parse_signature(block)
     if not sig:
         return None
     fname, names, ret = sig
-    if fname != su_name:
+    if fname != sx_name:
         return None
     call_args = ", ".join(names)
     sig_m = re.search(r"^function\s+\w+\s*\(.*?\)\s*:\s*[^{]+\s*\{", block, re.S | re.M)
@@ -171,7 +171,7 @@ def make_wrapper(glue: str, block: str, su_name: str) -> str | None:
     else:
         body_line = f"  return {glue}({call_args});"
     user_doc = extract_user_doc(block)
-    glue_doc = f"/** 单行 extern bl→{glue}（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */\n"
+    glue_doc = f"/** 单行 extern bl→{glue}（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */\n"
     if user_doc and "extern bl→" in user_doc:
         header = user_doc.rstrip() + "\n"
     elif user_doc:
@@ -182,7 +182,7 @@ def make_wrapper(glue: str, block: str, su_name: str) -> str | None:
 
 
 def main() -> int:
-    src = PARSER_SU.read_text()
+    src = PARSER_SX.read_text()
     thin_c = THIN_C.read_text()
     glue_names = sorted(set(GLUE_RE.findall(thin_c)))
 
@@ -191,21 +191,21 @@ def main() -> int:
     missing: list[str] = []
 
     for glue in glue_names:
-        su = glue_to_su(glue)
-        region = find_func_region(su, src)
+        sx = glue_to_sx(glue)
+        region = find_func_region(sx, src)
         if region is None:
-            missing.append(su)
+            missing.append(sx)
             continue
         doc_start, end, block = region
-        if is_thin_wrapper(block, su, glue):
-            skipped.append(su)
+        if is_thin_wrapper(block, sx, glue):
+            skipped.append(sx)
             continue
-        new_block = make_wrapper(glue, block, su)
+        new_block = make_wrapper(glue, block, sx)
         if not new_block:
-            skipped.append(f"{su} (parse fail)")
+            skipped.append(f"{sx} (parse fail)")
             continue
         src = src[:doc_start] + new_block + src[end:]
-        converted.append(su)
+        converted.append(sx)
 
     if "--dry-run" in sys.argv:
         print(f"Would convert {len(converted)}, skip {len(skipped)}, missing {len(missing)}")
@@ -213,7 +213,7 @@ def main() -> int:
             print(f"  + {c}")
         return 0
 
-    PARSER_SU.write_text(src)
+    PARSER_SX.write_text(src)
     print(f"Converted: {len(converted)}")
     for c in converted:
         print(f"  + {c}")
