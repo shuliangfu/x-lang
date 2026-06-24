@@ -1,7 +1,7 @@
 # Parser mega 7 路径能力差距拆解（BOOT-009）
 
 > 更新时间：2026-06-17  
-> 目的：为 `mega 7` 从 C glue / ret0 桩迁移到 SU 真 emit 提供分阶段路线图。
+> 目的：为 `mega 7` 从 C glue / ret0 桩迁移到 SX 真 emit 提供分阶段路线图。
 
 ---
 
@@ -25,7 +25,7 @@
 
 | 类别 | 表现 | 影响函数 |
 |---|---|---|
-| 深循环 + 大栈帧 | SU emit code_len 爆炸或 Segfault | parse_into* / parse / parse_one_function_impl |
+| 深循环 + 大栈帧 | SX emit code_len 爆炸或 Segfault | parse_into* / parse / parse_one_function_impl |
 | 按值返回复杂结构 | emit 失败，需 C 包装 | lex_from_* / library parse 邻域 |
 | buf 路径递归 | lexer_next_buf 深递归 | *_buf 系列 |
 | force_stub 邻域 | elf_ec=-1 或崩溃 | try_skip_allow_padding_struct* |
@@ -41,7 +41,7 @@
 |---|---|---|
 | A1 | 符号完整性门禁替代体积 ratchet | `run-parser-thin-glue-symbol-integrity-gate.sh` ✅ |
 | A2 | 大函数体分段 emit（basic block 切片） | 单函数 emit 不再 Segfault |
-| A3 | 复杂返回值 lowering（LibraryParseResult 等） | 3 个按值返回包装可 SU emit |
+| A3 | 复杂返回值 lowering（LibraryParseResult 等） | 3 个按值返回包装可 SX emit |
 | A4 | buf 路径尾调用优化 | 深递归深度可配置上限 |
 
 ### 阶段 B：mega 子路径拆分（whitelist 渐进）
@@ -55,13 +55,13 @@
 | B5 | `parse_into` / `parse_into_buf` | 最后迁，依赖 import/toplevel 链 |
 | B6 | `parse` | 顶层入口，最后统一 |
 
-### 阶段 C：SU bootstrap 全量
+### 阶段 C：SX bootstrap 全量
 
 | 步骤 | 内容 | 验收 |
 |---|---|---|
 | C1 | MINIMAL 白名单保持绿色 | init + set_main_index |
 | C2 | 139 函数全量 emit | `SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` 无 ret0 |
-| C3 | gen1 SU 编 gen2 parser 大体 | Stage2 三代一致性 |
+| C3 | gen1 SX 编 gen2 parser 大体 | Stage2 三代一致性 |
 
 ---
 
@@ -69,7 +69,7 @@
 
 | 函数 | 策略 | 备注 |
 |---|---|---|
-| `wrap_block_ref_as_expr` | 保持 C glue | SU safe 失败 |
+| `wrap_block_ref_as_expr` | 保持 C glue | SX safe 失败 |
 | `parser_alloc_true_bool_lit` | 保持 C glue | |
 | `parser_alloc_float_lit` | 保持 C glue | |
 | `parser_expr_wrap_in_return` | 保持 C glue | |
