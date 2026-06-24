@@ -2,7 +2,7 @@
 //
 // 【文件职责】category、to_lower/to_upper、is_whitespace、is_ascii；
 // nfc_buf（v1 拉丁预组合）；grapheme_next、case_fold_*。
-// 【依赖】core、std.encoding；与 std/unicode/unicode.c 同属一模块。
+// 【依赖】core、std.encoding；算法在 std/unicode/unicode.sx（F-unicode v2 纯 .sx）。
 extern function unicode_category_c(rune: u32): i32;
 extern function unicode_is_whitespace_c(rune: u32): i32;
 extern function unicode_is_ascii_c(rune: u32): i32;
