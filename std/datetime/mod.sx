@@ -1,8 +1,9 @@
-// std.datetime — 日期时间解析、格式化、时区与 Duration（STD-074）
+// std.datetime — 日期时间解析、格式化、时区与 Duration（STD-074 / F-datetime v2）
 //
 // 【文件职责】
 // DateTime（UTC Unix sec+nsec）、RFC3339/RFC3339Nano、日历字段、
-// 本地时区偏移、Duration 算术；与 std.time sleep/单调差互操作。
+// 本地时区偏移、Duration 算术、IANA DST；逻辑与 datetime_local_offset_min_c 均在 datetime.sx（F-ZC）。
+// 与 std.time sleep/单调差互操作。
 //
 // 【对标】Go time.Time、Rust chrono、Zig std.time 高层。
 
