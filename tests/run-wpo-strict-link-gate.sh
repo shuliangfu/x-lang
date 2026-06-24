@@ -59,7 +59,7 @@ fi
 MISSING=""
 for sym in \
   run_sx_pipeline_impl \
-  typeck_su_ast \
+  typeck_sx_ast \
   check_block \
   asm_codegen_ast \
   backend_asm_codegen_ast_seed_mega; do
@@ -76,21 +76,21 @@ fi
 # 小测试文件可编（strict_glue 全路径 asm 编译已知不稳定；默认仅验链+符号，设 SHUX_WPO_STRICT_LINK_SMOKE_COMPILE=1 启用）。
 if [ "${SHUX_WPO_STRICT_LINK_SMOKE_COMPILE:-0}" = "1" ]; then
   LIBROOT="-L compiler/asm_libroot -L compiler/src -L std -L core"
-  TEST_SU="tests/asm/binop_var_fast.sx"
+  TEST_SX="tests/asm/binop_var_fast.sx"
   TMP_O="/tmp/shux_wpo_strict_link_smoke.$$.o"
   rm -f "$TMP_O" 2>/dev/null || true
-  if ! "$COMPILER" -backend asm -o "$TMP_O" $LIBROOT "$TEST_SU" 2>/dev/null; then
-    echo "run-wpo-strict-link-gate FAIL: $COMPILER cannot compile $TEST_SU" >&2
+  if ! "$COMPILER" -backend asm -o "$TMP_O" $LIBROOT "$TEST_SX" 2>/dev/null; then
+    echo "run-wpo-strict-link-gate FAIL: $COMPILER cannot compile $TEST_SX" >&2
     [ "$FAIL" = "1" ] && exit 1
     exit 0
   fi
   if [ ! -s "$TMP_O" ]; then
-    echo "run-wpo-strict-link-gate FAIL: empty output from $TEST_SU" >&2
+    echo "run-wpo-strict-link-gate FAIL: empty output from $TEST_SX" >&2
     [ "$FAIL" = "1" ] && exit 1
     exit 0
   fi
   rm -f "$TMP_O" 2>/dev/null || true
-  echo "run-wpo-strict-link-gate: smoke compile OK ($TEST_SU)"
+  echo "run-wpo-strict-link-gate: smoke compile OK ($TEST_SX)"
 fi
 
 echo "run-wpo-strict-link-gate OK ($COMPILER links pipeline_wpo helpers + C orchestration)"
