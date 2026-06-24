@@ -27,7 +27,7 @@ native_shu() {
 }
 
 echo "=== TOOL-005: debug symbols manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/runtime.c std/backtrace/backtrace.c compiler/src/lsp/lsp_diag.c; do
+for f in "$DOC" "$MANIFEST" compiler/src/runtime.c compiler/src/asm/runtime_backtrace_platform.c compiler/src/lsp/lsp_diag.c; do
   if [ ! -f "$f" ]; then
     echo "tool-debug-symbols gate FAIL: missing $f" >&2
     exit 1
