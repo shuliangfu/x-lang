@@ -5,7 +5,7 @@ trace_enabled	symbol	heap_trace_enabled	std/heap/mod.sx
 trace_stats	symbol	heap_trace_stats	std/heap/mod.sx
 trace_reset	symbol	heap_trace_reset	std/heap/mod.sx
 stats_struct	symbol	HeapTraceStats	std/heap/mod.sx
-c_impl	symbol	heap_trace_enabled_c	std/heap/heap.c	SHUX_HEAP_TRACE
+c_impl	symbol	heap_trace_enabled_c	std/heap/heap_libc.sx	SHUX_HEAP_TRACE
 env_var	anchor	SHUX_HEAP_TRACE	analysis/std-heap-trace-v1.md	RFC
 test_smoke	file	tests/heap/trace_stats.sx		烟测
 doc	file	std-heap-trace-v1.md	analysis/std-heap-trace-v1.md	RFC
