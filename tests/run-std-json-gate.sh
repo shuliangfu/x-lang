@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
 MANIFEST="${SHUX_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
-MOD_SU="${SHUX_STD_JSON_MOD:-std/json/mod.sx}"
-JSON_C="${SHUX_STD_JSON_C:-std/json/json.c}"
+MOD_SX="${SHUX_STD_JSON_MOD:-std/json/mod.sx}"
+JSON_SX="${SHUX_STD_JSON_SX:-std/json/json.sx}"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-json.sh
@@ -31,7 +31,7 @@ native_shu() {
 }
 
 echo "=== STD-008: std.json zero-copy manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" "$JSON_C"; do
+for f in "$DOC" "$MANIFEST" "$MOD_SX" "$JSON_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-json gate FAIL: missing $f" >&2
     exit 1
@@ -60,8 +60,8 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_json_has_api "$MOD_SU" "$anchor"; then
-        echo "std-json FAIL: missing API ${anchor} in $MOD_SU" >&2
+      if ! std_json_has_api "$MOD_SX" "$anchor"; then
+        echo "std-json FAIL: missing API ${anchor} in $MOD_SX" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
         echo "std-json FAIL: doc missing API $anchor" >&2
@@ -73,9 +73,9 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         echo "std-json FAIL: missing file $anchor" >&2
         MISS=$((MISS + 1))
       fi
-      if [ "$anchor" = "std/json/json.c" ]; then
-        if ! std_json_has_c_impl "$JSON_C" "json_parse_string_view_c"; then
-          echo "std-json FAIL: missing json_parse_string_view_c in $JSON_C" >&2
+      if [ "$anchor" = "std/json/json.sx" ] || [ "$anchor" = "std/json/json.c" ]; then
+        if ! std_json_has_c_impl "$JSON_SX" "json_parse_string_view_c"; then
+          echo "std-json FAIL: missing json_parse_string_view_c in $JSON_SX" >&2
           MISS=$((MISS + 1))
         fi
       fi
