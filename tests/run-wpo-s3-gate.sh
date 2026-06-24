@@ -37,11 +37,11 @@ if [ -z "$CHECK_SHUX" ]; then
   fi
 fi
 
-SU="tests/wpo/stack_promote_smoke.sx"
+SX="tests/wpo/stack_promote_smoke.sx"
 OUT="/tmp/shux_wpo_stack_promote_smoke"
 
 echo "=== WPO-S3: stack_promote_smoke check ($CHECK_SHUX) ==="
-"$CHECK_SHUX" check "$SU" >/dev/null
+"$CHECK_SHUX" check "$SX" >/dev/null
 
 echo "=== WPO-S3: stack_promote_cross typeck (import struct helpers) ==="
 "$CHECK_SHUX" check tests/wpo/stack_promote_cross.sx >/dev/null
@@ -71,7 +71,7 @@ echo "wpo-s3 cross/cross_ret/escape/await/await_yield typeck OK"
 if wpo_host_asm_run_na; then
   echo "wpo-s3 asm smoke N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm stub; x86_64 covers)"
 elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
-  "$SHUX_ASM_BIN" "$SU" -o "$OUT" 2>/dev/null
+  "$SHUX_ASM_BIN" "$SX" -o "$OUT" 2>/dev/null
   EX=0
   "$OUT" >/dev/null 2>&1 || EX=$?
   if [ "$EX" -ne 7 ]; then
