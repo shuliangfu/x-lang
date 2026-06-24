@@ -55,14 +55,14 @@ comp_riscv64_qemu_run_case() {
   local sample="$2"
   local expect_exit="$3"
   local qemu="$4"
-  local su o bin got ec
+  local sx o bin got ec
   # shellcheck source=tests/lib/comp-riscv64.sh
   . tests/lib/comp-riscv64.sh
-  su="$(comp_riscv64_sample_path "$sample")" || return 1
+  sx="$(comp_riscv64_sample_path "$sample")" || return 1
   o="$(mktemp /tmp/shux_riscv_qemu.XXXXXX.o)"
   bin="$(mktemp /tmp/shux_riscv_qemu.XXXXXX)"
   rm -f "$o" "$bin" 2>/dev/null || true
-  if ! "$shux" -backend asm -target "$RISCV_TARGET" -o "$o" "$su" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$RISCV_TARGET" -o "$o" "$sx" 2>/dev/null; then
     rm -f "$o" "$bin"
     return 1
   fi
