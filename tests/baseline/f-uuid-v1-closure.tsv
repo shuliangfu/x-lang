@@ -1,0 +1,8 @@
+# F-uuid v1 std.uuid 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fuuid_doc	doc	analysis/phase-f-uuid-v1.md	F-uuid v1
+fuuid_gate	gate	tests/run-f-uuid-v1-gate.sh	聚合门禁
+uuid_sx	file	std/uuid/uuid.sx	纯 .sx 实现
+uuid_mod	file	std/uuid/mod.sx	对外 API
+uuid_c_absent	absent	std/uuid/uuid.c	已删除
+makefile	makefile	compiler/Makefile	uuid.o from uuid.sx
