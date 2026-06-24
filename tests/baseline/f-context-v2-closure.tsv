@@ -1,0 +1,9 @@
+# F-context v2 std.context 节点存储全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+fcontext2_doc	doc	analysis/phase-f-context-v2.md	F-context v2
+fcontext2_gate	gate	tests/run-f-context-v2-gate.sh	节点下沉门禁
+context_sx	file	std/context/context.sx	逻辑+节点 .sx
+context_glue_absent	absent	std/context/context_node_glue.c	已删除
+context_mod	file	std/context/mod.sx	对外 API
+context_c_absent	absent	std/context/context.c	已删除
+makefile	makefile	compiler/Makefile	纯 context.sx → context.o
