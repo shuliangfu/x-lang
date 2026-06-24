@@ -1,7 +1,7 @@
 // std.crypto — 常量时间比较、SHA-256/512、HMAC、AES-GCM、ChaCha20-Poly1305、Ed25519
 //
 // 【文件职责】mem_eq、sha256、sha512、hmac_sha256、ed25519、aes_gcm、chacha20_poly1305。
-// 【依赖】core；与 std/crypto/crypto.c 同属一模块。
+// 【依赖】core；实现见 crypto_core.sx + aes_gcm.sx + chacha20_poly1305.sx + ed25519.sx + 胶层（ld -r → crypto.o）。
 extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
 extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
@@ -59,14 +59,14 @@ function mac_sign_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8):
 
 /** MAC 校验：重算 HMAC 与 tag[0..32] 常量时间比较；相等 1，否则 0。 */
 function mac_verify(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
-  let calc: [32]u8 = [];
+  let calc: u8[32] = [];
   hmac_sha256(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 32);
 }
 
 /** MAC 512-bit 校验：重算 HMAC-SHA512 与 tag[0..64] 比较（STD-050）。 */
 function mac_verify_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
-  let calc: [64]u8 = [];
+  let calc: u8[64] = [];
   hmac_sha512(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 64);
 }
