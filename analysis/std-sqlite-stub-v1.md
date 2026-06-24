@@ -48,7 +48,7 @@
 ```
 
 ```
-shux: [SHUX_STD139_DB_STUB] status=ok stub_c=1 stub_su=1 doc=1
+shux: [SHUX_STD139_DB_STUB] status=ok stub_c=1 stub_sx=1 doc=1
 ```
 
 ---
