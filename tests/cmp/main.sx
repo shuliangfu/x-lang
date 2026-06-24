@@ -12,7 +12,7 @@ function main(): i32 {
   let ou: Ordering = cmp.cmp_u8(255 as u8, 0 as u8);
   if (!cmp.is_gt(ou)) { return 4; }
 
-  let a: [3]u8 = [10, 20, 30];
+  let a: u8[3] = [10, 20, 30];
   let p0: *u8 = &a[0];
   let p1: *u8 = &a[1];
   if (!cmp.is_lt(cmp.cmp_ptr(p0, p1))) { return 5; }
