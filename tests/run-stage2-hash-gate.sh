@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A-09 / A-14：Stage2 二进制 SHA256 金标准门禁
+# A-09 / A-14 / D-03：Stage2 二进制 SHA256 金标准门禁
 #
 # 比对两代 bootstrap 编译器（stage1 vs stage2）的可执行文件哈希。
 # 与 verify-selfhost-stage2-bstrict.sh 行为 parity 正交：行为一致 ≠ 二进制一致。
