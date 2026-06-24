@@ -237,7 +237,7 @@ struct backend_AsmFuncCtx {
 
 extern int32_t backend_emit_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-/** seed partial 全量 SU 体；慢路径专用，勿与薄包装 backend_emit_expr_elf 互调。 */
+/** seed partial 全量 SX 体；慢路径专用，勿与薄包装 backend_emit_expr_elf 互调。 */
 extern int32_t backend_emit_expr_elf_full(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
