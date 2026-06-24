@@ -2,7 +2,7 @@
  * parser_asm_match_subject_slice.c — parse_match_subject_into / parse_match_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * match subject：裸 IDENT 走 EXPR_VAR；parse_match_into 解析整段 match 表达式并回调 parse_expr_into SU mega。
+ * match subject：裸 IDENT 走 EXPR_VAR；parse_match_into 解析整段 match 表达式并回调 parse_expr_into SX mega。
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
