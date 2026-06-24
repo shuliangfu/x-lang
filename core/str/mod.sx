@@ -1,5 +1,5 @@
 // core.str — 字节串只读视图（CORE-007）
-// BytesView = (ptr, len) 零拷贝，对标 Zig []const u8、Rust &str、std.string.StrView。
+// BytesView = (ptr, len) 零拷贝，对标 Zig const[] u8、Rust &str、std.string.StrView。
 // 无堆分配、无 OS 依赖；子视图与比较均为纯 .sx 实现。
 
 /** 只读字节视图；字段布局与 std.string.StrView 一致（ptr + len）。 */
@@ -13,8 +13,8 @@ function bytes_view(ptr: *u8, len: i32): BytesView {
   return BytesView { ptr: ptr, len: len };
 }
 
-/** 从 []u8 切片构造视图；零拷贝，生命周期不超过切片来源。 */
-function bytes_view_from_slice(s: []u8): BytesView {
+/** 从 u8[] 切片构造视图；零拷贝，生命周期不超过切片来源。 */
+function bytes_view_from_slice(s: u8[]): BytesView {
   return BytesView { ptr: s.data, len: s.length as i32 };
 }
 
