@@ -6,7 +6,7 @@ api_spawn_io	api	spawn_io	std/process/mod.sx	STD-023
 api_waitpid	api	waitpid	std/process/mod.sx	等待
 api_pipe	api	pipe	std/process/mod.sx	管道
 vectors	file	tests/baseline/std-process-xplat.tsv	向量
-smoke_su	smoke	tests/process/xplat_behavior.sx	聚合烟测
+smoke_sx	smoke	tests/process/xplat_behavior.sx	聚合烟测
 smoke_boundary	smoke	tests/process/boundary.sx	TST-002
 smoke_win	smoke	tests/process/spawn_wait_win.sx	STD-024
 smoke_pipe	smoke	tests/process/spawn_pipe_echo.sx	STD-023
