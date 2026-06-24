@@ -69,7 +69,6 @@ if [ ! -f "$BENCH_FILE" ]; then
     dd if=/dev/zero of="$BENCH_FILE" bs=1048576 count="$BENCH_MB" 2>/dev/null
 fi
 
-ensure_std_c_o ../std/fs/fs.o
 ensure_std_c_o ../std/net/net.o
 
 cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
