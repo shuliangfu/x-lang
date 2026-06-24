@@ -22,7 +22,7 @@ int lsp_codegen_emit_path_is_lsp_io_sx(const char *path) {
 }
 
 /** 路径是否 lsp/lsp.sx 的 -E-extern 入口（排除 lsp_io 等子路径误匹配）。 */
-int lsp_codegen_emit_path_is_lsp_main_su(const char *path) {
+int lsp_codegen_emit_path_is_lsp_main_sx(const char *path) {
   if (!path)
     return 0;
   if (strstr(path, "/lsp/lsp.sx") != NULL || strstr(path, "\\lsp\\lsp.sx") != NULL)
