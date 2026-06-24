@@ -10,7 +10,7 @@ FAIL=${SHUX_PARSER_PARSE_COUNT_FAIL:-0}
 MIN_FUNCS=${SHUX_PARSER_PARSE_COUNT_MIN:-150}
 TARGET_FUNCS=${SHUX_PARSER_PARSE_COUNT_TARGET:-466}
 SHUX="${SHUX:-./compiler/shux_asm}"
-PARSER_SU="compiler/src/parser/parser.sx"
+PARSER_SX="compiler/src/parser/parser.sx"
 OUT="/tmp/shux_parser_parse_count.$$.o"
 LOG="/tmp/shux_parser_parse_count.$$.log"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
@@ -28,7 +28,7 @@ if [ ! -x "$SHUX" ]; then
   exit 0
 fi
 
-src_count=$(grep -c '^function ' "$PARSER_SU" 2>/dev/null || echo 0)
+src_count=$(grep -c '^function ' "$PARSER_SX" 2>/dev/null || echo 0)
 echo "parser-parse-count-gate: source functions in parser.sx: ${src_count} (baseline min=${MIN_FUNCS}, stretch target>=${TARGET_FUNCS})"
 
 rm -f "$OUT" "$LOG" 2>/dev/null || true
