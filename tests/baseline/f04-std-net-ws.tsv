@@ -1,0 +1,8 @@
+# F-04 v3 std.net WebSocket manifest
+# 列：item_id	kind	anchor	mod_path	notes
+symbol_accept	symbol	net_ws_compute_accept_c	std/net/ws_codec.sx	Accept
+symbol_encode	symbol	net_ws_encode_text_frame_c	std/net/ws_codec.sx	TEXT帧
+symbol_connect	symbol	net_ws_connect_c	std/net/ws_io.sx	连接
+symbol_parse_smoke	symbol	net_ws_parse_url_smoke_c	std/net/ws_codec.sx	URL烟测
+api_ws	symbol	ws_compute_accept	std/websocket/mod.sx	公开API
+absent_inc	absent	std/net/ws.inc.c	删除 inc.c
