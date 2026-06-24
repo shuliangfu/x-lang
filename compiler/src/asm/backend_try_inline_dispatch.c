@@ -1,7 +1,7 @@
 /**
  * backend_try_inline_dispatch.c — try_inline_* 与 array/struct lit reserve 的 C 实现
  *
- * M8 自举：含 Expr/Type 按值访问的 SU 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
+ * M8 自举：含 Expr/Type 按值访问的 SX 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -620,7 +620,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 }
 
 /**
- * INDEX 元素字节宽；委托 pipeline_glue.c（避免 SU Type 按值 emit）。
+ * INDEX 元素字节宽；委托 pipeline_glue.c（避免 SX Type 按值 emit）。
  */
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref) {
   return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
@@ -1633,6 +1633,9 @@ extern int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, s
                                                      int32_t field_ix);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                           int32_t store_size, int32_t ta);
+/** MEM-C1：with_arena scope 内 default_allocator 内联（pipeline_glue.c）。 */
+extern int32_t glue_with_arena_scope_active_c(void);
+extern int32_t glue_with_arena_scope_top_off_c(void);
 
 /**
  * 零实参 CALL 的 callee 是否为 `default_allocator` / `heap.default_allocator`。
@@ -1699,11 +1702,24 @@ static int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena
 }
 
 /**
- * default_allocator() 内联：call runtime default_allocator，按 fsz 写入 rbx+foff（8 或 16B）。
+ * default_allocator() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_allocator。
  */
 static int32_t glue_emit_default_allocator_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
                                                          int32_t fsz, int32_t ta) {
   static const uint8_t da_sym[28] = "std_heap_default_allocator";
+  /** MEM-C1：块内 vec_u8_new 等须走 scope bump，勿 call 全局 heap default。 */
+  if (glue_with_arena_scope_active_c() != 0) {
+    int32_t wa_off = glue_with_arena_scope_top_off_c();
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 1, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
+      return -1;
+    return 0;
+  }
   if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
     return -1;
   if (fsz <= 0)
