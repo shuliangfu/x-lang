@@ -1,0 +1,15 @@
+# F-08 v2 core/ 零 C manifest（G-01 闭合）
+# 列：item_id	kind	anchor	notes
+f08_doc	doc	analysis/phase-f-f08-v1.md	F-08 v1
+f08_gate	gate	tests/run-f08-core-inventory-gate.sh	专 gate
+g01_doc	doc	analysis/phase-g-full-selfhost-tasks-v1.md	G-01
+core_builtin_mod	file	core/builtin/mod.sx	API 纯 .sx
+core_mem_mod	file	core/mem/mod.sx	API 纯 .sx
+core_slice_mod	file	core/slice/mod.sx	API 纯 .sx
+core_assert_mod	file	core/assert/mod.sx	API 纯 .sx
+core_debug_mod	file	core/debug/mod.sx	alias
+gate_builtin	gate_ref	tests/run-core-builtin-bitops-gate.sh	bitops
+gate_mem	gate_ref	tests/run-core-mem-intrinsic-gate.sh	mem
+gate_slice	gate_ref	tests/run-core-slice-api-gate.sh	slice
+gate_debug	gate_ref	tests/run-core-debug-assert-extend-gate.sh	debug
+inventory	gate_ref	tests/run-std-c-inventory-gate.sh	F-01 对齐
