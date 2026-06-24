@@ -8,12 +8,12 @@
 
 ## 1. 目标
 
-在 CORE-004 `[]i32` / `[]u8` 基础上扩展：
+在 CORE-004 `i32[]` / `u8[]` 基础上扩展：
 
 | 族 | 新增 API |
 |----|----------|
-| `[]i32` / `[]u8` | `is_empty_*` / `first_*` / `last_*` |
-| `[]u64` | `len/get/is_empty/first/last`（subslice 待 typeck `.data` 扩展） |
+| `i32[]` / `u8[]` | `is_empty_*` / `first_*` / `last_*` |
+| `u64[]` | `len/get/is_empty/first/last`（subslice 待 typeck `.data` 扩展） |
 | `core.option` | `Option_u64`（供 `get_u64`） |
 
 ---
