@@ -3,7 +3,7 @@
  *
  * build_asm/pipeline.o 第二遍 emit 对 parse/typecheck 多实参 CALL / thin bl reloc 不可靠；
  * 本 TU 按 pipeline.sx 提供 run_sx_pipeline_impl、parse entry 与 parse_into_with_init_buf。
- * codegen/load 仍由 pipeline_strict_link_partial.o（build_asm/pipeline.o 子集）SU 真 emit。
+ * codegen/load 仍由 pipeline_strict_link_partial.o（build_asm/pipeline.o 子集）SX 真 emit。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -34,7 +34,7 @@ extern int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, str
                                                   int32_t len);
 extern void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len);
 extern int32_t driver_check_only_get(void);
-extern int32_t driver_su_pipeline_skip_codegen_get(void);
+extern int32_t driver_sx_pipeline_skip_codegen_get(void);
 extern void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n);
 extern int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
@@ -48,7 +48,9 @@ extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *modu
 extern int32_t parser_get_module_num_imports(struct ast_Module *module);
 extern int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                       struct ast_PipelineDepCtx *ctx);
-extern int32_t driver_su_pipeline_skip_typeck_get(void);
+extern int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   struct ast_PipelineDepCtx *ctx);
+extern int32_t driver_sx_pipeline_skip_typeck_get(void);
 extern int32_t driver_asm_build_skip_typeck(void);
 extern int32_t run_sx_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
@@ -74,7 +76,7 @@ struct parser_ParseIntoResult parse_into_with_init_buf(struct ast_ASTArena *aren
   return parse_into_with_init_buf_impl(arena, module, data, len);
 }
 
-/** pipeline.sx run_sx_pipeline_parse_entry_do_parse；与 SU emit 一致（set_main + 诊断）。 */
+/** pipeline.sx run_sx_pipeline_parse_entry_do_parse；与 SX emit 一致（set_main + 诊断）。 */
 int32_t run_sx_pipeline_parse_entry_do_parse(struct ast_Module *module, struct ast_ASTArena *arena,
                                              uint8_t *source_data, size_t source_len,
                                              struct ast_PipelineDepCtx *ctx) {
@@ -128,11 +130,11 @@ int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *are
   }
   if (run_sx_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0)
     return -2;
-  /** 无 import 的单文件 entry：跳过 load/sync SU（build_asm partial 在 ndep=0 时仍可能 SIGSEGV）。 */
+  /** 无 import 的单文件 entry：跳过 load/sync SX（build_asm partial 在 ndep=0 时仍可能 SIGSEGV）。 */
   if (parser_get_module_num_imports(module) == 0)
     load_rc = 0;
   else if (pipeline_dep_ctx_ndep(ctx) > 0 && pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {
-    /** driver_run_asm_backend 已 collect_deps + prerun + seed 槽；勿再调 build_asm SU load/sync（hello 等 SIGSEGV）。 */
+    /** driver_run_asm_backend 已 collect_deps + prerun + seed 槽；勿再调 build_asm SX load/sync（hello 等 SIGSEGV）。 */
     load_rc = 0;
   } else {
     if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
@@ -145,8 +147,8 @@ int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *are
     return load_rc;
   if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
     fprintf(stderr, ">> [ASM_ORCH] typecheck_entry (check_only=%d skip_flag=%d skip_codegen=%d build_skip=%d)\n",
-            (int)driver_check_only_get(), (int)driver_su_pipeline_skip_typeck_get(),
-            (int)driver_su_pipeline_skip_codegen_get(), (int)driver_asm_build_skip_typeck());
+            (int)driver_check_only_get(), (int)driver_sx_pipeline_skip_typeck_get(),
+            (int)driver_sx_pipeline_skip_codegen_get(), (int)driver_asm_build_skip_typeck());
     fflush(stderr);
   }
   /*
@@ -155,9 +157,20 @@ int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *are
    */
   if (driver_check_only_get() != 0) {
     tc_rc = run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
-  } else if (driver_su_pipeline_skip_typeck_get() != 0 || driver_su_pipeline_skip_codegen_get() != 0 ||
+  } else if (driver_sx_pipeline_skip_typeck_get() != 0 || driver_sx_pipeline_skip_codegen_get() != 0 ||
              driver_asm_build_skip_typeck() != 0) {
-    tc_rc = 0;
+    /*
+     * asm -o 跳过全量 check_block 时：无 import 单文件仍须全量 typeck（field_access_offset）；
+     * 有 import 或多文件仅 dep_prerun（§11.1 padding + parent link）。
+     */
+    if (driver_sx_pipeline_skip_typeck_get() != 0 && parser_get_module_num_imports(module) == 0 &&
+        driver_sx_pipeline_skip_codegen_get() != 0) {
+      tc_rc = run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+    } else if (driver_sx_pipeline_skip_typeck_get() != 0 || driver_asm_build_skip_typeck() != 0) {
+      tc_rc = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+    } else {
+      tc_rc = 0;
+    }
   } else {
     tc_rc = run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
   }
@@ -165,7 +178,7 @@ int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *are
     return tc_rc;
   if (driver_check_only_get() != 0)
     return 0;
-  if (driver_su_pipeline_skip_codegen_get() != 0)
+  if (driver_sx_pipeline_skip_codegen_get() != 0)
     return 0;
   codegen_out_buf_set_len(out_buf, 0);
   driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0);
