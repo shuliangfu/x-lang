@@ -1,6 +1,6 @@
 # std.string — 字符串类型与基本操作
 
-与 **Rust** `str`/`String`、**Go** `strings`、**Zig** `[]const u8` + `std.mem` 对标，提供固定缓冲 **256 字节**的 `String` 及构造、比较、查找、子串、trim、单字节替换、追加与拷贝。
+与 **Rust** `str`/`String`、**Go** `strings`、**Zig** `const[] u8` + `std.mem` 对标，提供固定缓冲 **256 字节**的 `String` 及构造、比较、查找、子串、trim、单字节替换、追加与拷贝。
 
 ---
 
@@ -29,9 +29,9 @@
 
 | 思路 | Zig / Rust / Go 做法 | 我们的做法 |
 |------|----------------------|------------|
-| **字符串即切片/视图** | Go `string`、Zig `[]const u8`、Rust `&str` 都是 (ptr, len)，不限制长度。 | **StrView** = (ptr, len)，零拷贝、不限制长度；大块数据一律用 StrView，不拷入 String。 |
+| **字符串即切片/视图** | Go `string`、Zig `const[] u8`、Rust `&str` 都是 (ptr, len)，不限制长度。 | **StrView** = (ptr, len)，零拷贝、不限制长度；大块数据一律用 StrView，不拷入 String。 |
 | **长串用 libc 快路径** | 比较/查找用 memcmp、memchr、strstr 等。 | 长 StrView（≥32 或 needle≥8）走 **memcmp / memmem**（std/string/string.c），短串保留 .sx 循环并做 4 字节展开与超短串特判。 |
-| **零拷贝传参** | 函数普遍接受 `&str` / `string` / `[]const u8`，不强制拷贝。 | API 接受 **StrView** 或 (ptr, len)；输出用 **string_data_ptr + string_len**，避免 string_copy_to。 |
+| **零拷贝传参** | 函数普遍接受 `&str` / `string` / `const[] u8`，不强制拷贝。 | API 接受 **StrView** 或 (ptr, len)；输出用 **string_data_ptr + string_len**，避免 string_copy_to。 |
 | **只读与可变分离** | Rust String vs &str；Go string 只读。 | **StrView** 只读；**String** 可原地修改，但固定 256 字节。 |
 
 我们**有意不做**、以保持轻量级与无 GC 的部分：
@@ -75,7 +75,7 @@
 
 | 类型 | 说明 |
 |------|------|
-| `String` | `{ data: [256]u8, len: i32 }`，不分配堆，最大 256 字节。 |
+| `String` | `{ data: u8[256], len: i32 }`，不分配堆，最大 256 字节。 |
 | `StrView` | `{ ptr: *u8, len: i32 }`，只读视图，零拷贝包装 (ptr, len)。 |
 
 ---
