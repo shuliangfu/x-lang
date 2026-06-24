@@ -25,7 +25,7 @@
 
 ### ITER-01：`examples/cookbook/iter_slice_sum.sx`
 
-`core.iterator` 遍历 `[]i32` 求和（CORE-006）。
+`core.iterator` 遍历 `i32[]` 求和（CORE-006）。
 
 ### MAP-01：`examples/cookbook/map_u64_get.sx`
 
