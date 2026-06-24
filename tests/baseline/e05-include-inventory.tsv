@@ -1,0 +1,31 @@
+# E-05 v1/v2 编译器头文件清单（文件保留；status 为默认 bootstrap 语义）
+# 列：item_id	e_task	path	status	replacement	check_type	notes
+e05_doc	doc	analysis/phase-e-e05-v2.md	active	n/a	grep	E-05 v2
+e05_doc_v1	doc	analysis/phase-e-e05-v1.md	active	n/a	grep	E-05 v1
+e05_gate	gate	tests/run-e05-include-soft-gate.sh	active	n/a	gate_ref	E-05 委托
+e05_readme	readme	compiler/include/README.md	active	n/a	grep	E-05 v1/v2 inventory
+# compiler/include/
+e05_target_cpu_h	E-05	compiler/include/target_cpu.h	active_bootstrap	target_cpu.o	exists	seed simd/target
+e05_simd_enc_h	E-05	compiler/include/simd_enc.h	active_bootstrap	simd_enc.o	exists	seed asm
+e05_simd_loop_h	E-05	compiler/include/simd_loop.h	active_bootstrap	simd_loop.o	exists	seed asm
+e05_simd_vector_h	E-05	compiler/include/simd_vector_inline.h	active_bootstrap	simd inline	exists	asm 内联
+e05_layout_arith_h	E-05	compiler/include/shux_layout_arith.h	active_bootstrap	typeck/layout gate	exists	P1-4 overflow
+e05_ast_h	E-05	compiler/include/ast.h	soft_retired_frontend	ast_pool/sx	exists	runtime NO_C 不 include（E-05 v2）
+e05_token_h	E-05	compiler/include/token.h	soft_retired_frontend	lexer_sx	exists	C lexer/parser
+e05_autovec_h	E-05	compiler/include/autovec.h	soft_retired_frontend	codegen_sx	exists	LEGACY/shux-c
+e05_async_live_h	E-05	compiler/include/async_liveness.h	soft_retired_legacy	async_sx	exists	SHUX_LEGACY_C_FRONTEND
+e05_async_cps_h	E-05	compiler/include/async_cps_codegen.h	soft_retired_legacy	async_sx	exists	LEGACY
+e05_async_pool_h	E-05	compiler/include/async_asm_pool.h	active_asm	async pool	exists	asm 路径
+# compiler/src/*.h
+e05_preprocess_h	E-05	compiler/src/preprocess.h	active_runtime	preprocess.sx	exists	runtime preprocess()
+e05_parser_h	E-05	compiler/src/parser/parser.h	soft_retired_frontend	parser_sx.o	exists	NO_C 不 include
+e05_lexer_h	E-05	compiler/src/lexer/lexer.h	soft_retired_frontend	lexer_sx.o	exists	NO_C 不 include
+e05_typeck_h	E-05	compiler/src/typeck/typeck.h	soft_retired_frontend	typeck_sx.o	exists	NO_C 不 include
+e05_codegen_h	E-05	compiler/src/codegen/codegen.h	soft_retired_frontend	codegen_sx.o	exists	NO_C 不 include
+e05_lsp_diag_h	E-05	compiler/src/lsp/lsp_diag.h	active_runtime	lsp_diag_stubs	exists	NO_C 仍 include
+e05_lsp_codegen_h	E-05	compiler/src/lsp/lsp_codegen_extern.h	active	lsp -E C	exists	C codegen -E
+e05_fmt_check_h	E-05	compiler/src/driver/fmt_check_cmd.h	active_bootstrap	fmt_check_cmd_driver.o	exists	driver 子命令
+e05_sx_stubs_h	E-05	compiler/src/sx_stubs.h	active	stub TU	exists	弱符号
+# E-01 已删除（须保持不存在）
+e05_lsp_io_extern_h	E-01	compiler/src/lsp/lsp_io_extern.h	not_exists	lsp_codegen_extern.c	not_exists	E-01
+e05_lsp_gen_extern_h	E-01	compiler/src/lsp/lsp_gen_extern.h	not_exists	lsp_codegen_extern.c	not_exists	E-01
