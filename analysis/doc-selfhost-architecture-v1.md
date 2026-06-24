@@ -103,7 +103,7 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 
 | 路径 | 命令 |
 |------|------|
-| SU Stage2 | `make -C compiler verify-selfhost-stage2` |
+| SX Stage2 | `make -C compiler verify-selfhost-stage2` |
 | B-strict Stage2 | `make -C compiler bootstrap-verify-stage2-bstrict` |
 
 ---
