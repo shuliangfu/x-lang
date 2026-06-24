@@ -18,7 +18,7 @@ MIN_LAYERS=3
 
 echo "=== STD-006: std.crypto manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$CRYPTO_MOD" "$RAND_MOD" \
-  std/crypto/crypto.c std/random/random.c tests/lib/std-crypto.sh; do
+  std/crypto/crypto_core.sx compiler/src/asm/runtime_crypto_inc_glue.c std/random/random.sx compiler/src/asm/runtime_random_fill.c tests/lib/std-crypto.sh; do
   if [ ! -f "$f" ]; then
     echo "std-crypto gate FAIL: missing $f" >&2
     exit 1
@@ -117,6 +117,11 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 echo "std-crypto manifest OK (apis=${API_N} layers=${LAYER_N})"
+
+if [ "${SHUX_STD_CRYPTO_MANIFEST_ONLY:-0}" = "1" ]; then
+  echo "std-crypto gate OK (manifest only)"
+  exit 0
+fi
 
 SHUX_BIN=""
 if SHUX_BIN="$(std_crypto_resolve_shu)"; then
