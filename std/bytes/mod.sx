@@ -212,7 +212,7 @@ function bytes_from_view(v: StrView): Bytes {
 
 /** 转为 std.mem.Buffer（IO 桥接；handle=0）。 */
 function bytes_as_buffer(b: Bytes): Buffer {
-  return Buffer { ptr: b.ptr, len: b.len as usize, handle: 0 as usize };
+  return Buffer { ptr: b.ptr, len: b.len, handle: 0 };
 }
 
 /** 构造读游标。 */
