@@ -11,8 +11,8 @@ api_hmac512	api	hmac_sha512	std/crypto/mod.sx	HMAC
 api_mac_sign	api	mac_sign_512	std/crypto/mod.sx	签
 api_mac_verify	api	mac_verify_512	std/crypto/mod.sx	验
 const_digest	const	SHA512_DIGEST_LEN	std/crypto/mod.sx	64
-symbol_sha512_c	symbol	crypto_sha512_c	std/crypto/crypto.c	C SHA-512
-symbol_hmac512_c	symbol	crypto_hmac_sha512_c	std/crypto/crypto.c	C HMAC
+symbol_sha512_c	symbol	crypto_sha512_c	std/crypto/crypto_inc_glue.c	C SHA-512
+symbol_hmac512_c	symbol	crypto_hmac_sha512_c	std/crypto/crypto_inc_glue.c	C HMAC
 vectors_tsv	file	tests/baseline/std-crypto-sha512-hmac-vectors.tsv	金样表
 smoke_sha512	smoke	tests/std-crypto/sha512_abc.sx	SHA-512 abc
 smoke_hmac	smoke	tests/std-crypto/hmac_sha512_rfc4231_tc1.sx	RFC4231 TC1
