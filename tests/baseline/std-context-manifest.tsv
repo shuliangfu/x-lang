@@ -14,8 +14,8 @@ api_deadline	api	deadline_ns	std/context/mod.sx	deadline
 api_remaining	api	remaining_ns	std/context/mod.sx	剩余
 api_set_value	api	set_value	std/context/mod.sx	bag
 api_get_value	api	get_value	std/context/mod.sx	bag
-symbol_smoke	symbol	ctx_smoke_c	std/context/context.c	C烟测
-impl_c	file	std/context/context.c	std/context/context.c
-smoke_su	smoke	tests/std-context/cancel_smoke.sx	.su烟测
+symbol_smoke	symbol	ctx_smoke_c	std/context/context.sx	C烟测
+impl_sx	file	std/context/context.sx	std/context/context.sx
+smoke_sx	smoke	tests/std-context/cancel_smoke.sx	.sx烟测
 lib	script	lib/std-context.sh	tests/lib/std-context.sh
 gate	script	run-std-context-gate.sh	tests/run-std-context-gate.sh
