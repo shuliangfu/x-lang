@@ -114,7 +114,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
 done < "$MANIFEST"
 
 BENCH_N=0
-while IFS=$'\t' read -r bench_id su_file _rest; do
+while IFS=$'\t' read -r bench_id sx_file _rest; do
   [ -z "${bench_id:-}" ] && continue
   case "$bench_id" in \#*|min_*) continue ;; esac
   BENCH_N=$((BENCH_N + 1))
@@ -122,8 +122,8 @@ while IFS=$'\t' read -r bench_id su_file _rest; do
     echo "type-zero-cost FAIL: doc missing bench $bench_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! type_zero_cost_bench_su "$su_file" >/dev/null 2>&1; then
-    echo "type-zero-cost FAIL: missing bench su $su_file" >&2
+  if ! type_zero_cost_bench_sx "$sx_file" >/dev/null 2>&1; then
+    echo "type-zero-cost FAIL: missing bench sx $sx_file" >&2
     MISS=$((MISS + 1))
   fi
 done < "$BENCH"
