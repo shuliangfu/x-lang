@@ -1,0 +1,7 @@
+# NL-07 v3 bootstrap nostdlib 链入烟测 manifest
+# 列：item_id	category	anchor	check_type	notes
+n07_v3_doc	doc	analysis/phase-f-n07-v3.md	grep	NL-07 v3
+n07_v3_smoke_c	file	tests/fixtures/nolibc-n07-bootstrap-smoke.c	exists	main_entry 烟测
+n07_v3_smoke_lib	lib	tests/lib/nolibc-n07-link-smoke.sh	grep	nolibc_n07_run_bootstrap_link_smoke
+n07_v3_gate	gate	tests/run-nolibc-n07-v3-link-gate.sh	gate_ref	v3 link gate
+n07_v2_prereq	gate_ref	tests/run-nolibc-n07-v2-prep-gate.sh	gate_ref	NL-07 v2
