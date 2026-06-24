@@ -14,8 +14,8 @@ function try_spawn_true(path: *u8): i32 {
 
 /** 依次尝试两条 true 路径；均无法 spawn 则 skip(0)。 */
 function spawn_true_or_skip(): i32 {
-  let usr_true: [20]u8 = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
-  let bin_true: [16]u8 = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
+  let usr_true: u8[20] = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
+  let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
   let st: i32 = try_spawn_true(&usr_true[0]);
   if (st == 0) { return 0; }
   st = try_spawn_true(&bin_true[0]);
@@ -31,13 +31,13 @@ function main(): i32 {
   let pp: i32 = process.getppid();
   if (pp < -1) { return 2; }
   // case 3：getcwd 缓冲
-  let cwd: [128]u8 = [];
+  let cwd: u8[128] = [];
   if (process.getcwd(&cwd[0], 128) <= 0) { return 3; }
   // case 4：getcwd_ptr 零拷贝
   if (process.getcwd_ptr() == 0 as *u8) { return 4; }
   if (process.getcwd_cached_len() <= 0) { return 5; }
   // case 5：self_exe_path
-  let exe: [256]u8 = [];
+  let exe: u8[256] = [];
   if (process.self_exe_path(&exe[0], 256) <= 0) { return 6; }
   // case 6：pipe 创建
   let rd: i32 = 0;
@@ -45,7 +45,7 @@ function main(): i32 {
   if (process.pipe(&rd, &wr) != 0) { return 7; }
   if (rd < 0 || wr < 0) { return 8; }
   // case 7：process.chdir(".") 不失败
-  let dot: [2]u8 = [46, 0];
+  let dot: u8[2] = [46, 0];
   if (process.chdir(&dot[0]) != 0) { return 9; }
   // case 8：spawn_simple（POSIX true；失败则 skip）
   return spawn_true_or_skip();
