@@ -42,7 +42,7 @@
 
 ## 4. 实现
 
-- C：`std/csv/csv.c`（`csv_parse_row_c` / `csv_write_row_c`）
+- 实现：`std/csv/csv.sx`（F-csv v1 纯 .sx）
 - `.sx`：`std/csv/mod.sx` extern 门面
 - 链接：与既有 `csv.o` 相同（`ensure_std_c_o`）
 
