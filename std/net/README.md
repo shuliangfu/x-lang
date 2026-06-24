@@ -19,7 +19,7 @@
 3. 协议层：
    - echo 回写
    - **std.http** — HTTP/1.x 客户端与服务辅助（GET/POST/HEAD、Context、server/pool）
-   - **std.websocket** — RFC6455 握手与帧（C 在 `std/net/ws.inc.c`，公开 API 在 `std/websocket/mod.sx`）
+   - **std.websocket** — RFC6455 握手与帧（F-04 v3：`ws_codec.sx` + `ws_io.sx`，公开 API 在 `std/websocket/mod.sx`）
 
 > WebSocket **不**再作为 `std.net` 公开 API；STD-031 net-ws gate 测 C 层，用户应 `import("std.websocket")`。
 
@@ -50,7 +50,7 @@ close_stream(s);
 - **DNS（STD-029）**：`analysis/std-net-dns-v1.md`、`tests/run-std-net-dns-gate.sh`
 - **TLS（STD-030/083/085）**：`analysis/std-net-tls-v1.md`、`tests/run-std-net-tls-gate.sh`（桩 + OpenSSL/mbedTLS 握手烟测）
 - **TLS ALPN（STD-HTTP-H2-TLS）**：`tls_alpn_h2_http1_wire` / `tls_connect_client_alpn` / `tls_alpn_is_h2`（h2 + http/1.1）
-- **WebSocket（STD-031）**：C 在 `std/net/ws.inc.c`；用户 API 见 **std.websocket**、`tests/run-std-websocket-gate.sh`
+- **WebSocket（STD-031）**：F-04 v3 纯 `.sx`（`ws_codec.sx` / `ws_io.sx`）；用户 API 见 **std.websocket**、`tests/run-std-websocket-gate.sh`
 
 ## 相关模块
 
