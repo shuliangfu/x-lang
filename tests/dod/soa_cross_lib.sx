@@ -8,9 +8,9 @@ struct Particle soa {
 }
 
 /**
- * 列主序累加 x 分量；调用方 [N]Particle 须与 dep 同 SoA layout（无 AoS 转换）。
+ * 列主序累加 x 分量；调用方 Particle[N] 须与 dep 同 SoA layout（无 AoS 转换）。
  */
-function sum_x_column(arr: [4]Particle, n: i32): i32 {
+function sum_x_column(arr: Particle[4], n: i32): i32 {
   let s: i32 = 0;
   let i: i32 = 0;
   while (i < n) {
