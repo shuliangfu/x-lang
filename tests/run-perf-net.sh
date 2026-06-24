@@ -45,7 +45,7 @@ pick_free_port() {
   fi
 }
 
-compile_shu_su() {
+compile_shux_sx() {
   local src_template="$1"
   local port_marker="$2"
   local port="$3"
@@ -265,7 +265,7 @@ check_net_zig() {
 
 bench_net_accept_case() {
   local name="$1"
-  local su="$2"
+  local sx="$2"
   local c_server="$3"
   local tag="${name}_"
   local SHUX_MED="nan"
@@ -284,7 +284,7 @@ bench_net_accept_case() {
     echo "C -O2 accept loop ${name} median real: ${C_MED}s"
   fi
 
-  SHUX_MED=$(median_accept_pair "$su" "$c_server" "$tag" "$CLIENT")
+  SHUX_MED=$(median_accept_pair "$sx" "$c_server" "$tag" "$CLIENT")
   echo "Shu (default asm) ${name} median real: ${SHUX_MED}s"
 
   printf '\n'
@@ -671,7 +671,7 @@ median_udp_pair() {
 
 bench_net_udp_case() {
   local name="$1"
-  local su="$2"
+  local sx="$2"
   local c_server="$3"
   local tag="${name}_"
   local SHUX_MED="nan"
@@ -685,10 +685,10 @@ bench_net_udp_case() {
     exit 1
   fi
 
-  C_MED=$(median_udp_pair "$su" "$c_server" "${tag}c_" "$CLIENT" 0)
+  C_MED=$(median_udp_pair "$sx" "$c_server" "${tag}c_" "$CLIENT" 0)
   echo "C -O2 recvmmsg/sendmmsg ${name} median real: ${C_MED}s"
 
-  SHUX_MED=$(median_udp_pair "$su" "$c_server" "$tag" "$CLIENT" 1)
+  SHUX_MED=$(median_udp_pair "$sx" "$c_server" "$tag" "$CLIENT" 1)
   echo "Shu (udp_*_many_buf) ${name} median real: ${SHUX_MED}s"
 
   printf '\n'
