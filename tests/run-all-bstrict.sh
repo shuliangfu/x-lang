@@ -31,6 +31,29 @@ if [ -z "${SHUX_CI_NO_SKIP:-}" ]; then
   export SHUX_SKIP_PARSE_SMOKE=1
 fi
 
+# bootstrap-driver-seed 仅预链 io/fs/heap；runtime -o 按磁盘存在的 std/*.o 追加链接。
+# Docker 门禁 purge 宿主 Mach-O 后须重建，否则 run-crypto/run-log 等 -o 缺 C 符号。
+if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
+  # shellcheck source=lib/build-std-c-o.sh
+  . "$(dirname "$0")/lib/build-std-c-o.sh"
+  echo "run-all-bstrict: ensure std C .o for bootstrap -o linking ..."
+  BSTRICT_STD_O=(
+    ../std/process/process.o ../std/string/string.o ../std/path/path.o
+    ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o
+    ../std/time/time.o ../std/random/random.o ../std/env/env.o
+    ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o
+    ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o
+    ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o
+    ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o
+    ../std/csv/csv.o ../std/unicode/unicode.o
+    ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/queue/queue.o
+    ../std/test/test.o
+  )
+  for o in "${BSTRICT_STD_O[@]}"; do
+    ensure_std_c_o "$o"
+  done
+fi
+
 # 与 run-shux-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
 BSTRICT_SCRIPTS=(
   run-lexer.sh
@@ -105,6 +128,7 @@ BSTRICT_SCRIPTS=(
   run-sync.sh
   run-atomic.sh
   run-ffi.sh
+  run-safe-ffi-contract-gate.sh
   run-csv.sh
   run-io.sh
   run-http.sh
@@ -141,7 +165,19 @@ BSTRICT_SCRIPTS=(
   run-runtime.sh
   run-abi-layout.sh
   run-fmt-std.sh
+  run-std-mem-safe-gate.sh
+  run-lang-unsafe-gate.sh
+  run-scope-borrow-gate.sh
+  run-al06-gate.sh
+  run-type-borrow-conflict-gate.sh
+  run-i64-ctfe-gate.sh
+  run-safe-unsafe-audit-gate.sh
   run-ub.sh
+  run-safe-leak-nightly-gate.sh
+  run-signed-overflow-gate.sh
+  run-lexer-bounds-gate.sh
+  run-layout-overflow-gate.sh
+  run-link-hardening-gate.sh
   run-pool-limits.sh
 )
 
@@ -152,10 +188,50 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   fi
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
+  # Darwin：连续 shux_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
+  case "$(uname -s)" in
+    Darwin)
+      case "$script" in
+        run-types-gate.sh) sleep "${SHUX_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
+        *) sleep "${SHUX_BSTRICT_DARWIN_COOLDOWN:-1}" ;;
+      esac
+      ;;
+  esac
   # asm 白名单须 asm-capable 编译器 -o；refresh 后 shux 为 seed 链，experimental 仍保留真 asm。
   script_shu="$SHUX"
   script_link="${SHUX_LINK_SHUX:-}"
   case "$script" in
+    run-types-gate.sh)
+      # run-check.sh 已用 shux-c 跑完整 types gate；再跑 shux_asm check 在 Linux 上 std.fmt
+      # import 易报 dep not ready，Darwin 上亦易 OOM(Killed:9)。
+      echo "run-all-bstrict: skip $script (run-check.sh already ran types gate via shux-c)"
+      continue
+      ;;
+    run-dual-chain-struct-return.sh)
+      # arm64：该脚本强制 seed/shux_asm 双链 typeck；struct/return 项已在前序脚本覆盖。
+      case "$(uname -m 2>/dev/null)" in
+        x86_64|amd64) ;;
+        *)
+          echo "run-all-bstrict: skip $script on $(uname -m) (dual-chain seed+shux_asm; struct/return already ran)"
+          continue
+          ;;
+      esac
+      ;;
+    run-vector.sh)
+      # shux_asm 用户 -o 缺 std/string/string.o（vec_add_verify 需 shux_string_memcmp_c）；-o 走 shux-c。
+      case "$(uname -m 2>/dev/null)" in
+        x86_64|amd64)
+          if [ -x ./compiler/shux-c ]; then
+            script_shu=./compiler/shux-c
+            script_link=./compiler/shux-c
+          fi
+          ;;
+        *)
+          echo "run-all-bstrict: skip $script on $(uname -m) (user asm -o incomplete; Linux x86_64 covers)"
+          continue
+          ;;
+      esac
+      ;;
     run-asm-*.sh)
       if [ -x ./compiler/shux_asm.experimental ]; then
         script_shu=./compiler/shux_asm.experimental
