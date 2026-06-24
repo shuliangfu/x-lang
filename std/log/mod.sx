@@ -3,7 +3,7 @@
 // STD-106：文件轮转 set_rotate_limit + 异步缓冲 set_async_enabled / async_flush。
 //
 // 【文件职责】set_min_level、log、log_structured_kv；输出到 stderr 和/或文件。
-// 【依赖】core；与 std/log/log.c 同属一模块。
+// 【依赖】core；与 std/log/log.sx 同属一模块（F-log v1 / F-ZC）；OS 胶层在 runtime_log_os.o。
 extern function log_set_min_level_c(level: i32): void;
 extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
 extern function log_set_sink_mask_c(mask: i32): void;
