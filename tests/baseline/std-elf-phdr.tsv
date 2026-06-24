@@ -9,11 +9,11 @@ api_phdr	api	read_phdr	std/elf/mod.sx	Phdr
 api_hdr_phoff	api	parse_hdr	std/elf/mod.sx	phoff
 const_exec	const	ELF_TYPE_EXEC	std/elf/mod.sx	2
 const_ptload	const	ELF_PT_LOAD	std/elf/mod.sx	1
-symbol_phdr_c	symbol	elf64_read_phdr_c	std/elf/elf.c	C Phdr
-symbol_smoke_c	symbol	elf64_phdr_smoke_c	std/elf/elf.c	C 烟测
+symbol_phdr_c	symbol	elf64_read_phdr_c	std/elf/elf.sx	Phdr
+symbol_smoke_c	symbol	elf64_phdr_smoke_c	std/elf/elf.sx	烟测
 fixture	file	tests/baseline/fixtures/elf64_min_phdr.bin	金样
 smoke_c	file	tests/std-elf/parse_phdr_smoke_ok.c	C 入口
-smoke_su	smoke	tests/std-elf/parse_phdr.sx	.sx 烟测
+smoke_sx	smoke	tests/std-elf/parse_phdr.sx	.sx 烟测
 parent_tsv	cross_ref	tests/baseline/std-elf-deep.tsv	STD-063
 parent_doc	cross_ref	analysis/std-elf-deep-v1.md	STD-063
 lib	script	lib/std-elf-phdr.sh	tests/lib/std-elf-phdr.sh
