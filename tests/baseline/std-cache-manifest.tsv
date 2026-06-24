@@ -15,9 +15,9 @@ api_pool_acquire	api	pool_acquire	std/cache/mod.sx	借
 api_pool_release	api	pool_release	std/cache/mod.sx	还
 api_pool_health	api	pool_mark_unhealthy	std/cache/mod.sx	health
 api_pool_stats	api	pool_stats	std/cache/mod.sx	池统计
-symbol_smoke	symbol	cache_smoke_c	std/cache/cache.c	C烟测
-impl_c	file	std/cache/cache.c	std/cache/cache.c
-smoke_su	smoke	tests/std-cache/lru_pool_smoke.sx	.su烟测
+symbol_smoke	symbol	cache_smoke_c	std/cache/cache.sx	烟测
+impl_sx	file	std/cache/cache.sx	std/cache/cache.sx
+smoke_sx	smoke	tests/std-cache/lru_pool_smoke.sx	.sx烟测
 vectors	file	tests/baseline/std-cache-vectors.tsv	向量
 lib	script	lib/std-cache.sh	tests/lib/std-cache.sh
 gate	script	run-std-cache-gate.sh	tests/run-std-cache-gate.sh
