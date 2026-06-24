@@ -7,8 +7,8 @@
 // 配合实现多线程互斥。RwLock/Once 见 P2 可选或 P3。
 //
 // 【所属模块/组件】
-// 标准库 std.sync；用户通过 import("std.sync") 使用。依赖 core；与 std/sync/sync.c
-// 同属一模块。Unix 链接时需 -lpthread。
+// 标准库 std.sync；用户通过 import("std.sync") 使用。依赖 core；实现见 sync.sx + sync_os_glue.c +
+// sync_lock_diag_tls_glue.c。Unix 链接时需 -lpthread。
 extern function sync_mutex_new_c(): *u8;
 extern function sync_mutex_lock_c(m: *u8): i32;
 extern function sync_mutex_try_lock_c(m: *u8): i32;
