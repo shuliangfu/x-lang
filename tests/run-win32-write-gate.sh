@@ -6,10 +6,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_WRITE_FAIL:-0}
-SU="tests/sys/win32_write_smoke.sx"
+SX="tests/sys/win32_write_smoke.sx"
 OUT="/tmp/shux_win32_write.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
-WIN32_O="std/sys/win32.o"
 
 if [ "$(uname -s 2>/dev/null)" != "MINGW"* ] && [ "$(uname -s 2>/dev/null)" != "MSYS"* ] \
    && [ "${OS:-}" != "Windows_NT" ]; then
@@ -25,16 +24,10 @@ if [ ! -x "$SHUX" ]; then
   exit 0
 fi
 
-if [ ! -f "$WIN32_O" ]; then
-  if [ -f std/sys/win32.inc.c ]; then
-    cc -c -o "$WIN32_O" std/sys/win32.inc.c 2>/tmp/shux_win32_o.log || true
-  fi
-fi
-
 rm -f "$OUT" 2>/dev/null || true
-# win32.o 由 invoke_cc 按 shux_win32_* 符号按需链入，勿作为 shux 输入文件（会被当 .sx 解析）。
-if ! "$SHUX" -L . -o "$OUT" "$SU" 2>/tmp/shux_win32_write.log; then
-  echo "win32-write-gate FAIL: compile $SU" >&2
+# F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
+if ! "$SHUX" -L . -o "$OUT" "$SX" 2>/tmp/shux_win32_write.log; then
+  echo "win32-write-gate FAIL: compile $SX" >&2
   tail -n 10 /tmp/shux_win32_write.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
