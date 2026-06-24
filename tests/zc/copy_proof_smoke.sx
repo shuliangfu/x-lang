@@ -8,7 +8,7 @@
 const string = import("std.string");
 
 function main(): i32 {
-  let buf: [8]u8 = [104, 101, 108, 108, 111, 0, 0, 0];
+  let buf: u8[8] = [104, 101, 108, 108, 111, 0, 0, 0];
   let v: StrView = string.string_view(&buf[0], 5);
   if (string.string_view_len(v) != 5) { return 1; }
   if (string.string_view_get(v, 0) != 104) { return 2; }
