@@ -2,7 +2,7 @@
 const hash = import("std.hash");
 
 function main(): i32 {
-  let buf: [3]u8 = [97, 98, 99];
+  let buf: u8[3] = [97, 98, 99];
   let hs: *u8 = hash.hash_start_algo(0);
   let ha: *u8 = hash.hash_start_algo(1);
   if (hs == 0 || ha == 0) {
