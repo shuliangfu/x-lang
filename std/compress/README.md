@@ -8,23 +8,23 @@
 
 ```
 std/compress/
-  compress_common.h   # 共用类型（如 gzip 流状态头）
+  compress_common.h   # 已删 → common.sx（F-std-zero-c）
   mod.sx              # 门面：import("std.compress") 聚合各子模块
   zlib/               # RFC 1950 zlib（deflate/inflate）
-    zlib.c
+    zlib_libz.sx      # F-04 v4：libz FFI
     mod.sx            # import("std.compress.zlib")
   gzip/               # .gz 块 + 流式 API
-    gzip.c
+    gzip_libz.sx      # F-04 v5：libz FFI
     mod.sx            # import("std.compress.gzip")
-  brotli/             # .br 块压缩
-    brotli.c
+  brotli/             # .br 块 + 流式 API
+    brotli_lib.sx     # F-04 v6：libbrotli FFI
     mod.sx            # import("std.compress.brotli")
-  zstd/               # zstd 块（可选）
-    zstd.c
+  zstd/               # zstd 块 + 流式 API
+    zstd_lib.sx       # F-04 v7：libzstd FFI
     mod.sx            # import("std.compress.zstd")
 ```
 
-链接仍产出单一 `std/compress/compress.o`（`ld -r` 合并各格式 `.o`），runtime 路径不变。
+F-04 v7 起四格式均为 `.sx`；**不再构建** `compress.o`。runtime 扫描用户 `.o` 的 marker/符号按需链 `-lz` / `-lzstd` / `-lbrotli*`。
 
 ## 格式说明
 
@@ -44,12 +44,10 @@ std/compress/
 ## 编译与链接
 
 - **不定义**：对应格式为占位，返回 -1，无额外依赖。
-- **zlib**：编译 `-DSHUX_USE_ZLIB`（`zlib/zlib.c` 与 `gzip/gzip.c`），链接 `-lz`。
-- **Brotli**：编译 `-DSHUX_USE_BROTLI`（`brotli/brotli.c`），链接 `-lbrotlienc -lbrotlidec`（或部分系统 `-lbrotli`）。例如：
-  - `make -C compiler compress-o-brotli`
-  - 链接：在 cc 参数中加 `-lbrotlienc -lbrotlidec`。
-- **zstd**：编译 `-DSHUX_USE_ZSTD`（`zstd/zstd.c`），链接 `-lzstd`。
-- **默认构建**：`make -C compiler` 编译四份 `.o` 并 `ld -r` 为 `compress.o`。
+- **zlib / gzip**：`zlib_libz.sx` / `gzip_libz.sx`（F-04 v4/v5）；链接 `-lz`（runtime 扫描 marker 或 deflate/inflate 符号）。
+- **Brotli**：`brotli_lib.sx`（F-04 v6）；链接 `-lbrotlienc -lbrotlidec`（runtime 扫描 marker）。
+- **zstd**：`zstd_lib.sx`（F-04 v7）；链接 `-lzstd`（runtime 扫描 marker）。
+- **Makefile**：`compress-o-*` 目标保留为兼容 no-op；`STD_AND_PANIC_O` 不含 compress.o。
 
 ## 块 API
 
