@@ -28,7 +28,7 @@ EOF
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_backtrace_sym_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local bt_c="$2"
   local tsv="$3"
   local miss=0
@@ -38,20 +38,20 @@ std_backtrace_sym_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-backtrace-symbolicate FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-backtrace-symbolicate FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/backtrace/backtrace.c" ]; then
+        if [ -z "$path" ] || [ "$path" = "std/backtrace/backtrace_platform_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_backtrace_platform.c" ]; then
           path="$bt_c"
         fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -95,15 +95,22 @@ std_backtrace_sym_run_smoke() {
   return 0
 }
 
-# C 金样烟测：-g -rdynamic（Linux）链接 backtrace.o。
+# C 金样烟测：-g -rdynamic（Linux）链接 backtrace.o + runtime_backtrace_platform.o。
 std_backtrace_sym_run_c_gold() {
-  local bt_c="$1"
+  local bt_platform_c="$1"
   local src="tests/backtrace/symbolicate_gold.c"
   local out="/tmp/shux_backtrace_sym_gold_$$"
-  local bt_o
-  bt_o="$(dirname "$bt_c")/backtrace.o"
+  local bt_o="std/backtrace/backtrace.o"
+  local rt_o="compiler/runtime_backtrace_platform.o"
   if [ ! -f "$bt_o" ]; then
     echo "std-backtrace-symbolicate FAIL: missing $bt_o" >&2
+    return 1
+  fi
+  if [ ! -f "$rt_o" ]; then
+    make -C compiler -q runtime_backtrace_platform.o 2>/dev/null || make -C compiler runtime_backtrace_platform.o >/dev/null 2>&1 || true
+  fi
+  if [ ! -f "$rt_o" ]; then
+    echo "std-backtrace-symbolicate FAIL: missing $rt_o" >&2
     return 1
   fi
   local extra=()
@@ -112,7 +119,7 @@ std_backtrace_sym_run_c_gold() {
     Darwin) extra=(-Wl,-export_dynamic) ;;
     MINGW*|MSYS*|CYGWIN*) extra=(-ldbghelp) ;;
   esac
-  if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "${extra[@]}" 2>/dev/null; then
+  if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "$rt_o" "${extra[@]}" 2>/dev/null; then
     echo "std-backtrace-symbolicate FAIL: compile $src" >&2
     return 1
   fi
@@ -135,5 +142,5 @@ std_backtrace_sym_emit_report() {
   local su_ok="$3"
   local skip="$4"
   local host="$5"
-  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} c_gold=${c_ok} su=${su_ok} skip=${skip} host=${host}"
+  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} c_gold=${c_ok} sx=${su_ok} skip=${skip} host=${host}"
 }
