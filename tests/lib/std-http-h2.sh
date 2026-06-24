@@ -2,15 +2,15 @@
 # std-http-h2.sh — STD-HTTP-H2 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_http_h2_symbols_ok MOD_SU HTTP_C TSV
-#   std_http_h2_run_smoke SHUX_BIN SU TAG
+#   std_http_h2_symbols_ok MOD_SX HTTP_C TSV
+#   std_http_h2_run_smoke SHUX_BIN SX TAG
 #   std_http_h2_emit_report status wire_ok client_ok network_ok flow_ok skip
 
 STD_HTTP_H2_PREFIX="${SHUX_STD_HTTP_H2_PREFIX:-shux: [SHUX_STD_HTTP_H2]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_http_h2_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local http_c="$2"
   local tsv="$3"
   local miss=0
@@ -21,19 +21,19 @@ std_http_h2_symbols_ok() {
     case "$kind" in
       symbol)
         case "$mod_path" in
-          std/http/mod.sx) mod_path="$mod_su" ;;
-          std/http/http.c) mod_path="$http_c" ;;
-          std/http/http2.inc.c) mod_path="std/http/http2.inc.c" ;;
-          std/http/http2_hpack.inc.c) mod_path="std/http/http2_hpack.inc.c" ;;
-          std/http/http2_hpack_dyn.inc.c) mod_path="std/http/http2_hpack_dyn.inc.c" ;;
-          std/http/http2_client.inc.c) mod_path="std/http/http2_client.inc.c" ;;
-          std/http/http2_network.inc.c) mod_path="std/http/http2_network.inc.c" ;;
-          std/http/http2_flow.inc.c) mod_path="std/http/http2_flow.inc.c" ;;
-          std/http/http2_flow_state.inc.c) mod_path="std/http/http2_flow_state.inc.c" ;;
-          std/http/http2_flow_recv.inc.c) mod_path="std/http/http2_flow_recv.inc.c" ;;
-          std/http/http2_push_h2c.inc.c) mod_path="std/http/http2_push_h2c.inc.c" ;;
-          std/http/http2_push_fetch.inc.c) mod_path="std/http/http2_push_fetch.inc.c" ;;
-          std/http/http2_network.inc.c) mod_path="std/http/http2_network.inc.c" ;;
+          std/http/mod.sx) mod_path="$mod_sx" ;;
+          compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
+          compiler/src/asm/http/http2.inc.c) mod_path="compiler/src/asm/http/http2.inc.c" ;;
+          compiler/src/asm/http/http2_hpack.inc.c) mod_path="compiler/src/asm/http/http2_hpack.inc.c" ;;
+          compiler/src/asm/http/http2_hpack_dyn.inc.c) mod_path="compiler/src/asm/http/http2_hpack_dyn.inc.c" ;;
+          compiler/src/asm/http/http2_client.inc.c) mod_path="compiler/src/asm/http/http2_client.inc.c" ;;
+          compiler/src/asm/http/http2_network.inc.c) mod_path="compiler/src/asm/http/http2_network.inc.c" ;;
+          compiler/src/asm/http/http2_flow.inc.c) mod_path="compiler/src/asm/http/http2_flow.inc.c" ;;
+          compiler/src/asm/http/http2_flow_state.inc.c) mod_path="compiler/src/asm/http/http2_flow_state.inc.c" ;;
+          compiler/src/asm/http/http2_flow_recv.inc.c) mod_path="compiler/src/asm/http/http2_flow_recv.inc.c" ;;
+          compiler/src/asm/http/http2_push_h2c.inc.c) mod_path="compiler/src/asm/http/http2_push_h2c.inc.c" ;;
+          compiler/src/asm/http/http2_push_fetch.inc.c) mod_path="compiler/src/asm/http/http2_push_fetch.inc.c" ;;
+          compiler/src/asm/http/http2_network.inc.c) mod_path="compiler/src/asm/http/http2_network.inc.c" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-http-h2 FAIL: missing '$anchor' in $mod_path" >&2
@@ -41,7 +41,7 @@ std_http_h2_symbols_ok() {
         fi
         ;;
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-http-h2 FAIL: missing api $anchor" >&2
           miss=$((miss + 1))
         fi
