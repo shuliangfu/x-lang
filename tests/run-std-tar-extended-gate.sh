@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-tar-extended-v1.md"
 MANIFEST="tests/baseline/std-tar-extended.tsv"
-MOD_SU="std/tar/mod.sx"
-TAR_C="std/tar/tar.c"
+MOD_SX="std/tar/mod.sx"
+TAR_SX="std/tar/tar.sx"
 LIB="tests/lib/std-tar-extended.sh"
-SMOKE_SU="tests/tar/long_path_dir.sx"
+SMOKE_SX="tests/tar/long_path_dir.sx"
 SMOKE_C="tests/std-tar/extended_ok.c"
 MIN_APIS=1
 
@@ -18,7 +18,7 @@ MIN_APIS=1
 . "$LIB"
 
 echo "=== STD-152: tar extended manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$TAR_C" "$SMOKE_SU" "$SMOKE_C" std/tar/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$TAR_SX" "$SMOKE_SX" "$SMOKE_C" std/tar/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-tar-extended gate FAIL: missing $f" >&2
     exit 1
@@ -51,7 +51,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_tar_extended_symbols_ok "$MOD_SU" "$TAR_C" "$MANIFEST" || true)"
+sym_miss="$(std_tar_extended_symbols_ok "$MOD_SX" "$TAR_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_tar_extended_emit_report "fail" 0 0 0
   echo "std-tar-extended gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -59,17 +59,6 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-tar-extended manifest OK"
 
-C_OK=0
-if std_tar_extended_run_c_smoke "$TAR_C"; then
-  C_OK=1
-else
-  std_tar_extended_emit_report "fail" 0 0 0
-  exit 1
-fi
-
-SU_OK=0
-SKIP=0
-SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -81,30 +70,41 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
+
+C_OK=0
+SX_OK=0
+SKIP=0
+SHUX_BIN=""
 if stdlib_cm_native_shu ./compiler/shux-c; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
+  if std_tar_extended_run_c_smoke; then
+    C_OK=1
+  else
+    std_tar_extended_emit_report "fail" 0 0 0
+    exit 1
+  fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/tar/tar.o
   TAR_O="$(cd compiler && pwd)/../std/tar/tar.o"
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-tar-extended gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_tar_extended_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "$TAR_O"; then
-    SU_OK=1
+  if std_tar_extended_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "$TAR_O"; then
+    SX_OK=1
   else
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
   SKIP=1
-  echo "std-tar-extended gate SKIP su smoke (no native shux-c)" >&2
+  echo "std-tar-extended gate SKIP c/su smoke (no native shux-c)" >&2
 fi
 
-std_tar_extended_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_tar_extended_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-tar-extended gate OK"
