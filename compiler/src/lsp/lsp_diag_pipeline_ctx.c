@@ -55,7 +55,7 @@ size_t lsp_diag_sx_alloc_dep_ctx_size(void) {
 }
 
 /**
- * 填充 PipelineDepCtx 的 entry_dir 与 libRoots sidecar（供 .sx resolve_path_su 使用）。
+ * 填充 PipelineDepCtx 的 entry_dir 与 libRoots sidecar（供 .sx resolve_path_sx 使用）。
  * 调用前 ctx 可为任意状态；内部先清零再写入路径缓冲。
  */
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
