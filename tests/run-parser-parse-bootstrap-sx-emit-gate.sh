@@ -8,8 +8,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_FAIL:-${SHUX_PARSER_PARSE_BOOTSTRAP_SU_EMIT_FAIL:-0}}
-EXPECT_OK=${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_EXPECT_OK:-${SHUX_PARSER_PARSE_BOOTSTRAP_SU_EMIT_EXPECT_OK:-0}}
+FAIL=${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_FAIL:-${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_FAIL:-0}}
+EXPECT_OK=${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_EXPECT_OK:-${SHUX_PARSER_PARSE_BOOTSTRAP_SX_EMIT_EXPECT_OK:-0}}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
