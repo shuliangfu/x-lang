@@ -4,8 +4,8 @@ const builtin = import("core.builtin");
 
 function main(): i32 {
   let n: i32 = placeholder();
-  let src: [4]u8 = [1, 2, 3, 4];
-  let dst: [4]u8 = [0, 0, 0, 0];
+  let src: u8[4] = [1, 2, 3, 4];
+  let dst: u8[4] = [0, 0, 0, 0];
   builtin.copy(dst, src, 4);
   if (dst[0] != 1 || dst[3] != 4) { return 1; }
   if (builtin.min_i32(3, 7) != 3 || builtin.max_i32(3, 7) != 7) { return 2; }
