@@ -1,4 +1,4 @@
-// std.schema — 结构化 typed decode/validate（STD-090）
+// std.schema — 结构化 typed decode/validate（STD-090；F-schema v2 逻辑在 schema.sx）
 //
 // 【文件职责】
 // Schema 字段注册（标量/可选/col 映射）；JSON 对象 typed decode（含嵌套 object → 点分键）；
