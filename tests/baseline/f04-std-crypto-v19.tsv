@@ -1,0 +1,8 @@
+# F-04 v19：std.crypto Ed25519 API manifest
+# 列：item_id	kind	anchor	mod_path	notes
+symbol_public_c	symbol	crypto_ed25519_public_from_seed_c	std/crypto/ed25519.sx	公钥
+symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.sx	签名
+symbol_verify_c	symbol	crypto_ed25519_verify_c	std/crypto/ed25519.sx	验签
+symbol_smoke_c	symbol	crypto_ed25519_smoke_c	std/crypto/ed25519.sx	烟测
+glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.c	ref10 胶层（F-ZC）
+deleted_inc	absent	std/crypto/ed25519.inc.c	v19 删除
