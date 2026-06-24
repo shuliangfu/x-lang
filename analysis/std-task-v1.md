@@ -25,14 +25,14 @@
 | `join_set_*` | 批量 join 集合 |
 | `supervise_retry` | 失败重试 + 退避 |
 
-实现：`std/task/mod.sx` + `std/task/task.c`；链入 scheduler + context + time。
+实现：`std/task/mod.sx` + `std/task/task.sx`（F-task v2 纯 .sx）；链入 scheduler + context + time。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_TASK] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_TASK] status=ok c_smoke=1 sx=1 skip=0
 std-task gate OK
 ```
 
