@@ -6,11 +6,10 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_READ_FILE_FAIL:-0}
-SU="tests/sys/win32_read_file_smoke.sx"
+SX="tests/sys/win32_read_file_smoke.sx"
 GATE_FILE="/tmp/shux_win32_read_gate.txt"
 OUT="/tmp/shux_win32_read_file.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
-WIN32_O="std/sys/win32.o"
 
 if [ "$(uname -s 2>/dev/null)" != "MINGW"* ] && [ "$(uname -s 2>/dev/null)" != "MSYS"* ] \
    && [ "${OS:-}" != "Windows_NT" ]; then
@@ -27,14 +26,10 @@ if [ ! -x "$SHUX" ]; then
 fi
 
 printf 'WIN' >"$GATE_FILE"
-if [ ! -f "$WIN32_O" ] && [ -f std/sys/win32.inc.c ]; then
-  cc -c -o "$WIN32_O" std/sys/win32.inc.c 2>/tmp/shux_win32_o.log || true
-fi
-
 rm -f "$OUT" 2>/dev/null || true
-# win32.o 由 invoke_cc 按需链入，勿作为 shux  positional 输入。
-if ! "$SHUX" -L . -o "$OUT" "$SU" 2>/tmp/shux_win32_read_file.log; then
-  echo "win32-read-file-gate FAIL: compile $SU" >&2
+# F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
+if ! "$SHUX" -L . -o "$OUT" "$SX" 2>/tmp/shux_win32_read_file.log; then
+  echo "win32-read-file-gate FAIL: compile $SX" >&2
   tail -n 10 /tmp/shux_win32_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
