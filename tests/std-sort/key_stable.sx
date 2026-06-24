@@ -3,7 +3,7 @@ const sort = import("std.sort");
 const debug = import("core.debug");
 
 function main(): i32 {
-  let items: [4]KeyTag = [
+  let items: KeyTag[4] = [
     KeyTag { key: 3, tag: 0 },
     KeyTag { key: 1, tag: 1 },
     KeyTag { key: 3, tag: 2 },
