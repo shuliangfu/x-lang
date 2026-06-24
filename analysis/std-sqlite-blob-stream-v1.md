@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD137_DB_BLOB_STREAM] status=ok stream_c=1 stream_su=0 skip=1
+shux: [SHUX_STD137_DB_BLOB_STREAM] status=ok stream_c=1 stream_sx=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。
