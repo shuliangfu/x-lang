@@ -3,7 +3,7 @@
 本目录为 **shux 编译器** 的源码与构建入口。
 
 - **阶段**：自举前用 **C** 实现（`src/*.c`、`include/*.h`），自举后逐步改为 **.sx**（`src/*.sx`）。
-- **产出**：可执行文件 **shux**（或 su），将 .sx 源码编译为目标码/IR。
+- **产出**：可执行文件 **shux**（.sx 流水线），将 .sx 源码编译为目标码/IR。
 - **子目录**：
   - `src/` — 编译器源码（lexer、parser、ast、typeck、ir、codegen、driver）
   - `include/` — C 头文件（若用 C 实现时使用）
