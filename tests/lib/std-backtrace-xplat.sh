@@ -79,14 +79,21 @@ std_backtrace_xplat_pick_vector() {
 
 # 编译并运行 xplat_quality.c；校验 stderr 质量行。
 std_backtrace_xplat_run_smoke() {
-  local bt_c="$1"
+  local bt_platform_c="$1"
   local src="tests/backtrace/xplat_quality.c"
   local out="/tmp/shux_backtrace_xplat_$$"
   local err="/tmp/shux_backtrace_xplat_err_$$.log"
-  local bt_o
-  bt_o="$(dirname "$bt_c")/backtrace.o"
+  local bt_o="std/backtrace/backtrace.o"
+  local rt_o="compiler/runtime_backtrace_platform.o"
   if [ ! -f "$bt_o" ]; then
     echo "std-backtrace-xplat FAIL: missing $bt_o" >&2
+    return 1
+  fi
+  if [ ! -f "$rt_o" ]; then
+    make -C compiler -q runtime_backtrace_platform.o 2>/dev/null || make -C compiler runtime_backtrace_platform.o >/dev/null 2>&1 || true
+  fi
+  if [ ! -f "$rt_o" ]; then
+    echo "std-backtrace-xplat FAIL: missing $rt_o" >&2
     return 1
   fi
   local extra=()
@@ -95,7 +102,7 @@ std_backtrace_xplat_run_smoke() {
     Darwin) extra=(-Wl,-export_dynamic) ;;
     MINGW*|MSYS*|CYGWIN*) extra=(-ldbghelp) ;;
   esac
-  if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "${extra[@]}" 2>/dev/null; then
+  if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "$rt_o" "${extra[@]}" 2>/dev/null; then
     echo "std-backtrace-xplat FAIL: compile $src" >&2
     return 1
   fi
