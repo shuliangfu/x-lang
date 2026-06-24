@@ -5,7 +5,7 @@ function main(): i32 {
   if (ffi.cstr_len(0 as *u8) != (0 - 1)) {
     return 1;
   }
-  let s: [4]u8 = [97, 98, 99, 0];
+  let s: u8[4] = [97, 98, 99, 0];
   if (ffi.cstr_len(&s[0]) != 3) {
     return 2;
   }
