@@ -24,7 +24,7 @@ int32_t pipeline_run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTA
 /*
  * strict 链：build_asm/parser.o 自举 parse 时跳过大函数（parse_into_buf 等未进 module），
  * 须由 parser_bootstrap_partial.o（自 pipeline_sx.o 部分链接）提供 parser_parse_into_buf。
- * SU 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
+ * SX 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
  */
 #if !defined(SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES) || SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES
 struct parser_ParseIntoResult {
