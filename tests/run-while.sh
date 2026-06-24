@@ -8,7 +8,7 @@ SHUX=${SHUX:-./compiler/shux}
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 # -o 链接走 RUN_SHUX（bootstrap 下非 x86_64 为 shux-c）；typeck 负例仍用 seed SHU。
 LINK_SHUX="$RUN_SHUX"
-TYPECK_SHUX="$SHUX"
+TYPECK_SHUX="${TYPECK_SHUX:-$SHUX}"
 
 # while 0 { 1 }; 42 -> 42（循环不执行）
 $LINK_SHUX tests/while/never.sx -o /tmp/shux_while_never 2>&1
