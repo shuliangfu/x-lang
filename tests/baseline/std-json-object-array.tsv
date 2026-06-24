@@ -6,7 +6,7 @@ cursor_init	symbol	cursor_init	std/json/mod.sx
 cursor_object_next	symbol	cursor_object_next	std/json/mod.sx
 cursor_array_has_elem	symbol	cursor_array_has_elem	std/json/mod.sx
 cursor_skip_value	symbol	cursor_skip_value	std/json/mod.sx
-json_cursor_c	symbol	json_cursor_object_next_c	std/json/json.c
+json_cursor_c	symbol	json_cursor_object_next_c	std/json/json.sx
 zc_doc	anchor	大对象 ZC 策略	analysis/std-json-object-array-v1.md	RFC
 object_array	anchor	object_array_parse	analysis/std-json-object-array-v1.md	RFC
 test_oa	file	tests/json/object_array_parse.sx		金样
