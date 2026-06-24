@@ -3,7 +3,7 @@
 // 【文件职责】
 // 跨模块统一的 Context 载体：background / with_cancel / with_deadline / with_timeout；
 // cancel / is_cancelled；deadline_ns / remaining_ns；轻量键值 bag。
-// C 实现见 std/context/context.c；STD-091 io / STD-092 net Context 超时已 gate。
+// 实现见 std/context/context.sx（F-context v2 纯 .sx）；STD-091 io / STD-092 net Context 超时已 gate。
 //
 // 【所属模块】标准库 std.context；用户通过 import("std.context") 使用。
 
