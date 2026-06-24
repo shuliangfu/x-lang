@@ -8,18 +8,19 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_CRYPTO_AES_GCM_DOC:-analysis/std-crypto-aes-gcm-v1.md}"
 MANIFEST="${SHUX_STD_CRYPTO_AES_GCM_TSV:-tests/baseline/std-crypto-aes-gcm.tsv}"
 VECTORS="${SHUX_STD_CRYPTO_AES_GCM_VECTORS:-tests/baseline/std-crypto-aes-gcm-vectors.tsv}"
-MOD_SU="std/crypto/mod.sx"
-CRYPTO_C="std/crypto/crypto.c"
+MOD_SX="std/crypto/mod.sx"
+AES_GCM_SX="std/crypto/aes_gcm.sx"
+CRYPTO_GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 LIB="tests/lib/std-crypto-aes-gcm.sh"
-SMOKE_SU="tests/std-crypto/aes_gcm_nist2.sx"
-MAIN_SU="tests/crypto/main.sx"
+SMOKE_SX="tests/std-crypto/aes_gcm_nist2.sx"
+MAIN_SX="tests/crypto/main.sx"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/std-crypto-aes-gcm.sh
 . "$LIB"
 
 echo "=== STD-049: crypto AES-GCM manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$CRYPTO_C" "$SMOKE_SU" "$MAIN_SU"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$AES_GCM_SX" "$CRYPTO_GLUE" "$SMOKE_SX" "$MAIN_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-crypto-aes-gcm gate FAIL: missing $f" >&2
     exit 1
@@ -52,7 +53,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-crypto-aes-gcm gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -71,7 +72,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_crypto_aes_gcm_symbols_ok "$MOD_SU" "$CRYPTO_C" "$MANIFEST" || true)"
+sym_miss="$(std_crypto_aes_gcm_symbols_ok "$MOD_SX" "$CRYPTO_GLUE" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_crypto_aes_gcm_emit_report "fail" 0 0 0 0
   echo "std-crypto-aes-gcm gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -108,20 +109,20 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/crypto/crypto.o
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-crypto-aes-gcm gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-crypto-aes-gcm gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_crypto_aes_gcm_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$SMOKE_SU" "nist2"; then
+  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$SMOKE_SX" "nist2"; then
     SEAL_OK=1
     OPEN_OK=1
   else
     std_crypto_aes_gcm_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
+  if std_crypto_aes_gcm_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
     MAIN_OK=1
   else
     std_crypto_aes_gcm_emit_report "fail" "$SEAL_OK" "$OPEN_OK" 0 0
