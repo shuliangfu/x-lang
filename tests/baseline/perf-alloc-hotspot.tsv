@@ -1,6 +1,6 @@
 # PERF-007 内存分配热点治理 manifest
 # 列：item_id	kind	anchor	notes
-# min_cases	2
+# min_cases	3
 output_prefix	bracket_component	SHUX_ALLOC_HOTSPOT	stderr 前缀
 field_case	output_field	case=	用例 id
 field_malloc	output_field	malloc=	实测 malloc 次数
@@ -11,8 +11,10 @@ field_cap_c	output_field	cap_calloc=	上限
 field_cap_r	output_field	cap_realloc=	上限
 case_string_arena	case	string_arena_concat	ZC-4 bench
 case_cl_arena64	case	cl_arena64_smoke	DOD-CL-S2
+case_with_arena_vec	case	with_arena_vec_push	MEM-C1 vec bump
 cap_string_arena	cap_row	string_arena_concat	0/0/0
 cap_cl_arena64	cap_row	cl_arena64_smoke	0/0/0
+cap_with_arena_vec	cap_row	with_arena_vec_push	0/0/0
 baseline	file	tests/baseline/alloc-hotspot-perf.tsv	heap cap 表
 lib	script	lib/perf-alloc-hotspot.sh	strace 统计库
 hook_string_arena	hook_script	run-perf-string-arena.sh	ZC-4 bench + emit
