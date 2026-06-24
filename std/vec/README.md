@@ -39,7 +39,7 @@ Vec_u8 接口对称：`vec_u8_*`。
 | `vec3f_soa_new` / `vec3f_soa_push` / `vec3f_soa_sum_x` / `vec3f_soa_deinit` | SoA 三元组 vec |
 | `vec3f_aos_new` / `vec3f_aos_push` / `vec3f_aos_sum_x` / `vec3f_aos_deinit` | AoS 对照 |
 
-编译期 SoA struct 数组见 `struct Name soa { }` + `[N]T`（DOD-S1）；堆上动态 vec 用本 API。
+编译期 SoA struct 数组见 `struct Name soa { }` + `T[N]`（DOD-S1）；堆上动态 vec 用本 API。
 
 ## 性能（已压榨）
 
