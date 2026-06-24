@@ -6,10 +6,11 @@ api_sort_by_key	api	sort_stable_by_key	std/sort/mod.sx	key 稳定
 api_cmp_key	api	cmp_key_i32_fn	std/sort/mod.sx	key 比较器
 api_cmp_asc	api	cmp_i32_asc_fn	std/sort/mod.sx	升序 fn
 struct_keytag	struct	KeyTag	std/sort/mod.sx	key+tag
-symbol_key_tag_c	symbol	sort_stable_key_tag_c	std/sort/sort.c	C key 排序
-symbol_key_smoke	symbol	sort_key_cmp_smoke_c	std/sort/sort.c	C 烟测
+symbol_key_tag_c	symbol	sort_stable_key_tag_c	std/sort/sort.sx	key 排序
+symbol_key_smoke	symbol	sort_key_cmp_smoke_c	std/sort/sort.sx	烟测
+sort_c_absent	absent	std/sort/sort.c		F-sort v1 已删
 vectors_tsv	file	tests/baseline/std-sort-key-cmp.tsv	策略向量
-smoke_su	smoke	tests/std-sort/key_stable.sx	.sx 烟测
+smoke_sx	smoke	tests/std-sort/key_stable.sx	.sx 烟测
 smoke_c	smoke	tests/std-sort/key_cmp_ok.c	C 烟测
 gate_base	gate	tests/run-std-sort-stable-cmp-gate.sh	STD-060
 lib	script	tests/lib/std-sort-key-cmp.sh	lib
