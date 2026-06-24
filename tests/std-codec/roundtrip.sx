@@ -14,12 +14,12 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
 }
 
 function main(): i32 {
-  let src: [3]u8 = [1, 2, 3];
-  let enc: [64]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let src: u8[3] = [1, 2, 3];
+  let enc: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let dec: [64]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let dec: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -38,7 +38,7 @@ function main(): i32 {
   if (dn != 3) { return 5; }
   if (bytes_eq(&src[0], 3, &dec[0], dn) == 0) { return 6; }
 
-  let hello: [5]u8 = [104, 101, 108, 108, 111];
+  let hello: u8[5] = [104, 101, 108, 108, 111];
   n = codec.adapter_gzip_encode(&hello[0], 5, &enc[0], 64);
   if (n > 0) {
     dn = codec.adapter_gzip_decode(&enc[0], n, &dec[0], 64);
@@ -46,11 +46,11 @@ function main(): i32 {
     if (bytes_eq(&hello[0], 5, &dec[0], dn) == 0) { return 8; }
   }
 
-  let raw_json: [3]u8 = [97, 34, 98];
+  let raw_json: u8[3] = [97, 34, 98];
   n = codec.adapter_json_escape(&raw_json[0], 3, &enc[0], 64);
   if (n <= 0) { return 9; }
 
-  let raw_csv: [3]u8 = [97, 44, 98];
+  let raw_csv: u8[3] = [97, 44, 98];
   n = codec.adapter_csv_escape(&raw_csv[0], 3, &enc[0], 64);
   if (n <= 0) { return 10; }
 
