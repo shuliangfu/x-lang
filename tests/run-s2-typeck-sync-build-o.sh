@@ -35,7 +35,7 @@ SRC="/tmp/shux_s2_typeck_emit_heavy.o"
 mkdir -p "$(dirname "$DEST")"
 cp -f "$SRC" "$DEST"
 
-# layout 符号子集 partial：strict 链与 typeck_su_no_layout 分工（S2 同链）
+# layout 符号子集 partial：strict 链与 typeck_sx_no_layout 分工（S2 同链）
 # shellcheck source=tests/lib/s2-typeck-layout-partial.sh
 . "$(dirname "$0")/lib/s2-typeck-layout-partial.sh"
 if s2_rebuild_typeck_layout_partial "$DEST"; then
