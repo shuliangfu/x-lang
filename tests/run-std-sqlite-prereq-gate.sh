@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_SQLITE_DOC:-analysis/std-sqlite-prereq-v1.md}"
 MANIFEST="${SHUX_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
-MOD_SU="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
+MOD_SX="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
 MIN_APIS=9
 MIN_LAYERS=4
 PREFIX="shux: [SHUX_STD_SQLITE]"
@@ -16,7 +16,7 @@ PREFIX="shux: [SHUX_STD_SQLITE]"
 . tests/lib/std-sqlite.sh
 
 echo "=== STD-010: std.db.sqlite prereq manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" std/db/sqlite/README.md tests/lib/std-sqlite.sh tests/run-std-sqlite.sh; do
+for f in "$DOC" "$MANIFEST" "$MOD_SX" std/db/sqlite/README.md tests/lib/std-sqlite.sh tests/run-std-sqlite.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2
     exit 1
@@ -61,8 +61,8 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_sqlite_has_api "$MOD_SU" "$anchor"; then
-        echo "std-sqlite FAIL: missing API $anchor in $MOD_SU" >&2
+      if ! std_sqlite_has_api "$MOD_SX" "$anchor"; then
+        echo "std-sqlite FAIL: missing API $anchor in $MOD_SX" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
         echo "std-sqlite FAIL: doc missing API $anchor" >&2
