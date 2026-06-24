@@ -9,7 +9,7 @@ function main(): i32 {
   if (av == 1) {
     return 0;
   }
-  let mem: [9]u8 = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+  let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let c: DbConn = sqlite.open(&mem[0]);
   if (c.handle != 0) {
     return 2;
