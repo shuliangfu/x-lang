@@ -3,6 +3,12 @@
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
+# bootstrap shux_asm：test 子命令走 shux-c（与 run-check/run-fmt-cmd 一致）。
+if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
+  case "$(basename "${SHUX:-./compiler/shux}")" in
+    shux|shux_asm) SHUX=./compiler/shux-c ;;
+  esac
+fi
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
