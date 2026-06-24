@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# std-trace-hooks.sh — STD-118 manifest 与烟测辅助
+# std-trace-hooks.sh — STD-118 manifest 与烟测辅助（F-trace v2：纯 trace.sx）
 
 STD_TRACE_HOOKS_PREFIX="${SHUX_STD118_TRACE_HOOKS_PREFIX:-shux: [SHUX_STD118_TRACE_HOOKS]}"
 
+# 遍历 manifest；symbol 在 trace.sx。
 std_trace_hooks_symbols_ok() {
-  local mod_su="$1"
-  local trace_c="$2"
+  local mod_sx="$1"
+  local trace_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,11 +15,13 @@ std_trace_hooks_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/trace/trace.c" ] && path="$trace_c"
+        case "$path" in
+          std/trace/trace.c|std/trace/trace.sx|std/trace/trace_span_glue.c) path="$trace_sx" ;;
+        esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors)
@@ -54,12 +57,14 @@ std_trace_hooks_run_sx_smoke() {
   return 0
 }
 
+# C 烟测：hooks_smoke_ok.c + trace.o + time.o + random.o。
 std_trace_hooks_run_c_smoke() {
   local trace_o="$1"
   local time_o="$2"
   local random_o="$3"
   local out="/tmp/shux_std_trace_hooks_c_$$"
-  cc -std=c11 -O1 -o "$out" tests/std-trace/hooks_smoke_ok.c "$trace_o" "$time_o" "$random_o" 2>/dev/null || return 1
+  make -C compiler runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
+  cc -std=c11 -O1 -o "$out" tests/std-trace/hooks_smoke_ok.c "$trace_o" "$time_o" compiler/runtime_time_os.o "$random_o" compiler/runtime_random_fill.o 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
   local ec=$?
@@ -69,5 +74,5 @@ std_trace_hooks_run_c_smoke() {
 }
 
 std_trace_hooks_emit_report() {
-  echo "${STD_TRACE_HOOKS_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_TRACE_HOOKS_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
