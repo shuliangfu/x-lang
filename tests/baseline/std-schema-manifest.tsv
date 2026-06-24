@@ -16,9 +16,9 @@ api_get_i32	api	get_i32	std/schema/mod.sx	整数
 api_get_bool	api	get_bool	std/schema/mod.sx	布尔
 api_err_field	api	last_error_field	std/schema/mod.sx	错误字段
 api_err_msg	api	last_error_message	std/schema/mod.sx	错误消息
-symbol_smoke	symbol	schema_smoke_c	std/schema/schema.c	C烟测
-impl_c	file	std/schema/schema.c	std/schema/schema.c
-smoke_su	smoke	tests/std-schema/decode_smoke.sx	.su烟测
+symbol_smoke	symbol	schema_smoke_c	std/schema/schema.sx	C烟测
+impl_sx	file	std/schema/schema.sx	std/schema/schema.sx
+smoke_sx	smoke	tests/std-schema/decode_smoke.sx	.sx烟测
 vectors	file	tests/baseline/std-schema-vectors.tsv	向量
 lib	script	lib/std-schema.sh	tests/lib/std-schema.sh
 gate	script	run-std-schema-gate.sh	tests/run-std-schema-gate.sh
