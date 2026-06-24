@@ -20,7 +20,8 @@ api_sleep_us	api	sleep_us	std/time/mod.sx	core	睡眠 us
 api_sleep_ms	api	sleep_ms	std/time/mod.sx	core	睡眠 ms
 api_sleep_sec	api	sleep_sec	std/time/mod.sx	core	睡眠 sec
 api_duration_ns	api	duration_ns	std/time/mod.sx	core	纯算术差
-impl_c	file	std/time/time.c	std/time/time.c	impl	POSIX+Win
+impl_time_runtime	file	compiler/src/asm/runtime_time_os.c	compiler/src/asm/runtime_time_os.c	impl	F-ZC OS syscall runtime
+impl_sx	file	std/time/time.sx	std/time/time.sx	impl	派生与烟测
 impl_readme	file	std/time/README.md	std/time/README.md	doc	模块说明
 lib	script	lib/std-time.sh	tests/lib/std-time.sh	-	共享库
 gate	script	run-std-time-gate.sh	tests/run-std-time-gate.sh	-	manifest
