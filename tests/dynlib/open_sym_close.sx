@@ -17,21 +17,21 @@ function try_sym(lib: *u8, name: *u8): *u8 {
 
 function main(): i32 {
   // "/usr/lib/libSystem.B.dylib"
-  let path_mac: [27]u8 = [
+  let path_mac: u8[27] = [
     47, 117, 115, 114, 47, 108, 105, 98, 47, 108, 105, 98, 83, 121, 115, 116, 101, 109, 46, 66, 46, 100, 121, 108, 105, 98, 0
   ];
   // "libc.so.6"
-  let path_lin: [10]u8 = [108, 105, 98, 99, 46, 115, 111, 46, 54, 0];
+  let path_lin: u8[10] = [108, 105, 98, 99, 46, 115, 111, 46, 54, 0];
   // "kernel32.dll"
-  let path_win: [13]u8 = [107, 101, 114, 110, 101, 108, 51, 50, 46, 100, 108, 108, 0];
+  let path_win: u8[13] = [107, 101, 114, 110, 101, 108, 51, 50, 46, 100, 108, 108, 0];
   let lib: *u8 = try_open(&path_mac[0]);
   if (lib == 0) { lib = try_open(&path_lin[0]); }
   if (lib == 0) { lib = try_open(&path_win[0]); }
   if (lib == 0) { return 1; }
   // "malloc"
-  let sym_malloc: [7]u8 = [109, 97, 108, 108, 111, 99, 0];
+  let sym_malloc: u8[7] = [109, 97, 108, 108, 111, 99, 0];
   // "GetTickCount"
-  let sym_tick: [13]u8 = [71, 101, 116, 84, 105, 99, 107, 67, 111, 117, 110, 116, 0];
+  let sym_tick: u8[13] = [71, 101, 116, 84, 105, 99, 107, 67, 111, 117, 110, 116, 0];
   let fn: *u8 = try_sym(lib, &sym_malloc[0]);
   if (fn == 0) { fn = try_sym(lib, &sym_tick[0]); }
   if (fn == 0) {
