@@ -20,15 +20,15 @@ extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t 
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                        struct ast_Module *module, uint8_t *data,
                                                                        int32_t len);
-extern int32_t pipeline_resolve_path_su(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
-extern int32_t pipeline_read_file_su(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
+extern int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                        int32_t buf_len);
 extern int32_t pipeline_load_import_from_disk(struct ast_Module *module, struct ast_ASTArena *arena,
                                               struct ast_PipelineDepCtx *ctx, int32_t import_idx);
-extern int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_driver_asm_build_skip_typeck(void);
-extern int32_t pipeline_driver_su_pipeline_skip_typeck(void);
+extern int32_t pipeline_driver_sx_pipeline_skip_typeck(void);
 extern int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                             int32_t out_cap);
 
@@ -38,7 +38,7 @@ extern int32_t driver_dep_seeded_get(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t *path);
 extern int32_t driver_check_only_get(void);
 extern int32_t driver_skip_codegen_dep_0_get(void);
-extern int32_t driver_su_pipeline_skip_codegen_get(void);
+extern int32_t driver_sx_pipeline_skip_codegen_get(void);
 extern void driver_diagnostic_entry_already(int32_t v);
 extern void driver_diagnostic_source_len(int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
@@ -88,7 +88,7 @@ extern int32_t *typeck_layout_metrics_al_slot(void);
 extern int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth);
 extern int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth);
 
-/* —— typeck.sx 指针写槽 glue（须在 pipeline_sx.o 提供，typeck_su.o 链接依赖） —— */
+/* —— typeck.sx 指针写槽 glue（须在 pipeline_sx.o 提供，typeck_sx.o 链接依赖） —— */
 
 /** 安全写 *i32，避免 .sx 栈上 &out 在自举 emit 下撕裂。 */
 void typeck_i32_ptr_store(int32_t *p, int32_t v) {
@@ -96,7 +96,7 @@ void typeck_i32_ptr_store(int32_t *p, int32_t v) {
     *p = v;
 }
 
-/** 安全读 *i32；resolve_call SU emit 读 scratch slot。 */
+/** 安全读 *i32；resolve_call SX emit 读 scratch slot。 */
 int32_t typeck_i32_ptr_read(int32_t *p) {
   return p ? *p : 0;
 }
@@ -355,6 +355,37 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_process(uint8_t *path) {
   return (path[11] == 0 || path[11] == '.') ? 1 : 0;
 }
 
+/** std.fmt：符号由 runtime_asm_io_stubs + redirect 提供（见 ast_pool.c）。 */
+int32_t pipeline_codegen_dep_skip_asm_user_std_fmt(uint8_t *path) {
+  if (!path)
+    return 0;
+  if (memcmp(path, "std.fmt", 7) != 0)
+    return 0;
+  return (path[7] == 0 || path[7] == '.') ? 1 : 0;
+}
+
+/** std.error / std.context。 */
+int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path) {
+  if (!path)
+    return 0;
+  if (memcmp(path, "std.error", 9) == 0 && (path[9] == 0 || path[9] == '.'))
+    return 1;
+  if (memcmp(path, "std.context", 11) == 0 && (path[11] == 0 || path[11] == '.'))
+    return 1;
+  return 0;
+}
+
+/** core.fmt / core.result。 */
+int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
+  if (!path)
+    return 0;
+  if (memcmp(path, "core.fmt", 8) == 0 && (path[8] == 0 || path[8] == '.'))
+    return 1;
+  if (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.'))
+    return 1;
+  return 0;
+}
+
 /** import 路径是否为 std.net 族。 */
 int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
   if (!path)
@@ -364,8 +395,34 @@ int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
   return (path[7] == 0 || path[7] == '.') ? 1 : 0;
 }
 
+/** 是否存在须 co-emit 的用户自有 dep（tests/multi-file 等）。 */
+int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
+  int32_t i;
+  if (!dep_paths || n <= 0)
+    return 0;
+  for (i = 0; i < n; i++) {
+    uint8_t *p = (uint8_t *)(dep_paths[i] ? dep_paths[i] : "");
+    if (pipeline_codegen_dep_skip_asm_user_std_io(p) != 0)
+      continue;
+    if (pipeline_codegen_dep_skip_asm_user_std_fs(p) != 0)
+      continue;
+    if (pipeline_codegen_dep_skip_asm_user_std_process(p) != 0)
+      continue;
+    if (pipeline_codegen_dep_skip_asm_user_std_fmt(p) != 0)
+      continue;
+    if (pipeline_codegen_dep_skip_asm_user_std_misc(p) != 0)
+      continue;
+    if (pipeline_codegen_dep_skip_asm_user_core_lib(p) != 0)
+      continue;
+    if (pipeline_asm_user_std_net_dep_path(p) != 0)
+      continue;
+    return 1;
+  }
+  return 0;
+}
+
 /** io/fs/net/process dep 跳过 .sx typeck（符号由 *.o 提供）。 */
-int32_t pipeline_asm_user_dep_skip_su_typeck(uint8_t *path) {
+int32_t pipeline_asm_user_dep_skip_sx_typeck(uint8_t *path) {
   if (!path)
     return 0;
   if (pipeline_codegen_dep_skip_asm_user_std_io(path) != 0)
@@ -373,6 +430,12 @@ int32_t pipeline_asm_user_dep_skip_su_typeck(uint8_t *path) {
   if (pipeline_codegen_dep_skip_asm_user_std_fs(path) != 0)
     return 1;
   if (pipeline_codegen_dep_skip_asm_user_std_process(path) != 0)
+    return 1;
+  if (pipeline_codegen_dep_skip_asm_user_std_fmt(path) != 0)
+    return 1;
+  if (pipeline_codegen_dep_skip_asm_user_std_misc(path) != 0)
+    return 1;
+  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0)
     return 1;
   if (pipeline_asm_user_std_net_dep_path(path) != 0)
     return 1;
@@ -394,6 +457,9 @@ typedef struct {
 } glue_std_heap_redirect_t;
 
 static const glue_std_heap_redirect_t kGlueStdHeapRedirect[] = {
+    {"alloc", "heap_alloc_c"},
+    {"realloc", "heap_realloc_c"},
+    {"free", "heap_free_c"},
     {"alloc_i32", "heap_alloc_i32_c"},
     {"realloc_i32", "heap_realloc_i32_c"},
     {"free_i32", "heap_free_i32_c"},
@@ -459,6 +525,11 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
   if (name_len == 9 && memcmp(name, "print_str", 9) == 0) {
     memcpy(sym_out, "std_io_print_str", 16);
     return 16;
+  }
+  /** std.fmt.println(ptr,len)：跳过 fmt co-emit 时链 runtime_asm_io_stubs 桩。 */
+  if (name_len == 14 && memcmp(name, "std_fmt_println", 14) == 0) {
+    memcpy(sym_out, "std_fmt_println", 14);
+    return 14;
   }
   return 0;
 }
