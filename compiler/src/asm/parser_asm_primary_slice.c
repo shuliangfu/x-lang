@@ -20,7 +20,9 @@ enum {
   PARSER_ASM_EXPR_FIELD_ACCESS = 44,
   PARSER_ASM_EXPR_ARRAY_LIT = 46,
   PARSER_ASM_EXPR_INDEX = 47,
-  PARSER_ASM_EXPR_CALL = 48
+  PARSER_ASM_EXPR_CALL = 48,
+  /** 与 ast.h AST_EXPR_STRING_LIT 序一致；字符串字面量写入 var_name。 */
+  PARSER_ASM_EXPR_STRING_LIT = 59
 };
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
@@ -1229,6 +1231,37 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
+  /** 须在第二次 lexer_next 之前处理 TOKEN_STRING：否则 `foo("")` 实参被跳过、let 后 return if 落入 buf 回退失败。 */
+  if (r.tok.kind == (int32_t)TOKEN_STRING) {
+    size_t q0;
+    size_t k;
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out->ok = 0;
+      return;
+    }
+    e = parser_asm_arena_expr_get_c(arena, ref);
+    parser_asm_expr_set_common_zeros_c(&e);
+    e.kind = PARSER_ASM_EXPR_STRING_LIT;
+    e.line = r.tok.line;
+    e.col = r.tok.col;
+    /** lexer.sx：TOKEN_STRING 的 token_start 已指向开引号后首字节，勿再 +1。 */
+    q0 = r.token_start;
+    e.var_name_len = r.tok.ident_len;
+    if (e.var_name_len > 63)
+      e.var_name_len = 63;
+    if (e.var_name_len < 0)
+      e.var_name_len = 0;
+    for (k = 0; k < (size_t)e.var_name_len; k++)
+      e.var_name[k] = source->data[q0 + k];
+    if ((size_t)e.var_name_len < 64)
+      e.var_name[e.var_name_len] = 0;
+    parser_asm_arena_expr_set_c(arena, ref, e);
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = r.next_lex;
+    return;
+  }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_AT) {
@@ -1243,8 +1276,8 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     }
     e = parser_asm_arena_expr_get_c(arena, ref);
     e.kind = PARSER_ASM_EXPR_LIT;
-    e.line = 0;
-    e.col = 0;
+    e.line = r.tok.line;
+    e.col = r.tok.col;
     e.int_val = r.tok.int_val;
     parser_asm_expr_set_common_zeros_c(&e);
     parser_asm_arena_expr_set_c(arena, ref, e);
@@ -1317,8 +1350,8 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e = parser_asm_arena_expr_get_c(arena, ref);
     e.kind = PARSER_ASM_EXPR_VAR;
     parser_asm_primary_copy_ident_to_var_c(&e, source, r.token_start, r.tok.ident_len);
-    e.line = 0;
-    e.col = 0;
+    e.line = r.tok.line;
+    e.col = r.tok.col;
     parser_asm_expr_set_common_zeros_c(&e);
     parser_asm_arena_expr_set_c(arena, ref, e);
     out->ok = 1;
