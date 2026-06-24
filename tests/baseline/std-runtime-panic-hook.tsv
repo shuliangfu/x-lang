@@ -7,7 +7,7 @@ exc_cross	cross_ref	exc-panic-abort-v1-rfc.md	-	analysis/std-runtime-panic-hook-
 hook_api	symbol	-	panic_hook_collect	std/runtime/mod.sx	STD-028
 runtime_panic_c	code	-	shux_crash_evidence_collect_c	compiler/src/asm/runtime_panic.c	Linux/Win/mac .c
 runtime_panic_arm	code	-	_exit(1)	compiler/src/asm/runtime_panic_arm64.c	macOS 备选
-runtime_bridge	code	-	shux_panic_	std/runtime/runtime.c	门面
+runtime_bridge	code	-	shux_panic_	std/runtime/runtime.sx	门面
 panic_collect_weak	code	-	__attribute__((weak))	compiler/src/asm/runtime_panic.c	弱钩子
 runtime_syscall	code	-	shux_panic_	compiler/src/asm/runtime_panic_x86_64.s	Linux .s
 test_hook	file	-	panic_hook_align.sx	tests/exc/panic_hook_align.sx	烟测
