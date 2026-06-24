@@ -14,7 +14,7 @@ if [ -z "$COMP" ]; then
     fi
   done
 fi
-PIPELINE_SU="compiler/src/pipeline/pipeline.sx"
+PIPELINE_SX="compiler/src/pipeline/pipeline.sx"
 OUT="/tmp/shux_s3_pipeline_emit_heavy.o"
 BASELINE="${SHUX_S3_PIPELINE_BASELINE:-tests/baseline/s3-pipeline-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
@@ -33,7 +33,7 @@ case "$COMP" in
   ./*) COMP_ABS="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")" ;;
   *) COMP_ABS="$COMP" ;;
 esac
-PIPELINE_SU_REL="src/pipeline/pipeline.sx"
+PIPELINE_SX_REL="src/pipeline/pipeline.sx"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 echo "s3 emit-heavy: compiler=$COMP (from compiler/)"
 
@@ -69,7 +69,7 @@ PY
 rm -f "$OUT"
 if ! ( cd compiler && ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-    "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_SU_REL" ); then
+    "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_SX_REL" ); then
   echo "s3 emit-heavy: compile failed" >&2
   exit 1
 fi
