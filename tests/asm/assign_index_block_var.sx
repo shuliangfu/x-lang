@@ -1,6 +1,6 @@
 // 7.3：块内连续 VAR 下标 INDEX assign + 求和，main 内无 mov x2（run-asm-assign-index-block.sh）。
 function main(): i32 {
-  let arr: [3]i32 = [5, 10, 15];
+  let arr: i32[3] = [5, 10, 15];
   let i: i32 = 0;
   let j: i32 = 1;
   let k: i32 = 2;
