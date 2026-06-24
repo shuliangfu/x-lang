@@ -25,7 +25,7 @@ native_shu() {
 }
 
 echo "=== SAFE-007: crash evidence manifest ==="
-for f in "$DOC" "$MANIFEST" std/backtrace/mod.sx std/backtrace/backtrace.c \
+for f in "$DOC" "$MANIFEST" std/backtrace/mod.sx compiler/src/asm/runtime_backtrace_platform.c \
   compiler/src/asm/runtime_panic.c tests/crash/evidence_manual.sx tests/ub/div_zero.sx; do
   if [ ! -f "$f" ]; then
     echo "safe-crash-evidence gate FAIL: missing $f" >&2
@@ -67,7 +67,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         MISS=$((MISS + 1))
       fi
       if [ "$item_id" = "impl_c" ]; then
-        if ! grep -qF 'shux_crash_evidence_collect_c' std/backtrace/backtrace.c 2>/dev/null; then
+        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/src/asm/runtime_backtrace_platform.c 2>/dev/null; then
           echo "safe-crash FAIL: missing collect impl" >&2
           MISS=$((MISS + 1))
         fi
