@@ -8,8 +8,9 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_CRYPTO_SHA512_HMAC_DOC:-analysis/std-crypto-sha512-hmac-v1.md}"
 MANIFEST="${SHUX_STD_CRYPTO_SHA512_HMAC_TSV:-tests/baseline/std-crypto-sha512-hmac.tsv}"
 VECTORS="${SHUX_STD_CRYPTO_SHA512_HMAC_VECTORS:-tests/baseline/std-crypto-sha512-hmac-vectors.tsv}"
-MOD_SU="std/crypto/mod.sx"
-CRYPTO_C="std/crypto/crypto.c"
+MOD_SX="std/crypto/mod.sx"
+CRYPTO_CORE="std/crypto/crypto_core.sx"
+CRYPTO_GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 LIB="tests/lib/std-crypto-sha512-hmac.sh"
 SMOKE_SHA="tests/std-crypto/sha512_abc.sx"
 SMOKE_HMAC="tests/std-crypto/hmac_sha512_rfc4231_tc1.sx"
@@ -20,7 +21,7 @@ MIN_APIS=4
 . "$LIB"
 
 echo "=== STD-050: crypto SHA-512 / HMAC manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$CRYPTO_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$CRYPTO_CORE" "$CRYPTO_GLUE" \
   "$SMOKE_SHA" "$SMOKE_HMAC" "$SMOKE_MAC"; do
   if [ ! -f "$f" ]; then
     echo "std-crypto-sha512-hmac gate FAIL: missing $f" >&2
@@ -58,7 +59,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-crypto-sha512-hmac gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -77,7 +78,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_crypto_sha512_hmac_symbols_ok "$MOD_SU" "$CRYPTO_C" "$MANIFEST" || true)"
+sym_miss="$(std_crypto_sha512_hmac_symbols_ok "$MOD_SX" "$CRYPTO_GLUE" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_crypto_sha512_hmac_emit_report "fail" 0 0 0 0
   echo "std-crypto-sha512-hmac gate FAIL: symbol_miss=${sym_miss}" >&2
