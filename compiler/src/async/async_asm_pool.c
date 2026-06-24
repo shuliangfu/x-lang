@@ -43,17 +43,17 @@ extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, s
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t bi);
 
-/** C AST_EXPR_AWAIT(54) 与 SU EXPR_AS(54) 碰撞；SU EXPR_AWAIT=55。 */
+/** C AST_EXPR_AWAIT(54) 与 SX EXPR_AS(54) 碰撞；SX EXPR_AWAIT=55。 */
 #define ASM_POOL_KIND_ORD54 54
-#define ASM_POOL_KIND_SU_AWAIT 55
+#define ASM_POOL_KIND_SX_AWAIT 55
 
-/** SU pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
+/** SX pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
 static int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
     int32_t ko, uop;
     if (!a || er <= 0)
         return 0;
     ko = pipeline_expr_kind_ord_at(a, er);
-    if (ko == ASM_POOL_KIND_SU_AWAIT) {
+    if (ko == ASM_POOL_KIND_SX_AWAIT) {
         uop = pipeline_expr_unary_operand_ref_at(a, er);
         return uop > 0 ? 1 : 0;
     }
@@ -76,7 +76,7 @@ static int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
     if (ko >= 4 && ko <= 21)
         return asm_pool_expr_has_await(a, pipeline_expr_binop_left_ref_at(a, er)) ||
                asm_pool_expr_has_await(a, pipeline_expr_binop_right_ref_at(a, er));
-    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SU_AWAIT ||
+    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SX_AWAIT ||
         ko == 51 || ko == 52)
         return asm_pool_expr_has_await(a, pipeline_expr_unary_operand_ref_at(a, er));
     if (ko == 44)
@@ -118,7 +118,7 @@ static int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const
     if (ko >= 4 && ko <= 21)
         return asm_pool_expr_refs_name(a, pipeline_expr_binop_left_ref_at(a, er), name, nlen) ||
                asm_pool_expr_refs_name(a, pipeline_expr_binop_right_ref_at(a, er), name, nlen);
-    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SU_AWAIT ||
+    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SX_AWAIT ||
         ko == 51 || ko == 52)
         return asm_pool_expr_refs_name(a, pipeline_expr_unary_operand_ref_at(a, er), name, nlen);
     if (ko == 44)
