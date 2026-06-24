@@ -1,0 +1,39 @@
+# F-no-libc 路线图（manifest）
+# 列：item_id	layer	status	anchor	notes
+crt0_user	.s	done	compiler/src/asm/crt0_user_x86_64.s	_start → _main
+freestanding_io	.s	done	compiler/src/asm/freestanding_io_x86_64.s	write read open close exit openat mmap munmap
+sys_linux_sx	sx	done	std/sys/linux.sx	extern + 薄封装
+sys_mod_sx	sx	done	std/sys/mod.sx	os_write 分平台
+freestanding_hello	gate	done	tests/run-freestanding-hello.sh	ldd 无 libc.so
+nolibc_gate	gate	done	tests/run-no-libc-gate.sh	聚合 NL-01～07
+nolibc_n01_gate	gate	done	tests/run-nolibc-n01-preparation-gate.sh	NL-01 专 gate
+nolibc_n01_manifest	manifest	done	tests/baseline/nolibc-n01-preparation.tsv	NL-01 登记
+heap_brk	syscall	todo	freestanding_io_x86_64.s	可选；优先 mmap 堆
+heap_page_mmap	sx	done	std/heap/page_mmap.sx	NL-03 mmap bump 64KiB
+nolibc_heap_gate	gate	done	tests/run-no-libc-heap-gate.sh	ABC stdout smoke
+heap_heap_c	c	done	std/heap/heap_libc.sx	F-03 v2 已删 heap.c
+fs_freestanding_linux	sx	done	std/fs/freestanding_linux.sx	NL-04 syscall read/open/close
+nolibc_fs_gate	gate	done	tests/run-no-libc-fs-gate.sh	FS stdout smoke
+fs_fs_c	sx	legacy	std/fs/fs_posix.sx	hosted 纯 .sx；freestanding 不链
+io_io_c	sx	done	std/io/io_backend.sx	F-03 v3 sync fallback；io_uring 延后 F-04
+net_freestanding_linux	sx	done	std/net/freestanding_linux.sx	NL-02 socket facade
+nolibc_socket_gate	gate	done	tests/run-no-libc-socket-gate.sh	socket+close smoke
+net_net_c	sx	deleted	std/net/mod.sx	F-04 v14：net.c 删；hosted net.o 纯 .sx+胶层
+link_nostdlib	driver	done	compiler/src/runtime_link_abi.c	NL-05 freestanding user ld -nostdlib
+link_no_lc	user_gate	done	tests/run-no-libc-link-gate.sh	用户链无 -lc；编译器 track
+nolibc_link_gate	gate	done	tests/run-no-libc-link-gate.sh	NL-05 链接策略
+n06_doc	doc	done	analysis/phase-f-n06-v1.md	NL-06 v1 首批发
+n06_manifest	manifest	done	tests/baseline/nolibc-n06-freestanding-replacements.tsv	freestanding 替换登记
+n06_gate	gate	done	tests/run-nolibc-n06-std-track-gate.sh	NL-06 track + F-01 委托
+n07_doc	doc	done	analysis/phase-f-n07-v1.md	NL-07 v1 bootstrap 准备
+n07_manifest	manifest	done	tests/baseline/nolibc-n07-bootstrap-prep.tsv	-lc 链入登记
+n07_lc_baseline	manifest	done	tests/baseline/nolibc-n07-bootstrap-lc-track.tsv	lc 行数基线
+n07_gate	gate	done	tests/run-nolibc-n07-bootstrap-prep-gate.sh	NL-07 track + B-32 委托
+n07_v2_doc	doc	done	analysis/phase-f-n07-v2.md	bootstrap nostdlib 首试
+n07_v2_stubs	file	done	compiler/src/asm/bootstrap_nostdlib_stubs.c	最小 libc 桩
+n07_v2_gate	gate	done	tests/run-nolibc-n07-v2-prep-gate.sh	v2 prep gate
+n07_v3_doc	doc	done	analysis/phase-f-n07-v3.md	bootstrap nostdlib 链入烟测
+n07_v3_gate	gate	done	tests/run-nolibc-n07-v3-link-gate.sh	v3 link smoke gate
+n07_v4_doc	doc	done	analysis/phase-f-n07-v4.md	v4 全链试跑 track
+n07_v4_gate	gate	done	tests/run-nolibc-n07-v4-build-gate.sh	v4 build gate
+std_c_migrate	track	todo	tests/baseline/std-c-inventory.tsv	107 .c 全量迁移 NL-06 v2+
