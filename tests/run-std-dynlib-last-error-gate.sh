@@ -6,10 +6,11 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/dynlib/mod.sx"
-DYNLIB_C="std/dynlib/dynlib.c"
+MOD_SX="std/dynlib/mod.sx"
+DYNLIB_RUNTIME="compiler/src/asm/runtime_dynlib_os.c"
+DYNLIB_SX="std/dynlib/dynlib.sx"
 MANIFEST="tests/baseline/std-dynlib-last-error.tsv"
-SMOKE_SU="tests/dynlib/last_error.sx"
+SMOKE_SX="tests/dynlib/last_error.sx"
 SMOKE_C="tests/dynlib/last_error_smoke.c"
 PREFIX="shux: [SHUX_STD096_DYNLIB_ERR]"
 
@@ -26,46 +27,24 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-096: dynlib last_error manifest ==="
-for f in "$MOD_SU" "$DYNLIB_C" "$MANIFEST" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$MOD_SX" "$DYNLIB_SX" "$DYNLIB_RUNTIME" "$MANIFEST" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "dynlib-last-error gate FAIL: missing $f" >&2
     exit 1
   fi
 done
-if ! grep -qE "function last_error\\(" "$MOD_SU" 2>/dev/null; then
+if ! grep -qE "function last_error\\(" "$MOD_SX" 2>/dev/null; then
   echo "dynlib-last-error gate FAIL: missing api last_error" >&2
   exit 1
 fi
-if ! grep -qF "dynlib_last_error_copy_c" "$DYNLIB_C" 2>/dev/null; then
+if ! grep -qF "dynlib_last_error_copy_c" "$DYNLIB_SX" 2>/dev/null; then
   echo "dynlib-last-error gate FAIL: missing C copy symbol" >&2
   exit 1
 fi
 echo "dynlib-last-error manifest OK"
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/dynlib/dynlib.o
-
 C_OK=0
-echo "=== STD-096: C smoke ==="
-c_exe="/tmp/shux_std096_dynlib_err_$$"
-if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/dynlib/dynlib.o 2>/dev/null; then
-  set +e
-  "$c_exe" >/dev/null 2>&1
-  c_ec=$?
-  set -e
-  rm -f "$c_exe"
-  if [ "$c_ec" -ne 0 ]; then
-    echo "dynlib-last-error gate FAIL: C smoke exit=$c_ec" >&2
-    exit 1
-  fi
-  C_OK=1
-else
-  echo "dynlib-last-error gate FAIL: compile $SMOKE_C" >&2
-  exit 1
-fi
-
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
@@ -73,18 +52,46 @@ if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c 
 elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi
+
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-096: .sx typeck (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "dynlib-last-error gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . tests/lib/build-std-c-o.sh
+  ensure_std_c_o ../std/dynlib/dynlib.o
+  make -C compiler runtime_dynlib_os.o >/dev/null 2>&1 || true
+  ld_extra=""
+  case "$(uname -s)" in
+    Linux*) ld_extra="-ldl" ;;
+  esac
+
+  echo "=== STD-096: C smoke ==="
+  c_exe="/tmp/shux_std096_dynlib_err_$$"
+  if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/dynlib/dynlib.o compiler/runtime_dynlib_os.o $ld_extra 2>/dev/null; then
+    set +e
+    "$c_exe" >/dev/null 2>&1
+    c_ec=$?
+    set -e
+    rm -f "$c_exe"
+    if [ "$c_ec" -ne 0 ]; then
+      echo "dynlib-last-error gate FAIL: C smoke exit=$c_ec" >&2
+      exit 1
+    fi
+    C_OK=1
+  else
+    echo "dynlib-last-error gate FAIL: compile $SMOKE_C" >&2
     exit 1
   fi
-  SU_OK=1
+
+  echo "=== STD-096: .sx typeck (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "dynlib-last-error gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    exit 1
+  fi
+  SX_OK=1
 else
-  echo "dynlib-last-error gate SKIP .sx (no native shux)" >&2
+  echo "dynlib-last-error gate SKIP C/.sx smoke (no native shux-c)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok c=${C_OK} su=${SU_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok c=${C_OK} sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-dynlib-last-error gate OK"
