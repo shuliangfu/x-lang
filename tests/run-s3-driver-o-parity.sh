@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S3 driver 同链烟测：build_asm/driver_compile_link.o 须导出 driver_run_compiler_full_su 且含 SU parse_argv。
+# S3 driver 同链烟测：build_asm/driver_compile_link.o 须导出 driver_run_compiler_full_sx 且含 SX parse_argv。
 # 用法：./tests/run-s3-driver-o-parity.sh
 # 前置：./tests/run-s3-driver-sync-build-o.sh
 # 可选：SHUX_S3_FAIL_ON_PARITY=1 — 任一检查失败时 exit 1
@@ -71,12 +71,12 @@ if [ "${MIN_REAL:-0}" -gt 0 ] && [ "${asm_real:-0}" -lt "${MIN_REAL}" ] 2>/dev/n
   parity_fail "real_funcs ${asm_real} < min_real_funcs ${MIN_REAL}"
 fi
 
-for sym in driver_run_compiler_full_su driver_compile_dispatch_asm_backend driver_compile_dispatch_emit_c_path; do
+for sym in driver_run_compiler_full_sx driver_compile_dispatch_asm_backend driver_compile_dispatch_emit_c_path; do
   if ! nm "$DRIVER_LINK_O" 2>/dev/null | grep -q " T _${sym}$"; then
     parity_fail "$DRIVER_LINK_O missing symbol $sym"
   fi
 done
-echo "s3 driver parity: link.o exports driver_run_compiler_full_su + dispatch_*"
+echo "s3 driver parity: link.o exports driver_run_compiler_full_sx + dispatch_*"
 
 if ! nm "$DRIVER_LINK_O" 2>/dev/null | grep -q ' T _driver_compile_parse_argv$'; then
   parity_fail "$DRIVER_LINK_O missing driver_compile_parse_argv (asm argv chain)"
