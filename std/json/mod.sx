@@ -4,7 +4,7 @@
 // 零拷贝 string view；类型化 decode。单遍、无 sscanf，性能优先。
 // 【API 对标】Zig parseFromSlice；Rust from_str / to_string。仅最小子集，无大依赖。
 
-/** JSON 游标：与 json.c json_cursor_t 布局一致（STD-034）。 */
+/** JSON 游标：与 json_parse_glue.c json_cursor_t 布局一致（STD-034）。 */
 struct JsonCursor {
   ptr: *u8;
   len: i32;
