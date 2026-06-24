@@ -14,10 +14,10 @@ function main(): i32 {
   let x: u32 = rng_range_u32(&r4, 10 as u32, 12 as u32);
   if (x < (10 as u32) || x > (12 as u32)) { return 4; }
   let r5: Rng = rng_from_seed(42 as u64);
-  let buf: [4]u8 = [];
+  let buf: u8[4] = [];
   rng_fill_bytes(&r5, &buf[0], 4);
   let r6: Rng = rng_from_seed(42 as u64);
-  let buf2: [4]u8 = [];
+  let buf2: u8[4] = [];
   rng_fill_bytes(&r6, &buf2[0], 4);
   let i: i32 = 0;
   while (i < 4) {
