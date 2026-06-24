@@ -31,7 +31,7 @@ int32_t typeck_preprocess_apply_directive_kind(int32_t kind);
 int typeck_preprocess_line_keeping();
 struct typeck_ParseDirectiveResult typeck_zero_dir();
 void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]);
-int32_t typeck_preprocess_su(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
+int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
 int32_t typeck_preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
 int32_t typeck_preprocess_apply_directive_kind(int32_t kind) {
   int32_t depth = preprocess_if_stack_len();
@@ -162,7 +162,7 @@ void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8
  } else (__tmp = 0) ; __tmp; }));
   return;
 }
-int32_t typeck_preprocess_su(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
+int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
   (void)(({ int32_t __tmp = 0; if ((out_buf)->length <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(preprocess_if_stack_reset());
