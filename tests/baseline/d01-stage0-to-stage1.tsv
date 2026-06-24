@@ -1,0 +1,9 @@
+# D-01 Stage0→Stage1 盘点（manifest）
+# 列：item_id	layer	anchor	check_type	gate_or_notes
+stage0_seed	makefile	bootstrap-driver-seed	grep	Stage 0 seed shux
+stage1_bstrict	makefile	bootstrap-driver-bstrict	grep	SHUX_ASM_EXPERIMENTAL_SKIP_GEN
+build_asm	script	compiler/scripts/build_shux_asm.sh	grep	SKIP_GEN strict
+stage1_binary	artifact	compiler/shux_asm	exists	Stage 1 output
+d01_gate	gate	tests/run-d01-stage0-to-stage1-gate.sh	gate_ref	phase D closure
+d05_release	cross_ref	tests/run-d05-single-shux-release-gate.sh	gate_ref	shux = shux_asm
+c03_no_pipeline	cross_ref	tests/run-c03-no-pipeline-gen-gate.sh	gate_ref	no pipeline_gen cc
