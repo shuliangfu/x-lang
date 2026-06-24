@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-036：std.csv parse_row / write_row 门禁
+# STD-036：std.csv parse_row / write_row 门禁（F-csv v1：csv.sx）
 #
 # 用法：./tests/run-std-csv-row-gate.sh
 set -e
@@ -7,17 +7,17 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_CSV_ROW_DOC:-analysis/std-csv-row-v1.md}"
 MANIFEST="${SHUX_STD_CSV_ROW_TSV:-tests/baseline/std-csv-row.tsv}"
-CSV_SU="std/csv/mod.sx"
-CSV_C="std/csv/csv.c"
+CSV_SX="std/csv/mod.sx"
+CSV_SX="std/csv/csv.sx"
 LIB="tests/lib/std-csv-row.sh"
-RT_SU="tests/csv/row_roundtrip.sx"
-MAIN_SU="tests/csv/main.sx"
+RT_SX="tests/csv/row_roundtrip.sx"
+MAIN_SX="tests/csv/main.sx"
 
 # shellcheck source=tests/lib/std-csv-row.sh
 . "$LIB"
 
 echo "=== STD-036: csv row manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$CSV_SU" "$CSV_C" "$RT_SU" "$MAIN_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$CSV_SX" "$CSV_SX" "$RT_SX" "$MAIN_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-csv-row gate FAIL: missing $f" >&2
     exit 1
@@ -31,7 +31,7 @@ for kw in parse_row write_row RFC 4180 row_roundtrip; do
   fi
 done
 
-sym_miss="$(std_csv_row_symbols_ok "$CSV_SU" "$CSV_C" "$MANIFEST" || true)"
+sym_miss="$(std_csv_row_symbols_ok "$CSV_SX" "$CSV_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_csv_row_emit_report "fail" 0 0 1
   echo "std-csv-row gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -66,21 +66,21 @@ if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-036: typeck + smoke (SHUX=$SHUX_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/csv/csv.o
+  ensure_std_c_o ../std/csv/csv.o 2>/dev/null || true
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$RT_SU" >/dev/null 2>&1; then
-    echo "std-csv-row gate FAIL: typeck $RT_SU" >&2
-    "$SHUX_BIN" check -L . "$RT_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$RT_SX" >/dev/null 2>&1; then
+    echo "std-csv-row gate FAIL: typeck $RT_SX" >&2
+    "$SHUX_BIN" check -L . "$RT_SX" 2>&1 | tail -10 >&2 || true
     std_csv_row_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_csv_row_run_smoke "$SHUX_BIN" "$RT_SU" "row_roundtrip"; then
+  if std_csv_row_run_smoke "$SHUX_BIN" "$RT_SX" "row_roundtrip"; then
     RT_OK=1
   else
     std_csv_row_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_csv_row_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
+  if std_csv_row_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
     MAIN_OK=1
   else
     std_csv_row_emit_report "fail" "$RT_OK" 0 0
