@@ -1,5 +1,5 @@
 struct WithArr {
-  arr: [3]i32
+  arr: i32[3]
 }
 /** 形参 struct 内联数组字段 INDEX assign（run-asm-assign-index-param.sh）。 */
 function set_in(p: WithArr, i: i32, v: i32): i32 {
