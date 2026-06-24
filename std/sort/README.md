@@ -1,34 +1,26 @@
-# std.sort — 排序
+# std.sort
 
-对标 **Zig** `std.sort`、**Rust** `slice::sort`。
+排序：不稳定快排 + 稳定归并；`sort_stable_by_key` 按 KeyTag.key 稳定排序；自定义比较器（usize 内建 id）。
 
 ## API
 
 | API | 说明 |
 |-----|------|
-| `sort_i32` / `sort_u8` | 不稳定升序（qsort） |
-| `sort_stable_i32` / `sort_stable_u8` | 稳定升序（归并） |
-| `sort_i32_cmp` | 稳定排序 + 自定义比较器（usize fn ptr） |
+| `sort_i32` / `sort_u8` | 不稳定升序 |
+| `sort_stable_i32` / `sort_stable_u8` | 稳定升序 |
+| `sort_i32_cmp` | 稳定排序 + `cmp_i32_desc_fn` 等 |
+| `sort_stable_by_key` | KeyTag 按 key 稳定排序 |
 
-## 比较器策略（STD-150）
+## F-sort v1（去 C）
 
-| 场景 | API | 比较器 |
-|------|-----|--------|
-| 原始 i32 快路径 | `sort_i32` | 内建 |
-| 稳定升序 | `sort_stable_i32` | 内建 |
-| 自定义顺序 | `sort_i32_cmp` | `cmp_i32_desc_fn` / `cmp_i32_asc_fn` |
-| key+payload | `sort_stable_by_key` | `cmp_key_i32_fn`（仅 `KeyTag.key`） |
-
-```su
-struct KeyTag { key: i32, tag: i32 }
-sort_stable_by_key(&items[0], len);
-```
-
-RFC：`analysis/std-sort-stable-cmp-v1.md`（STD-060）· `analysis/std-sort-key-cmp-v1.md`（STD-150）
+- **`sort.c` 已删除**；实现见 `sort.sx`（零胶层 C）
+- 构建：`make -C compiler ../std/sort/sort.o`
+- 门禁：`./tests/run-f-sort-v1-gate.sh`
 
 ## Gate
 
 ```bash
 ./tests/run-std-sort-stable-cmp-gate.sh
 ./tests/run-std-sort-key-cmp-gate.sh
+SHUX_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
 ```
