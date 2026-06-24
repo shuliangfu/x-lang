@@ -4,7 +4,7 @@
 //
 // 【文件职责】expect、expect_eq_i32、expect_eq_u32、expect_ne_i32 返回
 // 0=通过/1=失败；test_run 执行测试函数。
-// 【依赖】core；与 std/test/test.c 同属一模块。
+// 【依赖】core；F-test v2 逻辑在 test.sx（F-ZC 纯 .sx；fn-ptr 在 runtime_test_fn_invoke.o）。
 extern function test_expect_c(cond: i32): i32;
 extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
 extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
