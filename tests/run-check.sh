@@ -7,10 +7,15 @@ SHUX=${SHUX:-./compiler/shux}
 if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
   SHUX=./compiler/shux-c
 elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
-  # bootstrap seed run-all：非 x86_64 上 seed 的 check 子命令 stderr 常为空，check 走 shux-c。
-  case "$(uname -m 2>/dev/null)" in
-    x86_64|amd64) ;;
-    *) SHUX=./compiler/shux-c ;;
+  # bootstrap run-all-bstrict：shux_asm 的 check 会打印 parse OK/typeck OK；与 -o 一致走 shux-c 静默 check。
+  case "$(basename "${SHUX:-./compiler/shux}")" in
+    shux|shux_asm) SHUX=./compiler/shux-c ;;
+    *)
+      case "$(uname -m 2>/dev/null)" in
+        x86_64|amd64) ;;
+        *) SHUX=./compiler/shux-c ;;
+      esac
+      ;;
   esac
 fi
 export SHUX
