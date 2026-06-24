@@ -10,7 +10,7 @@ struct Particle {
 
 function main(): i32 {
   let n: i32 = 4096;
-  let arr: [4096]Particle = [];
+  let arr: Particle[4096] = [];
   let i: i32 = 0;
   while (i < n) {
     arr[i].x = 1;
