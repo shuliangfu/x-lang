@@ -1,5 +1,5 @@
 #!/bin/sh
-# verify-selfhost.sh — Shux 完全自举验证 (POSIX sh 兼容)
+# verify-selfhost.sh — Shux 语义自举验证（Stage2 SX；完全自举 = D+E+F，见 SELFHOST.md）
 # 用法: cd compiler && sh verify-selfhost.sh
 
 set -e
@@ -12,7 +12,7 @@ echo "============================================"
 # ── Step 0: Cold Bootstrap ──────────────────
 echo ""
 echo "── Step 0: 冷启动 ──"
-rm -f *.o src/*.o src/*/*.o _sx_stubs.* _shu2_* shux shux-c shux-sx *_gen.c *_su.o 2>/dev/null || true
+rm -f *.o src/*.o src/*/*.o _sx_stubs.* _shux2_* shux shux-c shux-sx *_gen.c *_sx.o 2>/dev/null || true
 
 SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
@@ -32,9 +32,9 @@ else
 fi
 echo "runtime_panic.o ready"
 
-# ── Step 1: Generate all SU _gen.c ──────────
+# ── Step 1: Generate all SX _gen.c ──────────
 echo ""
-echo "── Step 1: 生成所有 SU 模块 _gen.c ──"
+echo "── Step 1: 生成所有 SX 模块 _gen.c ──"
 
 echo "  token..."
 ./shux -L src/lexer -E -E-extern src/lexer/token.sx > token_gen.c && echo "    $(wc -l < token_gen.c) lines"
@@ -79,38 +79,38 @@ perl -i -pe 's/^(static inline void shux_panic_.*__attribute__)/extern struct pa
 echo "  pipeline_gen.c: ensured parser_parse_into_buf extern at top"
 echo "  修复完成"
 
-# ── Step 3: Compile all _su.o ──────────────
+# ── Step 3: Compile all _sx.o ──────────────
 echo ""
-echo "── Step 3: 编译 _su.o (fno-stack-protector) ──"
+echo "── Step 3: 编译 _sx.o (fno-stack-protector) ──"
 CFLAGS="-fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w"
 
-echo "  token_su.o..."
-cc $CFLAGS -c token_gen.c -o token_su.o
+echo "  token_sx.o..."
+cc $CFLAGS -c token_gen.c -o token_sx.o
 
-echo "  ast_su.o..."
-cc $CFLAGS -c ast_gen.c -o ast_su.o
+echo "  ast_sx.o..."
+cc $CFLAGS -c ast_gen.c -o ast_sx.o
 
-echo "  lexer_su.o..."
-cc $CFLAGS -c lexer_gen.c -o lexer_su.o
+echo "  lexer_sx.o..."
+cc $CFLAGS -c lexer_gen.c -o lexer_sx.o
 
 echo "  parser_sx.o (-include ast.h)..."
 cc $CFLAGS -include ast.h -c parser_gen.c -o parser_sx.o
 
-echo "  typeck_su.o..."
-cc $CFLAGS -c typeck_gen.c -o typeck_su.o
+echo "  typeck_sx.o..."
+cc $CFLAGS -c typeck_gen.c -o typeck_sx.o
 
-echo "  codegen_su.o..."
-cc $CFLAGS -c codegen_gen.c -o codegen_su.o
+echo "  codegen_sx.o..."
+cc $CFLAGS -c codegen_gen.c -o codegen_sx.o
 
-echo "  preprocess_su.o..."
-cc $CFLAGS -c preprocess_gen.c -o preprocess_su.o
+echo "  preprocess_sx.o..."
+cc $CFLAGS -c preprocess_gen.c -o preprocess_sx.o
 
 echo "  pipeline_sx.o..."
 perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' pipeline_gen.c 2>/dev/null || true
 cc $CFLAGS -c pipeline_gen.c -o pipeline_sx.o
 
-echo "  driver_su.o..."
-cc $CFLAGS -c driver_gen.c -o driver_su.o
+echo "  driver_sx.o..."
+cc $CFLAGS -c driver_gen.c -o driver_sx.o
 
 # 编译 C 侧模块
 echo ""
@@ -154,7 +154,7 @@ echo "── Step 5: 链接 shux-sx ──"
 cc -fno-stack-protector -o shux-sx \
   main.o runtime_driver.o preprocess_fallback.o \
   lexer_c.o ast_c.o parser_c.o typeck_c.o codegen_c.o lsp_diag_c.o std_fs_shim_c.o \
-  token_su.o ast_su.o lexer_su.o parser_sx.o typeck_su.o codegen_su.o preprocess_su.o pipeline_sx.o driver_su.o \
+  token_sx.o ast_sx.o lexer_sx.o parser_sx.o typeck_sx.o codegen_sx.o preprocess_sx.o pipeline_sx.o driver_sx.o \
   _sx_stubs.o
 
 echo "shux-sx linked: $(ls -lh shux-sx | awk '{print $5}')"
@@ -195,13 +195,13 @@ else
   head -3 /tmp/test_bad_stderr 2>/dev/null || true
 fi
 
-# 测试 3: SU 管线编译
+# 测试 3: SX 管线编译
 echo ""
-echo "Test: SU 管线编译 hello.sx"
-./shux-sx -sx -E /tmp/hello.sx > /tmp/hello_su_E 2>/tmp/hello_su_stderr; rc=$?
-echo "  -sx -E: rc=$rc output=$(wc -c < /tmp/hello_su_E 2>/dev/null || echo 0) bytes"
+echo "Test: SX 管线编译 hello.sx"
+./shux-sx -sx -E /tmp/hello.sx > /tmp/hello_sx_E 2>/tmp/hello_sx_stderr; rc=$?
+echo "  -sx -E: rc=$rc output=$(wc -c < /tmp/hello_sx_E 2>/dev/null || echo 0) bytes"
 if [ $rc -ne 0 ]; then
-  echo "  stderr: $(head -3 /tmp/hello_su_stderr 2>/dev/null || true)"
+  echo "  stderr: $(head -3 /tmp/hello_sx_stderr 2>/dev/null || true)"
 fi
 
 # ── Summary ─────────────────────────────────
@@ -211,7 +211,7 @@ echo " 自举验证完成"
 echo "============================================"
 echo " 编译器:"
 echo "   shux      — C 编译器 ($(ls -lh shux 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
-echo "   shux-sx   — SU 自举编译器 ($(ls -lh shux-sx 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
+echo "   shux-sx   — SX 自举编译器 ($(ls -lh shux-sx 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
 echo ""
 echo " 下一步: 逐阶段调试 shux-sx -sx 管线"
 echo "============================================"
