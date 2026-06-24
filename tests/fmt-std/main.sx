@@ -2,7 +2,7 @@
 const fmt = import("std.fmt");
 
 function main(): i32 {
-  let buf: [32]u8 = [
+  let buf: u8[32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
