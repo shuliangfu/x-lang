@@ -1,0 +1,20 @@
+// MEM-B1：owned(Vec_u8) 早 return 路径仍 emit deinit（goto cleanup）。
+const vec = import("std.vec");
+
+function early(flag: i32): i32 {
+  let v: owned(Vec_u8) = vec.vec_u8_new();
+  if (flag != 0) {
+    return 42;
+  }
+  return vec.vec_u8_len(v);
+}
+
+function main(): i32 {
+  if (early(1) != 42) {
+    return 1;
+  }
+  if (early(0) != 0) {
+    return 2;
+  }
+  return 0;
+}
