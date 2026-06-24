@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 MATRIX="${SHUX_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
 MEGA_BISECT="${SHUX_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
-PARSER_SU="compiler/src/parser/parser.sx"
+PARSER_SX="compiler/src/parser/parser.sx"
 MIN_PHASE_A=2
 MIN_MEGA7=7
 MIN_SLICE=15
@@ -29,7 +29,7 @@ for f in \
   analysis/boot-mega7-gap.md \
   "$MATRIX" \
   "$MEGA_BISECT" \
-  "$PARSER_SU"; do
+  "$PARSER_SX"; do
   if [ ! -f "$f" ]; then
     echo "comp-parser-mega7 gate FAIL: missing $f" >&2
     exit 1
@@ -48,8 +48,8 @@ done < "$MATRIX"
 # ── mega 7 函数在 parser.sx ──
 MISS=0
 for fn in $MEGA7_FUNCS; do
-  if ! grep -qE "function ${fn}\\(" "$PARSER_SU" 2>/dev/null; then
-    echo "comp-parser-mega7 FAIL: function ${fn} not in $PARSER_SU" >&2
+  if ! grep -qE "function ${fn}\\(" "$PARSER_SX" 2>/dev/null; then
+    echo "comp-parser-mega7 FAIL: function ${fn} not in $PARSER_SX" >&2
     MISS=$((MISS + 1))
   fi
 done
