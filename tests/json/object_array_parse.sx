@@ -14,13 +14,13 @@ function key_eq(key_buf: *u8, key_len: i32, b0: u8, b1: u8, b2: u8, b3: u8, need
 
 function main(): i32 {
   /** {"name":"alice","age":30,"tags":["a","b"]} */
-  let doc: [44]u8 =
+  let doc: u8[44] =
   [123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44, 34, 97, 103, 101, 34,
   58, 51, 48, 44, 34, 116, 97, 103, 115, 34, 58, 91, 34, 97, 34, 44, 34, 98, 34, 93, 125, 0];
   let doc_len: i32 = 42;
   let consumed: i32 = 0;
   let cur: json.JsonCursor = json.cursor_init(&doc[0], doc_len);
-  let key: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let key: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let key_len: i32 = 0;
   let nr: i32 = 0;
   let out_val: f64 = 0.0;
