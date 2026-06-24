@@ -5,8 +5,8 @@ STD_CODEC_BR_PREFIX="${SHUX_STD139_CODEC_BUFFER_REUSE_PREFIX:-shux: [SHUX_STD139
 
 # 遍历 manifest 校验 api/file/smoke 锚点。
 std_codec_buffer_reuse_symbols_ok() {
-  local codec_su="$1"
-  local bytes_su="$2"
+  local codec_sx="$1"
+  local bytes_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,12 +15,12 @@ std_codec_buffer_reuse_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        local su="$codec_su"
+        local sx="$codec_sx"
         if [ "$mod_path" = "std/bytes/mod.sx" ]; then
-          su="$bytes_su"
+          sx="$bytes_sx"
         fi
-        if ! grep -qE "function ${anchor}\\(" "$su" 2>/dev/null; then
-          echo "std-codec-buffer-reuse FAIL: missing api '$anchor' in $su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$sx" 2>/dev/null; then
+          echo "std-codec-buffer-reuse FAIL: missing api '$anchor' in $sx" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -36,15 +36,14 @@ std_codec_buffer_reuse_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 buffer_reuse 烟测（须链 std/compress/compress.o 解析 codec→gzip 符号）。
+# 编译并运行 buffer_reuse 烟测（F-04 v7+：codec→gzip 经 .sx + 按需 -lz）。
 std_codec_buffer_reuse_run_smoke() {
   local shux="$1"
   local src="$2"
-  local compress_o="${3:-std/compress/compress.o}"
   local exe="/tmp/shux_std_codec_br_$$"
-  if ! "$shux" -L . "$src" -o "$exe" "$compress_o" >/dev/null 2>&1; then
+  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-codec-buffer-reuse FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" "$compress_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -64,5 +63,5 @@ std_codec_buffer_reuse_emit_report() {
   local status="$1"
   local su_ok="$2"
   local skip="$3"
-  echo "${STD_CODEC_BR_PREFIX} status=${status} su=${su_ok} skip=${skip}"
+  echo "${STD_CODEC_BR_PREFIX} status=${status} sx=${su_ok} skip=${skip}"
 }
