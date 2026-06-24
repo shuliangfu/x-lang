@@ -1,0 +1,9 @@
+# F-schema v1 std.schema 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fsch_doc	doc	analysis/phase-f-schema-v1.md	F-schema v1
+fsch_gate	gate	tests/run-f-schema-v1-gate.sh	聚合门禁
+sch_sx	file	std/schema/schema.sx	模块 .sx（v2 含全量逻辑）
+sch_glue_absent	absent	std/schema/schema_glue.c	v2 已删除
+sch_mod	file	std/schema/mod.sx	对外 API
+sch_c_absent	absent	std/schema/schema.c	已删除
+makefile	makefile	compiler/Makefile	schema.o 纯 .sx（v2）
