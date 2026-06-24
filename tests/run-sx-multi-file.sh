@@ -29,10 +29,10 @@ if [ "$make_ret" -ne 0 ]; then
   echo "run-sx-multi-file: make bootstrap-pipeline or shux-sx-pipeline failed (exit $make_ret); shux_sx may be missing"
 fi
 if [ -x compiler/shux_sx ]; then
-  SU_SHUX=compiler/shux_sx
+  SX_SHUX=compiler/shux_sx
   echo "run-sx-multi-file: using compiler/shux_sx (-sx -E supported)"
 elif [ -x compiler/shux ]; then
-  SU_SHUX=compiler/shux
+  SX_SHUX=compiler/shux
   echo "run-sx-multi-file: using compiler/shux (shux_sx not built; -sx -E may not be supported)"
 else
   echo "compiler/shux_sx or compiler/shux not found"
@@ -45,7 +45,7 @@ if [ -n "${SHUX:-}" ]; then echo "run-sx-multi-file SKIP (SHUX set, -sx -E multi
 out=$(mktemp)
 err=$(mktemp)
 ec=0
-run_timeout 60 "$SU_SHUX" -sx -E tests/multi-file/main.sx > "$out" 2>"$err" || ec=$?
+run_timeout 60 "$SX_SHUX" -sx -E tests/multi-file/main.sx > "$out" 2>"$err" || ec=$?
 [ "$ec" -eq 142 ] && ec=124
 _show_stderr() { echo "--- stderr ---"; cat "$err" 2>/dev/null || true; rm -f "$err"; }
 if [ "$ec" -eq 124 ]; then
@@ -55,12 +55,12 @@ if [ "$ec" -eq 124 ]; then
   exit 0
 fi
 if [ "$ec" -ne 0 ]; then
-  if [ "$SU_SHUX" = "compiler/shux" ]; then
+  if [ "$SX_SHUX" = "compiler/shux" ]; then
     rm -f "$out" "$err"
     echo "run-sx-multi-file SKIP (shux does not support -sx -E; use build_tool for full shux)"
     exit 0
   fi
-  echo "run-sx-multi-file: $SU_SHUX -sx -E tests/multi-file/main.sx failed (exit $ec)"
+  echo "run-sx-multi-file: $SX_SHUX -sx -E tests/multi-file/main.sx failed (exit $ec)"
   cat "$out" 2>/dev/null || true
   _show_stderr
   rm -f "$out"
