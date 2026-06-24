@@ -61,4 +61,4 @@ if [ "$RC" -ne 42 ]; then
   exit 1
 fi
 
-echo "pipeline-wpo-optin OK (WPO helpers + SU runtime bootstrap, return-value 42)"
+echo "pipeline-wpo-optin OK (WPO helpers + SX runtime bootstrap, return-value 42)"
