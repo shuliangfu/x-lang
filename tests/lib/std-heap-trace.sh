@@ -2,15 +2,15 @@
 # std-heap-trace.sh — STD-017：heap trace manifest 辅助
 #
 # 用法（source 后）：
-#   std_heap_trace_symbols_ok HEAP_SU HEAP_C TSV
+#   std_heap_trace_symbols_ok HEAP_SX HEAP_LIBC TSV
 #   std_heap_trace_emit_report status check_ok run_ok skip
 
 STD_HEAP_TRACE_PREFIX="${SHUX_STD_HEAP_TRACE_PREFIX:-shux: [SHUX_STD_HEAP_TRACE]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数。
 std_heap_trace_symbols_ok() {
-  local heap_su="$1"
-  local heap_c="$2"
+  local heap_sx="$1"
+  local heap_libc="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -18,9 +18,10 @@ std_heap_trace_symbols_ok() {
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
       symbol)
-        local target="$heap_su"
+        local target="$heap_sx"
         case "$mod_path" in
-          std/heap/heap.c) target="$heap_c" ;;
+          std/heap/heap_libc.sx) target="$heap_libc" ;;
+          std/heap/heap.c) target="$heap_libc" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then
           echo "std-heap-trace FAIL: missing '$anchor' in $target" >&2
