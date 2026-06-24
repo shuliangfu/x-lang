@@ -122,7 +122,7 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
  * 成功返回 expr ref，失败返回 0 并清 out.ok。
  */
 static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
-                                               int32_t operand_ref) {
+                                               int32_t operand_ref, int32_t line, int32_t col) {
   int32_t op_ref;
   struct parser_asm_ast_expr e;
   if (!arena || !out || operand_ref == 0)
@@ -136,8 +136,8 @@ static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_pa
   parser_asm_expr_set_common_zeros_c(&e);
   e.kind = kind;
   e.unary_operand_ref = operand_ref;
-  e.line = 0;
-  e.col = 0;
+  e.line = line;
+  e.col = col;
   parser_asm_arena_expr_set_c(arena, op_ref, e);
   out->expr_ref = op_ref;
   return op_ref;
@@ -854,56 +854,68 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_AWAIT) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_AWAIT, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_AWAIT, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_RUN) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_RUN, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_RUN, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_SPAWN) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_SPAWN, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_SPAWN, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_MINUS) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_NEG, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_NEG, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_BANG) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_LOGNOT, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_LOGNOT, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_AMP) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_ADDR_OF, out->expr_ref) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_ADDR_OF, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }
