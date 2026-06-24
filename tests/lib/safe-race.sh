@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   safe_race_tsan_ok
-#   safe_race_run_su SHUX_BIN src tag
+#   safe_race_run_sx SHUX_BIN src tag
 #   safe_race_run_probe
 #   safe_race_emit_report status cases_ok cases_fail probe_status
 
@@ -31,7 +31,7 @@ EOF
 }
 
 # 编译并运行正例 .sx；期望退出码 0。
-safe_race_run_su() {
+safe_race_run_sx() {
   local shux="$1"
   local src="$2"
   local tag="${3:-race}"
