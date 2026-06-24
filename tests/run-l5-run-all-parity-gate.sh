@@ -2,7 +2,7 @@
 # A-10：L5 run-all parity — bstrict 白名单与 run-all.sh 同步 + shux_asm 白名单烟测。
 #
 # 1) 校验 run-all-bstrict.sh 中每项均在 run-all.sh L5 whitelist 内
-# 2) 跑 run-all-bstrict.sh（110 项，compiler/shux_asm）
+# 2) 跑 run-all-bstrict.sh（123 项，compiler/shux_asm）
 #
 # 用法：./tests/run-l5-run-all-parity-gate.sh
 # 环境：SHUX_BSTRICT_SKIP_BUILD=1 — 复用已有 shux_asm（bootstrap-ci 已构建时）
