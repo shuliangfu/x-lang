@@ -15,7 +15,7 @@ const option = import("core.option");
 
 // ——— 1. 分号链：优先在 ; 后折行 ———
 function fmt_comp_semicolon_chain(): i32 {
-  let prefix: [48]u8 = [];
+  let prefix: u8[48] = [];
   prefix[0] = 1; prefix[1] = 2; prefix[2] = 3; prefix[3] = 4; prefix[4] = 5; prefix[5] = 6;
   prefix[6] = 7; prefix[7] = 8; prefix[8] = 9; prefix[9] = 10; prefix[10] = 11; prefix[11] = 12;
   prefix[12] = 13; prefix[13] = 14; prefix[14] = 15; prefix[15] = 16;
