@@ -1,0 +1,7 @@
+# B-30 runtime/stubs OS 调用盘点（manifest）
+# 列：item_id	kind	file	pattern	notes
+runtime_read_file	function	runtime.c	read_file	POSIX open/read
+runtime_write_file	function	runtime.c	write_file	POSIX open/write
+runtime_fopen_asm	audit	runtime.c	fopen(out_path	asm -o 写产物（B-20 后续）
+stubs_file	stubs	_stubs.c	fopen	legacy stubs 盘点
+gate	script	run-b30-stubs-runtime-os-inventory-gate.sh	-	门禁
