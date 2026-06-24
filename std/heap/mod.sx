@@ -3,11 +3,18 @@
 // 【文件职责】
 // 提供与 libc 一致的堆分配 API：alloc/free/realloc/alloc_zeroed；供 std.vec、std.map
 // 等使用。
-// 实现由同目录 heap.c 提供并链入 heap.o。
+// F-03 v2：libc 分配见 heap_libc.sx；F-03 v1 算法层见 heap_ops.sx。
 //
 // 【对标】
 // Zig: page_allocator.alloc / free / realloc；Rust: alloc::alloc::{alloc, dealloc}；Go:
 // 运行时 malloc/free 不直接暴露，此处显式提供。
+
+const heap_ops = import("std.heap.heap_ops");
+const heap_libc = import("std.heap.heap_libc");
+
+/** F-no-libc NL-03：Linux freestanding mmap bump（import 区须顶格，勿放 function 段）。 */
+#[cfg(target_os = "linux")]
+const page_mmap = import("std.heap.page_mmap");
 
 /** DOD-CL-S2：单 chunk bump arena（chunk 由 posix_memalign(64) 分配）。 */
 allow(padding) struct Arena64 {
@@ -16,34 +23,18 @@ allow(padding) struct Arena64 {
   off: usize;
 }
 
-extern function heap_alloc_c(size: usize): *u8;
-extern function heap_free_c(ptr: *u8): void;
-extern function heap_realloc_c(ptr: *u8, new_size: usize): *u8;
-extern function heap_alloc_zeroed_c(size: usize): *u8;
-extern function heap_alloc_i32_c(count: i32): *i32;
-extern function heap_realloc_i32_c(ptr: *i32, new_count: i32): *i32;
-extern function heap_free_i32_c(ptr: *i32): void;
-extern function heap_alloc_u8_c(count: i32): *u8;
-extern function heap_realloc_u8_c(ptr: *u8, new_count: i32): *u8;
-extern function heap_free_u8_c(ptr: *u8): void;
-extern function heap_copy_i32_at_c(dst: *i32, dst_offset: i32, src: *i32, count: i32): void;
-extern function heap_copy_u8_at_c(dst: *u8, dst_offset: i32, src: *u8, count: i32): void;
-extern function heap_alloc_f32_c(count: i32): *f32;
-extern function heap_realloc_f32_c(ptr: *f32, new_count: i32): *f32;
-extern function heap_free_f32_c(ptr: *f32): void;
-extern function heap_copy_f32_at_c(dst: *f32, dst_offset: i32, src: *f32, count: i32): void;
-extern function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void;
-extern function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32;
-/** DOD-CL-S2：posix_memalign 分配；align 须为 2 的幂。 */
-extern function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8;
-/** 返回 (ptr as usize) % mod；验证 64B 对齐 smoke 用。 */
-extern function heap_ptr_mod_c(ptr: *u8, mod: usize): usize;
-extern function heap_arena64_init_c(a: *Arena64, cap: usize): i32;
-extern function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usize): *u8;
-extern function heap_arena64_deinit_c(a: *Arena64): void;
-/** 线性探测查找 key 在 keys/occupied 中的槽位；供 std.map map_i32_i32_find
-* 使用，实现于 heap.c */
-extern function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32;
+/** F-03 v1：纯 .sx 实现（heap_ops.sx）；保留名供 std.mem 链接。 */
+function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
+  heap_ops.heap_mem_set_c(ptr, byte, n);
+}
+/** F-03 v1：纯 .sx 实现（heap_ops.sx）。 */
+function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
+  return heap_ops.heap_mem_compare_c(a, b, n);
+}
+/** 线性探测查找 key；F-03 v1 纯 .sx（heap_ops.sx）。 */
+function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32 {
+  return heap_ops.map_i32_i32_find_c(keys, occupied, cap, key);
+}
 
 /** STD-017：堆分配 trace 统计（SHUX_HEAP_TRACE=1 时生效）。 */
 allow(padding) struct HeapTraceStats {
@@ -53,72 +44,59 @@ allow(padding) struct HeapTraceStats {
   bytes_allocated: u64;
 }
 
-extern function heap_trace_enabled_c(): i32;
-extern function heap_trace_reset_c(): void;
-extern function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
-bytes_allocated: *u64): void;
-extern function heap_alloc_u64_c(count: i32): *u64;
-extern function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64;
-extern function heap_free_u64_c(ptr: *u64): void;
-extern function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count: i32): void;
-extern function heap_alloc_f64_c(count: i32): *f64;
-extern function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64;
-extern function heap_free_f64_c(ptr: *f64): void;
-extern function heap_copy_f64_at_c(dst: *f64, dst_offset: i32, src: *f64, count: i32): void;
-
 /** trace 是否启用（1/0）。 */
 function heap_trace_enabled(): i32 {
-  return heap_trace_enabled_c();
+  return heap_libc.heap_trace_enabled_c();
 }
 
 /** 重置 trace 计数器。 */
 function heap_trace_reset(): void {
-  heap_trace_reset_c();
+  heap_libc.heap_trace_reset_c();
 }
 
 /** 读取 trace 统计到 st。 */
 function heap_trace_stats(st: *HeapTraceStats): void {
-  heap_trace_stats_c(&st.alloc_count, &st.free_count, &st.realloc_count, &st.bytes_allocated);
+  heap_libc.heap_trace_stats_c(&st.alloc_count, &st.free_count, &st.realloc_count, &st.bytes_allocated);
 }
 
 /** 分配 count 个 u64；失败 null。供 Map_u64 / Set_u64 使用。 */
 function alloc_u64(count: i32): *u64 {
-  return heap_alloc_u64_c(count);
+  return heap_libc.heap_alloc_u64_c(count);
 }
 
 /** 释放 alloc_u64 分配的 ptr。 */
 function free_u64(ptr: *u64): void {
-  heap_free_u64_c(ptr);
+  heap_libc.heap_free_u64_c(ptr);
 }
 
 /** 将 ptr 调整为 new_count 个 u64；失败 null 且原 ptr 未释放。供 Vec_u64 扩容。 */
 function realloc_u64(ptr: *u64, new_count: i32): *u64 {
-  return heap_realloc_u64_c(ptr, new_count);
+  return heap_libc.heap_realloc_u64_c(ptr, new_count);
 }
 
 /** 块拷贝 u64；供 std.vec append_slice/from_slice 快路径。 */
 function copy_u64_at(dst: *u64, dst_offset: i32, src: *u64, count: i32): void {
-  heap_copy_u64_at_c(dst, dst_offset, src, count);
+  heap_libc.heap_copy_u64_at_c(dst, dst_offset, src, count);
 }
 
 /** 分配 count 个 f64；失败 null。供 Vec_f64 使用（STD-014）。 */
 function alloc_f64(count: i32): *f64 {
-  return heap_alloc_f64_c(count);
+  return heap_libc.heap_alloc_f64_c(count);
 }
 
 /** 将 ptr 调整为 new_count 个 f64；失败 null 且原 ptr 未释放。 */
 function realloc_f64(ptr: *f64, new_count: i32): *f64 {
-  return heap_realloc_f64_c(ptr, new_count);
+  return heap_libc.heap_realloc_f64_c(ptr, new_count);
 }
 
 /** 释放 alloc_f64/realloc_f64 分配的 ptr；ptr 可为 null。 */
 function free_f64(ptr: *f64): void {
-  heap_free_f64_c(ptr);
+  heap_libc.heap_free_f64_c(ptr);
 }
 
 /** 块拷贝 f64；供 std.vec append_slice/from_slice 快路径。 */
 function copy_f64_at(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
-  heap_copy_f64_at_c(dst, dst_offset, src, count);
+  heap_libc.heap_copy_f64_at_c(dst, dst_offset, src, count);
 }
 
 // ——— STD-112：Allocator trait（堆 / Arena bump） ———
@@ -145,13 +123,29 @@ function allocator_from_arena(a: *Arena64): Allocator {
   return Allocator { kind: allocator_kind_arena(), arena: a };
 }
 
+/**
+ * MEM-C1 编译器魔法：仅 `with_arena` 块内可调用；typeck 拒块外；codegen 展开为当前 scope Allocator。
+ * 函数体不可达（由 codegen 替换为 __shux_scope_al_N）。
+ */
+function scope_allocator(): Allocator {
+  return allocator_heap();
+}
+
+/**
+ * MEM-C1 AL-01/02：`with_arena` 内展开 scope Allocator，块外展开 heap Allocator（编译器魔法）。
+ * 供 `#[alloc]` API 与容器 new 路径使用；函数体不可达。
+ */
+function default_allocator(): Allocator {
+  return allocator_heap();
+}
+
 /** 按 Allocator 分配 size 字节；失败 null。 */
 function allocator_alloc(al: Allocator, size: usize): *u8 {
   if (al.kind == allocator_kind_heap()) {
     return alloc(size);
   }
-  if (al.arena == 0) { return 0 as *u8; }
-  return arena64_alloc(al.arena, size, 8 as usize);
+  if (al.arena == 0) { return 0; }
+  return arena64_alloc(al.arena, size, 8);
 }
 
 /** 释放 ptr；arena 分配器为 no-op。 */
@@ -166,14 +160,23 @@ function allocator_realloc(al: Allocator, ptr: *u8, new_size: usize): *u8 {
   if (al.kind == allocator_kind_heap()) {
     return realloc(ptr, new_size);
   }
-  return 0 as *u8;
+  return 0;
+}
+
+/**
+ * MEM-C1 #[alloc] smoke：调用方可省略 al 实参，由编译器注入 default_allocator()。
+ * 首参 al: Allocator 显式声明，AL-03 以形参为准。
+ */
+#[alloc]
+function bump_alloc(al: Allocator, size: usize): *u8 {
+  return allocator_alloc(al, size);
 }
 
 // ─── DOD-CL-S2：64B 对齐 chunk bump Arena API ───
 
 /** 未初始化 Arena64 占位；调用方须随后 arena64_init。 */
 function arena64_empty(): Arena64 {
-  return Arena64 { chunk: 0 as *u8, cap: 0 as usize, off: 0 as usize };
+  return Arena64 { chunk: 0 as *u8, cap: 0, off: 0 };
 }
 
 /**
@@ -181,7 +184,7 @@ function arena64_empty(): Arena64 {
  * 成功返回 0，分配失败返回 -1。
  */
 function arena64_init(a: *Arena64, cap: usize): i32 {
-  return heap_arena64_init_c(a, cap);
+  return heap_libc.heap_arena64_init_c(a as *heap_libc.Arena64, cap);
 }
 
 /**
@@ -189,75 +192,102 @@ function arena64_init(a: *Arena64, cap: usize): i32 {
  * 空间不足返回 null。
  */
 function arena64_alloc(a: *Arena64, size: usize, align_bytes: usize): *u8 {
-  return heap_arena64_alloc_c(a, size, align_bytes);
+  return heap_libc.heap_arena64_alloc_c(a as *heap_libc.Arena64, size, align_bytes);
 }
 
 /** 释放 arena chunk 并重置 off/cap。 */
 function arena64_deinit(a: *Arena64): void {
-  heap_arena64_deinit_c(a);
+  heap_libc.heap_arena64_deinit_c(a as *heap_libc.Arena64);
 }
 
 /** 指针对 mod 取模；mod=64 验证 cache line 对齐。 */
 function ptr_mod(ptr: *u8, mod: usize): usize {
-  return heap_ptr_mod_c(ptr, mod);
+  return heap_libc.heap_ptr_mod_c(ptr, mod);
 }
 
 /** posix_memalign 薄封装；供 ring slot 等全局 64B 分配。 */
 function alloc_aligned(align_bytes: usize, size: usize): *u8 {
-  return heap_alloc_aligned_c(align_bytes, size);
+  return heap_libc.heap_alloc_aligned_c(align_bytes, size);
 }
 
 /** 分配 size 字节，未初始化；失败返回 null（*u8 的 0）。对标 Zig alloc、Rust
 * alloc。 */
 function alloc(size: usize): *u8 {
-  return heap_alloc_c(size);
+  return heap_libc.heap_alloc_c(size);
 }
 /** 释放 ptr；ptr 可为 null（无操作）。对标 Zig free、Rust dealloc。 */
 function free(ptr: *u8): void {
-  heap_free_c(ptr);
+  heap_libc.heap_free_c(ptr);
 }
 /** 将 ptr 调整为 new_size 字节，可能移动；失败返回 null 且原 ptr
 * 未释放。new_size==0 等价于 free 并返回 null。对标 Zig realloc、Rust realloc。 */
 function realloc(ptr: *u8, new_size: usize): *u8 {
-  return heap_realloc_c(ptr, new_size);
+  return heap_libc.heap_realloc_c(ptr, new_size);
 }
 /** 分配 size 字节并清零（calloc 语义）；失败返回 null。对标 Zig alloc 后
 * memset、Rust alloc_zeroed。 */
 function alloc_zeroed(size: usize): *u8 {
-  return heap_alloc_zeroed_c(size);
+  return heap_libc.heap_alloc_zeroed_c(size);
 }
 /** 分配 count 个 i32，未初始化；失败返回 null。供 std.vec Vec_i32 使用。 */
-function alloc_i32(count: i32): *i32 { return heap_alloc_i32_c(count); }
+function alloc_i32(count: i32): *i32 { return heap_libc.heap_alloc_i32_c(count); }
 /** 将 ptr 调整为 new_count 个 i32；失败返回 null 且原 ptr 未释放。 */
-function realloc_i32(ptr: *i32, new_count: i32): *i32 { return heap_realloc_i32_c(ptr, new_count); }
+function realloc_i32(ptr: *i32, new_count: i32): *i32 { return heap_libc.heap_realloc_i32_c(ptr, new_count); }
 /** 释放由 alloc_i32/realloc_i32 分配的 ptr；ptr 可为 null。 */
-function free_i32(ptr: *i32): void { heap_free_i32_c(ptr); }
+function free_i32(ptr: *i32): void { heap_libc.heap_free_i32_c(ptr); }
 /** 分配 count 个 u8，未初始化；失败返回 null。供 std.vec Vec_u8 使用。 */
-function alloc_u8(count: i32): *u8 { return heap_alloc_u8_c(count); }
+function alloc_u8(count: i32): *u8 { return heap_libc.heap_alloc_u8_c(count); }
 /** 将 ptr 调整为 new_count 个 u8；失败返回 null 且原 ptr 未释放。 */
-function realloc_u8(ptr: *u8, new_count: i32): *u8 { return heap_realloc_u8_c(ptr, new_count); }
+function realloc_u8(ptr: *u8, new_count: i32): *u8 { return heap_libc.heap_realloc_u8_c(ptr, new_count); }
 /** 释放由 alloc_u8/realloc_u8 分配的 ptr；ptr 可为 null。 */
-function free_u8(ptr: *u8): void { heap_free_u8_c(ptr); }
+function free_u8(ptr: *u8): void { heap_libc.heap_free_u8_c(ptr); }
 /** 块拷贝：dst[dst_offset..] = src[0..count-1]（i32 元素）；供 std.vec 快路径，≥8
 * 元素走此路径。 */
 function copy_i32_at(dst: *i32, dst_offset: i32, src: *i32, count: i32): void {
-  heap_copy_i32_at_c(dst, dst_offset, src, count);
+  heap_libc.heap_copy_i32_at_c(dst, dst_offset, src, count);
 }
 /** 块拷贝：dst[dst_offset..] = src[0..count-1]（u8 元素）；供 std.vec 快路径。 */
 function copy_u8_at(dst: *u8, dst_offset: i32, src: *u8, count: i32): void {
-  heap_copy_u8_at_c(dst, dst_offset, src, count);
+  heap_libc.heap_copy_u8_at_c(dst, dst_offset, src, count);
 }
 /** 分配 count 个 f32，未初始化；失败返回 null。DOD-S2：std.vec SoA 列存储。 */
-function alloc_f32(count: i32): *f32 { return heap_alloc_f32_c(count); }
+function alloc_f32(count: i32): *f32 { return heap_libc.heap_alloc_f32_c(count); }
 /** 将 ptr 调整为 new_count 个 f32；失败返回 null 且原 ptr 未释放。 */
-function realloc_f32(ptr: *f32, new_count: i32): *f32 { return heap_realloc_f32_c(ptr, new_count); }
+function realloc_f32(ptr: *f32, new_count: i32): *f32 { return heap_libc.heap_realloc_f32_c(ptr, new_count); }
 /** 释放由 alloc_f32/realloc_f32 分配的 ptr；ptr 可为 null。 */
-function free_f32(ptr: *f32): void { heap_free_f32_c(ptr); }
+function free_f32(ptr: *f32): void { heap_libc.heap_free_f32_c(ptr); }
 /** 块拷贝 f32 列；供 std.vec SoA/AoS 扩容与 append。 */
 function copy_f32_at(dst: *f32, dst_offset: i32, src: *f32, count: i32): void {
-  heap_copy_f32_at_c(dst, dst_offset, src, count);
+  heap_libc.heap_copy_f32_at_c(dst, dst_offset, src, count);
 }
 /** 表示“分配大小 0”占位；保留兼容（测试用）。 */
 function alloc_size_zero(): i32 { return 0; }
+
+// ——— F-no-libc NL-03：Linux freestanding mmap bump（不链 libc malloc） ———
+
+/** Linux freestanding：mmap bump 堆是否可用（1/0）。 */
+#[cfg(target_os = "linux")]
+function freestanding_page_heap_available(): i32 {
+  return page_mmap.page_mmap_heap_available();
+}
+
+/** Linux freestanding：初始化 PageMmapHeap；成功 0。 */
+#[cfg(target_os = "linux")]
+function freestanding_page_heap_init(h: *page_mmap.PageMmapHeap): i32 {
+  return page_mmap.page_mmap_heap_init(h);
+}
+
+/** Linux freestanding：bump 分配；失败 null。 */
+#[cfg(target_os = "linux")]
+function freestanding_page_heap_alloc(h: *page_mmap.PageMmapHeap, size: usize, align_bytes: usize): *u8 {
+  return page_mmap.page_mmap_heap_alloc(h, size, align_bytes);
+}
+
+/** Linux freestanding：munmap 并复位。 */
+#[cfg(target_os = "linux")]
+function freestanding_page_heap_deinit(h: *page_mmap.PageMmapHeap): void {
+  page_mmap.page_mmap_heap_deinit(h);
+}
+
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function heap_module_anchor(): i32 { return 0; }
