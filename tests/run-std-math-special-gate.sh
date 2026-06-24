@@ -8,10 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD115_DOC:-analysis/std-math-special-v1.md}"
 MANIFEST="${SHUX_STD115_TSV:-tests/baseline/std-math-special.tsv}"
 VECTORS="${SHUX_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
-MOD_SU="std/math/mod.sx"
-MATH_C="std/math/math.c"
+MOD_SX="std/math/mod.sx"
+MATH_RUNTIME="${SHUX_STD_MATH_IMPL:-compiler/src/asm/runtime_math_libm.c}"
+MATH_SX="std/math/math.sx"
 LIB="tests/lib/std-math-special.sh"
-SMOKE_SU="tests/std-math/special_funcs.sx"
+SMOKE_SX="tests/std-math/special_funcs.sx"
 SMOKE_C="tests/std-math/special_smoke_ok.c"
 MIN_APIS=5
 
@@ -19,7 +20,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-115: math special manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$MATH_C" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$MATH_RUNTIME" "$MATH_SX" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-math-special gate FAIL: missing $f" >&2
     exit 1
@@ -62,38 +63,43 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_math_special_symbols_ok "$MOD_SU" "$MATH_C" "$MANIFEST" || true)"
+sym_miss="$(std_math_special_symbols_ok "$MOD_SX" "$MATH_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_math_special_emit_report "fail" 0 0 0
   exit 1
 fi
 echo "std-math-special manifest OK"
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/math/math.o
-MATH_O="$(cd compiler && pwd)/../std/math/math.o"
-
 C_OK=0
-if std_math_special_run_c_smoke "$MATH_O"; then
-  C_OK=1
+SX_OK=0
+SKIP=0
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . tests/lib/build-std-c-o.sh
+  ensure_std_c_o ../std/math/math.o
+  ensure_runtime_math_libm_o 2>/dev/null || true
+  MATH_O="$(cd compiler && pwd)/../std/math/math.o"
+  if std_math_special_run_c_smoke "$MATH_O"; then
+    C_OK=1
+  else
+    std_math_special_emit_report "fail" 0 0 0
+    exit 1
+  fi
 else
-  std_math_special_emit_report "fail" 0 0 0
-  exit 1
+  echo "std-math-special gate SKIP c smoke (no shux-c; manifest OK)" >&2
+  SKIP=1
 fi
 
-SU_OK=0
-SKIP=0
 if [ -x ./compiler/shux-c ]; then
   echo "=== STD-115: .sx smoke (SHUX=./compiler/shux-c) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-math-special gate FAIL: typeck $SMOKE_SU" >&2
+  if ! ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-math-special gate FAIL: typeck $SMOKE_SX" >&2
     std_math_special_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_math_special_run_sx_smoke ./compiler/shux-c "$SMOKE_SU"; then
-    SU_OK=1
+  if std_math_special_run_sx_smoke ./compiler/shux-c "$SMOKE_SX"; then
+    SX_OK=1
   else
     std_math_special_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -102,5 +108,5 @@ else
   SKIP=1
 fi
 
-std_math_special_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_math_special_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-math-special gate OK"
