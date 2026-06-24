@@ -8,7 +8,7 @@ function main(): i32 {
     subcommand_len: 0, help: 0, version: 0, verbose: 0, unknown: 0, positional_count: 0,
     subcommand: [], positional0_len: 0, positional0: []
   };
-  let run: [3]u8 = [114, 117, 110];
+  let run: u8[3] = [114, 117, 110];
   let ec: i32 = cli.parse_from_iter(&it, &run[0], 3, &res);
   if (ec == cli.cli_err_help()) { return 0; }
   if (ec != cli.cli_err_ok()) { return 1; }
