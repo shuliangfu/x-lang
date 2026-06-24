@@ -2,17 +2,17 @@
 # std-tar-extended.sh — STD-152 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_tar_extended_symbols_ok MOD_SU TAR_C TSV
-#   std_tar_extended_run_c_smoke TAR_C
-#   std_tar_extended_run_sx_smoke SHUX_BIN SU TAR_O
+#   std_tar_extended_symbols_ok MOD_SX TAR_SX TSV
+#   std_tar_extended_run_c_smoke
+#   std_tar_extended_run_sx_smoke SHUX_BIN SX TAR_O
 #   std_tar_extended_emit_report status c_ok su_ok skip
 
 STD_TAR_EXTENDED_PREFIX="${SHUX_STD_TAR_EXTENDED_PREFIX:-shux: [SHUX_STD_TAR_EXTENDED]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数。
 std_tar_extended_symbols_ok() {
-  local mod_su="$1"
-  local tar_c="$2"
+  local mod_sx="$1"
+  local tar_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -21,16 +21,17 @@ std_tar_extended_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-tar-extended FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-tar-extended FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol|impl_prefix|impl_pax)
         case "$mod_path" in
-          std/tar/tar.c) mod_path="$tar_c" ;;
-          std/tar/mod.sx) mod_path="$mod_su" ;;
-          *) mod_path="$mod_su" ;;
+          std/tar/tar.sx) mod_path="$tar_sx" ;;
+          std/tar/tar_glue.c) mod_path="$tar_sx" ;;
+          std/tar/mod.sx) mod_path="$mod_sx" ;;
+          *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-tar-extended FAIL: missing '$anchor' in $mod_path" >&2
@@ -49,9 +50,8 @@ std_tar_extended_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 C 烟测（tar.o + extended_ok.c）。
+# 编译并运行 C 烟测（tar.o + extended_ok.c；须已 ensure tar.o）。
 std_tar_extended_run_c_smoke() {
-  local tar_c="$1"
   local smoke_c="tests/std-tar/extended_ok.c"
   local exe="/tmp/shux_std_tar_extended_c_$$"
   if [ ! -f "$smoke_c" ]; then
@@ -85,7 +85,7 @@ std_tar_extended_run_sx_smoke() {
   local shux="$1"
   local src="$2"
   local tar_o="$3"
-  local exe="/tmp/shux_std_tar_extended_su_$$"
+  local exe="/tmp/shux_std_tar_extended_sx_$$"
   if [ ! -f "$src" ]; then
     echo "std-tar-extended FAIL: missing $src" >&2
     return 1
@@ -114,5 +114,5 @@ std_tar_extended_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} c=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_TAR_EXTENDED_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
 }
