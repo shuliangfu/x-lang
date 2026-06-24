@@ -10,7 +10,7 @@
 
 | 目标 | 说明 |
 |------|------|
-| **编译期拒绝 UAF** | 域绑定 slice（`[]T<label>`）不得逃逸到未标注域或错误域，防止 use-after-free |
+| **编译期拒绝 UAF** | 域绑定 slice（`T[]<label>`）不得逃逸到未标注域或错误域，防止 use-after-free |
 | **零运行时开销** | `region` 块 codegen 等价嵌套 `{ }`；域标签仅 typeck 存在，不进 ABI |
 | **零拷贝协同** | `read_ptr` 系 API 自动绑 `io_read_ptr` 域（M-5），与 std.io TLS buf 契约一致 |
 | **与 linear 分工** | region 管**借用域**；`Linear(T)` 管**所有权转移**（见 `type-linear-v1-rfc.md`） |
@@ -24,34 +24,34 @@
 ### 2.1 域标注 slice 类型
 
 ```su
-[]T<label>
+T[]<label>
 ```
 
 - `T`：元素类型（`i32`、`u8` 等）。
 - `<label>`：域标签标识符（如 `ra`、`io_read_ptr`），编译期字符串，**不进运行时布局**。
-- 未标注 `[]T`：表示**未绑定域**（可接收任意域 slice 的「宽」类型，但**不能**接收已绑定域 slice 赋值——防逃逸）。
+- 未标注 `T[]`：表示**未绑定域**（可接收任意域 slice 的「宽」类型，但**不能**接收已绑定域 slice 赋值——防逃逸）。
 
 ### 2.2 region 块
 
 ```su
 region ra {
-  let s: []i32 = slice_src();  // 块内未标注 []i32 自动继承 ra
+  let s: i32[] = slice_src();  // 块内未标注 i32[] 自动继承 ra
 }
 ```
 
-- `region <label> { ... }`：块内 `let` 声明的未标注 `[]T` 由 typeck **stamp** 为 `[]T<label>`。
+- `region <label> { ... }`：块内 `let` 声明的未标注 `T[]` 由 typeck **stamp** 为 `T[]<label>`。
 - 嵌套 region：内层 label 覆盖内层 stamp；**不**自动继承外层（v1 按块 label 显式）。
 
 ### 2.3 与 read_ptr（M-5）
 
-下列 callee 的 **返回值** typeck 自动解析为 `[]u8<io_read_ptr>`：
+下列 callee 的 **返回值** typeck 自动解析为 `u8[]<io_read_ptr>`：
 
 - `read_ptr_slice`
 - `shu_io_read_ptr_slice`
 - `driver_read_ptr_slice`
 - `io_read_ptr_slice`
 
-用户侧应声明 `let s: []u8<io_read_ptr> = read_ptr_slice()`；赋给未标注 `[]u8` 或错误域 → 报错。
+用户侧应声明 `let s: u8[]<io_read_ptr> = read_ptr_slice()`；赋给未标注 `u8[]` 或错误域 → 报错。
 
 ---
 
@@ -61,16 +61,16 @@ region ra {
 
 | 检查 | 条件 | 错误文案 |
 |------|------|----------|
-| **逃逸（escape）** | `src` 带 `region_label`，`expect` 无 label | `slice region escape: cannot assign <%s> slice to unbound []T` |
+| **逃逸（escape）** | `src` 带 `region_label`，`expect` 无 label | `slice region escape: cannot assign <%s> slice to unbound T[]` |
 | **域冲突（mismatch）** | 双方均带 label 且字符串不等 | `slice region mismatch: expected <%s>, found <%s>` |
 
-return 路径措辞：`slice region escape: cannot return <%s> slice as unbound []T` / `slice region mismatch in return: ...`
+return 路径措辞：`slice region escape: cannot return <%s> slice as unbound T[]` / `slice region mismatch in return: ...`
 
 ### 3.2 检查触发点（v1 已实装）
 
 | 场景 | 检查函数 |
 |------|----------|
-| `let x: []T<La> = y` | `typeck_check_slice_region_assign` |
+| `let x: T[]<La> = y` | `typeck_check_slice_region_assign` |
 | `x = y`（assign） | 同上（`AST_EXPR_ASSIGN`） |
 | `return expr` | `typeck_check_return_slice_region` |
 | `f(arg)` 实参与形参 | call 路径 `typeck_check_slice_region_assign` |
@@ -78,7 +78,7 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 
 ### 3.3 type_equal 与域标签
 
-- 两个 `[]T` 当且仅当元素类型 equal **且** 域标签一致（均有且同字符串，或均无 label）时 equal。
+- 两个 `T[]` 当且仅当元素类型 equal **且** 域标签一致（均有且同字符串，或均无 label）时 equal。
 - 同元素类型、不同 label → **不等**（防 silent 跨域）。
 
 ### 3.4 运行时与 ABI
@@ -99,7 +99,7 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 | UAF-4 | 域内 slice 作未标注返回值 | `region_return_escape.sx` | escape |
 | UAF-5 | 实参域 → 未标注形参 | `region_call_escape.sx` | escape |
 | UAF-6 | 实参域 ≠ 形参域 | `region_call_mismatch.sx` | mismatch |
-| UAF-7 | read_ptr → 未标注 `[]u8` | `read_ptr_region_escape.sx` | escape |
+| UAF-7 | read_ptr → 未标注 `u8[]` | `read_ptr_region_escape.sx` | escape |
 | UAF-8 | read_ptr → 错误域 | `read_ptr_region_mismatch.sx` | mismatch |
 
 ---
@@ -108,10 +108,10 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 
 | 文件 | 说明 |
 |------|------|
-| `region_same_ok.sx` | 同域 `[]i32<ra>` 赋值 |
+| `region_same_ok.sx` | 同域 `i32[]<ra>` 赋值 |
 | `region_block_same.sx` | region 块内 stamp + 同域 assign |
 | `region_call_ok.sx` | call 实参/形参同域 |
-| `read_ptr_region_ok.sx` | read_ptr + `[]u8<io_read_ptr>` |
+| `read_ptr_region_ok.sx` | read_ptr + `u8[]<io_read_ptr>` |
 
 ---
 
@@ -127,13 +127,13 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 | `typeck_check_slice_region_assign` | 同上 |
 | `typeck_check_return_slice_region` | 同上 |
 | `typeck_is_read_ptr_slice_producer` | M-5 read_ptr 自动域 |
-| SU/WPO glue | `pipeline_typeck_check_slice_region_assign_c` 等 |
+| SX/WPO glue | `pipeline_typeck_check_slice_region_assign_c` 等 |
 
 ### 6.2 parser / AST
 
 - `ASTBlock.regions[]`：`label` + `body`
 - `ASTType.region_label`：slice 域字符串
-- 类型解析：`[]T<label>`（`parser_asm_type_ref_slice.c` / `parser.sx`）
+- 类型解析：`T[]<label>`（`parser_asm_type_ref_slice.c` / `parser.sx`）
 
 ### 6.3 codegen
 
@@ -173,10 +173,10 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 ## 8. 与 TYPE-001、零拷贝的关系
 
 ```
-read_ptr_slice()  ──► []u8<io_read_ptr>  ──► 仅在同域变量/形参间传递
+read_ptr_slice()  ──► u8[]<io_read_ptr>  ──► 仅在同域变量/形参间传递
                               │
                               ▼
-                    禁止 → []u8（宽类型）= UAF 风险
+                    禁止 → u8[]（宽类型）= UAF 风险
 
 Linear(T)  ──► 所有权唯一消费（与 slice 域正交，不组合 v1）
 ```
