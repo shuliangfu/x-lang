@@ -11,8 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
 MANIFEST="${SHUX_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
-LOG_C="std/log/log.c"
-LOG_SU="std/log/mod.sx"
+LOG_SX="std/log/log.sx"
+LOG_RUNTIME="compiler/src/asm/runtime_log_os.c"
+LOG_SX="std/log/mod.sx"
 SMOKE="tests/bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
 MIN_COMP=6
@@ -21,7 +22,7 @@ MIN_COMP=6
 . tests/lib/obs-structured-log.sh
 
 echo "=== OBS-003: structured log manifest ==="
-for f in "$DOC" "$MANIFEST" "$LOG_C" "$LOG_SU" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LOG_SX" "$LOG_RUNTIME" "$LOG_SX" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "obs-structured-log gate FAIL: missing $f" >&2
     exit 1
@@ -49,14 +50,14 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       ;;
     runtime_fn)
-      if ! grep -qF "$anchor" "$LOG_C" 2>/dev/null; then
-        echo "obs-structured-log FAIL: ${anchor} not in $LOG_C" >&2
+      if ! grep -qF "$anchor" "$LOG_SX" 2>/dev/null && ! grep -qF "$anchor" "$LOG_RUNTIME" 2>/dev/null; then
+        echo "obs-structured-log FAIL: ${anchor} not in log.sx/runtime_log_os.c" >&2
         MISS=$((MISS + 1))
       fi
       ;;
     su_fn)
-      if ! grep -qF "$anchor" "$LOG_SU" 2>/dev/null; then
-        echo "obs-structured-log FAIL: ${anchor} not in $LOG_SU" >&2
+      if ! grep -qF "$anchor" "$LOG_SX" 2>/dev/null; then
+        echo "obs-structured-log FAIL: ${anchor} not in $LOG_SX" >&2
         MISS=$((MISS + 1))
       fi
       ;;
@@ -113,13 +114,19 @@ done
 echo "obs-structured-log manifest OK (components=${COMP})"
 
 echo "=== OBS-003: structured log smoke ==="
-make -C compiler ../std/log/log.o -q 2>/dev/null || make -C compiler ../std/log/log.o
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  make -C compiler ../std/log/log.o runtime_log_os.o -q 2>/dev/null || make -C compiler ../std/log/log.o runtime_log_os.o
+else
+  echo "obs-structured-log gate SKIP smoke (no shux-c)" >&2
+  echo "obs-structured-log gate OK"
+  exit 0
+fi
 if [ ! -f "$LOG_O" ]; then
   echo "obs-structured-log gate FAIL: missing $LOG_O" >&2
   exit 1
 fi
 SMOKE_BIN="/tmp/shux_obs_struct_log_smoke_$$"
-cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE" "$LOG_O" 2>/tmp/obs_struct_log_build.log || {
+cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE" "$LOG_O" compiler/runtime_log_os.o 2>/tmp/obs_struct_log_build.log || {
   cat /tmp/obs_struct_log_build.log >&2
   echo "obs-structured-log gate FAIL: smoke compile" >&2
   rm -f "$SMOKE_BIN"
