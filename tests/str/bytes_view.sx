@@ -2,7 +2,7 @@
 const str = import("core.str");
 
 function main(): i32 {
-  let buf: [7]u8 = [72, 101, 108, 108, 111, 33, 0];
+  let buf: u8[7] = [72, 101, 108, 108, 111, 33, 0];
   let full: BytesView = str.bytes_view(&buf[0], 6);
   if (str.bytes_view_is_empty(full) != 0) { return 1; }
   if (str.bytes_view_len(full) != 6) { return 2; }
@@ -20,11 +20,11 @@ function main(): i32 {
   if (str.bytes_view_len(tail) != 2) { return 7; }
 
   let v1: BytesView = str.bytes_view(&buf[0], 2);
-  let ab: [2]u8 = [72, 101];
+  let ab: u8[2] = [72, 101];
   if (str.bytes_view_eq(v1, str.bytes_view(&ab[0], 2)) != 1) { return 8; }
   if (str.bytes_view_eq_bytes(v1, &ab[0], 2) != 1) { return 9; }
 
-  let s: []u8 = buf;
+  let s: u8[] = buf;
   let from_sl: BytesView = str.bytes_view_from_slice(s);
   if (str.bytes_view_len(from_sl) != 7) { return 10; }
   if (str.bytes_view_get(from_sl, 0) != 72) { return 11; }
