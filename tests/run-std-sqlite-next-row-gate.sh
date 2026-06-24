@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD067_DOC:-analysis/std-sqlite-next-row-v1.md}"
 MANIFEST="${SHUX_STD067_TSV:-tests/baseline/std-sqlite-next-row.tsv}"
 VECTORS="${SHUX_STD067_VECTORS:-tests/baseline/std-sqlite-next-row-vectors.tsv}"
-MOD_SU="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.c"
+MOD_SX="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.sx"
 LIB="tests/lib/std-sqlite-next-row.sh"
-SMOKE_SU="tests/std-sqlite/next_row_roundtrip.sx"
+SMOKE_SX="tests/std-sqlite/next_row_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/next_row_roundtrip_ok.c"
 MIN_CURSOR=3
 
@@ -20,7 +20,7 @@ MIN_CURSOR=3
 std_sqlite_next_row_source_sqlite
 
 echo "=== STD-067: db next_row manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$DB_C" "$SMOKE_SU" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
   analysis/std-sqlite-query-rows-v1.md tests/run-std-sqlite-query-rows-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-next-row gate FAIL: missing $f" >&2
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_CURSOR" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_next_row_symbols_ok "$MOD_SU" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_next_row_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_next_row_emit_report "fail" 0 0 0
   exit 1
@@ -83,7 +83,7 @@ if [ "${SHUX_STD067_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 CURSOR_C=0
-CURSOR_SU=0
+CURSOR_SX=0
 SKIP=1
 
 if std_sqlite_probe_libs; then
@@ -120,11 +120,11 @@ if std_sqlite_probe_libs; then
 
   if [ -n "$SHUX_BIN" ]; then
     echo "=== STD-067: .sx next_row smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
       echo "std-sqlite-next-row gate SKIP .sx smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "cursor"; then
-      CURSOR_SU=1
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "cursor"; then
+      CURSOR_SX=1
       SKIP=0
     else
       echo "std-sqlite-next-row gate SKIP .sx smoke (link/compile)" >&2
@@ -142,5 +142,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_next_row_emit_report "ok" "$CURSOR_C" "$CURSOR_SU" "$SKIP"
+std_sqlite_next_row_emit_report "ok" "$CURSOR_C" "$CURSOR_SX" "$SKIP"
 echo "std-sqlite-next-row gate OK"
