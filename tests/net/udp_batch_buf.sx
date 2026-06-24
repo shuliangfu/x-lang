@@ -8,19 +8,19 @@ function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let sock: UdpSocket = net.udp_bind(addr, 0);
   if (sock.fd < 0) { return 1; }
-  let recv_buf: [64]u8 = 0;
-  let bufs: [1]Buffer = [ Buffer { ptr: &recv_buf[0], len: 64, handle: 0 } ];
-  let out_sizes: [1]i32 = [0];
-  let out_addrs: [1]u32 = [0];
-  let out_ports: [1]u32 = [0];
+  let recv_buf: u8[64] = 0;
+  let bufs: Buffer[1] = [ Buffer { ptr: &recv_buf[0], len: 64, handle: 0 } ];
+  let out_sizes: i32[1] = [0];
+  let out_addrs: u32[1] = [0];
+  let out_ports: u32[1] = [0];
   let n_recv: i32 = net.udp_recv_many_buf(sock, &bufs[0], 1, 1, &out_sizes[0], &out_addrs[0],
   &out_ports[0]);
   let dst_addr: u32 = net.addr_to_u32(addr);
   let dst_port: u32 = 9;
-  let addrs: [1]u32 = [dst_addr];
-  let ports: [1]u32 = [dst_port];
-  let payload: [4]u8 = [1, 2, 3, 4];
-  let send_bufs: [1]Buffer = [ Buffer { ptr: &payload[0], len: 4, handle: 0 } ];
+  let addrs: u32[1] = [dst_addr];
+  let ports: u32[1] = [dst_port];
+  let payload: u8[4] = [1, 2, 3, 4];
+  let send_bufs: Buffer[1] = [ Buffer { ptr: &payload[0], len: 4, handle: 0 } ];
   let n_send: i32 = net.udp_send_many_buf(sock, &addrs[0], &ports[0], &send_bufs[0], 1);
   let c: i32 = net.close_udp(sock);
   if (c != 0) { return 2; }
