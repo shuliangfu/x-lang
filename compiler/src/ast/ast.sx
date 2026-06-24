@@ -99,12 +99,12 @@ enum ExprKind {
 /** 类型节点：kind + 具名类型名（NAMED 时）+ 元素类型下标（PTR/ARRAY/SLICE/VECTOR 时）+ 数组长度（ARRAY/VECTOR 时） */
 struct Type {
   kind: TypeKind;
-  name: [64]u8;
+  name: u8[64];
   name_len: i32;
   elem_type_ref: i32;
   array_size: i32;
-  /** M-3：仅 TYPE_SLICE；域标签（[]T<label>），region_label_len==0 表示未绑定域 */
-  region_label: [64]u8;
+  /** M-3：仅 TYPE_SLICE；域标签（T[]<label>），region_label_len==0 表示未绑定域 */
+  region_label: u8[64];
   region_label_len: i32;
 }
 
@@ -116,7 +116,7 @@ allow(padding) struct Expr {
   col: i32;
   int_val: i32;
   float_val: f64;
-  var_name: [64]u8;
+  var_name: u8[64];
   var_name_len: i32;
   binop_left_ref: i32;
   binop_right_ref: i32;
@@ -130,7 +130,7 @@ allow(padding) struct Expr {
   match_arm_base: i32;
   match_num_arms: i32;
   field_access_base_ref: i32;
-  field_access_field_name: [64]u8;
+  field_access_field_name: u8[64];
   field_access_field_len: i32;
   field_access_is_enum_variant: i32;
   /** 字段偏移（字节），由 typeck 从结构体布局填写；未设时为 0。 */
@@ -145,7 +145,7 @@ allow(padding) struct Expr {
   call_arg_base: i32;
   call_num_args: i32;
   method_call_base_ref: i32;
-  method_call_name: [64]u8;
+  method_call_name: u8[64];
   method_call_name_len: i32;
   /** method call 实参（不含 receiver）在侧车池中的起始下标 */
   method_call_arg_base: i32;
@@ -154,7 +154,7 @@ allow(padding) struct Expr {
   const_folded_valid: i32;
   index_proven_in_bounds: i32;
   /** STRUCT_LIT：结构体类型名 + 字段（名 + 初值）在侧车 grow pool（base+count）。 */
-  struct_lit_struct_name: [64]u8;
+  struct_lit_struct_name: u8[64];
   struct_lit_struct_name_len: i32;
   struct_lit_field_base: i32;
   struct_lit_num_fields: i32;
@@ -177,7 +177,7 @@ allow(padding) struct Expr {
 
 /** 常量声明：名称 + 类型池下标 + 初值表达式池下标 */
 struct ConstDecl {
-  name: [64]u8;
+  name: u8[64];
   name_len: i32;
   type_ref: i32;
   init_ref: i32;
@@ -185,7 +185,7 @@ struct ConstDecl {
 
 /** 变量声明：名称 + 类型池下标 + 初值表达式池下标 */
 struct LetDecl {
-  name: [64]u8;
+  name: u8[64];
   name_len: i32;
   type_ref: i32;
   init_ref: i32;
@@ -221,10 +221,10 @@ allow(padding) struct StmtOrderItem {
 
 /** 带标签的语句：goto 或 return；标签名与目标/返回值由后续字段表示 */
 struct LabeledStmt {
-  label: [32]u8;
+  label: u8[32];
   label_len: i32;
   is_goto: i32;
-  goto_target: [32]u8;
+  goto_target: u8[32];
   goto_target_len: i32;
   return_expr_ref: i32;
 }
@@ -261,14 +261,14 @@ struct Block {
 
 /** 函数形参：名称 + 类型池下标 */
 struct Param {
-  name: [32]u8;
+  name: u8[32];
   name_len: i32;
   type_ref: i32;
 }
 
 /** 函数：名称 + 形参 sidecar 池（param_base + num_params）+ 返回类型池下标 + 体块/体表达式池下标 + 是否 extern。 */
 struct Func {
-  name: [64]u8;
+  name: u8[64];
   name_len: i32;
   /** 形参表在 module/arena sidecar func_params 池中的起始下标 */
   param_base: i32;
@@ -284,15 +284,17 @@ struct Func {
 
 /** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */
 struct StructLayout {
-  name: [64]u8;
+  name: u8[64];
   name_len: i32;
   /** 字段表在 module sidecar struct_layout_fields 池中的起始下标 */
   field_base: i32;
   num_fields: i32;
   /** §11.1：源码含 allow(padding) 的顶层 struct 为 1；typeck 零填充门禁与 C typeck 一致。 */
   allow_padding: i32;
-  /** DOD-S1：1 表示 SoA 布局，`[N]T` 数组按列主序存储。 */
+  /** DOD-S1：1 表示 SoA 布局，`T[N]` 数组按列主序存储。 */
   soa: i32;
+  /** 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）。 */
+  packed: i32;
 }
 
 /** import 种类：与 C 的 AST_IMPORT_KIND_* 一致，供 parser/codegen 使用 */
@@ -329,15 +331,15 @@ allow(padding) struct ASTArena {
 allow(padding) struct PipelineDepCtx {
   ndep: i32;
   /** 6.1 路径解析：入口目录；lib_root 与 dep 槽在 C grow 池 */
-  entry_dir_buf: [512]u8;
+  entry_dir_buf: u8[512];
   entry_dir_len: i32;
   num_lib_roots: i32;
   /** 解析出的文件路径（含结尾 0，供 open 使用） */
-  path_buf: [512]u8;
+  path_buf: u8[512];
   /** 6.1 完全自举：读入与预处理用固定数组（各 4MiB），全部在 .sx 内完成，不依赖 C 缓冲指针 */
-  loaded_buf: [4194304]u8;
+  loaded_buf: u8[4194304];
   loaded_len: isize;
-  preprocess_buf: [4194304]u8;
+  preprocess_buf: u8[4194304];
   preprocess_len: i32;
   /** 非 0 时 pipeline 使用 asm 后端（出汇编）而非 codegen（出 C）；由 driver 解析 -backend asm 设置。 */
   use_asm_backend: i32;
@@ -373,16 +375,16 @@ allow(padding) struct PipelineDepCtx {
   /** codegen 用：codegen_sx_ast 的 dep_index（-1 表示入口模块），供 emit_block 等与 emit_func 一致取 C 类型前缀。 */
   current_codegen_dep_index: i32;
   /** codegen 用：当前模块 C 符号前缀副本（如 std_io_），与 codegen_sx_ast 的 prefix_buf 一致。 */
-  current_codegen_prefix_mirror: [64]u8;
+  current_codegen_prefix_mirror: u8[64];
   current_codegen_prefix_len: i32;
   /** 非 0 且 use_asm_backend 时：-o 单模块 .o 仅编入口 module，跳过 dep 机器码（build_shux_asm 并列链 build_asm/*.o 时由 SHUX_ASM_ENTRY_MODULE_ONLY=1 设置，避免 ast_* 等重复定义）。 */
   asm_entry_module_only: i32;
   /** build_shux_asm 入口模块逻辑 import 路径（如 arch.arm64）；runtime 在 ENTRY_MODULE_ONLY 时填入，供 asm 导出符号加 C 前缀。 */
-  entry_module_import_path_mirror: [64]u8;
+  entry_module_import_path_mirror: u8[64];
   entry_module_import_path_len: i32;
   /** M-3 typeck：当前 region 域标签；len==0 表示不在 region 块内。 */
   typeck_scope_region_len: i32;
-  typeck_scope_region_label: [64]u8;
+  typeck_scope_region_label: u8[64];
 }
 
 /** C grow pool：块分配后初始化 base；见 ast_pool.c。 */
@@ -449,6 +451,8 @@ extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx:
 extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32, v: i32): void;
 extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
 extern function pipeline_module_struct_layout_set_soa(module: *Module, idx: i32, v: i32): void;
+extern function pipeline_module_struct_layout_set_packed(module: *Module, idx: i32, v: i32): void;
+extern function pipeline_module_struct_layout_packed_at(module: *Module, idx: i32): i32;
 extern function pipeline_module_struct_layout_soa_at(module: *Module, idx: i32): i32;
 extern function pipeline_module_struct_layout_field_offset_at(module: *Module, li: i32, j: i32): i32;
 extern function pipeline_module_struct_layout_set_field_offset(module: *Module, li: i32, j: i32, foff: i32): void;
@@ -615,7 +619,7 @@ function ast_arena_block_alloc(arena: *ASTArena): i32 {
   return ref;
 }
 
-/** 按 ref 取 Type 池中节点（副本）；ref 须为 1..num_types。ref<=0 时返回默认 TYPE_I32，避免 C 生成码中 ref-1 越界触发 panic。实现于 pipeline_glue.c，禁止 SU codegen 直访 types[]。 */
+/** 按 ref 取 Type 池中节点（副本）；ref 须为 1..num_types。ref<=0 时返回默认 TYPE_I32，避免 C 生成码中 ref-1 越界触发 panic。实现于 pipeline_glue.c，禁止 SX codegen 直访 types[]。 */
 extern function ast_arena_type_get(arena: *ASTArena, ref: i32): Type;
 
 /** 将 Type 节点写回池中 ref 槽位；ref 须为 1..num_types。用于 parser 构建 AST。 */
@@ -652,7 +656,7 @@ extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref:
  * 将 CALL/METHOD_CALL 的目标解析占位为 -1；parser/typeck 在创建 CALL 节点后调用。
  * typeck 成功解析顶层函数后将两字段改写为合法下标。
  */
-/** 由 pipeline_glue.c 写池槽 call_resolved 占位（SU struct_layout 常缺 Expr 尾字段）。 */
+/** 由 pipeline_glue.c 写池槽 call_resolved 占位（SX struct_layout 常缺 Expr 尾字段）。 */
 extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
 
 /** 由 pipeline_glue.c 写池槽 call_resolved 解析结果。 */
@@ -701,7 +705,7 @@ function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
 }
 
 /**
- * SU 无法用局部 Expr 安全读取 expr.kind；由 pipeline_glue.c 实现该裸 C 符号（无前缀，
+ * SX 无法用局部 Expr 安全读取 expr.kind；由 pipeline_glue.c 实现该裸 C 符号（无前缀，
  * preamble 与原样 extern 对齐，避免 import 前缀叠层）。
  */
 extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i32): bool;
@@ -854,11 +858,11 @@ function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: 
 
 /**
  * 为嵌套块补 parent_block_ref：OneFuncResult 落成函数体 Block 时，子块已由 parse_block_into 分配但父块 ref 尚不存在；
- * 显式栈遍历 while/for/if 体，避免深层嵌套在 SU 自举 typecheck 路径上递归栈溢出。
+ * 显式栈遍历 while/for/if 体，避免深层嵌套在 SX 自举 typecheck 路径上递归栈溢出。
  */
 function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void {
-  let stack_blk: [256]i32 = [];
-  let stack_par: [256]i32 = [];
+  let stack_blk: i32[256] = [];
+  let stack_par: i32[256] = [];
   let sp: i32 = 0;
   let cur: i32 = 0;
   let par: i32 = 0;
@@ -866,6 +870,7 @@ function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, pa
   let fb: i32 = 0;
   let tb: i32 = 0;
   let eb: i32 = 0;
+  let rgb: i32 = 0;
   let i: i32 = 0;
   if (block_ref <= 0 || block_ref > arena.num_blocks) {
     return;
@@ -919,6 +924,17 @@ function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, pa
       eb = ast_block_if_else_body_ref(arena, cur, i);
       if (eb > 0 && sp < 256) {
         stack_blk[sp] = eb;
+        stack_par[sp] = cur;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    /** M-3：region 体块须挂 parent，块内 VAR 可解析外层 let。 */
+    i = 0;
+    while (i < b.num_regions) {
+      rgb = ast_block_region_body_ref(arena, cur, i);
+      if (rgb > 0 && sp < 256) {
+        stack_blk[sp] = rgb;
         stack_par[sp] = cur;
         sp = sp + 1;
       }
