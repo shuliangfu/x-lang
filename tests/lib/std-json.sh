@@ -3,9 +3,9 @@
 #
 # 用法（source 后）：
 #   std_json_api_count [manifest_tsv]
-#   std_json_has_api MOD_SU fn_name
+#   std_json_has_api MOD_SX fn_name
 #   std_json_has_c_impl JSON_C sym_name
-#   std_json_run_smoke SHUX_BIN smoke_su tag
+#   std_json_run_smoke SHUX_BIN smoke_sx tag
 
 # 统计 manifest 中 api 行数。
 std_json_api_count() {
