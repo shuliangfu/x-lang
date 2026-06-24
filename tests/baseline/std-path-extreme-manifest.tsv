@@ -6,6 +6,6 @@ vectors	file	tests/baseline/std-path-extreme.tsv	向量
 api_clean	api	path_clean	std/path/mod.sx	规范化
 api_resolve	api	path_resolve	std/path/mod.sx	相对解析
 api_ext_stem	api	path_extension_and_stem	std/path/mod.sx	双扩展
-smoke_su	smoke	tests/path/extreme_clean.sx	烟测
+smoke_sx	smoke	tests/path/extreme_clean.sx	烟测
 lib	script	tests/lib/std-path-extreme.sh	lib
 gate	script	tests/run-std-path-extreme-gate.sh	gate
