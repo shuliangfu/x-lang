@@ -8,8 +8,8 @@ function main(): i32 {
     return 1;
   }
 
-  let ns: [8]u8 = [47, 99, 104, 97, 116, 0];
-  let pkt: [32]u8 = [];
+  let ns: u8[8] = [47, 99, 104, 97, 116, 0];
+  let pkt: u8[32] = [];
   let n: i32 = sio.encode_connect_ns_packet(&ns[0], 5, &pkt[0], 32);
   if (n != 8) {
     return 2;
@@ -18,8 +18,8 @@ function main(): i32 {
     return 3;
   }
 
-  let ev: [8]u8 = [112, 105, 110, 103, 0];
-  let data: [8]u8 = [112, 111, 110, 103, 0];
+  let ev: u8[8] = [112, 105, 110, 103, 0];
+  let data: u8[8] = [112, 111, 110, 103, 0];
   n = sio.encode_event_ack_packet(7, &ev[0], 4, &data[0], 4, &pkt[0], 32);
   if (n <= 10) {
     return 4;
