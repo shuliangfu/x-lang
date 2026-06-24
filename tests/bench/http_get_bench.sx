@@ -82,7 +82,7 @@ function bench_write_kv_line(key: *u8, key_len: i32, val: i64): void {
   io.write_stderr(key, key_len as usize);
   let eq: u8 = 61;
   io.write_stderr(&eq, 1);
-  let dig: [24]u8 = [];
+  let dig: u8[24] = [];
   let dlen: i32 = bench_u64_len(val);
   bench_u64_fill(&dig[0], dlen, val);
   io.write_stderr(&dig[0], dlen as usize);
@@ -95,12 +95,12 @@ function main(): i32 {
   if (process.args_count() >= 2) {
     http_port = bench_parse_port(process.arg(1), http_port);
   }
-  let url: [48]u8 = [
+  let url: u8[48] = [
     104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58,
     48, 48, 48, 48, 48, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0
   ];
-  let port_digits: [6]u8 = [];
+  let port_digits: u8[6] = [];
   let pd: u32 = http_port;
   let plen: i32 = 0;
   if (pd == 0) {
@@ -123,8 +123,8 @@ function main(): i32 {
   url[ui] = 47;
   let url_len: i32 = ui + 1;
   let n_req: i32 = 64;
-  let out: [256]u8 = [];
-  let lat: [64]i64 = [];
+  let out: u8[256] = [];
+  let lat: i64[64] = [];
   let i: i32 = 0;
   let t_all0: i64 = time.now_monotonic_ns();
   while (i < n_req) {
@@ -139,8 +139,8 @@ function main(): i32 {
   let t_all1: i64 = time.now_monotonic_ns();
   let elapsed_ns: i64 = time.duration_ns(t_all0, t_all1);
   let p99: i64 = bench_p99_us(&lat[0], n_req);
-  let k1: [17]u8 = [66, 69, 78, 67, 72, 95, 69, 76, 65, 80, 83, 69, 68, 95, 78, 83];
-  let k2: [13]u8 = [66, 69, 78, 67, 72, 95, 80, 57, 57, 95, 85, 83];
+  let k1: u8[17] = [66, 69, 78, 67, 72, 95, 69, 76, 65, 80, 83, 69, 68, 95, 78, 83];
+  let k2: u8[13] = [66, 69, 78, 67, 72, 95, 80, 57, 57, 95, 85, 83];
   bench_write_kv_line(&k1[0], 16, elapsed_ns);
   bench_write_kv_line(&k2[0], 12, p99);
   return 0;
