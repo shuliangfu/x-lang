@@ -10,6 +10,8 @@
 #ifndef SHUX_TOKEN_H
 #define SHUX_TOKEN_H
 
+#include <stdint.h>
+
 /** Token 类型枚举 */
 typedef enum TokenKind {
     TOKEN_EOF = 0,
@@ -26,14 +28,20 @@ typedef enum TokenKind {
     TOKEN_RETURN,   /**< 关键字 return（显式返回） */
     TOKEN_PANIC,    /**< 关键字 panic（终止并可选打印） */
     TOKEN_DEFER,    /**< 关键字 defer（作用域退出时执行） */
-    TOKEN_REGION,   /**< 关键字 region（M-3：域块，块内 []T 继承域标签） */
+    TOKEN_TRY,      /**< 关键字 try（ERR-02：Result 错误捕获块） */
+    TOKEN_CATCH,    /**< 关键字 catch（try 配对 catch 处理器） */
+    TOKEN_REGION,   /**< 关键字 region（M-3：域块，块内 T[] 继承域标签） */
+    TOKEN_WITH_ARENA, /**< 关键字 with_arena（MEM-C1：作用域 Arena 绑定） */
     TOKEN_MATCH,    /**< 关键字 match（多分支匹配） */
     TOKEN_STRUCT,   /**< 关键字 struct（结构体定义） */
+    TOKEN_TYPE,     /**< 关键字 type（类型别名：type Alias = T;） */
     TOKEN_PACKED,   /**< 关键字 packed（结构体无填充布局，与 C __attribute__((packed)) 一致） */
     TOKEN_SOA,      /**< 关键字 soa（DOD-S1：数组按 StructOfArray 列主序存储） */
     TOKEN_ATTR_SOA, /**< 属性 #[soa]（等价于 struct Name soa { }） */
     TOKEN_ATTR_CFG, /**< 属性 #[cfg(...)]（int_val：1 保留下一顶层项，0 剪枝跳过） */
     TOKEN_ATTR_REPR_C, /**< 属性 #[repr(C)]（下一 struct 按 C ABI 布局，允许隐式 padding） */
+    TOKEN_ATTR_REPR_COMPATIBLE, /**< 属性 #[repr(compatible)]（允许与同布局 struct 指针互认） */
+    TOKEN_ATTR_ALLOC,  /**< 属性 #[alloc]（MEM-C1：下一 function 为 Allocator 自动注入 API） */
     TOKEN_ALIGN,    /**< 关键字 align（DOD-CL：struct 字段 align(N) cache line 对齐） */
     TOKEN_ENUM,     /**< 关键字 enum（枚举定义，§7） */
     TOKEN_GOTO,     /**< 关键字 goto（跳转） */
@@ -74,13 +82,14 @@ typedef enum TokenKind {
     TOKEN_RPAREN,   /**< ) */
     TOKEN_LBRACE,   /**< { */
     TOKEN_RBRACE,   /**< } */
-    TOKEN_LBRACKET, /**< [ 用于数组类型 [N]T、数组字面量、下标 */
+    TOKEN_LBRACKET, /**< [ 用于数组类型 T[N]、数组字面量、下标 */
     TOKEN_RBRACKET, /**< ] */
     TOKEN_ARROW,    /**< -> */
     TOKEN_FATARROW, /**< => 用于 match 分支 */
     TOKEN_COMMA,    /**< , 预留 */
     TOKEN_COLON,    /**< : 用于 let x: i32、const N: i32 */
-    TOKEN_DOT,      /**< . 用于 import core.types */
+    TOKEN_DOT,      /**< . 用于 import core.types、字段访问 */
+    TOKEN_DOTDOT,   /**< .. 用于范围 for（for (i : 0 .. n)）与切片范围（远期） */
     TOKEN_SEMICOLON,/**< ; 用于 import path; */
     TOKEN_PLUS,     /**< + 二元加 */
     TOKEN_MINUS,    /**< - 二元减（单字符 -，非 ->） */
@@ -125,7 +134,7 @@ typedef struct Token {
     int line;   /**< 行号，从 1 开始 */
     int col;    /**< 列号，从 1 开始 */
     union {
-        int int_val;        /**< TOKEN_INT 时使用 */
+        int64_t int_val;    /**< TOKEN_INT 时使用（完整 i64 范围，避免大整数字面量截断） */
         double float_val;   /**< TOKEN_FLOAT 时使用 */
         const char *ident;  /**< TOKEN_IDENT / TOKEN_I32 等部分类型 Token 时指向源码中的标识符（不拷贝，生命周期由调用方保证） */
     } value;
