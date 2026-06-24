@@ -1,0 +1,27 @@
+/**
+ * MEM-AUTO-006 bench：with_arena 内 Vec_u8 三次 push（首次 reserve bump，无 per-op malloc）。
+ * 正确性：len==3 且元素为 1,2,3；exit 0。
+ */
+const vec = import("std.vec");
+
+function main(): i32 {
+  with_arena(65536 as usize) {
+    let v: Vec_u8 = vec.vec_u8_new();
+    if (vec_u8_push(&v, 1) != 0) {
+      return 1;
+    }
+    if (vec_u8_push(&v, 2) != 0) {
+      return 2;
+    }
+    if (vec_u8_push(&v, 3) != 0) {
+      return 3;
+    }
+    if (vec.vec_u8_len(v) != 3) {
+      return 4;
+    }
+    if (v.ptr[0] != 1 || v.ptr[1] != 2 || v.ptr[2] != 3) {
+      return 5;
+    }
+  }
+  return 0;
+}
