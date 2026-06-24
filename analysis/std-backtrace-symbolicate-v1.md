@@ -27,7 +27,7 @@
 
 **实现**：`dladdr`（Unix/macOS）；Windows `DbgHelp` `SymFromAddr`。未解析时回退 `0x…` 十六进制，不计入成功帧数。
 
-**金样锚点**：`backtrace_gold_anchor_c`（`backtrace.c`），烟测期望符号名含 `gold_anchor`。
+**金样锚点**：`backtrace_gold_anchor_c`（`backtrace_glue.c`），烟测期望符号名含 `gold_anchor`。
 
 ---
 
@@ -60,7 +60,7 @@
 ```
 
 ```
-shux: [SHUX_STD_BACKTRACE_SYM] status=ok c_gold=1 su=1 skip=0 host=Darwin/arm64
+shux: [SHUX_STD_BACKTRACE_SYM] status=ok c_gold=1 sx=1 skip=0 host=Darwin/arm64
 ```
 
 ---
