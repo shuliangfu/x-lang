@@ -6,11 +6,11 @@
 |--------|----------|------|
 | **sqlite** | `import("std.db.sqlite")` | SQLite3 SQL 引擎（可选 `-lsqlite3`） |
 | **kv** | `import("std.db.kv")` | mmap LSM Append-Only KV / 时序底座（无 SQL） |
-| **arrow** | `import("std.db.arrow")` | 零拷贝列式内存（64B 对齐，配合 std.simd） |
+| **arrow** | `import("std.db.arrow")` | 零拷贝列式内存（`arrow.sx` + SIMD 胶层，F-05 v1） |
 
 ## 迁移说明
 
-- SQLite 实现位于 **`std/db/sqlite/`**（`mod.sx` + `sqlite.c`）。
+- SQLite 实现位于 **`std/db/sqlite/`**（`mod.sx` + `sqlite.sx` + `sqlite_glue.c`）。
 - 新代码请使用 `import("std.db.sqlite")` 或 `import("std.db")` 门面。
 
 ## kv — 高频时序 / 权重流
@@ -34,10 +34,17 @@
 ```bash
 make -C compiler ../std/db/sqlite/sqlite.o   # SQLite 后端
 make -C compiler ../std/db/kv/kv.o           # KV 引擎
-make -C compiler ../std/db/arrow/arrow.o     # Arrow 列式
-make -C compiler ../std/sys/mmap.o             # sys mmap
+make -C compiler ../std/db/arrow/arrow.o     # Arrow 列式（F-05 v1：arrow.sx + 胶层）
+# F-02 v1：std.sys.mmap 已纯 .sx，无需单独 make mmap.o
 ```
+
+## F-05 闭合（v4）
+
+- 三后端业务逻辑均在 **`.sx`**；仅 **3 个胶层 `.c`**（SIMD / mmap / libsqlite3）
+- 文档：`analysis/phase-f-f05-v4-closure.md`
+- 聚合 gate：`./tests/run-f05-std-db-closure-gate.sh`
 
 ## 测试
 
+- `./tests/run-f05-std-db-closure-gate.sh`
 - `./tests/run-std-db-kv-arrow-gate.sh`
