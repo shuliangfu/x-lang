@@ -5,7 +5,7 @@
 const soa_cross_lib = import("soa_cross_lib");
 
 function main(): i32 {
-  let arr: [4]Particle = [];
+  let arr: Particle[4] = [];
   arr[0].x = 1;
   arr[1].x = 2;
   arr[2].x = 3;
