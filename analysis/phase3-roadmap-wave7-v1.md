@@ -22,7 +22,7 @@
 
 ## 2. 北极星目标（第七批）
 
-1. **parser C4 SU bootstrap**：无 C TU 切片的全量 parser.sx emit 路径（BOOT-026）。
+1. **parser C4 SX bootstrap**：无 C TU 切片的全量 parser.sx emit 路径（BOOT-026）。
 2. **incr-compile 二次编译烟测扩面**：`comp-incr-compile.tsv` 原型持续门禁（COMP-020）。
 3. **std.db 文本列读取**：`row_col_text` 列值原型（STD-068）。
 4. **治理闭环**：第七批路线图 manifest + gate 与 `NEXT.md` §2.18 同步（PLAN-007）。
@@ -44,7 +44,7 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-026 | 自举 | parser C4 全量 SU bootstrap | P0 | `run-boot-026-parser-c4-bootstrap-gate.sh` |
+| BOOT-026 | 自举 | parser C4 全量 SX bootstrap | P0 | `run-boot-026-parser-c4-bootstrap-gate.sh` |
 | COMP-020 | 编译器 | incr-compile 二次编译烟测扩面 | P1 | `run-comp-incr-compile-wave-gate.sh` |
 | STD-068 | 标准库 | `std.db` row_col_text 文本列 | P2 | `run-std-db-row-col-text-gate.sh` |
 | PLAN-007 | 治理 | Phase 3 第七批路线图定版 | P2 | `run-phase3-roadmap-wave7-gate.sh` |
