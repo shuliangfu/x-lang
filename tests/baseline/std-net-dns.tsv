@@ -10,8 +10,8 @@ api_resolve_ex	api	resolve_ex	std/net/mod.sx	可诊断 IPv4
 api_resolve_ipv6	api	resolve_ipv6	std/net/mod.sx	IPv6 DNS
 api_ipv6_loopback	api	ipv6_loopback	std/net/mod.sx	::1
 api_resolve_err	api	resolve_err_ok	std/net/mod.sx	错误码
-symbol_v4_ex_c	symbol	net_resolve_ipv4_ex_c	std/net/net.c	C IPv4
-symbol_v6_ex_c	symbol	net_resolve_ipv6_ex_c	std/net/net.c	C IPv6
+symbol_v4_ex_c	symbol	net_resolve_ipv4_ex_c	std/net/net_dns.sx	C IPv4
+symbol_v6_ex_c	symbol	net_resolve_ipv6_ex_c	std/net/net_dns.sx	C IPv6
 smoke_resolve	smoke	tests/net/resolve_dns.sx	DNS 烟测
 smoke_main	smoke	tests/net/main.sx	listen
 hook_net	hook_script	run-net.sh	回归
