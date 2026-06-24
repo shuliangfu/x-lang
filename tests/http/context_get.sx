@@ -6,9 +6,9 @@ const err = import("std.error");
 function main(): i32 {
   let bg: Context = context.background();
   // "http://x/" — 仅用于参数占位，取消/过期路径不会真正建连
-  let url: [11]u8 = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
-  let buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
-  let body: [1]u8 = [0];
+  let url: u8[11] = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
+  let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let body: u8[1] = [0];
 
   let cancelled: Context = context.with_cancel(bg);
   context.cancel(cancelled);
