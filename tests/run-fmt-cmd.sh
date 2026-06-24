@@ -3,11 +3,16 @@
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
-# bootstrap seed / 非 x86_64：fmt 子命令走 shux-c（与 run-check 一致）。
+# bootstrap seed / shux_asm：fmt/check 须静默，走 shux-c（与 run-check 一致）。
 if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
-  case "$(uname -m 2>/dev/null)" in
-    x86_64|amd64) ;;
-    *) SHUX=./compiler/shux-c ;;
+  case "$(basename "${SHUX:-./compiler/shux}")" in
+    shux|shux_asm) SHUX=./compiler/shux-c ;;
+    *)
+      case "$(uname -m 2>/dev/null)" in
+        x86_64|amd64) ;;
+        *) SHUX=./compiler/shux-c ;;
+      esac
+      ;;
   esac
 fi
 # MSYS2：fmt 子命令在 shux-c 路径下偶发异常，CI test_c 仍走 shux-c 但 fmt 回归优先 seed shux。
