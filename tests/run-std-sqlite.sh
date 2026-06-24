@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST="${SHUX_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
-MOD_SU="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
+MOD_SX="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
 
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! std_sqlite_has_api "$MOD_SU" "$anchor"; then
+      if ! std_sqlite_has_api "$MOD_SX" "$anchor"; then
         echo "std-sqlite FAIL: missing API $anchor" >&2
         FAIL=$((FAIL + 1))
       fi
