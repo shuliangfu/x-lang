@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD065_DB_EXEC] status=ok tx_c=1 tx_su=0 skip=1
+shux: [SHUX_STD065_DB_EXEC] status=ok tx_c=1 tx_sx=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，exec 烟测 **SKIP**。
