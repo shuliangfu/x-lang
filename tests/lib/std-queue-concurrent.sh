@@ -2,14 +2,14 @@
 # std-queue-concurrent.sh — STD-048 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_queue_conc_symbols_ok MOD_SU QUEUE_C TSV
-#   std_queue_conc_run_smoke SHUX_BIN SU TAG
+#   std_queue_conc_symbols_ok MOD_SX QUEUE_C TSV
+#   std_queue_conc_run_smoke SHUX_BIN SX TAG
 #   std_queue_conc_emit_report status sync_ok main_ok smoke_ok skip
 
 STD_QUEUE_CONC_PREFIX="${SHUX_STD_QUEUE_CONCURRENT_PREFIX:-shux: [SHUX_STD_QUEUE_CONCURRENT]}"
 
 std_queue_conc_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local queue_c="$2"
   local tsv="$3"
   local miss=0
@@ -19,8 +19,8 @@ std_queue_conc_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-queue-concurrent FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-queue-concurrent FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -32,8 +32,8 @@ std_queue_conc_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          std/queue/queue.c) mod_path="$queue_c" ;;
-          *) mod_path="$mod_su" ;;
+          std/queue/queue.sx) mod_path="$queue_c" ;;
+          *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-queue-concurrent FAIL: missing '$anchor' in $mod_path" >&2
@@ -89,7 +89,8 @@ std_queue_conc_run_c_smoke() {
     echo "std-queue-concurrent FAIL: missing $queue_o" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$queue_o" -lpthread 2>/dev/null; then
+  make -C compiler runtime_queue_contention.o >/dev/null 2>&1 || true
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$queue_o" compiler/runtime_queue_contention.o -lpthread 2>/dev/null; then
     echo "std-queue-concurrent FAIL: compile $src" >&2
     return 1
   fi
