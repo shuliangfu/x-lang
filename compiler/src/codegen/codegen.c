@@ -761,7 +761,7 @@ static struct ASTModule **codegen_dep_mods;
 static const char **codegen_dep_paths;
 static int codegen_ndep;
 
-void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n) {
+void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n) {
     codegen_dep_mods = (n > 0 && mods && paths) ? mods : NULL;
     codegen_dep_paths = (n > 0 && mods && paths) ? paths : NULL;
     codegen_ndep = (n > 0 && mods && paths) ? n : 0;
@@ -3910,26 +3910,26 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 
             if (use_switch) {
                 int id = codegen_match_id++;
-                fprintf(out, "({ int _su_m%d = (", id);
+                fprintf(out, "({ int _sx_m%d = (", id);
                 if (codegen_expr(me, out) != 0) return -1;
-                fprintf(out, "); int _su_r; switch (_su_m%d) { ", id);
+                fprintf(out, "); int _sx_r; switch (_sx_m%d) { ", id);
                 for (int i = 0; i < num_arms; i++) {
                     if (arms[i].is_wildcard) {
-                        fprintf(out, "default: _su_r = (");
+                        fprintf(out, "default: _sx_r = (");
                         if (codegen_expr(arms[i].result, out) != 0) return -1;
                         fprintf(out, "); break; ");
                         break;
                     }
                     {
                         int case_val = arms[i].is_enum_variant ? arms[i].variant_index : arms[i].lit_val;
-                        fprintf(out, "case %d: _su_r = (", case_val);
+                        fprintf(out, "case %d: _sx_r = (", case_val);
                     }
                     if (codegen_expr(arms[i].result, out) != 0) return -1;
                     fprintf(out, "); break; ");
                 }
                 if (num_arms && !arms[num_arms - 1].is_wildcard)
-                    fprintf(out, "default: _su_r = 0; break; ");
-                fprintf(out, "} _su_r; })");
+                    fprintf(out, "default: _sx_r = 0; break; ");
+                fprintf(out, "} _sx_r; })");
             } else {
                 fprintf(out, "(");
                 for (int i = 0; i < num_arms; i++) {
@@ -4880,6 +4880,19 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 const struct ASTType *ty = b->let_decls[i].type;
                 const struct ASTExpr *linit_i = b->let_decls[i].init;
                 const struct ASTType *ety = codegen_emit_type(ty);
+                /** let x: T; 无显式初值：C 零初始化（与 asm 栈 prologue 清零一致）。 */
+                if (!linit_i) {
+                    if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
+                        fprintf(out, "%s", pad);
+                        emit_local_array_decl(ety, name, " = {0}", out);
+                        fprintf(out, ";\n");
+                    } else if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
+                        fprintf(out, "%s%s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
+                    } else {
+                        fprintf(out, "%s%s %s = {0};\n", pad, ety ? c_type_str(ety) : "int32_t", name);
+                    }
+                    continue;
+                }
                 if ((!ety || ety->kind != AST_TYPE_SLICE) && linit_i && linit_i->kind == AST_EXPR_CALL && linit_i->value.call.resolved_callee_func) {
                     const struct ASTFunc *f = linit_i->value.call.resolved_callee_func;
                     if (f->return_type && f->return_type->kind == AST_TYPE_SLICE && f->return_type->elem_type) {
