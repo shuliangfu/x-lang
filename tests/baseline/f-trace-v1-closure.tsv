@@ -1,0 +1,9 @@
+# F-trace v1 std.trace 闭合 manifest
+# 列：item_id	kind	anchor	notes
+ftrace_doc	doc	analysis/phase-f-trace-v1.md	F-trace v1
+ftrace_gate	gate	tests/run-f-trace-v1-gate.sh	聚合门禁
+trace_sx	file	std/trace/trace.sx	模块 .sx
+trace_glue_absent	absent	std/trace/trace_span_glue.c	v2 已删
+trace_mod	file	std/trace/mod.sx	对外 API
+trace_c_absent	absent	std/trace/trace.c	已删除
+makefile	makefile	compiler/Makefile	trace.o 纯 .sx
