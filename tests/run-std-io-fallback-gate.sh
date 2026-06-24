@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_IO_FALLBACK_DOC:-analysis/std-io-fallback-v1.md}"
 MANIFEST="${SHUX_STD_IO_FALLBACK_TSV:-tests/baseline/std-io-fallback.tsv}"
 IO_C="std/io/io.c"
-MOD_SU="std/io/mod.sx"
+MOD_SX="std/io/mod.sx"
 README="std/io/README.md"
 LIB="tests/lib/std-io-fallback.sh"
 SMOKE="tests/io/fallback_matrix.sx"
@@ -18,7 +18,7 @@ RUNNER="tests/run-io.sh"
 . tests/lib/std-io-fallback.sh
 
 echo "=== STD-026: std.io fallback manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$IO_C" "$MOD_SU" "$README" "$SMOKE" "$RUNNER"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$IO_C" "$MOD_SX" "$README" "$SMOKE" "$RUNNER"; do
   if [ ! -f "$f" ]; then
     echo "std-io-fallback gate FAIL: missing $f" >&2
     exit 1
@@ -32,7 +32,7 @@ for kw in macOS Windows io_uring kqueue IOCP read_batch_fd; do
   fi
 done
 
-split="$(std_io_fallback_manifest_ok "$DOC" "$README" "$IO_C" "$MOD_SU" "$MANIFEST" || true)"
+split="$(std_io_fallback_manifest_ok "$DOC" "$README" "$IO_C" "$MOD_SX" "$MANIFEST" || true)"
 matrix_miss="${split%% *}"
 code_miss="${split#* }"
 if [ "${matrix_miss:-0}" -gt 0 ] || [ "${code_miss:-0}" -gt 0 ]; then
