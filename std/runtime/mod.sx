@@ -2,7 +2,7 @@
 // std::panic/process::abort、Go runtime）
 //
 // 【文件职责】
-// 提供 panic()、abort()、runtime_ready()；panic/abort 经 std/runtime/runtime.c 对接
+// 提供 panic()、abort()、runtime_ready()；panic/abort 经 std/runtime/runtime.sx 对接
 // shux_panic_，
 // 链接时需提供 runtime_panic.o（或 libc abort）及 std/runtime/runtime.o。
 //
