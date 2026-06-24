@@ -2,12 +2,12 @@
 const backtrace = import("std.backtrace");
 
 function main(): i32 {
-  let buf: [64]u8 = [];
+  let buf: u8[64] = [];
   let n: i32 = backtrace.capture(&buf[0], 8);
   if (n <= 0) {
     return 0;
   }
-  let names: [1024]u8 = [];
+  let names: u8[1024] = [];
   let sym_n: i32 = backtrace.symbolicate(&buf[0], n, &buf[0], &names[0], n);
   if (sym_n <= 0) {
     return 1;
