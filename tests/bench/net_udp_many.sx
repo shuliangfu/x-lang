@@ -32,15 +32,15 @@ function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let sock: UdpSocket = net.udp_bind(addr, udp_port);
   if (sock.fd < 0) { return 1; }
-  let b0: [64]u8 = 0;
-  let b1: [64]u8 = 0;
-  let b2: [64]u8 = 0;
-  let b3: [64]u8 = 0;
-  let b4: [64]u8 = 0;
-  let b5: [64]u8 = 0;
-  let b6: [64]u8 = 0;
-  let b7: [64]u8 = 0;
-  let bufs: [8]Buffer = [
+  let b0: u8[64] = 0;
+  let b1: u8[64] = 0;
+  let b2: u8[64] = 0;
+  let b3: u8[64] = 0;
+  let b4: u8[64] = 0;
+  let b5: u8[64] = 0;
+  let b6: u8[64] = 0;
+  let b7: u8[64] = 0;
+  let bufs: Buffer[8] = [
     Buffer { ptr: &b0[0], len: pkt_len, handle: 0 },
     Buffer { ptr: &b1[0], len: pkt_len, handle: 0 },
     Buffer { ptr: &b2[0], len: pkt_len, handle: 0 },
@@ -50,9 +50,9 @@ function main(): i32 {
     Buffer { ptr: &b6[0], len: pkt_len, handle: 0 },
     Buffer { ptr: &b7[0], len: pkt_len, handle: 0 }
   ];
-  let out_sizes: [8]i32 = [0, 0, 0, 0, 0, 0, 0, 0];
-  let out_addrs: [8]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
-  let out_ports: [8]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let out_sizes: i32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let out_addrs: u32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let out_ports: u32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let total: i32 = 0;
   let sum: i32 = 0;
   /** timeout 5s 防止 client 未就绪时永久阻塞。 */
