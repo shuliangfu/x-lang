@@ -14,17 +14,10 @@ std_compress_has_api() {
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 尝试启用 zlib+zstd 或仅 zlib 的 compress.o。
+# F-04 v7：compress 格式已全 .sx；compress-o-* 为兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
 std_compress_try_libs() {
-  if (cd compiler && make compress-o-zlib-zstd 2>/dev/null); then
-    echo "std-compress: compress.o (zlib+zstd)" >&2
-    return 0
-  fi
-  if (cd compiler && make compress-o-zlib 2>/dev/null); then
-    echo "std-compress: compress.o (zlib only)" >&2
-    return 0
-  fi
-  echo "std-compress: default compress.o (stubs)" >&2
+  (cd compiler && make compress-o-zlib-zstd 2>/dev/null) || true
+  echo "std-compress: formats via .sx (F-04 v7, no compress.o)" >&2
   return 0
 }
 
