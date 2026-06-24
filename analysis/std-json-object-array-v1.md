@@ -28,7 +28,7 @@
 | `cursor_skip_value` | 跳过当前 value + 可选逗号 |
 | `cursor_peek` | 窥视下一记号 |
 
-实现：`json_skip_value_c`、`json_cursor_*_c` in `std/json/json.c`。
+实现：`json_skip_value_c`、`json_cursor_*_c` in `std/json/json_parse_glue.c`。
 
 ---
 
