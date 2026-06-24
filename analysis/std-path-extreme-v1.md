@@ -43,6 +43,6 @@
 ## 4. Gate
 
 ```
-shux: [SHUX_STD140_PATH_EXTREME] status=ok su=1 skip=0
+shux: [SHUX_STD140_PATH_EXTREME] status=ok sx=1 skip=0
 std-path-extreme gate OK
 ```
