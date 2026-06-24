@@ -22,7 +22,7 @@
 | API | POSIX | Windows | v1 说明 |
 |-----|-------|---------|---------|
 | `path_is_sep(c)` | `/` `\` | 同左 | 解析时双分隔符均识别 |
-| `path_sep()` | `47` `/` | `92` `\` | 由 `path_sep_c()`（`std/path/path.c`）返回本机主分隔符 |
+| `path_sep()` | `47` `/` | `92` `\` | 由 `path_sep_c()`（`mod.sx` cfg 内联，F-path v1 已删 path.c）返回本机主分隔符 |
 | `path_join` 输出 | 本机 `path_sep()` | 同左 | 拼接时按需插入主分隔符 |
 
 ### 2.2 `path_is_absolute`（v1）
