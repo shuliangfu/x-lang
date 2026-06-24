@@ -2,7 +2,7 @@
 const csv = import("std.csv");
 
 function main(): i32 {
-  let line: [8]u8 = [34, 97, 34, 44, 34, 98, 34, 0];
+  let line: u8[8] = [34, 97, 34, 44, 34, 98, 34, 0];
   let start: i32 = 0;
   let flen: i32 = 0;
   csv.next_field(&line[0], 7, 0, &start, &flen);
