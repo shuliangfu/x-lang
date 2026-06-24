@@ -2,14 +2,14 @@
 # std-http-chunked.sh — STD-033 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_http_chunked_symbols_ok MOD_SU CHUNKED_INC HTTP_C TSV
+#   std_http_chunked_symbols_ok MOD_SX CHUNKED_INC HTTP_C TSV
 #   std_http_chunked_emit_report status chunked_ok keepalive_ok typeck_ok skip
 
 STD_HTTP_CHUNKED_PREFIX="${SHUX_STD_HTTP_CHUNKED_PREFIX:-shux: [SHUX_STD_HTTP_CHUNKED]}"
 
 # 校验 manifest；echo 缺失数。
 std_http_chunked_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local chunked_inc="$2"
   local http_c="$3"
   local tsv="$4"
@@ -20,7 +20,7 @@ std_http_chunked_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-http-chunked FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
