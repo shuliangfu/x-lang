@@ -1,0 +1,9 @@
+# F-regex v2 std.regex 引擎全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+fregex2_doc	doc	analysis/phase-f-regex-v2.md	F-regex v2
+fregex2_gate	gate	tests/run-f-regex-v2-gate.sh	逻辑下沉门禁
+regex_sx	file	std/regex/regex.sx	引擎 + 烟测
+regex_mod	file	std/regex/mod.sx	对外 API
+regex_glue_absent	absent	std/regex/regex_engine_glue.c	v2 已删
+regex_inc_absent	absent	std/regex/regex_min.inc.c	v2 已删
+makefile	makefile	compiler/Makefile	纯 regex.sx → regex.o
