@@ -38,6 +38,11 @@ extern int32_t driver_skip_codegen_dep_0_get(void);
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_io(uint8_t *path);
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_fs(uint8_t *path);
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_process(uint8_t *path);
+extern int32_t pipeline_codegen_dep_skip_asm_user_std_fmt(uint8_t *path);
+extern int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path);
+extern int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path);
+extern int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path);
+extern int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n);
 extern void pipeline_asm_seed_std_net_struct_layouts(struct ast_Module *m);
 extern int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                          int32_t sym_cap);
@@ -112,7 +117,7 @@ extern int32_t pipeline_asm_patch_module_parent_links(struct ast_Module *m, stru
 extern void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast_ASTArena *entry_arena,
                                                      struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_wpo_reach_clear(void);
-extern int32_t platform_elf_write_elf_o_to_buf(void *elf_ctx, void *out_buf);
+extern int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.sx / PipelineElfCtxAccess 一致）。 */
 static int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
@@ -221,6 +226,13 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
       /** std.process：符号由 process.o 提供，args_count/arg 经 CALL redirect。 */
       if (pipeline_codegen_dep_skip_asm_user_std_process(dep_path_buf) != 0)
         continue;
+      /** std.fmt / core / std.error：闭包符号由链接桩提供，勿整库 co-emit（hello SIGSEGV）。 */
+      if (pipeline_codegen_dep_skip_asm_user_std_fmt(dep_path_buf) != 0)
+        continue;
+      if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
+        continue;
+      if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0)
+        continue;
       driver_set_current_dep_path_for_codegen((const char *)dep_path_buf);
       dep_ar = pipeline_dep_ctx_arena_at(pctx, jdep);
       if (dep_mod != NULL && dep_ar != NULL && pipeline_module_num_funcs(dep_mod) > 0) {
@@ -277,7 +289,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     return mw < 0 ? -1 : 0;
   }
   {
-    int32_t ew = platform_elf_write_elf_o_to_buf(elf_ctx, out_buf);
+    int32_t ew = pipeline_elf_write_o_standard_to_buf_c((uint8_t *)elf_ctx, (struct codegen_CodegenOutBuf *)out_buf);
     if (getenv("SHUX_ASM_DEBUG"))
       fprintf(stderr, "shux: asm_codegen_elf_o elf_write=%d out_len=%d\n", (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
     pipeline_asm_wpo_reach_clear();
