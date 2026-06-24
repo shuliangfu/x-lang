@@ -7,15 +7,15 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
 MANIFEST="${SHUX_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
-STRING_SU="std/string/mod.sx"
+STRING_SX="std/string/mod.sx"
 LIB="tests/lib/std-strview-zc4.sh"
-LIFECYCLE_SU="tests/string/view_lifecycle.sx"
+LIFECYCLE_SX="tests/string/view_lifecycle.sx"
 
 # shellcheck source=tests/lib/std-strview-zc4.sh
 . tests/lib/std-strview-zc4.sh
 
 echo "=== STD-016: StrView/ZC-4 manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$STRING_SU" "$LIFECYCLE_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$STRING_SX" "$LIFECYCLE_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-strview-zc4 gate FAIL: missing $f" >&2
     exit 1
@@ -29,7 +29,7 @@ for kw in ZC-4 arena64_deinit string_view_from_string 生命周期; do
   fi
 done
 
-miss="$(std_sv_zc4_manifest_ok "$STRING_SU" "$DOC" "$MANIFEST" || true)"
+miss="$(std_sv_zc4_manifest_ok "$STRING_SX" "$DOC" "$MANIFEST" || true)"
 if [ "${miss:-0}" -gt 0 ]; then
   std_sv_zc4_emit_report "fail" 0 0 1
   echo "std-strview-zc4 gate FAIL: manifest_miss=${miss}" >&2
@@ -64,10 +64,10 @@ ZC4_SKIP=1
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-016: typeck (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  for su in "$LIFECYCLE_SU" tests/string/view_subview_smoke.sx tests/string/arena_concat_smoke.sx tests/string/stack_str_sso_smoke.sx; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "std-strview-zc4 gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -6 >&2 || true
+  for sx in "$LIFECYCLE_SX" tests/string/view_subview_smoke.sx tests/string/arena_concat_smoke.sx tests/string/stack_str_sso_smoke.sx; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "std-strview-zc4 gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -6 >&2 || true
       std_sv_zc4_emit_report "fail" 1 0 1
       exit 1
     fi
