@@ -19,14 +19,19 @@
 #
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-
+# shellcheck source=lib/build-std-c-o.sh
+. "$(dirname "$0")/lib/build-std-c-o.sh"
+make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+ensure_std_c_o ../std/process/process.o
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 SHUX="${SHUX:-./compiler/shux}"
+LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 run_one() {
   local name="$1"
   local src="$2"
   local exe="/tmp/shux_process_$$_${name}"
-  if ! $SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $LINK_SHUX -L . "$src" -o "$exe" 2>&1; then
     echo "process test $name: compile failed"
     return 1
   fi
@@ -44,7 +49,7 @@ run_one() {
 }
 
 # 1. exit(99)
-$SHUX -L . tests/process/main.sx -o /tmp/shux_process_exit 2>&1
+$LINK_SHUX -L . tests/process/main.sx -o /tmp/shux_process_exit 2>&1
 exitcode=0; /tmp/shux_process_exit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 99 ] && { echo "process test exit: expected 99, got $exitcode"; exit 1; }
 rm -f /tmp/shux_process_exit
