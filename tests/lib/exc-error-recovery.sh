@@ -40,7 +40,7 @@ resolve_shu() {
 }
 
 # 编译并运行 .sx，校验退出码
-exc_recovery_run_su() {
+exc_recovery_run_sx() {
   local shux="$1"
   local src="$2"
   local want_ec="$3"
@@ -81,10 +81,10 @@ exc_recovery_run_row() {
   local want_ec="${5:-0}"
   case "$policy" in
     run)
-      exc_recovery_run_su "$shux" "tests/exc/${script}" "$want_ec" "$case_id"
+      exc_recovery_run_sx "$shux" "tests/exc/${script}" "$want_ec" "$case_id"
       ;;
     run_path)
-      exc_recovery_run_su "$shux" "$script" "$want_ec" "$case_id"
+      exc_recovery_run_sx "$shux" "$script" "$want_ec" "$case_id"
       ;;
     hook)
       local hook="tests/${script}"
