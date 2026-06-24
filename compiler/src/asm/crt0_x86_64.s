@@ -1,55 +1,28 @@
-# crt0_x86_64.s - 无 C 自举: _start 与 driver_get_argv_i (x86_64 Linux)
-# 替代 main.c / runtime_asm_build.c; 链接时用本 .o + main.sx 等 .o + -lc
+# crt0_x86_64.s - 无 C 自举: _start（x86_64 Linux）
+# E-04 v19：_start 调 main_entry（driver_sx.o / bridge 弱桩）；替代 main.c / runtime_asm_build.c
+# NL-07 v5：_start 先 bootstrap_init_static_tls（%fs:0x28 栈保护；见 bootstrap_nostdlib_stubs.c）
+# NL-07 v5：再 bootstrap_init_environ（getenv/SHUX_* 环境变量）
+# NL-07 v6：argc/argv 存 r12/r13；bootstrap 桩会 clobber rdi/rsi，每次 call 前须恢复。
 
 	.text
 	.globl	_start
 	.type	_start, @function
 _start:
-	mov	(%rsp), %edi
-	lea	8(%rsp), %rsi
+	mov	(%rsp), %r12d
+	lea	8(%rsp), %r13
 	and	$~15, %rsp
 	sub	$8, %rsp
-	call	entry
+	mov	%r12d, %edi
+	mov	%r13, %rsi
+	call	bootstrap_init_static_tls
+	mov	%r12d, %edi
+	mov	%r13, %rsi
+	call	bootstrap_init_environ
+	mov	%r12d, %edi
+	mov	%r13, %rsi
+	call	main_entry
 	mov	%eax, %edi
 	mov	$60, %eax
 	syscall
 1:	jmp	1b
 	.size	_start, .-_start
-
-	.globl	driver_get_argv_i
-	.type	driver_get_argv_i, @function
-driver_get_argv_i:
-	test	%rsi, %rsi
-	jz	.Largv_fail
-	test	%rcx, %rcx
-	jz	.Largv_fail
-	cmp	$1, %r8d
-	jl	.Largv_fail
-	test	%edx, %edx
-	js	.Largv_fail
-	cmp	%edi, %edx
-	jge	.Largv_fail
-	mov	%edx, %eax
-	shl	$3, %rax
-	add	%rax, %rsi
-	mov	(%rsi), %rsi
-	test	%rsi, %rsi
-	jz	.Largv_fail
-	lea	-1(%r8), %r8d
-	xor	%eax, %eax
-.Lcopy:
-	cmp	%r8d, %eax
-	jge	.Lcopy_done
-	mov	(%rsi,%rax), %r9b
-	test	%r9b, %r9b
-	jz	.Lcopy_done
-	mov	%r9b, (%rcx,%rax)
-	inc	%eax
-	jmp	.Lcopy
-.Lcopy_done:
-	movb	$0, (%rcx,%rax)
-	ret
-.Largv_fail:
-	mov	$-1, %eax
-	ret
-	.size	driver_get_argv_i, .-driver_get_argv_i
