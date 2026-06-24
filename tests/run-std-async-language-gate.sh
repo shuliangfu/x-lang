@@ -8,17 +8,17 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ALANG_DOC:-analysis/std-async-language-v1.md}"
 MANIFEST="${SHUX_STD_ALANG_TSV:-tests/baseline/std-async-language.tsv}"
-MOD_SU="std/async/mod.sx"
-SCHED_C="std/async/scheduler.c"
+MOD_SX="std/async/mod.sx"
+SCHED_C="compiler/src/asm/runtime_scheduler_glue.c"
 LIB="tests/lib/std-async-language.sh"
-RUN_SU="tests/async/await_scheduler_run.sx"
-MOD_TEST_SU="tests/async/await_scheduler_mod.sx"
+RUN_SX="tests/async/await_scheduler_run.sx"
+MOD_TEST_SX="tests/async/await_scheduler_mod.sx"
 
 # shellcheck source=tests/lib/std-async-language.sh
 . tests/lib/std-async-language.sh
 
 echo "=== STD-041: async language bridge manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$SCHED_C" "$RUN_SU" "$MOD_TEST_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SCHED_C" "$RUN_SX" "$MOD_TEST_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-async-language gate FAIL: missing $f" >&2
     exit 1
@@ -37,7 +37,7 @@ if ! grep -qF "shux_async_run_i32" "$SCHED_C" 2>/dev/null; then
   exit 1
 fi
 
-sym_miss="$(std_alang_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_alang_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_alang_emit_report "fail" 0 0 1
   echo "std-async-language gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -75,21 +75,21 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-041: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  for su in "$RUN_SU" "$MOD_TEST_SU"; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "std-async-language gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+  for sx in "$RUN_SX" "$MOD_TEST_SX"; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "std-async-language gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
       std_alang_emit_report "fail" "$RUN_OK" "$MOD_OK" 1
       exit 1
     fi
   done
-  if std_alang_run_smoke "$SHUX_BIN" "$RUN_SU" "/tmp/shux_async_alang_run"; then
+  if std_alang_run_smoke "$SHUX_BIN" "$RUN_SX" "/tmp/shux_async_alang_run"; then
     RUN_OK=1
   else
     std_alang_emit_report "fail" 0 0 1
     exit 1
   fi
-  if std_alang_run_smoke "$SHUX_BIN" "$MOD_TEST_SU" "/tmp/shux_async_alang_mod"; then
+  if std_alang_run_smoke "$SHUX_BIN" "$MOD_TEST_SX" "/tmp/shux_async_alang_mod"; then
     MOD_OK=1
   else
     std_alang_emit_report "fail" "$RUN_OK" 0 1
