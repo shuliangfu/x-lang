@@ -6,15 +6,15 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-metrics-obs-v1.md"
 MANIFEST="tests/baseline/std-metrics-obs-manifest.tsv"
 VECTORS="tests/baseline/std-metrics-obs-vectors.tsv"
-MOD_SU="std/metrics/mod.sx"
+MOD_SX="std/metrics/mod.sx"
 LIB="tests/lib/std-metrics-obs.sh"
-SMOKE_SU="tests/std-metrics/obs_correlation.sx"
+SMOKE_SX="tests/std-metrics/obs_correlation.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-metrics-obs.sh
 . "$LIB"
 
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SMOKE_SU"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX"; do
   [ -f "$f" ] || { echo "std-metrics-obs gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -32,27 +32,27 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  grep -qE "function ${anchor}\\(" "$MOD_SU" || exit 1
+  grep -qE "function ${anchor}\\(" "$MOD_SX" || exit 1
 done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || exit 1
 
-sym_miss="$(std_metrics_obs_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_metrics_obs_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! ./compiler/shux-c check -L . "$SMOKE_SU" >/tmp/std_metrics_obs_check.log 2>&1; then
+  if ! ./compiler/shux-c check -L . "$SMOKE_SX" >/tmp/std_metrics_obs_check.log 2>&1; then
     echo "std-metrics-obs gate FAIL: typeck" >&2
     tail -12 /tmp/std_metrics_obs_check.log >&2 || true
     exit 1
   fi
-  if std_metrics_obs_run_sx_smoke ./compiler/shux-c "$SMOKE_SU"; then
-    SU_OK=1
-  elif [ -x ./compiler/shux ] && std_metrics_obs_run_sx_smoke ./compiler/shux "$SMOKE_SU"; then
-    SU_OK=1
+  if std_metrics_obs_run_sx_smoke ./compiler/shux-c "$SMOKE_SX"; then
+    SX_OK=1
+  elif [ -x ./compiler/shux ] && std_metrics_obs_run_sx_smoke ./compiler/shux "$SMOKE_SX"; then
+    SX_OK=1
   else
     echo "std-metrics-obs gate FAIL: smoke compile/run" >&2
     exit 1
@@ -61,5 +61,5 @@ else
   SKIP=1
 fi
 
-std_metrics_obs_emit_report ok "$SU_OK" "$SKIP"
+std_metrics_obs_emit_report ok "$SX_OK" "$SKIP"
 echo "std-metrics-obs gate OK"
