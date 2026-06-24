@@ -3,6 +3,6 @@ min_apis	3
 api_format	api	format_wall_rfc3339	std/time/mod.sx
 api_offset	api	wall_local_offset_min	std/time/mod.sx
 api_smoke	api	format_timezone_smoke	std/time/mod.sx
-symbol_smoke_c	symbol	time_format_timezone_smoke_c	std/time/time.c
-smoke_su	smoke	tests/time/format_timezone.sx
+symbol_smoke_c	symbol	time_format_timezone_smoke_c	std/time/time.sx
+smoke_sx	smoke	tests/time/format_timezone.sx
 gate	script	run-std-time-format-timezone-gate.sh	tests/run-std-time-format-timezone-gate.sh
