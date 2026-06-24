@@ -3,7 +3,7 @@
 ## 1. 阅读路径（15min）
 
 - `std/http/mod.sx` — `get`/`post`/`head` 与 `get_ctx` 等 Context 版
-- `std/http/http.c` — URL 解析、`http_tls_bridge.inc.c` weak 桩
+- `std/http/http_glue.c` — URL 解析、`http_tls_bridge.inc.c` weak 桩
 - `std/net/mod.sx` — `tls_connect_client` / `tls_is_available`
 
 ## 2. HTTPS 语义
