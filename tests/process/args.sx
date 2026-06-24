@@ -17,7 +17,7 @@ function main(): i32 {
     return 2;
   }
   // process.getenv("PATH")：NUL 结尾 C 字符串，多数环境存在
-  let path_name: [8]u8 = [80, 65, 84, 72, 0, 0, 0, 0];
+  let path_name: u8[8] = [80, 65, 84, 72, 0, 0, 0, 0];
   let val: *u8 = process.getenv(&path_name[0]);
   // 不强制 val != 0，仅确保 getenv 调用不崩溃；若 PATH 存在则额外校验
   if (val != 0) {
