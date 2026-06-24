@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD061_DOC:-analysis/std-simd-prod-v1.md}"
 WAVE="${SHUX_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
 PARENT_DOC="${SHUX_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
-MOD_SU="std/simd/mod.sx"
+MOD_SX="std/simd/mod.sx"
 LIB="tests/lib/std-simd-prod.sh"
 MIN_BENCHES=3
 
@@ -16,7 +16,7 @@ MIN_BENCHES=3
 . "$LIB"
 
 echo "=== STD-061: simd prod bench manifest ==="
-for f in "$DOC" "$WAVE" "$LIB" "$PARENT_DOC" "$MOD_SU" \
+for f in "$DOC" "$WAVE" "$LIB" "$PARENT_DOC" "$MOD_SX" \
   tests/bench/simd_shuffle_select.sx tests/bench/simd_shuffle_select_stub.c \
   tests/run-perf-simd-shuffle-select.sh; do
   if [ ! -f "$f" ]; then
@@ -39,8 +39,8 @@ for kw in 生产级 perf bench_shuffle_hot min_benches stub/Shu; do
   fi
 done
 
-if ! grep -qF 'STD-061' "$MOD_SU" 2>/dev/null; then
-  echo "std-simd-prod gate FAIL: missing STD-061 anchor in $MOD_SU" >&2
+if ! grep -qF 'STD-061' "$MOD_SX" 2>/dev/null; then
+  echo "std-simd-prod gate FAIL: missing STD-061 anchor in $MOD_SX" >&2
   exit 1
 fi
 echo "std-simd-prod OK mod anchor"
