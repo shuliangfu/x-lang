@@ -49,7 +49,7 @@
 shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.000 total_ms=15.555
 ```
 
-实现：`compiler/src/runtime.c`（`driver_compile_phase_timing_*`）  
+实现：`compiler/src/runtime_driver_abi.c`（`driver_compile_phase_timing_*`）  
 编排：`compiler/src/pipeline/pipeline.sx`（`run_sx_pipeline_impl`）
 
 ---
@@ -67,7 +67,7 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.0
 `tests/run-obs-compile-phase-timing-gate.sh`：
 
 1. RFC + manifest 存在  
-2. `runtime.c` / `pipeline.sx` 含必需符号与 env 名  
+2. `runtime_driver_abi.c` / `pipeline.sx` 含必需符号与 env 名  
 3. 有 native `shux` 时：`SHUX_COMPILE_PHASE_TIMING=1 check` 烟测 grep 汇总行  
 
 ---
@@ -87,5 +87,5 @@ SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c tests/bench/loop_i32.sx -o /tmp/lo
 |------|------|
 | 矩阵 | `tests/baseline/obs-compile-phase-timing.tsv` |
 | 门禁 | `tests/run-obs-compile-phase-timing-gate.sh` |
-| 实现 | `compiler/src/runtime.c` |
+| 实现 | `compiler/src/runtime_driver_abi.c` |
 | 编排 | `compiler/src/pipeline/pipeline.sx` |
