@@ -5,8 +5,8 @@ STD148_PREFIX="${SHUX_STD148_HASH_DEFAULT_STRATEGY_PREFIX:-shux: [SHUX_STD148_HA
 
 # 校验 manifest；echo 缺失数。
 std_hash_default_strategy_symbols_ok() {
-  local mod_su="$1"
-  local hash_c="$2"
+  local mod_sx="$1"
+  local hash_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,14 +15,15 @@ std_hash_default_strategy_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-hash-default-strategy FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/hash/hash.c" ]; then path="$hash_c"; fi
+        if [ "$path" = "std/hash/hash_glue.c" ]; then path="$hash_sx"; fi
+        if [ "$path" = "std/hash/hash.sx" ]; then path="$hash_sx"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-hash-default-strategy FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -71,11 +72,11 @@ std_hash_default_strategy_vectors_ok() {
 
 # 编译并运行 C 默认策略烟测。
 std_hash_default_strategy_run_c_smoke() {
-  local hash_c="$1"
+  local hash_sx="$1"
   local src="tests/std-hash/default_strategy_ok.c"
   local out="/tmp/shux_hash_default_strategy_c_$$"
   local hash_o
-  hash_o="$(dirname "$hash_c")/hash.o"
+  hash_o="$(dirname "$hash_sx")/hash.o"
   if [ ! -f "$hash_o" ]; then
     echo "std-hash-default-strategy FAIL: missing $hash_o" >&2
     return 1
@@ -101,7 +102,7 @@ std_hash_default_strategy_run_sx_smoke() {
   local shux="$1"
   local src="$2"
   local hash_o="$3"
-  local exe="/tmp/shux_hash_default_strategy_su_$$"
+  local exe="/tmp/shux_hash_default_strategy_sx_$$"
   if ! "$shux" -L . "$src" -o "$exe" "$hash_o" >/dev/null 2>&1; then
     echo "std-hash-default-strategy FAIL: compile $src" >&2
     "$shux" -L . "$src" -o "$exe" "$hash_o" 2>&1 | tail -10 >&2 || true
@@ -125,5 +126,5 @@ std_hash_default_strategy_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD148_PREFIX} status=${status} c=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD148_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
 }
