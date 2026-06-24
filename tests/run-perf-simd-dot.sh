@@ -8,9 +8,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 SHUX_BIN="${SHUX:-./compiler/shux_asm}"
-SU_SRC="tests/bench/simd_dot.sx"
+SX_SRC="tests/bench/simd_dot.sx"
 C_SRC="tests/bench/simd_dot.c"
-SU_EXE="/tmp/shux_simd_dot_bench"
+SX_EXE="/tmp/shux_simd_dot_bench"
 C_EXE="/tmp/shux_simd_dot_c_bench"
 RUNS="${SHUX_SIMD_DOT_RUNS:-3}"
 MIN_RATIO="${SHUX_SIMD_DOT_MIN_RATIO:-0.90}"
@@ -35,7 +35,7 @@ median_real() {
   echo "$med"
 }
 
-echo "=== SIMD dot perf: ${SU_SRC} vs ${C_SRC} (min ratio ${MIN_RATIO}) ==="
+echo "=== SIMD dot perf: ${SX_SRC} vs ${C_SRC} (min ratio ${MIN_RATIO}) ==="
 
 simd_dot_native_exe() {
   local f="$1"
@@ -59,21 +59,21 @@ if ! command -v cc >/dev/null 2>&1; then
   exit 0
 fi
 
-SU_O="${SU_EXE}.o"
-rm -f "$SU_EXE" "$SU_O" "$C_EXE"
+SX_O="${SX_EXE}.o"
+rm -f "$SX_EXE" "$SX_O" "$C_EXE"
 
 # 先 -o .o 再 cc 链 exe：shux_asm 直链 exe 可能缺 main 符号。
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SU_SRC" -o "$SU_O"; then
-  echo "simd-dot FAIL: compile $SU_SRC" >&2
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SX_SRC" -o "$SX_O"; then
+  echo "simd-dot FAIL: compile $SX_SRC" >&2
   exit 1
 fi
-if ! nm "$SU_O" 2>/dev/null | grep -q '[[:space:]]T[[:space:]]main$'; then
-  echo "simd-dot FAIL: $SU_O missing main symbol" >&2
+if ! nm "$SX_O" 2>/dev/null | grep -q '[[:space:]]T[[:space:]]main$'; then
+  echo "simd-dot FAIL: $SX_O missing main symbol" >&2
   exit 1
 fi
-if ! cc -O2 -o "$SU_EXE" "$SU_O" -lm 2>/dev/null; then
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SU_SRC" -o "$SU_EXE"; then
-    echo "simd-dot FAIL: link $SU_EXE from $SU_O" >&2
+if ! cc -O2 -o "$SX_EXE" "$SX_O" -lm 2>/dev/null; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$SX_SRC" -o "$SX_EXE"; then
+    echo "simd-dot FAIL: link $SX_EXE from $SX_O" >&2
     exit 1
   fi
 fi
@@ -85,18 +85,18 @@ if ! cc -O2 -msse2 "$C_SRC" -o "$C_EXE" 2>/dev/null; then
   fi
 fi
 
-SU_MED=$(median_real "$SU_EXE")
+SX_MED=$(median_real "$SX_EXE")
 C_MED=$(median_real "$C_EXE")
-echo "Shu asm median real: ${SU_MED}s"
+echo "Shu asm median real: ${SX_MED}s"
 echo "C -O2 median real:   ${C_MED}s"
 
-if [ "$SU_MED" = "nan" ] || [ "$C_MED" = "nan" ]; then
+if [ "$SX_MED" = "nan" ] || [ "$C_MED" = "nan" ]; then
   echo "simd-dot SKIP: benchmark returned nan"
   exit 0
 fi
 
 # perf ratio = C_time / Shu_time（≥ MIN_RATIO 即 Shu 不慢于 MIN_RATIO× C）
-RATIO=$(awk -v c="$C_MED" -v s="$SU_MED" 'BEGIN { if (s <= 0) print 0; else print c / s }')
+RATIO=$(awk -v c="$C_MED" -v s="$SX_MED" 'BEGIN { if (s <= 0) print 0; else print c / s }')
 echo "simd-dot perf ratio (C/Shu): ${RATIO} (need >= ${MIN_RATIO})"
 
 if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1 }'; then
