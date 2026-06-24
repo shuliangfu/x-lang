@@ -1,0 +1,7 @@
+# P1-2 有符号/无符号溢出策略 manifest
+# 列：item_id	kind	anchor	src	expect_rc	notes
+# min_cases	1
+read_path	section	## 六、有符号溢出策略	analysis/UB与未定义行为.md	-	策略
+case_u32_wrap	case	unsigned_wrap_ok	tests/ub/unsigned_wrap_ok.sx	42	无符号 wrapping
+gate	script	run-signed-overflow-gate.sh	tests/run-signed-overflow-gate.sh	-	门禁
+hook_ub	cross_ref	tests/run-ub.sh	div/bounds	UB 收窄
