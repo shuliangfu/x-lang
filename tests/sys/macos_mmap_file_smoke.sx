@@ -6,7 +6,7 @@ function main(): i32 {
     return 1;
   }
   // "/tmp/shux_macos_mmap_file_gate.dat\0"（gate 脚本 touch 空文件）
-  let path: [34]u8 = [
+  let path: u8[34] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 109, 97, 99, 111, 115,
     95, 109, 109, 97, 112, 95, 102, 105, 108, 101, 95, 103, 97, 116, 101,
     46, 100, 97, 116, 0,
@@ -29,7 +29,7 @@ function main(): i32 {
   if (sys.os_munmap(p, out_sz) != 0) {
     return 5;
   }
-  let buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = sys.os_read_file_into(&path[0], &buf[0], 8);
   if (n < 2) {
     return 6;
