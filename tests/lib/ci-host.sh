@@ -33,6 +33,11 @@ ci_is_windows_msys() {
   return 1
 }
 
+# 是否为 FreeBSD。
+ci_is_freebsd() {
+  [ "$(ci_host_os)" = "FreeBSD" ]
+}
+
 # 是否为 ARM64/AArch64 宿主。
 ci_is_arm64_host() {
   case "$(ci_host_arch)" in
@@ -77,4 +82,21 @@ iocp_backend_expected() {
 # 打印当前宿主摘要（日志用）。
 ci_host_summary() {
   echo "$(ci_host_os)/$(ci_host_arch)"
+}
+
+# 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
+# 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
+ci_native_shu() {
+  local f="$1"
+  [ -n "$f" ] && [ -x "$f" ] || return 1
+  case "$(ci_host_os)-$(ci_host_arch)" in
+    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
+    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
+    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
+    FreeBSD-x86_64|FreeBSD-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
+    FreeBSD-aarch64|FreeBSD-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    *) return 0 ;;
+  esac
 }
