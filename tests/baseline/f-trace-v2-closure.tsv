@@ -1,0 +1,9 @@
+# F-trace v2 std.trace 逻辑全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+ftrace2_doc	doc	analysis/phase-f-trace-v2.md	F-trace v2
+ftrace2_gate	gate	tests/run-f-trace-v2-gate.sh	逻辑下沉门禁
+trace_sx	file	std/trace/trace.sx	span/导出/烟测
+trace_glue_absent	absent	std/trace/trace_span_glue.c	已删除
+trace_mod	file	std/trace/mod.sx	对外 API
+trace_c_absent	absent	std/trace/trace.c	已删除
+makefile	makefile	compiler/Makefile	纯 trace.sx → trace.o
