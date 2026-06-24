@@ -16,7 +16,7 @@ type_zero_cost_native_shu() {
 }
 
 # 解析 bench 矩阵中的 .sx 路径。
-type_zero_cost_bench_su() {
+type_zero_cost_bench_sx() {
   local file="$1"
   if [ -f "tests/bench/${file}" ]; then
     echo "tests/bench/${file}"
