@@ -2,6 +2,8 @@
 
 对标 **Zig** `std.hash`、**Rust** `std::hash::Hasher`。
 
+**模块路径**：`std/hash/mod.sx` + `std/hash/hash.sx`（F-hash v2 纯 .sx）
+
 ## 算法族
 
 | 常量 | 值 | 算法 | 用途 |
