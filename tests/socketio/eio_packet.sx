@@ -8,31 +8,31 @@ function main(): i32 {
     return 1;
   }
 
-  let open_json: [40]u8 = [123, 34, 115, 105, 100, 34, 58, 34, 120, 121, 122, 34, 125, 0];
-  let frame: [48]u8 = [];
+  let open_json: u8[40] = [123, 34, 115, 105, 100, 34, 58, 34, 120, 121, 122, 34, 125, 0];
+  let frame: u8[48] = [];
   let n: i32 = sio.eio_encode_packet(sio.eio_type_open(), &open_json[0], 13, &frame[0], 48);
   if (n != 14) { return 2; }
   if (frame[0] != 48) { return 3; }
 
   let typ: i32 = -1;
-  let payload: [32]u8 = [];
+  let payload: u8[32] = [];
   let plen: i32 = 0;
   if (sio.eio_decode_packet(&frame[0], n, &typ, &payload[0], 32, &plen) != 0) { return 4; }
   if (typ != 0 || plen != 13) { return 5; }
 
-  let sid: [8]u8 = [];
+  let sid: u8[8] = [];
   if (sio.eio_extract_sid(&payload[0], plen, &sid[0], 8) != 3) { return 6; }
   if (sid[0] != 120 || sid[2] != 122) { return 7; }
 
-  let ev: [8]u8 = [112, 105, 110, 103, 0];
-  let data: [4]u8 = [112, 111, 110, 0];
-  let evt_frame: [32]u8 = [];
+  let ev: u8[8] = [112, 105, 110, 103, 0];
+  let data: u8[4] = [112, 111, 110, 0];
+  let evt_frame: u8[32] = [];
   let en: i32 = sio.sio_encode_event(&ev[0], 4, &data[0], 3, &evt_frame[0], 32);
   if (en < 16) { return 8; }
   if (evt_frame[0] != 52) { return 9; }
 
-  let out_ev: [8]u8 = [];
-  let out_data: [8]u8 = [];
+  let out_ev: u8[8] = [];
+  let out_data: u8[8] = [];
   let dlen: i32 = 0;
   if (sio.sio_decode_event(&evt_frame[1], en - 1, &out_ev[0], 8, &out_data[0], 8, &dlen) != 0) { return 10; }
   if (out_ev[0] != 112 || dlen != 3 || out_data[0] != 112) { return 11; }
@@ -40,9 +40,9 @@ function main(): i32 {
   if (sio.polling_smoke() != 0) { return 12; }
   if (sio.connect_smoke() != 0) { return 13; }
 
-  let base: [24]u8 = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
-  let url: [80]u8 = [];
-  let empty_sid: [1]u8 = [0];
+  let base: u8[24] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
+  let url: u8[80] = [];
+  let empty_sid: u8[1] = [0];
   let tp: i32 = sio.transport_polling();
   let un: i32 = sio.build_eio_url(&base[0], 21, &empty_sid[0], 0, tp, &url[0], 80);
   if (un <= 40) { return 14; }
