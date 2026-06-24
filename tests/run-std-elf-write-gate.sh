@@ -6,17 +6,17 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-elf-write-v1.md"
 MANIFEST="tests/baseline/std-elf-write-manifest.tsv"
 VECTORS="tests/baseline/std-elf-write-vectors.tsv"
-MOD_SU="std/elf/mod.sx"
-ELF_C="std/elf/elf.c"
+MOD_SX="std/elf/mod.sx"
+ELF_SX="std/elf/elf.sx"
 LIB="tests/lib/std-elf-write.sh"
-SMOKE_SU="tests/std-elf/write_roundtrip.sx"
+SMOKE_SX="tests/std-elf/write_roundtrip.sx"
 SMOKE_C="tests/std-elf/write_smoke_ok.c"
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-elf-write.sh
 . "$LIB"
 
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$ELF_C" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$ELF_SX" "$SMOKE_SX" "$SMOKE_C"; do
   [ -f "$f" ] || { echo "std-elf-write gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -34,30 +34,37 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  grep -qE "function ${anchor}\\(" "$MOD_SU" || exit 1
+  grep -qE "function ${anchor}\\(" "$MOD_SX" || exit 1
 done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || exit 1
 
-sym_miss="$(std_elf_write_symbols_ok "$MOD_SU" "$ELF_C" "$MANIFEST" || true)"
+sym_miss="$(std_elf_write_symbols_ok "$MOD_SX" "$ELF_SX" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 . tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/elf/elf.o
-ELF_O="$(cd compiler && pwd)/../std/elf/elf.o"
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  ensure_std_c_o ../std/elf/elf.o
+  ELF_O="$(cd compiler && pwd)/../std/elf/elf.o"
+else
+  echo "std-elf-write gate SKIP c/sx smoke (need shux-c for elf.sx merge)" >&2
+  std_elf_write_emit_report ok 0 0 1
+  echo "std-elf-write gate OK (manifest only; no shux-c)"
+  exit 0
+fi
 
 C_OK=0
 std_elf_write_run_c_smoke "$ELF_O" && C_OK=1 || exit 1
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_SU" >/dev/null
-  std_elf_write_run_sx_smoke ./compiler/shux-c "$SMOKE_SU" && SU_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
+  std_elf_write_run_sx_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
 else
   SKIP=1
 fi
 
-std_elf_write_emit_report ok "$C_OK" "$SU_OK" "$SKIP"
+std_elf_write_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
 echo "std-elf-write gate OK"
