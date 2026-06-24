@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_FMT_MULTI_DOC:-analysis/std-fmt-multi-v1.md}"
 MANIFEST="${SHUX_STD_FMT_MULTI_TSV:-tests/baseline/std-fmt-multi.tsv}"
-FMT_SU="std/fmt/mod.sx"
+FMT_SX="std/fmt/mod.sx"
 LIB="tests/lib/std-fmt-multi.sh"
 SMOKE="tests/fmt-std/format_multi.sx"
 RUNNER="tests/run-fmt-std.sh"
@@ -16,7 +16,7 @@ RUNNER="tests/run-fmt-std.sh"
 . tests/lib/std-fmt-multi.sh
 
 echo "=== STD-019: fmt multi manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SU" "$SMOKE" "$RUNNER"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SX" "$SMOKE" "$RUNNER"; do
   if [ ! -f "$f" ]; then
     echo "std-fmt-multi gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in 'usize, usize' 'i32, i32, i32' fmt_ptr_to_buf; do
   fi
 done
 
-sym_miss="$(std_fmt_multi_symbols_ok "$FMT_SU" "$MANIFEST" || true)"
+sym_miss="$(std_fmt_multi_symbols_ok "$FMT_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_fmt_multi_emit_report "fail" 0 0 0
   echo "std-fmt-multi gate FAIL: symbol_miss=${sym_miss}" >&2
