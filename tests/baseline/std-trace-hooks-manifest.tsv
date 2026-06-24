@@ -10,9 +10,9 @@ api_io_rd	api	hook_io_read_ctx	std/trace/mod.sx	io read
 api_io_wr	api	hook_io_write_ctx	std/trace/mod.sx	io write
 api_net	api	hook_net_connect_ctx	std/trace/mod.sx	net connect
 api_async	api	hook_async_drain_ctx	std/trace/mod.sx	async drain
-symbol_smoke	symbol	trace_hooks_smoke_c	std/trace/trace.c	C烟测
-impl_c	file	std/trace/trace.c	std/trace/trace.c
-smoke_su	smoke	tests/std-trace/hooks_smoke.sx	.su烟测
+symbol_smoke	symbol	trace_hooks_smoke_c	std/trace/trace.sx	C烟测
+impl_sx	file	std/trace/trace.sx	std/trace/trace.sx
+smoke_sx	smoke	tests/std-trace/hooks_smoke.sx	.sx烟测
 vectors	file	tests/baseline/std-trace-hooks-vectors.tsv	向量
 lib	script	lib/std-trace-hooks.sh	tests/lib/std-trace-hooks.sh
 gate	script	run-std-trace-hooks-gate.sh	tests/run-std-trace-hooks-gate.sh
