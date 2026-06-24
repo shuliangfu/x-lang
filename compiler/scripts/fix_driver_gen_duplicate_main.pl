@@ -31,7 +31,7 @@ extern int32_t eq_asm(uint8_t *buf, int32_t len);
 extern int32_t str_eq(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len);
 extern int32_t target_contains_arm(uint8_t *buf, int32_t len);
 extern int32_t target_contains_riscv(uint8_t *buf, int32_t len);
-extern int32_t driver_emit_try_append_lib_from_argv(int32_t argc, uint8_t *argv, int32_t arg_i, struct main_DriverSuEmitState *state);
+extern int32_t driver_emit_try_append_lib_from_argv(int32_t argc, uint8_t *argv, int32_t arg_i, struct main_DriverSxEmitState *state);
 extern int32_t main_run_compiler_c(int32_t argc, uint8_t *argv);
 extern int32_t main_cmd_build(int32_t argc, uint8_t *argv);
 extern int32_t main_cmd_run(int32_t argc, uint8_t *argv);
@@ -48,7 +48,7 @@ extern int32_t driver_cmd_test(int32_t argc, uint8_t *argv);
 #define main_run_compiler_c_impl main_run_compiler_c
 
 DGEN
-  $src =~ s/(struct main_DriverSuEmitState \{[^\}]+\};)/$1\n$aliases/s
+  $src =~ s/(struct main_DriverSxEmitState \{[^\}]+\};)/$1\n$aliases/s
     or warn "fix_driver_gen: thin TU alias anchor not found\n";
 }
 
