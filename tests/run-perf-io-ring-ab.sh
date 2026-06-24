@@ -45,11 +45,11 @@ with open(p,'wb') as f:
 
 bench_one() {
   local label="$1"
-  local su="$2"
+  local sx="$2"
   local ring="$3"
   local out="/tmp/bench_io_ring_ab_${label}"
   export SHUX_IO_URING_RING_ENTRIES="$ring"
-  ./compiler/shux -L . "$su" -o "$out" 2>&1
+  ./compiler/shux -L . "$sx" -o "$out" 2>&1
   if [ ! -x "$out" ]; then
     echo "nan"
     return
