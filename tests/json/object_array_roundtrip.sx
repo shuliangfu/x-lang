@@ -14,15 +14,15 @@ function key_eq(key_buf: *u8, key_len: i32, b0: u8, b1: u8, b2: u8, b3: u8, need
 }
 
 function main(): i32 {
-  let buf: [128]u8 = [];
+  let buf: u8[128] = [];
   let off: i32 = 0;
   let n: i32 = 0;
-  let k_name: [4]u8 = [110, 97, 109, 101];
-  let k_age: [3]u8 = [97, 103, 101];
-  let k_tags: [4]u8 = [116, 97, 103, 115];
-  let v_alice: [5]u8 = [97, 108, 105, 99, 101];
-  let v_a: [1]u8 = [97];
-  let v_b: [1]u8 = [98];
+  let k_name: u8[4] = [110, 97, 109, 101];
+  let k_age: u8[3] = [97, 103, 101];
+  let k_tags: u8[4] = [116, 97, 103, 115];
+  let v_alice: u8[5] = [97, 108, 105, 99, 101];
+  let v_a: u8[1] = [97];
+  let v_b: u8[1] = [98];
 
   n = json.append_object(&buf[0], 128, off);
   if (n < 0) { return 1; }
@@ -72,7 +72,7 @@ function main(): i32 {
   if (consumed != off) { return 16; }
 
   let cur: json.JsonCursor = json.cursor_init(&buf[0], off);
-  let key: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let key: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let key_len: i32 = 0;
   let nr: i32 = 0;
   let out_val: f64 = 0.0;
