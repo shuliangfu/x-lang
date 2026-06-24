@@ -9,6 +9,11 @@ function helper_os(): i32 {
   return 7;
 }
 
+#[cfg(target_os = "freebsd")]
+function helper_os(): i32 {
+  return 9;
+}
+
 #[cfg(target_arch = "aarch64")]
 function helper_arch(): i32 {
   return 11;
