@@ -12,7 +12,7 @@
 |------|------|
 | **清单固定** | 6 项 force_stub 函数有根因、策略、回归用例 |
 | **不可 silent 删除** | `ast_pool.c` 须保留 `PARSER_STUB_EQ`；删 glue 须 CI fail |
-| **与 mega7 分工** | force_stub ≠ mega7；前者为 SU emit 安全桩，后者为入口 ret0 |
+| **与 mega7 分工** | force_stub ≠ mega7；前者为 SX emit 安全桩，后者为入口 ret0 |
 
 验收（NEXT BOOT-010）：**每项有根因/策略/回归用例** + 矩阵 + manifest gate。
 
@@ -22,11 +22,11 @@
 
 | stub_id | 函数 | 根因 | 策略 | 回归 |
 |---------|------|------|------|------|
-| wrap_block | `wrap_block_ref_as_expr` | if 表达式块→EXPR 包装；SU 真 emit code_len/SIG | C slice `parser_asm_if_expr_slice.c` + force_stub | `run-if-expr.sh` |
+| wrap_block | `wrap_block_ref_as_expr` | if 表达式块→EXPR 包装；SX 真 emit code_len/SIG | C slice `parser_asm_if_expr_slice.c` + force_stub | `run-if-expr.sh` |
 | alloc_bool | `parser_alloc_true_bool_lit` | 深循环内 bool 字面量节点分配 | force_stub；调用路径走 glue/已 emit helper | `run-if-expr.sh` |
 | alloc_float | `parser_alloc_float_lit` | 浮点 primary 路径 alloc | C slice `parser_asm_primary_slice.c` + force_stub | `run-float.sh` |
 | wrap_return | `parser_expr_wrap_in_return` | 单表达式函数体 RETURN 包装 | C seed slice + force_stub | `tests/parser/if_expr_return.sx` |
-| skip_padding | `try_skip_allow_padding_struct` | allow(padding) 深循环；SU emit elf_ec=-1 | extern→`parser_try_skip_allow_padding_struct_glue` | `tests/struct/padding_allow.sx` |
+| skip_padding | `try_skip_allow_padding_struct` | allow(padding) 深循环；SX emit elf_ec=-1 | extern→`parser_try_skip_allow_padding_struct_glue` | `tests/struct/padding_allow.sx` |
 | skip_padding_buf | `try_skip_allow_padding_struct_buf` | buf 路径同上 | thin_c buf glue + force_stub | `tests/unsafe/allow_padding_ok.sx` |
 
 另：`onefunc_*` / `copy_onefunc_*` / `set_onefunc_*` 前缀桩为 **OneFuncResult** 池路径（非本 6 项；见 matrix `prefix_stub` 追踪行）。
