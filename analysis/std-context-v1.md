@@ -30,14 +30,14 @@
 | `set_value` / `get_value` | 轻量键值 bag（8 槽） |
 | `free(ctx)` | 释放派生节点 |
 
-实现：`std/context/mod.sx` + `std/context/context.c`；依赖 `std.time` 单调时钟。
+实现：`std/context/mod.sx` + `std/context/context.sx`（F-context v2 纯 .sx）；依赖 `std.time` 单调时钟。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CONTEXT] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_CONTEXT] status=ok c_smoke=1 sx=1 skip=0
 std-context gate OK
 ```
 
