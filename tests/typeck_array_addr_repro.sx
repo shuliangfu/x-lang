@@ -1,4 +1,4 @@
-// Minimal repro: let [64]u8 = [], &buf[0], recursive call
+// Minimal repro: let u8[64] = [], &buf[0], recursive call
 const ast = import("ast");
 
 extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
@@ -24,7 +24,7 @@ function helper_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32)
     return asz * es;
   }
   if (kind_ord == 8) {
-    let nm_buf: [64]u8 = [];
+    let nm_buf: u8[64] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, ty_ref, &nm_buf[0]);
     return nlen;
   }
