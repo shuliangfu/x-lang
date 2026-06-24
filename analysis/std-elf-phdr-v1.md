@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD064_ELF_PHDR] status=ok phdr_c=1 phdr_su=0 skip=1
+shux: [SHUX_STD064_ELF_PHDR] status=ok phdr_c=1 phdr_sx=0 skip=1
 ```
 
 ---
