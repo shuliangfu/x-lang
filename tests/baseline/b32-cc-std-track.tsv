@@ -1,0 +1,4 @@
+file	pattern	notes
+compiler/scripts/build_shux_asm.sh	cc -c std/	track
+tests/run-f07-no-cc-std-migrated-gate.sh	cc -c std/	track
+tests/run-b32-no-cc-std-gate.sh	cc -c std/	track
