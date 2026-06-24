@@ -9,7 +9,7 @@ DOC="${SHUX_CORE_MEM_INTRINSIC_DOC:-analysis/core-mem-intrinsic-v1.md}"
 MANIFEST="${SHUX_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
 CODEGEN="compiler/src/codegen/codegen.c"
 LIB="tests/lib/core-mem-intrinsic.sh"
-EMIT_SU="tests/mem/main.sx"
+EMIT_SX="tests/mem/main.sx"
 MIN_MAP=4
 PREFIX="shux: [SHUX_CORE_MEM_INTRINSIC]"
 
@@ -17,7 +17,7 @@ PREFIX="shux: [SHUX_CORE_MEM_INTRINSIC]"
 . tests/lib/core-mem-intrinsic.sh
 
 echo "=== CORE-008: core.mem intrinsic manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$EMIT_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$EMIT_SX"; do
   if [ ! -f "$f" ]; then
     echo "core-mem-intrinsic gate FAIL: missing $f" >&2
     exit 1
@@ -81,7 +81,7 @@ if SHUX_BIN="$(resolve_emit_shu 2>/dev/null)"; then
     SHUX_BIN="$(resolve_emit_shu 2>/dev/null || true)"
   fi
   if [ -n "${SHUX_BIN:-}" ] && stdlib_cm_native_shu "$SHUX_BIN"; then
-  found="$(core_mem_intrinsic_emit_ok "$SHUX_BIN" "$EMIT_SU" "$MANIFEST" || true)"
+  found="$(core_mem_intrinsic_emit_ok "$SHUX_BIN" "$EMIT_SX" "$MANIFEST" || true)"
   if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
     core_mem_intrinsic_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"
     echo "core-mem-intrinsic gate FAIL: emit ${found:-0}/${EMIT_TOTAL}" >&2
