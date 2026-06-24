@@ -1,0 +1,5 @@
+# NL-07 bootstrap -lc / std cc 基线（track）
+# 列：metric	value	file	notes
+lc_link_cmds	2	compiler/scripts/build_shux_asm.sh	非注释行含 -lc（v2：仅 helper 回退 echo）
+ensure_std_c_compile	0	compiler/scripts/build_shux_asm.sh	F-06 v1：ensure_std_fs_io_heap_objs 空实现
+makefile_bootstrap_std_o	0	compiler/Makefile	F-06 v1：bootstrap-driver-seed 无 ../std/{fs,io,heap}.o
