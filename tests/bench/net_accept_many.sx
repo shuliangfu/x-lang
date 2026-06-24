@@ -29,8 +29,8 @@ function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let listener: TcpListener = net.listen(addr, net_bench_port);
   if (listener.fd < 0) { return 1; }
-  let out_buf: [64]TcpStream = 0;
-  let out: []TcpStream = out_buf;
+  let out_buf: TcpStream[64] = 0;
+  let out: TcpStream[] = out_buf;
   let total: i32 = 0;
   /** 每轮最多 net_batch_max()=64；timeout 5s 防止 client 未就绪时永久阻塞。 */
   while (total < net_bench_conns) {
