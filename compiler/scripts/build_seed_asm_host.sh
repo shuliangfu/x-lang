@@ -105,6 +105,48 @@ dedupe_slice() {
   perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
 }
 
+# -E 落盘/沿用 asm_full_gen.c 是否值得走 fix+cc（拒绝过短截断；uint8_t[N] name 由 fix_asm_full_gen_c.pl 修复）
+asm_full_gen_c_usable_for_fix() {
+  _c="$1"
+  [ -s "$_c" ] || return 1
+  [ "$(wc -c <"$_c" | tr -d ' ')" -ge 50000 ] || return 1
+  grep -q 'backend_' "$_c" 2>/dev/null || return 1
+  return 0
+}
+
+# fix perl 三件套 + lea 自递归清理
+run_fix_asm_full_c_pipeline() {
+  _c="$1"
+  perl scripts/fix_slim_arena_gen_c.pl "$_c"
+  perl scripts/fix_backend_enc_recursive_gen_c.pl "$_c"
+  perl scripts/fix_asm_full_gen_c.pl "$_c"
+  perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$_c" 2>/dev/null || true
+}
+
+# cc -c asm_full_gen.c → asm_full.o（失败时可选从 pre_fix/.bak 重跑 fix）
+try_cc_asm_full_gen_c() {
+  _c="$1"
+  rm -f "$ASM_FULL_O" "$OUT_DIR/asm_full_merged.o" "$OUT_DIR/asm_full_with_enc_stubs.o"
+  if $CC $CFLAGS -c "$_c" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
+    return 0
+  fi
+  echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc FAILED ($(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)" >&2
+  tail -15 "$OUT_DIR/cc.err" >&2
+  for _retry in "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak"; do
+    [ -f "$_retry" ] || continue
+    asm_full_gen_c_usable_for_fix "$_retry" || continue
+    echo "build_seed_asm_host: cc 失败，重试 fix+cc from ${_retry} ..." >&2
+    cp -f "$_retry" "$ASM_FULL_C"
+    run_fix_asm_full_c_pipeline "$ASM_FULL_C"
+    rm -f "$ASM_FULL_O"
+    if $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
+      echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK from ${_retry}" >&2
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Mach-O nm 带前导 _；ELF (Linux/Alpine) 不带。统一检测符号是否存在。
 has_nm_sym() {
   _obj="$1"
@@ -183,7 +225,7 @@ ld_partial_export() {
   localize_elf_partial_non_exported "$_out_o" "$_syms"
 }
 
-# asm.sx 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_sx.o / codegen_su.o 重复符号
+# asm.sx 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_sx.o / codegen_sx.o 重复符号
 ASM_FULL_C="$OUT_DIR/asm_full_gen.c"
 ASM_FULL_O="$OUT_DIR/asm_full.o"
 BACKEND_PARTIAL="$OUT_DIR/asm_backend_partial.o"
@@ -195,10 +237,11 @@ arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
 case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; esac
 SEED_PARTIAL="seeds/asm_backend_partial.${os}.${arch}.o"
-if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL" ]; then
+if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL" ] \
+    && has_real_partial_seed_mega "$SEED_PARTIAL"; then
   mkdir -p "$OUT_DIR"
   cp -f "$SEED_PARTIAL" "$BACKEND_PARTIAL"
-  echo "build_seed_asm_host: seed partial <- $SEED_PARTIAL" >&2
+  echo "build_seed_asm_host: seed partial (seed_mega) <- $SEED_PARTIAL" >&2
   exit 0
 fi
 # phase1 弱桩 partial 无强符号 seed_mega，须用 shux-seed-phase1 重新 -E asm.sx
@@ -220,15 +263,19 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
       echo "build_seed_asm_host: (no stderr; bootstrap may have crashed — run preflight_g06_coldstart.sh --asm-e)" >&2
     fi
     # -E OOM(137)/Killed 时若已有可用 asm_full_gen.c（上次 134 落盘），继续 fix+cc
-    if [ -s "$ASM_FULL_C" ] && [ "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" -ge 50000 ] && grep -q 'backend_' "$ASM_FULL_C" 2>/dev/null; then
-      # OOM 落盘可能短于 .bak；优先用更大且含 seed_mega 的 bak 避免 cc 类型不兼容
-      if [ -f "${ASM_FULL_C}.bak" ] && [ "$(wc -c <"${ASM_FULL_C}.bak" | tr -d ' ')" -gt "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" ] \
-          && grep -q 'backend_asm_codegen_ast_seed_mega' "${ASM_FULL_C}.bak" 2>/dev/null; then
+    if [ -s "$ASM_FULL_C" ] && asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
+      # OOM 落盘可能短于 .bak；优先用更大且可用的 bak
+      if [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak" \
+          && [ "$(wc -c <"${ASM_FULL_C}.bak" | tr -d ' ')" -gt "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" ]; then
         cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
         echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
       else
         echo "build_seed_asm_host: -E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
       fi
+      rm -f "$ASM_TMP"
+    elif [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak"; then
+      cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
+      echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
       rm -f "$ASM_TMP"
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
       echo "build_seed_asm_host: asm.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
@@ -243,33 +290,18 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
     mv -f "$ASM_TMP" "$ASM_FULL_C"
   fi
   dedupe_slice "$ASM_FULL_C"
+  if ! asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
+    echo "build_seed_asm_host: $ASM_FULL_C 不可用（畸形 -E 截断）" >&2
+    exit 1
+  fi
+  cp -f "$ASM_FULL_C" "${ASM_FULL_C}.pre_fix"
   _t0=$(date +%s)
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl scripts ..." >&2
-  perl scripts/fix_slim_arena_gen_c.pl "$ASM_FULL_C"
-  perl scripts/fix_backend_enc_recursive_gen_c.pl "$ASM_FULL_C"
-  perl scripts/fix_asm_full_gen_c.pl "$ASM_FULL_C"
+  run_fix_asm_full_c_pipeline "$ASM_FULL_C"
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl done ($(( $(date +%s) - _t0 ))s)" >&2
-  # shux-c -E 偶发插入自递归 stub，保留下方多 arch 真实现。
-  perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$ASM_FULL_C" 2>/dev/null || true
   _t0=$(date +%s)
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc -c asm_full_gen.c ..." >&2
-  if ! $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
-    echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc FAILED ($(( $(date +%s) - _t0 ))s, $(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)" >&2
-    tail -15 "$OUT_DIR/cc.err" >&2
-    # cc 失败时尝试 .bak → fix → cc 一次（-E OOM 落盘常比 bak 旧/截断）
-    if [ -f "${ASM_FULL_C}.bak" ] && grep -q 'backend_asm_codegen_ast_seed_mega' "${ASM_FULL_C}.bak" 2>/dev/null; then
-      echo "build_seed_asm_host: cc 失败，重试 ${ASM_FULL_C}.bak ..." >&2
-      cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
-      perl scripts/fix_slim_arena_gen_c.pl "$ASM_FULL_C"
-      perl scripts/fix_backend_enc_recursive_gen_c.pl "$ASM_FULL_C"
-      perl scripts/fix_asm_full_gen_c.pl "$ASM_FULL_C"
-      perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$ASM_FULL_C" 2>/dev/null || true
-      if $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
-        echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK from .bak" >&2
-      fi
-    fi
-  fi
-  if [ ! -f "$ASM_FULL_O" ] || [ ! -s "$ASM_FULL_O" ]; then
+  if ! try_cc_asm_full_gen_c "$ASM_FULL_C"; then
     if [ -f "$BACKEND_PARTIAL" ]; then
       echo "build_seed_asm_host: cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL" >&2
       exit 0
@@ -278,6 +310,8 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
     exit 1
   fi
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)" >&2
+  # cc 成功后保留 raw -E 落盘副本，供 OOM/cc 失败时重试
+  cp -f "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak" 2>/dev/null || true
   # -E 截断：asm_full.o 内 backend_enc 仍引用 U arch_*_enc_enc_* / arch_*_emit_*；weak 桩 ld -r 合并后 phase1 可链。
   ENC_STUB_C="$OUT_DIR/asm_full_link_stubs.c"
   ENC_STUB_O="$OUT_DIR/asm_full_link_stubs.o"
@@ -303,7 +337,7 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
       echo "build_seed_asm_host: merged build_asm/backend.o -> $ASM_FULL_O" >&2
     fi
   fi
-  # 从 asm_full.o 导出 backend_/peephole_/platform_{elf,macho,coff}_*，供 codegen_su.o 与 seed bridge 解析。
+  # 从 asm_full.o 导出 backend_/peephole_/platform_{elf,macho,coff}_*，供 codegen_sx.o 与 seed bridge 解析。
   # 剔除 backend_*_dispatch.c 已提供的符号，避免与 USER_ASM_LINK 重复定义（须四份 dispatch .o 均已编译）。
   collect_backend_export_syms "$ASM_FULL_O" "$SYMS"
   : >"$OUT_DIR/asm_dispatch_syms.txt"
