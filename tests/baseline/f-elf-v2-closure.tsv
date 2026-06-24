@@ -1,0 +1,9 @@
+# F-elf v2 std.elf 逻辑下沉 manifest
+# 列：item_id	kind	anchor	notes
+felf2_doc	doc	analysis/phase-f-elf-v2.md	F-elf v2
+felf2_gate	gate	tests/run-f-elf-v2-gate.sh	逻辑下沉门禁
+elf_sx	file	std/elf/elf.sx	ELF64 解析/写入 + fixture IO
+elf_io_glue_absent	absent	std/elf/elf_io_glue.c	F-ZC 已删除
+elf_mod	file	std/elf/mod.sx	对外 API
+elf_glue_v1_absent	absent	std/elf/elf_glue.c	v1 胶层已删除
+makefile	makefile	compiler/Makefile	elf.o 纯 .sx
