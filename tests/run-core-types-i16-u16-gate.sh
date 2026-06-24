@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
 MANIFEST="${SHUX_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
-TYPES_SU="core/types/mod.sx"
+TYPES_SX="core/types/mod.sx"
 TYPECK="compiler/src/typeck/typeck.c"
 CODEGEN="compiler/src/codegen/codegen.c"
 LIB="tests/lib/core-types-i16-u16.sh"
@@ -31,7 +31,7 @@ native_shu() {
 }
 
 echo "=== CORE-013: i16/u16 width manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$TYPES_SU" "$TYPECK" "$CODEGEN" "$SMOKE" "$SCALAR"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$TYPES_SX" "$TYPECK" "$CODEGEN" "$SMOKE" "$SCALAR"; do
   if [ ! -f "$f" ]; then
     echo "core-types-i16-u16 gate FAIL: missing $f" >&2
     exit 1
@@ -88,7 +88,7 @@ if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-sym_miss="$(core_types_i16_u16_symbols_ok "$TYPES_SU" "$MANIFEST" || true)"
+sym_miss="$(core_types_i16_u16_symbols_ok "$TYPES_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_types_i16_u16_emit_report "fail" 0 1
   exit 1
