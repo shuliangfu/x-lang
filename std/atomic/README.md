@@ -2,6 +2,8 @@
 
 与 **Rust** `std::sync::atomic`、**Zig** `std.atomic` 对标。
 
+**模块路径**：`std/atomic/mod.sx` + `std/atomic/atomic.sx` + `compiler/src/asm/runtime_atomic_glue.c`（F-atomic v2 / F-ZC）
+
 ## 类型覆盖
 
 | 宽度 | load/store | compare_exchange | fetch_add | fetch_sub |
@@ -29,4 +31,5 @@ v1 默认 **seq_cst**；带 Ordering 参数的重载后续扩展。
 ```bash
 ./tests/run-std-atomic-ordering-gate.sh
 ./tests/run-std-atomic-widen-gate.sh
+./tests/run-f-atomic-v1-gate.sh
 ```
