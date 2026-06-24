@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-context-cookbook-v1.md"
 MANIFEST="tests/baseline/std-context-cookbook.tsv"
-MOD_SU="std/context/mod.sx"
+MOD_SX="std/context/mod.sx"
 LIB="tests/lib/std-context-cookbook.sh"
 RECIPE="examples/cookbook/context_cancel_deadline.sx"
 MIN_REC=1
@@ -16,7 +16,7 @@ MIN_REC=1
 . "$LIB"
 
 echo "=== STD-156: context cookbook manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$RECIPE" \
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$RECIPE" \
   analysis/doc-cookbook-expand-v1.md; do
   if [ ! -f "$f" ]; then
     echo "std-context-cookbook gate FAIL: missing $f" >&2
@@ -37,7 +37,7 @@ if ! grep -qF "$RECIPE" analysis/doc-cookbook-expand-v1.md 2>/dev/null; then
 fi
 
 REC_N=0
-sym_miss="$(std_context_cookbook_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_context_cookbook_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 while IFS=$'\t' read -r item_id kind _rest; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*|min_*) continue ;; esac
@@ -54,7 +54,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-context-cookbook manifest OK"
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
@@ -71,7 +71,7 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
   if std_context_cookbook_run_smoke "$RUN_SHUX" "$RECIPE"; then
-    SU_OK=1
+    SX_OK=1
   else
     std_context_cookbook_emit_report "fail" 0 0
     exit 1
@@ -81,5 +81,5 @@ else
   SKIP=1
 fi
 
-std_context_cookbook_emit_report "ok" "$SU_OK" "$SKIP"
+std_context_cookbook_emit_report "ok" "$SX_OK" "$SKIP"
 echo "std-context-cookbook gate OK"
