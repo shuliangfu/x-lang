@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_ITER_DOC:-analysis/core-iterator-protocol-v1.md}"
 MANIFEST="${SHUX_CORE_ITER_TSV:-tests/baseline/core-iterator-protocol.tsv}"
-ITER_SU="core/iterator/mod.sx"
+ITER_SX="core/iterator/mod.sx"
 LIB="tests/lib/core-iterator-protocol.sh"
 SMOKE="tests/iterator/main.sx"
 COOKBOOK="examples/cookbook/iter_slice_sum.sx"
@@ -16,7 +16,7 @@ COOKBOOK="examples/cookbook/iter_slice_sum.sx"
 . tests/lib/core-iterator-protocol.sh
 
 echo "=== CORE-006: iterator protocol manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$ITER_SU" "$SMOKE" "$COOKBOOK"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$ITER_SX" "$SMOKE" "$COOKBOOK"; do
   if [ ! -f "$f" ]; then
     echo "core-iterator-protocol gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in next_i32 SliceIter Cookbook iter_slice_sum; do
   fi
 done
 
-sym_miss="$(core_iter_symbols_ok "$ITER_SU" "$MANIFEST" || true)"
+sym_miss="$(core_iter_symbols_ok "$ITER_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_iter_emit_report "fail" 0 0 0 0
   echo "core-iterator-protocol gate FAIL: symbol_miss=${sym_miss}" >&2
