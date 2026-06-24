@@ -31,7 +31,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD120_DB_COMPAT] status=ok su=1 skip=0
+shux: [SHUX_STD120_DB_COMPAT] status=ok sx=1 skip=0
 std-db-compat gate OK
 ```
 
