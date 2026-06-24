@@ -16,7 +16,7 @@
 #define PREPROCESS_OUT_GROW  65536
 #define PREPROCESS_IF_INIT   32
 
-/** C 路径 #if 嵌套栈（grow；SU 路径用 ast_pool preprocess_if_stack_*）。 */
+/** C 路径 #if 嵌套栈（grow；SX 路径用 ast_pool preprocess_if_stack_*）。 */
 static int32_t *pp_if_stack;
 static int pp_if_cap;
 static int pp_if_len;
@@ -271,7 +271,7 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
     return out;
 }
 
-/** 对外接口：默认构建（仅链 preprocess.o）时由此提供；SU 构建（-DSHUX_USE_SX_PREPROCESS）时由 runtime.c 提供。 */
+/** 对外接口：默认构建（仅链 preprocess.o）时由此提供；SX 构建（-DSHUX_USE_SX_PREPROCESS）时由 runtime.c 提供。 */
 #ifndef SHUX_USE_SX_PREPROCESS
 char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
