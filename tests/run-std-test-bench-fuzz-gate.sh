@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_TEST_BENCH_FUZZ_DOC:-analysis/std-test-bench-fuzz-v1.md}"
 MANIFEST="${SHUX_STD_TEST_BENCH_FUZZ_TSV:-tests/baseline/std-test-bench-fuzz.tsv}"
 VECTORS="${SHUX_STD_TEST_BENCH_FUZZ_VECTORS:-tests/baseline/std-test-bench-fuzz-vectors.tsv}"
-MOD_SU="std/test/mod.sx"
-TEST_C="std/test/test.c"
+MOD_SX="std/test/mod.sx"
+TEST_SX="std/test/test.sx"
 LIB="tests/lib/std-test-bench-fuzz.sh"
 SMOKE_BENCH="tests/std-test/bench_smoke.sx"
 SMOKE_FUZZ="tests/std-test/fuzz_smoke.sx"
@@ -21,7 +21,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-054: test bench/fuzz manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$TEST_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$TEST_SX" \
   "$SMOKE_BENCH" "$SMOKE_FUZZ" "$SMOKE_REGRESS" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-test-bench-fuzz gate FAIL: missing $f" >&2
@@ -55,7 +55,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-test-bench-fuzz gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -74,7 +74,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_test_bench_fuzz_symbols_ok "$MOD_SU" "$TEST_C" "$MANIFEST" || true)"
+sym_miss="$(std_test_bench_fuzz_symbols_ok "$MOD_SX" "$TEST_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_test_bench_fuzz_emit_report "fail" 0 0 0 0
   echo "std-test-bench-fuzz gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -87,7 +87,7 @@ echo "std-test-bench-fuzz manifest OK"
 ensure_std_c_o ../std/test/test.o
 
 C_OK=0
-if std_test_bench_fuzz_run_c_smoke "$TEST_C"; then
+if std_test_bench_fuzz_run_c_smoke ../std/test/test.o; then
   C_OK=1
 else
   std_test_bench_fuzz_emit_report "fail" 0 0 0 0
