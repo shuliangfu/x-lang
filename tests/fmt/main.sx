@@ -4,7 +4,7 @@ const fmt = import("core.fmt");
 
 function main(): i32 {
   let n: i32 = fmt.fmt_i32(42);
-  let buf: [24]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let len: i32 = fmt.fmt_i32_to_buf(buf, 24, 42);
   if (len != 2) { return 1; }
   let neg: i32 = 0 - 7;
