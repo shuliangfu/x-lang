@@ -2,7 +2,7 @@
 //
 // 【文件职责】capture 将当前栈帧写入 buf（每帧 sizeof(void*)
 // 字节），返回帧数；symbolicate 解析符号名。
-// 【依赖】core；与 std/backtrace/backtrace.c 同属一模块。平台差异见 README。
+// 【依赖】core；与 std/backtrace/backtrace.sx 同属一模块（F-backtrace v2 / F-ZC）。平台胶层在 runtime_backtrace_platform.o。
 extern function backtrace_capture_c(buf: *u8, max_frames: i32): i32;
 extern function backtrace_symbolicate_c(buf: *u8, len: i32, out_ptrs: *u8, out_names: *u8, max:
 i32): i32;
