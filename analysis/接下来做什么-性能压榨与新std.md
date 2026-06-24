@@ -10,7 +10,7 @@
 |------|------|
 | **测试** | `run-all.sh` 全过，无 SKIP（含 stdlib-import、vec、defer、goto、runtime、map 等）。 |
 | **切片化** | 写死参数已支持切片：`read_batch_fd_buf`/`write_batch_fd_buf`、`register_fixed_buffers_buf`、`stream_read_batch_buf`/`stream_write_batch_buf`、`fs_readv_buf`/`fs_writev_buf`、`udp_recv_many_buf`/`udp_send_many_buf`、`net_batch_max()` 等均已落地（见《写死参数与切片化优化清单》）。 |
-| **std.net 压榨** | 阶段 1～5 已完成：io_uring accept/connect、accept_many/connect_many 真批量、[]Buffer 与 net 打通、fixed 注册、UDP recvmmsg/sendmmsg；六「继续压榨」中 CQE 批收、64 批量、run_accept_workers、绑核等已做；multishot accept 为可选预留。 |
+| **std.net 压榨** | 阶段 1～5 已完成：io_uring accept/connect、accept_many/connect_many 真批量、Buffer[] 与 net 打通、fixed 注册、UDP recvmmsg/sendmmsg；六「继续压榨」中 CQE 批收、64 批量、run_accept_workers、绑核等已做；multishot accept 为可选预留。 |
 | **std.thread** | 零成本抽象、绑核、栈大小、macOS QoS 已实现（见《std.thread性能压榨》）。 |
 | **core** | 在当前语言下已齐；mem_copy→builtin、slice unchecked、Option/Result inline 等已做（见《core完善与性能分析》）。 |
 

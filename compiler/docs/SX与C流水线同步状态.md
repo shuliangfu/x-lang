@@ -17,7 +17,7 @@
 | 语法 | C 流水线 | .sx 流水线 | 测试 |
 |------|----------|------------|------|
 | 顶层 let/const | ✅ | ✅ | `run-toplevel-let.sh`（main.sx、two_lets.sx），run-all 始终跑 |
-| `const x = import("path");` | ✅ | ✅ | `tests/process/spawn_wait.sx`，run-process.sh 通过（shu_su） |
+| `const x = import("path");` | ✅ | ✅ | `tests/process/spawn_wait.sx`，run-process.sh 通过（shux_sx） |
 | `const { a,b } = import("path");` | ✅ | ✅ | run-import 的 const_select.sx、bind_type_smoke.sx 等 |
 
 ---
@@ -35,8 +35,8 @@
 
 ## 测试清单（与 C 同步相关）
 
-- **run-toplevel-let.sh**：顶层 let/const，C 与 shu_su 均跑，已加入 run-all。
-- **run-process.sh**：含 spawn_wait.sx（`const process = import("std.process");` + `process.getenv` / `process.spawn_simple`），C 与 shu_su 均通过。
-- **run-import.sh**：const_select.sx、bind_type_smoke.sx 等覆盖绑定与解构，C 与 shu_su 均通过。
+- **run-toplevel-let.sh**：顶层 let/const，C 与 shux_sx 均跑，已加入 run-all。
+- **run-process.sh**：含 spawn_wait.sx（`const process = import("std.process");` + `process.getenv` / `process.spawn_simple`），C 与 shux_sx 均通过。
+- **run-import.sh**：const_select.sx、bind_type_smoke.sx 等覆盖绑定与解构，C 与 shux_sx 均通过。
 
-结论：**SU 已与 C 全面同步**；绑定与解构 import 均有实现与测试（run-toplevel-let、run-process、run-import）。
+结论：**SX 已与 C 全面同步**；绑定与解构 import 均有实现与测试（run-toplevel-let、run-process、run-import）。

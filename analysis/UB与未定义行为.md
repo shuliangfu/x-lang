@@ -46,7 +46,22 @@
 
 ---
 
-## 五、自举前检查项
+## 六、有符号溢出策略（P1-2，typeck / codegen 对齐）
 
-- [x] **文档**：本文档已就绪，自举子集内主要 UB 类别已列出并约定（默认行为或明确为 UB）。
-- [x] **实现**（可选）：编译器在整数 `/`、`%` 前插入除零检查（除数为 0 时 panic）；在数组/切片下标访问前插入越界检查（panic）；见 tests/ub/ 与 tests/run-ub.sh。
+| 场景 | 策略 | 实现现状 |
+|------|------|----------|
+| **语言语义** | 有符号 `+` `-` `*` 结果超出类型范围 → **未定义行为（UB）** | 与 §二 一致；不承诺 wrapping |
+| **无符号运算** | 按 \(2^N\) 取模（**非 UB**） | 与 C 一致；见 `tests/ub/unsigned_wrap_ok.sx` |
+| **编译期常量（CTFE）** | 字面量与常量折叠在 **i64** 宽域计算；赋值到较窄类型时须可表示 | lexer/i64 CTFE 回归见 `run-i64-ctfe-gate.sh` |
+| **Release 运行时** | **不**插入有符号溢出检查；生成 C 时依赖 C 语义（仍为 UB） | 零成本；与「性能比肩 C」一致 |
+| **Debug / 未来** | 可选 `-fshux-check-overflow` 或显式 `wrapping_add` 等 API → panic / 可预测 wrapping | **未实现**；新增须改 typeck + codegen 并扩 gate |
+
+**验收**：`tests/run-signed-overflow-gate.sh`（manifest + 无符号 wrap 烟测）；除零/越界见 `tests/run-ub.sh`。
+
+---
+
+## 七、自举前检查项（续）
+
+- [x] **文档**：§二 自举子集内主要 UB 类别已列出并约定。
+- [x] **除零/越界**：`tests/run-ub.sh` 覆盖 panic 收窄。
+- [x] **有符号溢出策略**：§六 已定版；`run-signed-overflow-gate.sh` 覆盖无符号 wrap 烟测。

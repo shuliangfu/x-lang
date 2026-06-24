@@ -8,7 +8,7 @@
 
 | 目标 | 说明 |
 |------|------|
-| **从 .sx 调用 C** | 能声明并调用 C 函数（含系统调用、libc、第三方 C 库），并传递基本类型、指针、缓冲区（如 `*u8`、`[]u8`）。 |
+| **从 .sx 调用 C** | 能声明并调用 C 函数（含系统调用、libc、第三方 C 库），并传递基本类型、指针、缓冲区（如 `*u8`、`u8[]`）。 |
 | **从 C 调用 .sx** | 能暴露 .sx 函数给 C 使用（符号名、调用约定、布局与 ABI 一致）。 |
 | **可预测的布局** | 与 C 互操作的类型（struct、slice、枚举等）在内存中的布局与对齐有明确约定，见《内存契约》与 ABI/布局文档。 |
 
@@ -56,9 +56,9 @@
 | i32, u32, i64, u64, usize, isize | int32_t, uint32_t, int64_t, uint64_t, size_t, ptrdiff_t 等 | 与 ABI 整数一致 |
 | bool | _Bool (C99) 或 int | 约定 0/1 |
 | *T, *u8 | 对应指针类型 | 裸指针与 C 指针一致 |
-| [N]T（数组） | 对应 C 数组 | 见 struct 布局与 Packed |
+| T[N]（数组） | 对应 C 数组 | 见 struct 布局与 Packed |
 | struct（默认对齐或 Packed） | 对应 C struct | 见《内存契约》：默认对齐、Packed 显式 |
-| []T（切片） | 固定为 { ptr, len } 布局 | 见《内存契约》：Slice 固定 (ptr, len) |
+| T[]（切片） | 固定为 { ptr, len } 布局 | 见《内存契约》：Slice 固定 (ptr, len) |
 
 **不承诺或需额外约定**：泛型单态化后的类型、带生命周期的引用（若将来引入）、未约定布局的枚举。
 
@@ -82,7 +82,7 @@
 // 自举前语法以实际为准
 extern function write(fd: i32, buf: *u8, count: usize): isize;
 
-function my_print(msg: []u8): isize {
+function my_print(msg: u8[]): isize {
   return write(1, msg.ptr, msg.len);  // 假定 slice 为 ptr+len 布局
 }
 ```

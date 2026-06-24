@@ -60,7 +60,7 @@ jobs:
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           echo "=== Kept generated C (head 120 lines each) ==="
-          for f in /tmp/shux_su.*.c; do
+          for f in /tmp/shux_sx.*.c; do
             [ -f "$f" ] || continue
             echo "--- $f ---" && head -120 "$f" && echo ""
           done
@@ -136,7 +136,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   mac:
     name: macOS (${{ matrix.os }})
@@ -182,7 +182,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   windows:
     name: Windows (MSYS2)
@@ -238,7 +238,7 @@ jobs:
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_su.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   linux-option-asan:
     name: Linux (ASan repro run-option)

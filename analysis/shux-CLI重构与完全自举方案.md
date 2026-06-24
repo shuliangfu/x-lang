@@ -175,7 +175,7 @@ codegen.c 中的核心函数：
 
 **方案 C**：用 asm 后端直接出机器码，跳过 C（仅 Linux x86_64 可用）
 
-当前采取务实策略：ARM64 走 C 编译路径，x86_64 走 SU pipeline。
+当前采取务实策略：ARM64 走 C 编译路径，x86_64 走 SX pipeline。
 
 ### 步骤 7：删除 C 源文件
 

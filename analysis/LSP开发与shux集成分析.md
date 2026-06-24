@@ -1,6 +1,6 @@
-# LSP 开发与 shuc 集成分析
+# LSP 开发与 shux 集成分析
 
-> 采用「方案 2：shuc 提供 LSP 模式」+ **路线 A**：LSP 内置于 shuc，**LSP 协议层用 .sx（Shux）编写**，从 stdin 读 JSON-RPC、调现有 parse/typeck、向 stdout 写响应；单进程、单二进制，VSCode 扩展仅作客户端。本文档分析 LSP 是什么、怎么写、以及如何用 .sx 在 compiler 内实现 LSP。
+> 采用「方案 2：shux 提供 LSP 模式」+ **路线 A**：LSP 内置于 shux，**LSP 协议层用 .sx（Shux）编写**，从 stdin 读 JSON-RPC、调现有 parse/typeck、向 stdout 写响应；单进程、单二进制，VSCode 扩展仅作客户端。本文档分析 LSP 是什么、怎么写、以及如何用 .sx 在 compiler 内实现 LSP。
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### 1.3 典型流程
 
-1. Client 启动 Server（路线 A 下为 `shuc --lsp`，单进程）。
+1. Client 启动 Server（路线 A 下为 `shux --lsp`，单进程）。
 2. Client 发 **initialize** 请求（含 rootUri、capabilities 等），Server 返回 **InitializeResult**（capabilities、serverInfo）。
 3. Client 发 **initialized** 通知。
 4. 用户打开/保存 .sx 文件时，Client 发 **textDocument/didOpen**、**didChange**、**didSave** 等通知，Server 可据此维护文档内容。
@@ -31,7 +31,7 @@
 6. 用户「转到定义」时，Client 发 **textDocument/definition**，Server 返回 `Location | Location[]`（uri、range）。
 7. 用户「查找引用」时，Client 发 **textDocument/references**，Server 返回 `Location[]`。
 
-我们要写的是 **Server 端**：实现上述请求/通知的 handler，并在内部依赖 shuc 的 parse/typeck 与符号信息。
+我们要写的是 **Server 端**：实现上述请求/通知的 handler，并在内部依赖 shux 的 parse/typeck 与符号信息。
 
 ---
 
@@ -40,10 +40,10 @@
 ### 2.1 我们只写 Server
 
 - **Client**：使用 VSCode 官方 **vscode-languageclient**，在 `editors/vscode` 扩展里配置「用哪种方式启动 Server、传什么参数」即可，无需手写 JSON-RPC。
-- **Server**：需要我们自己实现（或用现有库封装 + 调 shuc）。Server 必须：
+- **Server**：需要我们自己实现（或用现有库封装 + 调 shux）。Server 必须：
   - 从 stdin 读 JSON-RPC 请求/通知；
   - 解析 method 与 params；
-  - 调用后端逻辑（见下文「与 shuc 的集成」）；
+  - 调用后端逻辑（见下文「与 shux 的集成」）；
   - 向 stdout 写 JSON-RPC 响应（带 Content-Length）。
 
 ### 2.2 建议实现的 LSP 方法子集
@@ -67,19 +67,19 @@
 
 ---
 
-## 三、采用路线 A：LSP 协议层用 .sx 写、内置于 shuc
+## 三、采用路线 A：LSP 协议层用 .sx 写、内置于 shux
 
 ### 3.1 选定方案
 
-**我们采用路线 A**：LSP Server 与 shuc 同一进程、同一二进制；**LSP 协议层（JSON-RPC 读/写、请求分发、Diagnostic/Location 组装）用 .sx（Shux）实现**，不放在 C 里。这样既保留单进程单二进制、与 typeck 完全一致的优势，又避免在 C 里写 JSON 解析与 LSP 消息封装，便于维护与跟进 LSP 规范。
+**我们采用路线 A**：LSP Server 与 shux 同一进程、同一二进制；**LSP 协议层（JSON-RPC 读/写、请求分发、Diagnostic/Location 组装）用 .sx（Shux）实现**，不放在 C 里。这样既保留单进程单二进制、与 typeck 完全一致的优势，又避免在 C 里写 JSON 解析与 LSP 消息封装，便于维护与跟进 LSP 规范。
 
 ### 3.2 路线 A 的具体做法
 
-- **入口**：shuc 支持 `--lsp`。启动后进入 **.sx 实现的 LSP 主循环**（或由 C 入口调 .sx 的 `lsp_main`）。
+- **入口**：shux 支持 `--lsp`。启动后进入 **.sx 实现的 LSP 主循环**（或由 C 入口调 .sx 的 `lsp_main`）。
 - **.sx 侧职责**：
   - 从 **stdin** 按 LSP 约定读消息（Content-Length + JSON 正文），解析 JSON-RPC 的 method、id、params；
   - 根据 method 分发：initialize、initialized、textDocument/didOpen/didChange、textDocument/diagnostics、textDocument/definition、shutdown/exit 等；
-  - 调用**现有编译器接口**（parse_into、typeck_su_ast 等，通过现有 C/.sx 调用约定）获取诊断与符号信息；
+  - 调用**现有编译器接口**（parse_into、typeck_sx_ast 等，通过现有 C/.sx 调用约定）获取诊断与符号信息；
   - 将错误、符号位置组装成 LSP 的 Diagnostic、Location 等结构，序列化为 JSON，按 Content-Length + 正文写入 **stdout**。
 - **C / 现有编译器**：不实现 LSP 协议本身，只提供「可被 .sx 调用的」parse/typeck 及**结构化错误与定义位置**的接口（见第四节）；必要时在 C 侧增加错误收集器或定义查询 API，供 .sx LSP 层使用。
 
@@ -94,7 +94,7 @@
 
 ### 3.4 路线 B（备选）
 
-若暂不采用路线 A，可退而采用 **路线 B**：shuc 只提供 `--lsp-diagnostics`、`--lsp-definition` 等子命令并输出 JSON，由**外层 Node/TypeScript LSP Server** 子进程调 shuc、解析 stdout、实现完整 LSP。详见下文「五、路线 B 的替代形态」；当前以路线 A + .sx 为主。
+若暂不采用路线 A，可退而采用 **路线 B**：shux 只提供 `--lsp-diagnostics`、`--lsp-definition` 等子命令并输出 JSON，由**外层 Node/TypeScript LSP Server** 子进程调 shux、解析 stdout、实现完整 LSP。详见下文「五、路线 B 的替代形态」；当前以路线 A + .sx 为主。
 
 ---
 
@@ -134,17 +134,17 @@
 ### 5.1 技术形态
 
 - **语言**：LSP 协议层全部用 **.sx（Shux）** 编写：JSON-RPC 消息的读取与解析、method 分发、调用 parse/typeck/定义查询、组装 Diagnostic/Location、序列化 JSON 并写 stdout。
-- **入口**：shuc 解析到 `--lsp` 时，不进入常规编译流程，而是调用 .sx 中的 **lsp_main**（或等价入口），进入「读 stdin → 解析 → 分发 → 调编译器接口 → 写 stdout」循环。
+- **入口**：shux 解析到 `--lsp` 时，不进入常规编译流程，而是调用 .sx 中的 **lsp_main**（或等价入口），进入「读 stdin → 解析 → 分发 → 调编译器接口 → 写 stdout」循环。
 - **依赖**：.sx 侧需要（1）stdio 读/写（std.io 或 extern C），（2）最小 JSON 解析/生成（仅覆盖 LSP 用到的结构），（3）调用现有 parse_into、typeck 及第四节中的诊断/定义接口。
 
 ### 5.2 放置位置
 
-- **LSP 相关 .sx 源码**：放在 **compiler 仓库内**，与现有 pipeline、driver 同仓，例如 `compiler/src/lsp/` 或 `compiler/src/driver/lsp.sx`，随 shuc 一起编译进同一二进制。
-- **VSCode 扩展**：`editors/vscode` 仅负责启动 LSP Server。扩展的 languageclient 配置为：**启动命令 = `shuc --lsp`**（或用户配置的 shuc 路径 + `--lsp`），无需再起 Node 进程。工作区根、文档内容由 LSP 协议通过 initialize、didOpen/didChange 传给 shuc，shuc 内 .sx 层维护文档状态并调 compiler 接口。
+- **LSP 相关 .sx 源码**：放在 **compiler 仓库内**，与现有 pipeline、driver 同仓，例如 `compiler/src/lsp/` 或 `compiler/src/driver/lsp.sx`，随 shux 一起编译进同一二进制。
+- **VSCode 扩展**：`editors/vscode` 仅负责启动 LSP Server。扩展的 languageclient 配置为：**启动命令 = `shux --lsp`**（或用户配置的 shux 路径 + `--lsp`），无需再起 Node 进程。工作区根、文档内容由 LSP 协议通过 initialize、didOpen/didChange 传给 shux，shux 内 .sx 层维护文档状态并调 compiler 接口。
 
 ### 5.3 路线 B 的替代形态（备选）
 
-若不采用路线 A，可改为：shuc 仅提供 `--lsp-diagnostics`、`--lsp-definition` 等子命令并输出 JSON；**外层用 Node/TypeScript + vscode-languageserver** 实现 LSP，子进程调 shuc、解析 stdout。LSP Server 可放在 `editors/vscode/server/`，扩展通过 languageclient 启动该 Node 进程。详见 LSP 规范与 [vscode-languageserver](https://github.com/microsoft/vscode-languageserver)。
+若不采用路线 A，可改为：shux 仅提供 `--lsp-diagnostics`、`--lsp-definition` 等子命令并输出 JSON；**外层用 Node/TypeScript + vscode-languageserver** 实现 LSP，子进程调 shux、解析 stdout。LSP Server 可放在 `editors/vscode/server/`，扩展通过 languageclient 启动该 Node 进程。详见 LSP 规范与 [vscode-languageserver](https://github.com/microsoft/vscode-languageserver)。
 
 ---
 
@@ -155,14 +155,14 @@
 1. 在 compiler 中增加 `--lsp` 分支：解析到该参数时调 .sx 的 **lsp_main**（或 C 先读一条消息再交给 .sx）。
 2. .sx 侧实现：从 stdin 按 LSP 约定读取一条消息（Content-Length + 正文）；用**最小 JSON 解析**取出 `method`、`id`、`params`；对 `initialize` 返回固定 InitializeResult（capabilities、serverInfo），并写回 stdout（Content-Length + JSON）。
 3. 实现 `shutdown`、`exit` 通知处理，使 Client 能正常退出。
-4. 验证：VSCode 扩展配置 `shuc --lsp` 后，打开 .sx 文件能完成握手、无崩溃。
+4. 验证：VSCode 扩展配置 `shux --lsp` 后，打开 .sx 文件能完成握手、无崩溃。
 
 ### 6.2 阶段 2：文档同步与诊断
 
 1. .sx 侧实现 **textDocument/didOpen**、**didChange**：维护 uri → 文档内容的映射（或只保留当前打开文件，视需求而定）。
 2. **Compiler 侧**：增加诊断收集接口（见 4.1），使 parse/typeck 在 LSP 模式下把错误写入收集器并返回给调用方。
 3. .sx 侧实现 **textDocument/diagnostics**（或 **publishDiagnostics**）：用当前文档内容调 parse/typeck（或传入临时文件路径），从收集器取结构化错误列表，转为 LSP Diagnostic[]（注意 0-based line/character），序列化为 JSON 写 stdout。
-4. 在扩展中确认打开/编辑 .sx 文件后，问题面板能显示 shuc 报出的语法/类型错误。
+4. 在扩展中确认打开/编辑 .sx 文件后，问题面板能显示 shux 报出的语法/类型错误。
 
 ### 6.3 阶段 3：定义位置（definition）
 
@@ -179,7 +179,7 @@
 
 ## 七、与现有文档和项目的关系
 
-- **VSCode 扩展**：`analysis/VSCode插件分析与实现指南.md` 中的「方案 2」+ 路线 A 即本文实现路径；P0（高亮+语言配置）已完成，P1/P2 按本文分阶段做；扩展仅需配置 languageclient 启动 `shuc --lsp`。
+- **VSCode 扩展**：`analysis/VSCode插件分析与实现指南.md` 中的「方案 2」+ 路线 A 即本文实现路径；P0（高亮+语言配置）已完成，P1/P2 按本文分阶段做；扩展仅需配置 languageclient 启动 `shux --lsp`。
 - **编译器**：不改变现有「编译产出」行为；新增 `--lsp` 入口与 .sx 实现的 LSP 协议层，以及供 .sx 调用的诊断收集、定义查询接口；错误与符号信息与 typeck/parser 一致。
 - **用 .sx 写、轻量级**：LSP 协议层用 .sx 编写，便于维护与自举；无额外运行时，单二进制；仅需 .sx 侧最小 JSON 与 stdio 能力。
 

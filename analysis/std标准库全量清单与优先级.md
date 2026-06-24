@@ -232,7 +232,7 @@
 | std.path | std.fs.path | std::path | 三者均有。 |
 | std.heap | std.heap | std::alloc（alloc crate） | 我们 + std.vec 对标 Rust alloc+vec。 |
 | std.mem | std.mem | std::mem | 三者均有。 |
-| std.string | 无独立，[]const u8 + std.mem | std::str + std::string | 我们有 String/StrView。 |
+| std.string | 无独立，const[] u8 + std.mem | std::str + std::string | 我们有 String/StrView。 |
 | std.vec | ArrayList 等 | std::vec::Vec | 三者均有。 |
 | std.map | HashMap/ArrayHashMap | std::collections::HashMap | 三者均有。 |
 | std.error | 错误联合类型 | std::error | 三者均有。 |

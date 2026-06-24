@@ -23,7 +23,7 @@
 | 层级 | 现状 | 与「极致」的差距 |
 |------|------|------------------|
 | **连接建立（net.c）** | connect/accept 用 poll（Unix）或 select（Windows）做超时；单次 accept/单次 connect | Linux 未用 io_uring 的 **multishot accept**、**batch connect**；每次建立仍多次 syscall |
-| **数据读写** | 走 std.io：read_fd/write_fd → submit_read/submit_write → io_uring（Linux）/kqueue/IOCP | 已走 uring，但 **单 Buffer**；多段 []Buffer 已预留未在 net 侧用满 |
+| **数据读写** | 走 std.io：read_fd/write_fd → submit_read/submit_write → io_uring（Linux）/kqueue/IOCP | 已走 uring，但 **单 Buffer**；多段 Buffer[] 已预留未在 net 侧用满 |
 | **accept_many/connect_many** | 循环单次 accept/connect | 非「一次提交多个 accept/connect、一次收割」，系统边界未压到最低 |
 | **UDP** | send_to/recv_from 单次；未与 driver 批量化 | 未做 recvmmsg/sendmmsg（Linux）或等价批量化 |
 | **fd 与 buffer 注册** | 每线程 uring 有 register_files/fixed buffer，但 **net 的 fd 未显式参与固定文件槽** | socket fd 未预注册时，每次 submit 可能多一次间接；固定 buffer 未与 net 读路径统一 |
@@ -44,20 +44,20 @@
 
 ### 阶段 2：accept_many / connect_many 真批量（与 Completion 对接）✅
 
-- **目标**：`accept_many(listener, out: []TcpStream, timeout_ms)`、`connect_many(addr, port, out, timeout_ms)` 不再循环单次，而是 **一次提交 N 个 accept/connect SQE，一次收割 N 个 CQE**，写满 `out`。
+- **目标**：`accept_many(listener, out: TcpStream[], timeout_ms)`、`connect_many(addr, port, out, timeout_ms)` 不再循环单次，而是 **一次提交 N 个 accept/connect SQE，一次收割 N 个 CQE**，写满 `out`。
 - **收益**：高并发建连时，系统边界从 O(N) 降为 O(1)（或少量）次 uring 提交/收割。
 - **实现要点**：
   - driver 层扩展：`submit_accept_many(listener_fd, out_fds_ptr, n)`、`submit_connect_many(addr, port, out_fds_ptr, n)`（或返回 Completion 句柄，由 net 层轮询/回调取 fd）。
   - std.net 的 accept_many/connect_many 调用上述接口，将返回的 fd 封装为 TcpStream 填入 `out`。
 - **与 Zig 对比**：Zig 标准库通常不提供「一次提交多个 accept/connect」的 API；我们提供即超越。
 
-### 阶段 3：数据路径 []Buffer 与 net 打通 ✅
+### 阶段 3：数据路径 Buffer[] 与 net 打通 ✅
 
-- **目标**：TcpStream 的读写不仅支持单 Buffer，还支持 **多段 []Buffer**（scatter-gather），走 driver 的 `submit_read_batch`/`submit_write_batch`（或未来的 `submit_read(bufs: []Buffer)`）。
+- **目标**：TcpStream 的读写不仅支持单 Buffer，还支持 **多段 Buffer[]**（scatter-gather），走 driver 的 `submit_read_batch`/`submit_write_batch`（或未来的 `submit_read(bufs: Buffer[])`）。
 - **收益**：单次 read/write 可覆盖多块 buffer，减少 syscall 次数、更好利用 uring 的 readv/writev 或多 SQE。
 - **实现要点**：
-  - std.io.driver 已有 `submit_read_batch(buffers: [4]Buffer, n, timeout_ms)`；std.net 可暴露 `stream_read_batch(stream, bufs, n, timeout_ms)`、`stream_write_batch(stream, bufs, n, timeout_ms)`，内部将 `stream.fd` 填成每个 Buffer 的 handle。
-  - 若后续 driver 支持 `[]Buffer`（长度动态），net 同步扩展即可。
+  - std.io.driver 已有 `submit_read_batch(buffers: Buffer[4], n, timeout_ms)`；std.net 可暴露 `stream_read_batch(stream, bufs, n, timeout_ms)`、`stream_write_batch(stream, bufs, n, timeout_ms)`，内部将 `stream.fd` 填成每个 Buffer 的 handle。
+  - 若后续 driver 支持 `Buffer[]`（长度动态），net 同步扩展即可。
 - **与 Zig 对比**：与 Zig 的 Reader/Writer 多段读写的「可做」相比，我们做成**默认可批、零拷贝**即更贴近极致。
 
 ### 阶段 4：socket fd 与 fixed buffer 的注册策略 ✅
@@ -107,7 +107,7 @@
 | 维度 | Zig 典型 | 我们阶段 1～2 后 | 我们阶段 3～5 后 |
 |------|----------|-------------------|-------------------|
 | accept/connect 批量化 | 无标准 API，手写循环 | ✅ io_uring 批量 accept/connect | ✅ 同左 + 与 Completion 统一 |
-| 数据多段 I/O | 可手写 readv/writev | 单 Buffer 为主 | ✅ []Buffer/read_batch/write_batch 与 net 打通 |
+| 数据多段 I/O | 可手写 readv/writev | 单 Buffer 为主 | ✅ Buffer[]/read_batch/write_batch 与 net 打通 |
 | 默认非阻塞 + 统一 driver | 可配置，非默认 | ✅ 已默认非阻塞 + std.io | ✅ 同左 |
 | UDP 批量 | 单报文 | 单报文 | ✅ recvmmsg/sendmmsg 或 many API |
 | fixed fd/buffer 注册 | 不暴露 | 可选（阶段 4） | ✅ 可选，热路径零额外成本 |
@@ -163,7 +163,7 @@
 ## 五、实现顺序建议（与现有代码的衔接）
 
 1. **先做阶段 1**：在 io.c 中为 Linux 增加 uring 的 accept/connect 封装，net.c 的 connect/accept（Linux）改为调 uring，保持现有 API 不变。
-2. **再做阶段 2**：在 driver 层增加 submit_accept_many/submit_connect_many（或等价），mod.sx 的 accept_many/connect_many 改为调上述接口并填 []TcpStream。
+2. **再做阶段 2**：在 driver 层增加 submit_accept_many/submit_connect_many（或等价），mod.sx 的 accept_many/connect_many 改为调上述接口并填 TcpStream[]。
 3. **阶段 3**：为 TcpStream 增加 read_batch/write_batch（或 stream_read_batch/stream_write_batch），内部用 driver 的 submit_read_batch/submit_write_batch + stream.fd。
 4. **阶段 4、5**：按需做 fixed 注册与 UDP many；阶段 6 作为长期可选。
 5. **多核易用** ✅：std.thread 已提供 spawn/join/affinity；std.net 增加 **run_accept_workers(listener, n_workers, timeout_ms)**，内部起 n 个线程，每线程循环 accept_many 后立即 close（压测建连吞吐）；主线程阻塞 join。用户无需手写 pthread，见 §四.2。自定义业务逻辑仍可用 std.thread 自起线程 + accept_many 循环。
@@ -208,6 +208,6 @@
 
 | 项 | 建议 | 说明 |
 |----|------|------|
-| **batch 读写** | **用切片式 API** | `stream_read_batch_buf` / `stream_write_batch_buf`，buffers 指向至少 n 个 Buffer，n 为 1..16；栈上 `let bufs: [16]Buffer = [...]` 后传 `&bufs[0]`。 |
+| **batch 读写** | **用切片式 API** | `stream_read_batch_buf` / `stream_write_batch_buf`，buffers 指向至少 n 个 Buffer，n 为 1..16；栈上 `let bufs: Buffer[16] = [...]` 后传 `&bufs[0]`。 |
 | **fixed buffer 热路径** | echo/代理用 **register_fixed_buffers_buf + stream_read_fixed/stream_write_fixed** | 先 `io.register_fixed_buffers_buf(bufs, nr)` 注册池，读用 `stream_read_fixed`，写用 `stream_write_fixed`，减少 uring 侧 buffer 注册/撤销。 |
 | **零分配** | 热路径不分配；TcpStream 用栈上或池化数组 | accept_many 的 `out` 与读写的 buffer 由调用方提供，std.net 不分配。 |

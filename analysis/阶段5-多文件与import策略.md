@@ -25,7 +25,7 @@
 | 项目 | C 路径 | .sx 路径（阶段 5） |
 |------|--------|--------------------|
 | 解析 | C parse | parser.sx parse_into |
-| 类型检查 | C typeck_module | typeck.sx typeck_su_ast |
+| 类型检查 | C typeck_module | typeck.sx typeck_sx_ast |
 | 代码生成 | C codegen | codegen.sx codegen_sx_ast |
 | import 路径解析 | resolve_import_file_path_multi | 复用 C |
 | 预处理 | preprocess | 复用 C |
@@ -45,4 +45,4 @@
 ## 验收
 
 - **5.1**：本文档已说明策略。
-- **5.2**：`tests/run-multi-file.sh` 在 `-su` 下可编译通过（main.sx import foo，main 调用 bar() 返回 42）。
+- **5.2**：`tests/run-multi-file.sh` 在 `-sx` 下可编译通过（main.sx import foo，main 调用 bar() 返回 42）。

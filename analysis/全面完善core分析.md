@@ -33,7 +33,7 @@
 | **core.option** | Option_i32, none_i32, some_i32, unwrap_or_i32, is_some_i32, is_none_i32, option_placeholder\<T\> | 仅 i32 具象；缺 map/and_then/expect；泛型 Option\<T\> 待语言支持 |
 | **core.result** | Result_i32, ok_i32, err_i32, unwrap_or_i32, is_ok_i32, is_err_i32, result_placeholder\<T\> | 仅 i32 具象；缺 map/and_then/expect；布局已按 Result寄存器化 设计 |
 | **core.mem** | placeholder, align_of_i32 | 缺 copy/move、align_of 其他类型、size_of 委托；与 core.types 有重叠 |
-| **core.slice** | len_i32([]i32), placeholder | 缺 get/索引安全、其他元素类型 len_*；边界检查策略未定 |
+| **core.slice** | len_i32(i32[]), placeholder | 缺 get/索引安全、其他元素类型 len_*；边界检查策略未定 |
 | **core.fmt** | placeholder, fmt_i32 | 无格式化到缓冲区、无 format! 类宏/内建对接；与 std.fmt 分工待定 |
 | **core.debug** | placeholder, assert(bool) | 无 debug_print/println 类、无条件编译控制（debug_only） |
 | **core.builtin** | placeholder | 内建由编译器识别，此处为占位；需与编译器内建列表对齐 |
@@ -57,7 +57,7 @@
 | **core.option** | Option_i32 全系列 + **Option_u8**（some_u8/none_u8/unwrap_or_u8/is_some_u8/is_none_u8/expect_u8）；expect_i32 | map/and_then 待语言支持函数类型 |
 | **core.result** | Result_i32 全系列；expect_i32、expect_i32_or_panic | map/and_then 待语言支持 |
 | **core.mem** | align_of_* 全类型；**mem_copy**、**mem_set**、**mem_move**、**mem_compare**；align_up/align_down | — |
-| **core.slice** | len_i32、get_i32（边界安全）；**len_u8、get_u8**（[]u8 边界安全） | 其他元素类型按需或等泛型 |
+| **core.slice** | len_i32、get_i32（边界安全）；**len_u8、get_u8**（u8[] 边界安全） | 其他元素类型按需或等泛型 |
 | **core.fmt** | fmt_i32；十进制 **fmt_*_to_buf**（i32/u32/i64/u64/bool）；**fmt_u32_hex_to_buf**、**fmt_u64_hex_to_buf**；**fmt_append_i32_to_buf**（链式） | 浮点 fmt_f64_to_buf 待 f64→整数支持 |
 | **core.debug** | **assert**、**debug_assert**；**assert_eq_i32/assert_ne_i32**、**assert_eq_u32/assert_ne_u32**、**assert_eq_bool** | debug_print 与零 OS 冲突时放 std |
 | **core.builtin** | placeholder；**copy**、**unreachable**、**abort**；**min_i32/max_i32/min_u32/max_u32**；**clz_u32/ctz_u32/popcount_u32** | 与编译器内建对齐时可改为 intrinsic 优化 |
@@ -157,7 +157,7 @@
 - **core.option**：✅ 增加 **Option_u8** 全系列（some_u8、none_u8、unwrap_or_u8、is_some_u8、is_none_u8、expect_u8），供字节、切片元素等使用。
 - **core.fmt**：✅ 增加 **fmt_u32_to_buf(buf, cap, u)**，无符号十进制写入缓冲区，与 fmt_i32_to_buf 对称。
 - **core.builtin**：✅ 在模块头注释中列出 **unreachable**、**abort**、**copy** 的约定；不新增 extern，保持 core 零 OS 依赖。
-- **core.slice**：⏳ **len_u8**、**get_u8** 已预留注释，待 codegen 对 []u8 切片类型完整支持后再添加（当前 C 侧 struct 可见性导致链接错误）。
+- **core.slice**：⏳ **len_u8**、**get_u8** 已预留注释，待 codegen 对 u8[] 切片类型完整支持后再添加（当前 C 侧 struct 可见性导致链接错误）。
 - **core.types / core.mem**：i16/u16 等类型在语言支持后可补 size_of_* / align_of_*；指针 size/align 可按需补。
 
 ---

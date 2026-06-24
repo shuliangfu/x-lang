@@ -18,7 +18,7 @@
 
 ### 1.2 ReadOnlySlice / WriteOnlySlice
 
-- 零拷贝只读/只写视图，字段为 `data: []u8`；与 driver 对接时**仅传递指针+长度**，避免隐式拷贝。
+- 零拷贝只读/只写视图，字段为 `data: u8[]`；与 driver 对接时**仅传递指针+长度**，避免隐式拷贝。
 - 舒 IO 中 Buffer 经预注册后，读完成的数据可直接通过 Slice 暴露给调用方，无需再拷贝。
 
 ---
@@ -46,11 +46,11 @@
 
 ---
 
-## 四、多段 I/O（[]Buffer 批量提交）
+## 四、多段 I/O（Buffer[] 批量提交）
 
 - 高并发与高吞吐依赖**多段 Buffer 一次提交**（类似 readv/writev、iovec，但由舒 IO 自己实现与优化）。
-- **预留**：driver 层预留 **[]Buffer 多段扩展**（如 `submit_read(bufs: []Buffer, timeout_ms)`）；当前签名为单 Buffer，扩展时不破坏现有 read(buf)/write(buf) 单缓冲 API。
-- **批量 I/O** 以 **[]Buffer 或等价形式在 driver 层扩展**；标准库上层可在此基础上封装。
+- **预留**：driver 层预留 **Buffer[] 多段扩展**（如 `submit_read(bufs: Buffer[], timeout_ms)`）；当前签名为单 Buffer，扩展时不破坏现有 read(buf)/write(buf) 单缓冲 API。
+- **批量 I/O** 以 **Buffer[] 或等价形式在 driver 层扩展**；标准库上层可在此基础上封装。
 
 ---
 
@@ -59,7 +59,7 @@
 - **定位**：网络与 IO 共用同一套「Buffer + submit + completion」抽象；**数据读写**统一走 std.io.driver，**连接生命周期**由 std.net 提供 API。
 - **std.net 为对外 API 层**：提供 Ipv4Addr、TcpStream、TcpListener、connect、listen、accept；自举前仅占位，**不做单独 net/core.sx**，调度与实现细节自举后在 mod 内或下层（driver/核心）完成。
 - **超时**：connect(addr, port, timeout_ms)、accept(listener, timeout_ms) 已预留 timeout_ms（0=无超时），与 driver 的 submit 超时一致。
-- **Completion 与批量**：自举后 accept/connect 可与 driver 的 Completion 对接、支持无锁完成路径；**预留**批量 accept、批量 connect（或 []TcpStream 等），与 []Buffer 多段扩展同思路。
+- **Completion 与批量**：自举后 accept/connect 可与 driver 的 Completion 对接、支持无锁完成路径；**预留**批量 accept、批量 connect（或 TcpStream[] 等），与 Buffer[] 多段扩展同思路。
 - **TcpStream 与 handle**：自举后 TcpStream/TcpListener 的句柄可与 driver 的 handle 统一（如 usize），便于在 submit_read/submit_write 时用同一套 Buffer(ptr, len, handle)。
 
 ---
@@ -88,7 +88,7 @@
 |------|------|------------|
 | **接口不绑定现有 API** | 抽象为「Buffer + 预注册 + 批量 submit + completion」，**不**暴露 io_uring/kqueue/IOCP 的 op 或句柄；舒 IO 内部可用自研 ring、自研协议或新 syscall。 | Buffer/Completion/AsyncContext 类型与 ABI 已定；register、submit_read、submit_write 签名已定，不依赖任一内核 API 形状。 |
 | **热路径零成本** | submit/completion 路径上：零分配、零拷贝、无锁；完成结果通过固定大小结构或 ring 传递，不 malloc。 | 热路径零分配约定（§3.2）；Completion/AsyncContext 固定大小；Buffer 与 Slice 零拷贝约定（§1）。 |
-| **批量与多段** | 一次提交多 Buffer（[]Buffer），一次收割多 Completion；减少系统边界与调度次数。 | []Buffer 多段扩展已预留；接口不堵死批量 submit/complete。 |
+| **批量与多段** | 一次提交多 Buffer（Buffer[]），一次收割多 Completion；减少系统边界与调度次数。 | Buffer[] 多段扩展已预留；接口不堵死批量 submit/complete。 |
 | **可选：内核 bypass 或自研内核路径** | 若走 DPDK/旁路网卡或自研内核模块，舒 IO 的接口仍是 Buffer + submit + completion，只是底层由自研驱动或内核模块实现。 | 当前抽象不依赖「必须走 io_uring 或 socket」；handle 可表示自研资源的句柄。 |
 | **可选：per-core 状态与无锁队列** | 每核独立 submit/completion 队列，避免锁；轮询与中断混合，按负载切换。 | AsyncContext 原子位、Completion 固定大小已预留；无锁与栈/池化状态机已在文档约定。 |
 
@@ -98,7 +98,7 @@
 
 1. **ABI 与类型锁定**：Buffer(ptr, len, handle) 24 字节、Slice(ptr, len)、Completion/AsyncContext 固定大小；与 C 互操作零成本。→ 已就绪。
 2. **零拷贝与零分配约定**：Buffer↔Slice 仅传指针与长度；热路径不强制堆分配；文档写入《高并发IO与多平台》§1、§3。→ 已就绪。
-3. **接口形状不绑定现有 API**：register、submit_read、submit_write 以 Buffer 与 timeout 为参数，不暴露 io_uring op 或 kqueue filter；预留 []Buffer。→ 已就绪。
+3. **接口形状不绑定现有 API**：register、submit_read、submit_write 以 Buffer 与 timeout 为参数，不暴露 io_uring op 或 kqueue filter；预留 Buffer[]。→ 已就绪。
 4. **超时与完成状态**：所有读写带 timeout_ms；IO_Result/Completion 表示完成状态，便于自举后实现超时与取消。→ 已就绪。
 5. **平台分支**：SHUX_OS_* / SHUX_ARCH_* 条件编译，便于各平台下舒 IO 差异化实现（不同 syscall、不同驱动）。→ 已就绪。
 6. **高并发设计文档**：本文档含「如何超越」的方向与自举前准备清单，自举后实现时可直接按此扩展。→ 本文档。
@@ -112,7 +112,7 @@
 | 含义 | 是否可行 | 实现方式 |
 |------|----------|----------|
 | **（1）抽象与体验超越** | ✅ 可行 | 统一 Buffer + submit + completion 抽象，一套 API 覆盖 Linux/macOS/Windows；不暴露 uring/kevent/IOCP 细节；自举后可在不改用户代码的前提下替换后端（自研 ring 或 bypass），实现「体验与可演进性」上的超越。 |
-| **（2）实际表现超越「典型用法」** | ✅ 可行 | 通过批量化（[]Buffer）、预注册、热路径零分配、轮询/中断可调等，使舒 IO 的**实际吞吐与延迟**优于「未调优、单次 syscall、带分配」的 uring/kqueue/IOCP 用法；与手写 C 调优到极致的 uring 同水平，即视为在该维度「达到并可比肩」现有 API。 |
+| **（2）实际表现超越「典型用法」** | ✅ 可行 | 通过批量化（Buffer[]）、预注册、热路径零分配、轮询/中断可调等，使舒 IO 的**实际吞吐与延迟**优于「未调优、单次 syscall、带分配」的 uring/kqueue/IOCP 用法；与手写 C 调优到极致的 uring 同水平，即视为在该维度「达到并可比肩」现有 API。 |
 | **（3）同一内核下性能理论超越** | ❌ 不可行 | 若仍只使用内核提供的 io_uring/kqueue/IOCP，则性能上限由内核与硬件决定，用户态无法「比内核 API 更快」。 |
 | **（4）换赛道后的超越** | ✅ 可选 | **内核 bypass**（如 DPDK、旁路网卡）：网络路径完全用户态，延迟与吞吐可超越走内核 socket 的 uring/kqueue/IOCP；**自研内核模块或协议**：在特定场景下提供比通用 uring 更贴合的接口与调度。此时「舒 IO」的接口不变（仍为 Buffer + submit + completion），仅底层由自研驱动或 bypass 实现，从而实现**在该赛道内**的超越。 |
 

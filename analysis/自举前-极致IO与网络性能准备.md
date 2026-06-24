@@ -33,7 +33,7 @@
 |------|----|------|------|
 | ✅ 已实现 | **Buffer ABI 24 字节** | std.mem.Buffer、Buffer | ptr + len + handle，与舒 IO 预注册句柄 / fixed buffer 对接；64 位下 8+8+8，与 Slice(ptr, len) 兼容扩展；ABI 测试已覆盖。 |
 | ✅ 已实现 | **内核预注册** | std.mem.register_buffer、std.io.driver.register | 通过 std.io.core（.sx，Shu IO 核心）的 shu_io_register；当前为桩（返回 0），自举后可在此模块内改为舒 IO 预注册逻辑；接口不绑定现有 API。 |
-| ✅ 已实现 | **提交读/写 + 超时** | std.io.driver.submit_read / submit_write(buf, timeout_ms) | 通过 std.io.core（.sx，Shu IO 核心）的 shu_io_submit_read/submit_write；当前为桩（返回 0），自举后可改为真实 I/O 与超时；[]Buffer 多段扩展预留。 |
+| ✅ 已实现 | **提交读/写 + 超时** | std.io.driver.submit_read / submit_write(buf, timeout_ms) | 通过 std.io.core（.sx，Shu IO 核心）的 shu_io_submit_read/submit_write；当前为桩（返回 0），自举后可改为真实 I/O 与超时；Buffer[] 多段扩展预留。 |
 | ✅ 已实现 | **ReadOnlySlice / WriteOnlySlice** | std.io | 零拷贝只读/只写视图类型已定义，便于与 driver 对接、避免隐式拷贝。 |
 | ✅ 已实现 | **Reader / Writer trait** | std.io | 自举前最小签名已定义；扩展时需保证不堵死「批量 Buffer、超时、completion」语义。 |
 | ✅ 已实现 | **超时参数** | std.io read_with_timeout / write_with_timeout、driver timeout_ms | 所有读写接口已统一预留 timeout 参数（0=无超时），避免高并发下挂死与资源泄漏。 |
@@ -81,8 +81,8 @@
 
 ### 3.3 批量 / 向量化 I/O 接口不堵死
 
-- **目标**：舒 IO 与高吞吐网络依赖**多段 Buffer 一次提交**；自举后应能暴露 `submit_read(bufs: []Buffer, ...)` 或等价 API。
-- **自举前动作**：std.io.driver 注释已写明「预留 []Buffer 多段扩展」；《高并发IO与多平台》§4 约定批量 I/O 以 []Buffer 在 driver 层扩展。
+- **目标**：舒 IO 与高吞吐网络依赖**多段 Buffer 一次提交**；自举后应能暴露 `submit_read(bufs: Buffer[], ...)` 或等价 API。
+- **自举前动作**：std.io.driver 注释已写明「预留 Buffer[] 多段扩展」；《高并发IO与多平台》§4 约定批量 I/O 以 Buffer[] 在 driver 层扩展。
 - **验收**：✅ 已满足——trait 与 driver 签名不排除多 Buffer 提交；文档已写明。
 
 ### 3.4 FFI 与 syscall 零成本（已满足，仅确认）
@@ -123,7 +123,7 @@
 | P2 | ReadOnlySlice / WriteOnlySlice、超时参数、IO_Result/Completion/AsyncContext 类型与占位存在且稳定 | ✅ 已实现 |
 | P3 | 文档中明确「Buffer 与 Slice 零拷贝约定、handle 仅 driver 层」 | ✅ 已实现（《高并发IO与多平台》§1） |
 | P4 | 文档中约定「热路径零分配 / 栈或池化状态机」，接口不强制堆分配 | ✅ 已实现（《高并发IO与多平台》§3） |
-| P5 | driver 与 trait 不堵死 []Buffer 批量提交；注释或文档中写明多段 I/O 扩展 | ✅ 已实现（driver 注释已预留 []Buffer） |
+| P5 | driver 与 trait 不堵死 Buffer[] 批量提交；注释或文档中写明多段 I/O 扩展 | ✅ 已实现（driver 注释已预留 Buffer[]） |
 | P6 | 《高并发IO与多平台》或等价文档存在，含零拷贝、超时、Completion、多段 I/O、平台分支及§6「如何超越」 | ✅ 已实现（该文档已存在且含 §6） |
 | P7 | ABI 与 C 互操作零成本、Result 寄存器化已满足（自举前性能生死线） | ✅ 已实现 |
 | — | **二、表中 2 项**：内核预注册、提交读/写 + 超时（std.io.core .sx 桩） | ✅ 已实现 |

@@ -36,7 +36,7 @@
 | **驱动主流程** | `run_compiler_c` / `run_compiler_sx_path`：解析 argv、resolve 依赖、读文件、调 pipeline、写 .c、调 cc、链接 | 在 **main.sx**（或独立 driver 模块）用 std.fs / std.io / std.process 实现：读入口与依赖、调 parser/typeck/codegen/pipeline、写生成 C、spawn cc/ld | 驱动逻辑纯编排，不依赖 C 专有知识 |
 | **resolve 路径** | `resolve_import_file_path_multi`、`import_path_to_file_path`、`get_entry_dir` | .sx 内用 path/string + std.fs 存在性检查实现 | 纯路径与字符串处理 |
 | **依赖加载与去重** | `find_loaded_index`、`load_one_import`、`resolve_and_load_imports`（含递归 load + typeck） | .sx 内维护 `all_dep_mods` / `all_dep_paths`，用现有 typeck/pipeline 接口 | 当前 C 侧只是分配 buffer、调 parse/typeck，均可改为 .sx 分配与调用 |
-| **预处理** | `preprocess`、`preprocess_via_su` | 已有 preprocess.sx 时用 .sx；条件编译符号由 .sx 维护 | 仅入口与缓冲在 C，可迁到 .sx |
+| **预处理** | `preprocess`、`preprocess_via_sx` | 已有 preprocess.sx 时用 .sx；条件编译符号由 .sx 维护 | 仅入口与缓冲在 C，可迁到 .sx |
 | **读文件** | `read_file(path, out_len)`（打开、读入、malloc 缓冲） | **std.fs** 读文件（或 std.io 按需） | 驱动层不再需要 C 的 read_file |
 | **Pipeline 编排** | 分配 arena/module、填充 ctx、调用 `pipeline_run_sx_pipeline`、写 out_buf 到文件、再调 cc/ld | .sx 内分配 arena/module/ctx，调 pipeline（.sx 实现），用 std.fs 写文件、std.process spawn cc/ld | 编排与 I/O 均可在 .sx 完成 |
 
@@ -49,7 +49,7 @@
 | 类别 | C 侧现状 | 为何仍涉及 C | 用 .sx 重写后的目标 |
 |------|----------|--------------|----------------------|
 | **PipelineDepCtx 布局** | runtime.c 中 `struct ast_PipelineDepCtx` 与 ast.sx 的 `PipelineDepCtx` **逐字段对齐**；C 分配 pctx 并传给 `pipeline_run_sx_pipeline` | 当前由 C 分配 ctx、填充部分字段（如 dep_modules、dep_paths）、再传指针给 .sx | **ctx 完全在 .sx 内分配与填充**；C 不再分配、不再声明该结构体，**不再需要与 .sx 保持布局一致** |
-| **codegen_set_dep_slots_for_su_pipeline** 等 | C 把 dep_modules/dep_paths 写入全局槽或 pctx，供 .sx codegen 使用 | 因当前「谁分配 ctx、谁填 dep」在 C | 驱动在 .sx 后，ctx 与 dep 信息全部在 .sx 内维护，**不再需要 C 提供的 dep 槽** |
+| **codegen_set_dep_slots_for_sx_pipeline** 等 | C 把 dep_modules/dep_paths 写入全局槽或 pctx，供 .sx codegen 使用 | 因当前「谁分配 ctx、谁填 dep」在 C | 驱动在 .sx 后，ctx 与 dep 信息全部在 .sx 内维护，**不再需要 C 提供的 dep 槽** |
 
 结论：**一旦驱动与 pipeline 调用全在 .sx，ctx 由 .sx 分配，C 不再需要 PipelineDepCtx 的拷贝，也不再需要填 dep 槽**。这是「用 .sx 重写 C 逻辑」带来的直接收益。
 
