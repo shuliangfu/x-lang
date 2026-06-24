@@ -20,7 +20,7 @@ function run_true(path: *u8): i32 {
 /** 通过环境变量 OSTYPE 判断是否为 macOS（值为 "darwin"）；未设置或非 darwin
 * 返回 false。 */
 function is_darwin(): bool {
-  let key: [8]u8 = [79, 83, 84, 89, 80, 69, 0, 0];
+  let key: u8[8] = [79, 83, 84, 89, 80, 69, 0, 0];
   let val: *u8 = process.getenv(&key[0]);
   if (val == 0) { return false; }
   return val[0] == 100 && val[1] == 97 && val[2] == 114 && val[3] == 119 && val[4] == 105 && val[5]
@@ -28,9 +28,9 @@ function is_darwin(): bool {
 }
 
 function main(): i32 {
-  let usr_true: [20]u8 = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0,
+  let usr_true: u8[20] = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0,
   0, 0, 0];
-  let bin_true: [16]u8 = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
+  let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
   let status: i32 = 0;
   if (is_darwin()) {
     status = run_true(&usr_true[0]);
