@@ -6,11 +6,11 @@ api_doc	section	## 2. row_col_blob API（v1）	row_col_blob
 vectors_doc	section	## 3. 金样向量	blob_row1
 verify	section	## 4. Gate	gate
 api_row_col_blob	api	row_col_blob	std/db/sqlite/mod.sx	BLOB 列
-symbol_col_blob_c	symbol	db_row_col_blob_c	std/db/sqlite/sqlite.c	列读
-symbol_blob_smoke_c	symbol	db_sqlite_row_col_blob_smoke_c	std/db/sqlite/sqlite.c	烟测
-impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
+symbol_col_blob_c	symbol	db_row_col_blob_c	std/db/sqlite/sqlite.sx	列读
+symbol_blob_smoke_c	symbol	db_sqlite_row_col_blob_smoke_c	std/db/sqlite/sqlite.sx	烟测
+impl_c	file	std/db/sqlite/sqlite.sx	std/db/sqlite/sqlite.sx	实现
 smoke_c	file	tests/std-sqlite/row_col_blob_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/row_col_blob_roundtrip.sx	.sx 往返
+smoke_sx	smoke	tests/std-sqlite/row_col_blob_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-row-col-blob-vectors.tsv	向量
 lib	script	lib/std-sqlite-row-col-blob.sh	tests/lib/std-sqlite-row-col-blob.sh
 gate	script	run-std-sqlite-row-col-blob-gate.sh	tests/run-std-sqlite-row-col-blob-gate.sh
