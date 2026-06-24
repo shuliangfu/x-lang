@@ -32,7 +32,7 @@ static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFu
             || expr_references_run_async(e->value.binop.right, target);
     case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC:
     case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF: case AST_EXPR_RETURN: case AST_EXPR_AWAIT: case AST_EXPR_RUN:
-    case AST_EXPR_SPAWN:
+    case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
     case AST_EXPR_AS:
         return expr_references_run_async(e->value.unary.operand, target);
     case AST_EXPR_IF:
