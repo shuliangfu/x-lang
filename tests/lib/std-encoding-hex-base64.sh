@@ -2,15 +2,15 @@
 # std-encoding-hex-base64.sh — STD-040 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_encoding_hex_b64_symbols_ok MOD_SU ENCODING_C TSV
-#   std_encoding_hex_b64_run_smoke SHUX_BIN SU TAG
+#   std_encoding_hex_b64_symbols_ok MOD_SX ENCODING_C TSV
+#   std_encoding_hex_b64_run_smoke SHUX_BIN SX TAG
 #   std_encoding_hex_b64_emit_report status hex_ok b64_ok main_ok skip
 
 STD_ENCODING_HEX_B64_PREFIX="${SHUX_STD_ENCODING_HEX_B64_PREFIX:-shux: [SHUX_STD_ENCODING_HEX_B64]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_encoding_hex_b64_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local encoding_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,15 +20,15 @@ std_encoding_hex_b64_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-encoding-hex-b64 FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-encoding-hex-b64 FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
-          std/encoding/encoding.c) mod_path="$encoding_c" ;;
-          *) mod_path="$mod_su" ;;
+          std/encoding/encoding.c|std/encoding/encoding.sx) mod_path="$encoding_c" ;;
+          *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-encoding-hex-b64 FAIL: missing '$anchor' in $mod_path" >&2
