@@ -2,7 +2,7 @@
 const random = import("std.random");
 
 function main(): i32 {
-  let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (random.fill_bytes(&buf[0], 16) != 16) { return 1; }
   let all_zero: i32 = 1;
   let i: i32 = 0;
