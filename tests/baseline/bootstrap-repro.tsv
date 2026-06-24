@@ -14,16 +14,34 @@ shux_asm_gate	compile	run-shux-asm-gate.sh	any	shux_asm 编用户 .sx
 asm_73	compile	run-asm-73-gate.sh	!docker	asm binop/cfg-merge（Docker 内 SKIP）
 run_all_bstrict	run	run-all-bstrict.sh	any	B-strict 白名单 107 项
 boot025_stage2_gen12	selfhost	run-boot-025-parser-gen12-consistency-gate.sh	linux	BOOT-025 gen1/gen2 C3
-boot026_su_c4	selfhost	run-boot-026-parser-c4-bootstrap-gate.sh	linux	BOOT-026 C4 SU bootstrap
+boot026_sx_c4	selfhost	run-boot-026-parser-c4-bootstrap-gate.sh	linux	BOOT-026 C4 SU bootstrap
 boot027_shux_asm2_cross	selfhost	run-boot-027-shux-asm2-cross-gate.sh	linux	BOOT-027 C5 shux_asm2
 boot028_shux_asm2_ci_matrix	selfhost	run-boot-028-shux-asm2-ci-matrix-gate.sh	any	BOOT-028 C6 CI 矩阵
 stage2_bstrict	selfhost	run-stage2-bstrict-gate.sh	linux	gen1 shux_asm → gen2
 stage2_hash	selfhost	run-stage2-hash-gate.sh	linux	Stage2 SHA256（A-09/A-14）
+d03_stage2_hash	selfhost	run-d03-stage2-hash-gate.sh	linux	D-03 v1 SHA256 golden standard
+nolibc_n01	prep	run-nolibc-n01-preparation-gate.sh	any	NL-01 F-no-libc preparation manifest
+nolibc_prep	selfhost	run-no-libc-gate.sh	linux	F-no-libc aggregate NL-01～05
+nolibc_heap	selfhost	run-no-libc-heap-gate.sh	linux	NL-03 mmap bump heap zero libc
+nolibc_fs	selfhost	run-no-libc-fs-gate.sh	linux	NL-04 freestanding fs read zero libc
+nolibc_link	selfhost	run-no-libc-link-gate.sh	linux	NL-05 user freestanding link no -lc
+nolibc_socket	selfhost	run-no-libc-socket-gate.sh	linux	NL-02 freestanding socket syscall
+d02_stage1_stage2	selfhost	run-d02-stage1-to-stage2-gate.sh	linux	D-02 v1 Stage1 → Stage2 verify
+d04_stage2_portable	selfhost	run-d04-stage2-portable-diff-gate.sh	linux	D-04 v1 stage1/stage2 portable subset diff
+d06_selfhost_doc	doc	run-d06-selfhost-doc-gate.sh	any	D-06 v1 SELFHOST golden Stage2 repro
+d05_single_shux	release	run-d05-single-shux-release-gate.sh	any	D-05 v1 daily shux = shux_asm
 boot_win_hybrid	build	run-bootstrap-bstrict-windows-gate.sh	windows	A-08 B-hybrid shux_asm
 l5_run_all_parity	run	run-l5-run-all-parity-gate.sh	linux	L5 bstrict 110 项
 typeck_parse_count	selfhost	run-typeck-parse-count-gate.sh	linux	A-11 typeck num_defined
 typeck_parse_bisect	selfhost	run-typeck-parse-bisect-gate.sh	linux	A-11 defined func bisect
 std_c_inventory	selfhost	run-std-c-inventory-gate.sh	any	F-01 std/core .c 存量
+f02_std_sys_mmap	sys	run-f02-std-sys-mmap-gate.sh	any	F-02 v1 mmap.inc.c removed
+f02_std_sys_win32	sys	run-f02-std-sys-win32-gate.sh	any	F-02 v2 win32*.inc.c removed
+f03_std_heap_ops	heap	run-f03-std-heap-ops-gate.sh	any	F-03 v1 heap_ops
+f03_std_heap_libc	heap	run-f03-std-heap-libc-gate.sh	any	F-03 v2 heap.c removed
+f03_std_fs	sys	run-f03-std-fs-gate.sh	any	F-03 v2 fs.c removed
+f03_std_io	sys	run-f03-std-io-gate.sh	any	F-03 v3 io.c removed
+f03_std_core	manifest	run-f03-std-core-gate.sh	any	F-03 aggregate closure
 cfg_attr_skip	lexer	run-cfg-attribute-skip-gate.sh	any	B-01 #[cfg(...)] lex skip
 cfg_target_triple	lexer	run-cfg-target-triple-gate.sh	any	B-02 #[cfg] -target triple
 repr_c_attr_skip	lexer	run-repr-c-attribute-skip-gate.sh	any	B-03 #[repr(C)] lex token
@@ -31,6 +49,17 @@ repr_c_layout	lexer	run-repr-c-layout-gate.sh	any	B-03 #[repr(C)] C padding layo
 sys_platform_write	sys	run-sys-platform-write-gate.sh	any	B-19 std.sys os_write unified
 sys_mod_cfg_import	sys	run-sys-mod-cfg-import-gate.sh	any	B-19 std.sys #[cfg] import prune
 sys_read_file	sys	run-sys-read-file-gate.sh	any	B-20 v0 os_read_file_into
+b04_freestanding_syscall	sys	run-b04-freestanding-syscall-gate.sh	linux	B-04 extern→.s syscall
+b05_codegen_mvp	compile	run-b05-codegen-mvp-gate.sh	!docker	B-05 asm-73 MVP
+b06_ast_pool	build	run-b06-ast-pool-gate.sh	any	B-06 ast_pool + pool limits
+b15_io_uring_sys	sys	run-b15-io-uring-sys-gate.sh	any	B-15 io_uring facade
+b17_exit_process	sys	run-b17-exit-process-gate.sh	any	B-17 v3 ExitProcess
+b18_win32_net	sys	run-b18-win32-net-gate.sh	any	B-18 WSA facade
+b19_sys_mod_facade	sys	run-b19-sys-mod-facade-gate.sh	any	B-19 os_read/close/exit/mmap
+b30_os_inventory	runtime	run-b30-stubs-runtime-os-inventory-gate.sh	any	B-30 runtime OS inventory
+b31_freestanding_io	sys	run-b31-freestanding-io-gate.sh	linux	B-31 freestanding_io .s
+b32_no_cc_std	manifest	run-b32-no-cc-std-gate.sh	any	B-32 track cc -c std
+macos_read_file	sys	run-macos-read-file-gate.sh	darwin	B-16 v2 macOS read file
 b20_generated_c_scan	runtime	run-b20-generated-c-scan-gate.sh	any	B-20 v1 generated_c scan no fopen
 linux_syscall_invoke	sys	run-linux-syscall-invoke-gate.sh	linux	B-14 freestanding read/write invoke
 linux_open_read	sys	run-linux-open-read-gate.sh	linux	B-14 v2 freestanding open+read loop
@@ -44,6 +73,23 @@ e_extern_import	codegen	run-e-extern-import-gate.sh	any	C-04 v0/v1 lsp_io+lsp_ge
 lexer_e_extern	lexer	run-lexer-e-extern-gate.sh	any	lexer parse + pipeline -E-extern
 pipeline_e_extern	pipeline	run-pipeline-e-extern-gate.sh	any	C-04 v4 pipeline_gen 纯 codegen + cc -c（零 perl）
 parser_e_extern	parser	run-parser-e-extern-gate.sh	any	C-04 parser codegen TU aliases + pool + cc -c
+c04_no_perl	makefile	run-c04-no-perl-fallback-gate.sh	any	C-04 v5 parser/lsp_diag gen zero perl
+c03_no_pipeline_gen	build	run-c03-no-pipeline-gen-gate.sh	any	C-03 B-strict no cc -c pipeline_gen.c
+c04_e_extern	codegen	run-c04-e-extern-gate.sh	any	C-04 v1 -E-extern aggregate
+e_soft_retire	selfhost	run-e-soft-retire-gate.sh	any	E-soft v1 compiler C/H soft-retire
+e01_extern_h	selfhost	run-e01-extern-h-soft-gate.sh	any	E-01 LSP extern .h soft-retire
+e02_lsp_diag	selfhost	run-e02-lsp-diag-soft-gate.sh	any	E-02 lsp_diag.c soft-retire
+e03_preprocess	selfhost	run-e03-preprocess-soft-gate.sh	any	E-03 v2 preprocess.c soft-retire
+e03_lexer_ast	selfhost	run-e03-lexer-ast-soft-gate.sh	any	E-03 v2 lexer/ast soft-retire
+e03_v3_coldstart	selfhost	run-e03-v3-coldstart-track-gate.sh	any	E-03 v3 OBJS_CORE/SEED track
+e04_runtime	selfhost	run-e04-runtime-soft-gate.sh	any	E-04 v1 runtime path audit
+e06_no_frontend_cc	selfhost	run-e06-no-compiler-frontend-cc-gate.sh	any	E-06 v1 no frontend cc -c
+e05_include	selfhost	run-e05-include-soft-gate.sh	any	E-05 v1 header inventory
+c05_lsp_sx	lsp	run-c05-lsp-sx-gate.sh	any	C-05 v1 lsp_diag.sx + --lsp smoke
+c06_sx_frontend_default	makefile	run-c06-sx-frontend-default-gate.sh	any	C-06 default *_sx.o seed link
+c07_frontend_parity	compile	run-c07-frontend-parity-gate.sh	any	C-07 shux-c vs shux_asm parity
+c08_runtime_driver	build	run-c08-runtime-driver-gate.sh	any	C-08 main/driver/build.sx v1
+c09_parser_no_c_fallback	parser	run-c09-parser-no-c-fallback-gate.sh	any	C-09 default parser_sx.o + strict override manifest
 a12_cross_module	selfhost	run-a12-cross-module-symbols-gate.sh	linux	A-12 arch_* undefined
 parser_second_pass	parser	run-parser-second-pass-gate.sh	any	second-pass emit 硬门禁
 parser_symbol_integrity	parser	run-parser-thin-glue-symbol-integrity-gate.sh	any	thin glue 符号完整性
