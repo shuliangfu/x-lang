@@ -18,11 +18,44 @@ extern void pipeline_module_struct_layout_set_name(void *module, int32_t idx, ui
 extern void pipeline_module_struct_layout_set_num_fields(void *module, int32_t idx, int32_t nf);
 extern void pipeline_module_struct_layout_set_allow_padding(void *module, int32_t idx, int32_t v);
 extern void pipeline_module_struct_layout_set_soa(void *module, int32_t idx, int32_t v);
+extern void pipeline_module_struct_layout_set_packed(void *module, int32_t idx, int32_t v);
 extern void pipeline_module_struct_layout_set_field(void *module, int32_t layout_idx, int32_t j, uint8_t *fname,
                                                     int32_t fname_len, int32_t type_ref, int32_t field_off);
 extern void pipeline_module_struct_layout_set_field_align(void *module, int32_t li, int32_t j, int32_t al);
 extern int32_t pipeline_struct_layout_next_field_offset_ex(void *module, void *arena, int32_t layout_idx,
                                                              int32_t new_field_type_ref, int32_t field_align_req);
+
+/** struct Name 后修饰符：TOKEN_* 或 Ident 拼写（lexer 路径差异兼容）。 */
+static int parser_asm_tok_is_modifier_packed(struct parser_asm_lexer_result *r,
+                                              struct parser_asm_slice_u8 *source) {
+  size_t start;
+  if (r->tok.kind == (int32_t)TOKEN_PACKED)
+    return 1;
+  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 6)
+    return 0;
+  if (!source || !source->data)
+    return 0;
+  start = (size_t)r->next_lex.pos - (size_t)r->tok.ident_len;
+  if (start + 6u > source->length)
+    return 0;
+  return memcmp((const char *)source->data + start, "packed", 6) == 0;
+}
+
+/** struct Name 后 soa 修饰符（与 packed 同理）。 */
+static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
+                                           struct parser_asm_slice_u8 *source) {
+  size_t start;
+  if (r->tok.kind == (int32_t)TOKEN_SOA)
+    return 1;
+  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 3)
+    return 0;
+  if (!source || !source->data)
+    return 0;
+  start = (size_t)r->next_lex.pos - (size_t)r->tok.ident_len;
+  if (start + 3u > source->length)
+    return 0;
+  return memcmp((const char *)source->data + start, "soa", 3) == 0;
+}
 
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                   struct parser_asm_slice_u8 *source,
@@ -217,6 +250,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   uint8_t sname_buf[64];
   int32_t sname_len;
   int32_t is_soa;
+  int32_t is_packed;
   int32_t dup;
   int32_t weak_idx;
   int32_t replace_idx;
@@ -937,12 +971,20 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_name_audit_c(sname_buf, sname_len));
   parser_asm_lex_from_result_val_into(&lex, r);
   is_soa = force_soa;
+  is_packed = 0;
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind == (int32_t)TOKEN_SOA) {
+  if (parser_asm_tok_is_modifier_packed(&r, source)) {
+    is_packed = 1;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  }
+  if (parser_asm_tok_is_modifier_soa(&r, source)) {
     is_soa = 1;
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
   }
+  if (is_packed && is_soa)
+    return -1;
   if (r.tok.kind != (int32_t)TOKEN_LBRACE)
     return -1;
   lex = r.next_lex;
@@ -1027,6 +1069,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   pipeline_module_struct_layout_set_num_fields(module, layout_idx, nf);
   pipeline_module_struct_layout_set_allow_padding(module, layout_idx, allow_pad);
   pipeline_module_struct_layout_set_soa(module, layout_idx, is_soa);
+  pipeline_module_struct_layout_set_packed(module, layout_idx, is_packed);
   out_lex->pos = lex.pos;
   out_lex->line = lex.line;
   out_lex->col = lex.col;
