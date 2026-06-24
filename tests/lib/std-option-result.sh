@@ -4,7 +4,7 @@
 STD_OPTION_RESULT_PREFIX="${SHUX_STD_OPTION_RESULT_PREFIX:-shux: [SHUX_STD_OPTION_RESULT]}"
 
 std_option_result_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -13,8 +13,8 @@ std_option_result_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-option-result FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-option-result FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -57,11 +57,11 @@ std_option_result_emit_report() {
   local status="$1"
   local su_ok="$2"
   local skip="$3"
-  echo "${STD_OPTION_RESULT_PREFIX} status=${status} su=${su_ok} skip=${skip}"
+  echo "${STD_OPTION_RESULT_PREFIX} status=${status} sx=${su_ok} skip=${skip}"
 }
 
 std_option_result_check_manifest() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local tsv="$2"
   local min_apis="$3"
   local label="$4"
@@ -71,7 +71,7 @@ std_option_result_check_manifest() {
     case "$item_id" in \#*|min_*) continue ;; esac
     [ "$kind" = "api" ] || continue
     api_n=$((api_n + 1))
-    if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+    if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
       echo "std-option-result gate FAIL: $label missing api $anchor" >&2
       return 1
     fi
@@ -80,7 +80,7 @@ std_option_result_check_manifest() {
     echo "std-option-result gate FAIL: $label api count $api_n < min $min_apis" >&2
     return 1
   fi
-  sym_miss="$(std_option_result_symbols_ok "$mod_su" "$tsv" || true)"
+  sym_miss="$(std_option_result_symbols_ok "$mod_sx" "$tsv" || true)"
   if [ "${sym_miss:-0}" -gt 0 ]; then
     return 1
   fi
