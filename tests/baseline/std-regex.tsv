@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
 read_path	section	## 1. 阅读路径	15min
-subset	section	## 2. API 与子集语法	regex_min.inc.c
+subset	section	## 2. API 与子集语法	regex.sx
 xplat	section	## 3. 三平台验收	must
 link_opt	section	## 4. 可选链入	regex.o
 verify	section	## 5. 门禁	gate
@@ -12,8 +12,8 @@ api_free	api	free	std/regex/mod.sx	释放
 api_group_count	api	group_count	std/regex/mod.sx	STD-064 capture 槽数
 api_group_offset	api	group_offset	std/regex/mod.sx	STD-064 组偏移
 api_group_length	api	group_length	std/regex/mod.sx	STD-064 组长度
-engine_file	file	std/regex/regex_min.inc.c	纯引擎
-symbol_smoke_c	symbol	regex_min_smoke_c	std/regex/regex_min.inc.c	C 烟测
+engine_file	file	std/regex/regex.sx	纯引擎 .sx
+symbol_smoke_c	symbol	regex_min_smoke_c	std/regex/regex.sx	C 烟测
 smoke_c	file	tests/regex/regex_min_ok.c	C 入口
 smoke_literal	smoke	tests/regex/literal_match.sx	字面量
 smoke_dot	smoke	tests/regex/dot_match.sx	点号
