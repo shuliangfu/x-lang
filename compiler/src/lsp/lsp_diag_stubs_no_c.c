@@ -1,17 +1,20 @@
 /**
- * lsp_diag_stubs_no_c.c — SHUX_NO_C_FRONTEND 下 lsp_diag_sx.o / lsp_sx.o / runtime_driver_no_c.o 需要的符号桩
- * 不依赖 parser/lexer/typeck/ast（无 C 前端）
+ * lsp_diag_stubs_no_c.c — E-02 默认：替代 lsp_diag.c 的 LSP 收集器 / 文档缓冲 / JSON 壳桩
+ *
+ * bootstrap-driver-seed / build_shux_asm 默认链本 TU（`LSP_DIAG_LINK_O`），不链 lsp_diag.c。
+ * 不依赖 parser/lexer/typeck/ast C API；诊断 JSON 由 lsp_diag_sx.o + lsp_diag_sx_alias.c 提供。
  */
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
 
-/* ====== SU 管道缓冲 ====== */
+/* ====== SX 管道缓冲 ====== */
 
 void *lsp_diag_sx_arena_ptr(void) {
     static void *p;
@@ -222,5 +225,83 @@ int lsp_build_formatting_response(int id_val, const uint8_t *source, int source_
 }
 int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
     (void)id_val; (void)out_buf; (void)out_cap;
+    return -1;
+}
+
+/**
+ * shux fmt 单文件：NO_C seed 无 lsp_diag.c 时透传源码（不做 LSP 规则格式化）。
+ * 参数：doc 输入；doc_len 长度；out_buf 输出缓冲；out_cap 容量。
+ * 返回值：写入字节数；失败 -1。
+ */
+int shu_format_sx_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+    if (!doc || doc_len <= 0 || !out_buf || out_cap <= doc_len)
+        return -1;
+    memcpy(out_buf, doc, (size_t)doc_len);
+    return doc_len;
+}
+
+/** NO_C seed 不链 lsp_diag.c 时的 pipeline ctx 桩。 */
+void lsp_diag_prepare_pipeline_ctx(void *ctx_void) {
+    (void)ctx_void;
+}
+
+/** typeck 诊断上报：NO_C seed 链无 LSP 收集器，须直写 stderr（与 lsp_diag.c 非 collect 分支一致）。 */
+void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
+    char buf[512];
+    va_list ap;
+    va_start(ap, fmt);
+    (void)vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "typeck error: %s at %d:%d\n", buf, line, col);
+}
+
+/** shux check 收集诊断后以人类可读格式打印 stderr（与 lsp_diag.c 一致，bootstrap NO_C 链须可用）。 */
+int lsp_diag_print_stderr_human(const char *path) {
+    int i;
+    int n = 0;
+    const char *sev;
+
+    if (!path)
+        path = "?";
+    for (i = 0; i < s_diag_count; i++) {
+        if (s_diag[i].severity == 2)
+            sev = "warning";
+        else if (s_diag[i].severity == 3)
+            sev = "info";
+        else
+            sev = "error";
+        fprintf(stderr, "%s:%d:%d - %s: %s\n", path, s_diag[i].line, s_diag[i].col, sev, s_diag[i].msg);
+        n++;
+    }
+    if (n > 0)
+        fflush(stderr);
+    return n;
+}
+
+/** LSP completion / documentSymbol / rename 响应桩（NO_C seed 不启完整 LSP）。 */
+int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
+    const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap) {
+    (void)id_val; (void)body; (void)body_len; (void)doc_buf; (void)doc_len;
+    if (out_buf && out_cap > 4) {
+        out_buf[0] = 'n'; out_buf[1] = 'u'; out_buf[2] = 'l'; out_buf[3] = 'l';
+        return 4;
+    }
+    return -1;
+}
+
+int lsp_build_document_symbol_response(int id_val, const uint8_t *source, int source_len,
+    uint8_t *out_buf, int out_cap) {
+    (void)id_val; (void)source; (void)source_len;
+    if (out_buf && out_cap > 2) { out_buf[0] = '['; out_buf[1] = ']'; return 2; }
+    return -1;
+}
+
+int lsp_build_rename_response(int id_val, const uint8_t *source, int source_len,
+    int line_0, int col_0, uint8_t *out_buf, int out_cap) {
+    (void)id_val; (void)source; (void)source_len; (void)line_0; (void)col_0;
+    if (out_buf && out_cap > 4) {
+        out_buf[0] = 'n'; out_buf[1] = 'u'; out_buf[2] = 'l'; out_buf[3] = 'l';
+        return 4;
+    }
     return -1;
 }
