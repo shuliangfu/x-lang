@@ -2,7 +2,7 @@
 //
 // 【文件职责】UTF-8 单遍校验/码点计数/rune 编解码；ASCII
 // 分类与大小写；hex 编解码与 std.string 门面（STD-040）。无堆分配，表驱动。
-// 【依赖】core；std.base64（Base64 门面）；std.string（String/StrView）；与 std/encoding/encoding.c 同属一模块。
+// 【依赖】core；std.base64；std.string；与 std/encoding/encoding.sx 同属一模块（F-encoding v1）。
 const base64_mod = import("std.base64");
 const string_mod = import("std.string");
 extern function encoding_utf8_valid_c(p: *u8, len: i32): i32;
