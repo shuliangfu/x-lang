@@ -1,0 +1,7 @@
+# F-04 v1 std.net TLS stub manifest
+# 列：item_id	kind	anchor	mod_path	notes
+symbol_avail	symbol	net_tls_is_available_c	std/net/tls_stub.sx	桩可用性
+symbol_backend	symbol	net_tls_backend_name_c	std/net/tls_stub.sx	桩后端名
+symbol_connect	symbol	net_tls_connect_client_c	std/net/tls_stub.sx	握手
+symbol_last_err	symbol	net_tls_last_error_c	std/net/tls_stub.sx	错误码
+absent_inc	absent	std/net/tls_stub.inc.c	删除 inc.c
