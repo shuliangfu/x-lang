@@ -41,9 +41,9 @@ sed -i '' '73a\
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
 ' pipeline_gen.c
 
-echo "=== 4. Compile all _su.o ==="
+echo "=== 4. Compile all _sx.o ==="
 for f in parser typeck codegen ast token lexer preprocess pipeline driver; do
-  cc $CFLAGS -c ${f}_gen.c -o ${f}_su.o
+  cc $CFLAGS -c ${f}_gen.c -o ${f}_sx.o
 done
 
 echo "=== 5. Compile support files ==="
@@ -61,17 +61,17 @@ cc $CFLAGS -c src/typeck/typeck.c -o src/typeck/typeck.o
 cc $CFLAGS -c src/codegen/codegen.c -o src/codegen/codegen.o
 cc $CFLAGS -c src/lsp/lsp_diag.c -o src/lsp/lsp_diag.o
 
-echo "=== 7. Link shu_su ==="
-cc $CFLAGS_DRIVER -o shu_su \
+echo "=== 7. Link shux_sx ==="
+cc $CFLAGS_DRIVER -o shux_sx \
   src/main.o runtime_driver.o preprocess_fallback.o \
-  preprocess_su.o std_fs_shim.o \
-  ast_su.o token_su.o lexer_su.o parser_sx.o typeck_su.o codegen_su.o \
-  driver_su.o pipeline_sx.o runtime_panic.o \
+  preprocess_sx.o std_fs_shim.o \
+  ast_sx.o token_sx.o lexer_sx.o parser_sx.o typeck_sx.o codegen_sx.o \
+  driver_sx.o pipeline_sx.o runtime_panic.o \
   src/lexer/lexer.o src/ast/ast.o src/parser/parser.o \
   src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o \
   shu_sx_stubs.o
 
 echo "=== 8. Quick smoke test ==="
 ./shux_sx -sx -E ../tests/sx-pipeline/hello.sx 2>&1 || true
-echo "shu_su built successfully: $(ls -lh shu_su | awk '{print $5}')"
+echo "shux_sx built successfully: $(ls -lh shux_sx | awk '{print $5}')"
 echo "Ready for full test suite."
