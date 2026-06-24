@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 固定长数组 [N]T：初值 0、字面量初始化、下标
+# 固定长数组 T[N]：初值 0、字面量初始化、下标
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
