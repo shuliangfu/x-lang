@@ -8,7 +8,7 @@ function main(): i32 {
   let addr_u32: u32 = 0;
 
   // "invalid.invalid" — RFC 2606 保留，应解析失败
-  let bad: [16]u8 = [105, 110, 118, 97, 108, 105, 100, 46, 105, 110, 118, 97, 108, 105, 100, 0];
+  let bad: u8[16] = [105, 110, 118, 97, 108, 105, 100, 46, 105, 110, 118, 97, 108, 105, 100, 0];
   if (net.resolve_ex(&bad[0], &addr_u32, &err) == 0) {
     return 1;
   }
@@ -17,7 +17,7 @@ function main(): i32 {
   }
 
   // "localhost" IPv4
-  let host: [10]u8 = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+  let host: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
   err = 0;
   addr_u32 = 0 as u32;
   if (net.resolve_ex(&host[0], &addr_u32, &err) != 0) {
@@ -32,7 +32,7 @@ function main(): i32 {
   }
 
   // "localhost" IPv6 → 期望 ::1
-  let out6: [16]u8 = [];
+  let out6: u8[16] = [];
   err = 0;
   if (resolve_ipv6(&host[0], &out6[0], &err) != 0) {
     return 0;
