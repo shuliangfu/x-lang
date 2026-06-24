@@ -1,0 +1,8 @@
+# F-string v1 std.string 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fstring_doc	doc	analysis/phase-f-string-v1.md	F-string v1
+fstring_gate	gate	tests/run-f-string-v1-gate.sh	聚合门禁
+string_sx	file	std/string/string.sx	快路径 .sx
+string_mod	file	std/string/mod.sx	对外 API
+string_c_absent	absent	std/string/string.c	已删除
+makefile	makefile	compiler/Makefile	string.o from string.sx
