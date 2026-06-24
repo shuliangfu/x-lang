@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_NET_TLS_DOC:-analysis/std-net-tls-v1.md}"
 MANIFEST="${SHUX_STD_NET_TLS_TSV:-tests/baseline/std-net-tls.tsv}"
-NET_SU="std/net/mod.sx"
-NET_C="std/net/net.c"
+NET_SX="std/net/mod.sx"
+TLS_STUB_SX="std/net/tls_stub.sx"
 LIB="tests/lib/std-net-tls.sh"
-STUB_SU="tests/net/tls_stub.sx"
-RUNTIME_SU="tests/net/tls_runtime_link_smoke.sx"
+STUB_SX="tests/net/tls_stub.sx"
+RUNTIME_SX="tests/net/tls_runtime_link_smoke.sx"
 SMOKE_C="tests/net/tls_openssl_smoke_ok.c"
 MBEDTLS_SMOKE_C="tests/net/tls_mbedtls_smoke_ok.c"
 MIN_APIS=7
@@ -20,7 +20,7 @@ MIN_APIS=7
 . "$LIB"
 
 echo "=== STD-030: net TLS prereq manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SU" "$NET_C" "$STUB_SU" "$RUNTIME_SU" "$SMOKE_C" "$MBEDTLS_SMOKE_C" std/net/tls_openssl.inc.c std/net/tls_mbedtls.inc.c std/net/tls_stub.inc.c; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SX" "$TLS_STUB_SX" "$STUB_SX" "$RUNTIME_SX" "$SMOKE_C" "$MBEDTLS_SMOKE_C" std/net/tls_openssl.sx std/net/tls_mbedtls.sx std/net/tls_stub.sx; do
   if [ ! -f "$f" ]; then
     echo "std-net-tls gate FAIL: missing $f" >&2
     exit 1
@@ -61,7 +61,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_net_tls_symbols_ok "$NET_SU" "$NET_C" "$MANIFEST" || true)"
+sym_miss="$(std_net_tls_symbols_ok "$NET_SX" "$TLS_STUB_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_net_tls_emit_report "fail" 0 0 1 0 0
   echo "std-net-tls gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -98,16 +98,16 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   make -C compiler net-o-stub >/dev/null 2>&1 || ensure_std_c_o ../std/net/net.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$STUB_SU" >/dev/null 2>&1; then
-    echo "std-net-tls gate FAIL: typeck $STUB_SU" >&2
-    "$SHUX_BIN" check -L . "$STUB_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$STUB_SX" >/dev/null 2>&1; then
+    echo "std-net-tls gate FAIL: typeck $STUB_SX" >&2
+    "$SHUX_BIN" check -L . "$STUB_SX" 2>&1 | tail -10 >&2 || true
     std_net_tls_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
   TYPECK_OK=1
   exe="/tmp/shux_std_net_tls_stub_$$"
   set +e
-  link_log=$(SHUX_NET_TLS=stub "$SHUX_BIN" -L . "$STUB_SU" -o "$exe" 2>&1)
+  link_log=$(SHUX_NET_TLS=stub "$SHUX_BIN" -L . "$STUB_SX" -o "$exe" 2>&1)
   link_ec=$?
   set -e
   if [ "$link_ec" -eq 0 ]; then
@@ -129,7 +129,7 @@ if [ -n "$SHUX_BIN" ]; then
     STUB_OK=0
     SKIP=1
   else
-    echo "std-net-tls gate FAIL: link $STUB_SU" >&2
+    echo "std-net-tls gate FAIL: link $STUB_SX" >&2
     echo "$link_log" | tail -8 >&2 || true
     std_net_tls_emit_report "fail" 0 "$TYPECK_OK" 0
     exit 1
@@ -148,7 +148,7 @@ if std_net_tls_probe_openssl; then
   if openssl req -x509 -newkey rsa:2048 -keyout "$TLS_KEY" -out "$TLS_CERT" -days 1 -nodes \
     -subj "/CN=localhost" >/dev/null 2>&1; then
     if std_net_tls_build_openssl_o && std_net_tls_start_s_server "$TLS_PID" "$TLS_PORT" "$TLS_CERT" "$TLS_KEY"; then
-      make -C compiler ../std/io/io.o >/dev/null 2>&1 || true
+      make -C compiler ../std/net/net.o >/dev/null 2>&1 || true
       export SHUX_TLS_SMOKE_PORT="$TLS_PORT"
       if std_net_tls_run_openssl_c_smoke; then OPENSSL_OK=1; fi
       std_net_tls_stop_s_server "$TLS_PID"
@@ -170,7 +170,7 @@ if std_net_tls_probe_mbedtls; then
   if openssl req -x509 -newkey rsa:2048 -keyout "$TLS_KEY_MB" -out "$TLS_CERT_MB" -days 1 -nodes \
     -subj "/CN=localhost" >/dev/null 2>&1; then
     if std_net_tls_build_mbedtls_o && std_net_tls_start_s_server "$TLS_PID_MB" "$TLS_PORT_MB" "$TLS_CERT_MB" "$TLS_KEY_MB"; then
-      make -C compiler ../std/io/io.o >/dev/null 2>&1 || true
+      make -C compiler ../std/net/net.o >/dev/null 2>&1 || true
       export SHUX_TLS_SMOKE_PORT="$TLS_PORT_MB"
       if std_net_tls_run_mbedtls_c_smoke; then MBEDTLS_OK=1; fi
       std_net_tls_stop_s_server "$TLS_PID_MB"
