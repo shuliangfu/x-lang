@@ -1,0 +1,15 @@
+# NL-07 编译器 bootstrap 去 libc 准备清单（v1）
+# 列：item_id	category	anchor	check_type	gate_or_notes
+n07_doc	doc	analysis/phase-f-n07-v1.md	grep	NL-07 v1
+n07_manifest	manifest	tests/baseline/nolibc-n07-bootstrap-prep.tsv	exists	本文件
+n07_lc_baseline	manifest	tests/baseline/nolibc-n07-bootstrap-lc-track.tsv	exists	-lc 行数基线
+n07_gate	gate	tests/run-nolibc-n07-bootstrap-prep-gate.sh	gate_ref	NL-07 专 gate
+n07_audit_lib	lib	tests/lib/nolibc-n07-bootstrap-audit.sh	gate_ref	审计函数
+n06_prereq	gate_ref	tests/run-nolibc-n06-std-track-gate.sh	gate_ref	NL-06 前置
+n05_prereq	gate_ref	tests/run-no-libc-link-gate.sh	gate_ref	NL-05 用户链策略
+build_shux_asm	build	compiler/scripts/build_shux_asm.sh	grep_marker	F-no-libc NL-07 BEGIN/END
+ensure_std_c	build	compiler/scripts/build_shux_asm.sh	grep	ensure_std_fs_io_heap_objs
+makefile_seed	make	compiler/Makefile	grep	bootstrap-driver-seed
+makefile_std_fs_o_absent	make	compiler/Makefile	absent_grep	../std/fs/fs.o	F-06 v1 已不链
+b32_gate	gate_ref	tests/run-b32-no-cc-std-gate.sh	gate_ref	B-32 cc -c std track
+link_policy	manifest	tests/baseline/no-libc-link-policy.tsv	grep	F-07
