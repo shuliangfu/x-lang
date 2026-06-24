@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   tool_lsp_send_frame BODY
-#   tool_lsp_count_funcs SU_FILE
+#   tool_lsp_count_funcs SX_FILE
 #   tool_lsp_count_completion_items OUT_FILE
 #   tool_lsp_ms_now
 
