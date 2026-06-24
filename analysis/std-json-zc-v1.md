@@ -84,7 +84,7 @@ if (vp != 0 as *u8) {
 
 - `escape_string`、`append_null`、`append_bool`、`append_number`
 
-实现：`std/json/mod.sx` + `json_parse_string_view_c` in `std/json/json.c`。
+实现：`std/json/mod.sx` + `json_parse_string_view_c` in `std/json/json_parse_glue.c`。
 
 ---
 
