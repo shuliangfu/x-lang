@@ -2,21 +2,21 @@
 # tst-002-boundary.sh — TST-002 边界用例 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   tst002_count_cases SU MIN
+#   tst002_count_cases SX MIN
 #   tst002_verify_manifest TSV
-#   tst002_run_boundary SHUX_BIN SU OUT
+#   tst002_run_boundary SHUX_BIN SX OUT
 #   tst002_emit_report status heap_ok vec_ok map_ok proc_ok skip
 
 TST002_PREFIX="${SHUX_TST002_BOUNDARY_PREFIX:-shux: [SHUX_TST002_BOUNDARY]}"
 
 # 统计「case N」注释行数；不足 min 时返回 1。
 tst002_count_cases() {
-  local su="$1"
+  local sx="$1"
   local min="$2"
   local n
-  n="$(grep -cE '// case [0-9]+' "$su" 2>/dev/null || echo 0)"
+  n="$(grep -cE '// case [0-9]+' "$sx" 2>/dev/null || echo 0)"
   if [ "$n" -lt "$min" ]; then
-    echo "TST-002 FAIL: $su has ${n} cases, want >= ${min}" >&2
+    echo "TST-002 FAIL: $sx has ${n} cases, want >= ${min}" >&2
     return 1
   fi
   echo "$n"
@@ -53,17 +53,17 @@ tst002_verify_manifest() {
 # 编译并运行边界烟测；成功返回 0。
 tst002_run_boundary() {
   local shux="$1"
-  local su="$2"
+  local sx="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shux" -L . "$su" -o "$out" >/tmp/tst002_smoke.log 2>&1; then
+  if ! "$shux" -L . "$sx" -o "$out" >/tmp/tst002_smoke.log 2>&1; then
     cat /tmp/tst002_smoke.log >&2
     return 1
   fi
   local ec=0
   "$out" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne 0 ]; then
-    echo "TST-002 FAIL: $su exit=$ec" >&2
+    echo "TST-002 FAIL: $sx exit=$ec" >&2
     return 1
   fi
   return 0
