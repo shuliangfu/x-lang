@@ -1,5 +1,5 @@
 // std.string — 字符串类型与基本操作（对标 Rust str/String、Go strings、Zig
-// []const u8 + std.mem）
+// const[] u8 + std.mem）
 //
 // 【文件职责】固定缓冲 256 字节的 String
 // 结构体，提供构造、长度、比较、查找、前后缀、子串、trim、单字节替换、
@@ -34,11 +34,11 @@ extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
 /** 固定缓冲容量（字节）；不分配堆，超过请用 StrView。 */
 function string_capacity(): i32 { return 256; }
 struct String {
-  data: [256]u8;
+  data: u8[256];
   len: i32;
 }
 /** 只读字符串视图：零拷贝包装 (ptr, len)，不拥有内存，不拷贝（对标 Rust
-* &str、Go 切片、Zig []const u8）。allow(padding) 满足 ptr 对齐。 */
+* &str、Go 切片、Zig const[] u8）。allow(padding) 满足 ptr 对齐。 */
 allow(padding) struct StrView {
   ptr: *u8;
   len: i32;
@@ -110,8 +110,8 @@ function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView
   if (n <= 0) {
     return string_view(left.ptr, 0);
   }
-  let p: *u8 = heap.arena64_alloc(arena, n as usize, 1 as usize);
-  if (p == 0 as *u8) {
+  let p: *u8 = heap.arena64_alloc(arena, n, 1);
+  if (p == 0) {
     return string_view(0 as *u8, 0);
   }
   if (left.len > 0) {
@@ -320,7 +320,7 @@ function string_compare_view(s: String, v: StrView): i32 {
 function stack_str_capacity(): i32 { return 32; }
 /** 栈上小字符串拥有者：data+len 均在栈帧内，不触发 heap_alloc。 */
 struct StackStr {
-  data: [32]u8;
+  data: u8[32];
   len: i32;
 }
 /** 新建空 StackStr。 */
