@@ -4,7 +4,7 @@
 STD_UNICODE_NORM_PREFIX="${SHUX_STD_UNICODE_NORM_PREFIX:-shux: [SHUX_STD_UNICODE_NORM]}"
 
 std_unicode_norm_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local uni_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,14 +14,14 @@ std_unicode_norm_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-unicode-norm FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/unicode/unicode.c" ]; then path="$uni_c"; fi
+        if [ "$path" = "std/unicode/unicode_glue.c" ] || [ "$path" = "std/unicode/unicode.sx" ]; then path="$uni_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-unicode-norm FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -67,5 +67,5 @@ std_unicode_norm_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_UNICODE_NORM_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_UNICODE_NORM_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
 }
