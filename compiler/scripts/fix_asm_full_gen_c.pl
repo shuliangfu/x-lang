@@ -80,6 +80,55 @@ $src =~ s/\(mod->num_funcs\)/pipeline_module_num_funcs((struct ast_Module *)mod)
 $src =~ s/\bmodule\.num_struct_layouts\b/pipeline_module_num_struct_layouts_at((struct ast_Module *)module)/g;
 $src =~ s/\(module->num_struct_layouts\)/pipeline_module_num_struct_layouts_at((struct ast_Module *)module)/g;
 
+# backend_ElfCodegenCtx 前向声明：须在 #include <stdlib.h> 注入之后执行（见 inject_backend_elf_codegen_ctx_forward）
+sub inject_backend_elf_codegen_ctx_forward {
+  my ($src_ref) = @_;
+  return unless $$src_ref =~ /backend_ElfCodegenCtx \*/;
+  my $first_use = index($$src_ref, 'backend_ElfCodegenCtx');
+  my $typedef_pos = index($$src_ref, 'typedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx');
+  return unless $typedef_pos < 0 || $first_use < $typedef_pos;
+  return if $$src_ref =~ /struct platform_elf_ElfCodegenCtx;\s*\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx/;
+  $$src_ref =~ s/(#include <stdlib\.h>\n)/$1\nstruct platform_elf_ElfCodegenCtx;\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx;\n/s
+    or $$src_ref =~ s/(#include <string\.h>\n)/$1\nstruct platform_elf_ElfCodegenCtx;\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx;\n/s
+    or $$src_ref =~ s/(\/\* pipeline\/ast glue[^\n]*\n)/$1\nstruct platform_elf_ElfCodegenCtx;\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx;\n\n/s
+    or $$src_ref =~ s/(#include <stdint\.h>\n)/$1\nstruct platform_elf_ElfCodegenCtx;\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx;\n/s;
+}
+
+# peephole_CodegenOutBuf 与 backend_CodegenOutBuf 同布局：删重复 struct，统一用 backend_CodegenOutBuf *
+if ($src =~ /struct backend_CodegenOutBuf \{/ && $src =~ /struct peephole_CodegenOutBuf \{/) {
+  $src =~ s/\nstruct peephole_CodegenOutBuf \{[^}]+\};\n/\n/s;
+}
+if ($src =~ /struct backend_CodegenOutBuf \{/) {
+  $src =~ s/\bstruct peephole_CodegenOutBuf \*/struct backend_CodegenOutBuf */g;
+  $src =~ s/\bpeephole_CodegenOutBuf \*/struct backend_CodegenOutBuf */g;
+}
+# arch_*_CodegenOutBuf 与 backend_CodegenOutBuf 同布局
+for my $arch (qw(arm64 riscv64 x86_64)) {
+  if ($src =~ /struct arch_${arch}_CodegenOutBuf \{/) {
+    $src =~ s/\nstruct arch_${arch}_CodegenOutBuf \{[^}]+\};\n/\n/s;
+  }
+  $src =~ s/\bstruct arch_${arch}_CodegenOutBuf \*/struct backend_CodegenOutBuf */g;
+}
+
+# ast_pipeline_* 误前缀 → pipeline_*（glue 在 ast_pool）
+$src =~ s/\bast_pipeline_module_import_path_byte_at\b/pipeline_module_import_path_byte_at/g;
+$src =~ s/\bast_pipeline_module_import_binding_name_byte_at\b/pipeline_module_import_binding_name_byte_at/g;
+$src =~ s/\bast_pipeline_module_import_binding_name_len\b/pipeline_module_import_binding_name_len/g;
+$src =~ s/\bast_pipeline_expr_call_num_args_at\b/pipeline_expr_call_num_args_at/g;
+$src =~ s/\bast_pipeline_expr_call_arg_ref\b/pipeline_expr_call_arg_ref/g;
+# backend_ASTArena 版 pipeline_expr extern 与 glue ast 版冲突
+$src =~ s/\nextern int32_t pipeline_expr_call_arg_ref\(struct backend_ASTArena \*[^;]+;\n//g;
+$src =~ s/\nextern int32_t pipeline_expr_call_num_args_at\(struct backend_ASTArena \*[^;]+;\n//g;
+$src =~ s/\nextern int32_t pipeline_expr_call_callee_ref_at\(struct backend_ASTArena \*[^;]+;\n//g;
+$src =~ s/\nextern int32_t pipeline_expr_method_call_arg_ref\(struct backend_ASTArena \*[^;]+;\n//g;
+# fold 路径误 emit codegen_ 前缀
+$src =~ s/\bcodegen_pipeline_expr_kind_ord_at\b/pipeline_expr_kind_ord_at/g;
+
+# pipeline glue extern 误用 backend_Module/backend_ASTArena → ast_*（与 ast_pool 签名一致）
+$src =~ s/(extern [^;]*pipeline_\w+\([^)]*)struct backend_Module \*/$1struct ast_Module */g;
+$src =~ s/(extern [^;]*pipeline_\w+\([^)]*)struct backend_ASTArena \*/$1struct ast_ASTArena */g;
+$src =~ s/\bpipeline_module_hoist_top_level_lets_into_main\(struct backend_Module \* module, struct backend_ASTArena \* arena\)/pipeline_module_hoist_top_level_lets_into_main(struct ast_Module * module, struct ast_ASTArena * arena)/g;
+
 # void 函数误 emit return 0
 $src =~ s/(void backend_\w+\([^)]*\)\s*\{.*?)\n  return 0;\n(\})/$1\n$2/sg;
 
@@ -228,6 +277,8 @@ if (keys %enc_syms) {
   }
 }
 
+# arch_*_emit_* 前向声明在文件末尾统一注入（见 inject_arch_emit_forward_decls）
+
 # asm.types 残缺 emit（stmt_order 漏 let）：删实现，改 extern（链入 asm_backend_compat_stubs.c weak 符号）
 my $asm_types_stub = <<'STUB';
 /* asm.types：-E 跳过 dep 或 emit 残缺时由 compat stub 提供 */
@@ -250,6 +301,7 @@ unless ($src =~ /#include <stddef\.h>/) {
 unless ($src =~ /#include <unistd\.h>/ || $src =~ /typedef.*ssize_t/) {
   $src =~ s/(#include <stdlib\.h>)/$1\n#ifndef _SSIZE_T_DEFINED\ntypedef int64_t ssize_t;\n#define _SSIZE_T_DEFINED\n#endif/;
 }
+inject_backend_elf_codegen_ctx_forward(\$src);
 
 # 结构体字段误 emit 为 struct T[N] name → struct T name[N]
 $src =~ s/struct\s+([A-Za-z0-9_]+)\[(\d+)\]\s+(\w+);/struct $1 $3\[$2\];/g;
@@ -319,21 +371,49 @@ if ($src =~ /\nstruct asm_types_CodegenOutBuf \{/ && $src =~ /static int32_t err
 # backend_asm_module_named_type_has_struct_layout 在定义前被引用（void* 避免 incomplete struct backend_Module 冲突）
 $src =~ s/extern int backend_asm_module_named_type_has_struct_layout\(struct backend_Module \* module, uint8_t \* name, int32_t name_len\);\n\n//;
 $src =~ s/int backend_asm_module_named_type_has_struct_layout\(struct backend_Module \* module, uint8_t \* name, int32_t name_len\)/int backend_asm_module_named_type_has_struct_layout(void * module, uint8_t * name, int32_t name_len)/g;
-unless ($src =~ /int backend_asm_module_named_type_has_struct_layout\(void \* module/) {
-  $src =~ s/(int32_t backend_asm_names_equal\(uint8_t \* a, int32_t a_len, uint8_t \* b, int32_t b_len\))/int backend_asm_module_named_type_has_struct_layout(void * module, uint8_t * name, int32_t name_len);\n$1/s;
+# 前向声明（定义可能在后文；-E 截断时 stub 替换会留下定义，不能因「已有定义」而跳过）
+unless ($src =~ /int backend_asm_module_named_type_has_struct_layout\(void \* module[^)]*\)\s*;/) {
+  $src =~ s/(typedef struct backend_Expr ast_Expr;)/$1\nint backend_asm_module_named_type_has_struct_layout(void * module, uint8_t * name, int32_t name_len);\n/s
+    or $src =~ s/(struct backend_CodegenOutBuf \{[^}]+\};\n)/$1\nint backend_asm_module_named_type_has_struct_layout(void * module, uint8_t * name, int32_t name_len);\n/s
+    or $src =~ s/(#include <stdlib\.h>)/$1\nint backend_asm_module_named_type_has_struct_layout(void * module, uint8_t * name, int32_t name_len);\n/;
 }
 
 # peephole 文本优化：漏 let / 缺 return → 补局部或最小桩
-$src =~ s/(int32_t peephole_peephole_remove_redundant_push_pop\(struct peephole_CodegenOutBuf \* out\) \{\n)/$1  int32_t line_end = 0;\n  int32_t line_len = 0;\n  int32_t next_start = 0;\n  int32_t j = 0;\n/g;
-$src =~ s/(int32_t peephole_peephole_remove_noop_mov_rax_rax\(struct peephole_CodegenOutBuf \* out\) \{\n)(?!  int32_t line_end)/$1  int32_t line_end = 0;\n  int32_t j = 0;\n/g;
-$src =~ s/(int32_t peephole_peephole_remove_noop_mov_x0_x0\(struct peephole_CodegenOutBuf \* out\) \{\n)(?!  int32_t line_end)/$1  int32_t line_end = 0;\n  int32_t j = 0;\n/g;
+$src =~ s/(int32_t peephole_peephole_remove_redundant_push_pop\(struct (?:peephole_|backend_)CodegenOutBuf \* out\) \{\n)(?!  int32_t line_end)/$1  int32_t line_end = 0;\n  int32_t line_len = 0;\n  int32_t next_start = 0;\n  int32_t j = 0;\n/g;
+$src =~ s/(int32_t peephole_peephole_remove_noop_mov_rax_rax\(struct (?:peephole_|backend_)CodegenOutBuf \* out\) \{\n)(?!  int32_t line_end)/$1  int32_t line_end = 0;\n  int32_t j = 0;\n/g;
+$src =~ s/(int32_t peephole_peephole_remove_noop_mov_x0_x0\(struct (?:peephole_|backend_)CodegenOutBuf \* out\) \{\n)(?!  int32_t line_end)/$1  int32_t line_end = 0;\n  int32_t j = 0;\n/g;
 $src =~ s/(int32_t peephole_peephole_remove_redundant_push_pop\(struct peephole_CodegenOutBuf \* out\) \{.*?)\n\}\n(int32_t peephole_peephole_remove_noop_mov_rax_rax)/$1\n  return 0;\n}\n$2/s;
-# peephole ELF 路径 stmt_order 漏 let：seed partial 用可编译桩（后续 shux-seed-phase1 重 -E 替换）
-$src =~ s/int32_t peephole_peephole_elf_region_has_meta\(struct platform_elf_ElfCodegenCtx \* ctx, int32_t pos, int32_t len\) \{.*?\n\}/int32_t peephole_peephole_elf_region_has_meta(struct platform_elf_ElfCodegenCtx * ctx, int32_t pos, int32_t len) {\n  (void)ctx; (void)pos; (void)len;\n  return 0;\n}/s;
-$src =~ s/void peephole_peephole_elf_shift_meta_after_remove\(struct platform_elf_ElfCodegenCtx \* ctx, int32_t pos, int32_t len\) \{.*?\n\}/void peephole_peephole_elf_shift_meta_after_remove(struct platform_elf_ElfCodegenCtx * ctx, int32_t pos, int32_t len) {\n  (void)ctx; (void)pos; (void)len;\n}/s;
-$src =~ s/int32_t peephole_peephole_elf_remove_redundant_push_pop\(struct platform_elf_ElfCodegenCtx \* ctx, int32_t e_machine\) \{.*?\n\}/int32_t peephole_peephole_elf_remove_redundant_push_pop(struct platform_elf_ElfCodegenCtx * ctx, int32_t e_machine) {\n  (void)ctx; (void)e_machine;\n  return 0;\n}/s;
-$src =~ s/int32_t peephole_peephole_elf_remove_redundant_spill_reg_mov_pair\(struct platform_elf_ElfCodegenCtx \* ctx\) \{.*?\n\}/int32_t peephole_peephole_elf_remove_redundant_spill_reg_mov_pair(struct platform_elf_ElfCodegenCtx * ctx) {\n  (void)ctx;\n  return 0;\n}/s;
-$src =~ s/int32_t peephole_peephole_elf_remove_redundant_mov_x2_pair\(struct platform_elf_ElfCodegenCtx \* ctx\) \{.*?\n\}/int32_t peephole_peephole_elf_remove_redundant_mov_x2_pair(struct platform_elf_ElfCodegenCtx * ctx) {\n  (void)ctx;\n  return 0;\n}/s;
+# peephole ELF 路径 stmt_order 漏 let：seed partial 用可编译桩（平衡括号替换）
+sub stub_fn_body_balanced {
+  my ($src_ref, $ret, $fn) = @_;
+  my $pos = 0;
+  while (($pos = index($$src_ref, "$ret $fn(", $pos)) >= 0) {
+    my $brace = index($$src_ref, '{', $pos);
+    last if $brace < 0;
+    my $depth = 1;
+    my $i = $brace + 1;
+    while ($depth > 0 && $i < length($$src_ref)) {
+      my $c = substr($$src_ref, $i, 1);
+      $depth++ if $c eq '{';
+      $depth-- if $c eq '}';
+      $i++;
+    }
+    next if $depth != 0;
+    my $sig = substr($$src_ref, $pos, $brace - $pos + 1);
+    my $body = ($ret eq 'void') ? ' (void)0; }' : ' return 0; }';
+    substr($$src_ref, $pos, $i - $pos, "${sig}${body}");
+    $pos = $pos + length($sig) + length($body);
+  }
+}
+for my $pf (qw(
+  peephole_peephole_elf_region_has_meta
+  peephole_peephole_elf_remove_redundant_push_pop
+  peephole_peephole_elf_remove_redundant_spill_reg_mov_pair
+  peephole_peephole_elf_remove_redundant_mov_x2_pair
+)) {
+  stub_fn_body_balanced(\$src, 'int32_t', $pf);
+}
+stub_fn_body_balanced(\$src, 'void', 'peephole_peephole_elf_shift_meta_after_remove');
 
 # -E 截断：backend_fold_expr_is_add_kind 缺 fallthrough return 0（cc -Wreturn-type 失败）
 $src =~ s/int32_t backend_fold_expr_is_add_kind\(struct backend_ASTArena \* arena, int32_t expr_ref\) \{\n  int32_t k = codegen_pipeline_expr_kind_ord_at\(arena, expr_ref\);\n  if \(\(\(k ==4\) \|\| \(k ==51\)\)\) \{\n    return 1;\n  \}\n\}/int32_t backend_fold_expr_is_add_kind(struct backend_ASTArena * arena, int32_t expr_ref) {\n  int32_t k = codegen_pipeline_expr_kind_ord_at(arena, expr_ref);\n  if (((k ==4) || (k ==51))) {\n    return 1;\n  }\n  return 0;\n}/s;
@@ -426,6 +506,8 @@ if ($src =~ /static void init_globals\(void\) \{/ && $src !~ /static struct back
 
 my $glue_stub = <<'GLUE';
 /* pipeline/ast glue：cc -c 前向声明（定义在 pipeline_glue.c / ast_pool.c） */
+struct backend_ASTArena;
+struct ast_ASTArena;
 typedef struct backend_ASTArena ast_ASTArena;
 struct ast_Module;
 struct ast_Type {
@@ -439,12 +521,16 @@ struct ast_Expr;
 typedef struct backend_Expr ast_Expr;
 extern ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena * a, int32_t ref);
 extern struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena * a, int32_t ref);
-extern int32_t ast_pipeline_expr_call_num_args_at(struct ast_ASTArena * a, int32_t expr_ref);
-extern int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena * a, int32_t expr_ref, int32_t idx);
-extern int32_t ast_pipeline_module_import_binding_name_len(struct ast_Module * m, int32_t idx);
+extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena * a, int32_t expr_ref);
+extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena * a, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_module_import_binding_name_len(struct ast_Module * m, int32_t idx);
 extern int32_t parser_get_module_num_imports(struct ast_Module * m);
 extern int32_t pipeline_typeck_import_segment_at_c(struct ast_Module * m, int32_t imp_ix, int32_t want_seg, int32_t * ostr, int32_t * olen);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena * a, int32_t ref);
+extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena * a, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena * a, int32_t expr_ref);
+extern uint8_t pipeline_module_import_path_byte_at(struct ast_Module * m, int32_t idx, int32_t off);
+extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module * m, int32_t idx, int32_t off);
 extern int32_t pipeline_module_num_funcs(struct ast_Module * m);
 extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module * m);
 extern int32_t parser_asm_struct_layout_name_exists_arr_c(void * module, uint8_t * nm, int32_t nlen);
@@ -453,9 +539,136 @@ GLUE
 if (index($src, 'pipeline/ast glue') < 0 && $src =~ /\bast_(?:pipeline|ast_arena)_\w+\s*\(/) {
   $src =~ s/(#include <stdlib\.h>)/$1\n$glue_stub/;
 }
-# glue 块与 -E extern 重复声明（backend_ASTArena vs ast_ASTArena）→ 删 ast 版
+# 修复 stub 误伤或旧 glue 块中残缺的 ast_Type
+$src =~ s/struct ast_Type \{ return 0; \};/struct ast_Type {
+  int32_t kind;
+  int32_t elem_type_ref;
+  int32_t array_size;
+  uint8_t name[64];
+  int32_t name_len;
+};/g;
+
+# glue 块与 -E extern 重复声明（backend_ASTArena vs ast_ASTArena）→ 删 struct ast 版
 $src =~ s/\nextern int32_t pipeline_expr_kind_ord_at\(struct ast_ASTArena \*[^;]+;\n//g;
 $src =~ s/\nextern int32_t pipeline_expr_array_lit_num_elems_at\(struct ast_ASTArena \*[^;]+;\n//g;
+# 删完后若仍调用 pipeline_expr_kind_ord_at，补 ast 版 extern（匹配 ast_ASTArena * 或 struct ast_ASTArena *）
+unless ($src =~ /extern int32_t pipeline_expr_kind_ord_at\(/) {
+  $src =~ s/(extern int32_t pipeline_type_kind_ord_at\([^\n]+\n)/$1extern int32_t pipeline_expr_kind_ord_at(ast_ASTArena * a, int32_t expr_ref);\n/
+    or $src =~ s/(extern int32_t pipeline_expr_array_lit_num_elems_at\([^\n]+\n)/extern int32_t pipeline_expr_kind_ord_at(ast_ASTArena * a, int32_t expr_ref);\n$1/;
+}
+unless ($src =~ /extern int32_t pipeline_expr_array_lit_num_elems_at\(/) {
+  $src =~ s/(extern int32_t pipeline_expr_kind_ord_at\([^\n]+\n)/$1extern int32_t pipeline_expr_array_lit_num_elems_at(ast_ASTArena * a, int32_t expr_ref);\n/
+    or $src =~ s/(extern int32_t pipeline_type_kind_ord_at\([^\n]+\n)/$1extern int32_t pipeline_expr_array_lit_num_elems_at(ast_ASTArena * a, int32_t expr_ref);\n/;
+}
+
+# glue 已声明的 pipeline/ast extern：删 backend import 段重复行（struct ast_ASTArena 与 typedef 混用会 conflicting types）
+sub strip_duplicate_pipeline_externs_after_glue {
+  my ($src_ref) = @_;
+  return unless index($$src_ref, 'pipeline/ast glue') >= 0;
+  my $glue_end = index($$src_ref, '#include <unistd.h>');
+  return if $glue_end < 0;
+  my $glue = substr($$src_ref, 0, $glue_end);
+  my $rest = substr($$src_ref, $glue_end);
+  for my $dup_fn (qw(
+    pipeline_expr_call_num_args_at pipeline_expr_call_arg_ref
+    pipeline_expr_kind_ord_at pipeline_expr_array_lit_num_elems_at
+    pipeline_module_import_binding_name_len
+    pipeline_module_num_funcs pipeline_module_num_struct_layouts_at pipeline_type_kind_ord_at
+  )) {
+    next unless $glue =~ /\b\Q$dup_fn\E\b/;
+    while ($rest =~ /\nextern [^;]*\b\Q$dup_fn\E\b[^;]+;/) {
+      $rest =~ s/\nextern [^;]*\b\Q$dup_fn\E\b[^;]+;//;
+    }
+  }
+  $$src_ref = $glue . $rest;
+}
+# 升级已内嵌的旧版 pipeline/ast glue（-E 产物常带缺字段/缺 extern 的 glue）
+if (index($src, 'pipeline/ast glue') >= 0) {
+  unless ($src =~ /struct ast_ASTArena;\s*\ntypedef struct backend_ASTArena ast_ASTArena/) {
+    $src =~ s/typedef struct backend_ASTArena ast_ASTArena;/struct ast_ASTArena;\ntypedef struct backend_ASTArena ast_ASTArena;/;
+  }
+  unless ($src =~ /extern uint8_t pipeline_module_import_path_byte_at/) {
+    $src =~ s/(extern int32_t pipeline_module_num_struct_layouts_at\([^\n]+\n)/$1extern uint8_t pipeline_module_import_path_byte_at(struct ast_Module * m, int32_t idx, int32_t off);\nextern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module * m, int32_t idx, int32_t off);\n/;
+  }
+  $src =~ s/struct ast_ASTArena \*/ast_ASTArena */g;
+}
+strip_duplicate_pipeline_externs_after_glue(\$src);
+
+# arch_*_emit 前向声明：仅从函数定义提取签名，去掉误注入的重复 extern
+{
+  my %arch_defs;
+  while ($src =~ /\nint32_t (arch_(?:arm64|riscv64|x86_64)_emit_[A-Za-z0-9_]+)\(([^)]*)\)\s*\{/g) {
+    my ($fn, $args) = ($1, $2);
+    $args =~ s/struct backend_CodegenOutBuf \*/struct backend_CodegenOutBuf */g;
+    $arch_defs{$fn} = $args;
+  }
+  if (keys %arch_defs) {
+    $src =~ s/\n\/\* arch\.\* emit[^\n]*\n(?:extern int32_t arch_(?:arm64|riscv64|x86_64)_emit_[^\n]+\n)+//g;
+    $src =~ s/\nextern int32_t arch_(?:arm64|riscv64|x86_64)_emit_[A-Za-z0-9_]+\([^;]+;\n//g;
+    my $arch_decls = "/* arch.* emit：cc -c 前向声明（签名来自本文件定义） */\n";
+    for my $fn (sort keys %arch_defs) {
+      $arch_decls .= "extern int32_t $fn($arch_defs{$fn});\n";
+    }
+    unless ($src =~ /\/\* arch\.\* emit：cc -c 前向声明/) {
+      $src =~ s/(struct backend_CodegenOutBuf \{[^}]+\};\n)/$1\n$arch_decls/s
+        or $src =~ s/(int backend_asm_module_named_type_has_struct_layout\([^\n]+\n)/$1$arch_decls/s;
+    }
+  }
+}
+# -E 截断：arch emit 被引用但无定义 → 最小桩 + 前向声明
+for my $arch_stub (
+  ['arch_x86_64_emit_cmp_setcc', 'struct backend_CodegenOutBuf * out, int32_t cc'],
+  ['arch_x86_64_emit_mov_rax_to_arg_reg', 'struct backend_CodegenOutBuf * out, int32_t k'],
+) {
+  my ($fn, $args) = @$arch_stub;
+  unless ($src =~ /\nint32_t \Q$fn\E\s*\([^)]*\)\s*\{/) {
+    unless ($src =~ /extern int32_t \Q$fn\E\s*\(/) {
+      $src =~ s/(\/\* arch\.\* emit：cc -c 前向声明[^\n]*\n)/$1extern int32_t $fn($args);\n/
+        or $src =~ s/(int backend_asm_module_named_type_has_struct_layout\([^\n]+\n)/$1extern int32_t $fn($args);\n/;
+    }
+    $src .= "\nint32_t $fn($args) { return 0; }\n";
+  }
+}
+
+# platform_* void 函数：-E 残缺 emit 误带 return 0（函数体含嵌套块时用行级清理）
+$src =~ s/\n  return 0;\n(\}\n(?:void|int32_t|int|extern|static|struct|typedef|#include))/\n$1/sg;
+
+# -E 尾部重复 #include + backend_Expr / ast Elf 残缺块（保留首份定义）
+if ((() = $src =~ /struct backend_Expr \{/g) > 1) {
+  $src =~ s/\n#include <stdint\.h>\nstruct backend_Expr \{[\s\S]+$//s;
+}
+
+# int32_t 空函数体（-E 截断；Linux gcc -Wreturn-type 失败）
+$src =~ s/int32_t (arch_(?:arm64|riscv64|x86_64)_[a-zA-Z0-9_]+)\(([^)]*)\)\s*\{\s*\}/int32_t $1($2) { return 0; }/sg;
+$src =~ s/int32_t (backend_[a-zA-Z0-9_]+)\(([^)]*)\)\s*\{\s*\}/int32_t $1($2) { return 0; }/sg;
+$src =~ s/int32_t (platform_(?:elf|macho|coff)_[a-zA-Z0-9_]+)\(([^)]*)\)\s*\{\s*\}/int32_t $1($2) { return 0; }/sg;
+# platform_* 非空但缺 fallthrough return（-E 截断）
+$src =~ s/(int32_t platform_(?:elf|macho|coff)_[a-zA-Z0-9_]+\([^{]+\{(?:[^{}]|\{[^{}]*\})*)\n\}(\n(?:int32_t|void|extern|#include|struct|static|typedef))/$1\n  return 0;\n}$2/sg;
+# peephole 重复注入 line_end 块
+$src =~ s/(  int32_t line_end = 0;\n  int32_t line_len = 0;\n  int32_t next_start = 0;\n  int32_t j = 0;\n)+/  int32_t line_end = 0;\n  int32_t line_len = 0;\n  int32_t next_start = 0;\n  int32_t j = 0;\n/g;
+
+# extern 粘连在同一行时拆开
+$src =~ s/;\s*(?=extern )/;\n/g;
+
+# 全部 rewrite 完成后再删 glue 重复 extern（避免前文 regex 之后又写回）
+strip_duplicate_pipeline_externs_after_glue(\$src);
+
+# backend_asm_hoist 被误 stub 为 void { return 0; } 时恢复 pipeline glue 调用
+$src =~ s/void backend_asm_hoist_top_level_lets_for_codegen\(struct backend_Module \* module, struct backend_ASTArena \* arena\) \{ return 0; \}/void backend_asm_hoist_top_level_lets_for_codegen(struct backend_Module * module, struct backend_ASTArena * arena) {\n  pipeline_module_hoist_top_level_lets_into_main((struct ast_Module *)module, (ast_ASTArena *)arena);\n}/g;
+
+# -E 跳过 seed_mega 巨型 emit：partial 仍须导出强符号 backend_asm_codegen_ast_seed_mega
+if ($src =~ /\nint32_t backend_asm_codegen_ast\s*\(/ && $src !~ /\nint32_t backend_asm_codegen_ast_seed_mega\s*\(/) {
+  $src .= <<'SEEDMEGA';
+
+/* G-06 partial：-E 不 emit seed_mega 体时转发到已 emit 的 codegen 入口 */
+int32_t backend_asm_codegen_ast_seed_mega(struct backend_Module * module, struct backend_ASTArena * arena, struct backend_CodegenOutBuf * out, struct backend_PipelineDepCtx * pipeline_ctx) {
+  return backend_asm_codegen_ast(module, arena, out, pipeline_ctx);
+}
+int32_t backend_asm_codegen_ast_to_elf_seed_mega(struct backend_Module * module, struct backend_ASTArena * arena, backend_ElfCodegenCtx * elf_ctx, struct backend_PipelineDepCtx * pipeline_ctx) {
+  return backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, pipeline_ctx);
+}
+SEEDMEGA
+}
 
 if ($src ne $orig) {
   seek $fh, 0, 0;
