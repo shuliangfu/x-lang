@@ -7,19 +7,19 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_QUEUE_CONCURRENT_DOC:-analysis/std-queue-concurrent-v1.md}"
 MANIFEST="${SHUX_STD_QUEUE_CONCURRENT_TSV:-tests/baseline/std-queue-concurrent.tsv}"
-MOD_SU="std/queue/mod.sx"
-QUEUE_C="std/queue/queue.c"
+MOD_SX="std/queue/mod.sx"
+QUEUE_C="std/queue/queue.sx"
 CONTENTION_C="tests/queue/sync_queue_contention_ok.c"
 LIB="tests/lib/std-queue-concurrent.sh"
-SMOKE_SU="tests/queue/sync_queue_roundtrip.sx"
-MAIN_SU="tests/queue/main.sx"
+SMOKE_SX="tests/queue/sync_queue_roundtrip.sx"
+MAIN_SX="tests/queue/main.sx"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-queue-concurrent.sh
 . "$LIB"
 
 echo "=== STD-048: queue concurrent manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$QUEUE_C" "$SMOKE_SU" "$MAIN_SU" "$CONTENTION_C"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$QUEUE_C" "$SMOKE_SX" "$MAIN_SX" "$CONTENTION_C"; do
   if [ ! -f "$f" ]; then
     echo "std-queue-concurrent gate FAIL: missing $f" >&2
     exit 1
@@ -47,7 +47,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-queue-concurrent gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -66,7 +66,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_queue_conc_symbols_ok "$MOD_SU" "$QUEUE_C" "$MANIFEST" || true)"
+sym_miss="$(std_queue_conc_symbols_ok "$MOD_SX" "$QUEUE_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_queue_conc_emit_report "fail" 0 0 0 0
   echo "std-queue-concurrent gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -104,9 +104,9 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/queue/queue.o
   ensure_std_c_o ../std/sync/sync.o
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-queue-concurrent gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-queue-concurrent gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_queue_conc_emit_report "fail" 0 0 0 0
     exit 1
   fi
@@ -114,13 +114,13 @@ if [ -n "$SHUX_BIN" ]; then
     std_queue_conc_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_queue_conc_run_smoke "$SHUX_BIN" "$SMOKE_SU" "sync_rt"; then
+  if std_queue_conc_run_smoke "$SHUX_BIN" "$SMOKE_SX" "sync_rt"; then
     SYNC_OK=1
   else
     std_queue_conc_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_queue_conc_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
+  if std_queue_conc_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
     MAIN_OK=1
   else
     std_queue_conc_emit_report "fail" "$SYNC_OK" 0 0 0
