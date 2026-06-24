@@ -6,13 +6,13 @@ const fs = import("std.fs");
 
 function main(): i32 {
   /** "/tmp/shux_cookbook_io_batch\0" */
-  let path: [26]u8 =
+  let path: u8[26] =
   [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
   95, 105, 111, 95, 98, 97, 116, 99, 104, 0];
-  let w0: [4]u8 = [1, 2, 3, 4];
-  let w1: [4]u8 = [5, 6, 7, 8];
-  let r0: [4]u8 = [];
-  let r1: [4]u8 = [];
+  let w0: u8[4] = [1, 2, 3, 4];
+  let w1: u8[4] = [5, 6, 7, 8];
+  let r0: u8[4] = [];
+  let r1: u8[4] = [];
   let fd: i32 = fs.fs_open_create(&path[0]);
   if (fd < 0) { return 1; }
   let nw: i32 = fs.write_batch_fd(fd, &w0[0], 4 as usize, &w1[0], 4 as usize, 0 as *u8, 0 as usize, 0 as *u8, 0 as usize, 2);
