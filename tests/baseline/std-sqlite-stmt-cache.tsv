@@ -12,13 +12,13 @@ api_bind_text	api	stmt_bind_text	std/db/sqlite/mod.sx	文本
 api_step	api	stmt_step	std/db/sqlite/mod.sx	执行
 api_reset	api	stmt_reset	std/db/sqlite/mod.sx	重置
 api_col	api	stmt_col_text	std/db/sqlite/mod.sx	读列
-symbol_prepare_c	symbol	db_prepare_c	std/db/sqlite/sqlite.c	准备
-symbol_cached_c	symbol	db_prepare_cached_c	std/db/sqlite/sqlite.c	缓存
-symbol_bind_c	symbol	db_stmt_bind_i32_c	std/db/sqlite/sqlite.c	绑定
-symbol_smoke_c	symbol	db_sqlite_stmt_bind_smoke_c	std/db/sqlite/sqlite.c	烟测
-impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
+symbol_prepare_c	symbol	db_prepare_c	std/db/sqlite/sqlite.sx	准备
+symbol_cached_c	symbol	db_prepare_cached_c	std/db/sqlite/sqlite.sx	缓存
+symbol_bind_c	symbol	db_stmt_bind_i32_c	std/db/sqlite/sqlite.sx	绑定
+symbol_smoke_c	symbol	db_sqlite_stmt_bind_smoke_c	std/db/sqlite/sqlite.sx	烟测
+impl_c	file	std/db/sqlite/sqlite.sx	std/db/sqlite/sqlite.sx	实现
 smoke_c	file	tests/std-sqlite/stmt_bind_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/stmt_bind_roundtrip.sx	.sx 往返
+smoke_sx	smoke	tests/std-sqlite/stmt_bind_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-stmt-cache-vectors.tsv	向量
 lib	script	lib/std-sqlite-stmt-cache.sh	tests/lib/std-sqlite-stmt-cache.sh
 gate	script	run-std-sqlite-stmt-cache-gate.sh	tests/run-std-sqlite-stmt-cache-gate.sh
