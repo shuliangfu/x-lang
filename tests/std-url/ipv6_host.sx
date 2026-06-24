@@ -12,7 +12,7 @@ function host_is_loopback_text(host: *u8, host_len: i32): i32 {
 }
 
 function test_parse_loopback(): i32 {
-  let raw: [24]u8 = [
+  let raw: u8[24] = [
     104, 116, 116, 112, 58, 47, 47, 91, 58, 58, 49, 93, 58, 56, 48, 56,
     48, 47, 112, 97, 116, 104, 0, 0
   ];
@@ -23,17 +23,17 @@ function test_parse_loopback(): i32 {
   if (url.parse(&raw[0], 22, &u) != 0) { return 1; }
   if (host_is_loopback_text(&u.host[0], u.host_len) != 1) { return 2; }
   if (url.host_is_ipv6(&u.host[0], u.host_len) != 1) { return 3; }
-  let addr: [16]u8 = [];
+  let addr: u8[16] = [];
   if (url.host_to_ipv6(&u.host[0], u.host_len, &addr[0]) != 0) { return 4; }
   if (addr[15] != 1) { return 5; }
-  let text: [64]u8 = [];
+  let text: u8[64] = [];
   let n: i32 = url.format_ipv6_host(&addr[0], &text[0], 64);
   if (n != 3) { return 6; }
   return 0;
 }
 
 function test_build_brackets(): i32 {
-  let raw: [28]u8 = [
+  let raw: u8[28] = [
     104, 116, 116, 112, 58, 47, 47, 91, 50, 48, 48, 49, 58, 100, 98, 56,
     58, 58, 49, 93, 58, 52, 52, 51, 47, 0, 0, 0
   ];
@@ -41,7 +41,7 @@ function test_build_brackets(): i32 {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
     scheme: [], host: [], port: [], path: [], query: [], fragment: []
   };
-  let buf: [128]u8 = [];
+  let buf: u8[128] = [];
   if (url.parse(&raw[0], 25, &u) != 0) { return 1; }
   if (url.build(u, &buf[0], 128) <= 0) { return 2; }
   if (buf[7] != 91) { return 3; }
