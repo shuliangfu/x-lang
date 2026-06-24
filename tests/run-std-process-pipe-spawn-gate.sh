@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
 MANIFEST="${SHUX_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
-PROC_SU="std/process/mod.sx"
-PROC_C="std/process/process.c"
+PROC_SX="std/process/mod.sx"
+PROC_C="${SHUX_STD_PROCESS_IMPL:-compiler/src/asm/runtime_process_os_glue.c}"
 LIB="tests/lib/std-process-pipe-spawn.sh"
-PIPE_SU="tests/process/spawn_pipe_echo.sx"
-WIN_SU="tests/process/spawn_wait_win.sx"
+PIPE_SX="tests/process/spawn_pipe_echo.sx"
+WIN_SX="tests/process/spawn_wait_win.sx"
 
 # shellcheck source=tests/lib/std-process-pipe-spawn.sh
 . tests/lib/std-process-pipe-spawn.sh
@@ -20,7 +20,7 @@ WIN_SU="tests/process/spawn_wait_win.sx"
 . tests/lib/ci-host.sh
 
 echo "=== STD-023/024: process pipe/spawn manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$PROC_SU" "$PROC_C" "$PIPE_SU" "$WIN_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$PROC_SX" "$PROC_C" "$PIPE_SX" "$WIN_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-process-pipe-spawn gate FAIL: missing $f" >&2
     exit 1
@@ -39,7 +39,7 @@ if ! grep -qF "process_spawn_io_c" "$PROC_C" 2>/dev/null; then
   exit 1
 fi
 
-sym_miss="$(std_pps_symbols_ok "$PROC_SU" "$MANIFEST" || true)"
+sym_miss="$(std_pps_symbols_ok "$PROC_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_pps_emit_report "fail" 0 0 1
   echo "std-process-pipe-spawn gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -78,19 +78,19 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-023/024: typeck (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o 2>/dev/null || true
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if "$SHUX_BIN" check -L . "$PIPE_SU" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$PIPE_SX" >/dev/null 2>&1; then
     PIPE_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_pipe_echo typeck" >&2
-    "$SHUX_BIN" check -L . "$PIPE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$PIPE_SX" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . "$WIN_SU" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$WIN_SX" >/dev/null 2>&1; then
     WIN_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_wait_win typeck" >&2
-    "$SHUX_BIN" check -L . "$WIN_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$WIN_SX" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" "$PIPE_OK" 0 0
     exit 1
   fi
