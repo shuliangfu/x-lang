@@ -1,5 +1,5 @@
 /**
- * pipeline_sx.o（fat）经 -E-extern 声明 lexer_lexer_init；lexer_su.o 导出 lexer_init。
+ * pipeline_sx.o（fat）经 -E-extern 声明 lexer_lexer_init；lexer_sx.o 导出 lexer_init。
  * 链接期转发，避免为旧 pipeline 重编整份 pipeline_gen.c。
  */
 #include <stddef.h>
