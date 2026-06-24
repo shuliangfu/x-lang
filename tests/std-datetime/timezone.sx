@@ -3,7 +3,7 @@ const datetime = import("std.datetime");
 
 function test_jst_roundtrip(): i32 {
   let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
-  let jst: [3]u8 = [74, 83, 84];
+  let jst: u8[3] = [74, 83, 84];
   if (datetime.timezone_from_name(&jst[0], 3, &tz) != 0) { return 1; }
   if (tz.offset_min != 540) { return 2; }
   let f: DateFields = DateFields {
@@ -18,7 +18,7 @@ function test_jst_roundtrip(): i32 {
 
 function test_parse_offset(): i32 {
   let off: i32 = 0;
-  let p8: [6]u8 = [43, 48, 56, 58, 48, 48];
+  let p8: u8[6] = [43, 48, 56, 58, 48, 48];
   if (datetime.parse_offset_min(&p8[0], 6, &off) != 0) { return 1; }
   if (off != 480) { return 2; }
   let tz: TimeZone = datetime.timezone_fixed(off);
