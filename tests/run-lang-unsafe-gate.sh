@@ -46,22 +46,43 @@ if ! grep -q '"unsafe"' compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c 2
 fi
 echo "lang-unsafe manifest OK"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
+# bstrict 导出 SHUX=./compiler/shux；本地/Docker 无 file(1) 时 native_shu 可能误判，Linux 回退 shux-c。
+# -o 链接/运行优先 shux-c（seed shux asm 链在 Docker 上易 SIGSEGV/PIE 失败）。
+SHUX_BIN=""
+if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
+  SHUX_BIN="${SHUX}"
+else
   for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
+    if [ -x "$cand" ] && native_shu "$cand"; then
       SHUX_BIN="$cand"
       break
     fi
   done
+fi
+if [ -z "$SHUX_BIN" ] && [ "$(uname -s)" = Linux ] && [ -x ./compiler/shux-c ]; then
+  SHUX_BIN=./compiler/shux-c
 fi
 
 if [ -z "$SHUX_BIN" ]; then
   echo "lang-unsafe gate SKIP bench (no native shux)" >&2
   exit 0
 fi
+
+# 单条 compile/run 超时（秒），避免 asm -o 挂死占满 CPU。
+SHUX_CASE_TIMEOUT="${SHUX_CASE_TIMEOUT:-120}"
+run_timeout_case() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --signal=TERM --kill-after=15 "$SHUX_CASE_TIMEOUT" "$@" || {
+      local ec=$?
+      [ "$ec" -eq 124 ] && echo "lang-unsafe FAIL: timeout after ${SHUX_CASE_TIMEOUT}s: $*" >&2
+      return "$ec"
+    }
+  else
+    "$@"
+  fi
+}
 
 run_sx_case() {
   local script="$1"
@@ -72,12 +93,12 @@ run_sx_case() {
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
+  if ! run_timeout_case "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
     cat /tmp/shux_unsafe_compile.log >&2
     return 1
   fi
   local ec=0
-  "$out" >/dev/null 2>&1 || ec=$?
+  run_timeout_case "$out" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne "$want_ec" ]; then
     echo "lang-unsafe FAIL $script: exit=$ec want=$want_ec" >&2
     return 1
@@ -88,13 +109,13 @@ run_sx_case() {
 compile_fail_case() {
   local script="$1"
   local src="tests/unsafe/${script}"
-  local out="/tmp/shux_unsafe_fail_${script%.sx}"
   local err="/tmp/shux_unsafe_fail_compile.log"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  if "$SHUX_BIN" -L . "$src" -o "$out" >"$err" 2>&1; then
+  # asm -o 历史上 skip_typeck 会漏掉 implicit padding；check 与 compile 的 typeck 路径对齐且更稳。
+  if run_timeout_case "$SHUX_BIN" check -L . "$src" >"$err" 2>&1; then
     echo "lang-unsafe FAIL $script: expected compile error" >&2
     return 1
   fi
@@ -131,7 +152,12 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHUX="$SHUX_BIN" "$hook"; then
+      # struct 回归：seed shux 单文件 -o 须跑 typeck；shux-c 与 bootstrap 默认 LINK 易 SIGSEGV。
+      hook_env=()
+      if [ "$script" = "run-struct.sh" ] && [ -x ./compiler/shux ]; then
+        hook_env=(SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux)
+      fi
+      if run_timeout_case env "${hook_env[@]}" SHUX="$SHUX_BIN" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"
       else
         echo "lang-unsafe FAIL $case_id ($script)" >&2
