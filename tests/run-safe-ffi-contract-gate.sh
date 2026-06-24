@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
 MANIFEST="${SHUX_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
-MOD_SU="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.sx}"
+MOD_SX="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.sx}"
 MIN_CASES=8
 
 # shellcheck source=tests/lib/safe-ffi.sh
@@ -30,7 +30,7 @@ native_shu() {
 }
 
 echo "=== SAFE-004: FFI memory contract manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" std/ffi/ffi.c; do
+for f in "$DOC" "$MANIFEST" "$MOD_SX" std/ffi/ffi.sx; do
   if [ ! -f "$f" ]; then
     echo "safe-ffi-contract gate FAIL: missing $f" >&2
     exit 1
