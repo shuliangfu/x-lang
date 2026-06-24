@@ -46,8 +46,8 @@ api_ws_hub_emit	api	ws_hub_emit_to_slot	std/socketio/mod.sx	按slot推送
 api_ws_hub_smoke	api	ws_hub_smoke	std/socketio/mod.sx	hub烟测
 api_srv_ns_ack	api	server_build_connect_ns_ack	std/socketio/mod.sx	CONNECT ACK
 api_srv_emit_ws_ns	api	server_emit_event_ws_ns	std/socketio/mod.sx	WS ns emit
-symbol_ws_hub_c	symbol	sio_ws_hub_smoke_c	std/socketio/socketio.c	hub烟测
-symbol_ns_ack_c	symbol	sio_server_build_connect_ns_ack_c	std/socketio/socketio.c	CONNECT ACK
+symbol_ws_hub_c	symbol	sio_ws_hub_smoke_c	std/socketio/socketio.sx	hub烟测
+symbol_ns_ack_c	symbol	sio_server_build_connect_ns_ack_c	std/socketio/socketio.sx	CONNECT ACK
 smoke_ws_hub	smoke	tests/socketio/ws_hub.sx	hub烟测
 api_ws_hub_export	api	ws_hub_export	std/socketio/mod.sx	hub快照导出
 api_ws_hub_import	api	ws_hub_import	std/socketio/mod.sx	hub快照导入
@@ -60,16 +60,16 @@ api_room_leave_all	api	room_leave_all	std/socketio/mod.sx	离开全部room
 api_room_count	api	room_member_count	std/socketio/mod.sx	成员数
 api_room_broadcast	api	room_broadcast_ns	std/socketio/mod.sx	room广播
 api_room_smoke	api	room_smoke	std/socketio/mod.sx	room烟测
-symbol_room_smoke_c	symbol	sio_room_smoke_c	std/socketio/socketio.c	room烟测
-symbol_hub_export_c	symbol	sio_ws_hub_export_c	std/socketio/socketio.c	hub导出
+symbol_room_smoke_c	symbol	sio_room_smoke_c	std/socketio/socketio.sx	room烟测
+symbol_hub_export_c	symbol	sio_ws_hub_export_c	std/socketio/socketio.sx	hub导出
 smoke_room	smoke	tests/socketio/room.sx	room烟测
 api_ws_hub_rebind	api	ws_hub_rebind	std/socketio/mod.sx	hub重绑fd
 api_room_export	api	room_registry_export	std/socketio/mod.sx	room快照导出
 api_room_import	api	room_registry_import	std/socketio/mod.sx	room快照导入
 api_room_snap	api	room_registry_snapshot_bytes	std/socketio/mod.sx	room快照字节
 api_hub_sync_smoke	api	hub_sync_smoke	std/socketio/mod.sx	跨进程同步烟测
-symbol_hub_sync_c	symbol	sio_hub_sync_smoke_c	std/socketio/socketio.c	跨进程烟测
-symbol_hub_rebind_c	symbol	sio_ws_hub_rebind_c	std/socketio/socketio.c	hub重绑
+symbol_hub_sync_c	symbol	sio_hub_sync_smoke_c	std/socketio/socketio.sx	跨进程烟测
+symbol_hub_rebind_c	symbol	sio_ws_hub_rebind_c	std/socketio/socketio.sx	hub重绑
 smoke_hub_sync	smoke	tests/socketio/hub_sync.sx	hub同步烟测
 npm_room_live_script	script	run-std-socketio-npm-room-live.sh	tests/run-std-socketio-npm-room-live.sh	npm room SKIP
 api_ws_hub_rebind_reg	api	ws_hub_register_or_rebind	std/socketio/mod.sx	注册或重绑
@@ -78,15 +78,15 @@ api_session_import	api	session_bundle_import	std/socketio/mod.sx	session导入
 api_session_bytes	api	session_bundle_bytes	std/socketio/mod.sx	session字节
 api_session_smoke	api	session_sync_smoke	std/socketio/mod.sx	session烟测
 api_mw_roundtrip	api	client_ws_fresh_ns_mw_roundtrip	std/socketio/mod.sx	mw往返
-symbol_session_smoke_c	symbol	sio_session_sync_smoke_c	std/socketio/socketio.c	session烟测
-symbol_rebind_reg_c	symbol	sio_ws_hub_register_or_rebind_c	std/socketio/socketio.c	注册重绑
+symbol_session_smoke_c	symbol	sio_session_sync_smoke_c	std/socketio/socketio.sx	session烟测
+symbol_rebind_reg_c	symbol	sio_ws_hub_register_or_rebind_c	std/socketio/socketio.sx	注册重绑
 smoke_session_sync	smoke	tests/socketio/session_sync.sx	session烟测
 npm_mw_live_script	script	run-std-socketio-npm-mw-live.sh	tests/run-std-socketio-npm-mw-live.sh	npm mw SKIP
 api_cluster_sync	api	cluster_sync	std/socketio/mod.sx	集群合并
 api_hub_append	api	ws_hub_append_from	std/socketio/mod.sx	hub追加
 api_room_merge	api	room_registry_merge_offset	std/socketio/mod.sx	room合并
 api_cluster_smoke	api	cluster_sync_smoke	std/socketio/mod.sx	集群烟测
-symbol_cluster_smoke_c	symbol	sio_cluster_sync_smoke_c	std/socketio/socketio.c	集群烟测
+symbol_cluster_smoke_c	symbol	sio_cluster_sync_smoke_c	std/socketio/socketio.sx	集群烟测
 smoke_cluster_sync	smoke	tests/socketio/cluster_sync.sx	集群烟测
 npm_plugin_live_script	script	run-std-socketio-npm-plugin-live.sh	tests/run-std-socketio-npm-plugin-live.sh	npm plugin SKIP
 api_cluster_adapter_init	api	cluster_adapter_init	std/socketio/mod.sx	adapter init
@@ -94,17 +94,17 @@ api_cluster_adapter_pub	api	cluster_adapter_publish_ns	std/socketio/mod.sx	adapt
 api_cluster_adapter_drain	api	cluster_adapter_drain_apply	std/socketio/mod.sx	adapter drain
 api_cluster_adapter_smoke	api	cluster_adapter_smoke	std/socketio/mod.sx	adapter烟测
 api_cluster_adapter_bytes	api	cluster_adapter_bytes	std/socketio/mod.sx	adapter字节
-symbol_cluster_adapter_c	symbol	sio_cluster_adapter_smoke_c	std/socketio/socketio.c	adapter烟测
+symbol_cluster_adapter_c	symbol	sio_cluster_adapter_smoke_c	std/socketio/socketio.sx	adapter烟测
 smoke_cluster_adapter	smoke	tests/socketio/cluster_adapter.sx	adapter烟测
 api_cluster_adapter_export	api	cluster_adapter_export	std/socketio/mod.sx	adapter导出
 api_cluster_adapter_import	api	cluster_adapter_import_merge	std/socketio/mod.sx	adapter合并
 api_cluster_adapter_snap	api	cluster_adapter_snapshot_bytes	std/socketio/mod.sx	SIOA字节
 api_cluster_ring_smoke	api	cluster_ring_sync_smoke	std/socketio/mod.sx	ring烟测
-symbol_cluster_ring_c	symbol	sio_cluster_ring_sync_smoke_c	std/socketio/socketio.c	ring烟测
+symbol_cluster_ring_c	symbol	sio_cluster_ring_sync_smoke_c	std/socketio/socketio.sx	ring烟测
 smoke_cluster_ring	smoke	tests/socketio/cluster_ring.sx	ring烟测
 cluster_ring_live_script	script	run-std-socketio-cluster-ring-live.sh	tests/run-std-socketio-cluster-ring-live.sh	ring SKIP
 api_p3_complete	api	p3_complete_smoke	std/socketio/mod.sx	P3收口烟测
-symbol_p3_complete_c	symbol	sio_p3_complete_smoke_c	std/socketio/socketio.c	P3收口烟测
+symbol_p3_complete_c	symbol	sio_p3_complete_smoke_c	std/socketio/socketio.sx	P3收口烟测
 smoke_p3_complete	smoke	tests/socketio/p3_complete.sx	P3收口烟测
 all_live_script	script	run-std-socketio-all-live.sh	tests/run-std-socketio-all-live.sh	all-live SKIP
 api_node_smoke	api	node_golden_smoke	std/socketio/mod.sx	Node金样
@@ -116,15 +116,15 @@ api_srv_smoke	api	server_smoke	std/socketio/mod.sx	server烟测
 api_smoke	api	socketio_packet_smoke	std/socketio/mod.sx	烟测
 api_poll_smoke	api	polling_smoke	std/socketio/mod.sx	polling烟测
 api_conn_smoke	api	connect_smoke	std/socketio/mod.sx	connect烟测
-symbol_enc_c	symbol	sio_eio_encode_packet_c	std/socketio/socketio.c	C编码
-symbol_url_c	symbol	sio_build_eio_url_c	std/socketio/socketio.c	URL
-symbol_ws_url_c	symbol	sio_build_ws_connect_url_c	std/socketio/socketio.c	ws URL
-symbol_hs_c	symbol	sio_polling_handshake_c	std/socketio/socketio.c	握手
-symbol_reconnect_c	symbol	sio_reconnect_delay_ms_c	std/socketio/socketio.c	退避
-symbol_node_c	symbol	sio_node_interop_smoke_c	std/socketio/socketio.c	Node金样
-symbol_srv_c	symbol	sio_server_smoke_c	std/socketio/socketio.c	server烟测
-symbol_conn_smoke_c	symbol	sio_connect_smoke_c	std/socketio/socketio.c	connect烟测
-symbol_smoke_c	symbol	sio_packet_smoke_c	std/socketio/socketio.c	C烟测
+symbol_enc_c	symbol	sio_eio_encode_packet_c	std/socketio/socketio.sx	C编码
+symbol_url_c	symbol	sio_build_eio_url_c	std/socketio/socketio.sx	URL
+symbol_ws_url_c	symbol	sio_build_ws_connect_url_c	std/socketio/socketio.sx	ws URL
+symbol_hs_c	symbol	sio_polling_handshake_c	std/socketio/socketio.sx	握手
+symbol_reconnect_c	symbol	sio_reconnect_delay_ms_c	std/socketio/socketio.sx	退避
+symbol_node_c	symbol	sio_node_interop_smoke_c	std/socketio/socketio.sx	Node金样
+symbol_srv_c	symbol	sio_server_smoke_c	std/socketio/socketio.sx	server烟测
+symbol_conn_smoke_c	symbol	sio_connect_smoke_c	std/socketio/socketio.sx	connect烟测
+symbol_smoke_c	symbol	sio_packet_smoke_c	std/socketio/socketio.sx	C烟测
 smoke_packet	smoke	tests/socketio/eio_packet.sx	包烟测
 smoke_node	smoke	tests/socketio/node_golden.sx	Node金样
 smoke_server	smoke	tests/socketio/server_golden.sx	server烟测
@@ -153,7 +153,7 @@ api_connect_ns	api	connect_ns	std/socketio/mod.sx	一站式ns
 api_ws_upgrade	api	ws_finish_eio_upgrade	std/socketio/mod.sx	EIO WS升级
 api_ws_fresh	api	connect_ws_fresh	std/socketio/mod.sx	WS直连
 api_ws_fresh_rt	api	client_ws_fresh_ns_event_roundtrip	std/socketio/mod.sx	WS直连往返
-symbol_ws_up_c	symbol	sio_eio_ws_upgrade_c	std/socketio/socketio.c	WS probe
+symbol_ws_up_c	symbol	sio_eio_ws_upgrade_c	std/socketio/socketio.sx	WS probe
 api_ns_sess_init	api	ns_sessions_init	std/socketio/mod.sx	会话表init
 api_ns_sess_sync	api	ns_sessions_sync_router	std/socketio/mod.sx	同步路由
 api_ns_sess_conn	api	ns_sessions_connect	std/socketio/mod.sx	CONNECT计数
@@ -161,14 +161,14 @@ api_ns_sess_disc	api	ns_sessions_disconnect	std/socketio/mod.sx	断开计数
 api_ns_sess_active	api	ns_sessions_active	std/socketio/mod.sx	查active
 api_ns_sess_total	api	ns_sessions_total	std/socketio/mod.sx	总active
 api_ns_sess_smoke	api	ns_sessions_smoke	std/socketio/mod.sx	会话烟测
-symbol_emit_c	symbol	sio_server_emit_event_c	std/socketio/socketio.c	服务端emit
-symbol_emit_smoke_c	symbol	sio_server_emit_smoke_c	std/socketio/socketio.c	emit烟测
-symbol_event_ns_c	symbol	sio_encode_event_ns_packet_c	std/socketio/socketio.c	ns EVENT
-symbol_ack_c	symbol	sio_encode_ack_packet_c	std/socketio/socketio.c	ACK
-symbol_ns_smoke_c	symbol	sio_ns_ack_smoke_c	std/socketio/socketio.c	ns/ack烟测
-symbol_parse_ns_c	symbol	sio_parse_connect_ns_packet_c	std/socketio/socketio.c	解析ns
-symbol_ns_rt_smoke_c	symbol	sio_ns_router_smoke_c	std/socketio/socketio.c	路由烟测
-symbol_ns_sess_smoke_c	symbol	sio_ns_sessions_smoke_c	std/socketio/socketio.c	会话烟测
+symbol_emit_c	symbol	sio_server_emit_event_c	std/socketio/socketio.sx	服务端emit
+symbol_emit_smoke_c	symbol	sio_server_emit_smoke_c	std/socketio/socketio.sx	emit烟测
+symbol_event_ns_c	symbol	sio_encode_event_ns_packet_c	std/socketio/socketio.sx	ns EVENT
+symbol_ack_c	symbol	sio_encode_ack_packet_c	std/socketio/socketio.sx	ACK
+symbol_ns_smoke_c	symbol	sio_ns_ack_smoke_c	std/socketio/socketio.sx	ns/ack烟测
+symbol_parse_ns_c	symbol	sio_parse_connect_ns_packet_c	std/socketio/socketio.sx	解析ns
+symbol_ns_rt_smoke_c	symbol	sio_ns_router_smoke_c	std/socketio/socketio.sx	路由烟测
+symbol_ns_sess_smoke_c	symbol	sio_ns_sessions_smoke_c	std/socketio/socketio.sx	会话烟测
 smoke_ns_sessions	smoke	tests/socketio/ns_sessions.sx	会话烟测
 npm_ws_live_script	script	run-std-socketio-npm-ws-live.sh	tests/run-std-socketio-npm-ws-live.sh	npm WS SKIP
 smoke_ns_router	smoke	tests/socketio/ns_router.sx	路由烟测
