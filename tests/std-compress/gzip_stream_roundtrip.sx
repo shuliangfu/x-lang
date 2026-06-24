@@ -2,16 +2,16 @@
 const compress = import("std.compress");
 
 function main(): i32 {
-  let raw: [13]u8 = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33, 0];
+  let raw: u8[13] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33, 0];
   let raw_len: i32 = 12;
   let sb: i32 = gzip_stream_state_bytes();
   if (sb <= 0 || sb > 256) { return 99; }
-  let st_c: [256]u8 = [];
-  let st_d: [256]u8 = [];
+  let st_c: u8[256] = [];
+  let st_d: u8[256] = [];
   if (gzip_stream_init_compress(&st_c[0], sb) != 0) { return 0; }
-  let comp: [512]u8 = [];
+  let comp: u8[512] = [];
   let comp_len: i32 = 0;
-  let scratch: [128]u8 = [];
+  let scratch: u8[128] = [];
   let off: i32 = 0;
   let chunk: i32 = 4;
   while (off < raw_len) {
@@ -57,7 +57,7 @@ function main(): i32 {
   gzip_stream_end(&st_c[0], sb);
   if (comp_len <= 0) { return 4; }
   if (gzip_stream_init_decompress(&st_d[0], sb) != 0) { return 5; }
-  let dec: [256]u8 = [];
+  let dec: u8[256] = [];
   let dec_len: i32 = 0;
   let cin: i32 = 0;
   let dchunk: i32 = 5;
