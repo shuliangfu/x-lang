@@ -9,7 +9,7 @@
 const process = import("std.process");
 
 function main(): i32 {
-  let buf: [128]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let buf: u8[128] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0];
   let n: i32 = process.self_exe_path(&buf[0], 128);
   if (n <= 0) {
