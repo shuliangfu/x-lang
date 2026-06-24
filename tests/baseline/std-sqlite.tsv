@@ -10,12 +10,12 @@ api_changes	api	changes	std/db/sqlite/mod.sx	影响行
 api_backend	api	backend_name	std/db/sqlite/mod.sx	后端名
 api_close	api	close	std/db/sqlite/mod.sx	关闭
 const_err_exec	const	DB_ERR_EXEC	std/db/sqlite/mod.sx	-3
-symbol_open_c	symbol	db_open_c	std/db/sqlite/sqlite.c	打开
-symbol_exec_c	symbol	db_exec_c	std/db/sqlite/sqlite.c	执行
-symbol_smoke_c	symbol	db_sqlite_exec_smoke_c	std/db/sqlite/sqlite.c	C 烟测
-impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
+symbol_open_c	symbol	db_open_c	std/db/sqlite/sqlite.sx	打开
+symbol_exec_c	symbol	db_exec_c	std/db/sqlite/sqlite.sx	执行
+symbol_smoke_c	symbol	db_sqlite_exec_smoke_c	std/db/sqlite/sqlite.sx	C 烟测
+impl_c	file	std/db/sqlite/sqlite.sx	std/db/sqlite/sqlite.sx	实现
 smoke_c	file	tests/std-sqlite/exec_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/exec_roundtrip.sx	.sx 往返
+smoke_sx	smoke	tests/std-sqlite/exec_roundtrip.sx	.sx 往返
 lib	script	lib/std-sqlite-gate.sh	tests/lib/std-sqlite-gate.sh
 gate	script	run-std-sqlite-gate.sh	tests/run-std-sqlite-gate.sh
 cross_std010	cross_ref	analysis/std-sqlite-prereq-v1.md	STD-010
