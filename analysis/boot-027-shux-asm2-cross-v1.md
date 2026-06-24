@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 前置：BOOT-026 C4 SU bootstrap、`run-stage2-bstrict-gate.sh`  
+> 前置：BOOT-026 C4 SX bootstrap、`run-stage2-bstrict-gate.sh`  
 > 关联：`boot-crossplatform-v1.md`、Stage2 `shux_asm2` 二进制
 
 ---
