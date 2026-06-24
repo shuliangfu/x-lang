@@ -30,17 +30,17 @@ api_srv_accept	api	ws_server_accept	std/websocket/mod.sx	服务端101
 api_srv_handshake	api	ws_server_handshake	std/websocket/mod.sx	服务端握手
 api_srv_encode	api	ws_encode_server_text_frame	std/websocket/mod.sx	服务端TEXT
 api_srv_write	api	ws_server_write_text	std/websocket/mod.sx	服务端发送
-symbol_parse_url_c	symbol	net_ws_parse_url_c	std/net/ws.inc.c	C URL解析
-symbol_connect_tls_c	symbol	net_ws_connect_tls_c	std/net/ws.inc.c	C wss
-symbol_connect_url_c	symbol	net_ws_connect_url_c	std/net/ws.inc.c	C URL连接
-symbol_hs_smoke	symbol	net_ws_client_handshake_smoke_c	std/net/ws.inc.c	握手烟测
-symbol_ping_c	symbol	net_ws_encode_ping_frame_c	std/net/ws.inc.c	C PING
-symbol_close_c	symbol	net_ws_encode_close_frame_c	std/net/ws.inc.c	C CLOSE
-symbol_accept_c	symbol	net_ws_compute_accept_c	std/net/ws.inc.c	C Accept
-symbol_encode_c	symbol	net_ws_encode_text_frame_c	std/net/ws.inc.c	C 编码
-symbol_srv_accept_c	symbol	net_ws_server_accept_request_c	std/net/ws.inc.c	C 服务端101
-symbol_srv_hs_c	symbol	net_ws_server_handshake_c	std/net/ws.inc.c	C 服务端握手
-symbol_srv_smoke	symbol	net_ws_server_accept_smoke_c	std/net/ws.inc.c	服务端烟测
+symbol_parse_url_c	symbol	net_ws_parse_url_c	std/net/ws_codec.sx	C URL解析
+symbol_connect_tls_c	symbol	net_ws_connect_tls_c	std/net/ws_io.sx	C wss
+symbol_connect_url_c	symbol	net_ws_connect_url_c	std/net/ws_io.sx	C URL连接
+symbol_hs_smoke	symbol	net_ws_client_handshake_smoke_c	std/net/ws_io.sx	握手烟测
+symbol_ping_c	symbol	net_ws_encode_ping_frame_c	std/net/ws_codec.sx	C PING
+symbol_close_c	symbol	net_ws_encode_close_frame_c	std/net/ws_codec.sx	C CLOSE
+symbol_accept_c	symbol	net_ws_compute_accept_c	std/net/ws_codec.sx	C Accept
+symbol_encode_c	symbol	net_ws_encode_text_frame_c	std/net/ws_codec.sx	C 编码
+symbol_srv_accept_c	symbol	net_ws_server_accept_request_c	std/net/ws_io.sx	C 服务端101
+symbol_srv_hs_c	symbol	net_ws_server_handshake_c	std/net/ws_io.sx	C 服务端握手
+symbol_srv_smoke	symbol	net_ws_server_accept_smoke_c	std/net/ws_io.sx	服务端烟测
 api_ctx_timeout	api	ws_timeout_ms_from_ctx	std/websocket/mod.sx	Context→毫秒
 api_ctx_check	api	ws_ctx_check	std/websocket/mod.sx	前置检查
 api_connect_ctx	api	ws_connect_ctx_fd	std/websocket/mod.sx	ws连接+ctx
