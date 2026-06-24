@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD063_ELF_DEEP] status=ok deep_c=1 deep_su=0 skip=1
+shux: [SHUX_STD063_ELF_DEEP] status=ok deep_c=1 deep_sx=0 skip=1
 ```
 
 无 native `shux` 时 manifest 仍须绿；C 烟测须过。
