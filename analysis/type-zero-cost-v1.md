@@ -26,14 +26,14 @@
 | **Z1-linear-abi** | `Linear(T)` | 与 `T` 同布局/ABI；无 drop 表 | `move_ok.sx` + TYPE-001 |
 | **Z2-generic-mono** | `id<T>(x)` | 编译期单态化，无 vtable | `generic_id_i32.sx` |
 | **Z3-struct-byval** | 小 struct 按值传参 | 栈拷贝 = C struct | `struct_param.sx` B-CMP |
-| **Z4-region-zero** | `region` / `[]T<label>` | 标签不进 ABI/runtime | TYPE-002 RFC |
+| **Z4-region-zero** | `region` / `T[]<label>` | 标签不进 ABI/runtime | TYPE-002 RFC |
 | **Z5-call-depth** | 多层函数调用 | 无额外间接层 | `call_boundary.sx` B-CMP |
 | **Z6-mem-hotpath** | 循环 memcpy 热路径 | 无多余用户态 copy | `mem_copy.sx` B-CMP |
 
 **copy 判定（v1）**：
 
 1. **无额外堆分配**：抽象包装不得在热路径引入 malloc。
-2. **无隐式深拷贝**：`[]T` slice 赋值共享 `(ptr,len)`，不复制元素（ZC-3）。
+2. **无隐式深拷贝**：`T[]` slice 赋值共享 `(ptr,len)`，不复制元素（ZC-3）。
 3. **性能回归**：P0 microbench 须 **≤ SHUX_PERF_C_O3_RATIO × C -O3**（`run-bcmp-gate.sh`）。
 
 ---
