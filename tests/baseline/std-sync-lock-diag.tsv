@@ -12,8 +12,8 @@ api_clear	api	lock_diag_clear	std/sync/mod.sx	清空
 api_snapshot	api	lock_diag_snapshot	std/sync/mod.sx	快照
 api_smoke	api	lock_diag_smoke	std/sync/mod.sx	C 烟测
 api_err_order	api	lock_diag_err_order	std/sync/mod.sx	锁序错误码
-symbol_smoke_c	symbol	sync_lock_diag_smoke_c	std/sync/sync.c	C 烟测
+symbol_smoke_c	symbol	sync_lock_diag_smoke_c	std/sync/sync.sx	C 烟测（v2 逻辑在 .sx）
 smoke_c	file	tests/sync/lock_diag_smoke_ok.c	C 入口
-smoke_su	smoke	tests/sync/lock_diag.sx	.sx 烟测
+smoke_sx	smoke	tests/sync/lock_diag.sx	.sx 烟测
 lib	script	lib/std-sync-lock-diag.sh	tests/lib/std-sync-lock-diag.sh
 gate	script	run-std-sync-lock-diag-gate.sh	tests/run-std-sync-lock-diag-gate.sh
