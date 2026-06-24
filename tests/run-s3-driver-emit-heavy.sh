@@ -14,7 +14,7 @@ if [ -z "$COMP" ]; then
     fi
   done
 fi
-COMPILE_SU="compiler/src/driver/compile.sx"
+COMPILE_SX="compiler/src/driver/compile.sx"
 OUT="/tmp/shux_s3_driver_emit_heavy.o"
 BASELINE="${SHUX_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
@@ -64,7 +64,7 @@ PY
 
 rm -f "$OUT"
 if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$COMP" -backend asm -o "$OUT" $LIBROOT "$COMPILE_SU" 2>/dev/null; then
+  "$COMP" -backend asm -o "$OUT" $LIBROOT "$COMPILE_SX" 2>/dev/null; then
   echo "s3 driver emit-heavy: compile failed" >&2
   exit 1
 fi
@@ -103,8 +103,8 @@ PY
     "driver_compile_parse_argv_loop:20" \
     "driver_compile_parse_argv_finalize:20" \
     "driver_compile_parse_argv:25" \
-    "run_compiler_full_su:15" \
-    "run_compiler_full_su_post_parse:40" \
+    "run_compiler_full_sx:15" \
+    "run_compiler_full_sx_post_parse:40" \
     "compile_dispatch_asm_backend:15"; do
     fn="${pair%%:*}"
     min="${pair##*:}"
