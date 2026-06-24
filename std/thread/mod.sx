@@ -1,13 +1,13 @@
 // std.thread — 线程：spawn/join/self，多核易用（与 std.net 多 worker
 // 配合压榨性能）
 //
-// 职责：提供 thread_self、thread_create、thread_join；实现由 std/thread/thread.c
+// 职责：提供 thread_self、thread_create、thread_join；实现由 std/thread/thread.sx + thread_glue.c
 // 提供，链接 thread.o；Unix 需 -lpthread。
 // 约定：thread_create(entry, arg) 的 entry 为 C 函数地址（void* (*)(void*)），当前
 // .sx 无函数指针时可用 thread_dummy_entry_ptr() 测试或由 C 层提供入口。
 // 后续：语言支持 &fn 后可直接 spawn(.sx 函数)；或 net 提供 listen_workers
 // 时内部使用本模块。
-// ——— C 层：由 std/thread/thread.c 提供 ———
+// ——— C 层：由 std/thread/thread_glue.c 提供（F-thread v1） ———
 extern function thread_self_c(): i64;
 extern function thread_create_c(entry: usize, arg: usize): i64;
 extern function thread_create_with_stack_c(entry: usize, arg: usize, stack_size: usize): i64;
