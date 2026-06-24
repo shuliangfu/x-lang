@@ -2,7 +2,7 @@
 const thread = import("std.thread");
 
 function main(): i32 {
-  let nm: [9]u8 = [115, 104, 117, 45, 109, 97, 105, 110, 0];
+  let nm: u8[9] = [115, 104, 117, 45, 109, 97, 105, 110, 0];
   if (thread_set_name_self(&nm[0], 8) != 0) {
     /* macOS/Linux 外平台可 -1，不失败 */
   }
