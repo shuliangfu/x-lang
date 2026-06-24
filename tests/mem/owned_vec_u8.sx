@@ -1,0 +1,7 @@
+// MEM-B1：owned(Vec_u8) 块尾自动 vec_u8_deinit。
+const vec = import("std.vec");
+
+function main(): i32 {
+  let v: owned(Vec_u8) = vec.vec_u8_new();
+  return vec.vec_u8_len(v);
+}
