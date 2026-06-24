@@ -24,7 +24,7 @@ allow(padding) struct Span {
 
 /** trace_id 128-bit（16 字节）。 */
 allow(padding) struct TraceId {
-  bytes: [16]u8;
+  bytes: u8[16];
 }
 
 /** 成功。 */
@@ -123,7 +123,7 @@ function export_text(tr: *Trace, out: *u8, out_cap: i32): i32 {
 
 /** 将 trace 句柄写入 Context value bag。 */
 function attach_to_context(ctx: Context, tr: Trace): i32 {
-  let k: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let k: u8[6] = [116, 114, 97, 99, 101, 0];
   return context.set_value(ctx, &k[0], tr.handle);
 }
 
@@ -132,7 +132,7 @@ function from_context(ctx: Context): Trace {
   let zero: i64 = 0;
   let h: i64 = zero;
   let tr: Trace = Trace { handle: zero };
-  let k: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let k: u8[6] = [116, 114, 97, 99, 101, 0];
   if (context.get_value(ctx, &k[0], &h) != 0) {
     tr.handle = h;
   }
@@ -167,7 +167,7 @@ function hook_span_end(tr: *Trace, sp: Span): i32 {
 /** io.read 自动 span；Context 无 trace 时透传 read_ctx。 */
 function hook_io_read_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_context(ctx);
-  let n_io_read: [7]u8 = [105, 111, 46, 114, 101, 97, 100];
+  let n_io_read: u8[7] = [105, 111, 46, 114, 101, 97, 100];
   let sp: Span = hook_span_begin(&tr, &n_io_read[0], 7);
   let r: i32 = io.read_ctx(handle, ptr, len, ctx);
   hook_span_end(&tr, sp);
@@ -177,7 +177,7 @@ function hook_io_read_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i3
 /** io.write 自动 span；Context 无 trace 时透传 write_ctx。 */
 function hook_io_write_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_context(ctx);
-  let n_io_write: [8]u8 = [105, 111, 46, 119, 114, 105, 116, 101];
+  let n_io_write: u8[8] = [105, 111, 46, 119, 114, 105, 116, 101];
   let sp: Span = hook_span_begin(&tr, &n_io_write[0], 8);
   let r: i32 = io.write_ctx(handle, ptr, len, ctx);
   hook_span_end(&tr, sp);
@@ -187,7 +187,7 @@ function hook_io_write_ctx(ctx: Context, handle: usize, ptr: *u8, len: usize): i
 /** net.connect 自动 span；返回 fd 语义同 connect_ctx_fd。 */
 function hook_net_connect_ctx(ctx: Context, addr: Ipv4Addr, port: u32): i32 {
   let tr: Trace = from_context(ctx);
-  let n_net_conn: [11]u8 = [110, 101, 116, 46, 99, 111, 110, 110, 101, 99, 116];
+  let n_net_conn: u8[11] = [110, 101, 116, 46, 99, 111, 110, 110, 101, 99, 116];
   let sp: Span = hook_span_begin(&tr, &n_net_conn[0], 11);
   let fd: i32 = net.connect_ctx_fd(addr, port, ctx);
   hook_span_end(&tr, sp);
@@ -197,7 +197,7 @@ function hook_net_connect_ctx(ctx: Context, addr: Ipv4Addr, port: u32): i32 {
 /** net.stream_read 自动 span；语义同 stream_read_ctx。 */
 function hook_net_stream_read_ctx(ctx: Context, stream: TcpStream, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_context(ctx);
-  let n_net_rd: [15]u8 = [110, 101, 116, 46, 115, 116, 114, 101, 97, 109, 95, 114, 101, 97, 100];
+  let n_net_rd: u8[15] = [110, 101, 116, 46, 115, 116, 114, 101, 97, 109, 95, 114, 101, 97, 100];
   let sp: Span = hook_span_begin(&tr, &n_net_rd[0], 15);
   let r: i32 = net.stream_read_ctx(stream, ptr, len, ctx);
   hook_span_end(&tr, sp);
@@ -207,7 +207,7 @@ function hook_net_stream_read_ctx(ctx: Context, stream: TcpStream, ptr: *u8, len
 /** async.drain 自动 span；语义同 runtime_drain。 */
 function hook_async_drain_ctx(ctx: Context, rt: *AsyncRuntime): i32 {
   let tr: Trace = from_context(ctx);
-  let n_async: [11]u8 = [97, 115, 121, 110, 99, 46, 100, 114, 97, 105, 110];
+  let n_async: u8[11] = [97, 115, 121, 110, 99, 46, 100, 114, 97, 105, 110];
   let sp: Span = hook_span_begin(&tr, &n_async[0], 11);
   let r: i32 = async_mod.runtime_drain(rt);
   hook_span_end(&tr, sp);
