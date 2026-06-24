@@ -19,9 +19,9 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 
-/** typeck 布局 metrics：strict 链由 typeck_su.o / typeck_asm_layout_partial.o 导出，glue 不重复 wrapper。 */
+/** typeck 布局 metrics：strict 链由 typeck_sx.o / typeck_asm_layout_partial.o 导出，glue 不重复 wrapper。 */
 
-/** preprocess_sx_buf 由 sx_seed_bridge.o + preprocess_su.o 提供，勿在此重复定义。 */
+/** preprocess_sx_buf 由 sx_seed_bridge.o + preprocess_sx.o 提供，勿在此重复定义。 */
 
 /** ast_ast_arena_init 由 pipeline_glue.c（SHUX_PIPELINE_GLUE_STANDALONE_TU）提供，勿在此重复定义。 */
 
@@ -60,10 +60,10 @@ void parse_into_init(void *module, void *arena) {
 }
 
 /** ast_pool.c 提供 C 实现；glue_standalone 勿 undefined 调 pipeline.sx 薄 bl。 */
-extern int32_t pipeline_should_skip_su_typeck_c(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_should_skip_sx_typeck_c(struct ast_PipelineDepCtx *ctx);
 
-int32_t pipeline_should_skip_su_typeck(struct ast_PipelineDepCtx *ctx) {
-  return pipeline_should_skip_su_typeck_c(ctx);
+int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx *ctx) {
+  return pipeline_should_skip_sx_typeck_c(ctx);
 }
 
 /**
