@@ -4,8 +4,8 @@
 STD_ELF_WRITE_PREFIX="${SHUX_STD121_ELF_WRITE_PREFIX:-shux: [SHUX_STD121_ELF_WRITE]}"
 
 std_elf_write_symbols_ok() {
-  local mod_su="$1"
-  local elf_c="$2"
+  local mod_sx="$1"
+  local elf_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,11 +14,12 @@ std_elf_write_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/elf/elf.c" ] && path="$elf_c"
+        [ "$path" = "std/elf/elf.sx" ] && path="$elf_sx"
+        [ "$path" = "std/elf/elf_glue.c" ] && path="$elf_sx"
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors)
@@ -56,5 +57,5 @@ std_elf_write_run_sx_smoke() {
 }
 
 std_elf_write_emit_report() {
-  echo "${STD_ELF_WRITE_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_ELF_WRITE_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
