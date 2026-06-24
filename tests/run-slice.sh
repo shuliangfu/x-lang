@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 切片 []T：从数组初始化、下标访问；core.slice len_i32；[]u8 字段 .data/.length
+# 切片 T[]：从数组初始化、下标访问；core.slice len_i32；u8[] 字段 .data/.length
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
@@ -18,8 +18,9 @@ fi
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
-make -C compiler -q ../std/process/process.o ../core/slice/slice.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../core/slice/slice.o
+# core/slice C 实现（length.sx 等）；勿强编 process.o（arm64 shux-c 无 asm backend）。
+make -C compiler -q ../core/slice/slice.o 2>/dev/null \
+  || make -C compiler ../core/slice/slice.o 2>/dev/null || true
 
 $RUN_SHUX tests/slice/main.sx -o /tmp/shux_slice 2>&1
 exitcode=0; /tmp/shux_slice >/dev/null 2>&1 || exitcode=$?
@@ -40,7 +41,8 @@ exitcode=0; /tmp/shux_slice_subsplit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (subslice_split_chunks), got $exitcode"; exit 1; }
 
 # 边界：对非数组/切片取下标，应报 subscript base must be array, slice or pointer
-err=$($SHUX tests/slice/subscript_not_slice.sx -o /tmp/shux_slice_fail 2>&1) || true
+# typeck 边界须 shux-c（seed shux 可能无完整 typeck 诊断）；与 $RUN_SHUX 一致。
+err=$($RUN_SHUX tests/slice/subscript_not_slice.sx -o /tmp/shux_slice_fail 2>&1) || true
 echo "$err" | grep -q "subscript base must be array" || { echo "expected subscript base error, got: $err"; exit 1; }
 
 echo "slice test OK"
