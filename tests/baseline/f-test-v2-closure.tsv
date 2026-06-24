@@ -1,0 +1,10 @@
+# F-test v2 std.test 逻辑下沉 manifest
+# 列：item_id	kind	anchor	notes
+ftst2_doc	doc	analysis/phase-f-test-v2.md	F-test v2
+ftst2_gate	gate	tests/run-f-test-v2-gate.sh	逻辑下沉门禁
+ts_sx	file	std/test/test.sx	expect/runner/bench/fuzz/IO 全量
+runtime_test_fn	file	compiler/src/asm/runtime_test_fn_invoke.c	fn-ptr（F-ZC）
+ts_mod	file	std/test/mod.sx	对外 API
+ts_glue_absent	absent	std/test/test_glue.c	F-ZC 已删除
+ts_c_absent	absent	std/test/test.c	已删除
+makefile	makefile	compiler/Makefile	test.o 纯 .sx
