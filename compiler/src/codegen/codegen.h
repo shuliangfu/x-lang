@@ -113,7 +113,7 @@ void codegen_set_eextern_entry_path(const char *entry_path);
 /**
  * .sx pipeline 用：在调用 pipeline_run_sx_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
  */
-void codegen_set_dep_slots_for_su_pipeline(struct ASTModule **mods, const char **paths, int n);
+void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n);
 
 /**
  * WPO-S1/S2：从 entry + 全部传递依赖模块构建 call graph 并输出 JSON（version 2）。
@@ -153,5 +153,9 @@ void codegen_wpo_collect_mono_thunks(CodegenWpoMonoThunks *out,
 
 /** 格式化单态符号：base + __wpo + _arg0 + _arg1（负实参用 _n123）。成功返回 sym 长度，失败 -1。 */
 int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
+
+/** std.fmt / std.debug 任意类型 JSON 打印：非 0 时生成 C 须注入 runtime_fmt_any.h。 */
+extern int codegen_fmt_json_helpers_needed;
+void codegen_emit_fmt_json_helpers_once(FILE *out);
 
 #endif /* SHUX_CODEGEN_H */
