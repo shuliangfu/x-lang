@@ -2,7 +2,7 @@
 # std-runtime-panic-hook.sh — STD-028：panic 钩子 manifest 辅助
 #
 # 用法（source 后）：
-#   std_runtime_panic_manifest_ok DOC README RUNTIME_SU TSV [extra files...]
+#   std_runtime_panic_manifest_ok DOC README RUNTIME_SX TSV [extra files...]
 #   std_runtime_panic_emit_report status matrix_ok check_ok exc_ok skip
 
 STD_RUNTIME_PANIC_PREFIX="${SHUX_STD_RUNTIME_PANIC_PREFIX:-shux: [SHUX_STD_RUNTIME_PANIC]}"
@@ -11,7 +11,7 @@ STD_RUNTIME_PANIC_PREFIX="${SHUX_STD_RUNTIME_PANIC_PREFIX:-shux: [SHUX_STD_RUNTI
 std_runtime_panic_manifest_ok() {
   local doc="$1"
   local readme="$2"
-  local runtime_su="$3"
+  local runtime_sx="$3"
   local tsv="$4"
   shift 4
   local miss=0
@@ -44,8 +44,8 @@ std_runtime_panic_manifest_ok() {
         ;;
       symbol)
         matrix_n=$((matrix_n + 1))
-        if ! grep -qE "function ${code_anchor}\\(" "$runtime_su" 2>/dev/null; then
-          echo "std-runtime-panic FAIL: missing ${code_anchor} in $runtime_su" >&2
+        if ! grep -qE "function ${code_anchor}\\(" "$runtime_sx" 2>/dev/null; then
+          echo "std-runtime-panic FAIL: missing ${code_anchor} in $runtime_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
