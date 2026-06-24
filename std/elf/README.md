@@ -1,6 +1,6 @@
 # std.elf
 
-ELF64 只读解析与最小 reloc 写入（STD-058+）。C 实现：`std/elf/elf.c`。
+ELF64 只读解析与最小 reloc 写入（STD-058+）。实现：**纯 `elf.sx`**（F-elf v2 + F-ZC；fixture 经 `fs_open_read_c`）。
 
 ## API
 
