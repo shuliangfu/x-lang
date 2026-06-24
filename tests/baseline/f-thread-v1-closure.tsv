@@ -1,0 +1,10 @@
+# F-thread v1 std.thread 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fth_doc	doc	analysis/phase-f-thread-v1.md	F-thread v1
+fth_gate	gate	tests/run-f-thread-v1-gate.sh	聚合门禁
+th_sx	file	std/thread/thread.sx	模块锚点 .sx
+th_runtime	file	compiler/src/asm/runtime_thread_glue.c	线程胶层 runtime
+th_mod	file	std/thread/mod.sx	对外 API
+th_glue_absent	absent	std/thread/thread_glue.c	已迁入 runtime
+th_c_absent	absent	std/thread/thread.c	已删除
+makefile	makefile	compiler/Makefile	thread.o 纯 .sx + runtime_thread_glue.o
