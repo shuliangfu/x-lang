@@ -2,8 +2,8 @@
 # std-crypto.sh — STD-006 共享：std.crypto / std.random 烟测辅助
 #
 # 用法（source 后）：
-#   std_crypto_has_api MOD_SU fn_name
-#   std_crypto_run_smoke SHUX_BIN smoke_su [tag]
+#   std_crypto_has_api MOD_SX fn_name
+#   std_crypto_run_smoke SHUX_BIN smoke_sx [tag]
 #   std_crypto_run_hook SHUX_BIN tests/run-*.sh
 
 # 检查 mod.sx 是否导出指定函数。
@@ -77,4 +77,41 @@ std_crypto_resolve_shu() {
     fi
   done
   return 1
+}
+
+# crypto.o 是否含 crypto_core.sx 链入符号（无 shux-c 时仅 glue）。
+std_crypto_o_has_sx_symbols() {
+  local o="$1"
+  nm "$o" 2>/dev/null | grep -qE ' crypto_(mem_eq_c|sha256_c|hmac_sha256_c)$'
+}
+
+# manifest mod_path → 实际源文件（sha256 在 .sx，sha512/AEAD 在 runtime glue）。
+std_crypto_resolve_impl_path() {
+  local mod_path="$1"
+  case "$mod_path" in
+    std/crypto/crypto.c|std/crypto/crypto_core.sx) echo "std/crypto/crypto_core.sx" ;;
+    std/crypto/crypto_inc_glue.c|compiler/src/asm/runtime_crypto_inc_glue.c)
+      echo "compiler/src/asm/runtime_crypto_inc_glue.c"
+      ;;
+    std/crypto/ed25519.sx|std/crypto/ed25519.inc.c|std/crypto/aes_gcm.sx|std/crypto/chacha20_poly1305.sx)
+      echo "std/crypto/$(basename "$mod_path")"
+      ;;
+    std/crypto/ed25519_ref10_glue.c|compiler/src/asm/runtime_ed25519_ref10_glue.c)
+      echo "compiler/src/asm/runtime_ed25519_ref10_glue.c"
+      ;;
+    *) echo "$mod_path" ;;
+  esac
+}
+
+# F-ZC：crypto C smoke 须链 crypto.o + runtime 胶层（ref10 须在 inc 前）。
+std_crypto_c_link_objs() {
+  echo "std/crypto/crypto.o compiler/runtime_ed25519_ref10_glue.o compiler/runtime_crypto_inc_glue.o"
+}
+
+# 确保 crypto runtime 胶层 .o 已编译。
+std_crypto_ensure_runtime_glue_o() {
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build-std-c-o.sh"
+  ensure_runtime_ed25519_ref10_glue_o
+  ensure_runtime_crypto_inc_glue_o
 }
