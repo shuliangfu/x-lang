@@ -15,12 +15,12 @@ function main(): i32 {
   if (http.http2_flow_state_apply_window_update(&st, 1, 128) != 0) { return 6; }
   if (http.http2_flow_state_max_send(&st, 64) != 0) { return 7; }
 
-  let payload: [4]u8 = [0, 0, 0, 32];
+  let payload: u8[4] = [0, 0, 0, 32];
   let inc: i32 = 0;
   if (http.http2_parse_window_update_payload(&payload[0], 4, &inc) != 0) { return 8; }
   if (inc != 32) { return 9; }
 
-  let wu: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let wu: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (http.http2_build_window_update(1, 64, &wu[0], 16) != 13) { return 10; }
 
   return 0;
