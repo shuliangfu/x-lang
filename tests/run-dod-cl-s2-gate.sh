@@ -47,11 +47,7 @@ if [ -z "$CHECK_SHUX" ] && [ -z "$SHUX_ABS" ]; then
   exit 0
 fi
 
-# 确保 heap.o 含 Arena64 符号
-if [ ! -f std/heap/heap.o ] || [ std/heap/heap.c -nt std/heap/heap.o ]; then
-  cc -Wall -Wextra -Icompiler -Icompiler/include -Isrc -c -o std/heap/heap.o std/heap/heap.c 2>/dev/null || \
-    cc -Wall -Wextra -c -o std/heap/heap.o std/heap/heap.c
-fi
+# F-03 v2：heap 已纯 .sx，不再 cc -c heap.c
 
 if [ -n "$CHECK_SHUX" ]; then
   if "$CHECK_SHUX" check -L . "$ARENA_SRC" >/dev/null 2>&1; then
