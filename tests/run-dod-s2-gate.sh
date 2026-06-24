@@ -95,12 +95,7 @@ if [ -z "$SHUX_ABS" ] || ! dod_native_exe "$SHUX_ABS"; then
   exit 0
 fi
 
-# 确保 heap.o 含 alloc_f32/realloc_f32/free_f32 别名
-if [ ! -f std/heap/heap.o ] || [ std/heap/heap.c -nt std/heap/heap.o ]; then
-  make -C compiler -q 2>/dev/null || true
-  cc -Wall -Wextra -Icompiler -Icompiler/include -Isrc -c -o std/heap/heap.o std/heap/heap.c 2>/dev/null || \
-    cc -Wall -Wextra -c -o std/heap/heap.o std/heap/heap.c
-fi
+# F-03 v2：heap 已纯 .sx，shux asm 链按需 -lc，不再 cc -c heap.c
 
 # asm 链：Vec3f + std.heap f32 分配符号可链接
 if ! dod_s2_shu_compile -backend asm -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/shux_dod_s2_build.log; then
