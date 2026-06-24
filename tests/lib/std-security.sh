@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# std-security.sh — STD-079 manifest 与烟测辅助
+# std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.sx）
 
 STD_SECURITY_PREFIX="${SHUX_STD_SECURITY_PREFIX:-shux: [SHUX_STD_SECURITY]}"
 
+# 遍历 manifest；symbol 在 security.sx。
 std_security_symbols_ok() {
-  local mod_su="$1"
-  local sec_c="$2"
+  local mod_sx="$1"
+  local sec_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,14 +15,16 @@ std_security_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-security FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/security/security.c" ]; then path="$sec_c"; fi
+        case "$path" in
+          std/security/security.c|std/security/security.sx|std/security/security_os_glue.c) path="$sec_sx" ;;
+        esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-security FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -37,6 +40,37 @@ std_security_symbols_ok() {
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
+}
+
+# C 烟测：security_smoke_ok.c + security.o + crypto.o。
+std_security_run_c_smoke() {
+  local sec_sx="$1"
+  local src="tests/std-security/security_smoke_ok.c"
+  local out="/tmp/shux_std_security_$$"
+  local sec_o crypto_o
+  sec_o="$(dirname "$sec_sx")/security.o"
+  crypto_o="std/crypto/crypto.o"
+  if [ ! -f "$sec_o" ]; then
+    echo "std-security FAIL: missing $sec_o" >&2
+    return 1
+  fi
+  if [ ! -f "$crypto_o" ]; then
+    make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || true
+  fi
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$sec_o" "$crypto_o" 2>/dev/null; then
+    echo "std-security FAIL: compile c smoke" >&2
+    return 1
+  fi
+  set +e
+  "$out" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$out"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-security FAIL: c smoke exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
 std_security_run_smoke() {
@@ -67,5 +101,5 @@ std_security_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SECURITY_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_SECURITY_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
 }
