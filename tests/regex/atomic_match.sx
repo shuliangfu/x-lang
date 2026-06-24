@@ -2,9 +2,9 @@
 const regex = import("std.regex");
 
 function main(): i32 {
-  let pat_norm: [5]u8 = [40, 97, 43, 41, 97];
-  let pat_atom: [9]u8 = [40, 63, 62, 40, 97, 43, 41, 41, 97];
-  let hay: [3]u8 = [97, 97, 97];
+  let pat_norm: u8[5] = [40, 97, 43, 41, 97];
+  let pat_atom: u8[9] = [40, 63, 62, 40, 97, 43, 41, 41, 97];
+  let hay: u8[3] = [97, 97, 97];
   let re_n: *u8 = regex.compile(&pat_norm[0], 5);
   let re_a: *u8 = regex.compile(&pat_atom[0], 9);
   if (re_n == 0 || re_a == 0) {
