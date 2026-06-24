@@ -14,7 +14,7 @@
 |----------|------------|------|
 | `BytesView` | `StrView` | `(ptr, len)` 布局一致 |
 | `bytes_view` | `string_view` | 包装已有缓冲 |
-| `bytes_view_from_slice` | — | 从 `[]u8` 构造 |
+| `bytes_view_from_slice` | — | 从 `u8[]` 构造 |
 | `bytes_view_subview` | `string_view_subview` | 钳制子区间 |
 | `bytes_view_eq` | `string_view_eq` | 字节相等 |
 | `bytes_view_eq_bytes` | `string_view_eq_slice` | 与裸缓冲比较 |
@@ -26,7 +26,7 @@
 | 来源 | 有效区间 |
 |------|----------|
 | 栈数组 `bytes_view(&buf[0], n)` | `buf` 栈帧存活期 |
-| `[]u8` `bytes_view_from_slice(s)` | 底层切片来源存活期 |
+| `u8[]` `bytes_view_from_slice(s)` | 底层切片来源存活期 |
 | 子视图 `bytes_view_subview` | 不超过父视图生命周期 |
 
 **不拥有内存**；父失效则子失效。
