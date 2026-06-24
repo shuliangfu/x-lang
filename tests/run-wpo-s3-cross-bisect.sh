@@ -14,11 +14,11 @@ fi
 # 编译 .o；fault 时失败
 wpo_s3_try_asm_o() {
   local label="$1"
-  local su="$2"
+  local sx="$2"
   local out="/tmp/shux_wpo_s3_${label}.o"
   rm -f "$out"
   set +e
-  "$SHUX_BIN" -backend asm -o "$out" "$su" 2>/tmp/shux_wpo_s3_${label}.log
+  "$SHUX_BIN" -backend asm -o "$out" "$sx" 2>/tmp/shux_wpo_s3_${label}.log
   local brc=$?
   set -e
   if [ "$brc" -ne 0 ] || [ ! -f "$out" ]; then
