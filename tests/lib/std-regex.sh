@@ -5,8 +5,8 @@ STD_REGEX_PREFIX="${SHUX_STD_REGEX_PREFIX:-shux: [SHUX_STD_REGEX]}"
 
 # 遍历 manifest TSV，校验 api/file/symbol/smoke 锚点。
 std_regex_symbols_ok() {
-  local mod_su="$1"
-  local regex_c="$2"
+  local mod_sx="$1"
+  local regex_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,7 +15,7 @@ std_regex_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-regex FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -29,8 +29,8 @@ std_regex_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/regex/regex.c) path="$regex_c" ;;
-          std/regex/regex_min.inc.c) path="$(dirname "$regex_c")/regex_min.inc.c" ;;
+          std/regex/regex.c|std/regex/regex_engine_glue.c|std/regex/regex_min.inc.c) path="$regex_sx" ;;
+          std/regex/regex.sx) path="$regex_sx" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-regex FAIL: missing '$anchor' in $path" >&2
@@ -69,11 +69,10 @@ std_regex_run_smoke() {
 
 # C 烟测：regex_min_ok.c + regex.o。
 std_regex_run_c_smoke() {
-  local regex_c="$1"
+  local _regex_sx="$1"
   local src="tests/regex/regex_min_ok.c"
   local out="/tmp/shux_regex_min_ok_$$"
-  local regex_o
-  regex_o="$(dirname "$regex_c")/regex.o"
+  local regex_o="../std/regex/regex.o"
   if [ ! -f "$regex_o" ]; then
     echo "std-regex FAIL: missing $regex_o" >&2
     return 1
@@ -101,5 +100,5 @@ std_regex_emit_report() {
   local su_ok="$3"
   local skip="$4"
   local host="$5"
-  echo "${STD_REGEX_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip} host=${host}"
+  echo "${STD_REGEX_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip} host=${host}"
 }
