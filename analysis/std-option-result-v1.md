@@ -43,6 +43,6 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_OPTION_RESULT] status=ok su=1 skip=0
+shux: [SHUX_STD_OPTION_RESULT] status=ok sx=1 skip=0
 std-option-result gate OK
 ```
