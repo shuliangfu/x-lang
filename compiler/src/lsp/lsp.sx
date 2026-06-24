@@ -421,7 +421,7 @@ function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
 
 /** 向 stdout（fd 1）发送 LSP 响应：Content-Length: <body_len>\r\n\r\n + body。 */
 function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
-  let header: [64]u8 = [];
+  let header: u8[64] = [];
   header[0] = 67;
   header[1] = 111;
   header[2] = 110;
@@ -444,7 +444,7 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
     header[k] = 48;
     k = k + 1;
   } else {
-    let digits: [12]i32 = [];
+    let digits: i32[12] = [];
     let d: i32 = 0;
     let n2: i32 = n;
     while (n2 > 0) {
@@ -486,10 +486,10 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
 function lsp_main_impl(): i32 {
   let stdin_fd: i32 = 0;
   let stdout_fd: i32 = 1;
-  let line_buf: [256]u8 = [];
-  let out_buf: [4096]u8 = [];
+  let line_buf: u8[256] = [];
+  let out_buf: u8[4096] = [];
   let shutdown_requested: i32 = 0;
-  let id_buf: [32]u8 = [];
+  let id_buf: u8[32] = [];
   let state_ptr: *u8 = lsp_state_buf_ptr();
   let diag_ptr: *u8 = lsp_io.lsp_alloc(LSP_DIAG_RESP_CAP as usize);
   let ref_ptr: *u8 = lsp_io.lsp_alloc(LSP_REF_RESP_CAP as usize);
@@ -561,7 +561,7 @@ function lsp_main_impl(): i32 {
       shutdown_requested = 1;
       let sid: i32 = lsp_parse_id(body_ptr, content_len, id_buf, 32);
       if (sid < 0) { sid = 1; }
-      let null_val: [4]u8 = [110, 117, 108, 108];
+      let null_val: u8[4] = [110, 117, 108, 108];
       let resp_len: i32 = lsp_build_response_with_result(sid, null_val, 4, out_buf, 4096);
       if (resp_len > 0) {
         lsp_send_response(stdout_fd, out_buf, resp_len);
@@ -592,8 +592,8 @@ function lsp_main_impl(): i32 {
     let doc_ptr: *u8 = lsp_get_document_ptr();
     let doc_len: i32 = lsp_get_document_len();
     if (req_id >= 0) {
-      let empty_arr: [2]u8 = [91, 93];
-      let null_val: [4]u8 = [110, 117, 108, 108];
+      let empty_arr: u8[2] = [91, 93];
+      let null_val: u8[4] = [110, 117, 108, 108];
       if (lsp_body_contains_diagnostic(body_ptr, content_len) != 0) {
         let resp_len: i32 = lsp_build_diagnostics_response(req_id, doc_ptr, doc_len, diag_ptr,
         LSP_DIAG_RESP_CAP);
