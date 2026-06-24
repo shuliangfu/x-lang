@@ -1,6 +1,6 @@
 // mem_copy.sx — 性能基线：memcpy 风格循环（while BCE + 8192 rounds）
 function main(): i32 {
-  let buf: [4096]u8 = [];
+  let buf: u8[4096] = [];
   let sum: i32 = 0;
   let r: i32 = 0;
   while (r < 8192) {
