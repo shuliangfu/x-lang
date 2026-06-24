@@ -1,0 +1,9 @@
+# F-backtrace v1 std.backtrace 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fbt_doc	doc	analysis/phase-f-backtrace-v1.md	F-backtrace v1
+fbt_gate	gate	tests/run-f-backtrace-v1-gate.sh	聚合门禁
+bt_sx	file	std/backtrace/backtrace.sx	模块锚点 .sx
+bt_glue_v1_absent	absent	std/backtrace/backtrace_glue.c	v2 已删；见 runtime_backtrace_platform.c
+bt_mod	file	std/backtrace/mod.sx	对外 API
+bt_c_absent	absent	std/backtrace/backtrace.c	已删除
+makefile	makefile	compiler/Makefile	backtrace.o ld -r merge
