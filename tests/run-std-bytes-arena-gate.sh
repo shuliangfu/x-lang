@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-bytes-arena-v1.md"
 MANIFEST="tests/baseline/std-bytes-arena-manifest.tsv"
-MOD_SU="std/bytes/mod.sx"
+MOD_SX="std/bytes/mod.sx"
 LIB="tests/lib/std-bytes-arena.sh"
-SMOKE_SU="tests/std-bytes/arena_external.sx"
+SMOKE_SX="tests/std-bytes/arena_external.sx"
 MIN_APIS=4
 
 # shellcheck source=tests/lib/std-bytes-arena.sh
 . "$LIB"
 
 echo "=== STD-155: bytes arena manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$SMOKE_SU" std/bytes/README.md std/heap/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SMOKE_SX" std/bytes/README.md std/heap/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-bytes-arena gate FAIL: missing $f" >&2
     exit 1
@@ -47,27 +47,27 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_bytes_arena_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_bytes_arena_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_bytes_arena_emit_report "fail" 0 0
   exit 1
 fi
 echo "std-bytes-arena manifest OK"
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-bytes-arena gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_bytes_arena_emit_report "fail" 0 0
     exit 1
   fi
-  if std_bytes_arena_run_smoke "$SHUX_BIN" "$SMOKE_SU"; then
-    SU_OK=1
+  if std_bytes_arena_run_smoke "$SHUX_BIN" "$SMOKE_SX"; then
+    SX_OK=1
   else
     std_bytes_arena_emit_report "fail" 0 0
     exit 1
@@ -76,5 +76,5 @@ else
   SKIP=1
 fi
 
-std_bytes_arena_emit_report "ok" "$SU_OK" "$SKIP"
+std_bytes_arena_emit_report "ok" "$SX_OK" "$SKIP"
 echo "std-bytes-arena gate OK"
