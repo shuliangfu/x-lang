@@ -5,7 +5,7 @@ STD_RANDOM_RNG_PREFIX="${SHUX_STD130_RANDOM_RNG_PREFIX:-shux: [SHUX_STD130_RANDO
 
 # 校验 manifest 条目。
 std_random_rng_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local random_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,7 +15,7 @@ std_random_rng_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api|struct_rng)
-        if ! grep -qE "(function|struct) ${anchor}" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "(function|struct) ${anchor}" "$mod_sx" 2>/dev/null; then
           echo "std-random-rng FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_random_rng_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/random/random.c) path="$random_c" ;;
+          std/random/random.c|std/random/random.sx) path="$random_c" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-random-rng FAIL: missing '$anchor' in $path" >&2
@@ -66,18 +66,35 @@ std_random_rng_run_smoke() {
   return 0
 }
 
-# 链接 random.o 运行 C smoke。
+# 链接 random.o + runtime_random_fill.o 运行 C smoke。
 std_random_rng_run_c_smoke() {
   local random_o="$1"
   local src="tests/random/rng_smoke_ok.c"
   local out="/tmp/shux_std_random_rng_c_$$"
+  local fill_o=""
+  if [ -f compiler/runtime_random_fill.o ]; then
+    fill_o="compiler/runtime_random_fill.o"
+  elif [ -f "$(cd compiler && pwd)/runtime_random_fill.o" ]; then
+    fill_o="$(cd compiler && pwd)/runtime_random_fill.o"
+  else
+    make -C compiler runtime_random_fill.o >/dev/null 2>&1 || true
+    fill_o="compiler/runtime_random_fill.o"
+  fi
+  if [ ! -f "$fill_o" ]; then
+    echo "std-random-rng FAIL: missing runtime_random_fill.o" >&2
+    return 1
+  fi
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \
       'extern int32_t random_rng_smoke_c(void);' \
       'int main(void) { return random_rng_smoke_c() != 0; }' > "$src"
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$random_o" 2>/dev/null; then
+  local ld_extra=""
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) ld_extra="-lbcrypt" ;;
+  esac
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$random_o" "$fill_o" $ld_extra 2>/dev/null; then
     return 1
   fi
   set +e
@@ -90,5 +107,5 @@ std_random_rng_run_c_smoke() {
 
 # 输出 gate 报告。
 std_random_rng_emit_report() {
-  echo "${STD_RANDOM_RNG_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_RANDOM_RNG_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
