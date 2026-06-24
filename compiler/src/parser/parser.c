@@ -2978,12 +2978,26 @@ static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
         advance(p);
         ASTType *type = parse_type(p);
         if (!type) { free(name); ast_block_free(b); return -1; }
-        if (peek(p)->kind != TOKEN_ASSIGN) { free(name); free((void *)type); fail(p, "expected '=' in let"); ast_block_free(b); return -1; }
-        advance(p);
-        ASTExpr *init = parse_expr(p);
-        if (!init) { free(name); free((void *)type); ast_block_free(b); return -1; }
-        if (expr_ends_with_brace(init)) { if (peek(p)->kind == TOKEN_SEMICOLON) advance(p); }
-        else { if (peek(p)->kind != TOKEN_SEMICOLON) { ast_expr_free(init); free(name); free((void *)type); fail(p, "expected ';' after let"); ast_block_free(b); return -1; } advance(p); }
+        ASTExpr *init = NULL;
+        if (peek(p)->kind == TOKEN_ASSIGN) {
+            advance(p);
+            init = parse_expr(p);
+            if (!init) { free(name); free((void *)type); ast_block_free(b); return -1; }
+        } else if (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_LET && peek(p)->kind != TOKEN_CONST
+                   && peek(p)->kind != TOKEN_RETURN && peek(p)->kind != TOKEN_IF && peek(p)->kind != TOKEN_WHILE
+                   && peek(p)->kind != TOKEN_FOR && peek(p)->kind != TOKEN_RBRACE) {
+            free(name); free((void *)type);
+            fail(p, "expected '=' or ';' after let type");
+            ast_block_free(b);
+            return -1;
+        }
+        if (init && expr_ends_with_brace(init)) { if (peek(p)->kind == TOKEN_SEMICOLON) advance(p); }
+        else if (init) {
+            if (peek(p)->kind != TOKEN_SEMICOLON) { ast_expr_free(init); free(name); free((void *)type); fail(p, "expected ';' after let"); ast_block_free(b); return -1; }
+            advance(p);
+        } else if (peek(p)->kind == TOKEN_SEMICOLON) {
+            advance(p);
+        }
         b->let_decls[b->num_lets].name = name; b->let_decls[b->num_lets].type = type; b->let_decls[b->num_lets].init = init; b->num_lets++;
         push_stmt_order(b, 1, b->num_lets - 1);
         return 1;
