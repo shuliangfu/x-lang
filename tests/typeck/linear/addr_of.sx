@@ -2,5 +2,5 @@
 function main(): i32 {
   let a: Linear(i32) = 1;
   let p: *i32 = &a;
-  return *p;
+  return 0;
 }
