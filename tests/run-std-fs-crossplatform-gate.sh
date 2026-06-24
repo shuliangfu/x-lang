@@ -46,8 +46,8 @@ if [ ! -f "$MATRIX" ]; then
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/fs/fs.o ../std/io/io.o -q 2>/dev/null \
-  || make -C compiler ../std/fs/fs.o ../std/io/io.o
+make -C compiler ../std/io/io.o -q 2>/dev/null \
+  || make -C compiler ../std/io/io.o
 
 SHUX_BIN="${SHUX:-}"
 if [ -z "$SHUX_BIN" ]; then
