@@ -12,7 +12,7 @@ layer_a2	layers	A2-slice-abi	tests/abi/layout_abi.c	slice	16B
 layer_a3	layers	A3-struct-pack	compiler/src/typeck/typeck.c	padding	隐式填充
 layer_a4	layers	A4-calling-convention	analysis/lang-abi-stability-v1.md	SysV	平台C
 layer_a5	layers	A5-f32-xmm	compiler/docs/F32_XMM_ABI.md	transitional	xmm
-layer_a6	layers	A6-stdlib-abi	std/fs/fs_abi.h	stable	头文件
+layer_a6	layers	A6-stdlib-abi	compiler/include/shux_std_abi/fs_abi.h	stable	头文件（F-ZC 内联 preamble）
 sym_padding	symbol	implicit padding	compiler/src/typeck/typeck.c	typeck	struct
 case_layout	case	case_layout	tests/abi/layout_abi.c	stable	cc
 case_slice	case	case_slice	tests/abi/layout_abi.c	slice	offsetof
