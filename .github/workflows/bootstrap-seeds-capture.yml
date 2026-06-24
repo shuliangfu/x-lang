@@ -1,0 +1,218 @@
+# G-06 / B-21：多平台冷启动种子 capture + artifact 上传（手动 / 每周 schedule）
+#
+# 用途：
+#   - 无本地真机时，在 GitHub 托管 runner / Docker 上生成 linux/darwin 二进制种子
+#   - Actions → Artifacts 下载 zip，审 sha256 后按单文件 commit 进 compiler/seeds/
+#   - FreeBSD：GitHub Actions + vmactions/freebsd-vm（QEMU 内跑真 FreeBSD，无需 Cirrus）
+#
+# 下载：gh run list --workflow=bootstrap-seeds-capture.yml
+#       gh run download <run-id> -D /tmp/shux-seeds
+
+name: Bootstrap Seeds Capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      capture_alpine:
+        description: "Also capture inside Alpine (musl) Docker → linux.x86_64 artifact"
+        type: boolean
+        default: true
+      skip_preflight:
+        description: "Skip preflight_g06 after capture (debug only)"
+        type: boolean
+        default: false
+  schedule:
+    # 每周日 04:00 UTC；不自动 commit，仅产出 artifact 供审阅
+    - cron: '0 4 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  capture-linux-amd64:
+    name: Capture seeds (linux x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev
+
+      - name: Capture bootstrap seeds
+        working-directory: compiler
+        env:
+          SHUX_LEGACY_C_FRONTEND: "1"
+        run: |
+          chmod +x scripts/capture_bootstrap_seeds.sh scripts/preflight_g06_coldstart.sh
+          ./scripts/capture_bootstrap_seeds.sh
+          sha256sum seeds/bootstrap_shuxc.linux.x86_64 seeds/asm_backend_partial.linux.x86_64.o | tee ../seed-linux-amd64.sha256
+
+      - name: Preflight G-06
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_preflight == true) }}
+        working-directory: compiler
+        run: ./scripts/preflight_g06_coldstart.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-seeds-linux-x86_64
+          path: |
+            compiler/seeds/bootstrap_shuxc.linux.x86_64
+            compiler/seeds/asm_backend_partial.linux.x86_64.o
+            seed-linux-amd64.sha256
+          retention-days: 90
+
+  capture-linux-arm64:
+    name: Capture seeds (linux arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev
+
+      - name: Capture bootstrap seeds
+        working-directory: compiler
+        env:
+          SHUX_LEGACY_C_FRONTEND: "1"
+        run: |
+          chmod +x scripts/capture_bootstrap_seeds.sh scripts/preflight_g06_coldstart.sh
+          ./scripts/capture_bootstrap_seeds.sh
+          sha256sum seeds/bootstrap_shuxc.linux.arm64 seeds/asm_backend_partial.linux.arm64.o | tee ../seed-linux-arm64.sha256
+
+      - name: Preflight G-06
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_preflight == true) }}
+        working-directory: compiler
+        run: ./scripts/preflight_g06_coldstart.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-seeds-linux-arm64
+          path: |
+            compiler/seeds/bootstrap_shuxc.linux.arm64
+            compiler/seeds/asm_backend_partial.linux.arm64.o
+            seed-linux-arm64.sha256
+          retention-days: 90
+
+  capture-macos:
+    name: Capture seeds (darwin arm64)
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Capture bootstrap seeds
+        working-directory: compiler
+        env:
+          SHUX_LEGACY_C_FRONTEND: "1"
+        run: |
+          chmod +x scripts/capture_bootstrap_seeds.sh scripts/preflight_g06_coldstart.sh
+          ./scripts/capture_bootstrap_seeds.sh
+          shasum -a 256 seeds/bootstrap_shuxc.darwin.arm64 seeds/asm_backend_partial.darwin.arm64.o | tee ../seed-darwin-arm64.sha256
+
+      - name: Preflight G-06
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_preflight == true) }}
+        working-directory: compiler
+        run: ./scripts/preflight_g06_coldstart.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-seeds-darwin-arm64
+          path: |
+            compiler/seeds/bootstrap_shuxc.darwin.arm64
+            compiler/seeds/asm_backend_partial.darwin.arm64.o
+            seed-darwin-arm64.sha256
+          retention-days: 90
+
+  capture-alpine-musl:
+    name: Capture seeds (Alpine musl / linux x86_64)
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.capture_alpine != false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Capture in Alpine container
+        run: |
+          docker run --rm -e SHUX_LEGACY_C_FRONTEND=1 -v "${{ github.workspace }}:/src" -w /src/compiler alpine:3.23 \
+            sh -c '
+              apk add --no-cache build-base bash perl gawk linux-headers liburing-dev zlib-dev brotli-dev sqlite-dev file &&
+              chmod +x scripts/capture_bootstrap_seeds.sh scripts/preflight_g06_coldstart.sh &&
+              ./scripts/capture_bootstrap_seeds.sh &&
+              sha256sum seeds/bootstrap_shuxc.linux.x86_64 seeds/asm_backend_partial.linux.x86_64.o > /src/seed-alpine-musl.sha256
+            '
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-seeds-alpine-musl-linux-x86_64
+          path: |
+            compiler/seeds/bootstrap_shuxc.linux.x86_64
+            compiler/seeds/asm_backend_partial.linux.x86_64.o
+            seed-alpine-musl.sha256
+          retention-days: 90
+
+  capture-freebsd-amd64:
+    name: Capture seeds (freebsd x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Capture in FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        env:
+          SHUX_LEGACY_C_FRONTEND: "1"
+        with:
+          release: "14.0"
+          mem: 8192
+          cpu: 4
+          usesh: true
+          envs: SHUX_LEGACY_C_FRONTEND
+          prepare: |
+            pkg update -f
+            pkg install -y git gmake bash perl5 gawk curl llvm
+          run: |
+            set -e
+            export SHUX_LEGACY_C_FRONTEND=1
+            export MAKE=gmake
+            cd compiler
+            chmod +x scripts/capture_bootstrap_seeds.sh scripts/preflight_g06_coldstart.sh
+            ./scripts/capture_bootstrap_seeds.sh
+            if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ inputs.skip_preflight }}" != "true" ]; then
+              ./scripts/preflight_g06_coldstart.sh
+            fi
+            sha256 seeds/bootstrap_shuxc.freebsd.x86_64 seeds/asm_backend_partial.freebsd.x86_64.o | tee ../seed-freebsd-amd64.sha256
+            ls -la seeds/bootstrap_shuxc.freebsd.x86_64 seeds/asm_backend_partial.freebsd.x86_64.o
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-seeds-freebsd-x86_64
+          path: |
+            compiler/seeds/bootstrap_shuxc.freebsd.x86_64
+            compiler/seeds/asm_backend_partial.freebsd.x86_64.o
+            seed-freebsd-amd64.sha256
+          retention-days: 90
+
+  freebsd-bridge:
+    name: FreeBSD manifest gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: FreeBSD #[cfg] / std.sys manifest gate
+        run: |
+          chmod +x tests/run-freebsd-platform-gate.sh
+          ./tests/run-freebsd-platform-gate.sh
