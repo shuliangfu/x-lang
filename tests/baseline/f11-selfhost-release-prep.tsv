@@ -1,0 +1,10 @@
+# F-11 v1 完全自举发布清单 manifest
+# 列：item_id	kind	anchor	notes
+f11_doc	doc	analysis/phase-f-f11-v1.md	F-11 v1
+f11_gate	gate	tests/run-f11-selfhost-release-prep-gate.sh	专 gate
+selfhost_doc	doc	compiler/docs/SELFHOST.md	D+E+F
+d03_gate	gate_ref	tests/run-d03-stage2-hash-gate.sh	Stage2 哈希
+d04_gate	gate_ref	tests/run-d04-stage2-portable-diff-gate.sh	portable
+d05_gate	gate_ref	tests/run-d05-single-shux-release-gate.sh	单 shux
+e_soft_gate	gate_ref	tests/run-e-soft-retire-gate.sh	编译器 C 软退役
+f_batch_gate	gate_ref	tests/run-f-std-de-c-batch-gate.sh	std 去 C 聚合
