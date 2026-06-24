@@ -1,7 +1,7 @@
 /**
  * backend_enc_dispatch.c — backend_enc_*_arch 的 C 侧 ta 分派
  *
- * M8 自举：backend.sx 中 enc_*_arch 改为单行委托本 TU，避免 SU if(ta) 真 emit 产生未绑定 .LfN_ 跳转。
+ * M8 自举：backend.sx 中 enc_*_arch 改为单行委托本 TU，避免 SX if(ta) 真 emit 产生未绑定 .LfN_ 跳转。
  * 依赖 asm_backend_partial.o 导出的 arch_*_enc_enc_* 符号。
  */
 #include <stdint.h>
@@ -103,6 +103,7 @@ extern int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_
 extern int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t elem_sz);
 extern int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t store_size);
 extern int32_t arch_arm64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_test_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_test_rbx_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -205,6 +206,8 @@ extern int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx
 extern int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len);
 extern int32_t arch_x86_64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc);
 extern int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -478,7 +481,9 @@ int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCt
 int32_t backend_enc_sub_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_sub_rax_rbx(elf_ctx);
-  return -1;
+  if (ta == 2)
+    return -1;
+  return arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx);
 }
 
 /**
@@ -690,6 +695,17 @@ int32_t backend_enc_cmp_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
   if (ta == 2)
     return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx);
   return arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx);
+}
+
+/**
+ * ta 分派：enc_cmp_rax_rbx_arch（rax - rbx；INDEX 下标 < 0 检查用）。
+ */
+int32_t backend_enc_cmp_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx);
+  if (ta == 2)
+    return -1;
+  return arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx);
 }
 
 /**
