@@ -19,8 +19,8 @@ api_as_buffer	api	bytes_as_buffer	std/bytes/mod.sx	Buffer
 api_reader_read	api	reader_read	std/bytes/mod.sx	读
 api_reader_seek	api	reader_seek	std/bytes/mod.sx	seek
 api_writer_write	api	writer_write	std/bytes/mod.sx	写
-impl_su	file	std/bytes/mod.sx	std/bytes/mod.sx
-smoke_su	smoke	tests/std-bytes/roundtrip.sx	round-trip
+impl_sx	file	std/bytes/mod.sx	std/bytes/mod.sx
+smoke_sx	smoke	tests/std-bytes/roundtrip.sx	round-trip
 vectors	file	tests/baseline/std-bytes-vectors.tsv	向量
 lib	script	lib/std-bytes.sh	tests/lib/std-bytes.sh
 gate	script	run-std-bytes-gate.sh	tests/run-std-bytes-gate.sh
