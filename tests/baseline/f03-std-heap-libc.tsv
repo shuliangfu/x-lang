@@ -1,0 +1,9 @@
+# F-03 v2 std.heap heap_libc manifest
+# 列：item_id	kind	anchor	mod_path	notes
+min_libc_apis	4
+heap_alloc	symbol	heap_alloc_c	std/heap/heap_libc.sx	malloc wrapper
+heap_trace	symbol	heap_trace_enabled_c	std/heap/heap_libc.sx	SHUX_HEAP_TRACE
+mod_forward	symbol	heap_libc.heap_alloc_c	std/heap/mod.sx	forward
+asm_export	symbol	alloc_f32	std/heap/heap_libc.sx	asm link
+deleted_c	absent	std/heap/heap.c		must not exist
+gate	script	run-f03-std-heap-libc-gate.sh	tests/run-f03-std-heap-libc-gate.sh	manifest
