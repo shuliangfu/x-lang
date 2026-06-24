@@ -10,9 +10,9 @@ api_stringify	api	stringify	std/url/mod.sx	序列化
 api_qenc	api	query_encode	std/url/mod.sx	编码
 api_qdec	api	query_decode	std/url/mod.sx	解码
 api_resolve	api	resolve	std/url/mod.sx	resolve
-symbol_smoke	symbol	url_smoke_c	std/url/url.c	C烟测
-impl_c	file	std/url/url.c	std/url/url.c
-smoke_su	smoke	tests/std-url/roundtrip.sx	.su烟测
+symbol_smoke	symbol	url_smoke_c	std/url/url.sx	烟测
+impl_sx	file	std/url/url.sx	std/url/url.sx
+smoke_sx	smoke	tests/std-url/roundtrip.sx	.sx烟测
 vectors	file	tests/baseline/std-url-vectors.tsv	向量
 lib	script	lib/std-url.sh	tests/lib/std-url.sh
 gate	script	run-std-url-gate.sh	tests/run-std-url-gate.sh
