@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ATOMIC_ORDERING_DOC:-analysis/std-atomic-ordering-v1.md}"
 MANIFEST="${SHUX_STD_ATOMIC_ORDERING_TSV:-tests/baseline/std-atomic-ordering.tsv}"
-MOD_SU="std/atomic/mod.sx"
-ATOMIC_C="std/atomic/atomic.c"
+MOD_SX="std/atomic/mod.sx"
+ATOMIC_RUNTIME="${SHUX_STD_ATOMIC_IMPL:-compiler/src/asm/runtime_atomic_glue.c}"
 LIB="tests/lib/std-atomic-ordering.sh"
-SMOKE_SU="tests/atomic/ordering_fence.sx"
-MAIN_SU="tests/atomic/main.sx"
+SMOKE_SX="tests/atomic/ordering_fence.sx"
+MAIN_SX="tests/atomic/main.sx"
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-atomic-ordering.sh
 . "$LIB"
 
 echo "=== STD-046: atomic ordering / fence manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$ATOMIC_C" "$SMOKE_SU" "$MAIN_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$ATOMIC_RUNTIME" "$SMOKE_SX" "$MAIN_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-atomic-ordering gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-atomic-ordering gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_atomic_ord_symbols_ok "$MOD_SU" "$ATOMIC_C" "$MANIFEST" || true)"
+sym_miss="$(std_atomic_ord_symbols_ok "$MOD_SX" "$ATOMIC_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_atomic_ord_emit_report "fail" 0 0 0
   echo "std-atomic-ordering gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -102,19 +102,19 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/atomic/atomic.o
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-atomic-ordering gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-atomic-ordering gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_atomic_ord_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_atomic_ord_run_smoke "$SHUX_BIN" "$SMOKE_SU" "ordering"; then
+  if std_atomic_ord_run_smoke "$SHUX_BIN" "$SMOKE_SX" "ordering"; then
     FENCE_OK=1
   else
     std_atomic_ord_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_atomic_ord_run_smoke "$SHUX_BIN" "$MAIN_SU" "main"; then
+  if std_atomic_ord_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
     MAIN_OK=1
   else
     std_atomic_ord_emit_report "fail" "$FENCE_OK" 0 0
