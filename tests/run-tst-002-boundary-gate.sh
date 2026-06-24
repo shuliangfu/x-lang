@@ -96,10 +96,10 @@ if [ -n "$SHUX_BIN" ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   make -C compiler -q ../std/heap/heap.o ../std/process/process.o 2>/dev/null \
     || make -C compiler ../std/heap/heap.o ../std/process/process.o 2>/dev/null || true
-  for su in tests/heap/boundary.sx tests/vec/boundary.sx tests/map/boundary.sx tests/process/boundary.sx; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "tst-002-boundary gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -8 >&2 || true
+  for sx in tests/heap/boundary.sx tests/vec/boundary.sx tests/map/boundary.sx tests/process/boundary.sx; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "tst-002-boundary gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -8 >&2 || true
       tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" "$MAP_OK" "$PROC_OK" 0
       exit 1
     fi
