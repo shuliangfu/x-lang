@@ -15,8 +15,8 @@ api_obj_dot_str	api	object_decode_dotted_string	std/json/mod.sx	点分 string
 api_obj_dot_bool	api	object_decode_dotted_bool	std/json/mod.sx	点分 bool
 api_obj_dot_f64	api	object_decode_dotted_f64	std/json/mod.sx	点分 f64
 api_smoke	api	typed_decode_smoke	std/json/mod.sx	C 烟测
-symbol_smoke_c	symbol	json_typed_decode_smoke_c	std/json/json.c	C 烟测
+symbol_smoke_c	symbol	json_typed_decode_smoke_c	std/json/json.sx	C 烟测
 vectors	vectors	tests/baseline/std-json-typed-decode-vectors.tsv	金样
 smoke_c	file	tests/json/typed_decode_smoke_ok.c	C 入口
-smoke_su	smoke	tests/json/typed_decode.sx	.sx 烟测
+smoke_sx	smoke	tests/json/typed_decode.sx	.sx 烟测
 gate	script	run-std-json-typed-decode-gate.sh	tests/run-std-json-typed-decode-gate.sh
