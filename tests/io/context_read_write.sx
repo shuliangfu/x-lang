@@ -5,7 +5,7 @@ const err = import("std.error");
 
 function main(): i32 {
   let bg: Context = context.background();
-  let buf: [1]u8 = [0];
+  let buf: u8[1] = [0];
   let p: *u8 = &buf[0];
 
   let cancelled: Context = context.with_cancel(bg);
