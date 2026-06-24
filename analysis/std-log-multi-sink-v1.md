@@ -37,7 +37,7 @@
 ```su
 import("std.log");
 set_min_level(level_info());
-let msg: [5]u8 = [104, 101, 108, 108, 111];
+let msg: u8[5] = [104, 101, 108, 108, 111];
 log(level_info(), &msg[0], 5);
 ```
 
@@ -45,7 +45,7 @@ log(level_info(), &msg[0], 5);
 
 ```su
 import("std.log");
-let path: [20]u8 = [47, 116, 109, 112, 47, 97, 112, 112, 46, 108, 111, 103, 0, 0, 0, 0, 0, 0, 0, 0];
+let path: u8[20] = [47, 116, 109, 112, 47, 97, 112, 112, 46, 108, 111, 103, 0, 0, 0, 0, 0, 0, 0, 0];
 set_file_sink(&path[0], 12);
 set_sink_mask(1 | 2);
 log(level_warn(), &msg[0], 3);
@@ -55,7 +55,7 @@ close_file_sink();
 ### 3.3 结构化行（机器聚合）
 
 ```su
-let kv: [24]u8 = [101, 118, 101, 110, 116, 61, 115, 116, 97, 114, 116, 32, 117, 115, 61, 49, 50, 51, 0, 0, 0, 0, 0, 0];
+let kv: u8[24] = [101, 118, 101, 110, 116, 61, 115, 116, 97, 114, 116, 32, 117, 115, 61, 49, 50, 51, 0, 0, 0, 0, 0, 0];
 log_structured_kv(&comp[0], level_info(), &kv[0]);
 ```
 
@@ -89,7 +89,7 @@ INFO 被丢弃（返回 0、无输出）。烟测金样：`filtered` 在 `min=WA
 ```
 
 ```
-shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 sx=1 skip=0
 ```
 
 ---
