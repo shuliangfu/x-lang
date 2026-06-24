@@ -3,7 +3,7 @@ extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 
 /** 从 stdin 读 4 字节；run 经 shux_async_run_i32 drain/wake 完成 IO await。 */
 async function read_four(): i32 {
-  let buf: [4]u8 = [];
+  let buf: u8[4] = [];
   let n: i32 = await read_fd(0, buf as *u8, 4);
   return n;
 }
