@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
 MANIFEST="${SHUX_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
-MOD_SU="${SHUX_STD_HTTP_MOD:-std/http/mod.sx}"
-HTTP_C="${SHUX_STD_HTTP_C:-std/http/http.c}"
+MOD_SX="${SHUX_STD_HTTP_MOD:-std/http/mod.sx}"
+HTTP_C="${SHUX_STD_HTTP_C:-compiler/src/asm/http/runtime_http_glue.c}"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/perf-http.sh
@@ -49,7 +49,7 @@ std_http_run_smoke() {
 }
 
 echo "=== STD-009: std.http bench manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" "$HTTP_C" \
+for f in "$DOC" "$MANIFEST" "$MOD_SX" "$HTTP_C" \
   tests/baseline/http-perf.tsv tests/baseline/http-perf-latency.tsv; do
   if [ ! -f "$f" ]; then
     echo "std-http gate FAIL: missing $f" >&2
@@ -78,7 +78,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_http_has_api "$MOD_SU" "$anchor"; then
+      if ! std_http_has_api "$MOD_SX" "$anchor"; then
         echo "std-http FAIL: missing API $anchor" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
@@ -91,7 +91,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
         echo "std-http FAIL: missing $anchor" >&2
         MISS=$((MISS + 1))
       fi
-      if [ "$anchor" = "std/http/http.c" ]; then
+      if [ "$anchor" = "compiler/src/asm/http/runtime_http_glue.c" ]; then
         if ! grep -qF 'http_respond_get_ok_c' "$HTTP_C" 2>/dev/null; then
           echo "std-http FAIL: missing http_respond_get_ok_c" >&2
           MISS=$((MISS + 1))
