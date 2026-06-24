@@ -1,7 +1,7 @@
 // STD-063：ELF64 section 深化烟测（金样 275 字节嵌入）
 const elf = import("std.elf");
 function main(): i32 {
-  let blob: [275]u8 = [
+  let blob: u8[275] = [
     127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     1, 0, 62, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,
@@ -40,7 +40,7 @@ function main(): i32 {
   };
   let idx: i32 = 0;
   let byte: u8 = 0;
-  let name_text: [6]u8 = [46, 116, 101, 120, 116, 0];
+  let name_text: u8[6] = [46, 116, 101, 120, 116, 0];
   if (elf.parse_hdr(&blob[0], 275, &hdr) != 0) {
     return 1;
   }
