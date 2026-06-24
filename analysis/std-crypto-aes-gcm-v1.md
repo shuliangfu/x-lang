@@ -25,7 +25,7 @@
 | `aes_gcm_open` | 解密并校验 tag；失败 -1 |
 | `AES_GCM_KEY_LEN` / `AES_GCM_IV_LEN` / `AES_GCM_TAG_LEN` | 常量 16 / 12 / 16 |
 
-实现：`std/crypto/aes_gcm.inc.c`（由 `crypto.c` include）。
+实现：`std/crypto/aes_gcm.sx`（ld -r 链入 crypto.o）。
 
 ---
 
