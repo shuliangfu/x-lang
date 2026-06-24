@@ -1,0 +1,1328 @@
+// std/regex/regex.sx — F-regex v2：最小正则引擎（纯 .sx，替代 regex_min.inc.c）
+//
+// 【文件职责】
+// 字面量、`.`、`[]`、`?`、`?+`、`*`、`*?`、`*+`、`+`、`+?`、`++`、`\` 转义；
+// `\p{}`/`\P{}` Unicode 属性（STD-066）；分组 `()`、交替 `|`、锚点 `^`/`$`（STD-063）；
+// `(?>...)` 原子分组（STD-124）；占有型量词（STD-099）；capture 与字面量快路径（STD-062）。
+// 经 shux 编译为 regex.o；mod.sx 经 extern regex_*_c 引用本文件符号。
+//
+// 【对标】POSIX regexec 子串搜索语义；Rust regex 工程子集简化版。
+//
+// 【STD 对照】
+// STD-051 烟测 regex_min_smoke_c；STD-062 字面量/首字节跳跃；
+// STD-063 分组/交替/锚点；STD-064 capture API；
+// STD-065 非贪婪 *?/+?；STD-066 \p{} / \P{} 属性类；
+// STD-099 占有型 *+/++/ ?+；STD-124 (?>...) 原子分组。
+//
+
+
+const REGEX_PROP_LETTER: i32 = 1;
+const REGEX_PROP_NUMBER: i32 = 2;
+const REGEX_PROP_WHITESPACE: i32 = 3;
+
+/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+const REG_LIT_LETTER: u8[7] = [76, 101, 116, 116, 101, 114, 0];
+const REG_LIT_NUMBER: u8[7] = [78, 117, 109, 98, 101, 114, 0];
+const REG_LIT_SPACE: u8[6] = [83, 112, 97, 99, 101, 0];
+const REG_LIT_WHITESPACE: u8[11] = [87, 104, 105, 116, 101, 115, 112, 97, 99, 101, 0];
+
+const REGEX_MIN_CAP_SLOT_SIZE: usize = 8;
+const REGEX_MIN_IMPL_SIZE: usize = 48;
+
+/** STD-066：ASCII 分类表（0 未知，1 Letter，2 Number，3 Whitespace）。 */
+const REGEX_MIN_ASCII_CAT: u8[128] = [
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+];
+
+/** Capture 槽：group 0=全匹配，1..n=捕获组。 */
+allow(padding) struct RegexMinCapSlot {
+  off: i32;
+  len: i32;
+}
+
+/** 编译后正则内部状态（opaque handle cast 为此结构）。 */
+allow(padding) struct RegexMinImpl {
+  pat: *u8;
+  pat_len: i32;
+  first_lit: i32;
+  is_literal_only: i32;
+  ncap: i32;
+  group_pat_off: *i32;
+  cap_valid: i32;
+  atomic_nest: i32;
+  caps: *RegexMinCapSlot;
+}
+
+extern function malloc(size: usize): *u8;
+extern function free(ptr: *u8): void;
+extern function calloc(nmemb: usize, size: usize): *u8;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memcmp(s1: *u8, s2: *u8, n: usize): i32;
+extern function memchr(ptr: *u8, c: i32, n: usize): *u8;
+extern function strlen(s: *u8): usize;
+
+/** F-regex v1 版本标记；供聚合 gate 校验 regex.sx 已参与 ld -r 合并。 */
+function regex_f_regex_v1_marker_c(): i32 {
+  return 1;
+}
+
+/** F-regex v2 逻辑全量 .sx 标记（无 regex_min.inc.c）。 */
+function regex_f_regex_v2_marker_c(): i32 {
+  return 1;
+}
+
+/** 句柄转 RegexMinImpl 指针；非法 0。 */
+function regex_re_from_handle(re: *u8): *RegexMinImpl {
+  if (re == 0) { return 0; }
+  return re as *RegexMinImpl;
+}
+
+/** STD-066：跳过 `\x` 或 `\p{...}` / `\P{...}` 转义序列；非法时返回 p+1。 */
+// ---------------------------------------------------------------------------
+// STD-066：Unicode 属性与转义序列辅助
+// ---------------------------------------------------------------------------
+
+function regex_min_after_backslash(p: *u8, pat_end: *u8): *u8 {
+  if (p + 1 >= pat_end) { return pat_end; }
+  if ((p[1] == 112 || p[1] == 80) && p + 2 < pat_end && p[2] == 123) {
+    let q: *u8 = p + 3;
+    while (q < pat_end && q[0] != 125) {
+      q = q + 1;
+    }
+    if (q < pat_end) { return q + 1; }
+    return pat_end;
+  }
+  return p + 2;
+}
+
+/** STD-066：校验 `\` 起始的转义序列完整合法。 */
+/** 校验反斜杠转义序列（含 \p{}/\P{}）是否完整合法；合法 1。 */
+function regex_min_escape_valid(p: *u8, pat_end: *u8): i32 {
+  let q: *u8 = 0 as *u8;
+  if (p >= pat_end || p[0] != 92) { return 0; }
+  if (p + 1 >= pat_end) { return 0; }
+  if (p[1] == 112 || p[1] == 80) {
+    if (p + 2 >= pat_end || p[2] != 123) { return 0; }
+    q = p + 3;
+    while (q < pat_end && q[0] != 125) {
+      q = q + 1;
+    }
+    if (q >= pat_end || q == p + 3) { return 0; }
+    return 1;
+  }
+  if (p + 1 < pat_end) { return 1; }
+  return 0;
+}
+
+/** STD-066：解析属性名（L/N/W/S/Z 或 Letter/Number/Whitespace/Space）。 */
+/** 解析 Unicode 属性名 L/N/W 或 Letter/Number/Whitespace/Space；成功写 *out 并返回 1。 */
+function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): i32 {
+  if (name == 0 || name_len <= 0 || out == 0) { return 0; }
+  if (name_len == 1) {
+    if (name[0] == 76) { out[0] = REGEX_PROP_LETTER; return 1; }
+    if (name[0] == 78) { out[0] = REGEX_PROP_NUMBER; return 1; }
+    if (name[0] == 87 || name[0] == 83 || name[0] == 90) {
+      out[0] = REGEX_PROP_WHITESPACE;
+      return 1;
+    }
+    return 0;
+  }
+  if (name_len == 6 && memcmp(name, &REG_LIT_LETTER[0], 6) == 0) {
+    out[0] = REGEX_PROP_LETTER;
+    return 1;
+  }
+  if (name_len == 6 && memcmp(name, &REG_LIT_NUMBER[0], 6) == 0) {
+    out[0] = REGEX_PROP_NUMBER;
+    return 1;
+  }
+  if (name_len == 10 && memcmp(name, &REG_LIT_WHITESPACE[0], 10) == 0) {
+    out[0] = REGEX_PROP_WHITESPACE;
+    return 1;
+  }
+  if (name_len == 5 && memcmp(name, &REG_LIT_SPACE[0], 5) == 0) {
+    out[0] = REGEX_PROP_WHITESPACE;
+    return 1;
+  }
+  return 0;
+}
+
+/** STD-066：UTF-8 解码首 rune；失败返回 0。 */
+/** UTF-8 解码首 rune（1/2/3 字节）；失败返回 0，*out_rune/*out_len 写入。 */
+function regex_min_utf8_decode(s: *u8, s_end: *u8, out_rune: *u32, out_len: *i32): i32 {
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  if (s == 0 || s_end == 0 || s >= s_end || out_rune == 0
+      || out_len == 0) {
+    return 0;
+  }
+  c0 = s[0];
+  if (c0 < 128) {
+    out_rune[0] = c0 as u32;
+    out_len[0] = 1;
+    return 1;
+  }
+  if (c0 < 224 && s + 1 < s_end) {
+    c1 = s[1];
+    if ((c1 & 192) != 128) { return 0; }
+    out_rune[0] = ((c0 as u32 & 31) << 6) | (c1 as u32 & 63);
+    out_len[0] = 2;
+    return 1;
+  }
+  if (c0 < 240 && s + 2 < s_end) {
+    c1 = s[1];
+    c2 = s[2];
+    if ((c1 & 192) != 128 || (c2 & 192) != 128) { return 0; }
+    out_rune[0] = ((c0 as u32 & 15) << 12) | ((c1 as u32 & 63) << 6) | (c2 as u32 & 63);
+    out_len[0] = 3;
+    return 1;
+  }
+  return 0;
+}
+
+/** STD-066：rune 分类（v1 与 std.unicode 一致：非 ASCII 暂为 0）。 */
+/** 按 REGEX_MIN_ASCII_CAT 查 rune 分类；非 ASCII 返回 0。 */
+function regex_min_rune_category(rune: u32): i32 {
+  if (rune < 128) {
+    return REGEX_MIN_ASCII_CAT[rune] as i32;
+  }
+  return 0;
+}
+
+/** STD-066：atom 是否为 `\p{...}` 或 `\P{...}`。 */
+/** 判断 atom 是否为 \p{PROP} 或 \P{PROP}；*out_negate/*out_prop 输出。 */
+function regex_min_atom_is_prop(atom_start: *u8, atom_end: *u8, out_negate: *i32,
+    out_prop: *i32): i32 {
+  let name_start: *u8 = 0 as *u8;
+  let name_end: *u8 = 0 as *u8;
+  if (atom_start == 0 || atom_end <= atom_start + 4 || atom_start[0] != 92) {
+    return 0;
+  }
+  if (atom_start[1] != 112 && atom_start[1] != 80) { return 0; }
+  if (atom_start[2] != 123 || atom_end[-1] != 125) { return 0; }
+  out_negate[0] = (atom_start[1] == 80) ? 1 : 0;
+  name_start = atom_start + 3;
+  name_end = atom_end - 1;
+  return regex_min_parse_prop_name(name_start, (name_end - name_start) as i32, out_prop);
+}
+
+/** 模式是否仅含字面量（无 . * ? [ \p 等）。 */
+// ---------------------------------------------------------------------------
+// STD-062：字面量快路径判定与 memchr/memcmp 搜索
+// ---------------------------------------------------------------------------
+
+function is_literal_only(pat: *u8, pat_len: i32): i32 {
+  let i: i32 = 0;
+  let next_off: i32 = 0;
+  if (pat == 0 || pat_len <= 0) { return 0; }
+  i = 0;
+  while (i < pat_len) {
+    if (pat[i] == 92) {
+      if (regex_min_escape_valid(pat + i, pat + pat_len) == 0) { return 0; }
+      if (pat[(i + 1)] == 112 || pat[(i + 1)] == 80) { return 0; }
+      next_off = (regex_min_after_backslash(pat + i, pat + pat_len) - pat) as i32;
+      i = next_off - 1;
+      i = i + 1;
+      continue;
+    }
+    if (pat[i] == 46 || pat[i] == 42 || pat[i] == 63
+        || pat[i] == 43 || pat[i] == 91 || pat[i] == 40
+        || pat[i] == 41 || pat[i] == 124 || pat[i] == 94
+        || pat[i] == 36) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 全字面量模式：首字节 memchr + memcmp 子串搜索（STD-062）。 */
+/** 全字面量 memchr+memcmp 子串搜索；成功写 caps[0] 并返回 0。 */
+/** 主搜索入口：字面快路径 / first_lit 跳跃 / 全起点扫描。 */
+function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i32): i32 {
+  let plen: i32 = 0;
+  let first: u8 = 0;
+  let i: i32 = 0;
+  let hit: *u8 = 0 as *u8;
+  if (state == 0 || state.pat == 0 || text == 0 || len < 0) {
+    return -1;
+  }
+  plen = state.pat_len;
+  if (plen > len) { return -1; }
+  first = state.pat[0] as u8;
+  i = 0;
+  while (i <= len - plen) {
+    hit = memchr(text + i, first as i32, (len - i) as usize);
+    if (hit == 0) { return -1; }
+    i = (hit - text) as i32;
+    if (i + plen > len) { return -1; }
+    if (memcmp(hit, state.pat, plen) == 0) {
+      if (state.caps != 0 && state.ncap > 0) {
+        state.caps[0].off = i;
+        state.caps[0].len = plen;
+        state.cap_valid = 1;
+      }
+      return 0;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+/** 校验模式括号平衡、量词位置合法；非法返回 0。 */
+// ---------------------------------------------------------------------------
+// 编译期模式校验：括号平衡、量词位置、转义完整性
+// ---------------------------------------------------------------------------
+
+function regex_min_valid(pat: *u8, pat_len: i32): i32 {
+  let in_class: i32 = 0;
+  let depth: i32 = 0;
+  let i: i32 = 0;
+  let c: u8 = 0;
+  let prev: u8 = 0;
+  let next_off: i32 = 0;
+  if (pat == 0 || pat_len <= 0) { return 0; }
+  i = 0;
+  while (i < pat_len) {
+    c = pat[i];
+    if (c == 92) {
+      if (regex_min_escape_valid(pat + i, pat + pat_len) == 0) { return 0; }
+      next_off = (regex_min_after_backslash(pat + i, pat + pat_len) - pat) as i32;
+      i = next_off - 1;
+      i = i + 1;
+      continue;
+    }
+    if (in_class == 0) {
+      if (c == 91) { in_class = 1; i = i + 1; continue; }
+      if (c == 40) {
+        if (i + 2 < pat_len && pat[(i + 1)] == 63 && pat[(i + 2)] != 62) {
+          return 0;
+        }
+        depth = depth + 1;
+        i = i + 1;
+        continue;
+      }
+      if (c == 41) {
+        if (depth <= 0) { return 0; }
+        depth = depth - 1;
+        i = i + 1;
+        continue;
+      }
+      if (c == 124) {
+        if (i == 0 || i + 1 >= pat_len) { return 0; }
+        i = i + 1;
+        continue;
+      }
+      if (c == 42 || c == 63 || c == 43) {
+        if (i == 0) { return 0; }
+        if (c == 63 && i + 1 < pat_len && pat[(i - 1)] == 40
+            && pat[(i + 1)] == 62) {
+          i = i + 1;
+          continue;
+        }
+        prev = pat[(i - 1)];
+        if (prev == 42 || prev == 63 || prev == 43 || prev == 124 || prev == 40) {
+          return 0;
+        }
+        if ((c == 42 || c == 43) && i + 1 < pat_len && pat[(i + 1)] == 63) {
+          i = i + 1;
+        } else if (i + 1 < pat_len && pat[(i + 1)] == 43) {
+          i = i + 1;
+        }
+        i = i + 1;
+        continue;
+      }
+      i = i + 1;
+      continue;
+    }
+    if (c == 93) { in_class = 0; }
+    i = i + 1;
+  }
+  if (in_class != 0 || depth != 0) { return 0; }
+  return 1;
+}
+
+/** 统计捕获组数并记录各 `(` 在 pat 内偏移。 */
+/** 扫描 pat 统计捕获组、分配 caps/group_pat_off；失败 0。 */
+function regex_min_build_capture_meta(r: *RegexMinImpl): i32 {
+  let in_class: i32 = 0;
+  let depth: i32 = 0;
+  let ng: i32 = 0;
+  let i: i32 = 0;
+  let gid: i32 = 0;
+  let c: u8 = 0;
+  let next_off: i32 = 0;
+  if (r == 0 || r.pat == 0 || r.pat_len <= 0) { return 0; }
+  i = 0;
+  while (i < r.pat_len) {
+    c = r.pat[i];
+    if (c == 92) {
+      if (regex_min_escape_valid(r.pat + i, r.pat + r.pat_len) == 0) { return 0; }
+      next_off = (regex_min_after_backslash(r.pat + i, r.pat + r.pat_len) - r.pat) as i32;
+      i = next_off - 1;
+      i = i + 1;
+      continue;
+    }
+    if (in_class == 0) {
+      if (c == 91) { in_class = 1; i = i + 1; continue; }
+      if (c == 40) {
+        if (i + 2 < r.pat_len && r.pat[(i + 1)] == 63 && r.pat[(i + 2)] == 62) {
+          depth = depth + 1;
+          i = i + 1;
+          continue;
+        }
+        ng = ng + 1;
+        depth = depth + 1;
+        i = i + 1;
+        continue;
+      }
+      if (c == 41) {
+        if (depth <= 0) { return 0; }
+        depth = depth - 1;
+        i = i + 1;
+        continue;
+      }
+      i = i + 1;
+      continue;
+    }
+    if (c == 93) { in_class = 0; }
+    i = i + 1;
+  }
+  r.ncap = ng + 1;
+  r.cap_valid = 0;
+  r.caps = calloc(r.ncap, REGEX_MIN_CAP_SLOT_SIZE) as *RegexMinCapSlot;
+  if (r.caps == 0) { return 0; }
+  if (ng <= 0) {
+    r.group_pat_off = 0 as *i32;
+    return 1;
+  }
+  r.group_pat_off = malloc((ng * 4) as usize) as *i32;
+  if (r.group_pat_off == 0) { return 0; }
+  in_class = 0;
+  depth = 0;
+  gid = 0;
+  i = 0;
+  while (i < r.pat_len) {
+    c = r.pat[i];
+    if (c == 92) {
+      next_off = (regex_min_after_backslash(r.pat + i, r.pat + r.pat_len) - r.pat) as i32;
+      i = next_off - 1;
+      i = i + 1;
+      continue;
+    }
+    if (in_class == 0) {
+      if (c == 91) { in_class = 1; i = i + 1; continue; }
+      if (c == 40) {
+        if (i + 2 < r.pat_len && r.pat[(i + 1)] == 63 && r.pat[(i + 2)] == 62) {
+          depth = depth + 1;
+          i = i + 1;
+          continue;
+        }
+        r.group_pat_off[gid] = i;
+        gid = gid + 1;
+        depth = depth + 1;
+        i = i + 1;
+        continue;
+      }
+      if (c == 41) { depth = depth - 1; i = i + 1; continue; }
+      i = i + 1;
+      continue;
+    }
+    if (c == 93) { in_class = 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 重置 capture 槽（新一次 match 尝试前）。 */
+/** 每次 search 尝试前重置全部 capture 槽 off=-1。 */
+function regex_min_cap_reset(re: *RegexMinImpl): void {
+  let i: i32 = 0;
+  if (re == 0 || re.caps == 0 || re.ncap <= 0) { return; }
+  i = 0;
+  while (i < re.ncap) {
+    re.caps[i].off = -1;
+    re.caps[i].len = 0;
+    i = i + 1;
+  }
+  re.cap_valid = 0;
+}
+
+/** 查找 atom 起始 `(` 对应的 capture 组号（1..ncap-1）。 */
+/** 由捕获组 `(` 指针查组号 1..ncap-1；无则 -1。 */
+function regex_min_group_index(re: *RegexMinImpl, atom_start: *u8): i32 {
+  let i: i32 = 0;
+  let ng: i32 = 0;
+  if (re == 0 || re.group_pat_off == 0 || atom_start[0] != 40) {
+    return -1;
+  }
+  ng = re.ncap - 1;
+  i = 0;
+  while (i < ng) {
+    if (re.group_pat_off[i] == (atom_start - re.pat) as i32) { return i + 1; }
+    i = i + 1;
+  }
+  return -1;
+}
+
+/** 判断单字节是否落在字符类 [cls_start, cls_end) 内（不含外层方括号）。 */
+/** 字符类匹配（支持 ^ 取反、\ 转义、a-z 范围）；命中 1。 */
+function regex_min_class_hit(cls_start: *u8, cls_end: *u8, ch: u8): i32 {
+  let negate: i32 = 0;
+  let p: *u8 = cls_start;
+  let a: u8 = 0;
+  let b: u8 = 0;
+  let found: i32 = 0;
+  if (p < cls_end && p[0] == 94) { negate = 1; p = p + 1; }
+  while (p < cls_end) {
+    a = p[0];
+    p = p + 1;
+    if (a == 92 && p < cls_end) { a = p[0]; p = p + 1; }
+    if (p < cls_end && p[0] == 45) {
+      b = p[1];
+      if (b == 92 && p + 2 < cls_end) { b = p[2]; }
+      if (a <= b && ch >= a && ch <= b) { found = 1; }
+      p = p + 2;
+      continue;
+    }
+    if (ch == a) { found = 1; }
+  }
+  if (negate != 0) { return found == 0 ? 1 : 0; }
+  return found;
+}
+
+/** 消费一个 atom；成功推进 *pat 并返回 1，失败返回 0。 */
+/** 消费一个 atom（转义/[]/()/^$/字面）；*pat 推进，失败 0。 */
+function regex_min_consume_atom(pat: * *u8, pat_end: *u8): i32 {
+  let p: *u8 = pat[0];
+  let q: *u8 = 0 as *u8;
+  let depth: i32 = 0;
+  if (p >= pat_end) { return 0; }
+  if (p[0] == 92) {
+    if (regex_min_escape_valid(p, pat_end) == 0) { return 0; }
+    pat[0] = regex_min_after_backslash(p, pat_end);
+    return 1;
+  }
+  if (p[0] == 91) {
+    q = p + 1;
+    while (q < pat_end && q[0] != 93) {
+      if (q[0] == 92 && q + 1 < pat_end) { q = q + 2; }
+      else { q = q + 1; }
+    }
+    if (q >= pat_end) { return 0; }
+    pat[0] = q + 1;
+    return 1;
+  }
+  if (p[0] == 40) {
+    depth = 1;
+    q = p + 1;
+    while (q < pat_end && depth > 0) {
+      if (q[0] == 92 && q + 1 < pat_end) { q = q + 2; continue; }
+      if (q[0] == 40) { depth = depth + 1; }
+      else if (q[0] == 41) { depth = depth - 1; }
+      q = q + 1;
+    }
+    if (depth != 0) { return 0; }
+    pat[0] = q;
+    return 1;
+  }
+  if (p[0] == 94 || p[0] == 36) { pat[0] = p + 1; return 1; }
+  if (p[0] == 42 || p[0] == 63 || p[0] == 43) { return 0; }
+  pat[0] = p + 1;
+  return 1;
+}
+
+/** 提取模式首字节字面量（用于搜索跳跃）；首 atom 可零次（* / ?）时不跳跃。 */
+function first_lit(pat: *u8, pat_len: i32): i32 {
+  let p: *u8 = 0 as *u8;
+  let pat_end: *u8 = 0 as *u8;
+  let atom_start: *u8 = 0 as *u8;
+  let q: u8 = 0;
+  if (pat == 0 || pat_len <= 0) { return 0; }
+  p = pat;
+  pat_end = pat + pat_len;
+  atom_start = p;
+  if (regex_min_consume_atom(&p, pat_end) == 0) { return 0; }
+  if (p < pat_end) {
+    q = p[0];
+    if (q == 42 || q == 63 || q == 43) { return 0; }
+    if ((q == 42 || q == 43) && p + 1 < pat_end && p[1] == 63) { return 0; }
+  }
+  if (atom_start[0] == 92) {
+    if (atom_start + 2 > pat_end) { return 0; }
+    if ((atom_start[1] == 112 || atom_start[1] == 80) && atom_start + 2 < pat_end
+        && atom_start[2] == 123) {
+      return 0;
+    }
+    return atom_start[1] as i32;
+  }
+  if (atom_start[0] == 46 || atom_start[0] == 91 || atom_start[0] == 42
+      || atom_start[0] == 63 || atom_start[0] == 40) {
+    return 0;
+  }
+  return (atom_start[0] as i32);
+}
+
+/** 找 start 之后第一个顶层 `|`；无则返回 pat_end。 */
+function regex_min_next_branch(start: *u8, pat_end: *u8): *u8 {
+  let depth: i32 = 0;
+  let in_class: i32 = 0;
+  let p: *u8 = start;
+  while (p < pat_end) {
+    if (p[0] == 92 && p + 1 < pat_end) {
+      p = regex_min_after_backslash(p, pat_end) - 1;
+    } else if (in_class != 0) {
+      if (p[0] == 93) { in_class = 0; }
+    } else if (p[0] == 91) {
+      in_class = 1;
+    } else if (p[0] == 40) {
+      depth = depth + 1;
+    } else if (p[0] == 41) {
+      if (depth > 0) { depth = depth - 1; }
+    } else if (p[0] == 124 && depth == 0) {
+      return p;
+    }
+    p = p + 1;
+  }
+  return pat_end;
+}
+
+/** 尝试用 atom 匹配一字节或零宽锚点（^ 仅 hay 首、$ 仅 hay 尾）。 */
+// ---------------------------------------------------------------------------
+// 运行时匹配引擎：atom / 量词 / 分支 / 回溯
+// match_here ↔ match_seq 互递归；atomic_nest>0 时量词按占有型处理（STD-124）
+// ---------------------------------------------------------------------------
+
+function regex_min_match_atom_char(atom_start: *u8, atom_end: *u8, str: * *u8, str_end: *u8,
+    haystack_start: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  let ch: u8 = 0;
+  let negate: i32 = 0;
+  let prop: i32 = 0;
+  let rune: u32 = 0;
+  let nbytes: i32 = 0;
+  let cat: i32 = 0;
+  let hit: i32 = 0;
+  let cls: *u8 = 0 as *u8;
+  let cls_end: *u8 = 0 as *u8;
+  let lit: u8 = 0;
+  if (atom_start >= atom_end) { return 0; }
+  if (str[0] >= str_end && atom_start + 1 == atom_end && atom_start[0] == 36) { return 1; }
+  if (str[0] >= str_end) { return 0; }
+  p = atom_start;
+  ch = str[0][0];
+  if (p[0] == 94) {
+    if (str[0] != haystack_start) { return 0; }
+    return 1;
+  }
+  if (p[0] == 36) {
+    if (str[0] != str_end) { return 0; }
+    return 1;
+  }
+  if (p[0] == 92) {
+    if (p + 1 >= atom_end) { return 0; }
+    if (regex_min_atom_is_prop(atom_start, atom_end, &negate, &prop) != 0) {
+      if (regex_min_utf8_decode(str[0], str_end, &rune, &nbytes) == 0) { return 0; }
+      cat = regex_min_rune_category(rune);
+      hit = (cat == prop) ? 1 : 0;
+      if (negate != 0) { hit = hit == 0 ? 1 : 0; }
+      if (hit == 0) { return 0; }
+      str[0] = str[0] + nbytes;
+      return 1;
+    }
+  } else if (p[0] == 91) {
+    cls = p + 1;
+    cls_end = atom_end - 1;
+    if (cls_end <= cls || atom_end[-1] != 93) { return 0; }
+    if (regex_min_class_hit(cls, cls_end, ch) == 0) { return 0; }
+    str[0] = str[0] + 1;
+    return 1;
+  } else if (p[0] == 46) {
+    str[0] = str[0] + 1;
+    return 1;
+  } else {
+    lit = p[0];
+    if (lit != ch) { return 0; }
+    str[0] = str[0] + 1;
+    return 1;
+  }
+  if (p + 1 >= atom_end) { return 0; }
+  if (p[1] != ch) { return 0; }
+  str[0] = str[0] + 1;
+  return 1;
+}
+
+/** 匹配一次 atom 或分组（供量词重复）。 */
+/** 匹配单 atom 或捕获组/原子组 (?>...)；写捕获槽。 */
+function regex_min_match_piece(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8, str: * *u8,
+    str_end: *u8, haystack_start: *u8): i32 {
+  let inner_start: *u8 = 0 as *u8;
+  let inner_end: *u8 = 0 as *u8;
+  let p: *u8 = 0 as *u8;
+  let gstart: *u8 = 0 as *u8;
+  let gi: i32 = 0;
+  if (atom_start[0] == 40) {
+    inner_end = atom_end - 1;
+    if (inner_end <= atom_start + 1 || atom_end[-1] != 41) { return 0; }
+    if (atom_start + 3 <= atom_end && atom_start[1] == 63 && atom_start[2] == 62) {
+      inner_start = atom_start + 3;
+      if (inner_end <= inner_start) { return 0; }
+      p = inner_start;
+      re.atomic_nest = re.atomic_nest + 1;
+      if (regex_min_match_here(re, &p, inner_end, str, str_end, haystack_start) == 0) {
+        re.atomic_nest = re.atomic_nest - 1;
+        return 0;
+      }
+      re.atomic_nest = re.atomic_nest - 1;
+      if (p != inner_end) { return 0; }
+      return 1;
+    }
+    inner_start = atom_start + 1;
+    if (inner_end <= inner_start) { return 0; }
+    gstart = str[0];
+    p = inner_start;
+    if (regex_min_match_here(re, &p, inner_end, str, str_end, haystack_start) == 0) { return 0; }
+    if (p != inner_end) { return 0; }
+    gi = regex_min_group_index(re, atom_start);
+    if (gi > 0 && re.caps != 0 && gi < re.ncap) {
+      re.caps[gi].off = (gstart - haystack_start) as i32;
+      re.caps[gi].len = (str[0] - gstart) as i32;
+    }
+    return 1;
+  }
+  return regex_min_match_atom_char(atom_start, atom_end, str, str_end, haystack_start);
+}
+
+/** 解析 atom 后的量词；无则 q=0；lazy 对 *?/+?；possessive 对 *+/++/?+。 */
+/** 读取 ? / * / + 及 ? / + 后缀（lazy/possessive）；无则 out_q=0。 */
+function regex_min_take_quantifier(pat: * *u8, pat_end: *u8, out_q: *u8, out_lazy: *i32,
+    out_possessive: *i32): i32 {
+  let p: *u8 = pat[0];
+  out_lazy[0] = 0;
+  out_possessive[0] = 0;
+  if (p >= pat_end) {
+    out_q[0] = 0;
+    return 1;
+  }
+  if (p[0] == 63) {
+    if (p + 1 < pat_end && p[1] == 43) {
+      out_q[0] = 63;
+      out_possessive[0] = 1;
+      pat[0] = p + 2;
+      return 1;
+    }
+    out_q[0] = 63;
+    pat[0] = p + 1;
+    return 1;
+  }
+  if (p[0] == 42) {
+    out_q[0] = 42;
+    if (p + 1 < pat_end && p[1] == 63) {
+      out_lazy[0] = 1;
+      pat[0] = p + 2;
+    } else if (p + 1 < pat_end && p[1] == 43) {
+      out_possessive[0] = 1;
+      pat[0] = p + 2;
+    } else {
+      pat[0] = p + 1;
+    }
+    return 1;
+  }
+  if (p[0] == 43) {
+    out_q[0] = 43;
+    if (p + 1 < pat_end && p[1] == 63) {
+      out_lazy[0] = 1;
+      pat[0] = p + 2;
+    } else if (p + 1 < pat_end && p[1] == 43) {
+      out_possessive[0] = 1;
+      pat[0] = p + 2;
+    } else {
+      pat[0] = p + 1;
+    }
+    return 1;
+  }
+  out_q[0] = 0;
+  return 1;
+}
+
+/** 非贪婪 *?：先零次，再逐步增加重复。 */
+/** 非贪婪 *?：先零次再逐步增加重复（STD-065）。 */
+function regex_min_match_star_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let pat_save: *u8 = 0 as *u8;
+  let s2: *u8 = 0 as *u8;
+  pat_save = pat[0];
+  if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+  pat[0] = pat_save;
+  while (1 != 0) {
+    pat_save = pat[0];
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+    if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+    pat[0] = pat_save;
+  }
+  return 0;
+}
+
+/** 贪婪 *：先尽量多重复，再回溯。 */
+/** 贪婪 *：先尽量多重复再回溯。 */
+function regex_min_match_star_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let pat_save: *u8 = 0 as *u8;
+  let s2: *u8 = 0 as *u8;
+  while (1 != 0) {
+    pat_save = pat[0];
+    if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+    pat[0] = pat_save;
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+  }
+  return 0;
+}
+
+/** 非贪婪 +?：至少一次，其余尽量少重复。 */
+/** 非贪婪 +?：至少一次，其余尽量少。 */
+function regex_min_match_plus_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let s2: *u8 = 0 as *u8;
+  let pat_save: *u8 = 0 as *u8;
+  s2 = str[0];
+  if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { return 0; }
+  str[0] = s2;
+  pat_save = pat[0];
+  if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+  pat[0] = pat_save;
+  while (1 != 0) {
+    pat_save = pat[0];
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+    if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+    pat[0] = pat_save;
+  }
+  return 0;
+}
+
+/** 贪婪 +：至少一次，其余尽量多重复。 */
+/** 贪婪 +：至少一次，其余尽量多。 */
+function regex_min_match_plus_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let s2: *u8 = 0 as *u8;
+  let pat_save: *u8 = 0 as *u8;
+  s2 = str[0];
+  if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { return 0; }
+  str[0] = s2;
+  while (1 != 0) {
+    pat_save = pat[0];
+    if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) != 0) { return 1; }
+    pat[0] = pat_save;
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+  }
+  return 0;
+}
+
+/** 占有型 *+：尽量多重复，不回溯重复次数。 */
+/** 占有型 *+：尽量多吞，不回溯重复段（STD-099）。 */
+function regex_min_match_star_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let s2: *u8 = 0 as *u8;
+  while (1 != 0) {
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+  }
+  return regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start);
+}
+
+/** 占有型 ++：至少一次，再多尽量吞，不回溯。 */
+/** 占有型 ++：至少一次后尽量多吞，不回溯。 */
+function regex_min_match_plus_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+    pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
+  let s2: *u8 = 0 as *u8;
+  s2 = str[0];
+  if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { return 0; }
+  str[0] = s2;
+  while (1 != 0) {
+    s2 = str[0];
+    if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) == 0) { break; }
+    str[0] = s2;
+  }
+  return regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start);
+}
+
+/** 顺序匹配 pat[branch_start..branch_end)。 */
+/** 顺序匹配分支片段；处理 ? / * / + 各变体及 atomic_nest。 */
+function regex_min_match_seq(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
+    str_end: *u8, haystack_start: *u8): i32 {
+  let pat_checkpoint: *u8 = 0 as *u8;
+  let str_checkpoint: *u8 = 0 as *u8;
+  let atom_start: *u8 = 0 as *u8;
+  let atom_end: *u8 = 0 as *u8;
+  let q: u8 = 0;
+  let lazy: i32 = 0;
+  let possessive: i32 = 0;
+  let s2: *u8 = 0 as *u8;
+  while (pat[0] < pat_end) {
+    pat_checkpoint = pat[0];
+    str_checkpoint = str[0];
+    atom_start = pat[0];
+    if (regex_min_consume_atom(pat, pat_end) == 0) { return 0; }
+    atom_end = pat[0];
+    if (regex_min_take_quantifier(pat, pat_end, &q, &lazy, &possessive) == 0) { return 0; }
+    if (re.atomic_nest > 0 && q != 0) {
+      possessive = 1;
+      lazy = 0;
+    }
+    if (q == 63) {
+      s2 = str[0];
+      if (possessive == 0) {
+        if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) != 0) {
+          str[0] = s2;
+        }
+        if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+        continue;
+      }
+      if (regex_min_match_piece(re, atom_start, atom_end, &s2, str_end, haystack_start) != 0) {
+        str[0] = s2;
+      }
+      if (regex_min_match_seq(re, pat, pat_end, str, str_end, haystack_start) == 0) {
+        pat[0] = pat_checkpoint;
+        str[0] = str_checkpoint;
+        return 0;
+      }
+      continue;
+    }
+    if (q == 42) {
+      if (possessive != 0) {
+        if (regex_min_match_star_possessive(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      } else if (lazy != 0) {
+        if (regex_min_match_star_lazy(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      } else {
+        if (regex_min_match_star_greedy(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      }
+      continue;
+    }
+    if (q == 43) {
+      if (possessive != 0) {
+        if (regex_min_match_plus_possessive(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      } else if (lazy != 0) {
+        if (regex_min_match_plus_lazy(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      } else {
+        if (regex_min_match_plus_greedy(re, atom_start, atom_end, pat, pat_end, str, str_end,
+            haystack_start) == 0) {
+          pat[0] = pat_checkpoint;
+          str[0] = str_checkpoint;
+          return 0;
+        }
+      }
+      continue;
+    }
+    if (regex_min_match_piece(re, atom_start, atom_end, str, str_end, haystack_start) == 0) {
+      pat[0] = pat_checkpoint;
+      str[0] = str_checkpoint;
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/** 递归匹配：支持顶层 `|` 分支。 */
+/** 顶层 | 分支：依次尝试各 branch 直至 match_seq 成功。 */
+function regex_min_match_here(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
+    str_end: *u8, haystack_start: *u8): i32 {
+  let branch: *u8 = pat[0];
+  let branch_end: *u8 = 0 as *u8;
+  let s2: *u8 = 0 as *u8;
+  let p2: *u8 = 0 as *u8;
+  while (branch < pat_end) {
+    branch_end = regex_min_next_branch(branch, pat_end);
+    s2 = str[0];
+    p2 = branch;
+    if (regex_min_match_seq(re, &p2, branch_end, &s2, str_end, haystack_start) != 0
+        && p2 == branch_end) {
+      str[0] = s2;
+      pat[0] = branch_end;
+      return 1;
+    }
+    if (branch_end >= pat_end) { break; }
+    branch = branch_end + 1;
+  }
+  return 0;
+}
+
+/** 在 str[0..len) 中搜索子串匹配（STD-062：字面量快路径 + 首字节跳跃）。 */
+function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
+  let pat: *u8 = 0 as *u8;
+  let pat_end: *u8 = 0 as *u8;
+  let s: *u8 = 0 as *u8;
+  let s_end: *u8 = 0 as *u8;
+  let p: *u8 = 0 as *u8;
+  let i: i32 = 0;
+  if (re == 0 || re.pat == 0 || text == 0 || len < 0) {
+    return -1;
+  }
+  if (re.is_literal_only != 0) {
+    return regex_min_search_literal(re, text, len);
+  }
+  pat = re.pat;
+  pat_end = pat + re.pat_len;
+  if (re.first_lit != 0) {
+    i = 0;
+    while (i < len) {
+      s = text + i;
+      s_end = text + len;
+      p = pat;
+      regex_min_cap_reset(re);
+      if (regex_min_match_here(re, &p, pat_end, &s, s_end, text) != 0 && p == pat_end) {
+        if (re.caps != 0 && re.ncap > 0) {
+          re.caps[0].off = i;
+          re.caps[0].len = (s - (text + i)) as i32;
+          re.cap_valid = 1;
+        }
+        return 0;
+      }
+      i = i + 1;
+    }
+    return -1;
+  }
+  i = 0;
+  while (i <= len) {
+    s = text + i;
+    s_end = text + len;
+    p = pat;
+    regex_min_cap_reset(re);
+    if (regex_min_match_here(re, &p, pat_end, &s, s_end, text) != 0 && p == pat_end) {
+      if (re.caps != 0 && re.ncap > 0) {
+        re.caps[0].off = i;
+        re.caps[0].len = (s - (text + i)) as i32;
+        re.cap_valid = 1;
+      }
+      return 0;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+/** 编译正则模式；失败返回 null。 */
+// ---------------------------------------------------------------------------
+// 对外 C ABI：compile / match / capture / free
+// opaque handle 为 *u8，内部 cast 为 *RegexMinImpl
+// ---------------------------------------------------------------------------
+
+function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
+  let r: *RegexMinImpl = 0 as *RegexMinImpl;
+  if (pat == 0 || pat_len <= 0) { return 0; }
+  if (regex_min_valid(pat, pat_len) == 0) { return 0; }
+  r = malloc(REGEX_MIN_IMPL_SIZE) as *RegexMinImpl;
+  if (r == 0) { return 0; }
+  r.pat = malloc((pat_len + 1));
+  if (r.pat == 0) { free(r as *u8); return 0; }
+  memcpy(r.pat, pat, pat_len);
+  r.pat[pat_len] = 0;
+  r.pat_len = pat_len;
+  r.is_literal_only = is_literal_only(pat, pat_len);
+  r.first_lit = first_lit(pat, pat_len);
+  r.atomic_nest = 0;
+  if (regex_min_build_capture_meta(r) == 0) {
+    free(r.pat);
+    free(r as *u8);
+    return 0;
+  }
+  return r as *u8;
+}
+
+/** 在 str[0..len) 中搜索匹配；成功 0，失败 -1。 */
+/** 对 haystack 执行子串匹配；成功 0，失败 -1。 */
+function regex_match_c(re: *u8, text: *u8, len: i32): i32 {
+  if (re == 0 || text == 0) { return -1; }
+  return regex_min_search(re as *RegexMinImpl, text, len);
+}
+
+/** 返回 capture 槽数（含 group 0 全匹配）。 */
+/** 返回 capture 槽数（含 group 0）。 */
+function regex_group_count_c(re: *u8): i32 {
+  let r: *RegexMinImpl = regex_re_from_handle(re);
+  if (r == 0) { return -1; }
+  return r.ncap;
+}
+
+/** 读 group 起始字节偏移；无有效 capture 返回 -1。 */
+/** 读上次 match 的 group 起始偏移；无效 -1。 */
+function regex_group_offset_c(re: *u8, group: i32): i32 {
+  let r: *RegexMinImpl = regex_re_from_handle(re);
+  if (r == 0 || group < 0) { return -1; }
+  if (r.cap_valid == 0 || r.caps == 0 || group >= r.ncap) { return -1; }
+  return r.caps[group].off;
+}
+
+/** 读 group 匹配长度；无有效 capture 返回 -1。 */
+/** 读上次 match 的 group 长度；无效 -1。 */
+function regex_group_length_c(re: *u8, group: i32): i32 {
+  let r: *RegexMinImpl = regex_re_from_handle(re);
+  if (r == 0 || group < 0) { return -1; }
+  if (r.cap_valid == 0 || r.caps == 0 || group >= r.ncap) { return -1; }
+  if (r.caps[group].off < 0) { return -1; }
+  return r.caps[group].len;
+}
+
+/** 释放 pat、caps、group_pat_off 与 re 本体。 */
+function regex_free_c(re: *u8): void {
+  let r: *RegexMinImpl = regex_re_from_handle(re);
+  if (r == 0) { return; }
+  free(r.pat);
+  free(r.group_pat_off as *u8);
+  free(r.caps as *u8);
+  free(r as *u8);
+}
+
+/** C 烟测：literal / dot / class / star / question / group / alt / anchor / capture /
+ *  plus / lazy / prop / possessive / atomic；失败返回非 0。 */
+// ---------------------------------------------------------------------------
+// STD-051 烟测：覆盖 literal、dot、class、star、?、group、|、^$、capture、+、
+// lazy、\p{}、\P{}、占有型 *+/++/ ?+、原子组 (?>...) 及非法模式拒绝
+// 返回值 0=全通过；非 0 为失败用例编号（与 regex_min.inc.c 一致）
+// ---------------------------------------------------------------------------
+
+function regex_min_smoke_c(): i32 {
+  let re: *u8 = 0 as *u8;
+  let pat1: u8[5] = [104, 101, 108, 108, 111];
+  let hay1: u8[9] = [115, 97, 121, 32, 104, 101, 108, 108, 111];
+  let pat2: u8[3] = [104, 46, 108];
+  let hay2: u8[4] = [104, 105, 108, 111];
+  let pat3: u8[5] = [91, 48, 45, 57, 93];
+  let hay3: u8[3] = [120, 53, 121];
+  let pat4: u8[3] = [97, 42, 98];
+  let hay4: u8[4] = [97, 97, 97, 98];
+  let hay4b: u8[1] = [98];
+  let pat6: u8[5] = [40, 97, 98, 41, 99];
+  let hay6: u8[5] = [120, 97, 98, 99, 121];
+  let pat7: u8[7] = [99, 97, 116, 124, 100, 111, 103];
+  let hay7: u8[6] = [97, 32, 100, 111, 103, 33];
+  let pat8: u8[4] = [94, 104, 105, 36];
+  let hay8a: u8[2] = [104, 105];
+  let hay8b: u8[3] = [120, 104, 105];
+  let pat5: u8[7] = [99, 111, 108, 111, 117, 63, 114];
+  let hay5a: u8[5] = [99, 111, 108, 111, 114];
+  let hay5b: u8[6] = [99, 111, 108, 111, 117, 114];
+  let pat_star: u8[1] = [42];
+  let pat9: u8[5] = [40, 97, 98, 41, 99];
+  let hay9: u8[5] = [120, 97, 98, 99, 121];
+  let pat10: u8[3] = [97, 43, 98];
+  let hay10a: u8[3] = [97, 97, 98];
+  let hay10b: u8[1] = [98];
+  let pat11: u8[5] = [60, 46, 42, 63, 62];
+  let hay11: u8[6] = [60, 97, 62, 60, 98, 62];
+  let pat_plus: u8[1] = [43];
+  let pat12: u8[6] = [92, 112, 123, 76, 125, 43];
+  let hay12: u8[5] = [49, 97, 98, 99, 57];
+  let pat13: u8[5] = [92, 80, 123, 78, 125];
+  let hay13: u8[3] = [120, 53, 121];
+  let pat14: u8[5] = [92, 112, 123, 87, 125];
+  let hay14: u8[3] = [97, 32, 98];
+  let pat_empty_prop: u8[4] = [92, 112, 123, 125];
+  let pat15: u8[4] = [46, 43, 43, 33];
+  let hay15: u8[6] = [104, 101, 108, 108, 111, 33];
+  let pat16: u8[3] = [46, 43, 33];
+  let pat17: u8[4] = [97, 43, 43, 98];
+  let hay17: u8[4] = [97, 97, 97, 98];
+  let hay17b: u8[1] = [98];
+  let pat18: u8[4] = [97, 42, 43, 98];
+  let hay18: u8[4] = [120, 97, 97, 98];
+  let pat_star_plus: u8[2] = [42, 43];
+  let pat19: u8[5] = [40, 97, 43, 41, 97];
+  let pat20: u8[9] = [40, 63, 62, 40, 97, 43, 41, 41, 97];
+  let hay19: u8[3] = [97, 97, 97];
+  let pat_bad_atomic: u8[2] = [40, 63];
+
+  // 用例 1-2：字面量 hello 子串；dot 通配 h.l
+  re = regex_compile_c(&pat1[0], 5);
+  if (re == 0) { return 1; }
+  if (regex_match_c(re, &hay1[0], 9) != 0) { regex_free_c(re); return 2; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat2[0], 3);
+  if (re == 0) { return 3; }
+  if (regex_match_c(re, &hay2[0], 4) != 0) { regex_free_c(re); return 4; }
+  regex_free_c(re);
+
+  // 用例 3：[0-9] 字符类匹配 x5y
+  re = regex_compile_c(&pat3[0], 5);
+  if (re == 0) { return 5; }
+  if (regex_match_c(re, &hay3[0], 3) != 0) { regex_free_c(re); return 6; }
+  regex_free_c(re);
+
+  // 用例 4-4b：a*b 与零次 a 的 b
+  re = regex_compile_c(&pat4[0], 3);
+  if (re == 0) { return 7; }
+  if (regex_match_c(re, &hay4[0], 4) != 0) { regex_free_c(re); return 8; }
+  if (regex_match_c(re, &hay4b[0], 1) != 0) { regex_free_c(re); return 13; }
+  regex_free_c(re);
+
+  // 用例 6：(ab)c 捕获组
+  re = regex_compile_c(&pat6[0], 5);
+  if (re == 0) { return 14; }
+  if (regex_match_c(re, &hay6[0], 5) != 0) { regex_free_c(re); return 15; }
+  regex_free_c(re);
+
+  // 用例 7：cat|dog 交替
+  re = regex_compile_c(&pat7[0], 7);
+  if (re == 0) { return 16; }
+  if (regex_match_c(re, &hay7[0], 6) != 0) { regex_free_c(re); return 17; }
+  regex_free_c(re);
+
+  // 用例 8：^hi$ 全串锚点
+  re = regex_compile_c(&pat8[0], 4);
+  if (re == 0) { return 18; }
+  if (regex_match_c(re, &hay8a[0], 2) != 0) { regex_free_c(re); return 19; }
+  if (regex_match_c(re, &hay8b[0], 3) == 0) { regex_free_c(re); return 20; }
+  regex_free_c(re);
+
+  // 用例 5：colou?r 可选 u
+  re = regex_compile_c(&pat5[0], 7);
+  if (re == 0) { return 9; }
+  if (regex_match_c(re, &hay5a[0], 5) != 0) { regex_free_c(re); return 10; }
+  if (regex_match_c(re, &hay5b[0], 6) != 0) { regex_free_c(re); return 11; }
+  regex_free_c(re);
+
+  // 用例 12：悬空 * 须 compile 失败
+  if (regex_compile_c(&pat_star[0], 1) != 0) { return 12; }
+
+  // 用例 9/21-27：capture offset/length
+  re = regex_compile_c(&pat9[0], 5);
+  if (re == 0) { return 21; }
+  if (regex_group_count_c(re) != 2) { regex_free_c(re); return 22; }
+  if (regex_match_c(re, &hay9[0], 5) != 0) { regex_free_c(re); return 23; }
+  if (regex_group_offset_c(re, 0) != 1) { regex_free_c(re); return 24; }
+  if (regex_group_length_c(re, 0) != 3) { regex_free_c(re); return 25; }
+  if (regex_group_offset_c(re, 1) != 1) { regex_free_c(re); return 26; }
+  if (regex_group_length_c(re, 1) != 2) { regex_free_c(re); return 27; }
+  regex_free_c(re);
+
+  // 用例 10：a+b 至少一次 a
+  re = regex_compile_c(&pat10[0], 3);
+  if (re == 0) { return 28; }
+  if (regex_match_c(re, &hay10a[0], 3) != 0) { regex_free_c(re); return 29; }
+  if (regex_match_c(re, &hay10b[0], 1) == 0) { regex_free_c(re); return 30; }
+  regex_free_c(re);
+
+  // 用例 11：<.*? 非贪婪 .*
+  re = regex_compile_c(&pat11[0], 5);
+  if (re == 0) { return 31; }
+  if (regex_match_c(re, &hay11[0], 6) != 0) { regex_free_c(re); return 32; }
+  if (regex_group_count_c(re) >= 1) {
+    if (regex_group_offset_c(re, 0) != 0) { regex_free_c(re); return 33; }
+    if (regex_group_length_c(re, 0) != 3) { regex_free_c(re); return 34; }
+  }
+  regex_free_c(re);
+
+  // 用例 35：悬空 + 须 compile 失败
+  if (regex_compile_c(&pat_plus[0], 1) != 0) { return 35; }
+
+  // 用例 12-14：\p{L}+ \P{N} \p{W}
+  re = regex_compile_c(&pat12[0], 6);
+  if (re == 0) { return 36; }
+  if (regex_match_c(re, &hay12[0], 5) != 0) { regex_free_c(re); return 37; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat13[0], 5);
+  if (re == 0) { return 38; }
+  if (regex_match_c(re, &hay13[0], 3) != 0) { regex_free_c(re); return 39; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat14[0], 5);
+  if (re == 0) { return 40; }
+  if (regex_match_c(re, &hay14[0], 3) != 0) { regex_free_c(re); return 41; }
+  regex_free_c(re);
+
+  // 用例 42：空 \p{} 须 compile 失败
+  if (regex_compile_c(&pat_empty_prop[0], 4) != 0) { return 42; }
+
+  // 用例 15-18：占有型 .++ / a++ / a*+b
+  re = regex_compile_c(&pat15[0], 4);
+  if (re == 0) { return 43; }
+  if (regex_match_c(re, &hay15[0], 6) == 0) { regex_free_c(re); return 44; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat16[0], 3);
+  if (re == 0) { return 45; }
+  if (regex_match_c(re, &hay15[0], 6) != 0) { regex_free_c(re); return 46; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat17[0], 4);
+  if (re == 0) { return 47; }
+  if (regex_match_c(re, &hay17[0], 4) != 0) { regex_free_c(re); return 48; }
+  if (regex_match_c(re, &hay17b[0], 1) == 0) { regex_free_c(re); return 49; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat18[0], 4);
+  if (re == 0) { return 50; }
+  if (regex_match_c(re, &hay18[0], 4) != 0) { regex_free_c(re); return 51; }
+  regex_free_c(re);
+
+  // 用例 52：悬空 *+ 须 compile 失败
+  if (regex_compile_c(&pat_star_plus[0], 2) != 0) { return 52; }
+
+  // 用例 19-20/53-57：(a+)a vs (?>(a+))a 原子组
+  re = regex_compile_c(&pat19[0], 5);
+  if (re == 0) { return 53; }
+  if (regex_match_c(re, &hay19[0], 3) != 0) { regex_free_c(re); return 54; }
+  regex_free_c(re);
+
+  re = regex_compile_c(&pat20[0], 9);
+  if (re == 0) { return 55; }
+  if (regex_match_c(re, &hay19[0], 3) == 0) { regex_free_c(re); return 56; }
+  if (regex_group_count_c(re) != 2) { regex_free_c(re); return 57; }
+  regex_free_c(re);
+
+  // 用例 58：不完整 (? 须 compile 失败
+  if (regex_compile_c(&pat_bad_atomic[0], 2) != 0) { return 58; }
+
+  return 0;
+}
+
+// 【实现说明】
+// - 子串搜索语义：自 hay[0..len) 各起点尝试 match_here，首个全模式消耗成功即返回 0。
+// - first_lit!=0 时仍逐起点尝试（首字节跳跃由 memchr 在字面量路径完成）。
+// - capture：group_pat_off 记录捕获组 `(` 偏移；match 成功后 cap_valid=1。
+// - 非法模式（未闭合类/组、悬空量词、空 \p{}、(?( 等）compile 返回 null。
