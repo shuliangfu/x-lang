@@ -1,0 +1,7 @@
+# NL-07 v5 bootstrap nostdlib 硬绿 manifest
+# 列：item_id	category	anchor	check_type	notes
+n07_v5_doc	doc	analysis/phase-f-n07-v5.md	grep	NL-07 v5
+n07_v5_default_nostdlib	script	compiler/scripts/build_shux_asm.sh	grep	NL-07 v5：Linux x86_64 默认启用 nostdlib
+n07_v5_allow_libc_escape	script	compiler/scripts/build_shux_asm.sh	grep	SHUX_BOOTSTRAP_ALLOW_LIBC
+n07_v4_prereq	gate_ref	tests/run-nolibc-n07-v4-build-gate.sh	gate_ref	NL-07 v4
+n07_v5_gate	gate	tests/run-nolibc-n07-v5-gate.sh	gate_ref	v5 ldd gate
