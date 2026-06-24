@@ -8,8 +8,8 @@ latency	section	## 4. 延迟指标	BENCH_P99_US
 verify	section	## 6. 验证与门禁	gate
 api_get	api	get	std/http/mod.sx	客户端 GET
 api_respond	api	respond_get_ok	std/http/mod.sx	server 200 OK
-impl_c	file	std/http/http.c	http_respond_get_ok_c
-bench_su	file	tests/bench/http_get_bench.sx	64 GET
+impl_c	file	compiler/src/asm/http/runtime_http_glue.c	http_respond_get_ok_c
+bench_sx	file	tests/bench/http_get_bench.sx	64 GET
 bench_server	file	tests/bench/http_bench_server.c	sink
 baseline	file	tests/baseline/http-perf.tsv	吞吐 cap
 baseline_lat	file	tests/baseline/http-perf-latency.tsv	P99 cap
