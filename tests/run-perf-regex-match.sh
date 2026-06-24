@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 BENCH_SRC="tests/bench/regex_match_bench.c"
 STUB_SRC="tests/bench/regex_match_naive_stub.c"
-REGEX_C="std/regex/regex.c"
+REGEX_SX="std/regex/regex.sx"
 BENCH_EXE="/tmp/shux_regex_match_bench"
 STUB_EXE="/tmp/shux_regex_match_stub_bench"
 RUNS="${SHUX_REGEX_PERF_RUNS:-3}"
