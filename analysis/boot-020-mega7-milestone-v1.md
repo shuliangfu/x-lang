@@ -9,7 +9,7 @@
 
 ## 1. 里程碑目标
 
-**替换基础设施就绪**（非 B1–B7 全量 SU emit）：thin glue / stretch 符号链完整，mega7 七函数与 15+ 能力切片落地，second-pass 烟测不回归。
+**替换基础设施就绪**（非 B1–B7 全量 SX emit）：thin glue / stretch 符号链完整，mega7 七函数与 15+ 能力切片落地，second-pass 烟测不回归。
 
 | 维度 | v1 验收 |
 |------|---------|
@@ -63,6 +63,6 @@ shux: [SHUX_BOOT020] status=ok symbol=source mega7=1 skip=1
 
 ## 5. 非目标（v2）
 
-- B1–B7 mega 深循环 SU 真 emit（delta≥8KiB promote）
+- B1–B7 mega 深循环 SX 真 emit（delta≥8KiB promote）
 - 139 func 无 ret0 全量 bootstrap（阶段 C3）
 - Darwin nm 硬门禁（待 CI linux-amd64 常驻）
