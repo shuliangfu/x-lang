@@ -1,6 +1,6 @@
-# std.regex — 最小正则（纯 C 引擎）
+# std.regex — 最小正则（纯 .sx 引擎）
 
-**模块路径**：`std/regex/mod.sx` + `std/regex/regex.c`（链入 `regex_min.inc.c`）  
+**模块路径**：`std/regex/mod.sx` + `std/regex/regex.sx`（F-regex v2 纯 .sx）  
 **对标**：Rust `regex` 子集；全平台无 `regex.h` 依赖。
 
 ## API
@@ -21,6 +21,7 @@
 ## 测试
 
 ```bash
+./tests/run-f-regex-v2-gate.sh
 ./tests/run-std-regex-gate.sh
 ./tests/run-std-regex-atomic-gate.sh
 ```
