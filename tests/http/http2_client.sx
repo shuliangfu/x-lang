@@ -8,16 +8,16 @@ function main(): i32 {
   if (http.http2_hpack_dyn_smoke() != 0) { return 13; }
   if (http.http2_client_is_available() == false) { return 4; }
 
-  let host: [12]u8 = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
-  let path: [2]u8 = [47, 97];
-  let hpack: [64]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let host: u8[12] = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
+  let path: u8[2] = [47, 97];
+  let hpack: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let hlen: i32 = http.http2_hpack_encode_get_request(&host[0], 11, &path[0], 2, 1, &hpack[0], 64);
   if (hlen <= 0) { return 5; }
 
-  let frame: [128]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let frame: u8[128] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -37,7 +37,7 @@ function main(): i32 {
   if (ftype != http.http2_frame_headers()) { return 8; }
   if (sid != 3) { return 9; }
 
-  let status_block: [1]u8 = [136];
+  let status_block: u8[1] = [136];
   let code: i32 = 0;
   if (http.http2_hpack_decode_status(&status_block[0], 1, &code) != 0) { return 10; }
   if (code != 200) { return 11; }
