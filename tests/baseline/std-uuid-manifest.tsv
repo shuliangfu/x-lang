@@ -11,9 +11,10 @@ api_format	api	format	std/uuid/mod.sx	格式
 api_eq	api	eq	std/uuid/mod.sx	比较
 api_version	api	version	std/uuid/mod.sx	版本
 api_bytes	api	as_bytes	std/uuid/mod.sx	字节
-symbol_smoke	symbol	uuid_smoke_c	std/uuid/uuid.c	C烟测
-impl_c	file	std/uuid/uuid.c	std/uuid/uuid.c
-smoke_su	smoke	tests/std-uuid/roundtrip.sx	.su烟测
+symbol_smoke	symbol	uuid_smoke_c	std/uuid/uuid.sx	.sx烟测
+impl_sx	file	std/uuid/uuid.sx	std/uuid/uuid.sx
+uuid_c_absent	absent	std/uuid/uuid.c		F-uuid v1 已删
+smoke_sx	smoke	tests/std-uuid/roundtrip.sx	.sx烟测
 vectors	file	tests/baseline/std-uuid-vectors.tsv	向量
 lib	script	lib/std-uuid.sh	tests/lib/std-uuid.sh
 gate	script	run-std-uuid-gate.sh	tests/run-std-uuid-gate.sh
