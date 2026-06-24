@@ -3,9 +3,9 @@ analysis/*
 !analysis/*.md
 
 # --- 构建产物 ---
-# 可执行文件（编译器 shux / shu_su / shux-c 等）
+# 可执行文件（编译器 shux / shux_sx / shux-c 等）
 shux
-shu_su
+shux_sx
 shux-c
 su
 *.exe
@@ -104,6 +104,12 @@ compiler/_*
 !compiler/_stubs_driver.c
 compiler/0
 compiler/bootstrap_shux
+compiler/bootstrap_shuxc
+# G-06 本地 bootstrap 副本（pin 二进制在 seeds/bootstrap_shuxc.*）
+bstrict_rc.txt
+compiler/.gen_bootstrap_log.txt
+compiler/rv_local.sx
+compiler/parser.sx
 compiler/shux_stage1
 compiler/shux_stage2
 compiler/shux_sx_dbg
@@ -128,8 +134,8 @@ compiler/**/*_gen2.c
 compiler/std_fs_gen.c
 # 生成 C 的快照/副本（与 *_gen.c 等价，构建时产出，不提交）
 compiler/*_gen_new.c
-# .sx 自举时生成的中间 C（typeck_su_su.c, codegen_sx_su.c）
-compiler/*_su_su.c
+# .sx 自举时生成的中间 C（typeck_sx_sx.c, codegen_sx_sx.c）
+compiler/*_sx_sx.c
 # 备份与临时（含 .bak2, .bak3 等）
 compiler/*.new
 compiler/*.bak
@@ -169,7 +175,7 @@ compiler/shux_asm_stage1
 # gdb/core dump 与本地调试二进制（勿提交）
 compiler/core
 compiler/shux_asm2_raw
-compiler/shux-su.hide
+compiler/shux-sx.hide
 compiler/shux-test
 compiler/shux_test
 compiler/shux_test_*
