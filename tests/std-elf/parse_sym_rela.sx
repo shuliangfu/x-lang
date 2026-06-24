@@ -1,7 +1,7 @@
 // STD-103：std.elf symtab/rela 烟测（金样 574 字节嵌入）
 const elf = import("std.elf");
 function main(): i32 {
-  let blob: [574]u8 = [
+  let blob: u8[574] = [
     127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     1, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,
@@ -46,10 +46,10 @@ function main(): i32 {
   let sym: Elf64Sym = Elf64Sym { name_off: 0, bind: 0, sym_type: 0, shndx: 0, value: 0, size: 0 };
   let rela: Elf64Rela = Elf64Rela { offset: 0, sym_idx: 0, reloc_type: 0, addend: 0 };
   let idx: i32 = 0;
-  let name: [8]u8 = [];
-  let name_symtab: [8]u8 = [46, 115, 121, 109, 116, 97, 98, 0];
-  let name_strtab: [8]u8 = [46, 115, 116, 114, 116, 97, 98, 0];
-  let name_rela: [11]u8 = [46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 0];
+  let name: u8[8] = [];
+  let name_symtab: u8[8] = [46, 115, 121, 109, 116, 97, 98, 0];
+  let name_strtab: u8[8] = [46, 115, 116, 114, 116, 97, 98, 0];
+  let name_rela: u8[11] = [46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 0];
   if (elf.parse_hdr(&blob[0], 574, &hdr) != 0) { return 1; }
   if (hdr.shnum != 6) { return 2; }
   if (elf.find_section_idx(&blob[0], 574, &hdr, &name_symtab[0], &idx) != 0) { return 3; }
