@@ -11,7 +11,7 @@ const fs = import("std.fs");
 const heap = import("std.heap");
 
 /** 从 lex（位于 function 关键字）读出函数名写入 out，返回 name_len；失败返回 0。 */
-/** 单行 extern bl→parser_parse_peek_function_name_buf_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_peek_function_name_buf_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_peek_function_name_buf_glue(lex: Lexer, data: *u8, len: i32, out: *u8): i32;
 function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, out: *u8): i32 {
   return parser_parse_peek_function_name_buf_glue(lex, data, len, out);
@@ -27,7 +27,7 @@ extern function parser_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
 /** 将 struct_layouts[idx] 整槽清零后由 set_name/set_field 写入（AArch64 下避免 Module 大成员逐字节赋值失效）。 */
 extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-/** 读 struct_layout 名字节；避免 SU 嵌套下标 typeck 失败（定义在 ast.sx，parser 直接调用）。 */
+/** 读 struct_layout 名字节；避免 SX 嵌套下标 typeck 失败（定义在 ast.sx，parser 直接调用）。 */
 extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 extern function pipeline_module_struct_layout_set_field(module: *Module, layout_idx: i32, j: i32, fname: *u8, fname_len: i32,
   ftype_ref: i32, foff: i32): void;
@@ -39,7 +39,7 @@ extern function pipeline_module_struct_layout_set_field_align(module: *Module, l
 extern function pipeline_module_struct_layout_field_align_at(module: *Module, li: i32, j: i32): i32;
 /** 将单个形参写入 module.funcs[fi].params[pi]，避免 Param 按值拷贝导致 asm 下 type_ref 丢失。 */
 extern function pipeline_module_func_param_write(module: *Module, func_index: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
-/** glue：memcpy 写 module.funcs[fi].name[64] 与 name_len；勿在 SU 内逐字节写函数名（AArch64 自举下嵌套大数组字段可能不落盘）。 */
+/** glue：memcpy 写 module.funcs[fi].name[64] 与 name_len；勿在 SX 内逐字节写函数名（AArch64 自举下嵌套大数组字段可能不落盘）。 */
 extern function pipeline_module_func_name_write(module: *Module, func_index: i32, name_bytes: *u8, name_len: i32): void;
 /** 将形参写入 ASTArena 的 func 池槽位（func_ref 1-based），供 parse_into_buf 路径。 */
 extern function pipeline_arena_func_param_write(arena: *ASTArena, func_ref: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
@@ -265,7 +265,7 @@ function copy_lex_from_import_into(out: *Lexer, res: CollectImportsResult): void
 
 /** 从 LexerResult 取 next_lex 写入 out；C glue 同上。 */
 extern function parser_lex_from_lexer_result_val_into(out: *Lexer, r: LexerResult): void;
-/** 单行 extern bl→parser_lex_from_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_next_into_glue(out: *Lexer, r: LexerResult): void;
 function lex_from_next_into(out: *Lexer, r: LexerResult): void {
   parser_lex_from_next_into_glue(out, r);
@@ -273,7 +273,7 @@ function lex_from_next_into(out: *Lexer, r: LexerResult): void {
 
 /** 从 *LexerResult 取 next_lex 写入 out_lex；C glue 避免 *T 链式 FIELD_ACCESS 在 typeck 上为 ?。 */
 extern function parser_lex_from_lexer_result_ptr_into(out: *Lexer, r: *LexerResult): void;
-/** 单行 extern bl→parser_lex_from_result_ptr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_result_ptr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_result_ptr_into_glue(out_lex: *Lexer, r: *LexerResult): void;
 function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void {
   parser_lex_from_result_ptr_into_glue(out_lex, r);
@@ -281,7 +281,7 @@ function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void {
 
 /** 从 *OneFuncResult 取 next_lex 写入 out；C glue（OneFuncResult 体量大，按指针传入）。 */
 extern function parser_lex_from_onefunc_result_ptr_into(out: *Lexer, res: *OneFuncResult): void;
-/** 单行 extern bl→parser_lex_from_onefunc_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_onefunc_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_onefunc_next_into_glue(out: *Lexer, res: *OneFuncResult): void;
 function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): void {
   parser_lex_from_onefunc_next_into_glue(out, res);
@@ -363,7 +363,7 @@ function lexer_token_run_len(kind: TokenKind): i32 {
  * 从 LexerResult 当前 token 起点构造 Lexer，供语句级 parse_expr / parse_cond_expr 从 r.tok 重读。
  * TOKEN_INT 须依赖 lexer 填写的 token_start（见 lexer.sx lexer_next_body_into）。
  */
-/** 单行 extern bl→parser_lex_at_token_from_result_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_at_token_from_result_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_at_token_from_result_glue(r: LexerResult): Lexer;
 function lex_at_token_from_result(r: LexerResult): Lexer {
   return parser_lex_at_token_from_result_glue(r);
@@ -374,8 +374,10 @@ function lex_at_token_from_result(r: LexerResult): Lexer {
  * let/if 初值解析后，若后继为 return/if/while/for/}，把 lex 回指到该 token 起点。
  * 避免 parse_one_function_impl 的 stmt 循环再 lexer_next 吞掉 return（with_else typeck -6）。
  */
-/** 单行 extern bl→parser_parser_rewind_lex_for_following_stmt_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parser_rewind_lex_for_following_stmt_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parser_rewind_lex_for_following_stmt_glue(lex_in: Lexer, r: LexerResult): Lexer;
+/** parse_block return 尾：RBRACE 时置 block_break，否则 advance lex（C 实现，避 SX→C continue 失效）。 */
+extern function parser_asm_parse_block_return_end_tail_glue(r: *LexerResult, lex_cur: *Lexer, source: u8[], stmt_tok_ready: *bool, block_break: *i32): void;
 function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResult): Lexer {
   return parser_parser_rewind_lex_for_following_stmt_glue(lex_in, r);
 }
@@ -407,7 +409,7 @@ function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start
  * 仅消费 `;` 本身，勿在 `;` 后再 lexer_next：parse_one_function_impl 循环头会 advance，否则吞掉 return/let。
  * 返回 1 成功，0 表示遇到非法后继 token。
  */
-/** 单行 extern bl→parser_advance_past_stmt_semicolon_into_glue（SU 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_advance_past_stmt_semicolon_into_glue（SX 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_advance_past_stmt_semicolon_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
 function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
   return parser_advance_past_stmt_semicolon_into_glue(r_out, lex, source);
@@ -424,7 +426,7 @@ function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: Lexer, d
 /**
  * 解析 if/while 条件后同步到右括号之后：next_lex 可能止于 ) 或已越过 )。
  */
-/** 单行 extern bl→parser_advance_past_cond_rparen_into_glue（SU 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_advance_past_cond_rparen_into_glue（SX 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_advance_past_cond_rparen_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
 function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
   return parser_advance_past_cond_rparen_into_glue(r_out, lex, source);
@@ -750,7 +752,7 @@ struct ParseExprResult {
  * 须在写入 binop_* / unary_operand_ref / index_* / field_access_* / call_* 等变体指针之前调用；若先赋值再调用本函数会把子引用清掉。
  */
 /** 形参须写 *ast.Expr：import ast 后裸 *Expr 在 typeck 上与 ast.Expr 布局不一致，call_resolved_* 赋值会成 ?。 */
-/** 单行 extern bl→parser_expr_set_common_zeros_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_expr_set_common_zeros_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_expr_set_common_zeros_glue(e: *ast.Expr): void;
 function expr_set_common_zeros(e: *ast.Expr): void {
   parser_expr_set_common_zeros_glue(e);
@@ -844,7 +846,7 @@ function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncR
  * 解析 match 的 subject 表达式；勿对裸 IDENT 走 parse_expr_into 的 Type { } 后缀，
  * 否则 `match x { arm… }` 会把 `{ arm… }` 吃进结构体字面量导致整段 match 解析失败。
  */
-/** 单行 extern bl→parser_parse_match_subject_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_match_subject_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_match_subject_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_match_subject_into_glue(arena, lex, source, out);
@@ -855,7 +857,7 @@ function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
  * 解析 `match expr { pat => result; ... }`（整数字面量 / `_` / Enum.Variant）；lex 指向 match 关键字。
  * 与 parser.c TOKEN_MATCH 分支一致；Enum.Variant 的 tag 由 pipeline_parser_get_match_module 查表（未命中记 -1，typeck 报错）。
  */
-/** 单行 extern bl→parser_parse_match_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_match_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_match_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_match_into_glue(arena, lex, source, out);
@@ -865,7 +867,7 @@ function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pars
 /**
  * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。
  */
-/** 单行 extern bl→parser_parse_at_simd_builtin_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_at_simd_builtin_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_at_simd_builtin_into_glue(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void;
 function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void {
   parser_parse_at_simd_builtin_into_glue(arena, r0, source, out);
@@ -875,13 +877,13 @@ function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, source: u
 /**
  * 解析 primary：INT | TRUE | FALSE | BREAK | CONTINUE | IDENT | ( expr )；成功时写 out.expr_ref、out.next_lex，失败时 out.ok = false。
  */
-/** 单行 extern bl→parser_parse_primary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_primary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_primary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_primary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_primary_into_glue(arena, lex, source, out);
 }
 
-/** 单行 extern bl→parser_parse_as_suffix_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_as_suffix_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_as_suffix_into_glue(arena: *ASTArena, source: u8[], out: *ParseExprResult): void;
 function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *ParseExprResult): void {
   parser_parse_as_suffix_into_glue(arena, source, out);
@@ -891,7 +893,7 @@ function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *ParseExprRes
 /**
  * 解析 unary：(-|!) unary | primary；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_unary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_unary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_unary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_unary_into_glue(arena, lex, source, out);
@@ -901,7 +903,7 @@ function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pars
 /**
  * 解析 cast：unary (as type)*；as 优先级高于 ==/+/，与 C 一致（如 0 == 0 as *u8、if (0 as *u8)）。
  */
-/** 单行 extern bl→parser_parse_cast_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_cast_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_cast_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_cast_into_glue(arena, lex, source, out);
@@ -911,7 +913,7 @@ function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Parse
 /**
  * 解析 term：cast ( (*|/|%) cast )*；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_term_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_term_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_term_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_term_into_glue(arena, lex, source, out);
@@ -921,7 +923,7 @@ function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Parse
 /**
  * 解析 addsub：term ( (+|-) term )*；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_addsub_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_addsub_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_addsub_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_addsub_into_glue(arena, lex, source, out);
@@ -931,7 +933,7 @@ function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Par
 /**
  * 解析 shift：addsub ( (<<|>>) addsub )*；与 C 端 parse_shift 一致，供位运算层消费 << >>。
  */
-/** 单行 extern bl→parser_parse_shift_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_shift_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_shift_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_shift_into_glue(arena, lex, source, out);
@@ -941,7 +943,7 @@ function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pars
 /**
  * 解析 relcompare：shift ( (<|<=|>|>=) shift )*；与 C 端 parse_compare 一致（不含 ==/!=）。
  */
-/** 单行 extern bl→parser_parse_relcompare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_relcompare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_relcompare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_relcompare_into_glue(arena, lex, source, out);
@@ -951,7 +953,7 @@ function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: 
 /**
  * 解析 compare：relcompare ( (==|!=) relcompare )*；与 C 端 parse_eq 一致。
  */
-/** 单行 extern bl→parser_parse_compare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_compare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_compare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_compare_into_glue(arena, lex, source, out);
@@ -961,7 +963,7 @@ function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pa
 /**
  * 解析 bitand：compare ( & compare )*；单字符 & 为按位与（一元 & 仍在 parse_unary）。
  */
-/** 单行 extern bl→parser_parse_bitand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_bitand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_bitand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_bitand_into_glue(arena, lex, source, out);
@@ -971,7 +973,7 @@ function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Par
 /**
  * 解析 bitxor：bitand ( ^ bitand )*；与 C 端 parse_bitxor 一致。
  */
-/** 单行 extern bl→parser_parse_bitxor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_bitxor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_bitxor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_bitxor_into_glue(arena, lex, source, out);
@@ -981,7 +983,7 @@ function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Par
 /**
  * 解析 bitor：bitxor ( | bitxor )*；与 C 端 parse_bitor 一致。
  */
-/** 单行 extern bl→parser_parse_bitor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_bitor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_bitor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_bitor_into_glue(arena, lex, source, out);
@@ -991,7 +993,7 @@ function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pars
 /**
  * 解析 logand：bitor ( && bitor )*；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_logand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_logand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_logand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_logand_into_glue(arena, lex, source, out);
@@ -1001,7 +1003,7 @@ function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Par
 /**
  * 解析 logor：logand ( || logand )*；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_logor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_logor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_logor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_logor_into_glue(arena, lex, source, out);
@@ -1012,7 +1014,7 @@ function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Pars
  * 三元运算符：logor ('?' parse_expr ':' parse_ternary)*，右结合；与 C 端 parse_ternary 一致。
  * then 分支走整棵赋值层（parse_expr），else 分支递归本函数；成功时写 out.expr_ref、out.next_lex。
  */
-/** 单行 extern bl→parser_parse_ternary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_ternary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_ternary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_ternary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_ternary_into_glue(arena, lex, source, out);
@@ -1057,14 +1059,14 @@ function is_compound_assign_token(kind: TokenKind): bool {
 /** 映射实现见 pipeline_glue.c（C 内比对 TokenKind），避免 .sx typeck 对 `return ExprKind.*` 失败。 */
 extern function compound_assign_token_to_expr_kind_from_glue(kind: TokenKind): ExprKind;
 
-/** 复合赋值 token 映射到 ExprKind；EMIT_HEAVY 仍走 C glue（SU return ExprKind.* 曾 elf_ec=-1）。 */
+/** 复合赋值 token 映射到 ExprKind；EMIT_HEAVY 仍走 C glue（SX return ExprKind.* 曾 elf_ec=-1）。 */
 function compound_assign_token_to_expr_kind(kind: TokenKind): ExprKind {
   return compound_assign_token_to_expr_kind_from_glue(kind);
 }
 
 
 
-/** 左值判定由 pipeline_glue.c 直读池中 kind/is_enum_variant，与 shux-c 生成 struct 访问一致；勿在 SU 内 `let e: Expr = get` 后比较 e.kind（.sx typeck 会失败）。 */
+/** 左值判定由 pipeline_glue.c 直读池中 kind/is_enum_variant，与 shux-c 生成 struct 访问一致；勿在 SX 内 `let e: Expr = get` 后比较 e.kind（.sx typeck 会失败）。 */
 extern function pipeline_expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool;
 
 /**
@@ -1080,7 +1082,7 @@ function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool {
  * 赋值层：ternary (('='|'+='|…) ternary)?；右结合；仅左值为 VAR/INDEX/字段时消费赋值符。
  * ternary 在 logor 之上挂 ? :（与 C parse_assign → parse_ternary）；此前缺该层时 ? : 无法建成 EXPR_TERNARY。
  */
-/** 单行 extern bl→parser_parse_assign_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_assign_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_assign_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_assign_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_assign_into_glue(arena, lex, source, out);
@@ -1097,7 +1099,7 @@ function parse_expr_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *Parse
  * lex_in_brace：`{` 之后、第一个字段的起始 lexer；语法与 preprocess 等一致：`TypeName { a: e1 , b: e2 }`。
  * 须放在 parse_expr_into 之后：本函数递归调用 parse_expr_into；根因是原 parse_primary_into 漏认 IDENT 后 `{`。
  */
-/** 单行 extern bl→parser_finish_struct_lit_from_type_ident_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_finish_struct_lit_from_type_ident_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_finish_struct_lit_from_type_ident_into_glue(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void;
 function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_finish_struct_lit_from_type_ident_into_glue(arena, lit_ref, lex_in_brace, source, out);
@@ -1108,7 +1110,7 @@ function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, 
  * 解析 if/while 条件或表达式语句；若以 int 开头且紧跟 as，从 int 起点 parse_expr（与 return 0 as T 一致）。
  * 无 as 时从 lex_start 解析，避免误用 next_lex.pos-1 截断多位整数（如 if (10)）。
  */
-/** 单行 extern bl→parser_parse_cond_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_cond_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_cond_expr_into_glue(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_cond_expr_into(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void {
   parser_parse_cond_expr_into_glue(arena, lex_start, source, out);
@@ -1139,7 +1141,7 @@ struct ParseBlockResult {
  * 根据 OneFuncResult 的 const/let 填写块的 const_decls、let_decls 及 init 表达式；type_ref 可为 0（由 typeck 后填）。
  * 返回 true 成功，false 表示 arena 分配失败。
  */
-/** 单行 extern bl→parser_fill_block_const_let_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_fill_block_const_let_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_fill_block_const_let_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool;
 function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool {
   return parser_fill_block_const_let_from_res_glue(arena, block_ref, res, type_ref);
@@ -1149,7 +1151,7 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
 /**
  * 在已有块上追加 res 中的 let（从 let_base 起写），供 parse_block_into 在 while/if 体中解析中途 let。
  */
-/** 单行 extern bl→parser_append_block_lets_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_append_block_lets_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_append_block_lets_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool;
 function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool {
   return parser_append_block_lets_from_res_glue(arena, block_ref, res, let_base, type_ref);
@@ -1160,7 +1162,7 @@ function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneF
  * 解析单条 if（含 else / else if 链）；lex_at_if 指向 if 关键字。
  * 成功写 *out_cond/*out_then/*out_else 与 *lex_out（下一语句首 token），失败返回 false。
  */
-/** 单行 extern bl→parser_parse_if_stmt_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_if_stmt_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_if_stmt_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool;
 function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
@@ -1226,20 +1228,48 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
     }
     li = li + 1;
   }
-  let r: LexerResult = LexerResult { next_lex: lex_cur, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r_peek_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   /*
    * 块体主循环：与 parse_one_function_impl 交错处理 while/for/if/return/expr;，避免仅批处理 loop 导致
    * * `{ if (...) { ... } i = i + 1; }` 在 if 后失败；且 if/while/for 须 lex_from_next 消费关键字后再读 `(`。
-   * stmt_tok_ready：与 parse_one_function_impl 一致，避免 if 后双 advance 漏读（with_arena 内连续 if 只落一半）。
+   * parse_body_lets 后须 peek + parser_rewind_lex_for_following_stmt（与 parse_one_function_impl 一致）：
+   * let 初值为 call 时 lex 可能落在 `;` 之后下一 stmt 的 next_lex，不回绕则块首 let 后连续 if 只落前几条。
+   * stmt_tok_ready：避免 if 后双 advance 漏读（with_arena 内连续 if 只 codegen 一半）。
    */
-  lexer.lexer_next_into(&r, lex_cur, source);
+  lexer.lexer_next_into(&r_peek_blk, lex_cur, source);
+  let r: LexerResult = r_peek_blk;
+  lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk);
   let stmt_tok_ready: bool = true;
-  while (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+  let pb_break: i32 = 0;
+  while (!pb_break && r.tok.kind != TokenKind.TOKEN_RBRACE) {
     if (!stmt_tok_ready) {
       lexer.lexer_next_into(&r, lex_cur, source);
     }
     stmt_tok_ready = false;
-    /** while/if 体中途 let/const：与 parse_one_function_impl 主循环一致，否则 driver_argv_parse_su_path 等失败。 */
+    /**
+     * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
+     * 块内连续 if（尤其块首 let 后）只 codegen 前几条。回扫至 TOKEN_IF 后走 if 分支。
+     */
+    if (r.tok.kind == TokenKind.TOKEN_LPAREN) {
+      let lp_base: Lexer = lex_at_token_from_result(r);
+      let back_lp: i32 = 2;
+      while (back_lp <= 128) {
+        let lex_lp: Lexer = Lexer { pos: lexer_pos_before_run(lp_base.pos, back_lp), line: r.tok.line, col: r.tok.col };
+        let r_lp: LexerResult = LexerResult {
+          next_lex: lex_lp,
+          tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+          token_start: 0
+        };
+        lexer.lexer_next_into(&r_lp, lex_lp, source);
+        if (r_lp.tok.kind == TokenKind.TOKEN_IF) {
+          r = r_lp;
+          lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_lp);
+          break;
+        }
+        back_lp = back_lp + 1;
+      }
+    }
+    /** while/if 体中途 let/const：与 parse_one_function_impl 主循环一致，否则 driver_argv_parse_sx_path 等失败。 */
     if (r.tok.kind == TokenKind.TOKEN_LET || r.tok.kind == TokenKind.TOKEN_CONST) {
       let let_base_mid: i32 = b.num_lets;
       temp.num_lets = 0;
@@ -1398,15 +1428,11 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
-      /**
-       * `return expr` 以 `}` 结束块时 r 已在 RBRACE；勿再 lexer_next，否则会越过 `}` 导致 while/if 体解析失败。
-       */
-      if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+      /** return expr 以 `}` 结束块时 r 已在 RBRACE：C 尾处理置 pb_break，勿 lexer_next 吞 sibling if。 */
+      parser_asm_parse_block_return_end_tail_glue(&r, &lex_cur, source, &stmt_tok_ready, &pb_break);
+      if (pb_break == 0) {
         continue;
       }
-      lex_cur = r.next_lex;
-      lexer.lexer_next_into(&r, lex_cur, source);
-      continue;
     }
     if (r.tok.kind == TokenKind.TOKEN_LOOP) {
       lex_from_next_into(&lex_cur, r);
@@ -1620,7 +1646,7 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
       continue;
     }
     if (r.tok.kind == TokenKind.TOKEN_WITH_ARENA) {
-      /** MEM-C1：with_arena(cap) { body }；SU stmt_order kind=6（与 region 共用 idx 池，cap_ref>0 区分）。 */
+      /** MEM-C1：with_arena(cap) { body }；SX stmt_order kind=6（与 region 共用 idx 池，cap_ref>0 区分）。 */
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
@@ -1671,7 +1697,7 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
       continue;
     }
     if (r.tok.kind == TokenKind.TOKEN_REGION) {
-      /** M-3：region label { body }；SU stmt_order kind=6。 */
+      /** M-3：region label { body }；SX stmt_order kind=6。 */
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != TokenKind.TOKEN_IDENT) {
@@ -1729,6 +1755,7 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
+      /** 与 parse_one_function_impl if 分支一致：parse_if 写 lex_cur，单次 peek 后 stmt_tok_ready。 */
       lexer.lexer_next_into(&r, lex_cur, source);
       stmt_tok_ready = true;
       continue;
@@ -1838,7 +1865,7 @@ function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_ref: i32)
  * 解析 if 条件表达式：if ( cond ) { block } [ else { block } | else if ... ]，与 parser.c parse_if_expr 对齐。
  * lex_at_if 须指向 TOKEN_IF；成功时写 out.expr_ref 为 EXPR_IF（then/else 为 EXPR_BLOCK 包装块）。
  */
-/** 单行 extern bl→parser_parse_if_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_if_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_if_expr_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void;
 function parse_if_expr_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void {
   parser_parse_if_expr_into_glue(arena, lex_at_if, source, type_ref, out);
@@ -1941,7 +1968,7 @@ function parse(source: u8[]): ParseResult {
 /**
  * 诊断用：返回 source 首 token 的 kind（整型），失败时便于 main 打印。
  */
-/** 单行 extern bl→parser_first_token_kind_glue（SU 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_first_token_kind_glue（SX 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_first_token_kind_glue(source: u8[]): i32;
 function first_token_kind(source: u8[]): i32 {
   return parser_first_token_kind_glue(source);
@@ -1958,7 +1985,7 @@ function first_token_kind_buf(data: *u8, len: i32): i32 {
 /**
  * 诊断用：返回首 IDENT（函数名）的 ident_len，用于确认 lexer 是否正确填充。
  */
-/** 单行 extern bl→parser_diag_first_ident_len_glue（SU 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_diag_first_ident_len_glue（SX 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_diag_first_ident_len_glue(source: u8[]): i32;
 function diag_first_ident_len(source: u8[]): i32 {
   return parser_diag_first_ident_len_glue(source);
@@ -1975,7 +2002,7 @@ function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
 /**
  * 诊断用：从 body 首 token 起跳过所有 let/const，写入 out，避免 LexerResult 按值返回 ABI 问题。
  */
-/** 单行 extern bl→parser_diag_skip_let_const_into_glue（SU 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_diag_skip_let_const_into_glue（SX 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_diag_skip_let_const_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   parser_diag_skip_let_const_into_glue(out, lex, source);
@@ -1983,7 +2010,7 @@ function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: u8[]): 
 
 
 /** 兼容：返回 LexerResult，内部调 diag_skip_let_const_into 再写回（仍有 return 的 ABI 风险，优先用 _into）。 */
-/** 单行 extern bl→parser_diag_skip_let_const_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_skip_let_const_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_skip_let_const_glue(lex: Lexer, source: u8[]): LexerResult;
 function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
   return parser_diag_skip_let_const_glue(lex, source);
@@ -2007,7 +2034,7 @@ function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data: *u8, 
 /**
  * 从 body 首 token 起先跳过 let/const，再跳过所有 if，结果写入 out，避免 LexerResult 按值返回 ABI。
  */
-/** 单行 extern bl→parser_body_skip_let_const_then_if_into_glue（SU 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_body_skip_let_const_then_if_into_glue（SX 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_body_skip_let_const_then_if_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 function body_skip_let_const_then_if_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   parser_body_skip_let_const_then_if_into_glue(out, lex, source);
@@ -2018,7 +2045,7 @@ function body_skip_let_const_then_if_into(out: *LexerResult, lex: Lexer, source:
  * let 初值 `[..] op [..]`：自 `[` 起点 parse_expr_into，更新 lex/r；成功返回 expr ref，失败 0。
  * 独立函数避免 shux-c 将 `if (TOKEN_LBRACKET)` 分支误判为 ParseExprResult 表达式类型。
  */
-/** 单行 extern bl→parser_parse_body_let_bracket_compound_init_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_body_let_bracket_compound_init_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_body_let_bracket_compound_init_ref_glue(arena: *ASTArena, bracket_start: usize, lex: Lexer, source: u8[],
                                                   lex_out: *Lexer, r_out: *LexerResult): i32;
 function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, bracket_start: usize, lex: Lexer, source: u8[],
@@ -2031,7 +2058,7 @@ function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, bracket_star
  * 从 lex 起解析一个类型写入 arena（*T、Elem[N]、标量、命名类型），返回 types 池下标，失败返回 0。
  * 成功时写入 *out_lex 为类型最后一个 token 之后的位置，供形参/struct 字段等继续读 , 或 ;。
  */
-/** 单行 extern bl→parser_parse_type_ref_for_arena_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_type_ref_for_arena_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_type_ref_for_arena_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32;
 function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32 {
   return parser_parse_type_ref_for_arena_into_glue(arena, lex, source, out_lex);
@@ -2182,7 +2209,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             break;
           }
         }
-        /* 空 [] 亦合法：driver_argv_parse_su_path 等 let arg_buf: u8[512] = [] 依赖此路径。 */
+        /* 空 [] 亦合法：driver_argv_parse_sx_path 等 let arg_buf: u8[512] = [] 依赖此路径。 */
         if (r.tok.kind == TokenKind.TOKEN_RBRACKET) {
           if (is_let) {
             let_init_ref = arr_ref;
@@ -2463,7 +2490,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
 }
 
 /** 兼容：返回 LexerResult，内部调 _into（仍有 return 的 ABI 风险）。 */
-/** 单行 extern bl→parser_body_skip_let_const_then_if_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_body_skip_let_const_then_if_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_body_skip_let_const_then_if_glue(lex: Lexer, source: u8[]): LexerResult;
 function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResult {
   return parser_body_skip_let_const_then_if_glue(lex, source);
@@ -2487,7 +2514,7 @@ function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lexer, dat
 /**
  * 从 lex（已消费开括号）起跳过匹配的括号，返回匹配的 ) 之后的 lex 状态；用于跳过 if ( ... ) 中的条件。
  */
-/** 单行 extern bl→parser_skip_balanced_parens_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_balanced_parens_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_balanced_parens_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_balanced_parens_glue(lex, source);
@@ -2495,7 +2522,7 @@ function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
 
 
 /** 直接在 out 指针写结果，避免 ARM64 下 Lexer 按值返回 ABI 错误。供 parse_one_function_impl 等热路径使用。 */
-/** 单行 extern bl→parser_skip_balanced_parens_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_balanced_parens_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_balanced_parens_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_balanced_parens_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_balanced_parens_into_glue(out, lex, source);
@@ -2531,7 +2558,7 @@ function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 /**
  * 从 lex（已消费开大括号）起跳过匹配的大括号，返回匹配的 } 之后的 lex 状态；用于跳过 if { ... } 块。
  */
-/** 单行 extern bl→parser_skip_balanced_braces_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_balanced_braces_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_balanced_braces_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_balanced_braces_glue(lex, source);
@@ -2539,7 +2566,7 @@ function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
 
 
 /** 直接在 out 指针写结果，避免 ARM64 下 Lexer 按值返回 ABI 错误。 */
-/** 单行 extern bl→parser_skip_balanced_braces_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_balanced_braces_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_balanced_braces_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_balanced_braces_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_balanced_braces_into_glue(out, lex, source);
@@ -2576,7 +2603,7 @@ function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer {
  * 从「function」前 lex 起跳过整条函数（含签名与体），返回 } 之后的 lex；用于 parse_into 在 parse 与 library 均失败时跳过该函数继续下一项。
  */
 /** 从「function」前 lex 起跳过整条函数（含签名与体），通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_function_full_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_function_full_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_function_full_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_function_full_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_function_full_into_glue(out, lex, source);
@@ -2600,7 +2627,7 @@ function skip_one_top_level_let_into_buf(out: *Lexer, lex: Lexer, data: *u8, len
   parser_skip_one_top_level_let_into_buf_glue(out, lex, data, len);
 }
 
-/** 单行 extern bl→parser_skip_one_function_full_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_function_full_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_function_full_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_function_full_glue(lex, source);
@@ -2627,7 +2654,7 @@ function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lexer {
  * 单独成函数避免 codegen 将 while(ELSE) 与 return r 提到本逻辑前，导致未处理 LPAREN 就返回。
  * 返回跳过后的 LexerResult。
  */
-/** 单行 extern bl→parser_skip_one_if_core_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_if_core_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_if_core_glue(lex: Lexer, source: u8[]): LexerResult;
 function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
   return parser_skip_one_if_core_glue(lex, source);
@@ -2639,7 +2666,7 @@ function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
  * 返回跳过后的 LexerResult，供 parse_one_function 与诊断在 body 内跳过 if 继续解析。
  * 通过调用 skip_one_if_core 保证 LPAREN 处理在 return 前执行，避免 codegen 重排。
  */
-/** 单行 extern bl→parser_skip_one_if_statement_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_if_statement_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_if_statement_glue(lex: Lexer, source: u8[]): LexerResult;
 function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
   return parser_skip_one_if_statement_glue(lex, source);
@@ -2647,7 +2674,7 @@ function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
 
 
 /** skip_one_if_statement 的 _into 变体：直接在 out 指针输出避免 ARM64 下 LexerResult 按值返回 ABI 错误。 */
-/** 单行 extern bl→parser_skip_one_if_statement_into_glue（SU 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_skip_one_if_statement_into_glue（SX 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_skip_one_if_statement_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   parser_skip_one_if_statement_into_glue(out, lex, source);
@@ -2655,7 +2682,7 @@ function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source: u8[])
 
 
 /** skip_one_if_core 的 _into 变体：直接在 out 指针输出。 */
-/** 单行 extern bl→parser_skip_one_if_core_into_glue（SU 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/** 单行 extern bl→parser_skip_one_if_core_into_glue（SX 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 extern function parser_skip_one_if_core_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   parser_skip_one_if_core_into_glue(out, lex, source);
@@ -2696,7 +2723,7 @@ function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, data: *u8
  * 便于精确定位是哪个 token 导致解析失败。
  */
 /** 诊断用：返回「跳过顶层 import 后的 lex」；单独成函数确保 codegen 先执行 skip_imports 再被 diag_fail 使用。 */
-/** 单行 extern bl→parser_diag_lex_after_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_lex_after_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_lex_after_imports_glue(source: u8[]): Lexer;
 function diag_lex_after_imports(source: u8[]): Lexer {
   return parser_diag_lex_after_imports_glue(source);
@@ -2711,7 +2738,7 @@ function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
 
 
 /** 诊断用：在给定 lex 上取 token 并跳过 struct，返回第一个非 struct 的 LexerResult。 */
-/** 单行 extern bl→parser_diag_after_imports_then_structs_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_after_imports_then_structs_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_after_imports_then_structs_glue(lex: Lexer, source: u8[]): LexerResult;
 function diag_after_imports_then_structs(lex: Lexer, source: u8[]): LexerResult {
   return parser_diag_after_imports_then_structs_glue(lex, source);
@@ -2725,7 +2752,7 @@ function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: i32): L
 }
 
 
-/** 单行 extern bl→parser_diag_fail_at_token_kind_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_fail_at_token_kind_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_fail_at_token_kind_glue(source: u8[]): i32;
 function diag_fail_at_token_kind(source: u8[]): i32 {
   return parser_diag_fail_at_token_kind_glue(source);
@@ -2765,7 +2792,7 @@ function copy_slice_to_name64_at_end(source: u8[], end_pos: usize, nlen: i32, ou
  * 结构体字段名：{ } 内允许 soa/packed 关键字作字段名（如 StructLayout.soa；与 struct 修饰符区分）。
  * 成功返回名字节长度并写入 out；失败返回 -1。
  */
-/** 单行 extern bl→parser_struct_field_name_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_struct_field_name_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_struct_field_name_from_tok_glue(r: LexerResult, source: u8[], out: *u8): i32;
 function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u8): i32 {
   return parser_struct_field_name_from_tok_glue(r, source, out);
@@ -3083,10 +3110,10 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     let stmt_tok_ready: bool = true;
     /* while / for / if / expr; 交错：与 C parser parse_block 主循环对齐，避免仅批处理 loop 导致 stmt_order 与 codegen 顺序错乱 */
     while (true) {
-    if (!stmt_tok_ready) {
-      lexer.lexer_next_into(&r, r.next_lex, source);
-    }
-    stmt_tok_ready = false;
+      if (!stmt_tok_ready) {
+        lexer.lexer_next_into(&r, lex, source);
+      }
+      stmt_tok_ready = false;
       /* 块尾 } 或 return 结束 stmt 循环；勿把语句首 int（如 0 as *u8;、if (0 as *u8)）误判为块尾裸表达式。 */
       if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
           || r.tok.kind == TokenKind.TOKEN_MATCH) {
@@ -4005,7 +4032,7 @@ function import_path_dot_segment_len(kind: TokenKind, ident_len: i32): i32 {
 /**
  * 将 import 路径段从 source[token_start..] 复制到 path_buf[path_len..]。
  */
-/** 单行 extern bl→parser_import_path_dot_segment_copy_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_import_path_dot_segment_copy_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_import_path_dot_segment_copy_glue(source: u8[], token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void;
 /**
  * 将 import 路径段从 source[token_start..] 复制到 path_buf[path_len..]。
@@ -4057,7 +4084,7 @@ function parse_into_init(module: *Module, arena: *ASTArena): void {
  * 跳过顶层 import 语句：若当前 token 为 TOKEN_IMPORT 则消费至分号并继续，直到遇到非 import。
  * 返回跳过后的 lex，供 diag_lex_after_imports 等诊断路径使用（不收集 import 路径）。
  */
-/** 单行 extern bl→parser_skip_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_imports_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_imports(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_imports_glue(lex, source);
@@ -4076,7 +4103,7 @@ function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
  * 解析 import("path") 绑定 `const m = import("path");`，填充 module.import_paths / import_path_lens / num_imports。
  * 使用 out 参数避免按值返回 Lexer（ABI 导致有 import 时返回值错误），供 parse_into 在解析 function 前调用。
  */
-/** 单行 extern bl→parser_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_collect_imports_glue(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void;
 function collect_imports(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void {
   parser_collect_imports_glue(lex, source, module, out);
@@ -4097,14 +4124,14 @@ function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, o
  * 返回跳过后的 lex，供 parse_into 在解析 function 前跳过 codegen.sx 等文件中的 struct。
  */
 /** 跳过一条顶层 struct 定义：struct <ident> { ... }；lex 为 struct 前的位置。与 skip_one_struct 等价 + _into 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_struct_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_struct_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_struct_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_struct_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_struct_into_glue(out, lex, source);
 }
 
 
-/** 单行 extern bl→parser_skip_one_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_struct_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_struct(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_struct_glue(lex, source);
@@ -4114,7 +4141,7 @@ function skip_one_struct(lex: Lexer, source: u8[]): Lexer {
 /**
  * 登记顶层 enum 类型名（去重），供 codegen / match 查 variant tag；返回 sidecar 下标，失败为 -1。
  */
-/** 单行 extern bl→parser_module_try_register_enum_name_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_module_try_register_enum_name_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_module_try_register_enum_name_glue(module: *Module, name: *u8, name_len: i32): i32;
 /**
  * 登记顶层 enum 类型名（去重），供 codegen / match 查 variant tag；返回 sidecar 下标，失败为 -1。
@@ -4155,7 +4182,7 @@ function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32
  * 扫描 enum `{ ... }` 体内变体名并写入 module sidecar（供 match Color.Green 等查 tag），再跳过至匹配 `}`。
  * lex 位于 `{` 之后（与 skip_balanced_braces_into 入参一致）。
  */
-/** 单行 extern bl→parser_module_append_enum_variants_and_skip_body_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_module_append_enum_variants_and_skip_body_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_module_append_enum_variants_and_skip_body_into_glue(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void;
 function module_append_enum_variants_and_skip_body_into(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_module_append_enum_variants_and_skip_body_into_glue(module, enum_idx, out, lex, source);
@@ -4206,7 +4233,7 @@ function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enu
 
 
 /** 与 skip_one_enum_into 相同，且将 enum 名记入 module（slice 源）。 */
-/** 单行 extern bl→parser_skip_one_enum_register_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_enum_register_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_enum_register_into_glue(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_enum_register_into_glue(module, out, lex, source);
@@ -4231,13 +4258,13 @@ function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, da
  * 供 parse_into 在解析 function 前跳过 token.sx 等文件中的 enum。
  */
 /** 跳过一条顶层 enum 定义：enum <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_enum_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_enum_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_enum_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_enum_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_enum_into_glue(out, lex, source);
 }
 
-/** 单行 extern bl→parser_skip_one_enum_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_enum_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_enum_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_enum_glue(lex, source);
@@ -4248,13 +4275,13 @@ function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
  * 跳过一条顶层 trait 定义：trait <ident> { ... }；供 parse_into 在解析 function 前跳过 std.io 等文件中的 trait。
  */
 /** 跳过一条顶层 trait 定义：trait <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_trait_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_trait_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_trait_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_trait_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_trait_into_glue(out, lex, source);
 }
 
-/** 单行 extern bl→parser_skip_one_trait_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_trait_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_trait_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_trait_glue(lex, source);
@@ -4265,13 +4292,13 @@ function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
  * 跳过一条顶层 impl 块：impl [<ident> for ] <ident> { ... }；供 parse_into 在解析 function 前跳过 std.io 等文件中的 impl。
  */
 /** 跳过一条顶层 impl 块：impl [<ident> for ] <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_impl_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_impl_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_impl_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_impl_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_impl_into_glue(out, lex, source);
 }
 
-/** 单行 extern bl→parser_skip_one_impl_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_impl_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_impl_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_impl_glue(lex, source);
@@ -4321,13 +4348,13 @@ function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
  * 供 parse_into 在解析 function 前跳过 main.sx 等文件中的 extern 声明。
  */
 /** 跳过一条顶层 extern function 声明：通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_extern_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_extern_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_extern_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_extern_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   parser_skip_one_extern_into_glue(out, lex, source);
 }
 
-/** 单行 extern bl→parser_skip_one_extern_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_skip_one_extern_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_skip_one_extern_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
   return parser_skip_one_extern_glue(lex, source);
@@ -4358,7 +4385,7 @@ function extern_parse_pool_ptr(res: *ExternParseResult): *u8 {
  * 将 ExternParseResult 形参写入 arena 与 module sidecar 池（Func 本体不再内嵌 params 数组）。
  * res 须为 parse_one_extern_skip_into 写入的同一栈对象，侧车池按地址索引。
  */
-/** 单行 extern bl→parser_write_extern_params_to_pools_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_write_extern_params_to_pools_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_write_extern_params_to_pools_glue(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void;
 /**
  * 将 ExternParseResult 形参写入 arena 与 module sidecar 池（Func 本体不再内嵌 params 数组）。
@@ -4396,7 +4423,7 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
 
 
 /** 仅解析 extern function 到分号，结果写入 out；失败时 name_len=-1。须用指针路径以便侧车池与 out 同址。 */
-/** 单行 extern bl→parser_parse_one_extern_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_extern_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_extern_skip_into_glue(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void;
 function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
   parser_parse_one_extern_skip_into_glue(out, arena, lex, source);
@@ -4419,10 +4446,10 @@ function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTAren
  * 将已写入 arena 的 Func 登记到 module 动态池；返回 module 下标，池满返回 -1。
  * 形参须由调用方经 pipeline_module_func_param_write 写入 sidecar 池。
  */
-/** 单行 extern bl→parser_module_register_arena_func_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_module_register_arena_func_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 /** 将已写入 arena 的 Func 登记到 module 动态池；返回 module 下标，池满返回 -1。
  * 形参须由调用方经 pipeline_module_func_param_write 写入 sidecar 池。
- * EMIT_HEAVY safe_helper SU 真 emit（pipeline_module_* 标量 glue 调用）。
+ * EMIT_HEAVY safe_helper SX 真 emit（pipeline_module_* 标量 glue 调用）。
  */
 function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i32 {
   let fi: i32 = pipeline_module_func_alloc_slot(module);
@@ -4443,7 +4470,7 @@ function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i3
 
 
 /** parse_one_extern_and_add 的 _into 变体：通过 lex_out 指针写结果。 */
-/** 单行 extern bl→parser_parse_one_extern_and_add_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_extern_and_add_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_extern_and_add_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void;
 function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void {
   parser_parse_one_extern_and_add_into_glue(arena, module, lex, source, lex_out);
@@ -4497,28 +4524,28 @@ allow(padding) struct LibraryParseResult {
   _pad_tail: u8[4];
 }
 /** 从 TrySkipAllowResult 取 lex 写入 out，避免 ABI 下结构体赋值未写回。 */
-/** 单行 extern bl→parser_lex_from_try_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_try_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_try_skip_into_glue(out: *Lexer, t: TrySkipAllowResult): void;
 function lex_from_try_skip_into(out: *Lexer, t: TrySkipAllowResult): void {
   parser_lex_from_try_skip_into_glue(out, t);
 }
 
 /** 从 LibraryParseResult 取 next_lex 写入 out，同上。 */
-/** 单行 extern bl→parser_lex_from_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_library_into_glue(out: *Lexer, lib: LibraryParseResult): void;
 function lex_from_library_into(out: *Lexer, lib: LibraryParseResult): void {
   parser_lex_from_library_into_glue(out, lib);
 }
 
 /** 兼容：返回 Lexer。 */
-/** 单行 extern bl→parser_lex_from_try_skip_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_try_skip_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_try_skip_glue(t: TrySkipAllowResult): Lexer;
 function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
   return parser_lex_from_try_skip_glue(t);
 }
 
 /** 兼容：返回 Lexer。 */
-/** 单行 extern bl→parser_lex_from_library_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_lex_from_library_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_lex_from_library_glue(lib: LibraryParseResult): Lexer;
 function lex_from_library(lib: LibraryParseResult): Lexer {
   return parser_lex_from_library_glue(lib);
@@ -4546,14 +4573,14 @@ struct LibraryParseScanResult {
  * 仅做 token 序列解析并写入 result，不建 AST；每步检查后立即写 result，避免代码生成器提升变量导致错序。
  * 成功返回 true，失败返回 false 并写 result.next_lex / result.ok。
  */
-/** 单行 extern bl→parser_parse_one_function_library_scan_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_function_library_scan_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_function_library_scan_glue(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool;
 function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool {
   return parser_parse_one_function_library_scan_glue(lex, source, result);
 }
 
 /** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
-/** 单行 extern bl→parser_struct_layout_name_exists_arr_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_struct_layout_name_exists_arr_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[64], nlen: i32): bool;
 /** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
 function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): bool {
@@ -4580,7 +4607,7 @@ function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): 
 
 
 /** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
-/** 单行 extern bl→parser_struct_layout_first_name_match_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_struct_layout_first_name_match_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
 /** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
 function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
@@ -4610,7 +4637,7 @@ function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i
  * 是否存在与 nm 同名的「占位」layout：parse_one_function_library 可能先注册 num_fields=1 且 field_lens[0]==0 的条目，
  * 后续顶层 struct 应按真实成员覆盖该槽位，否则 typeck 只能通过下一槽位兜底。
  */
-/** 单行 extern bl→parser_struct_layout_placeholder_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_struct_layout_placeholder_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
 /**
  * 是否存在与 nm 同名的「占位」layout：parse_one_function_library 可能先注册 num_fields=1 且 field_lens[0]==0 的条目，
@@ -4652,7 +4679,7 @@ function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): 
  * 解析库中“单参 + 返回 bool + return 单表达式”形态：function <name>(<param>: <Type>): bool { return <param>.<field> == <Enum>.<variant>; }。
  * 先调 parse_one_function_library_scan 取解析结果，再按 result 建 AST，避免 -E 生成 C 时变量提升导致错序。
  */
-/** 单行 extern bl→parser_parse_one_function_library_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_function_library_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_function_library_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult;
 function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult {
   return parser_parse_one_function_library_glue(arena, module, lex, source);
@@ -4671,7 +4698,7 @@ function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: 
 
 
 /** 仅当 r 为 TOKEN_IDENT 且 ident_len==5 时调用 try_skip_allow_padding_struct，否则返回 (lex, 0)。主循环统一调用此包装避免复杂条件。 */
-/** 单行 extern bl→parser_parse_into_try_skip_allow_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_into_try_skip_allow_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_into_try_skip_allow_glue(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult;
 function parse_into_try_skip_allow(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult {
   return parser_parse_into_try_skip_allow_glue(lex, r, source);
@@ -4685,7 +4712,7 @@ function parse_into_try_skip_allow_buf(lex: Lexer, r: LexerResult, data: *u8, le
 }
 
 
-/** 单行 extern bl→parser_try_skip_allow_padding_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_try_skip_allow_padding_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_try_skip_allow_padding_struct_glue(lex: Lexer, source: u8[]): TrySkipAllowResult;
 function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowResult {
   return parser_try_skip_allow_padding_struct_glue(lex, source);
@@ -4717,7 +4744,7 @@ function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
  * 结束后 r 仍指向类型名**最后一个** IDENT（与单段 `*Foo` 一致，供 parse_type_ref 的 lex_from_next 再前进一步）。
  * 失败返回 -1。
  */
-/** 单行 extern bl→parser_consume_qualified_type_ident_name_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_consume_qualified_type_ident_name_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_consume_qualified_type_ident_name_glue(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32;
 function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32 {
   return parser_consume_qualified_type_ident_name_glue(source, r, out, out_len);
@@ -4733,7 +4760,7 @@ function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerRes
 
 /**
  * 判断 token 是否可作为「*」后的指向目标（命名类型或内建标量关键字，含 u8/i32 等）。
- * EMIT_HEAVY safe_helper SU 真 emit（纯 TokenKind 分派，无 lexer 调用）。
+ * EMIT_HEAVY safe_helper SX 真 emit（纯 TokenKind 分派，无 lexer 调用）。
  */
 function is_pointee_type_token(kind: TokenKind): bool {
   if (kind == TokenKind.TOKEN_IDENT) {
@@ -4760,7 +4787,7 @@ function is_pointee_type_token(kind: TokenKind): bool {
  * 在 r 指向「*」后首 token 时，将指向目标类型写入 arena 类型池并返回其 ref；失败返回 0（不前进 lex）。
  * 须传 *LexerResult：LexerResult 按值传给子函数时主机 ABI（如 AArch64）会撕裂 tok/token_start，导致 *T 的元素名错乱与 struct 布局不匹配。
  */
-/** 单行 extern bl→parser_alloc_pointee_type_ref_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_alloc_pointee_type_ref_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_alloc_pointee_type_ref_from_tok_glue(arena: *ASTArena, source: u8[], r: *LexerResult): i32;
 function alloc_pointee_type_ref_from_tok(arena: *ASTArena, source: u8[], r: *LexerResult): i32 {
   return parser_alloc_pointee_type_ref_from_tok_glue(arena, source, r);
@@ -4770,7 +4797,7 @@ function alloc_pointee_type_ref_from_tok(arena: *ASTArena, source: u8[], r: *Lex
 /**
  * 分配 TYPE_VECTOR 类型节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
  */
-/** 单行 extern bl→parser_parser_alloc_vector_type_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parser_alloc_vector_type_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parser_alloc_vector_type_ref_glue(arena: *ASTArena, elem_ord: i32, lanes: i32): i32;
 /**
  * 分配 TYPE_VECTOR 类型节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
@@ -4798,7 +4825,7 @@ function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i3
 /**
  * IDENT 拼写为 i32x4/u32x8 等时返回 TYPE_VECTOR ref（部分 lex 路径仍落 TOKEN_IDENT → TYPE_NAMED）。
  */
-/** 单行 extern bl→parser_parser_vector_type_ref_from_ident_spelling_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parser_vector_type_ref_from_ident_spelling_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parser_vector_type_ref_from_ident_spelling_glue(arena: *ASTArena, source: u8[], r: LexerResult): i32;
 function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8[], r: LexerResult): i32 {
   return parser_parser_vector_type_ref_from_ident_spelling_glue(arena, source, r);
@@ -4809,7 +4836,7 @@ function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8
  * 解析顶层 struct Name { field: T; ... }：写入 module.struct_layouts（偏移 8 字节步进 + field_type_refs）。
  * lex 指向类型名第一个字节（已跳过 struct 关键字）。成功返回 0 且 *out_lex 在闭合 } 之后；失败返回 -1。
  */
-/** 单行 extern bl→parser_parse_struct_record_layout_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_struct_record_layout_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_struct_record_layout_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32): i32;
 function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32): i32 {
   return parser_parse_struct_record_layout_into_glue(arena, module, lex, source, out_lex, allow_pad, force_soa);
@@ -4822,7 +4849,7 @@ function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex:
  * 不支持块末裸字面量当返回值。
  */
 /** parse_one_function_buf 的 _into 变体：避免 ARM64 下 OneFuncResult 按值返回导致 ABI 错误。 */
-/** 单行 extern bl→parser_parse_one_function_buf_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_function_buf_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_function_buf_into_glue(out: *OneFuncResult, lex: Lexer, data: *u8, len: i32): void;
 function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8, len: i32): void {
   parser_parse_one_function_buf_into_glue(out, lex, data, len);
@@ -4830,7 +4857,7 @@ function parse_one_function_buf_into(out: *OneFuncResult, lex: Lexer, data: *u8,
 
 
 /** parse_one_function_library 的 _into 变体：避免 ARM64 下 LibraryParseResult 按值返回 ABI 错误。将结果写入 out 指针。 */
-/** 单行 extern bl→parser_parse_one_function_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_function_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_function_library_into_glue(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void;
 function parse_one_function_library_into(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void {
   parser_parse_one_function_library_into_glue(out, arena, module, lex, source);
@@ -4847,7 +4874,7 @@ function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *A
 
 
 /** parse_into_try_skip_allow 的 _into 变体。将结果写到 out 指针。 */
-/** 单行 extern bl→parser_parse_into_try_skip_allow_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_into_try_skip_allow_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_into_try_skip_allow_into_glue(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void;
 function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void {
   parser_parse_into_try_skip_allow_into_glue(out, lex, r, source);
@@ -5043,7 +5070,7 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
     onefunc_res_wire_dummy_call_binop(&res, parse_into_empty64);
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
-    /* 优先 library：形态「单参 bool return x.y == Enum.V」须走专用 AST（EXPR_ENUM_VARIANT）；若先跑 impl 则会 parse_expr_into 成功却得不到 SU typeck/asm 路径期望的节点 */
+    /* 优先 library：形态「单参 bool return x.y == Enum.V」须走专用 AST（EXPR_ENUM_VARIANT）；若先跑 impl 则会 parse_expr_into 成功却得不到 SX typeck/asm 路径期望的节点 */
     let empty64_lib_first: u8[64] = [];
     let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
@@ -6005,7 +6032,7 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
  * 解析一条顶层 let 或 const：lex 为消费掉 LET/CONST 后的位置，期望「ident : type = expr ;」。
  * 成功时写 module.top_level_let_*、arena 中 type/expr，并设置 out.ok=true、out.next_lex；失败时 out.ok=false。
  */
-/** 单行 extern bl→parser_parse_one_top_level_let_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_top_level_let_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void;
 function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void {
   parser_parse_one_top_level_let_into_glue(arena, module, lex, source, is_const, out);
@@ -6241,21 +6268,21 @@ function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex
 }
 
 
-/** skip_balanced_parens_into 的 slice 委托 buf（与 skip_balanced_parens_into_buf 深循环 SU 体并存）。 */
+/** skip_balanced_parens_into 的 slice 委托 buf（与 skip_balanced_parens_into_buf 深循环 SX 体并存）。 */
 function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_balanced_parens_into(out, lex, slice);
 }
 
 
-/** skip_balanced_braces_into 的 slice 委托 buf（与 skip_balanced_braces_into_buf 深循环 SU 体并存）。 */
+/** skip_balanced_braces_into 的 slice 委托 buf（与 skip_balanced_braces_into_buf 深循环 SX 体并存）。 */
 function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_balanced_braces_into(out, lex, slice);
 }
 
 
-/** module_append_enum_variants_and_skip_body_into 的 slice 委托 buf（深循环 SU 体见 module_append_enum_variants_and_skip_body_into_buf）。 */
+/** module_append_enum_variants_and_skip_body_into 的 slice 委托 buf（深循环 SX 体见 module_append_enum_variants_and_skip_body_into_buf）。 */
 function module_append_enum_variants_and_skip_body_slice_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   let slice: u8[] = parser_slice_from_buf(data, len);
   module_append_enum_variants_and_skip_body_into(module, enum_idx, out, lex, slice);
@@ -7269,7 +7296,7 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
 }
 
 /** 在 parse_into 返回后由调用方调用，将 main_idx 写回 module.main_func_index，避免 codegen 将赋值提升到循环前。 */
-/** 单行 extern bl→parser_parse_into_set_main_index_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_into_set_main_index_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_into_set_main_index_glue(module: *Module, main_idx: i32): void;
 function parse_into_set_main_index(module: *Module, main_idx: i32): void {
   parser_parse_into_set_main_index_glue(module, main_idx);
@@ -7280,7 +7307,7 @@ function parse_into_set_main_index(module: *Module, main_idx: i32): void {
  * 诊断：模拟 parse_into 首轮循环中 collect_imports 后的下一次 lexer_next，返回得到的 token kind。
  * 用于区分「首 token 非 FUNCTION 导致 break」与「parse_one_function 失败」。
  */
-/** 单行 extern bl→parser_diag_token_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_token_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_token_after_collect_imports_glue(source: u8[], module: *Module): i32;
 function diag_token_after_collect_imports(source: u8[], module: *Module): i32 {
   return parser_diag_token_after_collect_imports_glue(source, module);
@@ -7291,7 +7318,7 @@ function diag_token_after_collect_imports(source: u8[], module: *Module): i32 {
  * 诊断：用 collect_imports 后的 lex 调用 parse_one_function，返回 res.ok（1 成功 0 失败）。
  * 若为 0 则说明在 parse_into 内会因 !res.ok 而 break。arena 用于解析 let 时构建 init 表达式。
  */
-/** 单行 extern bl→parser_diag_parse_one_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_diag_parse_one_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_diag_parse_one_after_collect_imports_glue(source: u8[], module: *Module, arena: *ASTArena): i32;
 function diag_parse_one_after_collect_imports(source: u8[], module: *Module, arena: *ASTArena): i32 {
   return parser_diag_parse_one_after_collect_imports_glue(source, module, arena);
@@ -7302,7 +7329,7 @@ function diag_parse_one_after_collect_imports(source: u8[], module: *Module, are
  * pipeline 诊断：lexer_init 后直接 parse_one_function_impl，返回 1 成功 0 失败。
  * 避免 pipeline.sx 内 OneFuncResult 按值 extern 返回导致 parse_into_buf 跳过该函数。
  */
-/** 单行 extern bl→parser_parse_one_function_ok_for_pipeline_glue（EMIT_HEAVY 深循环/兼容包装勿 SU emit）。 */
+/** 单行 extern bl→parser_parse_one_function_ok_for_pipeline_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_one_function_ok_for_pipeline_glue(arena: *ASTArena, source: u8[]): i32;
 function parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[]): i32 {
   return parser_parse_one_function_ok_for_pipeline_glue(arena, source);
