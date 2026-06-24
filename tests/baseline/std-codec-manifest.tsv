@@ -17,8 +17,8 @@ api_stream_proc	api	stream_codec_process	std/codec/mod.sx	流
 api_adapter_hex	api	adapter_hex_encode	std/codec/mod.sx	hex
 api_adapter_b64	api	adapter_base64_encode	std/codec/mod.sx	b64
 api_adapter_gzip	api	adapter_gzip_encode	std/codec/mod.sx	gzip
-impl_su	file	std/codec/mod.sx	std/codec/mod.sx
-smoke_su	smoke	tests/std-codec/roundtrip.sx	round-trip
+impl_sx	file	std/codec/mod.sx	std/codec/mod.sx
+smoke_sx	smoke	tests/std-codec/roundtrip.sx	round-trip
 vectors	file	tests/baseline/std-codec-vectors.tsv	向量
 lib	script	lib/std-codec.sh	tests/lib/std-codec.sh
 gate	script	run-std-codec-gate.sh	tests/run-std-codec-gate.sh
