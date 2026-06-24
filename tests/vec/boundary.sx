@@ -25,7 +25,7 @@ function main(): i32 {
   if (popped != 30) { return 9; }
   if (vec.vec_i32_len(v) != 2) { return 10; }
   // case 7：append_slice
-  let tail: [2]i32 = [40, 50];
+  let tail: i32[2] = [40, 50];
   if (vec.vec_i32_append_slice(&v, &tail[0], 2) != 0) { return 11; }
   if (vec.vec_i32_len(v) != 4) { return 12; }
   // case 8：clear 后为空
