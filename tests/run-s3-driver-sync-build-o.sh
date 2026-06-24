@@ -75,7 +75,7 @@ if [ -x "$COMP" ]; then
     "$COMP" -backend asm -o "$WPO_TMP" $LIBROOT compiler/src/driver/compile.sx 2>/dev/null; then
     wpo_sz=$(text_section_size "$WPO_TMP")
     if [ "$wpo_sz" -gt 0 ] && [ "$wpo_sz" -le 768 ] 2>/dev/null && \
-       nm "$WPO_TMP" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_su|entry)$'; then
+       nm "$WPO_TMP" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_sx|entry)$'; then
       cp -f "$WPO_TMP" "$DEST"
       echo "s3 driver sync-build-o: wrote $DEST __text=${wpo_sz} (WPO entry-only)"
       WPO_OK=1
@@ -96,10 +96,10 @@ CFLAGS="-Wall -Wextra -Icompiler -Icompiler/include -Icompiler/src"
 if [ -f "$LINK_ALIAS_SRC" ]; then
   "$CC" $CFLAGS -c -o "$LINK_ALIAS_O" "$LINK_ALIAS_SRC"
   ld -r -o "$LINK_O" "$DEST_EH" "$LINK_ALIAS_O"
-  if nm "$LINK_O" 2>/dev/null | grep -q ' T _driver_run_compiler_full_su$'; then
-    echo "s3 driver sync-build-o: wrote $LINK_O (driver_run_compiler_full_su alias OK)"
+  if nm "$LINK_O" 2>/dev/null | grep -q ' T _driver_run_compiler_full_sx$'; then
+    echo "s3 driver sync-build-o: wrote $LINK_O (driver_run_compiler_full_sx alias OK)"
   else
-    echo "s3 driver sync-build-o: warn: $LINK_O missing driver_run_compiler_full_su" >&2
+    echo "s3 driver sync-build-o: warn: $LINK_O missing driver_run_compiler_full_sx" >&2
   fi
 fi
 
