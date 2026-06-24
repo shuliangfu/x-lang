@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# track-only：整颗 pipeline_wpo.o SU 编排链入 strict_glue（SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
-# 链接 + return-value/hello 编译运行须成功（2026-06-10：+ pipeline_su_glue_support astpool 桥接）。
+# track-only：整颗 pipeline_wpo.o SX 编排链入 strict_glue（SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
+# 链接 + return-value/hello 编译运行须成功（2026-06-10：+ pipeline_sx_glue_support astpool 桥接）。
 # 用法：
 #   ./tests/run-pipeline-wpo-full-link-smoke.sh
 #   SHUX_PIPELINE_WPO_FULL_COMPILE_FAIL=1 ./tests/run-pipeline-wpo-full-link-smoke.sh  # 同默认（硬门禁）
