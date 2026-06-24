@@ -30,17 +30,17 @@ perf_async_is_linux_x64_asm() {
 
 # 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shux-c 或 seed -backend c。
 perf_async_compile_bench() {
-  local su="$1"
+  local sx="$1"
   local out="$2"
   rm -f "$out"
   if perf_async_is_linux_x64_asm; then
-    "$SHUX" -L . "$su" -o "$out"
+    "$SHUX" -L . "$sx" -o "$out"
   elif [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c -L . "$su" -o "$out"
+    ./compiler/shux-c -L . "$sx" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$su" -backend c -o "$out"
+    ./compiler/shux -L . "$sx" -backend c -o "$out"
   else
-    "$SHUX" -L . "$su" -o "$out"
+    "$SHUX" -L . "$sx" -o "$out"
   fi
 }
 
@@ -91,10 +91,10 @@ check_async_regress() {
 
 # 编译并链接可执行文件（scheduler.o 由 runtime 按需链入，无需手工 cc）。
 link_with_scheduler() {
-  local su="$1"
+  local sx="$1"
   local out="$2"
   rm -f "$out"
-  if ! "$SHUX" -L . "$su" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$SHUX" -L . "$sx" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi
@@ -103,20 +103,20 @@ link_with_scheduler() {
 
 bench_async_case() {
   local name="$1"
-  local su="$2"
+  local sx="$2"
   local exe="/tmp/bench_async_${name}"
   local med="nan"
   local ns_per_op="nan"
 
   echo "=== tests/bench/${name} (1M ping-pong rounds, 2M task steps) ==="
 
-  if [[ "$su" == *sched* ]]; then
-    if ! link_with_scheduler "$su" "$exe"; then
-      echo "compile/link FAIL: $su" >&2
+  if [[ "$sx" == *sched* ]]; then
+    if ! link_with_scheduler "$sx" "$exe"; then
+      echo "compile/link FAIL: $sx" >&2
       return 1
     fi
   else
-    if ! perf_async_compile_bench "$su" "$exe" >/tmp/async_compile.log 2>&1; then
+    if ! perf_async_compile_bench "$sx" "$exe" >/tmp/async_compile.log 2>&1; then
       cat /tmp/async_compile.log >&2
       return 1
     fi
