@@ -1,0 +1,9 @@
+# F-12 v1 文档口径统一 manifest
+# 列：item_id	kind	anchor	notes
+f12_doc	doc	analysis/phase-f-f12-v1.md	F-12 v1
+f12_gate	gate	tests/run-f12-selfhost-doc-unified-gate.sh	专 gate
+selfhost_doc	doc	compiler/docs/SELFHOST.md	D+E+F
+readme	doc	README.md	自举表
+d06_gate	gate_ref	tests/run-d06-selfhost-doc-gate.sh	Stage2 文档
+verify_stage2	script	compiler/verify-selfhost-stage2.sh	非「完全自举」误导
+verify_selfhost	script	compiler/verify-selfhost.sh	语义自举措辞
