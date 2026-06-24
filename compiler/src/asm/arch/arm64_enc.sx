@@ -15,7 +15,7 @@ extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
 /** 向 ctx 追加 4 字节（小端 u32），用于一条 AArch64 指令。 */
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
-  let buf: [4]u8 = [];
+  let buf: u8[4] = [];
   buf[0] = elf.elf_u32_byte_at(val, 0);
   buf[1] = elf.elf_u32_byte_at(val, 1);
   buf[2] = elf.elf_u32_byte_at(val, 2);
@@ -587,7 +587,7 @@ function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i3
   if (enc_mov_imm32_to_rbx(ctx, 0) != 0) {
     return -1;
   }
-  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let memset_nm: u8[64] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return enc_call(ctx, memset_nm, 6);
@@ -789,11 +789,11 @@ function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   /**
   * Darwin Mach-O：重定位符号须带 `_`，与 enc_label / ld64 一致；ELF Linux
   * 无此前缀。
-  * name_len≤63 时 `_`+名称仍可容纳于 [64]u8；name_len==64 时不再加前缀（与
+  * name_len≤63 时 `_`+名称仍可容纳于 u8[64]；name_len==64 时不再加前缀（与
   * enc_label 一致）。
   */
   if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
-    let rn: [64]u8 = [];
+    let rn: u8[64] = [];
     rn[0] = 95;
     let k: i32 = 0;
     while (k < name_len && k < 63) {
@@ -814,7 +814,7 @@ function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32):
   if (elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
     if (ctx.macho_leading_underscore != 0) {
-      let macho_name: [64]u8 = [];
+      let macho_name: u8[64] = [];
       macho_name[0] = 95;
       let k: i32 = 0;
       while (k < name_len && k < 63) {
