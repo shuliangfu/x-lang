@@ -5,9 +5,9 @@
 const sio = import("std.socketio");
 
 function main(): i32 {
-  let base: [32]u8 = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
+  let base: u8[32] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
     48, 48, 49, 0];
-  let sid: [16]u8 = [];
+  let sid: u8[16] = [];
   let has_ws: i32 = 0;
   let n: i32 = sio.polling_handshake(&base[0], 22, &sid[0], 16, 5000, &has_ws);
   if (n != 5) {
