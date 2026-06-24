@@ -11,7 +11,7 @@ function main(): i32 {
   if (http.method_as_u8(http.method_from_u8(3)) != 3) { return 17; }
   if (http.method_as_u8(http.method_from_u8(99)) != 0) { return 18; }
 
-  let line204: [28]u8 = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 52, 32, 78, 111, 32, 67, 111,
+  let line204: u8[28] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 52, 32, 78, 111, 32, 67, 111,
     110, 116, 101, 110, 116, 13, 10, 0, 0, 0];
   let code: i32 = 0;
   if (http.parse_status_line(&line204[0], 24, &code) != 0) {
@@ -21,7 +21,7 @@ function main(): i32 {
     return 2;
   }
 
-  let line404: [24]u8 = [72, 84, 84, 80, 47, 49, 46, 48, 32, 52, 48, 52, 32, 78, 111, 116, 32,
+  let line404: u8[24] = [72, 84, 84, 80, 47, 49, 46, 48, 32, 52, 48, 52, 32, 78, 111, 116, 32,
     70, 111, 117, 110, 100, 13, 10];
   code = 0;
   if (http.parse_status_line(&line404[0], 22, &code) != 0) {
@@ -31,14 +31,14 @@ function main(): i32 {
     return 4;
   }
 
-  let bad: [4]u8 = [72, 84, 84, 80];
+  let bad: u8[4] = [72, 84, 84, 80];
   if (http.parse_status_line(&bad[0], 4, &code) == 0) {
     return 5;
   }
 
-  let url: [32]u8 = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
+  let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
     109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let out: [4096]u8 = [];
+  let out: u8[4096] = [];
   let hn: i32 = http.head(&url[0], 19, &out[0], 4096);
   if (hn >= 0) {
     code = 0;
@@ -50,7 +50,7 @@ function main(): i32 {
     }
   }
 
-  let body: [4]u8 = [116, 101, 115, 116];
+  let body: u8[4] = [116, 101, 115, 116];
   let pn: i32 = http.post(&url[0], 19, &body[0], 4, &out[0], 4096);
   if (pn >= 0) {
     code = 0;
