@@ -9,12 +9,12 @@ api_find	api	find_section_idx	std/elf/mod.sx	按名查找
 api_byte	api	read_sec_byte	std/elf/mod.sx	节体字节
 const_notfound	const	ELF_ERR_NOT_FOUND	std/elf/mod.sx	-7
 const_sht_prog	const	ELF_SHT_PROGBITS	std/elf/mod.sx	1
-symbol_find_c	symbol	elf64_find_section_c	std/elf/elf.c	C 查找
-symbol_byte_c	symbol	elf64_read_sec_byte_c	std/elf/elf.c	C 字节
-symbol_deep_smoke	symbol	elf64_sections_deep_smoke_c	std/elf/elf.c	深化烟测
+symbol_find_c	symbol	elf64_find_section_c	std/elf/elf.sx	按名查找
+symbol_byte_c	symbol	elf64_read_sec_byte_c	std/elf/elf.sx	节体字节
+symbol_deep_smoke	symbol	elf64_sections_deep_smoke_c	std/elf/elf.sx	深化烟测
 fixture	file	tests/baseline/fixtures/elf64_min_reloc.bin	金样
 smoke_c	file	tests/std-elf/parse_sections_smoke_ok.c	C 入口
-smoke_su	smoke	tests/std-elf/parse_sections.sx	.sx 烟测
+smoke_sx	smoke	tests/std-elf/parse_sections.sx	.sx 烟测
 parent_tsv	cross_ref	tests/baseline/std-elf-parse.tsv	STD-058
 parent_doc	cross_ref	analysis/std-elf-parse-v1.md	STD-058
 lib	script	lib/std-elf-deep.sh	tests/lib/std-elf-deep.sh
