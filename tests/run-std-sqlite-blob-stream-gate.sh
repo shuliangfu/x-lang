@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD137_DOC:-analysis/std-sqlite-blob-stream-v1.md}"
 MANIFEST="${SHUX_STD137_TSV:-tests/baseline/std-sqlite-blob-stream.tsv}"
 VECTORS="${SHUX_STD137_VECTORS:-tests/baseline/std-sqlite-blob-stream-vectors.tsv}"
-MOD_SU="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.c"
+MOD_SX="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.sx"
 LIB="tests/lib/std-sqlite-blob-stream.sh"
-SMOKE_SU="tests/std-sqlite/blob_stream_roundtrip.sx"
+SMOKE_SX="tests/std-sqlite/blob_stream_roundtrip.sx"
 SMOKE_C="tests/std-sqlite/blob_stream_roundtrip_ok.c"
 MIN_STREAM=2
 
@@ -20,7 +20,7 @@ MIN_STREAM=2
 std_sqlite_blob_stream_source_sqlite
 
 echo "=== STD-137: db blob stream manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$DB_C" "$SMOKE_SU" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
   analysis/std-sqlite-row-col-blob-v1.md tests/run-std-sqlite-row-col-blob-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-blob-stream gate FAIL: missing $f" >&2
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_STREAM" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_blob_stream_symbols_ok "$MOD_SU" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_blob_stream_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_blob_stream_emit_report "fail" 0 0 0
   exit 1
@@ -83,7 +83,7 @@ if [ "${SHUX_STD137_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 STREAM_C=0
-STREAM_SU=0
+STREAM_SX=0
 SKIP=1
 
 if std_sqlite_probe_libs; then
@@ -120,11 +120,11 @@ if std_sqlite_probe_libs; then
 
   if [ -n "$SHUX_BIN" ]; then
     echo "=== STD-137: .sx blob stream smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
       echo "std-sqlite-blob-stream gate SKIP .sx smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "blobstream"; then
-      STREAM_SU=1
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "blobstream"; then
+      STREAM_SX=1
       SKIP=0
     else
       echo "std-sqlite-blob-stream gate SKIP .sx smoke (link/compile)" >&2
@@ -142,5 +142,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_blob_stream_emit_report "ok" "$STREAM_C" "$STREAM_SU" "$SKIP"
+std_sqlite_blob_stream_emit_report "ok" "$STREAM_C" "$STREAM_SX" "$SKIP"
 echo "std-sqlite-blob-stream gate OK"
