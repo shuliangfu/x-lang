@@ -1,11 +1,11 @@
-// 测试 core.slice：len_i32/get_i32（[]i32）、len_u8/get_u8（[]u8）；边界内返回
+// 测试 core.slice：len_i32/get_i32（i32[]）、len_u8/get_u8（u8[]）；边界内返回
 // some，越界返回 none
 const slice = import("core.slice");
 const option = import("core.option");
 
 function main(): i32 {
-  let a: [4]i32 = [10, 20, 30, 40];
-  let s: []i32 = a;
+  let a: i32[4] = [10, 20, 30, 40];
+  let s: i32[] = a;
   let n: usize = slice.len_i32(s);
   let o1: Option_i32 = slice.get_i32(s, 1);
   let o2: Option_i32 = slice.get_i32(s, 10);
@@ -13,9 +13,9 @@ function main(): i32 {
   let v2: i32 = option.unwrap_or_i32(o2, 99);
   if (v1 != 20) { return 1; }
   if (v2 != 99) { return 2; }
-  let b: [3]u8 = [5, 10, 15];
-  let su: []u8 = b;
-  if (slice.len_u8(su) != 3) { return 3; }
+  let b: u8[3] = [5, 10, 15];
+  let sx: u8[] = b;
+  if (slice.len_u8(sx) != 3) { return 3; }
   let ou1: Option_u8 = slice.get_u8(su, 0);
   let ou2: Option_u8 = slice.get_u8(su, 2);
   let ou3: Option_u8 = slice.get_u8(su, 10);
