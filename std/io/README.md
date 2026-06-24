@@ -7,7 +7,7 @@
 - **Reader/Writer** trait、标准流（stdin/stdout/stderr）
 - **同步读写**：`read` / `write` / `read_fd` / `write_fd`
 - **批量**：`read_batch_fd` / `read_batch_fd_buf`（io_uring / readv / IOCP）
-- **零拷贝读**：`read_ptr` / `read_ptr_slice`（`[]u8<io_read_ptr>`，见 TYPE-002）
+- **零拷贝读**：`read_ptr` / `read_ptr_slice`（`u8[]<io_read_ptr>`，见 TYPE-002）
 - **fixed / provided buffer 池**：热路径与 ZC-1
 - **异步 submit/complete**：`read_async` / `complete_read_async_slot`
 
@@ -19,7 +19,7 @@
 import("std.io");
 
 function main(): i32 {
-  let mut buf: [64]u8 = [];
+  let mut buf: u8[64] = [];
   let n: i32 = read_stdin(buf.data, 64);
   if (n > 0) {
     write_stdout(buf.data, n as usize);
@@ -31,8 +31,8 @@ function main(): i32 {
 零拷贝读（注意生命周期，见 mod.sx 文件头）：
 
 ```su
-let s: []u8<io_read_ptr> = read_stdin_ptr_slice();
-// 勿赋给未标注 []u8；同线程下次 read_ptr 前有效
+let s: u8[]<io_read_ptr> = read_stdin_ptr_slice();
+// 勿赋给未标注 u8[]；同线程下次 read_ptr 前有效
 ```
 
 ## 返回值
