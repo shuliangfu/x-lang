@@ -1,7 +1,7 @@
 /**
  * preprocess_if_stack_bridge.c — verify-selfhost-stage2 / 分 TU 链：提供 preprocess_if_stack_*。
  *
- * pipeline_gen2.c 不 #include pipeline_glue.c（避免与 ast_su2.o 重复 ast 辅助符号），
+ * pipeline_gen2.c 不 #include pipeline_glue.c（避免与 ast_sx2.o 重复 ast 辅助符号），
  * preprocess.sx 仍依赖本栈 API；用固定深度栈实现，与 ast_pool.c 语义一致。
  */
 #include <stdint.h>
