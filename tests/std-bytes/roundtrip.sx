@@ -5,7 +5,7 @@ const mem = import("std.mem");
 
 function main(): i32 {
   let b: Bytes = bytes.bytes_new();
-  let abc: [3]u8 = [65, 66, 67];
+  let abc: u8[3] = [65, 66, 67];
   if (bytes.bytes_append_slice(&b, &abc[0], 3) != 0) {
     bytes.bytes_deinit(&b);
     return 1;
@@ -24,7 +24,7 @@ function main(): i32 {
     bytes.bytes_deinit(&b);
     return 4;
   }
-  let out: [2]u8 = [0, 0];
+  let out: u8[2] = [0, 0];
   if (bytes.reader_read(&r, &out[0], 2) != 2) {
     bytes.bytes_deinit(&b);
     return 5;
@@ -35,7 +35,7 @@ function main(): i32 {
   }
 
   let w: BytesWriter = bytes.writer_new(&b);
-  let tail: [1]u8 = [68];
+  let tail: u8[1] = [68];
   if (bytes.writer_write(&w, &tail[0], 1) != 0) {
     bytes.bytes_deinit(&b);
     return 7;
@@ -78,7 +78,7 @@ function main(): i32 {
     return 14;
   }
 
-  let big: [64]u8 = [
+  let big: u8[64] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
