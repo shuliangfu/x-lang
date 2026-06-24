@@ -3,12 +3,12 @@ const base64 = import("std.base64");
 const debug = import("core.debug");
 
 function main(): i32 {
-  let plain: [5]u8 = [104, 101, 108, 108, 111];
-  let state: [32]u8 = [];
-  let enc: [16]u8 = [];
-  let one: [16]u8 = [];
-  let dec: [8]u8 = [];
-  let dec_st: [32]u8 = [];
+  let plain: u8[5] = [104, 101, 108, 108, 111];
+  let state: u8[32] = [];
+  let enc: u8[16] = [];
+  let one: u8[16] = [];
+  let dec: u8[8] = [];
+  let dec_st: u8[32] = [];
   let consumed: i32 = 0;
   let n1: i32 = 0;
   let n2: i32 = 0;
