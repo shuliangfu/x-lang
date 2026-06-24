@@ -12,10 +12,10 @@ api_new	api	cstring_new	std/ffi/mod.sx	兼容
 api_len	api	cstr_len	std/ffi/mod.sx	长度
 const_ok	const	FFI_OK	std/ffi/mod.sx	0
 const_null	const	FFI_ERR_NULL	std/ffi/mod.sx	-1
-symbol_try_c	symbol	ffi_cstring_try_new_c	std/ffi/ffi.c	C try
-symbol_smoke_c	symbol	ffi_cstring_lifecycle_smoke_c	std/ffi/ffi.c	C 烟测
+symbol_try_c	symbol	ffi_cstring_try_new_c	std/ffi/ffi.sx	C try
+symbol_smoke_c	symbol	ffi_cstring_lifecycle_smoke_c	std/ffi/ffi.sx	C 烟测
 smoke_c	file	tests/std-ffi/cstring_lifecycle_ok.c	C 入口
-smoke_su	smoke	tests/std-ffi/cstring_try_new.sx	try_new
+smoke_sx	smoke	tests/std-ffi/cstring_try_new.sx	try_new
 cross_type004	cross_ref	analysis/type-ffi-bridge-v1.md	TYPE-004
 cross_safe004	cross_ref	analysis/safe-ffi-contract-v1.md	SAFE-004
 hook_safe	hook_script	run-safe-ffi-contract-gate.sh	tests/run-safe-ffi-contract-gate.sh
