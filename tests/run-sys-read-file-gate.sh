@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_SYS_READ_FILE_FAIL:-0}
-SU="tests/sys/sys_read_file_smoke.sx"
+SX="tests/sys/sys_read_file_smoke.sx"
 OUT="/tmp/shux_sys_read_file.$$.out"
 GATE_FILE="/tmp/shux_read_file_gate.txt"
 SHUX="${SHUX:-./compiler/shux-c}"
@@ -29,8 +29,8 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" "${EXTRA[@]}" -o "$OUT" "$SU" 2>/tmp/shux_sys_read_file.log; then
-  echo "sys-read-file-gate FAIL: compile $SU on $OS" >&2
+if ! "$SHUX" "${EXTRA[@]}" -o "$OUT" "$SX" 2>/tmp/shux_sys_read_file.log; then
+  echo "sys-read-file-gate FAIL: compile $SX on $OS" >&2
   tail -n 10 /tmp/shux_sys_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
