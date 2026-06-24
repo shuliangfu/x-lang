@@ -20,7 +20,7 @@ if [ '$FULL' = '1' ]; then
   ./scripts/build_shux_asm.sh 2>&1 | tail -30
 else
   echo '=== pipeline_sx.o + experimental relink + pipeline_wpo.o ==='
-  make pipeline_sx.o PIPELINE_SU_FORCE_COMPILE=1 2>&1 | tail -5
+  make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 2>&1 | tail -5
   ./scripts/relink_shux_asm_experimental_bootstrap.sh 2>&1 | tail -5
   SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_shux_asm.sh 2>&1 | tail -20
 fi
