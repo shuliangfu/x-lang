@@ -1,0 +1,9 @@
+# D-02 Stage1→Stage2 盘点（manifest）
+# 列：item_id	layer	anchor	check_type	gate_or_notes
+verify_script	script	compiler/verify-selfhost-stage2-bstrict.sh	gate_ref	Step 0-5
+stage2_gate	gate	tests/run-stage2-bstrict-gate.sh	gate_ref	42 hello struct_mk
+make_target	makefile	bootstrap-verify-stage2-bstrict	grep	make alias
+stage1_artifact	artifact	compiler/shux_asm_stage1	exists	after verify Step 1
+stage2_artifact	artifact	compiler/shux_asm2	exists	after verify Step 2
+d02_gate	gate	tests/run-d02-stage1-to-stage2-gate.sh	gate_ref	phase D closure
+d03_hash	cross_ref	tests/run-d03-stage2-hash-gate.sh	gate_ref	SHA256 golden
