@@ -79,17 +79,17 @@ boot_link_contract_verify_makefile() {
 # 编译并运行链接烟测；成功返回 0。
 boot_link_contract_run_smoke() {
   local shux="$1"
-  local su="$2"
+  local sx="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shux" -L . "$su" -o "$out" >/tmp/boot_link_smoke.log 2>&1; then
+  if ! "$shux" -L . "$sx" -o "$out" >/tmp/boot_link_smoke.log 2>&1; then
     cat /tmp/boot_link_smoke.log >&2
     return 1
   fi
   local ec=0
   "$out" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne 0 ]; then
-    echo "boot-std-link-contract FAIL: $su exit=$ec" >&2
+    echo "boot-std-link-contract FAIL: $sx exit=$ec" >&2
     return 1
   fi
   return 0
