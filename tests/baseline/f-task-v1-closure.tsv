@@ -1,0 +1,9 @@
+# F-task v1 std.task 闭合 manifest
+# 列：item_id	kind	anchor	notes
+ftask_doc	doc	analysis/phase-f-task-v1.md	F-task v1
+ftask_gate	gate	tests/run-f-task-v1-gate.sh	聚合门禁
+task_sx	file	std/task/task.sx	模块锚点 .sx
+task_glue_absent	absent	std/task/task_async_glue.c	v2 已删除
+task_mod	file	std/task/mod.sx	对外 API
+task_c_absent	absent	std/task/task.c	已删除
+makefile	makefile	compiler/Makefile	F-task v2 纯 task.sx → task.o
