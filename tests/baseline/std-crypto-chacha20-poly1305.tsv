@@ -4,6 +4,8 @@ api_seal	api	chacha20_poly1305_seal	std/crypto/mod.sx
 api_open	api	chacha20_poly1305_open	std/crypto/mod.sx
 api_smoke	api	chacha20_poly1305_smoke	std/crypto/mod.sx
 const_key	const	CHACHA20_POLY1305_KEY_LEN	std/crypto/mod.sx
-symbol_seal_c	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.inc.c
-smoke_su	smoke	tests/std-crypto/chacha20_poly1305_roundtrip.sx
+symbol_seal_c	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.sx
+symbol_open_c	symbol	crypto_chacha20_poly1305_open_c	std/crypto/chacha20_poly1305.sx
+symbol_smoke_c	symbol	crypto_chacha20_poly1305_smoke_c	std/crypto/chacha20_poly1305.sx
+smoke_sx	smoke	tests/std-crypto/chacha20_poly1305_roundtrip.sx
 gate	script	run-std-crypto-chacha20-poly1305-gate.sh	tests/run-std-crypto-chacha20-poly1305-gate.sh
