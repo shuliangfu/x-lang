@@ -18,7 +18,7 @@ MIN_LEVELS=6
 echo "=== LANG-005: ABI stability manifest ==="
 for f in "$DOC" "$MANIFEST" "$LEVELS" \
   tests/abi/layout_abi.c tests/abi/f32_call_xmm_smoke.sx \
-  compiler/docs/F32_XMM_ABI.md std/fs/fs_abi.h \
+  compiler/docs/F32_XMM_ABI.md compiler/include/shux_std_abi/fs_abi.h \
   tests/baseline/safe-ffi-contract.tsv; do
   if [ ! -f "$f" ]; then
     echo "lang-abi-stability gate FAIL: missing $f" >&2
