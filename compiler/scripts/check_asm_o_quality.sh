@@ -9,7 +9,7 @@
 
 set -e
 cd "$(dirname "$0")/.."
-BUILD_LIST_SU="src/asm/asm_build_list.sx"
+BUILD_LIST_SX="src/asm/asm_build_list.sx"
 BUILD_DIR="build_asm"
 STRICT="${SHUX_ASM_QUALITY_STRICT:-0}"
 TAB=$(printf '\t')
@@ -33,8 +33,8 @@ text_section_size() {
 mkdir -p "$BUILD_DIR"
 echo "check_asm_o_quality: scanning $BUILD_DIR (STRICT=$STRICT)"
 
-if [ ! -f "$BUILD_LIST_SU" ]; then
-  echo "check_asm_o_quality: $BUILD_LIST_SU missing, skip"
+if [ ! -f "$BUILD_LIST_SX" ]; then
+  echo "check_asm_o_quality: $BUILD_LIST_SX missing, skip"
   echo 0 >"$BUILD_DIR/.asm_text_quality"
   exit 0
 fi
@@ -73,7 +73,7 @@ while IFS= read -r line; do
     echo "  OK code section $out size=$sz"
   fi
 done <<EOF
-$(grep '^// BUILD:' "$BUILD_LIST_SU")
+$(grep '^// BUILD:' "$BUILD_LIST_SX")
 EOF
 
 echo "check_asm_o_quality: summary bad=$bad total=$tot"
