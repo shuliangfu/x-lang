@@ -19,7 +19,7 @@
 
 | API | 说明 |
 |-----|------|
-| `Uuid` | 128-bit 字节布局 `[16]u8` |
+| `Uuid` | 128-bit 字节布局 `u8[16]` |
 | `new_v4` | CSPRNG 随机 UUID |
 | `new_v7` | Unix 毫秒时间有序 UUID（RFC 9562；同毫秒内 12-bit 序号递增保证单调） |
 | `parse` / `format` | 连字符/纯 hex、大小写不敏感 |
@@ -33,7 +33,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_UUID] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_UUID] status=ok c_smoke=1 sx=1 skip=0
 std-uuid gate OK
 ```
 
