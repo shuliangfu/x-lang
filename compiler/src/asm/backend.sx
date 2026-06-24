@@ -34,7 +34,7 @@ extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTAren
 /** SHUX_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
 extern function asm_diag_start_func_skip(): i32;
 /** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
-extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: [64]u8): void;
+extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: u8[64]): void;
 /** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.sx æ ¡æ­£ã */
 extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
 /** Module import è·¯å¾/ç»å® sidecarï¼ast_pool.cï¼ã */
@@ -45,9 +45,9 @@ extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
  */
 extern function pipeline_module_hoist_top_level_lets_into_main(module: *Module, arena: *ASTArena): void;
 
-/** asm 编当前 module 前：若有顶层 let 且存在 main，则并入 main 体块（保留 SU 体，helper_keep 真 emit）。 */
+/** asm 编当前 module 前：顶层 let 并入 main 或库模块首函数体（保留 SX 体，helper_keep 真 emit）。 */
 function asm_hoist_top_level_lets_for_codegen(module: *Module, arena: *ASTArena): void {
-  if (module.num_top_level_lets > 0 && module.main_func_index >= 0) {
+  if (module.num_top_level_lets > 0) {
     pipeline_module_hoist_top_level_lets_into_main(module, arena);
   }
 }
@@ -82,7 +82,7 @@ extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32)
 extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
-/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ SU å while æ« stmt_orderï¼ã */
+/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ SX å while æ« stmt_orderï¼ã */
 extern function backend_emit_block_body_sync_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 /** M8-tail C/partial 薄包装 extern（pipeline_glue / compat_stubs / call_dispatch）。 */
 extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32;
@@ -248,7 +248,7 @@ function expr_kind_ordinal(k: ExprKind): i32 {
 
 /**
  * æ¯å¦ä¸ºç©ºçæ°ç»å­é¢é []ï¼é¶åç´ ï¼ã
- * let buf: [N]T = [] æ¶è·³è¿ emit/storeï¼ç±æ æ§½å°åç´æ¥ä½ä¸º buf é¦åï¼INDEX èµ° VAR+LEAï¼ã
+ * let buf: T[N] = [] æ¶è·³è¿ emit/storeï¼ç±æ æ§½å°åç´æ¥ä½ä¸º buf é¦åï¼INDEX èµ° VAR+LEAï¼ã
  */
 /**
  * å·¦å¨ raxãå³ä¸ºç«å³æ°å¨ rbx æ¶ enc_cmp_setcc ä½¿ç¨ cmp w1,w0ï¼
@@ -277,7 +277,7 @@ function asm_init_is_empty_array_lit(arena: *ASTArena, init_ref: i32): i32 {
 }
 
 /** ELF enc 按 target_arch 分派：ta 0=x86_64，1=arm64，2=riscv64。 */
-function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32, is_func: i32, ta: i32): i32 {
+function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, is_func: i32, ta: i32): i32 {
   let use_len: i32 = name_len;
   let use_ptr: *u8 = &name[0];
   /** S4 freestanding：Linux x86_64 用户 `main` 保持 ELF 裸名 main（与 crt0_user_x86_64.s 一致）。 */
@@ -492,7 +492,7 @@ function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr,
     return 0;
   }
   let vtyp: Type = ast.ast_arena_type_get(arena, rtbv);
-  /** 定长 [N]T 内联栈槽用 lea；仅 *T 为 8B 指针槽须 load。 */
+  /** 定长 T[N] 内联栈槽用 lea；仅 *T 为 8B 指针槽须 load。 */
   if (vtyp.kind == TypeKind.TYPE_PTR) {
     return 1;
   }
@@ -567,29 +567,29 @@ function enc_mov_rbx_to_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   if (ta == 2) { return arch.riscv64_enc.enc_mov_rbx_to_rax(elf_ctx); }
   return arch.x86_64_enc.enc_mov_rbx_to_rax(elf_ctx);
 }
-function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32, ta: i32): i32 {
+function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_jz(elf_ctx, label, label_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_jz(elf_ctx, label, label_len); }
   return arch.x86_64_enc.enc_jz(elf_ctx, label, label_len);
 }
 /** cmp åæç¸ç­åæ¯ï¼match èï¼ï¼arm64 ä¸º beqï¼x86 ä¸º jeã */
-function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32, ta: i32): i32 {
+function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_jeq(elf_ctx, label, label_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_jeq(elf_ctx, label, label_len); }
   return arch.x86_64_enc.enc_jeq(elf_ctx, label, label_len);
 }
 /** cmp å i>=n åæ¯ï¼è®¡æ° while ä¼åï¼ï¼arm64 b.ge / x86 jge / riscv bge a0,a1ã */
-function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32, ta: i32): i32 {
+function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_jge(elf_ctx, label, label_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_jge(elf_ctx, label, label_len); }
   return arch.x86_64_enc.enc_jge(elf_ctx, label, label_len);
 }
-function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32, ta: i32): i32 {
+function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_jnz(elf_ctx, label, label_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_jnz(elf_ctx, label, label_len); }
   return arch.x86_64_enc.enc_jnz(elf_ctx, label, label_len);
 }
-function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: [64]u8, label_len: i32, ta: i32): i32 {
+function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_jmp(elf_ctx, label, label_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_jmp(elf_ctx, label, label_len); }
   return arch.x86_64_enc.enc_jmp(elf_ctx, label, label_len);
@@ -599,7 +599,7 @@ function enc_mov_rax_to_arg_reg_arch(elf_ctx: *ElfCodegenCtx, k: i32, ta: i32): 
   if (ta == 2) { return arch.riscv64_enc.enc_mov_rax_to_arg_reg(elf_ctx, k); }
   return arch.x86_64_enc.enc_mov_rax_to_arg_reg(elf_ctx, k);
 }
-function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: [64]u8, name_len: i32, ta: i32): i32 {
+function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_call(elf_ctx, name, name_len); }
   if (ta == 2) { return arch.riscv64_enc.enc_call(elf_ctx, name, name_len); }
   return arch.x86_64_enc.enc_call(elf_ctx, name, name_len);
@@ -615,22 +615,22 @@ allow(padding) struct AsmFuncCtx {
   /** å½å codegen æå±æ¨¡åæéï¼ç¨äº FIELD_ACCESS å¤æ­å·åå­æ®µæ¯å¦ä¸º struct_layout ä¸­çèåç±»åï¼ä¸çº¯æä¸¾åºåï¼ãä¸ºç©ºæ¶ææ§è¡ä¸ºéå 64 ä½å è½½ã */
   module_ref: *Module;
   /** åµå¥å¾ªç¯ break æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
-  loop_break_label_stack: [512]u8;
-  loop_break_len_stack: [8]i32;
+  loop_break_label_stack: u8[512];
+  loop_break_len_stack: i32[8];
   /** åµå¥å¾ªç¯ continue æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
-  loop_continue_label_stack: [512]u8;
-  loop_continue_len_stack: [8]i32;
+  loop_continue_label_stack: u8[512];
+  loop_continue_len_stack: i32[8];
   /** å½åçæç break/continue æ ç­¾ï¼æ é¡¶ï¼ï¼ä¾ EXPR_BREAK/EXPR_CONTINUE å¿«éè¯»åã */
-  break_label: [64]u8;
+  break_label: u8[64];
   break_len: i32;
-  continue_label: [64]u8;
+  continue_label: u8[64];
   continue_len: i32;
   /** å¾ªç¯æ ç­¾æ æ·±åº¦ï¼push æ¶ d>=8 åå¤±è´¥ã */
   loop_label_depth: i32;
   /** Pipeline ä¾èµï¼dep_paths / ndepï¼ï¼ä¾ç»å® import è°ç¨ `mod.fn` æ¶ä¸ codegen ä¸è´å°æ¼ç¬¦å·åã */
   dep_pipe: *PipelineDepCtx;
   /** å½æ°å°¾æ±åæ ç­¾ï¼emit_next_label çæï¼ï¼`return;`ï¼æ æä½æ°ï¼å jmp è³æ­¤ï¼åä¸å°¾ return è¡¨è¾¾å¼ãepilogue è¡æ¥ã */
-  tail_join_label: [64]u8;
+  tail_join_label: u8[64];
   tail_join_label_len: i32;
 }
 
@@ -774,7 +774,7 @@ function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_seg: i32
 
 /** å°æ­£å¨ codegen ç module å¨ç¬¬ imp_ix æ§½ç import é»è¾è·¯å¾è½¬æ C ABI åç¼åå¥ pre_bufï¼æåè¿ååç¼é¿åº¦ï¼å­èï¼ï¼è·¯å¾ç©ºæåç¼ç©ºè¿å -1ã */
 function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre_buf: *u8): i32 {
-  let path_bytes: [64]u8 = [];
+  let path_bytes: u8[64] = [];
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
   if (path_bytes[0] == 0) {
     return -1;
@@ -1174,7 +1174,7 @@ function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len: i32): 
   while (fi < mod.num_funcs) {
     let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
     if (flen == name_len) {
-      let fb: [64]u8 = [];
+      let fb: u8[64] = [];
       pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
       let same: i32 = 1;
       let k: i32 = 0;
@@ -1196,8 +1196,8 @@ function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_idx: i32,
   let plen: i32 = pipeline_asm_module_func_param_name_len_at(mod, func_idx, 0);
   let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
   if (plen <= 0 || plen != vlen) { return 0; }
-  let pbuf: [32]u8 = [];
-  let vbuf: [64]u8 = [];
+  let pbuf: u8[32] = [];
+  let vbuf: u8[64] = [];
   pipeline_asm_module_func_param_name_copy32(mod, func_idx, 0, &pbuf[0]);
   pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
   let k: i32 = 0;
@@ -1273,7 +1273,7 @@ function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_idx: i32,
   let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, left_ref);
   if (callee_ref <= 0) { return -1; }
   if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return -1; }
-  let cname: [64]u8 = [];
+  let cname: u8[64] = [];
   pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
   let inner_fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
   if (inner_fi < 0) { return -1; }
@@ -1357,30 +1357,30 @@ function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref:
 }
 
 
-function arch_emit_call(out: *CodegenOutBuf, name: [64]u8, name_len: i32, ta: i32): i32 {
+function arch_emit_call(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_call(out, name, name_len); }
   if (ta == 2) { return arch.riscv64.emit_call(out, name, name_len); }
   return arch.x86_64.emit_call(out, name, name_len);
 }
-function arch_emit_jz(out: *CodegenOutBuf, label: [64]u8, label_len: i32, ta: i32): i32 {
+function arch_emit_jz(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_jz(out, label, label_len); }
   if (ta == 2) { return arch.riscv64.emit_jz(out, label, label_len); }
   return arch.x86_64.emit_jz(out, label, label_len);
 }
 /** match èç¸ç­åæ¯ï¼cmp å beq/jeï¼ã */
-function arch_emit_jeq(out: *CodegenOutBuf, label: [64]u8, label_len: i32, ta: i32): i32 {
+function arch_emit_jeq(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_jeq(out, label, label_len); }
   if (ta == 2) { return arch.riscv64.emit_jeq(out, label, label_len); }
   return arch.x86_64.emit_jeq(out, label, label_len);
 }
-function arch_emit_jmp(out: *CodegenOutBuf, label: [64]u8, label_len: i32, ta: i32): i32 {
+function arch_emit_jmp(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_jmp(out, label, label_len); }
   if (ta == 2) { return arch.riscv64.emit_jmp(out, label, label_len); }
   return arch.x86_64.emit_jmp(out, label, label_len);
 }
 
 /** æ¡ä»¶è·³è½¬ï¼rax é 0 åè·³ï¼ç¨äº LOGOR ç­è·¯ï¼ã */
-function arch_emit_jnz(out: *CodegenOutBuf, label: [64]u8, label_len: i32, ta: i32): i32 {
+function arch_emit_jnz(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_jnz(out, label, label_len); }
   if (ta == 2) { return arch.riscv64.emit_jnz(out, label, label_len); }
   return arch.x86_64.emit_jnz(out, label, label_len);
@@ -1434,7 +1434,7 @@ function arch_emit_sar_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   return arch.x86_64.emit_sar_cl_eax(out);
 }
 
-function arch_emit_label(out: *CodegenOutBuf, name: [64]u8, name_len: i32, ta: i32): i32 {
+function arch_emit_label(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_label(out, name, name_len); }
   if (ta == 2) { return arch.riscv64.emit_label(out, name, name_len); }
   return arch.x86_64.emit_label(out, name, name_len);
@@ -1444,7 +1444,7 @@ function arch_emit_section_text(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 2) { return arch.riscv64.emit_section_text(out); }
   return arch.x86_64.emit_section_text(out);
 }
-function arch_emit_globl(out: *CodegenOutBuf, name: [64]u8, name_len: i32, ta: i32): i32 {
+function arch_emit_globl(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arch.arm64.emit_globl(out, name, name_len); }
   if (ta == 2) { return arch.riscv64.emit_globl(out, name, name_len); }
   return arch.x86_64.emit_globl(out, name, name_len);
@@ -1484,7 +1484,7 @@ function asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32 {
   return asm_scalar_type_byte_sz(t);
 }
 
-/** ARRAY_LIT 元素字节宽：取自字面量 resolved_type（[N]T 的 T）。 */
+/** ARRAY_LIT 元素字节宽：取自字面量 resolved_type（T[N] 的 T）。 */
 function asm_array_lit_elem_byte_sz(arena: *ASTArena, array_lit_ref: i32): i32 {
   if (array_lit_ref <= 0) { return 4; }
   let e: Expr = ast.ast_arena_expr_get(arena, array_lit_ref);
@@ -1599,8 +1599,8 @@ function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32): i32 
   let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
   let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
   if (alen <= 0 || alen != blen) { return 0; }
-  let abuf: [64]u8 = [];
-  let bbuf: [64]u8 = [];
+  let abuf: u8[64] = [];
+  let bbuf: u8[64] = [];
   pipeline_expr_var_name_into(arena, a_ref, &abuf[0]);
   pipeline_expr_var_name_into(arena, b_ref, &bbuf[0]);
   let k: i32 = 0;
@@ -1694,7 +1694,7 @@ function fold_affine_i_plus_k_expr(arena: *ASTArena, mod: *Module, expr_ref: i32
     if (fold_expr_var_refs_same(arena, arg0, i_ref) == 0) { return 0; }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    let cname: [64]u8 = [];
+    let cname: u8[64] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
     let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
     if (fi < 0) { return 0; }
@@ -1810,7 +1810,7 @@ function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i32, var
   if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
   let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
   if (vlen <= 0 || vlen > 63) { return 0; }
-  let vbuf: [64]u8 = [];
+  let vbuf: u8[64] = [];
   pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
   let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
   let li: i32 = 0;
@@ -1818,7 +1818,7 @@ function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i32, var
     let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
     if (llen == vlen) {
       let is_match: i32 = 1;
-      let lb: [64]u8 = [];
+      let lb: u8[64] = [];
       pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
       let kk: i32 = 0;
       while (kk < vlen) {
@@ -1866,7 +1866,7 @@ function fold_is_field_assign_from_var(
     return 0;
   }
   if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-  let fn: [64]u8 = [];
+  let fn: u8[64] = [];
   pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
   if (fn[0] != field_ch) { return 0; }
   return fold_expr_var_refs_same(arena, right_ref, src_ref);
@@ -1882,7 +1882,7 @@ function fold_is_field_assign_i_plus_one(arena: *ASTArena, er: i32, pair_ref: i3
     return 0;
   }
   if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-  let fn: [64]u8 = [];
+  let fn: u8[64] = [];
   pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
   if (fn[0] != 98 as u8) { return 0; }
   if (pipeline_expr_kind_ord_at(arena, right_ref) != 4) { return 0; }
@@ -1910,7 +1910,7 @@ function fold_is_assign_s_plus_pair_field_sum_call(
   if (fold_expr_var_refs_same(arena, arg0, pair_ref) == 0) { return 0; }
   let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner);
   if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-  let cname: [64]u8 = [];
+  let cname: u8[64] = [];
   pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
   let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
   if (fi < 0) { return 0; }
@@ -1987,7 +1987,7 @@ function fold_is_assign_s_plus_const_field_call(
   if (pipeline_expr_kind_ord_at(arena, arg0) != 3) { return 0; }
   let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner);
   if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-  let cname: [64]u8 = [];
+  let cname: u8[64] = [];
   pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
   let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
   if (fi < 0) { return 0; }
@@ -2086,7 +2086,7 @@ function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32,
   if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
   let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
   if (vlen <= 0 || vlen > 63) { return 0; }
-  let vbuf: [64]u8 = [];
+  let vbuf: u8[64] = [];
   pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
   let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
   let li: i32 = 0;
@@ -2094,7 +2094,7 @@ function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32,
     let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
     if (llen == vlen) {
       let is_match: i32 = 1;
-      let lb: [64]u8 = [];
+      let lb: u8[64] = [];
       pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
       let kk: i32 = 0;
       while (kk < vlen) {
@@ -2120,7 +2120,7 @@ function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32,
 /** åå° `i >= n` åæ¯å° exitï¼é¡»ç´§æ¥ cmpï¼ï¼n ä¸ºå­é¢éæ¶ç¨ imm cmpã */
 function fold_emit_i_ge_n_branch_exit_elf(
   elf_ctx: *ElfCodegenCtx, off_i: i32, off_n: i32, n_is_lit: i32, n_lit: i32,
-  exit_buf: [64]u8, exit_len: i32, ta: i32): i32 {
+  exit_buf: u8[64], exit_len: i32, ta: i32): i32 {
   if (n_is_lit != 0) {
     if (enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return -1; }
     if (enc_cmp_w0_imm12_arch(elf_ctx, n_lit, ta) != 0) { return -1; }
@@ -2228,8 +2228,8 @@ function try_fold_count_up_while_elf(
     return 1;
   }
   /** å« call æéçº¯éå¢ä½ï¼ä¼åæ¡ä»¶æ£æ¥ + åå¾ªç¯ä½ï¼call_boundary / struct_param ç­ï¼ã */
-  let loop_buf: [64]u8 = [];
-  let exit_buf: [64]u8 = [];
+  let loop_buf: u8[64] = [];
+  let exit_buf: u8[64] = [];
   let loop_len: i32 = emit_next_label(ctx, loop_buf, 20);
   let exit_len: i32 = emit_next_label(ctx, exit_buf, 20);
   if (enc_label_arch(elf_ctx, loop_buf, loop_len, 0, ta) != 0) { return -1; }
@@ -2264,7 +2264,7 @@ function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref:
 
 /**
  * ELF è·¯å¾ï¼æ stmt_order åå°åä½ï¼ç» pipeline_glue.c ç C for å¾ªç¯ + expr å¿«è·¯å¾ï¼ã
- * èªä¸¾ shux_asm ä¸ SU ç while(i<nso) ç» shux-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä» emit å·¦æä½æ°ã
+ * èªä¸¾ shux_asm ä¸ SX ç while(i<nso) ç» shux-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä» emit å·¦æä½æ°ã
  */
 function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return backend_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
@@ -2413,11 +2413,11 @@ function asm_codegen_ast_to_elf(module: *Module, arena: *ASTArena, elf_ctx: *Elf
 function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32 {
   asm_hoist_top_level_lets_for_codegen(module, arena);
   let ta: i32 = pipeline_ctx.target_arch;
-  let br_stk: [512]u8 = [];
-  let co_stk: [512]u8 = [];
-  let br_lens: [8]i32 = [];
-  let co_lens: [8]i32 = [];
-  let lbl: [64]u8 = [];
+  let br_stk: u8[512] = [];
+  let co_stk: u8[512] = [];
+  let br_lens: i32[8] = [];
+  let co_lens: i32[8] = [];
+  let lbl: u8[64] = [];
   let ctx: AsmFuncCtx = AsmFuncCtx {
     frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
     module_ref: 0 as *Module,
@@ -2427,7 +2427,7 @@ function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out: *Code
     loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
     tail_join_label: lbl, tail_join_label_len: 0
   };
-  let fname_buf: [64]u8 = [];
+  let fname_buf: u8[64] = [];
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_asm_emit_set_module(module);
   pipeline_asm_emit_set_arena(arena);
@@ -2527,11 +2527,11 @@ function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf
     elf_ctx.e_machine = 62;
     elf_ctx.reloc_type_r_pc32 = 2;
   }
-  let br_stk2: [512]u8 = [];
-  let co_stk2: [512]u8 = [];
-  let br_lens2: [8]i32 = [];
-  let co_lens2: [8]i32 = [];
-  let lbl2: [64]u8 = [];
+  let br_stk2: u8[512] = [];
+  let co_stk2: u8[512] = [];
+  let br_lens2: i32[8] = [];
+  let co_lens2: i32[8] = [];
+  let lbl2: u8[64] = [];
   let ctx: AsmFuncCtx = AsmFuncCtx {
     frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
     module_ref: 0 as *Module,
@@ -2541,7 +2541,7 @@ function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf
     loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
     tail_join_label: lbl2, tail_join_label_len: 0
   };
-  let fname_buf2: [64]u8 = [];
+  let fname_buf2: u8[64] = [];
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_asm_emit_set_module(module);
   pipeline_asm_emit_set_arena(arena);
