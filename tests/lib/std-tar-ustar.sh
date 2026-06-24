@@ -2,16 +2,16 @@
 # std-tar-ustar.sh — STD-038 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_tar_ustar_symbols_ok MOD_SU TAR_C TSV
-#   std_tar_ustar_run_smoke SHUX_BIN SU TAG
+#   std_tar_ustar_symbols_ok MOD_SX TAR_SX TSV
+#   std_tar_ustar_run_smoke SHUX_BIN SX TAG
 #   std_tar_ustar_emit_report status rt_ok main_ok skip
 
 STD_TAR_USTAR_PREFIX="${SHUX_STD_TAR_USTAR_PREFIX:-shux: [SHUX_STD_TAR_USTAR]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数。
 std_tar_ustar_symbols_ok() {
-  local mod_su="$1"
-  local tar_c="$2"
+  local mod_sx="$1"
+  local tar_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -20,15 +20,16 @@ std_tar_ustar_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-tar-ustar FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-tar-ustar FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
-          std/tar/tar.c) mod_path="$tar_c" ;;
-          *) mod_path="$mod_su" ;;
+          std/tar/tar.sx) mod_path="$tar_sx" ;;
+          std/tar/tar_glue.c) mod_path="$tar_sx" ;;
+          *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-tar-ustar FAIL: missing '$anchor' in $mod_path" >&2
