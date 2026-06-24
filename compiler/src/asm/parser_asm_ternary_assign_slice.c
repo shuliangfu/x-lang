@@ -921,7 +921,10 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
   assign_kind = PARSER_ASM_EXPR_ASSIGN;
   if (tok != (int32_t)TOKEN_ASSIGN)
     assign_kind = (int32_t)compound_assign_token_to_expr_kind_from_glue(tok);
-  parser_asm_lex_from_result_val_into(&lex_cur, r);
+  {
+    int32_t assign_line = r.tok.line;
+    int32_t assign_col = r.tok.col;
+    parser_asm_lex_from_result_val_into(&lex_cur, r);
   parser_asm_parse_ternary_into_slice_c(arena, lex_cur, source, out);
   if (!out->ok)
     return;
@@ -936,10 +939,11 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
   be.kind = assign_kind;
   be.binop_left_ref = left_ref;
   be.binop_right_ref = right_ref;
-  be.line = 0;
-  be.col = 0;
+  be.line = assign_line;
+  be.col = assign_col;
   parser_asm_arena_expr_set_c(arena, bin_ref, be);
   out->expr_ref = bin_ref;
+  }
 }
 
 #endif /* PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED */
