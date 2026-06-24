@@ -9,8 +9,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern const char *driver_get_current_dep_path_for_codegen(void);
+extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t j);
+extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
+extern int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len);
+
+struct ast_PipelineDepCtx;
 struct ast_ASTArena;
 struct ast_Module;
+struct ast_Expr;
 struct platform_elf_ElfCodegenCtx;
 struct backend_AsmFuncCtx;
 struct codegen_CodegenOutBuf;
@@ -36,13 +46,73 @@ struct glue_AsmFuncCtxCall {
 
 /** import ast.sx ImportKind.IMPORT_BINDING */
 #define GLUE_IMPORT_KIND_BINDING 1
+/** parser_asm_primary_slice / ast.h AST_EXPR_STRING_LIT；内容在 var_name。 */
+#define GLUE_EXPR_STRING_LIT_ORD 59
+#define GLUE_EXPR_FIELD_ACCESS_ORD 44
+#define GLUE_EXPR_VAR_ORD 3
 
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
+extern struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t ref);
+extern int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
+
+/** STRING_LIT（kind 59）字节长度。 */
+static int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
+  if (!arena || expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
+    return 0;
+  return pipeline_expr_var_name_len_for_string_lit_c(arena, expr_ref);
+}
+
+/** 拷贝 STRING_LIT 内容到 out64（至多 63 字节）。 */
+static void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+  if (!out64)
+    return;
+  memset(out64, 0, 64);
+  if (glue_asm_string_lit_len(arena, expr_ref) <= 0)
+    return;
+  pipeline_expr_var_name_into(arena, expr_ref, out64);
+}
+
+/**
+ * x86_64：jmp 跳过尾挂字面量，再 lea reg,[rip+disp] 指向字面量（避免字面量落在指令流中被执行）。
+ * reg_k：0→rdi（fmt 实参 ptr），1→rax（*u8 表达式结果）。
+ */
+static int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
+    const uint8_t *sbuf, int32_t slen) {
+  uint8_t jmp2[2];
+  uint8_t lea7[7];
+  uint8_t z;
+  int32_t disp32;
+  if (!ctx_bytes || !sbuf || slen <= 0 || slen > 63 || ta != 0)
+    return -1;
+  if (slen + 1 > 127)
+    return -1;
+  jmp2[0] = 0xeb;
+  jmp2[1] = (uint8_t)(slen + 1);
+  if (pipeline_elf_ctx_append_bytes(ctx_bytes, jmp2, 2) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0)
+    return -1;
+  z = 0;
+  if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0)
+    return -1;
+  disp32 = -slen - 8;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = (uint8_t)(reg_k == 0 ? 0x3d : 0x05);
+  lea7[3] = (uint8_t)(disp32);
+  lea7[4] = (uint8_t)((uint32_t)disp32 >> 8);
+  lea7[5] = (uint8_t)((uint32_t)disp32 >> 16);
+  lea7[6] = (uint8_t)((uint32_t)disp32 >> 24);
+  return pipeline_elf_ctx_append_bytes(ctx_bytes, lea7, 7);
+}
 extern int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_field_access_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
@@ -379,6 +449,35 @@ static int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_
   pi = 0;
   while (pi < field_len && pos < 63)
     out_name[pos++] = field_name[pi++];
+  return pos > 0 ? pos : -1;
+}
+
+/**
+ * co-emit dep 模块时函数标签与同模块 call 须带 import 路径前缀（与 import 限定 call 一致）。
+ * 无 dep 路径时返回裸函数名；成功返回符号字节长度，失败 -1。
+ */
+int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap) {
+  const char *dep_path;
+  uint8_t prefix[128];
+  int32_t plen;
+  int32_t pos;
+  int32_t i;
+  if (!name || name_len <= 0 || !out || out_cap <= 0)
+    return -1;
+  dep_path = driver_get_current_dep_path_for_codegen();
+  pos = 0;
+  if (dep_path && dep_path[0]) {
+    glue_codegen_import_path_to_c_prefix_into((const uint8_t *)dep_path, prefix, 128);
+    plen = 0;
+    while (plen < 127 && prefix[plen])
+      plen++;
+    if (plen > 0 && !glue_asm_c_prefix_redundant_with_name(prefix, plen, name, name_len)) {
+      for (i = 0; i < plen && pos < out_cap - 1; i++)
+        out[pos++] = prefix[i];
+    }
+  }
+  for (i = 0; i < name_len && pos < out_cap - 1; i++)
+    out[pos++] = name[i];
   return pos > 0 ? pos : -1;
 }
 
@@ -725,13 +824,20 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
   return 0;
 }
 
-/** std.heap 薄包装 → heap.o 符号（DOD-S2：alloc_f32 等；与 ast_pool_bootstrap_glue 表一致）。 */
+/**
+ * std.heap 薄包装 → heap_*_c / libc 符号。
+ * co-emit 时 std.heap 模块常仅含 allocator_*（无 alloc/arena64_alloc 体）；须 redirect 避免 std_heap_* UND。
+ */
 static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                     int32_t out_cap) {
   static const struct {
     const char *from;
     const char *to;
   } k_tab[] = {
+      /** 核心堆 API：co-emit 薄模块缺函数体，链 runtime_heap_user.o（heap_*_c）。 */
+      {"alloc", "heap_alloc_c"},
+      {"realloc", "heap_realloc_c"},
+      {"free", "heap_free_c"},
       {"alloc_i32", "heap_alloc_i32_c"},
       {"realloc_i32", "heap_realloc_i32_c"},
       {"free_i32", "heap_free_i32_c"},
@@ -750,6 +856,8 @@ static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t
       {"ptr_mod", "heap_ptr_mod_c"},
   };
   size_t i;
+  if (!name || name_len <= 0 || !sym_out || out_cap <= 0)
+    return 0;
   for (i = 0; i < sizeof(k_tab) / sizeof(k_tab[0]); i++) {
     size_t flen = strlen(k_tab[i].from);
     size_t tlen = strlen(k_tab[i].to);
@@ -761,6 +869,63 @@ static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t
     return (int32_t)tlen;
   }
   return 0;
+}
+
+/**
+ * VAR callee 导出符号：std.heap 薄包装 redirect → typeck dep 前缀 → co-emit dep 前缀。
+ */
+static int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                                int32_t callee_ref, struct ast_PipelineDepCtx *dep_pipe,
+                                                uint8_t *out, int32_t out_cap) {
+  uint8_t cname[64];
+  int32_t clen;
+  int32_t dep_ix;
+  uint8_t path[64];
+  uint8_t prefix[128];
+  int32_t plen;
+  int32_t rlen;
+
+  if (!arena || callee_ref <= 0 || !out || out_cap <= 0)
+    return -1;
+  clen = pipeline_expr_var_name_len(arena, callee_ref);
+  if (clen <= 0 || clen > 63)
+    return -1;
+  pipeline_expr_var_name_into(arena, callee_ref, cname);
+  rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
+  if (rlen > 0)
+    return rlen;
+  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+  if (dep_ix < 0 && dep_pipe) {
+    int32_t nd = pipeline_dep_ctx_ndep(dep_pipe);
+    int32_t j;
+    int32_t fi;
+    for (j = 0; j < nd; j++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(dep_pipe, j);
+      if (!dm)
+        continue;
+      for (fi = 0; fi < pipeline_module_num_funcs(dm); fi++) {
+        if (pipeline_module_func_name_equal_at(dm, fi, cname, clen)) {
+          dep_ix = j;
+          break;
+        }
+      }
+      if (dep_ix >= 0)
+        break;
+    }
+  }
+  if (dep_ix >= 0 && dep_pipe) {
+    memset(path, 0, sizeof(path));
+    pipeline_dep_ctx_import_path_copy64(dep_pipe, dep_ix, path);
+    if (path[0]) {
+      glue_codegen_import_path_to_c_prefix_into(path, prefix, 128);
+      plen = 0;
+      while (plen < 127 && prefix[plen])
+        plen++;
+      if (plen > 0)
+        return glue_asm_build_import_binding_call_sym(prefix, plen, cname, clen, out);
+    }
+  }
+  return glue_asm_build_dep_export_sym_c(cname, clen, out, out_cap);
 }
 
 /** 经 std.fs/net/std.heap 薄包装重定向表发射 call；无命中则直调 name。 */
@@ -779,6 +944,100 @@ static int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *e
     return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
   }
   return backend_enc_call_arch(elf_ctx, name, name_len, ta);
+}
+
+/**
+ * import 路径前缀是否为 std.fmt / std.debug（println/print 字符串字面量特化）。
+ */
+static int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
+  if (!pre || pre_len < 8)
+    return 0;
+  if (pre_len >= 8 && memcmp(pre, "std_fmt_", 8) == 0)
+    return 1;
+  if (pre_len >= 10 && memcmp(pre, "std_debug_", 10) == 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * 将 STRING_LIT 字节追加到 .text 尾（紧跟 lea [rip+0]），结果指针装入 rax（x86_64）。
+ * 供 fmt.println 特化与其它须 *u8 实参的路径复用。
+ */
+int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t str_expr_ref, int32_t ta) {
+  uint8_t sbuf[64];
+  int32_t slen;
+  if (!arena || !elf_ctx || str_expr_ref <= 0 || ta != 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
+    return -1;
+  slen = glue_asm_string_lit_len(arena, str_expr_ref);
+  if (slen <= 0 || slen > 63)
+    return -1;
+  glue_asm_string_lit_into(arena, str_expr_ref, sbuf);
+  if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 1, sbuf, slen) != 0)
+    return -1;
+  return 0;
+}
+
+/**
+ * fmt/debug `binding.println("…")` / `print("…")`：内嵌 rodata + call std_fmt_println(ptr,len)。
+ * 避免对 STRING_LIT 走通用 emit_expr 导致 SIGSEGV（hello.sx 阻塞项）。
+ */
+static int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *arena,
+                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                                  int32_t call_expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                                  int32_t ta, const uint8_t *pre_buf, int32_t pre_len,
+                                                                  const uint8_t *field_name, int32_t field_len) {
+  int32_t is_ln;
+  int32_t nargs;
+  int32_t arg_ref;
+  int32_t slen;
+  uint8_t sym_flat[64];
+  int32_t sym_len;
+  uint8_t sbuf[64];
+  if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || ta != 0)
+    return 0;
+  nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+  arg_ref = (nargs == 1) ? pipeline_expr_call_arg_ref(arena, call_expr_ref, 0) : 0;
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: try_fmt_lit pre=%.*s field=%.*s nargs=%d arg_ko=%d\n", (int)pre_len,
+            pre_len > 0 ? (char *)pre_buf : "", (int)field_len, field_len > 0 ? (char *)field_name : "", (int)nargs,
+            arg_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, arg_ref) : -1);
+  if (!glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len))
+    return 0;
+  if (field_len == 7 && memcmp(field_name, "println", 7) == 0)
+    is_ln = 1;
+  else if (field_len == 5 && memcmp(field_name, "print", 5) == 0)
+    is_ln = 0;
+  else
+    return 0;
+  nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+  if (nargs != 1)
+    return 0;
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
+  if (arg_ref <= 0 || pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_STRING_LIT_ORD)
+    return 0;
+  slen = glue_asm_string_lit_len(arena, arg_ref);
+  if (slen <= 0 || slen > 63)
+    return -1;
+  glue_asm_string_lit_into(arena, arg_ref, sbuf);
+  sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+  if (sym_len <= 0)
+    return -1;
+  (void)is_ln;
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: fmt_string_lit_call %.*s slen=%d\n", (int)sym_len, (char *)sym_flat, (int)slen);
+  if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 0, sbuf, slen) != 0)
+    return -1;
+  /** arg1 = len */
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)
+    return -1;
+  return 1;
 }
 
 /**
@@ -819,6 +1078,26 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: emit_call_elf callee_ko=%d call_nargs=%d\n", (int)callee_ko,
+            (int)pipeline_expr_call_num_args_at(arena, expr_ref));
+
+  /** hello.sx：fmt.println("…") 不依赖 import 槽匹配，直接 call std_fmt_println(ptr,len)。 */
+  if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
+    int32_t fa_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
+                                                                        (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"println",
+                                                                        7);
+    if (fa_lit < 0)
+      return -1;
+    if (fa_lit > 0)
+      return 0;
+    fa_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
+                                                                (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"print", 5);
+    if (fa_lit < 0)
+      return -1;
+    if (fa_lit > 0)
+      return 0;
+  }
 
   /** import binding + `binding.field(args)` callee。 */
   if (mod_ref && callee_ko == 44) {
@@ -849,6 +1128,15 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
               sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
               if (sym_len <= 0)
                 return -1;
+              {
+                int32_t fmt_lit =
+                    glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta, pre_buf,
+                                                                       pre_len, field_name, field_len);
+                if (fmt_lit < 0)
+                  return -1;
+                if (fmt_lit > 0)
+                  return 0;
+              }
               call_nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
               n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, field_name, field_len, call_nargs);
               if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, n_ov) != 0)
@@ -909,18 +1197,32 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
   if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
     return -1;
+  if (getenv("SHUX_ASM_DEBUG") && nargs == 1)
+    fprintf(stderr, "shux: emit_call1 ref=%d callee_ko=%d\n", (int)expr_ref, (int)callee_ko);
   inline_rc = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
-  if (inline_rc != 0)
+  if (inline_rc != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: emit_call inline param0_field rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
+  }
   inline_rc = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
-  if (inline_rc != 0)
+  if (inline_rc != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: emit_call inline field_sum rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
+  }
   inline_rc = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
-  if (inline_rc != 0)
+  if (inline_rc != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: emit_call inline x_plus_k rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
+  }
   inline_rc = try_call_wpo_mono_symbol_elf(arena, elf_ctx, expr_ref, ctx, ta);
-  if (inline_rc != 0)
+  if (inline_rc != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: emit_call inline wpo_mono rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
+  }
   inline_rc = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0)
     return inline_rc < 0 ? -1 : 0;
@@ -936,7 +1238,9 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   clen = pipeline_expr_var_name_len(arena, callee_ref);
   if (clen <= 0 || clen > 63)
     return -1;
-  pipeline_expr_var_name_into(arena, callee_ref, cname);
+  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, ly ? ly->dep_pipe : 0, cname, 64);
+  if (clen <= 0)
+    return -1;
   if (getenv("SHUX_ASM_DEBUG"))
     fprintf(stderr, "shux: call_elf_c %.*s nargs=%d\n", (int)clen, (char *)cname, (int)nargs);
   return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
