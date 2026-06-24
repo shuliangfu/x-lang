@@ -27,7 +27,7 @@
 | **L2-duplicate** | 重复定义 | `duplicate symbol` / `multiple definition of` | fixture `duplicate_glue_typeck.log` |
 | **L3-platform** | Mach-O vs ELF 文案 | Darwin `_sym` / GNU `sym` 归一化 | `comp-link-sym-patterns.tsv` |
 | **L4-object** | 冲突 .o 归因 | log 中 `build_asm/*.o` / `*_glue.o` 路径 | fixture `duplicate_glue_typeck.log` |
-| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_su 双链、WPO strict | `relink_shux_asm_strict_glue.sh` |
+| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_sx 双链、WPO strict | `relink_shux_asm_strict_glue.sh` |
 | **L6-repro** | 复现 case 建议 | 输出 `SHUX_LINK_REPRO` | `comp-link-sym-cases.tsv` |
 
 **attribution 原则**：
