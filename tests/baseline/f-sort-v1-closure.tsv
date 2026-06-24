@@ -1,0 +1,8 @@
+# F-sort v1 std.sort 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fsort_doc	doc	analysis/phase-f-sort-v1.md	F-sort v1
+fsort_gate	gate	tests/run-f-sort-v1-gate.sh	聚合门禁
+sort_sx	file	std/sort/sort.sx	纯 .sx 实现
+sort_mod	file	std/sort/mod.sx	对外 API
+sort_c_absent	absent	std/sort/sort.c	已删除
+makefile	makefile	compiler/Makefile	sort.o from sort.sx
