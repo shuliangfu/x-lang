@@ -949,10 +949,15 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   *out_then = then_res.block_ref;
   *out_else = 0;
   lex_cur = then_res.next_lex;
-  lexer_next_into(&r, lex_cur, source);
-  if (r.tok.kind == (int32_t)TOKEN_ELSE) {
-    parser_lex_from_next_into_glue(&lex_cur, r);
-    lexer_next_into(&r, lex_cur, source);
+  /** 窥视 else：勿 lexer_next 写 r，否则 parse_block 再 advance 会漏掉连续 if 下一条。 */
+  {
+    struct parser_asm_lexer_result peek_else = {0};
+    peek_else.next_lex = lex_cur;
+    lexer_next_into(&peek_else, lex_cur, source);
+    if (peek_else.tok.kind == (int32_t)TOKEN_ELSE) {
+      r = peek_else;
+      parser_lex_from_next_into_glue(&lex_cur, r);
+      lexer_next_into(&r, lex_cur, source);
     if (r.tok.kind == (int32_t)TOKEN_IF) {
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_else_if_chain_audit_c(lex_cur, source));
       wrap_ref = ast_ast_arena_block_alloc(arena);
@@ -982,10 +987,14 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
     } else {
       return 0;
     }
+    }
   }
-  lex_out->pos = lex_cur.pos;
-  lex_out->line = lex_cur.line;
-  lex_out->col = lex_cur.col;
+  /** 无 else：lex_out 指 then 块后的 next_lex（由 parse_block 单次 advance 读入 r）。 */
+  {
+    lex_out->pos = lex_cur.pos;
+    lex_out->line = lex_cur.line;
+    lex_out->col = lex_cur.col;
+  }
   return 1;
 }
 
