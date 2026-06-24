@@ -40,7 +40,7 @@ v1 仅 **x86-64 ET_REL 只读**；不写 ELF、不做链接。
 
 ## 3. 实现要点
 
-- C 层：`elf64_read_sym_c` / `elf64_read_rela_c`（`std/elf/elf.c`）
+- C 层：`elf64_read_sym_c` / `elf64_read_rela_c`（`std/elf/elf.sx`）
 - 金样：`elf64_sym_rela.bin`（`.text` + `.symtab` + `.strtab` + `.rela.text`，符号 `main`，`R_X86_64_64`）
 - 依赖 STD-058/063：`parse_hdr` / `find_section_idx` / `read_section`
 
