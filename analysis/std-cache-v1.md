@@ -33,7 +33,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CACHE] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_CACHE] status=ok c_smoke=1 sx=1 skip=0
 std-cache gate OK
 ```
 
