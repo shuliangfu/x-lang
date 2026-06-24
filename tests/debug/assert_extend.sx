@@ -16,7 +16,7 @@ function main(): i32 {
   debug.assert_ne_bool(false, true);
 
   // 指针：同址、null、异址
-  let buf: [4]u8 = [1, 2, 3, 4];
+  let buf: u8[4] = [1, 2, 3, 4];
   let p: *u8 = &buf[0];
   debug.assert_eq_ptr(p, &buf[0]);
   let null_p: *u8 = 0 as *u8;
