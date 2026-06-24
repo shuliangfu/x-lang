@@ -9,7 +9,7 @@ struct Particle {
 }
 
 function main(): i32 {
-  let arr: [4]Particle = [];
+  let arr: Particle[4] = [];
   arr[0].x = 1.0;
   arr[1].x = 2.0;
   arr[2].x = 3.0;
