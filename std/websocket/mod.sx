@@ -1,44 +1,18 @@
 // std.websocket — RFC6455 WebSocket 握手与帧（STD-031）
 //
-// 【文件职责】导出 net/ws.inc.c 中的 C 实现；握手 HTTP 部分配合 std.http。
-// 【依赖】std.net（TCP/TLS 连接）；std.context（取消/超时）；C 符号链入 std/net/net.o（ws.inc.c）。
+// 【文件职责】导出 std.net.ws_codec / ws_io 纯 .sx 实现；握手 HTTP 部分配合 std.http。
+// 【依赖】std.net（TCP/TLS 连接）；std.context（取消/超时）；F-04 v3 无 ws.inc.c。
 
 const context = import("std.context");
 const err = import("std.error");
+/** F-04 v3：帧编解码与握手纯算法。 */
+const ws_codec = import("std.net.ws_codec");
+/** F-04 v3：connect/读写 IO 层。 */
+const ws_io = import("std.net.ws_io");
+/** TLS 关闭（ws_close 用）。 */
+const tls = import("std.net.tls_stub");
 
-extern function net_ws_compute_accept_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_handshake_request_c(host: *u8, path: *u8, key: *u8, out: *u8, out_cap: i32): i32;
-extern function net_ws_validate_handshake_c(resp: *u8, resp_len: i32, key: *u8, key_len: i32): i32;
-extern function net_ws_encode_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_encode_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_encode_ping_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_encode_pong_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_encode_close_frame_c(status_code: i32, reason: *u8, reason_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_decode_frame_c(buf: *u8, buf_len: i32, out_opcode: *i32, out_payload: *u8,
-  out_payload_cap: i32, out_payload_len: *i32): i32;
-extern function net_ws_generate_key_c(out: *u8, out_cap: i32): i32;
-extern function net_ws_client_handshake_c(fd: i32, host: *u8, path: *u8, key: *u8, key_len: i32, timeout_ms: u32): i32;
-extern function net_ws_connect_c(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, timeout_ms: u32): i32;
-extern function net_ws_connect_tls_c(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, timeout_ms: u32, out_tls: *i64): i32;
-extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32, out_tls: *i64): i32;
-extern function net_ws_parse_url_c(url: *u8, url_len: i32, host: *u8, host_cap: i32, path: *u8, path_cap: i32, out_port: *u32, out_secure: *i32): i32;
-extern function net_ws_tls_is_available_c(): i32;
-extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_write_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32, out_payload_len: *i32, timeout_ms: u32): i32;
-extern function net_ws_extract_key_from_request_c(req: *u8, req_len: i32, out_key: *u8, out_cap: i32): i32;
-extern function net_ws_validate_upgrade_request_c(req: *u8, req_len: i32): i32;
-extern function net_ws_server_accept_request_c(fd: i32, tls_ctx: i64, req: *u8, req_len: i32, timeout_ms: u32): i32;
-extern function net_ws_server_handshake_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32;
-extern function net_ws_encode_server_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_encode_server_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_write_server_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_client_handshake_smoke_c(): i32;
-extern function net_ws_server_accept_smoke_c(): i32;
-extern function net_ws_parse_url_smoke_c(): i32;
 extern function net_close_socket_c(fd: i32): i32;
-extern function net_tls_close_c(ctx_handle: i64): i32;
 
 /** WebSocket 会话（TCP fd + 可选 TLS ctx，0 表示 ws:// 明文）。 */
 allow(padding) struct WsStream {
@@ -113,43 +87,43 @@ function ws_opcode_pong(): i32 { return 10; }
 
 /** WSS 是否可用（OpenSSL/mbedTLS 链入时为 true）。 */
 function wss_is_available(): bool {
-  if (net_ws_tls_is_available_c() != 0) { return true; }
+  if (ws_io.net_ws_tls_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 计算 Sec-WebSocket-Accept（RFC 6455 金样烟测）。 */
 function ws_compute_accept(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_compute_accept_c(key, key_len, out, out_cap);
+  return ws_codec.net_ws_compute_accept_c(key, key_len, out, out_cap);
 }
 
 /** 构建客户端握手 HTTP 请求；返回写入字节数（不含 NUL）。 */
 function ws_build_handshake_request(host: *u8, path: *u8, key: *u8, out: *u8, out_cap: i32): i32 {
-  return net_ws_handshake_request_c(host, path, key, out, out_cap);
+  return ws_codec.net_ws_handshake_request_c(host, path, key, out, out_cap);
 }
 
 /** 校验服务端 101 握手响应；成功 0。 */
 function ws_validate_handshake_response(resp: *u8, resp_len: i32, key: *u8, key_len: i32): i32 {
-  return net_ws_validate_handshake_c(resp, resp_len, key, key_len);
+  return ws_codec.net_ws_validate_handshake_c(resp, resp_len, key, key_len);
 }
 
 /** 编码客户端 TEXT 帧（MASK=1）；返回帧总字节数。 */
 function ws_encode_text_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_text_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_text_frame_c(payload, payload_len, out, out_cap);
 }
 
 /** 编码客户端 BINARY 帧（MASK=1）；返回帧总字节数。 */
 function ws_encode_binary_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_binary_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_binary_frame_c(payload, payload_len, out, out_cap);
 }
 
 /** 编码客户端 PING 帧；payload 可为空（0 长度心跳）。 */
 function ws_encode_ping_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_ping_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_ping_frame_c(payload, payload_len, out, out_cap);
 }
 
 /** 编码客户端 PONG 帧；通常 echo ping 负载。 */
 function ws_encode_pong_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_pong_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_pong_frame_c(payload, payload_len, out, out_cap);
 }
 
 /**
@@ -157,18 +131,18 @@ function ws_encode_pong_frame(payload: *u8, payload_len: i32, out: *u8, out_cap:
  * status_code < 0 且无 reason 时发空负载；否则 2 字节大端 status + 可选 reason。
  */
 function ws_encode_close_frame(status_code: i32, reason: *u8, reason_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_close_frame_c(status_code, reason, reason_len, out, out_cap);
+  return ws_codec.net_ws_encode_close_frame_c(status_code, reason, reason_len, out, out_cap);
 }
 
 /** 解析 WebSocket 帧；成功 0 并写 *out_payload_len。 */
 function ws_decode_frame(buf: *u8, buf_len: i32, out_opcode: *i32, out_payload: *u8,
   out_payload_cap: i32, out_payload_len: *i32): i32 {
-  return net_ws_decode_frame_c(buf, buf_len, out_opcode, out_payload, out_payload_cap, out_payload_len);
+  return ws_codec.net_ws_decode_frame_c(buf, buf_len, out_opcode, out_payload, out_payload_cap, out_payload_len);
 }
 
 /** 生成 Sec-WebSocket-Key（24 字符 Base64）；失败 -1。 */
 function ws_generate_key(out: *u8, out_cap: i32): i32 {
-  return net_ws_generate_key_c(out, out_cap);
+  return ws_codec.net_ws_generate_key_c(out, out_cap);
 }
 
 /**
@@ -178,7 +152,7 @@ function ws_generate_key(out: *u8, out_cap: i32): i32 {
 function ws_parse_url(url: *u8, url_len: i32, host: *u8, host_cap: i32, path: *u8, path_cap: i32,
   out_port: *u32, out_secure: *i32): i32 {
   if (url == 0 || host == 0 || path == 0 || out_port == 0) { return ws_err_null(); }
-  return net_ws_parse_url_c(url, url_len, host, host_cap, path, path_cap, out_port, out_secure);
+  return ws_codec.net_ws_parse_url_c(url, url_len, host, host_cap, path, path_cap, out_port, out_secure);
 }
 
 /**
@@ -187,7 +161,7 @@ function ws_parse_url(url: *u8, url_len: i32, host: *u8, host_cap: i32, path: *u
  */
 function ws_client_handshake(fd: i32, host: *u8, path: *u8, key: *u8, key_len: i32, timeout_ms: u32): i32 {
   if (fd < 0 || host == 0 || path == 0) { return ws_err_null(); }
-  return net_ws_client_handshake_c(fd, host, path, key, key_len, timeout_ms);
+  return ws_io.net_ws_client_handshake_c(fd, host, path, key, key_len, timeout_ms);
 }
 
 /** 带 Context 的客户端握手（已连接 fd）。 */
@@ -197,7 +171,7 @@ function ws_client_handshake_ctx(fd: i32, host: *u8, path: *u8, key: *u8, key_le
     return chk;
   }
   let tm: i32 = ws_timeout_ms_from_ctx(ctx);
-  return net_ws_client_handshake_c(fd, host, path, key, key_len, tm as u32);
+  return ws_io.net_ws_client_handshake_c(fd, host, path, key, key_len, tm as u32);
 }
 
 /**
@@ -208,7 +182,7 @@ function ws_connect(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32, tim
   let bad: WsStream = WsStream { fd: -1, tls_ctx: 0 };
   let zero: i64 = 0;
   if (host == 0 || path == 0) { return bad; }
-  let fd: i32 = net_ws_connect_c(host, port, path, key, key_len, timeout_ms);
+  let fd: i32 = ws_io.net_ws_connect_c(host, port, path, key, key_len, timeout_ms);
   return WsStream { fd: fd, tls_ctx: zero };
 }
 
@@ -223,7 +197,7 @@ function ws_connect_ctx_fd(host: *u8, port: u32, path: *u8, key: *u8, key_len: i
   if (host == 0 || path == 0) {
     return ws_err_null();
   }
-  return net_ws_connect_c(host, port, path, key, key_len, tm as u32);
+  return ws_io.net_ws_connect_c(host, port, path, key, key_len, tm as u32);
 }
 
 /** 带 Context 的 ws:// 连接；返回 WsStream（fd<0 含 net_err_* 负码）。 */
@@ -242,7 +216,7 @@ function ws_connect_tls(host: *u8, port: u32, path: *u8, key: *u8, key_len: i32,
   let tls: i64 = 0;
   let fd: i32 = 0;
   if (host == 0 || path == 0) { return bad; }
-  fd = net_ws_connect_tls_c(host, port, path, key, key_len, timeout_ms, &tls);
+  fd = ws_io.net_ws_connect_tls_c(host, port, path, key, key_len, timeout_ms, &tls);
   if (fd < 0) { return bad; }
   return WsStream { fd: fd, tls_ctx: tls };
 }
@@ -256,7 +230,7 @@ function ws_connect_tls_ctx_fd(host: *u8, port: u32, path: *u8, key: *u8, key_le
   if (host == 0 || path == 0 || out_tls == 0) {
     return ws_err_null();
   }
-  return ws_map_c_result(net_ws_connect_tls_c(host, port, path, key, key_len, tm as u32, out_tls));
+  return ws_map_c_result(ws_io.net_ws_connect_tls_c(host, port, path, key, key_len, tm as u32, out_tls));
 }
 
 /** 带 Context 的 wss:// 连接；返回 WsStream（fd<0 含 net_err_* 负码）。 */
@@ -278,7 +252,7 @@ function ws_connect_url(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_
   let fd: i32 = -1;
   let tls: i64 = 0;
   if (url == 0) { return bad; }
-  if (net_ws_connect_url_c(url, url_len, key, key_len, timeout_ms, &fd, &tls) != ws_err_ok()) {
+  if (ws_io.net_ws_connect_url_c(url, url_len, key, key_len, timeout_ms, &fd, &tls) != ws_err_ok()) {
     return bad;
   }
   return WsStream { fd: fd, tls_ctx: tls };
@@ -296,7 +270,7 @@ function ws_connect_url_ctx(url: *u8, url_len: i32, key: *u8, key_len: i32, ctx:
   if (url == 0 || out_fd == 0 || out_tls == 0) {
     return ws_err_null();
   }
-  return ws_map_c_result(net_ws_connect_url_c(url, url_len, key, key_len, tm as u32, out_fd, out_tls));
+  return ws_map_c_result(ws_io.net_ws_connect_url_c(url, url_len, key, key_len, tm as u32, out_fd, out_tls));
 }
 
 /** 带 Context 的 ws(s):// URL 连接；返回 WsStream。 */
@@ -316,13 +290,13 @@ function ws_connect_url_ctx_stream(url: *u8, url_len: i32, key: *u8, key_len: i3
 /** 发送 TEXT 帧；成功返回写入 payload 字节数，失败 -1。 */
 function ws_write_text(stream: WsStream, payload: *u8, payload_len: i32): i32 {
   if (stream.fd < 0) { return ws_err_io(); }
-  return net_ws_write_text_c(stream.fd, stream.tls_ctx, payload, payload_len);
+  return ws_io.net_ws_write_text_c(stream.fd, stream.tls_ctx, payload, payload_len);
 }
 
 /** 发送 BINARY 帧；成功返回写入 payload 字节数，失败 -1。 */
 function ws_write_binary(stream: WsStream, payload: *u8, payload_len: i32): i32 {
   if (stream.fd < 0) { return ws_err_io(); }
-  return net_ws_write_binary_c(stream.fd, stream.tls_ctx, payload, payload_len);
+  return ws_io.net_ws_write_binary_c(stream.fd, stream.tls_ctx, payload, payload_len);
 }
 
 /** 带 Context 的 TEXT 发送；取消/过期短路，不写入。 */
@@ -347,7 +321,7 @@ function ws_write_binary_ctx(stream: WsStream, payload: *u8, payload_len: i32, c
 function ws_read_frame(stream: WsStream, out_opcode: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32, timeout_ms: u32): i32 {
   if (stream.fd < 0) { return ws_err_io(); }
-  return net_ws_read_frame_c(stream.fd, stream.tls_ctx, out_opcode, out_payload, out_cap, out_payload_len, timeout_ms);
+  return ws_io.net_ws_read_frame_c(stream.fd, stream.tls_ctx, out_opcode, out_payload, out_cap, out_payload_len, timeout_ms);
 }
 
 /** 带 Context 的读帧；deadline 推导 timeout_ms。 */
@@ -365,7 +339,7 @@ function ws_read_frame_ctx(stream: WsStream, out_opcode: *i32, out_payload: *u8,
 function ws_close(stream: WsStream): i32 {
   let zero: i64 = 0;
   if (stream.tls_ctx != zero) {
-    net_tls_close_c(stream.tls_ctx);
+    tls.net_tls_close_c(stream.tls_ctx);
   }
   if (stream.fd < 0) { return ws_err_ok(); }
   return net_close_socket_c(stream.fd);
@@ -374,13 +348,13 @@ function ws_close(stream: WsStream): i32 {
 /** 从 HTTP Upgrade 请求提取 Sec-WebSocket-Key；成功返回 key 长度。 */
 function ws_extract_key_from_request(req: *u8, req_len: i32, out_key: *u8, out_cap: i32): i32 {
   if (req == 0 || out_key == 0) { return ws_err_null(); }
-  return net_ws_extract_key_from_request_c(req, req_len, out_key, out_cap);
+  return ws_codec.net_ws_extract_key_from_request_c(req, req_len, out_key, out_cap);
 }
 
 /** 校验客户端 WebSocket Upgrade 请求（GET + Upgrade + Version 13 + Key）；成功 ws_err_ok()。 */
 function ws_validate_upgrade_request(req: *u8, req_len: i32): i32 {
   if (req == 0) { return ws_err_null(); }
-  return net_ws_validate_upgrade_request_c(req, req_len);
+  return ws_codec.net_ws_validate_upgrade_request_c(req, req_len);
 }
 
 /**
@@ -389,7 +363,7 @@ function ws_validate_upgrade_request(req: *u8, req_len: i32): i32 {
  */
 function ws_server_accept(fd: i32, tls_ctx: i64, req: *u8, req_len: i32, timeout_ms: u32): i32 {
   if (fd < 0 || req == 0) { return ws_err_null(); }
-  return net_ws_server_accept_request_c(fd, tls_ctx, req, req_len, timeout_ms);
+  return ws_io.net_ws_server_accept_request_c(fd, tls_ctx, req, req_len, timeout_ms);
 }
 
 /** 带 Context 的服务端 accept（101 + 帧层交接）。 */
@@ -405,7 +379,7 @@ function ws_server_accept_ctx(fd: i32, tls_ctx: i64, req: *u8, req_len: i32, ctx
 /** 服务端：从 fd 读取 Upgrade 请求并完成 101 握手；成功 ws_err_ok()。 */
 function ws_server_handshake(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
   if (fd < 0) { return ws_err_null(); }
-  return net_ws_server_handshake_c(fd, tls_ctx, timeout_ms);
+  return ws_io.net_ws_server_handshake_c(fd, tls_ctx, timeout_ms);
 }
 
 /** 带 Context 的服务端握手。 */
@@ -420,40 +394,40 @@ function ws_server_handshake_ctx(fd: i32, tls_ctx: i64, ctx: Context): i32 {
 
 /** 编码服务端 TEXT 帧（MASK=0，payload ≤ 125）；返回帧总字节数。 */
 function ws_encode_server_text_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_server_text_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_server_text_frame_c(payload, payload_len, out, out_cap);
 }
 
 /** 编码服务端 BINARY 帧（MASK=0，payload ≤ 125）；返回帧总字节数。 */
 function ws_encode_server_binary_frame(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  return net_ws_encode_server_binary_frame_c(payload, payload_len, out, out_cap);
+  return ws_codec.net_ws_encode_server_binary_frame_c(payload, payload_len, out, out_cap);
 }
 
 /** 服务端发送 TEXT 帧（无掩码）；成功返回 payload 字节数。 */
 function ws_server_write_text(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   if (fd < 0) { return ws_err_io(); }
-  return net_ws_write_server_text_c(fd, tls_ctx, payload, payload_len);
+  return ws_io.net_ws_write_server_text_c(fd, tls_ctx, payload, payload_len);
 }
 
 /** 服务端发送 BINARY 帧（无掩码）；成功返回 payload 字节数。 */
 function ws_server_write_binary(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   if (fd < 0) { return ws_err_io(); }
-  return net_ws_write_server_binary_c(fd, tls_ctx, payload, payload_len);
+  return ws_io.net_ws_write_server_binary_c(fd, tls_ctx, payload, payload_len);
 }
 
 /** C 层握手 socketpair 烟测；0 通过。 */
 function ws_client_handshake_smoke(): i32 {
-  return net_ws_client_handshake_smoke_c();
+  return ws_io.net_ws_client_handshake_smoke_c();
 }
 
 /** ws(s):// URL 解析烟测；0 通过。 */
 function ws_parse_url_smoke(): i32 {
-  return net_ws_parse_url_smoke_c();
+  return ws_codec.net_ws_parse_url_smoke_c();
 }
 
 /** 服务端 accept 烟测（请求解析 + socketpair 101）；0 通过。 */
 function ws_server_accept_smoke(): i32 {
-  return net_ws_server_accept_smoke_c();
+  return ws_io.net_ws_server_accept_smoke_c();
 }
 
-/** WebSocket 模块是否可用（C 已链入 net.o）。 */
+/** WebSocket 模块是否可用（F-04 v3 纯 .sx）。 */
 function ws_is_implemented(): i32 { return 1; }
