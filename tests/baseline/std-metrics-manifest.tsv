@@ -15,8 +15,8 @@ api_reg_hist	api	registry_register_histogram	std/metrics/mod.sx	注册
 api_export	api	export_prometheus	std/metrics/mod.sx	导出
 api_label	api	label_set	std/metrics/mod.sx	label
 api_err	api	metrics_err_ok	std/metrics/mod.sx	错误码
-impl_su	file	std/metrics/mod.sx	std/metrics/mod.sx
-smoke_su	smoke	tests/std-metrics/roundtrip.sx	round-trip
+impl_sx	file	std/metrics/mod.sx	std/metrics/mod.sx
+smoke_sx	smoke	tests/std-metrics/roundtrip.sx	round-trip
 vectors	file	tests/baseline/std-metrics-vectors.tsv	向量
 lib	script	lib/std-metrics.sh	tests/lib/std-metrics.sh
 gate	script	run-std-metrics-gate.sh	tests/run-std-metrics-gate.sh
