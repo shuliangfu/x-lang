@@ -7,9 +7,9 @@ function main(): i32 {
   let r2: i32 = driver.submit_read(b, 0);
   let out_buf: Buffer = Buffer { ptr: 0, len: 0, handle: 1 };
   let r3: i32 = driver.submit_write(out_buf, 0);
-  let arr: [4]Buffer = [out_buf, out_buf, out_buf, out_buf];
+  let arr: Buffer[4] = [out_buf, out_buf, out_buf, out_buf];
   let r4: i32 = driver.submit_write_batch(arr, 1, 0);
-  let arr_buf: [2]Buffer = [out_buf, out_buf];
+  let arr_buf: Buffer[2] = [out_buf, out_buf];
   let r5: i32 = driver.submit_read_batch_buf(0, &arr_buf[0], 1, 0);
   let r6: i32 = driver.submit_write_batch_buf(0, &arr_buf[0], 1, 0);
   let r7: i32 = driver.submit_register_fixed_buffers_buf(&arr_buf[0], 1);
