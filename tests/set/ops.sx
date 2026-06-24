@@ -26,16 +26,16 @@ function main(): i32 {
   if (set.set_i32_insert(&b, 3) != 0) { return 8; }
   if (set.set_i32_insert(&b, 4) != 0) { return 9; }
   if (set_i32_union_into(&dst, a, b) != 0) { return 10; }
-  let u: [4]i32 = [1, 2, 3, 4];
+  let u: i32[4] = [1, 2, 3, 4];
   if (set_has_keys(dst, &u[0], 4) == 0) { return 11; }
   if (set_i32_intersect_into(&dst, a, b) != 0) { return 12; }
-  let ic: [2]i32 = [2, 3];
+  let ic: i32[2] = [2, 3];
   if (set_has_keys(dst, &ic[0], 2) == 0) { return 13; }
   if (set_i32_difference_into(&dst, a, b) != 0) { return 14; }
-  let d: [1]i32 = [1];
+  let d: i32[1] = [1];
   if (set_has_keys(dst, &d[0], 1) == 0) { return 15; }
   if (set_i32_difference_into(&dst, b, a) != 0) { return 16; }
-  let d2: [1]i32 = [4];
+  let d2: i32[1] = [4];
   if (set_has_keys(dst, &d2[0], 1) == 0) { return 17; }
   set.set_i32_deinit(&a);
   set.set_i32_deinit(&b);
