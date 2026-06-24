@@ -13,7 +13,7 @@ const option = import("core.option");
 // ——— 应用代码：分号链（应优先在 ; 后折行，不得出现 refix[ 残骸） ———
 
 function fmt_test_semicolon_chain(): i32 {
-  let prefix: [32]u8 = [];
+  let prefix: u8[32] = [];
   prefix[0] = 1; prefix[1] = 2; prefix[2] = 3; prefix[3] = 4; prefix[4] = 5; prefix[5] = 6;
   prefix[6] = 7; prefix[7] = 8; prefix[8] = 9; prefix[9] = 10; prefix[10] = 11; prefix[11] = 12;
   return prefix[0] + prefix[11];
