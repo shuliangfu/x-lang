@@ -3,23 +3,23 @@ const string = import("std.string");
 
 function main(): i32 {
   // "abracadabra" -> 11 字节
-  let buf: [16]u8 = [97, 98, 114, 97, 99, 97, 100, 97, 98, 114, 97, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [97, 98, 114, 97, 99, 97, 100, 97, 98, 114, 97, 0, 0, 0, 0, 0];
   let s: String = string.string_from_slice(&buf[0], 11);
-  let ab: [2]u8 = [97, 98];
+  let ab: u8[2] = [97, 98];
   if (string.string_contains(s, &ab[0], 2) != 1) { return 1; }
-  let xz: [2]u8 = [120, 122];
+  let xz: u8[2] = [120, 122];
   if (string.string_contains(s, &xz[0], 2) != 0) { return 2; }
   if (string.string_find_slice(s, &ab[0], 2) != 0) { return 3; }
-  let ra: [2]u8 = [114, 97];
+  let ra: u8[2] = [114, 97];
   if (string.string_find_slice(s, &ra[0], 2) != 2) { return 4; }
   if (string.string_find_slice(s, &xz[0], 2) != -1) { return 5; }
   if (string.string_rfind_char(s, 97) != 10) { return 6; }
   if (string.string_rfind_char(s, 98) != 8) { return 7; }
   if (string.string_rfind_char(s, 122) != -1) { return 8; }
   // trim: "  hi  " -> "hi"
-  let with_sp: [8]u8 = [32, 32, 104, 105, 32, 32, 0, 0];
+  let with_sp: u8[8] = [32, 32, 104, 105, 32, 32, 0, 0];
   let st: String = string.string_from_slice(&with_sp[0], 6);
-  let out: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let out: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = string.string_trim_space(st, &out[0], 8);
   if (n != 2) { return 9; }
   if (out[0] != 104 || out[1] != 105) { return 10; }
