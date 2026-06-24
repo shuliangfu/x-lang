@@ -58,6 +58,33 @@ int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
   return 0;
 }
 
+/**
+ * .sx 预处理路径：求值 #if COND（bridge 内 -D 宏表；不依赖 preprocess.c）。
+ * 参数：cond 条件字节；cond_len 长度。
+ * 返回值：非 0 表示成立。
+ */
+int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
+  int k;
+
+  if (!cond || cond_len <= 0)
+    return 0;
+  /* seed 链不链 preprocess.c；单标识符 -D 宏求值，复杂式保守为 0。 */
+    while (cond_len > 0 && (cond[0] == ' ' || cond[0] == '\t')) {
+      cond++;
+      cond_len--;
+    }
+    while (cond_len > 0 && (cond[cond_len - 1] == ' ' || cond[cond_len - 1] == '\t'))
+      cond_len--;
+    if (cond_len <= 0)
+      return 0;
+    for (k = 0; k < cond_len; k++) {
+      char c = (char)cond[k];
+      if (c == ' ' || c == '\t')
+        return 0;
+    }
+    return preprocess_define_has(cond, cond_len) ? 1 : 0;
+}
+
 /** 写 labeled 槽的标签名与 goto 目标名。 */
 void pipeline_block_labeled_set_names(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *label, int32_t label_len,
                                       uint8_t *goto_target, int32_t goto_target_len) {
