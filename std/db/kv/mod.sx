@@ -2,7 +2,7 @@
 //
 // 【文件职责】
 // 高频 Tick / 突触权重：Arena 序列化 → WAL 热写 → flush/compact 入主文件。
-// 底层 mmap 走 std.sys.mmap；实现见 kv.c。
+// 底层 mmap 走 std.sys.mmap；实现见 kv.sx + kv_mmap_glue.c（F-05 v2）。
 //
 // 【用法】
 //   const dbkv = import("std.db.kv");
@@ -24,7 +24,7 @@ const KV_ERR_NOT_FOUND: i32 = -6;
 /** 平台未实现。 */
 const KV_NOT_IMPL: i32 = -9;
 
-/** 默认扇区大小（与 kv.c KV_SECTOR 一致）。 */
+/** 默认扇区大小（与 kv.sx KV_SECTOR 一致）。 */
 const KV_SECTOR_BYTES: i32 = 4096;
 
 /** 不透明 KV 存储句柄。 */
