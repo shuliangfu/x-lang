@@ -293,7 +293,7 @@ int32_t parser_asm_stretch_struct_field_continues_kind_c(int32_t kind) {
 }
 
 /**
- * 标号语句探测：当前 IDENT 且 lookahead 为 COLON（勿迁入 PARSER_SAFE_EQ，SU 真 emit elf_ec=-1）。
+ * 标号语句探测：当前 IDENT 且 lookahead 为 COLON（勿迁入 PARSER_SAFE_EQ，SX 真 emit elf_ec=-1）。
  * 与 parser_asm_parser_token_is_label_start_slice_c 语义一致，供 glue 统一调用。
  */
 int32_t parser_asm_stretch_token_is_label_start_c(int32_t cur_kind, int32_t next_kind) {
