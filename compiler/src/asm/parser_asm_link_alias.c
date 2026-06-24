@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** 与 parser_gen / pipeline_gen []u8 切片 ABI 一致。 */
+/** 与 parser_gen / pipeline_gen u8[] 切片 ABI 一致。 */
 struct shux_slice_uint8_t {
   uint8_t *data;
   size_t length;
@@ -24,7 +24,7 @@ extern int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, 
 extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct shux_slice_uint8_t *source);
 extern int32_t parser_diag_token_after_collect_imports_glue(struct shux_slice_uint8_t *source, void *module);
 
-#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SU_SYMBOLS
+#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
 /** runtime 期望 parser_diag_token_after_collect_imports；委托 thin_c glue。 */
 int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module) {
   return parser_diag_token_after_collect_imports_glue(source, module);
@@ -64,7 +64,7 @@ __attribute__((weak)) void parse_into_set_main_index(void *module, int32_t main_
 
 /** parser_parse_bootstrap.o 真 emit 时覆盖上述弱裸名桩。 */
 
-#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SU_SYMBOLS
+#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
 /**
  * pipeline 期望 parser_copy_module_import_path64；委托 thin C copy+len。
  */
@@ -73,7 +73,7 @@ int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, ui
 }
 #endif
 
-#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SU_SYMBOLS
+#ifndef PARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
 /**
  * pipeline 期望 (arena, source) 两参；委托 parse_one_function_ok_for_pipeline_glue。
  */
