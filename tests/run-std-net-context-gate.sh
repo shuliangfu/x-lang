@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/net/mod.sx"
+MOD_SX="std/net/mod.sx"
 SMOKE="tests/net/context_connect.sx"
 PREFIX="shux: [SHUX_STD092_NET_CTX]"
 
@@ -23,14 +23,14 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-092: net-context manifest ==="
-for f in "$MOD_SU" "$SMOKE"; do
+for f in "$MOD_SX" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "net-context gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd stream_read_ctx stream_write_ctx; do
-  if ! grep -qE "function ${sym}\\(" "$MOD_SU" 2>/dev/null; then
+  if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
     echo "net-context gate FAIL: missing api $sym" >&2
     exit 1
   fi
@@ -58,7 +58,7 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
   :
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-092: smoke (SHUX=$SHUX_BIN) ==="
@@ -80,11 +80,11 @@ if [ -n "$SHUX_BIN" ]; then
     echo "net-context gate FAIL: run exit=$ec" >&2
     exit 1
   fi
-  SU_OK=1
+  SX_OK=1
 else
   echo "net-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok su=${SU_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-net-context gate OK"
