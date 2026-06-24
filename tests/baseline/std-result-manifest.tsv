@@ -12,7 +12,7 @@ api_or_else	api	result_or_else_i32	std/result/mod.sx	组合
 api_from_err	api	result_from_error_code	std/result/mod.sx	error桥
 api_from_val	api	result_from_value_i32	std/result/mod.sx	error桥
 api_err_code	api	result_err_code	std/result/mod.sx	提取码
-impl_su	file	std/result/mod.sx	std/result/mod.sx
-smoke_su	smoke	tests/std-option-result/roundtrip.sx	round-trip
+impl_sx	file	std/result/mod.sx	std/result/mod.sx
+smoke_sx	smoke	tests/std-option-result/roundtrip.sx	round-trip
 lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
 gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh
