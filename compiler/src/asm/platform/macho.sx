@@ -35,7 +35,7 @@ function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   return 0;
 }
 
-/** reloc 符号名拷到栈上 [64]u8，供 elf_name_eq_arr_to_pool / macho_rel_name_eq。 */
+/** reloc 符号名拷到栈上 u8[64]，供 elf_name_eq_arr_to_pool / macho_rel_name_eq。 */
 function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void {
   pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, idx, out);
 }
@@ -44,7 +44,7 @@ function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void
 */
 function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   let m: i32 = 0;
-  let sym_buf: [64]u8 = [];
+  let sym_buf: u8[64] = [];
   macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
   while (m < ctx.num_syms) {
     /** 与 elf_resolve_rela、write_macho 写入阶段一致：符号字节在
@@ -59,7 +59,7 @@ function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
 }
 
 /** 比较两段名字（与 elf_name_eq 同语义）；b 指向 und_names 中一行首字节。 */
-function macho_rel_name_eq(a: [64]u8, a_len: i32, b_ptr: *u8, b_len: i32): i32 {
+function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -94,12 +94,12 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   let code_len: i32 = ctx.code_len;
   /** 外部 bl/jal：收集唯一未解析符号；strtab 字节从 ctx.relocs[und_src_reloc[i]]
   * 拷贝（与 nlist n_strx 一致）。 */
-  /** 曾用栈上 und_pool/und_names[][]，在部分 SU→C 栈布局下 strtab
+  /** 曾用栈上 und_pool/und_names[][]，在部分 SX→C 栈布局下 strtab
   * 阶段读到全零；改用 relocs 槽位指针更稳。 */
   /** 唯一未定义外部符号下标；大型 TU 调用数可超旧上限 128，须与 elf 侧
   * relocs 上限同量级。 */
-  let und_src_reloc: [2048]i32 = [];
-  let und_lens: [2048]i32 = [];
+  let und_src_reloc: i32[2048] = [];
+  let und_lens: i32[2048] = [];
   let nu: i32 = 0;
   let rx: i32 = 0;
   while (rx < ctx.num_relocs) {
@@ -111,8 +111,8 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     let us: i32 = 0;
     while (us < nu) {
       let sr: i32 = und_src_reloc[us];
-      let rx_buf: [64]u8 = [];
-      let sr_buf: [64]u8 = [];
+      let rx_buf: u8[64] = [];
+      let sr_buf: u8[64] = [];
       macho_reloc_sym_name_buf(ctx, rx, &rx_buf[0]);
       macho_reloc_sym_name_buf(ctx, sr, &sr_buf[0]);
       if (macho_rel_name_eq(rx_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, rx), &sr_buf[0],
@@ -183,7 +183,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   }
   /* mach_header_64：32 字节；须写满
   magic/cputype/cpusubtype/filetype/ncmds/sizeofcmds/flags/reserved。 */
-  let hdr: [32]u8 = [];
+  let hdr: u8[32] = [];
   let hz: i32 = 0;
   while (hz < 32) {
     hdr[hz] = 0;
@@ -218,7 +218,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   /* flags、reserved 保持 0 */
   if (macho_append(out, hdr, 32) != 0) { return -1; }
   
-  let seg: [152]u8 = [];
+  let seg: u8[152] = [];
   let sz: i32 = 0;
   while (sz < 152) {
     seg[sz] = 0;
@@ -288,7 +288,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (macho_append(out, seg, 152) != 0) { return -1; }
   
   /** LC_BUILD_VERSION：platform=macOS(1)，minos/sdk=11.0.0（0x000B0000），ntools=0。 */
-  let lc_bv: [24]u8 = [];
+  let lc_bv: u8[24] = [];
   let bvz: i32 = 0;
   while (bvz < 24) {
     lc_bv[bvz] = 0;
@@ -313,9 +313,9 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   /* ntools = 0 */
   if (macho_append(out, lc_bv, lc_build_size) != 0) { return -1; }
   
-  /* LC_SYMTAB：逐字节写入前先落到标量，避免 SU→C
+  /* LC_SYMTAB：逐字节写入前先落到标量，避免 SX→C
   对数组下标赋值的逗号包装把值写到临时副本（尤其 n_strx 等字段）。 */
-  let lc_sym: [24]u8 = [];
+  let lc_sym: u8[24] = [];
   let lz: i32 = 0;
   while (lz < 24) {
     lc_sym[lz] = 0;
@@ -356,7 +356,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   /* 须写成 off_sym - off_text - code_len：若写 off_sym - (off_text + code_len)，-E 到 C
   会变成 off_sym - off_text + code_len，pad 暴增，symtab 与 LC 声明偏移错位。 */
   let pad: i32 = off_sym - off_text - code_len;
-  let zero: [1]u8 = [0];
+  let zero: u8[1] = [0];
   let z: i32 = 0;
   while (z < pad) {
     if (macho_append(out, zero, 1) != 0) { return -1; }
@@ -364,12 +364,12 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   }
   
   /** 索引 0：16 字节全 0 nlist（与 strtab[0]=0 对应；ld64 要求保留项）。 */
-  let nlist0: [16]u8 = [];
+  let nlist0: u8[16] = [];
   if (macho_append(out, &nlist0[0], 16) != 0) { return -1; }
   let str_off: i32 = 1;
   s = 0;
   while (s < ctx.num_syms) {
-    let ent: [16]u8 = [];
+    let ent: u8[16] = [];
     /* n_type = N_SECT(0x0e) | N_EXT(0x01) = 15；n_sect = 1（__text section） */
     let ent_ntype: u8 = 15 as u8;
     let ent_nsect: u8 = 1 as u8;
@@ -400,7 +400,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   
   let uu: i32 = 0;
   while (uu < nu) {
-    let entu: [16]u8 = [];
+    let entu: u8[16] = [];
     let entu_nstrx_0: u8 = elf.elf_to_u8(str_off);
     let entu_nstrx_1: u8 = elf.elf_to_u8(str_off >> 8);
     let entu_nstrx_2: u8 = elf.elf_to_u8(str_off >> 16);
@@ -426,7 +426,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   while (s < ctx.num_syms) {
     let nm_ptr: *u8 = elf.elf_sym_name_ptr(ctx, s);
     if (macho_link_name_extra_byte(nm_ptr) != 0) {
-      let uscore: [1]u8 = [95];
+      let uscore: u8[1] = [95];
       if (macho_append(out, &uscore[0], 1) != 0) { return -1; }
     }
     if (macho_append(out, nm_ptr, ctx.syms[s].name_len) != 0) { return -1; }
@@ -438,7 +438,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
     let sr: i32 = und_src_reloc[uu];
     let und_ptr: *u8 = pipeline_elf_ctx_reloc_sym_name_ptr(ctx as *u8, sr);
     if (macho_link_name_extra_byte(und_ptr) != 0) {
-      let uscore: [1]u8 = [95];
+      let uscore: u8[1] = [95];
       if (macho_append(out, &uscore[0], 1) != 0) { return -1; }
     }
     if (macho_append(out, und_ptr, und_lens[uu]) != 0) { return -1; }
@@ -451,11 +451,11 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (ctx.e_machine == 183) { rel_type = 2; rel_len = 2; }
   let r: i32 = 0;
   while (r < ctx.num_relocs) {
-    let ri: [8]u8 = [];
+    let ri: u8[8] = [];
     let sym_idx: i32 = 0;
     let m: i32 = 0;
     let found_def: i32 = 0;
-    let r_sym_buf2: [64]u8 = [];
+    let r_sym_buf2: u8[64] = [];
     macho_reloc_sym_name_buf(ctx, r, &r_sym_buf2[0]);
     while (m < ctx.num_syms) {
       if (elf.elf_name_eq_arr_to_pool(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as
@@ -472,7 +472,7 @@ function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
       let us2: i32 = 0;
       while (us2 < nu) {
         let sr2: i32 = und_src_reloc[us2];
-        let sr2_buf: [64]u8 = [];
+        let sr2_buf: u8[64] = [];
         macho_reloc_sym_name_buf(ctx, sr2, &sr2_buf[0]);
         if (macho_rel_name_eq(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
         &sr2_buf[0], und_lens[us2]) != 0) {
