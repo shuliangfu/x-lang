@@ -51,11 +51,11 @@
 
 | 阶段 | Hub | 文件 |
 |------|-----|------|
-| typeck（C + SU glue） | `lsp_diag_report_typeck(line, col, fmt, ...)` | `lsp/lsp_diag.c` |
+| typeck（C + SX glue） | `lsp_diag_report_typeck(line, col, fmt, ...)` | `lsp/lsp_diag.c` |
 | typeck 宏 | `TYPECK_ERR` / `TYPECK_ERR_AT` | `typeck/typeck.c` |
 | parse | `fail(Parser *, msg)` | `parser/parser.c` |
 | check 打印 | `lsp_diag_print_stderr_human(path)` | `lsp/lsp_diag.c` |
-| SU 细粒度 | `driver_diagnostic_typeck_*` → 优先 `lsp_diag_report_typeck` | `runtime.c` |
+| SX 细粒度 | `driver_diagnostic_typeck_*` → 优先 `lsp_diag_report_typeck` | `runtime.c` |
 
 ---
 
