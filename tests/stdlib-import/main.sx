@@ -12,7 +12,11 @@ function main(): i32 {
   // 用各模块独有符号。
   let b: i32 = option.unwrap_or_i32(option.some_i32(42), 0);
   let res: Result_i32 = result.ok_i32(1);
-  let c: i32 = result.is_ok_i32(res) ? res.value : 0;
+  // if/else：seed shux-c 解析器暂不支持 let 内三元 ? :
+  let c: i32 = 0;
+  if (result.is_ok_i32(res)) {
+    c = res.value;
+  }
   let _sum: i32 = a + b + c;
   return 0;
 }
