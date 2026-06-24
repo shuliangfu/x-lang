@@ -34,7 +34,7 @@ Span 命名：`io.read`、`io.write`、`net.connect`、`net.stream_read`、`asyn
 ## 3. Gate
 
 ```
-shux: [SHUX_STD118_TRACE_HOOKS] status=ok c=1 su=1 skip=0
+shux: [SHUX_STD118_TRACE_HOOKS] status=ok c=1 sx=1 skip=0
 std-trace-hooks gate OK
 ```
 
