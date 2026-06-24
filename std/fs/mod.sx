@@ -21,44 +21,62 @@
 // read_fd/write_fd/read_batch_fd/write_batch_fd 走 io_uring/readv 极致压榨。
 const io = import("std.io");
 const driver = import("std.io.driver");
-// 与 POSIX open/read/write/close 一致；链接时需 -lc。其余由 std/fs/fs.c 提供。
+
+/** F-03 v2：Linux/macOS POSIX 实现（libc FFI，链 -lc）。 */
+#[cfg(target_os = "linux")]
+const fs_platform = import("std.fs.fs_posix");
+#[cfg(target_os = "macos")]
+const fs_platform = import("std.fs.fs_posix");
+/** F-03 v2：Windows kernel32/mswsock 实现。 */
+#[cfg(target_os = "windows")]
+const fs_platform = import("std.fs.fs_win32");
+
+/** F-no-libc NL-04：Linux freestanding 文件 IO（import 区须顶格，勿放 function 段）。 */
+#[cfg(target_os = "linux")]
+const fs_freestanding = import("std.fs.freestanding_linux");
+
+// 与 POSIX open/read/write/close 一致；链接时需 -lc。fs_*_c 由 fs_posix/fs_win32 提供。
 // fs_readv_buf/fs_writev_buf 的 bufs 与 Buffer ABI
 // 一致（ptr+len+handle），可传 Buffer 数组首地址。
 extern function open(path: *u8, flags: i32, mode: i32): i32;
-/** 只读打开（fs.c）；asm 用户程序跳过 std.fs emit 时由 fs.o 提供。 */
-extern function fs_open_read_c(path: *u8): i32;
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 extern function close(fd: i32): i32;
 extern function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
 extern function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8;
-extern function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8;
-extern function fs_munmap_c(ptr: *u8, size: usize): i32;
-extern function fs_open_read_direct_c(path: *u8): i32;
-extern function fs_direct_align_c(): u64;
-extern function fs_fadvise_sequential_c(fd: i32): i32;
-extern function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32;
-extern function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64;
-extern function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64;
-extern function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64;
-extern function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64;
+
+/** 只读打开（F-03 v2 纯 .sx）；asm 跳过 std.fs emit 时由 std_fs.o 提供。 */
+function fs_open_read_c(path: *u8): i32 { return fs_platform.fs_open_read_c(path); }
+function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 { return fs_platform.fs_posix_read_c(fd, buf, count); }
+function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 { return fs_platform.fs_posix_write_c(fd, buf, count); }
+function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 { return fs_platform.fs_mmap_ro_c(path, out_size); }
+function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 { return fs_platform.fs_mmap_rw_c(path, out_size); }
+function fs_munmap_c(ptr: *u8, size: usize): i32 { return fs_platform.fs_munmap_c(ptr, size); }
+function fs_open_read_direct_c(path: *u8): i32 { return fs_platform.fs_open_read_direct_c(path); }
+function fs_direct_align_c(): u64 { return fs_platform.fs_direct_align_c(); }
+function fs_fadvise_sequential_c(fd: i32): i32 { return fs_platform.fs_fadvise_sequential_c(fd); }
+function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 { return fs_platform.fs_fadvise_willneed_c(fd, offset, len); }
+function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 { return fs_platform.fs_copy_file_range_c(fd_in, fd_out, len); }
+function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 { return fs_platform.fs_readv2_c(fd, p0, l0, p1, l1); }
+function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 { return fs_platform.fs_writev2_c(fd, p0, l0, p1, l1); }
+function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 { return fs_platform.fs_sendfile_c(out_fd, in_fd, count); }
 /** ZC-5：经 pipe splice 中转（Linux 内核零拷贝；非 Linux read/write 回退）。 */
-extern function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64;
-extern function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32;
-extern function fs_sync_c(fd: i32): i32;
-extern function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32;
-extern function fs_open_write_c(path: *u8): i32;
-extern function fs_open_append_c(path: *u8): i32;
-extern function fs_open_create_c(path: *u8): i32;
-extern function fs_last_error_c(): i32;
-extern function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize,
-p3: *u8, l3: usize): i64;
-extern function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize,
-p3: *u8, l3: usize): i64;
+function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 { return fs_platform.fs_pipe_splice_c(fd_in, fd_out, len); }
+function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 { return fs_platform.fs_sync_range_c(fd, offset, len); }
+function fs_sync_c(fd: i32): i32 { return fs_platform.fs_sync_c(fd); }
+function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 { return fs_platform.fs_fallocate_c(fd, offset, len); }
+function fs_open_write_c(path: *u8): i32 { return fs_platform.fs_open_write_c(path); }
+function fs_open_append_c(path: *u8): i32 { return fs_platform.fs_open_append_c(path); }
+function fs_open_create_c(path: *u8): i32 { return fs_platform.fs_open_create_c(path); }
+function fs_last_error_c(): i32 { return fs_platform.fs_last_error_c(); }
+function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+  return fs_platform.fs_readv4_c(fd, p0, l0, p1, l1, p2, l2, p3, l3);
+}
+function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+  return fs_platform.fs_writev4_c(fd, p0, l0, p1, l1, p2, l2, p3, l3);
+}
+#[repr(compatible)]
 struct FsIovecBuf { ptr: *u8; len: usize; handle: usize }
-extern function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64;
-extern function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64;
+function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_readv_buf_c(fd, bufs, n); }
+function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_writev_buf_c(fd, bufs, n); }
 function fs_invalid_handle(): i32 { return -1; }
 /** 推荐大块读单次字节数（1MiB），极致压榨时用此大小循环 fs_read。 */
 function fs_read_chunk(): usize { return 1048576; }
@@ -193,7 +211,7 @@ function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
 function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3:
 *u8, l3: usize, n: i32): i32 {
   let h: usize = io.handle_from_fd(fd, 0);
-  let bufs: [4]Buffer = [
+  let bufs: Buffer[4] = [
   Buffer { ptr: p0, len: l0, handle: h },
   Buffer { ptr: p1, len: l1, handle: h },
   Buffer { ptr: p2, len: l2, handle: h },
@@ -206,7 +224,7 @@ function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8,
 function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3:
 *u8, l3: usize, n: i32): i32 {
   let h: usize = io.handle_from_fd(fd, 0);
-  let bufs: [4]Buffer = [
+  let bufs: Buffer[4] = [
   Buffer { ptr: p0, len: l0, handle: h },
   Buffer { ptr: p1, len: l1, handle: h },
   Buffer { ptr: p2, len: l2, handle: h },
@@ -230,6 +248,7 @@ function fs_module_anchor(): i32 { return 0; }
 /* --- STD-123：目录/元数据 stat/chmod/mkdir/readdir --- */
 
 /** 路径元数据（与 fs_stat_c 布局一致）。 */
+#[repr(compatible)]
 allow(padding) struct FsStat {
   size: i64;
   mode: u32;
@@ -238,14 +257,16 @@ allow(padding) struct FsStat {
   mtime_sec: i64;
 }
 
-extern function fs_stat_c(path: *u8, out: *FsStat): i32;
-extern function fs_chmod_c(path: *u8, mode: u32): i32;
-extern function fs_mkdir_c(path: *u8, mode: u32): i32;
-extern function fs_unlink_c(path: *u8): i32;
-extern function fs_rmdir_c(path: *u8): i32;
-extern function fs_dir_open_c(path: *u8): i64;
-extern function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32;
-extern function fs_dir_close_c(handle: i64): i32;
+function fs_stat_c(path: *u8, out: *FsStat): i32 { return fs_platform.fs_stat_c(path, out); }
+function fs_chmod_c(path: *u8, mode: u32): i32 { return fs_platform.fs_chmod_c(path, mode); }
+function fs_mkdir_c(path: *u8, mode: u32): i32 { return fs_platform.fs_mkdir_c(path, mode); }
+function fs_unlink_c(path: *u8): i32 { return fs_platform.fs_unlink_c(path); }
+function fs_rmdir_c(path: *u8): i32 { return fs_platform.fs_rmdir_c(path); }
+function fs_dir_open_c(path: *u8): i64 { return fs_platform.fs_dir_open_c(path); }
+function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
+  return fs_platform.fs_dir_read_c(handle, name_out, name_cap, is_dir_out);
+}
+function fs_dir_close_c(handle: i64): i32 { return fs_platform.fs_dir_close_c(handle); }
 
 /** 默认文件权限 0644。 */
 function fs_mode_file_default(): u32 { return 420; }
@@ -290,4 +311,16 @@ function fs_dir_read(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32
 /** 关闭目录句柄；成功 0。 */
 function fs_dir_close(handle: i64): i32 {
   return fs_dir_close_c(handle);
+}
+
+/** Linux freestanding：syscall 读文件路径是否可用（1/0）。 */
+#[cfg(target_os = "linux")]
+function freestanding_fs_available(): i32 {
+  return fs_freestanding.freestanding_fs_available();
+}
+
+/** Linux freestanding：读文件到 buf；成功字节数，失败 -1。 */
+#[cfg(target_os = "linux")]
+function freestanding_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+  return fs_freestanding.freestanding_read_file_into(path, buf, cap);
 }
