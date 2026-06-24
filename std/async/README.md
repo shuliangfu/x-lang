@@ -7,14 +7,14 @@
 - `wait_completion` / `submit_read_sync` / `submit_write_sync` — 同步 IO 门面
 - **STD-049 io_uring 完整路径**：`io_uring_is_available` / `read_async*` / `write_async*` / `complete_*_slot` / `io_pump_once` / `poll_loop_ctx`（re-export std.io async + Context poll）
 - **STD-049 / #79 net/fs 集成**：`await_read_fd` / `await_write_fd` / `net_read_async` / `fs_read_async` / `net_fs_async_smoke`（pipe 烟测）
-- `coop_pingpong(rounds)` — switch dispatch 双任务 ping-pong（`scheduler.c`）
+- `coop_pingpong(rounds)` — switch dispatch 双任务 ping-pong（`scheduler_glue.c` + `scheduler.sx`）
 - `coop_pingpong_jmp(rounds)` — computed-goto 跳转表 dispatch（A2 预览）
-- **`future_new` / `future_poll` / `future_complete` / `future_take`** — 手动 i32 Future/Poll（`future.c`）
+- **`future_new` / `future_poll` / `future_complete` / `future_take`** — 手动 i32 Future/Poll（`future.sx`，F-async-future v2）
 - **`future_wait(fut, max_rounds)`** — poll + IO poll + `drain_until_idle` 轮询等待
 - **`runtime_wait_future(rt, fut, max_rounds)`** — Context 绑定 + `future_wait`（await 桥接）
 - `shux_async_task_submit` / `shux_async_scheduler_drain` — A4 就绪队列（C extern；`.sx` 函数指针待语言支持）
 
-## 调度内核（`scheduler.c`）
+## 调度内核（`scheduler_glue.c` + `scheduler.sx`）
 
 无 malloc、无 pthread；单线程协作帧 `{ phase, ops }` + 1M ping-pong 压测入口。
 
