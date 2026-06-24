@@ -1,6 +1,6 @@
 /* runtime_panic.c — 提供 shux_panic_，链 libc 时调用 abort；供 -backend asm 链接用（Linux 可用 .s 不链 libc）。
  * Freestanding / 弱化 libc 路线见 compiler/docs/SELFHOST.md §6 与 src/asm/runtime_panic_x86_64.s（若存在）。
- * SAFE-007：弱符号证据收集，强符号由 std/backtrace/backtrace.o 提供。 */
+ * SAFE-007：弱符号证据收集，强符号由 runtime_backtrace_platform.o 提供。 */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -10,7 +10,7 @@
 __asm__(".section .note.GNU-stack,\"\",%progbits");
 #endif
 
-/** 无 backtrace.o 时的最小证据包（SHUX_CRASH_EVIDENCE=1）；强符号链接时由 backtrace.c 覆盖。 */
+/** 无 backtrace 平台 runtime 时的最小证据包（SHUX_CRASH_EVIDENCE=1）；强符号链接 runtime_backtrace_platform.o 时覆盖。 */
 static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
   const char *en = getenv("SHUX_CRASH_EVIDENCE");
   if (!en || en[0] != '1') {
@@ -33,7 +33,7 @@ static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
 }
 
 /**
- * 弱默认：无 backtrace.o 时输出最小证据；有 backtrace.o 时强符号覆盖。
+ * 弱默认：无 runtime_backtrace_platform.o 时输出最小证据；有平台 runtime 时强符号覆盖。
  * PE/COFF（Windows/Cygwin）弱符号不可靠，须强符号默认实现以满足 std/runtime/runtime.o 链接。
  */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
