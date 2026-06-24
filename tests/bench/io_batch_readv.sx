@@ -4,15 +4,15 @@ const fs = import("std.fs");
 
 function main(): i32 {
   // 路径 "tests/bench/.io_mmap_bench_tmp"
-  let path: [31]u8 =
+  let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
   let fd: i32 = fs.fs_open_read(&path[0]);
   if (fd < 0) { return 1; }
-  let b0: [4096]u8 = [];
-  let b1: [4096]u8 = [];
-  let b2: [4096]u8 = [];
-  let b3: [4096]u8 = [];
+  let b0: u8[4096] = [];
+  let b1: u8[4096] = [];
+  let b2: u8[4096] = [];
+  let b3: u8[4096] = [];
   let sum: i32 = 0;
   let rounds: i32 = 0;
   /** 每轮 4×4KiB=16KiB；1024 轮 = 16MiB。 */
