@@ -65,7 +65,6 @@ fi
 
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-ensure_std_c_o ../std/fs/fs.o
 ensure_std_c_o ../std/net/net.o
 
 SMOKE_SRC="tests/fs/splice_smoke.sx"
