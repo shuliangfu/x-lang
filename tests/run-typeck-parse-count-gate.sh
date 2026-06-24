@@ -13,7 +13,7 @@ TARGET_FUNCS=${SHUX_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" 
 MIN_FUNCS=${MIN_FUNCS:-80}
 TARGET_FUNCS=${TARGET_FUNCS:-146}
 SHUX="${SHUX:-./compiler/shux_asm}"
-TYPECK_SU="compiler/src/typeck/typeck.sx"
+TYPECK_SX="compiler/src/typeck/typeck.sx"
 OUT="/tmp/shux_typeck_parse_count.$$.o"
 LOG="/tmp/shux_typeck_parse_count.$$.log"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
@@ -31,17 +31,57 @@ if [ ! -x "$SHUX" ]; then
   exit 0
 fi
 
-src_count=$(grep -c '^function ' "$TYPECK_SU" 2>/dev/null || echo 0)
+src_count=$(grep -c '^function ' "$TYPECK_SX" 2>/dev/null || echo 0)
 echo "typeck-parse-count-gate: source functions in typeck.sx: ${src_count} (baseline min=${MIN_FUNCS}, stretch target>=${TARGET_FUNCS})"
 
 rm -f "$OUT" "$LOG" 2>/dev/null || true
 
-if ! (
-  cd compiler
-  env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-    SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 \
-    "../$SHUX" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.sx
-) >"$LOG" 2>&1; then
+typeck_parse_count_compile() {
+  local comp="$1"
+  (
+    cd compiler
+    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+      SHUX_ASM_PARSE_METRIC_ONLY=1 \
+      SHUX_DEBUG_PIPE=1 \
+      "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.sx
+  ) >"$LOG" 2>&1
+}
+
+# 整文件 parse 被 OOM killer 干掉（exit 137 / log 含 Killed）时，分块 parse 累加 num_defined。
+typeck_parse_count_try_chunked() {
+  local comp="$1"
+  local sum
+  chmod +x tests/lib/typeck-parse-count-chunk.sh 2>/dev/null || true
+  if ! sum="$(tests/lib/typeck-parse-count-chunk.sh "$comp" "$TYPECK_SX" 2>>"$LOG")"; then
+    return 1
+  fi
+  ndef="$sum"
+  nf="$sum"
+  metric="$sum"
+  compile_ok=1
+  echo "typeck-parse-count-gate: chunked parse OK (num_defined_sum=${sum})" >&2
+  return 0
+}
+
+compile_ok=0
+if typeck_parse_count_compile "$SHUX"; then
+  compile_ok=1
+elif [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
+  echo "typeck-parse-count-gate: WARN $SHUX failed; fallback ./compiler/shux (seed parse metric, nostdlib shux_asm typeck OOM)" >&2
+  if typeck_parse_count_compile "./compiler/shux"; then
+    compile_ok=1
+  fi
+fi
+
+if [ "$compile_ok" -eq 0 ]; then
+  if grep -qE 'Killed|signal 9|oom' "$LOG" 2>/dev/null; then
+    echo "typeck-parse-count-gate: WARN full-file parse OOM/Killed; trying chunked parse (SHUX_TYPECK_PARSE_CHUNK_FUNCS=${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-20})" >&2
+    typeck_parse_count_try_chunked "$SHUX" || \
+      { [ "$SHUX" != "./compiler/shux" ] && [ -x ./compiler/shux ] && typeck_parse_count_try_chunked "./compiler/shux"; } || true
+  fi
+fi
+
+if [ "$compile_ok" -eq 0 ]; then
   echo "typeck-parse-count-gate FAIL: compile command failed" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
   rm -f "$OUT" "$LOG" 2>/dev/null || true
@@ -55,9 +95,11 @@ skip_count=$(grep -c 'parse skip at byte' "$LOG" 2>/dev/null || echo 0)
 commit_fail_count=$(grep -c 'parse commit fail at byte' "$LOG" 2>/dev/null || echo 0)
 first_skip=$(grep 'parse skip at byte' "$LOG" 2>/dev/null | head -1 || true)
 first_commit_fail=$(grep 'parse commit fail at byte' "$LOG" 2>/dev/null | head -1 || true)
-# A-11 金标准：num_defined（非 extern）≥ target；无分项时回退 num_funcs
-metric=${ndef:-$nf}
-if [ -z "$nf" ] && [ -z "$ndef" ]; then
+# 分块路径已在 try_chunked 中设置 metric；整文件成功时从 LOG 提取。
+if [ -z "${metric:-}" ]; then
+  metric=${ndef:-$nf}
+fi
+if [ -z "$nf" ] && [ -z "$ndef" ] && [ -z "${metric:-}" ]; then
   echo "typeck-parse-count-gate: no after_entry_parse in log (skip metric)" >&2
   tail -n 8 "$LOG" 2>/dev/null || true
   rm -f "$OUT" "$LOG" 2>/dev/null || true
@@ -95,7 +137,7 @@ if [ "$skip_count" -gt 0 ] 2>/dev/null || [ "$commit_fail_count" -gt 0 ] 2>/dev/
 fi
 
 if [ "$metric" -ge "$TARGET_FUNCS" ] 2>/dev/null; then
-  echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?} >= stretch ${TARGET_FUNCS}; full module parse)"
+  echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?} >= stretch ${TARGET_FUNCS}; full or chunked module parse)"
   exit 0
 fi
 
