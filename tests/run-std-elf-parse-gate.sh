@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
 MANIFEST="${SHUX_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
 VECTORS="${SHUX_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
-MOD_SU="std/elf/mod.sx"
-ELF_C="std/elf/elf.c"
+MOD_SX="std/elf/mod.sx"
+ELF_SX="std/elf/elf.sx"
 LIB="tests/lib/std-elf-parse.sh"
-SMOKE_SU="tests/std-elf/parse_hdr.sx"
+SMOKE_SX="tests/std-elf/parse_hdr.sx"
 SMOKE_C="tests/std-elf/parse_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_reloc.bin"
 MIN_APIS=3
@@ -20,7 +20,7 @@ MIN_APIS=3
 . "$LIB"
 
 echo "=== STD-058: elf parse manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$ELF_C" "$SMOKE_SU" "$SMOKE_C" "$FIXTURE"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$ELF_SX" "$SMOKE_SX" "$SMOKE_C" "$FIXTURE"; do
   if [ ! -f "$f" ]; then
     echo "std-elf-parse gate FAIL: missing $f" >&2
     exit 1
@@ -53,7 +53,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-elf-parse gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -72,7 +72,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_elf_parse_symbols_ok "$MOD_SU" "$ELF_C" "$MANIFEST" || true)"
+sym_miss="$(std_elf_parse_symbols_ok "$MOD_SX" "$ELF_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_elf_parse_emit_report "fail" 0 0 0
   echo "std-elf-parse gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -87,17 +87,24 @@ fi
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/elf/elf.o
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  ensure_std_c_o ../std/elf/elf.o
+else
+  echo "std-elf-parse gate SKIP c/sx smoke (need shux-c for elf.sx merge)" >&2
+  std_elf_parse_emit_report "ok" 0 0 1
+  echo "std-elf-parse gate OK (manifest only; no shux-c)"
+  exit 0
+fi
 
 C_OK=0
-if std_elf_parse_run_c_smoke "$ELF_C"; then
+if std_elf_parse_run_c_smoke "std/elf"; then
   C_OK=1
 else
   std_elf_parse_emit_report "fail" 0 0 0
   exit 1
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -119,14 +126,14 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-058: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-elf-parse gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-elf-parse gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_SU" "hdr"; then
-    SU_OK=1
+  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_SX" "hdr"; then
+    SX_OK=1
   else
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -136,5 +143,5 @@ else
   SKIP=1
 fi
 
-std_elf_parse_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_elf_parse_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-elf-parse gate OK"
