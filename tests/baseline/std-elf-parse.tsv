@@ -8,10 +8,10 @@ api_parse	api	parse_hdr	std/elf/mod.sx	Ehdr
 api_shdr	api	read_section	std/elf/mod.sx	Shdr
 api_name	api	sec_name	std/elf/mod.sx	节名
 const_machine	const	ELF_MACHINE_X86_64	std/elf/mod.sx	62
-symbol_parse_c	symbol	elf64_parse_hdr_c	std/elf/elf.c	C 解析
-symbol_smoke_c	symbol	elf64_parse_smoke_c	std/elf/elf.c	C 烟测
+symbol_parse_c	symbol	elf64_parse_hdr_c	std/elf/elf.sx	解析
+symbol_smoke_c	symbol	elf64_parse_smoke_c	std/elf/elf.sx	烟测
 fixture	file	tests/baseline/fixtures/elf64_min_reloc.bin	金样
 smoke_c	file	tests/std-elf/parse_smoke_ok.c	C 入口
-smoke_su	smoke	tests/std-elf/parse_hdr.sx	Ehdr 烟测
+smoke_sx	smoke	tests/std-elf/parse_hdr.sx	Ehdr 烟测
 lib	script	lib/std-elf-parse.sh	tests/lib/std-elf-parse.sh
 gate	script	run-std-elf-parse-gate.sh	tests/run-std-elf-parse-gate.sh
