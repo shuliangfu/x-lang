@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-LIVE_SU="tests/socketio/cluster_ring.sx"
+LIVE_SX="tests/socketio/cluster_ring.sx"
 
 if [ "${SHUX_SOCKETIO_CLUSTER_RING:-0}" != "1" ]; then
   echo "std-socketio cluster ring live SKIP (set SHUX_SOCKETIO_CLUSTER_RING=1 to enable)"
@@ -34,8 +34,8 @@ else
   exit 0
 fi
 
-if [ ! -f "$LIVE_SU" ]; then
-  echo "std-socketio cluster ring live FAIL: missing $LIVE_SU" >&2
+if [ ! -f "$LIVE_SX" ]; then
+  echo "std-socketio cluster ring live FAIL: missing $LIVE_SX" >&2
   exit 1
 fi
 
@@ -45,13 +45,13 @@ ensure_std_c_o ../std/socketio/socketio.o
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
 
 echo "=== STD-SOCKETIO-001: cluster ring SIOA sync live ==="
-if ! "$SHUX_BIN" check -L . "$LIVE_SU" >/dev/null 2>&1; then
+if ! "$SHUX_BIN" check -L . "$LIVE_SX" >/dev/null 2>&1; then
   echo "std-socketio cluster ring live FAIL: typeck" >&2
   exit 1
 fi
 
 exe="/tmp/shux_std_socketio_cluster_ring_$$"
-if ! "$SHUX_BIN" -L . "$LIVE_SU" -o "$exe" 2>/tmp/shux_cluster_ring_link_$$.log; then
+if ! "$SHUX_BIN" -L . "$LIVE_SX" -o "$exe" 2>/tmp/shux_cluster_ring_link_$$.log; then
   echo "std-socketio cluster ring live FAIL: link" >&2
   tail -8 /tmp/shux_cluster_ring_link_$$.log >&2 || true
   exit 1
