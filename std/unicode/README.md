@@ -1,6 +1,6 @@
 # std.unicode — Unicode 分类与大小写
 
-**模块路径**：`std/unicode/mod.sx` + `std/unicode/unicode.c`  
+**模块路径**：`std/unicode/mod.sx` + `std/unicode/unicode.sx`（F-unicode v2 纯 .sx）  
 **对标**：Rust unicode-segmentation / `char` 分类（v1 拉丁 + 预组合 NFC 子集）。
 
 ## API 概览
