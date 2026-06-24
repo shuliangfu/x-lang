@@ -5,7 +5,7 @@ const net = import("std.net");
 
 function main(): i32 {
   /** "invalid.invalid" */
-  let bad: [16]u8 = [
+  let bad: u8[16] = [
     105, 110, 118, 97, 108, 105, 100, 46, 105, 110, 118, 97, 108, 105, 100, 0
   ];
   let err: i32 = 0;
