@@ -86,7 +86,7 @@ echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/string/string.o
-ensure_std_c_o ../std/heap/heap.o
+# F-03 v2：heap 已纯 .sx，不再 ensure heap.o
 
 SUBVIEW_SRC="tests/string/view_subview_smoke.sx"
 CONCAT_SRC="tests/string/arena_concat_smoke.sx"
