@@ -31,7 +31,7 @@
 
 ```su
 import("std.crypto");
-let tag: [32]u8 = [];
+let tag: u8[32] = [];
 mac_sign(&key[0], key_len, &msg[0], msg_len, &tag[0]);
 if (mac_verify(&key[0], key_len, &msg[0], msg_len, &tag[0]) != 1) { return 1; }
 ```
