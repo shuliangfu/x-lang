@@ -47,10 +47,10 @@ function main(): i32 {
   /** timeout=0：阻塞 connect，bulk echo 快路径。 */
   let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }
-  let b0: [4096]u8 = [];
-  let b1: [4096]u8 = [];
-  let b2: [4096]u8 = [];
-  let b3: [4096]u8 = [];
+  let b0: u8[4096] = [];
+  let b1: u8[4096] = [];
+  let b2: u8[4096] = [];
+  let b3: u8[4096] = [];
   let sum: i32 = 0;
   let round: i32 = 0;
   while (round < echo_rounds) {
