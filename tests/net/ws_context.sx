@@ -23,8 +23,8 @@ function main(): i32 {
     return 4;
   }
 
-  let host: [10]u8 = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
-  let path: [4]u8 = [47, 119, 115, 0];
+  let host: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+  let path: u8[4] = [47, 119, 115, 0];
   let fd: i32 = ws.ws_connect_ctx_fd(&host[0], 0, &path[0], 0 as *u8, 0, cancelled);
   if (fd != err.net_err_cancelled()) {
     context.free(cancelled);
@@ -32,7 +32,7 @@ function main(): i32 {
   }
 
   let stream: WsStream = WsStream { fd: -1, tls_ctx: 0 };
-  let payload: [3]u8 = [97, 98, 99];
+  let payload: u8[3] = [97, 98, 99];
   let wr: i32 = ws.ws_write_text_ctx(stream, &payload[0], 3, cancelled);
   if (wr != err.net_err_cancelled()) {
     context.free(cancelled);
@@ -40,7 +40,7 @@ function main(): i32 {
   }
 
   let opcode: i32 = 0;
-  let buf: [8]u8 = [];
+  let buf: u8[8] = [];
   let plen: i32 = 0;
   let rr: i32 = ws.ws_read_frame_ctx(stream, &opcode, &buf[0], 8, &plen, cancelled);
   if (rr != err.net_err_cancelled()) {
