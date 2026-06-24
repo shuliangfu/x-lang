@@ -2,10 +2,12 @@
 # std-crypto-sha512-hmac.sh — STD-050 manifest 与烟测辅助
 
 STD_CRYPTO_SHA512_HMAC_PREFIX="${SHUX_STD_CRYPTO_SHA512_HMAC_PREFIX:-shux: [SHUX_STD_CRYPTO_SHA512_HMAC]}"
+# shellcheck source=tests/lib/std-crypto.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_crypto_sha512_hmac_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local crypto_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,23 +17,22 @@ std_crypto_sha512_hmac_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-crypto-sha512-hmac FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-crypto-sha512-hmac FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
-        if [ "$mod_path" = "std/crypto/crypto.c" ]; then
-          mod_path="$crypto_c"
-        fi
-        if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
-          echo "std-crypto-sha512-hmac FAIL: missing '$anchor' in $mod_path" >&2
+        local path
+        path="$(std_crypto_resolve_impl_path "$mod_path")"
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-crypto-sha512-hmac FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
