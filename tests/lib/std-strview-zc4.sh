@@ -2,14 +2,14 @@
 # std-strview-zc4.sh — STD-016 StrView/ZC-4 manifest 辅助
 #
 # 用法（source 后）：
-#   std_sv_zc4_manifest_ok STRING_SU DOC TSV
+#   std_sv_zc4_manifest_ok STRING_SX DOC TSV
 #   std_sv_zc4_emit_report status lifecycle_ok typeck_ok zc4_skip
 
 STD_SV_ZC4_PREFIX="${SHUX_STD_STRVIEW_ZC4_PREFIX:-shux: [SHUX_STD_STRVIEW_ZC4]}"
 
 # 校验 manifest symbol/anchor；echo 缺失数，成功返回 0。
 std_sv_zc4_manifest_ok() {
-  local string_su="$1"
+  local string_sx="$1"
   local doc="$2"
   local tsv="$3"
   local miss=0
@@ -19,7 +19,7 @@ std_sv_zc4_manifest_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       symbol)
-        if ! grep -qF "$anchor" "$string_su" 2>/dev/null; then
+        if ! grep -qF "$anchor" "$string_sx" 2>/dev/null; then
           echo "std-strview-zc4 FAIL: missing symbol '$anchor'" >&2
           miss=$((miss + 1))
         fi
