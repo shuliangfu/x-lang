@@ -11,7 +11,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MATRIX="${SHUX_BOOT_FORCE_STUB_TSV:-tests/baseline/boot-force-stub-matrix.tsv}"
-PARSER_SU="compiler/src/parser/parser.sx"
+PARSER_SX="compiler/src/parser/parser.sx"
 AST_POOL="compiler/ast_pool.c"
 THIN_C="compiler/src/asm/parser_asm_thin_c.c"
 MIN_STUB=6
@@ -37,7 +37,7 @@ for f in \
   analysis/boot-force-stub-v1.md \
   analysis/boot-mega7-gap.md \
   "$MATRIX" \
-  "$PARSER_SU" \
+  "$PARSER_SX" \
   "$AST_POOL"; do
   if [ ! -f "$f" ]; then
     echo "boot-force-stub gate FAIL: missing $f" >&2
@@ -59,8 +59,8 @@ while IFS=$'\t' read -r stub_id sym _cause strategy reg_src reg_hook notes; do
   [ -z "${stub_id:-}" ] && continue
   case "$stub_id" in \#*|min_*) continue ;; esac
   N=$((N + 1))
-  if ! grep -qE "function ${sym}\\(" "$PARSER_SU" 2>/dev/null; then
-    echo "boot-force-stub FAIL: function ${sym} not in $PARSER_SU ($stub_id)" >&2
+  if ! grep -qE "function ${sym}\\(" "$PARSER_SX" 2>/dev/null; then
+    echo "boot-force-stub FAIL: function ${sym} not in $PARSER_SX ($stub_id)" >&2
     MISS=$((MISS + 1))
   fi
   if ! grep -qF "PARSER_STUB_EQ(\"${sym}\"" "$AST_POOL" 2>/dev/null; then
