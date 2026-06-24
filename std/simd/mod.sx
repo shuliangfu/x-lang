@@ -99,19 +99,19 @@ function vec4f_splat(x: f32): Vec4f {
 }
 
 /**
- * Vec4f comptime shuffle（SIMD-S4）：mask 为编译期 [4]i32，lane 索引 0..3。
+ * Vec4f comptime shuffle（SIMD-S4）：mask 为编译期 i32[4]，lane 索引 0..3。
  * lane-scalar 回退：v[mask[i]]；编译器可内联为 pshufd。
  */
-function vec4f_shuffle(v: Vec4f, mask: [4]i32): Vec4f {
+function vec4f_shuffle(v: Vec4f, mask: i32[4]): Vec4f {
   let r: Vec4f = [v[mask[0]], v[mask[1]], v[mask[2]], v[mask[3]]];
   return r;
 }
 
 /**
- * Vec8i comptime shuffle（SIMD-S4）：mask 为编译期 [8]i32。
+ * Vec8i comptime shuffle（SIMD-S4）：mask 为编译期 i32[8]。
  * lane-scalar 回退：v[mask[i]]。
  */
-function vec8i_shuffle(v: Vec8i, mask: [8]i32): Vec8i {
+function vec8i_shuffle(v: Vec8i, mask: i32[8]): Vec8i {
   let r: Vec8i = [
     v[mask[0]], v[mask[1]], v[mask[2]], v[mask[3]],
     v[mask[4]], v[mask[5]], v[mask[6]], v[mask[7]]
@@ -164,7 +164,7 @@ function vec4f_select(mask: Vec4f, a: Vec4f, b: Vec4f): Vec4f {
 /**
  * @shuffle / @select 语法糖目标（按 let 向量类型分派 vec4f/vec8i 路径）。
  */
-function simd_shuffle(v: Vec8i, mask: [8]i32): Vec8i {
+function simd_shuffle(v: Vec8i, mask: i32[8]): Vec8i {
   return vec8i_shuffle(v, mask);
 }
 
