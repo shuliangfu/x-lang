@@ -11,7 +11,7 @@ api_sync_pop	api	sync_queue_i32_try_pop_front	std/queue/mod.sx	出队
 api_sync_len	api	sync_queue_i32_len	std/queue/mod.sx	长度
 api_sync_deinit	api	sync_queue_i32_deinit	std/queue/mod.sx	销毁
 api_smoke	api	sync_queue_contention_smoke	std/queue/mod.sx	门面
-symbol_smoke_c	symbol	sync_queue_contention_smoke_c	std/queue/queue.c	C 烟测
+symbol_smoke_c	symbol	sync_queue_contention_smoke_c	std/queue/queue.sx	C 烟测
 smoke_contention_c	file	tests/queue/sync_queue_contention_ok.c	C 入口
 smoke_roundtrip	smoke	tests/queue/sync_queue_roundtrip.sx	单线程
 smoke_main	smoke	tests/queue/main.sx	回归
