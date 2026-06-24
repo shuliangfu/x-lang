@@ -10,12 +10,12 @@ function fmt_i32(x: i32): i32 { return x; }
 // 将 x 的十进制表示写入 buf[0..cap)，返回写入字节数；缓冲区不足返回 -1。
 // 负数写 '-' 再写绝对值；INT32_MIN（0-x 溢出为负）单独写 "-2147483648"。
 function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
-  let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+  let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   let u: i32 = 0 - x;
   if (x < 0 && u < 0) {
     if (cap < 11) { return -1; }
-    let s: [11]u8 = [45, 50, 49, 52, 55, 52, 56, 51, 54, 52, 56];
+    let s: u8[11] = [45, 50, 49, 52, 55, 52, 56, 51, 54, 52, 56];
     let k: i32 = 0;
     while (k < 11) { buf[k] = s[k]; k = k + 1; }
     return 11;
@@ -30,7 +30,7 @@ function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
     val = u;
   }
   if (max < 1) { return -1; }
-  let tmp: [10]u8 = [];
+  let tmp: u8[10] = [];
   let num_digits: i32 = 0;
   let v: i32 = val;
   while (v > 0 && num_digits < 10) {
@@ -53,9 +53,9 @@ function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
 
 // 将 u 的十进制表示写入 buf[0..cap)，返回写入字节数；缓冲区不足返回 -1。无符号，无负号。
 function fmt_u32_to_buf(buf: *u8, cap: i32, u: u32): i32 {
-  let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+  let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
-  let tmp: [10]u8 = [];
+  let tmp: u8[10] = [];
   let num_digits: i32 = 0;
   let v: u32 = u;
   while (v > 0 && num_digits < 10) {
@@ -78,9 +78,9 @@ function fmt_u32_to_buf(buf: *u8, cap: i32, u: u32): i32 {
 
 // 将 u 的十进制表示写入 buf[0..cap)（u64，最多 20 位）；不足返回 -1。
 function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
-  let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+  let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
-  let tmp: [20]u8 = [];
+  let tmp: u8[20] = [];
   let num_digits: i32 = 0;
   let v: u64 = u;
   while (v > 0 && num_digits < 20) {
@@ -103,13 +103,13 @@ function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 
 // 将 x 的十进制表示写入 buf[0..cap)（i64）；INT64_MIN 特判，不足返回 -1。
 function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
-  let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+  let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   /** INT64_MIN 字面量；须先于 `0 - x` 判定，避免一元取负溢出。 */
   let i64_min: i64 = 0 - 9223372036854775807 - 1;
   if (x == i64_min) {
     if (cap < 20) { return -1; }
-    let s: [20]u8 = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];
+    let s: u8[20] = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];
     let k: i32 = 0;
     while (k < 20) { buf[k] = s[k]; k = k + 1; }
     return 20;
@@ -117,7 +117,7 @@ function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
   let u: i64 = 0 - x;
   if (x < 0 && u < 0) {
     if (cap < 20) { return -1; }
-    let s: [20]u8 = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];
+    let s: u8[20] = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];
     let k: i32 = 0;
     while (k < 20) { buf[k] = s[k]; k = k + 1; }
     return 20;
@@ -132,7 +132,7 @@ function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
     val = u;
   }
   if (max < 1) { return -1; }
-  let tmp: [20]u8 = [];
+  let tmp: u8[20] = [];
   let num_digits: i32 = 0;
   let v: i64 = val;
   while (v > 0 && num_digits < 20) {
@@ -169,10 +169,10 @@ function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 {
 // ——— 十六进制（小写 a-f） ———
 // 将 u 的十六进制表示写入 buf[0..cap)，不足返回 -1。0 写为 "0"。
 function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 {
-  let hex: [16]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
+  let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   if (cap < 1) { return -1; }
   if (u == 0) { buf[0] = 48; return 1; }
-  let tmp: [8]u8 = [];
+  let tmp: u8[8] = [];
   let num_digits: i32 = 0;
   let v: u32 = u;
   while (v > 0 && num_digits < 8) {
@@ -190,10 +190,10 @@ function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 {
 }
 
 function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 {
-  let hex: [16]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
+  let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   if (cap < 1) { return -1; }
   if (u == 0) { buf[0] = 48; return 1; }
-  let tmp: [16]u8 = [];
+  let tmp: u8[16] = [];
   let num_digits: i32 = 0;
   let v: u64 = u;
   while (v > 0 && num_digits < 16) {
@@ -214,7 +214,7 @@ function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 // 从 buf[off] 起写，有效容量为 cap - off；成功返回新偏移 off + 写入数，失败返回 -1。
 function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
   if (off < 0 || off >= cap) { return -1; }
-  let tmp: [24]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt_i32_to_buf(tmp, 24, x);
   if (n < 0 || off + n > cap) { return -1; }
   let i: i32 = 0;
@@ -225,7 +225,7 @@ function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
 // 从 buf[off] 起追加写入 i64 的十进制表示；成功返回新偏移，失败返回 -1。
 function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 {
   if (off < 0 || off >= cap) { return -1; }
-  let tmp: [24]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt_i64_to_buf(tmp, 24, x);
   if (n < 0 || off + n > cap) { return -1; }
   let i: i32 = 0;
@@ -285,7 +285,7 @@ function fmt_f64_write_special(buf: *u8, cap: i32, x: f64): i32 {
  * NaN/Inf 走固定字符串；非法 prec 或容量不足返回 -1；prec=0 仅写整数部分。
  */
 function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
-  let digits: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+  let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   if (prec < 0 || prec > 9) { return -1; }
   let special: i32 = fmt_f64_write_special(buf, cap, x);
@@ -300,7 +300,7 @@ function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
     buf[0] = 45;
     off = 1;
   }
-  let tmp: [24]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n_whole: i32 = fmt_i64_to_buf(tmp, 24, whole);
   if (n_whole < 0 || off + n_whole > cap) { return -1; }
   let i: i32 = 0;
