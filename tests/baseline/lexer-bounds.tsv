@@ -1,0 +1,6 @@
+# P1-3 Lexer 有界输入 manifest
+# 列：item_id	kind	anchor	src	notes
+bound_ident	case	long_ident_8192	generated	8192-byte ident check
+bound_num	case	long_decimal_i64	generated	400-digit i64 literal
+lexer_c	file	lexer.c	compiler/src/lexer/lexer.c	str_buf[512]
+gate	script	run-lexer-bounds-gate.sh	tests/run-lexer-bounds-gate.sh	门禁
