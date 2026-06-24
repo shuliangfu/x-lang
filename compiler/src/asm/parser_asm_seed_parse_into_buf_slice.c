@@ -15,7 +15,7 @@ struct parser_asm_seed_parse_into_result {
   int32_t main_idx;
 };
 
-/** SU Module 池头部（与 ast.sx / pipeline_glue_types.inc 一致）。 */
+/** SX Module 池头部（与 ast.sx / pipeline_glue_types.inc 一致）。 */
 typedef struct {
   int32_t num_funcs;
   int32_t main_func_index;
@@ -27,7 +27,7 @@ typedef struct {
   int32_t pending_cfg_skip;
   int32_t pending_repr_c_struct;
   int32_t num_module_enums;
-} parser_asm_su_module_hdr_t;
+} parser_asm_sx_module_hdr_t;
 
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_parse_into_buf_preamble_peek_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
@@ -336,6 +336,9 @@ extern void parser_skip_one_function_full_into_buf_glue(struct parser_asm_lexer 
 /** B-01/B-19：跳过一条顶层 const 声明（含 const import）。 */
 extern void parser_skip_one_top_level_const_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                            uint8_t *data, int32_t len);
+/** B-01/B-19：跳过一条顶层 let 声明（cfg 不匹配时与 const 对称）。 */
+extern void parser_skip_one_top_level_let_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                         uint8_t *data, int32_t len);
 extern void parser_parse_one_top_level_let_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
                                                      struct parser_asm_slice_u8 *source, int32_t is_const,
                                                      struct parser_asm_top_level_let_result *out);
@@ -383,7 +386,7 @@ extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
 extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
 
-/** []u8 slice 路径与 shux_slice_uint8_t 布局一致。 */
+/** u8[] slice 路径与 shux_slice_uint8_t 布局一致。 */
 struct parser_asm_seed_slice_u8 {
   uint8_t *data;
   size_t length;
@@ -688,7 +691,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   struct parser_asm_seed_parse_into_result out;
   struct parser_asm_lexer lex;
   struct parser_asm_collect_imports_result import_res;
-  parser_asm_su_module_hdr_t *mod_hdr;
+  parser_asm_sx_module_hdr_t *mod_hdr;
   int32_t main_idx;
   int32_t loop_count;
   int32_t func_is_async;
@@ -699,7 +702,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   if (!arena || !module || !data || len <= 0)
     return out;
 
-  mod_hdr = (parser_asm_su_module_hdr_t *)module;
+  mod_hdr = (parser_asm_sx_module_hdr_t *)module;
   lex.pos = 0;
   lex.line = 1;
   lex.col = 1;
@@ -1544,6 +1547,13 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       }
       if (r.tok.kind == (int32_t)TOKEN_CONST) {
         parser_skip_one_top_level_const_into_buf_glue(&lex, iter_start, data, len);
+        mod_hdr->pending_cfg_skip = 0;
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+        continue;
+      }
+      if (r.tok.kind == (int32_t)TOKEN_LET) {
+        parser_skip_one_top_level_let_into_buf_glue(&lex, iter_start, data, len);
         mod_hdr->pending_cfg_skip = 0;
         if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
           lex.pos++;
