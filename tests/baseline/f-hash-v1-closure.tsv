@@ -1,0 +1,9 @@
+# F-hash v1 std.hash 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fhash_doc	doc	analysis/phase-f-hash-v1.md	F-hash v1
+fhash_gate	gate	tests/run-f-hash-v1-gate.sh	聚合门禁
+hash_sx	file	std/hash/hash.sx	模块 .sx
+hash_glue_absent	absent	std/hash/hash_glue.c	v2 已删
+hash_mod	file	std/hash/mod.sx	对外 API
+hash_c_absent	absent	std/hash/hash.c	已删除
+makefile	makefile	compiler/Makefile	hash.o 纯 .sx
