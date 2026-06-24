@@ -12,7 +12,7 @@
 #include <string.h>
 
 /* ast_expr_init_match_enum：C 路径（-E-extern 生成 parser_gen.c）需要 C 侧提供；
- * SU 自举链接（shu_su）中 ast_su.o 已提供，通过 -DSHUX_USE_SX_AST 排除避免重复符号。 */
+ * SX 自举链接（shux_sx）中 ast_sx.o 已提供，通过 -DSHUX_USE_SX_AST 排除避免重复符号。 */
 #ifndef SHUX_USE_SX_AST
 void ast_expr_init_match_enum(ASTExpr *e) {
     if (!e) return;
