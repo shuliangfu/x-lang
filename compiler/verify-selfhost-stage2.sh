@@ -1,5 +1,5 @@
 #!/bin/sh
-# verify-selfhost-stage2.sh — 用 shux-sx 编译自身，验证完全自举
+# verify-selfhost-stage2.sh — 用 shux-sx 编译自身，验证 Stage2 SX（完全自举 = D+E+F，见 SELFHOST.md）
 set -e
 cd "$(dirname "$0")"
 
@@ -14,13 +14,13 @@ if [ ! -x ./shux-sx ]; then
 fi
 
 echo "============================================"
-echo " Shux 完全自举验证 (Stage 2)"
+echo " Shux Stage2 SX 验证 (Stage 2)"
 echo " 种子: GEN=shux-sx 生成 _gen2.c（-sx -E -E-extern），链接 shux-sx2；对比两代编译 hello 的退出码"
 echo "============================================"
 
 # GEN 使用 shux-sx：-sx -E 经 driver_run_sx_emit_c_extern_via_cparser 与 C 路径 -E-extern 对齐（parse/typeck/codegen）。
-SU=./shux-sx
-GEN=$SU
+SX=./shux-sx
+GEN=$SX
 
 # ── Step 1: 生成所有 _gen2.c ──
 echo ""
@@ -56,38 +56,38 @@ done
 perl scripts/fix_parser_pool_access_gen_c.pl parser_gen2.c 2>/dev/null || true
 perl scripts/fix_driver_gen_duplicate_main.pl driver_gen2.c 2>/dev/null || true
 perl scripts/fix_pipeline_extern_gen_c.pl pipeline_gen2.c 2>/dev/null || true
-# pipeline 须 #include pipeline_glue.c（ast_pool / preprocess_if_stack / platform 符号）；与 ast_su2 重复项改链 seed 的 ast_su.o。
+# pipeline 须 #include pipeline_glue.c（ast_pool / preprocess_if_stack / platform 符号）；与 ast_sx2 重复项改链 seed 的 ast_sx.o。
 perl scripts/hoist_pipeline_prototypes.pl pipeline_gen2.c 2>/dev/null || true
 perl scripts/fix_slim_arena_gen_c.pl pipeline_gen2.c 2>/dev/null || true
 perl -i -ne 'print unless /^extern.*parser_parse_into_buf/' pipeline_gen2.c 2>/dev/null || true
 perl -i -0777 -pe 's/(struct parser_ParseIntoResult \{ int32_t ok; int32_t main_idx; \};\n)/$1extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *, struct ast_Module *, uint8_t *, int32_t);\n/s unless /parser_parse_into_buf\(struct ast_ASTArena \*, struct ast_Module \*, uint8_t \*, int32_t\)/' pipeline_gen2.c 2>/dev/null || true
 
-# ── Step 3: 编译 _su2.o ──
+# ── Step 3: 编译 _sx2.o ──
 CFLAGS="-fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w"
 echo ""
-echo "── Step 3: 编译 _su2.o ──"
-cc $CFLAGS -c token_gen2.c    -o token_su2.o
-cc $CFLAGS -c ast_gen2.c      -o ast_su2.o
-cc $CFLAGS -c lexer_gen2.c    -o lexer_su2.o
-cc $CFLAGS -include ast.h -c parser_gen2.c -o parser_su2.o
-cc $CFLAGS -c typeck_gen2.c   -o typeck_su2.o
-cc $CFLAGS -c codegen_gen2.c  -o codegen_su2.o
-cc $CFLAGS -c preprocess_gen2.c -o preprocess_su2.o
-cc $CFLAGS -c pipeline_gen2.c -o pipeline_su2.o
+echo "── Step 3: 编译 _sx2.o ──"
+cc $CFLAGS -c token_gen2.c    -o token_sx2.o
+cc $CFLAGS -c ast_gen2.c      -o ast_sx2.o
+cc $CFLAGS -c lexer_gen2.c    -o lexer_sx2.o
+cc $CFLAGS -include ast.h -c parser_gen2.c -o parser_sx2.o
+cc $CFLAGS -c typeck_gen2.c   -o typeck_sx2.o
+cc $CFLAGS -c codegen_gen2.c  -o codegen_sx2.o
+cc $CFLAGS -c preprocess_gen2.c -o preprocess_sx2.o
+cc $CFLAGS -c pipeline_gen2.c -o pipeline_sx2.o
 
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
 ${MAKE:-make} -q build-seed-asm-host 2>/dev/null || ${MAKE:-make} build-seed-asm-host
 cc $CFLAGS -c src/ast_pool_l5_bridge.c -o src/ast_pool_l5_bridge.o
-cc $CFLAGS -DSU_VERIFY_STAGE2 -c src/sx_seed_bridge.c -o src/sx_seed_bridge_stage2.o
+cc $CFLAGS -DSX_VERIFY_STAGE2 -c src/sx_seed_bridge.c -o src/sx_seed_bridge_stage2.o
 cc $CFLAGS -c typeck_sx_link_alias.c -o typeck_sx_link_alias.o
 cc $CFLAGS -c codegen_sx_link_alias.c -o codegen_sx_link_alias.o
 cc $CFLAGS -c lexer_sx_link_alias.c -o lexer_sx_link_alias.o 2>/dev/null || true
-# runtime_driver（与 shux-sx 相同宏，供 driver_run_compiler_full_su）
+# runtime_driver（与 shux-sx 相同宏，供 driver_run_compiler_full_sx）
 cc $CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN -DSHUX_USE_SX_PREPROCESS \
   -c src/runtime.c -o runtime_driver2.o
 
-# ── Step 4: 链接 shux-sx2（*_su2.o 替代 parser_sx/typeck_sx/codegen_sx/pipeline_sx；其余与 bootstrap-driver-seed 同拓扑）──
+# ── Step 4: 链接 shux-sx2（*_sx2.o 替代 parser_sx/typeck_sx/codegen_sx/pipeline_sx；其余与 bootstrap-driver-seed 同拓扑）──
 echo ""
 echo "── Step 4: 链接 shux-sx2 ──"
 for _o in driver_sx.o driver_compile_sx.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o \
@@ -103,7 +103,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o \
   src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/sx_seed_bridge_stage2.o src/std_fs_shim.o src/ast_pool_l5_bridge.o \
-  token_su2.o ast_su2.o lexer_su2.o parser_su2.o typeck_su2.o codegen_su2.o preprocess_su2.o pipeline_su2.o \
+  token_sx2.o ast_sx2.o lexer_sx2.o parser_sx2.o typeck_sx2.o codegen_sx2.o preprocess_sx2.o pipeline_sx2.o \
   lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o \
   pipeline_bootstrap_orchestration.o \
   driver_sx.o \
@@ -114,8 +114,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   _stubs_driver.o \
   build_asm/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o \
   src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o \
-  src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o \
-  ../std/fs/fs.o ../std/io/io.o ../std/heap/heap.o
+  src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o
 
 echo "shux-sx2 linked: $(ls -lh shux-sx2 | awk '{print $5}')"
 
@@ -125,7 +124,7 @@ echo "── Step 5: 功能对比 ──"
 echo 'function main(): i32 { return 42; }' > /tmp/selfhost_test.sx
 # 与 run-hello 一致：-L .. 链 std；非 x86_64 上 shux-sx -o 可能失败，参照改 shux-c。
 GEN_FLAGS="-L .."
-REF=$SU
+REF=$SX
 
 echo "参照编译 ($REF):"
 $REF $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_a 2>&1 || true
@@ -155,7 +154,7 @@ echo "shux-sx2 返回值: $r2"
 if [ "$r1" = "42" ] && [ "$r2" = "42" ]; then
     echo ""
     echo "============================================"
-    echo " ✓ 完全自举验证通过!"
+    echo " ✓ Stage2 SX 验证通过!"
     echo "   shux-sx  ($(ls -lh shux-sx  | awk '{print $5}'))"
     echo "   shux-sx2 ($(ls -lh shux-sx2 | awk '{print $5}'))"
     echo "   两代编译器行为一致 (exit 42)"
