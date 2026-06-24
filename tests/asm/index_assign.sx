@@ -1,6 +1,6 @@
 // 测试 asm 后端：INDEX 左值赋值（fix EXPR_ASSIGN+EXPR_INDEX）；main 退回 42
 function main(): i32 {
-  let buf: [4]u8 = [0, 0, 0, 0];
+  let buf: u8[4] = [0, 0, 0, 0];
   buf[1] = 42;
   return buf[1] as i32;
 }
