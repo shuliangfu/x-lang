@@ -19,17 +19,17 @@ function prefix_eq(name_out: *u8, expect: *u8, len: i32): bool {
 }
 
 function main(): i32 {
-  let arc: [8192]u8 = [];
+  let arc: u8[8192] = [];
   let off: i32 = 0;
 
   /* 110 字节路径：60×'a' + "/nested/file.sx" */
-  let path: [128]u8 = [];
+  let path: u8[128] = [];
   let i: i32 = 0;
   while (i < 60) {
     path[i] = 97;
     i = i + 1;
   }
-  let tail: [16]u8 = [47, 110, 101, 115, 116, 101, 100, 47, 102, 105, 108, 101, 46, 115, 117, 0];
+  let tail: u8[16] = [47, 110, 101, 115, 116, 101, 100, 47, 102, 105, 108, 101, 46, 115, 117, 0];
   let j: i32 = 0;
   while (j < 15) {
     path[i] = tail[j];
@@ -38,19 +38,19 @@ function main(): i32 {
   }
   let path_len: i32 = i;
 
-  let data: [1]u8 = [88];
+  let data: u8[1] = [88];
   if (tar.append_entry(&arc[0], 8192, &off, &path[0], path_len, &data[0], 1, 0) != 0) {
     return 1;
   }
 
   /* 长目录：40×'d' + "/deep/" */
-  let dir: [64]u8 = [];
+  let dir: u8[64] = [];
   i = 0;
   while (i < 40) {
     dir[i] = 100;
     i = i + 1;
   }
-  let dtail: [6]u8 = [47, 100, 101, 101, 112, 47];
+  let dtail: u8[6] = [47, 100, 101, 101, 112, 47];
   j = 0;
   while (j < 6) {
     dir[i] = dtail[j];
@@ -63,13 +63,13 @@ function main(): i32 {
   }
 
   /* 270 字节 Pax 路径：全 'p' */
-  let pax_path: [280]u8 = [];
+  let pax_path: u8[280] = [];
   i = 0;
   while (i < 270) {
     pax_path[i] = 112;
     i = i + 1;
   }
-  let pdata: [1]u8 = [81];
+  let pdata: u8[1] = [81];
   if (tar.append_entry(&arc[0], 8192, &off, &pax_path[0], 270, &pdata[0], 1, 0) != 0) {
     return 3;
   }
@@ -87,7 +87,7 @@ function main(): i32 {
   }
 
   let pos: i32 = 0;
-  let name_out: [520]u8 = [];
+  let name_out: u8[520] = [];
   let sz: i32 = 0;
   let typ: i32 = 0;
   let got_file: i32 = 0;
@@ -109,7 +109,7 @@ function main(): i32 {
         return 6;
       }
     } else if (typ == 48) {
-      let out: [4]u8 = [];
+      let out: u8[4] = [];
       let n: i32 = tar.read_entry_data(&arc[0], arc_len, entry_off, &out[0], 4);
       if (name_out[0] == 97 && name_out[60] == 47) {
         got_file = got_file + 1;
