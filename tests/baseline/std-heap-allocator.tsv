@@ -12,6 +12,6 @@ api_free	api	allocator_free	std/heap/mod.sx	释放
 api_realloc	api	allocator_realloc	std/heap/mod.sx	调整
 api_vec_init	api	vec_u8_with_allocator	std/vec/mod.sx	容器接入
 api_vec_push	api	vec_u8_push_with_allocator	std/vec/mod.sx	容器 push
-smoke_su	smoke	tests/heap/allocator_vec.sx	.sx 烟测
+smoke_sx	smoke	tests/heap/allocator_vec.sx	.sx 烟测
 lib	script	lib/std-heap-allocator.sh	tests/lib/std-heap-allocator.sh
 gate	script	run-std-heap-allocator-gate.sh	tests/run-std-heap-allocator-gate.sh
