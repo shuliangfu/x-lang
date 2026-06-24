@@ -2,7 +2,7 @@
 const string = import("std.string");
 
 function main(): i32 {
-  let buf: [4]u8 = [97, 98, 99, 0];
+  let buf: u8[4] = [97, 98, 99, 0];
   let s: String = string.string_from_slice(&buf[0], 3);
   if (string.string_len(s) != 3) { return 1; }
   if (string.string_is_empty(s) != 0) { return 2; }
