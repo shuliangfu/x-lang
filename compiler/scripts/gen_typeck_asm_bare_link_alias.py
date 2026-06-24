@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SU = ROOT / "src/typeck/typeck.sx"
+SX = ROOT / "src/typeck/typeck.sx"
 OUT = ROOT / "typeck_asm_bare_link_alias.c"
 
 TYPE_MAP = {
@@ -25,37 +25,37 @@ TYPE_MAP = {
 }
 
 
-def su_to_c_type(t: str) -> str:
+def sx_to_c_type(t: str) -> str:
     t = t.strip()
     if t in TYPE_MAP:
         return TYPE_MAP[t]
     if t.startswith("*"):
-        inner = su_to_c_type(t[1:])
+        inner = sx_to_c_type(t[1:])
         if inner.endswith("*"):
             return inner
         return f"{inner} *"
     return t
 
 
-def parse_func(su_src: str, name: str):
+def parse_func(sx_src: str, name: str):
     pat = re.compile(rf"function {re.escape(name)}\((.*?)\):\s*(\w+)\s*\{{", re.DOTALL)
-    m = pat.search(su_src)
+    m = pat.search(sx_src)
     if not m:
         raise SystemExit(f"missing function {name} in typeck.sx")
     params_raw = re.sub(r"\s+", " ", m.group(1).strip())
-    ret = su_to_c_type(m.group(2))
+    ret = sx_to_c_type(m.group(2))
     params = []
     if params_raw:
         for p in params_raw.split(","):
             pname, ptype = p.split(":", 1)
-            params.append((su_to_c_type(ptype), pname.strip()))
+            params.append((sx_to_c_type(ptype), pname.strip()))
     return ret, params
 
 
 def main() -> None:
-    su_src = SU.read_text()
+    sx_src = SX.read_text()
     asm = set()
-    su = set()
+    sx = set()
     import subprocess
 
     def nm_syms(path, pred):
@@ -69,11 +69,11 @@ def main() -> None:
 
     for s in nm_syms(ROOT / "build_asm/typeck.o", lambda _: True):
         asm.add(s)
-    for s in nm_syms(ROOT / "typeck_su.o", lambda x: x.startswith("typeck_")):
-        su.add(s)
+    for s in nm_syms(ROOT / "typeck_sx.o", lambda x: x.startswith("typeck_")):
+        sx.add(s)
 
     pairs = []
-    for pref in sorted(su):
+    for pref in sorted(sx):
         if pref in asm:
             continue
         bare = pref[7:] if pref.startswith("typeck_") else pref
@@ -94,7 +94,7 @@ def main() -> None:
         "",
     ]
     for pref, bare in pairs:
-        ret, params = parse_func(su_src, bare)
+        ret, params = parse_func(sx_src, bare)
         argdecl = ", ".join(f"{t} {n}" for t, n in params)
         lines.append(f"extern {ret} {bare}({argdecl});")
         lines.append("")
