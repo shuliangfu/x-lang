@@ -32,7 +32,7 @@ run_one() {
     '
 }
 
-# P5 + refresh shux_asm（Mac 复现 Linux SU 路径 region/linear/asm）
+# P5 + refresh shux_asm（Mac 复现 Linux SX 路径 region/linear/asm）
 run_ubuntu_gates() {
   echo "===== Docker CI: ubuntu-gates (P5 + refresh shux_asm, linux/amd64) ====="
   docker run --rm --platform linux/amd64 -e CI=1 -e SHUX_CC_EXTRA="-std=gnu11" \
