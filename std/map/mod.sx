@@ -25,8 +25,7 @@ function map_i32_i32_slot(m: Map_i32_i32, key: i32): i32 {
   if (h < 0) { return h + m.cap; }
   return h;
 }
-/** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。走 C
-* 快路径（heap.o 提供 map_i32_i32_find_c）。 */
+/** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。F-03 v1：heap_ops.sx 线性探测。 */
 function map_i32_i32_find(m: Map_i32_i32, key: i32): i32 {
   return heap.map_i32_i32_find_c(m.keys, m.occupied, m.cap, key);
 }
