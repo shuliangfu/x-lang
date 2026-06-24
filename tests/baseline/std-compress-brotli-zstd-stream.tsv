@@ -4,7 +4,7 @@ api_format_br	api	compress_format_brotli	std/compress/mod.sx
 api_format_zs	api	compress_format_zstd	std/compress/mod.sx
 api_state_for	api	stream_compress_state_bytes_for	std/compress/mod.sx
 api_zstd_smoke	api	zstd_smoke	std/compress/mod.sx
-symbol_br_stream_c	symbol	compress_brotli_stream_compress_c	std/compress/brotli/brotli.c
-symbol_zs_stream_c	symbol	compress_zstd_stream_compress_c	std/compress/zstd/zstd.c
+symbol_br_stream_c	symbol	compress_brotli_stream_compress_c	std/compress/brotli/brotli_lib.sx
+symbol_zs_stream_c	symbol	compress_zstd_stream_compress_c	std/compress/zstd/zstd_lib.sx
 smoke_sx	smoke	tests/std-compress/brotli_zstd_stream_smoke.sx
 gate	script	run-std-compress-brotli-zstd-stream-gate.sh	tests/run-std-compress-brotli-zstd-stream-gate.sh
