@@ -58,6 +58,16 @@ echo "$err" | grep -q "#elseif after #else" || { echo "expected '#elseif after #
 err=$("$RUN_SHUX" tests/preprocess/duplicate_else.sx -o /tmp/shux_pp_bad 2>&1) || true
 echo "$err" | grep -q "duplicate #else" || { echo "expected 'duplicate #else' in: $err"; exit 1; }
 
+# #if target_os == "..."（与 #[cfg] 对齐；按 host OS 期望退出码）
+EXPECT_OS=43
+case "$(uname -s)" in
+  Linux) EXPECT_OS=41 ;;
+  Darwin) EXPECT_OS=42 ;;
+esac
+"$RUN_SHUX" tests/preprocess/target_os_if.sx -o /tmp/shux_pp_target_os 2>&1
+exitcode=0; /tmp/shux_pp_target_os >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne "$EXPECT_OS" ] && { echo "expected $EXPECT_OS (target_os #if), got $exitcode"; exit 1; }
+
 # 边界：多一个 #endif（顺序/数量错）→ 应报 #endif without #if
 err=$("$RUN_SHUX" tests/preprocess/extra_endif.sx -o /tmp/shux_pp_bad 2>&1) || true
 echo "$err" | grep -q "#endif without #if" || { echo "expected '#endif without #if' in: $err"; exit 1; }
