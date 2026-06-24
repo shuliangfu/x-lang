@@ -1,0 +1,12 @@
+# C-04 -E-extern / 零 perl 盘点（manifest）
+# 列：module_id	gen_target	perl_policy	gate_script	notes
+parser	parser_gen.c	zero_perl	tests/run-c04-no-perl-fallback-gate.sh	v5 Makefile
+lsp_diag	lsp_diag_gen.c	zero_perl	tests/run-c04-no-perl-fallback-gate.sh	v5 Makefile
+pipeline	pipeline_gen.c	bootstrap_only	tests/run-pipeline-e-extern-gate.sh	dev -E path
+lsp_io	lsp_io_gen.c	e_extern_auto	tests/run-e-extern-import-gate.sh	C-04 v0
+lsp	lsp_gen.c	e_extern_auto	tests/run-e-extern-import-gate.sh	C-04 v1
+lexer	lexer_gen.c	fix_slim_arena_track	track-only	v2 defer
+typeck	typeck_gen.c	fix_slim_arena_track	track-only	v2 defer
+codegen	codegen_gen.c	fix_slim_arena_track	track-only	v2 defer
+ast	ast_gen2.c	fix_slim_arena_track	track-only	v2 defer
+extern_h	lsp_io_extern.h	removed_from_compile	track-only	E-01 defer
