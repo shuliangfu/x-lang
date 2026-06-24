@@ -3,6 +3,6 @@ const types = import("asm.types");
 const codegen = import("codegen");
 
 function f(out: *CodegenOutBuf): i32 {
-  let nl: [1]u8 = [10];
+  let nl: u8[1] = [10];
   return append_asm_line(out, &nl[0], 1);
 }
