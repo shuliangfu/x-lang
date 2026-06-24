@@ -33,7 +33,7 @@ FAILS=0
 while IFS=$'\t' read -r bench_id su_file _c_ref policy notes; do
   [ -z "${bench_id:-}" ] && continue
   case "$bench_id" in \#*|min_*) continue ;; esac
-  src=$(type_zero_cost_bench_su "$su_file") || {
+  src=$(type_zero_cost_bench_sx "$su_file") || {
     echo "type-zero-cost FAIL: missing $su_file" >&2
     FAILS=$((FAILS + 1))
     continue
