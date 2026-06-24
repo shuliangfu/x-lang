@@ -196,7 +196,7 @@ static int check_lint_fail_on_warnings(void) {
 }
 
 /**
- * 单文件 check：SU pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
+ * 单文件 check：SX pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
 static int fmt_check_invoke_compile(int argc, char **check_argv) {
 #ifdef SHUX_USE_SX_PIPELINE
@@ -207,7 +207,7 @@ static int fmt_check_invoke_compile(int argc, char **check_argv) {
 }
 
 /**
- * check 批次结束后清理 dep 槽（仅 SU pipeline 需要）。
+ * check 批次结束后清理 dep 槽（仅 SX pipeline 需要）。
  */
 static void fmt_check_dep_clear(void) {
 #ifdef SHUX_USE_SX_PIPELINE
