@@ -18,8 +18,8 @@ api_cond_broadcast	api	condvar_broadcast	std/sync/mod.sx	广播
 api_rw_smoke	api	rwlock_contention_smoke	std/sync/mod.sx	竞争
 api_cv_smoke	api	condvar_contention_smoke	std/sync/mod.sx	cond
 api_cond_free	api	condvar_free	std/sync/mod.sx	释放
-symbol_rwlock_c	symbol	sync_rwlock_new_c	std/sync/sync.c	C rwlock
-symbol_cond_c	symbol	sync_condvar_wait_c	std/sync/sync.c	C condvar
+symbol_rwlock_c	symbol	sync_rwlock_new_c	compiler/src/asm/runtime_sync_os.c	C rwlock
+symbol_cond_c	symbol	sync_condvar_wait_c	compiler/src/asm/runtime_sync_os.c	C condvar
 smoke_contention	smoke	tests/sync/rwlock_condvar.sx	烟测
 smoke_main	smoke	tests/sync/main.sx	mutex 回归
 tsan_ok	file	tests/sync/sync_tsan_ok.c	TSAN 正例
