@@ -5,7 +5,7 @@ STD_PROC_XPLAT_PREFIX="${SHUX_STD142_PROCESS_XPLAT_PREFIX:-shux: [SHUX_STD142_PR
 
 # 校验 manifest 锚点；echo 缺失数。
 std_process_xplat_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,7 +14,7 @@ std_process_xplat_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-process-xplat FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -89,5 +89,5 @@ std_process_xplat_emit_report() {
   local status="$1"
   local su_ok="$2"
   local skip="$3"
-  echo "${STD_PROC_XPLAT_PREFIX} status=${status} su=${su_ok} skip=${skip}"
+  echo "${STD_PROC_XPLAT_PREFIX} status=${status} sx=${su_ok} skip=${skip}"
 }
