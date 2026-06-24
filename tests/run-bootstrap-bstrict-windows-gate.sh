@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# A-08：Windows MSYS2 上 B-hybrid 构建 shux_asm 烟测
+# A-08 / E-06 v5：Windows MSYS2 上 shux_asm 烟测
 #
-# 验收：make bootstrap-driver-hybrid 产出 shux_asm；return-value exit 42。
+# 模式：
+#   SHUX_WIN_BSTRICT=0（默认）— B-hybrid：make bootstrap-driver-hybrid（可能 cc -c pipeline_gen.c）
+#   SHUX_WIN_BSTRICT=1         — B-strict：make bootstrap-driver-bstrict（SKIP_GEN，禁 pipeline_gen cc -c）
+#
 # 非 MSYS2 宿主：skip exit 0（Linux/macOS 由 bstrict-ci 承担）。
 #
-# 用法（仓库根）：./tests/run-bootstrap-bstrict-windows-gate.sh
-# Windows CI：ci.yml windows job 在 make all 之后调用本脚本。
+# 用法（仓库根）：SHUX_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
 
 set -e
 cd "$(dirname "$0")/.."
@@ -25,25 +27,34 @@ if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then
   exit 127
 fi
 
-# 与 build_shux_asm.sh 一致：Windows CI 走 experimental bootstrap，勿强制 SKIP_GEN strict。
 export CI="${CI:-1}"
+WIN_BSTRICT="${SHUX_WIN_BSTRICT:-0}"
+PIPELINE_GEN_PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
-echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-hybrid ..."
-make -C compiler bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
+if [ "$WIN_BSTRICT" = "1" ]; then
+  echo "bootstrap-bstrict-windows-gate: E-06 v5 make bootstrap-driver-bstrict (Windows B-strict) ..."
+  make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
+  BOOT_LOG=/tmp/boot_win_bstrict.log
+  EXPECT_MARKER='bootstrap-driver-bstrict OK|asm_only_strict|asm_only_experimental|B-strict OK'
+else
+  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-hybrid (B-hybrid default) ..."
+  make -C compiler bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
+  BOOT_LOG=/tmp/boot_win_hybrid.log
+  EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
+fi
 
 if [ ! -x compiler/shux_asm ]; then
-  echo "bootstrap-bstrict-windows-gate FAIL: compiler/shux_asm missing after hybrid build" >&2
+  echo "bootstrap-bstrict-windows-gate FAIL: compiler/shux_asm missing after build" >&2
   exit 1
 fi
 
-if ! grep -qE 'Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK' /tmp/boot_win_hybrid.log; then
-  echo "bootstrap-bstrict-windows-gate FAIL: log missing B-hybrid markers" >&2
+if ! grep -qE "$EXPECT_MARKER" "$BOOT_LOG"; then
+  echo "bootstrap-bstrict-windows-gate FAIL: log missing expected markers ($EXPECT_MARKER)" >&2
   exit 1
 fi
 
 echo "bootstrap-bstrict-windows-gate: smoke return-value via shux_asm ..."
 RV_OUT="/tmp/shux_win_rv_$$"
-# MSYS：shux_asm -backend c 在 hybrid 链上仍可能失败；须 shux-c 回退（A-08：验证 shux_asm 产物存在即可）。
 RV_BACKEND_ARGS="-backend c"
 rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "${RV_OUT}.out"
 compile_rv() {
@@ -86,17 +97,28 @@ if [ "$EX" -ne 42 ]; then
   exit 1
 fi
 
-echo "bootstrap-bstrict-windows-gate OK (B-hybrid shux_asm + return-value 42)"
+if [ "$WIN_BSTRICT" = "1" ]; then
+  echo "bootstrap-bstrict-windows-gate OK (E-06 v5 Windows B-strict shux_asm + return-value 42)"
+else
+  echo "bootstrap-bstrict-windows-gate OK (B-hybrid shux_asm + return-value 42)"
+fi
 
 echo "bootstrap-bstrict-windows-gate: B-17 std.sys win32 WriteFile ..."
 chmod +x tests/run-win32-write-gate.sh tests/run-win32-read-file-gate.sh
 SHUX_WIN32_WRITE_FAIL=1 ./tests/run-win32-write-gate.sh
 SHUX_WIN32_READ_FILE_FAIL=1 ./tests/run-win32-read-file-gate.sh
 
-# C-03 Windows track-only：B-hybrid 仍可能 cc -c pipeline_gen.c；SHUX_WIN_C03_PIPELINE_GEN_FAIL=1 收紧。
-PIPELINE_GEN_CC=$(grep -cE '(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)' /tmp/boot_win_hybrid.log 2>/dev/null || echo 0)
-echo "bootstrap-bstrict-windows-gate: C-03 track cc -c pipeline_gen.c count=${PIPELINE_GEN_CC} (B-strict N/A on MSYS2; target 0 when Windows B-strict lands)"
-if [ "${SHUX_WIN_C03_PIPELINE_GEN_FAIL:-0}" = "1" ] && [ "${PIPELINE_GEN_CC:-0}" -gt 0 ] 2>/dev/null; then
-  echo "bootstrap-bstrict-windows-gate FAIL: B-hybrid log must not cc -c pipeline_gen.c (set SHUX_WIN_C03_PIPELINE_GEN_FAIL=0 for track-only)" >&2
-  exit 1
+PIPELINE_GEN_CC=$(grep -cE "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null || echo 0)
+if [ "$WIN_BSTRICT" = "1" ]; then
+  echo "bootstrap-bstrict-windows-gate: C-03/E-06 v5 cc -c pipeline_gen.c count=${PIPELINE_GEN_CC} (must be 0)"
+  if [ "${PIPELINE_GEN_CC:-0}" -gt 0 ] 2>/dev/null; then
+    echo "bootstrap-bstrict-windows-gate FAIL: Windows B-strict log must not cc -c pipeline_gen.c" >&2
+    exit 1
+  fi
+else
+  echo "bootstrap-bstrict-windows-gate: C-03 track cc -c pipeline_gen.c count=${PIPELINE_GEN_CC} (B-hybrid; use SHUX_WIN_BSTRICT=1 for B-strict)"
+  if [ "${SHUX_WIN_C03_PIPELINE_GEN_FAIL:-0}" = "1" ] && [ "${PIPELINE_GEN_CC:-0}" -gt 0 ] 2>/dev/null; then
+    echo "bootstrap-bstrict-windows-gate FAIL: B-hybrid log must not cc -c pipeline_gen.c (set SHUX_WIN_C03_PIPELINE_GEN_FAIL=0 for track-only)" >&2
+    exit 1
+  fi
 fi
