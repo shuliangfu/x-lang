@@ -26,7 +26,7 @@ function main(): i32 {
     return 4;
   }
 
-  let data: [3]u8 = [1, 2, 3];
+  let data: u8[3] = [1, 2, 3];
   if (bytes.bytes_append_slice(&b, &data[0], 3) != 0) {
     heap.arena64_deinit(&arena);
     return 5;
