@@ -3,8 +3,8 @@ const codec = import("std.codec");
 const bytes = import("std.bytes");
 
 function main(): i32 {
-  let src_big: [5]u8 = [10, 20, 30, 40, 50];
-  let src_small: [3]u8 = [1, 2, 3];
+  let src_big: u8[5] = [10, 20, 30, 40, 50];
+  let src_small: u8[3] = [1, 2, 3];
   let b: Bytes = bytes.bytes_new();
   let e: Encoder = codec.encoder_new(codec.codec_kind_hex());
 
