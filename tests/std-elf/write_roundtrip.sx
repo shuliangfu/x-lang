@@ -1,8 +1,8 @@
 // STD-121：std.elf 写入 + 只读解析 round-trip 烟测
 const elf = import("std.elf");
 function main(): i32 {
-  let text: [4]u8 = [144, 144, 144, 144];
-  let out: [512]u8 = [];
+  let text: u8[4] = [144, 144, 144, 144];
+  let out: u8[512] = [];
   let out_len: i32 = 0;
   let hdr: Elf64Hdr = Elf64Hdr {
     e_type: 0,
@@ -24,7 +24,7 @@ function main(): i32 {
   let idx: i32 = 0;
   let byte: u8 = 0;
   let sz: i32 = 0;
-  let name_text: [6]u8 = [46, 116, 101, 120, 116, 0];
+  let name_text: u8[6] = [46, 116, 101, 120, 116, 0];
 
   sz = elf.write_min_reloc_size(4);
   if (sz != 267) {
