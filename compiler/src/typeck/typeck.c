@@ -135,7 +135,7 @@ static int import_exports_name(const struct ASTModule *m, int j, const char *nam
 /** 全面自举：仅填 resolved_type，不做语义检查；.sx 用访问器遍历 AST 并做检查（重写实现）。 */
 static int typeck_fill_only;
 
-/** 前向声明：判断表达式是否为赋值或复合赋值（供 typeck 与 typeck_su 访问器使用）。 */
+/** 前向声明：判断表达式是否为赋值或复合赋值（供 typeck 与 typeck_sx 访问器使用）。 */
 static int expr_is_assign_or_compound(const struct ASTExpr *e);
 
 /** 前向声明：typeck_block 在文件后部定义，供 AST_EXPR_BLOCK 的 typeck 调用。 */
@@ -1603,7 +1603,7 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
     if (!e || !out_kind || !out_name) return -1;
     *out_name = NULL;
     if (out_elem_type) *out_elem_type = NULL;
-    /* SU parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
+    /* SX parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
     if (e->kind == AST_EXPR_LIT) {
         if (e->resolved_type) {
             *out_kind = e->resolved_type->kind;
@@ -2982,7 +2982,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 if (!ok && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type && param_type->elem_type->kind == AST_TYPE_U8
                     && e->value.call.args[i]->kind == AST_EXPR_ADDR_OF)
                     ok = 1;
-                /* 取址 &expr 可传给 *T 参数：要求 expr 的类型与 T 一致（如 driver_argv_parse_su(..., &state)） */
+                /* 取址 &expr 可传给 *T 参数：要求 expr 的类型与 T 一致（如 driver_argv_parse_sx(..., &state)） */
                 if (!ok && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type
                     && e->value.call.args[i]->kind == AST_EXPR_ADDR_OF) {
                     const struct ASTExpr *operand = e->value.call.args[i]->value.unary.operand;
