@@ -1,5 +1,5 @@
 /**
- * simd_vector_inline.h — M8-tail：SIMD 向量 intrinsic let-init 内联 C API（SU 薄包装 bl 目标）。
+ * simd_vector_inline.h — M8-tail：SIMD 向量 intrinsic let-init 内联 C API（SX 薄包装 bl 目标）。
  */
 #ifndef SHUX_SIMD_VECTOR_INLINE_H
 #define SHUX_SIMD_VECTOR_INLINE_H
