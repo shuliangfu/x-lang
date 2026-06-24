@@ -198,4 +198,5 @@ struct ast_Block {
   int32_t parent_block_ref;
 };
 
+#include "parser_asm_stretch_audit_gate.h"
 #include "parser_asm_seed_parse_into_buf_slice.c"
