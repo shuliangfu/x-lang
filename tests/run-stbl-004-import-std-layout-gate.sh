@@ -9,7 +9,7 @@ DOC="${SHUX_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
 MANIFEST="${SHUX_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
 LIB="tests/lib/stbl-import-std-layout.sh"
 PKG_LIB="tests/lib/tool-pkgmgr.sh"
-SMOKE_SU="tests/import-std-layout/check_imports.sx"
+SMOKE_SX="tests/import-std-layout/check_imports.sx"
 MIN_RESOLVE=12
 LIB_ROOT="."
 
@@ -19,7 +19,7 @@ LIB_ROOT="."
 . "$LIB"
 
 echo "=== STBL-004: import std layout manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$PKG_LIB" "$SMOKE_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$PKG_LIB" "$SMOKE_SX"; do
   if [ ! -f "$f" ]; then
     echo "stbl-import-std gate FAIL: missing $f" >&2
     exit 1
@@ -90,9 +90,9 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STBL-004: typeck smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "stbl-import-std gate FAIL: check $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "stbl-import-std gate FAIL: check $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0
     exit 1
   fi
