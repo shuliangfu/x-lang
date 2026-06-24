@@ -14,8 +14,8 @@ api_b64_str	api	encode_base64_string	std/encoding/mod.sx	String b64
 api_b64_dec_str	api	decode_base64_string	std/encoding/mod.sx	StrView b64
 api_hex_len	api	hex_encoded_len	std/encoding/mod.sx	长度辅助
 api_hex_dec_len	api	hex_decoded_len	std/encoding/mod.sx	解码长度
-symbol_hex_enc_c	symbol	encoding_hex_encode_c	std/encoding/encoding.c	C hex 编
-symbol_hex_dec_c	symbol	encoding_hex_decode_c	std/encoding/encoding.c	C hex 解
+symbol_hex_enc_c	symbol	encoding_hex_encode_c	std/encoding/encoding.sx	hex 编
+symbol_hex_dec_c	symbol	encoding_hex_decode_c	std/encoding/encoding.sx	hex 解
 smoke_hex_b64	smoke	tests/encoding/hex_base64_string.sx	金样
 smoke_main	smoke	tests/encoding/main.sx	UTF-8 回归
 lib	script	lib/std-encoding-hex-base64.sh	tests/lib/std-encoding-hex-base64.sh
