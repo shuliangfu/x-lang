@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DOD-S1 门禁：struct soa + [N]SoAStruct 列主序 arr[i].field smoke。
+# DOD-S1 门禁：struct soa + SoAStruct[N] 列主序 arr[i].field smoke。
 # 用法：
 #   ./tests/run-dod-s1-gate.sh
 #   SHUX=./compiler/shux_asm ./tests/run-dod-s1-gate.sh
