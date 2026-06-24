@@ -1,7 +1,7 @@
-// simd_vector_inline.sx — M8-tail：SIMD 向量 intrinsic let-init 内联 SU 薄包装（bl→C pipeline_glue）。
+// simd_vector_inline.sx — M8-tail：SIMD 向量 intrinsic let-init 内联 SX 薄包装（bl→C pipeline_glue）。
 //
 // 【文件职责】
-//   - shuffle/select/binop2 向量 CALL 内联从 C glue 暴露 SU 符号，供自举 backend 分派。
+//   - shuffle/select/binop2 向量 CALL 内联从 C glue 暴露 SX 符号，供自举 backend 分派。
 //   - 实现委托 pipeline_asm_simd_try_inline_*_call_elf_c（pipeline_glue.c / simd_vector_inline.h）。
 
 const ast = import("ast");
