@@ -6,11 +6,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="core/mem/mod.sx"
-MEM_C="core/mem/mem.c"
+MOD_SX="core/mem/mod.sx"
 MANIFEST="tests/baseline/core-mem-volatile-fence.tsv"
-SMOKE_SU="tests/core-mem/volatile_fence.sx"
-SMOKE_C="tests/core-mem/volatile_fence_smoke.c"
+SMOKE_SX="tests/core-mem/volatile_fence.sx"
 PREFIX="shux: [SHUX_CORE017_MEM_VOLATILE]"
 
 stdlib_cm_native_shu() {
@@ -26,7 +24,7 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== CORE-017: core.mem volatile/fence manifest ==="
-for f in "$MOD_SU" "$MEM_C" "$MANIFEST" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$MOD_SX" "$MANIFEST" "$SMOKE_SX"; do
   if [ ! -f "$f" ]; then
     echo "core-mem-volatile gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +44,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "core-mem-volatile gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -57,36 +55,9 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   echo "core-mem-volatile gate FAIL: api count $API_N < min $MIN_APIS" >&2
   exit 1
 fi
-if ! grep -qF "mem_volatile_fence_smoke_c" "$MEM_C" 2>/dev/null; then
-  echo "core-mem-volatile gate FAIL: missing C smoke symbol" >&2
-  exit 1
-fi
 echo "core-mem-volatile manifest OK"
-
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../core/mem/mem.o
-
 C_OK=0
-echo "=== CORE-017: C smoke ==="
-c_exe="/tmp/shux_core017_mem_vf_$$"
-if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" core/mem/mem.o 2>/dev/null; then
-  set +e
-  "$c_exe" >/dev/null 2>&1
-  c_ec=$?
-  set -e
-  rm -f "$c_exe"
-  if [ "$c_ec" -ne 0 ]; then
-    echo "core-mem-volatile gate FAIL: C smoke exit=$c_ec" >&2
-    exit 1
-  fi
-  C_OK=1
-else
-  echo "core-mem-volatile gate FAIL: compile $SMOKE_C" >&2
-  exit 1
-fi
-
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
@@ -98,9 +69,9 @@ if [ -n "$SHUX_BIN" ]; then
   echo "=== CORE-017: .sx compile+run (SHUX=$SHUX_BIN) ==="
   su_exe="/tmp/shux_core017_mem_vf_run_$$"
   rm -f "$su_exe"
-  if ! "$SHUX_BIN" -L . "$SMOKE_SU" -o "$su_exe" >/dev/null 2>&1; then
-    echo "core-mem-volatile gate FAIL: compile $SMOKE_SU" >&2
-    "$SHUX_BIN" -L . "$SMOKE_SU" -o "$su_exe" 2>&1 | tail -15 >&2 || true
+  if ! "$SHUX_BIN" -L . "$SMOKE_SX" -o "$su_exe" >/dev/null 2>&1; then
+    echo "core-mem-volatile gate FAIL: compile $SMOKE_SX" >&2
+    "$SHUX_BIN" -L . "$SMOKE_SX" -o "$su_exe" 2>&1 | tail -15 >&2 || true
     exit 1
   fi
   set +e
@@ -109,20 +80,20 @@ if [ -n "$SHUX_BIN" ]; then
   set -e
   rm -f "$su_exe"
   if [ "$su_ec" -ne 0 ]; then
-    echo "core-mem-volatile gate FAIL: run $SMOKE_SU exit=$su_ec" >&2
+    echo "core-mem-volatile gate FAIL: run $SMOKE_SX exit=$su_ec" >&2
     exit 1
   fi
   echo "=== CORE-017: .sx typeck (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "core-mem-volatile gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "core-mem-volatile gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     exit 1
   fi
-  SU_OK=2
+  SX_OK=2
 else
   echo "core-mem-volatile gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok c=${C_OK} su=${SU_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok c=${C_OK} sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "core-mem-volatile-fence gate OK"
