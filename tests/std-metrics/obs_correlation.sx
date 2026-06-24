@@ -20,17 +20,17 @@ function main(): i32 {
   let obs: ObservabilityCtx = metrics.obs_ctx_empty();
   let obs2: ObservabilityCtx = metrics.obs_ctx_empty();
   let ctx: Context = context.background();
-  let kv: [128]u8 = [];
+  let kv: u8[128] = [];
   let kv_len: i32 = 0;
   let lbl: Label = metrics.label_empty();
   let reg: Registry = metrics.registry_new();
-  let out: [256]u8 = [];
+  let out: u8[256] = [];
   let n: i32 = 0;
-  let req: [14]u8 = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];
-  let meth: [6]u8 = [109, 101, 116, 104, 111, 100];
-  let get: [3]u8 = [71, 69, 84];
-  let span_name: [4]u8 = [114, 111, 111, 116];
-  let kv_pre: [9]u8 = [116, 114, 97, 99, 101, 95, 105, 100, 61];
+  let req: u8[14] = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];
+  let meth: u8[6] = [109, 101, 116, 104, 111, 100];
+  let get: u8[3] = [71, 69, 84];
+  let span_name: u8[4] = [114, 111, 111, 116];
+  let kv_pre: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 61];
 
   sp = trace.span_start(&tr, 0, &span_name[0], 4);
   if (sp.id == 0) { return 1; }
