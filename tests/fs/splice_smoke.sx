@@ -6,12 +6,12 @@ const fs = import("std.fs");
 
 function main(): i32 {
   /** "/tmp/fs_splice_in\0" */
-  let path_in: [18]u8 =
+  let path_in: u8[18] =
   [47, 116, 109, 112, 47, 102, 115, 95, 115, 112, 108, 105, 99, 101, 95, 105, 110, 0];
   /** "/tmp/fs_splice_out\0" */
-  let path_out: [19]u8 =
+  let path_out: u8[19] =
   [47, 116, 109, 112, 47, 102, 115, 95, 115, 112, 108, 105, 99, 101, 95, 111, 117, 116, 0];
-  let payload: [16]u8 =
+  let payload: u8[16] =
   [90, 67, 53, 32, 115, 112, 108, 105, 99, 101, 32, 79, 75, 10, 0, 0];
   let pay_len: usize = 14 as usize;
   let fd_w: i32 = fs.fs_open_write(&path_in[0]);
@@ -41,7 +41,7 @@ function main(): i32 {
   if (copied != (pay_len as i64)) { return 7; }
   let fd_r: i32 = fs.fs_open_read(&path_out[0]);
   if (fd_r < 0) { return 8; }
-  let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let nr: isize = fs.fs_read(fd_r, &buf[0], pay_len);
   fs.fs_close(fd_r);
   if (nr != (pay_len as isize)) { return 9; }
