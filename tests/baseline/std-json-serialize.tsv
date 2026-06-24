@@ -6,8 +6,8 @@ append_array	symbol	append_array	std/json/mod.sx
 append_key	symbol	append_key	std/json/mod.sx
 append_string_value	symbol	append_string_value	std/json/mod.sx
 append_number_at	symbol	append_number_at	std/json/mod.sx
-json_append_object_c	symbol	json_append_object_c	std/json/json.c
-json_append_array_c	symbol	json_append_array_c	std/json/json.c
+json_append_object_c	symbol	json_append_object_c	std/json/json.sx
+json_append_array_c	symbol	json_append_array_c	std/json/json.sx
 roundtrip_doc	anchor	object_array_roundtrip	analysis/std-json-serialize-v1.md	RFC
 test_rt	file	tests/json/object_array_roundtrip.sx		金样
 doc	file	analysis/std-json-serialize-v1.md	analysis/std-json-serialize-v1.md	RFC
