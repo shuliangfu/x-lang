@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
 MATRIX="${SHUX_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
 PR_TPL="${SHUX_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
-SU_TPL="${SHUX_ZC_SU_COPY_TPL:-tests/templates/zc-copy-proof-test.sx}"
+SX_TPL="${SHUX_ZC_SX_COPY_TPL:-tests/templates/zc-copy-proof-test.sx}"
 SEM="${SHUX_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
 MIN_PROOFS=1
 
@@ -32,7 +32,7 @@ native_shu() {
 }
 
 echo "=== ZC-007: copy proof manifest ==="
-for f in "$DOC" "$MATRIX" "$PR_TPL" "$SU_TPL" "$SEM"; do
+for f in "$DOC" "$MATRIX" "$PR_TPL" "$SX_TPL" "$SEM"; do
   if [ ! -f "$f" ]; then
     echo "zc-copy-proof gate FAIL: missing $f" >&2
     exit 1
@@ -45,12 +45,12 @@ done < "$MATRIX"
 
 # ── 模板 metadata 键 ──
 for key in path_id userland_copies zc_tier hot_path fallback; do
-  if ! grep -qF "$key:" "$SU_TPL" 2>/dev/null; then
-    echo "zc-copy-proof gate FAIL: su template missing key $key" >&2
+  if ! grep -qF "$key:" "$SX_TPL" 2>/dev/null; then
+    echo "zc-copy-proof gate FAIL: sx template missing key $key" >&2
     exit 1
   fi
 done
-echo "zc-copy-proof su template OK"
+echo "zc-copy-proof sx template OK"
 
 # ── PR checklist 必填字段 ──
 for field in userland_copies zc_tier proof_id fallback; do
@@ -77,7 +77,7 @@ while IFS=$'\t' read -r proof_id source policy want_ec copies tier notes; do
     template)
       case "$source" in
         zc-copy-proof-test.sx)
-          [ -f "$SU_TPL" ] || { echo "zc-copy-proof FAIL: $SU_TPL" >&2; FAILS=$((FAILS + 1)); }
+          [ -f "$SX_TPL" ] || { echo "zc-copy-proof FAIL: $SX_TPL" >&2; FAILS=$((FAILS + 1)); }
           ;;
         zc-pr-copy-declaration.txt)
           [ -f "$PR_TPL" ] || { echo "zc-copy-proof FAIL: $PR_TPL" >&2; FAILS=$((FAILS + 1)); }
