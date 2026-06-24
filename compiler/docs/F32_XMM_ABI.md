@@ -59,7 +59,7 @@ SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . -legacy-f32-abi a
 
 ```bash
 cd compiler
-make pipeline_sx.o PIPELINE_SU_FORCE_COMPILE=1   # pipeline_glue 变更后
+make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1   # pipeline_glue 变更后
 cc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c   # 开关变更后
 ./scripts/relink_shux_asm_experimental_bootstrap.sh && cp shux_asm.experimental shux_asm
 ```
