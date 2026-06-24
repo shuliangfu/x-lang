@@ -59,7 +59,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 | `read_stdin` / `write_stdout` / `write_stderr` | timeout=0 |
 | `read_with_timeout` / `write_with_timeout` / `write_stderr_with_timeout` | 带 timeout_ms |
 | `read_fd` / `write_fd` | fd 便捷 |
-| `read_into_slice` / `write_from_slice` | `[]u8` 版 |
+| `read_into_slice` / `write_from_slice` | `u8[]` 版 |
 
 ### 3.4 零拷贝读（read_ptr 族）
 
@@ -70,7 +70,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 | `read_ptr_gen` / `read_ptr_gen_valid` | ZC-2 generation 校验 |
 | `read_ptr_backend` | 0=TLS，1=mmap，2=dispatch_data |
 | `read_ptr_view` / `read_ptr_view_valid` | 打包视图 |
-| `read_ptr_slice` / `read_stdin_ptr_slice` | `[]u8<io_read_ptr>`（M-5 typeck） |
+| `read_ptr_slice` / `read_stdin_ptr_slice` | `u8[]<io_read_ptr>`（M-5 typeck） |
 
 详见 `std/io/mod.sx` 文件头 Z2/ZC-1 注释。
 
