@@ -8,10 +8,10 @@ api_yaml_buf	api	load_yaml_buf	std/config/mod.sx	内存加载
 api_yaml_file	api	load_yaml_file	std/config/mod.sx	文件加载
 api_backend	api	config_backend_yaml	std/config/mod.sx	后端标识
 api_smoke	api	yaml_smoke	std/config/mod.sx	烟测
-symbol_c	symbol	config_load_yaml_buf_c	std/config/config.c	C 实现
-symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.c	C 烟测
-impl_c	file	std/config/config.c	std/config/config.c
-smoke_su	smoke	tests/std-config/yaml_smoke.sx	.su烟测
+symbol_c	symbol	config_load_yaml_buf_c	std/config/config.sx	C 实现
+symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.sx	C 烟测
+impl_sx	file	std/config/config.sx	std/config/config.sx
+smoke_sx	smoke	tests/std-config/yaml_smoke.sx	.sx烟测
 vectors	file	tests/baseline/std-config-yaml-vectors.tsv	向量
 lib	script	lib/std-config-yaml.sh	tests/lib/std-config-yaml.sh
 gate	script	run-std-config-yaml-gate.sh	tests/run-std-config-yaml-gate.sh
