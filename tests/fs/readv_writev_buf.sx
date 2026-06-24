@@ -4,8 +4,8 @@
 const fs = import("std.fs");
 
 function main(): i32 {
-  let buf: [4]u8 = [65, 66, 67, 68];
-  let bufs: [2]FsIovecBuf = [
+  let buf: u8[4] = [65, 66, 67, 68];
+  let bufs: FsIovecBuf[2] = [
   FsIovecBuf { ptr: &buf[0], len: 2, handle: 0 },
   FsIovecBuf { ptr: &buf[2], len: 2, handle: 0 }
   ];
