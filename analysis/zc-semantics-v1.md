@@ -13,7 +13,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ L — Language   │ []T<label> region、Linear(T)、slice 视图      │
+│ L — Language   │ T[]<label> region、Linear(T)、slice 视图      │
 ├────────────────┼────────────────────────────────────────────┤
 │ B — Library    │ read_ptr / StrView / mmap / provided buf    │
 ├────────────────┼────────────────────────────────────────────┤
@@ -40,7 +40,7 @@
 | `fs_sendfile` / `fs_pipe_splice` | ❌ 内核管道 | 用户态不 touch 字节 |
 | `string_from_slice` / `String` 拥有 | ✅ 堆拷贝 | 拥有内存；对比 `StrView` |
 | `StrView` / `string_view_subview` | ❌ 视图 | 仅 (ptr,len) |
-| `[N]T` → `[]T` 在 region 内 | ❌ 视图 | ZC-3；见 `region_array_smoke.sx` |
+| `T[N]` → `T[]` 在 region 内 | ❌ 视图 | ZC-3；见 `region_array_smoke.sx` |
 | `vec_i32_data_ptr` + len | ❌ 内部缓冲视图 | 勿在 grow 后继续使用 |
 
 **冗余拷贝**：在已有稳定视图或内核可零拷贝路径上，标准库再次 `memcpy` 到中间缓冲。
@@ -53,7 +53,7 @@
 |----|------|----------|------|
 | **ZC-1** | Provided Buffers | `register_provided_buffers`、`read_provided_fd` | `run-zc1-gate.sh` |
 | **ZC-2** | read_ptr 绝对视图 | `read_ptr`、`ReadPtrView`、`read_ptr_gen_valid` | `run-zc2-gate.sh` |
-| **ZC-3** | slice 域 | `[]u8<io_read_ptr>`、`region` | `run-zc3-gate.sh` |
+| **ZC-3** | slice 域 | `u8[]<io_read_ptr>`、`region` | `run-zc3-gate.sh` |
 | **ZC-4** | String 视图 | `StrView`、`stack_str_view`、Arena64 concat | `run-zc4-gate.sh` |
 | **ZC-5** | splice/sendfile | `fs_pipe_splice`、`fs_sendfile` | `run-zc5-gate.sh` |
 
@@ -115,10 +115,10 @@
 2. `provided_buffer_ptr(bid)` 只读至 bid 被内核复用。
 3. 非 Linux 回退 `read_batch_fd`。
 
-### 5.3 region / `[]T<label>`（ZC-3）
+### 5.3 region / `T[]<label>`（ZC-3）
 
-- `read_ptr_slice` 返回 `[]u8<io_read_ptr>`；**不得**赋给未标注 `[]u8`。
-- `region ra { let s: []i32 = arr; }` — 块内数组转 slice 为视图。
+- `read_ptr_slice` 返回 `u8[]<io_read_ptr>`；**不得**赋给未标注 `u8[]`。
+- `region ra { let s: i32[] = arr; }` — 块内数组转 slice 为视图。
 - 详 `analysis/type-region-v1-rfc.md`。
 
 ---
@@ -166,7 +166,7 @@
 ## 9. PR 自检（5 题）
 
 1. 新读 API 是否必要 `memcpy`？能否 `read_ptr` 或 provided？  
-2. 返回 slice 是否标注域？能否逃逸到未标注 `[]u8`？  
+2. 返回 slice 是否标注域？能否逃逸到未标注 `u8[]`？  
 3. 字符串解析是否可用 `StrView` 代替 `String`？  
 4. 大文件是否考虑 `mmap` 而非 slurp 到 vec？  
 5. Linux 专有路径是否有 documented 回退？
