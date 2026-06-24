@@ -6,9 +6,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SU="std/http/mod.sx"
-HTTP_C="std/http/http.c"
-ERR_SU="std/error/mod.sx"
+MOD_SX="std/http/mod.sx"
+HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
+ERR_SX="std/error/mod.sx"
 SMOKE="tests/http/context_get.sx"
 SMOKE_TO="tests/http/context_connect_timeout.sx"
 SMOKE_C="tests/http/http_timeout_smoke.c"
@@ -27,7 +27,7 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-094/095: http-context manifest ==="
-for f in "$MOD_SU" "$HTTP_C" "$ERR_SU" "$SMOKE" "$SMOKE_TO" "$SMOKE_C"; do
+for f in "$MOD_SX" "$HTTP_C" "$ERR_SX" "$SMOKE" "$SMOKE_TO" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "http-context gate FAIL: missing $f" >&2
     exit 1
@@ -42,7 +42,7 @@ for sym in timeout_ms_for_http ctx_check_for_http get_ctx post_ctx head_ctx map_
       fi
       ;;
     *)
-      if ! grep -qE "function ${sym}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
         echo "http-context gate FAIL: missing api $sym" >&2
         exit 1
       fi
@@ -56,7 +56,7 @@ for sym in http_timeout_smoke_c; do
   fi
 done
 for sym in http_err_timeout http_err_cancelled; do
-  if ! grep -qE "function ${sym}\\(" "$ERR_SU" 2>/dev/null; then
+  if ! grep -qE "function ${sym}\\(" "$ERR_SX" 2>/dev/null; then
     echo "http-context gate FAIL: missing error $sym" >&2
     exit 1
   fi
@@ -67,12 +67,12 @@ echo "http-context manifest OK"
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
-ensure_std_c_o ../std/http/http.o
+ensure_runtime_http_glue_o
 
 C_OK=0
 echo "=== STD-095: C timeout smoke ==="
 c_exe="/tmp/shux_std095_http_to_$$"
-if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/http/http.o 2>/dev/null; then
+if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" compiler/runtime_http_glue.o 2>/dev/null; then
   set +e
   "$c_exe" >/dev/null 2>&1
   c_ec=$?
@@ -95,19 +95,19 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
   :
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-094/095: smoke (SHUX=$SHUX_BIN) ==="
-  for su in "$SMOKE" "$SMOKE_TO"; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "http-context gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+  for sx in "$SMOKE" "$SMOKE_TO"; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "http-context gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
       exit 1
     fi
     exe="/tmp/shux_std094_http_ctx_$$_${su##*/}"
-    if ! "$SHUX_BIN" -L . "$su" -o "$exe" >/dev/null 2>&1; then
-      echo "http-context gate FAIL: compile $su" >&2
+    if ! "$SHUX_BIN" -L . "$sx" -o "$exe" >/dev/null 2>&1; then
+      echo "http-context gate FAIL: compile $sx" >&2
       exit 1
     fi
     set +e
@@ -116,15 +116,15 @@ if [ -n "$SHUX_BIN" ]; then
     set -e
     rm -f "$exe"
     if [ "$ec" -ne 0 ]; then
-      echo "http-context gate FAIL: run $su exit=$ec" >&2
+      echo "http-context gate FAIL: run $sx exit=$ec" >&2
       exit 1
     fi
   done
-  SU_OK=1
+  SX_OK=1
 else
   echo "http-context gate SKIP .sx (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok c=${C_OK} su=${SU_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok c=${C_OK} sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-http-context gate OK"
