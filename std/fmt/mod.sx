@@ -52,11 +52,122 @@ function format_template_1_i32(buf: *u8, cap: i32, pat: *u8, pat_len: i32, val: 
   return o;
 }
 
+// ——— 标准输出 print/println（stdout）：字节串 + 标量重载 ———
+/** 将 ptr[0..len) 写入 stdout；返回写入字节数，-1 错误。 */
 function print(ptr: *u8, len: i32): i32 { return io.print_str(ptr, len as usize); }
+
+/** 将 ptr[0..len) 写入 stdout 并追加换行。 */
 function println(ptr: *u8, len: i32): i32 {
   let r: i32 = io.print_str(ptr, len as usize);
-  let nl: [1]u8 = [10];
-  let ign: i32 = io.print_str(&nl[0], 1 as usize);
+  let nl: u8[1] = [10];
+  let ign: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+
+/** 将 i32 十进制写入 stdout。 */
+function print(x: i32): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_i32_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: i32): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: u32): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_u32_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: u32): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: i64): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_i64_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: i64): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: u64): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_u64_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: u64): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: usize): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_usize_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: usize): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: isize): i32 {
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_isize_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: isize): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: bool): i32 {
+  let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_bool_to_buf(&buf[0], 8, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: bool): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
+  return r;
+}
+function print(x: f64): i32 {
+  let buf: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_f64_to_buf(&buf[0], 64, x);
+  if (n < 0) { return -1; }
+  return io.print_str(&buf[0], n as usize);
+}
+function println(x: f64): i32 {
+  let r: i32 = print(x);
+  let nl: u8[1] = [10];
+  let _: i32 = io.print_str(&nl[0], 1);
   return r;
 }
 
