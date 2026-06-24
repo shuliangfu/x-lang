@@ -7,20 +7,20 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_RUNTIME_PANIC_DOC:-analysis/std-runtime-panic-hook-v1.md}"
 MANIFEST="${SHUX_STD_RUNTIME_PANIC_TSV:-tests/baseline/std-runtime-panic-hook.tsv}"
-RUNTIME_SU="std/runtime/mod.sx"
-RUNTIME_C="std/runtime/runtime.c"
+RUNTIME_SX="std/runtime/mod.sx"
+RUNTIME_IMPL="std/runtime/runtime.sx"
 README="std/runtime/README.md"
 LIB="tests/lib/std-runtime-panic-hook.sh"
-HOOK_SU="tests/exc/panic_hook_align.sx"
-READY_SU="tests/exc/runtime_ready.sx"
+HOOK_SX="tests/exc/panic_hook_align.sx"
+READY_SX="tests/exc/runtime_ready.sx"
 EXC_GATE="tests/run-exc-panic-abort-gate.sh"
 
 # shellcheck source=tests/lib/std-runtime-panic-hook.sh
 . tests/lib/std-runtime-panic-hook.sh
 
 echo "=== STD-028: runtime panic hook manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$RUNTIME_SU" "$RUNTIME_C" "$README" \
-  "$HOOK_SU" "$READY_SU" analysis/exc-panic-abort-v1-rfc.md \
+for f in "$DOC" "$MANIFEST" "$LIB" "$RUNTIME_SX" "$RUNTIME_IMPL" "$README" \
+  "$HOOK_SX" "$READY_SX" analysis/exc-panic-abort-v1-rfc.md \
   compiler/src/asm/runtime_panic.c compiler/src/asm/runtime_panic_arm64.c \
   compiler/src/asm/runtime_panic_x86_64.s; do
   if [ ! -f "$f" ]; then
@@ -36,7 +36,7 @@ for kw in panic_hook_collect shux_crash_evidence_collect_c EXC-002 abort; do
   fi
 done
 
-miss="$(std_runtime_panic_manifest_ok "$DOC" "$README" "$RUNTIME_SU" "$MANIFEST" || true)"
+miss="$(std_runtime_panic_manifest_ok "$DOC" "$README" "$RUNTIME_SX" "$MANIFEST" || true)"
 if [ "${miss:-0}" -gt 0 ]; then
   std_runtime_panic_emit_report "fail" 0 0 0 0
   echo "std-runtime-panic gate FAIL: manifest_miss=${miss}" >&2
@@ -71,12 +71,12 @@ EXC_OK=0
 SKIP=1
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-028: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$HOOK_SU" >/dev/null 2>&1 && \
-     "$SHUX_BIN" check -L . "$READY_SU" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$HOOK_SX" >/dev/null 2>&1 && \
+     "$SHUX_BIN" check -L . "$READY_SX" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-runtime-panic gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$HOOK_SU" 2>&1 | tail -6 >&2 || true
+    "$SHUX_BIN" check -L . "$HOOK_SX" 2>&1 | tail -6 >&2 || true
     std_runtime_panic_emit_report "fail" 1 0 0 0
     exit 1
   fi
