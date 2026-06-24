@@ -66,7 +66,7 @@ wpo_ab_try_driver_fast() {
   off_proxy=${off_proxy:-7637}
   on_txt=$(wpo_ab_text_bytes "$build_drv") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
-  nm "$build_drv" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_su|entry)$' || return 1
+  nm "$build_drv" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_sx|entry)$' || return 1
   echo "$off_proxy $on_txt"
   return 0
 }
@@ -100,7 +100,7 @@ wpo_ab_try_typeck_fast() {
   off_proxy=${off_proxy:-79397}
   on_txt=$(wpo_ab_text_bytes "$build_tck") || return 1
   [ "$on_txt" -lt "$emit_heavy_min" ] 2>/dev/null || return 1
-  nm "$build_tck" 2>/dev/null | grep -q 'typeck_su_ast' || return 1
+  nm "$build_tck" 2>/dev/null | grep -q 'typeck_sx_ast' || return 1
   nm "$build_tck" 2>/dev/null | grep -q 'check_block' || return 1
   echo "$off_proxy $on_txt"
   return 0
