@@ -6,11 +6,11 @@ api_doc	section	## 2. query_rows API（v1）	query_rows
 vectors_doc	section	## 3. 金样向量	rows_all
 verify	section	## 4. Gate	gate
 api_query_rows	api	query_rows	std/db/sqlite/mod.sx	行数
-symbol_query_c	symbol	db_query_rows_c	std/db/sqlite/sqlite.c	查询
-symbol_rows_smoke_c	symbol	db_sqlite_query_rows_smoke_c	std/db/sqlite/sqlite.c	烟测
-impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
+symbol_query_c	symbol	db_query_rows_c	std/db/sqlite/sqlite.sx	查询
+symbol_rows_smoke_c	symbol	db_sqlite_query_rows_smoke_c	std/db/sqlite/sqlite.sx	烟测
+impl_c	file	std/db/sqlite/sqlite.sx	std/db/sqlite/sqlite.sx	实现
 smoke_c	file	tests/std-sqlite/query_rows_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/query_rows_roundtrip.sx	.sx 往返
+smoke_sx	smoke	tests/std-sqlite/query_rows_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-query-rows-vectors.tsv	向量
 lib	script	lib/std-sqlite-query-rows.sh	tests/lib/std-sqlite-query-rows.sh
 gate	script	run-std-sqlite-query-rows-gate.sh	tests/run-std-sqlite-query-rows-gate.sh
