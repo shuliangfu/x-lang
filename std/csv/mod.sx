@@ -1,8 +1,7 @@
 // std.csv — CSV 解析与写回（RFC 4180）
 //
-// next_field / unescape：csv.c（seed asm 五实参 call、第三段数组、while+else
-// 等限制）。
-// escape：纯 .sx。
+// next_field / unescape / parse_row / write_row / stream：csv.sx（F-csv v1）。
+// escape（mod 内简化版）仍可用；write_row 经 csv.sx 的 csv_escape_c（含引号双写）。
 extern function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32;
 extern function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
 extern function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32;
