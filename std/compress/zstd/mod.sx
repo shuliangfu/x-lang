@@ -1,68 +1,57 @@
 // std.compress.zstd — zstd 块压缩/解压与流式 API
 //
-// 【文件职责】ZSTD_compress / ZSTD_decompress 封装；C 实现在 zstd/zstd.c。
-// 【依赖】可选 -DSHUX_USE_ZSTD -lzstd。
-extern function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-extern function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-extern function compress_zstd_available_c(): i32;
-extern function compress_zstd_smoke_c(): i32;
-extern function compress_zstd_stream_state_bytes_c(): i32;
-extern function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32;
-extern function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32;
-extern function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
-  out_cap: i32, is_last: i32, in_consumed: *i32): i32;
-extern function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
-  out_cap: i32, in_consumed: *i32): i32;
-extern function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32;
+// 【文件职责】ZSTD 封装；实现见 zstd_lib.sx（F-04 v7 去 C）。
+// 【依赖】libzstd（-lzstd）；runtime 按需链入。
+const lib = import("std.compress.zstd.zstd_lib");
 
 /** 压缩为 zstd 帧，返回写入字节数，失败 -1。 */
 function zstd_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
-  return compress_zstd_compress_c(in, in_len, out, out_cap);
+  return lib.compress_zstd_compress_c(in, in_len, out, out_cap);
 }
 
 /** 解压 zstd 帧，返回写入字节数，失败 -1。 */
 function zstd_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
-  return compress_zstd_decompress_c(in, in_len, out, out_cap);
+  return lib.compress_zstd_decompress_c(in, in_len, out, out_cap);
 }
 
 /** 探测 zstd 是否已在编译期启用；1=可用，0=占位 stub。 */
 function zstd_available(): i32 {
-  return compress_zstd_available_c();
+  return lib.compress_zstd_available_c();
 }
 
 /** zstd 块 + 流往返烟测；未启用时返回 0（skip）。 */
 function zstd_smoke(): i32 {
-  return compress_zstd_smoke_c();
+  return lib.compress_zstd_smoke_c();
 }
 
 /** zstd 流状态缓冲最小字节数。 */
 function zstd_stream_state_bytes(): i32 {
-  return compress_zstd_stream_state_bytes_c();
+  return lib.compress_zstd_stream_state_bytes_c();
 }
 
 /** 初始化 zstd 压缩流；成功 0。 */
 function zstd_stream_init_compress(state: *u8, state_cap: i32): i32 {
-  return compress_zstd_stream_init_compress_c(state, state_cap);
+  return lib.compress_zstd_stream_init_compress_c(state, state_cap);
 }
 
 /** 初始化 zstd 解压流；成功 0。 */
 function zstd_stream_init_decompress(state: *u8, state_cap: i32): i32 {
-  return compress_zstd_stream_init_decompress_c(state, state_cap);
+  return lib.compress_zstd_stream_init_decompress_c(state, state_cap);
 }
 
 /** 分块 zstd 压缩；is_last≠0 时 ZSTD_e_end。 */
 function zstd_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
-  return compress_zstd_stream_compress_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
+  return lib.compress_zstd_stream_compress_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
 /** 分块 zstd 解压。 */
 function zstd_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   in_consumed: *i32): i32 {
-  return compress_zstd_stream_decompress_c(state, state_cap, inp, in_len, out, out_cap, in_consumed);
+  return lib.compress_zstd_stream_decompress_c(state, state_cap, inp, in_len, out, out_cap, in_consumed);
 }
 
 /** 释放 zstd 流。 */
 function zstd_stream_end(state: *u8, state_cap: i32): i32 {
-  return compress_zstd_stream_end_c(state, state_cap);
+  return lib.compress_zstd_stream_end_c(state, state_cap);
 }
