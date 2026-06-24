@@ -12,9 +12,9 @@ function bytes_eq4(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len:
 }
 
 function main(): i32 {
-  let decomposed: [3]u8 = [101, 204, 129];
-  let composed: [2]u8 = [195, 169];
-  let out: [8]u8 = [];
+  let decomposed: u8[3] = [101, 204, 129];
+  let composed: u8[2] = [195, 169];
+  let out: u8[8] = [];
   let n: i32 = 0;
 
   if (norm_form_nfc() != 1) { return 1; }
