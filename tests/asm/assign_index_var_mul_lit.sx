@@ -1,6 +1,6 @@
 // 7.3：arr[i*lit]=value MUL 下标 scratch 寻址，main 内无 mov x2（run-asm-assign-index-expr.sh）。
 function main(): i32 {
-  let arr: [4]i32 = [10, 20, 30, 40];
+  let arr: i32[4] = [10, 20, 30, 40];
   let i: i32 = 1;
   arr[i * 2] = 99;
   return arr[2];
