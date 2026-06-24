@@ -20,7 +20,7 @@ struct parser_ParseIntoResult {
 };
 
 extern int32_t entry(int32_t argc, uint8_t *argv);
-/** runtime.c 完整编译驱动（-o / -backend asm 等）；实验链无 driver_su.o 时作 main_run_compiler_c 兜底。 */
+/** runtime.c 完整编译驱动（-o / -backend asm 等）；实验链无 driver_sx.o 时作 main_run_compiler_c 兜底。 */
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t *argv);
 
 /** main.o 链入时其强符号 entry 覆盖本 weak 实现；未链 main.o 时转 runtime run_compiler_c（缺 run_compiler_sx_path_impl 会 silent fail）。 */
@@ -29,7 +29,7 @@ __attribute__((weak)) int32_t entry(int32_t argc, uint8_t *argv) {
   return run_compiler_c(argc, (char **)argv);
 }
 
-/** driver_su.o 的 main_entry 引用；B-strict 未链 lsp_sx.o 时弱桩。 */
+/** driver_sx.o 的 main_entry 引用；B-strict 未链 lsp_sx.o 时弱桩。 */
 __attribute__((weak)) int32_t typeck_lsp_main(void) {
   return -1;
 }
@@ -39,7 +39,11 @@ extern int32_t driver_run_compiler_full(int32_t argc, uint8_t *argv);
 __attribute__((weak)) int32_t run_compiler_sx_path_impl(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (uint8_t *)argv);
 }
-int32_t main_run_compiler_su_path_impl(int32_t argc, char **argv) {
+/** driver/build.sx、driver/run.sx 引用；experimental 链未并 driver_sx.o 时由本弱桩转发 driver_run_compiler_full。 */
+__attribute__((weak)) int32_t main_run_compiler_sx_path_impl(int32_t argc, uint8_t *argv) {
+  return driver_run_compiler_full(argc, (uint8_t *)argv);
+}
+int32_t main_run_compiler_sx_path_impl(int32_t argc, char **argv) {
   return run_compiler_sx_path_impl(argc, (uint8_t *)argv);
 }
 
@@ -47,14 +51,23 @@ extern uint8_t *driver_argv_drop_subcommand(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_fmt(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_check(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_test(int32_t argc, uint8_t *argv);
-extern int32_t build_cmd_build(int32_t argc, uint8_t *argv);
+/** main.sx / driver_sx.o 提供；experimental 链未并 driver_sx 时由弱桩兜底。 */
+extern int32_t main_cmd_build(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_run(int32_t argc, uint8_t *argv);
 
+/** build 子命令弱桩：experimental 链无 driver_sx.o 时返回失败（勿误用 build_cmd_build 旧名）。 */
+__attribute__((weak)) int32_t main_cmd_build(int32_t argc, uint8_t *argv) {
+  (void)argc;
+  (void)argv;
+  return -1;
+}
+
 /**
- * B-strict：build_asm/main.o 为 ENTRY_MODULE_ONLY 桩时，在此路由 check/fmt/test/build/run 到 driver_*_su.o。
+ * B-strict：build_asm/main.o 为 ENTRY_MODULE_ONLY 桩时，在此路由 check/fmt/test/build/run 到 driver_*_sx.o。
  * 与 main.sx entry() 子命令语义一致（argc-1 + driver_argv_drop_subcommand）。
+ * 弱符号：链入 driver_sx.o / build_asm/main.o 真 entry 时由其强符号覆盖。
  */
-int32_t main_entry(int32_t argc, char **argv) {
+__attribute__((weak)) int32_t main_entry(int32_t argc, char **argv) {
   uint8_t *adj;
   if (argc >= 2 && argv[1] && argv[1][0] != '-') {
     adj = driver_argv_drop_subcommand((int32_t)argc, (uint8_t *)argv);
@@ -65,7 +78,7 @@ int32_t main_entry(int32_t argc, char **argv) {
     if (strcmp(argv[1], "test") == 0)
       return driver_cmd_test((int32_t)argc - 1, adj);
     if (strcmp(argv[1], "build") == 0)
-      return build_cmd_build((int32_t)argc - 1, adj);
+      return main_cmd_build((int32_t)argc - 1, adj);
     if (strcmp(argv[1], "run") == 0)
       return driver_cmd_run((int32_t)argc - 1, adj);
   }
@@ -143,8 +156,8 @@ __attribute__((weak)) void parser_get_module_import_path(void *module, int32_t i
     out[0] = '\0';
 }
 
-/** build_asm/preprocess.o 有真实现时覆盖弱符号。 */
-__attribute__((weak)) int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+/** build_asm/preprocess.o 有真实现时覆盖弱符号（与 runtime.c / sx_seed_bridge 一致用 const 源指针）。 */
+__attribute__((weak)) int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                                   int32_t out_cap) {
   (void)source_buf;
   (void)source_len;
@@ -172,12 +185,6 @@ __attribute__((weak)) void parser_parse_into_set_main_index(void *module, int32_
 
 __attribute__((weak)) int32_t parser_get_module_num_imports(void *module) {
   return get_module_num_imports(module);
-}
-
-/** pipeline.sx 引用 preprocess.preprocess_sx_buf；build_asm 导出 preprocess_sx_buf。 */
-__attribute__((weak)) int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
-                                     int32_t out_cap) {
-  return preprocess_sx_buf((uint8_t *)source_buf, source_len, out_buf, out_cap);
 }
 
 /** asm.sx import peephole.peephole_run → peephole_peephole_run；build_asm/peephole.o 提供强符号。 */
@@ -260,7 +267,7 @@ __attribute__((weak)) int32_t typeck_typeck_struct_layout_metrics(struct ast_Mod
   return typeck_struct_layout_metrics(module, arena, li, depth, check_pad, out_sz, out_al);
 }
 
-/** parser_from_gen.o 引用 std.io 读 ptr；strict 链无 driver_su 时弱符号兜底。 */
+/** parser_from_gen.o 引用 std.io 读 ptr；strict 链无 driver_sx 时弱符号兜底。 */
 __attribute__((weak)) int32_t std_io_driver_driver_read_ptr(void *out_slice, void *fd) {
   (void)out_slice;
   (void)fd;
@@ -292,12 +299,12 @@ __attribute__((weak)) void typeck_merge_dep_struct_layouts_into_entry(void *modu
   (void)ctx;
 }
 
-/** pipeline.sx import 前缀名；typeck_su.o 链入时强符号覆盖。 */
+/** pipeline.sx import 前缀名；typeck_sx.o 链入时强符号覆盖。 */
 __attribute__((weak)) void typeck_typeck_merge_dep_struct_layouts_into_entry(void *module, void *arena, void *ctx) {
   typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
 }
 
-/** DOD-S3：WPO SoA layout 统一；typeck_su.o 未链入时 no-op。 */
+/** DOD-S3：WPO SoA layout 统一；typeck_sx.o 未链入时 no-op。 */
 __attribute__((weak)) void typeck_wpo_unify_soa_layouts(void *entry, void *ctx) {
   (void)entry;
   (void)ctx;
