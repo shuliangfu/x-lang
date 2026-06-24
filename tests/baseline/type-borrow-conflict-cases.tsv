@@ -4,6 +4,6 @@
 fp_region_same	region_same_ok.sx	pos	-	-	same label
 fp_region_block	fp_region_block_reassign_ok.sx	pos	-	-	block reassign
 fp_linear_two	fp_linear_two_bindings_ok.sx	pos	-	-	two Linear
-conflict_region_escape	region_assign_escape.sx	neg	slice region escape	0	C-only path reports 0:0 until span wired
+conflict_region_escape	region_assign_escape.sx	neg	slice region escape	8	span wired: path:L:C at assign site
 conflict_region_mismatch	region_mismatch.sx	neg	slice region mismatch	6	cross label
 conflict_linear_move	double_move.sx	neg	linear value used after move	-	double move
