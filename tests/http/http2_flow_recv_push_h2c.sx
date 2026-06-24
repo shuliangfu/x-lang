@@ -10,7 +10,7 @@ function main(): i32 {
   if (http.http2_h2c_is_available() == false) { return 15; }
   if (http.http2_h2c_wire_is_available() == false) { return 15; }
 
-  let preface: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let preface: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (http.http2_h2c_session_begin(&preface[0], 32) != 24) { return 16; }
   if (http.http2_is_connection_preface(&preface[0], 24) == false) { return 17; }
@@ -21,17 +21,17 @@ function main(): i32 {
   if (http.http2_flow_recv_on_data(&recv, 1000) != 0) { return 7; }
   if (recv.conn_left != 64535) { return 8; }
 
-  let wu: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let wu: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (http.http2_flow_recv_release(&recv, 1, 1000, &wu[0], 16) != 13) { return 9; }
 
   if (http.http2_is_push_promise_frame(http.http2_frame_push_promise()) == false) { return 10; }
 
-  let upgrade: [64]u8 = [72, 84, 84, 80, 47, 49, 46, 49, 32, 49, 48, 49, 32, 83, 119, 105,
+  let upgrade: u8[64] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 49, 48, 49, 32, 83, 119, 105,
     116, 99, 104, 105, 110, 103, 32, 80, 114, 111, 116, 111, 99, 111, 108, 115, 13, 10,
     85, 112, 103, 114, 97, 100, 101, 58, 32, 104, 50, 99, 13, 10, 13, 10];
   if (http.http2_is_h2c_upgrade_response(&upgrade[0], 46) == false) { return 11; }
 
-  let pp: [4]u8 = [0, 0, 0, 8];
+  let pp: u8[4] = [0, 0, 0, 8];
   let promised: i32 = 0;
   if (http.http2_parse_push_promise_stream(&pp[0], 4, &promised) != 0) { return 12; }
   if (promised != 8) { return 13; }
