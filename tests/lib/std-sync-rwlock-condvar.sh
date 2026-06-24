@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# std-sync-rwlock-condvar.sh — STD-045 manifest 与烟测辅助
+# std-sync-rwlock-condvar.sh — STD-045 manifest 与烟测辅助（F-sync v1：sync_os_glue.c）
 #
 # 用法（source 后）：
-#   std_sync_rc_symbols_ok MOD_SU SYNC_C TSV
-#   std_sync_rc_run_smoke SHUX_BIN SU TAG
-#   std_sync_rc_try_tsan SYNC_C
+#   std_sync_rc_symbols_ok MOD_SX SYNC_OS_GLUE TSV
+#   std_sync_rc_run_smoke SHUX_BIN SX TAG
+#   std_sync_rc_try_tsan SYNC_OS_GLUE
 #   std_sync_rc_emit_report status rwlock_ok condvar_ok main_ok tsan_ok skip
 
 STD_SYNC_RC_PREFIX="${SHUX_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-shux: [SHUX_STD_SYNC_RWLOCK_CONDVAR]}"
 
+# 校验 manifest；C symbol 在 sync_os_glue.c。
 std_sync_rc_symbols_ok() {
-  local mod_su="$1"
-  local sync_c="$2"
+  local mod_sx="$1"
+  local sync_os_glue="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -20,15 +21,15 @@ std_sync_rc_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-sync-rwlock-condvar FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-sync-rwlock-condvar FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
-          std/sync/sync.c) mod_path="$sync_c" ;;
-          *) mod_path="$mod_su" ;;
+          std/sync/sync.c|std/sync/sync_os_glue.c|compiler/src/asm/runtime_sync_os.c) mod_path="$sync_os_glue" ;;
+          *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-sync-rwlock-condvar FAIL: missing '$anchor' in $mod_path" >&2
@@ -47,6 +48,7 @@ std_sync_rc_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# 编译并运行 .sx 烟测。
 std_sync_rc_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -76,7 +78,7 @@ std_sync_rc_run_smoke() {
 
 # TSAN 正例：RwLock 保护计数；有工具链时返回 0，否则 echo skip。
 std_sync_rc_try_tsan() {
-  local sync_c="$1"
+  local sync_os_glue="$1"
   local src="tests/sync/sync_tsan_ok.c"
   local out="/tmp/shux_sync_tsan_ok_$$"
   # shellcheck source=tests/lib/safe-race.sh
@@ -90,14 +92,22 @@ std_sync_rc_try_tsan() {
     echo "skip"
     return 0
   fi
-  local sync_o
-  sync_o="$(dirname "$sync_c")/sync.o"
+  local sync_o="std/sync/sync.o"
+  local rt_os="compiler/runtime_sync_os.o"
+  local rt_tls="compiler/runtime_sync_lock_diag_tls.o"
   if [ ! -f "$sync_o" ]; then
-    echo "std-sync-rwlock-condvar FAIL: missing $sync_o" >&2
+    # shellcheck source=tests/lib/build-std-c-o.sh
+    . tests/lib/build-std-c-o.sh
+    ensure_std_c_o ../std/sync/sync.o 2>/dev/null || true
+  fi
+  ensure_runtime_sync_os_o 2>/dev/null || true
+  ensure_runtime_sync_lock_diag_tls_o 2>/dev/null || true
+  if [ ! -f "$sync_o" ] || [ ! -f "$rt_os" ]; then
+    echo "std-sync-rwlock-condvar FAIL: missing sync.o or runtime_sync_os.o" >&2
     return 1
   fi
   if ! cc -std=c11 -O1 -fsanitize=thread -fno-omit-frame-pointer \
-    -o "$out" "$src" "$sync_o" -lpthread 2>/dev/null; then
+    -o "$out" "$src" "$sync_o" "$rt_os" "$rt_tls" -lpthread 2>/dev/null; then
     echo "skip"
     rm -f "$out"
     return 0
