@@ -4,6 +4,6 @@ function set_at(buf: *i32, i: i32, v: i32): i32 {
   return buf[i];
 }
 function main(): i32 {
-  let arr: [3]i32 = [5, 10, 15];
+  let arr: i32[3] = [5, 10, 15];
   return set_at(&arr[0], 1, 99);
 }
