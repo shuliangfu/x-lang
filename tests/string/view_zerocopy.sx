@@ -6,7 +6,7 @@ const string = import("std.string");
 
 function main(): i32 {
   // StrView 零拷贝：直接对缓冲区做 view 操作，不 string_from_slice
-  let buf: [8]u8 = [97, 98, 99, 100, 101, 0, 0, 0];
+  let buf: u8[8] = [97, 98, 99, 100, 101, 0, 0, 0];
   let v: StrView = string.string_view(&buf[0], 5);
   if (string.string_view_len(v) != 5) { return 1; }
   if (string.string_view_is_empty(v) != 0) { return 2; }
@@ -15,9 +15,9 @@ function main(): i32 {
   if (string.string_view_eq(v, v2) != 1) { return 4; }
   if (string.string_view_compare(v, v2) != 0) { return 5; }
   if (string.string_view_find_char(v, 99) != 2) { return 6; }
-  let pre: [2]u8 = [97, 98];
+  let pre: u8[2] = [97, 98];
   if (string.string_view_starts_with(v, &pre[0], 2) != 1) { return 7; }
-  let suf: [2]u8 = [100, 101];
+  let suf: u8[2] = [100, 101];
   if (string.string_view_ends_with(v, &suf[0], 2) != 1) { return 8; }
   if (string.string_view_contains(v, &pre[0], 2) != 1) { return 9; }
   if (string.string_view_find_slice(v, &pre[0], 2) != 0) { return 10; }
