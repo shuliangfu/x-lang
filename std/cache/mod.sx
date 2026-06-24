@@ -5,7 +5,7 @@
 // acquire/release/health；命中率/池统计；供 sqlite/net 等上层复用。
 //
 // 【对标】Go groupcache 子集、Java Caffeine 最小路径、HikariCP 池语义简化版。
-// 单调时钟在 cache.c 中链入 std/time/time.o。
+// 单调时钟经 cache.sx extern time_now_monotonic_ns_c；C 烟测链 std/time/time.o。
 
 /** LRU 缓存句柄。 */
 allow(padding) struct LruCache {
