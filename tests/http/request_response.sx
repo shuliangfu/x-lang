@@ -7,7 +7,7 @@ function main(): i32 {
   if (http.response_parse_smoke() != 0) { return 1; }
   if (http.response_body_owned_smoke() != 0) { return 2; }
 
-  let line: [48]u8 = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
+  let line: u8[48] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
     67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 52, 13, 10, 13, 10,
     116, 101, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0];
   let resp: HttpResponse = HttpResponse { status: 0, raw_len: 0, header_end: 0, body_len: 0, chunked: 0 };
@@ -27,10 +27,10 @@ function main(): i32 {
   if (owned.len != 4) { return 10; }
   http.body_owned_free(owned);
 
-  let url: [32]u8 = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
+  let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
     109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let req: HttpRequest = HttpRequest { method: method_from_u8(2), url: &url[0], url_len: 19, body: 0, body_len: 0, timeout_ms: 0 };
-  let out: [4096]u8 = [];
+  let out: u8[4096] = [];
   let got: i32 = http.execute(req, &out[0], 4096, &resp);
   if (got >= 0) {
     if (resp.status < 100 || resp.status > 599) { return 11; }
@@ -39,7 +39,7 @@ function main(): i32 {
   let bg: Context = context.background();
   let cancelled: Context = context.with_cancel(bg);
   context.cancel(cancelled);
-  let short_url: [11]u8 = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
+  let short_url: u8[11] = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
   let req2: HttpRequest = HttpRequest { method: method_from_u8(0), url: &short_url[0], url_len: 10, body: 0, body_len: 0, timeout_ms: 0 };
   if (http.execute_ctx(req2, &out[0], 4096, &resp, cancelled) != err.http_err_cancelled()) { return 12; }
   context.free(cancelled);
