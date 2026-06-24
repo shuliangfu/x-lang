@@ -35,14 +35,14 @@ function histogram_default_bucket_count(): i32 { return 5; }
 allow(padding) struct Label {
   key_len: i32;
   val_len: i32;
-  key: [32]u8;
-  val: [32]u8;
+  key: u8[32];
+  val: u8[32];
 }
 
 /** 计数器：只增不减。 */
 allow(padding) struct Counter {
   name_len: i32;
-  name: [48]u8;
+  name: u8[48];
   label: Label;
   value: i64;
 }
@@ -50,7 +50,7 @@ allow(padding) struct Counter {
 /** 仪表盘：可 set/add。 */
 allow(padding) struct Gauge {
   name_len: i32;
-  name: [48]u8;
+  name: u8[48];
   label: Label;
   value: i64;
 }
@@ -58,11 +58,11 @@ allow(padding) struct Gauge {
 /** 直方图：固定 5 桶 + sum/count。 */
 allow(padding) struct Histogram {
   name_len: i32;
-  name: [48]u8;
+  name: u8[48];
   label: Label;
   bucket_count: i32;
-  bucket_upper: [5]i64;
-  bucket_counts: [5]i64;
+  bucket_upper: i64[5];
+  bucket_counts: i64[5];
   sum: i64;
   count: i64;
 }
@@ -286,7 +286,7 @@ function metrics_append_slice(out: *u8, cap: i32, off: i32, src: *u8, n: i32): i
 
 /** 追加单字节；返回新 offset，失败 -1。 */
 function metrics_append_byte(out: *u8, cap: i32, off: i32, b: u8): i32 {
-  let tmp: [1]u8 = [0];
+  let tmp: u8[1] = [0];
   tmp[0] = b;
   return metrics_append_slice(out, cap, off, &tmp[0], 1);
 }
@@ -360,11 +360,11 @@ function export_histogram_prometheus(h: *Histogram, out: *u8, cap: i32, off: i32
   let o: i32 = off;
   let i: i32 = 0;
   let cum: i64 = 0;
-  let suffix: [7]u8 = [95, 98, 117, 99, 107, 101, 116];
-  let lek: [3]u8 = [108, 101, 61];
-  let inf: [4]u8 = [43, 73, 110, 102];
-  let sum_s: [4]u8 = [95, 115, 117, 109];
-  let cnt_s: [6]u8 = [95, 99, 111, 117, 110, 116];
+  let suffix: u8[7] = [95, 98, 117, 99, 107, 101, 116];
+  let lek: u8[3] = [108, 101, 61];
+  let inf: u8[4] = [43, 73, 110, 102];
+  let sum_s: u8[4] = [95, 115, 117, 109];
+  let cnt_s: u8[6] = [95, 99, 111, 117, 110, 116];
   if (h == 0) { return off; }
   while (i < h.bucket_count) {
     cum = cum + h.bucket_counts[i];
@@ -466,8 +466,8 @@ allow(padding) struct ObservabilityCtx {
   span_id: i64;
   trace_id_len: i32;
   span_id_len: i32;
-  trace_id_hex: [33]u8;
-  span_id_hex: [17]u8;
+  trace_id_hex: u8[33];
+  span_id_hex: u8[17];
 }
 
 /** Context value bag 键 "trace"（与 std.trace.attach_to_context 一致）。 */
@@ -478,13 +478,13 @@ function obs_ctx_key_span_len(): i32 { return 4; }
 
 /** 写入 trace 键到 buf；返回写入长度。 */
 function obs_ctx_write_key_trace(buf: *u8, cap: i32): i32 {
-  let k: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let k: u8[6] = [116, 114, 97, 99, 101, 0];
   return metrics_copy_bytes(buf, cap, &k[0], 5);
 }
 
 /** 写入 span 键到 buf；返回写入长度。 */
 function obs_ctx_write_key_span(buf: *u8, cap: i32): i32 {
-  let k: [5]u8 = [115, 112, 97, 110, 0];
+  let k: u8[5] = [115, 112, 97, 110, 0];
   return metrics_copy_bytes(buf, cap, &k[0], 4);
 }
 
@@ -544,8 +544,8 @@ function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
 /** 将观测上下文写入 Context value bag（trace 句柄 + span_id）。 */
 function obs_ctx_attach_context(ctx: Context, obs: ObservabilityCtx): i32 {
   let zero: i64 = 0;
-  let ktrace: [8]u8 = [];
-  let kspan: [8]u8 = [];
+  let ktrace: u8[8] = [];
+  let kspan: u8[8] = [];
   if (obs.trace_handle == zero) { return metrics_err_not_found(); }
   if (obs_ctx_write_key_trace(&ktrace[0], 8) < 0) { return metrics_err_buffer(); }
   if (obs_ctx_write_key_span(&kspan[0], 8) < 0) { return metrics_err_buffer(); }
@@ -561,8 +561,8 @@ function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx {
   let h: i64 = zero;
   let sid: i64 = zero;
   let tid: TraceId = TraceId { bytes: [] };
-  let ktrace: [8]u8 = [];
-  let kspan: [8]u8 = [];
+  let ktrace: u8[8] = [];
+  let kspan: u8[8] = [];
   if (obs_ctx_write_key_trace(&ktrace[0], 8) < 0) { return obs; }
   if (obs_ctx_write_key_span(&kspan[0], 8) < 0) { return obs; }
   if (context.get_value(ctx, &ktrace[0], &h) == 0) { return obs; }
@@ -582,9 +582,9 @@ function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx {
  * 可直接传入 std.log.log_structured_kv 的 kv 参数。
  */
 function obs_ctx_format_log_kv(obs: *ObservabilityCtx, out: *u8, out_cap: i32): i32 {
-  let tk: [9]u8 = [116, 114, 97, 99, 101, 95, 105, 100, 61];
-  let sk: [9]u8 = [115, 112, 97, 110, 95, 105, 100, 61];
-  let sp: [1]u8 = [32];
+  let tk: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 61];
+  let sk: u8[9] = [115, 112, 97, 110, 95, 105, 100, 61];
+  let sp: u8[1] = [32];
   let o: i32 = 0;
   if (obs == 0 || out == 0 || out_cap <= 0) { return metrics_err_buffer(); }
   if (obs.trace_id_len <= 0 || obs.span_id_len <= 0) { return metrics_err_not_found(); }
@@ -608,7 +608,7 @@ function obs_ctx_format_log_kv(obs: *ObservabilityCtx, out: *u8, out_cap: i32): 
  * 高基数场景慎用；v1 用于 log/metrics/trace 字段对齐演示。
  */
 function obs_ctx_apply_trace_label(obs: *ObservabilityCtx, lbl: *Label): i32 {
-  let k: [9]u8 = [116, 114, 97, 99, 101, 95, 105, 100, 0];
+  let k: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 0];
   let vlen: i32 = 0;
   if (obs == 0 || lbl == 0 || obs.trace_id_len <= 0) { return metrics_err_not_found(); }
   vlen = obs.trace_id_len;
