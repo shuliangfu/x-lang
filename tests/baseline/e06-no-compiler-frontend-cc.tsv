@@ -1,0 +1,22 @@
+# E-06 v1/v2 bootstrap 禁 cc -c 编译器前端 C（manifest）
+# 列：track_id	layer	anchor	check_type	notes
+e06_v3_doc	doc	analysis/phase-e-e06-v3.md	grep	E-06 v3
+e06_v3_strict_sx	script	compiler/scripts/build_shux_asm.sh	grep	asm_seed_st_async_support_link
+e06_v2_doc	doc	analysis/phase-e-e06-v2.md	grep	E-06 v2
+e06_doc	doc	analysis/phase-e-e06-v1.md	grep	E-06 v1
+e06_gate	gate	tests/run-e06-no-compiler-frontend-cc-gate.sh	gate_ref	n/a
+e06_v5_doc	doc	analysis/phase-e-e06-v5.md	grep	E-06 v5
+e06_v5_msys	script	compiler/scripts/build_shux_asm.sh	grep	build_shux_asm_is_msys
+e06_v5_make	makefile	compiler/Makefile	grep	bootstrap-driver-bstrict
+e06_v5_win_gate	gate	tests/run-bootstrap-bstrict-windows-gate.sh	grep	SHUX_WIN_BSTRICT
+e06_c03_v2	doc	analysis/phase-c-c03-v2.md	grep	C-03 v2
+e06_c03_delegate	gate	tests/run-c03-no-pipeline-gen-gate.sh	gate_ref	pipeline_gen.c
+e06_c06_delegate	gate	tests/run-c06-sx-frontend-default-gate.sh	gate_ref	DRIVER_SEED no C frontend
+bstrict_skip_gen	makefile	bootstrap-driver-bstrict	grep	SHUX_ASM_EXPERIMENTAL_SKIP_GEN
+build_asm_script	script	compiler/scripts/build_shux_asm.sh	grep	asm_seed_use_sx_frontend
+seed_sx_skip	script	compiler/scripts/build_shux_asm.sh	grep	E-06 v2/v4.*skip frontend cc
+e06_v4_doc	doc	analysis/phase-e-e06-v4.md	grep	E-06 v4
+e06_v4_omit	script	compiler/scripts/build_shux_asm.sh	grep	asm_seed_omit_c_frontend_seed
+e06_v4_gen_driver	script	compiler/scripts/build_shux_asm.sh	grep	asm_seed_gen_driver_c_frontend_link
+bstrict_ci	gate	tests/run-bootstrap-bstrict-ci.sh	grep	E-06 post-build audit
+e03_v3_seed_track	gate	tests/run-e03-v3-coldstart-track-gate.sh	gate_ref	asm_driver_seed track
