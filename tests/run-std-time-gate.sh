@@ -11,8 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
 MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
-MOD_SU="${SHUX_STD_TIME_MOD:-std/time/mod.sx}"
-TIME_C="${SHUX_STD_TIME_C:-std/time/time.c}"
+MOD_SX="${SHUX_STD_TIME_MOD:-std/time/mod.sx}"
+TIME_RUNTIME="compiler/src/asm/runtime_time_os.c"
+TIME_SX="std/time/time.sx"
 MIN_APIS=13
 
 # shellcheck source=tests/lib/std-time.sh
@@ -31,7 +32,7 @@ native_shu() {
 }
 
 echo "=== STD-005: std.time precision manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SU" "$TIME_C"; do
+for f in "$DOC" "$MANIFEST" "$MOD_SX" "$TIME_RUNTIME" "$TIME_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-time gate FAIL: missing $f" >&2
     exit 1
@@ -60,8 +61,8 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_time_has_api "$MOD_SU" "$anchor"; then
-        echo "std-time FAIL: missing API ${anchor} in $MOD_SU" >&2
+      if ! std_time_has_api "$MOD_SX" "$anchor"; then
+        echo "std-time FAIL: missing API ${anchor} in $MOD_SX" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
         echo "std-time FAIL: doc missing API $anchor" >&2
@@ -107,8 +108,8 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-if ! grep -q '_WIN32' "$TIME_C" 2>/dev/null || ! grep -q 'CLOCK_MONOTONIC' "$TIME_C" 2>/dev/null; then
-  echo "std-time gate FAIL: time.c missing platform branches" >&2
+if ! grep -q '_WIN32' "$TIME_RUNTIME" 2>/dev/null || ! grep -q 'CLOCK_MONOTONIC' "$TIME_RUNTIME" 2>/dev/null; then
+  echo "std-time gate FAIL: runtime_time_os.c missing platform branches" >&2
   exit 1
 fi
 
