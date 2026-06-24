@@ -29,14 +29,14 @@
 | `config_source_*` | 0=unknown, 1=toml, 2=yaml, 3=env, 4=set（`config_source_toml` 等） |
 | `config_err_*` | 0 / -1..-5 |
 
-实现：`std/config/mod.sx` + `std/config/config.c`；ENV 遍历依赖 `std/env/env.o`。
+实现：`std/config/mod.sx` + `config.sx`（F-config v2 逻辑）+ `config_io_glue.c`（文件 IO）；ENV 遍历依赖 `std/env/env.o`。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CONFIG] status=ok c_smoke=1 su=1 skip=0
+shux: [SHUX_STD_CONFIG] status=ok c_smoke=1 sx=1 skip=0
 std-config gate OK
 ```
 
