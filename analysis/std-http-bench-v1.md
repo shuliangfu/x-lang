@@ -30,7 +30,7 @@
 2. `respond_get_ok(client_fd, body, body_len)`
 3. `close_stream`
 
-实现：`http_respond_get_ok_c` in `std/http/http.c`。
+实现：`http_respond_get_ok_c` in `std/http/http_glue.c`。
 
 与 STD-002 一致：socket 生命周期由 **std.net** 管理；本模块只构造/解析 HTTP 报文。
 
