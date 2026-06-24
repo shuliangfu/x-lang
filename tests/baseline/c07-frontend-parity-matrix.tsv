@@ -1,0 +1,9 @@
+# C-07 前端 parity 矩阵（shux-c REF vs shux/shux_asm CAND）
+# 列：case_id<TAB>src<TAB>policy<TAB>expect_run_exit<TAB>notes
+# policy: typeck_ok | compile_fail | run（run 需完整链接环境，默认 CI 用 typeck_ok）
+minimal_ret42	tests/c07/minimal_return42.sx	typeck_ok	42	return 42
+minimal_add12	tests/c07/minimal_add12.sx	typeck_ok	3	1+2
+minimal_paren9	tests/c07/minimal_paren9.sx	typeck_ok	9	(1+2)*3
+minimal_two_funcs	tests/c07/minimal_two_funcs.sx	typeck_ok	0	two functions
+type_mismatch	tests/typeck/type_mismatch_assign.sx	compile_fail	-	assign type mismatch
+return_implicit	tests/typeck/return_implicit.sx	compile_fail	-	implicit return error
