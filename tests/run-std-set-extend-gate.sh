@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_SET_EXTEND_DOC:-analysis/std-set-extend-v1.md}"
 MANIFEST="${SHUX_STD_SET_EXTEND_TSV:-tests/baseline/std-set-extend.tsv}"
-SET_SU="std/set/mod.sx"
+SET_SX="std/set/mod.sx"
 LIB="tests/lib/std-set-extend.sh"
 SMOKE="tests/set/extend.sx"
 
@@ -15,7 +15,7 @@ SMOKE="tests/set/extend.sx"
 . tests/lib/std-set-extend.sh
 
 echo "=== STD-015: set extend manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$SET_SU" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$SET_SX" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "std-set-extend gate FAIL: missing $f" >&2
     exit 1
@@ -29,7 +29,7 @@ for kw in Set_u64 Set_str hash_bytes set_str_key_cap; do
   fi
 done
 
-sym_miss="$(std_set_extend_symbols_ok "$SET_SU" "$MANIFEST" || true)"
+sym_miss="$(std_set_extend_symbols_ok "$SET_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_set_extend_emit_report "fail" 0 0 0
   echo "std-set-extend gate FAIL: symbol_miss=${sym_miss}" >&2
