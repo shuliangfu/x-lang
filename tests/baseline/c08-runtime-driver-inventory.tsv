@@ -1,0 +1,12 @@
+# C-08 runtime/driver 迁移盘点（manifest）
+# 列：item_id	layer	file	symbol_or_region	notes
+main_entry	sx	main.sx	entry()→main_entry	程序入口（C main 转发）
+driver_fmt	sx	driver/fmt.sx	cmd_fmt	委托 driver_run_fmt C
+driver_check	sx	driver/check.sx	cmd_check	fmt/check 子命令
+driver_build	sx	driver/build.sx	cmd_build	build 子命令
+driver_run	sx	driver/run.sx	cmd_run	run 子命令
+driver_emit	sx	driver/emit.sx	cmd_emit	-E 烟测路径
+build_policy	sx	build.sx	build_use_asm_only	根构建策略
+runtime_driver	c	runtime.c	SHUX_USE_SX_DRIVER	.sx 驱动宏分区
+runtime_pipeline	c	runtime.c	driver_run_compiler_full	asm 链编排仍 C
+runtime_fopen_track	c	runtime.c	fopen(out_path	asm -o 写产物（B-20 track）
