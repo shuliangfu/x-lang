@@ -2,9 +2,11 @@
 # std-crypto-aes-gcm.sh — STD-049 manifest 与烟测辅助
 
 STD_CRYPTO_AES_GCM_PREFIX="${SHUX_STD_CRYPTO_AES_GCM_PREFIX:-shux: [SHUX_STD_CRYPTO_AES_GCM]}"
+# shellcheck source=tests/lib/std-crypto.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
 
 std_crypto_aes_gcm_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local crypto_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,26 +16,22 @@ std_crypto_aes_gcm_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-crypto-aes-gcm FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-crypto-aes-gcm FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
-        case "$mod_path" in
-          std/crypto/crypto.c) mod_path="$crypto_c" ;;
-          std/crypto/aes_gcm.inc.c)
-            mod_path="$(dirname "$crypto_c")/aes_gcm.inc.c"
-            ;;
-        esac
-        if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
-          echo "std-crypto-aes-gcm FAIL: missing '$anchor' in $mod_path" >&2
+        local path
+        path="$(std_crypto_resolve_impl_path "$mod_path")"
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-crypto-aes-gcm FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
