@@ -9,7 +9,7 @@ function main(): i32 {
   if (ch0 == 0 || ch1 == 0 || ch2 == 0) {
     return 0;
   }
-  let slots: [4]i64 = [];
+  let slots: i64[4] = [];
   channel_select_chs_set(&slots[0], 0, ch0);
   channel_select_chs_set(&slots[0], 1, ch1);
   channel_select_chs_set(&slots[0], 2, ch2);
