@@ -26,7 +26,7 @@
 | **D1-o0-no-strip** | 构建 | `-O 0` 链接后**不**执行 `strip` | `invoke_cc` 阶段 8 |
 | **D2-o0-no-ndebug** | 构建 | `-O 0` 不传 `-DNDEBUG` | `invoke_cc` |
 | **D3-symtab-main** | 符号 | `-O 0` 产物 `nm` 可见 `main` | cc 默认 symtab |
-| **D4-backtrace-capture** | 堆栈（stack） | `std.backtrace.capture` 可返回 ≥1 帧（支持平台） | `backtrace.c` |
+| **D4-backtrace-capture** | 堆栈（stack） | `std.backtrace.capture` 可返回 ≥1 帧（支持平台） | `backtrace_glue.c` |
 | **D5-ast-line-col** | 源码映射 | AST 节点带 `line`/`col`（LSP 断点/definition） | `lsp_ensure_module` |
 | **D6-release-strip** | 发布 | `-O 2` 默认 `strip` 减小体积 | `invoke_cc` |
 
