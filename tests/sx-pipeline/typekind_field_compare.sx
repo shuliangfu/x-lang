@@ -1,5 +1,5 @@
 /*
-* SU 流水线 typeck：`struct.field == Enum.VAR`，与 codegen.sx/typeck.sx 中 `ty.kind ==
+* SX 流水线 typeck：`struct.field == Enum.VAR`，与 codegen.sx/typeck.sx 中 `ty.kind ==
 * * * * * TypeKind.TYPE_*` 同形态。
 * * * * * * 无 import ast，仅用本地 enum/struct（run-sx-pipeline 风格 -sx -E）。
 */
