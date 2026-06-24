@@ -33,6 +33,21 @@ extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: 
 /** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
 extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
+/** freestanding socket(2) 桩（x86_64 syscall 41）。 */
+extern function shux_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
+
+/** freestanding connect(2) 桩（syscall 42）。 */
+extern function shux_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
+
+/** freestanding accept(2) 桩（syscall 43）。 */
+extern function shux_sys_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32;
+
+/** freestanding bind(2) 桩（syscall 49）。 */
+extern function shux_sys_bind(sockfd: i32, addr: *u8, addrlen: i32): i32;
+
+/** freestanding listen(2) 桩（syscall 50）。 */
+extern function shux_sys_listen(sockfd: i32, backlog: i32): i32;
+
 // --- x86_64（System V AMD64 ABI：rax=nr, rdi/rsi/rdx/...=args）---
 
 /** Linux x86_64 read(2) 系统调用号。 */
@@ -119,7 +134,7 @@ function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
     return 0;
   }
-  if (buf == 0 as *u8) {
+  if (buf == 0) {
     return -1;
   }
   return shux_sys_read(fd, buf, len);
@@ -139,7 +154,7 @@ function linux_syscall_write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
     return 0;
   }
-  if (buf == 0 as *u8) {
+  if (buf == 0) {
     return -1;
   }
   return shux_sys_write(fd, buf, len);
@@ -174,7 +189,7 @@ const LINUX_PROT_WRITE: i32 = 2;
  * Linux openat(2) freestanding 薄封装。
  */
 function linux_syscall_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32 {
-  if (path == 0 as *u8) {
+  if (path == 0) {
     return -1;
   }
   return shux_sys_openat(dirfd, path, flags, mode);
@@ -185,7 +200,7 @@ function linux_syscall_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32
  */
 function linux_anonymous_mmap(len: usize, prot: i32, flags: i32): *u8 {
   if (len == 0) {
-    return 0 as *u8;
+    return 0;
   }
   return shux_sys_mmap(0 as *u8, len, prot, flags, -1, 0 as i64);
 }
@@ -194,7 +209,7 @@ function linux_anonymous_mmap(len: usize, prot: i32, flags: i32): *u8 {
  * Linux munmap(2) freestanding 薄封装。
  */
 function linux_syscall_munmap(addr: *u8, len: usize): i32 {
-  if (addr == 0 as *u8 || len == 0) {
+  if (addr == 0 || len == 0) {
     return -1;
   }
   return shux_sys_munmap(addr, len);
@@ -204,7 +219,7 @@ function linux_syscall_munmap(addr: *u8, len: usize): i32 {
  * B-14 v3：openat + 循环 read 读文件到 buf[0..cap)（与 linux_read_file_into 等价语义）。
  */
 function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32): i32 {
-  if (path == 0 as *u8 || buf == 0 as *u8 || cap <= 0) {
+  if (path == 0 || buf == 0 || cap <= 0) {
     return -1;
   }
   let fd: i32 = shux_sys_openat(dirfd, path, LINUX_O_RDONLY, 0);
@@ -233,7 +248,7 @@ function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32): i32 
  * Linux open(2) freestanding 薄封装。
  */
 function linux_syscall_open(path: *u8, flags: i32, mode: i32): i32 {
-  if (path == 0 as *u8) {
+  if (path == 0) {
     return -1;
   }
   return shux_sys_open(path, flags, mode);
@@ -244,7 +259,7 @@ function linux_syscall_open(path: *u8, flags: i32, mode: i32): i32 {
  * 成功返回读入字节数；失败返回 -1。
  */
 function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
-  if (path == 0 as *u8 || buf == 0 as *u8 || cap <= 0) {
+  if (path == 0 || buf == 0 || cap <= 0) {
     return -1;
   }
   let fd: i32 = shux_sys_open(path, LINUX_O_RDONLY, 0);
@@ -267,4 +282,144 @@ function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   }
   linux_syscall_close(fd);
   return total;
+}
+
+/** AF_INET（IPv4）。 */
+const LINUX_AF_INET: i32 = 2;
+
+/** SOCK_STREAM（TCP）。 */
+const LINUX_SOCK_STREAM: i32 = 1;
+
+/** SOCK_DGRAM（UDP）。 */
+const LINUX_SOCK_DGRAM: i32 = 2;
+
+/**
+ * Linux socket(2) freestanding 薄封装。
+ */
+function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32): i32 {
+  return shux_sys_socket(domain, sock_type, protocol);
+}
+
+/**
+ * Linux connect(2) freestanding 薄封装。
+ */
+function linux_syscall_connect(sockfd: i32, addr: *u8, addrlen: i32): i32 {
+  if (addr == 0 || addrlen <= 0) {
+    return -1;
+  }
+  return shux_sys_connect(sockfd, addr, addrlen);
+}
+
+/**
+ * Linux bind(2) freestanding 薄封装。
+ */
+function linux_syscall_bind(sockfd: i32, addr: *u8, addrlen: i32): i32 {
+  if (addr == 0 || addrlen <= 0) {
+    return -1;
+  }
+  return shux_sys_bind(sockfd, addr, addrlen);
+}
+
+/**
+ * Linux listen(2) freestanding 薄封装。
+ */
+function linux_syscall_listen(sockfd: i32, backlog: i32): i32 {
+  return shux_sys_listen(sockfd, backlog);
+}
+
+/**
+ * Linux accept(2) freestanding 薄封装。
+ */
+function linux_syscall_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32 {
+  return shux_sys_accept(sockfd, addr, addrlen);
+}
+
+/** Linux open(2) O_RDWR。 */
+const LINUX_O_RDWR: i32 = 2;
+
+/** Linux open(2) O_CREAT。 */
+const LINUX_O_CREAT: i32 = 64;
+
+/** mmap(2) MAP_SHARED。 */
+const LINUX_MAP_SHARED: i32 = 1;
+
+/** lseek(2) SEEK_END。 */
+const LINUX_SEEK_END: i32 = 2;
+
+/** msync(2) MS_SYNC。 */
+const LINUX_MS_SYNC: i32 = 4;
+
+/** open(2) O_CREAT 默认 mode 0644。 */
+const LINUX_OPEN_MODE_0644: i32 = 420;
+
+/** Hosted Linux：libc open/ftruncate/lseek/mmap（常规 -o exe 链 libc；F-02 v1 替代 mmap.inc.c）。 */
+extern function open(path: *u8, flags: i32, mode: i32): i32;
+extern function close(fd: i32): i32;
+extern function lseek(fd: i32, offset: i64, whence: i32): i64;
+extern function ftruncate(fd: i32, length: i64): i32;
+extern function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern function munmap(addr: *u8, len: usize): i32;
+extern function msync(addr: *u8, len: usize, flags: i32): i32;
+
+/**
+ * F-02 v1：文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap；无 mmap.inc.c）。
+ * path NUL 结尾；不足 min_size 时扩展文件；*out_size 写回映射字节数。
+ */
+function linux_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+  if (path == 0 || out_size == 0 || min_size == 0) {
+    return 0;
+  }
+  let flags: i32 = LINUX_O_RDWR | LINUX_O_CREAT;
+  let fd: i32 = open(path, flags, LINUX_OPEN_MODE_0644);
+  if (fd < 0) {
+    return 0;
+  }
+  let cur: i64 = lseek(fd, 0 as i64, LINUX_SEEK_END);
+  if (cur < 0) {
+    close(fd);
+    return 0;
+  }
+  let len: usize = cur as usize;
+  if (len < min_size) {
+    if (ftruncate(fd, min_size as i64) != 0) {
+      close(fd);
+      return 0;
+    }
+    len = min_size;
+  }
+  let prot: i32 = LINUX_PROT_READ | LINUX_PROT_WRITE;
+  let p: *u8 = mmap(0 as *u8, len, prot, LINUX_MAP_SHARED, fd, 0 as i64);
+  close(fd);
+  let p_i: i64 = p as i64;
+  if (p_i <= 0) {
+    return 0;
+  }
+  out_size[0] = len;
+  return p;
+}
+
+/** 解除 libc mmap；0 成功，-1 失败（F-02 v1 文件映射路径）。 */
+function linux_munmap(addr: *u8, len: usize): i32 {
+  if (addr == 0 || len == 0) {
+    return -1;
+  }
+  return munmap(addr, len);
+}
+
+/** msync 刷盘（MS_SYNC）；0 成功，-1 失败。 */
+function linux_msync_sync(addr: *u8, len: usize): i32 {
+  if (addr == 0 || len == 0) {
+    return -1;
+  }
+  return msync(addr, len, LINUX_MS_SYNC);
+}
+
+/** F-02 v1 探测：Linux 文件 mmap 是否在子模块导出（恒 1）。 */
+function linux_mmap_file_available(): i32 {
+  return 1;
+}
+
+/** 模块尾占位：transitive import 解析锚点。 */
+function linux_sys_module_anchor(): i32 {
+  return 0;
 }
