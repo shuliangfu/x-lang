@@ -25,9 +25,9 @@ function main(): i32 {
   if (s1 != 1 || s2 != 3) { return 5; }
   if (s3 != http.http2_err_max_streams()) { return 6; }
 
-  let frame: [512]u8 = [];
-  let host: [12]u8 = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
-  let path: [3]u8 = [47, 97, 0];
+  let frame: u8[512] = [];
+  let host: u8[12] = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
+  let path: u8[3] = [47, 97, 0];
   if (http.http2_multistream_client_build_get(&cli, 1, &host[0], 11, &path[0], 2, &frame[0], 512) <= 0) { return 7; }
 
   return 0;
