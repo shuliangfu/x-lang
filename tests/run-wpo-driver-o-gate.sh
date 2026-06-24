@@ -26,8 +26,8 @@ TXT=$(wpo_ab_text_bytes "$DRIVER_O") || {
   exit 1
 }
 
-if ! nm "$DRIVER_O" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_su|entry)$'; then
-  echo "run-wpo-driver-o-gate FAIL: $DRIVER_O missing WPO export (compile_dispatch_asm_backend/run_compiler_full_su/entry)" >&2
+if ! nm "$DRIVER_O" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_sx|entry)$'; then
+  echo "run-wpo-driver-o-gate FAIL: $DRIVER_O missing WPO export (compile_dispatch_asm_backend/run_compiler_full_sx/entry)" >&2
   exit 1
 fi
 
