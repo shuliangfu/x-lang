@@ -14,9 +14,9 @@ api_unlock	api	sensitive_unlock	std/security/mod.sx	munlock
 api_buf_init	api	sensitive_buf_init	std/security/mod.sx	缓冲
 api_buf_wipe	api	sensitive_buf_wipe	std/security/mod.sx	释放
 api_err	api	security_err_ok	std/security/mod.sx	错误码
-symbol_smoke	symbol	security_smoke_c	std/security/security.c	C烟测
-impl_c	file	std/security/security.c	std/security/security.c
-smoke_su	smoke	tests/std-security/roundtrip.sx	.su烟测
+symbol_smoke	symbol	security_smoke_c	std/security/security.sx	C烟测
+impl_sx	file	std/security/security.sx	std/security/security.sx
+smoke_sx	smoke	tests/std-security/roundtrip.sx	.sx烟测
 vectors	file	tests/baseline/std-security-vectors.tsv	向量
 lib	script	lib/std-security.sh	tests/lib/std-security.sh
 gate	script	run-std-security-gate.sh	tests/run-std-security-gate.sh
