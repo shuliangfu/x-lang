@@ -18,7 +18,7 @@ function main(): i32 {
   if (types.size_of<Pair>() != 8) { return 6; }
   if (types.align_of<Pair>() != 4) { return 7; }
   // 定长数组
-  if (types.size_of<[4]u8>() != 4) { return 8; }
-  if (types.align_of<[4]u8>() != 1) { return 9; }
+  if (types.size_of<u8[4]>() != 4) { return 8; }
+  if (types.align_of<u8[4]>() != 1) { return 9; }
   return 0;
 }
