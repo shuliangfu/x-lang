@@ -61,7 +61,7 @@ fi
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/string/string.o
-ensure_std_c_o ../std/heap/heap.o
+# F-03 v2：heap 已纯 .sx，不再 ensure heap.o
 
 rm -f "$BENCH_EXE"
 
