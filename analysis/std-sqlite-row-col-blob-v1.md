@@ -46,7 +46,7 @@
 ```
 
 ```
-shux: [SHUX_STD069_DB_BLOB_COL] status=ok blob_c=1 blob_su=0 skip=1
+shux: [SHUX_STD069_DB_BLOB_COL] status=ok blob_c=1 blob_sx=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。
