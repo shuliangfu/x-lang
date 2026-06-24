@@ -75,3 +75,48 @@ shux_sys_munmap:
 	syscall
 	ret
 	.size	shux_sys_munmap, .-shux_sys_munmap
+
+	.globl	shux_sys_socket
+	.type	shux_sys_socket, @function
+shux_sys_socket:
+	mov	%edi, %edi
+	mov	$41, %eax
+	syscall
+	ret
+	.size	shux_sys_socket, .-shux_sys_socket
+
+	.globl	shux_sys_connect
+	.type	shux_sys_connect, @function
+shux_sys_connect:
+	mov	%edi, %edi
+	mov	$42, %eax
+	syscall
+	ret
+	.size	shux_sys_connect, .-shux_sys_connect
+
+	.globl	shux_sys_accept
+	.type	shux_sys_accept, @function
+shux_sys_accept:
+	mov	%edi, %edi
+	mov	$43, %eax
+	syscall
+	ret
+	.size	shux_sys_accept, .-shux_sys_accept
+
+	.globl	shux_sys_bind
+	.type	shux_sys_bind, @function
+shux_sys_bind:
+	mov	%edi, %edi
+	mov	$49, %eax
+	syscall
+	ret
+	.size	shux_sys_bind, .-shux_sys_bind
+
+	.globl	shux_sys_listen
+	.type	shux_sys_listen, @function
+shux_sys_listen:
+	mov	%edi, %edi
+	mov	$50, %eax
+	syscall
+	ret
+	.size	shux_sys_listen, .-shux_sys_listen
