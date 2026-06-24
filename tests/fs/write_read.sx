@@ -3,10 +3,10 @@
 const fs = import("std.fs");
 
 function main(): i32 {
-  let path: [16]u8 = [47, 116, 109, 112, 47, 102, 115, 116, 101, 115, 116, 0, 0, 0, 0, 0];
+  let path: u8[16] = [47, 116, 109, 112, 47, 102, 115, 116, 101, 115, 116, 0, 0, 0, 0, 0];
   let fd_w: i32 = fs.fs_open_write(&path[0]);
   if (fd_w < 0) { return 1; }
-  let buf: [8]u8 = [72, 105, 32, 102, 115, 10, 0, 0];
+  let buf: u8[8] = [72, 105, 32, 102, 115, 10, 0, 0];
   let n: isize = fs.fs_write(fd_w, &buf[0], 6);
   fs.fs_close(fd_w);
   if (n != 6) { return 2; }
