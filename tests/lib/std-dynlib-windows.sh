@@ -2,7 +2,7 @@
 # std-dynlib-windows.sh — STD-027：dynlib Windows/POSIX manifest 辅助
 #
 # 用法（source 后）：
-#   std_dynlib_win_manifest_ok DOC DYNLIB_C MOD_SU TSV
+#   std_dynlib_win_manifest_ok DOC DYNLIB_C MOD_SX TSV
 #   std_dynlib_win_emit_report status check_ok run_ok skip
 
 STD_DYNLIB_WIN_PREFIX="${SHUX_STD_DYNLIB_WIN_PREFIX:-shux: [SHUX_STD_DYNLIB_WIN]}"
@@ -11,7 +11,7 @@ STD_DYNLIB_WIN_PREFIX="${SHUX_STD_DYNLIB_WIN_PREFIX:-shux: [SHUX_STD_DYNLIB_WIN]
 std_dynlib_win_manifest_ok() {
   local doc="$1"
   local dynlib_c="$2"
-  local mod_su="$3"
+  local mod_sx="$3"
   local tsv="$4"
   local miss=0
   local item_id kind doc_anchor code_anchor src _notes
@@ -21,13 +21,13 @@ std_dynlib_win_manifest_ok() {
     case "$kind" in
       code)
         if ! grep -qF "$code_anchor" "$dynlib_c" 2>/dev/null; then
-          echo "std-dynlib-windows FAIL: dynlib.c missing '$code_anchor' ($item_id)" >&2
+          echo "std-dynlib-windows FAIL: runtime_dynlib_os.c missing '$code_anchor' ($item_id)" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
-        if ! grep -qE "function ${code_anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-dynlib-windows FAIL: missing function ${code_anchor} in $mod_su" >&2
+        if ! grep -qE "function ${code_anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-dynlib-windows FAIL: missing function ${code_anchor} in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
