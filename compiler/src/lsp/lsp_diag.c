@@ -362,7 +362,7 @@ void *lsp_diag_sx_module_ptr(void) {
     return p;
 }
 
-/** 返回 LSP SU pipeline 用的 PipelineDepCtx 分配尺寸。 */
+/** 返回 LSP SX pipeline 用的 PipelineDepCtx 分配尺寸。 */
 static size_t lsp_diag_sx_ctx_alloc_size(void) {
     size_t sz = lsp_diag_sx_alloc_dep_ctx_size();
     if (sz > lsp_diag_pipeline_sizeof_dep_ctx())
@@ -2809,7 +2809,7 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
 }
 
 /** shux fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
-int shu_format_su_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+int shu_format_sx_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     return lsp_format_document(doc, doc_len, 2, 1, 100, 1, 1, 1, out_buf, out_cap);
 }
 
