@@ -1,0 +1,4 @@
+# P0-4 i64/CTFE 回归 manifest（与 run-i64-ctfe-gate.sh 同步）
+# columns: id	kind	path	notes
+min_cases	6	6	at least one runnable case
+case_i64_min	smoke	tests/typeck/ctfe/i64_min_not_zero.sx	INT64_MIN fold must not equal zero at runtime
