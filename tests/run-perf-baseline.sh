@@ -18,7 +18,7 @@ if [ -x ./compiler/shux-c ]; then
   PERF_COMPILE_SHUX=./compiler/shux-c
 fi
 
-PERF_SU="tests/perf-baseline/main.sx"
+PERF_SX="tests/perf-baseline/main.sx"
 OUT="/tmp/shux_perf_baseline"
 RUNS=${SHUX_PERF_BASELINE_RUNS:-3}
 [ "${SHUX_PERF_FAIL_ON_C_O3:-0}" = "1" ] && RUNS=${SHUX_PERF_BASELINE_RUNS:-9}
@@ -44,11 +44,11 @@ bcmp_cc_o3() {
 
 # B-CMP：用 Shu 生成 .c 再最小 cc 链（与 C 参照同级，避免全量 std 链干扰 microbench）。
 bcmp_compile_shu_codegen() {
-  local su="$1"
+  local sx="$1"
   local out="$2"
   local tag="$3"
   local gen_c="/tmp/bench_shu_gen_${tag}.c"
-  SHUX_DEBUG_C=1 "$PERF_COMPILE_SHUX" -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_link_${tag}" >/dev/null 2>&1 || return 1
+  SHUX_DEBUG_C=1 "$PERF_COMPILE_SHUX" -O "$SHUX_BENCH_OPT" "$sx" -o "/tmp/bench_shu_link_${tag}" >/dev/null 2>&1 || return 1
   if [ ! -f /tmp/shux_debug.c ]; then
     return 1
   fi
@@ -82,7 +82,7 @@ median_real() {
 bench_case() {
   local name="$1"
   local base="$2"
-  local su="${base}.sx"
+  local sx="${base}.sx"
   local c="${base}.c"
   local zig="${base}.zig"
   local SHUX_ASM_MED="nan"
@@ -96,13 +96,13 @@ bench_case() {
   echo "=== tests/bench/${name} ==="
 
   if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$PERF_COMPILE_SHUX" = "./compiler/shux-c" ]; then
-    if bcmp_compile_shu_codegen "$su" "/tmp/bench_shu_${tag}" "$tag" 2>&1; then
+    if bcmp_compile_shu_codegen "$sx" "/tmp/bench_shu_${tag}" "$tag" 2>&1; then
       :
     else
-      $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
+      $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$sx" -o "/tmp/bench_shu_${tag}" 2>&1
     fi
   else
-    $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_shu_${tag}" 2>&1
+    $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$sx" -o "/tmp/bench_shu_${tag}" 2>&1
   fi
   if [ -x "/tmp/bench_shu_${tag}" ]; then
     SHUX_ASM_MED=$(median_real "/tmp/bench_shu_${tag}")
@@ -110,7 +110,7 @@ bench_case() {
   fi
 
   if [ "$PERF_COMPILE_SHUX" != "./compiler/shux-c" ] \
-    && $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$su" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
+    && $PERF_COMPILE_SHUX -O "$SHUX_BENCH_OPT" "$sx" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_shu_c_${tag}" ]; then
     SHUX_C_MED=$(median_real "/tmp/bench_shu_c_${tag}")
     echo "Shu (-backend c) ${name} median real: ${SHUX_C_MED}s"
@@ -124,7 +124,7 @@ bench_case() {
     if [ "$PERF_BCMP_ASM" -eq 1 ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
       asm_bcmp_env=(env SHUX_FREESTANDING=1)
     fi
-    if "${asm_bcmp_env[@]}" compiler/shux_asm -O "$SHUX_BENCH_OPT" "$su" -o "/tmp/bench_asm_${tag}" 2>&1 \
+    if "${asm_bcmp_env[@]}" compiler/shux_asm -O "$SHUX_BENCH_OPT" "$sx" -o "/tmp/bench_asm_${tag}" 2>&1 \
       && [ -x "/tmp/bench_asm_${tag}" ]; then
       ASM_MED=$(median_real "/tmp/bench_asm_${tag}")
       if [ "${#asm_bcmp_env[@]}" -gt 0 ]; then
@@ -202,7 +202,7 @@ bench_case() {
 }
 
 echo "=== 性能基线（Shux）==="
-$PERF_COMPILE_SHUX "$PERF_SU" -o "$OUT" 2>&1
+$PERF_COMPILE_SHUX "$PERF_SX" -o "$OUT" 2>&1
 if [ ! -f "$OUT" ]; then
   echo "编译失败，无产物" >&2
   exit 1
