@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 测试 core.debug.assert：assert(true) 通过并返回 0
+# 测试 core.debug（alias）/ core.assert：assert(true) 通过并返回 0
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+make -C compiler -q 2>/dev/null || make -C compiler shux-c
+SHUX=${SHUX:-./compiler/shux-c}
 
 $SHUX -L . tests/debug/main.sx -o /tmp/shux_debug 2>&1
 exitcode=0
