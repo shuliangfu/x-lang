@@ -26,7 +26,7 @@
 | 工具 | Linux `strace -e trace=memory` |
 | 计数 | `malloc(` / `calloc(` / `realloc(` 行数 |
 | 排除 | `posix_memalign`（Arena64 chunk 一次性对齐分配，非 per-op heap） |
-| Bench | `string_arena_concat`（ZC-4）、`cl_arena64_smoke`（DOD-CL-S2） |
+| Bench | `string_arena_concat`（ZC-4）、`cl_arena64_smoke`（DOD-CL-S2）、`with_arena_vec_push`（MEM-C1） |
 
 环境：
 
@@ -45,6 +45,7 @@
 |---------|-----------|------------|------------|-------------|
 | `string_arena_concat` | `tests/bench/string_arena_concat.sx` | 0 | 0 | 0 |
 | `cl_arena64_smoke` | `tests/dod/cl_arena64_smoke.sx` | 0 | 0 | 0 |
+| `with_arena_vec_push` | `tests/bench/with_arena_vec_push.sx` | 0 | 0 | 0 |
 
 ---
 
