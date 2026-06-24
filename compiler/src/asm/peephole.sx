@@ -33,11 +33,11 @@ function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
 function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
   /* x86: "pushq %rax\n" 11 字节；"popq %rax\n" 10 字节。arm64: "str w0, [sp, #-16]!\n" 20
   字节；"ldr w0, [sp], #16\n" 18 字节。 */
-  let x86_push: [11]u8 = [112, 117, 115, 104, 113, 32, 37, 114, 97, 120, 10];
-  let x86_pop: [10]u8 = [112, 111, 112, 113, 32, 37, 114, 97, 120, 10];
-  let arm_push: [20]u8 = [115, 116, 114, 32, 119, 48, 44, 32, 91, 115, 112, 44, 32, 35, 45, 49, 54,
+  let x86_push: u8[11] = [112, 117, 115, 104, 113, 32, 37, 114, 97, 120, 10];
+  let x86_pop: u8[10] = [112, 111, 112, 113, 32, 37, 114, 97, 120, 10];
+  let arm_push: u8[20] = [115, 116, 114, 32, 119, 48, 44, 32, 91, 115, 112, 44, 32, 35, 45, 49, 54,
   93, 33, 10];
-  let arm_pop: [18]u8 = [108, 100, 114, 32, 119, 48, 44, 32, 91, 115, 112, 93, 44, 32, 35, 49, 54,
+  let arm_pop: u8[18] = [108, 100, 114, 32, 119, 48, 44, 32, 91, 115, 112, 93, 44, 32, 35, 49, 54,
   10];
   let i: i32 = 0;
   while (i < out.len) {
@@ -72,7 +72,7 @@ function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
 
 /** 窥孔：消除 x86 无操作「movq %rax, %rax」（单行，16 字节含换行）。 */
 function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
-  let x86_noop: [16]u8 = [109, 111, 118, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 97, 120, 10];
+  let x86_noop: u8[16] = [109, 111, 118, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 97, 120, 10];
   let i: i32 = 0;
   while (i < out.len) {
     if (i + 16 <= out.len && slice_eq(out, i, x86_noop, 16) != 0) {
@@ -94,7 +94,7 @@ function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
 
 /** 窥孔：消除 arm64 无操作「mov x0, x0」（单行，11 字节含换行）。 */
 function peephole_remove_noop_mov_x0_x0(out: *CodegenOutBuf): i32 {
-  let arm_noop: [11]u8 = [109, 111, 118, 32, 120, 48, 44, 32, 120, 48, 10];
+  let arm_noop: u8[11] = [109, 111, 118, 32, 120, 48, 44, 32, 120, 48, 10];
   let i: i32 = 0;
   while (i < out.len) {
     if (i + 11 <= out.len && slice_eq(out, i, arm_noop, 11) != 0) {
