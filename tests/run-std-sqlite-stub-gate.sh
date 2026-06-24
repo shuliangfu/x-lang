@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
 MANIFEST="${SHUX_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
-MOD_SU="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.c"
+MOD_SX="std/db/sqlite/mod.sx"
+DB_C="std/db/sqlite/sqlite.sx"
 LIB="tests/lib/std-sqlite-stub.sh"
-SMOKE_SU="tests/std-sqlite/stub_behavior.sx"
+SMOKE_SX="tests/std-sqlite/stub_behavior.sx"
 SMOKE_C="tests/std-sqlite/stub_behavior_ok.c"
 README="std/db/sqlite/README.md"
 MIN_STUB=2
@@ -20,12 +20,25 @@ MIN_STUB=2
 std_sqlite_stub_source_sqlite
 
 echo "=== STD-139: sqlite stub manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$DB_C" "$SMOKE_SU" "$SMOKE_C" "$README"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" "$README"; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-stub gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+
+[ ! -f std/db/sqlite/sqlite.c ] || {
+  echo "std-sqlite-stub gate FAIL: sqlite.c should be deleted (F-05 v3)" >&2
+  exit 1
+}
+[ -f compiler/src/asm/runtime_sqlite_glue.c ] || {
+  echo "std-sqlite-stub gate FAIL: missing runtime_sqlite_glue.c" >&2
+  exit 1
+}
+[ ! -f std/db/sqlite/sqlite_glue.c ] || {
+  echo "std-sqlite-stub gate FAIL: sqlite_glue.c should be deleted (F-ZC)" >&2
+  exit 1
+}
 
 for kw in STD-139 DB_NOT_IMPL sqlite-o-stub db_sqlite_stub_smoke_c; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
@@ -52,7 +65,7 @@ if [ "$API_N" -lt "$MIN_STUB" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_stub_symbols_ok "$MOD_SU" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_stub_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_stub_emit_report "fail" 0 0 0
   exit 1
@@ -66,11 +79,17 @@ if [ "${SHUX_STD139_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 STUB_C=0
-STUB_SU=0
+STUB_SX=0
 
 echo "=== STD-139: stub C smoke (sqlite-o-stub) ==="
-if std_sqlite_stub_run_c_smoke "$DB_C"; then
+set +e
+std_sqlite_stub_run_c_smoke "$DB_C"
+stub_ec=$?
+set -e
+if [ "$stub_ec" -eq 0 ]; then
   STUB_C=1
+elif [ "$stub_ec" -eq 2 ]; then
+  echo "std-sqlite-stub gate SKIP stub C smoke (need shux-c)" >&2
 else
   std_sqlite_stub_emit_report "fail" 0 0 1
   exit 1
@@ -96,14 +115,14 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-139: .sx stub behavior smoke ==="
-  if "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "stub"; then
-      STUB_SU=1
+  if "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "stub"; then
+      STUB_SX=1
     fi
   else
     echo "std-sqlite-stub gate SKIP .sx smoke (typeck fail)" >&2
   fi
 fi
 
-std_sqlite_stub_emit_report "ok" "$STUB_C" "$STUB_SU" 1
+std_sqlite_stub_emit_report "ok" "$STUB_C" "$STUB_SX" 1
 echo "std-sqlite-stub gate OK"
