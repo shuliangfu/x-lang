@@ -7,7 +7,7 @@ const heap = import("std.heap");
 
 function main(): i32 {
   let ss: StackStr = string.stack_str_new();
-  let src: [5]u8 = [104, 101, 108, 108, 111];
+  let src: u8[5] = [104, 101, 108, 108, 111];
   if (string.stack_str_from_slice(&ss, &src[0], 5) != 0) {
     return 1;
   }
@@ -15,7 +15,7 @@ function main(): i32 {
     return 2;
   }
   let v: StrView = string.stack_str_view(&ss);
-  let hello: [5]u8 = [104, 101, 108, 108, 111];
+  let hello: u8[5] = [104, 101, 108, 108, 111];
   let exp: StrView = string.string_view(&hello[0], 5);
   if (string.string_view_eq(v, exp) != 1) {
     return 3;
@@ -34,7 +34,7 @@ function main(): i32 {
   if (heap.arena64_init(&arena, 512) != 0) {
     return 7;
   }
-  let world: [6]u8 = [32, 119, 111, 114, 108, 100];
+  let world: u8[6] = [32, 119, 111, 114, 108, 100];
   let vw: StrView = string.string_view(&world[0], 6);
   let joined: StrView = string.string_view_concat_arena(&arena, v2, vw);
   if (string.string_view_len(joined) != 12) {
