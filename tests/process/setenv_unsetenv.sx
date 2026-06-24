@@ -13,8 +13,8 @@ const process = import("std.process");
 
 function main(): i32 {
   // name "X" = [88, 0, ...], value "v" = [118, 0, ...]
-  let name: [4]u8 = [88, 0, 0, 0];
-  let value: [4]u8 = [118, 0, 0, 0];
+  let name: u8[4] = [88, 0, 0, 0];
+  let value: u8[4] = [118, 0, 0, 0];
   if (process.setenv(&name[0], &value[0], 1) != 0) {
     return 1;
   }
