@@ -8,10 +8,10 @@ verify	section	## 4. Gate	gate
 api_begin_tx	api	begin_tx	std/db/sqlite/mod.sx	事务开始
 api_commit	api	commit	std/db/sqlite/mod.sx	提交
 api_rollback	api	rollback	std/db/sqlite/mod.sx	回滚
-symbol_tx_smoke_c	symbol	db_sqlite_tx_exec_smoke_c	std/db/sqlite/sqlite.c	事务烟测
-impl_c	file	std/db/sqlite/sqlite.c	std/db/sqlite/sqlite.c	实现
+symbol_tx_smoke_c	symbol	db_sqlite_tx_exec_smoke_c	std/db/sqlite/sqlite.sx	事务烟测
+impl_c	file	std/db/sqlite/sqlite.sx	std/db/sqlite/sqlite.sx	实现
 smoke_c	file	tests/std-sqlite/exec_tx_roundtrip_ok.c	C 入口
-smoke_su	smoke	tests/std-sqlite/exec_tx_roundtrip.sx	.sx 往返
+smoke_sx	smoke	tests/std-sqlite/exec_tx_roundtrip.sx	.sx 往返
 vectors	file	tests/baseline/std-sqlite-exec-deep-vectors.tsv	向量
 lib	script	lib/std-sqlite-exec-deep.sh	tests/lib/std-sqlite-exec-deep.sh
 gate	script	run-std-sqlite-exec-deep-gate.sh	tests/run-std-sqlite-exec-deep-gate.sh
