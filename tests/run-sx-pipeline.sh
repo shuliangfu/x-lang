@@ -28,13 +28,13 @@ if [ "$make_ret" -eq 124 ]; then
   exit 1
 fi
 
-if [ -x compiler/shux_sx ]; then SU_SHUX=compiler/shux_sx; else SU_SHUX=compiler/shux; fi
-[ -x "$SU_SHUX" ] || { echo "compiler/shux_sx and compiler/shux not found or not executable"; exit 1; }
+if [ -x compiler/shux_sx ]; then SX_SHUX=compiler/shux_sx; else SX_SHUX=compiler/shux; fi
+[ -x "$SX_SHUX" ] || { echo "compiler/shux_sx and compiler/shux not found or not executable"; exit 1; }
 
-MIN_SU="tests/sx-pipeline/min.sx"
+MIN_SX="tests/sx-pipeline/min.sx"
 mkdir -p tests/sx-pipeline
-if [ ! -f "$MIN_SU" ]; then
-  printf 'function main(): i32 { return 0; }\n' > "$MIN_SU"
+if [ ! -f "$MIN_SX" ]; then
+  printf 'function main(): i32 { return 0; }\n' > "$MIN_SX"
 fi
 
 # 使用 compiler/shux 时可能为 C-only 构建（不支持 -sx -E），先探测；不支持则跳过以免 make test 失败
@@ -43,7 +43,7 @@ fi
 out=$(mktemp)
 err=$(mktemp)
 ec=0
-run_timeout 60 "$SU_SHUX" -sx -E "$MIN_SU" > "$out" 2>"$err" || ec=$?
+run_timeout 60 "$SX_SHUX" -sx -E "$MIN_SX" > "$out" 2>"$err" || ec=$?
 [ "$ec" -eq 142 ] && ec=124
 _show_stderr() { echo "--- stderr ---"; cat "$err" 2>/dev/null || true; rm -f "$err"; }
 if [ "$ec" -eq 124 ]; then
@@ -53,7 +53,7 @@ if [ "$ec" -eq 124 ]; then
   exit 1
 fi
 if [ "$ec" -ne 0 ]; then
-  if [ "$SU_SHUX" = "compiler/shux" ]; then
+  if [ "$SX_SHUX" = "compiler/shux" ]; then
     rm -f "$out" "$err"
     echo "run-sx-pipeline SKIP (shux does not support -sx -E; run make bootstrap-driver or use build_tool for full shux)"
     exit 0
@@ -63,7 +63,7 @@ if [ "$ec" -ne 0 ]; then
     echo "run-sx-pipeline SKIP (shux_sx not runnable in this env, e.g. wrong libc in container; run make -C compiler clean first)"
     exit 0
   fi
-  echo "run-sx-pipeline: $SU_SHUX -sx -E $MIN_SU failed (exit $ec)"
+  echo "run-sx-pipeline: $SX_SHUX -sx -E $MIN_SX failed (exit $ec)"
   cat "$out" 2>/dev/null || true
   _show_stderr
   rm -f "$out"
