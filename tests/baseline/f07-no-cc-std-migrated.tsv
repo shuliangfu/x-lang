@@ -1,0 +1,14 @@
+# F-07 v1：已迁移纯 .sx 模块硬禁 cc -c 清单
+# 列：module_id	c_path	o_path	phase
+io	std/io/io.c	std/io/io.o	F-03
+fs	std/fs/fs.c	std/fs/fs.o	F-03
+heap	std/heap/heap.c	std/heap/heap.o	F-03
+compress	std/compress/compress.c	std/compress/compress.o	F-04 v7
+zlib	std/compress/zlib/zlib.c	std/compress/zlib/zlib.o	F-04 v4
+gzip	std/compress/gzip/gzip.c	std/compress/gzip/gzip.o	F-04 v5
+brotli	std/compress/brotli/brotli.c	std/compress/brotli/brotli.o	F-04 v6
+zstd	std/compress/zstd/zstd.c	std/compress/zstd/zstd.o	F-04 v7
+net	std/net/net.c	std/net/net.o	F-04 v14
+guard_script	script	tests/lib/build-std-c-o.sh	grep	F-07 forbidden guard
+f06_gate	gate_ref	tests/run-f06-runtime-std-o-cleanup-gate.sh	gate_ref	F-06 bootstrap cleanup
+doc	doc	analysis/phase-f-f07-v1.md	grep	F-07 v1
