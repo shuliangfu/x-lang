@@ -1,0 +1,10 @@
+// std/channel/channel.sx — F-channel v2 模块锚点（F-ZC 纯 .sx；有界/无界/select 在 runtime_channel_glue.c）
+//
+// 【文件职责】
+// 提供 F-channel v2 可编译 .sx 单元；与 runtime_channel_glue.o 一并链入 exe。
+// 对外 API 在 mod.sx。
+
+/** F-channel v1 版本标记；供聚合 gate 校验 channel.sx 已参与 ld -r 合并。 */
+function channel_f_channel_v1_marker_c(): i32 {
+  return 1;
+}
