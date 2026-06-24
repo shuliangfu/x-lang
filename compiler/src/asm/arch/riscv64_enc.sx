@@ -10,7 +10,7 @@ const elf = import("platform.elf");
 
 /** 向 ctx 追加 4 字节小端 u32（一条 RISC-V 指令）。 */
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
-  let buf: [4]u8 = [];
+  let buf: u8[4] = [];
   buf[0] = elf.elf_u32_byte_at(val, 0);
   buf[1] = elf.elf_u32_byte_at(val, 1);
   buf[2] = elf.elf_u32_byte_at(val, 2);
@@ -320,7 +320,7 @@ function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i3
   if (enc_li_a2_imm32(ctx, nbytes) != 0) {
     return -1;
   }
-  let memset_nm: [64]u8 = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let memset_nm: u8[64] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return enc_call(ctx, memset_nm, 6);
