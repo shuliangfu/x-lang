@@ -4,7 +4,7 @@ api_reader_init	api	stream_reader_init	std/csv/mod.sx
 api_reader_next	api	stream_reader_next_row	std/csv/mod.sx
 api_writer_append	api	stream_writer_append_row	std/csv/mod.sx
 api_smoke	api	csv_stream_smoke	std/csv/mod.sx
-symbol_smoke_c	symbol	csv_stream_smoke_c	std/csv/csv.c
-symbol_writer_c	symbol	csv_stream_writer_append_row_c	std/csv/csv.c
-smoke_su	smoke	tests/csv/stream_roundtrip.sx
+symbol_smoke_c	symbol	csv_stream_smoke_c	std/csv/csv.sx
+symbol_writer_c	symbol	csv_stream_writer_append_row_c	std/csv/csv.sx
+smoke_sx	smoke	tests/csv/stream_roundtrip.sx
 gate	script	run-std-csv-stream-gate.sh	tests/run-std-csv-stream-gate.sh
