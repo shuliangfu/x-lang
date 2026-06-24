@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-将 mega7 **B1–B7** 从 BOOT-020 的 `stub` 推进到 **runnable 晋升波次**：逐项 `SHUX_ASM_PARSER_MEGA_BISECT=<fn>` 探测 SU emit（`delta ≥ 8192` 为 `emit`）。
+将 mega7 **B1–B7** 从 BOOT-020 的 `stub` 推进到 **runnable 晋升波次**：逐项 `SHUX_ASM_PARSER_MEGA_BISECT=<fn>` 探测 SX emit（`delta ≥ 8192` 为 `emit`）。
 
 验收：`tests/run-boot-021-mega7-promote-gate.sh` 绿；`parser-mega7-promote-wave.tsv` **7** 条 `promote_*` runnable。
 
