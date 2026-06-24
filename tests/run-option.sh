@@ -47,10 +47,12 @@ case "${SHUX:-}" in
   *shux_asm*) _option_split=1 ;;
 esac
 if [ "$_option_split" = "1" ]; then
-  chk_out=$($SHUX check -L . tests/option/main.sx 2>&1) || chk_rc=$?
+  # arm64 bootstrap：shux_asm check 大模块易 OOM；与 run-check 一致走 TYPECK_SHUX（shux-c）。
+  _option_chk="${TYPECK_SHUX:-$SHUX}"
+  chk_out=$($_option_chk check -L . tests/option/main.sx 2>&1) || chk_rc=$?
   chk_rc=${chk_rc:-0}
   if [ "$chk_rc" -ne 0 ]; then
-    echo "option: check failed on $SHUX (exit $chk_rc)" >&2
+    echo "option: check failed on $_option_chk (exit $chk_rc)" >&2
     echo "$chk_out"
     exit "$chk_rc"
   fi
