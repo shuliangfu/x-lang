@@ -284,6 +284,7 @@ extern void parser_lex_from_onefunc_result_ptr_into(struct lexer_Lexer * restric
 extern void parser_lex_from_onefunc_next_into_glue(struct lexer_Lexer * restrict out, struct parser_OneFuncResult * restrict res);
 extern struct lexer_Lexer parser_lex_at_token_from_result_glue(struct lexer_LexerResult r);
 extern struct lexer_Lexer parser_parser_rewind_lex_for_following_stmt_glue(struct lexer_Lexer lex_in, struct lexer_LexerResult r);
+extern void parser_asm_parse_block_return_end_tail_c(struct lexer_LexerResult *r, struct lexer_Lexer *lex_cur, struct shux_slice_uint8_t *source, int32_t *stmt_tok_ready, int32_t *block_break);
 extern int32_t parser_advance_past_stmt_semicolon_into_glue(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
 extern int32_t parser_advance_past_cond_rparen_into_glue(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
 extern void parser_expr_set_common_zeros_glue(struct ast_Expr * restrict e);
@@ -1132,12 +1133,28 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
  } else (__tmp = 0) ; __tmp; }));
     ++li;
   }
-  struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
-  (void)(lexer_next_into((&(r)), lex_cur, source));
+  struct lexer_LexerResult r_peek_blk = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+  (void)(lexer_next_into((&(r_peek_blk)), lex_cur, source));
+  struct lexer_LexerResult r = r_peek_blk;
+  (lex_cur = (parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk)));
   int stmt_tok_ready_blk = 1;
-  while (((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {
+  int32_t pb_break_blk = 0;
+  while (!pb_break_blk && ((r).tok).kind != token_TokenKind_TOKEN_RBRACE) {
     (void)(({ int32_t __tmp = 0; if ((!stmt_tok_ready_blk)) { (void)(lexer_next_into((&(r)), lex_cur, source)); } else (__tmp = 0) ; __tmp; }));
     (stmt_tok_ready_blk = (0));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_LPAREN) {   struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r);
+  int32_t back_lp = 2;
+  while (back_lp <= 128) {
+    struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = parser_lexer_pos_before_run(lp_base.pos, back_lp), .line = ((r).tok).line, .col = ((r).tok).col };
+    struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    (void)(lexer_next_into((&(r_lp)), lex_lp, source));
+    (void)(({ int32_t __tmp = 0; if (((r_lp).tok).kind == token_TokenKind_TOKEN_IF) {   (r = (r_lp));
+  (lex_cur = (parser_rewind_lex_for_following_stmt(lex_cur, r_lp)));
+  break;
+ } else (__tmp = 0) ; __tmp; }));
+    ++back_lp;
+  }
+ } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_LET || ((r).tok).kind == token_TokenKind_TOKEN_CONST) {   int32_t let_base_mid = (b).num_lets;
   ((temp)->num_lets = (0));
   ((temp)->num_consts = (0));
@@ -1263,12 +1280,9 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
   return;
  } else (__tmp = 0) ; __tmp; }));
   (b = (ast_arena_block_get(arena, block_ref)));
-  (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RBRACE) {   continue;
+  parser_asm_parse_block_return_end_tail_c((&(r)), (&(lex_cur)), source, (&(stmt_tok_ready_blk)), (&(pb_break_blk)));
+  (void)(({ int32_t __tmp = 0; if (!pb_break_blk) {   continue;
  } else (__tmp = 0) ; __tmp; }));
-  (lex_cur = ((r).next_lex));
-  (void)(lexer_next_into((&(r)), lex_cur, source));
-  (stmt_tok_ready_blk = (1));
-  continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_LOOP) {   (void)(parser_lex_from_next_into((&(lex_cur)), r));
   (void)(lexer_next_into((&(r)), lex_cur, source));
