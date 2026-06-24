@@ -21,7 +21,7 @@ allow(padding) struct Argv5 {
 
 /** 从管道读端校验 payload 前缀；匹配返回 0。 */
 function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): i32 {
-  let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let nr: isize = fs.fs_read(r_fd, &buf[0], 8 as usize);
   if (nr < 5) { return 1; }
   if (buf[0] != b0 || buf[1] != b1 || buf[2] != b2 || buf[3] != b3 || buf[4] != b4) {
@@ -32,8 +32,8 @@ function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): 
 
 /** POSIX /bin/echo hello 经管道读出；失败返回非 0。 */
 function try_posix_echo_pipe(): i32 {
-  let prog: [10]u8 = [47, 98, 105, 110, 47, 101, 99, 104, 111, 0];
-  let arg: [6]u8 = [104, 101, 108, 108, 111, 0];
+  let prog: u8[10] = [47, 98, 105, 110, 47, 101, 99, 104, 111, 0];
+  let arg: u8[6] = [104, 101, 108, 108, 111, 0];
   let argv: Argv3 = Argv3 { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8 };
   let r_fd: i32 = 0;
   let w_fd: i32 = 0;
@@ -60,12 +60,12 @@ function try_posix_echo_pipe(): i32 {
 
 /** Windows cmd.exe /c echo hello；失败返回非 0。 */
 function try_win_echo_pipe(): i32 {
-  let cmd: [28]u8 =
+  let cmd: u8[28] =
   [67, 58, 92, 87, 105, 110, 100, 111, 119, 115, 92, 83, 121, 115, 116, 101, 109, 51, 50, 92,
   99, 109, 100, 46, 101, 120, 101, 0];
-  let a_c: [3]u8 = [47, 99, 0];
-  let a_echo: [5]u8 = [101, 99, 104, 111, 0];
-  let a_hello: [6]u8 = [104, 101, 108, 108, 111, 0];
+  let a_c: u8[3] = [47, 99, 0];
+  let a_echo: u8[5] = [101, 99, 104, 111, 0];
+  let a_hello: u8[6] = [104, 101, 108, 108, 111, 0];
   let argv: Argv5 = Argv5 { s0: 0 as *u8, s1: 0 as *u8, s2: 0 as *u8, s3: 0 as *u8, s4: 0 as *u8 };
   let r_fd: i32 = 0;
   let w_fd: i32 = 0;
