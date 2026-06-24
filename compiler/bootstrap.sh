@@ -1,46 +1,66 @@
 #!/bin/sh
-# bootstrap.sh — Shux 冷启动引导脚本
+# bootstrap.sh — Shux 冷启动引导脚本（G-06：优先 bootstrap_shuxc，无 C 前端编译）
 #
-# 从零构建，仅需 C 编译器（cc），不依赖 Makefile 或已有 shux。
-# 产出 compiler/shux、compiler/shux-c、compiler/build_tool。
-# 执行一次后，日常构建只需 cd compiler && ./build_tool。
+# 从零构建：若已有 bootstrap_shuxc / shux_asm，直接复制为 shux/shux-c 并生成 build_tool。
+# 否则回退最小 C 链（仅 runtime/main/async，无 lexer/parser/typeck C 前端）。
 #
 # 用法：cd compiler && sh bootstrap.sh
 
 set -e
 
-echo "=== Shux Cold Bootstrap ==="
+echo "=== Shux Cold Bootstrap (G-06) ==="
 
-SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_codegen_extern.c src/lsp/lsp_diag.c src/lsp/lsp_diag_pipeline_sizes.c"
-OBJS=""
+if [ -x ./scripts/select_bootstrap_shuxc.sh ]; then
+  chmod +x ./scripts/select_bootstrap_shuxc.sh 2>/dev/null || true
+  ./scripts/select_bootstrap_shuxc.sh
+  SEED=./bootstrap_shuxc
+elif [ -x ./bootstrap_shuxc ]; then
+  SEED=./bootstrap_shuxc
+elif [ -x ./shux_asm ]; then
+  SEED=./shux_asm
+  ./scripts/bootstrap_shuxc_create.sh "$SEED" 2>/dev/null || cp -f "$SEED" ./bootstrap_shuxc
+elif [ -x ./shux ]; then
+  SEED=./shux
+else
+  SEED=
+fi
 
-echo "[1/4] compiling C sources..."
-for src in $SRCS; do
-  obj="${src%.c}.o"
-  OBJS="$OBJS $obj"
-  echo "  cc -c $src"
-  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$obj" "$src"
-done
+if [ -n "$SEED" ]; then
+  echo "[1/2] G-06: copy seed -> shux / shux-c"
+  cp -f "$SEED" ./shux
+  cp -f "$SEED" ./shux-c
+else
+  echo "[1/4] LEGACY: compiling minimal C runtime (no C frontend)..."
+  SRCS="src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c"
+  OBJS=""
+  for src in $SRCS; do
+    obj="${src%.c}.o"
+    OBJS="$OBJS $obj"
+    echo "  cc -c $src"
+    cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$obj" "$src"
+  done
+  echo "[2/4] linking shux..."
+  cc -Wall -Wextra -I. -Iinclude -Isrc -o shux $OBJS
+  cp -f shux shux-c
+  ./scripts/bootstrap_shuxc_create.sh ./shux 2>/dev/null || cp -f shux bootstrap_shuxc
+fi
 
-echo "[2/4] linking shux..."
-cc -Wall -Wextra -I. -Iinclude -Isrc -o shux $OBJS
-
-echo "[3/4] linking shux-c (pure C, no SU pipeline)..."
-cc -Wall -Wextra -I. -Iinclude -Isrc -o shux-c $OBJS
-
-# 与 Makefile build-tool 一致：用 shux-c（此处与 shux 二进制相同）跑 -E，不依赖带 .sx driver 的 shux。
-echo "[4/4] generating build_tool from build.sx..."
-./shux-c ../build.sx -E > build_gen.c
+echo "[build_tool] generating from build.sx (build_runner + build_runtime_sx)..."
+./shux-c -E -E-extern -L .. ../build.sx > build_gen.c
+./shux-c -E -E-extern -L .. ../build_runner.sx > build_runner_gen.c
+./shux-c -E -E-extern -L .. ../build_runtime_sx.sx > build_runtime_sx_gen.c
 cc -Wall -Wextra -I. -Iinclude -Isrc -c build_gen.c -o build_tool.o
-cc -Wall -Wextra -I. -Iinclude -Isrc -c src/build_runtime.c -o build_runtime.o
-cc -Wall -Wextra -o build_tool build_tool.o build_runtime.o
+cc -Wall -Wextra -I. -Iinclude -Isrc -c src/build_tool_libc_bridge.c -o build_tool_libc_bridge.o
+cc -Wall -Wextra -I. -Iinclude -Isrc -c build_runner_gen.c -o build_runner.o
+cc -Wall -Wextra -I. -Iinclude -Isrc -c build_runtime_sx_gen.c -o build_runtime_sx.o
+cc -Wall -Wextra -I. -Iinclude -Isrc -c src/build_tool_main.c -o build_tool_main.o
+cc -Wall -Wextra -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_sx.o build_tool_libc_bridge.o -lc
 
 echo ""
 echo "=== Bootstrap Complete ==="
-echo "  compiler/shux          — Shux compiler"
-echo "  compiler/shux-c        — Pure C Shux compiler"
-echo "  compiler/build_tool   — Build tool (../build.sx config + build_runtime.c)"
+echo "  compiler/bootstrap_shuxc — G-06 cold-start seed"
+echo "  compiler/shux / shux-c   — copied from seed"
+echo "  compiler/build_tool      — build.sx driver"
 echo ""
-echo "Daily (C intermediate):  cd compiler && ./build_tool ./shux"
-echo "Prefer machine code:     cd compiler && ./build_tool ./shux asm   # -> shux_asm"
-echo "Tests (example):         cd .. && SHUX=./compiler/shux ./tests/run-all.sh"
+echo "Daily: make -C compiler bootstrap-driver-bstrict"
+echo "      cd compiler && ./build_tool ./shux"
