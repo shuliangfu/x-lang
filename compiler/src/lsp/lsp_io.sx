@@ -125,7 +125,7 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
 * 后的数字；允许冒号后有多余空白（如 BSD wc -c 产生的前导空格）。 */
 function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32): i32 {
   if (header_end < 16) { return -1; }
-  let key: [16]u8 = [67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32];
+  let key: u8[16] = [67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32];
   let ki: i32 = 0;
   while (ki < 16) {
     if (state_buf[off + ki] != key[ki]) { return -1; }
@@ -170,7 +170,7 @@ function write_fd(fd: i32, ptr: *u8, count: usize): isize {
 * 反义）；返回长度，失败 -1。全部用 body[i]、out_buf[i] 下标。 */
 function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   let key_len: i32 = 8;
-  let key: [8]u8 = [34, 116, 101, 120, 116, 34, 58, 34];
+  let key: u8[8] = [34, 116, 101, 120, 116, 34, 58, 34];
   let i: i32 = 0;
   while (i + key_len <= body_len) {
     let is_match: i32 = 1;
