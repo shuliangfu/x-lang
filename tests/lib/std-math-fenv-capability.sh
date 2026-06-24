@@ -5,7 +5,7 @@ STD149_PREFIX="${SHUX_STD149_MATH_FENV_CAP_PREFIX:-shux: [SHUX_STD149_MATH_FENV_
 
 # 校验 manifest；echo 缺失数。
 std_math_fenv_cap_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local math_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,14 +15,14 @@ std_math_fenv_cap_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-math-fenv-cap FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/math/math.c" ]; then path="$math_c"; fi
+        if [ "$path" = "std/math/math.c" ] || [ "$path" = "std/math/math_libm_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_math_libm.c" ]; then path="$math_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-math-fenv-cap FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -83,13 +83,15 @@ std_math_fenv_cap_run_c_smoke() {
   local src="tests/std-math/fenv_capability_ok.c"
   local out="/tmp/shux_math_fenv_cap_c_$$"
   local err="/tmp/shux_math_fenv_cap_err_$$.log"
-  local math_o
-  math_o="$(dirname "$math_c")/math.o"
-  if [ ! -f "$math_o" ]; then
-    echo "std-math-fenv-cap FAIL: missing $math_o" >&2
+  local rt_o="compiler/runtime_math_libm.o"
+  if [ ! -f "$rt_o" ]; then
+    make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+  fi
+  if [ ! -f "$rt_o" ]; then
+    echo "std-math-fenv-cap FAIL: missing $rt_o" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$math_o" -lm 2>/dev/null; then
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$rt_o" -lm 2>/dev/null; then
     echo "std-math-fenv-cap FAIL: compile $src" >&2
     return 1
   fi
@@ -126,7 +128,7 @@ std_math_fenv_cap_run_c_smoke() {
 std_math_fenv_cap_run_sx_smoke() {
   local shux="$1"
   local src="$2"
-  local exe="/tmp/shux_math_fenv_cap_su_$$"
+  local exe="/tmp/shux_math_fenv_cap_sx_$$"
   if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-math-fenv-cap FAIL: compile $src" >&2
     "$shux" -L . "$src" -o "$exe" 2>&1 | tail -10 >&2 || true
@@ -151,5 +153,5 @@ std_math_fenv_cap_emit_report() {
   local su_ok="$3"
   local skip="$4"
   local host="$5"
-  echo "${STD149_PREFIX} status=${status} c=${c_ok} su=${su_ok} skip=${skip} host=${host}"
+  echo "${STD149_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip} host=${host}"
 }
