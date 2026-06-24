@@ -32,8 +32,8 @@
 
 | API | 说明 |
 |-----|------|
-| `vec4f_shuffle(v, mask)` | `mask: [4]i32` 编译期；`r[i]=v[mask[i]]` |
-| `vec8i_shuffle(v, mask)` | `mask: [8]i32`；两半对称时可硬件 `vpshufd` |
+| `vec4f_shuffle(v, mask)` | `mask: i32[4]` 编译期；`r[i]=v[mask[i]]` |
+| `vec8i_shuffle(v, mask)` | `mask: i32[8]`；两半对称时可硬件 `vpshufd` |
 | `vec4f_select(mask,a,b)` | `mask[i]!=0.0` → `a[i]`，否则 `b[i]` |
 | `vec8i_select(mask,a,b)` | `mask[i]!=0` → `a[i]`，否则 `b[i]` |
 | `simd_shuffle` / `simd_select` | 委托 `vec8i_*`（`@shuffle` / `@select` 目标） |
