@@ -8,11 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
 MANIFEST="${SHUX_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
 VECTORS="${SHUX_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
-MOD_SU="std/http/mod.sx"
-HTTP_C="std/http/http.c"
-POOL_INC="std/http/http_server_pool.inc.c"
+MOD_SX="std/http/mod.sx"
+HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
+POOL_INC="compiler/src/asm/http/http_server_pool.inc.c"
 LIB="tests/lib/std-http-server-pool.sh"
-SMOKE_SU="tests/http/server_pool.sx"
+SMOKE_SX="tests/http/server_pool.sx"
 SMOKE_C="tests/http/server_pool_smoke_ok.c"
 MIN_APIS=5
 
@@ -20,7 +20,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-107: http server-pool manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$HTTP_C" "$POOL_INC" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$HTTP_C" "$POOL_INC" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-http-server-pool gate FAIL: missing $f" >&2
     exit 1
@@ -63,7 +63,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_http_server_pool_symbols_ok "$MOD_SU" "$HTTP_C" "$POOL_INC" "$MANIFEST" || true)"
+sym_miss="$(std_http_server_pool_symbols_ok "$MOD_SX" "$HTTP_C" "$POOL_INC" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_http_server_pool_emit_report "fail" 0 0 0
   exit 1
@@ -72,7 +72,7 @@ echo "std-http-server-pool manifest OK"
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/http/http.o
+ensure_runtime_http_glue_o
 
 C_OK=0
 if std_http_server_pool_run_c_smoke "$HTTP_C"; then
@@ -82,7 +82,7 @@ else
   exit 1
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -104,14 +104,14 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-107: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-http-server-pool gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-http-server-pool gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_http_server_pool_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "sp"; then
-    SU_OK=1
+  if std_http_server_pool_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "sp"; then
+    SX_OK=1
   else
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -120,5 +120,5 @@ else
   SKIP=1
 fi
 
-std_http_server_pool_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_http_server_pool_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-http-server-pool gate OK"
