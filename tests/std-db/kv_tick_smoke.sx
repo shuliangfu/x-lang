@@ -2,11 +2,11 @@
 const dbkv = import("std.db.kv");
 
 function main(): i32 {
-  let path: [24]u8 =
+  let path: u8[24] =
   [116, 101, 115, 116, 115, 47, 115, 116, 100, 45, 100, 98, 47, 46, 107, 118, 95, 115, 109, 111, 107, 101, 0, 0];
-  let key: [4]u8 = [116, 105, 99, 107];
-  let val: [8]u8 = [9, 8, 7, 6, 5, 4, 3, 2];
-  let out: [16]u8 = 0;
+  let key: u8[4] = [116, 105, 99, 107];
+  let val: u8[8] = [9, 8, 7, 6, 5, 4, 3, 2];
+  let out: u8[16] = 0;
   let store: KvStore = dbkv.open(&path[0], 65536 as u64);
   if (store.handle == 0) {
     return 1;
