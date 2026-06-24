@@ -22,7 +22,7 @@
 ## 2. 协议语义
 
 - 迭代器通过 `*SliceIter_*` 可变游标推进（`index` 递增）。
-- 状态为 `ptr + length + index`（非嵌套 `[]T`），规避 slice 形参 C ABI 下 struct 字段赋值问题。
+- 状态为 `ptr + length + index`（非嵌套 `T[]`），规避 slice 形参 C ABI 下 struct 字段赋值问题。
 - 不拷贝底层数据；生命周期由调用方保证切片有效。
 - `iter_remaining_*` 为 O(1) 查询剩余长度。
 
