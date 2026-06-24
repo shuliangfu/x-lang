@@ -9,9 +9,9 @@ function case_add(): i32 {
 
 function main(): i32 {
   test.runner_reset();
-  let n_ok: [7]u8 = [99, 97, 115, 101, 95, 111, 107];
+  let n_ok: u8[7] = [99, 97, 115, 101, 95, 111, 107];
   test.runner_case(&n_ok[0], 7, case_add());
-  let n_skip: [9]u8 = [99, 97, 115, 101, 95, 115, 107, 105, 112];
+  let n_skip: u8[9] = [99, 97, 115, 101, 95, 115, 107, 105, 112];
   test.runner_skip(&n_skip[0], 9);
   return test.runner_finish();
 }
