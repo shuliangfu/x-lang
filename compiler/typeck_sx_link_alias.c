@@ -40,7 +40,7 @@ int32_t typeck_pipeline_module_main_func_index(struct ast_Module *module) {
   return pipeline_module_main_func_index(module);
 }
 
-/** pipeline_glue 期望的无前缀符号 → typeck_su 的 typeck_*（整链 build_asm/typeck.o 时由强符号覆盖）。 */
+/** pipeline_glue 期望的无前缀符号 → typeck_sx 的 typeck_*（整链 build_asm/typeck.o 时由强符号覆盖）。 */
 __attribute__((weak)) int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_block_impl_c(module, arena, block_ref, return_type_ref, ctx);
@@ -51,7 +51,7 @@ __attribute__((weak)) int32_t check_expr_impl(struct ast_Module *module, struct 
   return pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/** typeck_su 导出名 → glue addr_of；build_asm 已导出裸符号时 weak 被覆盖。
+/** typeck_sx 导出名 → glue addr_of；build_asm 已导出裸符号时 weak 被覆盖。
  * Cygwin/MSYS：weak 别名不可靠，bootstrap 链须强符号转发。 */
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t elem_ref) {
@@ -63,7 +63,7 @@ __attribute__((weak)) int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *ar
 }
 #endif
 
-/** WPO-S3：bootstrap 链 typeck_su.o 链接期弱 stub；shux_asm 链 ast_pool 强符号覆盖。 */
+/** WPO-S3：bootstrap 链 typeck_sx.o 链接期弱 stub；shux_asm 链 ast_pool 强符号覆盖。 */
 __attribute__((weak)) void pipeline_typeck_set_active_ctx_c(struct ast_Module *module,
                                                             struct ast_PipelineDepCtx *ctx) {
   (void)module;
@@ -105,6 +105,7 @@ void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry,
 /** typeck_gen 对 ast 模块 extern 加 ast_ 前缀；定义在 pipeline_sx.o（ast_pool.c）。 */
 extern void pipeline_module_struct_layout_set_soa(struct ast_Module *m, int32_t idx, int32_t v);
 extern int32_t pipeline_module_struct_layout_soa_at(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t idx);
 extern int32_t pipeline_module_struct_layout_field_align_at(struct ast_Module *m, int32_t li, int32_t j);
 extern void pipeline_module_struct_layout_set_field_align(struct ast_Module *m, int32_t li, int32_t j,
                                                           int32_t al);
@@ -115,6 +116,11 @@ void ast_pipeline_module_struct_layout_set_soa(struct ast_Module *m, int32_t idx
 
 int32_t ast_pipeline_module_struct_layout_soa_at(struct ast_Module *m, int32_t idx) {
   return pipeline_module_struct_layout_soa_at(m, idx);
+}
+
+/** typeck_gen 经 ast_ 前缀读 packed 标记（与 soa_at 同理）。 */
+int32_t ast_pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t idx) {
+  return pipeline_module_struct_layout_packed_at(m, idx);
 }
 
 int32_t ast_pipeline_module_struct_layout_field_align_at(struct ast_Module *m, int32_t li, int32_t j) {
