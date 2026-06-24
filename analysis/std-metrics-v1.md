@@ -35,7 +35,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_METRICS] status=ok su=1 skip=0
+shux: [SHUX_STD_METRICS] status=ok sx=1 skip=0
 std-metrics gate OK
 ```
 
