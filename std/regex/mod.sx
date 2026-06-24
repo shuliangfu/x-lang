@@ -2,7 +2,7 @@
 // STD-062：match 引擎 perf 优化（字面量快路径 + 首字节跳跃）生产级 bench 锚点。
 //
 // 【文件职责】compile、regex_match、free；STD-064 capture：group_count/offset/length。
-// 【依赖】std.heap；与 std/regex/regex.c + regex_min.inc.c 同属一模块；全平台无 regex.h。
+// 【依赖】std.heap；引擎在 std/regex/regex.sx（F-regex v2 纯 .sx）；全平台无 regex.h。
 extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
 extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
 extern function regex_free_c(re: *u8): void;
