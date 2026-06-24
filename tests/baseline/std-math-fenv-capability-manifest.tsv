@@ -3,10 +3,10 @@
 read_path	section	## 1. 目标	analysis/std-math-fenv-capability-v1.md
 cap_doc	section	## 2. 平台能力表	analysis/std-math-fenv-capability-v1.md
 api_fenv_avail	api	fenv_available	std/math/mod.sx	能力探测
-symbol_avail_c	symbol	math_fenv_available_c	std/math/math.c	C 探测
-symbol_cap_smoke	symbol	math_fenv_capability_smoke_c	std/math/math.c	C 烟测
+symbol_avail_c	symbol	math_fenv_available_c	compiler/src/asm/runtime_math_libm.c	C 探测
+symbol_cap_smoke	symbol	math_fenv_capability_smoke_c	compiler/src/asm/runtime_math_libm.c	C 烟测
 vectors_tsv	file	tests/baseline/std-math-fenv-capability.tsv	平台向量
-smoke_su	smoke	tests/std-math/fenv_capability.sx	.sx 烟测
+smoke_sx	smoke	tests/std-math/fenv_capability.sx	.sx 烟测
 smoke_c	smoke	tests/std-math/fenv_capability_ok.c	C 烟测
 gate_base	gate	tests/run-std-math-fenv-gate.sh	STD-059
 lib	script	tests/lib/std-math-fenv-capability.sh	lib
