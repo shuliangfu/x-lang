@@ -4,7 +4,7 @@
 // 暴露 completion 等待原语，与 std.io 的 submit_read/submit_write 配合。
 // Linux 上 std.io 内部已走 io_uring（submit_and_wait）；本模块提供多 fd 就绪等待（wait_completion），
 // 供后续 language future/task 扩展时复用，避免在业务层重复 poll 循环。
-// Future/Poll 手动运行时见 future.c（future_new/poll/complete/take）。
+// Future/Poll 手动运行时在 future.sx（future_new/poll/complete/take）。
 //
 // 【依赖】import("std.io")（wait_readable / read / write）；Context 绑定见 import("std.context")。
 const io = import("std.io");
@@ -34,11 +34,11 @@ function submit_write_sync(handle: usize, ptr: *u8, len: usize, timeout_ms: u32)
   return io.write(handle, ptr, len, timeout_ms);
 }
 
-// ─── A1/A2 协作调度（scheduler.c）：无栈 ping-pong bench ───
+// ─── A1/A2 协作调度（scheduler_glue.c）：无栈 ping-pong bench ───
 extern function shux_async_coop_pingpong(rounds: i64): i64;
 extern function shux_async_coop_pingpong_jmp(rounds: i64): i64;
 
-// ─── A3 CPS suspend/resume（scheduler.c；SHUX_ASYNC_YIELD=1 时 await 边界 yield）───
+// ─── A3 CPS suspend/resume（scheduler_glue.c；SHUX_ASYNC_YIELD=1 时 await 边界 yield）───
 extern function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
 /** IO-A5：await IO 边界 suspend；yield 时进 IO 等待队列。 */
 extern function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
@@ -62,7 +62,7 @@ extern function shux_async_run_seed_take_i64(): i64;
 extern function shux_async_run_seed_take_usize(): usize;
 
 // ─── A4 就绪队列（MPSC ring；per-worker 环 + worker_drain）───
-// DOD-CL-S2：C 侧 shux_async_task_queue_t 已 align(64) head/tail/slots（见 std/async/scheduler.c）。
+// DOD-CL-S2：C 侧 shux_async_task_queue_t 已 align(64) head/tail/slots（见 scheduler_glue.c）。
 extern function shux_async_task_submit(fn: *u8): i32;
 /** 提交到指定 worker 环（0..worker_count-1）。 */
 extern function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
@@ -78,14 +78,14 @@ extern function shux_async_io_waiters_pending(): u32;
 /** IO-A5 v3：poll io_uring CQE（未链 io.o 时为 weak 桩）。 */
 extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
-// ─── STD-090/093：Context 绑定与取消传播（scheduler.c ctx_slots）───
+// ─── STD-090/093：Context 绑定与取消传播（scheduler_glue.c ctx_slots）───
 extern function shux_async_bind_context_c(ctx_handle: i64): void;
 extern function shux_async_unbind_context_c(): void;
 extern function shux_async_current_context_c(): i64;
 extern function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
 extern function shux_async_spawn_ctx_smoke_c(): i32;
 
-/** drain 时 Context 已取消的哨兵（与 scheduler.c SHUX_ASYNC_ERR_CTX_ABORT 一致）。 */
+/** drain 时 Context 已取消的哨兵（与 scheduler_glue.c SHUX_ASYNC_ERR_CTX_ABORT 一致）。 */
 const SHUX_ASYNC_ERR_CTX_ABORT: i32 = -3;
 
 /** 高层 async 运行时：持有默认 Context 句柄（STD-041 language bridge）。 */
@@ -348,12 +348,12 @@ function io_waiters_pending(): u32 {
   return shux_async_io_waiters_pending();
 }
 
-/** CPS suspend 哨兵（与 scheduler.c SHUX_ASYNC_SUSPENDED 一致）。 */
+/** CPS suspend 哨兵（与 scheduler_glue.c SHUX_ASYNC_SUSPENDED 一致）。 */
 const SHUX_ASYNC_SUSPENDED: i32 = 0x41535700;
 
-/** Poll：Future 尚未就绪（与 future.c SHUX_POLL_PENDING 一致）。 */
+/** Poll：Future 尚未就绪（与 future.sx SHUX_POLL_PENDING 一致）。 */
 const POLL_PENDING: i32 = 0;
-/** Poll：Future 已就绪可取结果（与 future.c SHUX_POLL_READY 一致）。 */
+/** Poll：Future 已就绪可取结果（与 future.sx SHUX_POLL_READY 一致）。 */
 const POLL_READY: i32 = 1;
 
 /** 手动 i32 Future 句柄（opaque C 槽索引）。 */
