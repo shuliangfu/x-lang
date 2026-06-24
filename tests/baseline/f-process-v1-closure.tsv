@@ -1,0 +1,12 @@
+# F-process v1 std.process 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fprocess_doc	doc	analysis/phase-f-process-v1.md	F-process v1
+fprocess_gate	gate	tests/run-f-process-v1-gate.sh	聚合门禁
+process_sx	file	std/process/process.sx	args 薄封装
+runtime_process_argv	file	compiler/src/asm/runtime_process_argv.c	argc/argv 全局（F-ZC 自 std 迁出）
+process_os_runtime	file	compiler/src/asm/runtime_process_os_glue.c	OS syscall runtime
+process_os_glue_absent	absent	std/process/process_os_glue.c	已迁入 runtime
+process_mod	file	std/process/mod.sx	对外 API
+process_c_absent	absent	std/process/process.c	已删除
+process_arg_glue_absent	absent	std/process/process_arg_glue.c	F-ZC 迁入 runtime
+makefile	makefile	compiler/Makefile	process.o 纯 .sx + runtime_process_os_glue.o
