@@ -4,28 +4,28 @@ const path = import("std.path");
 
 function main(): i32 {
   /** UNC "\\srv\share" */
-  let unc: [11]u8 = [92, 92, 115, 114, 118, 92, 115, 104, 97, 114, 101];
+  let unc: u8[11] = [92, 92, 115, 114, 118, 92, 115, 104, 97, 114, 101];
   if (path.path_is_absolute(&unc[0], 11) != 1) { return 1; }
   /** 盘符绝对 "C:\Users" */
-  let drv: [8]u8 = [67, 58, 92, 85, 115, 101, 114, 115];
+  let drv: u8[8] = [67, 58, 92, 85, 115, 101, 114, 115];
   if (path.path_is_absolute(&drv[0], 8) != 1) { return 2; }
   /** 盘符相对 "C:foo" */
-  let drv_rel: [5]u8 = [67, 58, 102, 111, 111];
+  let drv_rel: u8[5] = [67, 58, 102, 111, 111];
   if (path.path_is_absolute(&drv_rel[0], 5) != 0) { return 3; }
   /** 反斜杠路径 "dir\sub\file.txt" */
-  let win_path: [16]u8 =
+  let win_path: u8[16] =
   [100, 105, 114, 92, 115, 117, 98, 92, 102, 105, 108, 101, 46, 116, 120, 116];
-  let base: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let base: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let blen: i32 = path.path_basename(&win_path[0], 16, &base[0], 16);
   if (blen != 8) { return 4; }
   if (base[0] != 102 || base[1] != 105 || base[2] != 108 || base[3] != 101) { return 5; }
-  let dout: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let dout: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let dlen: i32 = path.path_dirname(&win_path[0], 16, &dout[0], 8);
   if (dlen != 7) { return 6; }
   /** join "C:\base" + "child" 应写出盘符路径 */
-  let a: [7]u8 = [67, 58, 92, 98, 97, 115, 101];
-  let b: [5]u8 = [99, 104, 105, 108, 100];
-  let out: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let a: u8[7] = [67, 58, 92, 98, 97, 115, 101];
+  let b: u8[5] = [99, 104, 105, 108, 100];
+  let out: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let jlen: i32 = path.path_join(&out[0], 16, &a[0], 7, &b[0], 5);
   if (jlen != 13) { return 7; }
   if (path.path_is_sep(out[2]) == 0) { return 8; }
