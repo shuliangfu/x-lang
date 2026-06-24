@@ -87,7 +87,7 @@
 
 ## 3. 实现要点
 
-- C 层：`channel_select_*_c`（`std/channel/channel.c`）
+- C 层：`channel_select_*_c`（`compiler/src/asm/runtime_channel_glue.c`）
 - 阻塞路径：轮询 try + `pthread_cond_timedwait`（`SELECT_TIMEDWAIT_MS = 5`），避免多 mutex 死锁
 - Unix 需 `-lpthread`（与现有 channel 一致）；**Windows 为 stub**（返回 `-1`，烟测 skip）
 
