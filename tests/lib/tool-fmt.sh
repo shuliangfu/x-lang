@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   tool_fmt_case_count [manifest_tsv]
 #   tool_fmt_rule_count [manifest_tsv]
-#   tool_fmt_golden_idempotent SHUX_BIN golden_su
+#   tool_fmt_golden_idempotent SHUX_BIN golden_sx
 
 # 统计 manifest 中 case 行数。
 tool_fmt_case_count() {
