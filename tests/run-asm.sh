@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # asm 后端测试：-backend asm 出汇编，检查 .text/main/ret，可选 as+ld 跑出退出码。
 # 在仓库根目录执行：./tests/run-asm.sh
-# 若当前 shux 不支持 -su/-backend asm（无 pipeline），则 SKIP。
+# 若当前 shux 不支持 -sx/-backend asm（无 pipeline），则 SKIP。
 # macOS：`-o <exe>` 自动 ld 依赖 Xcode CLT/SDK（-lSystem）；失败时可只看 .s/.o 校验或安装 CLT（见 compiler/docs/SELFHOST.md §5）。
 
 set -e
