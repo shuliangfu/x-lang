@@ -4,6 +4,6 @@ api_grapheme	api	grapheme_next	std/unicode/mod.sx
 api_fold_rune	api	case_fold_rune	std/unicode/mod.sx
 api_fold_buf	api	case_fold_buf	std/unicode/mod.sx
 api_smoke	api	grapheme_case_smoke	std/unicode/mod.sx
-symbol_grapheme_c	symbol	unicode_grapheme_next_c	std/unicode/unicode.c
-smoke_su	smoke	tests/std-unicode/grapheme_case.sx
+symbol_grapheme_c	symbol	unicode_grapheme_next_c	std/unicode/unicode.sx
+smoke_sx	smoke	tests/std-unicode/grapheme_case.sx
 gate	script	run-std-unicode-grapheme-case-gate.sh	tests/run-std-unicode-grapheme-case-gate.sh
