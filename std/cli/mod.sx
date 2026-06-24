@@ -16,9 +16,9 @@ allow(padding) struct CliResult {
   verbose: i32;
   unknown: i32;
   positional_count: i32;
-  subcommand: [64]u8;
+  subcommand: u8[64];
   positional0_len: i32;
-  positional0: [128]u8;
+  positional0: u8[128];
 }
 
 extern function cli_is_help_c(arg: *u8, len: i32): i32;
@@ -82,7 +82,7 @@ function parse_from_iter(it: *ArgsIter, expect_sub: *u8, expect_sub_len: i32, ou
   out.unknown = 0;
   out.positional_count = 0;
   out.positional0_len = 0;
-  let vname: [7]u8 = [118, 101, 114, 98, 111, 115, 101];
+  let vname: u8[7] = [118, 101, 114, 98, 111, 115, 101];
   prog = env.args_iter_next(it);
   if (prog == 0) { return cli_err_ok(); }
   while (1 == 1) {
