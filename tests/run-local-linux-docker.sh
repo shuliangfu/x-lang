@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MODE="${1:-both}"
-LOG_DIR="${SHUX_LOCAL_TEST_LOG_DIR:-/tmp/shulang-local-test}"
+LOG_DIR="${SHUX_LOCAL_TEST_LOG_DIR:-/tmp/shux-local-test}"
 mkdir -p "$LOG_DIR"
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -13,9 +13,38 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+# Apple Silicon / Linux ARM 宿主默认拉 aarch64 镜像，会误用 aarch64 汇编器编 x86_64 crt0；A-09～A-12 须 linux/amd64。
+DOCKER_PLATFORM="${SHUX_DOCKER_PLATFORM:-}"
+if [ -z "$DOCKER_PLATFORM" ]; then
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-arm64|Linux-aarch64|Linux-arm64)
+      DOCKER_PLATFORM="linux/amd64"
+      ;;
+  esac
+fi
+DOCKER_PLATFORM_ARGS=""
+if [ -n "$DOCKER_PLATFORM" ]; then
+  DOCKER_PLATFORM_ARGS="--platform $DOCKER_PLATFORM"
+fi
+
 run_in_container() {
   local inner="$1"
-  docker run --rm \
+  local image="${SHUX_LINUX_DEV_IMAGE:-shux-linux-dev:22.04-amd64}"
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    docker run --rm $DOCKER_PLATFORM_ARGS \
+      -v "$(pwd):/src" \
+      -w /src \
+      -e CI=1 \
+      -e SHUX_CI_DOCKER=1 \
+      -e SHUX_CI_NO_SKIP=1 \
+      "$image" \
+      bash -lc "$inner"
+    return
+  fi
+  echo "run-local-linux-docker: dev image $image missing; apt-get each run (build once: ./tests/docker/build-linux-dev-image.sh)" >&2
+  # shellcheck disable=SC2086
+  docker run --rm $DOCKER_PLATFORM_ARGS \
     -v "$(pwd):/src" \
     -w /src \
     -e CI=1 \
