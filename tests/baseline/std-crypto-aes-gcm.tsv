@@ -9,8 +9,8 @@ verify	section	## 5. 门禁	gate
 api_seal	api	aes_gcm_seal	std/crypto/mod.sx	加密
 api_open	api	aes_gcm_open	std/crypto/mod.sx	解密
 const_tag	const	AES_GCM_TAG_LEN	std/crypto/mod.sx	16
-symbol_seal_c	symbol	crypto_aes_gcm_seal_c	std/crypto/aes_gcm.inc.c	C seal
-symbol_open_c	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.inc.c	C open
+symbol_seal_c	symbol	crypto_aes_gcm_seal_c	std/crypto/aes_gcm.sx	C seal
+symbol_open_c	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.sx	C open
 vectors_tsv	file	tests/baseline/std-crypto-aes-gcm-vectors.tsv	金样表
 smoke_nist2	smoke	tests/std-crypto/aes_gcm_nist2.sx	烟测
 smoke_main	smoke	tests/crypto/main.sx	回归
