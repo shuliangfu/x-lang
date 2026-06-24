@@ -56,7 +56,7 @@ v1 **不**做覆盖率反馈；仅提供可复现种子与 runner 钩子。
 ```
 
 ```
-shux: [SHUX_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_su=1 fuzz_su=1 skip=0
+shux: [SHUX_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_sx=1 fuzz_sx=1 skip=0
 ```
 
 ---
