@@ -8,7 +8,7 @@ function main(): i32 {
   if (hash.recommend_hasher_fast() != 2) { return 3; }
 
   // 三族 Hasher 工厂可创建且摘要非零（0=SipHash 1=aHash 2=xxHash）
-  let buf: [3]u8 = [97, 98, 99];
+  let buf: u8[3] = [97, 98, 99];
   let hs: *u8 = hash.hash_start_algo(0);
   let ha: *u8 = hash.hash_start_algo(1);
   let hx: *u8 = hash.hash_start_algo(2);
