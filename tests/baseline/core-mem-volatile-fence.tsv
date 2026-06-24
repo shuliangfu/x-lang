@@ -10,6 +10,6 @@ api_fence_release	api	fence_release	core/mem/mod.sx	release
 api_fence_seq	api	fence_seq_cst	core/mem/mod.sx	seq_cst
 impl_c	file	core/mem/mem.c	C volatile/fence
 symbol_smoke_c	symbol	mem_volatile_fence_smoke_c	core/mem/mem.c	C 烟测
-smoke_su	smoke	tests/core-mem/volatile_fence.sx	.sx 烟测
+smoke_sx	smoke	tests/core-mem/volatile_fence.sx	.sx 烟测
 smoke_c	file	tests/core-mem/volatile_fence_smoke.c	C 入口
 gate	script	run-core-mem-volatile-fence-gate.sh	tests/run-core-mem-volatile-fence-gate.sh
