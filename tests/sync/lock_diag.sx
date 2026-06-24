@@ -4,7 +4,7 @@ const sync = import("std.sync");
 function main(): i32 {
   let m1: *u8 = sync.mutex_new();
   let m2: *u8 = sync.mutex_new();
-  let snap: [96]u8 = [];
+  let snap: u8[96] = [];
   if (m1 == 0 as *u8 || m2 == 0 as *u8) {
     sync.mutex_free(m1);
     sync.mutex_free(m2);
