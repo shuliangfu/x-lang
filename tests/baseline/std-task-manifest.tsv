@@ -14,9 +14,9 @@ api_js_new	api	join_set_new	std/task/mod.sx	JoinSet
 api_js_spawn	api	join_set_spawn	std/task/mod.sx	spawn
 api_js_join	api	join_set_join	std/task/mod.sx	join
 api_supervise	api	supervise_retry	std/task/mod.sx	重试
-symbol_smoke	symbol	task_smoke_c	std/task/task.c	C烟测
-impl_c	file	std/task/task.c	std/task/task.c
-smoke_su	smoke	tests/std-task/group_smoke.sx	.su烟测
+symbol_smoke	symbol	task_smoke_c	std/task/task.sx	C烟测
+impl_sx	file	std/task/task.sx	std/task/task.sx
+smoke_sx	smoke	tests/std-task/group_smoke.sx	.sx烟测
 vectors	file	tests/baseline/std-task-vectors.tsv	向量
 lib	script	lib/std-task.sh	tests/lib/std-task.sh
 gate	script	run-std-task-gate.sh	tests/run-std-task-gate.sh
