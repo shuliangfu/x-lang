@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 侧车 grow 池 / 动态上限边界：超过旧硬顶（16 形参、96 stmt、256 函数、32 #if 深度等）。
-# 由 run-all.sh 调用；C 与 SU 路径均应通过。
+# 由 run-all.sh 调用；C 与 SX 路径均应通过。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
