@@ -3,7 +3,7 @@ const iterator = import("core.iterator");
 const option = import("core.option");
 
 function main(): i32 {
-  let a: [3]u64 = [10, 20, 30];
+  let a: u64[3] = [10, 20, 30];
   let it: SliceIter_u64 = iterator.iter_u64_from_buf(&a[0], 3 as usize);
   let o0: Option_u64 = iterator.next_u64(&it);
   if (o0.is_some == false || o0.value != 10) { return 1; }
