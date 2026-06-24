@@ -28,7 +28,7 @@
 | **B3-codegen-out** | IR/文本发射 | typeck → codegen | `CodegenOutBuf`（C/asm 文本或 .o 路径） | `codegen_sx_ast` |
 | **B4-asm-backend** | 机器码后端 | codegen/asm 编排 → backend | `Module` + `CodegenOutBuf` + `PipelineDepCtx` | `asm_codegen_ast` |
 | **B5-pipeline** | 流水线编排 | driver → 各阶段 | `source_data`/`source_len` → `out_buf` | `run_sx_pipeline_impl` |
-| **B6-glue-c** | C ↔ .sx 桥接 | runtime/glue → .sx frontend | `ptr+len` → `[]u8` slice；weak 符号覆盖 | `parser_slice_from_buf` |
+| **B6-glue-c** | C ↔ .sx 桥接 | runtime/glue → .sx frontend | `ptr+len` → `u8[]` slice；weak 符号覆盖 | `parser_slice_from_buf` |
 
 **contract 原则**：
 
@@ -46,7 +46,7 @@
 | boundary_id | upstream | downstream | symbol | payload |
 |-------------|----------|------------|--------|---------|
 | `bd_parse_module` | parser | ast | `parse_into_buf` | Module, ASTArena, ParseIntoResult |
-| `bd_parse_slice` | pipeline_glue | parser | `parser_slice_from_buf` | ptr+len → []u8 |
+| `bd_parse_slice` | pipeline_glue | parser | `parser_slice_from_buf` | ptr+len → u8[] |
 | `bd_typeck_entry` | pipeline | typeck | `typeck_sx_ast` | Module, ASTArena, PipelineDepCtx |
 | `bd_typeck_layout` | typeck | typeck | `typeck_merge_dep_struct_layouts_into_entry` | Module, ASTArena |
 | `bd_codegen_emit` | pipeline | codegen | `codegen_sx_ast` | CodegenOutBuf, dep_index |
