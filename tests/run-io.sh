@@ -17,8 +17,9 @@ else
   SHUX=./compiler/shux-c
 fi
 
-make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../std/io/io.o
+make -C compiler -q ../std/process/process.o 2>/dev/null \
+  || make -C compiler ../std/process/process.o
+# F-03 v3：io 纯 .sx，不再 build ../std/io/io.o
 
 $SHUX -L . tests/io/main.sx -o /tmp/shux_io 2>&1
 out=$(/tmp/shux_io 2>&1)
