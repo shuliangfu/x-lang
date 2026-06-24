@@ -1,0 +1,9 @@
+# D-03 Stage2 SHA256 金标准盘点（manifest）
+# 列：track_id	layer	anchor	check_type	gate_or_notes
+hash_gate_core	gate	tests/run-stage2-hash-gate.sh	gate_ref	SHUX_STAGE2_HASH_STRICT=1
+d03_aggregate	gate	tests/run-d03-stage2-hash-gate.sh	gate_ref	phase D closure
+verify_step4c	script	verify-selfhost-stage2-bstrict.sh	grep	Step 4c Stage2 SHA256
+stage2_bstrict	gate	tests/run-stage2-bstrict-gate.sh	gate_ref	gen1/gen2 behavior parity
+linux_a09_docker	gate	tests/run-linux-a09-a11-gate.sh	gate_ref	Docker Linux x86_64 A-09
+bootstrap_repro	doc	tests/baseline/bootstrap-repro.tsv	grep	stage2_hash row
+selfhost_doc	doc	compiler/docs/SELFHOST.md	grep	Stage2 SHA256
