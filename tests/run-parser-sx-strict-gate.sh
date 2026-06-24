@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_PARSER_SX_STRICT_FAIL:-1}
 # 兼容旧 env 名（迁移期）
-FAIL=${SHUX_PARSER_SU_STRICT_FAIL:-$FAIL}
-PARSER_SX="${SHUX_PARSER_SX_O:-${SHUX_PARSER_SU_O:-compiler/parser_sx.o}}"
+FAIL=${SHUX_PARSER_SX_STRICT_FAIL:-$FAIL}
+PARSER_SX="${SHUX_PARSER_SX_O:-${SHUX_PARSER_SX_O:-compiler/parser_sx.o}}"
 PARSER_ASM="${SHUX_PARSER_ASM_O:-compiler/build_asm/parser.o}"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
