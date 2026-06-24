@@ -94,12 +94,12 @@ done
 if [ -n "$SHUX_BIN" ]; then
   echo "=== TST-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  make -C compiler -q ../std/net/net.o ../std/fs/fs.o 2>/dev/null \
-    || make -C compiler ../std/net/net.o ../std/fs/fs.o 2>/dev/null || true
-  for su in tests/io/boundary.sx tests/fs/boundary.sx tests/net/boundary.sx tests/string/boundary.sx; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "tst-001-boundary gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -8 >&2 || true
+  make -C compiler -q ../std/net/net.o 2>/dev/null \
+    || make -C compiler ../std/net/net.o 2>/dev/null || true
+  for sx in tests/io/boundary.sx tests/fs/boundary.sx tests/net/boundary.sx tests/string/boundary.sx; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "tst-001-boundary gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -8 >&2 || true
       tst001_emit_report "fail" "$IO_OK" "$FS_OK" "$NET_OK" "$STR_OK" 0
       exit 1
     fi
