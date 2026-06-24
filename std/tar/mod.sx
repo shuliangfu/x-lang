@@ -1,7 +1,7 @@
 // std.tar — tar 归档读/写（STD-038/152）
 //
 // 【文件职责】UStar read/write/append/iterate；长路径 prefix + Pax。
-// 【依赖】std.fs、std.io；与 std/tar/tar.c 同属一模块。
+// 【依赖】std.fs、std.io；与 std/tar/tar.sx 同属一模块（F-tar v2 纯 .sx）。
 
 /** UStar name 字段最大长度。 */
 const TAR_MAX_NAME: i32 = 100;
