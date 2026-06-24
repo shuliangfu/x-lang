@@ -16,7 +16,7 @@ api_escape_string	api	escape_string	std/json/mod.sx	gen	生成
 api_append_null	api	append_null	std/json/mod.sx	gen	生成
 api_append_bool	api	append_bool	std/json/mod.sx	gen	生成
 api_append_number	api	append_number	std/json/mod.sx	gen	生成
-impl_c	file	std/json/json.c	std/json/json.c	impl	json_parse_string_view_c
+impl_sx	file	std/json/json.sx	std/json/json.sx	impl	json_parse_string_view_c
 lib	script	lib/std-json.sh	tests/lib/std-json.sh	-	共享库
 gate	script	run-std-json-gate.sh	tests/run-std-json-gate.sh	-	manifest
 hook_json	hook_script	run-json.sh	tests/run-json.sh	-	回归
