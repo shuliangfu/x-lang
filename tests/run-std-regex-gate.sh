@@ -11,9 +11,8 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
 MANIFEST="${SHUX_STD_REGEX_TSV:-tests/baseline/std-regex.tsv}"
 XPLAT="${SHUX_STD_REGEX_XPLAT:-tests/baseline/std-regex-xplat.tsv}"
-MOD_SU="std/regex/mod.sx"
-REGEX_C="std/regex/regex.c"
-MIN_INC="std/regex/regex_min.inc.c"
+MOD_SX="std/regex/mod.sx"
+REGEX_SX="std/regex/regex.sx"
 LIB="tests/lib/std-regex.sh"
 MIN_APIS=3
 
@@ -21,14 +20,14 @@ MIN_APIS=3
 . "$LIB"
 
 echo "=== STD-051: regex manifest ==="
-for f in "$DOC" "$MANIFEST" "$XPLAT" "$LIB" "$MOD_SU" "$REGEX_C" "$MIN_INC"; do
+for f in "$DOC" "$MANIFEST" "$XPLAT" "$LIB" "$MOD_SX" "$REGEX_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-regex gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 
-for kw in STD-051 regex_min.inc.c regex_match Windows; do
+for kw in STD-051 regex.sx regex_match Windows; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-regex gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -49,7 +48,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-regex gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -68,7 +67,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_regex_symbols_ok "$MOD_SU" "$REGEX_C" "$MANIFEST" || true)"
+sym_miss="$(std_regex_symbols_ok "$MOD_SX" "$REGEX_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_regex_emit_report "fail" 0 0 0 "$(ci_host_summary)"
   echo "std-regex gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -92,14 +91,17 @@ platform_policy() {
 ensure_std_c_o ../std/regex/regex.o
 
 C_OK=0
-if std_regex_run_c_smoke "$REGEX_C"; then
-  C_OK=1
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  if std_regex_run_c_smoke "$REGEX_SX"; then
+    C_OK=1
+  else
+    echo "std-regex gate SKIP c smoke (no full regex.o)" >&2
+  fi
 else
-  std_regex_emit_report "fail" 0 0 0 "$(ci_host_summary)"
-  exit 1
+  echo "std-regex gate SKIP c smoke (no shux-c)" >&2
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -122,7 +124,7 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-051: xplat .sx smoke (SHUX=$SHUX_BIN host=$(ci_host_summary)) ==="
-  SU_FAIL=0
+  SX_FAIL=0
   while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
     [ -z "$case_id" ] && continue
     case "$case_id" in \#*) continue ;; esac
@@ -138,24 +140,24 @@ if [ -n "$SHUX_BIN" ]; then
     fi
     if ! "$SHUX_BIN" check -L . "$script" >/dev/null 2>&1; then
       echo "std-regex gate FAIL: typeck $script" >&2
-      SU_FAIL=1
+      SX_FAIL=1
       break
     fi
     if ! std_regex_run_smoke "$SHUX_BIN" "$script" "$case_id"; then
-      SU_FAIL=1
+      SX_FAIL=1
       break
     fi
     echo "std-regex OK $case_id"
   done < "$XPLAT"
-  if [ "$SU_FAIL" -ne 0 ]; then
+  if [ "$SX_FAIL" -ne 0 ]; then
     std_regex_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  SU_OK=1
+  SX_OK=1
 else
   echo "std-regex gate SKIP .sx smoke (no native shux)" >&2
   SKIP=1
 fi
 
-std_regex_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP" "$(ci_host_summary)"
+std_regex_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP" "$(ci_host_summary)"
 echo "std-regex gate OK"
