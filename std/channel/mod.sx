@@ -2,8 +2,7 @@
 //
 // 【文件职责】channel_i32 有界/无界、send、recv、try_send、try_recv、close、free；
 // select 双路/N 路 recv/send/混合（STD-098/102/104/108）。
-// 【依赖】std.heap（C 层 malloc/realloc/free）；与 std/channel/channel.c
-// 同属一模块。Unix 需 -lpthread。
+// 【依赖】std.heap（C 层 malloc/realloc/free）；与 std/channel/channel.sx + runtime_channel_glue.c 同属一模块（F-channel v2 / F-ZC）。Unix 需 -lpthread。
 /** select 方向：接收 case。 */
 const SELECT_DIR_RECV: i32 = 0;
 /** select 方向：发送 case。 */
