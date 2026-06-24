@@ -2,7 +2,7 @@
  * parser_asm_if_stmt_slice.c — parse_if_stmt_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block SU mega，勿 SU emit 本函数体。
+ * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block SX mega，勿 SX emit 本函数体。
  */
 #ifndef PARSER_ASM_IF_STMT_SLICE_INCLUDED
 #define PARSER_ASM_IF_STMT_SLICE_INCLUDED
@@ -29,6 +29,37 @@ extern void parser_parse_block_into(void *arena, struct parser_asm_lexer lex_aft
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_if(void *arena, int32_t br, int32_t cond_ref, int32_t then_ref, int32_t else_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t br, uint8_t kind, int32_t idx);
+extern size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len);
+extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
+extern struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
+                                                                                  struct parser_asm_lexer_result r);
+
+/**
+ * then/else 块结束后对齐 lex：parse_block 有时落在下一 if 的 `(`，回扫至 TOKEN_IF 或 stmt 关键字。
+ */
+static struct parser_asm_lexer parser_asm_realign_lex_after_if_arm_c(struct parser_asm_lexer lex_cur,
+                                                                     struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result peek = {0};
+  peek.next_lex = lex_cur;
+  lexer_next_into(&peek, lex_cur, source);
+  if (peek.tok.kind == (int32_t)TOKEN_LPAREN) {
+    int32_t back_pos = 2;
+    while (back_pos <= 128) {
+      struct parser_asm_lexer lex_b;
+      struct parser_asm_lexer_result r_b = {0};
+      lex_b.pos = (int32_t)parser_asm_lexer_pos_before_run_c((size_t)lex_cur.pos, (size_t)back_pos);
+      lex_b.line = peek.tok.line;
+      lex_b.col = peek.tok.col;
+      r_b.next_lex = lex_b;
+      lexer_next_into(&r_b, lex_b, source);
+      if (r_b.tok.kind == (int32_t)TOKEN_IF)
+        return parser_asm_lex_at_token_from_result_c(r_b);
+      back_pos = back_pos + 1;
+    }
+  }
+  return parser_asm_parser_rewind_lex_for_following_stmt_c(lex_cur, peek);
+}
+
 extern int32_t parser_asm_stretch_if_stmt_branch_audit_c(struct parser_asm_lexer lex_at_if,
                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_if_stmt_deep_audit_c(struct parser_asm_lexer lex_at_if,
@@ -989,8 +1020,9 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
     }
     }
   }
-  /** 无 else：lex_out 指 then 块后的 next_lex（由 parse_block 单次 advance 读入 r）。 */
+  /** 无 else：lex_out 指 then 块后的 stmt 首 token（若误落在 `(` 则回扫至 `if`）。 */
   {
+    lex_cur = parser_asm_realign_lex_after_if_arm_c(lex_cur, source);
     lex_out->pos = lex_cur.pos;
     lex_out->line = lex_cur.line;
     lex_out->col = lex_cur.col;
