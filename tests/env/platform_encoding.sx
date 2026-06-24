@@ -14,16 +14,16 @@ function val_is_a_eq_b(val: *u8): i32 {
 
 /** 空 value 与 value 含 '=' 的 setenv/getenv 往返（含零拷贝 ptr）。 */
 function test_setenv_boundaries(): i32 {
-  let name_empty: [8]u8 = [88, 95, 80, 69, 95, 69, 0, 0];
-  let val_empty: [1]u8 = [0];
+  let name_empty: u8[8] = [88, 95, 80, 69, 95, 69, 0, 0];
+  let val_empty: u8[1] = [0];
   if (env.setenv(&name_empty[0], &val_empty[0], 1) != 0) { return 1; }
-  let out: [8]u8 = [];
+  let out: u8[8] = [];
   let got: i32 = env.getenv(&name_empty[0], 6, &out[0], 8);
   if (got != 0) { return 2; }
   if (out[0] != 0) { return 3; }
 
-  let name_eq: [8]u8 = [88, 95, 80, 69, 95, 69, 81, 0];
-  let val_eq: [4]u8 = [97, 61, 98, 0];
+  let name_eq: u8[8] = [88, 95, 80, 69, 95, 69, 81, 0];
+  let val_eq: u8[4] = [97, 61, 98, 0];
   if (env.setenv(&name_eq[0], &val_eq[0], 1) != 0) { return 4; }
   got = env.getenv(&name_eq[0], 7, &out[0], 8);
   if (got != 3) { return 5; }
@@ -38,11 +38,11 @@ function test_setenv_boundaries(): i32 {
 
 /** (ptr,len) key 与非法 key_len 边界。 */
 function test_key_len_boundary(): i32 {
-  let key4: [4]u8 = [88, 95, 80, 69];
-  let out: [8]u8 = [];
+  let key4: u8[4] = [88, 95, 80, 69];
+  let out: u8[8] = [];
   if (env.getenv(&key4[0], 4, &out[0], 8) != -1) { return 1; }
   if (env.getenv(&key4[0], 0, &out[0], 8) != -1) { return 2; }
-  let long_key: [260]u8 = [];
+  let long_key: u8[260] = [];
   let i: i32 = 0;
   while (i < 256) {
     long_key[i] = 65;
@@ -59,8 +59,8 @@ function main(): i32 {
   r = test_key_len_boundary();
   if (r != 0) { return 20 + r; }
 
-  let name_empty: [8]u8 = [88, 95, 80, 69, 95, 69, 0, 0];
-  let name_eq: [8]u8 = [88, 95, 80, 69, 95, 69, 81, 0];
+  let name_empty: u8[8] = [88, 95, 80, 69, 95, 69, 0, 0];
+  let name_eq: u8[8] = [88, 95, 80, 69, 95, 69, 81, 0];
   if (env.unsetenv(&name_empty[0]) != 0) { return 30; }
   if (env.unsetenv(&name_eq[0]) != 0) { return 31; }
   return 0;
