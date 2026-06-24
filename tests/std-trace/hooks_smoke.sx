@@ -11,10 +11,10 @@ function main(): i32 {
   let ctx_bare: Context = context.background();
   let root: Span = Span { id: zero };
   let rt: AsyncRuntime = async_mod.runtime_new(ctx);
-  let msg: [1]u8 = [88];
+  let msg: u8[1] = [88];
   let cnt_before: i32 = 0;
   let cnt_after: i32 = 0;
-  let n_root: [4]u8 = [114, 111, 111, 116];
+  let n_root: u8[4] = [114, 111, 111, 116];
 
   if (tr.handle == zero) { return 1; }
   if (trace.attach_to_context(ctx, tr) != 0) { return 2; }
