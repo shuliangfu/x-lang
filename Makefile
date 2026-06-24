@@ -15,11 +15,11 @@ clean:
 test:
 	$(MAKE) -C compiler test
 
-# 仅 C 路径测试（run-*.sh，不含 su 自举）
+# 仅 C 路径测试（run-*.sh，不含 sx 自举）
 test_c:
 	$(MAKE) -C compiler test_c
 
-# 仅 su 自举测试（bootstrap-driver-seed + run-lsp + run-all-sx 全量）
+# 仅 sx 自举测试（bootstrap-driver-seed + run-lsp + run-all-sx 全量）
 test_sx:
 	$(MAKE) -C compiler test_sx
 
