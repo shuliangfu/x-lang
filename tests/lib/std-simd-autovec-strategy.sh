@@ -2,11 +2,11 @@
 # std-simd-autovec-strategy.sh — STD-153 manifest、烟测与 perf 辅助
 #
 # 用法（source 后）：
-#   std_simd_autovec_symbols_ok MOD_SU SIMD_C TSV
+#   std_simd_autovec_symbols_ok MOD_SX SIMD_C TSV
 #   std_simd_autovec_platform_key
 #   std_simd_autovec_perf_thresholds VECTORS platform_key
 #   std_simd_autovec_run_c_smoke
-#   std_simd_autovec_run_sx_smoke SHUX_BIN SU SIMD_O
+#   std_simd_autovec_run_sx_smoke SHUX_BIN SX SIMD_O
 #   std_simd_autovec_run_perf SHUX_ASM dot_min ss_min
 #   std_simd_autovec_emit_report status c_ok su_ok perf_ok skip host
 
@@ -14,9 +14,10 @@ STD153_PREFIX="${SHUX_STD153_SIMD_AUTovec_PREFIX:-shux: [SHUX_STD153_SIMD_AUTove
 
 # 校验 manifest；echo 缺失数。
 std_simd_autovec_symbols_ok() {
-  local mod_su="$1"
-  local simd_c="$2"
-  local tsv="$3"
+  local mod_sx="$1"
+  local simd_sx="$2"
+  local simd_glue="$3"
+  local tsv="$4"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -24,15 +25,17 @@ std_simd_autovec_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-simd-autovec FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-simd-autovec FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/simd/simd.c" ]; then path="$simd_c"; fi
-        if [ "$path" = "std/simd/mod.sx" ]; then path="$mod_su"; fi
+        case "$path" in
+          std/simd/simd.c|std/simd/simd.sx|std/simd/simd_os_glue.c) path="$simd_sx" ;;
+        esac
+        if [ "$path" = "std/simd/mod.sx" ]; then path="$mod_sx"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-simd-autovec FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -116,7 +119,7 @@ std_simd_autovec_run_sx_smoke() {
   local shux="$1"
   local src="$2"
   local simd_o="$3"
-  local exe="/tmp/shux_std153_simd_autovec_su_$$"
+  local exe="/tmp/shux_std153_simd_autovec_sx_$$"
   if ! "$shux" -L . "$src" -o "$exe" "$simd_o" >/dev/null 2>&1; then
     echo "std-simd-autovec FAIL: compile $src" >&2
     rm -f "$exe"
@@ -191,5 +194,5 @@ std_simd_autovec_emit_report() {
   local perf_ok="$4"
   local skip="$5"
   local host="$6"
-  echo "${STD153_PREFIX} status=${status} c=${c_ok} su=${su_ok} perf=${perf_ok} skip=${skip} host=${host}"
+  echo "${STD153_PREFIX} status=${status} c=${c_ok} sx=${su_ok} perf=${perf_ok} skip=${skip} host=${host}"
 }
