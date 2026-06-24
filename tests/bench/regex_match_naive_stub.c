@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/** 消费一个 atom（与 regex_min.inc.c 同语义，无优化） */
+/** 消费一个 atom（与 regex.sx 同语义，无优化） */
 static int stub_consume_atom(const char **pat, const char *pat_end) {
   const char *p = *pat;
   if (p >= pat_end) return 0;
