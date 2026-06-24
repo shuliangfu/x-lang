@@ -5,7 +5,7 @@ STD_SET_OPS_PREFIX="${SHUX_STD129_SET_OPS_PREFIX:-shux: [SHUX_STD129_SET_OPS]}"
 
 # 校验 manifest 条目。
 std_set_ops_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
@@ -14,7 +14,7 @@ std_set_ops_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
           echo "std-set-ops FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -51,5 +51,5 @@ std_set_ops_run_smoke() {
 
 # 输出 gate 报告。
 std_set_ops_emit_report() {
-  echo "${STD_SET_OPS_PREFIX} status=$1 su=$2 skip=$3"
+  echo "${STD_SET_OPS_PREFIX} status=$1 sx=$2 skip=$3"
 }
