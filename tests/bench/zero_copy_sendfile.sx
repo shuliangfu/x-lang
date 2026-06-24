@@ -23,7 +23,7 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 
 function main(): i32 {
   /** 路径 "tests/bench/.io_mmap_bench_tmp"（NUL 结尾）。 */
-  let path: [31]u8 =
+  let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95,
   116, 109, 112, 0];
