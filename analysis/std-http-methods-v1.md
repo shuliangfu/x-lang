@@ -2,7 +2,7 @@
 
 ## 1. 阅读路径
 
-15 分钟速览：`std/http/mod.sx` → `std/http/http.c` → `tests/http/methods_status.sx`。
+15 分钟速览：`std/http/mod.sx` → `std/http/http_glue.c` → `tests/http/methods_status.sx`。
 
 ## 2. 客户端 API
 
