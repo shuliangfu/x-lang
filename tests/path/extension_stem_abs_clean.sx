@@ -4,27 +4,27 @@ const path = import("std.path");
 
 function main(): i32 {
   if (path.path_sep() != 47) { return 1; }
-  let p_abs: [4]u8 = [47, 97, 98, 0];
+  let p_abs: u8[4] = [47, 97, 98, 0];
   if (path.path_is_absolute(&p_abs[0], 3) != 1) { return 2; }
-  let p_rel: [3]u8 = [97, 98, 0];
+  let p_rel: u8[3] = [97, 98, 0];
   if (path.path_is_absolute(&p_rel[0], 2) != 0) { return 3; }
-  let file_txt: [13]u8 = [100, 105, 114, 47, 102, 105, 108, 101, 46, 116, 120, 116, 0];
-  let ext_buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let file_txt: u8[13] = [100, 105, 114, 47, 102, 105, 108, 101, 46, 116, 120, 116, 0];
+  let ext_buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let ext_len: i32 = path.path_extension(&file_txt[0], 12, &ext_buf[0], 8);
   if (ext_len != 4) { return 4; }
   if (ext_buf[0] != 46 || ext_buf[1] != 116 || ext_buf[2] != 120 || ext_buf[3] != 116) { return 5; }
-  let stem_buf: [8]u8 = [0, 0, 0, 0, 0, 0, 0, 0];
+  let stem_buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let stem_len: i32 = path.path_stem(&file_txt[0], 12, &stem_buf[0], 8);
   if (stem_len != 4) { return 6; }
   if (stem_buf[0] != 102 || stem_buf[1] != 105 || stem_buf[2] != 108 || stem_buf[3] != 101) {
     return 7; }
-  let simple: [5]u8 = [47, 97, 47, 98, 0];
-  let clean_buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let simple: u8[5] = [47, 97, 47, 98, 0];
+  let clean_buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let clean_len: i32 = path.path_clean(&simple[0], 4, &clean_buf[0], 16);
   if (clean_len != 4) { return 8; }
   if (clean_buf[0] != 47 || clean_buf[1] != 97 || clean_buf[2] != 47 || clean_buf[3] != 98) {
     return 9; }
-  let dotdot: [15]u8 = [
+  let dotdot: u8[15] = [
     47, 102, 111, 111, 47, 98, 97, 114, 47, 46, 46, 47, 113, 117, 120
   ];
   clean_len = path.path_clean(&dotdot[0], 15, &clean_buf[0], 16);
