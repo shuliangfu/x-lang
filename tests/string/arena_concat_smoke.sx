@@ -10,8 +10,8 @@ function main(): i32 {
   if (heap.arena64_init(&arena, 4096) != 0) {
     return 1;
   }
-  let a_buf: [3]u8 = [97, 98, 99];
-  let b_buf: [3]u8 = [100, 101, 102];
+  let a_buf: u8[3] = [97, 98, 99];
+  let b_buf: u8[3] = [100, 101, 102];
   let va: StrView = string.string_view(&a_buf[0], 3);
   let vb: StrView = string.string_view(&b_buf[0], 3);
   let ab: StrView = string.string_view_concat_arena(&arena, va, vb);
@@ -19,13 +19,13 @@ function main(): i32 {
     heap.arena64_deinit(&arena);
     return 2;
   }
-  let expect: [6]u8 = [97, 98, 99, 100, 101, 102];
+  let expect: u8[6] = [97, 98, 99, 100, 101, 102];
   let exp_v: StrView = string.string_view(&expect[0], 6);
   if (string.string_view_eq(ab, exp_v) != 1) {
     heap.arena64_deinit(&arena);
     return 3;
   }
-  let c_buf: [2]u8 = [103, 104];
+  let c_buf: u8[2] = [103, 104];
   let vc: StrView = string.string_view(&c_buf[0], 2);
   let abc: StrView = string.string_view_concat_arena(&arena, ab, vc);
   if (string.string_view_len(abc) != 8) {
@@ -37,7 +37,7 @@ function main(): i32 {
     return 5;
   }
   let sub: StrView = string.string_view_subview(abc, 3, 3);
-  let mid_exp: [3]u8 = [100, 101, 102];
+  let mid_exp: u8[3] = [100, 101, 102];
   let mid_v: StrView = string.string_view(&mid_exp[0], 3);
   if (string.string_view_eq(sub, mid_v) != 1) {
     heap.arena64_deinit(&arena);
