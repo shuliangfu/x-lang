@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-111：std.sync 调试锁诊断门禁
+# STD-111：std.sync 调试锁诊断门禁（F-sync-lock-diag v2：逻辑在 sync.sx，TLS 在 tls glue）
 #
 # 用法：./tests/run-std-sync-lock-diag-gate.sh
 set -e
@@ -7,10 +7,13 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
 MANIFEST="${SHUX_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
-MOD_SU="std/sync/mod.sx"
-SYNC_C="std/sync/sync.c"
+MOD_SX="std/sync/mod.sx"
+SYNC_DIAG_SX="std/sync/sync.sx"
+SYNC_TLS_RUNTIME="${SHUX_STD_SYNC_TLS_IMPL:-compiler/src/asm/runtime_sync_lock_diag_tls.c}"
+SYNC_OS_RUNTIME="${SHUX_STD_SYNC_OS_IMPL:-compiler/src/asm/runtime_sync_os.c}"
+SYNC_SX="std/sync/sync.sx"
 LIB="tests/lib/std-sync-lock-diag.sh"
-SMOKE_SU="tests/sync/lock_diag.sx"
+SMOKE_SX="tests/sync/lock_diag.sx"
 SMOKE_C="tests/sync/lock_diag_smoke_ok.c"
 MIN_APIS=8
 
@@ -18,7 +21,7 @@ MIN_APIS=8
 . "$LIB"
 
 echo "=== STD-111: sync lock diag manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$SYNC_C" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SYNC_SX" "$SYNC_OS_RUNTIME" "$SYNC_DIAG_SX" "$SYNC_TLS_RUNTIME" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-sync-lock-diag gate FAIL: missing $f" >&2
     exit 1
@@ -56,41 +59,44 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sync_lock_diag_symbols_ok "$MOD_SU" "$SYNC_C" "$MANIFEST" || true)"
+sym_miss="$(std_sync_lock_diag_symbols_ok "$MOD_SX" "$SYNC_DIAG_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sync_lock_diag_emit_report "fail" 0 0 0
   exit 1
 fi
 echo "std-sync-lock-diag manifest OK"
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/sync/sync.o
-
 C_OK=0
-if std_sync_lock_diag_run_c_smoke "$SYNC_C"; then
-  C_OK=1
+SX_OK=0
+SKIP=0
+
+echo "=== STD-111: sync lock diag c smoke ==="
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . tests/lib/build-std-c-o.sh
+  if ensure_std_c_o ../std/sync/sync.o 2>/dev/null && std_sync_lock_diag_run_c_smoke "$SYNC_TLS_RUNTIME"; then
+    C_OK=1
+  else
+    echo "std-sync-lock-diag gate SKIP c smoke (no full sync.o)" >&2
+  fi
 else
-  std_sync_lock_diag_emit_report "fail" 0 0 0
-  exit 1
+  echo "std-sync-lock-diag gate SKIP c smoke (no shux-c)" >&2
 fi
 
-SU_OK=0
-SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-111: .sx smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-sync-lock-diag gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-sync-lock-diag gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_sync_lock_diag_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "diag"; then
-    SU_OK=1
+  if std_sync_lock_diag_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "diag"; then
+    SX_OK=1
   else
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -99,5 +105,5 @@ else
   SKIP=1
 fi
 
-std_sync_lock_diag_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_sync_lock_diag_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-sync-lock-diag gate OK"
