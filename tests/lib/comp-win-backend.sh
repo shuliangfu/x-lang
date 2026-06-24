@@ -83,10 +83,10 @@ comp_win_backend_is_coff_obj() {
 # 编译 Windows COFF .obj；成功时 echo 输出路径。
 comp_win_backend_emit_coff() {
   local shux="$1"
-  local su="$2"
+  local sx="$2"
   local out="$3"
   rm -f "$out" 2>/dev/null || true
-  if ! "$shux" -backend asm -target "$WIN_TRIPLE" -o "$out" "$su" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$WIN_TRIPLE" -o "$out" "$sx" 2>/dev/null; then
     return 1
   fi
   if ! comp_win_backend_is_coff_obj "$out"; then
