@@ -2,15 +2,15 @@
 # std-net-tls.sh — STD-030/083：TLS manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_net_tls_symbols_ok MOD_SU NET_C TSV
-#   std_net_tls_run_smoke SHUX_BIN SU TAG
+#   std_net_tls_symbols_ok MOD_SX NET_C TSV
+#   std_net_tls_run_smoke SHUX_BIN SX TAG
 #   std_net_tls_emit_report status stub_ok typeck_ok skip
 
 STD_NET_TLS_PREFIX="${SHUX_STD_NET_TLS_PREFIX:-shux: [SHUX_STD_NET_TLS]}"
 
 # 校验 manifest symbol/api/file；echo 缺失数。
 std_net_tls_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local net_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,16 +20,16 @@ std_net_tls_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
-          echo "std-net-tls FAIL: missing api '$anchor' in $mod_su" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          echo "std-net-tls FAIL: missing api '$anchor' in $mod_sx" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol|const_not_impl)
-        local target="$mod_su"
+        local target="$mod_sx"
         case "$mod_path" in
-          std/net/net.c) target="$net_c" ;;
-          std/net/tls_stub.inc.c|std/net/tls_openssl.inc.c) target="$mod_path" ;;
+          std/net/net.c) target="${net_c:-std/net/tls_stub.sx}" ;;
+          std/net/tls_stub.sx|std/net/tls_openssl.sx|std/net/tls_mbedtls.sx) target="$mod_path" ;;
           *) [ -n "${mod_path:-}" ] && target="$mod_path" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then
@@ -150,10 +150,10 @@ std_net_tls_build_mbedtls_o() {
   return 0
 }
 
-# 构建 net.o（OpenSSL TLS）。
+# 构建 net.o（OpenSSL TLS .sx + stub net.o）。
 std_net_tls_build_openssl_o() {
   if ! make -C compiler net-o-openssl >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: make net-o-openssl" >&2
+    echo "std-net-tls FAIL: make net-o-openssl (tls_openssl.sx)" >&2
     return 1
   fi
   return 0
@@ -192,19 +192,24 @@ std_net_tls_stop_s_server() {
   fi
 }
 
-# C 烟测：tls_openssl_smoke_ok.c + net.o(OpenSSL) + libssl。
+# C 烟测：tls_openssl_smoke_ok.c + tls_openssl.o + net.o + libssl。
 std_net_tls_run_openssl_c_smoke() {
   local src="tests/net/tls_openssl_smoke_ok.c"
   local out="/tmp/shux_net_tls_openssl_$$"
+  local tls_o="std/net/tls_openssl.o"
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_openssl_ldflags)"
+  if [ ! -f "$tls_o" ]; then
+    echo "std-net-tls FAIL: missing $tls_o (run make net-o-openssl)" >&2
+    return 1
+  fi
   if [ ! -f "$net_o" ]; then
     echo "std-net-tls FAIL: missing $net_o" >&2
     return 1
   fi
   # shellcheck disable=SC2086
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$net_o" std/io/io.o $ldflags 2>/dev/null; then
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/dev/null; then
     echo "std-net-tls FAIL: compile openssl smoke" >&2
     return 1
   fi
@@ -218,19 +223,24 @@ std_net_tls_run_openssl_c_smoke() {
   return 0
 }
 
-# C 烟测：tls_mbedtls_smoke_ok.c + net.o(mbedTLS) + libmbedtls。
+# C 烟测：tls_mbedtls_smoke_ok.c + tls_mbedtls.o + net.o + libmbedtls。
 std_net_tls_run_mbedtls_c_smoke() {
   local src="tests/net/tls_mbedtls_smoke_ok.c"
   local out="/tmp/shux_net_tls_mbedtls_$$"
+  local tls_o="std/net/tls_mbedtls.o"
   local net_o="std/net/net.o"
   local ldflags
   ldflags="$(std_net_tls_mbedtls_ldflags)"
+  if [ ! -f "$tls_o" ]; then
+    echo "std-net-tls FAIL: missing $tls_o (run make net-o-mbedtls)" >&2
+    return 1
+  fi
   if [ ! -f "$net_o" ]; then
     echo "std-net-tls FAIL: missing $net_o" >&2
     return 1
   fi
   # shellcheck disable=SC2086
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$net_o" std/io/io.o $ldflags 2>/dev/null; then
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$tls_o" "$net_o" $ldflags 2>/dev/null; then
     echo "std-net-tls FAIL: compile mbedtls smoke" >&2
     return 1
   fi
