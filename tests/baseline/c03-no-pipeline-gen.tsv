@@ -1,0 +1,10 @@
+# C-03 去 pipeline_gen.c 编译盘点（manifest）
+# 列：track_id	layer	anchor	check_type	gate_or_notes
+bstrict_makefile	makefile	bootstrap-driver-bstrict	grep	SHUX_ASM_EXPERIMENTAL_SKIP_GEN
+crt0_makefile	makefile	bootstrap-driver-crt0	grep	no cc -c pipeline_gen.c
+build_asm_script	script	compiler/scripts/build_shux_asm.sh	grep	SKIP_GEN / strict link
+bstrict_ci	gate	tests/run-bootstrap-bstrict-ci.sh	grep	pipeline_gen audit in log
+c03_gate	gate	tests/run-c03-no-pipeline-gen-gate.sh	gate_ref	phase C closure
+win_bstrict_track	gate	tests/run-bootstrap-bstrict-windows-gate.sh	gate_ref	SHUX_WIN_BSTRICT B-strict
+win_hybrid_track	gate	tests/run-bootstrap-bstrict-windows-gate.sh	gate_ref	Windows B-hybrid default
+a03_crt0	cross_ref	tests/baseline/bootstrap-repro.tsv	grep	bootstrap-driver-crt0
