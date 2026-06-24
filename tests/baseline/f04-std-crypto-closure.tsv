@@ -1,0 +1,23 @@
+# F-04 v21：std.crypto 模块闭合 manifest
+# 列：item_id	kind	anchor	notes
+doc	doc	analysis/phase-f-f04-v21-closure.md	F-04 v21
+gate	gate	tests/run-f04-std-crypto-closure-gate.sh	v21 聚合
+deleted_crypto_c	absent	std/crypto/crypto.c	v16 删除
+deleted_aes_inc	absent	std/crypto/aes_gcm.inc.c	v17 删除
+deleted_chacha_inc	absent	std/crypto/chacha20_poly1305.inc.c	v18 删除
+deleted_ed25519_inc	absent	std/crypto/ed25519.inc.c	v19 删除
+glue_inc	file	compiler/src/asm/runtime_crypto_inc_glue.c	SHA-512 胶层（F-ZC）
+glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.c	ref10 胶层（F-ZC）
+absent_std_glue_inc	absent	std/crypto/crypto_inc_glue.c	F-ZC 迁出
+absent_std_glue_ref10	absent	std/crypto/ed25519_ref10_glue.c	F-ZC 迁出
+sx_core	file	std/crypto/crypto_core.sx	v16
+sx_aes	file	std/crypto/aes_gcm.sx	v17
+sx_chacha	file	std/crypto/chacha20_poly1305.sx	v18
+sx_ed25519	file	std/crypto/ed25519.sx	v19
+mod	file	std/crypto/mod.sx	门面
+makefile_crypto_o	script	compiler/Makefile	crypto.o 无 crypto.c
+gate_v16	gate	tests/run-f04-std-crypto-v16-gate.sh	v16 子 gate
+gate_v17	gate	tests/run-f04-std-crypto-v17-gate.sh	v17 子 gate
+gate_v18	gate	tests/run-f04-std-crypto-v18-gate.sh	v18 子 gate
+gate_v19	gate	tests/run-f04-std-crypto-v19-gate.sh	v19 子 gate
+gate_std_crypto	gate	tests/run-std-crypto-gate.sh	STD-006 聚合
