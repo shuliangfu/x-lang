@@ -9,7 +9,7 @@ function main(): i32 {
   /** 端口 0 = 动态；connect 失败时返回 2（无 server 属预期）。 */
   let stream: TcpStream = net.connect_blocking(addr, 39999, 100);
   if (stream.fd < 0) { return 2; }
-  let buf: [4]u8 = [1, 2, 3, 4];
+  let buf: u8[4] = [1, 2, 3, 4];
   let nw: i32 = net.stream_write_batch(stream, &buf[0], 4, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
   if (net.close_stream(stream) != 0) { return 3; }
   if (nw != 4) { return 4; }
