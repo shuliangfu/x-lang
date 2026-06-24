@@ -28,10 +28,10 @@ int lsp_codegen_emit_io_extern_to_buf(struct codegen_CodegenOutBuf *out);
 /** 同上 gen 块，写入 CodegenOutBuf。 */
 int lsp_codegen_emit_gen_extern_to_buf(struct codegen_CodegenOutBuf *out);
 
-/** entry 路径是否 lsp_io.sx 的 -E-extern 入口（C/SU 共用判定）。 */
+/** entry 路径是否 lsp_io.sx 的 -E-extern 入口（C/SX 共用判定）。 */
 int lsp_codegen_emit_path_is_lsp_io_sx(const char *path);
 
 /** entry 路径是否 lsp/lsp.sx 的 -E-extern 入口。 */
-int lsp_codegen_emit_path_is_lsp_main_su(const char *path);
+int lsp_codegen_emit_path_is_lsp_main_sx(const char *path);
 
 #endif /* SHUX_LSP_CODEGEN_EXTERN_H */
