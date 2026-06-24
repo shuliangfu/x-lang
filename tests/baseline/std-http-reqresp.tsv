@@ -34,7 +34,7 @@ struct_response_owned	struct	HttpResponseOwned	std/http/mod.sx	一体堆响应
 api_resp_owned	api	response_owned_from_parse	std/http/mod.sx	构造 Owned
 api_resp_owned_free	api	response_owned_free	std/http/mod.sx	释放 Owned
 api_push_body_owned	api	push_last_body_owned	std/http/mod.sx	push 堆 body
-symbol_owned_smoke_c	symbol	http_request_owned_smoke_c	std/http/http_reqresp.inc.c	Owned C
+symbol_owned_smoke_c	symbol	http_request_owned_smoke_c	compiler/src/asm/http/http_reqresp.inc.c	Owned C
 api_body_view	api	response_body_view	std/http/mod.sx	body 视图
 api_body_owned	api	response_body_owned	std/http/mod.sx	堆 body
 api_body_free	api	body_owned_free	std/http/mod.sx	释放
@@ -42,11 +42,11 @@ api_body_decode	api	response_body_decode	std/http/mod.sx	body
 api_huffman	api	http2_hpack_huffman_decode	std/http/mod.sx	Huffman
 api_window	api	http2_build_window_update	std/http/mod.sx	WINDOW_UPDATE
 api_smoke	api	response_parse_smoke	std/http/mod.sx	C 烟测
-symbol_parse_c	symbol	http_response_parse_c	std/http/http_reqresp.inc.c	解析 C
-symbol_body_copy_c	symbol	http_response_body_copy_c	std/http/http_reqresp.inc.c	body 复制
-symbol_url_smoke_c	symbol	http_url_owned_smoke_c	std/http/http_reqresp.inc.c	URL C
-symbol_huffman_c	symbol	http2_hpack_huffman_decode_c	std/http/http2_hpack_huffman.inc.c	Huffman C
-symbol_flow_c	symbol	http2_build_window_update_c	std/http/http2_flow.inc.c	流控 C
+symbol_parse_c	symbol	http_response_parse_c	compiler/src/asm/http/http_reqresp.inc.c	解析 C
+symbol_body_copy_c	symbol	http_response_body_copy_c	compiler/src/asm/http/http_reqresp.inc.c	body 复制
+symbol_url_smoke_c	symbol	http_url_owned_smoke_c	compiler/src/asm/http/http_reqresp.inc.c	URL C
+symbol_huffman_c	symbol	http2_hpack_huffman_decode_c	compiler/src/asm/http/http2_hpack_huffman.inc.c	Huffman C
+symbol_flow_c	symbol	http2_build_window_update_c	compiler/src/asm/http/http2_flow.inc.c	流控 C
 smoke_reqresp	smoke	tests/http/request_response.sx	烟测
 smoke_url_owned	smoke	tests/http/request_url_owned.sx	堆 URL 烟测
 smoke_owned	smoke	tests/http/request_owned.sx	Owned 烟测
