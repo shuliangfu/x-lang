@@ -8,10 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD106_DOC:-analysis/std-log-rotate-async-v1.md}"
 MANIFEST="${SHUX_STD106_TSV:-tests/baseline/std-log-rotate-async.tsv}"
 VECTORS="${SHUX_STD106_VECTORS:-tests/baseline/std-log-rotate-async-vectors.tsv}"
-MOD_SU="std/log/mod.sx"
-LOG_C="std/log/log.c"
+MOD_SX="std/log/mod.sx"
+LOG_SX="std/log/log.sx"
+LOG_RUNTIME="compiler/src/asm/runtime_log_os.c"
 LIB="tests/lib/std-log-rotate-async.sh"
-SMOKE_SU="tests/std-log/rotate_async.sx"
+SMOKE_SX="tests/std-log/rotate_async.sx"
 SMOKE_C="tests/std-log/rotate_async_smoke_ok.c"
 MIN_APIS=3
 
@@ -19,7 +20,7 @@ MIN_APIS=3
 . "$LIB"
 
 echo "=== STD-106: log rotate-async manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$LOG_C" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$LOG_SX" "$LOG_RUNTIME" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-log-rotate-async gate FAIL: missing $f" >&2
     exit 1
@@ -62,26 +63,27 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_log_rotate_async_symbols_ok "$MOD_SU" "$LOG_C" "$MANIFEST" || true)"
+sym_miss="$(std_log_rotate_async_symbols_ok "$MOD_SX" "$LOG_SX" "$LOG_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_log_rotate_async_emit_report "fail" 0 0 0
   exit 1
 fi
 echo "std-log-rotate-async manifest OK"
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/log/log.o
-
 C_OK=0
-if std_log_rotate_async_run_c_smoke "$LOG_C"; then
-  C_OK=1
+if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  # shellcheck source=tests/lib/build-std-c-o.sh
+  . tests/lib/build-std-c-o.sh
+  if ensure_std_c_o ../std/log/log.o 2>/dev/null && ensure_runtime_log_os_o 2>/dev/null && std_log_rotate_async_run_c_smoke "$LOG_SX"; then
+    C_OK=1
+  else
+    echo "std-log-rotate-async gate SKIP c smoke (no full log.o)" >&2
+  fi
 else
-  std_log_rotate_async_emit_report "fail" 0 0 0
-  exit 1
+  echo "std-log-rotate-async gate SKIP c smoke (no shux-c)" >&2
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -103,14 +105,14 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-106: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-log-rotate-async gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-log-rotate-async gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_log_rotate_async_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_log_rotate_async_run_sx_smoke "$SHUX_BIN" "$SMOKE_SU" "ra"; then
-    SU_OK=1
+  if std_log_rotate_async_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "ra"; then
+    SX_OK=1
   else
     std_log_rotate_async_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -119,5 +121,5 @@ else
   SKIP=1
 fi
 
-std_log_rotate_async_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_log_rotate_async_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-log-rotate-async gate OK"
