@@ -2,7 +2,7 @@
 //
 // 【文件职责】sort_i32、sort_u8 原地不稳定升序；sort_stable_* 稳定归并；
 // sort_i32_cmp 自定义比较器；sort_stable_by_key 按 KeyTag.key 稳定排序。
-// 【依赖】core；与 std/sort/sort.c 同属一模块。
+// 【依赖】core；实现见 sort.sx（F-sort v1）。
 extern function sort_i32_c(ptr: *i32, len: i32): void;
 extern function sort_u8_c(ptr: *u8, len: i32): void;
 extern function sort_stable_i32_c(ptr: *i32, len: i32): void;
