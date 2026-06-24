@@ -12,7 +12,7 @@ api_and_then	api	and_then_i32	std/option/mod.sx	组合
 api_or	api	or_i32	std/option/mod.sx	组合
 api_from_result	api	option_from_result_i32	std/option/mod.sx	互转
 api_to_result	api	option_to_result_i32	std/option/mod.sx	互转
-impl_su	file	std/option/mod.sx	std/option/mod.sx
-smoke_su	smoke	tests/std-option-result/roundtrip.sx	round-trip
+impl_sx	file	std/option/mod.sx	std/option/mod.sx
+smoke_sx	smoke	tests/std-option-result/roundtrip.sx	round-trip
 lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
 gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh
