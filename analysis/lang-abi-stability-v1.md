@@ -24,7 +24,7 @@
 | 层级 | 表面 | stability | 说明 |
 |------|------|-----------|------|
 | **A1-scalar-layout** | 标量 `i32`/`u64`/`f64`/`bool` 大小与对齐 | **stable** | 与 C 等价；变更须 **major** |
-| **A2-slice-abi** | `[]T` → `{ data*, length }` | **stable** | `layout_abi.c` 16B@x64 |
+| **A2-slice-abi** | `T[]` → `{ data*, length }` | **stable** | `layout_abi.c` 16B@x64 |
 | **A3-struct-pack** | struct 字段偏移、隐式 padding 拒绝 | **stable** | typeck `implicit padding` |
 | **A4-calling-convention** | 用户函数 SysV x86_64 / AAPCS64 | **stable** | 与平台 C 默认一致 |
 | **A5-f32-xmm** | x86_64 f32 实参 xmm0–7 | **transitional** | 默认 xmm；`-legacy-f32-abi` 保留至 v1.1 移除 |
@@ -45,7 +45,7 @@
 | level | surface | stability | bump_policy | 验证 |
 |-------|---------|-----------|-------------|------|
 | **L0** | primitive scalar | stable | major | 语言规范 §标量 |
-| **L1** | slice `[]T` | stable | major | `layout_abi.c` |
+| **L1** | slice `T[]` | stable | major | `layout_abi.c` |
 | **L2** | struct field layout | stable | major | typeck padding gate |
 | **L3** | `extern` C SysV | stable | major | `safe-ffi-contract` |
 | **L4** | f32 xmm x86_64 | transitional | minor+flag | `run-abi-f32-xmm-gate.sh` |
