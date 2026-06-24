@@ -14,14 +14,14 @@ function buf_has_prefix(out: *u8, out_len: i32, expect: *u8, expect_len: i32): i
 
 function main(): i32 {
   let reg: Registry = metrics.registry_new();
-  let out: [512]u8 = [];
+  let out: u8[512] = [];
   let n: i32 = 0;
-  let req: [14]u8 = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];
-  let mem: [12]u8 = [109, 101, 109, 95, 98, 121, 116, 101, 115];
-  let lat: [11]u8 = [108, 97, 116, 101, 110, 99, 121, 95, 109, 115];
-  let meth: [6]u8 = [109, 101, 116, 104, 111, 100];
-  let get: [3]u8 = [71, 69, 84];
-  let empty: [1]u8 = [0];
+  let req: u8[14] = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];
+  let mem: u8[12] = [109, 101, 109, 95, 98, 121, 116, 101, 115];
+  let lat: u8[11] = [108, 97, 116, 101, 110, 99, 121, 95, 109, 115];
+  let meth: u8[6] = [109, 101, 116, 104, 111, 100];
+  let get: u8[3] = [71, 69, 84];
+  let empty: u8[1] = [0];
 
   if (metrics.registry_register_counter(&reg, &req[0], 14, &meth[0], 6, &get[0], 3) != 0) { return 1; }
   if (metrics.registry_register_gauge(&reg, &mem[0], 12, &empty[0], 0, &empty[0], 0) != 0) { return 2; }
