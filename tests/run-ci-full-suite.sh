@@ -224,7 +224,7 @@ echo "── refresh shux_asm gate ──"
 chmod +x tests/run-refresh-shux-asm-gate.sh
 if ci_is_windows_msys_ci_lite; then
   # MSYS2 上 relink-shux / build_shux_asm typeck EMIT_HEAVY 易挂起 45min+；seed shux 作 shux_asm 足够 DOD/ZC 烟测。
-  make -C compiler migrate-su-objs 2>/dev/null || make -C compiler migrate-su-objs
+  make -C compiler migrate-sx-objs 2>/dev/null || make -C compiler migrate-sx-objs
   cp -f compiler/shux compiler/shux_asm
   {
     echo "refresh shux asm gate: CI non-Linux — Mach-O/PE single-platform relink"
