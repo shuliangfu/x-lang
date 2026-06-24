@@ -6,7 +6,7 @@ function main(): i32 {
   if (log.set_async_enabled(1) != 0) {
     return 1;
   }
-  let msg: [6]u8 = [97, 115, 121, 110, 99, 49];
+  let msg: u8[6] = [97, 115, 121, 110, 99, 49];
   if (log.log(log.level_info(), &msg[0], 6) != 0) {
     return 2;
   }
