@@ -1,0 +1,10 @@
+// std/atomic/atomic.sx — F-atomic v2 模块锚点（F-ZC 纯 .sx；原子操作在 runtime_atomic_glue.c）
+//
+// 【文件职责】
+// 提供 F-atomic v2 可编译 .sx 单元；与 runtime_atomic_glue.o 一并链入 exe。
+// 对外 API 在 mod.sx。
+
+/** F-atomic v1 版本标记；供聚合 gate 校验 atomic.sx 已参与 ld -r 合并。 */
+function atomic_f_atomic_v1_marker_c(): i32 {
+  return 1;
+}
