@@ -4,7 +4,8 @@
 // 64B 对齐连续列（I32/F32/F64）+ null bitmap；adopt_* 零拷贝接管网卡 buffer。
 // 配合 std.simd 向量化；无反序列化。
 //
-// 【布局】见 arrow.c：data + null_bitmap（bit=1 有效）+ length/capacity。
+// 64B 对齐列 + null bitmap；adopt_* 零拷贝接管网卡 buffer。
+// 实现见 arrow.sx + arrow_simd_glue.c（F-05 v1）。
 
 const simd = import("std.simd");
 
@@ -15,7 +16,7 @@ const ARROW_F32: i32 = 2;
 /** 列类型：Float64。 */
 const ARROW_F64: i32 = 3;
 
-/** 列对齐字节数（与 arrow.c ARROW_ALIGN 一致）。 */
+/** 列对齐字节数（与 arrow.sx ARROW_ALIGN 一致）。 */
 const ARROW_ALIGN_BYTES: i32 = 64;
 
 /** 不透明列句柄。 */
