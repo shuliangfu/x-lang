@@ -8,6 +8,6 @@ api_bytes_clear	api	bytes_clear	std/bytes/mod.sx	cap 复用
 api_bytes_grow	api	bytes_grow	std/bytes/mod.sx	预分配
 doc_codec	file	analysis/std-codec-v1.md	codec v1
 doc_bytes	file	analysis/std-bytes-v1.md	bytes v1
-smoke_su	smoke	tests/std-codec/buffer_reuse.sx	cap 复用烟测
+smoke_sx	smoke	tests/std-codec/buffer_reuse.sx	cap 复用烟测
 lib	script	tests/lib/std-codec-buffer-reuse.sh	lib
 gate	script	tests/run-std-codec-buffer-reuse-gate.sh	gate
