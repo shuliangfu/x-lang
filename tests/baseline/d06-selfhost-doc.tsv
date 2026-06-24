@@ -1,0 +1,10 @@
+# D-06 SELFHOST 黄金自举文档盘点（manifest）
+# 列：item_id	doc	anchor	check_type	notes
+selfhost_doc	doc	compiler/docs/SELFHOST.md	grep	§1 阶段 D 黄金自举
+readme_doc	doc	README.md	grep	自举状态 Stage2 哈希
+stage2_bstrict	cmd	bootstrap-verify-stage2-bstrict	grep	SELFHOST §2
+d03_gate	gate	tests/run-d03-stage2-hash-gate.sh	gate_ref	SHA256 STRICT
+d04_gate	gate	tests/run-d04-stage2-portable-diff-gate.sh	gate_ref	portable 子集 diff
+linux_a09	gate	tests/run-linux-a09-a11-gate.sh	gate_ref	Docker 金标准
+d06_gate	gate	tests/run-d06-selfhost-doc-gate.sh	gate_ref	phase D closure
+phase_d_doc	doc	analysis/phase-d-d06-v1.md	grep	D-06 v1
