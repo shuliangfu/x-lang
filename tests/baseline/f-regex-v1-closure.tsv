@@ -1,0 +1,10 @@
+# F-regex v1 std.regex 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fregex_doc	doc	analysis/phase-f-regex-v1.md	F-regex v1
+fregex_gate	gate	tests/run-f-regex-v1-gate.sh	聚合门禁
+regex_sx	file	std/regex/regex.sx	模块 .sx
+regex_glue_absent	absent	std/regex/regex_engine_glue.c	v2 已删
+regex_inc_absent	absent	std/regex/regex_min.inc.c	v2 已删
+regex_mod	file	std/regex/mod.sx	对外 API
+regex_c_absent	absent	std/regex/regex.c	已删除
+makefile	makefile	compiler/Makefile	regex.o 纯 .sx
