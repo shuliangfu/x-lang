@@ -17,7 +17,7 @@ function buf_eq(buf: *u8, len: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): boo
 }
 
 function main(): i32 {
-  let buf: [32]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // usize：0 与正数
   let n0: i32 = fmt.fmt_usize_to_buf(buf, 32, 0 as usize);
