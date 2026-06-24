@@ -2,7 +2,7 @@
 const io = import("std.io");
 
 function main(): i32 {
-  let buf: [16]u8 = [72, 105, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [72, 105, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = io.write_stdout(buf, 3);
   if (n != 3) { return 1; }
   return 0;
