@@ -38,7 +38,7 @@ function main(): i32 {
   let g: i32 = unwrap_or<i32>(none_opt.is_some, none_opt.value, 11);
   if (g != 11) { return -14; }
   // Option_ptr_u8
-  let buf: [4]u8 = [1, 2, 3, 4];
+  let buf: u8[4] = [1, 2, 3, 4];
   let sp: Option_ptr_u8 = some_ptr_u8(buf);
   let mp: Option_ptr_u8 = map_ptr_u8(sp, buf);
   if (!is_some_ptr_u8(mp)) { return -15; }
