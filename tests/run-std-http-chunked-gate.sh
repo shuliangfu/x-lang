@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
 MANIFEST="${SHUX_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
-MOD_SU="std/http/mod.sx"
-HTTP_C="std/http/http.c"
-CHUNKED_INC="std/http/http_chunked.inc.c"
+MOD_SX="std/http/mod.sx"
+HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
+CHUNKED_INC="compiler/src/asm/http/http_chunked.inc.c"
 LIB="tests/lib/std-http-chunked.sh"
 SMOKE="tests/http/chunked_keepalive.sx"
 BENCH="tests/bench/http_chunked_decode_bench.sx"
@@ -19,7 +19,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-033: http chunked/keep-alive manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$HTTP_C" "$CHUNKED_INC" "$SMOKE" "$BENCH"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$HTTP_C" "$CHUNKED_INC" "$SMOKE" "$BENCH"; do
   if [ ! -f "$f" ]; then
     echo "std-http-chunked gate FAIL: missing $f" >&2
     exit 1
@@ -60,7 +60,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_http_chunked_symbols_ok "$MOD_SU" "$CHUNKED_INC" "$HTTP_C" "$MANIFEST" || true)"
+sym_miss="$(std_http_chunked_symbols_ok "$MOD_SX" "$CHUNKED_INC" "$HTTP_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_http_chunked_emit_report "fail" 0 0 0 1
   exit 1
@@ -100,10 +100,10 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  for su in "$SMOKE" "$BENCH"; do
-    if ! "$SHUX_BIN" check -L . "$su" >/dev/null 2>&1; then
-      echo "std-http-chunked gate FAIL: typeck $su" >&2
-      "$SHUX_BIN" check -L . "$su" 2>&1 | tail -10 >&2 || true
+  for sx in "$SMOKE" "$BENCH"; do
+    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
+      echo "std-http-chunked gate FAIL: typeck $sx" >&2
+      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
       std_http_chunked_emit_report "fail" 0 0 0 0
       exit 1
     fi
