@@ -44,7 +44,7 @@ if [ -n "$BUILD_LOG" ] && [ -f "$BUILD_LOG" ]; then
   fi
 fi
 
-# Linux x86_64：编排入口须为 C glue（非 pipeline_wpo SU 入口）；smoke 仅 compile+run（完整 gate 由 run-shux-asm-gate 覆盖）。
+# Linux x86_64：编排入口须为 C glue（非 pipeline_wpo SX 入口）；smoke 仅 compile+run（完整 gate 由 run-shux-asm-gate 覆盖）。
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Linux-x86_64|Linux-amd64)
     if command -v nm >/dev/null 2>&1; then
