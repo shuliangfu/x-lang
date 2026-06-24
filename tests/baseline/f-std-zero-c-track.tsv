@@ -1,0 +1,9 @@
+# F-std-zero-c track manifest（std 零 C/H 终局）
+# 列：kind	path	phase	notes
+# 更新：SHUX_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh
+summary_std_c_target	0
+summary_std_h_target	0
+summary_std_c_current	0
+summary_std_h_current	0
+file_abi_h	compiler/include/shux_std_abi/fs_abi.h	Z9-abi-header-done	F-ZC inline preamble
+file_sx	std/compress/common.sx	Z9-header-done	compress_common.h removed
