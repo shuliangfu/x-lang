@@ -653,6 +653,8 @@ static const char *cfg_host_os_lit(void) {
     return "windows";
 #elif defined(__linux__)
     return "linux";
+#elif defined(__FreeBSD__)
+    return "freebsd";
 #else
     return "unknown";
 #endif
@@ -733,6 +735,8 @@ static void cfg_parse_triple_literals(const char *triple, int len, char *os_out,
         strncpy(os_out, "linux", os_sz - 1);
     else if (cfg_triple_contains_ci(triple, len, "darwin") || cfg_triple_contains_ci(triple, len, "macos"))
         strncpy(os_out, "macos", os_sz - 1);
+    else if (cfg_triple_contains_ci(triple, len, "freebsd"))
+        strncpy(os_out, "freebsd", os_sz - 1);
     else if (cfg_triple_contains_ci(triple, len, "windows") || cfg_triple_contains_ci(triple, len, "win32"))
         strncpy(os_out, "windows", os_sz - 1);
     os_out[os_sz - 1] = '\0';
