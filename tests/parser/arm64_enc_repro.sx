@@ -2,7 +2,7 @@
 const elf = import("platform.elf");
 
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
-  let buf: [4]u8 = [];
+  let buf: u8[4] = [];
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
