@@ -1,6 +1,6 @@
 // std.socketio — Engine.IO / Socket.IO v0 包 + v1 polling + v2 connect + v7 ns 路由 + v11 hub sync（STD-SOCKETIO-001 · P3 可选）
 //
-// 【文件职责】导出 socketio.c；v2 connect 编排 std.http 握手 + std.websocket 升级 + 重连退避。
+// 【文件职责】导出 socketio.sx（F-socketio v2 纯 .sx 逻辑）；v2 connect 编排 std.http 握手 + std.websocket 升级 + 重连退避。
 // 【依赖】socketio.o + http.o；connect_ws / server_emit_event_ws 另需 net.o（net_ws_* extern）。
 
 extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32,
@@ -159,10 +159,10 @@ allow(padding) struct SioNsRouter {
   slot_id_1: i32;
   slot_id_2: i32;
   slot_id_3: i32;
-  ns_0: [24]u8;
-  ns_1: [24]u8;
-  ns_2: [24]u8;
-  ns_3: [24]u8;
+  ns_0: u8[24];
+  ns_1: u8[24];
+  ns_2: u8[24];
+  ns_3: u8[24];
 }
 
 /** 多 namespace 并发会话表（布局须与 C sio_ns_sessions_t 一致，36 字节）。 */
@@ -185,7 +185,7 @@ allow(padding) struct SioWsHubSlot {
   sid_len: i32;
   slot_id: i32;
   tls_ctx: i64;
-  sid: [24]u8;
+  sid: u8[24];
 }
 
 /** 多路复用 WS server hub（布局须与 C sio_ws_hub_t 一致，200 字节）。 */
@@ -204,7 +204,7 @@ allow(padding) struct SioRoom {
   name_len: i32;
   room_id: i32;
   member_count: i32;
-  name: [16]u8;
+  name: u8[16];
   member_0: i32;
   member_1: i32;
   member_2: i32;
@@ -228,9 +228,9 @@ allow(padding) struct SioClusterAdapterMsg {
   ns_len: i32;
   event_len: i32;
   data_len: i32;
-  ns: [16]u8;
-  event: [16]u8;
-  data: [16]u8;
+  ns: u8[16];
+  event: u8[16];
+  data: u8[16];
 }
 
 /** 内存 cluster adapter（布局须与 C sio_cluster_adapter_t 一致，296 字节）。 */
@@ -390,7 +390,7 @@ function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_b
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
-  let key: [1]u8 = [0];
+  let key: u8[1] = [0];
   if (http_base == 0 || sid == 0 || url_buf == 0) { return bad; }
   n = build_ws_connect_url(http_base, base_len, sid, sid_len, url_buf, url_cap);
   if (n <= 0) { return bad; }
@@ -405,7 +405,7 @@ function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_b
 
 /** 经 WebSocket 发送 Socket.IO CONNECT（`40`）。 */
 function send_connect_packet(stream: SioWsStream): i32 {
-  let pkt: [8]u8 = [];
+  let pkt: u8[8] = [];
   let n: i32 = encode_connect_packet(&pkt[0], 8);
   if (n <= 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -414,7 +414,7 @@ function send_connect_packet(stream: SioWsStream): i32 {
 
 /** 经 WebSocket 发送指定 namespace 的 CONNECT 包。 */
 function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32): i32 {
-  let pkt: [64]u8 = [];
+  let pkt: u8[64] = [];
   let n: i32 = encode_connect_ns_packet(ns, ns_len, &pkt[0], 64);
   if (n <= 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -426,7 +426,7 @@ function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns
   url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
-  let pre: [256]u8 = [];
+  let pre: u8[256] = [];
   let plen: i32 = 0;
   if (http_base == 0 || sid == 0 || url_buf == 0) { return bad; }
   stream = connect_ws(http_base, base_len, sid, sid_len, url_buf, url_cap, timeout_ms);
@@ -468,8 +468,8 @@ function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, s
   event: *u8, event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
-  let frame: [256]u8 = [];
-  let payload: [128]u8 = [];
+  let frame: u8[256] = [];
+  let payload: u8[128] = [];
   let flen: i32 = 0;
   let etype: i32 = -1;
   let plen: i32 = 0;
@@ -508,9 +508,9 @@ function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, s
 
 /** 构建无 sid 的 WebSocket EIO URL（transport=websocket）。 */
 function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
-  let ws: [128]u8 = [];
+  let ws: u8[128] = [];
   let wl: i32 = 0;
-  let empty: [1]u8 = [0];
+  let empty: u8[1] = [0];
   if (http_base == 0 || out == 0) { return -1; }
   wl = http_to_ws_base(http_base, base_len, &ws[0], 128);
   if (wl <= 0) { return -1; }
@@ -523,8 +523,8 @@ function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: 
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
-  let key: [1]u8 = [0];
-  let open_buf: [512]u8 = [];
+  let key: u8[1] = [0];
+  let open_buf: u8[512] = [];
   let olen: i32 = 0;
   let stream: SioWsStream = bad;
   if (http_base == 0 || url_buf == 0) { return bad; }
@@ -549,7 +549,7 @@ function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32
   timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
-  let ack: [256]u8 = [];
+  let ack: u8[256] = [];
   let alen: i32 = 0;
   stream = connect_ws_fresh(http_base, base_len, url_buf, url_cap, timeout_ms);
   if (stream.fd < 0) { return bad; }
@@ -569,8 +569,8 @@ function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32, ns: *
   event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8, reply_event_cap: i32,
   reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
-  let frame: [256]u8 = [];
-  let payload: [128]u8 = [];
+  let frame: u8[256] = [];
+  let payload: u8[128] = [];
   let flen: i32 = 0;
   let etype: i32 = -1;
   let plen: i32 = 0;
@@ -612,12 +612,12 @@ function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, ns: *u8,
   auth_tok_len: i32, ping_event: *u8, ping_event_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
-  let frame: [256]u8 = [];
-  let payload: [128]u8 = [];
+  let frame: u8[256] = [];
+  let payload: u8[128] = [];
   let flen: i32 = 0;
   let etype: i32 = -1;
   let plen: i32 = 0;
-  let auth_ev: [8]u8 = [97, 117, 116, 104, 0];
+  let auth_ev: u8[8] = [97, 117, 116, 104, 0];
   if (http_base == 0 || auth_tok == 0 || ping_event == 0 || url_buf == 0) { return -1; }
   if (reply_event == 0 || reply_data == 0 || reply_data_len == 0) { return -1; }
   stream = connect_ws_fresh_ns(http_base, base_len, ns, ns_len, url_buf, url_cap, timeout_ms);
@@ -754,7 +754,7 @@ function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u
 
 /** 经 WebSocket 发送 Socket.IO EVENT（Engine.IO message 帧）。 */
 function emit_event_ws(stream: SioWsStream, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -766,7 +766,7 @@ function emit_event_ws(stream: SioWsStream, event: *u8, event_len: i32, data: *u
 /** 经 WebSocket 发送指定 namespace 的 EVENT（例 `/chat` → `42/chat,[...]`）。 */
 function emit_event_ws_ns(stream: SioWsStream, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -778,7 +778,7 @@ function emit_event_ws_ns(stream: SioWsStream, ns: *u8, ns_len: i32, event: *u8,
 /** 经 WebSocket 发送带 packet id 的 EVENT（ack_id<0 时等同 emit_event_ws）。 */
 function emit_event_ack_ws(stream: SioWsStream, ack_id: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -789,7 +789,7 @@ function emit_event_ack_ws(stream: SioWsStream, ack_id: i32, event: *u8, event_l
 
 /** 经 WebSocket 发送 ACK 包（type=3 + id + JSON 数组）。 */
 function emit_ack_ws(stream: SioWsStream, ack_id: i32, data: *u8, data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (stream.fd < 0) { return -1; }
   n = encode_ack_packet(ack_id, data, data_len, &frame[0], 256);
@@ -857,7 +857,7 @@ function server_emit_smoke(): i32 {
 
 /** 经已握手的 WebSocket 服务端连接推送 EVENT（`42[...]`）。 */
 function server_emit_event_ws(fd: i32, tls_ctx: i64, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
   if (fd < 0) { return -1; }
@@ -869,7 +869,7 @@ function server_emit_event_ws(fd: i32, tls_ctx: i64, event: *u8, event_len: i32,
 /** 经 WebSocket 服务端连接推送 namespace EVENT（`42/ns,[...]`）。 */
 function server_emit_event_ws_ns(fd: i32, tls_ctx: i64, ns: *u8, ns_len: i32, event: *u8, event_len: i32,
   data: *u8, data_len: i32): i32 {
-  let frame: [256]u8 = [];
+  let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
   if (fd < 0) { return -1; }
