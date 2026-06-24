@@ -9,7 +9,7 @@ function main(): i32 {
   if (vec.vec_i32_push(&v, 20) != 0) { return 2; }
   if (vec.vec_i32_len(v) != 2) { return 3; }
   if (vec.vec_i32_pop(&v) != 20) { return 4; }
-  let tail: [2]i32 = [30, 40];
+  let tail: i32[2] = [30, 40];
   if (vec.vec_i32_append_slice(&v, &tail[0], 2) != 0) { return 5; }
   vec.vec_i32_deinit(&v);
   return 0;
