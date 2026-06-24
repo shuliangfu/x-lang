@@ -4,7 +4,7 @@
 // TOML 扁平 + [section] / [[array]] 子集解析；YAML 嵌套 section + `-` 序列；ENV 前缀；多源 merge；
 //
 // 【对标】Go viper 最小子集、Rust config + figment 分层覆盖。
-// ENV 遍历在 config.c 中链入 std/env/env.o。
+// ENV 遍历与文件 IO 均在 config.sx（经 std.env / std.fs extern；F-ZC 无 config_io_glue.c）。
 
 /** 配置句柄（不透明 C 存储指针）。 */
 allow(padding) struct Config {
