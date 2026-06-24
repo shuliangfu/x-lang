@@ -10,9 +10,9 @@ api_clear	api	clear_exceptions	std/math/mod.sx	清除
 api_raise	api	raise_exceptions	std/math/mod.sx	置位
 const_inv	const	FENV_INVALID	std/math/mod.sx	1
 const_all	const	FENV_ALL	std/math/mod.sx	31
-symbol_test_c	symbol	math_fenv_test_c	std/math/math.c	C test
-symbol_smoke_c	symbol	math_fenv_smoke_c	std/math/math.c	C 烟测
+symbol_test_c	symbol	math_fenv_test_c	compiler/src/asm/runtime_math_libm.c	C test
+symbol_smoke_c	symbol	math_fenv_smoke_c	compiler/src/asm/runtime_math_libm.c	C 烟测
 smoke_c	file	tests/std-math/fenv_smoke_ok.c	C 入口
-smoke_su	smoke	tests/std-math/fenv_clear.sx	.sx clear
+smoke_sx	smoke	tests/std-math/fenv_clear.sx	.sx clear
 lib	script	lib/std-math-fenv.sh	tests/lib/std-math-fenv.sh
 gate	script	run-std-math-fenv-gate.sh	tests/run-std-math-fenv-gate.sh
