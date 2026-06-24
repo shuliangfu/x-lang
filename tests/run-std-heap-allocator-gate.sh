@@ -7,17 +7,17 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
 MANIFEST="${SHUX_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
-HEAP_SU="std/heap/mod.sx"
-VEC_SU="std/vec/mod.sx"
+HEAP_SX="std/heap/mod.sx"
+VEC_SX="std/vec/mod.sx"
 LIB="tests/lib/std-heap-allocator.sh"
-SMOKE_SU="tests/heap/allocator_vec.sx"
+SMOKE_SX="tests/heap/allocator_vec.sx"
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-heap-allocator.sh
 . "$LIB"
 
 echo "=== STD-112: heap Allocator manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_SU" "$VEC_SU" "$SMOKE_SU"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_SX" "$VEC_SX" "$SMOKE_SX"; do
   if [ ! -f "$f" ]; then
     echo "std-heap-allocator gate FAIL: missing $f" >&2
     exit 1
@@ -55,14 +55,14 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_heap_alloc_symbols_ok "$HEAP_SU" "$VEC_SU" "$MANIFEST" || true)"
+sym_miss="$(std_heap_alloc_symbols_ok "$HEAP_SX" "$VEC_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_heap_alloc_emit_report "fail" 0 0
   exit 1
 fi
 echo "std-heap-allocator manifest OK"
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
@@ -70,14 +70,14 @@ if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-112: .sx smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-    echo "std-heap-allocator gate FAIL: typeck $SMOKE_SU" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+    echo "std-heap-allocator gate FAIL: typeck $SMOKE_SX" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_heap_alloc_emit_report "fail" 0 0
     exit 1
   fi
-  if std_heap_alloc_run_smoke "$SHUX_BIN" "$SMOKE_SU" "vec"; then
-    SU_OK=1
+  if std_heap_alloc_run_smoke "$SHUX_BIN" "$SMOKE_SX" "vec"; then
+    SX_OK=1
   else
     std_heap_alloc_emit_report "fail" 0 0
     exit 1
@@ -86,5 +86,5 @@ else
   SKIP=1
 fi
 
-std_heap_alloc_emit_report "ok" "$SU_OK" "$SKIP"
+std_heap_alloc_emit_report "ok" "$SX_OK" "$SKIP"
 echo "std-heap-allocator gate OK"
