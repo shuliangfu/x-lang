@@ -7,8 +7,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ENV_ITER_DOC:-analysis/std-env-iter-v1.md}"
 MANIFEST="${SHUX_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
-ENV_SU="std/env/mod.sx"
-ENV_C="std/env/env.c"
+ENV_SX="std/env/mod.sx"
+ENV_IMPL="std/env/env.sx"
+ENV_GLUE="compiler/src/asm/runtime_env_os.c"
 LIB="tests/lib/std-env-iter.sh"
 SMOKE="tests/env/env_iter.sx"
 RUNNER="tests/run-env.sh"
@@ -17,7 +18,7 @@ RUNNER="tests/run-env.sh"
 . tests/lib/std-env-iter.sh
 
 echo "=== STD-025: env iter manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$ENV_SU" "$ENV_C" "$SMOKE" "$RUNNER"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$ENV_SX" "$ENV_IMPL" "$ENV_GLUE" "$SMOKE" "$RUNNER"; do
   if [ ! -f "$f" ]; then
     echo "std-env-iter gate FAIL: missing $f" >&2
     exit 1
@@ -31,7 +32,7 @@ for kw in env_iter_next args_iter_next environ GetEnvironmentStringsA; do
   fi
 done
 
-sym_miss="$(std_env_iter_symbols_ok "$ENV_SU" "$ENV_C" "$MANIFEST" || true)"
+sym_miss="$(std_env_iter_symbols_ok "$ENV_SX" "$ENV_IMPL" "$ENV_GLUE" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_env_iter_emit_report "fail" 0 0 0
   echo "std-env-iter gate FAIL: symbol_miss=${sym_miss}" >&2
