@@ -18,7 +18,7 @@ function expect_bytes(buf: *u8, len: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8
 }
 
 function main(): i32 {
-  let buf: [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // NaN：0.0 / 0.0
   let z: f64 = 0.0;
