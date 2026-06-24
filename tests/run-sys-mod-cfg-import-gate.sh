@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_SYS_MOD_CFG_IMPORT_FAIL:-0}
-SU="tests/sys/sys_mod_cfg_import_smoke.sx"
+SX="tests/sys/sys_mod_cfg_import_smoke.sx"
 OUT="/tmp/shux_sys_mod_cfg_import.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -29,8 +29,8 @@ esac
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$SU" 2>/tmp/shux_sys_mod_cfg_import.log; then
-  echo "sys-mod-cfg-import-gate FAIL: compile $SU on $OS" >&2
+if ! "$SHUX" -o "$OUT" "$SX" 2>/tmp/shux_sys_mod_cfg_import.log; then
+  echo "sys-mod-cfg-import-gate FAIL: compile $SX on $OS" >&2
   tail -n 10 /tmp/shux_sys_mod_cfg_import.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
