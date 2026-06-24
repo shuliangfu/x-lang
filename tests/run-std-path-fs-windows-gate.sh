@@ -7,8 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_PFW_DOC:-analysis/std-path-fs-windows-v1.md}"
 MANIFEST="${SHUX_STD_PFW_TSV:-tests/baseline/std-path-fs-windows.tsv}"
-PATH_SU="std/path/mod.sx"
-PATH_C="std/path/path.c"
+PATH_SX="std/path/mod.sx"
 LIB="tests/lib/std-path-fs-windows.sh"
 PATH_TEST="tests/path/windows_abs_join.sx"
 FS_TEST="tests/fs/windows_path_smoke.sx"
@@ -20,7 +19,7 @@ FS_TEST="tests/fs/windows_path_smoke.sx"
 . tests/lib/ci-host.sh
 
 echo "=== STD-021/022: path/fs Windows manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$PATH_SU" "$PATH_C" "$PATH_TEST" "$FS_TEST"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$PATH_SX" "$PATH_TEST" "$FS_TEST"; do
   if [ ! -f "$f" ]; then
     echo "std-path-fs-windows gate FAIL: missing $f" >&2
     exit 1
@@ -34,7 +33,7 @@ for kw in path_is_sep path_is_absolute win_path_smoke path_sep_c; do
   fi
 done
 
-sym_miss="$(std_pfw_symbols_ok "$PATH_SU" "$MANIFEST" || true)"
+sym_miss="$(std_pfw_symbols_ok "$PATH_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_pfw_emit_report "fail" 0 0 1
   echo "std-path-fs-windows gate FAIL: symbol_miss=${sym_miss}" >&2
