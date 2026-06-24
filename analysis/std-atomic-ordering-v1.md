@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：LANG 内存模型（C11 子集）、`std/atomic/atomic.c`
+> 关联：LANG 内存模型（C11 子集）、`compiler/src/asm/runtime_atomic_glue.c`
 
 ---
 
