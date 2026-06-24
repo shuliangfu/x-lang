@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_HEAP_TRACE_DOC:-analysis/std-heap-trace-v1.md}"
 MANIFEST="${SHUX_STD_HEAP_TRACE_TSV:-tests/baseline/std-heap-trace.tsv}"
-HEAP_SU="std/heap/mod.sx"
-HEAP_C="std/heap/heap.c"
+HEAP_SX="std/heap/mod.sx"
+HEAP_LIBC="std/heap/heap_libc.sx"
 LIB="tests/lib/std-heap-trace.sh"
 SMOKE="tests/heap/trace_stats.sx"
 
@@ -16,7 +16,7 @@ SMOKE="tests/heap/trace_stats.sx"
 . tests/lib/std-heap-trace.sh
 
 echo "=== STD-017: heap trace manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_SU" "$HEAP_C" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_SX" "$HEAP_LIBC" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "std-heap-trace gate FAIL: missing $f" >&2
     exit 1
@@ -30,12 +30,16 @@ for kw in SHUX_HEAP_TRACE HeapTraceStats heap_trace_reset; do
   fi
 done
 
-if ! grep -qF 'getenv("SHUX_HEAP_TRACE")' "$HEAP_C" 2>/dev/null; then
-  echo "std-heap-trace gate FAIL: heap.c missing SHUX_HEAP_TRACE getenv" >&2
+if ! grep -qF 'SHUX_HEAP_TRACE' "$HEAP_LIBC" 2>/dev/null; then
+  echo "std-heap-trace gate FAIL: heap_libc.sx missing SHUX_HEAP_TRACE" >&2
+  exit 1
+fi
+if ! grep -qF 'getenv' "$HEAP_LIBC" 2>/dev/null; then
+  echo "std-heap-trace gate FAIL: heap_libc.sx missing getenv for trace" >&2
   exit 1
 fi
 
-sym_miss="$(std_heap_trace_symbols_ok "$HEAP_SU" "$HEAP_C" "$MANIFEST" || true)"
+sym_miss="$(std_heap_trace_symbols_ok "$HEAP_SX" "$HEAP_LIBC" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_heap_trace_emit_report "fail" 0 0 0
   echo "std-heap-trace gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -79,7 +83,6 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q ../std/heap/heap.o 2>/dev/null || make -C compiler ../std/heap/heap.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
