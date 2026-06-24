@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
 MANIFEST="${SHUX_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
-MAP_SU="std/map/mod.sx"
-VEC_SU="std/vec/mod.sx"
-HEAP_SU="std/heap/mod.sx"
+MAP_SX="std/map/mod.sx"
+VEC_SX="std/vec/mod.sx"
+HEAP_SX="std/heap/mod.sx"
 LIB="tests/lib/std-map-vec-extend.sh"
 
 # shellcheck source=tests/lib/std-map-vec-extend.sh
 . tests/lib/std-map-vec-extend.sh
 
 echo "=== STD-013/014: map/vec extend manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SU" "$VEC_SU" "$HEAP_SU" tests/map/boundary.sx tests/vec/append_roundtrip.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SX" "$VEC_SX" "$HEAP_SX" tests/map/boundary.sx tests/vec/append_roundtrip.sx; do
   if [ ! -f "$f" ]; then
     echo "std-map-vec-extend gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in Map_u64_i32 Map_str_i32 Vec_u64 Vec_f64 map_str_key_cap; do
   fi
 done
 
-sym_miss="$(std_mve_symbols_ok "$MAP_SU" "$VEC_SU" "$HEAP_SU" "$MANIFEST" || true)"
+sym_miss="$(std_mve_symbols_ok "$MAP_SX" "$VEC_SX" "$HEAP_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_mve_emit_report "fail" 0 0 0
   echo "std-map-vec-extend gate FAIL: symbol_miss=${sym_miss}" >&2
