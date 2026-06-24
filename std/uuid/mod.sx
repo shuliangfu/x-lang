@@ -8,7 +8,7 @@
 
 /** 128-bit UUID 字节布局（RFC 9562 网络序分组）。 */
 allow(padding) struct Uuid {
-  bytes: [16]u8;
+  bytes: u8[16];
 }
 
 extern function uuid_new_v4_c(out: *u8): i32;
