@@ -31,8 +31,8 @@ TXT=$(wpo_ab_text_bytes "$TYPECK_O") || {
   exit 1
 }
 
-if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'typeck_su_ast'; then
-  echo "run-wpo-typeck-o-gate FAIL: $TYPECK_O missing typeck_su_ast" >&2
+if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'typeck_sx_ast'; then
+  echo "run-wpo-typeck-o-gate FAIL: $TYPECK_O missing typeck_sx_ast" >&2
   exit 1
 fi
 if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'check_block'; then
@@ -59,4 +59,4 @@ if [ -x "$(dirname "$0")/run-wpo-typeck-reach-gate.sh" ]; then
   }
 fi
 
-echo "wpo typeck_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, typeck_su_ast+check_block present)"
+echo "wpo typeck_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, typeck_sx_ast+check_block present)"
