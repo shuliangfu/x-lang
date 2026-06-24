@@ -1,0 +1,33 @@
+# 阶段 E 软退役清单（compiler C/H；文件保留）
+# 列：item_id	e_task	path	status	replacement	check_type	notes
+e_soft_v2_closure	doc	analysis/phase-e-soft-v2-closure.md	active	n/a	grep	E-soft v2
+e_soft_doc	doc	analysis/phase-e-soft-v1.md	active	n/a	grep	E-soft v1
+e_soft_manifest	manifest	tests/baseline/phase-e-soft-retire.tsv	active	n/a	exists	本文件
+e_soft_gate	gate	tests/run-e-soft-retire-gate.sh	active	n/a	gate_ref	E-soft 聚合
+e_soft_audit	lib	tests/lib/phase-e-soft-audit.sh	active	n/a	gate_ref	审计函数
+e01_gate	gate	tests/run-e01-extern-h-soft-gate.sh	active	n/a	gate_ref	E-01 委托
+e01_lsp_io_extern_h	E-01	compiler/src/lsp/lsp_io_extern.h	soft_retired	lsp_codegen_extern.c	not_exists	已内嵌
+e01_lsp_gen_extern_h	E-01	compiler/src/lsp/lsp_gen_extern.h	soft_retired	lsp_codegen_extern.c	not_exists	已内嵌
+e01_lsp_codegen_extern_c	E-01	compiler/src/lsp/lsp_codegen_extern.c	active	C codegen 路径	exists	C -E 仍用
+e02_lsp_diag_c	E-02	compiler/src/lsp/lsp_diag.c	soft_retired	lsp_diag_stubs_no_c.o	phase_e_marker	E-02 默认 stubs
+e02_stubs_c	E-02	compiler/src/lsp/lsp_diag_stubs_no_c.c	active	LSP_DIAG_LINK_O	exists	E-02 默认链
+e02_gate	gate	tests/run-e02-lsp-diag-soft-gate.sh	active	n/a	gate_ref	E-02 委托
+e03_parser_c	E-03	compiler/src/parser/parser.c	soft_retired	parser_sx.o	phase_e_marker	C-06 默认不链
+e03_typeck_c	E-03	compiler/src/typeck/typeck.c	soft_retired	typeck_sx.o	phase_e_marker	C-06 默认不链
+e03_codegen_c	E-03	compiler/src/codegen/codegen.c	soft_retired	codegen_sx.o	phase_e_marker	C-06 默认不链
+e03_autovec_c	E-03	compiler/src/codegen/autovec.c	soft_retired	codegen_sx.o	phase_e_marker	LEGACY 内
+e03_lexer_c	E-03	compiler/src/lexer/lexer.c	soft_retired	lexer_sx.o	phase_e_marker	E-03 v2 默认不链 lexer.o
+e03_ast_c	E-03	compiler/src/ast/ast.c	soft_retired	ast_pool/sx_seed_bridge	phase_e_marker	E-03 v2 默认不链 ast_seed
+e03_lexer_ast_gate	gate	tests/run-e03-lexer-ast-soft-gate.sh	active	n/a	gate_ref	E-03 v2 lexer/ast 委托
+e03_preprocess_c	E-03	compiler/src/preprocess.c	soft_retired	preprocess_sx.o	phase_e_marker	E-03 v2 默认不链 preprocess_for_driver
+e03_preprocess_gate	gate	tests/run-e03-preprocess-soft-gate.sh	active	n/a	gate_ref	E-03 v2 preprocess 委托
+e03_v3_coldstart_gate	gate	tests/run-e03-v3-coldstart-track-gate.sh	active	n/a	gate_ref	E-03 v3 冷启动 track
+e04_runtime_c	E-04	compiler/src/runtime.c	active	runtime_driver_no_c.o	grep	E-04 v1 default no_c
+e04_main_c	E-04	compiler/src/main.c	active	LEGACY/shux-c cold start	grep	E-04 v21 minimal main
+e04_gate	gate	tests/run-e04-runtime-soft-gate.sh	active	n/a	gate_ref	E-04 v4 abi+io+proc
+e05_gate	gate	tests/run-e05-include-soft-gate.sh	active	n/a	gate_ref	E-05 v2 头文件清单 + NO_C include
+e06_c03_gate	gate	tests/run-c03-no-pipeline-gen-gate.sh	active	n/a	gate_ref	B-strict 无 pipeline_gen
+e06_gate	gate	tests/run-e06-no-compiler-frontend-cc-gate.sh	active	n/a	gate_ref	E-06 v2 SEED SU skip
+e06_c06_gate	gate	tests/run-c06-sx-frontend-default-gate.sh	active	n/a	gate_ref	默认不链 C 前端
+e06_c09_gate	gate	tests/run-c09-parser-no-c-fallback-gate.sh	active	n/a	gate_ref	parser 无 C 回退
+makefile_seed	makefile	compiler/Makefile	active	n/a	grep	DRIVER_SEED_FRONTEND_EXTRA
