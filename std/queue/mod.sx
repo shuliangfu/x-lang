@@ -143,7 +143,7 @@ allow(padding) struct SyncQueue_i32 {
   lock: *u8;
 }
 
-/** C 层双线程竞争 push 烟测（queue.c）；0 通过，-1 失败。 */
+/** C 层双线程竞争 push 烟测（queue.sx + runtime_queue_contention.c）；0 通过，-1 失败。 */
 extern function sync_queue_contention_smoke_c(): i32;
 
 /** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
@@ -154,7 +154,7 @@ function sync_queue_i32_new(): SyncQueue_i32 {
 
 /** 销毁队列并释放 mutex。 */
 function sync_queue_i32_deinit(sq: *SyncQueue_i32): void {
-  if (sq.lock != 0 as *u8) {
+  if (sq.lock != 0) {
     sync.mutex_lock(sq.lock);
     queue_i32_deinit(&sq.q);
     sync.mutex_unlock(sq.lock);
@@ -167,7 +167,7 @@ function sync_queue_i32_deinit(sq: *SyncQueue_i32): void {
 
 /** 加锁队尾插入；失败 -1。 */
 function sync_queue_i32_push_back(sq: *SyncQueue_i32, x: i32): i32 {
-  if (sq.lock == 0 as *u8) { return -1; }
+  if (sq.lock == 0) { return -1; }
   if (sync.mutex_lock(sq.lock) != 0) { return -1; }
   let r: i32 = queue_i32_push_back(&sq.q, x);
   sync.mutex_unlock(sq.lock);
@@ -178,7 +178,7 @@ function sync_queue_i32_push_back(sq: *SyncQueue_i32, x: i32): i32 {
  * 加锁队首弹出：0 成功写入 *out，1 空队列，-1 失败。
  */
 function sync_queue_i32_try_pop_front(sq: *SyncQueue_i32, out: *i32): i32 {
-  if (sq.lock == 0 as *u8) { return -1; }
+  if (sq.lock == 0) { return -1; }
   if (sync.mutex_lock(sq.lock) != 0) { return -1; }
   if (queue_i32_is_empty(sq.q) != 0) {
     sync.mutex_unlock(sq.lock);
@@ -191,7 +191,7 @@ function sync_queue_i32_try_pop_front(sq: *SyncQueue_i32, out: *i32): i32 {
 
 /** 加锁读元素个数。 */
 function sync_queue_i32_len(sq: SyncQueue_i32): i32 {
-  if (sq.lock == 0 as *u8) { return 0; }
+  if (sq.lock == 0) { return 0; }
   if (sync.mutex_lock(sq.lock) != 0) { return 0; }
   let n: i32 = queue_i32_len(sq.q);
   sync.mutex_unlock(sq.lock);
@@ -200,7 +200,7 @@ function sync_queue_i32_len(sq: SyncQueue_i32): i32 {
 
 /** 加锁判空：1 空，0 非空。 */
 function sync_queue_i32_is_empty(sq: SyncQueue_i32): i32 {
-  if (sq.lock == 0 as *u8) { return 1; }
+  if (sq.lock == 0) { return 1; }
   if (sync.mutex_lock(sq.lock) != 0) { return 1; }
   let e: i32 = queue_i32_is_empty(sq.q);
   sync.mutex_unlock(sq.lock);
