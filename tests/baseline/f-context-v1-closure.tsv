@@ -1,0 +1,9 @@
+# F-context v1 std.context 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fcontext_doc	doc	analysis/phase-f-context-v1.md	F-context v1
+fcontext_gate	gate	tests/run-f-context-v1-gate.sh	聚合门禁
+context_sx	file	std/context/context.sx	模块 .sx
+context_glue_absent	absent	std/context/context_node_glue.c	v2 已删
+context_mod	file	std/context/mod.sx	对外 API
+context_c_absent	absent	std/context/context.c	已删除
+makefile	makefile	compiler/Makefile	context.o 纯 .sx
