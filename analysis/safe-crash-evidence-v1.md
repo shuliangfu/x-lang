@@ -48,7 +48,7 @@ shux: [SHUX_CRASH_EVIDENCE] bundle=/tmp/.../shux-crash-12345.txt
 
 ## 4. panic 挂钩
 
-`shux_panic_`（`compiler/src/asm/runtime_panic.c`）在 `abort` 前调用弱符号 `shux_crash_evidence_collect_c`；强实现位于 `std/backtrace/backtrace.c`（链接 `backtrace.o` 时生效）。
+`shux_panic_`（`compiler/src/asm/runtime_panic.c`）在 `abort` 前调用弱符号 `shux_crash_evidence_collect_c`；强实现位于 `std/backtrace/backtrace_glue.c`（链接 `backtrace.o` 时生效）。
 
 ---
 
