@@ -2,7 +2,7 @@
  * pipeline_typeck_soa.c — DOD-S1 SoA 布局 typeck（从 typeck 路径机械抽出）。
  *
  * 由 pipeline_glue.c #include 并入同一翻译单元（须在 glue_type_size_simple 之后）。
- * - `[N]SoAStruct` 列主序总大小
+ * - `SoAStruct[N]` 列主序总大小
  * - `arr[i].field` 列基址 + stride
  */
 
@@ -105,7 +105,7 @@ static int32_t typeck_soa_col_base_for_field(struct ast_Module *module, struct a
 }
 
 /**
- * DOD-S1：[N]SoAStruct 列主序总字节数；elem 非 SoA 或未命中 layout 时返回 0。
+ * DOD-S1：SoAStruct[N] 列主序总字节数；elem 非 SoA 或未命中 layout 时返回 0。
  */
 int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t elem_type_ref,
                                            int32_t array_len, int32_t depth) {
