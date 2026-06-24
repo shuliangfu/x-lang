@@ -2,7 +2,7 @@
 //
 // 【文件职责】cstr_len、cstring_new/free；FfiPoint pack/unpack；
 // invoke_i32_cb usize 回调调用。
-// 【依赖】core；与 std/ffi/ffi.c 同属一模块。
+// 【依赖】core；与 std/ffi/ffi.sx 同属一模块（F-ZC 纯 .sx）。
 extern function ffi_cstr_len_c(ptr: *u8): i32;
 extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
 extern function ffi_cstring_free_c(ptr: *u8): void;
