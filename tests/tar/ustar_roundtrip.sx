@@ -19,22 +19,22 @@ function name_eq(name_out: *u8, expect: *u8, len: i32): bool {
 }
 
 function main(): i32 {
-  let arc: [3072]u8 = [];
+  let arc: u8[3072] = [];
   let off: i32 = 0;
 
-  let n1: [5]u8 = [97, 46, 116, 120, 116];
-  let d1: [3]u8 = [102, 111, 111];
+  let n1: u8[5] = [97, 46, 116, 120, 116];
+  let d1: u8[3] = [102, 111, 111];
   if (tar.append_entry(&arc[0], 3072, &off, &n1[0], 5, &d1[0], 3, 0) != 0) {
     return 1;
   }
 
-  let nd: [4]u8 = [115, 117, 98, 47];
+  let nd: u8[4] = [115, 117, 98, 47];
   if (tar.append_entry(&arc[0], 3072, &off, &nd[0], 4, 0 as *u8, 0, 1) != 0) {
     return 2;
   }
 
-  let n2: [5]u8 = [98, 46, 116, 120, 116];
-  let d2: [3]u8 = [98, 97, 114];
+  let n2: u8[5] = [98, 46, 116, 120, 116];
+  let d2: u8[3] = [98, 97, 114];
   if (tar.append_entry(&arc[0], 3072, &off, &n2[0], 5, &d2[0], 3, 0) != 0) {
     return 3;
   }
@@ -48,7 +48,7 @@ function main(): i32 {
   let arc_len: i32 = off;
 
   let pos: i32 = 0;
-  let name_out: [128]u8 = [];
+  let name_out: u8[128] = [];
   let sz: i32 = 0;
   let typ: i32 = 0;
   let file_n: i32 = 0;
@@ -88,7 +88,7 @@ function main(): i32 {
     return 8;
   }
 
-  let out: [8]u8 = [];
+  let out: u8[8] = [];
   let n: i32 = tar.read_entry_data(&arc[0], arc_len, a_off, &out[0], 8);
   if (n != 3 || out[0] != 102 || out[1] != 111 || out[2] != 111) {
     return 9;
