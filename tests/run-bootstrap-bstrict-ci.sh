@@ -29,6 +29,17 @@ SHUX_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
 SHUX_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
 SHUX_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
 
+echo "bootstrap-bstrict-ci: B-15/B-18/B-19/B-30/B-32/B-17 phase-B manifest gates ..."
+chmod +x tests/run-b15-io-uring-sys-gate.sh tests/run-b18-win32-net-gate.sh tests/run-b19-sys-mod-facade-gate.sh
+chmod +x tests/run-b30-stubs-runtime-os-inventory-gate.sh tests/run-b32-no-cc-std-gate.sh tests/run-b17-exit-process-gate.sh
+chmod +x tests/run-macos-read-file-gate.sh
+./tests/run-b15-io-uring-sys-gate.sh
+./tests/run-b18-win32-net-gate.sh
+SHUX_B19_FAIL=1 ./tests/run-b19-sys-mod-facade-gate.sh
+./tests/run-b30-stubs-runtime-os-inventory-gate.sh
+./tests/run-b32-no-cc-std-gate.sh
+./tests/run-b17-exit-process-gate.sh
+
 echo "bootstrap-bstrict-ci: B-19 std.sys platform write (shux-c) ..."
 chmod +x tests/run-sys-platform-write-gate.sh tests/run-sys-mod-cfg-import-gate.sh tests/run-sys-read-file-gate.sh
 SHUX_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
@@ -39,21 +50,24 @@ echo "bootstrap-bstrict-ci: B-20 generated_c scan (no fopen) ..."
 chmod +x tests/run-b20-generated-c-scan-gate.sh
 SHUX_B20_GENERATED_C_SCAN_FAIL=1 ./tests/run-b20-generated-c-scan-gate.sh
 
-echo "bootstrap-bstrict-ci: C-04 -E-extern import extern (shux-c) ..."
-chmod +x tests/run-e-extern-import-gate.sh
-SHUX_E_EXTERN_IMPORT_FAIL=1 ./tests/run-e-extern-import-gate.sh
+echo "bootstrap-bstrict-ci: C-03 no pipeline_gen.cc audit (manifest) ..."
+chmod +x tests/run-c03-no-pipeline-gen-gate.sh
+SHUX_C03_FAIL=1 ./tests/run-c03-no-pipeline-gen-gate.sh
 
-echo "bootstrap-bstrict-ci: lexer parse + pipeline -E-extern ..."
-chmod +x tests/run-lexer-e-extern-gate.sh
-SHUX_LEXER_E_EXTERN_FAIL=1 ./tests/run-lexer-e-extern-gate.sh
+echo "bootstrap-bstrict-ci: C-04 -E-extern aggregate (v1) ..."
+chmod +x tests/run-c04-e-extern-gate.sh tests/run-e-extern-import-gate.sh \
+  tests/run-lexer-e-extern-gate.sh tests/run-pipeline-e-extern-gate.sh \
+  tests/run-parser-e-extern-gate.sh tests/run-c04-no-perl-fallback-gate.sh
+SHUX_C04_FAIL=1 ./tests/run-c04-e-extern-gate.sh
 
-echo "bootstrap-bstrict-ci: pipeline -E-extern cc -c (C-04 v2) ..."
-chmod +x tests/run-pipeline-e-extern-gate.sh
-SHUX_PIPELINE_E_EXTERN_FAIL=1 ./tests/run-pipeline-e-extern-gate.sh
+echo "bootstrap-bstrict-ci: E-soft compiler C/H soft-retire (v1) ..."
+chmod +x tests/run-e-soft-retire-gate.sh tests/run-e01-extern-h-soft-gate.sh \
+  tests/run-e02-lsp-diag-soft-gate.sh tests/lib/phase-e-soft-audit.sh
+SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 
-echo "bootstrap-bstrict-ci: parser -E-extern cc -c (C-04 parser) ..."
-chmod +x tests/run-parser-e-extern-gate.sh
-SHUX_PARSER_E_EXTERN_FAIL=1 ./tests/run-parser-e-extern-gate.sh
+echo "bootstrap-bstrict-ci: C-06 sx frontend default (no C parser.o in seed link) ..."
+chmod +x tests/run-c06-sx-frontend-default-gate.sh
+SHUX_C06_FAIL=1 ./tests/run-c06-sx-frontend-default-gate.sh
 
 echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only) ..."
 chmod +x tests/run-macos-mmap-gate.sh tests/run-macos-mmap-file-gate.sh
@@ -98,6 +112,25 @@ if grep -qE '(^|[[:space:]])cc -c (\\.\\./)?pipeline_gen\\.c([[:space:]]|$)' /tm
   echo "bootstrap-bstrict-ci: B-strict link must not compile pipeline_gen.c" >&2
   exit 1
 fi
+
+echo "bootstrap-bstrict-ci: C-03 post-build log audit ..."
+SHUX_C03_FAIL=1 SHUX_C03_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-c03-no-pipeline-gen-gate.sh
+
+echo "bootstrap-bstrict-ci: E-06 post-build audit — no compiler frontend cc -c (build_shux_asm segment) ..."
+chmod +x tests/run-e06-no-compiler-frontend-cc-gate.sh
+SHUX_E06_FAIL=1 SHUX_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+
+echo "bootstrap-bstrict-ci: D-01 Stage0 seed → Stage1 shux_asm ..."
+chmod +x tests/run-d01-stage0-to-stage1-gate.sh
+SHUX_D01_FAIL=1 SHUX_D01_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-d01-stage0-to-stage1-gate.sh
+
+echo "bootstrap-bstrict-ci: D-05 single shux release (shux = shux_asm) ..."
+chmod +x tests/run-d05-single-shux-release-gate.sh
+SHUX_D05_FAIL=1 SHUX=./compiler/shux ./tests/run-d05-single-shux-release-gate.sh
+
+echo "bootstrap-bstrict-ci: C-05 LSP lsp_diag.sx (--lsp smoke) ..."
+chmod +x tests/run-c05-lsp-sx-gate.sh tests/lib/d04-stage2-portable-diff.sh
+SHUX_C05_FAIL=1 ./tests/run-c05-lsp-sx-gate.sh
 if grep -q 'installed shux_asm.experimental as shux_asm (fallback OK)' /tmp/build_bstrict.log; then
   echo "bootstrap-bstrict-ci: experimental fallback in build log — strict smoke must pass natively" >&2
   exit 1
@@ -116,6 +149,26 @@ if [ ! -x compiler/shux_asm ]; then
   echo "bootstrap-bstrict-ci: compiler/shux_asm not built" >&2
   exit 1
 fi
+
+echo "bootstrap-bstrict-ci: phase-B compile gates (B-04/B-05/B-06/B-31) ..."
+chmod +x tests/run-b04-freestanding-syscall-gate.sh tests/run-b05-codegen-mvp-gate.sh tests/run-b06-ast-pool-gate.sh tests/run-b31-freestanding-io-gate.sh
+SHUX=./compiler/shux_asm SHUX_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-b04-freestanding-syscall-gate.sh
+SHUX=./compiler/shux_asm ./tests/run-b05-codegen-mvp-gate.sh
+SHUX=./compiler/shux_asm ./tests/run-b06-ast-pool-gate.sh
+./tests/run-b31-freestanding-io-gate.sh
+SHUX_MACOS_READ_FILE_FAIL=1 SHUX=./compiler/shux_asm ./tests/run-macos-read-file-gate.sh
+
+echo "bootstrap-bstrict-ci: C-07 frontend parity (shux-c vs shux_asm, -backend c) ..."
+chmod +x tests/run-c07-frontend-parity-gate.sh tests/lib/c07-frontend-parity.sh
+C07_CAND=./compiler/shux_asm SHUX_C07_FAIL=1 ./tests/run-c07-frontend-parity-gate.sh
+
+echo "bootstrap-bstrict-ci: C-08 runtime/driver.sx + build.sx (v1 inventory) ..."
+chmod +x tests/run-c08-runtime-driver-gate.sh tests/run-c08-main-entry-gate.sh tests/run-c08-driver-sx-gate.sh tests/run-c08-build-sx-gate.sh tests/run-c08-runtime-inventory-gate.sh
+SHUX_C08_FAIL=1 ./tests/run-c08-runtime-driver-gate.sh
+
+echo "bootstrap-bstrict-ci: C-09 parser no C fallback (v1 manifest + C-06 delegate) ..."
+chmod +x tests/run-c09-parser-no-c-fallback-gate.sh
+SHUX_C09_FAIL=1 ./tests/run-c09-parser-no-c-fallback-gate.sh
 
 echo "bootstrap-bstrict-ci: strict smoke gate (no experimental fallback) ..."
 chmod +x tests/run-strict-smoke-gate.sh
@@ -155,14 +208,21 @@ chmod +x tests/run-std-sys-gate.sh
 ./tests/run-std-sys-gate.sh
 
 echo "bootstrap-bstrict-ci: M5 B-strict Stage2 (shux_asm -> shux_asm2) ..."
-# gen2 round2 对齐 gen1 链拓扑（driver_compile_su、无 typeck/backend WPO）；Linux 硬门禁。
+# gen2 round2 对齐 gen1 链拓扑（driver_compile_sx、无 typeck/backend WPO）；Linux 硬门禁。
 if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
   echo "bootstrap-bstrict-ci: skip stage2 (non-Linux)"
 elif [ -n "${SHUX_CI_SKIP_STAGE2:-}" ]; then
   echo "bootstrap-bstrict-ci: skip stage2 (SHUX_CI_SKIP_STAGE2=1)"
 else
-  chmod +x tests/run-stage2-bstrict-gate.sh compiler/verify-selfhost-stage2-bstrict.sh
-  SHUX_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-stage2-bstrict-gate.sh
+  chmod +x tests/run-d02-stage1-to-stage2-gate.sh tests/run-stage2-bstrict-gate.sh \
+    compiler/verify-selfhost-stage2-bstrict.sh tests/run-d03-stage2-hash-gate.sh
+  echo "bootstrap-bstrict-ci: D-02 Stage1 → Stage2 self-host ..."
+  SHUX_D02_FAIL=1 SHUX_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+  echo "bootstrap-bstrict-ci: D-03 Stage2 SHA256 golden standard ..."
+  SHUX_D03_FAIL=1 SHUX_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
+  echo "bootstrap-bstrict-ci: D-04 Stage2 portable two-gen diff ..."
+  chmod +x tests/run-d04-stage2-portable-diff-gate.sh tests/lib/d04-stage2-portable-diff.sh
+  SHUX_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: ensure WPO build_asm artifacts (五模块) ..."
@@ -183,7 +243,7 @@ echo "bootstrap-bstrict-ci: strict_glue measured .text A/B (pipeline WPO helpers
 chmod +x tests/run-wpo-strict-glue-text-gate.sh tests/lib/wpo-ab-proxy.sh
 SHUX_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
 
-echo "bootstrap-bstrict-ci: parser su strict gate ..."
+echo "bootstrap-bstrict-ci: parser sx strict gate ..."
 chmod +x tests/run-parser-sx-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
 SHUX_PARSER_SX_STRICT_FAIL=1 ./tests/run-parser-sx-strict-gate.sh
 ./tests/run-parser-experimental-emit-gate.sh
@@ -250,5 +310,9 @@ chmod +x tests/run-pipeline-wpo-optin-smoke.sh
 echo "bootstrap-bstrict-ci: typeck WPO helpers smoke ..."
 chmod +x tests/run-typeck-wpo-optin-smoke.sh
 ./tests/run-typeck-wpo-optin-smoke.sh
+
+echo "bootstrap-bstrict-ci: D-06 SELFHOST golden Stage2 doc ..."
+chmod +x tests/run-d06-selfhost-doc-gate.sh
+SHUX_D06_FAIL=1 ./tests/run-d06-selfhost-doc-gate.sh
 
 echo "bootstrap-bstrict-ci OK (B-strict audited + gate + asm-73 + L5 parity + linux crt0 + freestanding + stage2 + wpo gates + strict link + strict_glue text A/B)"
