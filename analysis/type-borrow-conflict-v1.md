@@ -34,7 +34,7 @@
 
 **false positive（误报）治理**：
 
-- 同域 `[]T<label>` 重赋值、region 块内 stamp 后赋值 → **须通过**
+- 同域 `T[]<label>` 重赋值、region 块内 stamp 后赋值 → **须通过**
 - 多个独立 `Linear(T)` 绑定分别消费 → **须通过**
 - 负例须给出 **专用** 文案（非笼统 `assignment type mismatch` 掩盖 region）
 
