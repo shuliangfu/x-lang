@@ -3,9 +3,9 @@ const http = import("std.http");
 
 function main(): i32 {
   /** "127.0.0.1\0" */
-  let host: [10]u8 = [49, 50, 55, 46, 48, 46, 48, 46, 49, 0];
+  let host: u8[10] = [49, 50, 55, 46, 48, 46, 48, 46, 49, 0];
   /** "8080\0" */
-  let port: [5]u8 = [56, 48, 56, 48, 0];
+  let port: u8[5] = [56, 48, 56, 48, 0];
   let pool: i64 = client_pool_create(&host[0], 9, &port[0], 4, 2);
   if (pool == 0) {
     return 1;
