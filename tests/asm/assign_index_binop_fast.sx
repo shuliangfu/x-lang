@@ -1,6 +1,6 @@
 // 7.3：INDEX 赋值 + binop 右值应先 emit 再算址，免 x1 被 clobber（run-asm-assign-index-binop.sh）。
 function main(): i32 {
-  let arr: [3]i32 = [5, 10, 15];
+  let arr: i32[3] = [5, 10, 15];
   let i: i32 = 1;
   let a: i32 = 20;
   let b: i32 = 22;
