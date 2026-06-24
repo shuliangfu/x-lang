@@ -26,7 +26,24 @@
 ### 标准输出（委托 std.io，零拷贝）
 
 - `print(ptr, len): i32` — 将 ptr[0..len] 写入 stdout；返回写入字节数，-1 错误。
-- `println(ptr, len): i32` — 将 ptr[0..len] 写入 stdout 再写换行；返回首段写入字节数，-1 错误。
+- `println(ptr, len): i32` — 同上并追加换行。
+- `print("Hello World")` / `println("...")` — **字符串字面量**（编译器特化，直写 stdout）。
+- `print(x)` / `println(x)` — 标量重载：`i32`/`u32`/`i64`/`u64`/`usize`/`isize`/`bool`/`f64`。
+- `print(x)` / `println(x)` — **任意复合类型**（编译器 JSON 特化）：`struct`、固定数组 `T[N]`、切片 `T[]`、指针、枚举、`Option_*`、`u8`/`f32` 等；输出人类可读的 JSON 风格文本（如 `{"x":1,"y":2}`、`[1,2,3]`、`"hello"`、`null`）。
+
+### 任意类型打印（编译器内建）
+
+对 `std.fmt` / `std.debug` 的 `print`/`println` 单参数调用，若实参非字符串字面量且非已有标量 overload，编译器按类型生成 JSON 调试输出：
+
+| 类型 | 输出示例 |
+|------|----------|
+| struct | `{"field": value, ...}` |
+| `T[N]` / `T[]` | `[1, 2, 3]` 或 u8 可读时为 `"Hello"` |
+| `*u8` | C 字符串 `"text"` 或 `null` |
+| 其它指针 | `"0x..."` |
+| enum | `"VariantName"` |
+| `Option_T` | 有值时展开 value，无值 `null` |
+| bool / 数字 / f64 | `true` / `42` / `3.14` |
 
 ### 多参数拼接（函数重载，直接写 buf，无 tmp、无二次拷贝）
 
