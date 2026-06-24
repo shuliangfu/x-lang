@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # pipeline.sx -E-extern 产物：补 pipeline_dep_ctx_*→ast_pipeline_*、std.fs 短名、parser_parse_into_buf 等，
-# 使 pipeline_gen.c 可与 pipeline_glue.o / typeck_su.o / codegen_su.o 分 TU 链接（无内联 typeck/codegen）。
+# 使 pipeline_gen.c 可与 pipeline_glue.o / typeck_sx.o / codegen_sx.o 分 TU 链接（无内联 typeck/codegen）。
 use strict;
 use warnings;
 
@@ -101,10 +101,10 @@ if ($std_fs_extern ne '' && index($src, '/* std_fs_shim.o */') < 0) {
     or warn "fix_pipeline_extern_gen_c: std_fs extern anchor not found\n";
 }
 
-# lexer_init → lexer_lexer_init（lexer_su.o）；须 extern 声明，勿与 lexer_lexer_init→lexer_init 互指成环。
+# lexer_init → lexer_lexer_init（lexer_sx.o）；须 extern 声明，勿与 lexer_lexer_init→lexer_init 互指成环。
 if (index($src, '#define lexer_init lexer_lexer_init') >= 0
     && index($src, 'extern struct lexer_Lexer lexer_lexer_init') < 0) {
-  my $lexer_decl = "/* lexer_su.o */\nextern struct lexer_Lexer lexer_lexer_init(void);\n";
+  my $lexer_decl = "/* lexer_sx.o */\nextern struct lexer_Lexer lexer_lexer_init(void);\n";
   if (index($src, '/* pipeline extern TU aliases */') >= 0) {
     $src =~ s/(#define lexer_init lexer_lexer_init\n)/$lexer_decl$1/s
       or warn "fix_pipeline_extern_gen_c: lexer_lexer_init anchor not found\n";
