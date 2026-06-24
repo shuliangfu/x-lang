@@ -14,7 +14,7 @@ rule_d5	rules	D5-ast-line-col	analysis/tool-debug-symbols-v1.md	map	LSP line
 rule_d6	rules	D6-release-strip	analysis/tool-debug-symbols-v1.md	release	-O2 strip
 sym_strip	symbol	strip	compiler/src/runtime.c	D1	invoke_cc
 sym_ndebug	symbol	NDEBUG	compiler/src/runtime.c	D2	cc argv
-sym_backtrace	symbol	backtrace_capture_c	std/backtrace/backtrace.c	D4	capture
+sym_backtrace	symbol	backtrace_capture_c	compiler/src/asm/runtime_backtrace_platform.c	D4	capture
 sym_lsp_line	symbol	lsp_definition_at	compiler/src/lsp/lsp_diag.c	D5	line/col
 case_marker	case	symbols_marker	tests/debug/symbols_marker.sx	debug	marker
 case_backtrace	case	main.sx	tests/backtrace/main.sx	stack	capture
