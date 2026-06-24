@@ -26,8 +26,8 @@ function main(): i32 {
   // case 6：Map_str 基本路径
   let ms: Map_str_i32 = map_str_i32_new();
   if (map_str_i32_with_capacity(&ms, 4) != 0) { return 11; }
-  let k1: [3]u8 = [97, 98, 99];
-  let k2: [3]u8 = [120, 121, 122];
+  let k1: u8[3] = [97, 98, 99];
+  let k2: u8[3] = [120, 121, 122];
   if (map_str_i32_insert(&ms, k1, 3, 42) != 0) { return 12; }
   if (map_str_i32_insert(&ms, k2, 3, 99) != 0) { return 13; }
   // case 7：str get 与长度敏感
