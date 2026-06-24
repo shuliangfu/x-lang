@@ -5,8 +5,8 @@ STD_HASH_XXHASH_PREFIX="${SHUX_STD_HASH_XXHASH_PREFIX:-shux: [SHUX_STD105_HASH_X
 
 # 校验 manifest 中 api/const/symbol/file。
 std_hash_xxhash_symbols_ok() {
-  local mod_su="$1"
-  local hash_c="$2"
+  local mod_sx="$1"
+  local hash_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,20 +15,21 @@ std_hash_xxhash_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-hash-xxhash FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-hash-xxhash FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/hash/hash.c" ]; then path="$hash_c"; fi
+        if [ "$path" = "std/hash/hash_glue.c" ]; then path="$hash_sx"; fi
+        if [ "$path" = "std/hash/hash.sx" ]; then path="$hash_sx"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-hash-xxhash FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -72,11 +73,11 @@ std_hash_xxhash_run_sx_smoke() {
 
 # C 烟测：xxhash64_smoke_ok.c + hash.o。
 std_hash_xxhash_run_c_smoke() {
-  local hash_c="$1"
+  local hash_sx="$1"
   local src="tests/std-hash/xxhash64_smoke_ok.c"
   local out="/tmp/shux_std_hash_xxhash_$$"
   local hash_o
-  hash_o="$(dirname "$hash_c")/hash.o"
+  hash_o="$(dirname "$hash_sx")/hash.o"
   if [ ! -f "$hash_o" ]; then
     echo "std-hash-xxhash FAIL: missing $hash_o" >&2
     return 1
@@ -103,5 +104,5 @@ std_hash_xxhash_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_HASH_XXHASH_PREFIX} status=${status} c=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_HASH_XXHASH_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
 }
