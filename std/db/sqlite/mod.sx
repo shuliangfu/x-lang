@@ -3,6 +3,7 @@
 // 【路径】`import("std.db.sqlite")`。
 //
 // 【文件职责】open/close/exec/事务/游标；预编译 bind + stmt 缓存；连接池（STD-084）。
+// 实现：sqlite.sx + sqlite_glue.c（libsqlite3 胶层）；stub 构建见 sqlite-o-stub。
 // 【设计层】D1 连接 / D2 查询执行 / D3 事务 / D4 后端抽象（见 analysis/std-sqlite-prereq-v1.md）。
 // 【错误码】对齐 EXC-003 库级负数；0=成功，-9=未实现桩（仅 sqlite-o-stub 构建）。
 
