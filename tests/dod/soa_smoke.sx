@@ -1,5 +1,5 @@
 /**
- * DOD-S1 smoke：`struct Name soa { ... }` + `[N]T` 列主序 + `arr[i].field` 读写。
+ * DOD-S1 smoke：`struct Name soa { ... }` + `T[N]` 列主序 + `arr[i].field` 读写。
  * 期望：arr[0].x=3, arr[1].x=5 → 返回 8（i32 x/y 列读写）。
  */
 struct Vec2 soa {
@@ -8,7 +8,7 @@ struct Vec2 soa {
 }
 
 function main(): i32 {
-  let arr: [2]Vec2 = [];
+  let arr: Vec2[2] = [];
   arr[0].x = 3;
   arr[1].x = 5;
   arr[0].y = 1;
