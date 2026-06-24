@@ -5,7 +5,7 @@ STD146_PREFIX="${SHUX_STD146_ATOMIC_WIDEN_PREFIX:-shux: [SHUX_STD146_ATOMIC_WIDE
 
 # 校验 manifest；echo 缺失数。
 std_atomic_widen_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local atomic_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,14 +15,14 @@ std_atomic_widen_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-atomic-widen FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/atomic/atomic.c" ]; then path="$atomic_c"; fi
+        if [ "$path" = "std/atomic/atomic_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_atomic_glue.c" ]; then path="$atomic_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-atomic-widen FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -52,15 +52,20 @@ std_atomic_widen_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 widen 烟测（需链接 atomic.o）。
+# 编译并运行 widen 烟测（需链接 atomic.o + runtime_atomic_glue.o）。
 std_atomic_widen_run_smoke() {
   local shux="$1"
   local src="$2"
   local atomic_o="$3"
+  local atomic_rt_o="${4:-}"
   local exe="/tmp/shux_std_atomic_widen_$$"
-  if ! "$shux" -L . "$src" -o "$exe" "$atomic_o" >/dev/null 2>&1; then
+  local extra=()
+  if [ -n "$atomic_rt_o" ] && [ -f "$atomic_rt_o" ]; then
+    extra=("$atomic_rt_o")
+  fi
+  if ! "$shux" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" >/dev/null 2>&1; then
     echo "std-atomic-widen FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" "$atomic_o" 2>&1 | tail -12 >&2 || true
+    "$shux" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
