@@ -1,50 +1,75 @@
 # BOOT-014 std 模块链接契约 manifest
 # 列：item_id	kind	getter	obj_rel	trigger	ld_flag	notes
-min_always	33
+min_always	42
 min_on_demand	2
-io	std_always	get_io_o_path	std/io/io.o	-	-	F4
+io	std_sx	get_io_o_path	-	-lc	F-03 v2/v3 pure .sx
 asm_stubs	compiler	get_runtime_asm_io_stubs_o_path	runtime_asm_io_stubs.o	-	-	ASM IO
-fs	std_always	get_std_fs_o_path	std/fs/fs.o	-	-	
+process_argv	compiler	shux_runtime_process_argv_o_path	runtime_process_argv.o	-	-	F-ZC argc/argv
+process_os	compiler	shux_runtime_process_os_glue_o_path	runtime_process_os_glue.o	std/process/process.o	-	F-ZC getenv/spawn/getcwd
+test_fn_invoke	compiler	shux_runtime_test_fn_invoke_o_path	runtime_test_fn_invoke.o	-	-	F-ZC test fn-ptr
+random_fill	compiler	shux_runtime_random_fill_o_path	runtime_random_fill.o	-	-	F-ZC CSPRNG OS
+time_os	compiler	shux_runtime_time_os_o_path	runtime_time_os.o	-	-	F-ZC time syscall
+queue_contention	compiler	shux_runtime_queue_contention_o_path	runtime_queue_contention.o	std/queue/queue.o	-lpthread	F-ZC queue 烟测
+dynlib_os	compiler	shux_runtime_dynlib_os_o_path	runtime_dynlib_os.o	std/dynlib/dynlib.o	-ldl	F-ZC dlopen
+env_os	compiler	shux_runtime_env_os_o_path	runtime_env_os.o	std/env/env.o	-	F-ZC getenv/setenv
+backtrace_platform	compiler	shux_runtime_backtrace_platform_o_path	runtime_backtrace_platform.o	std/backtrace/backtrace.o	-rdynamic/-ldl	F-ZC capture
+fs	std_sx	get_std_fs_o_path	-	-lc	F-03 v2 pure .sx
 process	std_always	get_std_process_o_path	std/process/process.o	-	-	
 string	std_always	get_std_string_o_path	std/string/string.o	-	-	
-heap	std_always	get_std_heap_o_path	std/heap/heap.o	-	-	
+heap	std_sx	get_std_heap_o_path	-	-lc	F-03 v2 pure .sx
 path	std_always	get_std_path_o_path	std/path/path.o	-	-	
 runtime	std_always	get_std_runtime_o_path	std/runtime/runtime.o	-	-	
 panic	compiler	get_runtime_panic_o_path	runtime_panic.o	-	-	
 net	std_always	get_std_net_o_path	std/net/net.o	-	-	have_net
+net_udp_batch	compiler	shux_runtime_net_udp_batch_o_path	runtime_net_udp_batch.o	std/net/net.o	-	F-ZC recvmmsg/sendmmsg
+net_workers	compiler	shux_runtime_net_workers_o_path	runtime_net_workers.o	std/net/net.o	-	F-ZC accept worker entry
 thread	std_always	get_std_thread_o_path	std/thread/thread.o	-	-lpthread	have_thread
+thread_glue	compiler	shux_runtime_thread_glue_o_path	runtime_thread_glue.o	std/thread/thread.o	-lpthread	F-ZC pthread/CreateThread
 time	std_always	get_std_time_o_path	std/time/time.o	-	-	
 random	std_always	get_std_random_o_path	std/random/random.o	-	-	
 env	std_always	get_std_env_o_path	std/env/env.o	-	-	
 sync	std_always	get_std_sync_o_path	std/sync/sync.o	-	-lpthread	have_sync
+sync_os	compiler	shux_runtime_sync_os_o_path	runtime_sync_os.o	std/sync/sync.o	-lpthread	F-ZC Mutex/RwLock/Condvar
+sync_tls	compiler	shux_runtime_sync_lock_diag_tls_o_path	runtime_sync_lock_diag_tls.o	std/sync/sync.o	-	F-ZC lock diag TLS
 encoding	std_always	get_std_encoding_o_path	std/encoding/encoding.o	-	-	
 base64	std_always	get_std_base64_o_path	std/base64/base64.o	-	-	
 crypto	std_always	get_std_crypto_o_path	std/crypto/crypto.o	-	-	
-log	std_always	get_std_log_o_path	std/log/log.o	-	-	
+crypto_ref10_glue	compiler	shux_runtime_ed25519_ref10_glue_o_path	runtime_ed25519_ref10_glue.o	std/crypto/crypto.o	-	F-ZC Ed25519 ref10
+crypto_inc_glue	compiler	shux_runtime_crypto_inc_glue_o_path	runtime_crypto_inc_glue.o	std/crypto/crypto.o	-	F-ZC SHA-512/HMAC
+log	std_always	get_std_log_o_path	std/log/log.o	-	-
+log_os	compiler	shux_runtime_log_os_o_path	runtime_log_os.o	std/log/log.o	-	F-ZC sink/rotate	
 atomic	std_always	get_std_atomic_o_path	std/atomic/atomic.o	-	-	
+atomic_glue	compiler	shux_runtime_atomic_glue_o_path	runtime_atomic_glue.o	std/atomic/atomic.o	-	F-ZC load/store/CAS
 channel	std_always	get_std_channel_o_path	std/channel/channel.o	-	-lpthread	have_channel
+channel_glue	compiler	shux_runtime_channel_glue_o_path	runtime_channel_glue.o	std/channel/channel.o	-lpthread	F-ZC bounded/unbounded/select
 backtrace	std_always	get_std_backtrace_o_path	std/backtrace/backtrace.o	-	-	
 hash	std_always	get_std_hash_o_path	std/hash/hash.o	-	-	
 math	std_always	get_std_math_o_path	std/math/math.o	-	-lm	have_math
+math_libm	compiler	shux_runtime_math_libm_o_path	runtime_math_libm.o	std/math/math.o	-lm	F-ZC libm/fenv
 sort	std_always	get_std_sort_o_path	std/sort/sort.o	-	-	
 ffi	std_always	get_std_ffi_o_path	std/ffi/ffi.o	-	-	
 json	std_always	get_std_json_o_path	std/json/json.o	-	-	
 csv	std_always	get_std_csv_o_path	std/csv/csv.o	-	-	
 regex	std_always	get_std_regex_o_path	std/regex/regex.o	-	-	
-compress	std_always	get_std_compress_o_path	std/compress/compress.o	-	-lz	have_compress
+compress	std_sx	shux_std_compress_o_path	-	-lz/-lzstd/-lbrotli*	user_o	F-04 v7 + F-06 v1 pure .sx
 unicode	std_always	get_std_unicode_o_path	std/unicode/unicode.o	-	-	
 dynlib	std_always	get_std_dynlib_o_path	std/dynlib/dynlib.o	-	-ldl	have_dynlib
 http	std_always	get_std_http_o_path	std/http/http.o	-	-	
+http_glue	compiler	shux_runtime_http_glue_o_path	runtime_http_glue.o	std/http/http.o	-	F-ZC HTTP/HTTP2 胶层
 tar	std_always	get_std_tar_o_path	std/tar/tar.o	-	-	
 test	std_always	get_std_test_o_path	std/test/test.o	-	-	
-async_sched	std_on_demand	get_std_async_scheduler_o_path	std/async/scheduler.o	shux_async_run_i32	-	nm on_demand
+async_sched	std_on_demand	get_std_async_scheduler_o_path	std/async/scheduler.o	shux_async_run_i32	-lpthread	nm on_demand
+async_sched_glue	compiler	shux_runtime_scheduler_glue_o_path	runtime_scheduler_glue.o	std/async/scheduler.o	-lpthread	F-ZC 调度胶层
 core_mem	std_on_demand	get_core_mem_o_path	core/mem/mem.o	mem_compiler_fence_c	-	nm on_demand
 freestanding_io	freestanding	get_freestanding_io_o_path	compiler/freestanding_io.o	shux_sys_write	-	Linux x86_64
 freestanding_panic	freestanding	-	compiler/runtime_panic.o	shux_panic_	-	nm panic
 c_async_on_demand	c_backend	generated_c_needs_async_scheduler	std/async/scheduler.o	shux_async_cps_suspend	-	invoke_cc C
 c_core_mem_on_demand	c_backend	generated_c_needs_core_mem	core/mem/mem.o	mem_compiler_fence_c	-	invoke_cc C
 c_db_kv_on_demand	c_backend	generated_c_needs_db_kv	std/db/kv/kv.o	db_kv_open_c	-	invoke_cc C
+db_kv_glue	compiler	shux_runtime_kv_mmap_glue_o_path	runtime_kv_mmap_glue.o	std/db/kv/kv.o	-	F-ZC mmap
 c_db_arrow_on_demand	c_backend	generated_c_needs_db_arrow	std/db/arrow/arrow.o	arrow_column_i32_create_c	-	invoke_cc C
+db_arrow_glue	compiler	shux_runtime_arrow_simd_glue_o_path	runtime_arrow_simd_glue.o	std/db/arrow/arrow.o	-	F-ZC SIMD
+db_sqlite_glue	compiler	shux_runtime_sqlite_glue_o_path	runtime_sqlite_glue.o	std/db/sqlite/sqlite.o	-lsqlite3	F-ZC sqlite3
 hook_kv	smoke	tests/std-db/kv_tick_smoke.sx	std/db/kv/kv.o	db_kv_open_c	-	on_demand
 hook_arrow	smoke	tests/std-db/arrow_column_smoke.sx	std/db/arrow/arrow.o	arrow_column_f32_create_c	-	on_demand
 hook_json	smoke	tests/json/object_array_parse.sx	std/json/json.o	-	-	link smoke
