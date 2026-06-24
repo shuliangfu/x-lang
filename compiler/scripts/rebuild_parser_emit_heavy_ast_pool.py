@@ -15,10 +15,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 AST_POOL = ROOT / "compiler/ast_pool.c"
 THIN_C = ROOT / "compiler/src/asm/parser_asm_thin_c.c"
-PARSER_SU = ROOT / "compiler/src/parser/parser.sx"
+PARSER_SX = ROOT / "compiler/src/parser/parser.sx"
 
-# glue 名 → parser.sx 函数名（自动生成 su 名与 module 表不一致时手工覆盖）
-GLUE_SU_OVERRIDE: dict[str, str] = {
+# glue 名 → parser.sx 函数名（自动生成 sx 名与 module 表不一致时手工覆盖）
+GLUE_SX_OVERRIDE: dict[str, str] = {
     "parser_lex_copy_from_import_into_glue": "copy_lex_from_import_into",
     "parser_token_is_label_start_glue": "parser_token_is_label_start",
     "parser_struct_field_name_tok_kind_i32_glue": "struct_field_name_tok_kind",
@@ -28,8 +28,8 @@ GLUE_SU_OVERRIDE: dict[str, str] = {
     "parser_try_skip_allow_padding_struct_buf_value_glue": "try_skip_allow_padding_struct_buf",
 }
 
-# 移出 delegate → SU 真 emit（小体 compat；2026-06-14 稳定试点）
-SU_EMIT_OUT = {
+# 移出 delegate → SX 真 emit（小体 compat；2026-06-14 稳定试点）
+SX_EMIT_OUT = {
     "parse_into_set_main_index",
     "pipeline_module_reset_parse_counters",
     "collect_imports_buf",
@@ -94,7 +94,7 @@ static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t fu
 }
 
 /**
- * parser EMIT_HEAVY 第二遍：须 ret0 桩（SU 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
+ * parser EMIT_HEAVY 第二遍：须 ret0 桩（SX 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
  */
 static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_selfhost(m))
@@ -123,7 +123,7 @@ static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t fu
 }
 
 /**
- * parser EMIT_HEAVY 第二遍：按名判定可安全 SU 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
+ * parser EMIT_HEAVY 第二遍：按名判定可安全 SX 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
  */
 static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_selfhost(m))
@@ -151,7 +151,7 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   return 0;
 }
 
-/** 槽位 fallback：小体 SU 真 emit（>ASM_EMIT_HEAVY_PARSER_SLOT_MAX 仍桩化）。 */
+/** 槽位 fallback：小体 SX 真 emit（>ASM_EMIT_HEAVY_PARSER_SLOT_MAX 仍桩化）。 */
 static int32_t asm_parser_emit_heavy_slot_fallback_ok(struct ast_ASTArena *arena, int32_t body_ref, int32_t slots) {
   (void)arena;
   if (body_ref <= 0)
@@ -167,8 +167,8 @@ static int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t fu
     return 0;
   nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].su_name,
-                                           k_asm_parser_thin_delegate[i].su_len))
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].sx_name,
+                                           k_asm_parser_thin_delegate[i].sx_len))
       return 1;
   }
   return 0;
@@ -180,23 +180,23 @@ static int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t fu
 def build_delegate_rows() -> list[tuple[str, int, str, int]]:
     """从 parser_asm_thin_c.c 生成 delegate 表行。"""
     thin_c = THIN_C.read_text()
-    parser_funcs = set(re.findall(r"(?m)^(?:extern\s+)?function\s+(\w+)\s*\(", PARSER_SU.read_text()))
+    parser_funcs = set(re.findall(r"(?m)^(?:extern\s+)?function\s+(\w+)\s*\(", PARSER_SX.read_text()))
     pat = re.compile(r"^(?:void|int32_t|struct parser_asm_\w+)\s+(parser_[a-zA-Z0-9_]+_glue)\s*\(", re.M)
     thin_names = set(pat.findall(thin_c))
     rows: list[tuple[str, int, str, int]] = []
     for c in sorted(thin_names):
-        su = GLUE_SU_OVERRIDE.get(c, c[len("parser_") : -len("_glue")])
-        if su not in parser_funcs:
-            print(f"WARN: skip glue {c} (no function {su} in parser.sx)", file=sys.stderr)
+        sx = GLUE_SX_OVERRIDE.get(c, c[len("parser_") : -len("_glue")])
+        if sx not in parser_funcs:
+            print(f"WARN: skip glue {c} (no function {sx} in parser.sx)", file=sys.stderr)
             continue
-        rows.append((su, len(su), c, len(c)))
+        rows.append((sx, len(sx), c, len(c)))
     for extra in (
         ("pipeline_module_reset_parse_counters", 36, "pipeline_module_reset_parse_counters_c", 38),
         ("parse_into_set_main_index", 25, "pipeline_module_set_main_func_index", 35),
     ):
         if extra[0] not in {r[0] for r in rows}:
             rows.insert(0, extra)
-    return [r for r in rows if r[0] not in SU_EMIT_OUT]
+    return [r for r in rows if r[0] not in SX_EMIT_OUT]
 
 
 def emit_parser_block(tail: str) -> str:
@@ -224,8 +224,8 @@ def main() -> int:
 
     rows = build_delegate_rows()
     delegate_lines = ["static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {"]
-    for su, sl, c, cl in rows:
-        delegate_lines.append(f'    {{"{su}", {sl}, "{c}", {cl}}},')
+    for sx, sl, c, cl in rows:
+        delegate_lines.append(f'    {{"{sx}", {sl}, "{c}", {cl}}},')
     delegate_lines.append("};")
 
     text = AST_POOL.read_text()
@@ -272,8 +272,8 @@ def main() -> int:
         print("ERROR: k_asm_parser_thin_delegate block not found", file=sys.stderr)
         return 1
     new_delegate = (
-        "/** M8-tail：parser.sx 薄包装 SU 名 → parser_asm_thin_c.c *_glue（EMIT_HEAVY 第二遍 bl 扩 __text）。\n"
-        " * SU 真 emit（不在表内）：parse_into_set_main_index / pipeline_module_reset_parse_counters /\n"
+        "/** M8-tail：parser.sx 薄包装 SX 名 → parser_asm_thin_c.c *_glue（EMIT_HEAVY 第二遍 bl 扩 __text）。\n"
+        " * SX 真 emit（不在表内）：parse_into_set_main_index / pipeline_module_reset_parse_counters /\n"
         " * collect_imports_buf / lex_from_next_into / parse_one_function_library_buf / copy_lex_from_import_into /\n"
         " * expr_set_common_zeros */\n"
         + "\n".join(delegate_lines)
