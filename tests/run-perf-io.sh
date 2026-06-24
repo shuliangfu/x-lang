@@ -8,7 +8,7 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/fs/fs.o ../std/net/net.o -q 2>/dev/null || make -C compiler ../std/fs/fs.o ../std/net/net.o
+make -C compiler ../std/io/io.o ../std/net/net.o -q 2>/dev/null || make -C compiler ../std/io/io.o ../std/net/net.o
 
 # PERF-001：Zig 对标基线共享工具
 # shellcheck source=tests/lib/zig-baseline.sh
@@ -358,7 +358,7 @@ bench_io_case() {
   local name="$1"
   local base="$2"
   local desc="$3"
-  local su="${base}.sx"
+  local sx="${base}.sx"
   local c="${base}.c"
   local zig="${base}.zig"
   local SHUX_ASM_MED="nan"
@@ -381,7 +381,7 @@ bench_io_case() {
     ensure_io_mmap_bench_file
   fi
 
-  $PERF_COMPILE_SHUX -L . "$su" -o "/tmp/bench_io_shu_${tag}" 2>&1
+  $PERF_COMPILE_SHUX -L . "$sx" -o "/tmp/bench_io_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHUX_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
@@ -389,7 +389,7 @@ bench_io_case() {
   fi
 
   if [ "$PERF_COMPILE_SHUX" != "./compiler/shux-c" ] \
-    && $PERF_COMPILE_SHUX -L . "$su" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
+    && $PERF_COMPILE_SHUX -L . "$sx" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHUX_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
@@ -399,7 +399,7 @@ bench_io_case() {
   fi
 
   if [ -x compiler/shux_asm ]; then
-    if compiler/shux_asm -L . "$su" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
+    if compiler/shux_asm -L . "$sx" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
       [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
       ASM_MED=$(median_real "/tmp/bench_io_asm_${tag}")
       echo "Shu asm (shux_asm) ${name} median real: ${ASM_MED}s"
