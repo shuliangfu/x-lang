@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# tests/baseline/e03-coldstart-track.tsv — G-06 零 seed：bootstrap_shuxc 替代 OBJS_CORE 冷启动
+# 列：track_id	layer	path	check_type	expect_in	notes
+e03_v3_doc	doc	analysis/phase-e-e03-v3-coldstart.md	grep	E-03 v3
+e03_v3_gate	gate	tests/run-e03-v3-coldstart-track-gate.sh	gate_ref	n/a
+g06_bootstrap_shuxc_script	scripts	compiler/scripts/bootstrap_shuxc_create.sh	track-only	bootstrap_shuxc	G-06 cold start
+g06_bootstrap_shuxc_binary	binary	compiler/bootstrap_shuxc	track-only	bootstrap_shuxc	G-06 seed in repo
+driver_seed_no_parser	makefile	DRIVER_SEED_OBJS	absent	src/parser/parser.o	C-06 default
+driver_seed_no_lexer	makefile	DRIVER_SEED_OBJS	absent	src/lexer/lexer.o	E-03 v2 default
+driver_seed_no_ast_seed	makefile	DRIVER_SEED_OBJS	absent	ast_seed.o	E-03 v2 default
+driver_seed_no_preprocess_fd	makefile	DRIVER_SEED_OBJS	absent	preprocess_for_driver.o	E-03 v2 default
+seed_preprocess_c	build_shux_asm	ensure_asm_driver_seed_c_objs preprocess.c	track-only	SEED_OMIT	G-02a omit C frontend seed
+seed_lexer_c	build_shux_asm	ensure_asm_driver_seed_c_objs lexer.c	track-only	SEED_OMIT	G-02a
+seed_ast_c	build_shux_asm	ensure_asm_driver_seed_c_objs ast_seed	track-only	SEED_OMIT	G-02a
+seed_parser_c	build_shux_asm	ensure_asm_driver_seed_c_objs parser.c	track-only	SEED_OMIT	G-02a
