@@ -14,19 +14,19 @@ function str_eq(a: *u8, b: *u8): i32 {
 
 function main(): i32 {
   /** "tests/fs/.dirmeta_tmp\0" */
-  let dir_path: [24]u8 =
+  let dir_path: u8[24] =
   [116, 101, 115, 116, 115, 47, 102, 115, 47, 46, 100, 105, 114, 109, 101, 116, 97, 95, 116, 109, 112, 0, 0, 0];
   /** "tests/fs/.dirmeta_tmp/inner.txt\0" */
-  let file_path: [35]u8 =
+  let file_path: u8[35] =
   [116, 101, 115, 116, 115, 47, 102, 115, 47, 46, 100, 105, 114, 109, 101, 116, 97, 95, 116, 109, 112, 47, 105, 110, 110, 101, 114, 46, 116, 120, 116, 0, 0, 0, 0];
   /** "inner.txt\0" */
-  let inner_name: [11]u8 = [105, 110, 110, 101, 114, 46, 116, 120, 116, 0, 0];
-  let payload: [5]u8 = [83, 72, 85, 33, 0];
+  let inner_name: u8[11] = [105, 110, 110, 101, 114, 46, 116, 120, 116, 0, 0];
+  let payload: u8[5] = [83, 72, 85, 33, 0];
   let pay_len: usize = 4 as usize;
   let st: FsStat = FsStat { size: 0, mode: 0, is_dir: 0, is_file: 0, mtime_sec: 0 };
   let fd: i32 = 0;
   let dh: i64 = 0;
-  let name_buf: [64]u8 = [];
+  let name_buf: u8[64] = [];
   let is_dir_flag: i32 = 0;
   let found: i32 = 0;
   let rr: i32 = 0;
