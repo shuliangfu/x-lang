@@ -2,8 +2,8 @@
 const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
-  let path: [8]u8 = [116, 101, 115, 116, 46, 100, 98, 0];
-  let sql: [9]u8 = [83, 69, 76, 69, 67, 84, 32, 49, 0];
+  let path: u8[8] = [116, 101, 115, 116, 46, 100, 98, 0];
+  let sql: u8[9] = [83, 69, 76, 69, 67, 84, 32, 49, 0];
   let c: DbConn = sqlite.open(&path[0]);
   let ec: i32 = sqlite.exec(c, &sql[0]);
   ec = sqlite.query_rows(c, &sql[0]);
