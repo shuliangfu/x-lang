@@ -30,7 +30,7 @@ function main(): i32 {
   }
 
   // 键值 bag：trace id 等元数据随 Context 传播
-  let key: [6]u8 = [116, 114, 97, 99, 101, 0];
+  let key: u8[6] = [116, 114, 97, 99, 101, 0];
   let out: i64 = 0;
   if (context.set_value(timed, &key[0], 42) != 0) {
     context.free(timed);
