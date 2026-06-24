@@ -56,7 +56,7 @@ v1 堆路径见 §2；**STD-155**：`bytes_from_external` 绑定 `Arena64` bump 
 ## 5. Gate
 
 ```
-shux: [SHUX_STD_BYTES] status=ok su=1 skip=0
+shux: [SHUX_STD_BYTES] status=ok sx=1 skip=0
 std-bytes gate OK
 ```
 
