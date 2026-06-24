@@ -8,9 +8,10 @@ verify	section	## 4. 门禁	gate
 api_stable	api	sort_stable_i32	std/sort/mod.sx	稳定
 api_stable_u8	api	sort_stable_u8	std/sort/mod.sx	u8
 api_cmp	api	sort_i32_cmp	std/sort/mod.sx	比较器
-symbol_stable_c	symbol	sort_stable_i32_c	std/sort/sort.c	C 稳定
-symbol_cmp_c	symbol	sort_i32_cmp_c	std/sort/sort.c	C cmp
-symbol_smoke_c	symbol	sort_stable_smoke_c	std/sort/sort.c	C 烟测
+symbol_stable_c	symbol	sort_stable_i32_c	std/sort/sort.sx	.sx 稳定
+symbol_cmp_c	symbol	sort_i32_cmp_c	std/sort/sort.sx	.sx cmp
+symbol_smoke_c	symbol	sort_stable_smoke_c	std/sort/sort.sx	烟测
+sort_c_absent	absent	std/sort/sort.c		F-sort v1 已删
 smoke_c	file	tests/std-sort/stable_smoke_ok.c	C 入口
 smoke_stable	smoke	tests/std-sort/stable_i32.sx	稳定
 smoke_cmp	smoke	tests/std-sort/cmp_desc.sx	降序
