@@ -3,8 +3,8 @@
 min_syms	4
 parse_row	symbol	parse_row	std/csv/mod.sx
 write_row	symbol	write_row	std/csv/mod.sx
-csv_parse_row_c	symbol	csv_parse_row_c	std/csv/csv.c
-csv_write_row_c	symbol	csv_write_row_c	std/csv/csv.c
+csv_parse_row_c	symbol	csv_parse_row_c	std/csv/csv.sx
+csv_write_row_c	symbol	csv_write_row_c	std/csv/csv.sx
 roundtrip_doc	anchor	row_roundtrip	analysis/std-csv-row-v1.md	RFC
 test_rt	file	tests/csv/row_roundtrip.sx		金样
 test_main	file	tests/csv/main.sx		回归
