@@ -20,13 +20,13 @@ function main(): i32 {
   if (a0 == 0) { return 1; }
   if (env.args_iter_count() < 1) { return 2; }
 
-  let name: [5]u8 = [88, 95, 73, 84, 0];
-  let val: [4]u8 = [118, 49, 0, 0];
+  let name: u8[5] = [88, 95, 73, 84, 0];
+  let val: u8[4] = [118, 49, 0, 0];
   if (env.setenv(&name[0], &val[0], 1) != 0) { return 3; }
 
   let ei: EnvIter = env.env_iter();
-  let key_buf: [32]u8 = [];
-  let val_buf: [32]u8 = [];
+  let key_buf: u8[32] = [];
+  let val_buf: u8[32] = [];
   let found: i32 = 0;
   let steps: i32 = 0;
   while (steps < 4096) {
