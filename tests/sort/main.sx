@@ -3,13 +3,13 @@ const sort = import("std.sort");
 const debug = import("core.debug");
 
 function main(): i32 {
-  let a: [4]i32 = [3, 1, 4, 2];
+  let a: i32[4] = [3, 1, 4, 2];
   sort.sort_i32(&a[0], 4);
   debug.assert_eq_i32(a[0], 1);
   debug.assert_eq_i32(a[1], 2);
   debug.assert_eq_i32(a[2], 3);
   debug.assert_eq_i32(a[3], 4);
-  let b: [3]u8 = [200, 100, 150];
+  let b: u8[3] = [200, 100, 150];
   sort.sort_u8(&b[0], 3);
   let b0: u32 = b[0];
   let b1: u32 = b[1];
