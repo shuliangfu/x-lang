@@ -39,7 +39,7 @@
 示例（`region_assign_escape.sx` 第 8 行）：
 
 ```text
-typeck error: slice region escape: cannot assign <ra> slice to unbound []T at 8:5
+typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:5
 ```
 
 ---
