@@ -6,6 +6,6 @@ api_percent_encode	api	percent_encode	std/encoding/mod.sx
 api_percent_decode	api	percent_decode	std/encoding/mod.sx
 api_encode_b32_str	api	encode_base32_string	std/encoding/mod.sx
 api_smoke	api	encoding_extra_smoke	std/encoding/mod.sx
-symbol_b32_c	symbol	encoding_base32_encode_c	std/encoding/encoding.c
-smoke_su	smoke	tests/encoding/base32_percent_string.sx
+symbol_b32_c	symbol	encoding_base32_encode_c	std/encoding/encoding.sx
+smoke_sx	smoke	tests/encoding/base32_percent_string.sx
 gate	script	run-std-encoding-extra-gate.sh	tests/run-std-encoding-extra-gate.sh
