@@ -1,7 +1,7 @@
 // std.compress — 压缩封装门面（P4 可选；zlib / gzip / Brotli / zstd）
 //
 // 【文件职责】聚合 std.compress.zlib / gzip / brotli / zstd，保持 import("std.compress") 兼容。
-// 【目录】zlib/、gzip/、brotli/ 各格式独立；共用类型见 compress_common.h；链接仍用 compress.o。
+// 【目录】zlib/、gzip/、brotli/、zstd/ 各格式独立；共用类型见 common.sx；F-04 v7 无 compress.o。
 const zlib_m = import("std.compress.zlib");
 const gzip_m = import("std.compress.gzip");
 const brotli_m = import("std.compress.brotli");
