@@ -1,0 +1,9 @@
+# F-queue v1 std.queue 闭合 manifest
+# 列：item_id	kind	anchor	notes
+fq_doc	doc	analysis/phase-f-queue-v1.md	F-queue v1
+fq_gate	gate	tests/run-f-queue-v1-gate.sh	聚合门禁
+qu_sx	file	std/queue/queue.sx	模块锚点 .sx
+qu_glue_v1_absent	absent	std/queue/queue_glue.c	v2 已删；见 runtime_queue_contention.c
+qu_mod	file	std/queue/mod.sx	对外 API
+qu_c_absent	absent	std/queue/queue.c	已删除
+makefile	makefile	compiler/Makefile	queue.o ld -r merge
