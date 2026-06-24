@@ -5,10 +5,11 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_UNICODE_NORM_DOC:-analysis/std-unicode-normalization-v1.md}"
 MANIFEST="${SHUX_STD_UNICODE_NORM_MANIFEST:-tests/baseline/std-unicode-normalization-manifest.tsv}"
-MOD_SU="std/unicode/mod.sx"
-UNI_C="std/unicode/unicode.c"
+MOD_SX="std/unicode/mod.sx"
+UNI_IMPL="std/unicode/unicode.sx"
+UNI_SX="std/unicode/unicode.sx"
 LIB="tests/lib/std-unicode-normalization.sh"
-SMOKE_SU="tests/std-unicode-normalization/roundtrip.sx"
+SMOKE_SX="tests/std-unicode-normalization/roundtrip.sx"
 SMOKE_C="tests/std-unicode-normalization/normalization_smoke_ok.c"
 MIN_APIS=6
 
@@ -16,7 +17,7 @@ MIN_APIS=6
 . "$LIB"
 
 echo "=== STD-082: std.unicode normalization manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SU" "$UNI_C" "$SMOKE_SU" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$UNI_SX" "$UNI_IMPL" "$SMOKE_SX" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-unicode-normalization gate FAIL: missing $f" >&2
     exit 1
@@ -41,7 +42,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
     echo "std-unicode-normalization gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -52,7 +53,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_unicode_norm_symbols_ok "$MOD_SU" "$UNI_C" "$MANIFEST" || true)"
+sym_miss="$(std_unicode_norm_symbols_ok "$MOD_SX" "$UNI_IMPL" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_unicode_norm_emit_report "fail" 0 0 0
   exit 1
@@ -60,7 +61,7 @@ fi
 echo "std-unicode-normalization manifest OK"
 
 C_OK=0
-SU_OK=0
+SX_OK=0
 SKIP=0
 
 echo "=== STD-082: unicode normalization c smoke ==="
@@ -83,13 +84,13 @@ if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-082: .sx smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-unicode-normalization gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_unicode_norm_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_unicode_norm_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then SU_OK=1; else
+  if std_unicode_norm_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then SX_OK=1; else
     std_unicode_norm_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
@@ -97,5 +98,5 @@ else
   SKIP=1
 fi
 
-std_unicode_norm_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_unicode_norm_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-unicode-normalization gate OK"
