@@ -12,7 +12,7 @@ SYMS="$BUILD_DIR/pipeline_asm_codegen_only_export.txt"
 PLATFORM_OBJS="build_asm/platform_elf.o build_asm/macho.o build_asm/arm64.o build_asm/arm64_enc.o build_asm/types.o build_asm/peephole.o"
 
 if [ ! -f "$GEN_SUO" ]; then
-  echo "build_seed_user_asm_codegen_partial: 缺少 $GEN_SUO（先运行 build_shux_asm 或 make gen-su-driver-objs 并复制大 pipeline_sx.o）" >&2
+  echo "build_seed_user_asm_codegen_partial: 缺少 $GEN_SUO（先运行 build_shux_asm 或 make gen-sx-driver-objs 并复制大 pipeline_sx.o）" >&2
   exit 1
 fi
 
