@@ -11,9 +11,9 @@ api_pool_submit	api	thread_pool_submit	std/thread/mod.sx	提交
 api_pool_drain	api	thread_pool_drain	std/thread/mod.sx	排空
 api_pool_stop	api	thread_pool_stop	std/thread/mod.sx	停止
 api_pool_pending	api	thread_pool_pending	std/thread/mod.sx	观测
-symbol_name_c	symbol	thread_set_name_self_c	std/thread/thread.c	C 命名
-symbol_pool_start_c	symbol	thread_pool_start_c	std/thread/thread.c	C 池
-symbol_pool_drain_c	symbol	thread_pool_drain_c	std/thread/thread.c	C drain
+symbol_name_c	symbol	thread_set_name_self_c	compiler/src/asm/runtime_thread_glue.c	C 命名
+symbol_pool_start_c	symbol	thread_pool_start_c	compiler/src/asm/runtime_thread_glue.c	C 池
+symbol_pool_drain_c	symbol	thread_pool_drain_c	compiler/src/asm/runtime_thread_glue.c	C drain
 smoke_pool	smoke	tests/thread/pool_roundtrip.sx	池往返
 smoke_main	smoke	tests/thread/main.sx	spawn/join
 lib	script	lib/std-thread-pool.sh	tests/lib/std-thread-pool.sh
