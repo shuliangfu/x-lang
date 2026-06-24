@@ -1,5 +1,5 @@
 /**
- * pipeline_run_sx_link_alias.c — experimental 链 pipeline SU helper 符号别名
+ * pipeline_run_sx_link_alias.c — experimental 链 pipeline SX helper 符号别名
  *
  * pipeline_sx.o（-E-extern C 生成）导出 pipeline_run_sx_pipeline_*；
  * orchestration 期望 run_sx_pipeline_* 裸名。
