@@ -2,9 +2,9 @@
 const base64 = import("std.base64");
 
 function main(): i32 {
-  let src: [3]u8 = [102, 111, 111];
-  let enc: [8]u8 = [];
-  let dec: [8]u8 = [];
+  let src: u8[3] = [102, 111, 111];
+  let enc: u8[8] = [];
+  let dec: u8[8] = [];
   let n: i32 = base64.encode_standard(&src[0], 3, &enc[0], 8);
   if (n != 4) {
     return 1;
