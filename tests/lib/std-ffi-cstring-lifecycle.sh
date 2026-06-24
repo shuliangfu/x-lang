@@ -4,9 +4,10 @@
 STD_FFI_CSTRING_PREFIX="${SHUX_STD_FFI_CSTRING_PREFIX:-shux: [SHUX_STD_FFI_CSTRING]}"
 
 std_ffi_cstring_symbols_ok() {
-  local mod_su="$1"
-  local ffi_c="$2"
-  local tsv="$3"
+  local mod_sx="$1"
+  local ffi_sx="$2"
+  local ffi_glue="$3"
+  local tsv="$4"
   local miss=0
   local item_id kind anchor mod_path
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -15,12 +16,12 @@ std_ffi_cstring_symbols_ok() {
     case "$kind" in
       api|const)
         if [ "$kind" = "api" ]; then
-          if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+          if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
             echo "std-ffi-cstring FAIL: missing api '$anchor'" >&2
             miss=$((miss + 1))
           fi
         else
-          if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+          if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
             echo "std-ffi-cstring FAIL: missing const '$anchor'" >&2
             miss=$((miss + 1))
           fi
@@ -28,7 +29,9 @@ std_ffi_cstring_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/ffi/ffi.c" ]; then path="$ffi_c"; fi
+        case "$path" in
+          std/ffi/ffi.c|std/ffi/ffi.sx|std/ffi/ffi_cb_glue.c) path="$ffi_sx" ;;
+        esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-ffi-cstring FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -76,11 +79,11 @@ std_ffi_cstring_run_smoke() {
 }
 
 std_ffi_cstring_run_c_smoke() {
-  local ffi_c="$1"
+  local ffi_impl="$1"
   local src="tests/std-ffi/cstring_lifecycle_ok.c"
   local out="/tmp/shux_std_ffi_cstr_c_$$"
   local ffi_o
-  ffi_o="$(dirname "$ffi_c")/ffi.o"
+  ffi_o="$(dirname "$ffi_impl")/ffi.o"
   if [ ! -f "$ffi_o" ]; then
     echo "std-ffi-cstring FAIL: missing $ffi_o" >&2
     return 1
@@ -107,5 +110,5 @@ std_ffi_cstring_emit_report() {
   local su_ok="$3"
   local safe_ok="$4"
   local skip="$5"
-  echo "${STD_FFI_CSTRING_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} safe004=${safe_ok} skip=${skip}"
+  echo "${STD_FFI_CSTRING_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} safe004=${safe_ok} skip=${skip}"
 }
