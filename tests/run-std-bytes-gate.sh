@@ -8,16 +8,16 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
 MANIFEST="${SHUX_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
 VECTORS="${SHUX_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
-MOD_SU="std/bytes/mod.sx"
+MOD_SX="std/bytes/mod.sx"
 LIB="tests/lib/std-bytes.sh"
-SMOKE_SU="tests/std-bytes/roundtrip.sx"
+SMOKE_SX="tests/std-bytes/roundtrip.sx"
 MIN_APIS=12
 
 # shellcheck source=tests/lib/std-bytes.sh
 . "$LIB"
 
 echo "=== STD-072: std.bytes manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SMOKE_SU" std/bytes/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX" std/bytes/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-bytes gate FAIL: missing $f" >&2
     exit 1
@@ -44,7 +44,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
     echo "std-bytes gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -55,7 +55,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_bytes_symbols_ok "$MOD_SU" "$MANIFEST" || true)"
+sym_miss="$(std_bytes_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_bytes_emit_report "fail" 0 0
   exit 1
@@ -68,7 +68,7 @@ if [ "${SHUX_STD_BYTES_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-SU_OK=0
+SX_OK=0
 SKIP=0
 
 SHUX_BIN=""
@@ -76,14 +76,14 @@ if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-072: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-bytes gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SU" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_bytes_emit_report "fail" 0 0
     exit 1
   fi
-  if std_bytes_run_smoke "$SHUX_BIN" "$SMOKE_SU" "roundtrip"; then
-    SU_OK=1
+  if std_bytes_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then
+    SX_OK=1
   else
     std_bytes_emit_report "fail" 0 0
     exit 1
@@ -93,5 +93,5 @@ else
   SKIP=1
 fi
 
-std_bytes_emit_report "ok" "$SU_OK" "$SKIP"
+std_bytes_emit_report "ok" "$SX_OK" "$SKIP"
 echo "std-bytes gate OK"
