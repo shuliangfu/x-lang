@@ -3,20 +3,20 @@ const compress = import("std.compress");
 
 /** 单格式流式往返；init 失败返回 0（skip），失败返回正错误码。 */
 function stream_roundtrip_format(format: i32): i32 {
-  let raw: [8]u8 = [115, 116, 114, 101, 97, 109, 33, 0];
+  let raw: u8[8] = [115, 116, 114, 101, 97, 109, 33, 0];
   let raw_len: i32 = 7;
   let sb: i32 = stream_compress_state_bytes_for(format);
   if (sb <= 0 || sb > 512) { return 99; }
-  let st_c: [512]u8 = [];
-  let st_d: [512]u8 = [];
+  let st_c: u8[512] = [];
+  let st_d: u8[512] = [];
   let sc: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
   let sd: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
   if (stream_compress_init(&sc, &st_c[0], sb, format, compress_stream_mode_compress()) != 0) {
     return 0;
   }
-  let comp: [256]u8 = [];
+  let comp: u8[256] = [];
   let comp_len: i32 = 0;
-  let scratch: [128]u8 = [];
+  let scratch: u8[128] = [];
   let consumed: i32 = 0;
   let n: i32 = stream_compress_process(sc, &raw[0], raw_len, &scratch[0], 128, 1, &consumed);
   if (n < 0) { stream_compress_end(sc); return 1; }
@@ -31,7 +31,7 @@ function stream_roundtrip_format(format: i32): i32 {
   if (stream_compress_init(&sd, &st_d[0], sb, format, compress_stream_mode_decompress()) != 0) {
     return 3;
   }
-  let dec: [128]u8 = [];
+  let dec: u8[128] = [];
   let dec_len: i32 = 0;
   let dconsumed: i32 = 0;
   let dn: i32 = stream_compress_process(sd, &comp[0], comp_len, &scratch[0], 128, 0, &dconsumed);
