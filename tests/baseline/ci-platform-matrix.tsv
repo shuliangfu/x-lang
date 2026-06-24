@@ -9,6 +9,7 @@ macos-latest	ci.yml	mac	macos-latest	run-ci-full-suite.sh	full	PR macOS matrix
 windows-msys	ci.yml	windows	windows-latest	run-ci-full-suite.sh	lite	MSYS2 Tier P+B
 docker-alpine	ci.yml	docker-distro	alpine:3.23	run-ci-full-suite.sh	docker	SHUX_CI_DOCKER=1
 docker-debian	ci.yml	docker-distro	debian:bookworm-slim	run-ci-full-suite.sh	docker	SHUX_CI_DOCKER=1
+freebsd-amd64-lite	cirrus	.cirrus.yml	freebsd-14-0-vm	run-freebsd-platform-gate.sh	lite	B-21 Cirrus capture; GH Actions freebsd-bridge manifest
 nightly-linux	ci-nightly.yml	nightly-linux	ubuntu-latest	run-ci-full-suite.sh	full	ENG-003 夜跑主链
 nightly-macos	ci-nightly.yml	nightly-macos	macos-latest	run-ci-full-suite.sh	full	ENG-003 夜跑 macOS
 nightly-windows	ci-nightly.yml	nightly-windows	windows-latest	run-ci-full-suite.sh	lite	ENG-003 夜跑 Windows
