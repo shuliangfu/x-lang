@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_TYPECK_PARSE_BISECT_FAIL:-0}
 SHUX="${SHUX:-./compiler/shux_asm}"
-TYPECK_SU="compiler/src/typeck/typeck.sx"
+TYPECK_SX="compiler/src/typeck/typeck.sx"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 # 探测点：defined function 序号（不含 extern）
 PROBES="${SHUX_TYPECK_PARSE_BISECT_PROBES:-20 40 60 80 100 120 146}"
@@ -27,22 +27,22 @@ mkdir -p "$WORKDIR"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 # 提取文件头（首个 ^function 之前：import/extern/注释）
-header_end=$(grep -n '^function ' "$TYPECK_SU" | head -1 | cut -d: -f1)
+header_end=$(grep -n '^function ' "$TYPECK_SX" | head -1 | cut -d: -f1)
 header_end=$((header_end - 1))
 
 # 按 defined function 序号截取前缀（保留 header + 前 N 个 function 块）
 make_prefix() {
   local n="$1"
   local out="$2"
-  head -n "$header_end" "$TYPECK_SU" >"$out"
+  head -n "$header_end" "$TYPECK_SX" >"$out"
   awk -v n="$n" '
     /^function / { c++ }
     c > 0 && c <= n { print }
-  ' "$TYPECK_SU" >>"$out"
+  ' "$TYPECK_SX" >>"$out"
 }
 
 parse_defined_count() {
-  local su="$1"
+  local sx="$1"
   local log="$2"
   local out="$3"
   rm -f "$out" "$log" 2>/dev/null || true
@@ -50,7 +50,7 @@ parse_defined_count() {
     cd compiler
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 \
-      "../$SHUX" -backend asm -o "$out" $LIBROOT "$su"
+      "../$SHUX" -backend asm -o "$out" $LIBROOT "$sx"
   ) >"$log" 2>&1 || true
   local ndef nf
   ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$log" | tail -1)
