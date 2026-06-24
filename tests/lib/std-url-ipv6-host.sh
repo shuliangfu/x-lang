@@ -5,8 +5,8 @@ STD_URL_IPV6_HOST_PREFIX="${SHUX_STD134_URL_IPV6_HOST_PREFIX:-shux: [SHUX_STD134
 
 # 校验 manifest 条目；echo 缺失数。
 std_url_ipv6_host_symbols_ok() {
-  local mod_su="$1"
-  local url_c="$2"
+  local mod_sx="$1"
+  local url_sx="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path _notes
@@ -15,7 +15,7 @@ std_url_ipv6_host_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
           echo "std-url-ipv6-host FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,8 @@ std_url_ipv6_host_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/url/url.c) path="$url_c" ;;
+          std/url/url_glue.c) path="$url_sx" ;;
+          std/url/url.sx) path="$url_sx" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-url-ipv6-host FAIL: missing '$anchor' in $path" >&2
@@ -85,5 +86,5 @@ std_url_ipv6_host_run_c_smoke() {
 
 # 输出 gate 报告。
 std_url_ipv6_host_emit_report() {
-  echo "${STD_URL_IPV6_HOST_PREFIX} status=$1 c=$2 su=$3 skip=$4"
+  echo "${STD_URL_IPV6_HOST_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
 }
