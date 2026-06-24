@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* 切片 []T 的 C 侧布局：与 codegen 生成的 struct shux_slice_<elem> 一致 */
+/* 切片 T[] 的 C 侧布局：与 codegen 生成的 struct shux_slice_<elem> 一致 */
 struct shux_slice_u8 {
     uint8_t *data;
     size_t length;
