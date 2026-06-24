@@ -1,0 +1,9 @@
+# F-config v2 std.config 逻辑下沉 manifest
+# 列：item_id	kind	anchor	notes
+fcfg2_doc	doc	analysis/phase-f-config-v2.md	F-config v2
+fcfg2_gate	gate	tests/run-f-config-v2-gate.sh	逻辑下沉门禁
+cfg_sx	file	std/config/config.sx	TOML/YAML/ENV + IO
+cfg_io_glue_absent	absent	std/config/config_io_glue.c	F-ZC 已删除
+cfg_mod	file	std/config/mod.sx	对外 API
+cfg_glue_v1_absent	absent	std/config/config_glue.c	v1 胶层已删除
+makefile	makefile	compiler/Makefile	config.o 纯 .sx
