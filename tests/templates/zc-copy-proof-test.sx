@@ -12,7 +12,7 @@ const string = import("std.string");
 
 function main(): i32 {
   // TODO: 触达你的热路径（read_ptr / StrView / mmap 等）
-  let buf: [4]u8 = [97, 98, 99, 0];
+  let buf: u8[4] = [97, 98, 99, 0];
   let v: StrView = string.string_view(&buf[0], 3);
   if (string.string_view_len(v) != 3) { return 1; }
   return 0;
