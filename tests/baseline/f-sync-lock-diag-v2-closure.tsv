@@ -1,0 +1,11 @@
+# F-sync-lock-diag v2 std.sync 锁诊断闭合 manifest
+# 列：item_id	kind	anchor	notes
+fsyncld2_doc	doc	analysis/phase-f-sync-lock-diag-v2.md	F-sync-lock-diag v2
+fsyncld2_gate	gate	tests/run-f-sync-lock-diag-v2-gate.sh	逻辑下沉门禁
+sync_sx	file	std/sync/sync.sx	诊断逻辑 .sx
+sync_tls_runtime	file	compiler/src/asm/runtime_sync_lock_diag_tls.c	TLS 持有栈
+sync_os_runtime	file	compiler/src/asm/runtime_sync_os.c	OS 互斥/RwLock/Condvar
+sync_mod	file	std/sync/mod.sx	对外 API
+sync_tls_absent	absent	std/sync/sync_lock_diag_tls_glue.c	已迁入 runtime
+sync_diag_glue_v1_absent	absent	std/sync/sync_lock_diag_glue.c	v1 诊断胶层已删除
+makefile	makefile	compiler/Makefile	sync.o 纯 .sx + runtime_sync_*.o
