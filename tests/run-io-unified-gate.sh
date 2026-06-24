@@ -31,8 +31,9 @@ done
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/fs/fs.o ../std/io/io.o ../std/process/process.o -q 2>/dev/null \
-  || make -C compiler ../std/fs/fs.o ../std/io/io.o ../std/process/process.o
+# F-03 v2/v3：io 已纯 .sx，不再 build ../std/io/io.o
+make -C compiler ../std/process/process.o -q 2>/dev/null \
+  || make -C compiler ../std/process/process.o
 
 if [ -z "${SHUX:-}" ]; then
   if [ -x ./compiler/shux-c ]; then
