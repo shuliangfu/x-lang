@@ -3,7 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 前置：STD-051 `std-regex-v1.md`  
-> 关联：`regex_min.inc.c`、`std-regex-xplat.tsv`
+> 关联：`regex.sx`、`std-regex-xplat.tsv`
 
 ---
 
@@ -26,7 +26,7 @@
 | `opt_literal_only` | `is_literal_only` | 无元字符模式走 `memchr`+`memcmp` |
 | `opt_first_lit` | `first_lit` | 非字面量模式仅扫描首字节匹配位置 |
 
-实现：`std/regex/regex_min.inc.c`。
+实现：`std/regex/regex.sx`。
 
 ---
 
