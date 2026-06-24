@@ -1,4 +1,4 @@
-# core/ — 标准库 core（无 OS 依赖）
+# core/ — 核心库 core（无 OS 依赖）
 
 **标准库的 core 层**：不依赖操作系统，可在裸机、内核、嵌入式环境使用。
 
@@ -6,7 +6,7 @@
 - **原则**：不依赖 libc/OS；按需链接，用不到的模块不进入最终二进制。嵌入式目标仅链接 core（及可选最小 std）。
 - **Phase 2 路线图**：根目录 `NEXT.md`；横切门禁 `tests/run-core-api-gate.sh`（CORE-014）。
 
-## core 模块（11 个 · 与 docs/07 同步）
+## core 模块（12 个 · 含 core.debug 兼容 alias）
 
 | 模块 | 说明 |
 |------|------|
@@ -17,7 +17,7 @@
 | `core.slice` | 切片 `subslice` / `split_at` / `chunks` |
 | `core.fmt` | `fmt_*_to_buf`；usize/isize/指针与 f64 特殊值 |
 | `core.builtin` | `clz/ctz/popcount` + `bswap/rotl/rotr`；`copy` |
-| `core.debug` | `assert_*`；诊断辅助 |
+| `core.assert` | `assert_*`；诊断辅助（**`core.debug` 为兼容 alias**） |
 | `core.cmp` | `Ordering`；`cmp_i32` / `cmp_u8` / `cmp_ptr` |
 | `core.iterator` | `SliceIter_*` / `next_*` 迭代协议 |
 | `core.str` | `BytesView`；`bytes_view_index_of*` / `starts_with` |
