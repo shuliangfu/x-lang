@@ -1,7 +1,7 @@
 // std.http — HTTP/1.x 客户端与服务辅助（STD-009/032/033/107/094/095）
 //
 // 【文件职责】GET/POST/HEAD/PUT/DELETE/PATCH/OPTIONS、Method 枚举、Context 版、状态行/chunked/keep-alive 解析、server/pool。
-// 【依赖】std.net（可选）、std.context、std.error、std.heap；C 于 std/http/http.c。
+// 【依赖】std.net（可选）、std.context、std.error、std.heap；C 于 std/http/http.sx + http_glue.c（F-http v1）。
 const context = import("std.context");
 const err = import("std.error");
 const heap = import("std.heap");
@@ -852,7 +852,7 @@ allow(padding) struct Http2StreamSlot {
 
 /** HTTP/2 连接级 stream 注册表 v0（8 槽 × 8B + count + next_id；须 init 后 open/close）。 */
 allow(padding) struct Http2StreamRegistry {
-  slots_blob: [64]u8;
+  slots_blob: u8[64];
   count: i32;
   next_id: i32;
 }
@@ -2146,7 +2146,7 @@ function http2_push_last_copy(out_meta: *Http2PushLast, out_body: *u8, out_cap: 
  * 无 push 时 body.len=0 返回 0；失败 -1。调用方须 body_owned_free(out_body)。
  */
 function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBodyOwned): i32 {
-  let tmp: [4096]u8 = [];
+  let tmp: u8[4096] = [];
   let n: i32 = 0;
   let p: *u8 = 0;
   let copied: i32 = 0;
