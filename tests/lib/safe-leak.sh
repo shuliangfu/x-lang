@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   safe_leak_asan_ok
-#   safe_leak_run_su SHUX_BIN src tag
+#   safe_leak_run_sx SHUX_BIN src tag
 #   safe_leak_run_probe
 #   safe_leak_emit_report status cases_ok cases_fail leak_count
 
@@ -25,7 +25,7 @@ EOF
 }
 
 # 以 ASAN 编译并运行 .sx；泄漏或崩溃返回 1。
-safe_leak_run_su() {
+safe_leak_run_sx() {
   local shux="$1"
   local src="$2"
   local tag="${3:-leak}"
