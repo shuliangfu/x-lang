@@ -5,6 +5,6 @@ api_sign	api	ed25519_sign	std/crypto/mod.sx
 api_verify	api	ed25519_verify	std/crypto/mod.sx
 api_smoke	api	ed25519_smoke	std/crypto/mod.sx
 const_seed	const	ED25519_SEED_LEN	std/crypto/mod.sx
-symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.inc.c
-smoke_su	smoke	tests/std-crypto/ed25519_roundtrip.sx
+symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.sx
+smoke_sx	smoke	tests/std-crypto/ed25519_roundtrip.sx
 gate	script	run-std-crypto-ed25519-gate.sh	tests/run-std-crypto-ed25519-gate.sh
