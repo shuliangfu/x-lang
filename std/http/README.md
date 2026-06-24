@@ -50,7 +50,7 @@ HTTP/1.x 客户端与服务辅助（对标 Zig `std.http` 最小子集）。
 | `map_http_c_result(c_code)` | C 错误码映射（-1220→http_err_timeout） |
 | `listen_on` | `listen` 别名（STD-107 manifest） |
 
-实现：`std/http/http.c`（含 `http_server_pool.inc.c`、`http2*.inc.c`）。
+实现：`std/http/http_glue.c`（含 `http_server_pool.inc.c`、`http2*.inc.c`）。
 
 ## HTTP/2 v0–v3（STD-HTTP-H2 · TLS ALPN 网络）
 
