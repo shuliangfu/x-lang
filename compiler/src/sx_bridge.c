@@ -3,8 +3,8 @@
  *
  * 策略：
  *   parser.sx → -E-extern → parser_gen.c → cc → parser_sx.o
- *   typeck.sx → -E-extern → typeck_gen.c → cc → typeck_su.o
- *   codegen.sx → -E-extern → codegen_gen.c → cc → codegen_su.o
+ *   typeck.sx → -E-extern → typeck_gen.c → cc → typeck_sx.o
+ *   codegen.sx → -E-extern → codegen_gen.c → cc → codegen_sx.o
  *
  * 桥接本文件与上述 .o 一起链接，替代 parser.o / typeck.o / codegen.o。
  * 运行时仍通过 C 的 ast.o / lexer.o 分配 Module/Arena，.sx 实现只做解析/类型检查/代码生成。
