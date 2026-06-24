@@ -49,8 +49,15 @@ extern function lseek(fd: i32, offset: i64, whence: i32): i64;
 /** lseek(2) SEEK_END：取当前文件长度。 */
 const MACOS_SEEK_END: i32 = 2;
 
-/** msync(2) MS_SYNC：同步刷盘。 */
-const MACOS_MS_SYNC: i32 = 0;
+/** POSIX _exit(2) @ libSystem（noreturn）。 */
+extern function _exit(code: i32): void;
+
+/**
+ * B-16 v2：进程退出；noreturn。
+ */
+function macos_exit(code: i32): void {
+  _exit(code);
+}
 
 /** open(2) O_CREAT 默认 mode 0644。 */
 const MACOS_OPEN_MODE_0644: i32 = 420;
@@ -71,7 +78,7 @@ function macos_write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
     return 0;
   }
-  if (buf == 0 as *u8) {
+  if (buf == 0) {
     return -1;
   }
   let count: usize = len as usize;
@@ -93,11 +100,33 @@ function macos_write_stderr(buf: *u8, len: i32): i32 {
 }
 
 /**
+ * B-16 v2：单次 POSIX read(2)；成功返回读入字节数，失败 -1。
+ */
+function macos_read(fd: i32, buf: *u8, len: i32): i32 {
+  if (len <= 0) {
+    return 0;
+  }
+  if (buf == 0) {
+    return -1;
+  }
+  let r: isize = read(fd, buf, len);
+  if (r < 0) {
+    return -1;
+  }
+  return r as i32;
+}
+
+/** B-16 v2：close(2) 薄封装。 */
+function macos_close(fd: i32): i32 {
+  return close(fd);
+}
+
+/**
  * B-20 v1：读整文件到 buf[0..cap)（循环 read 直到 EOF 或 cap）。
  * 成功返回读入字节数；失败返回 -1。
  */
 function macos_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
-  if (path == 0 as *u8 || buf == 0 as *u8 || cap <= 0) {
+  if (path == 0 || buf == 0 || cap <= 0) {
     return -1;
   }
   let fd: i32 = open(path, MACOS_O_RDONLY, 0);
@@ -128,14 +157,14 @@ function macos_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
  */
 function macos_anonymous_mmap(len: usize, prot: i32): *u8 {
   if (len == 0) {
-    return 0 as *u8;
+    return 0;
   }
   return mmap(0 as *u8, len, prot, MACOS_MAP_PRIVATE | MACOS_MAP_ANON, -1, 0 as i64);
 }
 
 /** 解除 mmap 映射；0 成功，-1 失败。 */
 function macos_munmap(addr: *u8, len: usize): i32 {
-  if (addr == 0 as *u8 || len == 0) {
+  if (addr == 0 || len == 0) {
     return -1;
   }
   return munmap(addr, len);
@@ -154,24 +183,24 @@ function macos_mmap_available(): i32 {
  * 失败返回 null；调用方须 macos_munmap(ptr, *out_size) 释放。
  */
 function macos_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
-  if (path == 0 as *u8 || out_size == 0 as *usize || min_size == 0) {
-    return 0 as *u8;
+  if (path == 0 || out_size == 0 || min_size == 0) {
+    return 0;
   }
   let flags: i32 = MACOS_O_RDWR | MACOS_O_CREAT;
   let fd: i32 = open(path, flags, MACOS_OPEN_MODE_0644);
   if (fd < 0) {
-    return 0 as *u8;
+    return 0;
   }
   let cur: i64 = lseek(fd, 0 as i64, MACOS_SEEK_END);
   if (cur < 0) {
     close(fd);
-    return 0 as *u8;
+    return 0;
   }
   let len: usize = cur as usize;
   if (len < min_size) {
     if (ftruncate(fd, min_size as i64) != 0) {
       close(fd);
-      return 0 as *u8;
+      return 0;
     }
     len = min_size;
   }
@@ -180,15 +209,18 @@ function macos_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   close(fd);
   let p_i: i64 = p as i64;
   if (p_i <= 0) {
-    return 0 as *u8;
+    return 0;
   }
   out_size[0] = len;
   return p;
 }
 
+/** msync(2) MS_SYNC @ libSystem。 */
+const MACOS_MS_SYNC: i32 = 16;
+
 /** msync 刷盘（MS_SYNC）；0 成功，-1 失败。 */
 function macos_msync_sync(addr: *u8, len: usize): i32 {
-  if (addr == 0 as *u8 || len == 0) {
+  if (addr == 0 || len == 0) {
     return -1;
   }
   return msync(addr, len, MACOS_MS_SYNC);
