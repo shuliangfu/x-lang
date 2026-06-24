@@ -1,7 +1,7 @@
 // std.elf — ELF64 只读解析与最小写入（STD-058/063/064/103/121）
 //
-// 【文件职责】对接 std/elf/elf.c；工具链与测试烟测用。
-// 【依赖】core；C 实现于 std/elf/elf.c。
+// 【文件职责】对接 std/elf/elf.sx；工具链与测试烟测用。
+// 【依赖】core + std.fs（fixture 读）；解析/写入逻辑于 elf.sx。
 
 const ELF_OK: i32 = 0;
 const ELF_ERR_NULL: i32 = -1;
