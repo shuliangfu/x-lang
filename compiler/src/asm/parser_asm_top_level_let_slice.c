@@ -2,7 +2,7 @@
  * parser_asm_top_level_let_slice.c — parse_one_top_level_let_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 顶层 let/const「ident : type = expr ;」路径；expr 经 parse_expr_into 回调 SU mega。
+ * 顶层 let/const「ident : type = expr ;」路径；expr 经 parse_expr_into 回调 SX mega。
  */
 #ifndef PARSER_ASM_TOP_LEVEL_LET_SLICE_INCLUDED
 #define PARSER_ASM_TOP_LEVEL_LET_SLICE_INCLUDED
