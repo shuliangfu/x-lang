@@ -9,8 +9,8 @@ function main(): i32 {
   if (ch0 == 0 || ch1 == 0 || ch2 == 0) {
     return 0;
   }
-  let slots: [4]i64 = [];
-  let dirs: [4]i32 = [];
+  let slots: i64[4] = [];
+  let dirs: i32[4] = [];
   channel_select_chs_set(&slots[0], 0, ch0);
   channel_select_dirs_set(&dirs[0], 0, 0);
   channel_select_chs_set(&slots[0], 1, ch1);
