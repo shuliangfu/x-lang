@@ -1,9 +1,10 @@
 # BOOT-013 std/core check 矩阵 manifest
 # 列：item_id	kind	anchor	layer	notes
-min_modules	71
+min_modules	73
 read_path	section	## 1. 阅读路径	analysis/boot-stdlib-check-matrix-v1.md	-
 matrix	section	## 2. 模块矩阵	boot-stdlib-check-matrix-v1.md	-
 report	section	## 4. 报告格式	boot-stdlib-check-matrix-v1.md	-
+core_assert	module	core.assert	core	check
 core_builtin	module	core.builtin	core	check
 core_debug	module	core.debug	core	check
 core_fmt	module	core.fmt	core	check
@@ -29,6 +30,7 @@ std_context	module	std.context	std	check
 std_codec	module	std.codec	std	check
 std_crypto	module	std.crypto	std	check
 std_csv	module	std.csv	std	check
+std_debug	module	std.debug	std	check
 std_datetime	module	std.datetime	std	check
 std_sqlite	module	std.db.sqlite	std	check
 std_dynlib	module	std.dynlib	std	check
