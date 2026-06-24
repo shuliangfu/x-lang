@@ -9,9 +9,9 @@ api_open	api	open	std/db/mod.sx	转发 open
 api_exec	api	exec	std/db/mod.sx	转发 exec
 api_close	api	close	std/db/mod.sx	转发 close
 api_changes	api	changes	std/db/mod.sx	转发 changes
-impl_su	file	std/db/mod.sx	std/db/mod.sx
+impl_sx	file	std/db/mod.sx	std/db/mod.sx
 impl_readme	file	std/db/README.md	std/db/README.md
-smoke_su	smoke	tests/std-db/compat_smoke.sx	兼容烟测
+smoke_sx	smoke	tests/std-db/compat_smoke.sx	兼容烟测
 vectors	file	tests/baseline/std-db-compat-vectors.tsv	向量
 lib	script	lib/std-db-compat.sh	tests/lib/std-db-compat.sh
 gate	script	run-std-db-compat-gate.sh	tests/run-std-db-compat-gate.sh
