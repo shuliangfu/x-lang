@@ -1,0 +1,9 @@
+# F-unicode v2 std.unicode 逻辑全量 .sx manifest
+# 列：item_id	kind	anchor	notes
+funicode2_doc	doc	analysis/phase-f-unicode-v2.md	F-unicode v2
+funicode2_gate	gate	tests/run-f-unicode-v2-gate.sh	逻辑下沉门禁
+unicode_sx	file	std/unicode/unicode.sx	分类/NFC/字素簇
+unicode_glue_absent	absent	std/unicode/unicode_glue.c	已删除
+unicode_mod	file	std/unicode/mod.sx	对外 API
+unicode_c_absent	absent	std/unicode/unicode.c	已删除
+makefile	makefile	compiler/Makefile	纯 unicode.sx → unicode.o
