@@ -21,7 +21,7 @@ function main(): i32 {
   // case 6：pipe fd 有效
   if (rd < 0 || wr < 0) { return 6; }
   // case 7：getcwd 缓冲
-  let buf: [128]u8 = [];
+  let buf: u8[128] = [];
   let n: i32 = process.getcwd(&buf[0], 128);
   if (n <= 0) { return 7; }
   // case 8：getcwd_ptr 缓存
@@ -29,7 +29,7 @@ function main(): i32 {
   if (cp == 0 as *u8) { return 8; }
   if (process.getcwd_cached_len() <= 0) { return 9; }
   // case 9：PATH 环境变量（可能为空指针，仅探测 API）
-  let path_name: [5]u8 = [80, 65, 84, 72, 0];
+  let path_name: u8[5] = [80, 65, 84, 72, 0];
   let _pv: *u8 = process.getenv(&path_name[0]);
   return 0;
 }
