@@ -5,7 +5,7 @@ STD_MATH_FENV_PREFIX="${SHUX_STD_MATH_FENV_PREFIX:-shux: [SHUX_STD_MATH_FENV]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_math_fenv_symbols_ok() {
-  local mod_su="$1"
+  local mod_sx="$1"
   local math_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,20 +15,23 @@ std_math_fenv_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_su" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/math/math.c" ]; then path="$math_c"; fi
+        case "$path" in
+          std/math/math.c|std/math/math_libm_glue.c|compiler/src/asm/runtime_math_libm.c) path="$math_c" ;;
+          std/math/math.sx) path="std/math/math.sx" ;;
+        esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -46,18 +49,20 @@ std_math_fenv_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：fenv_smoke_ok.c + math.o + -lm。
+# C 烟测：fenv_smoke_ok.c + runtime_math_libm.o + -lm。
 std_math_fenv_run_c_smoke() {
-  local math_c="$1"
+  local math_runtime_c="$1"
   local src="tests/std-math/fenv_smoke_ok.c"
   local out="/tmp/shux_std_math_fenv_$$"
-  local math_o
-  math_o="$(dirname "$math_c")/math.o"
-  if [ ! -f "$math_o" ]; then
-    echo "std-math-fenv FAIL: missing $math_o" >&2
+  local rt_o="compiler/runtime_math_libm.o"
+  if [ ! -f "$rt_o" ]; then
+    make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+  fi
+  if [ ! -f "$rt_o" ]; then
+    echo "std-math-fenv FAIL: missing $rt_o" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$math_o" -lm 2>/dev/null; then
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$rt_o" -lm 2>/dev/null; then
     echo "std-math-fenv FAIL: compile $src" >&2
     return 1
   fi
@@ -103,5 +108,5 @@ std_math_fenv_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_MATH_FENV_PREFIX} status=${status} c_smoke=${c_ok} su=${su_ok} skip=${skip}"
+  echo "${STD_MATH_FENV_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
 }
