@@ -7,9 +7,9 @@ const io = import("std.io");
 
 function main(): i32 {
   /** "/tmp/zc2_read_ptr_in\0" */
-  let path: [21]u8 =
+  let path: u8[21] =
   [47, 116, 109, 112, 47, 122, 99, 50, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 105, 110, 0];
-  let payload: [12]u8 = [90, 67, 50, 109, 109, 97, 112, 116, 101, 115, 116, 10];
+  let payload: u8[12] = [90, 67, 50, 109, 109, 97, 112, 116, 101, 115, 116, 10];
   let pay_len: usize = 12 as usize;
   let fd_w: i32 = fs.fs_open_write(&path[0]);
   if (fd_w < 0) {
