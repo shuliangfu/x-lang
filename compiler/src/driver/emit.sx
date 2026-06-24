@@ -1,6 +1,6 @@
 // emit.sx — -sx -E 与单文件 C/asm 烟测 emit 路径（从 main.sx 迁出以瘦身 entry）
-// 符号前缀 driver_：run_sx_emit_su → driver_run_sx_emit_sx，dispatch_su_emit_to_c →
-// driver_dispatch_su_emit_to_c
+// 符号前缀 driver_：run_sx_emit_sx → driver_run_sx_emit_sx，dispatch_sx_emit_to_c →
+// driver_dispatch_sx_emit_to_c
 
 const ast = import("ast");
 const codegen = import("codegen");
@@ -23,29 +23,29 @@ extern function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8;
 extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void;
 
 /**
-* 与 main.sx 中 DriverSuEmitState 布局一致（字段顺序/类型勿改）。
+* 与 main.sx 中 DriverSxEmitState 布局一致（字段顺序/类型勿改）。
 * main 负责 argv 解析填本 struct；本模块负责 emit 执行。
 */
-struct DriverSuEmitState {
-  path_buf: [512]u8;
+struct DriverSxEmitState {
+  path_buf: u8[512];
   path_len: i32;
   emit_extern_imports: i32;
   use_asm_backend: i32;
   target_arch: i32;
-  out_path_buf: [512]u8;
+  out_path_buf: u8[512];
   out_path_len: i32;
 }
 
-/** sidecar 键：DriverSuEmitState 指针转 *u8，供 C lib_root 池 API 使用。 */
-function emit_state_key(state: *DriverSuEmitState): *u8 {
+/** sidecar 键：DriverSxEmitState 指针转 *u8，供 C lib_root 池 API 使用。 */
+function emit_state_key(state: *DriverSxEmitState): *u8 {
   return state as *u8;
 }
 
 /** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。 */
-function emit_copy_lib_roots_to_ctx(state: *DriverSuEmitState, ctx: *PipelineDepCtx): void {
+function emit_copy_lib_roots_to_ctx(state: *DriverSxEmitState, ctx: *PipelineDepCtx): void {
   let k: i32 = 0;
   let n: i32 = driver_emit_lib_root_count(emit_state_key(state));
-  let tmp: [256]u8 = [];
+  let tmp: u8[256] = [];
   while (k < n) {
     let llen: i32 = driver_emit_lib_root_len(emit_state_key(state), k);
     if (llen > 0) {
@@ -82,7 +82,7 @@ extern function driver_fs_open_write(path: *u8, path_len: i32): i32;
 extern function driver_arena_buf(): *u8;
 extern function driver_module_buf(): *u8;
 extern function driver_pipeline_fail_code(rc: i32, path: *u8): void;
-extern function driver_print_su_smoke_summary(module: *u8, codegen_len: usize): void;
+extern function driver_print_sx_smoke_summary(module: *u8, codegen_len: usize): void;
 extern function pipeline_run_sx_pipeline_impl(module_buf: *u8, arena_buf: *u8, source: *u8,
 source_len: usize, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
 extern function driver_run_sx_emit_c_set_path(path: *u8, path_len: i32): i32;
@@ -96,9 +96,9 @@ extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8
 /**
 * 在 .sx 内执行单文件 emit：读 state.path_buf、预处理、pipeline、写 stdout 或 -o
 * 路径。
-* 仅无 import 单文件时正确（deps 为 0）；多文件须走 dispatch_su_emit_to_c。
+* 仅无 import 单文件时正确（deps 为 0）；多文件须走 dispatch_sx_emit_to_c。
 */
-function run_sx_emit_su(state: *DriverSuEmitState): i32 {
+function run_sx_emit_sx(state: *DriverSxEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
     state.path_buf[state.path_len] = 0 as u8;
   }
@@ -156,7 +156,7 @@ function run_sx_emit_su(state: *DriverSuEmitState): i32 {
   }
   let len: i32 = out.len;
   if (state.out_path_len == 0) {
-    driver_print_su_smoke_summary(module_buf, len as usize);
+    driver_print_sx_smoke_summary(module_buf, len as usize);
   }
   if (state.out_path_len > 0) {
     let wfd: i32 = driver_fs_open_write(state.out_path_buf, state.out_path_len);
@@ -202,12 +202,12 @@ function run_sx_emit_su(state: *DriverSuEmitState): i32 {
 * -sx -E 多文件：将 path 与 -L 库根灌入 C 侧，再调 driver_run_sx_emit_c（deps+main
 * 完整路径）。
 */
-function dispatch_su_emit_to_c(state: *DriverSuEmitState): i32 {
+function dispatch_sx_emit_to_c(state: *DriverSxEmitState): i32 {
   driver_run_sx_emit_c_set_emit_extern(state.emit_extern_imports);
   driver_run_sx_emit_c_set_path(state.path_buf, state.path_len);
   let k: i32 = 0;
   let n_roots: i32 = driver_emit_lib_root_count(emit_state_key(state));
-  let lib_tmp: [256]u8 = [];
+  let lib_tmp: u8[256] = [];
   while (k < n_roots) {
     let llen: i32 = driver_emit_lib_root_len(emit_state_key(state), k);
     driver_emit_lib_root_copy(emit_state_key(state), k, &lib_tmp[0], 256);
