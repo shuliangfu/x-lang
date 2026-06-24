@@ -3,7 +3,7 @@
 //
 // 【文件职责】hash_start、hash_write_u32/u64/bytes、hash_finish、hash_free；单次
 // hash_bytes。Tier-S 稳定 API 始终 SipHash。
-// 【依赖】core；与 std/hash/hash.c 同属一模块。
+// 【依赖】core；算法在 std/hash/hash.sx（F-hash v2 纯 .sx）。
 extern function hash_sip_new_c(): *u8;
 extern function hash_sip_write_u32_c(h: *u8, x: u32): void;
 extern function hash_sip_write_u64_c(h: *u8, x: u64): void;
