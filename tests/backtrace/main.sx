@@ -4,7 +4,7 @@
 const backtrace = import("std.backtrace");
 
 function main(): i32 {
-  let buf: [64]u8 = [];
+  let buf: u8[64] = [];
   let n: i32 = backtrace.capture(&buf[0], 8);
   if (n <= 0) {
     return 0;
