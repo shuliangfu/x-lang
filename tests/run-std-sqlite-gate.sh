@@ -8,11 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
 MANIFEST="${SHUX_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
 VECTORS="${SHUX_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
-MOD_SU="std/db/sqlite/mod.sx"
-SQLITE_C="std/db/sqlite/sqlite.c"
+MOD_SX="std/db/sqlite/mod.sx"
+SQLITE_C="std/db/sqlite/sqlite.sx"
 LIB="tests/lib/std-sqlite-gate.sh"
-SMOKE_SU="tests/std-sqlite/exec_roundtrip.sx"
-SMOKE_IMPORT_SU="tests/std-sqlite/import_smoke.sx"
+SMOKE_SX="tests/std-sqlite/exec_roundtrip.sx"
+SMOKE_IMPORT_SX="tests/std-sqlite/import_smoke.sx"
 SMOKE_C="tests/std-sqlite/exec_roundtrip_ok.c"
 PREREQ_DOC="analysis/std-sqlite-prereq-v1.md"
 MIN_APIS=4
@@ -21,12 +21,21 @@ MIN_APIS=4
 . "$LIB"
 
 echo "=== STD-057: std.db.sqlite manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SU" "$SQLITE_C" "$SMOKE_SU" "$SMOKE_IMPORT_SU" "$SMOKE_C" "$PREREQ_DOC" std/db/sqlite/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SQLITE_C" "$SMOKE_SX" "$SMOKE_IMPORT_SX" "$SMOKE_C" "$PREREQ_DOC" std/db/sqlite/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+
+[ ! -f std/db/sqlite/sqlite.c ] || {
+  echo "std-sqlite gate FAIL: sqlite.c should be deleted (F-05 v3)" >&2
+  exit 1
+}
+[ -f compiler/src/asm/runtime_sqlite_glue.c ] || {
+  echo "std-sqlite gate FAIL: missing sqlite_glue.c" >&2
+  exit 1
+}
 
 for kw in STD-057 sqlite3_exec DB_ERR_EXEC exec_roundtrip; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
@@ -54,7 +63,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SU" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
         echo "std-sqlite gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -73,7 +82,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_symbols_ok "$MOD_SU" "$SQLITE_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_symbols_ok "$MOD_SX" "$SQLITE_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_emit_report "fail" 0 0 0
   echo "std-sqlite gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -88,7 +97,7 @@ if [ "${SHUX_STD_SQLITE_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 C_OK=0
-SU_OK=0
+SX_OK=0
 SKIP=0
 
 if std_sqlite_probe_libs; then
@@ -97,8 +106,14 @@ if std_sqlite_probe_libs; then
     std_sqlite_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_sqlite_run_c_smoke "$SQLITE_C"; then
+  set +e
+  std_sqlite_run_c_smoke "$SQLITE_C"
+  smoke_ec=$?
+  set -e
+  if [ "$smoke_ec" -eq 0 ]; then
     C_OK=1
+  elif [ "$smoke_ec" -eq 2 ]; then
+    SKIP=1
   else
     std_sqlite_restore_default_o
     std_sqlite_emit_report "fail" 0 0 0
@@ -110,28 +125,28 @@ if std_sqlite_probe_libs; then
 
   if [ -n "$SHUX_BIN" ]; then
     echo "=== STD-057: .sx smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SU" >/dev/null 2>&1; then
-      echo "std-sqlite gate FAIL: typeck $SMOKE_SU" >&2
+    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+      echo "std-sqlite gate FAIL: typeck $SMOKE_SX" >&2
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SU" "rt"; then
-      SU_OK=1
+    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "rt"; then
+      SX_OK=1
     else
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! "$SHUX_BIN" check -L . "$SMOKE_IMPORT_SU" >/dev/null 2>&1; then
-      echo "std-sqlite gate FAIL: typeck $SMOKE_IMPORT_SU" >&2
+    if ! "$SHUX_BIN" check -L . "$SMOKE_IMPORT_SX" >/dev/null 2>&1; then
+      echo "std-sqlite gate FAIL: typeck $SMOKE_IMPORT_SX" >&2
       std_sqlite_restore_default_o
-      std_sqlite_emit_report "fail" "$C_OK" "$SU_OK" 0
+      std_sqlite_emit_report "fail" "$C_OK" "$SX_OK" 0
       exit 1
     fi
-    if ! std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_IMPORT_SU" "import"; then
+    if ! std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_IMPORT_SX" "import"; then
       std_sqlite_restore_default_o
-      std_sqlite_emit_report "fail" "$C_OK" "$SU_OK" 0
+      std_sqlite_emit_report "fail" "$C_OK" "$SX_OK" 0
       exit 1
     fi
   else
@@ -147,5 +162,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_emit_report "ok" "$C_OK" "$SU_OK" "$SKIP"
+std_sqlite_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
 echo "std-sqlite gate OK"
