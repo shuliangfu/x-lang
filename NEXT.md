@@ -575,10 +575,8 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 **当前阻塞（2026-06-24）**：
 
 - **W3 al06**：✅ `run-al06-gate.sh` 绿；`import("std.vec")` + `with_arena` 逃逸；**import 返回类型前缀**已在 `pipeline_typeck_get_dep_return_type_in_caller_arena_c` 落地。
-- **W3 A-09 hash**：✅ 同次 bootstrap gen1→gen2 后 `sha256=44d0f8db4b8dd097abc63cf65f5e2e5c8980d574a77781bb1ec4985d96340bfd`（2732688 B）；勿用 `SHUX_W3_RESUME_FROM=ensure` 跳过 gen1/gen2（会 stage1/2 不同步 MISMATCH）。
-- **W3 i64-ctfe**：✅ Docker `shux … -o` + run exit 42；gate 内 `check` 与 `-o` 路径不一致（`expected i64, found i32`）仍待对齐。
-- **W3 ub**：✅ asm 后端 INDEX 数组/切片越界 → `shux_panic_(1,0)`（`run-ub.sh` 绿）。
-- **W3 std**：Docker 下 `std/path.o`、`std/net.o` 编译 timeout（gate best-effort WARN）。
+- **W3 A-09 hash**：✅ 同次 bootstrap gen1→gen2 后 `sha256=7547d08232200bbb6412a00771f4fabd85f0c9ad095942ae8db5c007bf1237e8`（2816304 B）；`SHUX_W3_RESUME_FROM=ensure` 仅当 stage1/2 与当前 shux 同次构建时可用。
+- **W3 A-10 path/net**：✅ `std/path/path.o`（6598 B）、`std/net/net.o`（29320 B）；struct 指针 compat（`la==lb`）+ `asm_experimental_symbol_bridge` 符号冲突已修。
 - **G-06**：LSP `*_gen.c` seed 未入库；`asm_backend_partial` 未 pin 入 `seeds/`。
 - **G-03**：NL-07 v5 bootstrap `-nostdlib` 全链仍待硬绿。
 - **G-01**：core 工作区 0 `.c`，**git 单文件 commit** 未完成。
