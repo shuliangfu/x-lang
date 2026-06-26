@@ -19,6 +19,7 @@ extern void pipeline_module_struct_layout_set_num_fields(void *module, int32_t i
 extern void pipeline_module_struct_layout_set_allow_padding(void *module, int32_t idx, int32_t v);
 extern void pipeline_module_struct_layout_set_soa(void *module, int32_t idx, int32_t v);
 extern void pipeline_module_struct_layout_set_packed(void *module, int32_t idx, int32_t v);
+extern void pipeline_module_struct_layout_set_repr_compatible(void *module, int32_t idx, int32_t v);
 extern void pipeline_module_struct_layout_set_field(void *module, int32_t layout_idx, int32_t j, uint8_t *fname,
                                                     int32_t fname_len, int32_t type_ref, int32_t field_off);
 extern void pipeline_module_struct_layout_set_field_align(void *module, int32_t li, int32_t j, int32_t al);
@@ -245,7 +246,7 @@ int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, in
 int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                              struct parser_asm_slice_u8 *source,
                                                              struct parser_asm_lexer *out_lex, int32_t allow_pad,
-                                                             int32_t force_soa) {
+                                                             int32_t force_soa, int32_t repr_compat) {
   struct parser_asm_lexer_result r;
   uint8_t sname_buf[64];
   int32_t sname_len;
@@ -961,8 +962,8 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
-  lexer_next_into(&r, lex, source);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
+  /** 调用方 lex 已在 struct 名首字节；勿再 double-advance（曾误吞 Header、把 packed 当名 → typeck 隐式 padding）。 */
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63)
     return -1;
@@ -1070,6 +1071,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   pipeline_module_struct_layout_set_allow_padding(module, layout_idx, allow_pad);
   pipeline_module_struct_layout_set_soa(module, layout_idx, is_soa);
   pipeline_module_struct_layout_set_packed(module, layout_idx, is_packed);
+  pipeline_module_struct_layout_set_repr_compatible(module, layout_idx, repr_compat);
   out_lex->pos = lex.pos;
   out_lex->line = lex.line;
   out_lex->col = lex.col;

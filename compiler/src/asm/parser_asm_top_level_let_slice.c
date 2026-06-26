@@ -33,6 +33,10 @@ extern int32_t parser_asm_stretch_top_level_let_probe_c(struct parser_asm_lexer 
 extern int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len);
 extern int32_t parser_asm_stretch_type_ref_deep_audit_c(struct parser_asm_lexer lex,
                                                         struct parser_asm_slice_u8 *source);
+/** 与 function/struct 字段共用：支持 u8[N]、*T、slice 等完整类型语法。 */
+extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                struct parser_asm_lexer *out_lex);
 
 /** 从 slice 复制 ident 名到 name_buf（最多 64 字节）。 */
 static void parser_asm_top_level_let_copy_ident_name_c(struct parser_asm_slice_u8 *source, size_t token_start,
@@ -40,94 +44,6 @@ static void parser_asm_top_level_let_copy_ident_name_c(struct parser_asm_slice_u
   if (!name_buf || name_len <= 0)
     return;
   parser_asm_copy_slice_to_name64_slice_c(source, token_start, name_len, name_buf);
-}
-
-/**
- * 自 r 当前 token 解析顶层 type（*ident | 标量 | ident），成功返回 types 池 ref 并前进 lex/r；失败 0。
- */
-static int32_t parser_asm_top_level_let_parse_type_c(void *arena, struct parser_asm_lexer *lex,
-                                                     struct parser_asm_lexer_result *r,
-                                                     struct parser_asm_slice_u8 *source) {
-  int32_t type_ref;
-  int32_t elem_ref;
-  struct ast_Type t;
-  struct ast_Type te;
-  if (!arena || !lex || !r || !source)
-    return 0;
-  if (r->tok.kind == (int32_t)TOKEN_STAR) {
-    parser_lex_from_lexer_result_ptr_into(lex, r);
-    lexer_next_into(r, *lex, source);
-    if (r->tok.kind != (int32_t)TOKEN_IDENT)
-      return 0;
-    elem_ref = ast_ast_arena_type_alloc(arena);
-    if (elem_ref == 0)
-      return 0;
-    te = ast_arena_type_get(arena, elem_ref);
-    te.kind = PARSER_ASM_TYPE_NAMED;
-    te.name_len = r->tok.ident_len;
-    if (te.name_len > 63)
-      te.name_len = 63;
-    parser_asm_top_level_let_copy_ident_name_c(source, r->token_start, te.name_len, te.name);
-    te.elem_type_ref = 0;
-    te.array_size = 0;
-    te.region_label_len = 0;
-    ast_arena_type_set(arena, elem_ref, te);
-    type_ref = ast_ast_arena_type_alloc(arena);
-    if (type_ref == 0)
-      return 0;
-    t = ast_arena_type_get(arena, type_ref);
-    t.kind = PARSER_ASM_TYPE_PTR;
-    t.elem_type_ref = elem_ref;
-    t.name_len = 0;
-    t.array_size = 0;
-    t.region_label_len = 0;
-    ast_arena_type_set(arena, type_ref, t);
-    parser_lex_from_lexer_result_ptr_into(lex, r);
-    lexer_next_into(r, *lex, source);
-    return type_ref;
-  }
-  if (r->tok.kind == (int32_t)TOKEN_I32 || r->tok.kind == (int32_t)TOKEN_I64 || r->tok.kind == (int32_t)TOKEN_BOOL
-      || r->tok.kind == (int32_t)TOKEN_U8 || r->tok.kind == (int32_t)TOKEN_U32 || r->tok.kind == (int32_t)TOKEN_U64
-      || r->tok.kind == (int32_t)TOKEN_USIZE || r->tok.kind == (int32_t)TOKEN_ISIZE || r->tok.kind == (int32_t)TOKEN_VOID
-      || r->tok.kind == (int32_t)TOKEN_IDENT) {
-    type_ref = ast_ast_arena_type_alloc(arena);
-    if (type_ref == 0)
-      return 0;
-    t = ast_arena_type_get(arena, type_ref);
-    if (r->tok.kind == (int32_t)TOKEN_I32)
-      t.kind = PARSER_ASM_TYPE_I32;
-    else if (r->tok.kind == (int32_t)TOKEN_I64)
-      t.kind = PARSER_ASM_TYPE_I64;
-    else if (r->tok.kind == (int32_t)TOKEN_BOOL)
-      t.kind = PARSER_ASM_TYPE_BOOL;
-    else if (r->tok.kind == (int32_t)TOKEN_U8)
-      t.kind = PARSER_ASM_TYPE_U8;
-    else if (r->tok.kind == (int32_t)TOKEN_U32)
-      t.kind = PARSER_ASM_TYPE_U32;
-    else if (r->tok.kind == (int32_t)TOKEN_U64)
-      t.kind = PARSER_ASM_TYPE_U64;
-    else if (r->tok.kind == (int32_t)TOKEN_USIZE)
-      t.kind = PARSER_ASM_TYPE_USIZE;
-    else if (r->tok.kind == (int32_t)TOKEN_ISIZE)
-      t.kind = PARSER_ASM_TYPE_ISIZE;
-    else if (r->tok.kind == (int32_t)TOKEN_VOID)
-      t.kind = PARSER_ASM_TYPE_VOID;
-    else {
-      t.kind = PARSER_ASM_TYPE_NAMED;
-      t.name_len = r->tok.ident_len;
-      if (t.name_len > 63)
-        t.name_len = 63;
-      parser_asm_top_level_let_copy_ident_name_c(source, r->token_start, t.name_len, t.name);
-    }
-    t.elem_type_ref = 0;
-    t.array_size = 0;
-    t.region_label_len = 0;
-    ast_arena_type_set(arena, type_ref, t);
-    parser_lex_from_lexer_result_ptr_into(lex, r);
-    lexer_next_into(r, *lex, source);
-    return type_ref;
-  }
-  return 0;
 }
 
 /**
@@ -165,10 +81,10 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
     return;
   parser_lex_from_lexer_result_ptr_into(&lex, &r);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
-  lexer_next_into(&r, lex, source);
-  type_ref = parser_asm_top_level_let_parse_type_c(arena, &lex, &r, source);
+  type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, source, &lex);
   if (type_ref == 0)
     return;
+  lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
     return;
   parser_lex_from_lexer_result_ptr_into(&lex, &r);

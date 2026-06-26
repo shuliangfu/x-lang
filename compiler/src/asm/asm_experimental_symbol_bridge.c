@@ -43,9 +43,6 @@ __attribute__((weak)) int32_t run_compiler_sx_path_impl(int32_t argc, uint8_t *a
 __attribute__((weak)) int32_t main_run_compiler_sx_path_impl(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (uint8_t *)argv);
 }
-int32_t main_run_compiler_sx_path_impl(int32_t argc, char **argv) {
-  return run_compiler_sx_path_impl(argc, (uint8_t *)argv);
-}
 
 extern uint8_t *driver_argv_drop_subcommand(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_fmt(int32_t argc, uint8_t *argv);

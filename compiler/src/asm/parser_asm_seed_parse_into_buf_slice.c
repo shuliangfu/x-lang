@@ -26,6 +26,7 @@ typedef struct {
   int32_t pending_soa_struct;
   int32_t pending_cfg_skip;
   int32_t pending_repr_c_struct;
+  int32_t pending_repr_compatible_struct;
   int32_t num_module_enums;
 } parser_asm_sx_module_hdr_t;
 
@@ -322,7 +323,7 @@ extern void parser_skip_one_extern_into_buf_glue(struct parser_asm_lexer *out, s
 extern int32_t parser_parse_struct_record_layout_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
                                                              struct parser_asm_slice_u8 *source,
                                                              struct parser_asm_lexer *out_lex, int32_t allow_pad,
-                                                             int32_t force_soa);
+                                                             int32_t force_soa, int32_t repr_compat);
 extern void parser_skip_one_struct_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                  uint8_t *data, int32_t len);
 extern void parser_skip_one_enum_register_into_buf_glue(void *module, struct parser_asm_lexer *out,
@@ -576,9 +577,9 @@ static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struc
   b.num_consts = res->num_consts;
   b.num_lets = res->num_lets;
   b.num_early_lets = 0;
-  b.num_loops = res->num_loops;
-  b.num_for_loops = res->num_for_loops;
-  b.num_if_stmts = res->num_if_stmts;
+  b.num_loops = 0;
+  b.num_for_loops = 0;
+  b.num_if_stmts = 0;
   b.num_defers = 0;
   b.num_labeled_stmts = 0;
   b.num_expr_stmts = 0;
@@ -1537,6 +1538,13 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
         lex.pos++;
       continue;
     }
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_REPR_COMPATIBLE) {
+      mod_hdr->pending_repr_compatible_struct = 1;
+      parser_lex_from_next_into_glue(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+        lex.pos++;
+      continue;
+    }
     if (mod_hdr->pending_cfg_skip) {
       if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
         parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
@@ -1575,16 +1583,18 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       int32_t ap = mod_hdr->pending_allow_padding;
       int32_t ps = mod_hdr->pending_soa_struct;
       int32_t pr = mod_hdr->pending_repr_c_struct;
+      int32_t pc = mod_hdr->pending_repr_compatible_struct;
       mod_hdr->pending_allow_padding = 0;
       mod_hdr->pending_soa_struct = 0;
       mod_hdr->pending_repr_c_struct = 0;
+      mod_hdr->pending_repr_compatible_struct = 0;
       if (pr)
         ap = 1;
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_record_layout_body_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(lex, data, len));
-      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps) != 0)
+      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0)
         parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
       else
         lex = out_lex;

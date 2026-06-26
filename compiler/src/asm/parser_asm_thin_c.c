@@ -43,6 +43,19 @@ struct parser_asm_slice_u8 {
   size_t length;
 };
 
+/** 与 lexer_gen.c / parser_gen Lexer 布局一致。 */
+struct lexer_Lexer {
+  size_t pos;
+  int32_t line;
+  int32_t col;
+};
+
+/** 与 parser_gen shux_slice_uint8_t 一致。 */
+struct shux_slice_uint8_t {
+  uint8_t *data;
+  size_t length;
+};
+
 /** 与 parser.sx TrySkipAllowResult（allow(padding)）布局一致。 */
 struct parser_asm_try_skip_allow_result {
   struct parser_asm_lexer lex;
@@ -4365,6 +4378,127 @@ void parser_asm_skip_balanced_braces_into_buf_c(struct parser_asm_lexer *out, st
 }
 
 /**
+ * 将 lex 从 iter_start（可能在 trait/impl 前空白处）对齐到关键字前缀。
+ */
+static struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
+                                                                        struct parser_asm_slice_u8 *source,
+                                                                        const char *kw, size_t kw_len) {
+  if (!source || !source->data || !kw || kw_len == 0)
+    return lex;
+  while (lex.pos + kw_len <= source->length) {
+    if (memcmp(source->data + lex.pos, kw, kw_len) == 0)
+      return lex;
+    {
+      uint8_t c = source->data[lex.pos];
+      if (c == (uint8_t)' ' || c == (uint8_t)'\t' || c == (uint8_t)'\n' || c == (uint8_t)'\r')
+        lex.pos++;
+      else
+        break;
+    }
+  }
+  return lex;
+}
+
+/**
+ * 从 trait/impl 等顶层 `{ ... }` 块关键字位置扫描至匹配 `}` 之后（字节级，不依赖 token 头解析）。
+ * trait+impl 连续出现时 token 路径 skip 易失败并导致后续 main 无法解析；此路径作首选 skip。
+ */
+static void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start,
+                                                   struct parser_asm_slice_u8 *source) {
+  size_t i;
+  int32_t depth;
+  int32_t saw_lbrace;
+  if (!out || !source || !source->data)
+    return;
+  i = start.pos;
+  while (i < source->length && source->data[i] != (uint8_t)'{')
+    i++;
+  if (i >= source->length) {
+    *out = start;
+    return;
+  }
+  depth = 0;
+  saw_lbrace = 0;
+  for (; i < source->length; i++) {
+    if (source->data[i] == (uint8_t)'{') {
+      depth++;
+      saw_lbrace = 1;
+    } else if (source->data[i] == (uint8_t)'}' && saw_lbrace) {
+      depth--;
+      if (depth == 0) {
+        i++;
+        break;
+      }
+    }
+  }
+  out->pos = i;
+  out->line = start.line;
+  out->col = start.col;
+}
+
+/**
+ * 跳过 `<T>` / `<T,E,...>` 泛型实参/形参列表（含嵌套 `<>`）；失败时 out 保持 lex。
+ */
+void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                     struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t depth;
+  if (!out || !source)
+    return;
+  depth = 0;
+  for (;;) {
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_LT)
+      depth++;
+    else if (r.tok.kind == (int32_t)TOKEN_GT) {
+      depth--;
+      if (depth <= 0) {
+        out->pos = r.next_lex.pos;
+        out->line = r.next_lex.line;
+        out->col = r.next_lex.col;
+        return;
+      }
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
+      out->pos = lex.pos;
+      out->line = lex.line;
+      out->col = lex.col;
+      return;
+    }
+    lex = r.next_lex;
+  }
+}
+
+/** buf 路径：跳过 `<...>` 泛型列表。 */
+void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                  uint8_t *data, int32_t len) {
+  struct parser_asm_slice_u8 source;
+  if (!out || !data)
+    return;
+  source.data = data;
+  source.length = len >= 0 ? (size_t)len : 0;
+  parser_asm_skip_generic_angle_list_into_slice_c(out, lex, &source);
+}
+
+/** parser_gen / parser.sx 用 lexer_Lexer ABI 跳过 `<...>` 泛型列表。 */
+void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer *out, struct lexer_Lexer lex,
+                                            struct shux_slice_uint8_t *source) {
+  struct parser_asm_lexer aout;
+  struct parser_asm_lexer alex;
+  struct parser_asm_slice_u8 asrc;
+  if (!out || !source)
+    return;
+  alex.pos = lex.pos;
+  alex.line = lex.line;
+  alex.col = lex.col;
+  asrc.data = source->data;
+  asrc.length = source->length;
+  parser_asm_skip_generic_angle_list_into_slice_c(&aout, alex, &asrc);
+  out->pos = aout.pos;
+  out->line = aout.line;
+  out->col = aout.col;
+}
+
+/**
  * skip_balanced_braces_into（u8[] slice 路径）：结果写入 *out。
  */
 void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -6319,6 +6453,7 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
 #include "parser_asm_library_slice.c"
 #include "parser_asm_body_let_slice.c"
 #include "parser_asm_top_level_let_slice.c"
+#include "parser_asm_type_alias_slice.c"
 #include "parser_asm_one_function_buf_slice.c"
 #include "parser_asm_block_from_res_slice.c"
 #include "parser_asm_if_stmt_slice.c"
@@ -10846,6 +10981,13 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
+  /** 字节级 skip 优先：trait+impl 连续时 token 路径易失败。 */
+  if (lex.pos + 5 <= source->length && source->data[lex.pos] == (uint8_t)'t'
+      && source->data[lex.pos + 1] == (uint8_t)'r' && source->data[lex.pos + 2] == (uint8_t)'a'
+      && source->data[lex.pos + 3] == (uint8_t)'i' && source->data[lex.pos + 4] == (uint8_t)'t') {
+    parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
+    return;
+  }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_header_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
@@ -10889,6 +11031,13 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
+  /** 字节级 skip 优先：impl 块内 function 不会被误当作顶层函数。 */
+  if (lex.pos + 4 <= source->length && source->data[lex.pos] == (uint8_t)'i'
+      && source->data[lex.pos + 1] == (uint8_t)'m' && source->data[lex.pos + 2] == (uint8_t)'p'
+      && source->data[lex.pos + 3] == (uint8_t)'l') {
+    parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
+    return;
+  }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_header_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_IMPL) {
@@ -16098,20 +16247,19 @@ extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
 
 /**
  * parser_should_wrap_func_tail_in_return_glue：OneFuncResult 尾 return 是否须包 EXPR_RETURN（EMIT_HEAVY 勿 SX emit）。
- * 与 parser.sx 一致：非 void 且 type_ref 有效则一律包 RETURN（勿门禁 has_explicit_return_kw，见 parser.sx 注释）。
+ * 与 parser.sx 一致：仅 has_explicit_return_kw 时包 RETURN；裸 `{ 0 }` 留 EXPR_LIT 供 typeck 拒绝。
  */
 int32_t parser_should_wrap_func_tail_in_return_glue(void *arena, struct parser_asm_onefunc_result *res,
                                                     int32_t type_ref) {
   int32_t kind;
-  (void)res;
   if (type_ref <= 0)
     return 0;
-  if (!arena)
+  if (!arena || !res)
     return 0;
   kind = pipeline_type_kind_ord_at(arena, type_ref);
   if (kind < 0 || kind == (int32_t)AST_TYPE_VOID)
     return 0;
-  return 1;
+  return res->has_explicit_return_kw ? 1 : 0;
 }
 
 /**
@@ -16330,9 +16478,10 @@ int32_t parser_parser_vector_type_ref_from_ident_spelling_glue(void *arena, stru
 int32_t parser_parse_struct_record_layout_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
                                                     struct parser_asm_slice_u8 *source,
                                                     struct parser_asm_lexer *out_lex, int32_t allow_pad,
-                                                    int32_t force_soa) {
+                                                    int32_t force_soa, int32_t repr_compat) {
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_record_layout_body_audit_c(lex, source));
-  return parser_asm_parse_struct_record_layout_into_slice_c(arena, module, lex, source, out_lex, allow_pad, force_soa);
+  return parser_asm_parse_struct_record_layout_into_slice_c(arena, module, lex, source, out_lex, allow_pad, force_soa,
+                                                           repr_compat);
 }
 
 /** struct_layout_name_exists_arr_glue：同名 struct layout 探测（extern bl 白名单 / thin delegate）。 */
@@ -16373,6 +16522,13 @@ void parser_parse_one_top_level_let_into_glue(void *arena, void *module, struct 
                                               struct parser_asm_top_level_let_result *out) {
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(lex, source, is_const));
   parser_asm_parse_one_top_level_let_into_slice_c(arena, module, lex, source, is_const, out);
+}
+
+/** parse_one_type_alias_into_glue：顶层 type Alias = Target;（lex 位于 type 之后）。 */
+void parser_parse_one_type_alias_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
+                                           struct parser_asm_slice_u8 *source,
+                                           struct parser_asm_type_alias_result *out) {
+  parser_asm_parse_one_type_alias_into_slice_c(arena, module, lex, source, out);
 }
 
 /** parse_one_function_buf_into_glue：buf 路径精简 function 解析（LexerResult 链勿 SX emit）。 */
@@ -20576,6 +20732,7 @@ void parser_skip_one_trait_into_buf_glue(struct parser_asm_lexer *out, struct pa
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
+  lex = parser_asm_align_lex_to_keyword_prefix_c(lex, &source, "trait", 5);
   parser_asm_skip_one_trait_into_slice_c(out, lex, &source);
 }
 
@@ -20607,6 +20764,7 @@ void parser_skip_one_impl_into_buf_glue(struct parser_asm_lexer *out, struct par
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(lex, data, len));
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
+  lex = parser_asm_align_lex_to_keyword_prefix_c(lex, &source, "impl", 4);
   parser_asm_skip_one_impl_into_slice_c(out, lex, &source);
 }
 

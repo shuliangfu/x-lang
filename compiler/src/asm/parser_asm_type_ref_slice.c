@@ -427,8 +427,8 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       ast_arena_type_set(arena, type_ref_param, t);
     }
     parser_asm_lex_from_result_val_into(&lex, r);
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return type_ref_param;
+    /** C 风格后缀：*T[N] 为 N 个 T 指针的固定数组（如 *u8[2]）。 */
+    return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_param, lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_slice_type_bracket_audit_c(lex, source));

@@ -253,6 +253,11 @@ extern int32_t arch_x86_64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodege
 extern int32_t arch_x86_64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_store_rdx_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_load_rbp_pos_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t elem_sz);
@@ -728,6 +733,51 @@ int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf
   if (ta == 2)
     return arch_riscv64_enc_enc_store_rax_to_rbp(elf_ctx, offset);
   return arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx, offset);
+}
+
+/**
+ * ta 分派：enc_store_rdx_to_rbp_arch（SysV x86 16B struct 第二 half）。
+ */
+int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);
+}
+
+/**
+ * ta 分派：enc_load_qword_from_rbx_to_rax_arch（16B struct return 低 half）。
+ */
+int32_t backend_enc_load_qword_from_rbx_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
+}
+
+/**
+ * ta 分派：enc_load_qword_rbx8_to_rdx_arch（16B struct return 高 half）。
+ */
+int32_t backend_enc_load_qword_rbx8_to_rdx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx);
+}
+
+/**
+ * ta 分派：enc_load_rbp_to_rdx_arch（16B struct 栈槽高 half）。
+ */
+int32_t backend_enc_load_rbp_to_rdx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx, offset);
+}
+
+/**
+ * ta 分派：enc_mov_rdx_to_arg_reg_arch（SysV 16B struct 第二 GPR 实参）。
+ */
+int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
+  if (ta != 0)
+    return -1;
+  return arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx, k);
 }
 
 /**

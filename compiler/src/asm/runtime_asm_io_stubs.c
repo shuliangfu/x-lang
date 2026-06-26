@@ -4,6 +4,9 @@
  * std.io 族 .sx 模块在 pipeline/asm_codegen_elf_o 中跳过机器码生成；
  * 本 TU 提供 print_* / write_* / read_ptr 等 C ABI 符号，与 ../std/io/io.o 一并链入用户可执行文件。
  */
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -68,11 +71,22 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   return (ptrdiff_t)n;
 }
 
-/** stdin 指针读桩：无缓冲时返回 NULL。 */
+/** 与 io_read_ptr 配套的 TLS 缓冲（F-03 seed 桩：单线程单缓冲）。 */
+static uint8_t g_io_read_ptr_buf[4096];
+static int32_t g_io_read_ptr_len = 0;
+
+/** stdin 指针读：读入 g_io_read_ptr_buf 并返回指针；EOF/错误返回 NULL。 */
 uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms) {
-  (void)handle;
+  ptrdiff_t r;
   (void)timeout_ms;
-  return NULL;
+  g_io_read_ptr_len = 0;
+  if (handle != 0)
+    return NULL;
+  r = io_read(0, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
+  if (r <= 0)
+    return NULL;
+  g_io_read_ptr_len = (int32_t)r;
+  return g_io_read_ptr_buf;
 }
 
 /** 与 io_read_ptr 配套的可用长度桩。 */
@@ -165,3 +179,155 @@ uint8_t *std_io_read_stdin_ptr(void) {
 int32_t std_io_read_ptr_len(void) {
   return io_read_ptr_len();
 }
+
+/** M-5：u8[] slice ABI（与 mod.sx / io_read_ptr.sx ShuxSliceU8 一致）。 */
+typedef struct ShuxSliceU8 {
+  uint8_t *data;
+  size_t length;
+} ShuxSliceU8;
+
+/** 零拷贝读 stdin slice；转发 io_read_ptr(0,0) 打包为 slice。 */
+ShuxSliceU8 std_io_read_stdin_ptr_slice(void) {
+  ShuxSliceU8 s;
+  s.data = io_read_ptr(0, 0);
+  s.length = s.data ? (size_t)g_io_read_ptr_len : 0;
+  return s;
+}
+
+/** 零拷贝读 slice；handle 0=stdin。 */
+ShuxSliceU8 std_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+  ShuxSliceU8 s;
+  s.data = io_read_ptr((unsigned)handle, timeout_ms);
+  s.length = s.data ? (size_t)g_io_read_ptr_len : 0;
+  return s;
+}
+
+/**
+ * 批量读桩：net/tcp 等链 net.o 时解析 io_read_batch；seed 路径退化为首段 io_read。
+ * 参数 p1..p3 在桩 v1 中忽略，与 bootstrap_seed_io_stubs.c 行为一致。
+ */
+ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
+                        size_t l2, uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
+  (void)p1;
+  (void)l1;
+  (void)p2;
+  (void)l2;
+  (void)p3;
+  (void)l3;
+  (void)n;
+  return io_read(fd, p0, l0, timeout_ms);
+}
+
+/**
+ * 批量写桩：net/tcp 等链 net.o 时解析 io_write_batch；seed 路径退化为首段 io_write。
+ */
+ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
+                         size_t l2, uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
+  (void)p1;
+  (void)l1;
+  (void)p2;
+  (void)l2;
+  (void)p3;
+  (void)l3;
+  (void)n;
+  return io_write(fd, p0, l0, timeout_ms);
+}
+
+/** driver.Buffer 批读写：与 std/io/io_sync.sx 的 IoBatchBuf 布局一致（ptr+len 对）。 */
+typedef struct ShuxIoBatchBuf {
+  uint8_t *ptr;
+  size_t len;
+} ShuxIoBatchBuf;
+
+/** 批量读 buf 桩：逐段 io_read 累加；timeout_ms 在桩 v1 中仅传给首段。 */
+ptrdiff_t io_read_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
+  ptrdiff_t total = 0;
+  int32_t i;
+  if (!bufs || n <= 0)
+    return (ptrdiff_t)-1;
+  for (i = 0; i < n; i++) {
+    ptrdiff_t r = io_read(fd, bufs[i].ptr, bufs[i].len, i == 0 ? timeout_ms : 0);
+    if (r < 0)
+      return r;
+    total += r;
+    if ((size_t)r < bufs[i].len)
+      break;
+  }
+  return total;
+}
+
+/**
+ * io_read_batch_provided 弱桩：net_io_batch.sx 链 net.o 时解析；seed 路径返回 -1（无 io_uring provided）。
+ */
+__attribute__((weak)) int32_t io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t *out_bids,
+                                                     uint32_t *out_lens) {
+  (void)fd;
+  (void)n;
+  (void)timeout_ms;
+  (void)out_bids;
+  (void)out_lens;
+  return -1;
+}
+
+/**
+ * net_tcp.sx Linux cfg 引用 io_uring_*；std.io 尚无独立 io.o 时由弱桩满足 net.o 合并后的 U 符号。
+ * 真 io_uring 实现链入后覆盖弱符号。
+ */
+__attribute__((weak)) int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout_ms) {
+  (void)addr_u32;
+  (void)port_u32;
+  (void)timeout_ms;
+  return -1;
+}
+
+__attribute__((weak)) int32_t io_uring_accept(int32_t listener_fd, uint32_t timeout_ms) {
+  (void)listener_fd;
+  (void)timeout_ms;
+  return -1;
+}
+
+__attribute__((weak)) int32_t io_uring_accept_many(int32_t listener_fd, int32_t *out_fds, int32_t n, uint32_t timeout_ms) {
+  (void)listener_fd;
+  (void)out_fds;
+  (void)n;
+  (void)timeout_ms;
+  return -1;
+}
+
+__attribute__((weak)) int32_t io_uring_connect_many(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, int32_t n,
+                                                    uint32_t timeout_ms) {
+  (void)addr_u32;
+  (void)port_u32;
+  (void)out_fds;
+  (void)n;
+  (void)timeout_ms;
+  return -1;
+}
+
+__attribute__((weak)) int32_t io_uring_prefetch_fd(int32_t fd) {
+  (void)fd;
+  return 0;
+}
+
+/** 批量写 buf 桩：逐段 io_write 累加。 */
+ptrdiff_t io_write_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
+  ptrdiff_t total = 0;
+  int32_t i;
+  if (!bufs || n <= 0)
+    return (ptrdiff_t)-1;
+  for (i = 0; i < n; i++) {
+    ptrdiff_t r = io_write(fd, bufs[i].ptr, bufs[i].len, i == 0 ? timeout_ms : 0);
+    if (r < 0)
+      return r;
+    total += r;
+    if ((size_t)r < bufs[i].len)
+      break;
+  }
+  return total;
+}
+
+#if defined(__linux__) && defined(__GLIBC__)
+#define SHUX_NET_UDP_GLUE_WEAK __attribute__((weak))
+#include "runtime_net_udp_batch.c"
+#undef SHUX_NET_UDP_GLUE_WEAK
+#endif

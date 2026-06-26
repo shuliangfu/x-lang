@@ -288,6 +288,13 @@ int32_t arch_x86_64_enc_enc_test_rbx_rbx(struct platform_elf_ElfCodegenCtx *elf_
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
 
+/** test %edx,%edx — Result `?` 检查第二槽 err（双寄存器返回 ABI）。 */
+int32_t arch_x86_64_enc_enc_test_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {0x85, 0xD2};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
 int32_t arch_x86_64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {57, 195};
   if (!elf_ctx) return -1;
@@ -787,4 +794,86 @@ int32_t arch_x86_64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_c
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** movq (%rbx), %rax — SysV 16B struct 返回低 8 字节。 */
+int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {72, 139, 3};
+  if (!elf_ctx)
+    return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** movq 8(%rbx), %rdx — SysV 16B struct 返回高 8 字节。 */
+int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {72, 139, 83, 8};
+  if (!elf_ctx)
+    return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** movq %rdx, -offset(%rbp)。 */
+static int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  int32_t disp;
+  uint8_t buf[7];
+  disp = 0 - offset;
+  if (disp >= -128 && disp <= -1) {
+    buf[0] = 72;
+    buf[1] = 0x89;
+    buf[2] = 0x55;
+    buf[3] = (uint8_t)disp;
+    return x86_enc_bytes(elf_ctx, buf, 4);
+  }
+  buf[0] = 72;
+  buf[1] = 0x89;
+  buf[2] = 0x95;
+  buf[3] = (uint8_t)(disp & 255);
+  buf[4] = (uint8_t)((disp >> 8) & 255);
+  buf[5] = (uint8_t)((disp >> 16) & 255);
+  buf[6] = (uint8_t)((disp >> 24) & 255);
+  return x86_enc_bytes(elf_ctx, buf, 7);
+}
+
+/** movq %rdx, -offset(%rbp)（16B struct 第二寄存器落栈）。 */
+int32_t arch_x86_64_enc_enc_store_rdx_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  if (!elf_ctx)
+    return -1;
+  return x86_enc_store_rdx_to_rbp_neg(elf_ctx, offset);
+}
+
+/** movq -offset(%rbp), %rdx（16B struct 栈槽高 8 字节）。 */
+int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  if (!elf_ctx)
+    return -1;
+  return x86_enc_movq_from_rbp_neg(elf_ctx, offset, 85, 149);
+}
+
+/** movq %rdx, arg_reg[k]（SysV 16B struct 第二 GPR 实参）。 */
+int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
+  static const uint8_t b0[] = {72, 137, 215};
+  static const uint8_t b1[] = {72, 137, 214};
+  static const uint8_t b2[] = {72, 137, 210};
+  static const uint8_t b3[] = {72, 137, 209};
+  static const uint8_t b4[] = {73, 137, 208};
+  static const uint8_t b5[] = {73, 137, 209};
+  int32_t idx;
+  if (!elf_ctx)
+    return -1;
+  idx = k;
+  if (idx < 0)
+    idx = 0;
+  if (idx > 5)
+    idx = 5;
+  /** 与 enc_mov_rax_to_arg_reg 对称：目的=arg_reg[k]，源=rdx。 */
+  if (idx == 0)
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  if (idx == 1)
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  if (idx == 2)
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  if (idx == 3)
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  if (idx == 4)
+    return x86_enc_bytes(elf_ctx, b4, 3);
+  return x86_enc_bytes(elf_ctx, b5, 3);
 }

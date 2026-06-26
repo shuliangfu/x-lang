@@ -21,6 +21,8 @@ enum {
   PARSER_ASM_EXPR_ARRAY_LIT = 46,
   PARSER_ASM_EXPR_INDEX = 47,
   PARSER_ASM_EXPR_CALL = 48,
+  /** 与 ast.sx ExprKind.EXPR_METHOD_CALL 一致；`.method(...)` 后缀。 */
+  PARSER_ASM_EXPR_METHOD_CALL = 49,
   /** 与 ast.h AST_EXPR_STRING_LIT 序一致；字符串字面量写入 var_name。 */
   PARSER_ASM_EXPR_STRING_LIT = 59
 };
@@ -149,6 +151,9 @@ extern int32_t parser_asm_stretch_call_args_shape_probe_c(struct parser_asm_lexe
 extern int32_t parser_asm_stretch_paren_expr_head_audit_c(struct parser_asm_lexer lex,
                                                           struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                              struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_array_lit_elem(void *arena, int32_t expr_ref, int32_t elem_ref);
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
 
@@ -219,6 +224,9 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       lexer_next_into(r, *lex, source);
     first_suffix = 0;
     if (r->tok.kind == (int32_t)TOKEN_DOT) {
+      int32_t mc_ref;
+      int32_t mname_len;
+      struct parser_asm_ast_expr me;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
       if (r->tok.kind != (int32_t)TOKEN_IDENT) {
@@ -226,32 +234,101 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, r->tok.ident_len));
-      fa_ref = ast_ast_arena_expr_alloc(arena);
-      if (fa_ref == 0) {
-        out->ok = 0;
-        return;
+      mname_len = r->tok.ident_len;
+      if (mname_len > 63)
+        mname_len = 63;
+      {
+        size_t mname_start = r->token_start;
+        parser_asm_lex_from_result_val_into(lex, *r);
+        lexer_next_into(r, *lex, source);
+        /** `.name(` → EXPR_METHOD_CALL；否则 EXPR_FIELD_ACCESS。 */
+        if (r->tok.kind == (int32_t)TOKEN_LPAREN) {
+          mc_ref = ast_ast_arena_expr_alloc(arena);
+          if (mc_ref == 0) {
+            out->ok = 0;
+            return;
+          }
+          me = parser_asm_arena_expr_get_c(arena, mc_ref);
+          parser_asm_expr_set_common_zeros_c(&me);
+          me.kind = PARSER_ASM_EXPR_METHOD_CALL;
+          me.method_call_base_ref = out->expr_ref;
+          me.method_call_name_len = mname_len;
+          fi = 0;
+          while (fi < mname_len && (mname_start + (size_t)fi) < source->length) {
+            me.method_call_name[fi] = source->data[mname_start + (size_t)fi];
+            fi++;
+          }
+          while (fi < 64) {
+            me.method_call_name[fi] = 0;
+            fi++;
+          }
+          me.line = 0;
+          me.col = 0;
+          parser_asm_arena_expr_set_c(arena, mc_ref, me);
+          out->expr_ref = mc_ref;
+          *lex = r->next_lex;
+          lexer_next_into(r, *lex, source);
+          if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
+            for (;;) {
+              memset(&arg_res, 0, sizeof(arg_res));
+              arg_res.next_lex = *lex;
+              parse_expr_into(arena, *lex, source, &arg_res);
+              if (!arg_res.ok) {
+                out->ok = 0;
+                return;
+              }
+              if (pipeline_expr_append_method_call_arg(arena, mc_ref, arg_res.expr_ref) < 0) {
+                out->ok = 0;
+                return;
+              }
+              *lex = arg_res.next_lex;
+              lexer_next_into(r, *lex, source);
+              if (r->tok.kind == (int32_t)TOKEN_COMMA) {
+                *lex = r->next_lex;
+                continue;
+              }
+              if (r->tok.kind == (int32_t)TOKEN_RPAREN) {
+                *lex = r->next_lex;
+                break;
+              }
+              out->ok = 0;
+              return;
+            }
+          } else {
+            *lex = r->next_lex;
+          }
+        } else {
+          fa_ref = ast_ast_arena_expr_alloc(arena);
+          if (fa_ref == 0) {
+            out->ok = 0;
+            return;
+          }
+          fe = parser_asm_arena_expr_get_c(arena, fa_ref);
+          parser_asm_expr_set_common_zeros_c(&fe);
+          fe.kind = PARSER_ASM_EXPR_FIELD_ACCESS;
+          fe.field_access_base_ref = out->expr_ref;
+          fe.field_access_field_len = mname_len;
+          fi = 0;
+          while (fi < fe.field_access_field_len && (mname_start + (size_t)fi) < source->length) {
+            fe.field_access_field_name[fi] = source->data[mname_start + (size_t)fi];
+            fi++;
+          }
+          while (fi < 64) {
+            fe.field_access_field_name[fi] = 0;
+            fi++;
+          }
+          fe.line = 0;
+          fe.col = 0;
+          parser_asm_arena_expr_set_c(arena, fa_ref, fe);
+          out->expr_ref = fa_ref;
+          *lex = r->next_lex;
+        }
       }
-      fe = parser_asm_arena_expr_get_c(arena, fa_ref);
-      parser_asm_expr_set_common_zeros_c(&fe);
-      fe.kind = PARSER_ASM_EXPR_FIELD_ACCESS;
-      fe.field_access_base_ref = out->expr_ref;
-      fe.field_access_field_len = r->tok.ident_len;
-      if (fe.field_access_field_len > 63)
-        fe.field_access_field_len = 63;
-      fi = 0;
-      while (fi < fe.field_access_field_len && (r->token_start + (size_t)fi) < source->length) {
-        fe.field_access_field_name[fi] = source->data[r->token_start + (size_t)fi];
-        fi++;
-      }
-      while (fi < 64) {
-        fe.field_access_field_name[fi] = 0;
-        fi++;
-      }
-      fe.line = 0;
-      fe.col = 0;
-      parser_asm_arena_expr_set_c(arena, fa_ref, fe);
-      out->expr_ref = fa_ref;
-      *lex = r->next_lex;
+    } else if (r->tok.kind == (int32_t)TOKEN_LT) {
+      /** 泛型实例化 `id<i32>(...)`：跳过 `<...>` 后继续后缀链。 */
+      struct parser_asm_lexer after_angle;
+      parser_asm_skip_generic_angle_list_into_slice_c(&after_angle, *lex, source);
+      *lex = after_angle;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
       base_ref = out->expr_ref;
       parser_asm_lex_from_result_val_into(lex, *r);
@@ -1283,7 +1360,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     parser_asm_arena_expr_set_c(arena, ref, e);
     out->ok = 1;
     out->expr_ref = ref;
-    out->next_lex = r.next_lex;
+    lex = r.next_lex;
+    /** 与 IDENT 一致：先 lex 到 INT 后 token，再进后缀链（否则 r 仍为 TOKEN_INT）。 */
+    lexer_next_into(&r, lex, source);
+    /** 字面量后缀 `.method()` / `[i]` / 泛型 `<T>` 实例化须走与 IDENT 相同的后缀链。 */
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
+    out->next_lex = lex;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_FLOAT) {
@@ -1390,6 +1472,11 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     if_lex = parser_asm_lex_at_token_from_result_c(r);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_expr_branch_audit_c(if_lex, source));
     parser_parse_if_expr_into(arena, if_lex, source, 0, out);
+    return;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+    /** 匿名 struct 字面量 `{ fd, x: 1 }`（let p: PollFd = { ... }）。 */
+    parser_asm_parse_anonymous_struct_lit_c(arena, r.next_lex, source, out);
     return;
   }
   out->ok = 0;

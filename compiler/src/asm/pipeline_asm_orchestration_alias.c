@@ -161,13 +161,24 @@ int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *are
              driver_asm_build_skip_typeck() != 0) {
     /*
      * asm -o 跳过全量 check_block 时：无 import 单文件仍须全量 typeck（field_access_offset）；
-     * 有 import 或多文件仅 dep_prerun（§11.1 padding + parent link）。
+     * 有 import 时 runtime 已 C typeck 预检 / dep parse-only，勿再跑 .sx typecheck_entry（SIGSEGV）。
      */
     if (driver_sx_pipeline_skip_typeck_get() != 0 && parser_get_module_num_imports(module) == 0 &&
         driver_sx_pipeline_skip_codegen_get() != 0) {
       tc_rc = run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+    } else if (driver_sx_pipeline_skip_typeck_get() != 0 && parser_get_module_num_imports(module) > 0 &&
+               driver_asm_build_skip_typeck() == 0) {
+      tc_rc = 0;
     } else if (driver_sx_pipeline_skip_typeck_get() != 0 || driver_asm_build_skip_typeck() != 0) {
-      tc_rc = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+      /*
+       * 用户 -o（skip_typeck、非 SHUX_ASM_BUILD_SKIP_TYPECK）：入口仍须全量 typeck（ERR-01 负例等）。
+       * build_shux_asm 单模块 -o：仅 dep_prerun（§11.1 padding + parent link）。
+       */
+      if (driver_asm_build_skip_typeck() != 0) {
+        tc_rc = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+      } else {
+        tc_rc = run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+      }
     } else {
       tc_rc = 0;
     }

@@ -13,9 +13,11 @@ extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
 extern int32_t pipeline_onefunc_const_init_val(uint8_t *out, int32_t i);
+extern int32_t pipeline_onefunc_const_init_ref(uint8_t *out, int32_t i);
 extern int32_t pipeline_onefunc_let_init_val(uint8_t *out, int32_t i);
 extern int32_t pipeline_onefunc_let_init_ref(uint8_t *out, int32_t i);
 extern int32_t pipeline_onefunc_let_type_ref(uint8_t *out, int32_t i);
+extern int32_t pipeline_onefunc_const_type_ref(uint8_t *out, int32_t i);
 extern void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
 extern void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
 extern int32_t pipeline_onefunc_const_name_len(uint8_t *out, int32_t i);
@@ -130,6 +132,7 @@ int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_re
   int32_t let_i;
   int32_t nl;
   int32_t cinit_ref;
+  int32_t const_decl_ty;
   uint8_t cname_buf[64];
   if (!arena || !res)
     return 0;
@@ -137,14 +140,21 @@ int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_re
   const_i = 0;
   nc = pipeline_onefunc_num_consts(pool);
   while (const_i < nc) {
-    cinit_ref = parser_asm_block_lit_init_ref_c(arena, type_ref, pipeline_onefunc_const_init_val(pool, const_i));
+    /** 与 let 分支一致：须用侧车 const 声明类型，勿误传 fill 入参 type_ref（常为 0 或函数返回类型）。 */
+    const_decl_ty = type_ref;
+    if (pipeline_onefunc_const_type_ref(pool, const_i) != 0)
+      const_decl_ty = pipeline_onefunc_const_type_ref(pool, const_i);
+    /** 与 let 分支一致：优先侧车 init_ref（如 `const B = A + 2`）；无 ref 时再按 init_val 合成 EXPR_LIT。 */
+    cinit_ref = pipeline_onefunc_const_init_ref(pool, const_i);
+    if (cinit_ref == 0)
+      cinit_ref = parser_asm_block_lit_init_ref_c(arena, const_decl_ty, pipeline_onefunc_const_init_val(pool, const_i));
     if (cinit_ref == 0)
       return 0;
     memset(cname_buf, 0, sizeof(cname_buf));
     pipeline_onefunc_const_name_copy64(pool, const_i, cname_buf);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_bind_name_audit_c(cname_buf, pipeline_onefunc_const_name_len(pool, const_i)));
-    if (pipeline_block_append_const(arena, block_ref, cname_buf, pipeline_onefunc_const_name_len(pool, const_i), type_ref,
-                                    cinit_ref) < 0)
+    if (pipeline_block_append_const(arena, block_ref, cname_buf, pipeline_onefunc_const_name_len(pool, const_i),
+                                    const_decl_ty, cinit_ref) < 0)
       return 0;
     const_i = const_i + 1;
   }

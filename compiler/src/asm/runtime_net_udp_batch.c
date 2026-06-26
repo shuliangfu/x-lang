@@ -3,6 +3,7 @@
  *
  * mmsghdr/iovec 批量 syscall 暂由 C 提供；主逻辑与回退路径见 net_udp_batch.sx。
  * 仅 __linux__ && __GLIBC__ 编译有效符号；其它平台为空 TU。与 net.o 一并链入 exe。
+ * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 shux_asm 未链 runtime_net_udp_batch.o 时解析符号。
  */
 
 #if defined(__linux__) && defined(__GLIBC__)
@@ -17,6 +18,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
+
+#ifndef SHUX_NET_UDP_GLUE_WEAK
+#define SHUX_NET_UDP_GLUE_WEAK
+#endif
+
+#define SHUX_NET_UDP_GLUE_API SHUX_NET_UDP_GLUE_WEAK
 
 #define SHU_UDP_BATCH_MAX 2
 #define SHU_UDP_BATCH_BUF_MAX 8
@@ -48,7 +55,7 @@ static int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
  * Linux recvmmsg：最多 2 段；timeout_ms 非 0 时先 poll。
  * 返回收到报文数；EAGAIN 返回 0；其它错误 -1。
  */
-int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, int n,
+SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, int n,
     uint32_t timeout_ms, int32_t *out_sizes, uint32_t *out_addrs, uint32_t *out_ports) {
     struct iovec iov[SHU_UDP_BATCH_MAX];
     struct sockaddr_in addrs[SHU_UDP_BATCH_MAX];
@@ -90,7 +97,7 @@ int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, siz
 /**
  * Linux sendmmsg：最多 2 条目标报文。
  */
-int shu_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint32_t port0, const uint8_t *p0, size_t l0,
+SHUX_NET_UDP_GLUE_API int shu_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint32_t port0, const uint8_t *p0, size_t l0,
     uint32_t a1, uint32_t port1, const uint8_t *p1, size_t l1, int n) {
     struct sockaddr_in addrs[SHU_UDP_BATCH_MAX];
     struct iovec iov[SHU_UDP_BATCH_MAX];
@@ -119,7 +126,7 @@ int shu_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint32_t port0, const uint8
 /**
  * Linux recvmmsg：Buffer 切片，n 为 1..8。
  */
-int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *bufs, int n, uint32_t timeout_ms,
+SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *bufs, int n, uint32_t timeout_ms,
     int32_t *out_sizes, uint32_t *out_addrs, uint32_t *out_ports) {
     struct iovec iov[SHU_UDP_BATCH_BUF_MAX];
     struct sockaddr_in addrs[SHU_UDP_BATCH_BUF_MAX];
@@ -161,7 +168,7 @@ int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *bufs, int n, uint32_t 
 /**
  * Linux sendmmsg：Buffer 切片，n 为 1..8。
  */
-int shu_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
+SHUX_NET_UDP_GLUE_API int shu_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
     const shu_net_buf_t *bufs, int n) {
     struct sockaddr_in sa[SHU_UDP_BATCH_BUF_MAX];
     struct iovec iov[SHU_UDP_BATCH_BUF_MAX];
