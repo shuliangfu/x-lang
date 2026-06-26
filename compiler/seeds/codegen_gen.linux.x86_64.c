@@ -17,7 +17,8 @@ static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_
 static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
-extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);
+/** bootstrap 最小单测：未链 std.io 时提供 weak 桩，避免 ld 缺 io_register_buffers_buf_c。 */
+__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
 enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN };
@@ -34,7 +35,7 @@ struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; 
 struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t region_base; int32_t num_regions; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; };
 struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 extern int ast_ref_is_null(int32_t ref);
@@ -368,6 +369,9 @@ int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32
 int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref);
 int32_t codegen_type_is_module_user_enum(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref);
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+/** let s: T[] = arr：C glue（pipeline_glue.c），seed 未 regen 时补齐 slice 初值。 */
+extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
 int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_callee_var_is_string_new(struct ast_Expr e);
 int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t indent, struct ast_PipelineDepCtx * ctx);
@@ -1556,7 +1560,15 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   }
   return 21 + plen;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   int32_t w = 0;
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   (void)(({ int32_t __tmp = 0; if ((t).name_len == 1 && (t).name[0] == ((uint8_t)84)) {   uint8_t s[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
+  int32_t i = 0;
+  while (i < 7) {
+    ((scratch)[i] = ((i < 0 || (i) >= 8 ? (shux_panic_(1, 0), (s)[0]) : (s)[i])));
+    ++i;
+  }
+  return 7;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t w = 0;
   uint8_t hdr2[8] = { 115, 116, 114, 117, 99, 116, 32, 0 };
   int32_t h = 0;
   while (h < 7) {
@@ -1607,7 +1619,10 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   return codegen_append_byte(out, 42);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   (void)(({ int32_t __tmp = 0; if ((t).name_len == 6 && ((t).name)[0] == 66 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[2]) == 102 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[3]) == 102 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[4]) == 101 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[5]) == 114) {   uint8_t io_buf[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0 };
+  (void)(({ int32_t __tmp = 0; if ((t).kind == ast_TypeKind_TYPE_NAMED && (t).name_len > 0) {   (void)(({ int32_t __tmp = 0; if ((t).name_len == 1 && (t).name[0] == ((uint8_t)84)) {   uint8_t i32_t[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
+  return codegen_emit_bytes_8(out, i32_t, 7);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if ((t).name_len == 6 && ((t).name)[0] == 66 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[2]) == 102 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[3]) == 102 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[4]) == 101 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((t).name)[0]) : ((t).name)[5]) == 114) {   uint8_t io_buf[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0 };
   return codegen_emit_bytes_from_ptr(out, (&((io_buf)[0])), 20);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && codegen_type_is_module_user_enum((ctx)->current_codegen_module, arena, type_ref) != 0) {   uint8_t i32_enum[8] = { 105, 110, 116, 51, 50, 95, 116, 0 };
@@ -2795,7 +2810,18 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_CONTINUE) {   return codegen_append_byte(out, 48);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_METHOD_CALL) {   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_METHOD_CALL) {   (void)(({ int32_t __tmp = 0; if ((e).method_call_name_len == 6 && (e).method_call_num_args == 0 && (e).method_call_name[0] == ((uint8_t)100) && (e).method_call_name[1] == ((uint8_t)111) && (e).method_call_name[2] == ((uint8_t)117) && (e).method_call_name[3] == ((uint8_t)98) && (e).method_call_name[4] == ((uint8_t)108) && (e).method_call_name[5] == ((uint8_t)101)) {   struct ast_Expr base_e = ast_arena_expr_get(arena, (e).method_call_base_ref);
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((base_e).resolved_type_ref)) && pipeline_type_kind_ord_at(arena, (base_e).resolved_type_ref) == 0) {   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).method_call_base_ref)) && codegen_emit_expr(arena, out, (e).method_call_base_ref, ctx) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  uint8_t mul2[6] = { 32, 42, 32, 50, 41, 0 };
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((mul2)[0])), 5) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  return 0;
+ } else (__tmp = 0) ; __tmp; }));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 40) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null((e).method_call_base_ref)) && codegen_emit_expr(arena, out, (e).method_call_base_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -2966,6 +2992,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((e).kind == ast_ExprKind_EXPR_ENUM_VARIANT) {   return codegen_append_byte(out, 48);
  } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pipeline_expr_kind_ord_at(arena, expr_ref) == 58 || pipeline_expr_kind_ord_at(arena, expr_ref) == 57) {   return pipeline_codegen_emit_expr_try_propagate_c(arena, out, expr_ref, ctx);
+ } else (__tmp = 0) ; __tmp; }));
   return (-1);
 }
 int32_t codegen_callee_var_is_string_new(struct ast_Expr e) {
@@ -3100,7 +3128,15 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
   uint8_t eq[4] = { 32, 61, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_4(out, eq, 3) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e2 = ast_arena_expr_get(arena, linit_ref);
+  int32_t slice_init_done = 0;
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(linit_ref))) {   slice_init_done = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(linit_ref)) {   uint8_t zinit_omit2[6] = { 123, 32, 48, 32, 125, 0 };
+  __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_6(out, zinit_omit2, 5) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = ({ int32_t __tmp = 0; if (slice_init_done == 1) {   __tmp = 0;
+ } else (__tmp = ({ int32_t __tmp = 0; if (slice_init_done < 0) {   return (-1);
+ } else (__tmp = ({ int32_t __tmp = 0; if (use_local_array != 0 && (!ast_ref_is_null(linit_ref)) && linit_ref > 0 && linit_ref <= (arena)->num_exprs) {   struct ast_Expr init_e2 = ast_arena_expr_get(arena, linit_ref);
   __tmp = ({ int32_t __tmp = 0; if ((init_e2).kind == ast_ExprKind_EXPR_ARRAY_LIT) {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = ({ int32_t __tmp = 0; if ((init_e2).kind == ast_ExprKind_EXPR_LIT && (init_e2).int_val == 0) {   uint8_t zinit[6] = { 123, 32, 48, 32, 125, 0 };
@@ -3111,7 +3147,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
  } ; __tmp; })) ; __tmp; });
  } else {   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_expr(arena, out, linit_ref, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });
- } ; __tmp; }));
+ } ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; }));
   uint8_t sc[3] = { 59, 10, 0 };
   __tmp = ({ int32_t __tmp = 0; if (codegen_emit_bytes_3(out, sc, 2) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; });

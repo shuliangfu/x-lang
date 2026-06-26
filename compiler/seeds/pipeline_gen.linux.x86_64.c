@@ -34,8 +34,8 @@ struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; 
 struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t region_base; int32_t num_regions; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
 struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; };
-struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t num_module_enums; };
+struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; };
+struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 
 /* slim arena grow pool glue (linked from pipeline/runtime) */
@@ -733,6 +733,7 @@ extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx,
 extern int32_t typeck_typeck_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_typeck_sx_ast_library(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern void pipeline_typeck_set_active_ctx_c(struct ast_Module * module, struct ast_PipelineDepCtx * ctx);
 extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module * entry, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx * ctx);
@@ -780,6 +781,8 @@ int32_t pipeline_parse_apply_main_from_scalars(struct ast_Module * module, struc
 int32_t pipeline_parse_set_main_from_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * data, int32_t len);
 int32_t pipeline_typeck_parsed_module(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t fail_mapped);
 int32_t pipeline_typeck_entry_module(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                      struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena * arena, struct ast_Module * module, struct shux_slice_uint8_t * source, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_load_import_resolve_read(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t import_idx);
 int32_t pipeline_load_import_from_disk(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t import_idx);
@@ -1027,6 +1030,7 @@ int32_t pipeline_typeck_parsed_module(struct ast_Module * module, struct ast_AST
  } else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
+  (void)(pipeline_typeck_set_active_ctx_c(module, ctx));
   (tc = (typeck_typeck_sx_ast(module, arena, ctx)));
   (void)(({ int32_t __tmp = 0; if (tc != 0) {   (void)(driver_diagnostic_typeck_fail());
   (void)(({ int32_t __tmp = 0; if (fail_mapped != 0) {   return fail_mapped;
@@ -1046,36 +1050,7 @@ int32_t pipeline_typeck_entry_module(struct ast_Module * module, struct ast_ASTA
   return pipeline_typeck_parsed_module(module, arena, ctx, 0);
 }
 int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena * arena, struct ast_Module * module, struct shux_slice_uint8_t * source, struct ast_PipelineDepCtx * ctx) {
-  int32_t ok = 0;
-  int32_t main_idx = 0;
-  int32_t mi = 0;
-  int32_t tc = 0;
-  (void)(({ int32_t __tmp = 0; if (arena == ((struct ast_ASTArena *)(0)) || module == ((struct ast_Module *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  (void)(pipeline_parse_into_with_init_slice_scalars_sidecar(arena, module, source));
-  (ok = (pipeline_parse_scalars_ok_get()));
-  (main_idx = (pipeline_parse_scalars_main_idx_get()));
-  (void)(({ int32_t __tmp = 0; if (ok != 0) {   return main_idx;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(pipeline_module_set_main_func_index(module, main_idx));
-  (mi = (pipeline_module_main_func_index(module)));
-  (void)(({ int32_t __tmp = 0; if (mi < 0) {   (tc = (typeck_typeck_sx_ast_library(module, arena, ctx)));
-  (void)(({ int32_t __tmp = 0; if (tc != 0) {   (void)(driver_diagnostic_typeck_fail());
-  return tc;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {   (void)(driver_diagnostic_typeck_fail());
-  return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  return tc;
- } else (__tmp = 0) ; __tmp; }));
-  (tc = (typeck_typeck_sx_ast(module, arena, ctx)));
-  (void)(({ int32_t __tmp = 0; if (tc != 0) {   (void)(driver_diagnostic_typeck_fail());
-  return tc;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {   (void)(driver_diagnostic_typeck_fail());
-  return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  return tc;
+  return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
 }
 int32_t pipeline_load_import_resolve_read(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t import_idx) {
   uint8_t path_buf[64] = { 0 };
@@ -1128,25 +1103,7 @@ int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module * module, struct a
   return 0;
 }
 int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  int32_t n_imports = parser_get_module_num_imports(module);
-  (void)(({ int32_t __tmp = 0; if (pipeline_dep_ctx_ndep(ctx) == 0) {   __tmp = ({ int32_t __tmp = 0; if (n_imports > 0) {   int32_t i = 0;
-  while (i < n_imports) {
-    int32_t rc = pipeline_load_one_import_slot(module, arena, ctx, i);
-    (void)(({ int32_t __tmp = 0; if (rc != 0) {   return rc;
- } else (__tmp = 0) ; __tmp; }));
-    ++i;
-  }
-  (void)(pipeline_dep_ctx_set_ndep(ctx, n_imports));
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  int32_t sync_all_rc = pipeline_sync_dep_slots_from_driver(module, ctx);
-  (void)(({ int32_t __tmp = 0; if (sync_all_rc != 0) {   return sync_all_rc;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx));
-  (void)(typeck_typeck_wpo_unify_soa_layouts(module, ctx));
-  return 0;
+  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
 }
 int32_t pipeline_lsp_diag_parse_entry_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len) {
   return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
@@ -1191,8 +1148,11 @@ int32_t pipeline_run_sx_pipeline_parse_entry_if_needed(struct ast_Module * modul
  } else (__tmp = 0) ; __tmp; }));
   return pipeline_run_sx_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
 }
+extern int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_run_sx_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {   return run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_should_skip_sx_typeck(ctx) != 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));

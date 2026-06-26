@@ -52,6 +52,7 @@ struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, str
 struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
 int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
 int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
+int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
 int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
 struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
 struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
@@ -175,6 +176,9 @@ struct token_Token lexer_try_keyword(struct shux_slice_uint8_t * data, size_t st
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return t;
+ } else (__tmp = (struct token_Token){0}) ; __tmp; }));
+  (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 112, 97, 99, 107, 101, 100 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_PACKED, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -305,6 +309,9 @@ struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, int32_t data_l
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return t;
+ } else (__tmp = (struct token_Token){0}) ; __tmp; }));
+  (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 110, 117, 109 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ENUM, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -466,6 +473,30 @@ int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, stru
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
+/** MOD-02：`#[repr(compatible)]` → TOKEN_ATTR_REPR_COMPATIBLE。 */
+int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+  (void)(({ int32_t __tmp = 0; if ((l).pos + 19 > (data)->length) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 99 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 111 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 109 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 112 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 97 || ((l).pos + 12 < 0 || (size_t)((l).pos + 12) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 12]) != 116 || ((l).pos + 13 < 0 || (size_t)((l).pos + 13) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 13]) != 105 || ((l).pos + 14 < 0 || (size_t)((l).pos + 14) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 14]) != 98 || ((l).pos + 15 < 0 || (size_t)((l).pos + 15) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 15]) != 108 || ((l).pos + 16 < 0 || (size_t)((l).pos + 16) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 16]) != 101) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (((l).pos + 17 < 0 || (size_t)((l).pos + 17) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 17]) != 41 || ((l).pos + 18 < 0 || (size_t)((l).pos + 18) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 18]) != 93) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t line0 = (l).line;
+  int32_t col0 = (l).col;
+  size_t np = (l).pos + 19;
+  struct lexer_Lexer l2 = (struct lexer_Lexer){ .pos = np, .line = line0, .col = col0 };
+  struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  (void)(lexer_write_next_lex_into(out, l2));
+  (void)(lexer_write_tok_into(out, tok));
+  ((out)->token_start = (((size_t)(0))));
+  return 1;
+}
 int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
   (void)(({ int32_t __tmp = 0; if ((l).pos + 6 > (data)->length) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -566,6 +597,8 @@ void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_
   (void)(({ int32_t __tmp = 0; if (lexer_try_cfg_attr_into(out, l, data) != 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (lexer_try_repr_c_attr_into(out, l, data) != 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (lexer_try_repr_compatible_attr_into(out, l, data) != 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (lexer_try_soa_attr_into(out, l, data) != 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
