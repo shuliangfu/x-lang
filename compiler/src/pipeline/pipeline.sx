@@ -500,37 +500,7 @@ function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepC
  * import 循环：while(1==1)+if(CALL==0) break；sync/typeck merge 仍 if(CALL!=0) return。
  */
 function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return -1;
-  }
-  pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
-  if (pipeline_dep_ctx_ndep(ctx) == 0) {
-    if (parser_get_module_num_imports(module) > 0) {
-      let import_i: i32 = 0;
-      while (1 == 1) {
-        if (pipeline_loop_should_continue_imports_c(module, import_i) == 0) {
-          break;
-        }
-        let path_buf: u8[64] = [0];
-        parser_copy_module_import_path64(module, import_i, &path_buf[0]);
-        if (pipeline_try_bind_seeded_import(ctx, import_i, driver_dep_slot_for_path(&path_buf[0])) != 0) {
-          import_i = import_i + 1;
-          continue;
-        }
-        if (pipeline_load_import_from_disk(module, arena, ctx, import_i) != 0) {
-          return -1;
-        }
-        import_i = import_i + 1;
-      }
-      pipeline_dep_ctx_set_ndep(ctx, parser_get_module_num_imports(module));
-    }
-  }
-  if (pipeline_sync_dep_slots_from_driver(module, ctx) != 0) {
-    return -1;
-  }
-  typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
-  typeck_typeck_wpo_unify_soa_layouts(module, ctx);
-  return 0;
+  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
 }
 
 /** LSP：parse+set_main；与 pipeline_parse_set_main_from_buf 同路径（EMIT_HEAVY SX emit）。 */
@@ -677,11 +647,14 @@ function run_sx_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena,
 }
 
 /**
- * skip_sx_typeck 为 0 时对 entry 做 typeck；EMIT_HEAVY SX 真 emit。
+ * entry typecheck：skip_typeck 时委托 C glue 分派（ERR-01 负例 -o）；否则走 SX pipeline_typeck_entry_module。
  */
 function run_sx_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
     return -1;
+  }
+  if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {
+    return run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
   }
   if (pipeline_should_skip_sx_typeck(ctx) != 0) {
     return 0;

@@ -315,6 +315,8 @@ struct Module {
   pending_cfg_skip: i32;
   /** parse_into：`#[repr(C)]` 后置 1，紧随其后的 struct 登记 C ABI 布局后清零。 */
   pending_repr_c_struct: i32;
+  /** parse_into：`#[repr(compatible)]` 后置 1，紧随其后的 struct 登记 MOD-02 互认标记后清零。 */
+  pending_repr_compatible_struct: i32;
   num_module_enums: i32;
 }
 

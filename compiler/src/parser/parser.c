@@ -1556,7 +1556,25 @@ static ASTExpr *parse_primary(Parser *p) {
  * 参数：p 解析器；left 已有子表达式。返回值：成功返回（可能嵌套 AS 的）ASTExpr*；失败返回 NULL。
  */
 static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
-    while (peek(p) && peek(p)->kind == TOKEN_AS) {
+    for (;;) {
+        if (peek(p) && peek(p)->kind == TOKEN_QUESTION) {
+            advance(p);
+            ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+            if (!e) {
+                ast_expr_free(left);
+                fprintf(stderr, "parse: out of memory\n");
+                return NULL;
+            }
+            e->kind = AST_EXPR_TRY_PROPAGATE;
+            e->resolved_type = NULL;
+            e->line = left->line;
+            e->col = left->col;
+            e->value.unary.operand = left;
+            left = e;
+            continue;
+        }
+        if (!peek(p) || peek(p)->kind != TOKEN_AS)
+            return left;
         advance(p);
         ASTType *ty = parse_type(p);
         if (!ty) {
@@ -1578,7 +1596,6 @@ static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
         e->value.as_type.type = ty;
         left = e;
     }
-    return left;
 }
 
 /**

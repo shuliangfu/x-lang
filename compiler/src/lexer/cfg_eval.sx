@@ -336,6 +336,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       return 0;
     }
     p = p + 1;
+    if (p < end && buf[p] == 61) {
+      p = p + 1;
+    }
     p = cfg_skip_ws(buf, p, end);
     if (p >= end || buf[p] != 34) {
       return 0;
@@ -359,6 +362,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       return 0;
     }
     p = p + 1;
+    if (p < end && buf[p] == 61) {
+      p = p + 1;
+    }
     p = cfg_skip_ws(buf, p, end);
     if (p >= end || buf[p] != 34) {
       return 0;

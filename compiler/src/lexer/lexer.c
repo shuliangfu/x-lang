@@ -931,6 +931,38 @@ static int lexer_lex_repr_c_attr(Lexer *l, Token *out) {
 }
 
 /**
+ * MOD-02：若当前位置为 #[repr(compatible)]，消费整段并写入 TOKEN_ATTR_REPR_COMPATIBLE；成功返回 1。
+ */
+static int lexer_lex_repr_compatible_attr(Lexer *l, Token *out) {
+    int line;
+    int col;
+    if (!l || !l->src || !out || l->src + 19 > l->end)
+        return 0;
+    if (l->src[0] != '#' || l->src[1] != '[')
+        return 0;
+    if (l->src[2] != 'r' || l->src[3] != 'e' || l->src[4] != 'p' || l->src[5] != 'r')
+        return 0;
+    if (l->src[6] != '(')
+        return 0;
+    if (l->src[7] != 'c' || l->src[8] != 'o' || l->src[9] != 'm' || l->src[10] != 'p' ||
+        l->src[11] != 'a' || l->src[12] != 't' || l->src[13] != 'i' || l->src[14] != 'b' ||
+        l->src[15] != 'l' || l->src[16] != 'e')
+        return 0;
+    if (l->src[17] != ')' || l->src[18] != ']')
+        return 0;
+    line = l->line;
+    col = l->col;
+    for (int i = 0; i < 19; i++)
+        lexer_advance(l);
+    out->kind = TOKEN_ATTR_REPR_COMPATIBLE;
+    out->line = line;
+    out->col = col;
+    out->value.int_val = 0;
+    out->ident_len = 0;
+    return 1;
+}
+
+/**
  * B-01 v1：若当前位置为 #[cfg(...)]，求值 host 匹配并写入 out（TOKEN_ATTR_CFG）；成功返回 1。
  */
 static int lexer_lex_cfg_attr(Lexer *l, Token *out) {
@@ -1020,6 +1052,9 @@ void lexer_next(Lexer *l, Token *out) {
         return;
     /* B-03 v1：#[repr(C)] → TOKEN_ATTR_REPR_C。 */
     if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_repr_c_attr(l, out))
+        return;
+    /* MOD-02：#[repr(compatible)] → TOKEN_ATTR_REPR_COMPATIBLE。 */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_repr_compatible_attr(l, out))
         return;
     /* DOD-S1：#[soa] 属性 token */
     if (c == '#' && l->src + 6 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'o'

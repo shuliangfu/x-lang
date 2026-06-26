@@ -206,6 +206,8 @@ static int cfg_eval_expr(const char *start, const char *end) {
     if (p >= end || *p != '=')
       return 0;
     p++;
+    if (p < end && *p == '=')
+      p++; /* 接受 target_os == "linux" 与 target_os = "linux" */
     while (p < end && (*p == ' ' || *p == '\t'))
       p++;
     if (p >= end || *p != '"')
@@ -224,8 +226,8 @@ static int cfg_eval_expr(const char *start, const char *end) {
     if (p >= end || *p != '=')
       return 0;
     p++;
-    while (p < end && (*p == ' ' || *p == '\t'))
-      p++;
+    if (p < end && *p == '=')
+      p++; /* 接受 == */
     if (p >= end || *p != '"')
       return 0;
     p++;

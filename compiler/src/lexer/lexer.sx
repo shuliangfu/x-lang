@@ -317,6 +317,18 @@ function try_keyword(data: u8[], start: usize, len: usize, line0: i32, col0: i32
     }
     return t;
   }
+  if (len == 4 && match_keyword(data, start, 4, [116, 121, 112, 101])) {
+    let t: Token = Token {
+      kind: TokenKind.TOKEN_TYPE,
+      line: line0,
+      col: col0,
+      int_val: 0,
+      float_val: 0.0,
+      ident: 0,
+      ident_len: 0
+    }
+    return t;
+  }
   if (len == 6 && match_keyword(data, start, 6, [112, 97, 99, 107, 101, 100])) {
     let t: Token = Token {
       kind: TokenKind.TOKEN_PACKED,
@@ -788,6 +800,11 @@ i32): Token {
       float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
   }
+  if (len == 4 && match_keyword_buf(data, data_len, start, 4, [116, 121, 112, 101])) {
+    let t: Token = Token { kind: TokenKind.TOKEN_TYPE, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 }
+    return t;
+  }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [101, 110, 117, 109])) {
     let t: Token = Token { kind: TokenKind.TOKEN_ENUM, line: line0, col: col0, int_val: 0,
       float_val: 0.0, ident: 0, ident_len: 0 }
@@ -1051,6 +1068,51 @@ function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i3
 }
 
 /**
+ * MOD-02：若 l 处为 `#[repr(compatible)]`，写入 TOKEN_ATTR_REPR_COMPATIBLE 并返回 1。
+ */
+function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 19 > data.length) {
+    return 0;
+  }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) {
+    return 0;
+  }
+  if (data[l.pos + 2] != 114 || data[l.pos + 3] != 101 || data[l.pos + 4] != 112 ||
+      data[l.pos + 5] != 114) {
+    return 0;
+  }
+  if (data[l.pos + 6] != 40) {
+    return 0;
+  }
+  if (data[l.pos + 7] != 99 || data[l.pos + 8] != 111 || data[l.pos + 9] != 109 ||
+      data[l.pos + 10] != 112 || data[l.pos + 11] != 97 || data[l.pos + 12] != 116 ||
+      data[l.pos + 13] != 105 || data[l.pos + 14] != 98 || data[l.pos + 15] != 108 ||
+      data[l.pos + 16] != 101) {
+    return 0;
+  }
+  if (data[l.pos + 17] != 41 || data[l.pos + 18] != 93) {
+    return 0;
+  }
+  let line0: i32 = l.line;
+  let col0: i32 = l.col;
+  let np: usize = l.pos + 19;
+  let l2: Lexer = Lexer { pos: np, line: line0, col: col0 };
+  let tok: Token = Token {
+    kind: TokenKind.TOKEN_ATTR_REPR_COMPATIBLE,
+    line: line0,
+    col: col0,
+    int_val: 0,
+    float_val: 0.0,
+    ident: 0,
+    ident_len: 0
+  };
+  write_next_lex_into(out, l2);
+  write_tok_into(out, tok);
+  out.token_start = (0 as usize);
+  return 1;
+}
+
+/**
  * DOD-S1：若 l 处为 `#[soa]`，写入 TOKEN_ATTR_SOA 并返回 1。
  */
 function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
@@ -1179,6 +1241,9 @@ function lexer_next(lex: Lexer, data: u8[]): LexerResult {
   if (lexer_try_repr_c_attr_into(&attr_out, l, data) != 0) {
     return attr_out;
   }
+  if (lexer_try_repr_compatible_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
   if (lexer_try_soa_attr_into(&attr_out, l, data) != 0) {
     return attr_out;
   }
@@ -1237,6 +1302,9 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
     return;
   }
   if (lexer_try_repr_c_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_repr_compatible_attr_into(out, l, data) != 0) {
     return;
   }
   if (lexer_try_soa_attr_into(out, l, data) != 0) {

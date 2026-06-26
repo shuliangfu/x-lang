@@ -474,8 +474,9 @@ function run_compiler_full_sx_post_parse(state: *DriverCompileState, argc: i32, 
   if (state.target_len > 0) {
     target_ptr = &state.target_buf[0];
   }
-  /** 有 -o 时默认显式 asm，避免 top-level import 被降级到 C（hello.sx；与 post_parse_impl_c 一致）。 */
-  if (state.out_path_len > 0 && state.backend_asm_explicit == 0) {
+  /** 无 import 的单文件 -o 默认 asm；有 import 允许降级 C（与 post_parse_impl_c 一致）。 */
+  if (state.out_path_len > 0 && state.backend_asm_explicit == 0 &&
+      driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) == 0) {
     state.backend_asm_explicit = one;
   }
   if (state.use_asm_backend != 0 && state.backend_asm_explicit == 0 &&
