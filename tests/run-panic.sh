@@ -4,9 +4,16 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
+# panic -o：bootstrap 默认 shux-c 对 main.sx 易 SIGSEGV；shux_asm2 已绿（与 run-struct 一致）。
+if [ -x ./compiler/shux_asm2 ] && ci_native_shu ./compiler/shux_asm2; then
+  LINK_SHUX=./compiler/shux_asm2
+fi
 
-$SHUX tests/panic/main.sx -o /tmp/shux_panic 2>&1
-$SHUX tests/panic/with_msg.sx -o /tmp/shux_panic_msg 2>&1
+$LINK_SHUX tests/panic/main.sx -o /tmp/shux_panic 2>&1
+$LINK_SHUX tests/panic/with_msg.sx -o /tmp/shux_panic_msg 2>&1
 # 运行预期非 0 退出（abort）；整组命令 stderr 重定向，尽量抑制 shell 打印 "Abort trap: 6"
 exitcode=0; { ( /tmp/shux_panic 2>/dev/null ) 2>/dev/null || exitcode=$?; } 2>/dev/null
 [ "$exitcode" -eq 0 ] && { echo "expected non-zero exit (panic abort)"; exit 1; }

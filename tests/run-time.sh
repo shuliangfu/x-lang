@@ -12,11 +12,15 @@ make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/time/time.o
 
 SHUX="${SHUX:-./compiler/shux}"
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 run_one() {
   local name="$1"
   local src="$2"
   local exe="/tmp/shux_time_$$_${name}"
-  if ! $SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $LINK_SHUX -L . "$src" -o "$exe" 2>&1; then
     echo "time test $name: compile failed"
     return 1
   fi

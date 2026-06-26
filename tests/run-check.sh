@@ -70,8 +70,12 @@ echo "$neg_out" | grep -qE " - error: |typeck error:|check failed" || {
 echo "check reject type error OK"
 
 chmod +x tests/run-types-gate.sh 2>/dev/null || true
-_types_gate_shux="${SHUX_LINK_SHUX:-./compiler/shux-c}"
-[ -x "$_types_gate_shux" ] || _types_gate_shux="$SHUX"
-SHUX="$_types_gate_shux" ./tests/run-types-gate.sh
+if [ -n "${SHUX_BOOTSTRAP_MIN:-}" ]; then
+  echo "check: skip run-types-gate link (bootstrap-min; gold/W3 覆盖)"
+else
+  _types_gate_shux="${SHUX_LINK_SHUX:-./compiler/shux-c}"
+  [ -x "$_types_gate_shux" ] || _types_gate_shux="$SHUX"
+  SHUX="$_types_gate_shux" ./tests/run-types-gate.sh
+fi
 
 echo "check test OK"

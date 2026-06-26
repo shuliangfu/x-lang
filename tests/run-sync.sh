@@ -13,8 +13,12 @@ make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/sync/sync.o
 
 SHUX="${SHUX:-./compiler/shux}"
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+LINK_SHUX="$RUN_SHUX"
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 exe="/tmp/shux_sync_$$_main"
-if ! $SHUX -L . tests/sync/main.sx -o "$exe" 2>&1; then
+if ! $LINK_SHUX -L . tests/sync/main.sx -o "$exe" 2>&1; then
   echo "sync test: compile failed"
   rm -f "$exe"
   exit 1

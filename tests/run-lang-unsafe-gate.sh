@@ -48,11 +48,14 @@ echo "lang-unsafe manifest OK"
 
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 
-# bstrict 导出 SHUX=./compiler/shux；本地/Docker 无 file(1) 时 native_shu 可能误判，Linux 回退 shux-c。
-# -o 链接/运行优先 shux-c（seed shux asm 链在 Docker 上易 SIGSEGV/PIE 失败）。
+# bstrict / W3：stage2 shux_asm(2) 用于 asm -o；bootstrap seed shux / shux-c 对简单 -o 易 SIGSEGV。
 SHUX_BIN=""
 if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
   SHUX_BIN="${SHUX}"
+elif [ -x ./compiler/shux_asm2 ]; then
+  SHUX_BIN=./compiler/shux_asm2
+elif [ -x ./compiler/shux_asm ]; then
+  SHUX_BIN=./compiler/shux_asm
 else
   for cand in ./compiler/shux-c ./compiler/shux; do
     if [ -x "$cand" ] && native_shu "$cand"; then
@@ -152,10 +155,10 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      # struct 回归：seed shux 单文件 -o 须跑 typeck；shux-c 与 bootstrap 默认 LINK 易 SIGSEGV。
+      # struct 回归：typeck 走 seed shux；-o 链接仍由 bootstrap-link-shux 选 shux-c（Docker 上 seed -o 易 SIGSEGV）。
       hook_env=()
       if [ "$script" = "run-struct.sh" ] && [ -x ./compiler/shux ]; then
-        hook_env=(SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux)
+        hook_env=(SHUX=./compiler/shux)
       fi
       if run_timeout_case env "${hook_env[@]}" SHUX="$SHUX_BIN" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"

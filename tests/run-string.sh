@@ -5,7 +5,8 @@ cd "$(dirname "$0")/.."
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
-ensure_std_c_o ../std/string/string.o
+# F-string v1：string.o 由 asm 编译 string.sx（ensure_std_c_o 对纯 .sx 模块为 no-op）。
+make -C compiler -q ../std/string/string.o 2>/dev/null || make -C compiler ../std/string/string.o
 SHUX=${SHUX:-./compiler/shux}
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"

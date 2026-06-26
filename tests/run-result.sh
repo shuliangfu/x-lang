@@ -2,8 +2,13 @@
 # 测试 core.result 的 Result_i32 API（ok_i32、err_i32、unwrap_or_i32、expect_i32、expect_i32_or_panic）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHUX=${SHUX:-./compiler/shux}
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+RESULT_LINK_SHUX="${RUN_SHUX:-$SHUX}"
 
 # 尝试编译 result 回归；main.sx 在 ubuntu-22.04/Alpine 等宿主 shux-c -o 偶发 SIGSEGV。
 _result_try_compile() {
@@ -14,7 +19,7 @@ _result_try_compile() {
 }
 
 set +e
-_result_try_compile "$SHUX" tests/result/main.sx
+_result_try_compile "$RESULT_LINK_SHUX" tests/result/main.sx
 _compile_ec=$?
 set -e
 _RESULT_NOTE=""

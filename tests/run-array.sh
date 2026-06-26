@@ -2,8 +2,16 @@
 # 固定长数组 T[N]：初值 0、字面量初始化、下标
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHUX=${SHUX:-./compiler/shux}
+# bstrict 前序 make 会把 shux 刷回 seed（literal.sx -o 易 SIGSEGV）；-o 走 stage2 asm。
+if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm2 ]; then
+  SHUX=./compiler/shux_asm2
+elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm ]; then
+  SHUX=./compiler/shux_asm
+fi
 
 $SHUX tests/array/main.sx -o /tmp/shux_array_main 2>&1
 exitcode=0; /tmp/shux_array_main >/dev/null 2>&1 || exitcode=$?

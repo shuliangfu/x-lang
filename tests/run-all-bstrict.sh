@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# M3-b / F1–F2：B-strict 白名单（含 run-io/http/tar/json；与 run-shux-asm-gate + L4 核心子集一致）。
+# M3-b / F1–F2：B-strict 全量白名单（bootstrap-bstrict / staging）。
+#
+# 自举最小验收见 ./tests/run-bootstrap-min-gate.sh（bootstrap-min，~25 项，不阻塞于 net/vec 等）。
+# 本脚本覆盖全 std + asm 微测；gcc 回退 / import_alias 允许，非 D+E+F 闭合的必要条件。
+#
 # 用法：./tests/run-all-bstrict.sh
 # 不跑全量 run-all（其余用例仍走 shux-c）；验收 shux_asm 替代 seed 后白名单不回归。
 
@@ -13,8 +17,12 @@ fi
 
 # run-bootstrap-bstrict-ci.sh 已构建 shux_asm 时跳过重复全量编译。
 if [ -n "${SHUX_BSTRICT_SKIP_BUILD:-}" ]; then
-  echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1, cp shux_asm -> shux ..."
-  cp -f compiler/shux_asm compiler/shux
+  echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1, cp shux_asm(2) -> shux ..."
+  if [ -x compiler/shux_asm2 ]; then
+    cp -f compiler/shux_asm2 compiler/shux
+  else
+    cp -f compiler/shux_asm compiler/shux
+  fi
 else
   echo "run-all-bstrict: bootstrap-driver-bstrict (M7: shux_asm -> shux by default) ..."
   make -C compiler bootstrap-driver-bstrict
@@ -233,12 +241,15 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-asm-*.sh)
-      if [ -x ./compiler/shux_asm.experimental ]; then
+      if [ -x ./compiler/shux_asm2 ]; then
+        script_shu=./compiler/shux_asm2
+      elif [ -x ./compiler/shux_asm.experimental ]; then
         script_shu=./compiler/shux_asm.experimental
       elif [ -x ./compiler/shux_asm ]; then
         script_shu=./compiler/shux_asm
       fi
-      script_link=./compiler/shux-c
+      # struct/field-index 等 asm -o 用 shux-c 易 SIGSEGV；与 run-struct 一致走 stage2 asm。
+      script_link="$script_shu"
       ;;
     *)
       # 仍直接用 $SHUX -o 且未 source bootstrap-link-shux 的脚本：refresh 后 seed shux asm 不可用。
@@ -251,6 +262,12 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   esac
   attempt=1
   while [ "$attempt" -le 3 ]; do
+    # 前序脚本内 make -C compiler 会把 shux 刷回 seed；-o 须保持 shux_asm2（gen2）快照。
+    if [ -x compiler/shux_asm2 ]; then
+      cp -f compiler/shux_asm2 compiler/shux 2>/dev/null || true
+    else
+      cp -f compiler/shux_asm compiler/shux 2>/dev/null || true
+    fi
     if SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
       break
     fi

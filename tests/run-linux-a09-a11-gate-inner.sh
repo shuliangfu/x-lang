@@ -77,11 +77,20 @@ STD_SX_OK=1
 o=../std/path/path.o
 sx=../std/path/mod.sx
 rm -f "$o"
-if [ -x ./shux ]; then
+if [ -x ./shux_asm2 ]; then
+  SHUX_ASM_O=./shux_asm2
+elif [ -x ./shux_asm ]; then
+  SHUX_ASM_O=./shux_asm
+elif [ -x ./shux ]; then
+  SHUX_ASM_O=./shux
+else
+  SHUX_ASM_O=
+fi
+if [ -n "$SHUX_ASM_O" ]; then
   if command -v timeout >/dev/null 2>&1; then
-    timeout "${SHUX_STD_SX_COMPILE_TIMEOUT:-120}" env SHUX_ASM_WPO_DCE=0 ./shux -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    timeout "${SHUX_STD_SX_COMPILE_TIMEOUT:-120}" env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
   else
-    env SHUX_ASM_WPO_DCE=0 ./shux -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
   fi
 fi
 if [ ! -s "$o" ] && [ -x ./shux-c ]; then
@@ -128,15 +137,30 @@ if [ ! -x "$P0_SHUX" ] && [ -x ./compiler/shux-c ]; then
   P0_SHUX=./compiler/shux-c
   make -C compiler shux-c 2>/dev/null || true
 fi
+# W3：bootstrap seed ./compiler/shux 对简单 asm -o 易 SIGSEGV；P0 中须 -o 链接/运行的 gate 用 stage2 shux_asm(2)。
+COMPILE_SHUX="$P0_SHUX"
+if [ -x ./compiler/shux_asm2 ]; then
+  COMPILE_SHUX=./compiler/shux_asm2
+elif [ -x ./compiler/shux_asm ]; then
+  COMPILE_SHUX=./compiler/shux_asm
+elif [ -n "${RUN_SHUX:-}" ] && [ -x "$RUN_SHUX" ]; then
+  COMPILE_SHUX="$RUN_SHUX"
+fi
 SHUX="$P0_SHUX" ./tests/run-scope-borrow-gate.sh
 SHUX="$P0_SHUX" ./tests/run-al06-gate.sh
 SHUX="$P0_SHUX" SHUX_TYPE_BORROW_FAIL=1 ./tests/run-type-borrow-conflict-gate.sh
 SHUX="$P0_SHUX" ./tests/run-typeck-linear.sh
 SHUX="$P0_SHUX" ./tests/run-typeck-region.sh
 SHUX="$P0_SHUX" ./tests/run-i64-ctfe-gate.sh
-SHUX="$P0_SHUX" ./tests/run-ub.sh
-./compiler/shux-c -h >/dev/null 2>&1 && SHUX=./compiler/shux-c ./tests/run-with-arena-vec-gate.sh \
-  || SHUX="$P0_SHUX" ./tests/run-with-arena-vec-gate.sh
+SHUX="$COMPILE_SHUX" ./tests/run-ub.sh
+# with_arena：stage2 shux_asm(2) 对 region 内多 if 仍 emit 不全；bootstrap seed shux 当前可绿。
+if [ -x ./compiler/shux ] && ./compiler/shux tests/mem/with_arena_vec_push.sx -o /tmp/shux_wav_probe 2>/dev/null \
+  && [ -x /tmp/shux_wav_probe ]; then
+  rm -f /tmp/shux_wav_probe
+  SHUX=./compiler/shux ./tests/run-with-arena-vec-gate.sh
+else
+  SHUX="$COMPILE_SHUX" ./tests/run-with-arena-vec-gate.sh
+fi
 ./tests/run-safe-unsafe-audit-gate.sh
 progress "=== A-10 L5 run-all bstrict (shux_asm2) ==="
 chmod +x tests/run-l5-run-all-parity-gate.sh tests/run-all-bstrict.sh

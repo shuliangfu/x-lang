@@ -25,6 +25,8 @@ echo "i64-ctfe manifest OK"
 
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=tests/lib/min-asm-gcc-link.sh
+. "$(dirname "$0")/lib/min-asm-gcc-link.sh"
 # P0 typeck：优先 B-strict relink 的 shux（含最新 typeck_sx）；无则 shux-c seed。
 SHUX_BIN="${SHUX:-${TYPECK_SHUX:-./compiler/shux}}"
 if [ ! -x "$SHUX_BIN" ] && [ -x ./compiler/shux-c ]; then
@@ -42,9 +44,9 @@ if ! "$SHUX_BIN" check -L . "$SRC" >/dev/null 2>&1; then
 fi
 
 EXE="/tmp/shux_i64_ctfe_$$"
-if ! "$SHUX_BIN" -L . "$SRC" -o "$EXE" >/dev/null 2>&1; then
+LINK_SHUX="${SHUX_LINK_SHUX:-$SHUX_BIN}"
+if ! min_link_exe "$LINK_SHUX" "$SRC" "$EXE" 2>&1; then
   echo "i64-ctfe gate FAIL: compile $SRC" >&2
-  "$SHUX_BIN" -L . "$SRC" 2>&1 | tail -12 >&2 || true
   rm -f "$EXE"
   exit 1
 fi
