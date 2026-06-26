@@ -52,11 +52,18 @@ static void shux_asm_ld_lib_root_default(char root_buf[512]) {
 }
 
 #if defined(__linux__)
-/** nostdlib 链 environ 可能无 PATH：链接子进程优先用绝对路径 gcc。 */
+/** nostdlib 链 environ 可能无 PATH：链接子进程优先用绝对路径 gcc（含 gcc 官方镜像 /usr/local/bin）。 */
 static const char *shux_linux_host_gcc_path(void) {
     if (access("/usr/bin/gcc", X_OK) == 0)
         return "/usr/bin/gcc";
+    if (access("/usr/local/bin/gcc", X_OK) == 0)
+        return "/usr/local/bin/gcc";
     return "gcc";
+}
+
+/** Linux 链接子进程 PATH：gcc 官方镜像仅提供 /usr/local/bin/gcc。 */
+static void shux_linux_ld_child_path(void) {
+    (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 }
 #endif
 
@@ -1002,7 +1009,7 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
             return -1;
         }
         if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
+            execlp("cc", "cc", "-Wall", "-Wextra", "-fPIE", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
             perror("shux: cc (runtime_asm_io_stubs.o)");
             _exit(127);
         }
@@ -2928,6 +2935,8 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         return -1;
     }
     if (pid == 0) {
+        /* 静态链 shux_asm 子进程可能继承空 PATH，gcc 找不到 ld；显式补齐常见路径。 */
+        (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
         /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
         char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
         int i = 0;
@@ -2935,6 +2944,10 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         argv[i++] = (char *)"cc";
         /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
         argv[i++] = (char *)"-std=gnu11";
+#if defined(__linux__)
+        if (i < argv_cap - 1)
+            argv[i++] = (char *)"-B/usr/bin";
+#endif
         {
             static char oopt_buf[8];
             (void)snprintf(oopt_buf, sizeof(oopt_buf), "-O%s", opt_level);
@@ -3067,12 +3080,21 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-lc";
 #endif
-            argv[i++] = NULL;
+            if (i < argv_cap)
+                argv[i++] = NULL;
 #if defined(__linux__)
             argv[0] = (char *)"gcc";
             execvp("gcc", argv);
             argv[0] = (char *)"cc";
             execvp("cc", argv);
+            argv[0] = (char *)"/usr/bin/gcc";
+            execv("/usr/bin/gcc", argv);
+            argv[0] = (char *)"/usr/bin/cc";
+            execv("/usr/bin/cc", argv);
+        argv[0] = (char *)"/usr/local/bin/gcc";
+        execv("/usr/local/bin/gcc", argv);
+        argv[0] = (char *)"/usr/local/bin/cc";
+        execv("/usr/local/bin/cc", argv);
 #else
             argv[0] = (char *)"cc";
             execvp("cc", argv);
@@ -3346,15 +3368,25 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
              asm_link_obj_skip_missing(channel_o)) &&
             i < argv_cap - 1)
             argv[i++] = (char *)"-pthread";
-        argv[i++] = (char *)"-lc";
+        if (i < argv_cap - 1)
+            argv[i++] = (char *)"-lc";
 #endif
-        argv[i++] = NULL;
+        if (i < argv_cap)
+            argv[i++] = NULL;
 #if defined(__linux__)
         /* Alpine 等环境下优先用 gcc 并传 argv[0]=gcc，确保 -std=gnu11 等参数被正确识别（部分 cc 包装可能行为不同） */
         argv[0] = (char *)"gcc";
         execvp("gcc", argv);
         argv[0] = (char *)"cc";
         execvp("cc", argv);
+        argv[0] = (char *)"/usr/bin/gcc";
+        execv("/usr/bin/gcc", argv);
+        argv[0] = (char *)"/usr/bin/cc";
+        execv("/usr/bin/cc", argv);
+        argv[0] = (char *)"/usr/local/bin/gcc";
+        execv("/usr/local/bin/gcc", argv);
+        argv[0] = (char *)"/usr/local/bin/cc";
+        execv("/usr/local/bin/cc", argv);
 #else
         argv[0] = (char *)"cc";
         execvp("cc", argv);
@@ -3575,13 +3607,17 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
             strcat(buf, rel);
             if (realpath(buf, resolved) != NULL)
                 return resolved;
+            /* realpath 失败时勿返回臆造路径：仅当 stat 命中常规文件才返回 buf。 */
+            if (asm_link_obj_skip_missing(buf))
+                return buf;
+            buf[0] = '\0';
             return buf;
         }
     }
     return buf;
 }
 
-/** 扫描用户 .o 未定义符号；nm 失败时保守返回 1。 */
+/** 扫描用户 .o 未定义符号；nm 失败时返回 0（勿臆测缺符号，避免 on_demand 误链 net/heap）。 */
 int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
@@ -3592,14 +3628,14 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     sym_len = strlen(sym);
 #if defined(__APPLE__)
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u --porcelain '%s' 2>/dev/null", o_path) >= sizeof cmd)
-        return 1;
+        return 0;
 #else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
-        return 1;
+        return 0;
 #endif
     fp = popen(cmd, "r");
     if (!fp)
-        return 1;
+        return 0; /* nm 不可用时不臆测缺符号，避免 on_demand 全量误链 net/heap 等 */
     while (fgets(line, sizeof line, fp)) {
         if (strncmp(line, sym, sym_len) == 0 &&
             (line[sym_len] == ' ' || line[sym_len] == '\n' || line[sym_len] == '\0')) {
@@ -3612,6 +3648,48 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
         }
     }
     pclose(fp);
+    return 0;
+}
+
+/** ld argv 项是否为已解析的 .o/.obj 路径（跳过 -o、编译器驱动等）。 */
+static int link_abi_ld_argv_entry_is_obj(const char *s) {
+    size_t n;
+    if (!s || !s[0])
+        return 0;
+    n = strlen(s);
+    if (n >= 2u && s[n - 2u] == '.' && s[n - 1u] == 'o')
+        return 1;
+    if (n >= 4u && strcmp(s + n - 4u, ".obj") == 0)
+        return 1;
+    return 0;
+}
+
+/**
+ * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
+ * hash/sort 等经 heap_libc.sx 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
+ */
+static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
+    static const char *heap_syms[] = {
+        "heap_alloc_c", "heap_free_c", "heap_realloc_c", "heap_arena64_alloc_c",
+    };
+    size_t si;
+    int i;
+    if (user_o && user_o[0]) {
+        for (si = 0; si < sizeof(heap_syms) / sizeof(heap_syms[0]); si++) {
+            if (shux_link_obj_needs_undef_sym(user_o, heap_syms[si]))
+                return 1;
+        }
+    }
+    if (!argv || la <= 0)
+        return 0;
+    for (i = 0; i < la && argv[i]; i++) {
+        if (!link_abi_ld_argv_entry_is_obj(argv[i]))
+            continue;
+        for (si = 0; si < sizeof(heap_syms) / sizeof(heap_syms[0]); si++) {
+            if (shux_link_obj_needs_undef_sym(argv[i], heap_syms[si]))
+                return 1;
+        }
+    }
     return 0;
 }
 
@@ -3641,11 +3719,58 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
 static int link_abi_user_o_needs_std_net(const char *user_o) {
     if (!user_o || !user_o[0])
         return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c")
+    return shux_link_obj_needs_undef_sym(user_o, "std_net_listen")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_connect")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_bind")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_recv_many_buf")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_send_many_buf")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_addr_to_u32")
+        || shux_link_obj_needs_undef_sym(user_o, "std_net_close_udp")
+        || shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c")
         || shux_link_obj_needs_undef_sym(user_o, "net_tcp_connect_c")
+        || shux_link_obj_needs_undef_sym(user_o, "net_tcp_listen_c")
+        || shux_link_obj_needs_undef_sym(user_o, "net_udp_bind_c")
+        || shux_link_obj_needs_undef_sym(user_o, "net_udp_recv_many_buf_c")
+        || shux_link_obj_needs_undef_sym(user_o, "net_udp_send_many_buf_c")
+        || shux_link_obj_needs_undef_sym(user_o, "net_close_socket_c")
         || shux_link_obj_needs_undef_sym(user_o, "net_udp_send_c")
         || shux_link_obj_needs_undef_sym(user_o, "net_dns_resolve_c")
         || shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c");
+}
+
+/**
+ * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o）。
+ */
+static int link_abi_user_o_needs_std_set(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert")
+        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_contains")
+        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_remove")
+        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_len")
+        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_deinit");
+}
+
+/**
+ * 判断用户 .o 是否引用 std.heap import 符号（按需链 heap.o bootstrap 桩）。
+ */
+static int link_abi_user_o_needs_std_heap_import(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero");
+}
+
+/**
+ * 判断用户 .o 是否引用 std.map API（按需链 map.o）。
+ */
+static int link_abi_user_o_needs_std_map(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_map_map_empty_size");
 }
 
 /**
@@ -3728,6 +3853,8 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
         const char *bp = shux_asm_ld_bank_push(bank, p);
         if (bp)
             p = bp;
+        else
+            return 0;
     }
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
@@ -3739,11 +3866,14 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
 
 /**
  * F-03：仅当对应 std/*.o 已入链时才追加 runtime_*_glue.o，避免 glue 引用 log_write_c 等未定义符号。
+ * ensure_fn 非 NULL 时在 push 前 cc -c 生成 glue .o（Docker/CI 无预编译 glue 时须 ensure）。
  */
-static void link_abi_asm_ld_push_glue_after_std(int have_std, const char *glue_primary,
-    const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
+static void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+    const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
     if (!have_std)
+        return;
+    if (ensure_fn && ensure_fn(link_argv0) != 0)
         return;
     link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
@@ -3819,7 +3949,8 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/process/process.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_process);
-    link_abi_asm_ld_push_glue_after_std(have_process, shux_runtime_process_os_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(have_process, shux_ensure_runtime_process_os_glue_o,
+        shux_runtime_process_os_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_process_os_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/path/path.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -3827,7 +3958,8 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_thread : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_ensure_runtime_thread_glue_o,
+        shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
         "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -3840,40 +3972,50 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/env/env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sync/sync.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_sync : NULL);
     if (flags && flags->have_sync) {
-        link_abi_asm_ld_push_glue_after_std(1, shux_runtime_sync_lock_diag_tls_o_path(link_argv0), link_argv0,
+        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_lock_diag_tls_o,
+            shux_runtime_sync_lock_diag_tls_o_path(link_argv0), link_argv0,
             "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-        link_abi_asm_ld_push_glue_after_std(1, shux_runtime_sync_os_o_path(link_argv0), link_argv0,
+        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_os_o,
+            shux_runtime_sync_os_o_path(link_argv0), link_argv0,
             "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/encoding/encoding.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/crypto/crypto.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_crypto);
     if (have_crypto) {
-        link_abi_asm_ld_push_glue_after_std(1, shux_runtime_ed25519_ref10_glue_o_path(link_argv0), link_argv0,
+        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_ed25519_ref10_glue_o,
+            shux_runtime_ed25519_ref10_glue_o_path(link_argv0), link_argv0,
             "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-        link_abi_asm_ld_push_glue_after_std(1, shux_runtime_crypto_inc_glue_o_path(link_argv0), link_argv0,
+        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_crypto_inc_glue_o,
+            shux_runtime_crypto_inc_glue_o_path(link_argv0), link_argv0,
             "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/log/log.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_log);
-    link_abi_asm_ld_push_glue_after_std(have_log, shux_runtime_log_os_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(have_log, shux_ensure_runtime_log_os_o,
+        shux_runtime_log_os_o_path(link_argv0), link_argv0,
         "compiler/runtime_log_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/atomic/atomic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_atomic);
-    link_abi_asm_ld_push_glue_after_std(have_atomic, shux_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(have_atomic, shux_ensure_runtime_atomic_glue_o,
+        shux_runtime_atomic_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/channel/channel.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_channel : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_channel, shux_runtime_channel_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(flags && flags->have_channel, shux_ensure_runtime_channel_glue_o,
+        shux_runtime_channel_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_channel_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/backtrace/backtrace.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_backtrace);
-    link_abi_asm_ld_push_glue_after_std(have_backtrace, shux_runtime_backtrace_platform_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(have_backtrace, shux_ensure_runtime_backtrace_platform_o,
+        shux_runtime_backtrace_platform_o_path(link_argv0), link_argv0,
         "compiler/runtime_backtrace_platform.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/math/math.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_math : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_math, shux_runtime_math_libm_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(flags && flags->have_math, shux_ensure_runtime_math_libm_o,
+        shux_runtime_math_libm_o_path(link_argv0), link_argv0,
         "compiler/runtime_math_libm.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sort/sort.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/ffi/ffi.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/db/sqlite/sqlite.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_sqlite : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_sqlite, shux_runtime_sqlite_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(flags && flags->have_sqlite, shux_ensure_runtime_sqlite_glue_o,
+        shux_runtime_sqlite_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_sqlite_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/elf/elf.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_elf : NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/json/json.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -3882,10 +4024,12 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     /* F-06 v1 / F-04 v7：compress 已纯 .sx，无 compress.o；tail libs 由 user_o 扫描按需 -lz/-lzstd/-lbrotli* */
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/unicode/unicode.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/dynlib/dynlib.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_dynlib : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_runtime_dynlib_os_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_ensure_runtime_dynlib_os_o,
+        shux_runtime_dynlib_os_o_path(link_argv0), link_argv0,
         "compiler/runtime_dynlib_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/http/http.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_http);
-    link_abi_asm_ld_push_glue_after_std(have_http, shux_runtime_http_glue_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_glue_after_std(have_http, shux_ensure_runtime_http_glue_o,
+        shux_runtime_http_glue_o_path(link_argv0), link_argv0,
         "compiler/runtime_http_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/socketio/socketio.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/tar/tar.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -3954,11 +4098,33 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         if (have_net) {
             if (flags)
                 flags->have_net = 1;
-            link_abi_asm_ld_push_glue_after_std(1, shux_runtime_net_udp_batch_o_path(link_argv0), link_argv0,
+            /* net_workers.sx 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la,
+                flags ? &flags->have_thread : NULL);
+            if (flags && flags->have_thread) {
+                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_thread_glue_o,
+                    shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
+                    "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            }
+            link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_net_udp_batch_o,
+                shux_runtime_net_udp_batch_o_path(link_argv0), link_argv0,
                 "compiler/runtime_net_udp_batch.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-            link_abi_asm_ld_push_glue_after_std(1, shux_runtime_net_workers_o_path(link_argv0), link_argv0,
+            link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_net_workers_o,
+                shux_runtime_net_workers_o_path(link_argv0), link_argv0,
                 "compiler/runtime_net_workers.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
+    }
+    if (link_abi_user_o_needs_std_heap_import(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    if (link_abi_user_o_needs_std_set(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/set/set.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        if (!link_abi_user_o_needs_std_heap_import(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    if (link_abi_user_o_needs_std_map(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/map/map.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_async_scheduler(user_o)) {
         p = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
@@ -4020,17 +4186,66 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
     if (link_abi_user_o_needs_std_test(user_o)) {
         int have_test = 0;
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/test/test.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
-        link_abi_asm_ld_push_glue_after_std(have_test, shux_runtime_test_fn_invoke_o_path(link_argv0), link_argv0,
+        link_abi_asm_ld_push_glue_after_std(have_test, shux_ensure_runtime_test_fn_invoke_o,
+            shux_runtime_test_fn_invoke_o_path(link_argv0), link_argv0,
             "compiler/runtime_test_fn_invoke.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "heap_alloc_c") || shux_link_obj_needs_undef_sym(user_o, "heap_realloc_c")
-        || shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c")) {
+    if (link_abi_link_needs_heap_user_c(user_o, argv, la ? *la : 0)) {
         if (shux_ensure_runtime_heap_user_o(link_argv0) != 0)
             return;
         link_abi_asm_ld_push_obj(shux_runtime_heap_user_o_path(link_argv0), link_argv0, "compiler/runtime_heap_user.o",
                                  lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         if (flags)
             flags->have_libc_heap = 1;
+    }
+    /** co-emit std.string/mod.sx 时 call 重定向到 string.o 内 shux_string_*；import binding 走 std_string_* 别名桩。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_string_copy_c")
+        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
+        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memchr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memmem_c")
+        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memrchr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_new")
+        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_from_slice")
+        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_view")
+        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_len")) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /** core.types 跳过 co-emit；size_of/align_of 由 base64.o 导出 core_types_*。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "core_types_size_of_i32")
+        || shux_link_obj_needs_undef_sym(user_o, "core_types_placeholder")) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /** co-emit std.encoding/mod.sx 调用 encoding_*_c；按需链 encoding.o。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "encoding_utf8_valid_c")
+        || shux_link_obj_needs_undef_sym(user_o, "encoding_hex_encode_c")
+        || shux_link_obj_needs_undef_sym(user_o, "encoding_ascii_is_alpha_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_valid")
+        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_decode_rune")
+        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_ascii_is_alpha")) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/encoding/encoding.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /** co-emit std.base64/mod.sx 调用 base64_*_c；按需链 base64.o（含 std_base64_* 别名桩）。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "base64_encode_standard_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_standard")
+        || shux_link_obj_needs_undef_sym(user_o, "std_base64_decode_standard")
+        || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_url")) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /** co-emit std.time/mod.sx 调用 time_*_c；按需链 time.o + runtime_time_os.o。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
+        || shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")) {
+        if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
+            link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
+                                     "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/time/time.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /** import std.csv 按需链 csv.o（含 std_csv_escape 别名桩）。 */
+    if (shux_link_obj_needs_undef_sym(user_o, "std_csv_next_field")
+        || shux_link_obj_needs_undef_sym(user_o, "std_csv_escape")
+        || shux_link_obj_needs_undef_sym(user_o, "std_csv_csv_test_quoted_first")) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/csv/csv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (shux_link_obj_needs_undef_sym(user_o, "schema_create_c")
         || shux_link_obj_needs_undef_sym(user_o, "schema_decode_json_c")
@@ -4262,6 +4477,9 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
         argv[(*la)++] = "-Wl,-z,noexecstack";
     if (*la < cap - 1)
         argv[(*la)++] = "-Wl,-z,relro";
+    /** import("core.mem") 将 mem 符号编入用户 .o；全量 std 链 sort/net 等亦内联 mem，须允许多定义。 */
+    if (*la < cap - 1)
+        argv[(*la)++] = "-Wl,--allow-multiple-definition";
 }
 #endif
 
@@ -4289,18 +4507,18 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
     {
         static char shux_asm_ld_lib_root_bufs[24][512];
         static const char *shux_asm_ld_lib_roots[24];
-        const char **lib_roots = lib_roots;
-        int n_lib_roots = n_lib_roots;
+        const char **lib_roots_eff = lib_roots;
+        int n_lib_roots_eff = n_lib_roots;
         int li;
 
-        if (!lib_roots || (uintptr_t)lib_roots < 4096u || n_lib_roots <= 0 || n_lib_roots > 24) {
+        if (!lib_roots_eff || (uintptr_t)lib_roots_eff < 4096u || n_lib_roots_eff <= 0 || n_lib_roots_eff > 24) {
             shux_asm_ld_lib_root_default(shux_asm_ld_lib_root_bufs[0]);
             shux_asm_ld_lib_roots[0] = shux_asm_ld_lib_root_bufs[0];
-            lib_roots = shux_asm_ld_lib_roots;
-            n_lib_roots = 1;
+            lib_roots_eff = shux_asm_ld_lib_roots;
+            n_lib_roots_eff = 1;
         } else {
-            for (li = 0; li < n_lib_roots; li++) {
-                const char *r = lib_roots[li];
+            for (li = 0; li < n_lib_roots_eff; li++) {
+                const char *r = lib_roots_eff[li];
                 if (!r || (uintptr_t)r < 4096u) {
                     shux_asm_ld_lib_root_default(shux_asm_ld_lib_root_bufs[li]);
                     shux_asm_ld_lib_roots[li] = shux_asm_ld_lib_root_bufs[li];
@@ -4314,7 +4532,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                     shux_asm_ld_lib_roots[li] = shux_asm_ld_lib_root_bufs[li];
                 }
             }
-            lib_roots = shux_asm_ld_lib_roots;
+            lib_roots_eff = shux_asm_ld_lib_roots;
         }
 
         /* slots[42][4096] 勿放栈上：driver 深栈 + ld_bank 易溢出并踩坏 rel/lib_roots。 */
@@ -4336,8 +4554,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
             argv[la] = NULL;
             pid = fork();
@@ -4365,8 +4583,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
             argv[la] = NULL;
             pid = fork();
@@ -4405,8 +4623,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "/entry:_main";
             argv[la++] = out_opt;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
             pid = fork();
@@ -4517,7 +4735,15 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP);
+            link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP);
+            /** co-emit std.string 时 user.o 常引用 shux_string_*；最小链亦尝试链 string.o（~2KB，popen/nm 不可用时仍绿）。 */
+            link_abi_asm_ld_push_obj(NULL, link_eff, "std/string/string.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
+                                     &la, SHUX_LD_ARGV_CAP, NULL);
+            /** core.types 符号由 base64.o 提供（skip co-emit）；core-types gate 等最小链亦须链入。 */
+            link_abi_asm_ld_push_obj(NULL, link_eff, "std/base64/base64.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
+                                     &la, SHUX_LD_ARGV_CAP, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_eff, "std/encoding/encoding.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
+                                     &la, SHUX_LD_ARGV_CAP, NULL);
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
             argv[la] = NULL;
@@ -4527,8 +4753,16 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 return -1;
             }
             if (pid == 0) {
-                setenv("PATH", "/usr/bin:/bin", 1);
+                shux_linux_ld_child_path();
                 execvp(argv[0], (char *const *)argv);
+#if defined(__linux__)
+                execv("/usr/local/bin/gcc", (char *const *)argv);
+                execv("/usr/local/bin/cc", (char *const *)argv);
+                execv("/usr/bin/gcc", (char *const *)argv);
+                execv("/usr/bin/cc", (char *const *)argv);
+                execvp("gcc", (char *const *)argv);
+                execvp("cc", (char *const *)argv);
+#endif
                 perror("shux: gcc (minimal user.o)");
                 _exit(127);
             }
@@ -4559,8 +4793,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         argv[la++] = "-o";
         argv[la++] = exe_path;
         argv[la++] = o_path;
-        shux_asm_ld_append_std_objs(link_eff, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-        shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots, n_lib_roots, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+        shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+        shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
         if (link_abi_user_o_needs_libc_heap(o_path))
             ldflags.have_libc_heap = 1;
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
@@ -4579,7 +4813,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         }
         if (pid == 0) {
 #if defined(__linux__)
-            setenv("PATH", "/usr/bin:/bin", 1);
+            shux_linux_ld_child_path();
             execvp(argv[0], (char *const *)argv);
             perror("shux: gcc");
 #else

@@ -936,23 +936,27 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
     return tc_rc;
 }
 
-/** dep 预跑：仅 parse_into，不做全量 typeck。 */
+/**
+ * dep 预跑：仅 parse，不做全量 typeck。
+ * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
+ * 路径对大库模块（如 std/string/mod.sx）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
+ */
 int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
-    struct parser_ParseIntoResult pr;
-    struct shux_slice_uint8_t slice;
+    int32_t parse_rc;
     if (!dep_mod || !dep_arena || !src || len == 0)
+        return -1;
+    if (len > (size_t)INT32_MAX)
         return -1;
     if (getenv("SHUX_ASM_DEBUG"))
         fprintf(stderr, "shux: dep_prerun_parse_only len=%zu funcs_before=%d\n", len,
                 pipeline_module_num_funcs(dep_mod));
     parser_parse_into_init(dep_mod, dep_arena);
-    slice.data = (uint8_t *)src;
-    slice.length = len;
-    pr = parser_parse_into(dep_arena, dep_mod, &slice);
+    parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
+                                                  (uint8_t *)src, (int32_t)len);
     if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: dep_prerun_parse_only done ok=%d funcs=%d\n", (int)pr.ok,
+        fprintf(stderr, "shux: dep_prerun_parse_only done rc=%d funcs=%d\n", (int)parse_rc,
                 pipeline_module_num_funcs(dep_mod));
-    return (pr.ok == 0 || pr.ok == -2) ? 0 : -1;
+    return (parse_rc == 0) ? 0 : -1;
 }
 
 /** asm 单模块 -o：dep 预跑走 typeck_only。 */
@@ -1260,12 +1264,15 @@ fail_to_load:
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
 extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
+extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
 void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
     pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+    /** with_arena：parse 扁平 stmt_order 时补 kind=6 region，否则 main 仅 emit 前几条 if（SIGSEGV）。 */
+    pipeline_module_fixup_with_arena_stmt_orders((struct ast_Module *)module, (struct ast_ASTArena *)arena);
 }
 
 /** pthread 大栈 emit 参数包。 */

@@ -224,6 +224,19 @@ void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
     (void)fputc('\n', stderr);
 }
 
+/** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.sx）。 */
+void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col) {
+    const char *msg = "`?` requires the enclosing function to return the same Result type";
+    if (lsp_diag_enabled) {
+        lsp_diag_report_typeck((int)line, (int)col, "%s", msg);
+        return;
+    }
+    (void)fputs("typeck error: ", stderr);
+    (void)fputs(msg, stderr);
+    fprintf(stderr, " at %d:%d\n", (int)line, (int)col);
+    fflush(stderr);
+}
+
 /** .sx typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len) {

@@ -125,7 +125,7 @@ static int write_io_net_abi_inline(FILE *cf) {
         "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
-        "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n",
+        "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
         "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n",
         "#define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))\n",
         "extern void io_unregister_buffers(void);\n",
@@ -1527,7 +1527,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
                 fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
                 fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-                fprintf(stdout, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
+                fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
                 fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             }
             if (emit_extern_imports) {
@@ -1718,7 +1718,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
             fprintf(cf, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
             fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-            fprintf(cf, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
+            fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             /* codegen 跳过 std.io.print_str 定义；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_str。 */
             fprintf(cf, "__attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {\n");
@@ -1754,7 +1754,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             if (input_path && strstr(input_path, "parser.sx") != NULL) {
                 fprintf(cf, "struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
                 fprintf(cf, "void parser_pipeline_module_reset_parse_counters(struct ast_Module *m);\n");
-                fprintf(cf, "enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(enum token_TokenKind kind);\n");
+                fprintf(cf, "enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind);\n");
                 fprintf(cf, "int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref);\n");
                 fprintf(cf, "void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx);\n");
                 fprintf(cf, "void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);\n");
@@ -3516,6 +3516,25 @@ static int driver_check_only_c_typeck(const char *input_path, char *src, const c
 #endif
 
 /**
+ * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
+ * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。
+ */
+static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
+    int k;
+    if (!dep_paths || n_deps <= 0)
+        return 0;
+    for (k = 0; k < n_deps; k++) {
+        const char *p = dep_paths[k];
+        if (!p || p[0] == '\0')
+            return 0;
+        if (strncmp(p, "std.", 4) == 0 || strncmp(p, "core.", 5) == 0)
+            continue;
+        return 0;
+    }
+    return 1;
+}
+
+/**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.sx 经 driver_run_compiler_dispatch_c 调用。
  */
@@ -3914,8 +3933,18 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
-        ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
-                                                      dep_lens[j], (void *)dep_out, (void *)one_ctx);
+        /*
+         * std/core 闭包 dep 仅 parse 填 import 槽；全量 dep_prerun typeck 在 strict 链上对 std.base64 等易 SIGSEGV。
+         * 用户 multi-file（need_coemit）仍走 parse+typeck。
+         */
+        if (shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j]) ||
+            driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
+            ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                (const uint8_t *)dep_sources[j], dep_lens[j]);
+        } else {
+            ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
+                (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
+        }
         driver_set_current_dep_path_for_codegen(NULL);
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
@@ -3963,10 +3992,31 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
     pctx->entry_already_parsed = 0;
+    if (n_deps > 0 && !driver_check_only_get() &&
+        driver_deps_are_std_core_closure_only(dep_paths, n_deps))
+        pctx->asm_entry_module_only = 1;
     if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before pipeline_run entry=%s src_len=%zu\n",
                 input_path ? input_path : "?", (size_t)src_slice.length);
+#if !defined(SHUX_NO_C_FRONTEND)
+    if (n_deps > 0 && !driver_check_only_get() &&
+        driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
+        if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
+            driver_sx_pipeline_skip_typeck_set(0);
+            free(out_buf);
+            pipeline_dep_ctx_heap_destroy(pctx);
+            for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+            if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
+            while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
+    }
+#endif
     int ec = shux_pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+    driver_sx_pipeline_skip_typeck_set(0);
     if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] after pipeline_run ec=%d\n", ec);
     driver_dep_seeded_clear_all();
@@ -4810,8 +4860,12 @@ int32_t driver_run_compiler_full_sx_post_parse_impl_c(DriverCompileStateSU *stat
     if (state->target_len > 0)
         target_ptr = state->target_buf;
 #if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
-    /** B-strict shux_asm 有 -o 时默认显式 asm，避免 top-level import 被降级到 C 后端（hello.sx）。 */
-    if (state->out_path_len > 0 && !state->backend_asm_explicit)
+    /*
+     * 无 import 的单文件 -o 默认 asm；有 import 时允许降级 C（std 测试走 invoke_cc + 预编 *.o）。
+     * hello/freestanding 等显式 -backend asm 或 -freestanding 仍保留 asm。
+     */
+    if (state->out_path_len > 0 && !state->backend_asm_explicit &&
+        !driver_source_has_top_level_import_path((const char *)state->path_buf))
         state->backend_asm_explicit = 1;
 #endif
     if (state->use_asm_backend && !state->backend_asm_explicit &&
@@ -5093,7 +5147,7 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
         fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
         fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
         fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-        fprintf(stdout, "extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);\n");
+        fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
         fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
     }
     int ec = 0;

@@ -866,8 +866,6 @@ if [ ! -f "$GLUE_TYPES" ]; then
   echo "relink_shux_asm_strict_glue: missing $GLUE_TYPES (run build_shux_asm once)" >&2
   exit 1
 fi
-echo "relink_shux_asm_strict_glue: cc pipeline_glue_standalone.o <- ast_pool.c"
-"$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$BUILD_DIR/pipeline_glue_standalone.o" src/asm/pipeline_glue_standalone.c
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
@@ -883,6 +881,8 @@ if asm_strict_typeck_sx_glue_via_pipeline_sx; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   echo "relink_shux_asm_strict_glue: ST_GLUE glue_strict_minimal + pipeline_sx glue support (SX orch)"
 else
+  echo "relink_shux_asm_strict_glue: cc pipeline_glue_standalone.o <- ast_pool.c"
+  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$BUILD_DIR/pipeline_glue_standalone.o" src/asm/pipeline_glue_standalone.c
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
 fi
 

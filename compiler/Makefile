@@ -63,21 +63,27 @@ MAIN_SX_DEPS = src/main.sx src/codegen/codegen.sx src/ast/ast.sx src/preprocess/
 PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_shuxc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-sx build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-sx shux-no-c-frontend gen-sx-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 
-# std.process：F-process v2 纯 .sx（F-ZC）；OS 胶层在 runtime_process_os_glue.o；argc/argv 在 runtime_process_argv.o。
-../std/process/process.o: ../std/process/process.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make process.o: need shux-c or shux (F-process zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/process/process.sx ../std/process/process.o
+# std.process：F-process v2 纯 .sx（F-ZC）；OS 胶层在 runtime_process_os_glue.o；import binding 别名桩 process_import_alias.c。
+../std/process/process.o: ../std/process/process.sx ../std/process/process_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/process/process.sx -o ../std/process/process_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/process/process.sx -o ../std/process/process_core.o; \
+	else echo "make process.o: need shux-c or shux_asm (F-process v2)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/process/process_import_alias.o ../std/process/process_import_alias.c && \
+	ld -r -o ../std/process/process.o ../std/process/process_core.o ../std/process/process_import_alias.o && \
+	rm -f ../std/process/process_core.o ../std/process/process_import_alias.o
 
-# std.string：F-string v1 纯 .sx（string.sx）；memcmp/memmem 快路径。
-../std/string/string.o: ../std/string/string.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make string.o: need shux-c or shux (F-string v1)" >&2; exit 1; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/string/string.sx ../std/string/string.o
+# std.string：F-string v1 纯 .sx（string.sx）；import binding 别名桩 string_import_alias.c。
+../std/string/string.o: ../std/string/string.sx ../std/string/string_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/string/string.sx -o ../std/string/string_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/string/string.sx -o ../std/string/string_core.o; \
+	else echo "make string.o: need shux-c or shux_asm (F-string v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/string/string_import_alias.o ../std/string/string_import_alias.c && \
+	ld -r -o ../std/string/string.o ../std/string/string_core.o ../std/string/string_import_alias.o && \
+	rm -f ../std/string/string_core.o ../std/string/string_import_alias.o
 
 # std.path：F-path v1 纯 .sx（path_sep_c 内联 cfg）；mod.sx 编译为 path.o。
 ../std/path/path.o: ../std/path/mod.sx
@@ -86,6 +92,42 @@ PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else echo "make path.o: need shux-c or shux (F-path v1)" >&2; exit 1; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/path/mod.sx ../std/path/path.o
+
+# std.heap：F-03 纯 .sx 优先；typeck 未 relink 进 shux_asm 时回退 heap_import_alias.c。
+../std/heap/heap.o: ../std/heap/mod.sx ../std/heap/heap_import_alias.c
+	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
+	elif [ -x ./shux ]; then shux=./shux; \
+	elif [ -x ./shux-c ]; then shux=./shux-c; \
+	else shux=; fi; \
+	if [ -n "$$shux" ] && sh scripts/shux_compile_std_sx.sh $$shux ../std/heap/mod.sx ../std/heap/heap.o 2>/dev/null; then \
+	  exit 0; \
+	fi; \
+	echo "make heap.o: sx emit failed, fallback heap_import_alias.c" >&2; \
+	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/heap/heap_import_alias.c
+
+# std.map：纯 .sx 优先；失败回退 map_import_alias.c。
+../std/map/map.o: ../std/map/mod.sx ../std/map/map_import_alias.c
+	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
+	elif [ -x ./shux ]; then shux=./shux; \
+	elif [ -x ./shux-c ]; then shux=./shux-c; \
+	else shux=; fi; \
+	if [ -n "$$shux" ] && sh scripts/shux_compile_std_sx.sh $$shux ../std/map/mod.sx ../std/map/map.o 2>/dev/null; then \
+	  exit 0; \
+	fi; \
+	echo "make map.o: sx emit failed, fallback map_import_alias.c" >&2; \
+	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/map/map_import_alias.c
+
+# std.set：纯 .sx 优先；失败回退 set_import_alias.c。
+../std/set/set.o: ../std/set/mod.sx ../std/set/set_import_alias.c
+	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
+	elif [ -x ./shux ]; then shux=./shux; \
+	elif [ -x ./shux-c ]; then shux=./shux-c; \
+	else shux=; fi; \
+	if [ -n "$$shux" ] && sh scripts/shux_compile_std_sx.sh $$shux ../std/set/mod.sx ../std/set/set.o 2>/dev/null; then \
+	  exit 0; \
+	fi; \
+	echo "make set.o: sx emit failed, fallback set_import_alias.c" >&2; \
+	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/set/set_import_alias.c
 
 # std.runtime：panic/abort 对接 shux_panic_（std/runtime/runtime.c）；链接时需与 runtime_panic.o 同链。
 # std.runtime：F-runtime v1 纯 .sx（runtime.sx）；零胶层 C。
@@ -96,8 +138,8 @@ PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 	else echo "make runtime.o: need shux-c or shux (F-runtime v1)" >&2; exit 1; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/runtime/runtime.sx ../std/runtime/runtime.o
 
-# std.net：F-04 v10～v14 纯 .sx（F-ZC）；UDP batch / workers 胶层在 runtime_net_*.o；ld -r 合并为 net.o。
-../std/net/net.o: ../std/net/net_alpn.sx ../std/net/net_dns.sx ../std/net/net_io_batch.sx ../std/net/net_addr.sx ../std/net/net_ipv6.sx ../std/net/net_sock.sx ../std/net/net_udp.sx ../std/net/net_tcp.sx ../std/net/net_udp_batch.sx ../std/net/net_workers.sx
+# std.net：F-04 v10～v14 纯 .sx（F-ZC）；import binding 别名桩 net_import_alias.c。
+../std/net/net.o: ../std/net/net_alpn.sx ../std/net/net_dns.sx ../std/net/net_io_batch.sx ../std/net/net_addr.sx ../std/net/net_ipv6.sx ../std/net/net_sock.sx ../std/net/net_udp.sx ../std/net/net_tcp.sx ../std/net/net_udp_batch.sx ../std/net/net_workers.sx ../std/net/net_import_alias.c
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -111,7 +153,8 @@ PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 	    sh scripts/shux_compile_std_sx.sh $$shux ../std/net/$$sx.sx ../std/net/$$sx.o || exit 1; \
 	    objs="$$objs ../std/net/$$sx.o"; \
 	  done; \
-	  ld -r --allow-multiple-definition -o $@ $$objs; \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_import_alias.o ../std/net/net_import_alias.c && \
+	  ld -r --allow-multiple-definition -o $@ $$objs ../std/net/net_import_alias.o; \
 	else \
 	  echo "net.o: need shux-c to merge net_*.sx"; exit 0; \
 	fi
@@ -178,13 +221,16 @@ net-o-mbedtls:
 	else echo "future.o: need shux-c or shux (F-async-future v2)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/async/future.sx ../std/async/future.o
 
-# std.time：F-time v2 纯 .sx（F-ZC）；OS syscall 在 runtime_time_os.o。
-../std/time/time.o: ../std/time/time.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make time.o: need shux-c or shux (F-time zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/time/time.sx ../std/time/time.o
+# std.time：F-time v2 纯 .sx（F-ZC）；OS syscall 在 runtime_time_os.o；import binding 别名桩 time_import_alias.c。
+../std/time/time.o: ../std/time/time.sx ../std/time/time_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
+	else echo "make time.o: need shux-c or shux_asm (F-time v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/time/time_import_alias.o ../std/time/time_import_alias.c && \
+	ld -r -o ../std/time/time.o ../std/time/time_core.o ../std/time/time_import_alias.o && \
+	rm -f ../std/time/time_core.o ../std/time/time_import_alias.o
 
 # std.random：F-random v2 纯 .sx（F-ZC）；CSPRNG OS 在 runtime_random_fill.o。
 ../std/random/random.o: ../std/random/random.sx
@@ -202,13 +248,16 @@ net-o-mbedtls:
 	else echo "make env.o: need shux-c or shux (F-env zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/env/env.sx ../std/env/env.o
 
-# std.sync：F-sync v3 纯 .sx（F-ZC）；OS/TLS 胶层在 runtime_sync_*.o；Unix 需 -lpthread。
-../std/sync/sync.o: ../std/sync/sync.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make sync.o: need shux-c or shux (F-sync zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/sync/sync.sx ../std/sync/sync.o
+# std.sync：F-sync v3 纯 .sx（F-ZC）；OS/TLS 胶层在 runtime_sync_*.o；import binding 别名桩 sync_import_alias.c。
+../std/sync/sync.o: ../std/sync/sync.sx ../std/sync/sync_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/sync/sync.sx -o ../std/sync/sync_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/sync/sync.sx -o ../std/sync/sync_core.o; \
+	else echo "make sync.o: need shux-c or shux_asm (F-sync v3)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/sync/sync_import_alias.o ../std/sync/sync_import_alias.c && \
+	ld -r -o ../std/sync/sync.o ../std/sync/sync_core.o ../std/sync/sync_import_alias.o && \
+	rm -f ../std/sync/sync_core.o ../std/sync/sync_import_alias.o
 
 # std.queue：F-queue v2 纯 .sx（F-ZC）；pthread 胶层在 runtime_queue_contention.o。
 ../std/queue/queue.o: ../std/queue/queue.sx
@@ -218,21 +267,27 @@ net-o-mbedtls:
 	else echo "make queue.o: need shux-c or shux (F-queue zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/queue/queue.sx ../std/queue/queue.o
 
-# std.encoding：F-encoding v1 纯 .sx（encoding.sx）；零胶层 C。
-../std/encoding/encoding.o: ../std/encoding/encoding.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make encoding.o: need shux-c or shux (F-encoding v1)" >&2; exit 1; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/encoding/encoding.sx ../std/encoding/encoding.o
+# std.encoding：F-encoding v1 纯 .sx（encoding.sx）；import binding 别名桩 encoding_import_alias.c。
+../std/encoding/encoding.o: ../std/encoding/encoding.sx ../std/encoding/encoding_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/encoding/encoding.sx -o ../std/encoding/encoding_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/encoding/encoding.sx -o ../std/encoding/encoding_core.o; \
+	else echo "make encoding.o: need shux-c or shux_asm (F-encoding v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/encoding/encoding_import_alias.o ../std/encoding/encoding_import_alias.c && \
+	ld -r -o ../std/encoding/encoding.o ../std/encoding/encoding_core.o ../std/encoding/encoding_import_alias.o && \
+	rm -f ../std/encoding/encoding_core.o ../std/encoding/encoding_import_alias.o
 
-# std.base64：F-base64 v1 纯 .sx（base64.sx）；零胶层 C。
-../std/base64/base64.o: ../std/base64/base64.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make base64.o: need shux-c or shux (F-base64 v1)" >&2; exit 1; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/base64/base64.sx ../std/base64/base64.o
+# std.base64：F-base64 v1 纯 .sx（base64.sx）；import binding 别名桩 base64_import_alias.c。
+../std/base64/base64.o: ../std/base64/base64.sx ../std/base64/base64_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/base64/base64.sx -o ../std/base64/base64_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/base64/base64.sx -o ../std/base64/base64_core.o; \
+	else echo "make base64.o: need shux-c or shux_asm (F-base64 v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/base64/base64_import_alias.o ../std/base64/base64_import_alias.c && \
+	ld -r -o ../std/base64/base64.o ../std/base64/base64_core.o ../std/base64/base64_import_alias.o && \
+	rm -f ../std/base64/base64_core.o ../std/base64/base64_import_alias.o
 
 # std.crypto：F-crypto v2 纯 .sx（F-ZC）；SHA-512/ref10 胶层在 runtime_crypto_*_glue.o。
 ../std/crypto/crypto.o: ../std/crypto/crypto_core.sx ../std/crypto/aes_gcm.sx ../std/crypto/chacha20_poly1305.sx ../std/crypto/chacha20_aead.sx ../std/crypto/ed25519.sx
@@ -270,13 +325,16 @@ net-o-mbedtls:
 	else echo "make test.o: need shux-c or shux (F-test zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/test/test.sx ../std/test/test.o
 
-# std.atomic：F-atomic v2 纯 .sx（F-ZC）；原子胶层在 runtime_atomic_glue.o。
-../std/atomic/atomic.o: ../std/atomic/atomic.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make atomic.o: need shux-c or shux (F-atomic zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/atomic/atomic.sx ../std/atomic/atomic.o
+# std.atomic：F-atomic v2 纯 .sx（F-ZC）；原子胶层在 runtime_atomic_glue.o；import binding 别名桩 atomic_import_alias.c。
+../std/atomic/atomic.o: ../std/atomic/atomic.sx ../std/atomic/atomic_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/atomic/atomic.sx -o ../std/atomic/atomic_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/atomic/atomic.sx -o ../std/atomic/atomic_core.o; \
+	else echo "make atomic.o: need shux-c or shux_asm (F-atomic v2)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/atomic/atomic_import_alias.o ../std/atomic/atomic_import_alias.c && \
+	ld -r -o ../std/atomic/atomic.o ../std/atomic/atomic_core.o ../std/atomic/atomic_import_alias.o && \
+	rm -f ../std/atomic/atomic_core.o ../std/atomic/atomic_import_alias.o
 
 # std.channel：F-channel v2 纯 .sx（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
 ../std/channel/channel.o: ../std/channel/channel.sx
@@ -320,13 +378,16 @@ net-o-mbedtls:
 
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .sx（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
-# std.ffi：F-ffi v1 + F-ZC 纯 ffi.sx → ffi.o（无 glue；无 shux 时 exit 0）。
-../std/ffi/ffi.o: ../std/ffi/ffi.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "ffi.o: need shux-c or shux (F-ffi zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/ffi/ffi.sx ../std/ffi/ffi.o
+# std.ffi：F-ffi v1 + F-ZC 纯 ffi.sx；import binding 别名桩 ffi_import_alias.c。
+../std/ffi/ffi.o: ../std/ffi/ffi.sx ../std/ffi/ffi_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/ffi/ffi.sx -o ../std/ffi/ffi_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/ffi/ffi.sx -o ../std/ffi/ffi_core.o; \
+	else echo "make ffi.o: need shux-c or shux_asm (F-ffi v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/ffi/ffi_import_alias.o ../std/ffi/ffi_import_alias.c && \
+	ld -r -o ../std/ffi/ffi.o ../std/ffi/ffi_core.o ../std/ffi/ffi_import_alias.o && \
+	rm -f ../std/ffi/ffi_core.o ../std/ffi/ffi_import_alias.o
 
 
 # std.context：F-context v2 纯 context.sx → context.o（无 glue；无 shux 时 exit 0）。
@@ -489,25 +550,26 @@ sqlite-o-stub:
 	sh scripts/shux_compile_std_sx.sh auto ../std/elf/elf.sx ../std/elf/elf.o
 
 # P4 std 模块（按需链接）
-# std.json：F-json v2 纯 json.sx；ld -r 合并为 json.o。
-../std/json/json.o: ../std/json/json.sx
-	@objs=""; \
-	if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else \
-	  echo "json.o: need shux-c to compile json.sx"; exit 0; \
-	fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/json/json.sx ../std/json/json_main.o || exit 1; \
-	objs="$$objs ../std/json/json_main.o"; \
-	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
-# std.csv：F-csv v1 纯 .sx（csv.sx）；零胶层 C。
-../std/csv/csv.o: ../std/csv/csv.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make csv.o: need shux-c or shux (F-csv v1)" >&2; exit 1; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/csv/csv.sx ../std/csv/csv.o
+# std.json：F-json v2 纯 json.sx；import binding 别名桩 json_import_alias.c。
+../std/json/json.o: ../std/json/json.sx ../std/json/json_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/json/json.sx -o ../std/json/json_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/json/json.sx -o ../std/json/json_core.o; \
+	else echo "make json.o: need shux-c or shux_asm (F-json v2)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/json/json_import_alias.o ../std/json/json_import_alias.c && \
+	ld -r -o ../std/json/json.o ../std/json/json_core.o ../std/json/json_import_alias.o && \
+	rm -f ../std/json/json_core.o ../std/json/json_import_alias.o
+# std.csv：F-csv v1 纯 .sx（csv.sx）；import binding 别名桩 csv_import_alias.c（std_csv_escape）。
+../std/csv/csv.o: ../std/csv/csv.sx ../std/csv/csv_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/csv/csv.sx -o ../std/csv/csv_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/csv/csv.sx -o ../std/csv/csv_core.o; \
+	else echo "make csv.o: need shux-c or shux_asm (F-csv v1)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/csv/csv_import_alias.o ../std/csv/csv_import_alias.c && \
+	ld -r --allow-multiple-definition -o ../std/csv/csv.o ../std/csv/csv_import_alias.o ../std/csv/csv_core.o && \
+	rm -f ../std/csv/csv_core.o ../std/csv/csv_import_alias.o
 # std.regex：F-regex v2 纯 .sx → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.sx
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
@@ -532,13 +594,16 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else echo "make dynlib.o: need shux-c or shux (F-dynlib zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_sx.sh auto ../std/dynlib/dynlib.sx ../std/dynlib/dynlib.o
-# std.http：F-http v2 纯 .sx（F-ZC）；HTTP 胶层在 runtime_http_glue.o。
-../std/http/http.o: ../std/http/http.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make http.o: need shux-c or shux (F-http zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/http/http.sx ../std/http/http.o
+# std.http：F-http v2 纯 .sx（F-ZC）；HTTP 胶层在 runtime_http_glue.o；import binding 别名桩 http_import_alias.c。
+../std/http/http.o: ../std/http/http.sx ../std/http/http_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/http/http.sx -o ../std/http/http_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/http/http.sx -o ../std/http/http_core.o; \
+	else echo "make http.o: need shux-c or shux_asm (F-http v2)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/http/http_import_alias.o ../std/http/http_import_alias.c && \
+	ld -r -o ../std/http/http.o ../std/http/http_core.o ../std/http/http_import_alias.o && \
+	rm -f ../std/http/http_core.o ../std/http/http_import_alias.o
 
 # std.socketio：F-socketio v2 纯 socketio.sx；ld -r 合并为 socketio.o（P3 可选）。
 ../std/socketio/socketio.o: ../std/socketio/socketio.sx
@@ -552,18 +617,16 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	sh scripts/shux_compile_std_sx.sh auto ../std/socketio/socketio.sx ../std/socketio/socketio_main.o || exit 1; \
 	objs="$$objs ../std/socketio/socketio_main.o"; \
 	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
-# std.tar：F-tar v2 纯 tar.sx；ld -r 合并为 tar.o。
-../std/tar/tar.o: ../std/tar/tar.sx
-	@objs=""; \
-	if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else \
-	  echo "tar.o: need shux-c to compile tar.sx"; exit 0; \
-	fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/tar/tar.sx ../std/tar/tar_main.o || exit 1; \
-	objs="$$objs ../std/tar/tar_main.o"; \
-	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
+# std.tar：F-tar v2 纯 tar.sx；import binding 别名桩 tar_import_alias.c。
+../std/tar/tar.o: ../std/tar/tar.sx ../std/tar/tar_import_alias.c
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/tar/tar.sx -o ../std/tar/tar_core.o; \
+	elif [ -x ./shux_asm ]; then \
+	  ./shux_asm -backend asm -L .. ../std/tar/tar.sx -o ../std/tar/tar_core.o; \
+	else echo "make tar.o: need shux-c or shux_asm (F-tar v2)" >&2; exit 1; fi; \
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/tar/tar_import_alias.o ../std/tar/tar_import_alias.c && \
+	ld -r --allow-multiple-definition -o ../std/tar/tar.o ../std/tar/tar_import_alias.o ../std/tar/tar_core.o && \
+	rm -f ../std/tar/tar_core.o ../std/tar/tar_import_alias.o
 # std.simd：F-simd v1 + F-ZC 纯 simd.sx → simd.o（无 glue；无 shux 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.sx
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
@@ -777,7 +840,7 @@ endif
 
 # seed asm 用户程序：std.io 跳过 .sx emit 时的 print/write/read_ptr 链接桩（见 runtime_asm_io_stubs.c）
 runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -fPIE -c -o $@ $<
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（见 runtime_test_fn_invoke.c）
 runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.c
@@ -1174,7 +1237,7 @@ src/asm/pipeline_abi_f32_xmm.o: src/asm/pipeline_abi_f32_xmm.c
 # 全量 parser_sx.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
-parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c src/asm/parser_asm_type_ref_slice.c src/asm/parser_asm_struct_layout_slice.c
+parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c src/asm/parser_asm_type_ref_slice.c src/asm/parser_asm_struct_layout_slice.c src/asm/parser_asm_top_level_let_slice.c
 	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
 
 # pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shux 与 experimental bootstrap 共用）。
@@ -1294,10 +1357,11 @@ DRIVER_SEED_SUPPORT_EXTRA = src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_e
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
-# pipeline_glue_standalone 与 pipeline_sx.o / asm_backend_partial.o 重复时 glue 置首且允许多定义（首符号生效）。
+# pipeline_glue_standalone 与 pipeline_sx.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
-DRIVER_SEED_GLUE_PREFIX = $(ASM_GLUE_STANDALONE_O)
+DRIVER_SEED_GLUE_PREFIX =
+DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 # E-02 v1：lsp_diag.c 已删；仅 lsp_diag_stubs_no_c.o + lsp_diag_sx.o。
 LSP_DIAG_LINK_O = src/lsp/lsp_diag_stubs_no_c.o
 # E-03 v2 lexer/ast：默认 bootstrap 不链 C lexer.o / ast_seed.o（SX lexer_sx + ast_pool；runtime SHUX_NO_C_FRONTEND 无 C API 路径）。
@@ -1355,9 +1419,10 @@ DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_abi.o src/runtime_io_abi.o src/run
 DRIVER_SEED_SX_OBJS = parser_sx.o typeck_sx.o codegen_sx.o
 
 # 阶段 10.4 实验：链 typeck_sx.o/codegen_sx.o 替代 C 前端（不含 pipeline_sx.o，无 SHUX_USE_SX_PIPELINE）。
-DRIVER_SEED_SX_FRONTEND_OBJS = src/main_driver.o src/runtime_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o typeck_sx.o codegen_sx.o
-bootstrap-driver-seed-sx-frontend: $(SHUX_C) migrate-sx-objs driver_sx.o preprocess_sx.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_SX_FRONTEND_OBJS) $(LSP_DIAG_LINK_O) _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
-	$(CC) $(CFLAGS) -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN -o $(TARGET)_sx_frontend $(DRIVER_SEED_SX_FRONTEND_OBJS) driver_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
+# 勿复用 DRIVER_SEED_SX_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_sx.o/lexer_sx.o（见上 §1280）。
+DRIVER_SEED_SX_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o typeck_sx.o codegen_sx.o
+bootstrap-driver-seed-sx-frontend: $(SHUX_C) migrate-sx-objs driver_sx.o preprocess_sx.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_SX_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
+	$(CC) $(CFLAGS) -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN -o $(TARGET)_sx_frontend $(DRIVER_SEED_SX_FRONTEND_EXPERIMENT_OBJS) driver_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
 	@echo "bootstrap-driver-seed-sx-frontend OK ($(TARGET)_sx_frontend: .sx typeck/codegen, no pipeline_sx.o)"
 
 # 6.3：.sx 入口与 main.c 一一对应。bootstrap-driver-seed = 用 C 代码生成（生成 pipeline_gen.c / driver_gen.c）得到种子 shux；仅首次或无 shux 时需要。
@@ -1690,12 +1755,12 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	fi
 	@echo "bootstrap-driver-seed: phase1 link (+ USER_ASM dispatch/bridge + seed partial) ..."
 	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
 	@echo "bootstrap-driver-seed: build-seed-asm-host via shux-seed-phase1 ..."
 	@SHUX_E=./shux-seed-phase1 ./scripts/build_seed_asm_host.sh || \
 	  (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.sx -E failed, final link uses phase1 stub partial" >&2)
 	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
 	cp -f $(TARGET) shux-sx
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc
@@ -1730,11 +1795,13 @@ RELINK_SHUX_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) 
 .PHONY: relink-shux relink-shux-lexer refresh-shux-asm-gate
 relink-shux: $(SHUX_C) $(RELINK_SHUX_PREREQS)
 	$(MAKE) driver_fmt_sx.o driver_check_sx.o
-	@$(MAKE) -B $(DRIVER_SEED_RUNTIME_REBUILD)
+	@$(MAKE) -B src/runtime_link_abi.o $(DRIVER_SEED_RUNTIME_REBUILD)
 	@$(MAKE) pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1
 	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
-	@echo "relink-shux OK"
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+	cp -f $(TARGET) $(SHUX_C)
+	cp -f $(TARGET) bootstrap_shuxc
+	@echo "relink-shux OK (shux-c synced)"
 
 relink-shux-lexer: lexer_sx.o
 	@test -f build_asm/seed_host/asm_backend_partial.o || (echo "relink-shux-lexer: need build_asm/seed_host/asm_backend_partial.o (make build-seed-asm-host)" >&2; exit 1)

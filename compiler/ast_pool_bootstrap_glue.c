@@ -375,13 +375,17 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path) {
   return 0;
 }
 
-/** core.fmt / core.result。 */
+/**
+ * core.fmt / core.types：闭包符号由链入 std 预编译 .o 提供（base64.o 等 export core_types_*），
+ * 勿整库 co-emit（与 base64.o 重复 core_types_placeholder；hello 等纯 std 闭包勿 co-emit core.fmt）。
+ * core.result / core.option：用户 import 时须 co-emit（否则 ld 缺 core_result_ok_i32 等）。
+ */
 int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
   if (!path)
     return 0;
   if (memcmp(path, "core.fmt", 8) == 0 && (path[8] == 0 || path[8] == '.'))
     return 1;
-  if (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.'))
+  if (memcmp(path, "core.types", 10) == 0 && (path[10] == 0 || path[10] == '.'))
     return 1;
   return 0;
 }
@@ -395,26 +399,18 @@ int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
   return (path[7] == 0 || path[7] == '.') ? 1 : 0;
 }
 
-/** 是否存在须 co-emit 的用户自有 dep（tests/multi-file 等）。 */
+/** 是否存在须 co-emit 的用户自有 dep（tests/multi-file 的 import("foo") 等）。 */
 int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
   int32_t i;
   if (!dep_paths || n <= 0)
     return 0;
   for (i = 0; i < n; i++) {
     uint8_t *p = (uint8_t *)(dep_paths[i] ? dep_paths[i] : "");
-    if (pipeline_codegen_dep_skip_asm_user_std_io(p) != 0)
-      continue;
-    if (pipeline_codegen_dep_skip_asm_user_std_fs(p) != 0)
-      continue;
-    if (pipeline_codegen_dep_skip_asm_user_std_process(p) != 0)
-      continue;
-    if (pipeline_codegen_dep_skip_asm_user_std_fmt(p) != 0)
-      continue;
-    if (pipeline_codegen_dep_skip_asm_user_std_misc(p) != 0)
-      continue;
-    if (pipeline_codegen_dep_skip_asm_user_core_lib(p) != 0)
-      continue;
-    if (pipeline_asm_user_std_net_dep_path(p) != 0)
+    /*
+     * std./core. 闭包符号由预编 .o / preamble 提供；勿整库 co-emit（encoding/string/heap 等
+     * dep_prerun typeck 在 strict 链上易 SIGSEGV）。
+     */
+    if (memcmp(p, "std.", 4) == 0 || memcmp(p, "core.", 5) == 0)
       continue;
     return 1;
   }
@@ -530,6 +526,33 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
   if (name_len == 14 && memcmp(name, "std_fmt_println", 14) == 0) {
     memcpy(sym_out, "std_fmt_println", 14);
     return 14;
+  }
+  /**
+   * co-emit std.encoding/mod.sx：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
+   */
+  if (name_len > 13 && memcmp(name, "std_encoding_", 13) == 0) {
+    const int32_t suffix_len = name_len - 13;
+    const int32_t out_len = 9 + suffix_len + 2;
+    if (out_len >= out_cap)
+      return 0;
+    memcpy(sym_out, "encoding_", 9);
+    memcpy(sym_out + 9, name + 13, (size_t)suffix_len);
+    sym_out[9 + suffix_len] = '_';
+    sym_out[9 + suffix_len + 1] = 'c';
+    return out_len;
+  }
+  /**
+   * co-emit std.string/mod.sx 时 extern shux_string_* 带 std_string_ 前缀；
+   * 链 string.o 中无模块前缀的 shux_string_* 快路径。
+   */
+  if (name_len > 11 && memcmp(name, "std_string_", 11) == 0) {
+    const int32_t suffix_len = name_len - 11;
+    if (suffix_len + 1 > out_cap)
+      return 0;
+    if (suffix_len >= 12 && memcmp(name + 11, "shux_string_", 12) == 0) {
+      memcpy(sym_out, name + 11, (size_t)suffix_len);
+      return suffix_len;
+    }
   }
   return 0;
 }

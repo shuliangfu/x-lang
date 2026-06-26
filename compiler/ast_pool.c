@@ -74,6 +74,13 @@ typedef struct {
   int32_t is_const;
 } TopLevelLetEntry;
 
+/** 顶层 type 别名槽：type Alias = Target;（纯 typeck 别名，codegen typedef）。 */
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t target_type_ref;
+} TypeAliasEntry;
+
 /** 顶层 enum 名槽；变体名在 parse 跳过 enum { A, B } 时登记，供 asm Color.Green 等发射 tag。 */
 #define MODULE_ENUM_MAX_VARIANTS 32
 typedef struct {
@@ -201,6 +208,7 @@ typedef struct {
   GrowVec imports;
   GrowVec struct_layouts;
   GrowVec top_level_lets;
+  GrowVec type_aliases;
   GrowVec module_enums;
   GrowVec import_select_name_rows;
   GrowVec import_select_name_lens;
@@ -444,6 +452,8 @@ static ModuleSidecar *module_sidecar_get(struct ast_Module *m, int create) {
       if (!grow_vec_init(&g_module_sc[i].struct_layouts, sizeof(struct ast_StructLayout), AST_POOL_GROW))
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].top_level_lets, sizeof(TopLevelLetEntry), AST_POOL_GROW))
+        return NULL;
+      if (!grow_vec_init(&g_module_sc[i].type_aliases, sizeof(TypeAliasEntry), AST_POOL_GROW))
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].module_enums, sizeof(ModuleEnumEntry), AST_POOL_GROW))
         return NULL;
@@ -915,6 +925,7 @@ void ast_pool_module_reset(struct ast_Module *m) {
   sc->imports.len = 0;
   sc->struct_layouts.len = 0;
   sc->top_level_lets.len = 0;
+  sc->type_aliases.len = 0;
   sc->module_enums.len = 0;
   sc->import_select_name_rows.len = 0;
   sc->import_select_name_lens.len = 0;
@@ -2214,9 +2225,16 @@ int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out) {
   return sc ? sc->src_body_expr_stmt_refs.len : 0;
 }
 
-/** 将 OneFunc 中 if 链批量写入 Block 池。 */
+/**
+ * 将 OneFunc 中 if 链批量写入 Block 池。
+ * 调用方勿预置 b->num_if_stmts（与 num_loops 相同）：否则 lazy_fix if_base 错位，
+ * asm emit 读到错误 IfStmt，块内 if 被静默跳过（run-asm-binop-var #38）。
+ */
 void pipeline_block_fill_ifs_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
   int32_t i;
+  struct ast_Block *b;
+  if (a && br > 0 && (b = block_at(a, br)))
+    b->num_if_stmts = 0;
   for (i = 0; i < count; i++) {
     pipeline_block_append_if(a, br, pipeline_onefunc_if_cond_ref(out, i),
                              pipeline_onefunc_if_then_body_ref(out, i),
@@ -2635,6 +2653,19 @@ int32_t pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t id
   return sl ? sl->packed : 0;
 }
 
+/** MOD-02：写 struct layout 的 #[repr(compatible)] 标记。 */
+void pipeline_module_struct_layout_set_repr_compatible(struct ast_Module *m, int32_t idx, int32_t v) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  if (sl)
+    sl->repr_compatible = v;
+}
+
+/** MOD-02：读 struct layout 是否 #[repr(compatible)]。 */
+int32_t pipeline_module_struct_layout_repr_compatible_at(struct ast_Module *m, int32_t idx) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  return sl ? sl->repr_compatible : 0;
+}
+
 /** typeck.sx：读 module.num_struct_layouts；勿 SX 内 Module 字段访问（check_block 失败）。 */
 int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
   return m ? m->num_struct_layouts : 0;
@@ -2717,6 +2748,82 @@ int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx
   return tl ? tl->is_const : 0;
 }
 
+/** 分配 module 侧车 type 别名槽；返回 idx 或 -1。 */
+int32_t pipeline_module_type_alias_alloc(struct ast_Module *m) {
+  ModuleSidecar *sc;
+  int32_t idx;
+  if (!m || !(sc = module_sidecar_get(m, 1)))
+    return -1;
+  idx = grow_vec_push(&sc->type_aliases);
+  if (idx < 0)
+    return -1;
+  return idx;
+}
+
+/** 写入 type 别名 name 与 target type ref。 */
+void pipeline_module_type_alias_set(struct ast_Module *m, int32_t idx, uint8_t *name, int32_t name_len,
+                                    int32_t target_type_ref) {
+  TypeAliasEntry *ta;
+  ModuleSidecar *sc;
+  int32_t i;
+  if (!m || !name || name_len <= 0 || name_len > 64)
+    return;
+  sc = module_sidecar_get(m, 0);
+  if (!sc || idx < 0 || idx >= sc->type_aliases.len)
+    return;
+  ta = (TypeAliasEntry *)grow_vec_at(&sc->type_aliases, idx);
+  if (!ta)
+    return;
+  for (i = 0; i < name_len; i++)
+    ta->name[i] = name[i];
+  for (i = name_len; i < 64; i++)
+    ta->name[i] = 0;
+  ta->name_len = name_len;
+  ta->target_type_ref = target_type_ref;
+  if (getenv("SHUX_DEBUG_PIPE") != NULL) {
+    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] type_alias_set idx=%d len=%d target=%d\n", (int)idx, (int)name_len,
+            (int)target_type_ref);
+  }
+}
+
+/** 读 type 别名名长度。 */
+int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t idx) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TypeAliasEntry *ta;
+  if (!sc || idx < 0 || idx >= sc->type_aliases.len)
+    return 0;
+  ta = (TypeAliasEntry *)grow_vec_at(&sc->type_aliases, idx);
+  return ta ? ta->name_len : 0;
+}
+
+/** 读 type 别名名字节；越界返回 0。 */
+uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TypeAliasEntry *ta;
+  if (!sc || idx < 0 || idx >= sc->type_aliases.len || off < 0 || off >= 64)
+    return 0;
+  ta = (TypeAliasEntry *)grow_vec_at(&sc->type_aliases, idx);
+  return ta ? ta->name[off] : 0;
+}
+
+/** 读 type 别名 target type ref。 */
+int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32_t idx) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TypeAliasEntry *ta;
+  if (!sc || idx < 0 || idx >= sc->type_aliases.len)
+    return 0;
+  ta = (TypeAliasEntry *)grow_vec_at(&sc->type_aliases, idx);
+  return ta ? ta->target_type_ref : 0;
+}
+
+/** 读 module type 别名数量（glue 薄 struct 走 sidecar，勿读 module 字段）。 */
+int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  if (!sc)
+    return 0;
+  return sc->type_aliases.len;
+}
+
 /**
  * 在 block 的 stmt_order 下标 pos 处插入 n_items 条记录，并修正同 arena 内后续 block 的 stmt_order_base。
  */
@@ -2777,8 +2884,241 @@ static void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32
 }
 
 /**
- * 将 module 顶层 let/const 按序并入 main（或库模块首个非 extern 函数）体块，供 asm 栈槽初始化。
- * 保留 num_top_level_lets 供 emit 对其它函数做模块 const 字面量回落（AF_INET as u16 等）。
+ * 块首 parse_body_lets 产生的 let（idx < prefix_n）须在 stmt_order 中先于 if/loop；
+ * parser 偶发乱序（with_arena 内连续 if）时原地重排，不改变条目数量。
+ */
+void pipeline_block_stmt_order_fix_prefix_lets(struct ast_ASTArena *a, int32_t br, int32_t prefix_n) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  struct ast_StmtOrderItem old[512];
+  struct ast_StmtOrderItem neu[512];
+  int32_t nso;
+  int32_t i;
+  int32_t nn;
+  int32_t pi;
+  int32_t lets_seen;
+  int32_t need_fix;
+  int32_t abs;
+  if (!a || br <= 0 || prefix_n <= 0 || prefix_n > 64)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_stmt_order <= 0)
+    return;
+  nso = b->num_stmt_order;
+  if (nso > 512)
+    return;
+  for (i = 0; i < nso; i++) {
+    old[i].kind = pipeline_block_stmt_order_kind(a, br, i);
+    old[i].idx = (int32_t)pipeline_block_stmt_order_idx(a, br, i);
+  }
+  need_fix = 0;
+  lets_seen = 0;
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      continue;
+    if (old[i].kind == 1 && old[i].idx >= 0 && old[i].idx < prefix_n) {
+      if (lets_seen != old[i].idx)
+        need_fix = 1;
+      lets_seen++;
+      continue;
+    }
+    if (lets_seen < prefix_n)
+      need_fix = 1;
+    break;
+  }
+  if (!need_fix && lets_seen >= prefix_n)
+    return;
+  nn = 0;
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      neu[nn++] = old[i];
+  }
+  for (pi = 0; pi < prefix_n; pi++) {
+    neu[nn].kind = 1;
+    neu[nn].idx = pi;
+    nn++;
+  }
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      continue;
+    if (old[i].kind == 1 && old[i].idx >= 0 && old[i].idx < prefix_n)
+      continue;
+    neu[nn++] = old[i];
+  }
+  if (nn != nso)
+    return;
+  abs = b->stmt_order_base;
+  for (i = 0; i < nn; i++) {
+    struct ast_StmtOrderItem *so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
+    if (so)
+      *so = neu[i];
+  }
+}
+
+/**
+ * with_arena 块：stmt_order 须含 kind=6(region) 供 asm init/body/deinit；
+ * parse_one_function 偶发只把内层 let/if 扁平写入函数体 stmt_order 而漏 kind=6（with_arena_vec gate 仅 emit 前 2 条 push）。
+ * 若本块有 with_arena region 且 stmt_order 无 kind=6，则改为仅保留 region 项（内层 body 块已由 parse_block_into 填好）。
+ */
+void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  int32_t ri;
+  int32_t wa_ri;
+  int32_t inner;
+  int32_t i;
+  int32_t abs;
+  struct ast_StmtOrderItem *so;
+  if (!a || br <= 0)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_regions <= 0)
+    return;
+  wa_ri = -1;
+  inner = 0;
+  for (ri = 0; ri < b->num_regions; ri++) {
+    if (pipeline_block_region_with_arena_cap_ref(a, br, ri) > 0) {
+      wa_ri = ri;
+      inner = pipeline_block_region_body_ref(a, br, ri);
+      break;
+    }
+  }
+  if (wa_ri < 0 || inner <= 0 || inner == br) {
+    if (getenv("SHUX_ASM_DEBUG") && b->num_regions > 0)
+      fprintf(stderr, "shux: wa_fixup skip br=%d wa_ri=%d inner=%d nso=%d\n", (int)br, (int)wa_ri, (int)inner,
+              (int)b->num_stmt_order);
+    return;
+  }
+  for (i = 0; i < b->num_stmt_order; i++) {
+    if (pipeline_block_stmt_order_kind(a, br, i) == 6) {
+      if (getenv("SHUX_ASM_DEBUG")) {
+        struct ast_Block *ib = inner > 0 ? block_at(a, inner) : NULL;
+        fprintf(stderr, "shux: wa_fixup ok br=%d inner=%d in_nso=%d in_nif=%d\n", (int)br, (int)inner,
+                ib ? (int)ib->num_stmt_order : -1, ib ? (int)ib->num_if_stmts : -1);
+      }
+      return;
+    }
+  }
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: wa_fixup apply br=%d wa_ri=%d inner=%d old_nso=%d\n", (int)br, (int)wa_ri, (int)inner,
+            (int)b->num_stmt_order);
+  abs = b->stmt_order_base;
+  if (abs < 0)
+    return;
+  b->num_stmt_order = 1;
+  so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs);
+  if (!so)
+    return;
+  so->kind = 6;
+  so->idx = wa_ri;
+}
+
+/**
+ * 若 stmt_order 中 if(kind=5) 条目少于 num_if_stmts，按侧车池 0..n-1 重建（去掉误解析的 expr kind=2）。
+ * with_arena 内层块 parse 偶发 `(push!=0)` expr + 仅前 2 条 if kind=5。
+ */
+void pipeline_block_stmt_order_rebuild_sparse_ifs(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  struct ast_StmtOrderItem neu[512];
+  int32_t nso;
+  int32_t nif;
+  int32_t i;
+  int32_t nn;
+  int32_t if_in_order;
+  int32_t abs;
+  if (!a || br <= 0)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_if_stmts <= 0)
+    return;
+  nso = b->num_stmt_order;
+  nif = b->num_if_stmts;
+  if (nso > 512)
+    return;
+  if_in_order = 0;
+  for (i = 0; i < nso; i++) {
+    if (pipeline_block_stmt_order_kind(a, br, i) == 5)
+      if_in_order++;
+  }
+  if (if_in_order >= nif)
+    return;
+  nn = 0;
+  for (i = 0; i < b->num_consts; i++) {
+    neu[nn].kind = 0;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < b->num_lets; i++) {
+    neu[nn].kind = 1;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < nif; i++) {
+    neu[nn].kind = 5;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < nso; i++) {
+    uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
+    int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
+    if (k == 0 || k == 1 || k == 5)
+      continue;
+    if (k == 2)
+      continue; /* 丢弃误解析 cond 片段 expr */
+    neu[nn].kind = k;
+    neu[nn].idx = idx;
+    nn++;
+  }
+  abs = b->stmt_order_base;
+  if (abs < 0)
+    return;
+  b->num_stmt_order = nn;
+  for (i = 0; i < nn; i++) {
+    struct ast_StmtOrderItem *so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
+    if (so)
+      *so = neu[i];
+  }
+  if (getenv("SHUX_ASM_DEBUG"))
+    fprintf(stderr, "shux: if_rebuild br=%d nif=%d old_if_in_order=%d new_nso=%d\n", (int)br, (int)nif, (int)if_in_order,
+            (int)nn);
+}
+
+/** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
+void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a) {
+  int32_t fi;
+  if (!m || !a)
+    return;
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    int32_t br = pipeline_module_func_body_ref_at(m, fi);
+    struct ast_Block *b;
+    int32_t ri;
+    if (br <= 0)
+      continue;
+    b = block_at(a, br);
+    if (getenv("SHUX_ASM_DEBUG") && b && b->num_regions > 0)
+      fprintf(stderr, "shux: wa_fixup scan fi=%d br=%d nreg=%d nso=%d\n", (int)fi, (int)br, (int)b->num_regions,
+              (int)b->num_stmt_order);
+    pipeline_block_with_arena_fixup_stmt_order(a, br);
+    pipeline_block_stmt_order_rebuild_sparse_ifs(a, br);
+    if (b) {
+      for (ri = 0; ri < b->num_regions; ri++) {
+        int32_t inner = pipeline_block_region_body_ref(a, br, ri);
+        if (inner > 0 && inner != br) {
+          pipeline_block_stmt_order_fix_prefix_lets(a, inner, block_at(a, inner) ? block_at(a, inner)->num_lets : 0);
+          pipeline_block_stmt_order_rebuild_sparse_ifs(a, inner);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * 将 module 顶层 let/const 按序并入 main（或库模块首个 non extern 函数）体块，供 asm 栈槽初始化。
+ * 保留 num_top_level_lets 供 emit 对其它函数做 module const 字面量回落（AF_INET as u16 等）。
  */
 void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a) {
   int32_t mi;
@@ -3421,6 +3761,8 @@ void pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src) {
   grow_vec_copy_append(&dsc->const_names, &ssc->const_names);
   grow_vec_copy_append(&dsc->const_name_lens, &ssc->const_name_lens);
   grow_vec_copy_append(&dsc->const_init_vals, &ssc->const_init_vals);
+  grow_vec_copy_append(&dsc->const_init_refs, &ssc->const_init_refs);
+  grow_vec_copy_append(&dsc->const_type_refs, &ssc->const_type_refs);
   grow_vec_copy_append(&dsc->let_names, &ssc->let_names);
   grow_vec_copy_append(&dsc->let_name_lens, &ssc->let_name_lens);
   grow_vec_copy_append(&dsc->let_init_vals, &ssc->let_init_vals);
@@ -4900,6 +5242,7 @@ extern int32_t typeck_typeck_sx_ast_library(struct ast_Module *module, struct as
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena,
                                                                  struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 
 /** EMIT_HEAVY SX 读 parse scalars 出参（sidecar；避免 SX &local 导致 asm parse 0 func）。 */
 static int32_t g_pipeline_parse_scalars_ok;
@@ -5049,6 +5392,9 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
       return fail_mapped;
     return -1;
   }
+  /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_sx_ast -11。 */
+  if (pipeline_module_num_funcs(module) == 0)
+    pipeline_module_set_main_func_index(module, -1);
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_sx_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
@@ -5174,6 +5520,23 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
   if (!module || !arena || !ctx)
     return -1;
   n_imports = parser_get_module_num_imports(module);
+  /*
+   * driver 传递闭包 seed：按 entry import 路径 bind 全局槽后直接返回。
+   * 须在 realign 之前：realign 会把 ndep(9) 清零，导致 typeck 找不到 encoding.utf8_*（ec=-5）。
+   */
+  if (n_imports > 0) {
+    int32_t bound_any = 0;
+    for (i = 0; i < n_imports; i++) {
+      memset(path_buf, 0, sizeof(path_buf));
+      (void)parser_copy_module_import_path64(module, i, path_buf);
+      if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
+        bound_any = 1;
+    }
+    if (bound_any) {
+      pipeline_dep_ctx_set_ndep(ctx, n_imports);
+      return 0;
+    }
+  }
   pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
   if (pipeline_dep_ctx_ndep(ctx) == 0) {
     if (n_imports > 0) {
@@ -5192,8 +5555,26 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
   sync_rc = pipeline_sync_dep_slots_from_driver_c(module, ctx);
   if (sync_rc != 0)
     return sync_rc;
-  typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
-  typeck_typeck_wpo_unify_soa_layouts(module, ctx);
+  /*
+   * driver 已 seed 的 std/core dep：merge 在 parse-only 槽上 SIGSEGV；layout 由预编 .o / import fixup 承担。
+   */
+  {
+    int32_t all_seeded = (n_imports > 0) ? 1 : 0;
+    for (i = 0; i < n_imports; i++) {
+      int32_t gs;
+      memset(path_buf, 0, sizeof(path_buf));
+      (void)parser_copy_module_import_path64(module, i, path_buf);
+      gs = driver_dep_slot_for_path(path_buf);
+      if ((gs < 0 || driver_dep_seeded_get(gs) == 0) && driver_dep_seeded_get(i) == 0) {
+        all_seeded = 0;
+        break;
+      }
+    }
+    if (!all_seeded) {
+      typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
+      typeck_typeck_wpo_unify_soa_layouts(module, ctx);
+    }
+  }
   return 0;
 }
 
@@ -5377,14 +5758,17 @@ int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct
     fflush(stderr);
   }
   /** 优先读 runtime 全局标志（C 预检后 set）；勿仅依赖 SX pipeline_should_skip_sx_typeck（strict 链 thin bl 偶发失效）。 */
-  if (driver_sx_pipeline_skip_typeck_get() != 0) {
+    if (driver_sx_pipeline_skip_typeck_get() != 0) {
     /*
      * 用户 asm -o 单文件：runtime 仍设 skip_typeck，但须全量 typeck 填 field_access_offset；
-     * 多文件 import 入口仅 dep_prerun（padding + parent link）。
+     * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK）多文件 import 入口仅 dep_prerun；
+     * 用户 -o 有 import 时仍须全量 typeck（ERR-01 负例 result_try_bad 等）。
      */
     if (parser_get_module_num_imports(module) == 0 && driver_sx_pipeline_skip_codegen_get() != 0)
       return pipeline_typeck_entry_module_c(module, arena, ctx);
-    return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+    if (pipeline_driver_asm_build_skip_typeck() != 0)
+      return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+    return pipeline_typeck_entry_module_c(module, arena, ctx);
   }
   if (pipeline_should_skip_sx_typeck(ctx) != 0)
     return 0;
@@ -5420,6 +5804,9 @@ int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct 
       fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] skip dep emit j=%d path=%s\n", (int)dep_j, (char *)dep_path_buf);
     return 0;
   }
+  /** asm_entry_module_only / skip_asm_dep_codegen：dep 符号由并列 *.o 提供，勿 co-emit 进 entry 的 C/asm。 */
+  if (skip_asm_dep_codegen != 0)
+    return 0;
   if (dep_mod && pipeline_module_num_funcs(dep_mod) > 0) {
     if (use_asm_backend != 0) {
       if (skip_asm_dep_codegen == 0 &&
@@ -6055,30 +6442,84 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     return;
   lko = pipeline_type_kind_ord_at(arena, lt_ar);
   rko = pipeline_type_kind_ord_at(arena, rt_ar);
-  if (lko == 12 && rko == 12 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
+  /** ptr ± i32/usize/isize → ptr（与 typeck.sx binop_arith 一致）。 */
+  if (expr_kind >= 4 && expr_kind <= 5) {
+    if (lko == 9 && (rko == 0 || rko == 6 || rko == 7))
+      out_ar = lt_ar;
+    else if (expr_kind == 4 && rko == 9 && (lko == 0 || lko == 6 || lko == 7))
+      out_ar = rt_ar;
+  }
+  if (lko == 13 && rko == 13 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
       pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
                                         pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {
     out_ar = lt_ar;
-  } else if (lko == 5 || rko == 5) {
+  } else if (out_ar == 0 && (lko == 5 || rko == 5)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
-  } else if (lko == 14 || rko == 14) {
-    out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
-  } else if (pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
+  } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
+  } else if (out_ar == 0 && pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
     out_ar = lt_ar;
-  } else if (lt_ar != 0) {
+  } else if (out_ar == 0 && lt_ar != 0) {
     out_ar = lt_ar;
-  } else if (rt_ar != 0) {
+  } else if (out_ar == 0 && rt_ar != 0) {
     out_ar = rt_ar;
   }
   if (expr_kind >= 4 && expr_kind <= 13)
     allow_i32_fallback = 1;
-  if (out_ar == 0 && lko != 12 && rko != 12 && allow_i32_fallback)
+  if (out_ar == 0 && lko != 13 && rko != 13 && allow_i32_fallback)
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 0);
-  if (allow_i32_fallback &&
+  if (allow_i32_fallback && lko != 9 && rko != 9 &&
       (pipeline_type_kind_ord_at(arena, lt_ar) == 1 || pipeline_type_kind_ord_at(arena, rt_ar) == 1))
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 0);
   if (out_ar != 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+}
+
+/**
+ * packed struct 布局快路径：无隐式 padding；与 typeck.sx typeck_struct_layout_metrics 一致。
+ * 返回值：1=已写入 out_sz/out_al，0=非 packed 须走常规对齐路径，-1=字段尺寸错误。
+ */
+int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz,
+                                                int32_t *out_al) {
+  int32_t nf;
+  int32_t j;
+  int32_t ftr;
+  int32_t fsize;
+  int32_t current;
+  uint8_t layout_nm[64];
+  uint8_t field_nm[64];
+  int32_t layout_nlen;
+  int32_t flen;
+  extern int32_t typeck_sx_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+                                     int32_t depth);
+  extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32_t sname_len, uint8_t *fname,
+                                                             int32_t fname_len);
+  (void)check_pad;
+  if (!module || !arena || !out_sz || !out_al || li < 0)
+    return 0;
+  if (pipeline_module_struct_layout_packed_at(module, li) == 0)
+    return 0;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  current = 0;
+  j = 0;
+  while (j < nf) {
+    ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+    flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+    fsize = typeck_sx_type_size(module, arena, ftr, depth);
+    if (fsize <= 0) {
+      pipeline_module_struct_layout_name_into(module, li, layout_nm);
+      layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+      driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      return -1;
+    }
+    current = current + fsize;
+    j = j + 1;
+  }
+  *out_sz = current;
+  *out_al = 1;
+  return 1;
 }
 
 /** typeck.sx：struct_layout_metrics 写 out_sz/out_al；勿用栈上 &z/&al。 */
@@ -6492,6 +6933,16 @@ static int32_t pipeline_elf_reloc_is_defined(PipelineElfCtxAccess *ctx, uint8_t 
   return 0;
 }
 
+/** x86_64 ELF call 重定位类型：本 TU 已定义符号用 PC32；UND 外部（如 libc putchar）须 PLT32 方能 -pie 链接。 */
+static int32_t pipeline_elf_call_reloc_type(PipelineElfCtxAccess *ctx, uint8_t *ctx_bytes, int32_t reloc_idx,
+                                            uint8_t *rname, int32_t rlen) {
+  if (!ctx)
+    return 2;
+  if (ctx->e_machine == 62 && !pipeline_elf_reloc_is_defined(ctx, ctx_bytes, reloc_idx, rname, rlen))
+    return 4; /* R_X86_64_PLT32 */
+  return ctx->reloc_type_r_pc32;
+}
+
 #define PIPELINE_ELF_UNDEF_SYM_CAP 256
 
 /** 向 ELF64 Rela 条目 bytes[16..23] 写入 signed 64-bit r_addend（须全 8 字节符号扩展，勿只写低 32 位）。 */
@@ -6747,10 +7198,13 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     rela_buf[1] = (uint8_t)((roff >> 8) & 255);
     rela_buf[2] = (uint8_t)((roff >> 16) & 255);
     rela_buf[3] = (uint8_t)((roff >> 24) & 255);
-    rela_buf[8] = (uint8_t)(reloc_type & 255);
-    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
-    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
-    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    {
+      int32_t rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      rela_buf[8] = (uint8_t)(rtype & 255);
+      rela_buf[9] = (uint8_t)((rtype >> 8) & 255);
+      rela_buf[10] = (uint8_t)((rtype >> 16) & 255);
+      rela_buf[11] = (uint8_t)((rtype >> 24) & 255);
+    }
     rela_buf[12] = (uint8_t)(sym_idx & 255);
     rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
     rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
@@ -7151,10 +7605,13 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     rela_buf[1] = (uint8_t)((roff >> 8) & 255);
     rela_buf[2] = (uint8_t)((roff >> 16) & 255);
     rela_buf[3] = (uint8_t)((roff >> 24) & 255);
-    rela_buf[8] = (uint8_t)(reloc_type & 255);
-    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
-    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
-    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    {
+      int32_t rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      rela_buf[8] = (uint8_t)(rtype & 255);
+      rela_buf[9] = (uint8_t)((rtype >> 8) & 255);
+      rela_buf[10] = (uint8_t)((rtype >> 16) & 255);
+      rela_buf[11] = (uint8_t)((rtype >> 24) & 255);
+    }
     rela_buf[12] = (uint8_t)(sym_idx & 255);
     rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
     rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
@@ -7211,10 +7668,13 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     rela_buf[1] = (uint8_t)((roff >> 8) & 255);
     rela_buf[2] = (uint8_t)((roff >> 16) & 255);
     rela_buf[3] = (uint8_t)((roff >> 24) & 255);
-    rela_buf[8] = (uint8_t)(reloc_type & 255);
-    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
-    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
-    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    {
+      int32_t rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      rela_buf[8] = (uint8_t)(rtype & 255);
+      rela_buf[9] = (uint8_t)((rtype >> 8) & 255);
+      rela_buf[10] = (uint8_t)((rtype >> 16) & 255);
+      rela_buf[11] = (uint8_t)((rtype >> 24) & 255);
+    }
     rela_buf[12] = (uint8_t)(sym_idx & 255);
     rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
     rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
@@ -7271,10 +7731,13 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     rela_buf[1] = (uint8_t)((roff >> 8) & 255);
     rela_buf[2] = (uint8_t)((roff >> 16) & 255);
     rela_buf[3] = (uint8_t)((roff >> 24) & 255);
-    rela_buf[8] = (uint8_t)(reloc_type & 255);
-    rela_buf[9] = (uint8_t)((reloc_type >> 8) & 255);
-    rela_buf[10] = (uint8_t)((reloc_type >> 16) & 255);
-    rela_buf[11] = (uint8_t)((reloc_type >> 24) & 255);
+    {
+      int32_t rtype = pipeline_elf_call_reloc_type(ctx, ctx_bytes, r, r_sym_buf, rlen);
+      rela_buf[8] = (uint8_t)(rtype & 255);
+      rela_buf[9] = (uint8_t)((rtype >> 8) & 255);
+      rela_buf[10] = (uint8_t)((rtype >> 16) & 255);
+      rela_buf[11] = (uint8_t)((rtype >> 24) & 255);
+    }
     rela_buf[12] = (uint8_t)(sym_idx & 255);
     rela_buf[13] = (uint8_t)((sym_idx >> 8) & 255);
     rela_buf[14] = (uint8_t)((sym_idx >> 16) & 255);
@@ -9423,6 +9886,9 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
       bytes = bytes + (8 - (bytes % 8));
     return bytes;
   }
+  /** T[] 切片：{ data: *T, length: usize } 16 字节（对齐 codegen.c AST_TYPE_SLICE size）。 */
+  if (pipeline_type_kind_ord_at(arena, type_ref) == 11)
+    return 16;
   /* TYPE_VECTOR ord==13；或 NAMED i32x4 等拼写（lex IDENT 回落）。 */
   if (!asm_type_is_simd_vector_spelling(arena, type_ref) && pipeline_type_kind_ord_at(arena, type_ref) != 13)
     return 8;
@@ -9561,6 +10027,19 @@ static void asm_block_tree_push_children(struct ast_ASTArena *arena, GrowVec *st
   }
 }
 
+/** 将 cur 的 region/with_arena 子块压入遍历栈（cfg/while/for/if 子块由 asm_block_tree_push_children 处理）。 */
+static void asm_block_tree_push_region_children(struct ast_ASTArena *arena, GrowVec *stack, int32_t cur) {
+  struct ast_Block *b;
+  int32_t i;
+  int32_t ch;
+  if (!arena || !stack || cur <= 0 || !(b = block_at(arena, cur)))
+    return;
+  for (i = 0; i < b->num_regions; i++) {
+    ch = pipeline_block_region_body_ref(arena, cur, i);
+    asm_block_tree_push_ref(stack, ch);
+  }
+}
+
 /**
  * 函数体块树中全部 const/let 栈槽字节总和（含嵌套 if/while/for 体）；供 compute_frame_size。
  */
@@ -9596,6 +10075,7 @@ int32_t asm_sum_block_local_slot_bytes(struct ast_ASTArena *arena, int32_t block
       for (i = 0; i < b->num_lets; i++)
         total += asm_local_slot_bytes(arena, pipeline_block_let_type_ref(arena, cur, i));
       asm_block_tree_push_children(arena, &stack, cur);
+      asm_block_tree_push_region_children(arena, &stack, cur);
     }
   }
   grow_vec_free(&stack);
@@ -9634,6 +10114,7 @@ int32_t asm_count_block_stack_slots(struct ast_ASTArena *arena, int32_t block_re
         break;
       total += b->num_consts + b->num_lets;
       asm_block_tree_push_children(arena, &stack, cur);
+      asm_block_tree_push_region_children(arena, &stack, cur);
     }
   }
   grow_vec_free(&stack);
@@ -9716,19 +10197,6 @@ int32_t asm_sum_block_array_temp_bytes(struct ast_ASTArena *arena, int32_t block
   }
   grow_vec_free(&stack);
   return total;
-}
-
-/** 将 cur 的 region/with_arena 子块压入遍历栈（cfg/while/for/if 子块由 asm_block_tree_push_children 处理）。 */
-static void asm_block_tree_push_region_children(struct ast_ASTArena *arena, GrowVec *stack, int32_t cur) {
-  struct ast_Block *b;
-  int32_t i;
-  int32_t ch;
-  if (!arena || !stack || cur <= 0 || !(b = block_at(arena, cur)))
-    return;
-  for (i = 0; i < b->num_regions; i++) {
-    ch = pipeline_block_region_body_ref(arena, cur, i);
-    asm_block_tree_push_ref(stack, ch);
-  }
 }
 
 /**
@@ -10444,9 +10912,13 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_return_operand_matches", 29))
     return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_integer_widen_ok", 23))
+    return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_var_name_equal_func", 24))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_ret_coerce_integral_to_expect_i32", 40))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_ret_coerce_integral_widen", 32))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_expr_to_decl", 31))
     return 1;
@@ -12215,6 +12687,8 @@ void asm_ctx_fill_locals_block_tree(uint8_t *ctx, struct ast_ASTArena *arena, in
         break;
       asm_ctx_ensure_block_locals(ctx, arena, cur, inout_next_offset, inout_num_locals);
       asm_block_tree_push_children(arena, &stack, cur);
+      /** MEM-C1：with_arena / region 子块 let 须与 wa 临时区同序登记，避免 arena@8 与 Vec 局部重叠。 */
+      asm_block_tree_push_region_children(arena, &stack, cur);
     }
   }
   grow_vec_free(&stack);
@@ -12366,7 +12840,7 @@ int32_t asm_be_cont_suspend(int32_t block_ref, int32_t stmt_i, uint8_t *end_lbl,
 }
 
 /**
- * 弹出最内层续延；*out_block/*out_stmt_i 为恢复点；end 标签写入 out_end（cap 字节，*out_end_len 为原长）。
+ * 弹出最内层续延；out_block 与 out_stmt_i 为恢复点；end 标签写入 out_end（cap 字节，out_end_len 为原长）。
  * 无续延返回 0；有续延返回 1。
  */
 int32_t asm_be_cont_resume(int32_t *out_block, int32_t *out_stmt_i, uint8_t *out_end, int32_t end_cap, int32_t *out_end_len) {
@@ -12600,6 +13074,26 @@ static int32_t asm_wpo_call_callee_id(struct ast_ASTArena *a, int32_t call_expr_
     return -1;
   callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
   clen = asm_wpo_call_callee_name(a, callee_ref, cname);
+  /** overload：须按实参分派，勿仅按名取首个 pick。 */
+  if (clen > 0 && caller_mod) {
+    int32_t ov_n = 0;
+    int32_t fi_ov;
+    int32_t nf_ov = pipeline_module_num_funcs(caller_mod);
+    for (fi_ov = 0; fi_ov < nf_ov; fi_ov++) {
+      if (pipeline_asm_module_func_is_extern_at(caller_mod, fi_ov) != 0)
+        continue;
+      if (pipeline_module_func_name_equal_at(caller_mod, fi_ov, cname, clen))
+        ov_n++;
+    }
+    if (ov_n > 1) {
+      int32_t picked = pipeline_typeck_pick_overload_func_index_for_call_c(caller_mod, a, call_expr_ref);
+      if (picked >= 0) {
+        cid = asm_wpo_func_id_of(caller_mod, picked);
+        if (cid >= 0)
+          return cid;
+      }
+    }
+  }
   if (clen > 0) {
     cid = asm_wpo_func_id_in_module(caller_mod, cname, clen);
     if (cid < 0)
@@ -12865,6 +13359,24 @@ static int32_t asm_wpo_is_user_single_file_pgo_entry(void) {
       asm_module_is_backend_selfhost(g_asm_wpo.entry) || asm_module_is_parser_selfhost(g_asm_wpo.entry))
     return 0;
   return 1;
+}
+
+/** 前向声明：user_program_entry 判定须查 main 的 WPO id。 */
+static int32_t asm_wpo_user_main_func_id(void);
+
+/**
+ * 用户可执行/单测 .sx（非 compiler 自举模块且含 main）：WPO root/reach 须从 main 出发。
+ * main_func_index 误指 #0/mk 时若 root 从 mk 起算，main 虽 force emit 但 get_a 等 callee 会被 DCE。
+ */
+static int32_t asm_wpo_is_user_program_entry(void) {
+  if (!g_asm_wpo.entry || g_asm_wpo.nmods != 1)
+    return 0;
+  if (asm_module_is_main_driver_selfhost(g_asm_wpo.entry))
+    return 0;
+  if (asm_module_is_pipeline_selfhost(g_asm_wpo.entry) || asm_module_is_typeck_selfhost(g_asm_wpo.entry) ||
+      asm_module_is_backend_selfhost(g_asm_wpo.entry) || asm_module_is_parser_selfhost(g_asm_wpo.entry))
+    return 0;
+  return asm_wpo_user_main_func_id() >= 0 ? 1 : 0;
 }
 
 /** 用户程序 main 的 WPO func id；未找到返回 -1。 */
@@ -13408,7 +13920,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
     static const uint8_t pipe_impl_nm[21] = {'r', 'u', 'n', '_', 's', 'u', '_', 'p', 'i', 'p', 'e', 'l', 'i', 'n', 'e', '_', 'i', 'm', 'p', 'l', 0};
     nf = pipeline_module_num_funcs(entry);
     for (fi = 0; fi < nf; fi++) {
-      if (pipeline_module_func_name_equal_at(entry, fi, pipe_impl_nm, 20)) {
+      if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)pipe_impl_nm, 20)) {
         g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
         break;
       }
@@ -13443,14 +13955,24 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
     g_asm_wpo.root_id = asm_wpo_func_id_of(entry, main_ix);
   if (g_asm_wpo.root_id < 0 || g_asm_wpo.nfuncs <= 0)
     return;
-  /** 用户 PGO 单文件：root 强制 main（#0/hot_add 占位符误根会导致 warm_mid UND）。 */
-  if (asm_wpo_is_user_single_file_pgo_entry()) {
+  /** 用户程序：root 强制 main（#0/mk 误根会导致 main 所调 get_a 等 callee UND）。 */
+  if (asm_wpo_is_user_program_entry()) {
+    int32_t user_main = asm_wpo_user_main_func_id();
+    if (user_main >= 0)
+      g_asm_wpo.root_id = user_main;
+  } else if (asm_wpo_is_user_single_file_pgo_entry()) {
     int32_t user_main = asm_wpo_user_main_func_id();
     if (user_main >= 0)
       g_asm_wpo.root_id = user_main;
   }
   asm_wpo_build_reach();
   asm_wpo_close_std_heap_helpers();
+  /** main force emit 时须纳入 reach 闭包，fixpoint 从 main 补全 callee 边。 */
+  if (asm_wpo_is_user_program_entry()) {
+    int32_t user_main = asm_wpo_user_main_func_id();
+    if (user_main >= 0)
+      g_asm_wpo.reachable[(size_t)user_main] = 1;
+  }
   asm_wpo_reach_fixpoint_expand();
   g_asm_wpo.valid = 1;
   asm_wpo_mark_pgo_hot();

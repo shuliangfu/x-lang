@@ -39,6 +39,8 @@ void driver_diagnostic_typeck_struct_field_bad_size(const uint8_t *sname, int32_
                                                     int32_t fname_len);
 void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line, int32_t col, const uint8_t *expect_buf,
                                               int32_t expect_len, const uint8_t *found_buf, int32_t found_len);
+/** ERR-01：`?` 须在返回同型 Result 的函数内使用。 */
+void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col);
 
 /** typeck.sx 诊断 scratch（勿嵌套于 driver_diagnostic 实参）。 */
 uint8_t *driver_typeck_diag_scratch_expect(void);

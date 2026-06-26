@@ -12,14 +12,14 @@
 #include <stddef.h>
 
 #ifndef SHUX_ASM_LD_PATH_BANK_SLOTS
-/** ASM ld argv 路径 bank 槽位数（须 ≥ std 模块链入量）。 */
-#define SHUX_ASM_LD_PATH_BANK_SLOTS 42
+/** ASM ld argv 路径 bank 槽位数（须 ≥ append_std_objs 链入的 std+glue 总量）。 */
+#define SHUX_ASM_LD_PATH_BANK_SLOTS 96
 #endif
 #ifndef SHUX_LINK_ABI_PATH_MAX
 #define SHUX_LINK_ABI_PATH_MAX 4096
 #endif
 #ifndef SHUX_INVOKE_CC_MAX_C_FILES
-#define SHUX_INVOKE_CC_MAX_C_FILES 33
+#define SHUX_INVOKE_CC_MAX_C_FILES 64
 #endif
 #ifndef SHUX_LD_ARGV_CAP
 /** ASM ld/gcc 子进程 argv 槽位上限（须 ≥ std 模块 + -l 参数）。 */

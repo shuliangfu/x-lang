@@ -2855,7 +2855,13 @@ ensure_pipeline_run_sx_link_alias_obj() {
 ensure_asm_bootstrap_sx_companion_objs() {
   detect_pipeline_gen_cflags
   ensure_pipeline_sx_o_fresh
-  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+  # runtime-only relink：SX companion .o 已存在时勿 make typeck_sx.o（stale typeck_gen 会阻断 relink）。
+  if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] \
+    && [ -f parser_sx.o ] && [ -f lexer_sx.o ] && [ -f typeck_sx.o ] \
+    && [ -f codegen_sx.o ] && [ -f preprocess_sx.o ]; then
+    echo "build_shux_asm: BSTRICT_RELINK_ONLY — skip SX companion make (reuse existing *_sx.o)"
+    return 0
+  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
     echo "build_shux_asm: ensure SX companion objs (parser/lexer/typeck/codegen/preprocess/compile) ..."
     # 瘦 pipeline_sx.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
     # sx 命名 迁移：链接行仍引用 *_sx.o，须 make 别名目标（cp *_sx.o）。
@@ -2879,7 +2885,9 @@ ensure_asm_bootstrap_sx_companion_objs() {
   fi
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
-  if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.sx" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+  if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+    :
+  elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.sx" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
     echo "build_shux_asm: build_seed_asm_host (backend_enc_* for pipeline_sx.o) ..."
     ./scripts/build_seed_asm_host.sh
   fi
@@ -3168,6 +3176,12 @@ ensure_asm_experimental_lsp_objs() {
 # ast_pool.c 白名单在 pipeline_sx.o（#include pipeline_glue.c）内；PIPELINE_SX_DEPS（含 backend/arm64_enc）变更后须 bootstrap-pipeline → pipeline_sx.o。
 ensure_pipeline_sx_o_fresh() {
   local need=0
+  # runtime-only relink：已有 pipeline_sx.o 时跳过（勿因 ast_pool 等 mtime 触发 bootstrap-pipeline）。
+  if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f pipeline_sx.o ]; then
+    mkdir -p "$BUILD_DIR/gen_driver"
+    cp -f pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o" 2>/dev/null || true
+    return 0
+  fi
   if [ ! -f pipeline_sx.o ] || [ ! -f pipeline_gen.c ]; then
     need=1
   fi
@@ -3730,7 +3744,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ensure_ast_pool_l5_bridge_obj
   ensure_asm_backend_compat_stubs_obj
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
+  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
@@ -3749,6 +3763,14 @@ shux_asm_bstrict_relink_runtime_only() {
     ST_RUNTIME_PANIC="runtime_panic.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
+  if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] \
+    || [ "$(wc -c <"$BUILD_DIR/seed_host/asm_backend_partial.o" | tr -d ' ')" -lt 8192 ]; then
+    if [ "${SHUX_ASM_BSTRICT_RELINK_ALLOW_PHASE1_STUB:-0}" = "1" ]; then
+      echo "build_shux_asm: warn: runtime-only relink with phase1 asm_backend_partial (dev/Docker only)" >&2
+    else
+      shux_asm_bstrict_fail "runtime-only relink needs real build_asm/seed_host/asm_backend_partial.o (not phase1 stub)"
+    fi
+  fi
   BOOT_ENTRY_OBJ=$(bootstrap_entry_obj)
   BOOT_ENTRY_LDFLAGS=$(bootstrap_entry_ldflags)
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
@@ -4217,7 +4239,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_driver_seed_c_objs
               SEED_O="$BUILD_DIR/asm_driver_seed"
               ensure_asm_strict_link_extra_objs
-              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
+              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
               ensure_asm_link_objs
               ST_RUNTIME_PANIC="runtime_panic.o"
               ST_BRIDGE_OBJ=""

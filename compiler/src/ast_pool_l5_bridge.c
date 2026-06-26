@@ -5,7 +5,9 @@
 #include <stddef.h>
 #include <string.h>
 
-/** 与 ast.sx LabeledStmt / ast_pool grow 池布局一致。 */
+/** #[cfg] 表达式求值（cfg_eval.sx / bootstrap stub）；供 target_os == "linux" 等 #if 条件。 */
+extern int cfg_eval_expr_c(const char *start, int len);
+
 struct ast_LabeledStmt {
   uint8_t label[32];
   int32_t label_len;
@@ -68,21 +70,22 @@ int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
 
   if (!cond || cond_len <= 0)
     return 0;
-  /* seed 链不链 preprocess.c；单标识符 -D 宏求值，复杂式保守为 0。 */
-    while (cond_len > 0 && (cond[0] == ' ' || cond[0] == '\t')) {
-      cond++;
-      cond_len--;
-    }
-    while (cond_len > 0 && (cond[cond_len - 1] == ' ' || cond[cond_len - 1] == '\t'))
-      cond_len--;
-    if (cond_len <= 0)
-      return 0;
-    for (k = 0; k < cond_len; k++) {
-      char c = (char)cond[k];
-      if (c == ' ' || c == '\t')
-        return 0;
-    }
-    return preprocess_define_has(cond, cond_len) ? 1 : 0;
+  /* 去首尾空白。 */
+  while (cond_len > 0 && (cond[0] == ' ' || cond[0] == '\t')) {
+    cond++;
+    cond_len--;
+  }
+  while (cond_len > 0 && (cond[cond_len - 1] == ' ' || cond[cond_len - 1] == '\t'))
+    cond_len--;
+  if (cond_len <= 0)
+    return 0;
+  /* 复杂条件（含空格/运算符）走 cfg_eval，与 #[cfg] / preprocess.c 对齐。 */
+  for (k = 0; k < cond_len; k++) {
+    char c = (char)cond[k];
+    if (c == ' ' || c == '\t' || c == '=' || c == '!' || c == '(' || c == ')')
+      return cfg_eval_expr_c((const char *)cond, cond_len) ? 1 : 0;
+  }
+  return preprocess_define_has(cond, cond_len) ? 1 : 0;
 }
 
 /** 写 labeled 槽的标签名与 goto 目标名。 */
