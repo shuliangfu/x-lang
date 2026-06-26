@@ -1,6 +1,22 @@
 # F-01 std/core handwritten .c inventory (完全自举清场基线)
 # 列：path
 # 更新：SHUX_STD_C_INVENTORY_UPDATE=1 ./tests/run-std-c-inventory-gate.sh
-summary_std_c	0
+summary_std_c	16
 summary_core_c	0
-summary_total_c	0
+summary_total_c	16
+file	std/atomic/atomic_import_alias.c
+file	std/base64/base64_import_alias.c
+file	std/csv/csv_import_alias.c
+file	std/encoding/encoding_import_alias.c
+file	std/ffi/ffi_import_alias.c
+file	std/heap/heap_import_alias.c
+file	std/http/http_import_alias.c
+file	std/json/json_import_alias.c
+file	std/map/map_import_alias.c
+file	std/net/net_import_alias.c
+file	std/process/process_import_alias.c
+file	std/set/set_import_alias.c
+file	std/string/string_import_alias.c
+file	std/sync/sync_import_alias.c
+file	std/tar/tar_import_alias.c
+file	std/time/time_import_alias.c
