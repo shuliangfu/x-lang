@@ -236,3 +236,9 @@ tests/std-db/.kv_smoke
 tests/std-db/.kv_smoke.*
 tests/std-db/.cb_kv_arrow
 tests/std-db/.cb_kv_arrow.*
+
+# 临时二进制 / gate 输出（勿提交）
+compiler/shux_new
+compiler/shux_old
+gate_out.txt
+gate_out2.txt
