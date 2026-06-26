@@ -14,17 +14,9 @@ const process = import("std.process");
 function run_true(path: *u8): i32 {
   let pid: i32 = process.spawn_simple(path);
   if (pid <= 0) { return -1; }
-  return process.waitpid(pid);
-}
-
-/** 通过环境变量 OSTYPE 判断是否为 macOS（值为 "darwin"）；未设置或非 darwin
-* 返回 false。 */
-function is_darwin(): bool {
-  let key: u8[8] = [79, 83, 84, 89, 80, 69, 0, 0];
-  let val: *u8 = process.getenv(&key[0]);
-  if (val == 0) { return false; }
-  return val[0] == 100 && val[1] == 97 && val[2] == 114 && val[3] == 119 && val[4] == 105 && val[5]
-  == 110;
+  // asm typeck：勿直接 return call()，先赋给 let 再 return（与 setenv 用例同因）。
+  let rc: i32 = process.waitpid(pid);
+  return rc;
 }
 
 function main(): i32 {
@@ -32,7 +24,17 @@ function main(): i32 {
   0, 0, 0];
   let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
   let status: i32 = 0;
-  if (is_darwin()) {
+  // OSTYPE=darwin 时优先 /usr/bin/true；勿拆成独立函数（asm WPO 可能未导出 is_darwin 符号）。
+  let ostype_key: u8[8] = [79, 83, 84, 89, 80, 69, 0, 0];
+  let ostype_val: *u8 = process.getenv(&ostype_key[0]);
+  let on_darwin: bool = false;
+  if (ostype_val != 0) {
+    if (ostype_val[0] == 100 && ostype_val[1] == 97 && ostype_val[2] == 114 && ostype_val[3] == 119
+        && ostype_val[4] == 105 && ostype_val[5] == 110) {
+      on_darwin = true;
+    }
+  }
+  if (on_darwin) {
     status = run_true(&usr_true[0]);
     if (status == 127) { status = run_true(&bin_true[0]); }
   } else {

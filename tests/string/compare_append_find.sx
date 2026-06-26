@@ -10,21 +10,19 @@ function main(): i32 {
   if (string.string_compare(b, a) <= 0) { return 2; }
   if (string.string_compare(a, a) != 0) { return 3; }
   let s: String = string.string_new();
-  let s2: String = s;
-  if (string.string_append_char(&s2, 104) != 0) { return 4; }
-  if (string.string_len(s2) != 1) { return 5; }
+  if (string.string_append_char(&s, 104) != 0) { return 4; }
+  if (string.string_len(s) != 1) { return 5; }
   let hi: u8[2] = [105, 0];
-  if (string.string_append_slice(&s2, &hi[0], 1) != 0) { return 6; }
-  if (string.string_find_char(s2, 104) != 0) { return 7; }
-  if (string.string_find_char(s2, 105) != 1) { return 8; }
-  if (string.string_find_char(s2, 122) != -1) { return 9; }
+  if (string.string_append_slice(&s, &hi[0], 1) != 0) { return 6; }
+  if (string.string_find_char(s, 104) != 0) { return 7; }
+  if (string.string_find_char(s, 105) != 1) { return 8; }
+  if (string.string_find_char(s, 122) != -1) { return 9; }
   let pre: u8[1] = [104];
-  if (string.string_starts_with(s2, &pre[0], 1) != 1) { return 10; }
+  if (string.string_starts_with(s, &pre[0], 1) != 1) { return 10; }
   let suf: u8[1] = [105];
-  if (string.string_ends_with(s2, &suf[0], 1) != 1) { return 11; }
+  if (string.string_ends_with(s, &suf[0], 1) != 1) { return 11; }
   let out: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = string.string_copy_to(s2, &out[0], 8);
-  if (n != 2) { return 12; }
+  if (string.string_copy_to(s, &out[0], 8) != 2) { return 12; }
   if (out[0] != 104 || out[1] != 105) { return 13; }
   return 0;
 }

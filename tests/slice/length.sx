@@ -16,13 +16,13 @@ function main(): i32 {
   let b: u8[3] = [5, 10, 15];
   let sx: u8[] = b;
   if (slice.len_u8(sx) != 3) { return 3; }
-  let ou1: Option_u8 = slice.get_u8(su, 0);
-  let ou2: Option_u8 = slice.get_u8(su, 2);
-  let ou3: Option_u8 = slice.get_u8(su, 10);
+  let ou1: Option_u8 = slice.get_u8(sx, 0);
+  let ou2: Option_u8 = slice.get_u8(sx, 2);
+  let ou3: Option_u8 = slice.get_u8(sx, 10);
   if (!option.is_some_u8(ou1) || option.unwrap_or_u8(ou1, 0) != 5) { return 4; }
   if (!option.is_some_u8(ou2) || option.unwrap_or_u8(ou2, 0) != 15) { return 5; }
   if (!option.is_none_u8(ou3)) { return 6; }
   if (slice.get_i32_unchecked(s, 0) != 10 || slice.get_i32_unchecked(s, 3) != 40) { return 7; }
-  if (slice.get_u8_unchecked(su, 1) != 10) { return 8; }
+  if (slice.get_u8_unchecked(sx, 1) != 10) { return 8; }
   return 0;
 }

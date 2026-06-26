@@ -3,27 +3,6 @@
 // 覆盖 pid/cwd/self_exe/pipe/spawn 可移植子集；spawn 失败时退出 0（Windows 无 /bin/true）。
 const process = import("std.process");
 
-/** 尝试 spawn_simple + waitpid；成功 0，spawn 失败 -1，wait 非零 -2。 */
-function try_spawn_true(path: *u8): i32 {
-  let pid: i32 = process.spawn_simple(path);
-  if (pid <= 0) { return -1; }
-  let code: i32 = process.waitpid(pid);
-  if (code != 0) { return -2; }
-  return 0;
-}
-
-/** 依次尝试两条 true 路径；均无法 spawn 则 skip(0)。 */
-function spawn_true_or_skip(): i32 {
-  let usr_true: u8[20] = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
-  let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
-  let st: i32 = try_spawn_true(&usr_true[0]);
-  if (st == 0) { return 0; }
-  st = try_spawn_true(&bin_true[0]);
-  if (st == 0) { return 0; }
-  if (st == -1) { return 0; }
-  return 10;
-}
-
 function main(): i32 {
   // case 1：getpid 为正
   if (process.getpid() <= 0) { return 1; }
@@ -47,6 +26,20 @@ function main(): i32 {
   // case 7：process.chdir(".") 不失败
   let dot: u8[2] = [46, 0];
   if (process.chdir(&dot[0]) != 0) { return 9; }
-  // case 8：spawn_simple（POSIX true；失败则 skip）
-  return spawn_true_or_skip();
+  // case 8：spawn_simple（POSIX true；失败则 skip）；内联 helper 避免 asm WPO 未导出子函数。
+  let usr_true: u8[20] = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
+  let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
+  let pid8: i32 = process.spawn_simple(&usr_true[0]);
+  if (pid8 > 0) {
+    let code8: i32 = process.waitpid(pid8);
+    if (code8 != 0) { return 10; }
+    return 0;
+  }
+  pid8 = process.spawn_simple(&bin_true[0]);
+  if (pid8 > 0) {
+    let code8b: i32 = process.waitpid(pid8);
+    if (code8b != 0) { return 10; }
+    return 0;
+  }
+  return 0;
 }

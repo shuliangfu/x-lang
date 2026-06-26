@@ -43,4 +43,33 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ] && ci_n
     *) TYPECK_SHUX=./compiler/shux-c ;;
   esac
 fi
-export TYPECK_SHUX RUN_SHUX
+# shux-c 默认 C 后端 -o 在 struct/inline 等用例易 SIGSEGV；与 shux_compile_std_sx.sh 一致走 asm。
+SHUX_LINK_BACKEND_ARGS=""
+case "$(basename "${RUN_SHUX}")" in
+  shux-c) SHUX_LINK_BACKEND_ARGS="-backend asm" ;;
+esac
+# W3 / B-strict：stage2 shux_asm(2) 可用于 asm -o；未显式 SHUX_LINK_SHUX 时优先于 shux-c（seed -o 易 SIGSEGV）。
+# refresh-shux-asm-gate 后 shux_asm 常新于 shux_asm2（未跑 stage2）；勿用陈旧 gen2。
+if [ -z "${SHUX_LINK_SHUX:-}" ]; then
+  if [ -x ./compiler/shux_asm2 ] && ci_native_shu ./compiler/shux_asm2; then
+    RUN_SHUX=./compiler/shux_asm2
+    if [ -x ./compiler/shux_asm ] && ci_native_shu ./compiler/shux_asm \
+       && [ ./compiler/shux_asm -nt ./compiler/shux_asm2 ]; then
+      RUN_SHUX=./compiler/shux_asm
+    fi
+  elif [ -x ./compiler/shux_asm ] && ci_native_shu ./compiler/shux_asm; then
+    RUN_SHUX=./compiler/shux_asm
+  fi
+fi
+export TYPECK_SHUX RUN_SHUX SHUX_LINK_BACKEND_ARGS
+
+# bootstrap-min：-o 经 shux-min-link 包装（旧 link_abi 无 /usr/local/bin/gcc 时 gcc 回退）。
+if [ -n "${SHUX_BOOTSTRAP_MIN:-}" ] && [ -z "${SHUX_BOOTSTRAP_MIN_NO_WRAP:-}" ]; then
+  _min_wrap="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/shux-min-link.sh"
+  if [ -x "$_min_wrap" ]; then
+    _min_real="${SHUX_MIN_LINK_REAL:-${SHUX_LINK_SHUX:-./compiler/shux_asm}}"
+    export SHUX_MIN_LINK_REAL="$_min_real"
+    chmod +x "$_min_wrap" 2>/dev/null || true
+    RUN_SHUX="$_min_wrap"
+  fi
+fi

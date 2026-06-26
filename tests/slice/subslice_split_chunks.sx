@@ -35,12 +35,12 @@ function main(): i32 {
   // ——— u8[] subslice / split / chunk ———
   let u: u8[4] = [1, 2, 3, 4];
   let sx: u8[] = u;
-  let usub: u8[] = slice.subslice_u8(su, 1, 2);
+  let usub: u8[] = slice.subslice_u8(sx, 1, 2);
   if (usub.length != 2 || usub[0] != 2 || usub[1] != 3) { return 13; }
-  let usp: Split_u8 = slice.split_at_u8(su, 2);
+  let usp: Split_u8 = slice.split_at_u8(sx, 2);
   if (usp.left.length != 2 || usp.right.length != 2) { return 14; }
-  if (slice.chunks_len_u8(su, 3) != 2) { return 15; }
-  let uc: u8[] = slice.chunk_u8(su, 3, 1);
+  if (slice.chunks_len_u8(sx, 3) != 2) { return 15; }
+  let uc: u8[] = slice.chunk_u8(sx, 3, 1);
   if (uc.length != 1 || uc[0] != 4) { return 16; }
 
   // ——— is_empty / first / last ———

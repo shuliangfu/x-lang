@@ -1,5 +1,5 @@
-// 负例：return 后缺分号，应报 expected ';' after return expr
+// 负例：块内连续语句间缺分号（`}` 前单独 return 可省略分号，见 run-parser.sh 头注释）
 function main(): i32 {
-  let x: i32 = 1;
   return 0
+  return 1;
 }

@@ -132,6 +132,19 @@ ensure_runtime_net_workers_o() {
   make -C compiler -q runtime_net_workers.o 2>/dev/null || make -C compiler runtime_net_workers.o
 }
 
+# F-ZC：asm -o 最小链 / net gcc 回退须 runtime_asm_io_stubs.o、runtime_panic.o、runtime_process_argv.o。
+ensure_runtime_asm_io_stubs_o() {
+  make -C compiler -q runtime_asm_io_stubs.o 2>/dev/null || make -C compiler runtime_asm_io_stubs.o
+}
+
+ensure_runtime_panic_o() {
+  make -C compiler -q runtime_panic.o 2>/dev/null || make -C compiler runtime_panic.o
+}
+
+ensure_runtime_process_argv_o() {
+  make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o
+}
+
 # F-ZC：确保 runtime_sync_os.o / runtime_sync_lock_diag_tls.o；链 sync.o 时须一并链接。
 ensure_runtime_sync_os_o() {
   make -C compiler -q runtime_sync_os.o 2>/dev/null || make -C compiler runtime_sync_os.o

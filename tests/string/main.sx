@@ -7,7 +7,6 @@ const string = import("std.string");
 
 function main(): i32 {
   if (string.string_empty() != 0) { return 1; }
-  if (string.string_capacity() != 256) { return 2; }
   
   let s: String = string.string_new();
   if (string.string_len(s) != 0) { return 3; }
@@ -73,5 +72,6 @@ function main(): i32 {
   let c0: i32 = string.string_copy_to(s2, &out_zero[0], 1);
   if (c0 != 0) { return 30; }
   
+  if (string.string_capacity() != 256) { return 2; }
   return 0;
 }
