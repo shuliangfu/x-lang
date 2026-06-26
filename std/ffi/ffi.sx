@@ -65,12 +65,12 @@ function ffi_cstr_len_c(ptr: *u8): i32 {
 
 /** 分配 len+1 字节，复制 ptr[0..len] 并写入 NUL；失败返回 0。 */
 function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
-  let p: *u8 = 0;
+  let p: *u8 = 0 as *u8;
   let n: usize = 0;
-  if (len < 0) { return 0; }
+  if (len < 0) { return 0 as *u8; }
   n = (len as usize) + 1;
   p = malloc(n);
-  if (p == 0) { return 0; }
+  if (p == 0) { return 0 as *u8; }
   if (ptr != 0 && len > 0) {
     memcpy(p, ptr, len);
   }
@@ -85,7 +85,7 @@ function ffi_cstring_free_c(ptr: *u8): void {
 
 /** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式。 */
 function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32 {
-  let p: *u8 = 0;
+  let p: *u8 = 0 as *u8;
   if (out == 0) { return FFI_ERR_NULL; }
   if (len < 0) {
     out[0] = 0;

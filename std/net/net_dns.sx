@@ -74,7 +74,7 @@ let net_dns_wsa_done: i32 = 0;
  * Windows：一次性 WSAStartup。
  */
 #[cfg(target_os = "windows")]
-function net_dns_ensure_wsa(): i32 {
+function net_dns_ensure_wsa_c(): i32 {
   if (net_dns_wsa_done != 0) {
     return 0;
   }
@@ -89,7 +89,7 @@ function net_dns_ensure_wsa(): i32 {
  * 将 getaddrinfo 错误映射为 STD-029 resolve_err_* 常量。
  */
 #[cfg(target_os = "linux")]
-function net_map_gai_error(err: i32): i32 {
+function net_map_gai_error_c(err: i32): i32 {
   if (err == (0 - 2)) {
     return 1;
   }
@@ -103,7 +103,7 @@ function net_map_gai_error(err: i32): i32 {
 }
 
 #[cfg(target_os = "macos")]
-function net_map_gai_error(err: i32): i32 {
+function net_map_gai_error_c(err: i32): i32 {
   if (err == 8) {
     return 1;
   }
@@ -117,7 +117,7 @@ function net_map_gai_error(err: i32): i32 {
 }
 
 #[cfg(target_os = "windows")]
-function net_map_gai_error(err: i32): i32 {
+function net_map_gai_error_c(err: i32): i32 {
   if (err == 11001) {
     return 1;
   }
@@ -133,18 +133,18 @@ function net_map_gai_error(err: i32): i32 {
 /**
  * 清零 AddrInfoHints（48 字节 hosted 布局）。
  */
-function net_dns_zero_hints_buf(hints: *u8): void {
+function net_dns_zero_hints_buf_c(hints: *u8): void {
   mem.mem_set(hints, 0 as u8, 48);
 }
 
 /**
  * 在 hints 缓冲（48 字节）写入 ai_flags / ai_family / ai_socktype（避免 let 初始化中的 as 触发 emit 失败）。
  */
-function net_dns_fill_hints_inet(hints: *u8, family: i32, flags: i32): void {
+function net_dns_fill_hints_inet_c(hints: *u8, family: i32, flags: i32): void {
   let p_flags: *i32 = (hints + 0) as *i32;
   let p_family: *i32 = (hints + 4) as *i32;
   let p_socktype: *i32 = (hints + 8) as *i32;
-  net_dns_zero_hints_buf(hints);
+  net_dns_zero_hints_buf_c(hints);
   p_family[0] = family;
   p_socktype[0] = SOCK_STREAM;
   p_flags[0] = flags;
@@ -154,15 +154,15 @@ function net_dns_fill_hints_inet(hints: *u8, family: i32, flags: i32): void {
  * Windows：解析前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] 触发 parse skip）。
  */
 #[cfg(target_os = "windows")]
-function net_dns_maybe_wsa_fail(): i32 {
-  if (net_dns_ensure_wsa() != 0) {
+function net_dns_maybe_wsa_fail_c(): i32 {
+  if (net_dns_ensure_wsa_c() != 0) {
     return -1;
   }
   return 0;
 }
 
 #[cfg(not(target_os = "windows"))]
-function net_dns_maybe_wsa_fail(): i32 {
+function net_dns_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
@@ -189,7 +189,7 @@ function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i3
   let addr_u32: u32 = 0;
   let sa: *SockAddrIn = 0 as *SockAddrIn;
   let rp: *AddrInfo = 0 as *AddrInfo;
-  if (net_dns_maybe_wsa_fail() != 0) {
+  if (net_dns_maybe_wsa_fail_c() != 0) {
     if (out_addr != 0) { out_addr[0] = 0; }
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
@@ -199,12 +199,12 @@ function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i3
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
   }
-  net_dns_fill_hints_inet(&hints_mem[0], AF_INET, net_dns_ai_addconfig_c());
+  net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET, net_dns_ai_addconfig_c());
   ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head);
   res = res_head as *AddrInfo;
   if (ga != 0 || res == 0) {
     if (out_addr != 0) { out_addr[0] = 0; }
-    if (out_err != 0) { out_err[0] = net_map_gai_error(ga); }
+    if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
     if (res != 0) { freeaddrinfo(res); }
     return -1;
   }
@@ -234,7 +234,7 @@ function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): 
   let ga: i32 = 0;
   let sa6: *SockAddrIn6 = 0 as *SockAddrIn6;
   let rp: *AddrInfo = 0 as *AddrInfo;
-  if (net_dns_maybe_wsa_fail() != 0) {
+  if (net_dns_maybe_wsa_fail_c() != 0) {
     if (out_err != 0) { out_err[0] = 4; }
     return -1;
   }
@@ -243,11 +243,11 @@ function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): 
     return -1;
   }
   mem.mem_set(out_addr_16, 0 as u8, 16);
-  net_dns_fill_hints_inet(&hints_mem[0], AF_INET6, net_dns_ai_addconfig_c());
+  net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET6, net_dns_ai_addconfig_c());
   ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head);
   res = res_head as *AddrInfo;
   if (ga != 0 || res == 0) {
-    if (out_err != 0) { out_err[0] = net_map_gai_error(ga); }
+    if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
     if (res != 0) { freeaddrinfo(res); }
     return -1;
   }

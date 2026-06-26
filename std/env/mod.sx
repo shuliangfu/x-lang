@@ -108,9 +108,9 @@ function args_iter_count(): i32 {
   return args_iter_count_c();
 }
 
-/** 读取下一 argv 指针；结束返回 0。 */
+/** 读取下一 argv 指针；结束返回 null。 */
 function args_iter_next(it: *ArgsIter): *u8 {
-  if (it.index >= args_iter_count_c()) { return 0; }
+  if (it.index >= args_iter_count_c()) { return 0 as *u8; }
   let p: *u8 = args_iter_at_c(it.index);
   it.index = it.index + 1;
   return p;

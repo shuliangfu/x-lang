@@ -114,74 +114,11 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
 }
 
 /**
- * UDP 批量接收（Buffer 切片）；n 为 1..8（Linux 快路径）。
+ * UDP 批量接收（Buffer 切片）；实现见 net_import_alias.c（规避 asm 常量比较 codegen 缺陷）。
  */
-#[cfg(target_os = "linux")]
-function net_udp_recv_many_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
-  if (n <= 0 || n > UDP_BATCH_BUF_MAX || bufs == 0 || out_sizes == 0 || out_addrs == 0 || out_ports == 0) {
-    return -1;
-  }
-  return shu_net_udp_recvmmsg_buf_c(fd, bufs, n, timeout_ms, out_sizes, out_addrs, out_ports);
-}
+extern fn net_udp_recv_many_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 
 /**
- * UDP 批量接收（Buffer 切片）回退（非 Linux）。
+ * UDP 批量发送（Buffer 切片）；实现见 net_import_alias.c（规避 asm 常量比较 codegen 缺陷）。
  */
-#[cfg(not(target_os = "linux"))]
-function net_udp_recv_many_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
-  let count: i32 = 0;
-  let got: i32 = 0;
-  let tm: u32 = 0;
-  if (n <= 0 || n > UDP_BATCH_BUF_MAX || bufs == 0 || out_sizes == 0 || out_addrs == 0 || out_ports == 0) {
-    return -1;
-  }
-  count = 0;
-  while (count < n) {
-    tm = 0;
-    if (count == 0) {
-      tm = timeout_ms;
-    }
-    got = net_udp_recv_from_c(fd, bufs[count].ptr, bufs[count].len, tm, out_addrs + count, out_ports + count);
-    if (got < 0) {
-      return -1;
-    }
-    if (got == 0) {
-      return count;
-    }
-    out_sizes[count] = got;
-    count = count + 1;
-  }
-  return count;
-}
-
-/**
- * UDP 批量发送（Buffer 切片）；n 为 1..8（Linux 快路径）。
- */
-#[cfg(target_os = "linux")]
-function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32 {
-  if (n <= 0 || n > UDP_BATCH_BUF_MAX || addrs == 0 || ports == 0 || bufs == 0) {
-    return -1;
-  }
-  return shu_net_udp_sendmmsg_buf_c(fd, addrs, ports, bufs, n);
-}
-
-/**
- * UDP 批量发送（Buffer 切片）回退（非 Linux）。
- */
-#[cfg(not(target_os = "linux"))]
-function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32 {
-  let i: i32 = 0;
-  let sent: i32 = 0;
-  if (n <= 0 || n > UDP_BATCH_BUF_MAX || addrs == 0 || ports == 0 || bufs == 0) {
-    return -1;
-  }
-  i = 0;
-  while (i < n) {
-    sent = net_udp_send_to_c(fd, addrs[i], ports[i], bufs[i].ptr, bufs[i].len);
-    if (sent < 0) {
-      return -1;
-    }
-    i = i + 1;
-  }
-  return n;
-}
+extern fn net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;

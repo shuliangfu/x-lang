@@ -79,7 +79,7 @@ let net_ipv6_wsa_done: i32 = 0;
  * Windows：一次性 WSAStartup。
  */
 #[cfg(target_os = "windows")]
-function net_ipv6_ensure_wsa(): i32 {
+function net_ipv6_ensure_wsa_c(): i32 {
   if (net_ipv6_wsa_done != 0) {
     return 0;
   }
@@ -94,45 +94,33 @@ function net_ipv6_ensure_wsa(): i32 {
  * Windows：连接前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
  */
 #[cfg(target_os = "windows")]
-function net_ipv6_maybe_wsa_fail(): i32 {
-  if (net_ipv6_ensure_wsa() != 0) {
+function net_ipv6_maybe_wsa_fail_c(): i32 {
+  if (net_ipv6_ensure_wsa_c() != 0) {
     return -1;
   }
   return 0;
 }
 
 #[cfg(not(target_os = "windows"))]
-function net_ipv6_maybe_wsa_fail(): i32 {
+function net_ipv6_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
 /**
  * 取栈上缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]，经 helper 传递）。
  */
-function net_ipv6_sin_buf_ptr(p: *u8): *u8 {
+function net_ipv6_sin_buf_ptr_c(p: *u8): *u8 {
   return p;
 }
 
-/**
- * 填充 IPv6 sockaddr 缓冲（addr_16 网络序 16 字节，port 低 16 位）。
- */
-function net_ipv6_set_addr_port_buf(sin: *u8, addr_16: *u8, port_u32: u32): void {
-  let p_family: *u16 = (sin + 0) as *u16;
-  let p_port: *u16 = (sin + 2) as *u16;
-  let p_flow: *u32 = (sin + 4) as *u32;
-  let p_addr: *u8 = (sin + 8) as *u8;
-  mem.mem_set(sin, 0 as u8, SOCKADDR_IN6_SIZE as usize);
-  p_family[0] = AF_INET6 as u16;
-  mem.mem_copy(p_addr, addr_16, 16);
-  p_port[0] = htons((port_u32 & 0xffff) as u16);
-  p_flow[0] = 0;
-}
+/** IPv6 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
+extern fn net_ipv6_set_addr_port_buf_c(sin: *u8, addr_16: *u8, port_u32: u32): void;
 
 /**
  * 设 socket 非阻塞（Unix）。
  */
 #[cfg(not(target_os = "windows"))]
-function net_ipv6_set_nonblock(fd: i32): i32 {
+function net_ipv6_set_nonblock_c(fd: i32): i32 {
   let flags: i32 = fcntl(fd, 3, 0);
   if (flags < 0) {
     return -1;
@@ -147,7 +135,7 @@ function net_ipv6_set_nonblock(fd: i32): i32 {
  * 设 socket 非阻塞（Windows）。
  */
 #[cfg(target_os = "windows")]
-function net_ipv6_set_nonblock(fd: i32): i32 {
+function net_ipv6_set_nonblock_c(fd: i32): i32 {
   let one: u32 = 1;
   if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
     return 0;
@@ -159,9 +147,9 @@ function net_ipv6_set_nonblock(fd: i32): i32 {
  * poll 可写直至 timeout_ms（Unix）。
  */
 #[cfg(not(target_os = "windows"))]
-function net_ipv6_poll_writable(fd: i32, timeout_ms: u32): i32 {
+function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   let pfd_mem: u8[8] = [];
-  let pfd_ptr: *u8 = net_ipv6_sin_buf_ptr(&pfd_mem[0]);
+  let pfd_ptr: *u8 = net_ipv6_sin_buf_ptr_c(&pfd_mem[0]);
   let p_fd: *i32 = (pfd_ptr + 0) as *i32;
   let p_events: *i16 = (pfd_ptr + 4) as *i16;
   let p_revents: *i16 = (pfd_ptr + 6) as *i16;
@@ -180,7 +168,7 @@ function net_ipv6_poll_writable(fd: i32, timeout_ms: u32): i32 {
  * poll 可写（Windows 桩：恒成功）。
  */
 #[cfg(target_os = "windows")]
-function net_ipv6_poll_writable(fd: i32, timeout_ms: u32): i32 {
+function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   return 0;
 }
 
@@ -188,7 +176,7 @@ function net_ipv6_poll_writable(fd: i32, timeout_ms: u32): i32 {
  * connect 失败时是否可继续等待（Unix：EINPROGRESS / EAGAIN）。
  */
 #[cfg(not(target_os = "windows"))]
-function net_ipv6_connect_retry_ok(): i32 {
+function net_ipv6_connect_retry_ok_c(): i32 {
   let e: i32 = __errno_location()[0];
   if (e == ERR_INPROGRESS || e == ERR_EAGAIN) {
     return 1;
@@ -200,7 +188,7 @@ function net_ipv6_connect_retry_ok(): i32 {
  * connect 失败时是否可继续等待（Windows：非阻塞 connect 走 poll 路径）。
  */
 #[cfg(target_os = "windows")]
-function net_ipv6_connect_retry_ok(): i32 {
+function net_ipv6_connect_retry_ok_c(): i32 {
   return 1;
 }
 
@@ -209,31 +197,31 @@ function net_ipv6_connect_retry_ok(): i32 {
  */
 function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[28] = [];
-  let sin_ptr: *u8 = net_ipv6_sin_buf_ptr(&sin_mem[0]);
+  let sin_ptr: *u8 = net_ipv6_sin_buf_ptr_c(&sin_mem[0]);
   let fd: i32 = 0;
   let err: i32 = 0;
   let errlen: u32 = 4;
-  if (net_ipv6_maybe_wsa_fail() != 0) {
+  if (net_ipv6_maybe_wsa_fail_c() != 0) {
     return -1;
   }
   if (addr_16 == 0) {
     return -1;
   }
-  net_ipv6_set_addr_port_buf(sin_ptr, addr_16, port_u32);
+  net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32);
   fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (fd < 0) {
     return -1;
   }
-  if (net_ipv6_set_nonblock(fd) != 0) {
+  if (net_ipv6_set_nonblock_c(fd) != 0) {
     close(fd);
     return -1;
   }
   if (connect(fd, sin_ptr, SOCKADDR_IN6_SIZE) != 0) {
-    if (net_ipv6_connect_retry_ok() == 0) {
+    if (net_ipv6_connect_retry_ok_c() == 0) {
       close(fd);
       return -1;
     }
-    if (net_ipv6_poll_writable(fd, timeout_ms) != 0) {
+    if (net_ipv6_poll_writable_c(fd, timeout_ms) != 0) {
       close(fd);
       return -1;
     }
@@ -251,16 +239,16 @@ function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i
  */
 function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32 {
   let sin_mem: u8[28] = [];
-  let sin_ptr: *u8 = net_ipv6_sin_buf_ptr(&sin_mem[0]);
+  let sin_ptr: *u8 = net_ipv6_sin_buf_ptr_c(&sin_mem[0]);
   let fd: i32 = 0;
   let one: i32 = 1;
-  if (net_ipv6_maybe_wsa_fail() != 0) {
+  if (net_ipv6_maybe_wsa_fail_c() != 0) {
     return -1;
   }
   if (addr_16 == 0) {
     return -1;
   }
-  net_ipv6_set_addr_port_buf(sin_ptr, addr_16, port_u32);
+  net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32);
   fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (fd < 0) {
     return -1;
@@ -274,7 +262,7 @@ function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32 {
     close(fd);
     return -1;
   }
-  if (net_ipv6_set_nonblock(fd) != 0) {
+  if (net_ipv6_set_nonblock_c(fd) != 0) {
     close(fd);
     return -1;
   }

@@ -816,5 +816,7 @@ function vec3f_aos_deinit(v: *Vec3f_aos): void {
 function vec_len_empty(): i32 { return 0; }
 /** 占位；保留兼容。 */
 function vec_placeholder<T>(x: T): T { return x; }
+/** i32 单态占位：烟测用，避免泛型实例化拉整颗 mod.sx 进 asm emit（自举 slice 下 elf_ec=-1）。 */
+function vec_placeholder_i32(x: i32): i32 { return x; }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function vec_module_anchor(): i32 { return 0; }

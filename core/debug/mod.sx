@@ -1,25 +1,74 @@
 // core.debug — 已迁移至 core.assert；本模块为兼容 alias（deprecated）
 //
 // 新代码请使用：const assert_mod = import("core.assert");
-const assert_mod = import("core.assert");
+// 【co-emit】勿 import core.assert 再 delegate（transitive dep 未编入 user.o → ld 缺 core_assert_*）；
+// 此处与 core/assert/mod.sx 保持语义一致的内联副本。
+
+/** 最近一次 assert 诊断槽（CORE-019 烟测用）。 */
+let debug_diag_last_a: i32 = 0;
+let debug_diag_last_b: i32 = 0;
+let debug_diag_last_ok: i32 = 0;
 
 /** @deprecated 使用 core.assert.assert */
-function assert(b: bool): i32 { return assert_mod.assert(b); }
-/** @deprecated 使用 core.assert.debug_assert */
-function debug_assert(b: bool): i32 { return assert_mod.debug_assert(b); }
-function assert_eq_i32(a: i32, b: i32): i32 { return assert_mod.assert_eq_i32(a, b); }
-function assert_ne_i32(a: i32, b: i32): i32 { return assert_mod.assert_ne_i32(a, b); }
-function assert_eq_u32(a: u32, b: u32): i32 { return assert_mod.assert_eq_u32(a, b); }
-function assert_ne_u32(a: u32, b: u32): i32 { return assert_mod.assert_ne_u32(a, b); }
-function assert_eq_bool(a: bool, b: bool): i32 { return assert_mod.assert_eq_bool(a, b); }
-function assert_ne_bool(a: bool, b: bool): i32 { return assert_mod.assert_ne_bool(a, b); }
-function assert_eq_u64(a: u64, b: u64): i32 { return assert_mod.assert_eq_u64(a, b); }
-function assert_ne_u64(a: u64, b: u64): i32 { return assert_mod.assert_ne_u64(a, b); }
-function assert_eq_ptr(a: *u8, b: *u8): i32 { return assert_mod.assert_eq_ptr(a, b); }
-function assert_ne_ptr(a: *u8, b: *u8): i32 { return assert_mod.assert_ne_ptr(a, b); }
-function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
-  return assert_mod.debug_assert_eq_i32_diag(a, b, tag);
+function assert(b: bool): i32 {
+  if (!b) { return panic(); }
+  return 0;
 }
+/** @deprecated 使用 core.assert.debug_assert */
+function debug_assert(b: bool): i32 {
+  if (!b) { return panic(); }
+  return 0;
+}
+/** 断言 a == b，否则 panic；返回 0。 */
+function assert_eq_i32(a: i32, b: i32): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+/** 断言 a != b，否则 panic；返回 0。 */
+function assert_ne_i32(a: i32, b: i32): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+function assert_eq_u32(a: u32, b: u32): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+function assert_ne_u32(a: u32, b: u32): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+function assert_eq_bool(a: bool, b: bool): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+function assert_ne_bool(a: bool, b: bool): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+function assert_eq_u64(a: u64, b: u64): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+function assert_ne_u64(a: u64, b: u64): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+function assert_eq_ptr(a: *u8, b: *u8): i32 {
+  if (a != b) { return panic(); }
+  return 0;
+}
+function assert_ne_ptr(a: *u8, b: *u8): i32 {
+  if (a == b) { return panic(); }
+  return 0;
+}
+function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
+  debug_diag_store(a, b, if (a == b) { 1 } else { 0 });
+  if (a != b) { return panic(); }
+  return 0;
+}
+/** 存储最近一次诊断三元组（烟测 / 调试器读取）。 */
 function debug_diag_store(a: i32, b: i32, ok: i32): void {
-  assert_mod.debug_diag_store(a, b, ok);
+  debug_diag_last_a = a;
+  debug_diag_last_b = b;
+  debug_diag_last_ok = ok;
 }

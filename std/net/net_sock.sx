@@ -23,36 +23,39 @@ extern function closesocket(fd: i32): i32;
 extern function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 /**
- * 内部：切换阻塞/非阻塞；blocking=1 阻塞。
+ * 内部：切换阻塞/非阻塞（Unix）；blocking=1 阻塞。
+ * 顶层 cfg 分函数，避免函数体内 #[cfg] 触发 seed emit skip。
  */
-function net_sock_set_blocking_fd(fd: i32, blocking: i32): i32 {
-  #[cfg(not(target_os = "windows"))]
-  {
-    let flags: i32 = fcntl(fd, F_GETFL, 0);
-    if (flags < 0) {
-      return -1;
-    }
-    if (blocking != 0) {
-      flags = flags & (0 - 1 - O_NONBLOCK);
-    } else {
-      flags = flags | O_NONBLOCK;
-    }
-    if (fcntl(fd, F_SETFL, flags) == 0) {
-      return 0;
-    }
+#[cfg(not(target_os = "windows"))]
+function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
+  let flags: i32 = fcntl(fd, F_GETFL, 0);
+  if (flags < 0) {
     return -1;
   }
-  #[cfg(target_os = "windows")]
-  {
-    let mode: u32 = 0;
-    if (blocking == 0) {
-      mode = 1;
-    }
-    if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &mode) == 0) {
-      return 0;
-    }
-    return -1;
+  if (blocking != 0) {
+    flags = flags & (0 - 1 - O_NONBLOCK);
+  } else {
+    flags = flags | O_NONBLOCK;
   }
+  if (fcntl(fd, F_SETFL, flags) == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+/**
+ * 内部：切换阻塞/非阻塞（Windows）；blocking=1 阻塞。
+ */
+#[cfg(target_os = "windows")]
+function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
+  let mode: u32 = 0;
+  if (blocking == 0) {
+    mode = 1;
+  }
+  if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &mode) == 0) {
+    return 0;
+  }
+  return -1;
 }
 
 /**
@@ -63,12 +66,16 @@ function net_close_socket_c(fd: i32): i32 {
     return 0;
   }
   #[cfg(not(target_os = "windows"))]
-  if (close(fd) == 0) {
-    return 0;
+  {
+    if (close(fd) == 0) {
+      return 0;
+    }
   }
   #[cfg(target_os = "windows")]
-  if (closesocket(fd) == 0) {
-    return 0;
+  {
+    if (closesocket(fd) == 0) {
+      return 0;
+    }
   }
   return -1;
 }
@@ -80,7 +87,7 @@ function net_set_blocking_c(fd: i32, blocking: i32): i32 {
   if (fd < 0) {
     return -1;
   }
-  if (net_sock_set_blocking_fd(fd, blocking) == 0) {
+  if (net_sock_set_blocking_fd_c(fd, blocking) == 0) {
     return 0;
   }
   return -1;

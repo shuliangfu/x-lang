@@ -1,7 +1,7 @@
 // std.net.net_workers — F-04 v14：多 worker accept 压测（run_accept_workers）
 //
 // 【文件职责】
-// 从 net.c 迁出 net_run_accept_workers_c / net_run_accept_workers_c_real。
+// 从 net.c 迁出 net_run_accept_workers_c / net_run_accept_workers_c_real_c。
 // 线程入口见 runtime_net_workers.c；create/join 走 std/thread/thread.sx + thread_glue.c。
 //
 // 【依赖】net_tcp.sx net_accept_many_c；net_sock.sx net_close_socket_c；thread.o
@@ -25,14 +25,14 @@ extern function shu_net_worker_accept_entry_ptr_c(): usize;
 /**
  * 取 NetWorkerArg 数组第 i 项指针（seed emit 不支持 &args[i] 直接作 call 实参）。
  */
-function net_worker_arg_slot_ptr(args: *NetWorkerArg, i: i32): *NetWorkerArg {
+function net_worker_arg_slot_ptr_c(args: *NetWorkerArg, i: i32): *NetWorkerArg {
   return args + i;
 }
 
 /**
  * 写入单条 worker 参数（避免 struct 字面量初始化触发 parse skip）。
  */
-function net_worker_arg_fill(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: u32, worker_index: i32): void {
+function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: u32, worker_index: i32): void {
   slot.listener_fd = listener_fd;
   slot.timeout_ms = timeout_ms;
   slot.worker_index = worker_index;
@@ -42,7 +42,7 @@ function net_worker_arg_fill(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: 
  * 起 n_workers 线程，每线程循环 accept_many 后立即 close。
  * 主线程阻塞 join（永不返回）；失败 -1。
  */
-function net_run_accept_workers_c_real(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
+function net_run_accept_workers_c_real_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
   let nw: i32 = n_workers;
   let args: NetWorkerArg[64] = [];
   let tids: i64[64] = [];
@@ -56,13 +56,13 @@ function net_run_accept_workers_c_real(listener_fd: i32, n_workers: i32, timeout
   }
   i = 0;
   while (i < nw) {
-    net_worker_arg_fill(net_worker_arg_slot_ptr(&args[0], i), listener_fd, timeout_ms, i);
+    net_worker_arg_fill_c(net_worker_arg_slot_ptr_c(&args[0], i), listener_fd, timeout_ms, i);
     i = i + 1;
   }
   entry = shu_net_worker_accept_entry_ptr_c();
   i = 0;
   while (i < nw) {
-    tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr(&args[0], i) as usize);
+    tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr_c(&args[0], i) as usize);
     if (tids[i] == 0) {
       return -1;
     }
@@ -82,5 +82,5 @@ function net_run_accept_workers_c_real(listener_fd: i32, n_workers: i32, timeout
  * 兼容别名：runtime / 旧链接路径仍引用 net_run_accept_workers_c。
  */
 function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
-  return net_run_accept_workers_c_real(listener_fd, n_workers, timeout_ms);
+  return net_run_accept_workers_c_real_c(listener_fd, n_workers, timeout_ms);
 }

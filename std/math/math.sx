@@ -10,12 +10,12 @@ extern function math_expm1_c(x: f64): f64;
 
 /** 圆周率 π。 */
 function math_pi_c(): f64 {
-  return 3.14159265358979323846;
+  return 3.14159265358979323846 as f64;
 }
 
 /** 自然常数 e。 */
 function math_e_c(): f64 {
-  return 2.7182818284590452354;
+  return 2.7182818284590452354 as f64;
 }
 
 /** 2π。 */
@@ -25,9 +25,9 @@ function math_tau_c(): f64 {
 
 /** signum：x>0→1，x<0→-1，x==0→0。 */
 function math_signum_c(x: f64): f64 {
-  if (x > 0.0) { return 1.0; }
-  if (x < 0.0) { return -1.0; }
-  return 0.0;
+  if (x > 0.0) { return 1.0 as f64; }
+  if (x < 0.0) { return -1.0 as f64; }
+  return 0.0 as f64;
 }
 
 /** 近似相等辅助；1 是，0 否。 */

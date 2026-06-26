@@ -115,9 +115,12 @@ function test_io_append_i64(out: *u8, pos: i32, cap: i32, v: i64): i32 {
 /** 追加 C 串到 out；失败 -1。 */
 function test_io_append_cstr(out: *u8, pos: i32, cap: i32, s: *u8): i32 {
   let i: i32 = 0;
+  let c: u8 = 0;
   if (out == 0 || s == 0) { return -1; }
-  while (s[i] != 0) {
-    pos = test_io_append_byte(out, pos, cap, s[i]);
+  loop {
+    c = (s + i)[0];
+    if (c == 0) { break; }
+    pos = test_io_append_byte(out, pos, cap, c);
     if (pos < 0) { return -1; }
     i = i + 1;
   }
@@ -129,7 +132,7 @@ function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len: i32):
   let i: i32 = 0;
   if (out == 0 || name == 0 || len <= 0) { return -1; }
   while (i < len) {
-    pos = test_io_append_byte(out, pos, cap, name[i]);
+    pos = test_io_append_byte(out, pos, cap, (name + i)[0]);
     if (pos < 0) { return -1; }
     i = i + 1;
   }
@@ -138,9 +141,9 @@ function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len: i32):
 
 /** 写 buf[0..len) 到 stderr；成功 0，失败 -1。 */
 function test_io_write_stderr(buf: *u8, len: i32): i32 {
-  let r: isize = 0;
+  let r: isize = 0 as isize;
   if (buf == 0 || len <= 0) { return -1; }
-  r = write(2, buf, len);
+  r = write(2, buf, len as usize);
   if (r != len as isize) { return -1; }
   return 0;
 }
@@ -291,7 +294,7 @@ function test_bench_run_c(fn: usize, iters: i32): i64 {
   let t0: i64 = 0;
   let t1: i64 = 0;
   let i: i32 = 0;
-  if (fn == 0 || iters <= 0) { return -1; }
+  if (fn == 0 || iters <= 0) { return -1 as i64; }
   t0 = time_now_monotonic_ns_c();
   while (i < iters) {
     test_call_i32_void_c(fn);
@@ -335,7 +338,7 @@ function test_bench_run_noop_c(iters: i32): i64 {
   let t0: i64 = 0;
   let t1: i64 = 0;
   let i: i32 = 0;
-  if (iters <= 0) { return -1; }
+  if (iters <= 0) { return -1 as i64; }
   t0 = time_now_monotonic_ns_c();
   while (i < iters) {
     test_noop_impl();

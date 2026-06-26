@@ -40,6 +40,14 @@ function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
   dst.off = src.off;
 }
 
+/** WPO-S3：按字段写入游标，避免 local& + outer* 同 call 触发 stack escape typeck。 */
+function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32): void {
+  if (dst == 0) { return; }
+  dst.ptr = ptr;
+  dst.len = len;
+  dst.off = off;
+}
+
 /** 手写 double 解析（单遍、无 sscanf）；consumed 写入消费字节数；成功返回 0。 */
 function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
   let i: i32 = 0;
@@ -469,6 +477,51 @@ function json_cursor_enter_object_c(cur: *JsonCursor): i32 {
   return 0;
 }
 
+/** object 字段 key 暂存（WPO-S3：避免 *JsonCursor 与 &local key_buf 同 call）。 */
+let g_json_object_keybuf: u8[64] = [];
+/** object 字段 key 长度暂存（WPO-S3：避免 &local key_len 与 *JsonCursor 同 call）。 */
+let g_json_object_key_len: i32 = 0;
+/** decode 消费字节数暂存（WPO-S3：避免 &local consumed 与 *JsonCursor 同 call）。 */
+let g_json_decode_consumed: i32 = 0;
+/** 将 src 三字段写入 dst（WPO-S3：标量字段，避免 json_cursor_copy call）。 */
+function json_cursor_load_into_c(dst: *JsonCursor, src: *JsonCursor): void {
+  let p: *u8 = 0 as *u8;
+  let ln: i32 = 0;
+  let of: i32 = 0;
+  if (dst == 0 || src == 0) { return; }
+  p = src.ptr;
+  ln = src.len;
+  of = src.off;
+  json_cursor_write_fields(dst, p, ln, of);
+}
+
+/** 返回 decode 消费字节数槽指针（WPO-S3）。 */
+function json_decode_consumed_ptr_c(): *i32 {
+  return &g_json_decode_consumed;
+}
+
+/** 返回 object key 暂存区指针（WPO-S3）。 */
+function json_object_keybuf_ptr_c(): *u8 {
+  return &g_json_object_keybuf[0];
+}
+
+/** 返回 object key 长度槽指针（WPO-S3）。 */
+function json_object_key_len_ptr_c(): *i32 {
+  return &g_json_object_key_len;
+}
+
+/** 取游标当前 value 起点指针（WPO-S3：单 *JsonCursor 实参）。 */
+function json_cursor_value_ptr_at_c(c: *JsonCursor): *u8 {
+  if (c == 0) { return 0 as *u8; }
+  return &c.ptr[c.off];
+}
+
+/** 取游标当前 value 剩余长度（WPO-S3：单 *JsonCursor 实参）。 */
+function json_cursor_value_len_at_c(c: *JsonCursor): i32 {
+  if (c == 0) { return 0; }
+  return c.len - c.off;
+}
+
 /** 读取下一 object 键；成功 1，结束 0，错误 -1。off 停在 value 起始。 */
 function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32 {
@@ -511,13 +564,13 @@ function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
 /** 零拷贝视图：含转义时 out_len[0] = JSON_VIEW_NEEDS_COPY 并返回 NULL。 */
 function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   let i: i32 = 0;
-  if (ptr == 0 || len < 2 || ptr[0] != 34 || out_len == 0 || consumed == 0) { return 0; }
+  if (ptr == 0 || len < 2 || ptr[0] != 34 || out_len == 0 || consumed == 0) { return 0 as *u8; }
   i = 1;
   while (i < len) {
     if (ptr[i] == 92) {
       out_len[0] = JSON_VIEW_NEEDS_COPY;
       consumed[0] = 0;
-      return 0;
+      return 0 as *u8;
     }
     if (ptr[i] == 34) {
       out_len[0] = i - 1;
@@ -526,7 +579,7 @@ function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *
     }
     i = i + 1;
   }
-  return 0;
+  return 0 as *u8;
 }
 
 /** 进入 JSON array；期望 leading `[`。 */
@@ -628,23 +681,65 @@ function json_key_eq(key_buf: *u8, key_len: i32, key: *u8, want_len: i32): i32 {
   return 0;
 }
 
+/** 从游标当前位置解码 i32（WPO-S3：单 *JsonCursor 实参；内部按字段切片）。 */
+function json_decode_i32_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
+  return json_decode_i32_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
+    consumed, out);
+}
+
+/** 从游标当前位置解码 bool。 */
+function json_decode_bool_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
+  return json_decode_bool_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
+    consumed, out);
+}
+
+/** 从游标当前位置解码 string。 */
+function json_decode_string_at_cursor_c(cur: *JsonCursor, out: *u8, out_cap: i32, out_len: *i32,
+  consumed: *i32): i32 {
+  return json_decode_string_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
+    out, out_cap, out_len, consumed);
+}
+
+/** 从游标当前位置解码 f64。 */
+function json_decode_f64_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *f64): i32 {
+  return json_decode_f64_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
+    consumed, out);
+}
+
 /** object 内按 key 解码 i32；缺键 JSON_DECODE_MISSING。 */
 function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   let scan: JsonCursor;
-  let kbuf: u8[64] = [];
-  let kl: i32 = 0;
   let nr: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
+  let rc: i32 = 0;
   if (cur == 0 || key == 0 || out == 0) { return -1; }
-  json_cursor_copy(&scan, cur);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  scan.ptr = saved_ptr;
+  scan.len = saved_len;
+  scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
-    nr = json_cursor_object_next_c(&scan, &kbuf[0], 64, &kl);
+    nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
     if (nr != 1) { break; }
-    if (json_key_eq(&kbuf[0], kl, key, key_len) != 0) {
-      return json_decode_i32_at_c(&scan.ptr[scan.off], scan.len - scan.off, &kl, out);
+    if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
+      val_ptr = &scan.ptr[scan.off];
+      val_len = scan.len - scan.off;
+      rc = json_decode_i32_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return rc;
     }
-    if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
+    if (json_cursor_skip_value_c(&scan) != 0) {
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return -1;
+    }
   }
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
   if (nr < 0) { return -1; }
   return JSON_DECODE_MISSING;
 }
@@ -652,20 +747,37 @@ function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out:
 /** object 内按 key 解码 bool；缺键 JSON_DECODE_MISSING。 */
 function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   let scan: JsonCursor;
-  let kbuf: u8[64] = [];
-  let kl: i32 = 0;
   let nr: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
+  let rc: i32 = 0;
   if (cur == 0 || key == 0 || out == 0) { return -1; }
-  json_cursor_copy(&scan, cur);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  scan.ptr = saved_ptr;
+  scan.len = saved_len;
+  scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
-    nr = json_cursor_object_next_c(&scan, &kbuf[0], 64, &kl);
+    nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
     if (nr != 1) { break; }
-    if (json_key_eq(&kbuf[0], kl, key, key_len) != 0) {
-      return json_decode_bool_at_c(&scan.ptr[scan.off], scan.len - scan.off, &kl, out);
+    if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
+      val_ptr = &scan.ptr[scan.off];
+      val_len = scan.len - scan.off;
+      rc = json_decode_bool_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return rc;
     }
-    if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
+    if (json_cursor_skip_value_c(&scan) != 0) {
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return -1;
+    }
   }
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
   if (nr < 0) { return -1; }
   return JSON_DECODE_MISSING;
 }
@@ -674,21 +786,57 @@ function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out
 function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   let scan: JsonCursor;
-  let kbuf: u8[64] = [];
-  let kl: i32 = 0;
   let nr: i32 = 0;
-  let con: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
   if (cur == 0 || key == 0 || out == 0 || out_len == 0) { return -1; }
-  json_cursor_copy(&scan, cur);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  scan.ptr = saved_ptr;
+  scan.len = saved_len;
+  scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
-    nr = json_cursor_object_next_c(&scan, &kbuf[0], 64, &kl);
+    nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
     if (nr != 1) { break; }
-    if (json_key_eq(&kbuf[0], kl, key, key_len) != 0) {
-      if (json_decode_string_at_c(&scan.ptr[scan.off], scan.len - scan.off, out, out_cap, out_len,
-        &con) != 0) {
+    if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
+      val_ptr = &scan.ptr[scan.off];
+      val_len = scan.len - scan.off;
+      if (json_decode_string_at_c(val_ptr, val_len, out, out_cap, out_len,
+        json_decode_consumed_ptr_c()) != 0) {
+        json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
         return -1;
       }
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return 0;
+    }
+    if (json_cursor_skip_value_c(&scan) != 0) {
+      json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+      return -1;
+    }
+  }
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+  if (nr < 0) { return -1; }
+  return JSON_DECODE_MISSING;
+}
+
+/** 在当前 object 游标内查找 key 并原地定位到 value；成功返回 0。 */
+function json_cursor_find_key_inplace(c: *JsonCursor, key: *u8, key_len: i32): i32 {
+  let scan: JsonCursor;
+  let nr: i32 = 0;
+  if (c == 0 || key == 0) { return -1; }
+  scan.ptr = c.ptr;
+  scan.len = c.len;
+  scan.off = c.off;
+  loop {
+    nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
+    if (nr != 1) { break; }
+    if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
+      json_cursor_write_fields(c, scan.ptr, scan.len, scan.off);
       return 0;
     }
     if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
@@ -697,25 +845,36 @@ function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, o
   return JSON_DECODE_MISSING;
 }
 
-/** 在当前 object 游标内查找 key；成功时 out_at 指向 value 起始。 */
-function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: *JsonCursor): i32 {
-  let scan: JsonCursor;
-  let kbuf: u8[64] = [];
-  let kl: i32 = 0;
-  let nr: i32 = 0;
-  if (cur == 0 || key == 0 || out_at == 0) { return -1; }
-  json_cursor_copy(&scan, cur);
+/** 在 array 游标处取第 index 个元素并原地定位；成功返回 0。 */
+function json_cursor_find_array_index_inplace(c: *JsonCursor, index: i32): i32 {
+  let i: i32 = 0;
+  let has: i32 = 0;
+  if (c == 0 || index < 0) { return -1; }
+  if (json_cursor_enter_array_c(c) != 0) { return -1; }
   loop {
-    nr = json_cursor_object_next_c(&scan, &kbuf[0], 64, &kl);
-    if (nr != 1) { break; }
-    if (json_key_eq(&kbuf[0], kl, key, key_len) != 0) {
-      json_cursor_copy(out_at, &scan);
+    has = json_cursor_array_has_elem_c(c);
+    if (has < 0) { return -1; }
+    if (has == 0) { return JSON_DECODE_MISSING; }
+    if (i == index) {
       return 0;
     }
-    if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
+    if (json_cursor_skip_value_c(c) != 0) { return -1; }
+    i = i + 1;
   }
-  if (nr < 0) { return -1; }
-  return JSON_DECODE_MISSING;
+  return -1;
+}
+
+/** 在当前 object 游标内查找 key；成功时 out_at 指向 value 起始。 */
+function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: *JsonCursor): i32 {
+  let src_ptr: *u8 = 0 as *u8;
+  let src_len: i32 = 0;
+  let src_off: i32 = 0;
+  if (cur == 0 || key == 0 || out_at == 0) { return -1; }
+  src_ptr = cur.ptr;
+  src_len = cur.len;
+  src_off = cur.off;
+  json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
+  return json_cursor_find_key_inplace(out_at, key, key_len);
 }
 
 /** 路径段是否为非负整数数组下标。 */
@@ -734,129 +893,259 @@ function json_path_seg_is_index(seg: *u8, seg_len: i32, out_idx: *i32): i32 {
 
 /** 在 array 游标处取第 index 个元素；out_at 指向元素 value 起始。 */
 function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *JsonCursor): i32 {
-  let scan: JsonCursor;
-  let i: i32 = 0;
-  let has: i32 = 0;
+  let src_ptr: *u8 = 0 as *u8;
+  let src_len: i32 = 0;
+  let src_off: i32 = 0;
   if (cur == 0 || out_at == 0 || index < 0) { return -1; }
-  json_cursor_copy(&scan, cur);
-  if (json_cursor_enter_array_c(&scan) != 0) { return -1; }
-  loop {
-    has = json_cursor_array_has_elem_c(&scan);
-    if (has < 0) { return -1; }
-    if (has == 0) { return JSON_DECODE_MISSING; }
-    if (i == index) {
-      json_cursor_copy(out_at, &scan);
-      return 0;
-    }
-    if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
-    i = i + 1;
+  src_ptr = cur.ptr;
+  src_len = cur.len;
+  src_off = cur.off;
+  json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
+  return json_cursor_find_array_index_inplace(out_at, index);
+}
+
+/** 跟随单段路径并原地定位游标（object key 或 array index）。 */
+function json_cursor_follow_path_seg_inplace(c: *JsonCursor, seg: *u8, seg_len: i32): i32 {
+  let idx: i32 = 0;
+  if (c == 0 || seg == 0 || seg_len <= 0) { return -1; }
+  if (json_path_seg_is_index(seg, seg_len, &idx) != 0) {
+    return json_cursor_find_array_index_inplace(c, idx);
   }
-  return -1;
+  return json_cursor_find_key_inplace(c, seg, seg_len);
 }
 
 /** 跟随单段路径（object key 或 array index）。 */
 function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
   out_at: *JsonCursor): i32 {
-  let idx: i32 = 0;
+  let src_ptr: *u8 = 0 as *u8;
+  let src_len: i32 = 0;
+  let src_off: i32 = 0;
   if (cur == 0 || seg == 0 || out_at == 0 || seg_len <= 0) { return -1; }
-  if (json_path_seg_is_index(seg, seg_len, &idx) != 0) {
-    return json_cursor_find_array_index(cur, idx, out_at);
-  }
-  return json_cursor_find_key(cur, seg, seg_len, out_at);
+  src_ptr = cur.ptr;
+  src_len = cur.len;
+  src_off = cur.off;
+  json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
+  return json_cursor_follow_path_seg_inplace(out_at, seg, seg_len);
 }
 
-/** 为下一段路径准备 scan（下一段为 index 时保持 array 头；否则 enter object）。 */
-function json_cursor_descend_for_next(at: *JsonCursor, path: *u8, next_i: i32, path_len: i32,
-  scan: *JsonCursor): i32 {
+/** 为下一段路径准备游标（下一段为 index 时保持 array 头；否则 enter object）。 */
+function json_cursor_descend_for_next(at: *JsonCursor, path: *u8, next_i: i32, path_len: i32): i32 {
   let j: i32 = next_i;
   let idx: i32 = 0;
-  if (at == 0 || scan == 0 || next_i >= path_len) { return -1; }
+  if (at == 0 || next_i >= path_len) { return -1; }
   while (j < path_len && path[j] != 46) { j = j + 1; }
-  json_cursor_copy(scan, at);
   if (json_path_seg_is_index(path + next_i, j - next_i, &idx) != 0) {
     if (json_cursor_value_type_c(at) != 4) { return -1; }
     return 0;
   }
   if (json_cursor_value_type_c(at) != 3) { return -1; }
-  return json_cursor_enter_object_c(scan);
+  return json_cursor_enter_object_c(at);
 }
 
-/** 点分路径逐步导航（支持 object 键与 array 下标，如 items.0 / users.0.name）。 */
-function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32,
-  out_at: *JsonCursor): i32 {
-  let scan: JsonCursor;
-  let at: JsonCursor;
+/** 在当前 object 根按点分路径导航并原地定位游标。 */
+function json_object_decode_dotted_inplace(c: *JsonCursor, path: *u8, path_len: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   let rc: i32 = 0;
-  if (cur == 0 || path == 0 || out_at == 0 || path_len <= 0) { return -1; }
-  json_cursor_copy(&scan, cur);
-  if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
+  if (c == 0 || path == 0 || path_len <= 0) { return -1; }
+  if (json_cursor_enter_object_c(c) != 0) { return -1; }
   while (i < path_len) {
     j = i;
     while (j < path_len && path[j] != 46) { j = j + 1; }
     if (j <= i) { return -1; }
-    rc = json_cursor_follow_path_seg(&scan, path + i, j - i, &at);
+    rc = json_cursor_follow_path_seg_inplace(c, path + i, j - i);
     if (rc != 0) { return rc; }
     if (j >= path_len) {
-      json_cursor_copy(out_at, &at);
       return 0;
     }
-    rc = json_cursor_descend_for_next(&at, path, j + 1, path_len, &scan);
+    rc = json_cursor_descend_for_next(c, path, j + 1, path_len);
     if (rc != 0) { return rc; }
     i = j + 1;
   }
   return -1;
 }
 
+/** 点分路径逐步导航（支持 object 键与 array 下标，如 items.0 / users.0.name）。 */
+function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32,
+  out_at: *JsonCursor): i32 {
+  let src_ptr: *u8 = 0 as *u8;
+  let src_len: i32 = 0;
+  let src_off: i32 = 0;
+  if (cur == 0 || path == 0 || out_at == 0 || path_len <= 0) { return -1; }
+  src_ptr = cur.ptr;
+  src_len = cur.len;
+  src_off = cur.off;
+  json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
+  return json_object_decode_dotted_inplace(out_at, path, path_len);
+}
+
 /** 按点分路径（如 user.age / items.0）在 object 根解码 i32；缺键 JSON_DECODE_MISSING。 */
 function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
-  let at: JsonCursor;
-  let consumed: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
-  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
-  if (rc != 0) { return rc; }
-  return json_decode_i32_at_c(&at.ptr[at.off], at.len - at.off, &consumed, out);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  rc = json_object_decode_dotted_inplace(cur, path, path_len);
+  if (rc != 0) {
+    json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+    return rc;
+  }
+  val_ptr = json_cursor_value_ptr_at_c(cur);
+  val_len = json_cursor_value_len_at_c(cur);
+  rc = json_decode_i32_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+  return rc;
 }
 
 /** 按点分路径在 object 根解码 string。 */
 function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
-  let at: JsonCursor;
-  let consumed: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || out_len == 0 || path_len <= 0) { return -1; }
-  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
-  if (rc != 0) { return rc; }
-  return json_decode_string_at_c(&at.ptr[at.off], at.len - at.off, out, out_cap, out_len, &consumed);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  rc = json_object_decode_dotted_inplace(cur, path, path_len);
+  if (rc != 0) {
+    json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+    return rc;
+  }
+  val_ptr = json_cursor_value_ptr_at_c(cur);
+  val_len = json_cursor_value_len_at_c(cur);
+  rc = json_decode_string_at_c(val_ptr, val_len, out, out_cap, out_len, json_decode_consumed_ptr_c());
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+  return rc;
 }
 
 /** 按点分路径（如 ok / flags.0）在 object 根解码 bool；缺键 JSON_DECODE_MISSING。 */
 function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
-  let at: JsonCursor;
-  let consumed: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
-  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
-  if (rc != 0) { return rc; }
-  return json_decode_bool_at_c(&at.ptr[at.off], at.len - at.off, &consumed, out);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  rc = json_object_decode_dotted_inplace(cur, path, path_len);
+  if (rc != 0) {
+    json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+    return rc;
+  }
+  val_ptr = json_cursor_value_ptr_at_c(cur);
+  val_len = json_cursor_value_len_at_c(cur);
+  rc = json_decode_bool_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+  return rc;
 }
 
 /** 按点分路径（如 metrics.cpu / values.0）在 object 根解码 f64。 */
 function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32 {
-  let at: JsonCursor;
-  let consumed: i32 = 0;
+  let val_ptr: *u8 = 0 as *u8;
+  let val_len: i32 = 0;
+  let saved_ptr: *u8 = 0 as *u8;
+  let saved_len: i32 = 0;
+  let saved_off: i32 = 0;
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
-  rc = json_object_decode_dotted_at(cur, path, path_len, &at);
-  if (rc != 0) { return rc; }
-  return json_decode_f64_at_c(&at.ptr[at.off], at.len - at.off, &consumed, out);
+  saved_ptr = cur.ptr;
+  saved_len = cur.len;
+  saved_off = cur.off;
+  rc = json_object_decode_dotted_inplace(cur, path, path_len);
+  if (rc != 0) {
+    json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+    return rc;
+  }
+  val_ptr = json_cursor_value_ptr_at_c(cur);
+  val_len = json_cursor_value_len_at_c(cur);
+  rc = json_decode_f64_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
+  json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
+  return rc;
+}
+
+/** WPO-S3：栈上组装游标解码 i32，供烟测避免 &local cur 与 &local out 同 call。 */
+function json_smoke_decode_i32_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_i32_c(&cur, key, key_len, out);
+}
+
+/** WPO-S3：栈上组装游标解码 bool。 */
+function json_smoke_decode_bool_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_bool_c(&cur, key, key_len, out);
+}
+
+/** WPO-S3：栈上组装游标解码 string。 */
+function json_smoke_decode_string_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *u8,
+  out_cap: i32, out_len: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_string_c(&cur, key, key_len, out, out_cap, out_len);
+}
+
+/** WPO-S3：栈上组装游标按点分路径解码 i32。 */
+function json_smoke_decode_dotted_i32_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
+  out: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_dotted_i32_c(&cur, path, path_len, out);
+}
+
+/** WPO-S3：栈上组装游标按点分路径解码 string。 */
+function json_smoke_decode_dotted_string_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
+  out: *u8, out_cap: i32, out_len: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_dotted_string_c(&cur, path, path_len, out, out_cap, out_len);
+}
+
+/** WPO-S3：栈上组装游标按点分路径解码 bool。 */
+function json_smoke_decode_dotted_bool_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
+  out: *i32): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_dotted_bool_c(&cur, path, path_len, out);
+}
+
+/** WPO-S3：栈上组装游标按点分路径解码 f64。 */
+function json_smoke_decode_dotted_f64_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
+  out: *f64): i32 {
+  let cur: JsonCursor;
+  cur.ptr = doc;
+  cur.len = doc_len;
+  cur.off = 0;
+  return json_object_decode_dotted_f64_c(&cur, path, path_len, out);
 }
 
 /** 类型化 decode C 烟测：{"age":30,"ok":true,"name":"alice"} 及嵌套/数组/点分路径。 */
 function json_typed_decode_smoke_c(): i32 {
-  let cur: JsonCursor;
   let age: i32 = 0;
   let ok: i32 = 0;
   let name_len: i32 = 0;
@@ -882,41 +1171,27 @@ function json_typed_decode_smoke_c(): i32 {
   let path_flags1: u8[7] = [102, 108, 97, 103, 115, 46, 49];
   let path_metrics_cpu: u8[11] = [109, 101, 116, 114, 105, 99, 115, 46, 99, 112, 117];
   let path_values1: u8[8] = [118, 97, 108, 117, 101, 115, 46, 49];
-  json_cursor_init_c(&cur, &doc[0], 35);
-  if (json_object_decode_i32_c(&cur, &key_age[0], 3, &age) != 0 || age != 30) { return -1; }
-  json_cursor_init_c(&cur, &doc[0], 35);
-  if (json_object_decode_bool_c(&cur, &key_ok[0], 2, &ok) != 0 || ok != 1) { return -1; }
-  json_cursor_init_c(&cur, &doc[0], 35);
-  if (json_object_decode_string_c(&cur, &key_name[0], 4, &name[0], 16, &name_len) != 0 ||
+  if (json_smoke_decode_i32_c(&doc[0], 35, &key_age[0], 3, &age) != 0 || age != 30) { return -1; }
+  if (json_smoke_decode_bool_c(&doc[0], 35, &key_ok[0], 2, &ok) != 0 || ok != 1) { return -1; }
+  if (json_smoke_decode_string_c(&doc[0], 35, &key_name[0], 4, &name[0], 16, &name_len) != 0 ||
     name_len != 5) { return -1; }
-  json_cursor_init_c(&cur, &doc[0], 35);
-  if (json_object_decode_i32_c(&cur, &key_miss[0], 3, &age) != JSON_DECODE_MISSING) { return -1; }
-  json_cursor_init_c(&cur, &nested[0], 34);
-  if (json_object_decode_dotted_i32_c(&cur, &path_user_age[0], 8, &age) != 0 || age != 42) { return -1; }
-  json_cursor_init_c(&cur, &nested[0], 34);
-  if (json_object_decode_dotted_string_c(&cur, &path_user_name[0], 9, &name[0], 16, &name_len) != 0 ||
+  if (json_smoke_decode_i32_c(&doc[0], 35, &key_miss[0], 3, &age) != JSON_DECODE_MISSING) { return -1; }
+  if (json_smoke_decode_dotted_i32_c(&nested[0], 34, &path_user_age[0], 8, &age) != 0 || age != 42) { return -1; }
+  if (json_smoke_decode_dotted_string_c(&nested[0], 34, &path_user_name[0], 9, &name[0], 16, &name_len) != 0 ||
     name_len != 5) { return -1; }
-  json_cursor_init_c(&cur, &arr_doc[0], 20);
-  if (json_object_decode_dotted_i32_c(&cur, &path_items0[0], 7, &age) != 0 || age != 10) { return -1; }
-  json_cursor_init_c(&cur, &arr_doc[0], 20);
-  if (json_object_decode_dotted_i32_c(&cur, &path_items2[0], 7, &age) != 0 || age != 30) { return -1; }
-  json_cursor_init_c(&cur, &obj_arr[0], 37);
-  if (json_object_decode_dotted_string_c(&cur, &path_users0name[0], 12, &name[0], 16, &name_len) != 0 ||
+  if (json_smoke_decode_dotted_i32_c(&arr_doc[0], 20, &path_items0[0], 7, &age) != 0 || age != 10) { return -1; }
+  if (json_smoke_decode_dotted_i32_c(&arr_doc[0], 20, &path_items2[0], 7, &age) != 0 || age != 30) { return -1; }
+  if (json_smoke_decode_dotted_string_c(&obj_arr[0], 37, &path_users0name[0], 12, &name[0], 16, &name_len) != 0 ||
     name_len != 1) { return -1; }
-  json_cursor_init_c(&cur, &obj_arr[0], 37);
-  if (json_object_decode_dotted_string_c(&cur, &path_users1name[0], 12, &name[0], 16, &name_len) != 0 ||
+  if (json_smoke_decode_dotted_string_c(&obj_arr[0], 37, &path_users1name[0], 12, &name[0], 16, &name_len) != 0 ||
     name_len != 1) { return -1; }
-  json_cursor_init_c(&cur, &bool_arr[0], 27);
   ok = 0;
-  if (json_object_decode_dotted_bool_c(&cur, &path_flags0[0], 7, &ok) != 0 || ok != 1) { return -1; }
-  json_cursor_init_c(&cur, &bool_arr[0], 27);
-  if (json_object_decode_dotted_bool_c(&cur, &path_flags1[0], 7, &ok) != 0 || ok != 0) { return -1; }
-  json_cursor_init_c(&cur, &f64_doc[0], 43);
+  if (json_smoke_decode_dotted_bool_c(&bool_arr[0], 27, &path_flags0[0], 7, &ok) != 0 || ok != 1) { return -1; }
+  if (json_smoke_decode_dotted_bool_c(&bool_arr[0], 27, &path_flags1[0], 7, &ok) != 0 || ok != 0) { return -1; }
   dv = 0.0;
-  if (json_object_decode_dotted_f64_c(&cur, &path_metrics_cpu[0], 11, &dv) != 0 ||
+  if (json_smoke_decode_dotted_f64_c(&f64_doc[0], 43, &path_metrics_cpu[0], 11, &dv) != 0 ||
     dv < 0.74 || dv > 0.76) { return -1; }
-  json_cursor_init_c(&cur, &f64_doc[0], 43);
-  if (json_object_decode_dotted_f64_c(&cur, &path_values1[0], 8, &dv) != 0 ||
+  if (json_smoke_decode_dotted_f64_c(&f64_doc[0], 43, &path_values1[0], 8, &dv) != 0 ||
     dv < 2.49 || dv > 2.51) { return -1; }
   return 0;
 }
