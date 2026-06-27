@@ -3653,7 +3653,7 @@ bootstrap_entry_obj() {
 # NL-07 v5：crt0 链用 -e _start -nostartfiles（与 bootstrap-driver-seed 一致）。
 bootstrap_entry_ldflags() {
   if bootstrap_wants_nostdlib && [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ]; then
-    echo "-e _start -nostartfiles"
+    echo "-no-pie -e _start -nostartfiles"
   else
     echo ""
   fi
