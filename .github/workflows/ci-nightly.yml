@@ -1,13 +1,15 @@
 # ENG-003：Linux / macOS / Windows 核心链路夜跑
 # PR 矩阵见 ci.yml；本 workflow 每日 schedule + 手动 workflow_dispatch。
 # 统一入口：tests/run-ci-full-suite.sh（Tier P 全平台 + Tier B；Tier A 按平台 lite/full）。
+#
+# TEMP: schedule 已暂停（bootstrap-gold 调试中）；手动 workflow_dispatch 仍可用。
 
 name: CI Nightly
 
 on:
-  schedule:
-    - cron: '0 2 * * *'
   workflow_dispatch:
+  # schedule:
+  #   - cron: '0 2 * * *'
 
 jobs:
   nightly-linux:

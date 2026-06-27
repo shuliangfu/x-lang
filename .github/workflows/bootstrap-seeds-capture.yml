@@ -7,6 +7,8 @@
 #
 # 下载：gh run list --workflow=bootstrap-seeds-capture.yml
 #       gh run download <run-id> -D /tmp/shux-seeds
+#
+# TEMP: schedule 已暂停（bootstrap-gold 调试中）。
 
 name: Bootstrap Seeds Capture
 
@@ -21,9 +23,9 @@ on:
         description: "Skip preflight_g06 after capture (debug only)"
         type: boolean
         default: false
-  schedule:
-    # 每周日 04:00 UTC；不自动 commit，仅产出 artifact 供审阅
-    - cron: '0 4 * * 0'
+  # schedule:
+  #   # 每周日 04:00 UTC；不自动 commit，仅产出 artifact 供审阅
+  #   - cron: '0 4 * * 0'
 
 permissions:
   contents: read
