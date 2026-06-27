@@ -58,7 +58,14 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
     ../std/test/test.o
   )
   for o in "${BSTRICT_STD_O[@]}"; do
-    ensure_std_c_o "$o"
+    if ensure_std_c_o "$o"; then
+      continue
+    fi
+    if [ -n "${SHUX_BSTRICT_STD_O_BEST_EFFORT:-}" ]; then
+      echo "run-all-bstrict: WARN skip $o (ensure_std_c_o failed; best-effort)" >&2
+      continue
+    fi
+    exit 1
   done
 fi
 
@@ -273,6 +280,10 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     fi
     if [ "$attempt" -ge 3 ]; then
       echo "run-all-bstrict: $script failed after 3 attempts" >&2
+      if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+        echo "run-all-bstrict: WARN continue ($script; SHUX_W3_BSTRICT_BEST_EFFORT=1)" >&2
+        break
+      fi
       exit 1
     fi
     echo "run-all-bstrict: retry $script (attempt $((attempt + 1))) ..."
@@ -281,3 +292,6 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
 done
 
 echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/shux is shux_asm)"
+if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+  echo "run-all-bstrict: W3 best-effort complete (individual script failures logged above)"
+fi

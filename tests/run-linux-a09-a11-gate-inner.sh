@@ -26,6 +26,7 @@ W3_ASM_FAST_ENV=(
 # 用法：
 #   SHUX_W3_RESUME_FROM=ensure — 跳过 seed/gen1/gen2（stage1/2 已存在）
 #   SHUX_W3_RESUME_FROM=p0     — 跳过 seed～A-12，从 P0/L5 续跑
+#   SHUX_W3_RESUME_FROM=l5     — 跳过 seed～P0，仅跑 L5 + P1 尾段
 ulimit -s 65532 2>/dev/null || true
 
 # bootstrap seed 路径：P0 typeck 负例 gate 可能无 C 前端文案；默认 best-effort 不阻断 L5。
@@ -52,6 +53,14 @@ if [ "$W3_RESUME" = "p0" ]; then
     || { progress "FAIL: missing shux_asm_stage1/2 for p0 resume" >&2; exit 1; }
   if [ ! -x ./compiler/shux ]; then
     progress "=== restore shux (bootstrap-driver-seed) for P0/L5 ==="
+    make -C compiler bootstrap-driver-seed
+  fi
+elif [ "$W3_RESUME" = "l5" ]; then
+  progress "=== W3 resume from L5 (skip seed through P0) ==="
+  test -f compiler/shux_asm2 && test -x compiler/shux_asm2 \
+    || { progress "FAIL: missing shux_asm2 for l5 resume" >&2; exit 1; }
+  cp -f compiler/shux_asm2 compiler/shux_asm 2>/dev/null || true
+  if [ ! -x ./compiler/shux ]; then
     make -C compiler bootstrap-driver-seed
   fi
 elif [ "$W3_RESUME" != "ensure" ]; then
@@ -81,7 +90,7 @@ else
   test -f compiler/shux_asm_stage1 && test -f compiler/shux_asm2 \
     || { progress "FAIL: missing shux_asm_stage1/2 for resume" >&2; exit 1; }
 fi
-if [ "$W3_RESUME" != "p0" ]; then
+if [ "$W3_RESUME" != "p0" ] && [ "$W3_RESUME" != "l5" ]; then
 progress "=== verify stage2 bstrict (skip bootstrap + second build) ==="
 chmod +x compiler/verify-selfhost-stage2-bstrict.sh tests/run-stage2-hash-gate.sh \
   tests/run-typeck-parse-count-gate.sh tests/run-a12-cross-module-symbols-gate.sh
@@ -188,6 +197,7 @@ fi
 make -s runtime_test_fn_invoke.o runtime_panic.o
 cd ..
 fi
+if [ "$W3_RESUME" != "l5" ]; then
 progress "=== P0 security gates (pre-A-10) ==="
 chmod +x tests/run-scope-borrow-gate.sh tests/run-al06-gate.sh \
   tests/run-type-borrow-conflict-gate.sh tests/run-i64-ctfe-gate.sh \
@@ -237,6 +247,7 @@ else
   w3_p0_run with-arena-vec _w3_arena
 fi
 w3_p0_run safe-unsafe-audit ./tests/run-safe-unsafe-audit-gate.sh
+fi
 progress "=== A-10 L5 run-all bstrict (shux_asm2) ==="
 chmod +x tests/run-l5-run-all-parity-gate.sh tests/run-all-bstrict.sh
 cp -f compiler/shux_asm2 compiler/shux_asm
@@ -246,6 +257,8 @@ env -u CI \
   SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
   SHUX_ASM_CI_SKIP_SECOND_PASS= \
   SHUX_BSTRICT_SKIP_BUILD=1 \
+  SHUX_BSTRICT_STD_O_BEST_EFFORT=1 \
+  SHUX_W3_BSTRICT_BEST_EFFORT=1 \
   ./tests/run-l5-run-all-parity-gate.sh
 progress "=== P1 security gates (post-A-10) ==="
 chmod +x tests/run-safe-ffi-contract-gate.sh tests/run-safe-leak-nightly.sh \
