@@ -3752,7 +3752,9 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
   uint8_t kw[8] = { 101, 120, 116, 101, 114, 110, 32, 0 };
   (void)(({ int32_t __tmp = 0; if (codegen_emit_bytes_from_ptr(out, (&((kw)[0])), 7) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
+  int32_t _ret_ty_fix = pipeline_module_func_return_type_at(module, fi);
+  if (_ret_ty_fix <= 0 || _ret_ty_fix > (arena)->num_types) _ret_ty_fix = 0;
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, _ret_ty_fix, prefix, prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -3984,9 +3986,11 @@ int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
     (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_func_idx = ((ctx)->current_func_index));
   ((ctx)->current_func_index = (i));
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (codegen_emit_func(arena, out, module, i, is_entry, (&((prefix_buf)[0])), prefix_len, ctx, call_init_globals) != 0) {   (void)(driver_diagnostic_codegen_emit_func_fail(module, i));
+    (void)(({ int32_t __tmp = 0; if (codegen_emit_func(arena, out, module, i, is_entry, (&((prefix_buf)[0])), prefix_len, ctx, call_init_globals) != 0) {
+  (void)(driver_diagnostic_codegen_emit_func_fail(module, i));
    (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_index = (saved_func_idx));
  } else (__tmp = 0) ; __tmp; }));
+  if (dep_index >= 0) { ++i; continue; }
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_index = (saved_func_idx));
