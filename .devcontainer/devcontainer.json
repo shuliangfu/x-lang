@@ -6,5 +6,5 @@
       "version": "latest"
     }
   },
-  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq gcc make perl python3"
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq gcc make perl binutils file curl xz-utils python3 liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev"
 }

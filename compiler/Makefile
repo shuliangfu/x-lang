@@ -1386,7 +1386,8 @@ else ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 MAIN_LINK_O = src/asm/crt0_x86_64.o
 MAIN_LINK_REBUILD = src/asm/crt0_x86_64.o
-MAIN_LINK_FLAGS = -e _start -nostartfiles
+# 与 build_shux_asm.sh bootstrap_entry_ldflags 一致：crt0 链须 -no-pie，否则 -o 链接偶发 SIGSEGV
+MAIN_LINK_FLAGS = -no-pie -e _start -nostartfiles
 else
 MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
@@ -1761,6 +1762,8 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	  (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.sx -E failed, final link uses phase1 stub partial" >&2)
 	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+	@chmod +x scripts/bootstrap_driver_seed_smoke.sh 2>/dev/null || true
+	@./scripts/bootstrap_driver_seed_smoke.sh ./$(TARGET)
 	cp -f $(TARGET) shux-sx
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc

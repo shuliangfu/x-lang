@@ -27,6 +27,8 @@ su
 # 编译器输出的 .s（保留 compiler/src/asm/ 手写启动/运行时汇编）
 *.s
 !compiler/src/asm/*.s
+# G-03：Linux x86_64 typeck 双精度位取（Makefile 链入，非编译器临时 .s）
+!compiler/src/typeck/typeck_f64_bits_x86_64.s
 
 # 构建时生成的 C 源文件（由 -E 等生成，不提交）
 std_fs_gen.c

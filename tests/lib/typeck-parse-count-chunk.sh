@@ -18,10 +18,11 @@ cd "$(dirname "$0")/../.."
 
 COMP="${1:-./compiler/shux_asm}"
 TYPECK_SX="${2:-compiler/src/typeck/typeck.sx}"
-CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-20}"
+CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10}"
 LIBROOT="${SHUX_TYPECK_PARSE_CHUNK_LIBROOT:--L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm}"
 WORKDIR="/tmp/shux_typeck_chunks.$$"
 OUT="/tmp/shux_typeck_chunk.$$.o"
+CHUNK_TIMEOUT="${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-240}"
 
 if [ ! -x "$COMP" ] || [ ! -f "$TYPECK_SX" ]; then
   echo "typeck-parse-count-chunk: need executable compiler and typeck.sx" >&2
@@ -32,15 +33,33 @@ fi
 run_chunk_metric() {
   local sx="$1"
   local log="$2"
-  local abs_sx comp_abs
+  local abs_sx comp_abs attempt rc
   abs_sx="$(cd "$(dirname "$sx")" && pwd)/$(basename "$sx")"
   comp_abs="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")"
-  (
-    cd compiler
-    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-      SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
-      "$comp_abs" -backend asm -o "$OUT" $LIBROOT "$abs_sx"
-  ) >"$log" 2>&1
+  for attempt in 1 2; do
+    if command -v timeout >/dev/null 2>&1; then
+      timeout "$CHUNK_TIMEOUT" env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
+        SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
+        bash -c "cd compiler && \"${comp_abs}\" -backend asm -o \"${OUT}\" ${LIBROOT} \"${abs_sx}\"" \
+        >"$log" 2>&1 && return 0
+      rc=$?
+    else
+      (
+        cd compiler
+        env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+          SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
+          "$comp_abs" -backend asm -o "$OUT" $LIBROOT "$abs_sx"
+      ) >"$log" 2>&1 && return 0
+      rc=$?
+    fi
+    if grep -qE 'Terminated|Killed|signal 9|oom' "$log" 2>/dev/null && [ "$attempt" -eq 1 ]; then
+      echo "typeck-parse-count-chunk: retry chunk after Terminated/OOM (attempt 2, rc=${rc})" >&2
+      sleep 1
+      continue
+    fi
+    return 1
+  done
+  return 1
 }
 
 parse_ndef_from_log() {

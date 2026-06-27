@@ -74,11 +74,9 @@ elif [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
-  if grep -qE 'Killed|signal 9|oom' "$LOG" 2>/dev/null; then
-    echo "typeck-parse-count-gate: WARN full-file parse OOM/Killed; trying chunked parse (SHUX_TYPECK_PARSE_CHUNK_FUNCS=${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-20})" >&2
-    typeck_parse_count_try_chunked "$SHUX" || \
-      { [ "$SHUX" != "./compiler/shux" ] && [ -x ./compiler/shux ] && typeck_parse_count_try_chunked "./compiler/shux"; } || true
-  fi
+  echo "typeck-parse-count-gate: WARN full-file parse failed; trying chunked parse (SHUX_TYPECK_PARSE_CHUNK_FUNCS=${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10})" >&2
+  typeck_parse_count_try_chunked "$SHUX" || \
+    { [ "$SHUX" != "./compiler/shux" ] && [ -x ./compiler/shux ] && typeck_parse_count_try_chunked "./compiler/shux"; } || true
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
