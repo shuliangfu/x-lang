@@ -71,11 +71,11 @@ progress "=== A-11 typeck parse count strict ==="
 A11_LOG="${SHUX_W3_A11_LOG:-logs/a11-typeck-parse.log}"
 mkdir -p logs
 rm -f "$A11_LOG" logs/a11-typeck-parse.exit
-nohup bash -c 'env SHUX=./compiler/shux_asm2 \
+nohup bash -c "env SHUX=./compiler/shux_asm2 \
   SHUX_TYPECK_PARSE_COUNT_FAIL=1 \
-  SHUX_TYPECK_PARSE_CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-5}" \
-  SHUX_TYPECK_PARSE_CHUNK_TIMEOUT="${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-360}" \
-  ./tests/run-typeck-parse-count-gate.sh; echo $? >logs/a11-typeck-parse.exit' \
+  SHUX_TYPECK_PARSE_CHUNK_FUNCS=\"${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-5}\" \
+  SHUX_TYPECK_PARSE_CHUNK_TIMEOUT=\"${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-360}\" \
+  ./tests/run-typeck-parse-count-gate.sh; echo \$? >logs/a11-typeck-parse.exit" \
   >"$A11_LOG" 2>&1 &
 a11_pid=$!
 a11_wait=0
