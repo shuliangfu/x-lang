@@ -23,13 +23,16 @@ if [ ! -x "$COMP" ] || [ ! -f "$CHUNK_SX" ]; then
   exit 1
 fi
 
-# shux 在非 TTY stdout（>file / >/dev/null）下 parse 路径可能挂起；用 tee 保留日志。
+# shux 在非 TTY stdout（>file）下 parse 可能挂起；tee|cat Drain。pipefail 下 SIGTERM→143 勿让 set -e 提前退出。
 # shellcheck disable=SC2086
+set +e
 ( cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
     SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
     "$COMP" -backend asm -o "$OUT_O" $LIBROOT "$CHUNK_SX"
 ) 2>&1 | tee "$LOG" | cat >/dev/null
+pipe_ec=${PIPESTATUS[0]:-1}
+set -e
 
 ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$LOG" | tail -1)
 if [ -n "$ndef" ]; then
@@ -41,6 +44,6 @@ if [ -n "$nf" ]; then
   echo "$((nf - 1))"
   exit 0
 fi
-echo "typeck-parse-count-chunk-one: no parse metric (see $LOG)" >&2
+echo "typeck-parse-count-chunk-one: no parse metric (pipe_ec=${pipe_ec}; see $LOG)" >&2
 tail -n 8 "$LOG" >&2 || true
 exit 1
