@@ -168,10 +168,13 @@ chmod +x tests/run-scope-borrow-gate.sh tests/run-al06-gate.sh \
 make -C compiler bootstrap_shuxc
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . tests/lib/bootstrap-link-shux.sh
-P0_SHUX="${TYPECK_SHUX:-./compiler/shux}"
-if [ ! -x "$P0_SHUX" ] && [ -x ./compiler/shux-c ]; then
-  P0_SHUX=./compiler/shux-c
+# P0 typeck 负例 gate 须 shux-c（C 前端诊断完整）；seed shux 缺 scope borrow 文案。
+P0_SHUX=./compiler/shux-c
+if [ ! -x "$P0_SHUX" ]; then
   make -C compiler shux-c 2>/dev/null || true
+fi
+if [ ! -x "$P0_SHUX" ] && [ -x ./compiler/shux ]; then
+  P0_SHUX=./compiler/shux
 fi
 # W3：bootstrap seed ./compiler/shux 对简单 asm -o 易 SIGSEGV；P0 中须 -o 链接/运行的 gate 用 stage2 shux_asm(2)。
 COMPILE_SHUX="$P0_SHUX"
