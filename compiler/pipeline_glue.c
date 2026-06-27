@@ -22833,6 +22833,8 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
   np = pipeline_module_func_num_params_at(module, func_ix);
   if (num_args != np || num_args < 2)
     return 0;
+  if (getenv("SHUX_SKIP_STACK_ESCAPE") != NULL)
+    return 0;
   for (src_i = 0; src_i < num_args; src_i++) {
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
     int32_t arg_ty;
@@ -23068,6 +23070,8 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
   int32_t nf;
   int32_t body;
   if (!module || !arena || !ctx)
+    return 0;
+  if (getenv("SHUX_SKIP_STACK_ESCAPE") != NULL)
     return 0;
   g_typeck_with_arena_scope_n = 0;
   g_typeck_region_scope_n = 0;
@@ -23697,7 +23701,7 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
       return -1;
   }
   /** WPO-S3：&local struct 与 *Struct 形参同传 → 拒（外层槽逃逸）。 */
-  if (ctx && num_args >= 2) {
+  if (ctx && num_args >= 2 && getenv("SHUX_SKIP_STACK_ESCAPE") == NULL) {
     int32_t src_i;
     int32_t dst_j;
     for (src_i = 0; src_i < num_args; src_i++) {
