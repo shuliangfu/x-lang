@@ -21,40 +21,44 @@ TYPECK_SX="${2:-compiler/src/typeck/typeck.sx}"
 CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10}"
 LIBROOT="${SHUX_TYPECK_PARSE_CHUNK_LIBROOT:--L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm}"
 WORKDIR="/tmp/shux_typeck_chunks.$$"
-OUT="/tmp/shux_typeck_chunk.$$.o"
+OUT_BASE="/tmp/shux_typeck_chunk.$$"
 CHUNK_TIMEOUT="${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-240}"
 
 if [ ! -x "$COMP" ] || [ ! -f "$TYPECK_SX" ]; then
   echo "typeck-parse-count-chunk: need executable compiler and typeck.sx" >&2
   exit 1
 fi
+COMP="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")"
 
 # shellcheck disable=SC2086
 run_chunk_metric() {
   local sx="$1"
   local log="$2"
-  local abs_sx comp_abs attempt rc
-  abs_sx="$(cd "$(dirname "$sx")" && pwd)/$(basename "$sx")"
-  comp_abs="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")"
+  local sx_abs out attempt rc
+  sx_abs="$(cd "$(dirname "$sx")" && pwd)/$(basename "$sx")"
+  out="${OUT_BASE}.${chunk_i}.o"
   for attempt in 1 2; do
     if command -v timeout >/dev/null 2>&1; then
       timeout "$CHUNK_TIMEOUT" env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
         SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
-        bash -c "cd compiler && \"${comp_abs}\" -backend asm -o \"${OUT}\" ${LIBROOT} \"${abs_sx}\"" \
-        >"$log" 2>&1 && return 0
+        (
+          cd compiler
+          "$COMP" -backend asm -o "$out" $LIBROOT "$sx_abs"
+        ) >"$log" 2>&1 && return 0
       rc=$?
     else
       (
         cd compiler
         env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
           SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
-          "$comp_abs" -backend asm -o "$OUT" $LIBROOT "$abs_sx"
+          "$COMP" -backend asm -o "$out" $LIBROOT "$sx_abs"
       ) >"$log" 2>&1 && return 0
       rc=$?
     fi
-    if grep -qE 'Terminated|Killed|signal 9|oom' "$log" 2>/dev/null && [ "$attempt" -eq 1 ]; then
-      echo "typeck-parse-count-chunk: retry chunk after Terminated/OOM (attempt 2, rc=${rc})" >&2
-      sleep 1
+    if grep -qE 'Terminated|Killed|signal 9|oom|Cannot allocate memory' "$log" 2>/dev/null && [ "$attempt" -eq 1 ]; then
+      echo "typeck-parse-count-chunk: retry chunk ${chunk_i} after Terminated/OOM (attempt 2, rc=${rc})" >&2
+      rm -f "$out" 2>/dev/null || true
+      sleep 2
       continue
     fi
     return 1
@@ -79,7 +83,7 @@ parse_ndef_from_log() {
 }
 
 mkdir -p "$WORKDIR"
-trap 'rm -rf "$WORKDIR" "$OUT"' EXIT
+trap 'rm -rf "$WORKDIR" "${OUT_BASE}".*.o 2>/dev/null || true' EXIT
 
 python3 - "$TYPECK_SX" "$WORKDIR" "$CHUNK_FUNCS" <<'PY'
 import sys
@@ -129,6 +133,7 @@ while [ -f "$WORKDIR/chunk_$(printf '%03d' "$chunk_i").sx" ]; do
   }
   total_ndef=$((total_ndef + ndef))
   chunk_i=$((chunk_i + 1))
+  rm -f "${OUT_BASE}.$((chunk_i - 1)).o" 2>/dev/null || true
 done
 
 if [ "$chunk_i" -eq 0 ]; then
