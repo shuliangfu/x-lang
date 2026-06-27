@@ -45,7 +45,7 @@ typeck_parse_count_compile() {
       SHUX_ASM_PARSE_METRIC_ONLY=1 \
       SHUX_DEBUG_PIPE=1 \
       "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.sx
-  ) 2>&1 | tee "$LOG" >/dev/null
+  ) 2>&1 | tee "$LOG" | cat >/dev/null
 }
 
 # 整文件 parse 被 OOM killer 干掉（exit 137 / log 含 Killed）时，分块 parse 累加 num_defined。
