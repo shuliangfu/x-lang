@@ -775,7 +775,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int emit_c_only = 0;  /* -E：仅生成 C 到 stdout，不调用 cc */
     int emit_extern_imports = 0;  /* 阶段 3.1：-E-extern 时仅展开入口，import 用 extern，生成瘦 C */
     #ifdef SHUX_USE_SX_PIPELINE
-    int use_sx_pipeline = 0;  /* -sx：使用纯 .sx 流水线（需链接 pipeline_gen.o） */
+    int use_sx_pipeline = 1;  /* 链接了 .sx pipeline 时默认启用（避免 C 前端 parser 不支持 .sx 语法） */
     int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 -sx pipeline */
     #endif
     const char *defines[MAX_DEFINES];
