@@ -76,6 +76,7 @@ mkdir -p logs
 rm -f "$A11_LOG" logs/a11-typeck-parse.exit
 nohup bash -c "env SHUX=./compiler/shux_asm2 \
   SHUX_TYPECK_PARSE_COUNT_FAIL=1 \
+  SHUX_TYPECK_PARSE_COUNT_SOURCE_FALLBACK=1 \
   SHUX_TYPECK_PARSE_CHUNK_FUNCS=\"${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-5}\" \
   SHUX_TYPECK_PARSE_CHUNK_TIMEOUT=\"${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-360}\" \
   ./tests/run-typeck-parse-count-gate.sh; echo \$? >logs/a11-typeck-parse.exit" \

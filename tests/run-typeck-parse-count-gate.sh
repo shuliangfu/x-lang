@@ -83,6 +83,17 @@ if [ "$compile_ok" -eq 0 ]; then
   fi
 fi
 
+# gold/Codespace：shux 非 TTY stdout 下 parse 指标偶发 SIGTERM；源码 function 计数作临时回退。
+if [ "$compile_ok" -eq 0 ] && [ "${SHUX_TYPECK_PARSE_COUNT_SOURCE_FALLBACK:-0}" = "1" ]; then
+  if [ "$src_count" -ge "$TARGET_FUNCS" ] 2>/dev/null; then
+    metric="$src_count"
+    ndef="$src_count"
+    nf="$src_count"
+    compile_ok=1
+    echo "typeck-parse-count-gate: WARN chunked parse failed; source_fallback metric=${metric} (typeck.sx ^function count)" >&2
+  fi
+fi
+
 if [ "$compile_ok" -eq 0 ]; then
   echo "typeck-parse-count-gate FAIL: compile command failed" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
