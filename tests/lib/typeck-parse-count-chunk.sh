@@ -39,20 +39,22 @@ run_chunk_metric() {
   out="${OUT_BASE}.${chunk_i}.o"
   for attempt in 1 2; do
     if command -v timeout >/dev/null 2>&1; then
-      timeout "$CHUNK_TIMEOUT" env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
-        SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
-        (
-          cd compiler
-          "$COMP" -backend asm -o "$out" $LIBROOT "$sx_abs"
-        ) >"$log" 2>&1 && return 0
+      SHUX_CHUNK_COMP="$COMP" SHUX_CHUNK_OUT="$out" SHUX_CHUNK_SX="$sx_abs" \
+        timeout "$CHUNK_TIMEOUT" bash -c '
+          cd compiler || exit 1
+          env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
+            SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
+            "$SHUX_CHUNK_COMP" -backend asm -o "$SHUX_CHUNK_OUT" '"$LIBROOT"' "$SHUX_CHUNK_SX"
+        ' >"$log" 2>&1 && return 0
       rc=$?
     else
-      (
-        cd compiler
-        env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-          SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
-          "$COMP" -backend asm -o "$out" $LIBROOT "$sx_abs"
-      ) >"$log" 2>&1 && return 0
+      SHUX_CHUNK_COMP="$COMP" SHUX_CHUNK_OUT="$out" SHUX_CHUNK_SX="$sx_abs" \
+        bash -c '
+          cd compiler || exit 1
+          env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
+            SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
+            "$SHUX_CHUNK_COMP" -backend asm -o "$SHUX_CHUNK_OUT" '"$LIBROOT"' "$SHUX_CHUNK_SX"
+        ' >"$log" 2>&1 && return 0
       rc=$?
     fi
     if grep -qE 'Terminated|Killed|signal 9|oom|Cannot allocate memory' "$log" 2>/dev/null && [ "$attempt" -eq 1 ]; then
