@@ -67,11 +67,38 @@ progress "=== A-09 hash strict ==="
 SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2
 progress "=== A-11 typeck parse count strict ==="
 # shux_asm2 与 seed 同体时整文件 parse 易 OOM；分块用更小 chunk + 更长 timeout。
-SHUX=./compiler/shux_asm2 \
+# 分块跑完约 50+ 次 compile，须 >10min；Codespace SSH 会话会超时，故 nohup 后台跑并轮询日志。
+A11_LOG="${SHUX_W3_A11_LOG:-logs/a11-typeck-parse.log}"
+mkdir -p logs
+rm -f "$A11_LOG" logs/a11-typeck-parse.exit
+nohup env SHUX=./compiler/shux_asm2 \
   SHUX_TYPECK_PARSE_COUNT_FAIL=1 \
   SHUX_TYPECK_PARSE_CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-5}" \
   SHUX_TYPECK_PARSE_CHUNK_TIMEOUT="${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-360}" \
-  ./tests/run-typeck-parse-count-gate.sh
+  ./tests/run-typeck-parse-count-gate.sh >"$A11_LOG" 2>&1 \
+  || echo $? >logs/a11-typeck-parse.exit &
+a11_pid=$!
+a11_wait=0
+while kill -0 "$a11_pid" 2>/dev/null; do
+  a11_wait=$((a11_wait + 1))
+  if [ "$a11_wait" -gt 3600 ]; then
+    progress "FAIL: A-11 typeck parse count timeout (1h)"
+    kill "$a11_pid" 2>/dev/null || true
+    exit 1
+  fi
+  sleep 10
+done
+wait "$a11_pid" || a11_ec=$?
+a11_ec=${a11_ec:-0}
+if [ -f logs/a11-typeck-parse.exit ]; then
+  a11_ec=$(cat logs/a11-typeck-parse.exit)
+fi
+tail -n 8 "$A11_LOG" 2>/dev/null || true
+if [ "$a11_ec" -ne 0 ]; then
+  progress "FAIL: A-11 typeck parse count (exit=$a11_ec; see $A11_LOG)"
+  exit 1
+fi
+progress "A-11 typeck parse count OK"
 progress "=== A-12 cross-module symbols strict ==="
 SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh
 progress "=== ensure std .sx .o (hello + A-10 最小集, best-effort) ==="
