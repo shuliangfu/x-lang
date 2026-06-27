@@ -806,7 +806,6 @@ int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx * ctx) {
   /* -c (check_only) 模式不应跳过 typeck */
   extern int driver_check_only_get(void);
   int _co = driver_check_only_get();
-  fprintf(stderr, "DEBUG_SKIP: check_only=%d skip_flag=%d entry_only=%d\n", _co, (int)pipeline_driver_sx_pipeline_skip_typeck(), (int)pipeline_dep_ctx_asm_entry_module_only(ctx));
   if (_co != 0) return 0;
   (void)(({ int32_t __tmp = 0; if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {   return 1;
  } else (__tmp = 0) ; __tmp; }));

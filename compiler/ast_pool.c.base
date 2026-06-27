@@ -4528,7 +4528,6 @@ int32_t pipeline_should_skip_sx_typeck_c(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return 0;
   if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {
-    fprintf(stderr, "DEBUG_SKIP: skip_typeck=1 check_only=%d entry_only=%d\n", (int)driver_check_only_get(), (int)pipeline_dep_ctx_asm_entry_module_only(ctx));
     return 1;
   }
   /** -c (check_only) 模式不应跳过 typeck — 负例 gate 依赖 typeck 报错。 */

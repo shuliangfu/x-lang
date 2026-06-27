@@ -11,7 +11,6 @@ _start:
 	mov	(%rsp), %r12d
 	lea	8(%rsp), %r13
 	and	$~15, %rsp
-	sub	$8, %rsp
 	mov	%r12d, %edi
 	mov	%r13, %rsi
 	call	bootstrap_init_static_tls
