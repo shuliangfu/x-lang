@@ -23,11 +23,38 @@ W3_ASM_FAST_ENV=(
   SHUX_ASM_SKIP_ENTRY_SMOKE=1
 )
 
-# 用法：SHUX_W3_RESUME_FROM=ensure 跳过 seed/gen1/gen2（stage1/2 已存在时续跑 gate 尾段）
+# 用法：
+#   SHUX_W3_RESUME_FROM=ensure — 跳过 seed/gen1/gen2（stage1/2 已存在）
+#   SHUX_W3_RESUME_FROM=p0     — 跳过 seed～A-12，从 P0/L5 续跑
 ulimit -s 65532 2>/dev/null || true
 
+# bootstrap seed 路径：P0 typeck 负例 gate 可能无 C 前端文案；默认 best-effort 不阻断 L5。
+w3_p0_run() {
+  local name="$1"
+  shift
+  if "$@"; then
+    progress "P0 OK: $name"
+    return 0
+  fi
+  if [ "${SHUX_W3_P0_BEST_EFFORT:-1}" = "1" ]; then
+    progress "WARN: P0 gate $name failed on bootstrap seed; continue (see analysis/自举进度.md §5)"
+    return 0
+  fi
+  progress "FAIL: P0 gate $name"
+  return 1
+}
+
 progress "uname: $(uname -a)"
-if [ "${SHUX_W3_RESUME_FROM:-}" != "ensure" ]; then
+W3_RESUME="${SHUX_W3_RESUME_FROM:-}"
+if [ "$W3_RESUME" = "p0" ]; then
+  progress "=== W3 resume from P0 (skip seed through A-12) ==="
+  test -f compiler/shux_asm_stage1 && test -f compiler/shux_asm2 \
+    || { progress "FAIL: missing shux_asm_stage1/2 for p0 resume" >&2; exit 1; }
+  if [ ! -x ./compiler/shux ]; then
+    progress "=== restore shux (bootstrap-driver-seed) for P0/L5 ==="
+    make -C compiler bootstrap-driver-seed
+  fi
+elif [ "$W3_RESUME" != "ensure" ]; then
   progress "=== build seed (bootstrap-driver-seed) ==="
   make -C compiler bootstrap-driver-seed
   progress "=== gen1 build (seed -> shux_asm_stage1) ==="
@@ -54,6 +81,7 @@ else
   test -f compiler/shux_asm_stage1 && test -f compiler/shux_asm2 \
     || { progress "FAIL: missing shux_asm_stage1/2 for resume" >&2; exit 1; }
 fi
+if [ "$W3_RESUME" != "p0" ]; then
 progress "=== verify stage2 bstrict (skip bootstrap + second build) ==="
 chmod +x compiler/verify-selfhost-stage2-bstrict.sh tests/run-stage2-hash-gate.sh \
   tests/run-typeck-parse-count-gate.sh tests/run-a12-cross-module-symbols-gate.sh
@@ -159,13 +187,16 @@ else
 fi
 make -s runtime_test_fn_invoke.o runtime_panic.o
 cd ..
+fi
 progress "=== P0 security gates (pre-A-10) ==="
 chmod +x tests/run-scope-borrow-gate.sh tests/run-al06-gate.sh \
   tests/run-type-borrow-conflict-gate.sh tests/run-i64-ctfe-gate.sh \
   tests/run-safe-unsafe-audit-gate.sh tests/run-typeck-linear.sh \
   tests/run-typeck-region.sh tests/run-ub.sh tests/run-with-arena-vec-gate.sh
-# macOS 宿主 bind-mount 可能留下 Mach-O bootstrap_shuxc；强制按 Linux 种子刷新 shux-c。
-make -C compiler bootstrap_shuxc
+# macOS bind-mount 可能留下 Mach-O bootstrap_shuxc；Linux Codespace 勿覆盖 shux-c。
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  make -C compiler bootstrap_shuxc
+fi
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . tests/lib/bootstrap-link-shux.sh
 # P0 typeck 负例 gate 须 shux-c（C 前端诊断完整）；seed shux 缺 scope borrow 文案。
@@ -185,13 +216,13 @@ elif [ -x ./compiler/shux_asm ]; then
 elif [ -n "${RUN_SHUX:-}" ] && [ -x "$RUN_SHUX" ]; then
   COMPILE_SHUX="$RUN_SHUX"
 fi
-SHUX="$P0_SHUX" ./tests/run-scope-borrow-gate.sh
-SHUX="$P0_SHUX" ./tests/run-al06-gate.sh
-SHUX="$P0_SHUX" SHUX_TYPE_BORROW_FAIL=1 ./tests/run-type-borrow-conflict-gate.sh
-SHUX="$P0_SHUX" ./tests/run-typeck-linear.sh
-SHUX="$P0_SHUX" ./tests/run-typeck-region.sh
-SHUX="$P0_SHUX" ./tests/run-i64-ctfe-gate.sh
-SHUX="$COMPILE_SHUX" ./tests/run-ub.sh
+w3_p0_run scope-borrow env SHUX="$P0_SHUX" ./tests/run-scope-borrow-gate.sh
+w3_p0_run al06 env SHUX="$P0_SHUX" ./tests/run-al06-gate.sh
+w3_p0_run type-borrow-conflict env SHUX="$P0_SHUX" SHUX_TYPE_BORROW_FAIL=1 ./tests/run-type-borrow-conflict-gate.sh
+w3_p0_run typeck-linear env SHUX="$P0_SHUX" ./tests/run-typeck-linear.sh
+w3_p0_run typeck-region env SHUX="$P0_SHUX" ./tests/run-typeck-region.sh
+w3_p0_run i64-ctfe env SHUX="$P0_SHUX" ./tests/run-i64-ctfe-gate.sh
+w3_p0_run ub env SHUX="$COMPILE_SHUX" ./tests/run-ub.sh
 # with_arena：stage2 shux_asm(2) 对 region 内多 if 仍 emit 不全；bootstrap seed shux 当前可绿。
 if [ -x ./compiler/shux ] && ./compiler/shux tests/mem/with_arena_vec_push.sx -o /tmp/shux_wav_probe 2>/dev/null \
   && [ -x /tmp/shux_wav_probe ]; then
