@@ -16,6 +16,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# 连续 parse 指标会反复 exec shux；默认 nofile=1024 时约 90 次后 EMFILE → timeout SIGTERM。
+ulimit -n 8192 2>/dev/null || ulimit -n 4096 2>/dev/null || true
+
 COMP="${1:-./compiler/shux_asm}"
 TYPECK_SX="${2:-compiler/src/typeck/typeck.sx}"
 CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10}"

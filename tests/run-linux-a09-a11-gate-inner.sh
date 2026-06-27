@@ -11,6 +11,9 @@ cd "$(dirname "$0")/.."
 
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
 
+# A-11 分块 parse 连续 exec 编译器；提高 nofile 避免 ~90 chunk 后 EMFILE。
+ulimit -n 8192 2>/dev/null || ulimit -n 4096 2>/dev/null || true
+
 # gen1/gen2/verify：bridge strict 快路径（避免 smoke SIGSEGV、WPO futex 卡死；与 run-g-fast-track BSTRICT_FAST_ENV 对齐）
 W3_ASM_FAST_ENV=(
   SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1
