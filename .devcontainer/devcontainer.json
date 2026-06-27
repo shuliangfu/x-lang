@@ -1,7 +1,10 @@
 {
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {}
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    }
   },
   "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq gcc make perl python3"
 }
