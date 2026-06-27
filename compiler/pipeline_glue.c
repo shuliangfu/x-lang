@@ -22835,7 +22835,18 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
     return 0;
   for (src_i = 0; src_i < num_args; src_i++) {
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
+    int32_t arg_ty;
+    int32_t arg_elem;
     if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, arg_ref))
+      continue;
+    /** 仅当 &local 的类型是 *Struct 时才触发（&local_i32 不逃逸）。 */
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (arg_ty <= 0)
+      continue;
+    if (pipeline_type_kind_ord_at(arena, arg_ty) != (int32_t)ast_TypeKind_TYPE_PTR)
+      continue;
+    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
       continue;
     for (dst_j = 0; dst_j < num_args; dst_j++) {
       int32_t param_ref;
@@ -23691,7 +23702,18 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
     int32_t dst_j;
     for (src_i = 0; src_i < num_args; src_i++) {
       int32_t stack_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
+      int32_t stack_arg_ty;
+      int32_t stack_arg_elem;
       if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, stack_arg))
+        continue;
+      /** 仅当 &local 的类型是 *Struct 时才触发（&local_i32 不逃逸）。 */
+      stack_arg_ty = pipeline_expr_resolved_type_ref(arena, stack_arg);
+      if (stack_arg_ty <= 0)
+        continue;
+      if (pipeline_type_kind_ord_at(arena, stack_arg_ty) != (int32_t)ast_TypeKind_TYPE_PTR)
+        continue;
+      stack_arg_elem = pipeline_type_elem_ref_at(arena, stack_arg_ty);
+      if (stack_arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, stack_arg_elem))
         continue;
       for (dst_j = 0; dst_j < num_args; dst_j++) {
         int32_t param_ref2;
