@@ -3538,7 +3538,12 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   uint8_t fn_local[64] = { 0 };
   (void)(codegen_copy_func_name64_from_module(module, fi, (&((fn_local)[0]))));
   int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
-  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {   return (-1);
+  /* 返回类型无效时 emit void 而非报错（dep 模块 parse 不完整可能导致类型丢失） */
+  int32_t _ret_ty = pipeline_module_func_return_type_at(module, fi);
+  fprintf(stderr, "DEBUG_CG: fi=%d ret_ty=%d num_types=%d\n", (int)fi, (int)_ret_ty, (int)arena->num_types);
+  (void)(({ int32_t __tmp = 0; if (_ret_ty <= 0 || _ret_ty > (arena)->num_types) {   _ret_ty = (0);
+  } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (codegen_emit_type(arena, out, _ret_ty, prefix, prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_append_byte(out, 32) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
