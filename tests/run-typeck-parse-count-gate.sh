@@ -75,8 +75,11 @@ fi
 
 if [ "$compile_ok" -eq 0 ]; then
   echo "typeck-parse-count-gate: WARN full-file parse failed; trying chunked parse (SHUX_TYPECK_PARSE_CHUNK_FUNCS=${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10})" >&2
-  typeck_parse_count_try_chunked "$SHUX" || \
-    { [ "$SHUX" != "./compiler/shux" ] && [ -x ./compiler/shux ] && typeck_parse_count_try_chunked "./compiler/shux"; } || true
+  if ! typeck_parse_count_try_chunked "$SHUX"; then
+    if [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
+      typeck_parse_count_try_chunked "./compiler/shux" || true
+    fi
+  fi
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
