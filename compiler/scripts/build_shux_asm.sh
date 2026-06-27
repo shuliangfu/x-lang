@@ -4808,4 +4808,13 @@ fi
 if [ "$ASM_READY" -eq 1 ] && [ "$LINK_OK" -ne 1 ]; then
   exit 1
 fi
+# strict 重链后 shux_asm 偶发 -o SIGSEGV：回退 experimental 快照或本轮 SHUX 编译器。
+if [ -x ./shux_asm ] && [ "$LINK_OK" -eq 1 ]; then
+  chmod +x scripts/shux_asm_postlink_smoke.sh 2>/dev/null || true
+  if [ -x scripts/shux_asm_postlink_smoke.sh ]; then
+    ./scripts/shux_asm_postlink_smoke.sh ./shux_asm "${SHUX:-./shux}" || {
+      echo "build_shux_asm: WARN shux_asm postlink smoke failed (strict relink -o broken)" >&2
+    }
+  fi
+fi
 exit 0
