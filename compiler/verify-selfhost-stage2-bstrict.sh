@@ -332,6 +332,9 @@ fi
 
 echo ""
 echo "── Step 4: hello（import std.io，shux_asm -o 偶发 SIGSEGV 时重试）──"
+if [ "${SHUX_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || [ "${SHUX_STAGE2_SKIP_HELLO:-0}" = "1" ]; then
+  echo "verify-stage2-bstrict: skip Step 4 hello (SHUX_ASM_SKIP_ENTRY_SMOKE / SHUX_STAGE2_SKIP_HELLO; D-03 hash gate covers Stage2)"
+else
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
     echo "verify-stage2-bstrict: skip hello on Darwin/ARM64 (asm Mach-O incomplete; examples/hello.sx const-import 与 -backend c 不兼容；Step 3 return-value 已覆盖行为 parity)"
@@ -388,6 +391,7 @@ case "$(uname -s)-$(uname -m 2>/dev/null)" in
     fi
     ;;
 esac
+fi
 
 echo ""
 echo "── Step 4b: shux_asm2 struct mk 烟测（gen2 CALL 内联，须 exit 10）──"
