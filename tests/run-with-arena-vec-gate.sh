@@ -10,7 +10,8 @@ OUT="/tmp/shux_with_arena_vec_$$"
 FAIL="${SHUX_WITH_ARENA_VEC_GATE_FAIL:-0}"
 
 rm -f "$OUT"
-if ! "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_with_arena_vec_build.log 2>&1; then
+# shux 非 TTY stdout 重定向会挂起；tee|cat Drain（与 A-11 parse 指标同根因）。
+if ! "$SHUX" "$SRC" -o "$OUT" 2>&1 | tee /tmp/shux_with_arena_vec_build.log | cat >/dev/null; then
   echo "with-arena-vec-gate FAIL: compile $SRC" >&2
   tail -8 /tmp/shux_with_arena_vec_build.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

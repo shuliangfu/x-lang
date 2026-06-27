@@ -223,19 +223,18 @@ w3_p0_run typeck-linear env SHUX="$P0_SHUX" ./tests/run-typeck-linear.sh
 w3_p0_run typeck-region env SHUX="$P0_SHUX" ./tests/run-typeck-region.sh
 w3_p0_run i64-ctfe env SHUX="$P0_SHUX" ./tests/run-i64-ctfe-gate.sh
 w3_p0_run ub env SHUX="$COMPILE_SHUX" ./tests/run-ub.sh
-# bootstrap seed -o 烟测易挂起/多进程；W3 直接用 COMPILE_SHUX（shux_asm2）。
-if [ "${SHUX_W3_SKIP_ARENA_PROBE:-1}" = "1" ]; then
-  w3_p0_run with-arena-vec env SHUX="$COMPILE_SHUX" ./tests/run-with-arena-vec-gate.sh
+# bootstrap seed -o 烟测易挂起；W3 跳过 probe，with-arena 限时 best-effort。
+if [ "${SHUX_W3_SKIP_WITH_ARENA_GATE:-0}" = "1" ]; then
+  progress "WARN: skip with-arena-vec gate (SHUX_W3_SKIP_WITH_ARENA_GATE=1)"
 else
-  if [ -x ./compiler/shux ] && command -v timeout >/dev/null 2>&1 \
-    && timeout 30 ./compiler/shux tests/mem/with_arena_vec_push.sx -o /tmp/shux_wav_probe 2>/dev/null \
-    && [ -x /tmp/shux_wav_probe ]; then
-    rm -f /tmp/shux_wav_probe
-    w3_p0_run with-arena-vec env SHUX=./compiler/shux ./tests/run-with-arena-vec-gate.sh
-  else
-    rm -f /tmp/shux_wav_probe 2>/dev/null || true
-    w3_p0_run with-arena-vec env SHUX="$COMPILE_SHUX" ./tests/run-with-arena-vec-gate.sh
-  fi
+  _w3_arena() {
+    if command -v timeout >/dev/null 2>&1; then
+      timeout "${SHUX_W3_WITH_ARENA_TIMEOUT:-90}" env SHUX="$COMPILE_SHUX" ./tests/run-with-arena-vec-gate.sh
+    else
+      env SHUX="$COMPILE_SHUX" ./tests/run-with-arena-vec-gate.sh
+    fi
+  }
+  w3_p0_run with-arena-vec _w3_arena
 fi
 w3_p0_run safe-unsafe-audit ./tests/run-safe-unsafe-audit-gate.sh
 progress "=== A-10 L5 run-all bstrict (shux_asm2) ==="
