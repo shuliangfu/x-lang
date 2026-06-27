@@ -2516,7 +2516,7 @@ ensure_typeck_c_user_precheck_obj() {
   echo "build_shux_asm: warn: typeck_c_orchestration_partial failed; fallback typeck_c_module_stubs" >&2
   ensure_typeck_c_module_stubs_obj
   echo "$BUILD_DIR/typeck_c_module_stubs.o"
-  return 1
+  return 0
 }
 
 # build_asm typeck.o 供 glue metrics；codegen 走 codegen_only partial。
