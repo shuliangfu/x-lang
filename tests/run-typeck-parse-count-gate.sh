@@ -38,13 +38,14 @@ rm -f "$OUT" "$LOG" 2>/dev/null || true
 
 typeck_parse_count_compile() {
   local comp="$1"
+  # shux 在非 TTY stdout 下 parse 可能挂起；tee 保留 LOG。
   (
     cd compiler
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_ASM_PARSE_METRIC_ONLY=1 \
       SHUX_DEBUG_PIPE=1 \
       "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.sx
-  ) >"$LOG" 2>&1
+  ) 2>&1 | tee "$LOG" >/dev/null
 }
 
 # 整文件 parse 被 OOM killer 干掉（exit 137 / log 含 Killed）时，分块 parse 累加 num_defined。

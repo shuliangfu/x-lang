@@ -23,13 +23,13 @@ if [ ! -x "$COMP" ] || [ ! -f "$CHUNK_SX" ]; then
   exit 1
 fi
 
+# shux 在非 TTY stdout（>file / >/dev/null）下 parse 路径可能挂起；用 tee 保留日志。
 # shellcheck disable=SC2086
-(
-  cd compiler
+( cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 \
     SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_PARSE_METRIC_ONLY=1 SHUX_DEBUG_PIPE=1 \
     "$COMP" -backend asm -o "$OUT_O" $LIBROOT "$CHUNK_SX"
-) >"$LOG" 2>&1
+) 2>&1 | tee "$LOG" >/dev/null
 
 ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$LOG" | tail -1)
 if [ -n "$ndef" ]; then
