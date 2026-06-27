@@ -3190,6 +3190,8 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
+  /* Import binding 特判 */
+  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {   int32_t _imp_i; int32_t _n_imp = (module)->num_imports; for (_imp_i = 0; _imp_i < _n_imp; _imp_i++) { int32_t _bl = pipeline_module_import_binding_name_len(module, _imp_i); if (_bl == vnlen && _bl > 0) { int32_t _k; int32_t _match = 1; for (_k = 0; _k < _bl && _match; _k++) { if (pipeline_module_import_binding_name_byte_at(module, _imp_i, _k) != vbuf[_k]) _match = 0; } fprintf(stderr, "DEBUG_IB: imp_i=%d _bl=%d _match=%d vnlen=%d\n", (int)_imp_i, (int)_bl, (int)_match, (int)vnlen); if (_match) { int32_t _nt = typeck_find_or_alloc_named_type_ref(arena, vbuf, vnlen); if (_nt != 0) { (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, _nt)); return 0; } } } } } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return 0;

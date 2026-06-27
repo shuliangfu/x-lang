@@ -21260,6 +21260,30 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
       return 0;
     }
   }
+  /** Import binding 特判：变量名匹配某个 import binding（如 `backend = import("backend")`），
+   * 设置 resolved type 为 named type，使后续 METHOD_CALL / FIELD_ACCESS 能解析跨模块函数。 */
+  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+    int32_t imp_i;
+    int32_t n_imp = module->num_imports;
+    for (imp_i = 0; imp_i < n_imp; imp_i++) {
+      int32_t bind_len = pipeline_module_import_binding_name_len(module, imp_i);
+      if (bind_len == vnlen && bind_len > 0) {
+        int32_t k;
+        int32_t match = 1;
+        for (k = 0; k < bind_len && match; k++) {
+          if (pipeline_module_import_binding_name_byte_at(module, imp_i, k) != vbuf[k])
+            match = 0;
+        }
+        if (match) {
+          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, vbuf, vnlen);
+          if (nt != 0) {
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, nt);
+            return 0;
+          }
+        }
+      }
+    }
+  }
   if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
     return -1;
   return 0;

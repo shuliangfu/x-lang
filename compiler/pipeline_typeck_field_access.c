@@ -547,6 +547,126 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
 /**
  * typeck.sx::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
  */
+/**
+ * Import binding 特判：base 是 import binding（如 `backend`），field name 是 dep 模块中的函数名。
+ * 从 dep 模块中查找函数，设置 field access 表达式的 resolved type 为函数返回类型。
+ * 返回 1 表示命中（已处理），0 表示未命中（继续常规 field access typeck）。
+ */
+int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                        int32_t expr_ref, int32_t base_ref,
+                                                        struct ast_PipelineDepCtx *ctx) {
+  uint8_t base_name[64];
+  int32_t base_name_len;
+  uint8_t field_name[64];
+  int32_t field_name_len;
+  int32_t i;
+  int32_t n_imp;
+
+  if (!module || !arena || base_ref <= 0 || !ctx)
+    return 0;
+
+  /* base 必须是 EXPR_VAR */
+  if (pipeline_expr_kind_ord_at(arena, base_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
+    return 0;
+
+  base_name_len = pipeline_expr_var_name_len(arena, base_ref);
+  fprintf(stderr, "DEBUG_IB: base_name_len=%d\n", (int)base_name_len);
+  if (base_name_len <= 0 || base_name_len > 63)
+    return 0;
+  pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+
+  field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
+  fprintf(stderr, "DEBUG_IB: field_name_len=%d\n", (int)field_name_len);
+  if (field_name_len <= 0 || field_name_len > 63)
+    return 0;
+  pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
+
+  /* 检查 base_name 是否匹配某个 import binding */
+  n_imp = module->num_imports;
+  fprintf(stderr, "DEBUG_IB: n_imp=%d ndep=%d\n", (int)n_imp, (int)(ctx ? pipeline_dep_ctx_ndep(ctx) : -1));
+  for (i = 0; i < n_imp; i++) {
+    int32_t bind_len;
+    uint8_t bind_name[64];
+    int32_t dep_idx;
+    struct ast_Module *dep_mod;
+    int32_t j;
+    int32_t nf;
+
+    bind_len = pipeline_module_import_binding_name_len(module, i);
+    if (bind_len <= 0 || bind_len != base_name_len)
+      continue;
+
+    /* 逐字节比较 binding name 与 base_name */
+    {
+      int32_t k;
+      int32_t match = 1;
+      for (k = 0; k < bind_len && match; k++) {
+        if (pipeline_module_import_binding_name_byte_at(module, i, k) != base_name[k])
+          match = 0;
+      }
+      if (!match)
+        continue;
+    }
+
+    /* 找到匹配的 import binding；获取 dep 模块 */
+    dep_idx = -1;
+    if (ctx) {
+      /* 从 ctx 的 dep slots 中查找 */
+      int32_t nd = pipeline_dep_ctx_ndep(ctx);
+      int32_t di;
+      for (di = 0; di < nd; di++) {
+        struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+        if (!dm)
+          continue;
+        /* 比较 dep 模块的 import path 与 module 的 import path */
+        /* 简单方式：用 dep_idx = i */
+        dep_idx = i;
+        dep_mod = dm;
+        break;
+      }
+    }
+
+    if (dep_idx < 0)
+      continue;
+
+    /* 在 dep 模块中查找函数 field_name */
+    nf = pipeline_module_num_funcs(dep_mod);
+      fprintf(stderr, "DEBUG_IB: dep_mod found, nf=%d\n", (int)nf);
+    for (j = 0; j < nf; j++) {
+      int32_t fn_len;
+      int32_t k;
+      int32_t match = 1;
+      fn_len = pipeline_module_func_name_len_at(dep_mod, j);
+      if (fn_len != field_name_len)
+        continue;
+      for (k = 0; k < fn_len && match; k++) {
+        /* 用 scratch buffer 比较 */
+        uint8_t fn_buf[64];
+        pipeline_module_func_name_copy64(dep_mod, j, fn_buf);
+        if (fn_buf[k] != field_name[k])
+          match = 0;
+      }
+      if (match) {
+        /* 找到函数；设置 resolved type */
+        int32_t ret_ty = pipeline_module_func_return_type_at(dep_mod, j);
+        if (ret_ty > 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+        }
+        /* 也设置 base 的 resolved type 为 named type */
+        if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+          if (nt != 0)
+            pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+        }
+        fprintf(stderr, "DEBUG_IB: HIT! ret_ty=%d\n", (int)ret_ty);
+        return 1;
+      }
+    }
+  }
+  fprintf(stderr, "DEBUG_IB: MISS\n");
+  return 0;
+}
+
 int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
@@ -556,9 +676,14 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   int32_t layout_rc;
 
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  fprintf(stderr, "DEBUG_FA: enter expr_ref=%d base_ref=%d\n", (int)expr_ref, (int)base_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return -1;
   pipeline_typeck_field_prebind_c(module, arena, expr_ref, ctx);
+  /** Import binding 特判：backend.foo(args) 中 backend 是 import binding，
+   * foo 是 dep 模块中的函数；field access 的 typeck 应从 dep 模块查找函数返回类型。 */
+  if (pipeline_typeck_field_import_binding_resolve_c(module, arena, expr_ref, base_ref, ctx))
+    return 0;
   if (pipeline_typeck_check_expr_c(module, arena, base_ref, return_type_ref, ctx) != 0)
     return -1;
   /** DOD-S1：INDEX 基址的 SoA 字段访问优先于 AoS layout 回落。 */
