@@ -26,16 +26,23 @@ fi
 
 printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 
+# smoke_bin — shux_asm 的 -c/-o 烟测；asm 默认 -o 在 bootstrap 环境易 ld 失败，-backend c 可链可执行。
+# 参数：bin — 待测 shux_asm 路径；成功返回 0。
 smoke_bin() {
   local bin="$1"
   local _log="/tmp/shux_asm_postlink_smoke_$$.log"
+  local _rc=0
   [ -x "$bin" ] || return 1
-  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain。
-  if ! "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain；PIPESTATUS[0] 避免 cat 掩盖 shux 失败。
+  "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  _rc="${PIPESTATUS[0]:-1}"
+  if [ "$_rc" -ne 0 ]; then
     return 1
   fi
   rm -f "$SMOKE_OUT"
-  if ! "$bin" -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+  "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  _rc="${PIPESTATUS[0]:-1}"
+  if [ "$_rc" -ne 0 ]; then
     return 1
   fi
   [ -x "$SMOKE_OUT" ] || return 1
@@ -45,7 +52,7 @@ smoke_bin() {
 }
 
 if smoke_bin "$ASM"; then
-  echo "shux_asm_postlink_smoke: OK $ASM (-c + -o exit=42)"
+  echo "shux_asm_postlink_smoke: OK $ASM (-c + -backend c -o exit=42)"
   exit 0
 fi
 
