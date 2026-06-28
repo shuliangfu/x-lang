@@ -23,6 +23,17 @@ W3_ASM_FAST_ENV=(
   SHUX_ASM_SKIP_ENTRY_SMOKE=1
 )
 
+# 防塌陷：W3 gold 默认禁止 smoke 静默复制 pinned/旧编译器（见 tests/lib/bootstrap-anti-collapse.sh）
+W3_ANTI_COLLAPSE_ENV=(
+  SHUX_BOOTSTRAP_AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-logs}"
+)
+if [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ]; then
+  W3_ANTI_COLLAPSE_ENV+=(
+    SHUX_BOOTSTRAP_NO_PINNED_FALLBACK=1
+    SHUX_BOOTSTRAP_NO_POSTLINK_FALLBACK=1
+  )
+fi
+
 # 用法：
 #   SHUX_W3_RESUME_FROM=ensure — 跳过 seed/gen1/gen2（stage1/2 已存在）
 #   SHUX_W3_RESUME_FROM=p0     — 跳过 seed～A-12，从 P0/L5 续跑
@@ -72,11 +83,14 @@ elif [ "$W3_RESUME" = "p1" ]; then
     make -C compiler shux-c
   fi
 elif [ "$W3_RESUME" != "ensure" ]; then
-  progress "=== build seed (bootstrap-driver-seed) ==="
-  make -C compiler bootstrap-driver-seed
+  # shellcheck source=tests/lib/bootstrap-anti-collapse.sh
+  source tests/lib/bootstrap-anti-collapse.sh
+  bootstrap_anti_collapse_reset_audit
+  progress "=== build seed (bootstrap-driver-seed; anti-collapse strict) ==="
+  env "${W3_ANTI_COLLAPSE_ENV[@]}" make -C compiler bootstrap-driver-seed
   progress "=== gen1 build (seed -> shux_asm_stage1) ==="
   cd compiler
-  env -u CI "${W3_ASM_FAST_ENV[@]}" SHUX=./shux \
+  env -u CI "${W3_ASM_FAST_ENV[@]}" "${W3_ANTI_COLLAPSE_ENV[@]}" SHUX=./shux \
     SHUX_ASM_CI_SKIP_FAST=1 \
     SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
     SHUX_ASM_CI_SKIP_SECOND_PASS= \
@@ -85,6 +99,7 @@ elif [ "$W3_RESUME" != "ensure" ]; then
   progress "=== gen2 build (stage1 -> shux_asm2) ==="
   env -u CI \
     "${W3_ASM_FAST_ENV[@]}" \
+    "${W3_ANTI_COLLAPSE_ENV[@]}" \
     SHUX_ASM_CI_SKIP_FAST=1 \
     SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
     SHUX_ASM_CI_SKIP_SECOND_PASS= \
@@ -113,6 +128,9 @@ env -u CI \
   bash compiler/verify-selfhost-stage2-bstrict.sh
 progress "=== A-09 hash strict ==="
 SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2
+progress "=== anti-collapse gate (no pinned/postlink silent copy) ==="
+chmod +x tests/run-bootstrap-anti-collapse-gate.sh
+./tests/run-bootstrap-anti-collapse-gate.sh
 progress "=== A-11 typeck parse count strict ==="
 # shux_asm2 与 seed 同体时整文件 parse 易 OOM；分块用更小 chunk + 更长 timeout。
 # 分块跑完约 50+ 次 compile，须 >10min；Codespace SSH 会话会超时，故 nohup 后台跑并轮询日志。
