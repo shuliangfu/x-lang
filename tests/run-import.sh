@@ -39,7 +39,8 @@ if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
 fi
 _import_ok=0
 for _import_try in $(seq 1 "$_import_compile_attempts"); do
-  if $LINK_SHUX -L . tests/import/main.sx -o /tmp/shux_import_hello >/dev/null 2>&1; then
+  # seed/shux_asm：非 TTY stdout 重定向会挂起；须 tee|cat Drain。
+  if $LINK_SHUX -L . tests/import/main.sx -o /tmp/shux_import_hello 2>&1 | tee /tmp/shux_import_hello_build.log | cat >/dev/null; then
     _import_ok=1
     break
   fi
