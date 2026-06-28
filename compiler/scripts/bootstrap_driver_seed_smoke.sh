@@ -1,24 +1,33 @@
 #!/usr/bin/env bash
-# bootstrap_driver_seed_smoke.sh — bootstrap-driver-seed 产出 shux 的 -c/-o 烟测；失败则回退 pinned seed
+# bootstrap_driver_seed_smoke.sh — bootstrap-driver-seed 产出 shux 的 -c/-o 烟测
 #
 # 用法（compiler 目录）：
 #   ./scripts/bootstrap_driver_seed_smoke.sh [path/to/shux]
 #
-# 成功：exit 0，stdout 打印 OK
-# 失败且存在 seeds/bootstrap_shuxc.<os>.<arch>：复制为 shux/shux-c/bootstrap_shuxc 并 exit 0（WARN）
-# 失败且无 pinned seed：exit 1
+# 成功：exit 0，stdout 打印 OK；写入 ../logs/bootstrap-seed.fresh
+# 失败且存在 pinned seed：默认复制并 exit 0（WARN）；写入 bootstrap-seed.pinned-fallback
+#   SHUX_BOOTSTRAP_NO_PINNED_FALLBACK=1 — 禁止回退（W3 gold 须设，防自举塌陷）
+#
+# 环境：
+#   SHUX_BOOTSTRAP_AUDIT_DIR — 审计标记目录（默认 ../logs）
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# main.sx / pipeline 深递归；与 build_shux_asm / run_shux_asm_smoke 栈对齐。
+ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
+
 TARGET="${1:-./shux}"
 SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke.$$.sx"
 SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out.$$"
+AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
 cleanup() {
   rm -f "$SMOKE_SRC" "$SMOKE_OUT" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+mkdir -p "$AUDIT_DIR"
 
 if [ ! -x "$TARGET" ]; then
   echo "bootstrap_driver_seed_smoke: not executable: $TARGET" >&2
@@ -28,13 +37,13 @@ fi
 printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 
 # run_smoke — 对 bootstrap seed 编译器做 -c 与 -o 烟测。
-# bootstrap seed 默认 asm -o 会链入 std/*.o 缺 C bridge（ld 失败）或 SIGSEGV；-backend c 走 C 后端可执行链。
+# bootstrap seed 默认 asm -o 会链入 std/*.o 缺 C bridge；-backend c 走 C 后端可执行链。
 # 参数：bin — 待测 shux 路径；成功返回 0。
 run_smoke() {
   local bin="$1"
   local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
-  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain；用 PIPESTATUS[0] 取 shux 真实退出码。
+  # 非 TTY stdout 须 tee|cat Drain；PIPESTATUS[0] 取 shux 真实退出码。
   "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
@@ -69,8 +78,19 @@ host_seed_path() {
 }
 
 if run_smoke "$TARGET"; then
+  : >"$AUDIT_DIR/bootstrap-seed.fresh"
+  rm -f "$AUDIT_DIR/bootstrap-seed.pinned-fallback"
+  printf '[%s] seed smoke OK fresh %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$TARGET" \
+    >>"$AUDIT_DIR/bootstrap-audit.log"
   echo "bootstrap_driver_seed_smoke: OK $TARGET (-c + -backend c -o exit=42)"
   exit 0
+fi
+
+if [ "${SHUX_BOOTSTRAP_NO_PINNED_FALLBACK:-0}" = "1" ]; then
+  echo "bootstrap_driver_seed_smoke: FAIL $TARGET smoke (SHUX_BOOTSTRAP_NO_PINNED_FALLBACK=1; no pinned copy)" >&2
+  printf '[%s] seed smoke FAIL no-fallback %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$TARGET" \
+    >>"$AUDIT_DIR/bootstrap-audit.log"
+  exit 1
 fi
 
 pinned="$(host_seed_path || true)"
@@ -81,6 +101,10 @@ if [ -n "$pinned" ] && [ -f "$pinned" ] && [ -s "$pinned" ]; then
   cp -f "$pinned" bootstrap_shuxc 2>/dev/null || true
   chmod +x "$TARGET" shux-c bootstrap_shuxc 2>/dev/null || chmod +x "$TARGET"
   if run_smoke "$TARGET"; then
+    : >"$AUDIT_DIR/bootstrap-seed.pinned-fallback"
+    rm -f "$AUDIT_DIR/bootstrap-seed.fresh"
+    printf '[%s] seed smoke OK pinned-fallback %s <- %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$TARGET" "$pinned" \
+      >>"$AUDIT_DIR/bootstrap-audit.log"
     echo "bootstrap_driver_seed_smoke: OK after pinned fallback $TARGET"
     exit 0
   fi
