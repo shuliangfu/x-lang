@@ -9,6 +9,7 @@
 # 用法（Codespace 仓库根）：
 #   ./tests/run-w3-gold-codespace.sh              # 全链
 #   SHUX_W3_RESUME_FROM=l5 ./tests/run-w3-gold-codespace.sh   # 仅 L5+P1
+#   SHUX_W3_RESUME_FROM=p1 ./tests/run-w3-gold-codespace.sh   # 仅 P1（L5 已过）
 #   ./tests/run-w3-gold-codespace.sh status     # 查看是否在跑
 #   ./tests/run-w3-gold-codespace.sh stop       # 停止 gate + 清理 shux
 
