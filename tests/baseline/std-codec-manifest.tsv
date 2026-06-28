@@ -12,8 +12,8 @@ api_block_encode	api	block_encode	std/codec/mod.sx	块门面
 api_block_decode	api	block_decode	std/codec/mod.sx	块门面
 api_encode_bytes	api	encode_into_bytes	std/codec/mod.sx	bytes
 api_decode_bytes	api	decode_from_bytes	std/codec/mod.sx	bytes
-api_stream_init	api	stream_codec_init_gzip	std/codec/mod.sx	流
-api_stream_proc	api	stream_codec_process	std/codec/mod.sx	流
+api_stream_init	api	codec_init_gzip	std/codec/mod.sx	流
+api_stream_proc	api	codec_process	std/codec/mod.sx	流
 api_adapter_hex	api	adapter_hex_encode	std/codec/mod.sx	hex
 api_adapter_b64	api	adapter_base64_encode	std/codec/mod.sx	b64
 api_adapter_gzip	api	adapter_gzip_encode	std/codec/mod.sx	gzip

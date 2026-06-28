@@ -12,7 +12,7 @@ function main(): i32 {
   p[0] = 1;
   heap.free(p);
 
-  let z: *u8 = heap.alloc_zeroed(8);
+  let z: *u8 = heap.alloc_zero(8);
   if (z == 0 as *u8) {
     return 2;
   }

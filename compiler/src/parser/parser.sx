@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // parser.sx — 自举 9.1：最小语法分析器（.sx 实现，与 parser.c 并存）
 // 职责：消费 Token 流，解析最小程序「function main(): i32 { return <int>; }」，并产出 .sx AST（Arena + Module）。
 // 依赖：lexer、token、ast（Arena/Module/Type/Expr/Block/Func）、std.fs。
@@ -79,6 +95,8 @@ extern function pipeline_block_append_let(arena: *ASTArena, br: i32, name: *u8, 
 extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
 /** M-3：追加 region label { body } 到块池；返回块内 region 下标（glue 在 ast.sx / ast_pool.c）。 */
 extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32, body_ref: i32): i32;
+/** LANG-007 v2：unsafe { body } 块池追加。 */
+extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
 /** MEM-C1：追加 with_arena(cap) { body } 到块池（与 region 共用 stmt_order kind=6）。 */
 extern function pipeline_block_append_with_arena(arena: *ASTArena, br: i32, cap_ref: i32, body_ref: i32): i32;
 extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
@@ -410,6 +428,22 @@ function parser_match_kw_immediately_before(source: u8[], ident_start: usize): b
       && source[p + 4] == 104 && source[p + 5] == 32;
 }
 
+/**
+ * 判断 source 在 ident_start 前是否为关键字 "return" + 空白（7 字节：return + 分隔符）。
+ * 用于 if (struct.field) 后 lex 误落在 `return expr` 的 expr 首 ident（如 r3）时回溯至 TOKEN_RETURN。
+ */
+function parser_return_kw_immediately_before(source: u8[], ident_start: usize): bool {
+  if (ident_start < 7) {
+    return false;
+  }
+  let p: usize = ident_start - 7;
+  if (source[p] != 114 || source[p + 1] != 101 || source[p + 2] != 116 || source[p + 3] != 117
+      || source[p + 4] != 114 || source[p + 5] != 110) {
+    return false;
+  }
+  let sep: u8 = source[p + 6];
+  return sep == 32 || sep == 9 || sep == 10 || sep == 13;
+}
 
 /** parser_match_kw_immediately_before 的 buf 变体。 */
 function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start: usize): bool {
@@ -1177,6 +1211,8 @@ function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneF
  */
 /** 单行 extern bl→parser_parse_if_stmt_into_glue（EMIT_HEAVY 深循环/兼容包装勿 SX emit）。 */
 extern function parser_parse_if_stmt_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool;
+/** 单行 extern bl→parser_realign_lex_after_if_stmt_onefunc_glue（if 后 lex 回扫，field cond 修复）。 */
+extern function parser_realign_lex_after_if_stmt_onefunc_glue(lex: *Lexer, source: u8[]): void;
 function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
 }
@@ -1189,7 +1225,7 @@ function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], ty
 function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[], type_ref: i32, out: *ParseBlockResult): void {
   /** 堆上 OneFuncResult scratch：勿在栈上分配 temp+blk_dummy（~96KiB），递归块解析会栈溢出导致块内 expr;/if 静默失败。 */
   let scratch_sz: usize = pipeline_sizeof_onefunc_result();
-  let scratch_raw: *u8 = heap.alloc_zeroed(scratch_sz);
+  let scratch_raw: *u8 = heap.alloc_zero(scratch_sz);
   if (scratch_raw == 0 as *u8) {
     out.ok = false;
     return;
@@ -1754,6 +1790,41 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
       stmt_tok_ready = true;
       continue;
     }
+    if (r.tok.kind == TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
+      /** LANG-007 v2：unsafe { body }（保留 IDENT，避免 TOKEN 枚举漂移；复用 regions 池）。 */
+      let unsafe_nm: u8[64] = [];
+      copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm[0]);
+      if (unsafe_nm[0] == 117 && unsafe_nm[1] == 110 && unsafe_nm[2] == 115 && unsafe_nm[3] == 97
+      && unsafe_nm[4] == 102 && unsafe_nm[5] == 101) {
+        lex_from_next_into(&lex_cur, r);
+        lexer.lexer_next_into(&r, lex_cur, source);
+        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+          out.ok = false;
+          return;
+        }
+        lex_from_next_into(&lex_cur, r);
+        let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+        parse_block_into(arena, lex_cur, source, type_ref, &block_res_unsafe);
+        if (!block_res_unsafe.ok) {
+          out.ok = false;
+          return;
+        }
+        let unsafe_pool_i: i32 = pipeline_block_append_unsafe(arena, block_ref, block_res_unsafe.block_ref);
+        if (unsafe_pool_i < 0) {
+          out.ok = false;
+          return;
+        }
+        if (pipeline_block_append_stmt_order(arena, block_ref, 6, unsafe_pool_i) < 0) {
+          out.ok = false;
+          return;
+        }
+        b = ast.ast_arena_block_get(arena, block_ref);
+        lex_cur = block_res_unsafe.next_lex;
+        lexer.lexer_next_into(&r, lex_cur, source);
+        stmt_tok_ready = true;
+        continue;
+      }
+    }
     if (r.tok.kind == TokenKind.TOKEN_IF) {
       let if_start: Lexer = lex_at_token_from_result(r);
       let if_cond: i32 = 0;
@@ -1773,9 +1844,8 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
-      /** 与 parse_one_function_impl if 分支一致：parse_if 写 lex_cur，单次 peek 后 stmt_tok_ready。 */
-      lexer.lexer_next_into(&r, lex_cur, source);
-      stmt_tok_ready = true;
+      /** parse_if 已将 lex_cur 对齐下一 stmt 首 token；勿 lexer_next 以免吞 return/if 关键字。 */
+      stmt_tok_ready = false;
       continue;
     }
     /* 表达式语句 expr;（起点用 lex_at_token_from_result(r)，勿先 lex_from_result_ptr 以免 lex_cur 越过当前 token） */
@@ -1956,7 +2026,7 @@ function parse(source: u8[]): ParseResult {
     ret_val = r.tok.int_val;
     lex_from_next_into(&lex, r);
   } else {
-    let raw_arena: *u8 = heap.alloc_zeroed(arena_heap_bytes);
+    let raw_arena: *u8 = heap.alloc_zero(arena_heap_bytes);
     if (raw_arena == 0 as *u8) {
       return ParseResult { ok: false, return_val: 0 }
     }
@@ -3140,6 +3210,27 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
         lexer.lexer_next_into(&r, lex, source);
       }
       stmt_tok_ready = false;
+      /*
+       * if (struct.field) 后 lex 偶发落在 `return r3.value` 的 r3；回扫至 return 关键字，
+       * 避免落入 expr_stmt 分支导致 num_funcs=0。
+       */
+      if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+        let ret_id_start: usize = r.token_start;
+        if (ret_id_start == 0) {
+          ret_id_start = lexer_pos_before_run(r.next_lex.pos, r.tok.ident_len);
+        }
+        if (parser_return_kw_immediately_before(source, ret_id_start)) {
+          let ret_kw_lex: Lexer = Lexer { pos: ret_id_start - 7, line: r.tok.line, col: r.tok.col };
+          let r_ret_kw: LexerResult = LexerResult {
+            next_lex: ret_kw_lex,
+            tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+            token_start: 0
+          };
+          lexer.lexer_next_into(&r_ret_kw, ret_kw_lex, source);
+          r = r_ret_kw;
+          lex = ret_kw_lex;
+        }
+      }
       /* 块尾 } 或 return 结束 stmt 循环；勿把语句首 int（如 0 as *u8;、if (0 as *u8)）误判为块尾裸表达式。 */
       if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
           || r.tok.kind == TokenKind.TOKEN_MATCH) {
@@ -3485,8 +3576,10 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
           set_onefunc_fail(out, lex); return;
         }
         onefunc_push_src_stmt(out, 5, if_pool_idx);
-        lexer.lexer_next_into(&r, lex, source);
-        stmt_tok_ready = true;
+        /** if 条件含 struct.field 时 lex 可能落在 return 之后；回扫 stmt 关键字。 */
+        parser_realign_lex_after_if_stmt_onefunc_glue(&lex, source);
+        /** parse_if 已将 lex 对齐下一 stmt 首 token；勿 lexer_next 以免吞 return/if 关键字。 */
+        stmt_tok_ready = false;
         continue;
       }
       /* 表达式语句 expr ;（从 r.tok 起点解析，兼容 (1 as T) 与裸 INT+AS） */
@@ -3619,6 +3712,27 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
     lex_from_next_into(&lex, r);
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
+  }
+  /** i32 等标量且非 return if：统一 parse_expr（if(struct.field) 后 return struct.field）。 */
+  if (!return_type_is_bool && r.tok.kind != TokenKind.TOKEN_IF) {
+    let rex_u_lex: Lexer = lex_at_token_from_result(r);
+    let rex_u_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_u_lex };
+    parse_cond_expr_into(arena, rex_u_lex, source, &rex_u_res);
+    if (rex_u_res.ok) {
+      return_expr_ref_storage = rex_u_res.expr_ref;
+      lex = rex_u_res.next_lex;
+      lexer.lexer_next_into(&r, lex, source);
+      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        lex_from_next_into(&lex, r);
+        lexer.lexer_next_into(&r, lex, source);
+      }
+      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+        set_onefunc_fail(out, lex); return;
+      }
+      lex_from_next_into(&lex, r);
+      onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
+      return;
+    }
   }
   /** `return if`：优先 parse_if_expr_into；失败则落 legacy has_if_expr（let 初值含字符串 call 时偶发失败）。 */
   if (r.tok.kind == TokenKind.TOKEN_IF) {
@@ -7485,11 +7599,11 @@ function main(): i32 {
     47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
     101, 115, 116, 46, 115, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  let fd: i32 = fs.fs_open_read(path);
+  let fd: i32 = fs.open(path);
   if (fd >= 0) {
     let buf: u8[128] = [];
-    let n: isize = fs.fs_read(fd, buf, 128);
-    fs.fs_close(fd);
+    let n: isize = fs.read(fd, buf, 128);
+    fs.close(fd);
     if (n > 0) {
       /** fs_read 后 buf 仅前 n 字节有效；整条 slice 会带上尾后垃圾导致第二段表达式 parse 失败。 */
       let sl: u8[] = parser_slice_from_buf(&buf[0], (n as i32));

@@ -11,7 +11,7 @@ function main(): i32 {
     return http.https_smoke();
   }
   r = http.get(&url[0], 19, &out[0], 64);
-  if (r != http.http_err_tls_not_impl()) {
+  if (r != http.err_tls_not_impl()) {
     return 1;
   }
   return 0;

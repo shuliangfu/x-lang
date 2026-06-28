@@ -15,7 +15,7 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
 /** 校验 path_clean 输出与期望一致；失败返回非 0 错误码。 */
 function check_clean(src_path: *u8, path_len: i32, expect: *u8, expect_len: i32, err: i32): i32 {
   let out: u8[128] = [];
-  let n: i32 = path.path_clean(src_path, path_len, &out[0], 128);
+  let n: i32 = path.clean(src_path, path_len, &out[0], 128);
   if (n != expect_len) { return err; }
   if (bytes_eq(&out[0], n, expect, expect_len) == 0) { return err + 1; }
   return 0;
@@ -67,21 +67,21 @@ function main(): i32 {
   // path_resolve：绝对 ref 忽略 base
   let base: u8[4] = [47, 97, 47, 98];
   let abs_ref: u8[5] = [47, 120, 47, 121, 122];
-  n = path.path_resolve(&out[0], 128, &base[0], 4, &abs_ref[0], 5);
+  n = path.resolve(&out[0], 128, &base[0], 4, &abs_ref[0], 5);
   if (n != 5) { return 70; }
   if (out[0] != 47 || out[4] != 122) { return 71; }
 
   // path_extension：隐藏文件 .gitignore 无扩展名
   let hidden: u8[10] = [46, 103, 105, 116, 105, 103, 110, 111, 114, 101];
   let ext_buf: u8[8] = [];
-  n = path.path_extension(&hidden[0], 10, &ext_buf[0], 8);
+  n = path.extension(&hidden[0], 10, &ext_buf[0], 8);
   if (n != 0) { return 80; }
 
   // path_extension_and_stem：file.tar.gz
   let tarball: u8[12] = [102, 105, 108, 101, 46, 116, 97, 114, 46, 103, 122, 0];
   let ext2: u8[8] = [];
   let stem2: u8[8] = [];
-  let combo: i32 = path.path_extension_and_stem(&tarball[0], 11, &ext2[0], 8, &stem2[0], 8);
+  let combo: i32 = path.extension_and_stem(&tarball[0], 11, &ext2[0], 8, &stem2[0], 8);
   if (combo < 0) { return 90; }
   let stem_len: i32 = (combo >> 16) & 65535;
   let ext_len: i32 = combo & 65535;
@@ -90,7 +90,7 @@ function main(): i32 {
 
   // Windows 盘符绝对路径识别（字节模式，全平台一致）
   let win_abs: u8[6] = [67, 58, 92, 85, 115, 101];
-  if (path.path_is_absolute(&win_abs[0], 6) != 1) { return 100; }
+  if (path.is_absolute(&win_abs[0], 6) != 1) { return 100; }
 
   return 0;
 }

@@ -1,0 +1,340 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.compress.brotli.lib — F-04 v6：Brotli 块/流式压缩（libbrotli FFI）
+//
+// 【文件职责】
+// 从 brotli/brotli.c 迁出的 .br 块 API 与 brotli_stream_*（STD-125）。
+//
+// 【依赖】
+// - libbrotli：BrotliEncoder/Decoder API（hosted 路径 -lbrotlienc -lbrotlidec）
+// - core.mem：mem_zero、mem_compare
+// - runtime_link_abi：shu_compress_brotli_marker 或 Brotli* 未定义符号触发链库
+
+const mem = import("core.mem");
+const types = import("core.types");
+
+/** brotli 流状态字节数。 */
+function brotli_stream_state_bytes(): i32 {
+  return types.size_of<BrotliStream>();
+}
+
+/** brotli 流头字节数。 */
+function brotli_stream_hdr_bytes(): i32 {
+  return types.size_of<BrotliStreamHdr>();
+}
+
+/** brotli 流状态魔数（'BRST'，与 compress_common.h 一致）。 */
+const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
+
+/** Brotli 默认压缩质量/窗口/模式。 */
+const BROTLI_DEFAULT_QUALITY: i32 = 11;
+const BROTLI_DEFAULT_WINDOW: i32 = 22;
+const BROTLI_DEFAULT_MODE: i32 = 0;
+
+/** BrotliDecoderDecompress 成功。 */
+const BROTLI_DECODER_RESULT_SUCCESS: i32 = 1;
+const BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT: i32 = 2;
+const BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT: i32 = 3;
+
+/** BrotliEncoderCompressStream 操作码。 */
+const BROTLI_OPERATION_PROCESS: i32 = 0;
+const BROTLI_OPERATION_FINISH: i32 = 2;
+
+/** Brotli 布尔真值。 */
+const BROTLI_TRUE: i32 = 1;
+
+/** brotli 流状态头（后接 enc/dec 指针）。 */
+allow(padding) struct BrotliStreamHdr {
+  magic: u32;
+  mode: i32;
+  ended: i32;
+  inited: i32;
+}
+
+/** 含 Brotli 编码器/解码器指针的流状态。 */
+allow(padding) struct BrotliStream {
+  hdr: BrotliStreamHdr;
+  enc: *u8;
+  dec: *u8;
+}
+
+/** libbrotli：块压缩。 */
+extern function BrotliEncoderCompress(quality: i32, lgwin: i32, mode: i32, input_size: usize,
+  input_buffer: *u8, encoded_size: *usize, encoded_buffer: *u8): i32;
+
+/** libbrotli：块解压。 */
+extern function BrotliDecoderDecompress(encoded_size: usize, encoded_buffer: *u8,
+  decoded_size: *usize, decoded_buffer: *u8): i32;
+
+/** libbrotli：创建/销毁编码器。 */
+extern function BrotliEncoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
+extern function BrotliEncoderDestroyInstance(state: *u8): void;
+
+/** libbrotli：创建/销毁解码器。 */
+extern function BrotliDecoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
+extern function BrotliDecoderDestroyInstance(state: *u8): void;
+
+/** libbrotli：流式压缩。 */
+extern function BrotliEncoderCompressStream(state: *u8, op: i32, available_in: *usize,
+  next_in: * *u8, available_out: *usize, next_out: * *u8, total_out: *usize): i32;
+
+/** libbrotli：编码器是否结束。 */
+extern function BrotliEncoderIsFinished(state: *u8): i32;
+
+/** libbrotli：流式解压。 */
+extern function BrotliDecoderDecompressStream(state: *u8, available_in: *usize, next_in: * *u8,
+  available_out: *usize, next_out: * *u8, total_out: *usize): i32;
+
+/** 链接 marker：runtime 据此追加 -lbrotlienc -lbrotlidec。 */
+let shu_compress_brotli_marker: u8 = 1;
+
+/**
+ * 校验并返回 brotli 流状态指针；无效返回 0。
+ */
+function shu_brotli_stream_cast(state: *u8, state_cap: i32): *BrotliStream {
+  let need: i32 = brotli_stream_state_bytes();
+  if (state == 0 || state_cap < need) {
+    return 0;
+  }
+  let s: *BrotliStream = state as *BrotliStream;
+  if (s.hdr.magic != SHU_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
+    return 0;
+  }
+  return s;
+}
+
+/**
+ * 压缩为 Brotli 格式（.br），返回写入字节数，失败 -1。
+ */
+function compress_brotli_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
+    return -1;
+  }
+  let encoded_size: usize = out_cap as usize;
+  let ok: i32 = BrotliEncoderCompress(BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE,
+    in_len, in, &encoded_size, out);
+  if (ok == 0) {
+    return -1;
+  }
+  return encoded_size as i32;
+}
+
+/**
+ * 解压 Brotli 流，返回写入字节数，失败 -1。
+ */
+function compress_brotli_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+  if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
+    return -1;
+  }
+  let decoded_size: usize = out_cap as usize;
+  let r: i32 = BrotliDecoderDecompress(in_len as usize, in, &decoded_size, out);
+  if (r != BROTLI_DECODER_RESULT_SUCCESS) {
+    return -1;
+  }
+  return decoded_size as i32;
+}
+
+/**
+ * 探测 Brotli 是否可用；.sx 路径恒 1（未链 libbrotli 时链接失败）。
+ */
+function compress_brotli_available_c(): i32 {
+  return 1;
+}
+
+/**
+ * Brotli 往返烟测；失败返回非 0，成功 0。
+ */
+function compress_brotli_smoke_c(): i32 {
+  let inp: u8[5] = [104, 101, 108, 108, 111];
+  let out: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let dec: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = compress_brotli_compress_c(&inp[0], 5, &out[0], 64);
+  if (n <= 0) {
+    return 1;
+  }
+  let m: i32 = compress_brotli_decompress_c(&out[0], n, &dec[0], 64);
+  if (m != 5) {
+    return 2;
+  }
+  if (mem.mem_compare(&dec[0], &inp[0], 5) != 0) {
+    return 2;
+  }
+  return 0;
+}
+
+/**
+ * 返回 brotli 流状态缓冲最小字节数。
+ */
+function compress_brotli_stream_state_bytes_c(): i32 {
+  return brotli_stream_state_bytes();
+}
+
+/**
+ * 初始化 brotli 压缩流；成功 0，失败 -1。
+ */
+function compress_brotli_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
+  let need: i32 = brotli_stream_state_bytes();
+  if (state == 0 || state_cap < need) {
+    return -1;
+  }
+  mem.mem_zero(state, need);
+  let s: *BrotliStream = state as *BrotliStream;
+  s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
+  s.hdr.mode = 0;
+  s.enc = BrotliEncoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8);
+  if (s.enc == 0) {
+    return -1;
+  }
+  s.hdr.inited = 1;
+  return 0;
+}
+
+/**
+ * 初始化 brotli 解压流；成功 0，失败 -1。
+ */
+function compress_brotli_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
+  let need: i32 = brotli_stream_state_bytes();
+  if (state == 0 || state_cap < need) {
+    return -1;
+  }
+  mem.mem_zero(state, need);
+  let s: *BrotliStream = state as *BrotliStream;
+  s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
+  s.hdr.mode = 1;
+  s.dec = BrotliDecoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8);
+  if (s.dec == 0) {
+    return -1;
+  }
+  s.hdr.inited = 1;
+  return 0;
+}
+
+/**
+ * 分块 brotli 压缩；is_last≠0 时 FINISH。
+ */
+function compress_brotli_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
+  out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
+  if (in_consumed != 0) {
+    in_consumed[0] = 0;
+  }
+  let s: *BrotliStream = shu_brotli_stream_cast(state, state_cap);
+  if (s == 0 || s.hdr.mode != 0 || out == 0 || out_cap <= 0) {
+    return -1;
+  }
+  if (in_len > 0 && in == 0) {
+    return -1;
+  }
+  let op: i32 = BROTLI_OPERATION_PROCESS;
+  if (is_last != 0) {
+    op = BROTLI_OPERATION_FINISH;
+  }
+  let avail_in: usize = 0;
+  let next_in: *u8 = 0 as *u8;
+  let avail_out: usize = out_cap as usize;
+  let next_out: *u8 = out;
+  let total_out: usize = 0;
+  if (in_len > 0) {
+    avail_in = in_len as usize;
+    next_in = in;
+  }
+  if (BrotliEncoderCompressStream(s.enc, op, &avail_in, &next_in, &avail_out, &next_out, &total_out) != BROTLI_TRUE) {
+    return -1;
+  }
+  let written: i32 = out_cap - (avail_out as i32);
+  if (in_consumed != 0) {
+    in_consumed[0] = in_len - (avail_in as i32);
+  }
+  if (is_last != 0 && BrotliEncoderIsFinished(s.enc) != 0) {
+    s.hdr.ended = 1;
+  }
+  return written;
+}
+
+/**
+ * 分块 brotli 解压。
+ */
+function compress_brotli_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
+  out: *u8, out_cap: i32, in_consumed: *i32): i32 {
+  if (in_consumed != 0) {
+    in_consumed[0] = 0;
+  }
+  let s: *BrotliStream = shu_brotli_stream_cast(state, state_cap);
+  if (s == 0 || s.hdr.mode != 1 || out == 0 || out_cap <= 0) {
+    return -1;
+  }
+  if (in_len > 0 && in == 0) {
+    return -1;
+  }
+  let avail_in: usize = 0;
+  let next_in: *u8 = 0 as *u8;
+  let avail_out: usize = out_cap as usize;
+  let next_out: *u8 = out;
+  let total_out: usize = 0;
+  if (in_len > 0) {
+    avail_in = in_len as usize;
+    next_in = in;
+  }
+  let r: i32 = BrotliDecoderDecompressStream(s.dec, &avail_in, &next_in, &avail_out, &next_out, &total_out);
+  let written: i32 = out_cap - (avail_out as i32);
+  if (in_consumed != 0) {
+    in_consumed[0] = in_len - (avail_in as i32);
+  }
+  if (r == BROTLI_DECODER_RESULT_SUCCESS) {
+    s.hdr.ended = 1;
+    return written;
+  }
+  if (r == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT && written > 0) {
+    return written;
+  }
+  if (r == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT && written > 0) {
+    return written;
+  }
+  if (r == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT || r == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+    return written;
+  }
+  return -1;
+}
+
+/**
+ * 释放 brotli 流；成功 0。
+ */
+function compress_brotli_stream_end_c(state: *u8, state_cap: i32): i32 {
+  let hdr_need: i32 = brotli_stream_hdr_bytes();
+  if (state == 0 || state_cap < hdr_need) {
+    return 0;
+  }
+  let s: *BrotliStream = state as *BrotliStream;
+  if (s.hdr.magic != SHU_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
+    return 0;
+  }
+  if (s.hdr.mode == 0 && s.enc != 0) {
+    BrotliEncoderDestroyInstance(s.enc);
+  }
+  if (s.hdr.mode == 1 && s.dec != 0) {
+    BrotliDecoderDestroyInstance(s.dec);
+  }
+  s.enc = 0 as *u8;
+  s.dec = 0 as *u8;
+  s.hdr.inited = 0;
+  return 0;
+}

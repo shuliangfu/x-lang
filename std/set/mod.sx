@@ -1,10 +1,26 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.set — 集合（对标 Rust std::collections::HashSet、Zig AutoSet/HashSet）
 //
 // 【文件职责】
 // Set_i32：仅存 key，无 value；new/with_capacity、insert、remove、contains、len、is_empty、clear、reserve、deinit。
-// 与 std.map 共享哈希实现，复用 std.heap 的 map_i32_i32_find_c（keys+occupied 线性探测）。
+// 与 std.map 共享哈希实现，复用 std.heap 的 map_find（keys+occupied 线性探测）。
 //
-// 【依赖】std.heap（alloc_i32/alloc_u8、free_i32/free_u8、map_i32_i32_find_c）。
+// 【依赖】std.heap（alloc/free/realloc 重载、map_find）。
 
 const heap = import("std.heap");
 const hash_mod = import("std.hash");
@@ -24,9 +40,9 @@ function set_i32_slot(s: Set_i32, key: i32): i32 {
   return h;
 }
 
-/** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。复用 heap 的 map_i32_i32_find_c（仅用 keys/occupied）。 */
+/** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。复用 heap 的 map_find（仅用 keys/occupied）。 */
 function set_i32_find(s: Set_i32, key: i32): i32 {
-  return heap.map_i32_i32_find_c(s.keys, s.occupied, s.cap, key);
+  return heap.map_find(s.keys, s.occupied, s.cap, key);
 }
 
 /** 新建空 Set_i32（cap 0，ptr 均为 null）。 */
@@ -43,11 +59,11 @@ function set_i32_with_capacity(s: *Set_i32, capacity: i32): i32 {
     s.len = 0;
     return 0;
   }
-  let k: *i32 = heap.alloc_i32(capacity);
-  let o: *u8 = heap.alloc_u8(capacity);
+  let k: *i32 = heap.alloc(capacity);
+  let o: *u8 = heap.alloc(capacity);
   if (k == 0 || o == 0) {
-    if (k != 0) { heap.free_i32(k); }
-    if (o != 0) { heap.free_u8(o); }
+    if (k != 0) { heap.free(k); }
+    if (o != 0) { heap.free(o); }
     return -1;
   }
   let i: i32 = 0;
@@ -78,8 +94,8 @@ function set_i32_grow(s: *Set_i32, new_cap: i32): i32 {
       i = i + 1;
     }
   }
-  heap.free_i32(old_keys);
-  heap.free_u8(old_occupied);
+  heap.free(old_keys);
+  heap.free(old_occupied);
   return 0;
 }
 
@@ -159,8 +175,8 @@ function set_i32_reserve(s: *Set_i32, new_cap: i32): i32 {
 
 /** 释放堆内存；调用后不可再使用。 */
 function set_i32_deinit(s: *Set_i32): void {
-  if (s.keys != 0) { heap.free_i32(s.keys); s.keys = 0; }
-  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }
@@ -259,11 +275,11 @@ function set_u64_with_capacity(s: *Set_u64, capacity: i32): i32 {
     s.len = 0;
     return 0;
   }
-  let k: *u64 = heap.alloc_u64(capacity);
-  let o: *u8 = heap.alloc_u8(capacity);
+  let k: *u64 = heap.alloc(capacity);
+  let o: *u8 = heap.alloc(capacity);
   if (k == 0 || o == 0) {
-    if (k != 0) { heap.free_u64(k); }
-    if (o != 0) { heap.free_u8(o); }
+    if (k != 0) { heap.free(k); }
+    if (o != 0) { heap.free(o); }
     return -1;
   }
   let i: i32 = 0;
@@ -294,8 +310,8 @@ function set_u64_grow(s: *Set_u64, new_cap: i32): i32 {
       i = i + 1;
     }
   }
-  heap.free_u64(old_keys);
-  heap.free_u8(old_occupied);
+  heap.free(old_keys);
+  heap.free(old_occupied);
   return 0;
 }
 
@@ -353,8 +369,8 @@ function set_u64_len(s: Set_u64): i32 { return s.len; }
 
 /** 释放 Set_u64。 */
 function set_u64_deinit(s: *Set_u64): void {
-  if (s.keys != 0) { heap.free_u64(s.keys); s.keys = 0; }
-  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }
@@ -366,7 +382,7 @@ function set_str_key_cap(): i32 { return 32; }
 
 /** 字符串集合键哈希；Tier-S 与 std.hash 联动锚点。 */
 function hash_bytes(ptr: *u8, len: i32): u64 {
-  return hash_mod.hash_bytes(ptr, len);
+  return hash_mod.bytes(ptr, len);
 }
 
 /** 字符串集合：keys 为 cap×key_cap 字节平面，lens 为每槽有效长度。 */
@@ -394,13 +410,13 @@ function set_str_with_capacity(s: *Set_str, capacity: i32): i32 {
     return 0;
   }
   let kcap: i32 = set_str_key_cap();
-  let keys: *u8 = heap.alloc_u8(capacity * kcap);
-  let lens: *i32 = heap.alloc_i32(capacity);
-  let occ: *u8 = heap.alloc_u8(capacity);
+  let keys: *u8 = heap.alloc(capacity * kcap);
+  let lens: *i32 = heap.alloc(capacity);
+  let occ: *u8 = heap.alloc(capacity);
   if (keys == 0 || lens == 0 || occ == 0) {
-    if (keys != 0) { heap.free_u8(keys); }
-    if (lens != 0) { heap.free_i32(lens); }
-    if (occ != 0) { heap.free_u8(occ); }
+    if (keys != 0) { heap.free(keys); }
+    if (lens != 0) { heap.free(lens); }
+    if (occ != 0) { heap.free(occ); }
     return -1;
   }
   let i: i32 = 0;
@@ -471,9 +487,9 @@ function set_str_grow(s: *Set_str, new_cap: i32): i32 {
     }
     i = i + 1;
   }
-  heap.free_u8(old_keys);
-  heap.free_i32(old_lens);
-  heap.free_u8(old_occ);
+  heap.free(old_keys);
+  heap.free(old_lens);
+  heap.free(old_occ);
   return 0;
 }
 
@@ -536,9 +552,9 @@ function set_str_len(s: Set_str): i32 { return s.len; }
 
 /** 释放堆内存。 */
 function set_str_deinit(s: *Set_str): void {
-  if (s.keys != 0) { heap.free_u8(s.keys); s.keys = 0; }
-  if (s.lens != 0) { heap.free_i32(s.lens); s.lens = 0; }
-  if (s.occupied != 0) { heap.free_u8(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
+  if (s.lens != 0) { heap.free(s.lens); s.lens = 0; }
+  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }

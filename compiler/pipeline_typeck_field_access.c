@@ -27,7 +27,104 @@ extern int32_t typeck_inline_u8_64_array_field_type_ref(struct ast_ASTArena *are
                                                         int32_t field_name_len);
 extern int32_t typeck_expr_inline_array_field_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
                                                        int32_t field_name_len);
-extern int32_t typeck_expr_field_access_fallback_scalar_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
+extern int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+extern int32_t typeck_top_level_let_name_equal(struct ast_Module *module, int32_t tl_idx, uint8_t *name,
+                                               int32_t name_len);
+extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *module, int32_t idx);
+extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
+
+/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。 */
+static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
+                                                         int32_t *out_type_ref) {
+  int32_t tl;
+  int32_t ntl;
+  int32_t tr;
+  if (!dep_mod || name_len <= 0 || !out_type_ref)
+    return 0;
+  ntl = dep_mod->num_top_level_lets;
+  for (tl = 0; tl < ntl; tl++) {
+    if (!pipeline_module_top_level_let_is_const(dep_mod, tl))
+      continue;
+    if (!typeck_top_level_let_name_equal(dep_mod, tl, name, name_len))
+      continue;
+    tr = pipeline_module_top_level_let_type_ref(dep_mod, tl);
+    if (tr <= 0)
+      continue;
+    *out_type_ref = tr;
+    return 1;
+  }
+  return 0;
+}
+
+/** 写出含 const 的 import binding 名，供裸名 const 报错提示。 */
+static int32_t pipeline_typeck_import_const_binding_hint(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+                                                         uint8_t *const_name, int32_t const_name_len, uint8_t *bind_out,
+                                                         int32_t bind_cap) {
+  int32_t di;
+  int32_t nd;
+  int32_t tr;
+  if (!module || !ctx || const_name_len <= 0 || !bind_out || bind_cap <= 0)
+    return 0;
+  bind_out[0] = '\0';
+  nd = pipeline_dep_ctx_ndep(ctx);
+  for (di = 0; di < nd && di < module->num_imports; di++) {
+    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+    if (!dm || !pipeline_typeck_dep_top_level_const_match(dm, const_name, const_name_len, &tr))
+      continue;
+    {
+      int32_t bl = pipeline_module_import_binding_name_len(module, di);
+      int32_t k;
+      if (bl > 0 && bl < bind_cap) {
+        for (k = 0; k < bl; k++)
+          bind_out[k] = pipeline_module_import_binding_name_byte_at(module, di, k);
+        bind_out[bl] = '\0';
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * 裸名访问 dep 模块顶层 const 时报错（须 binding.CONST）；返回 1 表示已报错。
+ */
+int32_t pipeline_typeck_reject_bare_import_const_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   int32_t expr_ref, struct ast_PipelineDepCtx *ctx, uint8_t *vbuf,
+                                                   int32_t vnlen) {
+  int32_t di;
+  int32_t nd;
+  int32_t tr;
+  int32_t line;
+  int32_t col;
+  uint8_t hint[128];
+  if (!module || !arena || !ctx || vnlen <= 0 || !vbuf)
+    return 0;
+  nd = pipeline_dep_ctx_ndep(ctx);
+  for (di = 0; di < nd; di++) {
+    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+    if (!dm || !pipeline_typeck_dep_top_level_const_match(dm, vbuf, vnlen, &tr))
+      continue;
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    hint[0] = '\0';
+    if (pipeline_typeck_import_const_binding_hint(module, ctx, vbuf, vnlen, hint, (int32_t)sizeof(hint))) {
+      lsp_diag_report_typeck((int)line, (int)col, "import constant '%.*s' must be qualified; use %s.%.*s",
+                             (int)vnlen, vbuf, hint, (int)vnlen, vbuf);
+    } else {
+      lsp_diag_report_typeck((int)line, (int)col, "import constant '%.*s' must be qualified as binding.%.*s",
+                             (int)vnlen, vbuf, (int)vnlen, vbuf);
+    }
+    return 1;
+  }
+  return 0;
+}
+
                                                                 int32_t field_name_len);
 extern int32_t typeck_field_access_lexer_wrapper_fallback(struct ast_ASTArena *arena, int32_t base_type_ref,
                                                           uint8_t *field_name, int32_t field_name_len);
@@ -570,27 +667,23 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
     return 0;
 
   base_name_len = pipeline_expr_var_name_len(arena, base_ref);
-  fprintf(stderr, "DEBUG_IB: base_name_len=%d\n", (int)base_name_len);
   if (base_name_len <= 0 || base_name_len > 63)
     return 0;
   pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
 
   field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  fprintf(stderr, "DEBUG_IB: field_name_len=%d\n", (int)field_name_len);
   if (field_name_len <= 0 || field_name_len > 63)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
 
   /* 检查 base_name 是否匹配某个 import binding */
   n_imp = module->num_imports;
-  fprintf(stderr, "DEBUG_IB: n_imp=%d ndep=%d\n", (int)n_imp, (int)(ctx ? pipeline_dep_ctx_ndep(ctx) : -1));
   for (i = 0; i < n_imp; i++) {
     int32_t bind_len;
-    uint8_t bind_name[64];
-    int32_t dep_idx;
     struct ast_Module *dep_mod;
     int32_t j;
     int32_t nf;
+    int32_t nd;
 
     bind_len = pipeline_module_import_binding_name_len(module, i);
     if (bind_len <= 0 || bind_len != base_name_len)
@@ -608,30 +701,18 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
         continue;
     }
 
-    /* 找到匹配的 import binding；获取 dep 模块 */
-    dep_idx = -1;
+    /* 找到匹配的 import binding；dep 槽与 import 下标对齐 */
+    dep_mod = 0;
     if (ctx) {
-      /* 从 ctx 的 dep slots 中查找 */
-      int32_t nd = pipeline_dep_ctx_ndep(ctx);
-      int32_t di;
-      for (di = 0; di < nd; di++) {
-        struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
-        if (!dm)
-          continue;
-        /* 比较 dep 模块的 import path 与 module 的 import path */
-        /* 简单方式：用 dep_idx = i */
-        dep_idx = i;
-        dep_mod = dm;
-        break;
-      }
+      nd = pipeline_dep_ctx_ndep(ctx);
+      if (i < nd)
+        dep_mod = pipeline_dep_ctx_module_at(ctx, i);
     }
-
-    if (dep_idx < 0)
+    if (!dep_mod)
       continue;
 
     /* 在 dep 模块中查找函数 field_name */
     nf = pipeline_module_num_funcs(dep_mod);
-      fprintf(stderr, "DEBUG_IB: dep_mod found, nf=%d\n", (int)nf);
     for (j = 0; j < nf; j++) {
       int32_t fn_len;
       int32_t k;
@@ -658,12 +739,24 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
           if (nt != 0)
             pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
         }
-        fprintf(stderr, "DEBUG_IB: HIT! ret_ty=%d\n", (int)ret_ty);
+        return 1;
+      }
+    }
+
+    /* 在 dep 模块中查找顶层 const field_name（如 async_mod.POLL_PENDING） */
+    {
+      int32_t const_ty = 0;
+      if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+        if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+          if (nt != 0)
+            pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+        }
         return 1;
       }
     }
   }
-  fprintf(stderr, "DEBUG_IB: MISS\n");
   return 0;
 }
 
@@ -676,7 +769,6 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   int32_t layout_rc;
 
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
-  fprintf(stderr, "DEBUG_FA: enter expr_ref=%d base_ref=%d\n", (int)expr_ref, (int)base_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return -1;
   pipeline_typeck_field_prebind_c(module, arena, expr_ref, ctx);

@@ -16,7 +16,7 @@ MIN_LAYERS=4
 
 echo "=== STD-007: std.compress manifest ==="
 for f in "$DOC" "$MANIFEST" "$MOD_SX" std/compress/common.sx \
-  std/compress/zlib/zlib_libz.sx std/compress/gzip/gzip_libz.sx std/compress/brotli/brotli_lib.sx std/compress/zstd/zstd_lib.sx \
+  std/compress/zlib/libz.sx std/compress/gzip/libz.sx std/compress/brotli/lib.sx std/compress/zstd/lib.sx \
   tests/lib/std-compress.sh; do
   if [ ! -f "$f" ]; then
     echo "std-compress gate FAIL: missing $f" >&2

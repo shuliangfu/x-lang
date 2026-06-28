@@ -2,7 +2,7 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_hpack_server_dyn_smoke() != 0) { return 1; }
-  if (http.http2_server_hpack_dyn_smoke() != 0) { return 2; }
+  if (http.hpack_server_dyn_smoke() != 0) { return 1; }
+  if (http.server_hpack_dyn_smoke() != 0) { return 2; }
   return 0;
 }

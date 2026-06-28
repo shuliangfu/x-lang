@@ -6,12 +6,12 @@ fmt_is_nan	symbol	fmt_f64_is_nan	core/fmt/mod.sx	NaN 检测
 fmt_is_inf	symbol	fmt_f64_is_inf	core/fmt/mod.sx	Inf 检测
 fmt_prec	symbol	fmt_f64_to_buf_prec	core/fmt/mod.sx	可配置精度
 fmt_f64	symbol	fmt_f64_to_buf	core/fmt/mod.sx	默认精度入口
-std_reexport	symbol	fmt_f64_to_buf_prec	std/fmt/mod.sx	std 重导出
+std_reexport	symbol	to_buf_prec	std/fmt/mod.sx	std 重导出
 section_special	section	## 2. 特殊值金样	docs
 section_prec	section	## 3. 精度策略	docs
 smoke_nan	smoke	NaN	tests/fmt/f64_special.sx	金样
 smoke_inf	smoke	Inf	tests/fmt/f64_special.sx	金样
-smoke_prec	smoke	fmt_f64_to_buf_prec	tests/fmt/f64_special.sx	精度
+smoke_prec	smoke	to_buf_prec	tests/fmt/f64_special.sx	精度
 test_smoke	file	tests/fmt/f64_special.sx	tests/fmt/f64_special.sx	边界烟测
 doc	file	analysis/core-fmt-f64-special-v1.md	analysis/core-fmt-f64-special-v1.md	RFC
 gate	script	tests/run-core-fmt-f64-special-gate.sh	tests/run-core-fmt-f64-special-gate.sh	manifest

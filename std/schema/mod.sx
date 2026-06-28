@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.schema — 结构化 typed decode/validate（STD-090；F-schema v2 逻辑在 schema.sx）
 //
 // 【文件职责】
@@ -144,7 +160,7 @@ function last_error_message(sch: *Schema, out: *u8, out_cap: i32): i32 {
 }
 
 /** 将 schema 本地错误码映射为 std.error 风格负码（-1500 段占位）。 */
-function schema_to_error_code(local: i32): i32 {
+function schema_to_code(local: i32): i32 {
   if (local == schema_err_ok()) { return 0; }
   if (local == schema_err_null()) { return -1501; }
   if (local == schema_err_not_found()) { return -1502; }

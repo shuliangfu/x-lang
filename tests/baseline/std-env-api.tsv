@@ -6,9 +6,9 @@ getenv_exists
 setenv
 unsetenv
 temp_dir
-env_iter
-env_iter_count
-env_iter_next
+iter
+iter_count
+iter_next
 args_iter
 args_iter_count
 args_iter_next

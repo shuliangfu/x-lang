@@ -4,7 +4,7 @@ const ctx_mod = import("std.context");
 
 function main(): i32 {
   // io_uring 探测（macOS/无 liburing 时为 0，不强制为 1）
-  let avail: i32 = async_mod.io_uring_is_available();
+  let avail: i32 = async_mod.uring_ok();
   if (avail != 0 && avail != 1) { return 1; }
 
   // 非法 submit 应失败
@@ -12,7 +12,7 @@ function main(): i32 {
   if (async_mod.read_async_fd(0, &buf, 0) >= 0) { return 2; }
 
   // 单轮 pump + poll_loop
-  async_mod.io_pump_once();
+  async_mod.pump();
   async_mod.scheduler_reset();
   if (async_mod.poll_loop(2) < 0) { return 3; }
 
@@ -23,8 +23,8 @@ function main(): i32 {
 
   // Context 版 poll_loop
   let ctx: Context = ctx_mod.background();
-  let rt: AsyncRuntime = async_mod.runtime_new(ctx);
-  async_mod.bind_context(ctx);
+  let rt: AsyncRuntime = async_mod.runtime(ctx);
+  async_mod.bind_ctx(ctx);
   let pumped: i32 = async_mod.poll_loop_ctx(&rt, 4);
   if (pumped < 0) { return 6; }
 

@@ -22,11 +22,11 @@
 
 | API | 说明 |
 |-----|------|
-| `none_i32` / `some_i32` | 构造 |
-| `unwrap_or_i32` / `is_some_i32` / `is_none_i32` | 解包与判定 |
-| `map_i32` / `and_then_i32` / `or_i32` | eager 组合子 |
-| `option_from_result_i32` / `option_from_result_u8` | Result → Option |
-| `option_to_result_i32` | Option → Result |
+| `none` / `some` | 构造 |
+| `unwrap_or` / `is_some` / `is_none` | 解包与判定 |
+| `map` / `and_then` / `or` | eager 组合子 |
+| `from_result` | Result → Option（i32/u8 重载） |
+| `to_result` | Option → Result |
 
 ### std.result
 
@@ -35,7 +35,7 @@
 | `ok_i32` / `err_i32` | 构造 |
 | `is_ok_i32` / `is_err_i32` / `unwrap_or_i32` | 解包与判定 |
 | `result_map_i32` / `result_and_then_i32` / `result_or_else_i32` | eager 组合子（Result 侧，避免与 option 重名） |
-| `result_from_error_code` / `result_from_value_i32` | std.error 桥接 |
+| `result_from_code` / `result_from_value_i32` | std.error 桥接 |
 | `result_err_code` | 提取错误码 |
 
 ---

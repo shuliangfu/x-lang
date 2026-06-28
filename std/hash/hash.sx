@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std/hash/hash.sx — F-hash v2：SipHash-2-4 / FNV-1a64 / xxHash64 纯 .sx（替代 hash_glue.c）
 //
 // 【文件职责】
@@ -86,6 +102,16 @@ extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern function getenv(name: *u8): *u8;
 extern function strcmp(a: *u8, b: *u8): i32;
 
+/** libc FFI 须 unsafe；集中薄包装，避免 hash_*_c 重复写 unsafe 块。 */
+function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+  unsafe { return memcpy(dst, src, n); }
+}
+
+/** xxHash64 流式 mem 区起始地址（offset 40 = mem64 字段）。 */
+function hash_xxh64_mem_base(s: *HashXxh64Ctx): *u8 {
+  return (s as *u8) + HASH_XXH64_CTX_MEM64_OFF;
+}
+
 /** F-hash v1 版本标记；供 v1 聚合 gate 校验。 */
 function hash_f_hash_v1_marker_c(): i32 {
   return 1;
@@ -116,16 +142,6 @@ function hash_unified_fnv_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
     u.fnv = u.fnv * FNV1A64_PRIME;
     i = i + 1;
   }
-}
-
-/** xxHash 写入委托：首参为统一 Hasher 基址 *u8（offset 在函数内加）。 */
-function hash_unified_xxh_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
-  hash_xxh64_update((h + HASH_UNIFIED_XXH_OFF) as *HashXxh64Ctx, ptr, len as usize);
-}
-
-/** xxHash 完成委托：勿直接传 hash_unified_xxh 返回值作 *HashXxh64Ctx 实参。 */
-function hash_unified_xxh_digest_ptr_c(h: *u8): u64 {
-  return hash_xxh64_digest((h + HASH_UNIFIED_XXH_OFF) as *HashXxh64Ctx);
 }
 
 /** 64 位循环左移（SipHash / xxHash 共用）。 */
@@ -208,10 +224,12 @@ function hash_sip_init(ctx: *HashSipCtx): void {
 
 /** 创建 Hasher 状态；默认 key (0,0)。失败返回 0。 */
 function hash_sip_new_c(): *u8 {
-  let ctx: *HashSipCtx = malloc(HASH_SIP_CTX_SIZE) as *HashSipCtx;
-  if (ctx == 0) { return 0 as *u8; }
-  hash_sip_init(ctx);
-  return ctx as *u8;
+  unsafe {
+    let ctx: *HashSipCtx = malloc(HASH_SIP_CTX_SIZE) as *HashSipCtx;
+    if (ctx == 0) { return 0 as *u8; }
+    hash_sip_init(ctx);
+    return ctx as *u8;
+  }
 }
 
 /** 写入任意字节到 SipHash 流。 */
@@ -232,7 +250,7 @@ function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
     }
   }
   while (i + 8 <= len) {
-    hash_sip_compress(ctx, hash_read64le(ptr + i));
+    hash_sip_compress(ctx, hash_read64le(&ptr[i]));
     i = i + 8;
   }
   while (i < len) {
@@ -308,7 +326,9 @@ function hash_sip_finish_c(h: *u8): u64 {
 
 /** 释放 Hasher 状态。 */
 function hash_sip_free_c(h: *u8): void {
-  free(h);
+  unsafe {
+    free(h);
+  }
 }
 
 /** 一次性 SipHash-2-4（key 默认 0,0）。 */
@@ -362,35 +382,39 @@ function hash_xxh64_reset(s: *HashXxh64Ctx, seed: u64): void {
 
 /** xxHash64 流式更新。 */
 function hash_xxh64_update(s: *HashXxh64Ctx, input: *u8, len: usize): void {
-  let p: usize = 0;
-  let buf: u8[32];
-  if (s == 0 || (input == 0 && len > 0)) { return; }
-  s.total_len = s.total_len + (len as u64);
-  if ((s.memsize) + len < 32) {
-    memcpy((s as *u8) + HASH_XXH64_CTX_MEM64_OFF + (s.memsize as usize), input, len);
-    s.memsize = s.memsize + (len as u32);
-    return;
-  }
-  if (s.memsize > 0) {
-    memcpy(&buf[0], (s as *u8) + HASH_XXH64_CTX_MEM64_OFF, s.memsize as usize);
-    memcpy(&buf[s.memsize], input, (32 as usize) - (s.memsize as usize));
-    s.v1 = hash_xxh64_round(s.v1, hash_read64le(&buf[0]));
-    s.v2 = hash_xxh64_round(s.v2, hash_read64le(&buf[8]));
-    s.v3 = hash_xxh64_round(s.v3, hash_read64le(&buf[16]));
-    s.v4 = hash_xxh64_round(s.v4, hash_read64le(&buf[24]));
-    p = (32 as usize) - (s.memsize as usize);
-    s.memsize = 0;
-  }
-  while (p + (32 as usize) <= len) {
-    s.v1 = hash_xxh64_round(s.v1, hash_read64le(input + (p)));
-    s.v2 = hash_xxh64_round(s.v2, hash_read64le(input + ((p + 8))));
-    s.v3 = hash_xxh64_round(s.v3, hash_read64le(input + ((p + 16))));
-    s.v4 = hash_xxh64_round(s.v4, hash_read64le(input + ((p + 24))));
-    p = p + (32 as usize);
-  }
-  if (p < len) {
-    s.memsize = (len - p) as u32;
-    memcpy((s as *u8) + HASH_XXH64_CTX_MEM64_OFF, input + (p), (len - p));
+  unsafe {
+    let p: usize = 0;
+    let buf: u8[32];
+    if (s == 0 || (input == 0 && len > 0)) { return; }
+    s.total_len = s.total_len + (len as u64);
+    if ((s.memsize) + len < 32) {
+      let mem_base: *u8 = hash_xxh64_mem_base(s);
+      hash_libc_memcpy(&mem_base[s.memsize as i32], input, len);
+      s.memsize = s.memsize + (len as u32);
+      return;
+    }
+    if (s.memsize > 0) {
+      let mem_base: *u8 = hash_xxh64_mem_base(s);
+      hash_libc_memcpy(&buf[0], mem_base, s.memsize as usize);
+      hash_libc_memcpy(&buf[s.memsize as i32], input, (32 as usize) - (s.memsize as usize));
+      s.v1 = hash_xxh64_round(s.v1, hash_read64le(&buf[0]));
+      s.v2 = hash_xxh64_round(s.v2, hash_read64le(&buf[8]));
+      s.v3 = hash_xxh64_round(s.v3, hash_read64le(&buf[16]));
+      s.v4 = hash_xxh64_round(s.v4, hash_read64le(&buf[24]));
+      p = (32 as usize) - (s.memsize as usize);
+      s.memsize = 0;
+    }
+    while (p + (32 as usize) <= len) {
+      s.v1 = hash_xxh64_round(s.v1, hash_read64le(&input[p as i32]));
+      s.v2 = hash_xxh64_round(s.v2, hash_read64le(&input[(p + 8) as i32]));
+      s.v3 = hash_xxh64_round(s.v3, hash_read64le(&input[(p + 16) as i32]));
+      s.v4 = hash_xxh64_round(s.v4, hash_read64le(&input[(p + 24) as i32]));
+      p = p + (32 as usize);
+    }
+    if (p < len) {
+      s.memsize = (len - p) as u32;
+      hash_libc_memcpy(hash_xxh64_mem_base(s), &input[p as i32], (len - p));
+    }
   }
 }
 
@@ -411,14 +435,14 @@ function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
     h64 = s.seed + XXH64_PRIME5;
   }
   h64 = h64 + s.total_len;
-  p = (s as *u8) + HASH_XXH64_CTX_MEM64_OFF;
+  p = hash_xxh64_mem_base(s);
   i = 0;
   while (i + 8 <= (s.memsize as i32)) {
-    h64 = hash_xxh64_round(h64, hash_read64le(p + i));
+    h64 = hash_xxh64_round(h64, hash_read64le(&p[i]));
     i = i + 8;
   }
   if (i + 4 <= (s.memsize as i32)) {
-    h64 = h64 ^ (hash_read64le(p + i) & 0xffffffff as u64);
+    h64 = h64 ^ (hash_read64le(&p[i]) & 0xffffffff as u64);
     h64 = hash_rotl64(h64, 23) * XXH64_PRIME2 + XXH64_PRIME3;
     i = i + 4;
   }
@@ -428,6 +452,19 @@ function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
     i = i + 1;
   }
   return hash_xxh64_avalanche(h64);
+}
+
+/** xxHash 写入委托：首参为统一 Hasher 基址 *u8（经 HashUnifiedCtx 取 xxh 子视图）。 */
+function hash_unified_xxh_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
+  let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
+  hash_xxh64_update(hash_unified_xxh(u), ptr, len as usize);
+}
+
+/** xxHash 完成委托：经 hash_unified_xxh 取子视图，避免 h+offset 实参 typeck/asm 歧义。 */
+function hash_unified_xxh_digest_ptr_c(h: *u8): u64 {
+  let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
+  let r: u64 = hash_xxh64_digest(hash_unified_xxh(u));
+  return r;
 }
 
 /** 一次性 xxHash64（指定 seed）。 */
@@ -448,13 +485,15 @@ function hash_xxhash64_bytes_c(ptr: *u8, len: i32): u64 {
 
 /** 读取 SHUX_HASH_ALGO 环境变量；默认 HASHER_SIPHASH。 */
 function hash_default_algo_c(): i32 {
-  let v: *u8 = getenv(&HAS_LIT_SHUX_HASH_ALGO[0]);
-  if (v == 0 || v[0] == 0) { return HASHER_SIPHASH; }
-  if (strcmp(v, &HAS_LIT_N1[0]) == 0 || strcmp(v, &HAS_LIT_AHASH[0]) == 0) { return HASHER_AHASH; }
-  if (strcmp(v, &HAS_LIT_N2[0]) == 0 || strcmp(v, &HAS_LIT_XXHASH[0]) == 0 || strcmp(v, &HAS_LIT_X[0]) == 0) {
-    return HASHER_XXHASH;
+  unsafe {
+    let v: *u8 = getenv(&HAS_LIT_SHUX_HASH_ALGO[0]);
+    if (v == 0 || v[0] == 0) { return HASHER_SIPHASH; }
+    if (strcmp(v, &HAS_LIT_N1[0]) == 0 || strcmp(v, &HAS_LIT_AHASH[0]) == 0) { return HASHER_AHASH; }
+    if (strcmp(v, &HAS_LIT_N2[0]) == 0 || strcmp(v, &HAS_LIT_XXHASH[0]) == 0 || strcmp(v, &HAS_LIT_X[0]) == 0) {
+      return HASHER_XXHASH;
+    }
+    return HASHER_SIPHASH;
   }
-  return HASHER_SIPHASH;
 }
 
 /** Map/Set 推荐 Hasher（SipHash，STD-148）。 */
@@ -469,20 +508,22 @@ function hash_recommend_hasher_fast_c(): i32 {
 
 /** 按算法创建统一 Hasher；失败 0。 */
 function hash_unified_new_c(algo: i32): *u8 {
-  let u: *HashUnifiedCtx = malloc(HASH_UNIFIED_CTX_SIZE) as *HashUnifiedCtx;
-  if (u == 0) { return 0 as *u8; }
-  u.algo = algo;
-  if (algo == HASHER_SIPHASH) {
-    hash_sip_init(hash_unified_sip(u));
-  } else if (algo == HASHER_AHASH) {
-    u.fnv = FNV1A64_OFFSET;
-  } else if (algo == HASHER_XXHASH) {
-    hash_xxh64_reset(hash_unified_xxh(u), 0);
-  } else {
-    free(u as *u8);
-    return 0 as *u8;
+  unsafe {
+    let u: *HashUnifiedCtx = malloc(HASH_UNIFIED_CTX_SIZE) as *HashUnifiedCtx;
+    if (u == 0) { return 0 as *u8; }
+    u.algo = algo;
+    if (algo == HASHER_SIPHASH) {
+      hash_sip_init(hash_unified_sip(u));
+    } else if (algo == HASHER_AHASH) {
+      u.fnv = FNV1A64_OFFSET;
+    } else if (algo == HASHER_XXHASH) {
+      hash_xxh64_reset(hash_unified_xxh(u), 0);
+    } else {
+      free(u as *u8);
+      return 0 as *u8;
+    }
+    return u as *u8;
   }
-  return u as *u8;
 }
 
 /** 统一 Hasher 写入字节。 */
@@ -520,7 +561,9 @@ function hash_unified_finish_c(h: *u8): u64 {
 
 /** 释放统一 Hasher。 */
 function hash_unified_free_c(h: *u8): void {
-  free(h);
+  unsafe {
+    free(h);
+  }
 }
 
 /** STD-056 烟测：aHash("abc") 金样 + SipHash ≠ aHash。 */

@@ -6,7 +6,7 @@
  */
 #include <stdint.h>
 
-/** map_empty_size 烟测锚点；与 mod.sx 一致恒返回 0。 */
-int32_t std_map_map_empty_size(void) {
+/** empty_size 烟测锚点；与 mod.sx 一致恒返回 0。 */
+int32_t std_map_empty_size(void) {
   return 0;
 }

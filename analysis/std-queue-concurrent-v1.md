@@ -23,10 +23,10 @@
 
 | API | 说明 |
 |-----|------|
-| `sync_queue_i32_new` / `sync_queue_i32_deinit` | 创建/销毁 |
-| `sync_queue_i32_push_back` | 加锁 `queue_i32_push_back` |
-| `sync_queue_i32_try_pop_front` | 加锁弹出；0 成功，1 空，-1 失败 |
-| `sync_queue_i32_len` / `sync_queue_i32_is_empty` | 加锁读状态 |
+| `sync_new` / `sync_deinit` | 创建/销毁 |
+| `sync_push` | 加锁 `push_back` |
+| `sync_try_pop` | 加锁弹出；0 成功，1 空，-1 失败 |
+| `sync_queue_len` / `sync_queue_is_empty` | 加锁读状态 |
 | `sync_queue_contention_smoke` | C 层双线程 push 烟测 |
 
 v1 **无阻塞 pop**；需阻塞等待请用 `std.channel`。

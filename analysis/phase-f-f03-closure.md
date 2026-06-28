@@ -6,10 +6,10 @@
 
 | 模块 | 删除 | 新增 `.sx` | 门禁 |
 |------|------|------------|------|
-| **heap** v1 | — | `heap_ops.sx` | `run-f03-std-heap-ops-gate.sh` |
-| **heap** v2 | `heap.c` | `heap_libc.sx` | `run-f03-std-heap-libc-gate.sh` |
-| **fs** v2 | `fs.c` | `fs_posix.sx`, `fs_win32.sx` | `run-f03-std-fs-gate.sh` |
-| **io** v2/v3 | `io.c` | `io_sync.sx`, `io_win32.sx`, `io_read_ptr.sx`, `io_stubs.sx`, `io_backend.sx` | `run-f03-std-io-gate.sh` |
+| **heap** v1 | — | `ops.sx` | `run-f03-std-heap-ops-gate.sh` |
+| **heap** v2 | `heap.c` | `libc.sx` | `run-f03-std-heap-libc-gate.sh` |
+| **fs** v2 | `fs.c` | `posix.sx`, `win32.sx` | `run-f03-std-fs-gate.sh` |
+| **io** v2/v3 | `io.c` | `sync.sx`, `win32.sx`, `read_ptr.sx`, `stubs.sx`, `backend.sx` | `run-f03-std-io-gate.sh` |
 
 ## F-01 存量
 

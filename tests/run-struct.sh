@@ -28,7 +28,7 @@ fi
 struct_link_o() {
   local sx="$1" out="$2"
   set +e
-  $LINK_SHUX $STRUCT_LINK_BACKEND_ARGS -L . "$sx" -o "$out" 2>&1
+  $LINK_SHUX $STRUCT_LINK_BACKEND_ARGS -backend c -L . "$sx" -o "$out" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] && [ -z "${SHUX_BOOTSTRAP_MIN:-}" ] \
@@ -59,6 +59,11 @@ fi
 struct_link_o tests/memory-contract/packed_struct.sx /tmp/shux_struct_packed
 exitcode=0; /tmp/shux_struct_packed >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (packed struct), got $exitcode"; exit 1; }
+
+# L9：Arena bump align_up（13B 后下一槽 8 对齐）
+struct_link_o tests/memory-contract/arena_align.sx /tmp/shux_struct_arena_align
+exitcode=0; /tmp/shux_struct_arena_align >/dev/null 2>&1 || exitcode=$?
+[ "$exitcode" -ne 0 ] && { echo "expected 0 (arena_align), got $exitcode"; exit 1; }
 
 # add_pair 字段求和 CALL 内联（可变 struct 字段，return 12）
 struct_link_o tests/boundary/struct_add_pair_inline.sx /tmp/shux_struct_add_pair_inline

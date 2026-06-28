@@ -1,0 +1,21 @@
+# std.cache Tier-S stable public API (import std.cache)
+err_ok
+err_null
+err_not_found
+err_full
+err_invalid
+lru_new
+lru_free
+lru_get
+lru_put
+lru_remove
+lru_purge_expired
+lru_stats
+new
+free
+add
+acquire
+release
+mark_unhealthy
+idle
+stats

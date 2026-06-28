@@ -1,5 +1,5 @@
 /**
- * std/http/http2_network.inc.c — HTTP/2 over TLS / h2c 明文网络路径（STD-HTTP-H2-TLS/v8）
+ * std/http/network.inc.c — HTTP/2 over TLS / h2c 明文网络路径（STD-HTTP-H2-TLS/v8）
  *
  * 【文件职责】TLS+h2 ALPN 与 cleartext h2c 上的多 method 请求；push 读路径收集。
  * 【依赖】std.net TLS ALPN、http2_* HPACK/帧层。
@@ -11,19 +11,19 @@
 /** h2c URL 客户端烟测（定义于 http_glue.c；network smoke 调用）。 */
 int32_t http_h2c_client_smoke_c(void);
 
-/** 连接池烟测（定义于 http2_conn_pool.inc.c）。 */
+/** 连接池烟测（定义于 conn_pool.inc.c）。 */
 int32_t http2_conn_pool_smoke_c(void);
-/** 全局池烟测（定义于 http2_global_pool.inc.c）。 */
+/** 全局池烟测（定义于 global_pool.inc.c）。 */
 int32_t http2_global_pool_smoke_c(void);
 
 /** HTTP/2 统一 IO：tls_ctx!=0 走 TLS，否则走 fd 明文。 */
 typedef struct {
     int32_t fd;
     int64_t tls_ctx;
-} http2_io_t;
+} io_t;
 
 /** TLS 写全部字节；失败 -1。 */
-static int32_t http2_tls_write_all(int64_t tls_ctx, const uint8_t *data, int32_t len) {
+static int32_t tls_write_all(int64_t tls_ctx, const uint8_t *data, int32_t len) {
     int32_t sent = 0;
     if (tls_ctx == 0 || !data || len <= 0)
         return -1;
@@ -37,7 +37,7 @@ static int32_t http2_tls_write_all(int64_t tls_ctx, const uint8_t *data, int32_t
 }
 
 /** TLS 读满 need 字节；失败 -1。 */
-static int32_t http2_tls_read_exact(int64_t tls_ctx, uint8_t *buf, int32_t need) {
+static int32_t tls_read_exact(int64_t tls_ctx, uint8_t *buf, int32_t need) {
     int32_t got = 0;
     if (tls_ctx == 0 || !buf || need <= 0)
         return -1;
@@ -51,7 +51,7 @@ static int32_t http2_tls_read_exact(int64_t tls_ctx, uint8_t *buf, int32_t need)
 }
 
 /** 明文 fd 写全部字节；失败 -1。 */
-static int32_t http2_plain_write_all(int32_t fd, const uint8_t *data, int32_t len) {
+static int32_t plain_write_all(int32_t fd, const uint8_t *data, int32_t len) {
     int32_t sent = 0;
     if (fd < 0 || !data || len <= 0)
         return -1;
@@ -69,7 +69,7 @@ static int32_t http2_plain_write_all(int32_t fd, const uint8_t *data, int32_t le
 }
 
 /** 明文 fd 读满 need 字节；失败 -1。 */
-static int32_t http2_plain_read_exact(int32_t fd, uint8_t *buf, int32_t need) {
+static int32_t plain_read_exact(int32_t fd, uint8_t *buf, int32_t need) {
     int32_t got = 0;
     if (fd < 0 || !buf || need <= 0)
         return -1;
@@ -87,25 +87,25 @@ static int32_t http2_plain_read_exact(int32_t fd, uint8_t *buf, int32_t need) {
 }
 
 /** 统一 IO 写；失败 -1。 */
-static int32_t http2_io_write_all(http2_io_t *io, const uint8_t *data, int32_t len) {
+static int32_t io_write_all(io_t *io, const uint8_t *data, int32_t len) {
     if (!io || !data || len <= 0)
         return -1;
     if (io->tls_ctx != 0)
-        return http2_tls_write_all(io->tls_ctx, data, len);
-    return http2_plain_write_all(io->fd, data, len);
+        return tls_write_all(io->tls_ctx, data, len);
+    return plain_write_all(io->fd, data, len);
 }
 
 /** 统一 IO 读；失败 -1。 */
-static int32_t http2_io_read_exact(http2_io_t *io, uint8_t *buf, int32_t need) {
+static int32_t io_read_exact(io_t *io, uint8_t *buf, int32_t need) {
     if (!io || !buf || need <= 0)
         return -1;
     if (io->tls_ctx != 0)
-        return http2_tls_read_exact(io->tls_ctx, buf, need);
-    return http2_plain_read_exact(io->fd, buf, need);
+        return tls_read_exact(io->tls_ctx, buf, need);
+    return plain_read_exact(io->fd, buf, need);
 }
 
 /** method_u8 是否携带请求体（POST/PUT/PATCH）。 */
-static int32_t http2_method_has_body(uint8_t method_u8) {
+static int32_t method_has_body(uint8_t method_u8) {
     return (method_u8 == 1 || method_u8 == 3 || method_u8 == 5) ? 1 : 0;
 }
 
@@ -122,15 +122,15 @@ int32_t http2_h2c_is_available_c(void) {
 /**
  * 读取指定 stream 响应并格式化为 HTTP/1 风格；同时收集 server push DATA。
  */
-static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stream_id, uint8_t *out,
-                                             int32_t out_cap, http2_peer_settings_t *peer_out,
+static int32_t read_response_stream_io(io_t *io, int32_t target_stream_id, uint8_t *out,
+                                             int32_t out_cap, peer_settings_t *peer_out,
                                              int32_t *out_goaway_seen) {
     uint8_t hdr[9];
     uint8_t payload[HTTP2_DEFAULT_MAX_FRAME_SIZE];
     uint8_t body_acc[32768];
     uint8_t ack[16];
     uint8_t wu_frame[16];
-    http2_flow_recv_state_t recv;
+    flow_recv_state_t recv;
     int32_t body_len = 0;
     int32_t status = 0;
     int32_t got_status = 0;
@@ -151,14 +151,14 @@ static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stre
         *out_goaway_seen = 0;
 
     for (round = 0; round < 64 && !stream_done; round++) {
-        if (http2_io_read_exact(io, hdr, 9) != 0)
+        if (io_read_exact(io, hdr, 9) != 0)
             return HTTP2_ERR_NETWORK;
         if (http2_parse_frame_header_c(hdr, 9, &ftype, &fflags, &stream_id, &plen) != 0)
             return -1;
         if (plen < 0 || plen > (int32_t)sizeof(payload))
             return -1;
         if (plen > 0) {
-            if (http2_io_read_exact(io, payload, plen) != 0)
+            if (io_read_exact(io, payload, plen) != 0)
                 return HTTP2_ERR_NETWORK;
         }
 
@@ -168,7 +168,7 @@ static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stre
                     http2_peer_settings_consume_payload_c(payload, plen, peer_out);
                 if (http2_build_settings_ack_c(ack, (int32_t)sizeof(ack)) != 9)
                     return -1;
-                if (http2_io_write_all(io, ack, 9) != 0)
+                if (io_write_all(io, ack, 9) != 0)
                     return HTTP2_ERR_NETWORK;
             }
             continue;
@@ -204,7 +204,7 @@ static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stre
                 wu_len = http2_flow_recv_release_c(&recv, stream_id, plen, wu_frame,
                                                    (int32_t)sizeof(wu_frame));
                 if (wu_len > 0) {
-                    if (http2_io_write_all(io, wu_frame, wu_len) != 0)
+                    if (io_write_all(io, wu_frame, wu_len) != 0)
                         return HTTP2_ERR_NETWORK;
                 }
             }
@@ -232,7 +232,7 @@ static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stre
                 wu_len = http2_flow_recv_release_c(&recv, stream_id, plen, wu_frame,
                                                    (int32_t)sizeof(wu_frame));
                 if (wu_len > 0) {
-                    if (http2_io_write_all(io, wu_frame, wu_len) != 0)
+                    if (io_write_all(io, wu_frame, wu_len) != 0)
                         return HTTP2_ERR_NETWORK;
                 }
             }
@@ -257,17 +257,17 @@ static int32_t http2_read_response_stream_io(http2_io_t *io, int32_t target_stre
     return resp_len;
 }
 
-#include "http2_conn_reuse.inc.c"
-#include "http2_server.inc.c"
+#include "conn_reuse.inc.c"
+#include "server.inc.c"
 
 /**
  * 在已建立 h2 的 IO 上执行单次请求（内部走 conn handshake + request）。
  */
-static int32_t http2_session_request_io_c(http2_io_t *io, uint8_t method_u8, const uint8_t *authority,
+static int32_t http2_session_request_io_c(io_t *io, uint8_t method_u8, const uint8_t *authority,
                                           int32_t authority_len, const uint8_t *path, int32_t path_len,
                                           const uint8_t *body, int32_t body_len, uint8_t *out,
                                           int32_t out_cap) {
-    http2_conn_t conn;
+    conn_t conn;
     int32_t rc;
 
     if (!io || !authority || authority_len <= 0 || !path || path_len <= 0 || !out || out_cap <= 64)
@@ -294,7 +294,7 @@ int32_t http2_session_request_tls_c(int64_t tls_ctx, uint8_t method_u8, const ui
                                   int32_t authority_len, const uint8_t *path, int32_t path_len,
                                   const uint8_t *body, int32_t body_len, uint8_t *out,
                                   int32_t out_cap) {
-    http2_io_t io;
+    io_t io;
     if (tls_ctx == 0)
         return -1;
     io.fd = -1;
@@ -311,7 +311,7 @@ int32_t http2_session_request_h2c_c(int32_t fd, uint8_t method_u8, const uint8_t
                                     int32_t authority_len, const uint8_t *path, int32_t path_len,
                                     const uint8_t *body, int32_t body_len, uint8_t *out,
                                     int32_t out_cap) {
-    http2_io_t io;
+    io_t io;
     if (fd < 0)
         return -1;
     io.fd = fd;

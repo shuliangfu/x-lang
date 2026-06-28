@@ -448,6 +448,11 @@ const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **l
  * 返回值：静态字符串字面量前缀名。
  */
 const char *shux_entry_lib_name_from_path(const char *input_path) {
+    static char stem_buf[128];
+    const char *base;
+    const char *dot;
+    size_t stem_len;
+
     if (!input_path)
         return "typeck";
     if (strstr(input_path, "main") != NULL)
@@ -470,6 +475,20 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
         return "lexer";
     if (strstr(input_path, "ast") != NULL)
         return "ast";
+    /* std/json/json.sx 等：basename 去 .sx/.su 作为库前缀（json_ → json_*_c 符号）。 */
+    base = strrchr(input_path, '/');
+    if (!base)
+        base = strrchr(input_path, '\\');
+    base = base ? base + 1 : input_path;
+    dot = strrchr(base, '.');
+    if (dot && dot > base && (strcmp(dot, ".sx") == 0 || strcmp(dot, ".su") == 0)) {
+        stem_len = (size_t)(dot - base);
+        if (stem_len > 0 && stem_len < sizeof(stem_buf)) {
+            memcpy(stem_buf, base, stem_len);
+            stem_buf[stem_len] = '\0';
+            return stem_buf;
+        }
+    }
     return "typeck";
 }
 

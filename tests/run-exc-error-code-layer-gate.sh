@@ -3,7 +3,7 @@
 #
 # 1) exc-error-code-layer-v1.md + manifest
 # 2) std/error 符号与 fs_last_error 侧车
-# 3) native shux：tests/exc/error_code_layer.sx exit 0
+# 3) native shux：tests/exc/code_layer.sx exit 0
 #
 # 用法：./tests/run-exc-error-code-layer-gate.sh
 set -e

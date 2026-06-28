@@ -1,8 +1,8 @@
 /**
- * std/http/http2_push_fetch.inc.c — HTTP/2 server push 资源离线收集 v0（STD-HTTP-H2-v7）
+ * std/http/push_fetch.inc.c — HTTP/2 server push 资源离线收集 v0（STD-HTTP-H2-v7）
  *
  * 【文件职责】promised stream DATA 累积；离线烟测；不含网络拉取。
- * 由 http2_push_h2c.inc.c 末尾 #include。
+ * 由 push_h2c.inc.c 末尾 #include。
  */
 
 /** 前向声明（定义于 push_h2c 主文件）。 */
@@ -13,20 +13,20 @@ int32_t http2_parse_push_promise_stream_c(const uint8_t *payload, int32_t plen,
 typedef struct {
     int32_t promised_stream_id;
     int32_t body_len;
-} http2_push_resource_t;
+} push_resource_t;
 
 /** 最近一次读路径收集到的 push 资源（只读；body 在内部缓冲）。 */
 typedef struct {
     int32_t promised_stream_id;
     int32_t body_len;
-} http2_push_last_t;
+} push_last_t;
 
 /** push body 内部缓冲上限（v8 网络拉取）。 */
 #define HTTP2_PUSH_BODY_MAX 4096
 
 static uint8_t g_http2_push_body[HTTP2_PUSH_BODY_MAX];
 static int32_t g_http2_push_body_len;
-static http2_push_last_t g_http2_push_last;
+static push_last_t g_http2_push_last;
 
 /** 重置 push 收集状态（新请求前调用）。 */
 void http2_push_last_reset_c(void) {
@@ -36,7 +36,7 @@ void http2_push_last_reset_c(void) {
 }
 
 /** 复制最近一次 push body；成功返回 body_len，无 push 返回 0，失败 -1。 */
-int32_t http2_push_last_copy_c(http2_push_last_t *out_meta, uint8_t *out_body, int32_t out_cap) {
+int32_t http2_push_last_copy_c(push_last_t *out_meta, uint8_t *out_body, int32_t out_cap) {
     if (!out_meta)
         return -1;
     out_meta->promised_stream_id = g_http2_push_last.promised_stream_id;
@@ -117,7 +117,7 @@ int32_t http2_push_network_smoke_c(void) {
         return 2;
     g_http2_push_last.body_len = g_http2_push_body_len;
     {
-        http2_push_last_t meta;
+        push_last_t meta;
         uint8_t out[8];
         if (http2_push_last_copy_c(&meta, out, 8) != 3)
             return 3;

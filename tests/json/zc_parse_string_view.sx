@@ -32,7 +32,7 @@ function main(): i32 {
   if (vp2 != 0 as *u8) {
     return 10;
   }
-  if (ol2 != json.json_view_needs_copy()) {
+  if (ol2 != json.needs_copy()) {
     return 11;
   }
   let out_buf: u8[8] = [];

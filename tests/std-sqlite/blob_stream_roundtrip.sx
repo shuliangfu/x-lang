@@ -65,7 +65,7 @@ function main(): i32 {
     sqlite.close(c);
     return 4;
   }
-  if (sqlite.next_row(cur) != DB_ROW_OK) {
+  if (sqlite.next_row(cur) != sqlite.DB_ROW_OK) {
     sqlite.query_end(cur);
     sqlite.close(c);
     return 5;

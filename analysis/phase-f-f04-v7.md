@@ -1,12 +1,12 @@
 # 阶段 F-04 v7（std.compress zstd 去 C + compress.o 退役）
 
-> **F-04 v7**：**`zstd/zstd.c`** → **`zstd_lib.sx`**；`compress.o` 不再构建；四格式全 `.sx`。
+> **F-04 v7**：**`zstd/zstd.c`** → **`lib.sx`**；`compress.o` 不再构建；四格式全 `.sx`。
 
 ## v7 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `zstd_lib.sx` | libzstd FFI：块 + 流式 API、smoke、marker |
+| `lib.sx` | libzstd FFI：块 + 流式 API、smoke、marker |
 | `std/compress/zstd/mod.sx` | import zstd_lib 转发 |
 | `runtime_link_abi.c` | `link_abi_user_o_needs_compress_libs` 按需 -lz/-lzstd/-lbrotli* |
 | `compiler/Makefile` | 移除 compress.o / zstd.o；`compress-o-*` 保留为 no-op |

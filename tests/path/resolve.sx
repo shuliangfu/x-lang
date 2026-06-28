@@ -18,13 +18,13 @@ function main(): i32 {
   let out: u8[32] = [];
   let n: i32 = 0;
 
-  n = path.path_resolve(&out[0], 32, &base[0], 15, &rel[0], 6);
+  n = path.resolve(&out[0], 32, &base[0], 15, &rel[0], 6);
   if (n != 8) { return 1; }
   if (bytes_eq(&out[0], n, 47, 102, 111, 111, 47, 113, 117, 120) == 0) {
     return 2;
   }
 
-  n = path.path_resolve(&out[0], 32, &base[0], 15, &abs_ref[0], 9);
+  n = path.resolve(&out[0], 32, &base[0], 15, &abs_ref[0], 9);
   if (n != 9) { return 3; }
   if (out[0] != 47 || out[8] != 104) { return 4; }
 

@@ -34,7 +34,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'crypto_core.sx' compiler/Makefile || die "Makefile missing crypto_core.sx"
+grep -q 'core.sx' compiler/Makefile || die "Makefile missing core.sx"
 grep -q 'ed25519.sx' compiler/Makefile || die "Makefile missing ed25519.sx"
 if grep -q 'std/crypto/crypto\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/crypto/crypto.c"

@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.compress — 压缩封装门面（P4 可选；zlib / gzip / Brotli / zstd）
 //
 // 【文件职责】聚合 std.compress.zlib / gzip / brotli / zstd，保持 import("std.compress") 兼容。
@@ -166,27 +182,27 @@ function gzip_stream_end(state: *u8, state_cap: i32): i32 {
 /* ---------- STD-122 / #81：统一流式 API（gzip / brotli / zstd） ---------- */
 
 /** 流格式：gzip。 */
-function compress_format_gzip(): i32 {
+function format_gzip(): i32 {
   return 0;
 }
 
 /** 流格式：brotli。 */
-function compress_format_brotli(): i32 {
+function format_brotli(): i32 {
   return 1;
 }
 
 /** 流格式：zstd。 */
-function compress_format_zstd(): i32 {
+function format_zstd(): i32 {
   return 2;
 }
 
 /** 流模式：压缩。 */
-function compress_stream_mode_compress(): i32 {
+function mode_compress(): i32 {
   return 0;
 }
 
 /** 流模式：解压。 */
-function compress_stream_mode_decompress(): i32 {
+function mode_decompress(): i32 {
   return 1;
 }
 
@@ -199,21 +215,21 @@ allow(padding) struct StreamCompress {
 }
 
 /** 指定格式的流状态缓冲最小字节数。 */
-function stream_compress_state_bytes_for(format: i32): i32 {
-  if (format == compress_format_gzip()) {
+function compress_state_bytes_for(format: i32): i32 {
+  if (format == format_gzip()) {
     return gzip_stream_state_bytes();
   }
-  if (format == compress_format_brotli()) {
+  if (format == format_brotli()) {
     return brotli_stream_state_bytes();
   }
-  if (format == compress_format_zstd()) {
+  if (format == format_zstd()) {
     return zstd_stream_state_bytes();
   }
   return -1;
 }
 
 /** 统一流状态缓冲最小字节数（取 gzip/brotli/zstd 最大值，便于通用缓冲）。 */
-function stream_compress_state_bytes(): i32 {
+function compress_state_bytes(): i32 {
   let gz: i32 = gzip_stream_state_bytes();
   let br: i32 = brotli_stream_state_bytes();
   let zs: i32 = zstd_stream_state_bytes();
@@ -224,37 +240,37 @@ function stream_compress_state_bytes(): i32 {
 }
 
 /**
- * 初始化 StreamCompress；format 为 compress_format_* 之一。
+ * 初始化 StreamCompress；format 为 format_* 之一。
  * 成功 0；未链对应库或格式不支持时非 0。
  */
-function stream_compress_init(sc: *StreamCompress, state: *u8, state_cap: i32, format: i32, mode: i32): i32 {
+function compress_init(sc: *StreamCompress, state: *u8, state_cap: i32, format: i32, mode: i32): i32 {
   sc.format = format;
   sc.mode = mode;
   sc.state = state;
   sc.state_cap = state_cap;
-  if (format == compress_format_gzip()) {
-    if (mode == compress_stream_mode_compress()) {
+  if (format == format_gzip()) {
+    if (mode == mode_compress()) {
       return gzip_stream_init_compress(state, state_cap);
     }
-    if (mode == compress_stream_mode_decompress()) {
+    if (mode == mode_decompress()) {
       return gzip_stream_init_decompress(state, state_cap);
     }
     return -2;
   }
-  if (format == compress_format_brotli()) {
-    if (mode == compress_stream_mode_compress()) {
+  if (format == format_brotli()) {
+    if (mode == mode_compress()) {
       return brotli_stream_init_compress(state, state_cap);
     }
-    if (mode == compress_stream_mode_decompress()) {
+    if (mode == mode_decompress()) {
       return brotli_stream_init_decompress(state, state_cap);
     }
     return -2;
   }
-  if (format == compress_format_zstd()) {
-    if (mode == compress_stream_mode_compress()) {
+  if (format == format_zstd()) {
+    if (mode == mode_compress()) {
       return zstd_stream_init_compress(state, state_cap);
     }
-    if (mode == compress_stream_mode_decompress()) {
+    if (mode == mode_decompress()) {
       return zstd_stream_init_decompress(state, state_cap);
     }
     return -2;
@@ -266,31 +282,31 @@ function stream_compress_init(sc: *StreamCompress, state: *u8, state_cap: i32, f
  * 分块 compress/decompress；is_last≠0 为压缩末块（Z_FINISH）。
  * 返回写入 out 字节数，失败 -1；in_consumed 写入已消费输入字节数。
  */
-function stream_compress_process(sc: StreamCompress, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
+function compress_process(sc: StreamCompress, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
-  if (sc.format == compress_format_gzip()) {
-    if (sc.mode == compress_stream_mode_compress()) {
+  if (sc.format == format_gzip()) {
+    if (sc.mode == mode_compress()) {
       return gzip_stream_compress(sc.state, sc.state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
     }
-    if (sc.mode == compress_stream_mode_decompress()) {
+    if (sc.mode == mode_decompress()) {
       return gzip_stream_decompress(sc.state, sc.state_cap, inp, in_len, out, out_cap, in_consumed);
     }
     return -9;
   }
-  if (sc.format == compress_format_brotli()) {
-    if (sc.mode == compress_stream_mode_compress()) {
+  if (sc.format == format_brotli()) {
+    if (sc.mode == mode_compress()) {
       return brotli_stream_compress(sc.state, sc.state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
     }
-    if (sc.mode == compress_stream_mode_decompress()) {
+    if (sc.mode == mode_decompress()) {
       return brotli_stream_decompress(sc.state, sc.state_cap, inp, in_len, out, out_cap, in_consumed);
     }
     return -9;
   }
-  if (sc.format == compress_format_zstd()) {
-    if (sc.mode == compress_stream_mode_compress()) {
+  if (sc.format == format_zstd()) {
+    if (sc.mode == mode_compress()) {
       return zstd_stream_compress(sc.state, sc.state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
     }
-    if (sc.mode == compress_stream_mode_decompress()) {
+    if (sc.mode == mode_decompress()) {
       return zstd_stream_decompress(sc.state, sc.state_cap, inp, in_len, out, out_cap, in_consumed);
     }
     return -9;
@@ -299,14 +315,14 @@ function stream_compress_process(sc: StreamCompress, inp: *u8, in_len: i32, out:
 }
 
 /** 结束流并释放底层状态；成功 0。 */
-function stream_compress_end(sc: StreamCompress): i32 {
-  if (sc.format == compress_format_gzip()) {
+function compress_end(sc: StreamCompress): i32 {
+  if (sc.format == format_gzip()) {
     return gzip_stream_end(sc.state, sc.state_cap);
   }
-  if (sc.format == compress_format_brotli()) {
+  if (sc.format == format_brotli()) {
     return brotli_stream_end(sc.state, sc.state_cap);
   }
-  if (sc.format == compress_format_zstd()) {
+  if (sc.format == format_zstd()) {
     return zstd_stream_end(sc.state, sc.state_cap);
   }
   return -9;

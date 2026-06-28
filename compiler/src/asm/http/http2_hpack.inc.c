@@ -1,14 +1,14 @@
 /**
- * std/http/http2_hpack.inc.c — HPACK v1 静态表子集（RFC 7541；STD-HTTP-H2-CLIENT）
+ * std/http/hpack.inc.c — HPACK v1 静态表子集（RFC 7541；STD-HTTP-H2-CLIENT）
  *
  * 【文件职责】整型编解码、indexed/literal 头字段编解码、:status 响应解析。
- * v1 静态表；v3 动态表；v4 Huffman 解码；供 http2_client.inc.c 构建 HEADERS 帧。
+ * v1 静态表；v3 动态表；v4 Huffman 解码；供 client.inc.c 构建 HEADERS 帧。
  */
 
-#include "http2_hpack_huffman.inc.c"
+#include "hpack_huffman.inc.c"
 
 /** HPACK 整型编码（N 位前缀）；成功返回写入字节数，失败 -1。 */
-static int32_t http2_hpack_encode_int(uint32_t I, int32_t N, uint8_t prefix_mask, uint8_t *out,
+static int32_t hpack_encode_int(uint32_t I, int32_t N, uint8_t prefix_mask, uint8_t *out,
                                       int32_t out_cap) {
     int32_t pos = 0;
     uint32_t max_prefix;
@@ -35,7 +35,7 @@ static int32_t http2_hpack_encode_int(uint32_t I, int32_t N, uint8_t prefix_mask
 }
 
 /** HPACK 整型解码；成功返回消耗字节数，失败 -1。 */
-static int32_t http2_hpack_decode_int(const uint8_t *in, int32_t in_len, int32_t N, uint32_t *out_I) {
+static int32_t hpack_decode_int(const uint8_t *in, int32_t in_len, int32_t N, uint32_t *out_I) {
     int32_t pos = 0;
     uint32_t I;
     uint32_t max_prefix;
@@ -65,14 +65,14 @@ static int32_t http2_hpack_decode_int(const uint8_t *in, int32_t in_len, int32_t
 }
 
 /** 写入 HPACK 字符串字面量（无 Huffman）；成功返回写入字节数。 */
-static int32_t http2_hpack_encode_string(const uint8_t *s, int32_t slen, uint8_t *out, int32_t out_cap) {
+static int32_t hpack_encode_string(const uint8_t *s, int32_t slen, uint8_t *out, int32_t out_cap) {
     int32_t n;
     int32_t pos;
     if (!out || out_cap <= 0)
         return -1;
     if (slen < 0)
         slen = 0;
-    n = http2_hpack_encode_int((uint32_t)slen, 7, 0x00, out, out_cap);
+    n = hpack_encode_int((uint32_t)slen, 7, 0x00, out, out_cap);
     if (n < 0)
         return -1;
     pos = n;
@@ -86,14 +86,14 @@ static int32_t http2_hpack_encode_string(const uint8_t *s, int32_t slen, uint8_t
 }
 
 /** 解码 HPACK 字符串字面量；成功返回消耗字节数，value 写入 out_val。 */
-static int32_t http2_hpack_decode_string(const uint8_t *in, int32_t in_len, uint8_t *out_val,
+static int32_t hpack_decode_string(const uint8_t *in, int32_t in_len, uint8_t *out_val,
                                          int32_t out_cap, int32_t *out_vlen) {
     int32_t n;
     uint32_t slen = 0;
     int32_t pos;
     if (!in || in_len <= 0 || !out_vlen)
         return -1;
-    n = http2_hpack_decode_int(in, in_len, 7, &slen);
+    n = hpack_decode_int(in, in_len, 7, &slen);
     if (n < 0)
         return -1;
     if ((in[0] & 0x80u) != 0) {
@@ -118,7 +118,7 @@ static int32_t http2_hpack_decode_string(const uint8_t *in, int32_t in_len, uint
 }
 
 /** HPACK 静态表项（RFC 7541 Appendix A 子集）。 */
-static const char *http2_hpack_static_name(int32_t index) {
+static const char *hpack_static_name(int32_t index) {
     switch (index) {
     case 1: return ":authority";
     case 2: return ":method";
@@ -132,7 +132,7 @@ static const char *http2_hpack_static_name(int32_t index) {
     }
 }
 
-static const char *http2_hpack_static_value(int32_t index) {
+static const char *hpack_static_value(int32_t index) {
     switch (index) {
     case 1: return "";
     case 2: return "GET";
@@ -153,7 +153,7 @@ static const char *http2_hpack_static_value(int32_t index) {
 int32_t http2_hpack_encode_indexed_c(int32_t index, uint8_t *out, int32_t out_cap) {
     if (!out || out_cap <= 0 || index <= 0)
         return -1;
-    return http2_hpack_encode_int((uint32_t)index, 7, 0x80, out, out_cap);
+    return hpack_encode_int((uint32_t)index, 7, 0x80, out, out_cap);
 }
 
 /**
@@ -168,11 +168,11 @@ int32_t http2_hpack_encode_literal_c(int32_t name_index, const uint8_t *value, i
         return -1;
     if (value_len < 0)
         value_len = 0;
-    n = http2_hpack_encode_int((uint32_t)name_index, 4, 0x00, out, out_cap);
+    n = hpack_encode_int((uint32_t)name_index, 4, 0x00, out, out_cap);
     if (n < 0)
         return -1;
     pos = n;
-    n = http2_hpack_encode_string(value, value_len, out + pos, out_cap - pos);
+    n = hpack_encode_string(value, value_len, out + pos, out_cap - pos);
     if (n < 0)
         return -1;
     return pos + n;
@@ -226,14 +226,14 @@ int32_t http2_hpack_decode_status_c(const uint8_t *block, int32_t block_len, int
         uint8_t b = block[pos];
         if ((b & 0x80u) != 0) {
             uint32_t idx = 0;
-            int32_t n = http2_hpack_decode_int(block + pos, block_len - pos, 7, &idx);
+            int32_t n = hpack_decode_int(block + pos, block_len - pos, 7, &idx);
             const char *name;
             const char *val;
             if (n < 0)
                 return -1;
             pos += n;
-            name = http2_hpack_static_name((int32_t)idx);
-            val = http2_hpack_static_value((int32_t)idx);
+            name = hpack_static_name((int32_t)idx);
+            val = hpack_static_value((int32_t)idx);
             if (name && val && strcmp(name, ":status") == 0) {
                 *out_status = (int32_t)(val[0] - '0') * 100 + (int32_t)(val[1] - '0') * 10 +
                               (int32_t)(val[2] - '0');
@@ -246,11 +246,11 @@ int32_t http2_hpack_decode_status_c(const uint8_t *block, int32_t block_len, int
             int32_t vlen = 0;
             int32_t n;
             uint8_t vbuf[16];
-            n = http2_hpack_decode_int(block + pos, block_len - pos, 4, &name_idx);
+            n = hpack_decode_int(block + pos, block_len - pos, 4, &name_idx);
             if (n < 0)
                 return -1;
             pos += n;
-            n = http2_hpack_decode_string(block + pos, block_len - pos, vbuf, (int32_t)sizeof(vbuf),
+            n = hpack_decode_string(block + pos, block_len - pos, vbuf, (int32_t)sizeof(vbuf),
                                         &vlen);
             if (n < 0)
                 return -1;
@@ -286,14 +286,14 @@ int32_t http2_hpack_decode_get_request_c(const uint8_t *block, int32_t block_len
         uint8_t b = block[pos];
         if ((b & 0x80u) != 0) {
             uint32_t idx = 0;
-            int32_t n = http2_hpack_decode_int(block + pos, block_len - pos, 7, &idx);
+            int32_t n = hpack_decode_int(block + pos, block_len - pos, 7, &idx);
             const char *name;
             const char *val;
             if (n < 0)
                 return -1;
             pos += n;
-            name = http2_hpack_static_name((int32_t)idx);
-            val = http2_hpack_static_value((int32_t)idx);
+            name = hpack_static_name((int32_t)idx);
+            val = hpack_static_value((int32_t)idx);
             if (name && val && strcmp(name, ":method") == 0) {
                 got_method = 1;
                 is_get = (strcmp(val, "GET") == 0) ? 1 : 0;
@@ -314,16 +314,16 @@ int32_t http2_hpack_decode_get_request_c(const uint8_t *block, int32_t block_len
             int32_t n;
             uint8_t vbuf[SHUX_HTTP_PATH_MAX];
             const char *name;
-            n = http2_hpack_decode_int(block + pos, block_len - pos, 4, &name_idx);
+            n = hpack_decode_int(block + pos, block_len - pos, 4, &name_idx);
             if (n < 0)
                 return -1;
             pos += n;
-            n = http2_hpack_decode_string(block + pos, block_len - pos, vbuf, (int32_t)sizeof(vbuf),
+            n = hpack_decode_string(block + pos, block_len - pos, vbuf, (int32_t)sizeof(vbuf),
                                           &vlen);
             if (n < 0)
                 return -1;
             pos += n;
-            name = http2_hpack_static_name((int32_t)name_idx);
+            name = hpack_static_name((int32_t)name_idx);
             if (name && strcmp(name, ":method") == 0) {
                 got_method = 1;
                 is_get = (vlen == 3 && vbuf[0] == 'G' && vbuf[1] == 'E' && vbuf[2] == 'T') ? 1 : 0;
@@ -391,5 +391,5 @@ int32_t http2_hpack_smoke_c(void) {
     return 0;
 }
 
-#include "http2_hpack_dyn.inc.c"
-#include "http2_hpack_server_dyn.inc.c"
+#include "hpack_dyn.inc.c"
+#include "hpack_server_dyn.inc.c"

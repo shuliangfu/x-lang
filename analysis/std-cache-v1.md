@@ -22,9 +22,9 @@
 | `lru_new` / `lru_get` / `lru_put` | LRU 容量淘汰 |
 | `lru_purge_expired` | TTL 惰性过期 |
 | `lru_stats` | 命中率统计 |
-| `pool_new` / `pool_acquire` / `pool_release` | 通用资源池 |
-| `pool_mark_unhealthy` | health 失败丢弃 |
-| `pool_stats` | 池观测 |
+| `new` / `acquire` / `release` | 通用资源池 |
+| `mark_unhealthy` | health 失败丢弃 |
+| `stats` / `idle` | 池观测 |
 
 实现：`std/cache/mod.sx` + `std/cache/cache.c`；依赖 `std/time` 单调时钟。
 

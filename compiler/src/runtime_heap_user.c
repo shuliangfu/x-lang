@@ -54,7 +54,7 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
 }
 
 /** 初始化 Arena64；cap==0 时用 4096 默认 chunk。 */
-int32_t heap_arena64_init_c(ShuxHeapArena64 *a, size_t cap) {
+int32_t heap_arena_init_c(ShuxHeapArena64 *a, size_t cap) {
     size_t use_cap;
     if (!a)
         return -1;

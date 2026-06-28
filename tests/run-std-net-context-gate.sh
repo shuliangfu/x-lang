@@ -29,7 +29,7 @@ for f in "$MOD_SX" "$SMOKE"; do
     exit 1
   fi
 done
-for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd stream_read_ctx stream_write_ctx; do
+for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd read_ctx write_ctx; do
   if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
     echo "net-context gate FAIL: missing api $sym" >&2
     exit 1

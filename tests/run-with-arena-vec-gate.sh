@@ -26,11 +26,11 @@ if [ "$rc" != "0" ]; then
   exit 0
 fi
 
-# 生成 C 应走 allocator_alloc（非 heap_alloc_u8）
+# 生成 C 应走 alloc（非 heap_alloc_u8）
 gen="$(grep -oE '/tmp/shux_[A-Za-z0-9]+\.c' /tmp/shux_with_arena_vec_build.log | tail -1)"
 if [ -n "$gen" ] && [ -f "$gen" ]; then
   if grep -qE 'heap_alloc_u8_c|heap\.alloc_u8' "$gen" 2>/dev/null; then
-    echo "with-arena-vec-gate FAIL: reserve still uses heap.alloc_u8 in generated C" >&2
+    echo "with-arena-vec-gate FAIL: reserve still uses heap.alloc in generated C" >&2
     rm -f "$gen"
     [ "$FAIL" = "1" ] && exit 1
     exit 0

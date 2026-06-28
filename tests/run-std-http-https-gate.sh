@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$HTTP_C" "$SMOKE_SX" "$SMOKE_C" \
   [ -f "$f" ] || { echo "std-http-https gate FAIL: missing $f" >&2; exit 1; }
 done
 
-for kw in STD-HTTP-HTTPS https_is_available http_err_tls_not_impl https:// TLS net_tls; do
+for kw in STD-HTTP-HTTPS https_is_available err_tls_not_impl https:// TLS net_tls; do
   grep -qF -- "$kw" "$DOC" 2>/dev/null || {
     echo "std-http-https gate FAIL: doc missing '$kw'" >&2
     exit 1

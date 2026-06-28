@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // core.types — 基础类型 size_of/align_of（自举前实现）
 // 当前：上述类型 + 指针（size_of_pointer/align_of_pointer，64 位为 8）；i16/u16 待语言与编译器支持后再补，泛型 size_of(T)/align_of(T) 待内建。
 // 高性能：所有函数为常量/纯函数，可被编译器内联；无隐式分配与间接调用。

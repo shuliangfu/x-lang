@@ -35,11 +35,11 @@ function main(): i32 {
   let bench_bytes: usize = 16777216 as usize;
   let chunk: usize = 65536 as usize;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let file_fd: i32 = fs.fs_open_read(&path[0]);
+  let file_fd: i32 = fs.open(&path[0]);
   if (file_fd < 0) { return 1; }
   let stream: TcpStream = net.connect_blocking(addr, sink_port, 0);
   if (stream.fd < 0) {
-    fs.fs_close(file_fd);
+    fs.close(file_fd);
     return 2;
   }
   let buf: u8[65536] = [];
@@ -48,24 +48,24 @@ function main(): i32 {
     let left: usize = bench_bytes - sent;
     let ask: usize = chunk;
     if (left < ask) { ask = left; }
-    let nr: isize = fs.fs_read(file_fd, &buf[0], ask);
+    let nr: isize = fs.read(file_fd, &buf[0], ask);
     if (nr <= 0) {
       net.close_stream(stream);
-      fs.fs_close(file_fd);
+      fs.close(file_fd);
       return 3;
     }
-    let nw: i32 = net.stream_write_batch(stream, &buf[0], nr as usize, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
+    let nw: i32 = net.write_batch(stream, &buf[0], nr as usize, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
     if (nw != (nr as i32)) {
       net.close_stream(stream);
-      fs.fs_close(file_fd);
+      fs.close(file_fd);
       return 4;
     }
     sent = sent + (nr as usize);
   }
   if (net.close_stream(stream) != 0) {
-    fs.fs_close(file_fd);
+    fs.close(file_fd);
     return 5;
   }
-  if (fs.fs_close(file_fd) != 0) { return 6; }
+  if (fs.close(file_fd) != 0) { return 6; }
   return (sent as i32) & 255;
 }

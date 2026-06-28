@@ -5,14 +5,14 @@ doc_model	section	## 2. 数据模型	ErrorChain
 doc_api	section	## 3. API	std.error
 doc_wrap	section	### 4.1 手动 wrap	用法
 type_chain	symbol	ErrorChain	std/error/mod.sx	结构体
-fn_empty	symbol	error_chain_empty	std/error/mod.sx
-fn_from_code	symbol	error_chain_from_code	std/error/mod.sx
-fn_from_result	symbol	error_chain_from_result	std/error/mod.sx
-fn_wrap	symbol	error_chain_wrap	std/error/mod.sx
-fn_root	symbol	error_chain_root	std/error/mod.sx
-fn_leaf	symbol	error_chain_leaf	std/error/mod.sx
-fn_depth	symbol	error_chain_depth	std/error/mod.sx
-fn_code_at	symbol	error_chain_code_at	std/error/mod.sx
-fn_max_depth	symbol	error_chain_max_depth	std/error/mod.sx
+fn_empty	symbol	chain_empty	std/error/mod.sx
+fn_from_code	symbol	chain_from_code	std/error/mod.sx
+fn_from_result	symbol	chain_from_result	std/error/mod.sx
+fn_wrap	symbol	chain_wrap	std/error/mod.sx
+fn_root	symbol	chain_root	std/error/mod.sx
+fn_leaf	symbol	chain_leaf	std/error/mod.sx
+fn_depth	symbol	chain_depth	std/error/mod.sx
+fn_code_at	symbol	chain_code_at	std/error/mod.sx
+fn_max_depth	symbol	chain_max_depth	std/error/mod.sx
 import_result	import	core.result	std/error/mod.sx	Result 互操作
 smoke_case	run	error_chain_smoke.sx	tests/exc/error_chain_smoke.sx	wrap 烟测

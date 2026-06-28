@@ -29,9 +29,9 @@ function main(): i32 {
 
   http.request_owned_free(&owned);
 
-  if (http.http2_push_network_smoke() != 0) { return 5; }
-  if (http.http2_h2c_network_smoke() != 0) { return 6; }
-  if (http.http2_h2c_is_available() == false) { return 7; }
+  if (http.push_network_smoke() != 0) { return 5; }
+  if (http.h2c_network_smoke() != 0) { return 6; }
+  if (http.h2c_is_available() == false) { return 7; }
 
   return 0;
 }

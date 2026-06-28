@@ -1,7 +1,7 @@
 /**
- * std/http/http2_hpack_huffman.inc.c — HPACK Huffman 解码 v4（RFC 7541；STD-HTTP-H2-v4）
+ * std/http/hpack_huffman.inc.c — HPACK Huffman 解码 v4（RFC 7541；STD-HTTP-H2-v4）
  *
- * 【文件职责】静态 Huffman 表解码（nghttp2 表数据子集）；供 http2_hpack.inc.c include。
+ * 【文件职责】静态 Huffman 表解码（nghttp2 表数据子集）；供 hpack.inc.c include。
  * 符号表源自 RFC 7541 Appendix B（与 nghttp2 huff_sym_table 一致）。
  */
 
@@ -12,9 +12,9 @@
 typedef struct {
     uint8_t nbits;
     uint32_t code;
-} http2_huff_sym_t;
+} huff_sym_t;
 
-static const http2_huff_sym_t g_http2_huff_sym[257] = {
+static const huff_sym_t g_http2_huff_sym[257] = {
     { 13, 0xFFC00000U }, /* 0 */
     { 23, 0xFFFFB000U }, /* 1 */
     { 28, 0xFFFFFE20U }, /* 2 */
@@ -275,7 +275,7 @@ static const http2_huff_sym_t g_http2_huff_sym[257] = {
 };
 
 /** 从 bit 流读取下一位（MSB first）；返回 0/1，失败 -1。 */
-static int32_t http2_huff_read_bit(const uint8_t *in, int32_t in_len, int32_t *bit_pos) {
+static int32_t huff_read_bit(const uint8_t *in, int32_t in_len, int32_t *bit_pos) {
     int32_t byte_i;
     int32_t bit_i;
     if (!in || !bit_pos || *bit_pos < 0)
@@ -304,12 +304,12 @@ int32_t http2_hpack_huffman_decode_c(const uint8_t *in, int32_t in_len, uint8_t 
         for (i = 0; i < 257; i++) {
             int32_t j;
             int32_t acc = 0;
-            const http2_huff_sym_t *sym = &g_http2_huff_sym[i];
+            const huff_sym_t *sym = &g_http2_huff_sym[i];
             if (sym->nbits <= 0)
                 continue;
             bit_pos = start_bit;
             for (j = 0; j < (int32_t)sym->nbits; j++) {
-                int32_t b = http2_huff_read_bit(in, in_len, &bit_pos);
+                int32_t b = huff_read_bit(in, in_len, &bit_pos);
                 if (b < 0)
                     return -1;
                 acc = (acc << 1) | b;

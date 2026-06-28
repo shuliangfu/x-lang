@@ -6,6 +6,6 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  let total: i32 = fmt.format_2(buf, 32, 10, 20);
+  let total: i32 = fmt.format(buf, 32, 10, 20);
   return if (total == 4) { 0 } else { 1 };
 }

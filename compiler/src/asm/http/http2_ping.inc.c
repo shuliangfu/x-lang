@@ -1,5 +1,5 @@
 /**
- * std/http/http2_ping.inc.c — HTTP/2 PING/PONG 帧（RFC 7540 §6.7；STD-HTTP-H2-v25）
+ * std/http/ping.inc.c — HTTP/2 PING/PONG 帧（RFC 7540 §6.7；STD-HTTP-H2-v25）
  *
  * 【文件职责】PING 帧构建/解析、PONG ACK 响应、离线烟测。
  * 由 http2.inc.c 末尾 #include。

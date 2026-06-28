@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.sys.freebsd — FreeBSD POSIX I/O + mmap FFI（BOOT-029 / B-21 v0）
 //
 // 【文件职责】
@@ -56,7 +72,9 @@ extern function _exit(code: i32): void;
  * 进程退出；noreturn。
  */
 function freebsd_exit(code: i32): void {
-  _exit(code);
+  unsafe {
+    _exit(code);
+  }
 }
 
 /** open(2) O_CREAT 默认 mode 0644。 */
@@ -87,7 +105,10 @@ function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   let count: usize = len as usize;
-  let r: isize = write(fd, buf, count);
+  let r: isize = 0 as isize;
+  unsafe {
+    r = write(fd, buf, count);
+  }
   if (r < 0) {
     return -1;
   }
@@ -114,7 +135,10 @@ function freebsd_read(fd: i32, buf: *u8, len: i32): i32 {
   if (buf == 0) {
     return -1;
   }
-  let r: isize = read(fd, buf, len);
+  let r: isize = 0 as isize;
+  unsafe {
+    r = read(fd, buf, len);
+  }
   if (r < 0) {
     return -1;
   }
@@ -123,7 +147,9 @@ function freebsd_read(fd: i32, buf: *u8, len: i32): i32 {
 
 /** close(2) 薄封装。 */
 function freebsd_close(fd: i32): i32 {
-  return close(fd);
+  unsafe {
+    return close(fd);
+  }
 }
 
 /**
@@ -133,7 +159,10 @@ function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
     return -1;
   }
-  let fd: i32 = open(path, FREEBSD_O_RDONLY, 0);
+  let fd: i32 = 0;
+  unsafe {
+    fd = open(path, FREEBSD_O_RDONLY, 0);
+  }
   if (fd < 0) {
     return -1;
   }
@@ -142,9 +171,12 @@ function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     let chunk: i32 = cap - total;
     let count: usize = chunk as usize;
     let dst: *u8 = (buf as *u8) + total;
-    let r: isize = read(fd, dst, count);
+    let r: isize = 0 as isize;
+    unsafe {
+      r = read(fd, dst, count);
+    }
     if (r < 0) {
-      close(fd);
+      freebsd_close(fd);
       return -1;
     }
     if (r == 0) {
@@ -152,7 +184,7 @@ function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     }
     total = total + (r as i32);
   }
-  close(fd);
+  freebsd_close(fd);
   return total;
 }
 
@@ -163,7 +195,9 @@ function freebsd_anonymous_mmap(len: usize, prot: i32): *u8 {
   if (len == 0) {
     return 0;
   }
-  return mmap(0 as *u8, len, prot, FREEBSD_MAP_PRIVATE | FREEBSD_MAP_ANON, -1, 0 as i64);
+  unsafe {
+    return mmap(0 as *u8, len, prot, FREEBSD_MAP_PRIVATE | FREEBSD_MAP_ANON, -1, 0 as i64);
+  }
 }
 
 /** 解除 mmap 映射。 */
@@ -171,7 +205,9 @@ function freebsd_munmap(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;
   }
-  return munmap(addr, len);
+  unsafe {
+    return munmap(addr, len);
+  }
 }
 
 /** mmap 是否在子模块导出（恒 1）。 */
@@ -186,33 +222,35 @@ function freebsd_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
   }
-  let flags: i32 = FREEBSD_O_RDWR | FREEBSD_O_CREAT;
-  let fd: i32 = open(path, flags, FREEBSD_OPEN_MODE_0644);
-  if (fd < 0) {
-    return 0;
-  }
-  let cur: i64 = lseek(fd, 0 as i64, FREEBSD_SEEK_END);
-  if (cur < 0) {
-    close(fd);
-    return 0;
-  }
-  let len: usize = cur as usize;
-  if (len < min_size) {
-    if (ftruncate(fd, min_size as i64) != 0) {
+  unsafe {
+    let flags: i32 = FREEBSD_O_RDWR | FREEBSD_O_CREAT;
+    let fd: i32 = open(path, flags, FREEBSD_OPEN_MODE_0644);
+    if (fd < 0) {
+      return 0;
+    }
+    let cur: i64 = lseek(fd, 0 as i64, FREEBSD_SEEK_END);
+    if (cur < 0) {
       close(fd);
       return 0;
     }
-    len = min_size;
+    let len: usize = cur as usize;
+    if (len < min_size) {
+      if (ftruncate(fd, min_size as i64) != 0) {
+        close(fd);
+        return 0;
+      }
+      len = min_size;
+    }
+    let prot: i32 = FREEBSD_PROT_READ | FREEBSD_PROT_WRITE;
+    let p: *u8 = mmap(0 as *u8, len, prot, FREEBSD_MAP_SHARED, fd, 0 as i64);
+    close(fd);
+    let p_i: i64 = p as i64;
+    if (p_i <= 0) {
+      return 0;
+    }
+    out_size[0] = len;
+    return p;
   }
-  let prot: i32 = FREEBSD_PROT_READ | FREEBSD_PROT_WRITE;
-  let p: *u8 = mmap(0 as *u8, len, prot, FREEBSD_MAP_SHARED, fd, 0 as i64);
-  close(fd);
-  let p_i: i64 = p as i64;
-  if (p_i <= 0) {
-    return 0;
-  }
-  out_size[0] = len;
-  return p;
 }
 
 /** msync(2) MS_SYNC。 */
@@ -223,5 +261,7 @@ function freebsd_msync_sync(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;
   }
-  return msync(addr, len, FREEBSD_MS_SYNC);
+  unsafe {
+    return msync(addr, len, FREEBSD_MS_SYNC);
+  }
 }

@@ -8,7 +8,7 @@
 | API | 说明 |
 |-----|------|
 | `compile(pat, pat_len)` | 编译模式；失败 null |
-| `regex_match(re, str, len)` | 子串匹配；成功 0 |
+| `match(re, str, len)` | 子串匹配；成功 0 |
 | `free(re)` | 释放句柄 |
 | `group_count(re)` | capture 槽数（含 group 0） |
 | `group_offset(re, group)` | 上次 match 的组起始偏移 |

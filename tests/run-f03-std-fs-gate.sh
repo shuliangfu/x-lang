@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-03 v2：std.fs 去 C 门禁（无 fs.c + fs_posix/fs_win32 + F-01）。
+# F-03 v2：std.fs 去 C 门禁（无 fs.c + posix/win32 + F-01）。
 #
 # 用法：./tests/run-f03-std-fs-gate.sh
 # 环境：SHUX_F03_FS_FAIL=1 — 失败时硬退出
@@ -19,11 +19,11 @@ echo "=== F-03 v2: std.fs remove fs.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-03 v2' "$DOC" || die "doc missing F-03 v2 marker"
 [ ! -f std/fs/fs.c ] || die "fs.c should be deleted"
-[ -f std/fs/fs_posix.sx ] || die "missing fs_posix.sx"
-[ -f std/fs/fs_win32.sx ] || die "missing fs_win32.sx"
-grep -q 'import("std.fs.fs_posix")' std/fs/mod.sx || die "mod.sx missing fs_posix import"
-grep -q 'fs_open_read_c' std/fs/fs_posix.sx || die "fs_posix missing fs_open_read_c"
-grep -q 'fs_mmap_ro_c' std/fs/fs_win32.sx || die "fs_win32 missing fs_mmap_ro_c"
+[ -f std/fs/posix.sx ] || die "missing posix.sx"
+[ -f std/fs/win32.sx ] || die "missing win32.sx"
+grep -q 'import("std.fs.posix")' std/fs/mod.sx || die "mod.sx missing posix import"
+grep -q 'fs_open_read_c' std/fs/posix.sx || die "fs_posix missing fs_open_read_c"
+grep -q 'fs_mmap_ro_c' std/fs/win32.sx || die "fs_win32 missing fs_mmap_ro_c"
 if grep -q 'extern function fs_open_read_c' std/fs/mod.sx 2>/dev/null; then
   die "mod.sx still extern fs_open_read_c (should forward to platform)"
 fi

@@ -1,73 +1,77 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.random — CSPRNG + 可复现 PRNG（SplitMix64，STD-130）
 //
 // 【文件职责】
-// 对外暴露 std.random 的完整 API：fill_bytes、u32、u64、range_u32（[lo,hi]
-// 闭区间）、bool（CSPRNG）；以及 Rng / rng_*（可复现 PRNG）。
+// 对外暴露 std.random 的完整 API：fill_bytes、next、range（[lo,hi]
+// 闭区间）、flip/gen（CSPRNG）；以及 Rng / seed / step / fill（可复现 PRNG）。
 // 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng；PRNG 对标 SplitMix64 种子流。
-//
-// 【所属模块/组件】
-// 标准库 std.random；用户通过 import("std.random") 使用。依赖 core；与
-// std/random/random.c 同属一模块。
-//
-// 【与其它文件的关系】
-// - 被依赖：任何 import("std.random") 的用户代码；compiler 在 -o exe 时自动链入
-// std/random/random.o。
-// - 依赖：无其它 .sx 模块；通过 extern 调用 random_*_c 系列 C 函数（定义在
-// random.c）。
+
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 extern function random_u32_c(): u32;
 extern function random_u64_c(): u64;
+extern function random_rng_smoke_c(): i32;
+
 /** 用密码学安全随机字节填满 buf[0..len)，返回写入的字节数（成功时为
-* len），失败时返回负值。一次/多次系统调用填满，避免逐字节。对标
-* getrandom/OsRng.fill_bytes。 */
+ * len），失败时返回负值。对标 getrandom/OsRng.fill_bytes。 */
 function fill_bytes(buf: *u8, len: i32): i32 {
-  return random_fill_bytes_c(buf, len);
+  unsafe {
+    return random_fill_bytes_c(buf, len);
+  }
 }
-/** 生成一个密码学安全的随机 u32；内部 fill 4
-* 字节后按本机字节序解释。对标 OsRng::next_u32。 */
-function next_u32(): u32 {
-  return random_u32_c();
+
+/** 生成密码学安全随机 u64（Tier-S `next`；u32 场景用 `as u32` 截断）。 */
+function next(): u64 {
+  unsafe {
+    return random_u64_c();
+  }
 }
-/** 生成一个密码学安全的随机 u64；内部 fill 8
-* 字节后按本机字节序解释。对标 OsRng::next_u64。 */
-function next_u64(): u64 {
-  return random_u64_c();
-}
-/** 生成 [lo, hi] 闭区间内均匀分布的 u32（含两端）；拒绝采样法避免
-* bias。若 lo > hi 返回 lo。对标 Zig intRangeAtMost、Rust gen_range。 */
-function range_u32(lo: u32, hi: u32): u32 {
+
+/** CSPRNG：[lo, hi] 闭区间内均匀 u32（含两端）；lo > hi 时返回 lo。 */
+function range(lo: u32, hi: u32): u32 {
   if (lo > hi) {
     return lo;
   }
-  let range: u32 = hi - lo + 1;
-  if (range == 0) {
+  let range_val: u32 = hi - lo + 1;
+  if (range_val == 0) {
     return lo;
   }
-  /* 最大可接受的 u32 上界，使得 0..limit 中能被 range 整除的个数均匀：limit
-  = (2^32 - 1) - ((2^32 - 1) % range) */
   let max_u32: u32 = 4294967295;
-  let limit: u32 = max_u32 - (max_u32 % range);
-  let x: u32 = random_u32_c();
-  while (x >= limit) {
+  let limit: u32 = max_u32 - (max_u32 % range_val);
+  let x: u32 = 0;
+  unsafe {
     x = random_u32_c();
+    while (x >= limit) {
+      x = random_u32_c();
+    }
   }
-  return lo + (x % range);
+  return lo + (x % range_val);
 }
-/** 生成均匀随机布尔，返回 0 或 1。单次 u32 取低位。对标 gen_bool。 */
-function gen_bool(): i32 {
-  return (random_u32_c() & 1) as i32;
+
+/** 生成均匀随机布尔，返回 0 或 1。对标 gen_bool。 */
+function gen(): i32 {
+  unsafe {
+    return (random_u32_c() & 1) as i32;
+  }
 }
-/** Tier-S 公开名：密码学安全 u32（别名 next_u32）。 */
-function u32(): u32 {
-  return next_u32();
-}
-/** Tier-S 公开名：密码学安全 u64（别名 next_u64）。 */
-function u64(): u64 {
-  return next_u64();
-}
-/** Tier-S 公开名：均匀随机布尔 0/1（别名 gen_bool）。 */
-function bool(): i32 {
-  return gen_bool();
+
+/** Tier-S：均匀随机布尔 0/1（gen 别名）。 */
+function flip(): i32 {
+  return gen();
 }
 
 // ——— STD-130：可复现 PRNG（SplitMix64） ———
@@ -77,13 +81,10 @@ allow(padding) struct Rng {
   state: u64;
 }
 
-extern function random_rng_smoke_c(): i32;
-
 /** SplitMix64 单步；更新 *r 并返回下一个 u64。 */
-function rng_next_u64(r: *Rng): u64 {
+function step(r: *Rng): u64 {
   let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
   r.state = z;
-  /* xor 与 mul 分步赋值，避免 C codegen 将 (z ^ t) * K 误解析为 z ^ (t * K)。 */
   let t: u64 = z >> 30;
   let x: u64 = z ^ t;
   z = x * 0xbf58476d1ce4e5b9 as u64;
@@ -95,20 +96,15 @@ function rng_next_u64(r: *Rng): u64 {
 }
 
 /** 用 seed 初始化 PRNG；同 seed 产生同序列。 */
-function rng_init(seed: u64): Rng {
-  return Rng { state: seed };
-}
-
-/** rng_init 别名；烟测与文档沿用 from_seed 命名。 */
-function rng_from_seed(seed: u64): Rng {
-  return rng_init(seed);
+function seed(seed_val: u64): Rng {
+  return Rng { state: seed_val };
 }
 
 /** 用 PRNG 字节填充 buf[0..len)。 */
-function rng_fill_bytes(r: *Rng, buf: *u8, len: i32): void {
+function fill(r: *Rng, buf: *u8, len: i32): void {
   let i: i32 = 0;
   while (i < len) {
-    let w: u64 = rng_next_u64(r);
+    let w: u64 = step(r);
     let j: i32 = 0;
     while (j < 8 && i < len) {
       buf[i] = (w & 255) as u8;
@@ -119,25 +115,27 @@ function rng_fill_bytes(r: *Rng, buf: *u8, len: i32): void {
   }
 }
 
-/** [lo, hi] 闭区间均匀 u32；lo > hi 时返回 lo。 */
-function rng_range_u32(r: *Rng, lo: u32, hi: u32): u32 {
+/** PRNG：[lo, hi] 闭区间均匀 u32；lo > hi 时返回 lo。 */
+function range(r: *Rng, lo: u32, hi: u32): u32 {
   if (lo > hi) {
     return lo;
   }
-  let range: u32 = hi - lo + 1;
-  if (range == 0) {
+  let range_val: u32 = hi - lo + 1;
+  if (range_val == 0) {
     return lo;
   }
   let max_u32: u32 = 4294967295;
-  let limit: u32 = max_u32 - (max_u32 % range);
-  let x: u32 = rng_next_u64(r) as u32;
+  let limit: u32 = max_u32 - (max_u32 % range_val);
+  let x: u32 = step(r) as u32;
   while (x >= limit) {
-    x = rng_next_u64(r) as u32;
+    x = step(r) as u32;
   }
-  return lo + (x % range);
+  return lo + (x % range_val);
 }
 
 /** C 层 PRNG 烟测；0 成功，非 0 失败。 */
 function rng_smoke(): i32 {
-  return random_rng_smoke_c();
+  unsafe {
+    return random_rng_smoke_c();
+  }
 }

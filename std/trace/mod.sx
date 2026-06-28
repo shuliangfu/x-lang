@@ -199,7 +199,7 @@ function hook_net_stream_read_ctx(ctx: Context, stream: TcpStream, ptr: *u8, len
   let tr: Trace = from_context(ctx);
   let n_net_rd: u8[15] = [110, 101, 116, 46, 115, 116, 114, 101, 97, 109, 95, 114, 101, 97, 100];
   let sp: Span = hook_span_begin(&tr, &n_net_rd[0], 15);
-  let r: i32 = net.stream_read_ctx(stream, ptr, len, ctx);
+  let r: i32 = net.read_ctx(stream, ptr, len, ctx);
   hook_span_end(&tr, sp);
   return r;
 }

@@ -3,9 +3,9 @@ const heap = import("std.heap");
 
 function escape_alloc(): heap.Allocator {
   with_arena(4096) {
-    return heap.default_allocator();
+    return heap.default_alloc();
   }
-  return heap.allocator_heap();
+  return heap.heap_alloc();
 }
 
 function main(): i32 {

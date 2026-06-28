@@ -434,6 +434,7 @@ static ASTExpr *parse_term(Parser *p);
 static ASTExpr *parse_cast(Parser *p);
 static ASTExpr *parse_postfix(Parser *p);
 static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace);
+static void skip_balanced_tokens(Parser *p, TokenKind open, TokenKind close);
 static ASTExpr *parse_at_simd_builtin(Parser *p);
 
 /**
@@ -884,11 +885,75 @@ static ASTType *parse_type_name(Parser *p) {
 }
 
 /**
+ * M-3 / 语法糖：后缀 T[]、T[]<label> 或 T[N]（与 i32[] / i32[2] 写法一致；前缀 []T / [N]T 仍由 parse_type_name 处理）。
+ * 参数 ty 为已解析的基础类型；若下一 token 非 `[` 则原样返回 ty。
+ */
+static ASTType *parse_type_apply_slice_suffix(Parser *p, ASTType *ty) {
+    ASTType *wrapped;
+    const Token *t;
+    int size;
+    if (!ty || !peek(p) || peek(p)->kind != TOKEN_LBRACKET)
+        return ty;
+    advance(p);
+    t = peek(p);
+    if (t && t->kind == TOKEN_RBRACKET) {
+        /* T[] 切片 */
+        advance(p);
+        wrapped = (ASTType *)malloc(sizeof(ASTType));
+        if (!wrapped) {
+            ast_type_free(ty);
+            fprintf(stderr, "parse: out of memory\n");
+            return NULL;
+        }
+        wrapped->kind = AST_TYPE_SLICE;
+        wrapped->name = NULL;
+        wrapped->elem_type = ty;
+        wrapped->array_size = 0;
+        wrapped->region_label = NULL;
+        parse_slice_region_label(p, wrapped);
+        return wrapped;
+    }
+    if (t && t->kind == TOKEN_INT) {
+        /* T[N] 定长数组 */
+        size = t->value.int_val;
+        if (size <= 0) {
+            fail(p, "array size must be positive");
+            ast_type_free(ty);
+            return NULL;
+        }
+        advance(p);
+        if (!peek(p) || peek(p)->kind != TOKEN_RBRACKET) {
+            fail(p, "expected ']' after array size in T[N]");
+            ast_type_free(ty);
+            return NULL;
+        }
+        advance(p);
+        wrapped = (ASTType *)malloc(sizeof(ASTType));
+        if (!wrapped) {
+            ast_type_free(ty);
+            fprintf(stderr, "parse: out of memory\n");
+            return NULL;
+        }
+        wrapped->kind = AST_TYPE_ARRAY;
+        wrapped->name = NULL;
+        wrapped->elem_type = ty;
+        wrapped->array_size = size;
+        wrapped->region_label = NULL;
+        return wrapped;
+    }
+    fail(p, "expected ']' or array size in suffix T[] / T[N]");
+    ast_type_free(ty);
+    return NULL;
+}
+
+/**
  * 解析完整类型注解（含联合 T | U | V）；单类型由 parse_type_name 解析，| 在类型上下文连接成员。
  * 用于形参、let/const、返回值等；*T / []T 内部仍用 parse_type_name，避免 *i32 | *u64 歧义。
  */
 static ASTType *parse_type(Parser *p) {
     ASTType *first = parse_type_name(p);
+    if (!first) return NULL;
+    first = parse_type_apply_slice_suffix(p, first);
     if (!first) return NULL;
     if (!peek(p) || peek(p)->kind != TOKEN_PIPE)
         return first;
@@ -903,6 +968,11 @@ static ASTType *parse_type(Parser *p) {
             return NULL;
         }
         ASTType *m = parse_type_name(p);
+        if (!m) {
+            for (int i = 0; i < n; i++) ast_type_free(members[i]);
+            return NULL;
+        }
+        m = parse_type_apply_slice_suffix(p, m);
         if (!m) {
             for (int i = 0; i < n; i++) ast_type_free(members[i]);
             return NULL;
@@ -1551,6 +1621,27 @@ static ASTExpr *parse_primary(Parser *p) {
 }
 
 /**
+ * 判断当前 `?` 是否为 ERR-01 Result 传播后缀（expr?），而非三元 cond ? then : else。
+ * 与 parser_asm_as_suffix_slice.c 一致：`?` 后若仍可开始 then 分支则留给 parse_ternary。
+ */
+static int question_is_try_propagate_suffix(Parser *p) {
+    const Token *after;
+    if (!peek(p) || peek(p)->kind != TOKEN_QUESTION)
+        return 0;
+    after = peek_next(p);
+    switch (after->kind) {
+    case TOKEN_SEMICOLON:
+    case TOKEN_RPAREN:
+    case TOKEN_RBRACE:
+    case TOKEN_COMMA:
+    case TOKEN_RBRACKET:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/**
  * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.sx parse_as_suffix_into 一致）。
  * 支持 path[i] as i32、foo() as *u8 等；as 不可放在 [index] 之前。
  * 参数：p 解析器；left 已有子表达式。返回值：成功返回（可能嵌套 AS 的）ASTExpr*；失败返回 NULL。
@@ -1558,6 +1649,8 @@ static ASTExpr *parse_primary(Parser *p) {
 static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
     for (;;) {
         if (peek(p) && peek(p)->kind == TOKEN_QUESTION) {
+            if (!question_is_try_propagate_suffix(p))
+                return left;
             advance(p);
             ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
             if (!e) {
@@ -1616,12 +1709,19 @@ static ASTExpr *parse_postfix(Parser *p) {
     while (peek(p)->kind == TOKEN_DOT || peek(p)->kind == TOKEN_LBRACKET) {
         if (peek(p)->kind == TOKEN_DOT) {
             advance(p);
-            if (peek(p)->kind != TOKEN_IDENT) {
+            if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_MATCH && peek(p)->kind != TOKEN_SPAWN) {
                 ast_expr_free(left);
                 fail(p, "expected field name after '.'");
                 return NULL;
             }
-            char *field_name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+            char *field_name = NULL;
+            if (peek(p)->kind == TOKEN_MATCH) {
+                field_name = strdup("match");
+            } else if (peek(p)->kind == TOKEN_SPAWN) {
+                field_name = strdup("spawn");
+            } else {
+                field_name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+            }
             if (!field_name) {
                 ast_expr_free(left);
                 fprintf(stderr, "parse: out of memory\n");
@@ -2322,8 +2422,8 @@ static ASTExpr *parse_expr(Parser *p) {
 
 /** 最大 import 数量 */
 #define MAX_IMPORTS 32
-/** 顶层 let 最大数量 */
-#define MAX_TOP_LEVEL_LETS 32
+/** 顶层 let 最大数量（std/fs/posix.sx 等超 32 项 const/let，自举前须 ≥64） */
+#define MAX_TOP_LEVEL_LETS 128
 /** 顶层最大 struct 定义数 */
 #define MAX_STRUCTS 16
 /** 顶层最大 enum 定义数 */
@@ -2343,6 +2443,14 @@ static ASTExpr *parse_expr(Parser *p) {
 #define MAX_DEFERS 16
 #define MAX_LABELED_STMTS 32
 #define MAX_EXPR_STMTS 512
+
+/**
+ * LANG-007 v2：判断 token 是否为标识符 unsafe（保留字作 IDENT 解析，避免 TOKEN 枚举漂移）。
+ */
+static int parser_token_is_unsafe_keyword(const Token *t) {
+    return t && t->kind == TOKEN_IDENT && t->ident_len == 6 && t->value.ident
+        && memcmp(t->value.ident, "unsafe", 6) == 0;
+}
 
 /**
  * 解析 import("path")：当前 Token 须为 '('；返回 strdup 的路径字符串。
@@ -2960,6 +3068,126 @@ static void push_stmt_order(ASTBlock *b, int kind, int idx) {
 }
 
 /**
+ * B-02：将 src 块语句扁平并入 dst（#[cfg] 匹配时函数体内 { ... } 内联）。
+ * 转移子 AST 所有权；成功后 src 仅余空壳，可 ast_block_free。
+ */
+static int ast_block_flatten_into(ASTBlock *dst, ASTBlock *src) {
+    int i;
+    int base_const;
+    int base_let;
+    int base_expr;
+    int base_loop;
+    int base_for;
+    int base_region;
+    if (!dst || !src)
+        return -1;
+    base_const = dst->num_consts;
+    for (i = 0; i < src->num_consts; i++) {
+        if (dst->num_consts >= MAX_CONST_DECLS)
+            return -1;
+        dst->const_decls[dst->num_consts++] = src->const_decls[i];
+    }
+    base_let = dst->num_lets;
+    for (i = 0; i < src->num_lets; i++) {
+        if (dst->num_lets >= MAX_LET_DECLS)
+            return -1;
+        dst->let_decls[dst->num_lets++] = src->let_decls[i];
+    }
+    base_expr = dst->num_expr_stmts;
+    if (src->num_expr_stmts > 0) {
+        if (!dst->expr_stmts) {
+            dst->expr_stmts = (ASTExpr **)malloc((size_t)MAX_EXPR_STMTS * sizeof(ASTExpr *));
+            if (!dst->expr_stmts)
+                return -1;
+        }
+        for (i = 0; i < src->num_expr_stmts; i++) {
+            if (dst->num_expr_stmts >= MAX_EXPR_STMTS)
+                return -1;
+            dst->expr_stmts[dst->num_expr_stmts++] = src->expr_stmts[i];
+        }
+    }
+    base_loop = dst->num_loops;
+    if (src->num_loops > 0) {
+        ASTWhileLoop *new_loops;
+        int new_n = dst->num_loops + src->num_loops;
+        new_loops = (ASTWhileLoop *)realloc(dst->loops, (size_t)new_n * sizeof(ASTWhileLoop));
+        if (!new_loops)
+            return -1;
+        dst->loops = new_loops;
+        for (i = 0; i < src->num_loops; i++)
+            dst->loops[dst->num_loops + i] = src->loops[i];
+        dst->num_loops = new_n;
+    }
+    base_for = dst->num_for_loops;
+    if (src->num_for_loops > 0) {
+        ASTForLoop *new_fors;
+        int new_n = dst->num_for_loops + src->num_for_loops;
+        new_fors = (ASTForLoop *)realloc(dst->for_loops, (size_t)new_n * sizeof(ASTForLoop));
+        if (!new_fors)
+            return -1;
+        dst->for_loops = new_fors;
+        for (i = 0; i < src->num_for_loops; i++)
+            dst->for_loops[dst->num_for_loops + i] = src->for_loops[i];
+        dst->num_for_loops = new_n;
+    }
+    base_region = dst->num_regions;
+    if (src->num_regions > 0) {
+        ASTRegionBlock *new_regs;
+        int new_n = dst->num_regions + src->num_regions;
+        new_regs = (ASTRegionBlock *)realloc(dst->regions, (size_t)new_n * sizeof(ASTRegionBlock));
+        if (!new_regs)
+            return -1;
+        dst->regions = new_regs;
+        for (i = 0; i < src->num_regions; i++)
+            dst->regions[dst->num_regions + i] = src->regions[i];
+        dst->num_regions = new_n;
+    }
+    if (src->final_expr) {
+        if (!dst->final_expr)
+            dst->final_expr = src->final_expr;
+        else {
+            if (!dst->expr_stmts) {
+                dst->expr_stmts = (ASTExpr **)malloc((size_t)MAX_EXPR_STMTS * sizeof(ASTExpr *));
+                if (!dst->expr_stmts)
+                    return -1;
+            }
+            if (dst->num_expr_stmts >= MAX_EXPR_STMTS)
+                return -1;
+            dst->expr_stmts[dst->num_expr_stmts++] = dst->final_expr;
+            push_stmt_order(dst, 2, dst->num_expr_stmts - 1);
+            dst->final_expr = src->final_expr;
+        }
+    }
+    for (i = 0; i < src->num_stmt_order; i++) {
+        int k = (int)src->stmt_order[i].kind;
+        int idx = src->stmt_order[i].idx;
+        switch (k) {
+        case 0: idx += base_const; break;
+        case 1: idx += base_let; break;
+        case 2: idx += base_expr; break;
+        case 3: idx += base_loop; break;
+        case 4: idx += base_for; break;
+        case 5: idx += base_region; break;
+        default: break;
+        }
+        push_stmt_order(dst, k, idx);
+    }
+    src->num_consts = 0;
+    src->num_lets = 0;
+    src->num_expr_stmts = 0;
+    src->expr_stmts = NULL;
+    src->num_loops = 0;
+    src->loops = NULL;
+    src->num_for_loops = 0;
+    src->for_loops = NULL;
+    src->num_regions = 0;
+    src->regions = NULL;
+    src->final_expr = NULL;
+    src->num_stmt_order = 0;
+    return 0;
+}
+
+/**
  * 解析单条 const 或 let 并追加到块 b；当前 token 须为 TOKEN_CONST 或 TOKEN_LET。
  * 返回值：1 表示已解析并追加一条，0 表示当前不是 const/let，-1 表示失败并已 fail。
  */
@@ -3068,6 +3296,43 @@ static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace) {
 next_stmt:
             if (peek(p)->kind == TOKEN_RBRACE)
                 break;
+            /** B-02：函数体内 #[cfg] { ... }；不匹配 host 时跳过花括号块，匹配时扁平并入当前块。 */
+            if (peek(p)->kind == TOKEN_ATTR_CFG) {
+                int cfg_match = peek(p)->value.int_val != 0;
+                advance(p);
+                if (peek(p)->kind != TOKEN_LBRACE) {
+                    ast_block_free(b);
+                    fail(p, "expected '{' after #[cfg]");
+                    return NULL;
+                }
+                if (!cfg_match) {
+                    skip_balanced_tokens(p, TOKEN_LBRACE, TOKEN_RBRACE);
+                    goto next_stmt;
+                }
+                advance(p);
+                {
+                    ASTBlock *cb = parse_block(p, 1, 0);
+                    if (!cb) {
+                        ast_block_free(b);
+                        return NULL;
+                    }
+                    if (peek(p)->kind != TOKEN_RBRACE) {
+                        ast_block_free(cb);
+                        ast_block_free(b);
+                        fail(p, "expected '}' after #[cfg] block");
+                        return NULL;
+                    }
+                    advance(p);
+                    if (ast_block_flatten_into(b, cb) != 0) {
+                        ast_block_free(cb);
+                        ast_block_free(b);
+                        fail(p, "too many statements in #[cfg] block");
+                        return NULL;
+                    }
+                    ast_block_free(cb);
+                    goto next_stmt;
+                }
+            }
             {
                 int r = parse_one_const_or_let(p, b);
                 if (r == 1) {
@@ -3079,6 +3344,9 @@ next_stmt:
             if (allow_while && (peek(p)->kind == TOKEN_WHILE || peek(p)->kind == TOKEN_LOOP)) goto parse_while_start;
             if (allow_while && peek(p)->kind == TOKEN_FOR) goto parse_for_start;
             if (peek(p)->kind == TOKEN_REGION) goto parse_region_start;
+            if (peek(p)->kind == TOKEN_IDENT && parser_token_is_unsafe_keyword(peek(p))
+                && peek_next(p)->kind == TOKEN_LBRACE)
+                goto parse_unsafe_start;
             if (peek(p)->kind == TOKEN_DEFER) goto parse_defer_start;
             if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON) goto parse_label_start;
             ASTExpr *e = parse_expr(p);
@@ -3515,6 +3783,55 @@ parse_region_start:
         }
         b->regions[b->num_regions].label = label;
         b->regions[b->num_regions].body = rb;
+        b->regions[b->num_regions].is_unsafe = 0;
+        b->num_regions++;
+        push_stmt_order(b, 5, b->num_regions - 1);
+    }
+    goto next_stmt;
+    /* LANG-007 v2：unsafe { body }；运行时等价嵌套块，typeck 跟踪 unsafe 深度 */
+parse_unsafe_start:
+    if (b->num_regions >= MAX_REGION_BLOCKS) {
+        fail(p, "too many region blocks");
+        ast_block_free(b);
+        return NULL;
+    }
+    advance(p); /* consume 'unsafe' */
+    if (peek(p)->kind != TOKEN_LBRACE) {
+        ast_block_free(b);
+        fail(p, "expected '{' after unsafe");
+        return NULL;
+    }
+    advance(p);
+    {
+        ASTBlock *ub = parse_block(p, 1, 0);
+        if (!ub) {
+            ast_block_free(b);
+            return NULL;
+        }
+        if (peek(p)->kind != TOKEN_RBRACE) {
+            ast_block_free(ub);
+            ast_block_free(b);
+            fail(p, "expected '}' after unsafe body");
+            return NULL;
+        }
+        advance(p);
+        if (fail_if_semicolon_after_brace(p) != 0) {
+            ast_block_free(ub);
+            ast_block_free(b);
+            return NULL;
+        }
+        if (!b->regions) {
+            b->regions = (ASTRegionBlock *)malloc((size_t)MAX_REGION_BLOCKS * sizeof(ASTRegionBlock));
+            if (!b->regions) {
+                ast_block_free(ub);
+                ast_block_free(b);
+                fprintf(stderr, "parse: out of memory\n");
+                return NULL;
+            }
+        }
+        b->regions[b->num_regions].label = NULL;
+        b->regions[b->num_regions].body = ub;
+        b->regions[b->num_regions].is_unsafe = 1;
         b->num_regions++;
         push_stmt_order(b, 5, b->num_regions - 1);
     }
@@ -3736,6 +4053,11 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
     } else if (peek(p)->kind == TOKEN_SPAWN) {
         /* std.process 的 function spawn(...) 与 async spawn 关键字同名；声明位置允许作函数名 */
         name = strdup("spawn");
+        name_line = peek(p)->line;
+        name_col = peek(p)->col;
+    } else if (peek(p)->kind == TOKEN_MATCH) {
+        /* std.regex 的 function match(...) 与 match 关键字同名；声明位置允许作函数名 */
+        name = strdup("match");
         name_line = peek(p)->line;
         name_col = peek(p)->col;
     } else {
@@ -4364,7 +4686,7 @@ int parse(Lexer *lex, ASTModule **out) {
     while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
            || peek(&prs)->kind == TOKEN_ATTR_SOA || peek(&prs)->kind == TOKEN_ATTR_CFG
-           || peek(&prs)->kind == TOKEN_ATTR_REPR_C
+           || peek(&prs)->kind == TOKEN_ATTR_REPR_C || peek(&prs)->kind == TOKEN_ATTR_ALLOC
            || peek(&prs)->kind == TOKEN_LET || peek(&prs)->kind == TOKEN_CONST
            || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5))) {
         /* 顶层 let：与 function/struct/enum 同级，可任意顺序出现 */
@@ -4507,6 +4829,11 @@ int parse(Lexer *lex, ASTModule **out) {
         if (peek(&prs)->kind == TOKEN_ATTR_REPR_C) {
             advance(&prs);
             pending_repr_c = 1;
+            continue;
+        }
+        /** MEM-C1：`#[alloc]` 属性；下一 function 为 Allocator 自动注入 API，解析层仅跳过。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_ALLOC) {
+            advance(&prs);
             continue;
         }
         if (pending_cfg_skip) {

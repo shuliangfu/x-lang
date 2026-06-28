@@ -17,7 +17,7 @@ function main(): i32 {
   if (owned.body.len != 4) { return 4; }
   http.response_owned_free(&owned);
 
-  http.http2_push_last_reset();
+  http.push_last_reset();
   let push_body: HttpBodyOwned = HttpBodyOwned { ptr: 0, len: 0 };
   let meta: Http2PushLast = Http2PushLast { promised_stream_id: 0, body_len: 0 };
   if (http.push_last_body_owned(&meta, &push_body) != 0) { return 5; }

@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_COMPRESS_STREAM_DOC:-analysis/std-compress-stream-v1.md}"
 MANIFEST="${SHUX_STD_COMPRESS_STREAM_TSV:-tests/baseline/std-compress-stream.tsv}"
 MOD_SX="std/compress/mod.sx"
-COMPRESS_C="std/compress/gzip/gzip_libz.sx"
+COMPRESS_C="std/compress/gzip/libz.sx"
 LIB="tests/lib/std-compress-stream.sh"
 STREAM_SX="tests/std-compress/gzip_stream_roundtrip.sx"
 MIN_APIS=6

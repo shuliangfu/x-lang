@@ -1,7 +1,7 @@
 # LANG-007 unsafe 语法与边界 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 状态：**定版（v1）**；**v2 语法与 typeck 已落地**（gate ✅ #88，2026-06-28）  
 > 关联：`TYPE-002`（region）、`EXC-002`（panic 边界）、`SAFE-001`（M-1~M-6）
 
 ---
@@ -100,11 +100,12 @@ extern function putchar(c: i32): i32;
 | **内存** | 传入 `*u8` + len 时，缓冲区生命周期由调用方保证 |
 | **panic** | C 侧 UB 不自动收窄；**边界外行为未定义** |
 
-### 3.5 U4：`unsafe` 关键字（v1 保留）
+### 3.5 U4：`unsafe` 关键字（v2 已落地）
 
 - lexer / parser **已保留** `unsafe` 为关键字。
-- **v1 无** `unsafe fn` / `unsafe { }` 语法；不得用于绕过 S0 检查。
-- v2 计划：`unsafe` 块包裹 U2 解引用、FFI 原始内存操作等（待 RFC 修订）。
+- **v2**：`unsafe { ... }` 块语法已落地（C 前端 `parser.c` + sx 路径）；块内允许 U2 `*T` 解引用与 U3 `extern` 调用。
+- **v1 历史**：v1 无 `unsafe fn` / `unsafe { }`；S0 内裸解引用/裸 `extern` 由 typeck **硬拒**（`run-lang-unsafe-gate.sh` U4 case）。
+- **未闭合**：~~`std/ffi`、`std/sys` 包裹~~ ✅（#89）；bstrict 业务层 / release CI → G-FFI-5 尾声。
 
 ---
 
@@ -116,7 +117,7 @@ extern function putchar(c: i32): i32;
 └─ 否 → 显式 padding 字段或 packed struct
 
 需要地址算术 / null？
-├─ 是 → U2 *T（v1 全文件责任；v2 进 unsafe 块）
+├─ 是 → U2 *T（须在 `unsafe { }` 内解引用；S0 硬拒）
 └─ 否 → slice / 值类型
 
 需要调用 C 函数？
@@ -147,6 +148,7 @@ extern function putchar(c: i32): i32;
 | U1 reject | `tests/unsafe/padding_rejected.sx`（compile fail） |
 | U2 null ptr | `tests/unsafe/raw_ptr_null.sx` |
 | U3 extern | `tests/unsafe/extern_putchar.sx` |
+| U4 unsafe block | `tests/unsafe/` U4 正/负例（S0 拒 / unsafe 内允许） |
 | S0 bounds | hook `run-ub.sh` |
 | S0 region | hook `run-typeck-region.sh` |
 | U1 regression | hook `run-struct.sh` |
@@ -159,7 +161,7 @@ extern function putchar(c: i32): i32;
 ## 7. 变更流程（v1）
 
 1. 新增 U1~U3 构造 → 更新本文 + 增烟测 + SAFE-003 审计（上线后）
-2. 启用 `unsafe { }` → major bump + 新 RFC 节
+2. ~~启用 `unsafe { }`~~ → **已完成（v2 #88）**；后续语义变更仍须 major bump + RFC 修订
 3. 从 S0 移除检查 → **禁止**（须新 unsafe 模式编号）
 
 ---
@@ -173,4 +175,4 @@ extern function putchar(c: i32): i32;
 | 指针烟测 | `tests/run-pointer.sh` |
 | FFI | `tests/ffi/`、`tests/run-ffi.sh`（若有） |
 
-**LANG-007 状态：定版 ✅**
+**LANG-007 状态：v1 定版 ✅；v2 gate ✅（#88）；G-FFI-5（std 包裹 / release CI）未闭合**

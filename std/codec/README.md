@@ -7,8 +7,8 @@
 | 层级 | API | 说明 |
 |------|-----|------|
 | L1 块 | `encoder_encode` / `decoder_decode` | 写入调用方 `out`，无隐式分配 |
-| L2 Bytes | `encode_into_bytes` / `decode_from_bytes` | `bytes_clear` 保留 cap + `bytes_grow` |
-| L3 流 | `stream_codec_process` | 调用方提供 `state` 与分块 `out` |
+| L2 Bytes | `encode_into_bytes` / `decode_from_bytes` | `bytes.clear` 保留 cap + `bytes.grow` |
+| L3 流 | `codec_process` | 调用方提供 `state` 与分块 `out` |
 
 策略全文：`analysis/std-codec-buffer-reuse-v1.md`；`std.bytes` 侧见 `analysis/std-bytes-v1.md` §4。
 

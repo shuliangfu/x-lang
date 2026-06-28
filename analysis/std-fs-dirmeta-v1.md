@@ -23,14 +23,14 @@
 
 | API | 说明 |
 |-----|------|
-| `FsStat` | size/mode/is_dir/is_file/mtime_sec |
-| `fs_stat` | 路径 stat；成功 0 |
-| `fs_chmod` | 修改权限；成功 0 |
-| `fs_mkdir` | 创建目录；mode 如 `fs_mode_dir_default()` |
-| `fs_unlink` / `fs_rmdir` | 删文件 / 空目录 |
-| `fs_dir_open` / `fs_dir_read` / `fs_dir_close` | 目录遍历；read 返回 1/0/-1 |
+| `FsStatOut` | size/mode/is_dir/is_file/mtime_sec |
+| `stat` | 路径 stat；成功 0 |
+| `chmod` | 修改权限；成功 0 |
+| `mkdir` | 创建目录；mode 如 `mode_dir_default()` |
+| `remove_file` / `remove_dir` | 删文件 / 空目录 |
+| `dir_open` / `dir_read` / `dir_close` | 目录遍历；read 返回 1/0/-1 |
 
-**权限常量**：`fs_mode_file_default()` = 0644；`fs_mode_dir_default()` = 0755。
+**权限常量**：`mode_file_default()` = 0644；`mode_dir_default()` = 0755。
 
 v1 **不含**递归删除、watch、扩展属性；Windows chmod 为 `_chmod` 子集。
 

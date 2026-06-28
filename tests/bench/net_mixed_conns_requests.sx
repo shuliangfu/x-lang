@@ -55,7 +55,7 @@ function bench_p99_us(lat: *i64, n: i32): i64 {
 /** 写 512B（单段 batch）。 */
 function mixed_write_512(stream: TcpStream, buf: *u8): i32 {
   let need: i32 = 512;
-  let nw: i32 = net.stream_write_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
+  let nw: i32 = net.write_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
   if (nw != need) { return -1; }
   return nw;
 }
@@ -63,7 +63,7 @@ function mixed_write_512(stream: TcpStream, buf: *u8): i32 {
 /** 读 512B（单段 batch）。 */
 function mixed_read_512(stream: TcpStream, buf: *u8): i32 {
   let need: i32 = 512;
-  let nr: i32 = net.stream_read_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
+  let nr: i32 = net.read_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
   if (nr != need) { return -1; }
   return nr;
 }

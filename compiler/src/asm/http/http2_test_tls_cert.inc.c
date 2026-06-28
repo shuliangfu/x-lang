@@ -1,7 +1,7 @@
 /**
- * std/http/http2_test_tls_cert.inc.c — HTTP/2 TLS server 烟测用自签 PEM（localhost）
+ * std/http/test_tls_cert.inc.c — HTTP/2 TLS server 烟测用自签 PEM（localhost）
  *
- * 由 http2_server.inc.c #include；仅测试环境使用。
+ * 由 server.inc.c #include；仅测试环境使用。
  */
 
 static const char g_http2_test_tls_cert_pem[] =

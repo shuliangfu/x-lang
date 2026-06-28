@@ -1,0 +1,50 @@
+Shux — a systems programming language and toolchain
+Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+
+SPDX-FileCopyrightText: 2026 Shuliang Fu <admin@shuliangfu.com>
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+This product includes software developed as part of the Shux project
+<https://github.com/shuliangfu/shux>.
+
+Unless otherwise noted, files in this repository are licensed under the
+GNU Affero General Public License version 3 or later (AGPL-3.0-or-later).
+The complete license text is in the LICENSE file at the repository root.
+
+Recommended .sx source file header
+----------------------------------
+Attach the following block at the top of each .sx source file, before any
+module-specific description comments:
+
+    // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+    // SPDX-License-Identifier: AGPL-3.0-or-later
+    //
+    // This program is free software: you can redistribute it and/or modify
+    // it under the terms of the GNU Affero General Public License as published by
+    // the Free Software Foundation, either version 3 of the License, or
+    // (at your option) any later version.
+    //
+    // This program is distributed in the hope that it will be useful,
+    // but WITHOUT ANY WARRANTY; without even the implied warranty of
+    // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    // GNU Affero General Public License for more details.
+    //
+    // You should have received a copy of the GNU Affero General Public License
+    // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+For the FSF canonical template, see "How to Apply These Terms to Your New
+Programs" at the end of LICENSE.
+
+Third-Party Notices
+===================
+
+The following third-party components are included in or distributed with
+this project under licenses other than AGPL-3.0-or-later:
+
+  (none)
+
+Contact
+=======
+
+  Shuliang Fu <admin@shuliangfu.com>
+  https://github.com/shuliangfu/shux

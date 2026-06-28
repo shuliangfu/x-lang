@@ -115,6 +115,7 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-053: .sx smoke (SHUX=$SHUX_BIN) ==="
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
   if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-log-multi-sink gate FAIL: typeck $SMOKE_SX" >&2
     "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true

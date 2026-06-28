@@ -6,7 +6,7 @@ api_doc	section	## 2. API	analysis/std-config-yaml-v1.md
 verify	section	## 3. Gate	analysis/std-config-yaml-v1.md
 api_yaml_buf	api	load_yaml_buf	std/config/mod.sx	内存加载
 api_yaml_file	api	load_yaml_file	std/config/mod.sx	文件加载
-api_backend	api	config_backend_yaml	std/config/mod.sx	后端标识
+api_backend	api	backend_yaml	std/config/mod.sx	后端标识
 api_smoke	api	yaml_smoke	std/config/mod.sx	烟测
 symbol_c	symbol	config_load_yaml_buf_c	std/config/config.sx	C 实现
 symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.sx	C 烟测

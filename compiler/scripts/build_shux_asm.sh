@@ -3037,15 +3037,9 @@ asm_seed_sx_frontend_o_ready() {
   return 0
 }
 
-# E-06 v2：SKIP_GEN + SX 前端 .o 就绪时 experimental / strict 链不 cc -c / 不链 asm_driver_seed 前端 C TU。
+# E-06 v4：SX 前端 .o 就绪时 experimental / strict 链不 cc -c / 不链 asm_driver_seed 前端 C TU（与 omit 一致）。
 asm_seed_use_sx_frontend() {
-  if [ -n "${SHUX_LEGACY_SEED_FRONTEND_CC:-}" ]; then
-    return 1
-  fi
-  if [ -z "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-    return 1
-  fi
-  asm_seed_sx_frontend_o_ready
+  asm_seed_omit_c_frontend_seed
 }
 
 # E-06 v4：gen_driver / ensure_asm_driver_seed — SX 就绪即 omit C 前端 seed（不要求 SKIP_GEN）。
@@ -3678,6 +3672,14 @@ bootstrap_ensure_entry_objs() {
 # 仅重链 shux_asm（runtime/bootstrap/crt0 对象更新后）；不跑 build_asm 全量 -backend asm 循环。
 # 用法：SHUX_ASM_BSTRICT_RELINK_ONLY=1 ./scripts/build_shux_asm.sh
 #       或 ./scripts/relink_shux_asm_bstrict_runtime_objs.sh
+#
+# strict 重链成功后同步 shux_asm_stage1（C5/C6 gate 与 gen2 读 stage1 副本）。
+shux_asm_sync_stage1_from_strict() {
+  if [ -f ./shux_asm ] && [ -x ./shux_asm ]; then
+    cp -f ./shux_asm ./shux_asm_stage1 2>/dev/null || true
+  fi
+}
+
 shux_asm_bstrict_relink_runtime_only() {
   local ST_RC=0
   local ST_GLUE_OBJ ST_WPO_ALIAS ST_PARSER_LINK ST_BRIDGE_OBJ ST_DRIVER_CLI_OBJS
@@ -3831,6 +3833,7 @@ shux_asm_bstrict_relink_runtime_only() {
     fi
     echo "build_shux_asm: strict shux_asm smoke passed (runtime-only relink)."
   fi
+  shux_asm_sync_stage1_from_strict
 }
 
 if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ]; then
@@ -4545,6 +4548,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   else
                     rm -f "$BUILD_DIR/.strict_smoke_experimental_fallback" 2>/dev/null || true
                     echo "build_shux_asm: strict shux_asm smoke passed."
+                    shux_asm_sync_stage1_from_strict
                   fi
                 fi
                 # strict 链成功后：用新链 ./shux_asm 重编 WPO 压缩 .o（ast_pool+ulimit；main EH=0 ~656B）。

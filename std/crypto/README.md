@@ -1,12 +1,12 @@
 # std.crypto — 常量时间比较、哈希、HMAC、AEAD、Ed25519
 
-**路径**：`std/crypto/`（mod.sx + crypto_core.sx + aes_gcm.sx + chacha20_poly1305.sx + ed25519.sx）  
+**路径**：`std/crypto/`（mod.sx + core.sx + aes_gcm.sx + chacha20_poly1305.sx + ed25519.sx）  
 **依赖**：core。**性能**：restrict、热路径标注，对标 Zig std.crypto。
 
 | API | 说明 |
 |-----|------|
 | `mem_eq(a, b, len): i32` | 常量时间比较，相等 1 |
-| `sha256(msg, len, out): void` | 输出 32 字节（crypto_core.sx） |
+| `sha256(msg, len, out): void` | 输出 32 字节（core.sx） |
 | `sha512(msg, len, out): void` | 输出 64 字节（runtime glue + ref10/sha512.c） |
 | `hmac_sha256(...)` | HMAC-SHA256，out 32 字节 |
 | `ed25519_public_from_seed` / `ed25519_sign` / `ed25519_verify` | Ed25519（ed25519.sx + runtime ref10 胶层） |

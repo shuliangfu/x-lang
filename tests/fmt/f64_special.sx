@@ -23,41 +23,41 @@ function main(): i32 {
   // NaN：0.0 / 0.0
   let z: f64 = 0.0;
   let nan_v: f64 = z / z;
-  let n_nan: i32 = fmt.fmt_f64_to_buf(buf, 16, nan_v);
+  let n_nan: i32 = fmt.to_buf(buf, 16, nan_v);
   if (n_nan != 3) { return 1; }
   if (!expect_bytes(buf, 3, 78, 97, 110, 0, 0, 0, 0, 0)) { return 2; }
 
   // +Inf：1e200 * 1e200 溢出
   let huge: f64 = 1e200;
   let inf_p: f64 = huge * huge;
-  let n_inf: i32 = fmt.fmt_f64_to_buf(buf, 16, inf_p);
+  let n_inf: i32 = fmt.to_buf(buf, 16, inf_p);
   if (n_inf != 3) { return 3; }
   if (!expect_bytes(buf, 3, 73, 110, 102, 0, 0, 0, 0, 0)) { return 4; }
 
   // -Inf
   let inf_n: f64 = 0.0 - inf_p;
-  let n_ninf: i32 = fmt.fmt_f64_to_buf(buf, 16, inf_n);
+  let n_ninf: i32 = fmt.to_buf(buf, 16, inf_n);
   if (n_ninf != 4) { return 5; }
   if (!expect_bytes(buf, 4, 45, 73, 110, 102, 0, 0, 0, 0)) { return 6; }
 
   // prec=2：3.14159 → "3.14"
   let pi: f64 = 3.14159;
-  let n_prec2: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 2);
+  let n_prec2: i32 = fmt.to_buf_prec(buf, 16, pi, 2);
   if (n_prec2 != 4) { return 7; }
   if (!expect_bytes(buf, 4, 51, 46, 49, 52, 0, 0, 0, 0)) { return 8; }
 
   // prec=0：仅整数部分
-  let n_prec0: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 0);
+  let n_prec0: i32 = fmt.to_buf_prec(buf, 16, pi, 0);
   if (n_prec0 != 1) { return 9; }
   if (buf[0] != 51) { return 10; }
 
   // 非法 prec
-  let bad: i32 = fmt.fmt_f64_to_buf_prec(buf, 16, pi, 10);
+  let bad: i32 = fmt.to_buf_prec(buf, 16, pi, 10);
   if (bad != -1) { return 11; }
 
   // 默认 6 位：1.5 → "1.500000"
   let one_half: f64 = 1.5;
-  let n_def: i32 = fmt.fmt_f64_to_buf(buf, 16, one_half);
+  let n_def: i32 = fmt.to_buf(buf, 16, one_half);
   if (n_def != 8) { return 12; }
   if (!expect_bytes(buf, 8, 49, 46, 53, 48, 48, 48, 48, 48)) { return 13; }
 

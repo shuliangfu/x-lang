@@ -1,8 +1,8 @@
 /**
- * std/http/http2_frame_capped.inc.c — MAX_FRAME_SIZE 帧 payload 限制（RFC 7540 §4.2；STD-HTTP-H2-v23）
+ * std/http/frame_capped.inc.c — MAX_FRAME_SIZE 帧 payload 限制（RFC 7540 §4.2；STD-HTTP-H2-v23）
  *
  * 【文件职责】按 SETTINGS MAX_FRAME_SIZE 计算单帧 payload 上限与分片数量。
- * 由 http2_client.inc.c 末尾 #include。
+ * 由 client.inc.c 末尾 #include。
  */
 
 /** 返回有效单帧 payload 上限（RFC 7540 最小 16384）。 */

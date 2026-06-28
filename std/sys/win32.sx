@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.sys.win32 — Windows kernel32 I/O 门面（B-17 v1～v3 / F-02 v2 纯 .sx FFI）
 //
 // 【文件职责】
@@ -59,7 +75,10 @@ function win32_write_available(): i32 {
  * GetStdHandle 薄封装；失败 INVALID_HANDLE_VALUE → null。
  */
 function win32_get_std_handle(n: i32): *u8 {
-  let h: *u8 = GetStdHandle(n);
+  let h: *u8 = 0;
+  unsafe {
+    h = GetStdHandle(n);
+  }
   let h_i: i64 = h as i64;
   if (h == 0 || h_i == WIN32_INVALID_HANDLE) {
     return 0;
@@ -77,7 +96,11 @@ function win32_write_file(handle: *u8, buf: *u8, len: i32, written_out: *u32): i
   }
   let written: u32 = 0;
   let len_u: u32 = len as u32;
-  if (WriteFile(handle, buf, len_u, &written, 0 as *u8) == 0) {
+  let ok: i32 = 0;
+  unsafe {
+    ok = WriteFile(handle, buf, len_u, &written, 0 as *u8);
+  }
+  if (ok == 0) {
     return -1;
   }
   if (written_out != 0) {
@@ -145,8 +168,11 @@ function win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
     return -1;
   }
-  let h: *u8 = CreateFileA(path, WIN32_GENERIC_READ, WIN32_FILE_SHARE_READ, 0 as *u8,
-    WIN32_OPEN_EXISTING, WIN32_FILE_ATTRIBUTE_NORMAL, 0 as *u8);
+  let h: *u8 = 0;
+  unsafe {
+    h = CreateFileA(path, WIN32_GENERIC_READ, WIN32_FILE_SHARE_READ, 0 as *u8,
+      WIN32_OPEN_EXISTING, WIN32_FILE_ATTRIBUTE_NORMAL, 0 as *u8);
+  }
   let h_i: i64 = h as i64;
   if (h_i == WIN32_INVALID_HANDLE || h_i <= 0) {
     return -1;
@@ -156,8 +182,14 @@ function win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32 {
     let chunk: u32 = (cap - total) as u32;
     let nr: u32 = 0;
     let dst: *u8 = (buf as *u8) + total;
-    if (ReadFile(h, dst, chunk, &nr, 0 as *u8) == 0) {
-      CloseHandle(h);
+    let rf_ok: i32 = 0;
+    unsafe {
+      rf_ok = ReadFile(h, dst, chunk, &nr, 0 as *u8);
+    }
+    if (rf_ok == 0) {
+      unsafe {
+        CloseHandle(h);
+      }
       return -1;
     }
     if (nr == 0) {
@@ -165,7 +197,9 @@ function win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32 {
     }
     total = total + (nr as i32);
   }
-  CloseHandle(h);
+  unsafe {
+    CloseHandle(h);
+  }
   return total;
 }
 
@@ -192,5 +226,7 @@ function win32_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
  */
 function win32_exit_process(code: i32): void {
   let c: u32 = code as u32;
-  ExitProcess(c);
+  unsafe {
+    ExitProcess(c);
+  }
 }

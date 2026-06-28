@@ -28,7 +28,7 @@
         ↓ 链接
   std/async/scheduler.c
         ↓ 门面
-  import("std.async")  →  scheduler_reset / drain_until_idle / coop_pingpong
+  import("std.async")  →  scheduler_reset / drain_idle / coop_pingpong
 ```
 
 | 语言构造 | codegen / 运行时 | std.async 门面 |
@@ -37,7 +37,7 @@
 | `await expr` | `shu_async_cps_suspend` | `SHUX_ASYNC_SUSPENDED` |
 | `await read(...)` 等 | `shu_async_cps_suspend_io` + IO 槽 | `wait_completion` |
 | `run async_fn(args)` | seed 队列 + `shu_async_run_i32` | `scheduler_reset`（批次前） |
-| `spawn async_fn(args)` | seed + `shu_async_task_submit` | `drain_until_idle` |
+| `spawn async_fn(args)` | seed + `shu_async_task_submit` | `drain_idle` |
 | `import("std.async")` | runtime `nm -u` 按需链入 `scheduler.o` | 模块符号 |
 
 ---
@@ -47,7 +47,7 @@
 | API | 说明 |
 |-----|------|
 | `scheduler_reset()` | `shu_async_run_seed_reset` + `shu_async_queue_reset` |
-| `drain_until_idle()` | `shu_async_run_drain_until_idle`（spawn 后批量完成） |
+| `drain_idle()` | `shu_async_run_drain_until_idle`（spawn 后批量完成） |
 
 **extern 重声明注意**：含 `run`/`spawn` 的 `.sx` 与 `import("std.async")` **同文件**时，codegen 会 emit `int32_t (*)(void)` 形参的 `shu_async_run_i32` 等，与 `mod.sx` 中 `*u8` extern **冲突**。v1 约定：
 

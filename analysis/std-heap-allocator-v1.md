@@ -8,7 +8,7 @@
 
 ## 1. 阅读路径
 
-15 分钟速览：`std/heap/mod.sx` 中 `Allocator` / `allocator_heap` / `allocator_from_arena`，以及 `std/vec/mod.sx` 中 `vec_u8_with_allocator`。
+15 分钟速览：`std/heap/mod.sx` 中 `Allocator` / `heap_alloc` / `from_arena`，以及 `std/vec/mod.sx` 中 `vec_u8_with_allocator`。
 
 ---
 
@@ -16,12 +16,12 @@
 
 | API | 说明 |
 |-----|------|
-| `allocator_kind_heap()` | 堆 kind 常量（0） |
-| `allocator_heap()` | 默认 libc 堆分配器 |
-| `allocator_from_arena(a)` | 将 `Arena64` 包装为 bump 分配器 |
-| `allocator_alloc(al, size)` | 分配；失败 null |
-| `allocator_free(al, ptr)` | 释放；arena 为 no-op |
-| `allocator_realloc(al, ptr, new_size)` | 仅堆支持；arena 返回 null |
+| `kind_heap()` | 堆 kind 常量（0） |
+| `heap_alloc()` | 默认 libc 堆分配器 |
+| `from_arena(a)` | 将 `Arena64` 包装为 bump 分配器 |
+| `alloc(al, size)` | 分配；失败 null |
+| `free(al, ptr)` | 释放；arena 为 no-op |
+| `realloc(al, ptr, new_size)` | 仅堆支持；arena 返回 null |
 
 ---
 

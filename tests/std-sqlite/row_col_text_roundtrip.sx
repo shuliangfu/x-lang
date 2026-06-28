@@ -115,7 +115,7 @@ function main(): i32 {
     return 5;
   }
   st = sqlite.next_row(cur);
-  if (st != DB_ROW_OK) {
+  if (st != sqlite.DB_ROW_OK) {
     sqlite.query_end(cur);
     sqlite.close(c);
     return 6;
@@ -132,7 +132,7 @@ function main(): i32 {
     return 8;
   }
   st = sqlite.next_row(cur);
-  if (st != DB_ROW_OK) {
+  if (st != sqlite.DB_ROW_OK) {
     sqlite.query_end(cur);
     sqlite.close(c);
     return 9;
@@ -149,7 +149,7 @@ function main(): i32 {
     return 11;
   }
   st = sqlite.next_row(cur);
-  if (st != DB_ROW_DONE) {
+  if (st != sqlite.DB_ROW_DONE) {
     sqlite.query_end(cur);
     sqlite.close(c);
     return 12;

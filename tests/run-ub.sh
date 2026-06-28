@@ -15,7 +15,7 @@ if [ "$SHUX" = "./compiler/shux" ] || [ "$SHUX" = "compiler/shux" ]; then
   fi
 fi
 run_panic() {
-    "$LINK_SHUX" "$1" -o /tmp/ub_test 2>/dev/null || exit 1
+    "$LINK_SHUX" -backend c "$1" -o /tmp/ub_test 2>/dev/null || exit 1
     set +e; { ( /tmp/ub_test 2>/dev/null ) 2>/dev/null; r=$?; } 2>/dev/null; set -e
     if [ "$r" -eq 134 ] || [ "$r" -ne 0 ]; then
         echo "  $1: panic/abort (expected)"
@@ -24,7 +24,7 @@ run_panic() {
     fi
 }
 run_ok() {
-    "$LINK_SHUX" "$1" -o /tmp/ub_ok 2>/dev/null || exit 1
+    "$LINK_SHUX" -backend c "$1" -o /tmp/ub_ok 2>/dev/null || exit 1
     set +e; /tmp/ub_ok 2>/dev/null; r=$?; set -e
     echo "  $1: exit $r"
 }

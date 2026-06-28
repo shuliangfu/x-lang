@@ -10,8 +10,8 @@ function main(): i32 {
   };
   let run: u8[3] = [114, 117, 110];
   let ec: i32 = cli.parse_from_iter(&it, &run[0], 3, &res);
-  if (ec == cli.cli_err_help()) { return 0; }
-  if (ec != cli.cli_err_ok()) { return 1; }
+  if (ec == cli.err_help()) { return 0; }
+  if (ec != cli.err_ok()) { return 1; }
   if (env.args_iter_count() >= 2) {
     if (res.subcommand_len == 0 && res.positional_count == 0 && res.verbose == 0) {
       return 0;

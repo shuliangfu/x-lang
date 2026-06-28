@@ -12,12 +12,12 @@
 | compress 族 | 已完成（独立 F-04 v4～v7） | — |
 | OpenSSL TLS | `tls_openssl.sx` | v8 |
 | mbedTLS TLS | `tls_mbedtls.sx` + `tls_mbedtls_bio.c` | v9 |
-| DNS / ALPN | `net_dns.sx` + `net_alpn.sx` | v10 |
-| addr / IPv6 / io batch | `net_addr.sx` + `net_ipv6.sx` + `net_io_batch.sx` | v11 |
-| sock / UDP 基础 | `net_sock.sx` + `net_udp.sx` | v12 |
-| IPv4 TCP | `net_tcp.sx` | v13 |
-| UDP batch | `net_udp_batch.sx` + `runtime_net_udp_batch.c` | v13b / F-ZC |
-| accept workers | `net_workers.sx` + `runtime_net_workers.c` | v14 / F-ZC |
+| DNS / ALPN | `dns.sx` + `alpn.sx` | v10 |
+| addr / IPv6 / io batch | `addr.sx` + `ipv6.sx` + `io_batch.sx` | v11 |
+| sock / UDP 基础 | `sock.sx` + `udp.sx` | v12 |
+| IPv4 TCP | `tcp.sx` | v13 |
+| UDP batch | `udp_batch.sx` + `runtime_net_udp_batch.c` | v13b / F-ZC |
+| accept workers | `workers.sx` + `runtime_net_workers.c` | v14 / F-ZC |
 
 ## 仍允许的 C（胶层 only）
 

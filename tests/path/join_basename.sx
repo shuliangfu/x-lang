@@ -7,14 +7,14 @@ function main(): i32 {
   let file: u8[5] = [102, 105, 108, 101, 0];
   let out: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0];
-  let j: i32 = path.path_join(&out[0], 32, &dir[0], 3, &file[0], 4);
+  let j: i32 = path.join(&out[0], 32, &dir[0], 3, &file[0], 4);
   if (j != 8) { return 1; }
   let full_path: u8[9] = [100, 105, 114, 47, 102, 105, 108, 101, 0];
   let base: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let blen: i32 = path.path_basename(&full_path[0], 8, &base[0], 8);
+  let blen: i32 = path.basename(&full_path[0], 8, &base[0], 8);
   if (blen != 4) { return 3; }
   let dout: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let dlen: i32 = path.path_dirname(&full_path[0], 8, &dout[0], 8);
+  let dlen: i32 = path.dirname(&full_path[0], 8, &dout[0], 8);
   if (dlen != 3) { return 5; }
   return 0;
 }

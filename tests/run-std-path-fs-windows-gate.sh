@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$PATH_SX" "$PATH_TEST" "$FS_TEST"; do
   fi
 done
 
-for kw in path_is_sep path_is_absolute win_path_smoke path_sep_c; do
+for kw in is_sep is_absolute win_path_smoke sep; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-path-fs-windows gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -80,6 +80,20 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     std_pfw_emit_report "fail" 0 0 0
     exit 1
   fi
+  for sym in sep is_sep is_absolute join basename dirname; do
+    if ! grep -qE "function ${sym}\\(" "$PATH_SX" 2>/dev/null; then
+      echo "std-path-fs-windows gate FAIL: mod missing function ${sym}" >&2
+      std_pfw_emit_report "fail" 0 0 0
+      exit 1
+    fi
+  done
+  for call in path.is_absolute path.join path.basename; do
+    if ! grep -q "${call}" "$PATH_TEST" 2>/dev/null; then
+      echo "std-path-fs-windows gate FAIL: smoke missing ${call}" >&2
+      std_pfw_emit_report "fail" 0 0 0
+      exit 1
+    fi
+  done
   if "$SHUX_BIN" check -L . "$FS_TEST" >/dev/null 2>&1; then
     FS_OK=1
   else

@@ -1,8 +1,8 @@
 /**
- * std/http/http2_settings.inc.c — HTTP/2 SETTINGS 解析与对端协商（STD-HTTP-H2-v10）
+ * std/http/settings.inc.c — HTTP/2 SETTINGS 解析与对端协商（STD-HTTP-H2-v10）
  *
  * 【文件职责】SETTINGS payload 解析、对端参数应用、双条 SETTINGS 帧构建。
- * 由 http2.inc.c 末尾 #include（在 http2_flow.inc.c 之后）。
+ * 由 http2.inc.c 末尾 #include（在 flow.inc.c 之后）。
  */
 
 /** 对端 SETTINGS 未协商时的默认并发 stream 上限（本实现注册表 8 槽）。 */
@@ -37,10 +37,10 @@ typedef struct {
     int32_t max_frame_size;
     /** MAX_HEADER_LIST_SIZE；0=未设置（无限制）。 */
     int32_t max_header_list_size;
-} http2_peer_settings_t;
+} peer_settings_t;
 
 /** 初始化对端 SETTINGS（0 表示尚未收到，使用 RFC 默认）。 */
-void http2_peer_settings_init_c(http2_peer_settings_t *ps) {
+void http2_peer_settings_init_c(peer_settings_t *ps) {
     if (!ps)
         return;
     ps->max_concurrent_streams = 0;
@@ -88,7 +88,7 @@ int32_t http2_parse_settings_entry_c(const uint8_t *payload, int32_t plen, int32
 }
 
 /** 将单条 SETTINGS 应用到对端视图（RFC 7540 §6.5.2 已识别项）。 */
-void http2_peer_settings_apply_entry_c(http2_peer_settings_t *ps, int32_t setting_id,
+void http2_peer_settings_apply_entry_c(peer_settings_t *ps, int32_t setting_id,
                                        int32_t value) {
     if (!ps)
         return;
@@ -124,7 +124,7 @@ void http2_peer_settings_apply_entry_c(http2_peer_settings_t *ps, int32_t settin
 
 /** 解析完整 SETTINGS payload 并累加到 ps；成功 0，格式错 -1。 */
 int32_t http2_peer_settings_consume_payload_c(const uint8_t *payload, int32_t plen,
-                                              http2_peer_settings_t *ps) {
+                                              peer_settings_t *ps) {
     int32_t n;
     int32_t i;
     int32_t sid;
@@ -229,28 +229,28 @@ int32_t http2_setting_max_frame_size_c(void) { return HTTP2_SETTING_MAX_FRAME_SI
 int32_t http2_setting_max_header_list_size_c(void) { return HTTP2_SETTING_MAX_HEADER_LIST_SIZE; }
 
 /** 对端是否允许 server push（ENABLE_PUSH=0 时返回 0；未设置时 RFC 默认 1）。 */
-int32_t http2_peer_settings_enable_push_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_enable_push_c(const peer_settings_t *ps) {
     if (!ps)
         return 1;
     return ps->enable_push != 0 ? 1 : 0;
 }
 
 /** 有效 HEADER_TABLE_SIZE（未设置时 4096）。 */
-int32_t http2_peer_settings_header_table_size_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_header_table_size_c(const peer_settings_t *ps) {
     if (!ps || ps->header_table_size <= 0)
         return HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     return ps->header_table_size;
 }
 
 /** 有效 MAX_FRAME_SIZE（未设置时 16384）。 */
-int32_t http2_peer_settings_max_frame_size_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_max_frame_size_c(const peer_settings_t *ps) {
     if (!ps || ps->max_frame_size <= 0)
         return HTTP2_DEFAULT_MAX_FRAME_SIZE;
     return ps->max_frame_size;
 }
 
 /** 有效 MAX_HEADER_LIST_SIZE（未设置时 0=无限制）。 */
-int32_t http2_peer_settings_max_header_list_size_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_max_header_list_size_c(const peer_settings_t *ps) {
     if (!ps)
         return 0;
     return ps->max_header_list_size;
@@ -279,14 +279,14 @@ int32_t http2_build_server_settings_c(uint8_t *out, int32_t out_cap) {
 }
 
 /** 有效并发 stream 上限（0=未设置时用默认 100）。 */
-int32_t http2_peer_settings_max_streams_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_max_streams_c(const peer_settings_t *ps) {
     if (!ps || ps->max_concurrent_streams <= 0)
         return HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS;
     return ps->max_concurrent_streams;
 }
 
 /** 有效初始窗口（0=未设置时用 65535）。 */
-int32_t http2_peer_settings_initial_window_c(const http2_peer_settings_t *ps) {
+int32_t http2_peer_settings_initial_window_c(const peer_settings_t *ps) {
     if (!ps || ps->initial_window_size <= 0)
         return HTTP2_DEFAULT_INITIAL_WINDOW;
     return ps->initial_window_size;
@@ -295,7 +295,7 @@ int32_t http2_peer_settings_initial_window_c(const http2_peer_settings_t *ps) {
 /** SETTINGS 解析/构建 C 烟测；0 通过。 */
 int32_t http2_settings_smoke_c(void) {
     uint8_t frame[64];
-    http2_peer_settings_t ps;
+    peer_settings_t ps;
     int32_t sid;
     int32_t val;
     int32_t n;

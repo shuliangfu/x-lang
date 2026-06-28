@@ -1,23 +1,23 @@
 # STD-020 std.error 错误码映射与 last_error manifest
 # 列：item_id	kind	anchor	mod_path	src	notes
 min_modules	meta	8	-	-	-	8 modules
-lookup_code_base	symbol	error_code_to_module_base	std/error/mod.sx	std/error/mod.sx	码→base
-lookup_tag_base	symbol	error_mod_tag_from_base	std/error/mod.sx	std/error/mod.sx	base→tag
-lookup_base_tag	symbol	error_mod_base_from_tag	std/error/mod.sx	std/error/mod.sx	tag→base
-lookup_sidecar	symbol	error_module_sidecar_kind	std/error/mod.sx	std/error/mod.sx	侧车种类
-sidecar_none	symbol	error_sidecar_none	std/error/mod.sx	std/error/mod.sx	无侧车
-sidecar_errno	symbol	error_sidecar_errno_i32	std/error/mod.sx	std/error/mod.sx	errno i32
-sidecar_db	symbol	error_sidecar_db_struct	std/error/mod.sx	std/error/mod.sx	DbError
-mod_io	module	std.io	error_base_io	std/io/mod.sx	std/io/mod.sx	Layer C -1
-mod_fs	module	std.fs	error_base_fs	std/fs/mod.sx	std/fs/mod.sx	fs_last_error
-mod_net	module	std.net	error_base_net	std/net/mod.sx	std/net/mod.sx	无侧车 v1
-mod_async	module	std.async	error_base_async	std/async/mod.sx	std/async/mod.sx	占位
-mod_coll	module	coll/heap	error_base_coll	std/heap/mod.sx	std/heap/mod.sx	-1=alloc
+lookup_code_base	symbol	code_to_module_base	std/error/mod.sx	std/error/mod.sx	码→base
+lookup_tag_base	symbol	mod_tag_from_base	std/error/mod.sx	std/error/mod.sx	base→tag
+lookup_base_tag	symbol	mod_base_from_tag	std/error/mod.sx	std/error/mod.sx	tag→base
+lookup_sidecar	symbol	module_sidecar_kind	std/error/mod.sx	std/error/mod.sx	侧车种类
+sidecar_none	symbol	sidecar_none	std/error/mod.sx	std/error/mod.sx	无侧车
+sidecar_errno	symbol	sidecar_errno	std/error/mod.sx	std/error/mod.sx	errno i32
+sidecar_db	symbol	sidecar_db_struct	std/error/mod.sx	std/error/mod.sx	DbError
+mod_io	module	std.io	base_io	std/io/mod.sx	std/io/mod.sx	Layer C -1
+mod_fs	module	std.fs	base_fs	std/fs/mod.sx	std/fs/mod.sx	last_error
+mod_net	module	std.net	base_net	std/net/mod.sx	std/net/mod.sx	无侧车 v1
+mod_async	module	std.async	base_async	std/async/mod.sx	std/async/mod.sx	占位
+mod_coll	module	coll/heap	base_coll	std/heap/mod.sx	std/heap/mod.sx	-1=alloc
 mod_db	module	std.db.sqlite	-	std/db/sqlite/mod.sx	std/db/sqlite/mod.sx	last_error DbError
 mod_process	module	std.process	-	std/process/mod.sx	std/process/mod.sx	Layer C -1
 mod_http	module	std.http	-	std/http/mod.sx	std/http/mod.sx	Layer C -1
 mod_json	module	std.json	-	std/json/mod.sx	std/json/mod.sx	本地负码
-sidecar_fs	sidecar	fs_last_error	std/fs/mod.sx	std/fs/mod.sx	errno_i32
+sidecar_fs	sidecar	last_error	std/fs/mod.sx	std/fs/mod.sx	errno_i32
 sidecar_db	sidecar	last_error	std/db/sqlite/mod.sx	std/db/sqlite/mod.sx	db_struct
 test_smoke	file	error_map_smoke.sx	tests/std/error_map_smoke.sx	tests/std/error_map_smoke.sx	烟测
 doc	file	std-error-map-v1.md	analysis/std-error-map-v1.md	analysis/std-error-map-v1.md	RFC

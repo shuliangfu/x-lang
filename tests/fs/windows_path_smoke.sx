@@ -4,14 +4,14 @@ const fs = import("std.fs");
 
 /** 写入反斜杠路径文件；成功返回 0。 */
 function wp_write(path: *u8, payload: *u8, len: usize): i32 {
-  let fd: i32 = fs.fs_open_write(path);
+  let fd: i32 = fs.create(path);
   if (fd < 0) { return 1; }
-  let nw: isize = fs.fs_write(fd, payload, len);
-  if (fs.fs_sync(fd) != 0) {
-    fs.fs_close(fd);
+  let nw: isize = fs.write(fd, payload, len);
+  if (fs.sync(fd) != 0) {
+    fs.close(fd);
     return 2;
   }
-  if (fs.fs_close(fd) != 0) { return 3; }
+  if (fs.close(fd) != 0) { return 3; }
   if (nw != (len as isize)) { return 4; }
   return 0;
 }
@@ -28,12 +28,12 @@ function main(): i32 {
   let fd: i32 = 0;
 
   if (wp_write(&path[0], &payload[0], pay_len) != 0) { return 10; }
-  if (fs.fs_path_readable(&path[0]) != 1) { return 11; }
+  if (fs.path_readable(&path[0]) != 1) { return 11; }
 
-  fd = fs.fs_open_read(&path[0]);
+  fd = fs.open(&path[0]);
   if (fd < 0) { return 12; }
-  let nr: isize = fs.fs_read(fd, &buf[0], pay_len);
-  if (fs.fs_close(fd) != 0) { return 13; }
+  let nr: isize = fs.read(fd, &buf[0], pay_len);
+  if (fs.close(fd) != 0) { return 13; }
   if (nr != (pay_len as isize)) { return 14; }
   if (buf[0] != 83 || buf[1] != 84 || buf[2] != 68) { return 15; }
   return 0;

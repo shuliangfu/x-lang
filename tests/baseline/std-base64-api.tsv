@@ -3,3 +3,8 @@ encode_standard
 decode_standard
 encode_url
 decode_url
+state_bytes
+enc_init
+dec_init
+enc_update
+dec_update

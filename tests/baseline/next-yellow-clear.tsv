@@ -7,11 +7,11 @@ core020_iter	symbol	iter_u64_from_buf	core/iterator/mod.sx	CORE-020
 std159_runtime	symbol	runtime_diag_enabled	std/runtime/mod.sx	STD-159
 std160_unicode	symbol	string_view_case_fold	std/string/mod.sx	STD-160
 std161_vec	symbol	vec_u16_push	std/vec/mod.sx	STD-161
-std162_map	symbol	map_i32_i32_iter_next	std/map/mod.sx	STD-162
-std163_queue	symbol	queue_u8_push_back	std/queue/mod.sx	STD-163
+std162_map	symbol	iter_next	std/map/mod.sx	STD-162
+std163_queue	symbol	push_back	std/queue/mod.sx	STD-163
 std164_net	symbol	tcp_pool_new	std/net/mod.sx	STD-164
 std165_thread	symbol	thread_pool_stats	std/thread/mod.sx	STD-165
-std166_fmt	symbol	format_template_1_i32	std/fmt/mod.sx	STD-166
+std166_fmt	symbol	format_template	std/fmt/mod.sx	STD-166
 std167_sqlite	symbol	sqlite_is_available	std/db/sqlite/mod.sx	STD-167
 doc	file	analysis/next-yellow-clear-v1.md	-	RFC
 gate	script	tests/run-next-yellow-clear-gate.sh	-	gate

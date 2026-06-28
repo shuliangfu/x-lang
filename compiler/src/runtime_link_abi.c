@@ -10,6 +10,7 @@
 #include "runtime_proc_abi.h"
 #include "runtime_io_abi.h"
 #include "runtime_driver_abi.h"
+#include "runtime_abi.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -2669,7 +2670,7 @@ static int link_abi_obj_needs_zstd(const char *obj_o) {
     return link_abi_obj_has_undef_sym(obj_o, "ZSTD_") || link_abi_obj_has_undef_sym(obj_o, "_ZSTD");
 }
 
-/** 任意 .o 是否依赖 libbrotli（F-04 v6：brotli_lib.sx 用户链）。 */
+/** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.sx 用户链）。 */
 static int link_abi_obj_needs_brotli(const char *obj_o) {
     if (!obj_o || !obj_o[0])
         return 0;
@@ -2701,7 +2702,7 @@ static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
 
 /**
  * ASM 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
- * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 zlib_libz.sx）；argv/la/max_la 为 ld argv 构建状态。
+ * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 libz.sx）；argv/la/max_la 为 ld argv 构建状态。
  */
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
     if (!argv || !la)
@@ -2777,7 +2778,7 @@ static int link_abi_generated_c_contains_any_substr(const char *c_path, const ch
 }
 
 /**
- * 生成的 .c 是否引用 libc 堆符号（F-03 v2：heap_libc.sx 经 codegen 生成 extern malloc 等，按需 -lc）。
+ * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.sx 经 codegen 生成 extern malloc 等，按需 -lc）。
  */
 static int link_abi_generated_c_needs_libc_heap(const char *c_path) {
     static const char *needles[] = {
@@ -2925,6 +2926,9 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
  */
 int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
+    (void)json_o;
+    (void)csv_o;
+    (void)log_o;
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
     if (include_root && include_root[0])
@@ -3195,7 +3199,8 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
             }
         }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, log_o)) {
+        if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                shux_rel_o_path_from_argv0(include_root, "std/log/log.o"))) {
             {
                 const char *rlo = shux_runtime_log_os_o_path(NULL);
                 if (rlo && rlo[0])
@@ -3254,8 +3259,11 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                 argv[i++] = (char *)"-lsqlite3";
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, json_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, csv_o);
+        /* shux_rel_o_path_from_argv0 用静态缓冲；须在 push 时按 rel 重解析，勿用 runtime.c 早先保存的 json_o 指针。 */
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, "std/json/json.o"));
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, "std/csv/csv.o"));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
             invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o, NULL);
@@ -3666,7 +3674,7 @@ static int link_abi_ld_argv_entry_is_obj(const char *s) {
 
 /**
  * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
- * hash/sort 等经 heap_libc.sx 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
+ * hash/sort 等经 libc.sx 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
  */
 static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
     static const char *heap_syms[] = {
@@ -3770,7 +3778,7 @@ static int link_abi_user_o_needs_std_heap_import(const char *user_o) {
 static int link_abi_user_o_needs_std_map(const char *user_o) {
     if (!user_o || !user_o[0])
         return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_map_map_empty_size");
+    return shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size");
 }
 
 /**
@@ -3793,8 +3801,9 @@ static int link_abi_user_o_needs_std_test(const char *user_o) {
  */
 static int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
     int k;
-    char abs_new[PATH_MAX];
-    char abs_exist[PATH_MAX];
+    /** 勿放栈上：nostdlib shux_asm 在 elf emit 后主栈已深，8KiB×递归 realpath 易 SIGSEGV。 */
+    static char abs_new[PATH_MAX];
+    static char abs_exist[PATH_MAX];
     const char *use_new;
     if (!argv || la <= 0 || !path || !path[0])
         return 0;
@@ -3926,6 +3935,62 @@ static void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, co
     link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
+
+#if defined(__linux__)
+/**
+ * nostdlib shux_asm：自包含 user.o 的 gcc 最小链（user.o + runtime 桩 + -lc）。
+ * pipeline/elf emit 后主栈已很深，完整 ld argv 构建（realpath 去重、popen nm）易 SIGSEGV；
+ * 固定小 argv + static path bank，不扫描 std/*.o。
+ * 参数：link_eff 有效 argv0/compiler 目录；lib_roots 与 driver -L 一致。
+ * 返回值：0 成功，-1 失败。
+ */
+static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
+    const char *link_eff, const char **lib_roots, int n_lib_roots) {
+    static ShuAsmLdPathBank bank;
+    const char *argv[24];
+    int la = 0;
+    pid_t pid;
+    int status;
+
+    if (!o_path || !exe_path || !link_eff)
+        return -1;
+    bank.n = 0;
+    memset(bank.slots, 0, sizeof bank.slots);
+    argv[la++] = shux_linux_host_gcc_path();
+    shux_append_linux_link_harden((char **)argv, &la, (int)(sizeof argv / sizeof argv[0]));
+    argv[la++] = "-o";
+    argv[la++] = exe_path;
+    argv[la++] = o_path;
+    link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots, n_lib_roots, &bank, argv, &la,
+        (int)(sizeof argv / sizeof argv[0]));
+    if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
+        argv[la++] = "-lc";
+    argv[la] = NULL;
+    pid = fork();
+    if (pid < 0) {
+        perror("shux: fork (ld nostdlib minimal)");
+        return -1;
+    }
+    if (pid == 0) {
+        shux_linux_ld_child_path();
+        execvp(argv[0], (char *const *)argv);
+        execv("/usr/bin/gcc", (char *const *)argv);
+        execv("/usr/local/bin/gcc", (char *const *)argv);
+        perror("shux: gcc (nostdlib minimal user.o)");
+        _exit(127);
+    }
+    if (shu_waitpid_retry(pid, &status) != 0)
+        return -1;
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (WIFSIGNALED(status))
+            fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
+        else
+            fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        return -1;
+    }
+    return 0;
+}
+#endif /* __linux__ */
 #endif
 
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
@@ -4098,7 +4163,7 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         if (have_net) {
             if (flags)
                 flags->have_net = 1;
-            /* net_workers.sx 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
+            /* workers.sx 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
             link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la,
                 flags ? &flags->have_thread : NULL);
             if (flags && flags->have_thread) {
@@ -4730,6 +4795,15 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
          * nostdlib shux_asm 无 popen：保守走全量 gcc 链（return-value 等）。
          */
         if (!shux_asm_user_o_has_undef_syms(o_path)) {
+#if defined(__linux__)
+            /*
+             * nostdlib shux_asm：popen 恒 NULL 时走自包含最小链；勿再 push string/base64 等
+             * （realpath 去重 + 深栈易 SIGSEGV，见 C6 return-value -o）。
+             */
+            if (bootstrap_nostdlib_pthread_is_stub())
+                return shux_asm_nostdlib_minimal_selfcontained_exe_link(o_path, exe_path, link_eff,
+                    lib_roots_eff, n_lib_roots_eff);
+#endif
             argv[la++] = shux_linux_host_gcc_path();
             shux_append_linux_link_harden((char **)argv, &la, SHUX_LD_ARGV_CAP);
             argv[la++] = "-o";

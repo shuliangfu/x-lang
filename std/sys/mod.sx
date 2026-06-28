@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.sys — OS 原语门面（BOOT-029 / 自举 §关卡三 v0～v3 + B-19 #[cfg] 分平台）
 //
 // 【文件职责】
@@ -60,7 +76,9 @@ function os_write(fd: i32, buf: *u8, len: i32): i32 {
   if (buf == 0) {
     return -1;
   }
-  return shux_sys_write(fd, buf, len);
+  unsafe {
+    return shux_sys_write(fd, buf, len);
+  }
 }
 
 #[cfg(target_os = "macos")]

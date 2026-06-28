@@ -2,15 +2,15 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
 read_path	section	## 1. 阅读路径	15min
-trait_doc	section	## 2. Hasher trait 抽象（v1）	hash_start_algo
+trait_doc	section	## 2. Hasher trait 抽象（v1）	start_algo
 algo_doc	section	## 3. 选型说明	SipHash
 verify	section	## 5. 门禁	gate
 api_default	api	default_hasher	std/hash/mod.sx	SHUX_HASH_ALGO
-api_start_algo	api	hash_start_algo	std/hash/mod.sx	工厂
-api_write_bytes	api	hash_write_bytes_algo	std/hash/mod.sx	写
-api_finish	api	hash_finish_algo	std/hash/mod.sx	完成
-api_free	api	hash_free_algo	std/hash/mod.sx	释放
-api_write_u32	api	hash_write_u32_algo	std/hash/mod.sx	u32
+api_start_algo	api	start_algo	std/hash/mod.sx	工厂
+api_write_bytes	api	write_bytes_algo	std/hash/mod.sx	写
+api_finish	api	finish_algo	std/hash/mod.sx	完成
+api_free	api	free_algo	std/hash/mod.sx	释放
+api_write_u32	api	write_algo	std/hash/mod.sx	u32
 const_sip	const	HASHER_SIPHASH	std/hash/mod.sx	0
 const_ahash	const	HASHER_AHASH	std/hash/mod.sx	1
 symbol_default_c	symbol	hash_default_algo_c	std/hash/hash.sx	环境

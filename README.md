@@ -164,6 +164,8 @@ function main(): i32 {
 ```
 shux/
 ├── README.md                 # 本文件
+├── LICENSE                   # AGPL-3.0-or-later 完整许可文本
+├── NOTICE                    # 版权、SPDX 标识与第三方声明
 ├── 自举进度.md               # 自举 / 终局 G 进度（维护时优先更新）
 ├── build.sx                  # 构建配置（对标 build.zig）
 ├── NEXT.md                   # 完全自举路线图与 gate 命令
@@ -338,6 +340,21 @@ shux/
 4. 提交规范：Conventional Commits（`feat:` / `fix:` / `perf:` 等），英文描述；详见 `.cursor/rules/03-操作规则.mdc`。
 
 **当前决议**（见 [`NEXT.md`](NEXT.md)）：标准库**新功能**暂停；**唯一主线 = 阶段 G 终局清场**（物理零 C、零 seed 冷启动、no-libc bootstrap 硬绿、`build.sx` 替代 Makefile）。
+
+---
+
+## 十三、许可证
+
+本项目采用 **GNU Affero General Public License v3.0 或更高版本**（AGPL-3.0-or-later）授权。
+
+- 完整许可文本：[`LICENSE`](LICENSE)
+- 版权与第三方声明：[`NOTICE`](NOTICE)
+
+### 商业授权
+
+若你的使用场景需要**不受 AGPL-3.0 copyleft 约束**（例如将 Shux 编译器、工具链或衍生作品嵌入闭源产品，或作为网络服务运行修改版而不向远程用户提供对应源码），请联系作者洽谈**商业许可**：
+
+- Shuliang Fu — [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
 
 ---
 

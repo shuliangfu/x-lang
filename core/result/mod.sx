@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // core.result — Result<T,E> 与错误传播（自举前实现）
 // Result 寄存器化：双 8 字节槽布局，满足 x86-64 SysV 两寄存器返回（rax/rdx），错误检查零内存访问（见 analysis/Result寄存器化.md）。
 // 当前：Result_i32 全系列（ok/err、unwrap_or、is_ok/is_err、expect、expect_i32_or_panic、or/and）；泛型 Result<T,E> 与 map/and_then 待类型实参与函数类型支持后扩展。
@@ -21,9 +37,12 @@ function err_i32(e: i32): Result_i32 {
   return Result_i32 { value: 0, _pad1: 0, err: e, _pad2: 0 }
 }
 
-// 成功则返回值，否则返回默认值（错误检查为 err==0，零内存访问）
+// 成功则返回值，否则返回默认值（if/else：seed shux-c C 解析器 return 内三元 ? : 与 expr? 歧义）
 function unwrap_or_i32(r: Result_i32, default_val: i32): i32 {
-  return r.err == 0 ? r.value : default_val;
+  if (r.err == 0) {
+    return r.value;
+  }
+  return default_val;
 }
 
 // 是否为成功
@@ -48,7 +67,10 @@ function is_err_i32(r: Result_i32): bool {
 
 // 成功则返回值，否则返回默认值（与 unwrap_or_i32 同义，命名供“期望有默认”的调用方使用）
 function expect_i32(r: Result_i32, default_val: i32): i32 {
-  return r.err == 0 ? r.value : default_val;
+  if (r.err == 0) {
+    return r.value;
+  }
+  return default_val;
 }
 
 // 成功则返回值，否则 panic（用于必须成功的场景）
@@ -62,12 +84,18 @@ function expect_i32_or_panic(r: Result_i32): i32 {
 
 // 成功则返回本结果，否则返回 other（组合两个结果，取第一个 Ok）
 function or_i32(r: Result_i32, other: Result_i32): Result_i32 {
-  return r.err == 0 ? r : other;
+  if (r.err == 0) {
+    return r;
+  }
+  return other;
 }
 
 // 失败则返回本结果，否则返回 other（串联：当前成功才继续）
 function and_i32(r: Result_i32, other: Result_i32): Result_i32 {
-  return r.err != 0 ? r : other;
+  if (r.err != 0) {
+    return r;
+  }
+  return other;
 }
 
 // ——— eager 组合子（CORE-003 map/and_then/or_else） ———
@@ -118,7 +146,10 @@ function err_u8(e: i32): Result_u8 {
 
 /** 成功则返回值，否则 default。 */
 function unwrap_or_u8(r: Result_u8, default_val: u8): u8 {
-  return r.err == 0 ? r.value : default_val;
+  if (r.err == 0) {
+    return r.value;
+  }
+  return default_val;
 }
 
 /** 是否为成功。 */

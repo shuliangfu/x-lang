@@ -2,7 +2,7 @@
 const async_mod = import("std.async");
 
 function main(): i32 {
-  if (async_mod.spawn_context_smoke() != 0) {
+  if (async_mod.spawn_ctx_smoke() != 0) {
     return 1;
   }
   return 0;

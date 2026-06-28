@@ -16,8 +16,8 @@
 
 | 能力 | freestanding `.sx` | legacy `.c`（hosted/bootstrap 仍用） | 烟测 / gate |
 |------|-------------------|--------------------------------------|-------------|
-| 堆（mmap bump） | `std/heap/page_mmap.sx` | `std/heap/heap_libc.sx`（hosted） | `linux_heap_mmap_smoke.sx` / NL-03 |
-| 读文件 | `std/fs/freestanding_linux.sx` | `std/fs/fs_posix.sx`（hosted） | `linux_fs_freestanding_smoke.sx` / NL-04 |
+| 堆（mmap bump） | `std/heap/page_mmap.sx` | `std/heap/libc.sx`（hosted） | `linux_heap_mmap_smoke.sx` / NL-03 |
+| 读文件 | `std/fs/freestanding_linux.sx` | `std/fs/posix.sx`（hosted） | `linux_fs_freestanding_smoke.sx` / NL-04 |
 | socket v1 | `std/net/freestanding_linux.sx` | `std/net/net.c` | `linux_socket_invoke_smoke.sx` / NL-02 |
 | syscall 门面 | `std/sys/linux.sx` | — | `run-std-sys-gate.sh` |
 

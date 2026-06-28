@@ -1,5 +1,5 @@
 /**
- * std/http/http2_push_h2c.inc.c — HTTP/2 server push 检测 + h2c 升级识别（STD-HTTP-H2-v6）
+ * std/http/push_h2c.inc.c — HTTP/2 server push 检测 + h2c 升级识别（STD-HTTP-H2-v6）
  *
  * 【文件职责】PUSH_PROMISE 帧类型/promised stream 解析；HTTP/1.1→h2c 101 响应识别。
  * 不含 push 资源拉取或 cleartext 会话；由 http2.inc.c 末尾 #include。
@@ -14,7 +14,7 @@
 /** h2c 客户端仅支持 http://（https:// 须用 h2_get）。 */
 #define HTTP2_ERR_H2C_SCHEME (-1235)
 
-#include "http2_push_fetch.inc.c"
+#include "push_fetch.inc.c"
 
 /** 返回 PUSH_PROMISE 帧类型常量（5）。 */
 int32_t http2_frame_push_promise_c(void) { return HTTP2_TYPE_PUSH_PROMISE; }

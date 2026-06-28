@@ -117,3 +117,19 @@ uint8_t *process_shux_argv_get(int32_t i) {
         return NULL;
     return (uint8_t *)shux_process_argv[i];
 }
+
+/**
+ * std/process/process.sx 同名热路径；供 process.o / mod.sx 链入（C -o 路径须与 runtime 同 .o）。
+ * 返回值：命令行参数个数（含 argv[0]）。
+ */
+int32_t process_args_count_c(void) {
+    return process_shux_argc_get();
+}
+
+/**
+ * std/process/process.sx 同名热路径；第 i 个参数 C 字符串，越界返回 NULL。
+ * 参数：i — 参数索引。
+ */
+uint8_t *process_arg_c(int32_t i) {
+    return process_shux_argv_get(i);
+}

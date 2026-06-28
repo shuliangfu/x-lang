@@ -1,5 +1,5 @@
 /**
- * std/http/http2_rst_stream.inc.c — HTTP/2 RST_STREAM 帧（RFC 7540 §6.4；STD-HTTP-H2-v27）
+ * std/http/rst_stream.inc.c — HTTP/2 RST_STREAM 帧（RFC 7540 §6.4；STD-HTTP-H2-v27）
  *
  * 【文件职责】RST_STREAM 构建/解析、错误码常量、离线烟测。
  * 由 http2.inc.c 末尾 #include。

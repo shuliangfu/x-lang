@@ -1,8 +1,8 @@
 /**
- * std/http/http2_server_push.inc.c — HTTP/2 server push 响应 v1（STD-HTTP-H2-v17）
+ * std/http/server_push.inc.c — HTTP/2 server push 响应 v1（STD-HTTP-H2-v17）
  *
  * 【文件职责】构建 PUSH_PROMISE 帧并在 parent stream 上推送 promised stream 资源。
- * 由 http2_server.inc.c 末尾 #include（复用 http2_io_* 与 HEADERS/DATA 构建）。
+ * 由 server.inc.c 末尾 #include（复用 io_* 与 HEADERS/DATA 构建）。
  */
 
 /** server push 参数非法（-1242）。 */
@@ -58,10 +58,10 @@ int32_t http2_build_push_promise_frame_c(int32_t parent_stream_id, int32_t promi
  * 在 parent stream 上发送 PUSH_PROMISE，并在 promised stream 回 push body。
  * promised_stream_id 须为偶数；成功 0。
  */
-int32_t http2_server_send_push_c(http2_io_t *io, int32_t parent_stream_id, int32_t promised_stream_id,
+int32_t http2_server_send_push_c(io_t *io, int32_t parent_stream_id, int32_t promised_stream_id,
                                  const uint8_t *authority, int32_t authority_len, const uint8_t *path,
                                  int32_t path_len, const uint8_t *push_body, int32_t push_body_len,
-                                 int32_t is_https, http2_hpack_server_dyn_t *enc,
+                                 int32_t is_https, hpack_server_dyn_t *enc,
                                  int32_t max_frame_size) {
     uint8_t frame_buf[512];
     int32_t pp_len;
@@ -81,7 +81,7 @@ int32_t http2_server_send_push_c(http2_io_t *io, int32_t parent_stream_id, int32
                                               (int32_t)sizeof(frame_buf));
     if (pp_len <= 0)
         return HTTP2_ERR_SERVER_PUSH;
-    if (http2_io_write_all(io, frame_buf, pp_len) != 0)
+    if (io_write_all(io, frame_buf, pp_len) != 0)
         return HTTP2_ERR_SERVER;
 
     rc = http2_server_send_response_c(io, promised_stream_id, push_body, push_body_len, enc,
@@ -96,10 +96,10 @@ int32_t http2_server_send_push_c(http2_io_t *io, int32_t parent_stream_id, int32
  * 参数非法仍返回 HTTP2_ERR_SERVER_PUSH / HTTP2_ERR_SERVER。
  */
 int32_t http2_server_send_push_respecting_peer_c(
-    http2_io_t *io, const http2_peer_settings_t *peer, int32_t parent_stream_id,
+    io_t *io, const peer_settings_t *peer, int32_t parent_stream_id,
     int32_t promised_stream_id, const uint8_t *authority, int32_t authority_len,
     const uint8_t *path, int32_t path_len, const uint8_t *push_body, int32_t push_body_len,
-    int32_t is_https, http2_hpack_server_dyn_t *enc) {
+    int32_t is_https, hpack_server_dyn_t *enc) {
     if (!enc)
         return -1;
     if (peer != NULL && http2_peer_settings_enable_push_c(peer) == 0)

@@ -10,8 +10,8 @@ MANIFEST="${SHUX_STD_HTTP_REQRESP_TSV:-tests/baseline/std-http-reqresp.tsv}"
 MOD_SX="std/http/mod.sx"
 HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
 REQRESP_INC="compiler/src/asm/http/http_reqresp.inc.c"
-HUFF_INC="compiler/src/asm/http/http2_hpack_huffman.inc.c"
-FLOW_INC="compiler/src/asm/http/http2_flow.inc.c"
+HUFF_INC="compiler/src/asm/http/hpack_huffman.inc.c"
+FLOW_INC="compiler/src/asm/http/flow.inc.c"
 LIB="tests/lib/std-http-reqresp.sh"
 SMOKE_SX="tests/http/request_response.sx"
 URL_OWNED_SX="tests/http/request_url_owned.sx"
@@ -37,7 +37,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in STD-HTTP-REQRESP HttpRequest HttpResponse HttpBodyOwned HttpUrlOwned HttpRequestOwned HttpResponseOwned request_init execute execute_ctx response_body_owned response_owned_from_parse push_last_body_owned url_owned_from_slice request_owned_init execute_owned http2_hpack_huffman http2_build_window_update; do
+for kw in STD-HTTP-REQRESP HttpRequest HttpResponse HttpBodyOwned HttpUrlOwned HttpRequestOwned HttpResponseOwned request_init execute execute_ctx response_body_owned response_owned_from_parse push_last_body_owned url_owned_from_slice request_owned_init execute_owned hpack_huffman build_window_update; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-http-reqresp gate FAIL: doc missing '$kw'" >&2
     exit 1

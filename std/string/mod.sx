@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.string — 字符串类型与基本操作（对标 Rust str/String、Go strings、Zig
 // const[] u8 + std.mem）
 //
@@ -16,7 +32,7 @@
 // 【ZC-4】StrView 零拷贝 subview；拼接走 Arena64 bump（非 per-concat heap_alloc）；
 // StackStr（SSO_STACK 32B 栈内联）可零拷贝转 StrView。
 // 【对标】见 README；约定不分配堆，cap=256。
-const heap = import("std.heap");
+const heap_libc = import("std.heap.libc");
 /** 长串快路径阈值：长度 ≥ 此值时 eq/compare/find 走
 * C（memcmp/memmem/memchr）；热路径内用字面量 32 避免调用。 */
 function string_long_threshold(): i32 { return 32; }
@@ -31,6 +47,40 @@ extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
 extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
 /** 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 */
 extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
+/** C memcmp 包装：extern 须在 unsafe 块内调用。 */
+function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = shux_string_memcmp_c(a, b, n); }
+  return rc;
+}
+/** C memmem 包装。 */
+function string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = shux_string_memmem_c(hay, hay_len, needle, needle_len); }
+  return rc;
+}
+/** C memcpy 包装。 */
+function string_copy_c(dst: *u8, src: *u8, n: i32): void {
+  unsafe { shux_string_copy_c(dst, src, n); }
+}
+/** C memchr 包装。 */
+function string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = shux_string_memchr_c(ptr, c, n); }
+  return rc;
+}
+/** C memcmp_at 包装。 */
+function string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = shux_string_memcmp_at_c(a, off, b, n); }
+  return rc;
+}
+/** 指针偏移 ptr+off 包装。 */
+function string_ptr_at_c(ptr: *u8, off: i32): *u8 {
+  let p: *u8 = 0 as *u8;
+  unsafe { p = shux_string_ptr_at_c(ptr, off); }
+  return p;
+}
 /** 固定缓冲容量（字节）；不分配堆，超过请用 StrView。 */
 function string_capacity(): i32 { return 256; }
 struct String {
@@ -93,12 +143,12 @@ function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
 function string_view_subview(v: StrView, off: i32, len: i32): StrView {
   if (off < 0) { off = 0; }
   if (off >= v.len || len <= 0) {
-    return string_view(shux_string_ptr_at_c(v.ptr, off), 0);
+    return string_view(string_ptr_at_c(v.ptr, off), 0);
   }
   let remain: i32 = v.len - off;
   let n: i32 = len;
   if (n > remain) { n = remain; }
-  return string_view(shux_string_ptr_at_c(v.ptr, off), n);
+  return string_view(string_ptr_at_c(v.ptr, off), n);
 }
 /**
  * ZC-4：在 Arena64 上 bump 拼接 left+right，返回新 StrView。
@@ -110,16 +160,16 @@ function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView
   if (n <= 0) {
     return string_view(left.ptr, 0);
   }
-  let p: *u8 = heap.arena64_alloc(arena, n, 1);
+  let p: *u8 = heap_libc.heap_arena64_alloc_c(arena as *heap_libc.Arena64, n as usize, 1 as usize);
   if (p == 0) {
     return string_view(0 as *u8, 0);
   }
   if (left.len > 0) {
-    shux_string_copy_c(p, left.ptr, left.len);
+    string_copy_c(p, left.ptr, left.len);
   }
   if (right.len > 0) {
-    let dst2: *u8 = shux_string_ptr_at_c(p, left.len);
-    shux_string_copy_c(dst2, right.ptr, right.len);
+    let dst2: *u8 = string_ptr_at_c(p, left.len);
+    string_copy_c(dst2, right.ptr, right.len);
   }
   return string_view(p, n);
 }
@@ -134,7 +184,7 @@ function string_view_eq(a: StrView, b: StrView): i32 {
   if (a.len == 4) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1] || a.ptr[2] != b.ptr[2] ||
     a.ptr[3] != b.ptr[3]) { return 0; } return 1; }
   if (a.len >= 32) {
-    if (shux_string_memcmp_c(a.ptr, b.ptr, a.len) == 0) { return 1; }
+    if (string_memcmp_c(a.ptr, b.ptr, a.len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -160,7 +210,7 @@ function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
   if (v.len == 4) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1] || v.ptr[2] != ptr[2] || v.ptr[3]
     != ptr[3]) { return 0; } return 1; }
   if (v.len >= 32) {
-    if (shux_string_memcmp_c(v.ptr, ptr, v.len) == 0) { return 1; }
+    if (string_memcmp_c(v.ptr, ptr, v.len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -180,7 +230,7 @@ function string_view_compare(a: StrView, b: StrView): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
   if (n >= 32) {
-    let r: i32 = shux_string_memcmp_c(a.ptr, b.ptr, n);
+    let r: i32 = string_memcmp_c(a.ptr, b.ptr, n);
     if (r != 0) { return r; }
   } else {
     let i: i32 = 0;
@@ -205,7 +255,7 @@ function string_view_compare(a: StrView, b: StrView): i32 {
 }
 /** 视图中字节 c 首次出现下标，不存在返回 -1。统一 memchr（while 不落码）。 */
 function string_view_find_char(v: StrView, c: u8): i32 {
-  return shux_string_memchr_c(v.ptr, c, v.len);
+  return string_memchr_c(v.ptr, c, v.len);
 }
 /** 视图是否以 prefix[0..prefix_len-1] 开头。返回 1 是，0 否。长 prefix 走 C
 * memcmp。 */
@@ -213,7 +263,7 @@ function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32): i32 
   if (prefix_len <= 0) { return 1; }
   if (v.len < prefix_len) { return 0; }
   if (prefix_len >= 8) {
-    if (shux_string_memcmp_c(v.ptr, prefix, prefix_len) == 0) { return 1; }
+    if (string_memcmp_c(v.ptr, prefix, prefix_len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -228,18 +278,18 @@ function string_view_ends_with(v: StrView, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
   if (v.len < suffix_len) { return 0; }
   let off: i32 = v.len - suffix_len;
-  if (shux_string_memcmp_at_c(v.ptr, off, suffix, suffix_len) == 0) { return 1; }
+  if (string_memcmp_at_c(v.ptr, off, suffix, suffix_len) == 0) { return 1; }
   return 0;
 }
 /** StrView 子串扫描（memcmp_at 四轮 + 递归）。 */
 function string_view_find_slice_scan(v: StrView, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
   if (start > end) { return 0 - 1; }
-  if (shux_string_memcmp_at_c(v.ptr, start, sub, sub_len) == 0) { return start; }
-  if (start + 1 <= end && shux_string_memcmp_at_c(v.ptr, start + 1, sub, sub_len) == 0) {
+  if (string_memcmp_at_c(v.ptr, start, sub, sub_len) == 0) { return start; }
+  if (start + 1 <= end && string_memcmp_at_c(v.ptr, start + 1, sub, sub_len) == 0) {
     return start + 1; }
-  if (start + 2 <= end && shux_string_memcmp_at_c(v.ptr, start + 2, sub, sub_len) == 0) {
+  if (start + 2 <= end && string_memcmp_at_c(v.ptr, start + 2, sub, sub_len) == 0) {
     return start + 2; }
-  if (start + 3 <= end && shux_string_memcmp_at_c(v.ptr, start + 3, sub, sub_len) == 0) {
+  if (start + 3 <= end && string_memcmp_at_c(v.ptr, start + 3, sub, sub_len) == 0) {
     return start + 3; }
   return string_view_find_slice_scan(v, sub, sub_len, start + 4, end);
 }
@@ -248,10 +298,10 @@ function string_view_find_slice(v: StrView, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
   if (v.len < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
-    return shux_string_memchr_c(v.ptr, sub[0], v.len);
+    return string_memchr_c(v.ptr, sub[0], v.len);
   }
   if (v.len >= 32 || sub_len >= 8) {
-    return shux_string_memmem_c(v.ptr, v.len, sub, sub_len);
+    return string_memmem_c(v.ptr, v.len, sub, sub_len);
   }
   let end: i32 = v.len - sub_len;
   return string_view_find_slice_scan(v, sub, sub_len, 0, end);
@@ -266,7 +316,7 @@ function string_view_contains(v: StrView, sub: *u8, sub_len: i32): i32 {
 function string_eq_view(s: String, v: StrView): i32 {
   if (s.len != v.len) { return 0; }
   if (s.len >= 32) {
-    if (shux_string_memcmp_c(&s.data[0], v.ptr, s.len) == 0) { return 1; }
+    if (string_memcmp_c(&s.data[0], v.ptr, s.len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -286,7 +336,7 @@ function string_compare_view(s: String, v: StrView): i32 {
   let n: i32 = s.len;
   if (v.len < n) { n = v.len; }
   if (n >= 32) {
-    let r: i32 = shux_string_memcmp_c(&s.data[0], v.ptr, n);
+    let r: i32 = string_memcmp_c(&s.data[0], v.ptr, n);
     if (r != 0) { return r; }
   } else {
     let i: i32 = 0;
@@ -339,7 +389,7 @@ function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
     return 0;
   }
   if (len >= 8) {
-    shux_string_copy_c(&s.data[0], ptr, len);
+    string_copy_c(&s.data[0], ptr, len);
   } else {
     let i: i32 = 0;
     while (i < len) {
@@ -393,7 +443,7 @@ function string_from_slice(ptr: *u8, len: i32): String {
   let n: i32 = len;
   if (n > 256) { n = 256; }
   if (n > 0) {
-    shux_string_copy_c(&s.data[0], ptr, n);
+    string_copy_c(&s.data[0], ptr, n);
   }
   s.len = n;
   return s;
@@ -411,7 +461,7 @@ function string_eq(a: String, b: String): i32 {
   if (a.len == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
     || a.data[3] != b.data[3]) { return 0; } return 1; }
   if (a.len >= 32) {
-    if (shux_string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
+    if (string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -437,7 +487,7 @@ function string_eq_ptr(a: *String, b: *String): i32 {
   if (a.len == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
     || a.data[3] != b.data[3]) { return 0; } return 1; }
   if (a.len >= 32) {
-    if (shux_string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
+    if (string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
@@ -457,8 +507,8 @@ function string_compare(a: String, b: String): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
   /** if 块内仅首句落码；用短路求值把 memcmp 与比较写在同一 if 条件里。 */
-  if (n >= 1 && shux_string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
-  if (n >= 1 && shux_string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
+  if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
+  if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
   if (a.len < b.len) { return -1; }
   if (a.len > b.len) { return 1; }
   return 0;
@@ -468,8 +518,8 @@ function string_compare(a: String, b: String): i32 {
 function string_compare_ptr(a: *String, b: *String): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
-  if (n >= 1 && shux_string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
-  if (n >= 1 && shux_string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
+  if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
+  if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
   if (a.len < b.len) { return -1; }
   if (a.len > b.len) { return 1; }
   return 0;
@@ -496,7 +546,7 @@ function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
   let base: i32 = s.len;
   let new_len: i32 = base + len;
   if (len > 0) {
-    shux_string_copy_c(&s.data[base], ptr, len);
+    string_copy_c(&s.data[base], ptr, len);
   }
   s.len = new_len;
   return 0;
@@ -519,7 +569,7 @@ function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
   if (s.len > out_max) { return -1; }
   /** n>=4 走 copy_c（co-emit 连续 if/while 仅前段落码）。 */
   if (s.len >= 4) {
-    shux_string_copy_c(out, &s.data[0], s.len);
+    string_copy_c(out, &s.data[0], s.len);
   } else {
     if (s.len > 0) { out[0] = s.data[0]; }
     if (s.len > 1) { out[1] = s.data[1]; }
@@ -531,7 +581,7 @@ function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
 function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
   if (s.len > out_max) { return -1; }
   if (s.len >= 4) {
-    shux_string_copy_c(out, &s.data[0], s.len);
+    string_copy_c(out, &s.data[0], s.len);
   } else {
     if (s.len > 0) { out[0] = s.data[0]; }
     if (s.len > 1) { out[1] = s.data[1]; }
@@ -542,13 +592,13 @@ function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
 /** 首次出现字节 c 的下标，不存在返回 -1。长串走 C memchr 快路径。 */
 /** 查找字节 c 首次出现下标；无则 0-1。统一走 memchr 快路径（避免 asm 短串 while/return -1 emit 错位）。 */
 function string_find_char(s: String, c: u8): i32 {
-  return shux_string_memchr_c(&s.data[0], c, s.len);
+  return string_memchr_c(&s.data[0], c, s.len);
 }
 /** 是否以 prefix[0..prefix_len-1] 开头。返回 1 是，0 否。短串亦走 memcmp（asm while 槽位 emit 待修）。 */
 function string_starts_with(s: String, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
   if (s.len < prefix_len) { return 0; }
-  if (shux_string_memcmp_c(&s.data[0], prefix, prefix_len) == 0) { return 1; }
+  if (string_memcmp_c(&s.data[0], prefix, prefix_len) == 0) { return 1; }
   return 0;
 }
 /** 是否以 suffix[0..suffix_len-1] 结尾。返回 1 是，0 否。统一 memcmp_at 快路径（勿嵌 string_view 构造，co-emit 会 SIGSEGV）。 */
@@ -556,7 +606,7 @@ function string_ends_with(s: String, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
   if (s.len < suffix_len) { return 0; }
   let off: i32 = s.len - suffix_len;
-  if (shux_string_memcmp_at_c(&s.data[0], off, suffix, suffix_len) == 0) { return 1; }
+  if (string_memcmp_at_c(&s.data[0], off, suffix, suffix_len) == 0) { return 1; }
   return 0;
 }
 /** 是否包含子串 sub[0..sub_len-1]。返回 1 是，0 否（对标 Rust contains、Go
@@ -568,12 +618,12 @@ function string_contains(s: String, sub: *u8, sub_len: i32): i32 {
 /** co-emit while 槽位错位：每轮最多 4 档 memcmp_at，递归推进 start。 */
 function string_find_slice_scan(s: *String, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
   if (start > end) { return 0 - 1; }
-  if (shux_string_memcmp_at_c(&s.data[0], start, sub, sub_len) == 0) { return start; }
-  if (start + 1 <= end && shux_string_memcmp_at_c(&s.data[0], start + 1, sub, sub_len) == 0) {
+  if (string_memcmp_at_c(&s.data[0], start, sub, sub_len) == 0) { return start; }
+  if (start + 1 <= end && string_memcmp_at_c(&s.data[0], start + 1, sub, sub_len) == 0) {
     return start + 1; }
-  if (start + 2 <= end && shux_string_memcmp_at_c(&s.data[0], start + 2, sub, sub_len) == 0) {
+  if (start + 2 <= end && string_memcmp_at_c(&s.data[0], start + 2, sub, sub_len) == 0) {
     return start + 2; }
-  if (start + 3 <= end && shux_string_memcmp_at_c(&s.data[0], start + 3, sub, sub_len) == 0) {
+  if (start + 3 <= end && string_memcmp_at_c(&s.data[0], start + 3, sub, sub_len) == 0) {
     return start + 3; }
   return string_find_slice_scan(s, sub, sub_len, start + 4, end);
 }
@@ -582,10 +632,10 @@ function string_find_slice(s: String, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
   if (s.len < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
-    return shux_string_memchr_c(&s.data[0], sub[0], s.len);
+    return string_memchr_c(&s.data[0], sub[0], s.len);
   }
   if (s.len >= 32 || sub_len >= 8) {
-    return shux_string_memmem_c(&s.data[0], s.len, sub, sub_len);
+    return string_memmem_c(&s.data[0], s.len, sub, sub_len);
   }
   let end: i32 = s.len - sub_len;
   return string_find_slice_scan(&s, sub, sub_len, 0, end);
@@ -623,7 +673,7 @@ function string_trim_space(s: String, out: *u8, out_max: i32): i32 {
   if (n <= 0) { return 0; }
   if (n > out_max) { return -1; }
   if (n > 0) {
-    shux_string_copy_c(out, &s.data[start], n);
+    string_copy_c(out, &s.data[start], n);
   }
   return n;
 }

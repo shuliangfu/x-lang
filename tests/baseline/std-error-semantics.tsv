@@ -1,12 +1,12 @@
 # STD-158 跨模块错误语义 manifest
 # 列：item_id	kind	anchor	notes
 # min_symbols	6
-symbol_sem_class	symbol	error_semantic_class	std/error/mod.sx
-symbol_is_timeout	symbol	error_is_timeout	std/error/mod.sx
-symbol_is_cancelled	symbol	error_is_cancelled	std/error/mod.sx
-symbol_is_not_found	symbol	error_is_not_found	std/error/mod.sx
-symbol_recommend_retry	symbol	error_recommend_retry	std/error/mod.sx
-symbol_sem_timeout	symbol	error_sem_timeout	std/error/mod.sx
+symbol_sem_class	symbol	semantic_class	std/error/mod.sx
+symbol_is_timeout	symbol	is_timeout	std/error/mod.sx
+symbol_is_cancelled	symbol	is_cancelled	std/error/mod.sx
+symbol_is_not_found	symbol	is_not_found	std/error/mod.sx
+symbol_recommend_retry	symbol	recommend_retry	std/error/mod.sx
+symbol_sem_timeout	symbol	sem_timeout	std/error/mod.sx
 doc	file	analysis/std-error-semantics-v1.md	STD-158
 gate	script	tests/run-std-error-semantics-gate.sh	gate
 smoke	run	tests/std/error_semantics_smoke.sx	烟测

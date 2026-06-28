@@ -29,7 +29,7 @@ for f in "$MOD_SX" "$SMOKE"; do
     exit 1
   fi
 done
-for sym in timeout_ms_for_context read_ctx write_ctx IO_CTX_MS_CANCELLED IO_CTX_MS_EXPIRED; do
+for sym in timeout_from_ctx read_ctx write_ctx IO_CTX_MS_CANCELLED IO_CTX_MS_EXPIRED; do
   case "$sym" in
     IO_CTX_MS_*)
       if ! grep -qF "const ${sym}:" "$MOD_SX" 2>/dev/null; then

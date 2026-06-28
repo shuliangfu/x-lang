@@ -1,26 +1,55 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.base64 — Base64 编解码（标准/URL 变体，单遍无分配，对标 Zig std.base64）
 //
-// 【文件职责】encode/decode standard 与 URL；单遍、静态表、无堆分配。
+// 【文件职责】encode/decode standard 与 URL；单遍、静态表、无堆分配；流式 enc/dec update。
 // 【依赖】core；与 std/base64/base64.sx 同属一模块（F-base64 v1）。
+
 extern function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
 extern function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
 extern function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
 extern function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+
 /** 标准 Base64 编码；返回写入字节数，缓冲区不足返回 -1。 */
 function encode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  return base64_encode_standard_c(src, src_len, out, out_cap);
+  unsafe {
+    return base64_encode_standard_c(src, src_len, out, out_cap);
+  }
 }
+
 /** URL 安全 Base64 编码（无填充）；返回写入字节数。 */
 function encode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  return base64_encode_url_c(src, src_len, out, out_cap);
+  unsafe {
+    return base64_encode_url_c(src, src_len, out, out_cap);
+  }
 }
+
 /** 标准 Base64 解码；返回写入 out 的字节数，非法输入返回 -1。 */
 function decode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  return base64_decode_standard_c(src, src_len, out, out_cap);
+  unsafe {
+    return base64_decode_standard_c(src, src_len, out, out_cap);
+  }
 }
+
 /** URL 变体解码；返回写入字节数，非法返回 -1。 */
 function decode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  return base64_decode_url_c(src, src_len, out, out_cap);
+  unsafe {
+    return base64_decode_url_c(src, src_len, out, out_cap);
+  }
 }
 
 extern function base64_stream_state_bytes_c(): i32;
@@ -32,24 +61,38 @@ extern function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32;
 
 /** 流状态缓冲最小字节数（STD-109）。 */
-function stream_state_bytes(): i32 {
-  return base64_stream_state_bytes_c();
+function state_bytes(): i32 {
+  unsafe {
+    return base64_stream_state_bytes_c();
+  }
 }
+
 /** 初始化 Base64 编码流；url 非 0 为 URL 变体。 */
-function stream_enc_init(state: *u8, state_cap: i32, url: i32): i32 {
-  return base64_stream_enc_init_c(state, state_cap, url);
+function enc_init(state: *u8, state_cap: i32, url: i32): i32 {
+  unsafe {
+    return base64_stream_enc_init_c(state, state_cap, url);
+  }
 }
+
 /** 初始化 Base64 解码流。 */
-function stream_dec_init(state: *u8, state_cap: i32, url: i32): i32 {
-  return base64_stream_dec_init_c(state, state_cap, url);
+function dec_init(state: *u8, state_cap: i32, url: i32): i32 {
+  unsafe {
+    return base64_stream_dec_init_c(state, state_cap, url);
+  }
 }
+
 /** 流式 Base64 编码 update；is_last=1 时 flush padding。 */
-function stream_enc_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
+function enc_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
-  return base64_stream_enc_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
+  unsafe {
+    return base64_stream_enc_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
+  }
 }
+
 /** 流式 Base64 解码 update；is_last=1 时 flush 尾部。 */
-function stream_dec_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
+function dec_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
-  return base64_stream_dec_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
+  unsafe {
+    return base64_stream_dec_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
+  }
 }

@@ -7,7 +7,7 @@ function main(): i32 {
   let re_l: *u8 = regex.compile(&pat_l[0], 6);
   if (re_l == 0) { return 1; }
   let hay_abc: u8[5] = [49, 97, 98, 99, 57];
-  if (regex.regex_match(re_l, &hay_abc[0], 5) != 0) { regex.free(re_l); return 2; }
+  if (regex.match(re_l, &hay_abc[0], 5) != 0) { regex.free(re_l); return 2; }
   regex.free(re_l);
 
   // \P{N} 匹配非数字（x）
@@ -15,7 +15,7 @@ function main(): i32 {
   let re_pn: *u8 = regex.compile(&pat_pn[0], 5);
   if (re_pn == 0) { return 3; }
   let hay_x5y: u8[3] = [120, 53, 121];
-  if (regex.regex_match(re_pn, &hay_x5y[0], 3) != 0) { regex.free(re_pn); return 4; }
+  if (regex.match(re_pn, &hay_x5y[0], 3) != 0) { regex.free(re_pn); return 4; }
   regex.free(re_pn);
 
   // \p{Whitespace}
@@ -23,7 +23,7 @@ function main(): i32 {
   let re_ws: *u8 = regex.compile(&pat_ws[0], 14);
   if (re_ws == 0) { return 5; }
   let hay_sp: u8[3] = [97, 32, 98];
-  if (regex.regex_match(re_ws, &hay_sp[0], 3) != 0) { regex.free(re_ws); return 6; }
+  if (regex.match(re_ws, &hay_sp[0], 3) != 0) { regex.free(re_ws); return 6; }
   regex.free(re_ws);
 
   // 空属性名 compile 失败

@@ -20,7 +20,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SQLITE_SX" "$SMOKE_SX"
 done
 
 grep -qF std.db.sqlite "$DOC" || exit 1
-grep -qF db_is_deprecated "$VECTORS" || exit 1
+grep -qF is_deprecated "$VECTORS" || exit 1
 grep -qF db_open_c "$MOD_SX" || exit 1
 
 while IFS=$'\t' read -r c1 c2 _rest; do

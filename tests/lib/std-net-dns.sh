@@ -27,8 +27,8 @@ std_net_dns_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          std/net/net.c) mod_path="${net_c:-std/net/net_dns.sx}" ;;
-          std/net/net_dns.sx) mod_path="std/net/net_dns.sx" ;;
+          std/net/net.c) mod_path="${net_c:-std/net/dns.sx}" ;;
+          std/net/dns.sx) mod_path="std/net/dns.sx" ;;
           *) mod_path="${mod_path:-$mod_sx}" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then

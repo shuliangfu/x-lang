@@ -20,41 +20,41 @@ function main(): i32 {
   let nr: i32 = 0;
   let i: i32 = 0;
 
-  fd = fs.fs_open_create(&path[0]);
+  fd = fs.open_create(&path[0]);
   if (fd < 0) {
     return 1;
   }
   nw = write_batch_fd(fd, &w0[0], 8, &w1[0], 8, &w0[0], 0, &w0[0], 0, 2);
   if (nw != 16) {
-    fs.fs_close(fd);
+    fs.close(fd);
     return 2;
   }
-  if (fs.fs_close(fd) != 0) {
+  if (fs.close(fd) != 0) {
     return 3;
   }
 
-  fd = fs.fs_open_read(&path[0]);
+  fd = fs.open(&path[0]);
   if (fd < 0) {
     return 4;
   }
   nr = read_batch_fd(fd, &r0[0], 8, &r1[0], 8, &r0[0], 0, &r0[0], 0, 2);
   if (nr != 16) {
-    fs.fs_close(fd);
+    fs.close(fd);
     return 5;
   }
   i = 0;
   while (i < 8) {
     if (r0[i] != w0[i]) {
-      fs.fs_close(fd);
+      fs.close(fd);
       return 6;
     }
     if (r1[i] != w1[i]) {
-      fs.fs_close(fd);
+      fs.close(fd);
       return 7;
     }
     i = i + 1;
   }
-  if (fs.fs_close(fd) != 0) {
+  if (fs.close(fd) != 0) {
     return 8;
   }
   return 0;

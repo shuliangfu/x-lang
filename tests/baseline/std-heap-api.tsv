@@ -3,11 +3,11 @@
 alloc
 free
 realloc
-alloc_zeroed
-alloc_aligned
+alloc_zero
+alloc_align
 arena64_init
 arena64_alloc
 arena64_deinit
-heap_trace_enabled
-heap_trace_stats
-heap_trace_reset
+trace_on
+trace_stats
+trace_reset

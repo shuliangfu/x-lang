@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // typeck.sx — 类型检查（纯 .sx，完全自举）
 //
 // 职责：对 .sx AST（Module + Arena）做类型检查，全部逻辑在 .sx；阶段 5.2 跨模块调用时通过 extern 取 dep 模块。
@@ -3707,11 +3723,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return - 1;
     }
   }
+  /** 须在 check_expr 前 resolve import CALL（如 return result.ok_i32(...) C5/X9）。 */
+  typeck_ret_fixup_unresolved_call(module, arena, op_ref, ctx);
   if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
     driver_diagnostic_typeck_ret_fail(1, op_ref, return_type_ref, 0);
     return - 1;
   }
-  typeck_ret_fixup_unresolved_call(module, arena, op_ref, ctx);
   typeck_ret_coerce_null_lit_to_expect(arena, op_ref, return_type_ref);
   if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);

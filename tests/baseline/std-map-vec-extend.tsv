@@ -4,8 +4,8 @@ min_map_types	2
 min_vec_types	2
 map_u64	symbol	Map_u64_i32	std/map/mod.sx
 map_str	symbol	Map_str_i32	std/map/mod.sx
-map_insert	symbol	map_u64_i32_insert	std/map/mod.sx
-map_remove	symbol	map_str_i32_remove	std/map/mod.sx
+map_insert	symbol	insert(m: *Map_u64_i32	std/map/mod.sx
+map_remove	symbol	str_remove(m: *Map_str_i32	std/map/mod.sx
 vec_u64	symbol	Vec_u64	std/vec/mod.sx
 vec_f64	symbol	Vec_f64	std/vec/mod.sx
 vec_append	symbol	vec_u64_append_slice	std/vec/mod.sx

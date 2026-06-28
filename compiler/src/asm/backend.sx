@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // backend.sx â æ±ç¼åç«¯ï¼AST éåãlowering åæ´¾ãæ¶æåæ´¾
 //
 // èè´£ï¼CodegenOutBuf ä¸ AsmFuncCtx çä½¿ç¨ãæ AST ç»ç¹ç±»ååæ´¾å°æ¶æç¸å³ emitï¼x86_64/arm64ï¼ï¼å¯¹å¤å¥å£ asm_codegen_astã

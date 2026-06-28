@@ -9,7 +9,7 @@ struct Pair {
 
 /** Arena bump 分配 + 字段写入；首参 Allocator，返回 *Pair。 */
 function make_pair_arena(al: Allocator, x: i32, y: i32): *Pair {
-  let raw: *u8 = heap.allocator_alloc(al, 8 as usize);
+  let raw: *u8 = heap.alloc(al, 8 as usize);
   let p: *Pair = raw as *Pair;
   p.a = x;
   p.b = y;
@@ -23,7 +23,7 @@ function sum_pair_ptr(p: *Pair): i32 {
 
 function main(): i32 {
   with_arena(4096) {
-    let p: *Pair = make_pair_arena(heap.scope_allocator(), 3, 4);
+    let p: *Pair = make_pair_arena(heap.scope_alloc(), 3, 4);
     return sum_pair_ptr(p);
   }
   return 0;

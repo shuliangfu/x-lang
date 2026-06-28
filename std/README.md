@@ -45,13 +45,13 @@
 | **std.atomic** | std/atomic/ | load/store、compare_exchange、fetch_add 等 |
 | **std.channel** | std/channel/ | 有界 channel、send/recv/try_recv |
 | **std.backtrace** | std/backtrace/ | capture、symbolicate（dladdr / DbgHelp；gate STD-052） |
-| **std.hash** | std/hash/ | SipHash、hash_start/hash_u32/u64/bytes/hash_finish |
+| **std.hash** | std/hash/ | SipHash、`start`/`write`/`write_bytes`/`finish`/`bytes` |
 | **std.math** | std/math/ | 常量、floor/ceil/round、sin/cos/sqrt/pow 等 |
 | **std.sort** | std/sort/ | sort_i32/u8、sort_stable_*、sort_i32_cmp、KeyTag/sort_stable_by_key |
 | **std.ffi** | std/ffi/ | cstring_new/free、FfiPoint pack/unpack、invoke_i32_cb |
 | **std.json** | std/json/ | parse/build/cursor、object_decode、typed decode（STD-116） |
 | **std.csv** | std/csv/ | next_field（RFC 4180 引号字段）、escape、unescape |
-| **std.compress** | std/compress/ | zlib/gzip/brotli/zstd 块；gzip 流 + 统一 `stream_compress_*`（STD-122） |
+| **std.compress** | std/compress/ | zlib/gzip/brotli/zstd 块；gzip 流 + 统一 `compress_*` 流门面（STD-122） |
 | **std.unicode** | std/unicode/ | category、NFC、grapheme_next、case_fold（v1 拉丁子集） |
 | **std.dynlib** | std/dynlib/ | open/sym/close（Linux -ldl） |
 | **std.http** | std/http/ | GET/POST/HEAD、chunked/keep-alive（STD-033）、Context 超时、server/pool、WebSocket Upgrade 辅助 |

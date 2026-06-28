@@ -194,7 +194,7 @@ int32_t net_udp_send_many_buf_c(int32_t fd, uint32_t *addrs, uint32_t *ports, Sh
 #endif
 }
 
-/** net_sock.sx 单文件 co-emit 时 net_close_socket_c 可能被 WPO 剔除；C 桩保证 net.o 可链。 */
+/** sock.sx 单文件 co-emit 时 net_close_socket_c 可能被 WPO 剔除；C 桩保证 net.o 可链。 */
 int32_t net_close_socket_c(int32_t fd) {
   if (fd < 0)
     return 0;
@@ -205,12 +205,12 @@ int32_t net_close_socket_c(int32_t fd) {
 #endif
 }
 
-/** Ipv4Addr → u32 大端；对齐 mod.sx addr_to_u32。 */
+/** Ipv4Addr → u32 大端；对齐 mod.sx addr_to_packed。 */
 static uint32_t net_addr_to_u32_val(ShuxIpv4Addr addr) {
   return ((uint32_t)addr.a << 24) | ((uint32_t)addr.b << 16) | ((uint32_t)addr.c << 8) | (uint32_t)addr.d;
 }
 
-/** addr_to_u32 门面；供测试与 UDP 批量发送使用。 */
+/** addr_to_packed 门面；供测试与 UDP 批量发送使用。 */
 uint32_t std_net_addr_to_u32(ShuxIpv4Addr addr) { return net_addr_to_u32_val(addr); }
 
 /** TCP listen；返回 TcpListener{fd}。 */

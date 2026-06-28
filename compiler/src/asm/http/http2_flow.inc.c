@@ -1,5 +1,5 @@
 /**
- * std/http/http2_flow.inc.c — HTTP/2 流控 v4（RFC 7540 WINDOW_UPDATE；STD-HTTP-H2-v4）
+ * std/http/flow.inc.c — HTTP/2 流控 v4（RFC 7540 WINDOW_UPDATE；STD-HTTP-H2-v4）
  *
  * 【文件职责】WINDOW_UPDATE 帧构建与默认窗口常量；由 http2.inc.c include。
  */
@@ -55,5 +55,5 @@ int32_t http2_flow_control_smoke_c(void) {
     return 0;
 }
 
-#include "http2_flow_state.inc.c"
-#include "http2_flow_recv.inc.c"
+#include "flow_state.inc.c"
+#include "flow_recv.inc.c"

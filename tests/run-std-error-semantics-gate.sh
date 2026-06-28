@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$ERR_MOD" "$SMOKE" "$RECIPE"; do
   fi
 done
 
-for kw in STD-158 error_semantic_class error_is_timeout error_recommend_retry; do
+for kw in STD-158 semantic_class is_timeout recommend_retry; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-error-semantics gate FAIL: doc missing '$kw'" >&2
     exit 1

@@ -70,6 +70,17 @@ double math_log_c(double x) { return log(x); }
 /** libm：绝对值。 */
 double math_fabs_c(double x) { return fabs(x); }
 
+/** signum：x>0→1，x<0→-1，x==0→0（自 math.sx 迁至 libm 胶层，供 -E 构建 math.o）。 */
+double math_signum_c(double x) {
+  if (x > 0.0) {
+    return 1.0;
+  }
+  if (x < 0.0) {
+    return -1.0;
+  }
+  return 0.0;
+}
+
 /** libm：较小值。 */
 double math_fmin_c(double a, double b) { return fmin(a, b); }
 
@@ -87,6 +98,35 @@ double math_log1p_c(double x) { return log1p(x); }
 
 /** libm：exp(x)-1。 */
 double math_expm1_c(double x) { return expm1(x); }
+
+/** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
+static int math_special_near(double a, double b, double eps) {
+  double d = a - b;
+  if (d < 0.0) {
+    d = -d;
+  }
+  return d <= eps ? 1 : 0;
+}
+
+/** STD-115 烟测：erf/log1p/expm1 金样；0 成功。 */
+int32_t math_special_smoke_c(void) {
+  if (!math_special_near(math_erf_c(0.0), 0.0, 1.0e-12)) {
+    return 1;
+  }
+  if (!math_special_near(math_erf_c(1.0), 0.8427007929497149, 1.0e-6)) {
+    return 2;
+  }
+  if (!math_special_near(math_log1p_c(0.0), 0.0, 1.0e-12)) {
+    return 3;
+  }
+  if (!math_special_near(math_expm1_c(0.0), 0.0, 1.0e-12)) {
+    return 4;
+  }
+  if (!math_special_near(math_erfc_c(0.0), 1.0, 1.0e-12)) {
+    return 5;
+  }
+  return 0;
+}
 
 #if SHUX_MATH_HAVE_FENV
 /** 将 Shux fenv 掩码转为 FE_* 位。 */

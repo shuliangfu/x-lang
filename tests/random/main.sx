@@ -1,10 +1,4 @@
-// 测试 std.random：fill_bytes、u32、u64、range_u32、bool
-//
-// 【文件职责】本文件为 std.random 的回归测试。
-// 【测试目的】确认 fill_bytes、u32、u64、range_u32、bool 行为正确且不崩溃。
-// 【覆盖 API】fill_bytes、u32、u64、range_u32、bool。
-// 【预期结果】退出码 0 表示通过。
-// 【运行方式】./tests/run-random.sh
+// 测试 std.random：fill_bytes、next、range、flip
 const random = import("std.random");
 
 function main(): i32 {
@@ -14,17 +8,17 @@ function main(): i32 {
   if (n != 32) {
     return 1;
   }
-  let x: u32 = random.next_u32();
-  let y: u64 = random.next_u64();
-  let r: u32 = random.range_u32(0, 9);
+  let x: u32 = random.next() as u32;
+  let y: u64 = random.next();
+  let r: u32 = random.range(0, 9);
   if (r > 9) {
     return 2;
   }
-  let b: i32 = random.gen_bool();
+  let b: i32 = random.flip();
   if (b != 0 && b != 1) {
     return 3;
   }
-  let r2: u32 = random.range_u32(100, 100);
+  let r2: u32 = random.range(100, 100);
   if (r2 != 100) {
     return 4;
   }

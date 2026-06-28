@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // ast.sx — 纯 .sx 抽象语法树（完全自举：不依赖 C 的 ast.h）
 //
 // 职责：定义编译器前端/中端/后端共用的 AST 节点类型，全部用 .sx 的 struct/enum 表示。
@@ -484,6 +500,8 @@ extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i3
 /** M-3：追加 region label { body } 到块池；返回块内 region 下标。 */
 extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32,
 body_ref: i32): i32;
+/** LANG-007 v2：追加 unsafe { body } 到块池（复用 regions 池，with_arena_cap_ref=-1 标记）；返回块内下标。 */
+extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
 extern function pipeline_block_region_body_ref(arena: *ASTArena, br: i32, ri: i32): i32;
 extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
 extern function pipeline_block_append_stmt_order(arena: *ASTArena, br: i32, kind: u8, idx: i32): i32;

@@ -23,7 +23,7 @@ function main(): i32 {
   let inner_name: u8[11] = [105, 110, 110, 101, 114, 46, 116, 120, 116, 0, 0];
   let payload: u8[5] = [83, 72, 85, 33, 0];
   let pay_len: usize = 4 as usize;
-  let st: FsStat = FsStat { size: 0, mode: 0, is_dir: 0, is_file: 0, mtime_sec: 0 };
+  let st: FsStatOut = FsStatOut { size: 0, mode: 0, is_dir: 0, is_file: 0, mtime_sec: 0 };
   let fd: i32 = 0;
   let dh: i64 = 0;
   let name_buf: u8[64] = [];
@@ -31,38 +31,38 @@ function main(): i32 {
   let found: i32 = 0;
   let rr: i32 = 0;
 
-  fs_unlink(&file_path[0]);
-  fs_rmdir(&dir_path[0]);
+  fs.remove_file(&file_path[0]);
+  fs.remove_dir(&dir_path[0]);
 
-  if (fs_mkdir(&dir_path[0], fs_mode_dir_default()) != 0) { return 1; }
-  if (fs_stat(&dir_path[0], &st) != 0) { return 2; }
+  if (fs.mkdir(&dir_path[0], fs.mode_dir_default()) != 0) { return 1; }
+  if (fs.stat(&dir_path[0], &st) != 0) { return 2; }
   if (st.is_dir != 1) { return 3; }
 
-  fd = fs.fs_open_write(&file_path[0]);
+  fd = fs.create(&file_path[0]);
   if (fd < 0) { return 4; }
-  if (fs.fs_write(fd, &payload[0], pay_len) != (pay_len as isize)) {
-    fs.fs_close(fd);
+  if (fs.write(fd, &payload[0], pay_len) != (pay_len as isize)) {
+    fs.close(fd);
     return 5;
   }
-  if (fs.fs_sync(fd) != 0) {
-    fs.fs_close(fd);
+  if (fs.sync(fd) != 0) {
+    fs.close(fd);
     return 6;
   }
-  fs.fs_close(fd);
+  fs.close(fd);
 
-  if (fs_stat(&file_path[0], &st) != 0) { return 7; }
+  if (fs.stat(&file_path[0], &st) != 0) { return 7; }
   if (st.is_file != 1) { return 8; }
   if (st.size != 4) { return 9; }
 
-  if (fs_chmod(&file_path[0], fs_mode_file_default()) != 0) { return 10; }
+  if (fs.chmod(&file_path[0], fs.mode_file_default()) != 0) { return 10; }
 
-  dh = fs_dir_open(&dir_path[0]);
+  dh = fs.dir_open(&dir_path[0]);
   if (dh < 0) { return 11; }
   let more: i32 = 1;
   while (more != 0) {
-    rr = fs_dir_read(dh, &name_buf[0], 64, &is_dir_flag);
+    rr = fs.dir_read(dh, &name_buf[0], 64, &is_dir_flag);
     if (rr < 0) {
-      fs_dir_close(dh);
+      fs.dir_close(dh);
       return 12;
     }
     if (rr == 0) {
@@ -71,16 +71,16 @@ function main(): i32 {
     }
     if (str_eq(&name_buf[0], &inner_name[0]) != 0) {
       if (is_dir_flag != 0) {
-        fs_dir_close(dh);
+        fs.dir_close(dh);
         return 13;
       }
       found = 1;
     }
   }
-  fs_dir_close(dh);
+  fs.dir_close(dh);
   if (found != 1) { return 14; }
 
-  if (fs_unlink(&file_path[0]) != 0) { return 15; }
-  if (fs_rmdir(&dir_path[0]) != 0) { return 16; }
+  if (fs.remove_file(&file_path[0]) != 0) { return 15; }
+  if (fs.remove_dir(&dir_path[0]) != 0) { return 16; }
   return 0;
 }

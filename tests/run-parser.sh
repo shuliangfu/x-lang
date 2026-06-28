@@ -59,4 +59,12 @@ if [ "$exitcode" -ne 3 ]; then
   exit 1
 fi
 
+# 负例：import 模块顶层 const 不得裸名访问
+if parser_expect_reject tests/parser/async_const_bare_access.sx "must be qualified|typeck error"; then
+  : # 预期报错
+else
+  echo "parser: expected typeck error for bare import const POLL_PENDING/POLL_READY"
+  exit 1
+fi
+
 echo "parser test OK"

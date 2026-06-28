@@ -639,8 +639,8 @@ median_udp_pair() {
     exe="/tmp/bench_net_shu_${tag}"
     sed -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
         -e "s/batch, 5000/batch, 200/" \
-        "$su_template" >"/tmp/bench_net_udp.sx"
-    if ! ./compiler/shux -L . "/tmp/bench_net_udp.sx" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+        "$su_template" >"/tmp/bench_udp.sx"
+    if ! ./compiler/shux -L . "/tmp/bench_udp.sx" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       echo "nan"
       return 1

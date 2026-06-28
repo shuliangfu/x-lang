@@ -1,4 +1,4 @@
-// STD-096：std.dynlib last_error 烟测
+// STD-096：std.dynlib last_os_error 烟测
 const dynlib = import("std.dynlib");
 
 function main(): i32 {
@@ -11,7 +11,7 @@ function main(): i32 {
     dynlib.close(lib);
     return 1;
   }
-  if (dynlib.last_error(&buf[0], 128) <= 0) {
+  if (dynlib.last_os_error(&buf[0], 128) <= 0) {
     return 2;
   }
   return 0;

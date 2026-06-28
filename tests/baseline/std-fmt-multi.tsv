@@ -2,16 +2,16 @@
 # 列：item_id	kind	anchor	mod_path	notes
 min_format2_new	7
 min_format3	2
-fmt2_u64	overload	format_2.*a: u64.*b: u64	std/fmt/mod.sx
-fmt2_usize	overload	format_2.*a: usize.*b: usize	std/fmt/mod.sx
-fmt2_isize	overload	format_2.*a: isize.*b: i32	std/fmt/mod.sx
-fmt2_ptr	overload	format_2.*p: \*u8.*v: i32	std/fmt/mod.sx
-fmt2_bool	overload	format_2.*a: bool.*b: bool	std/fmt/mod.sx
-fmt2_f64	overload	format_2.*x: f64.*v: i32	std/fmt/mod.sx
-fmt2_i32_usize	overload	format_2.*a: i32.*b: usize	std/fmt/mod.sx
-fmt3_i32	overload	format_3.*a: i32.*b: i32.*c: i32	std/fmt/mod.sx
-fmt3_mix	overload	format_3.*a: i32.*b: u32.*c: usize	std/fmt/mod.sx
-core_ptr	symbol	fmt_ptr_to_buf	std/fmt/mod.sx	重导出
+fmt2_u64	overload	format.*a: u64.*b: u64	std/fmt/mod.sx
+fmt2_usize	overload	format.*a: usize.*b: usize	std/fmt/mod.sx
+fmt2_isize	overload	format.*a: isize.*b: i32	std/fmt/mod.sx
+fmt2_ptr	overload	format.*p: \*u8.*v: i32	std/fmt/mod.sx
+fmt2_bool	overload	format.*a: bool.*b: bool	std/fmt/mod.sx
+fmt2_f64	overload	format.*x: f64.*v: i32	std/fmt/mod.sx
+fmt2_i32_usize	overload	format.*a: i32.*b: usize	std/fmt/mod.sx
+fmt3_i32	overload	format.*a: i32.*b: i32.*c: i32	std/fmt/mod.sx
+fmt3_mix	overload	format.*a: i32.*b: u32.*c: usize	std/fmt/mod.sx
+core_ptr	symbol	ptr_to_buf	std/fmt/mod.sx	重导出
 test_smoke	file	tests/fmt-std/format_multi.sx		烟测
 runner	script	run-fmt-std.sh	tests/run-fmt-std.sh	回归
 doc	file	std-fmt-multi-v1.md	analysis/std-fmt-multi-v1.md	RFC

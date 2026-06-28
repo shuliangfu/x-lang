@@ -6,8 +6,8 @@ function main(): i32 {
   if (async_mod.net_fs_async_smoke() != 0) { return 1; }
 
   let ctx: Context = ctx_mod.background();
-  let rt: AsyncRuntime = async_mod.runtime_new(ctx);
-  async_mod.bind_context(ctx);
+  let rt: AsyncRuntime = async_mod.runtime(ctx);
+  async_mod.bind_ctx(ctx);
 
   let buf: u8 = 0;
   if (async_mod.await_read_fd(&rt, -1, &buf, 1, 4) >= 0) { return 2; }

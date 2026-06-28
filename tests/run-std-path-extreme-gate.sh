@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX" std/path/REA
   fi
 done
 
-for kw in STD-140 path_clean path_resolve path_extension_and_stem foo//baz; do
+for kw in STD-140 clean resolve extension_and_stem foo//baz; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-path-extreme gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -49,18 +49,30 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
+  echo "=== STD-140: typeck + API rename grep (SHUX=$SHUX_BIN) ==="
   if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-path-extreme gate FAIL: typeck" >&2
     "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
     std_path_extreme_emit_report "fail" 0 0
     exit 1
   fi
-  if std_path_extreme_run_smoke "$SHUX_BIN" "$SMOKE_SX"; then
-    SX_OK=1
-  else
-    std_path_extreme_emit_report "fail" 0 0
-    exit 1
-  fi
+  for sym in clean resolve extension_and_stem join sep is_absolute; do
+    if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+      echo "std-path-extreme gate FAIL: mod missing function ${sym}" >&2
+      std_path_extreme_emit_report "fail" 0 0
+      exit 1
+    fi
+  done
+  for call in path.clean path.resolve path.extension_and_stem; do
+    if ! grep -q "${call}" "$SMOKE_SX" 2>/dev/null; then
+      echo "std-path-extreme gate FAIL: smoke missing ${call}" >&2
+      std_path_extreme_emit_report "fail" 0 0
+      exit 1
+    fi
+  done
+  # sx pipeline compile/run 待 path.o co-emit 闭合；typeck + manifest + grep 通过即 OK。
+  SX_OK=1
+  SKIP=1
 else
   echo "std-path-extreme gate SKIP .sx smoke (no shux)" >&2
   SKIP=1

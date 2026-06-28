@@ -87,7 +87,8 @@ if [ -n "$SHUX" ]; then
   expect_typeck_error tests/typeck/u64_to_usize_needs_as.sx "expected usize, found u64" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/struct_repr_compatible_fail.sx "no matching overload" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/result_try_bad.sx "enclosing function to return the same Result type" "$TYPECK_SHUX"
-  for f in tests/typeck/contextual_typing_p0.sx tests/typeck/contextual_typing_p1.sx tests/typeck/postfix_call_index.sx tests/typeck/postfix_array_slice_type.sx tests/typeck/ptr_arith_i32.sx tests/typeck/ternary_u8_context.sx tests/typeck/struct_field_shorthand.sx tests/typeck/match_guard.sx tests/typeck/match_struct_destructure.sx tests/typeck/range_for.sx tests/typeck/result_try.sx tests/typeck/result_try_catch.sx tests/typeck/return_struct_field_shorthand.sx tests/typeck/struct_repr_compatible.sx tests/typeck/type_alias.sx; do
+  expect_typeck_error tests/typeck/import_const_bare_fail.sx "must be qualified" "$TYPECK_SHUX"
+  for f in tests/typeck/contextual_typing_p0.sx tests/typeck/contextual_typing_p1.sx tests/typeck/postfix_call_index.sx tests/typeck/postfix_array_slice_type.sx tests/typeck/ptr_arith_i32.sx tests/typeck/ternary_u8_context.sx tests/typeck/struct_field_shorthand.sx tests/typeck/match_guard.sx tests/typeck/match_struct_destructure.sx tests/typeck/range_for.sx tests/typeck/result_try.sx tests/typeck/result_try_catch.sx tests/typeck/return_struct_field_shorthand.sx tests/typeck/struct_repr_compatible.sx tests/typeck/type_alias.sx tests/typeck/import_const_qualified_ok.sx; do
     out_pos=$("$TYPECK_SHUX" "$f" 2>&1) || true
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
@@ -110,6 +111,7 @@ else
   expect_typeck_error tests/typeck/u64_to_usize_needs_as.sx "expected usize, found u64" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/struct_repr_compatible_fail.sx "no matching overload" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/result_try_bad.sx "enclosing function to return the same Result type" "$TYPECK_SHUX"
+  expect_typeck_error tests/typeck/import_const_bare_fail.sx "must be qualified" "$TYPECK_SHUX"
   if [ -x ./compiler/shux-sx ]; then
     err_ret_sx=$(./compiler/shux-sx -sx tests/typeck/return_operand_type_mismatch.sx -o /tmp/shux_typeck_ret_fail_defaults.o 2>&1) || true
     echo "$err_ret_sx" | grep -q "typeck error" || {
@@ -117,7 +119,7 @@ else
       exit 1
     }
   fi
-  for f in tests/typeck/contextual_typing_p0.sx tests/typeck/contextual_typing_p1.sx tests/typeck/postfix_call_index.sx tests/typeck/postfix_array_slice_type.sx tests/typeck/ptr_arith_i32.sx tests/typeck/ternary_u8_context.sx tests/typeck/struct_field_shorthand.sx tests/typeck/match_guard.sx tests/typeck/match_struct_destructure.sx tests/typeck/range_for.sx tests/typeck/result_try.sx tests/typeck/result_try_catch.sx tests/typeck/return_struct_field_shorthand.sx tests/typeck/struct_repr_compatible.sx tests/typeck/type_alias.sx; do
+  for f in tests/typeck/contextual_typing_p0.sx tests/typeck/contextual_typing_p1.sx tests/typeck/postfix_call_index.sx tests/typeck/postfix_array_slice_type.sx tests/typeck/ptr_arith_i32.sx tests/typeck/ternary_u8_context.sx tests/typeck/struct_field_shorthand.sx tests/typeck/match_guard.sx tests/typeck/match_struct_destructure.sx tests/typeck/range_for.sx tests/typeck/result_try.sx tests/typeck/result_try_catch.sx tests/typeck/return_struct_field_shorthand.sx tests/typeck/struct_repr_compatible.sx tests/typeck/type_alias.sx tests/typeck/import_const_qualified_ok.sx; do
     out_pos=$("$TYPECK_SHUX" "$f" 2>&1) || true
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done

@@ -10,10 +10,10 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  let j: i32 = path.path_join(&out[0], 32, &dir[0], 3, &file[0], 4);
+  let j: i32 = path.join(&out[0], 32, &dir[0], 3, &file[0], 4);
   if (j != 8) { return 1; }
   let joined: u8[9] = [100, 105, 114, 47, 102, 105, 108, 101, 0];
   let base: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  if (path.path_basename(&joined[0], 8, &base[0], 8) != 4) { return 2; }
+  if (path.basename(&joined[0], 8, &base[0], 8) != 4) { return 2; }
   return 0;
 }

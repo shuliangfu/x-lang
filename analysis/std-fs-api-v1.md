@@ -1,6 +1,6 @@
 # std.fs API v1 稳定化（STD-003）
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
 > 关联：`STD-001`（std.io 联合 fd API）、`ZC-005`（pipe splice）、`tests/run-io-unified-gate.sh`
 
@@ -24,7 +24,7 @@
 ```
 import("std.fs")          ← 用户稳定面（本文档 §3）
     ├── std.io         ← 已 re-export read_fd/write_fd/batch（§3.5）
-    └── std/fs/fs.c    ← C 桥接（不直接 import）
+    └── std/fs/posix.sx / win32.sx    ← 平台实现（不直接 import）
 ```
 
 **v1 规则**：文件路径由 `std.path` 拼接；**用户仅** `import("std.fs")` 即可用 fd + io 批量路径。
@@ -33,54 +33,62 @@ import("std.fs")          ← 用户稳定面（本文档 §3）
 
 ## 3. 稳定 API 清单（Tier S）
 
-完整符号见 `tests/baseline/std-fs-api.tsv`（37 个，门禁校验）。
+完整符号见 `tests/baseline/std-fs-api.tsv`（门禁校验）。
 
 ### 3.1 基础 I/O
 
 | 符号 | 说明 |
 |------|------|
-| `fs_open_read` / `fs_open_write` / `fs_close` | 只读/写（截断）/关闭 |
-| `fs_open_append` / `fs_open_create` | 追加 / 存在不截断 |
-| `fs_read` / `fs_write` | 顺序大块（建议 ≥ `fs_read_chunk()`） |
-| `fs_pread` / `fs_pwrite` | 带 offset 并发读/写 |
-| `fs_read_chunk` | 推荐块大小（1MiB） |
-| `fs_last_error` | 上次失败 errno / GetLastError |
-| `fs_path_readable` | 路径可读探测（工具链用） |
-| `fs_invalid_handle` | 常量 -1 |
+| `open` / `create` / `close` | 只读/写（截断）/关闭 |
+| `open_append` / `open_create` | 追加 / 存在不截断 |
+| `read` / `write` | 顺序大块（建议 ≥ `chunk_size()`） |
+| `pread` / `pwrite` | 带 offset 并发读/写 |
+| `chunk_size` | 推荐块大小（1MiB） |
+| `last_error` | 上次失败 errno / GetLastError |
+| `path_readable` | 路径可读探测（工具链用） |
+| `invalid` | 常量 -1 |
 
 ### 3.2 mmap
 
 | 符号 | 说明 |
 |------|------|
-| `fs_mmap_ro` / `fs_mmap_rw` / `fs_munmap` | 整文件映射 |
+| `mmap_ro` / `mmap_rw` / `munmap` | 整文件映射 |
 
 ### 3.3 向量 I/O
 
 | 符号 | 说明 |
 |------|------|
-| `fs_readv2` / `fs_writev2` | 2 段 readv/writev |
-| `fs_readv4` / `fs_writev4` | 4 段 |
-| `fs_readv_buf` / `fs_writev_buf` | 1..16 段（`FsIovecBuf`） |
+| `readv` / `writev` | 2/4 段 readv/writev（函数重载） |
+| `readv_buf` / `writev_buf` | 1..16 段（`FsIovecBuf`） |
 
 ### 3.4 内核提示与零拷贝
 
 | 符号 | 说明 |
 |------|------|
-| `fs_fadvise_sequential` / `fs_fadvise_willneed` | Linux fadvise |
-| `fs_open_read_direct` / `fs_direct_align` | O_DIRECT / F_NOCACHE / NO_BUFFERING |
-| `fs_copy_file_range` | 文件→文件内核复制 |
-| `fs_sendfile` | 文件→socket |
-| `fs_pipe_splice` | ZC-5 pipe splice |
-| `fs_sync_range` / `fs_sync` | 范围/整文件刷盘 |
-| `fs_fallocate` | 预分配 |
+| `fadvise_sequential` / `fadvise_willneed` | Linux fadvise |
+| `open_read_direct` / `direct_align` | O_DIRECT / F_NOCACHE / NO_BUFFERING |
+| `copy_file_range` | 文件→文件内核复制 |
+| `sendfile` | 文件→socket |
+| `pipe_splice` | ZC-5 pipe splice |
+| `sync_range` / `sync` | 范围/整文件刷盘 |
+| `fallocate` | 预分配 |
 
 ### 3.5 std.io 联合（re-export）
 
 | 符号 | 说明 |
 |------|------|
-| `handle_from_fd` | fd → io handle |
+| `from_fd` | fd → io handle |
 | `read_fd` / `write_fd` | 单次大块（io_uring/kqueue/IOCP） |
 | `read_batch_fd` / `write_batch_fd` | 最多 4 段 batch |
+
+### 3.6 目录/元数据（STD-123）
+
+| 符号 | 说明 |
+|------|------|
+| `stat` / `chmod` / `mkdir` | 元数据与建目录 |
+| `remove_file` / `remove_dir` | 删文件/空目录 |
+| `dir_open` / `dir_read` / `dir_close` | 目录遍历 |
+| `mode_file_default` / `mode_dir_default` | 默认权限 |
 
 ---
 
@@ -93,7 +101,7 @@ import("std.fs")          ← 用户稳定面（本文档 §3）
 | **open/read/write/close** | ✅ | ✅ | ✅ |
 | **pread/pwrite** | ✅ | ✅ | ✅ |
 | **mmap ro/rw** | ✅ madvise | ✅ | ✅ MapViewOfFile |
-| **readv2/4、readv_buf** | ✅ readv | ✅ readv | ✅ 多段 ReadFile |
+| **readv、readv_buf** | ✅ readv | ✅ readv | ✅ 多段 ReadFile |
 | **read_fd/write_fd/batch** | ✅ io_uring | ✅ kqueue | ✅ IOCP |
 | **fadvise** | ✅ | ❌ no-op | ❌ no-op |
 | **O_DIRECT 族** | ✅ | ⚠️ F_NOCACHE | ⚠️ NO_BUFFERING |

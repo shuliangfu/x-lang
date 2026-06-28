@@ -1,6 +1,6 @@
 # STD-098/STD-102/STD-104/STD-108：std.channel select v1
 
-> 更新时间：2026-06-18  
+> 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
 > 关联：`tests/baseline/std-channel-select.tsv`、`tests/channel/select_*.sx`
 
@@ -23,37 +23,37 @@
 
 | API | 说明 |
 |-----|------|
-| `channel_select_try_recv_2(ch0, ch1, out_val, out_index)` | 非阻塞；**ch0 优先**于 ch1 |
-| `channel_select_recv_2(ch0, ch1, out_val, out_index)` | 阻塞直至任一路有数据 |
+| `select_try_recv(ch0, ch1, out_val, out_index)` | 非阻塞；**ch0 优先**于 ch1 |
+| `select_recv(ch0, ch1, out_val, out_index)` | 阻塞直至任一路有数据 |
 
 ### 2.2 recv N 路（STD-102）
 
 | API | 说明 |
 |-----|------|
-| `channel_select_chs_set(slots, idx, ch)` | 将句柄写入 `i64` 槽（64 位 LE 与 C `void**` 布局兼容） |
-| `channel_select_try_recv_n(chs_slots, n, out_val, out_index)` | 非阻塞；**index 升序优先**（0 最高） |
-| `channel_select_recv_n(chs_slots, n, out_val, out_index)` | 阻塞直至任一路有数据 |
-| `channel_select_max()` | 最大路数 `8`（`CHANNEL_SELECT_MAX`） |
+| `select_chs_set(slots, idx, ch)` | 将句柄写入 `i64` 槽（64 位 LE 与 C `void**` 布局兼容） |
+| `select_try_recv_n(chs_slots, n, out_val, out_index)` | 非阻塞；**index 升序优先**（0 最高） |
+| `select_recv_n(chs_slots, n, out_val, out_index)` | 阻塞直至任一路有数据 |
+| `select_max()` | 最大路数 `8`（`CHANNEL_SELECT_MAX`） |
 
 ### 2.3 send 双路 / N 路（STD-104）
 
 | API | 说明 |
 |-----|------|
-| `channel_select_try_send_2(ch0, ch1, val, out_index)` | 非阻塞 send；**ch0 优先** |
-| `channel_select_send_2(ch0, ch1, val, out_index)` | 阻塞 send 直至任一路可写 |
-| `channel_select_try_send_n(chs_slots, n, val, out_index)` | 非阻塞 N 路 send |
-| `channel_select_send_n(chs_slots, n, val, out_index)` | 阻塞 N 路 send |
+| `select_try_send(ch0, ch1, val, out_index)` | 非阻塞 send；**ch0 优先** |
+| `select_send(ch0, ch1, val, out_index)` | 阻塞 send 直至任一路可写 |
+| `select_try_send_n(chs_slots, n, val, out_index)` | 非阻塞 N 路 send |
+| `select_send_n(chs_slots, n, val, out_index)` | 阻塞 N 路 send |
 
 ### 2.4 双向混合 recv+send（STD-108）
 
 | API | 说明 |
 |-----|------|
 | `SELECT_DIR_RECV` / `SELECT_DIR_SEND` | 方向常量 `0` / `1` |
-| `channel_select_dirs_set(dirs, idx, dir)` | 与 `chs_set` 平行的方向槽 |
-| `channel_select_try_mixed_2(recv_ch, send_ch, send_val, out_val, out_is_send)` | 非阻塞；**recv 优先**于 send |
-| `channel_select_mixed_2(...)` | 阻塞混合双路 |
-| `channel_select_try_mixed_n(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send)` | 非阻塞 N 路混合；**index 升序优先** |
-| `channel_select_mixed_n(...)` | 阻塞 N 路混合 |
+| `select_dirs_set(dirs, idx, dir)` | 与 `chs_set` 平行的方向槽 |
+| `select_try_mixed(recv_ch, send_ch, send_val, out_val, out_is_send)` | 非阻塞；**recv 优先**于 send |
+| `select_mixed(...)` | 阻塞混合双路 |
+| `select_try_mixed_n(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send)` | 非阻塞 N 路混合；**index 升序优先** |
+| `select_mixed_n(...)` | 阻塞 N 路混合 |
 
 **返回值（try mixed）**：
 

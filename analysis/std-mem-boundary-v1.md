@@ -20,7 +20,7 @@
 
 | 能力 | `core.mem` | `std.mem` | 实现路径 |
 |------|------------|-----------|----------|
-| 字节拷贝（不重叠） | `mem_copy` | `copy` | core：`.sx` 循环 → `__builtin_memcpy`；std：`heap.copy_u8_at` → `memcpy` |
+| 字节拷贝（不重叠） | `mem_copy` | `copy` | core：`.sx` 循环 → `__builtin_memcpy`；std：`heap.copy` → `memcpy` |
 | 字节填充 | `mem_set` / `mem_zero` | `set` | core：内建 `memset`；std：`heap_mem_set_c` |
 | 字节比较 | `mem_compare` | `compare` | core：内建 `memcmp`；std：`heap_mem_compare_c` |
 | 重叠拷贝 | `mem_move` | — | **仅 core** |

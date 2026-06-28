@@ -1,4 +1,4 @@
-// MEM-C1 #[alloc]：省略 al 首参时 codegen 注入 default_allocator()。
+// MEM-C1 #[alloc]：省略 al 首参时 codegen 注入 default_alloc()。
 const heap = import("std.heap");
 
 /** 本地 #[alloc] 包装：验证调用点隐式注入 al。 */

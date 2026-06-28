@@ -1,0 +1,17 @@
+# std.crypto Tier-S stable public API (import std.crypto)
+mem_eq
+sha256
+sha512
+hmac_sha256
+hmac_sha512
+mac_sign
+mac_sign_512
+mac_verify
+mac_verify_512
+ed25519_public_from_seed
+ed25519_sign
+ed25519_verify
+aes_gcm_seal
+aes_gcm_open
+chacha20_poly1305_seal
+chacha20_poly1305_open

@@ -1,12 +1,12 @@
 # 阶段 F-04 v16（std.crypto crypto.c shell 去 C）
 
-> **F-04 v16 v1**：**`std/crypto/crypto.c`** → **`crypto_core.sx`** + **`crypto_inc_glue.c`**（inc.c 仍 C 胶层）。
+> **F-04 v16 v1**：**`std/crypto/crypto.c`** → **`core.sx`** + **`crypto_inc_glue.c`**（inc.c 仍 C 胶层）。
 
 ## 迁移范围
 
 | 文件 | 说明 |
 |------|------|
-| `std/crypto/crypto_core.sx` | mem_eq、SHA-256、HMAC-SHA256 |
+| `std/crypto/core.sx` | mem_eq、SHA-256、HMAC-SHA256 |
 | `std/crypto/crypto_inc_glue.c` | aes_gcm / chacha20_poly1305 / ed25519.inc.c + SHA-512 / HMAC-SHA512 |
 | ~~`std/crypto/crypto.c`~~ | 已删除 |
 

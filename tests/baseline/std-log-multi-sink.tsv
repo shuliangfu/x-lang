@@ -3,11 +3,11 @@
 # min_apis	6
 read_path	section	## 1. 阅读路径	15min
 api_doc	section	## 2. API	SINK_STDERR
-cookbook	section	## 3. Cookbook	log_structured_kv
+cookbook	section	## 3. Cookbook	structured_kv
 verify	section	## 5. 门禁	gate
 api_min	api	set_min_level	std/log/mod.sx	过滤
 api_log	api	log	std/log/mod.sx	人类行
-api_struct	api	log_structured_kv	std/log/mod.sx	结构化
+api_struct	api	structured_kv	std/log/mod.sx	结构化
 api_mask	api	set_sink_mask	std/log/mod.sx	掩码
 api_file	api	set_file_sink	std/log/mod.sx	文件
 api_close	api	close_file_sink	std/log/mod.sx	关闭

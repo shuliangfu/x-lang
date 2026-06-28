@@ -1,19 +1,13 @@
-# STD-048 std.queue concurrent wrapper manifest
+# STD-048 std.queue concurrent manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
-read_path	section	## 1. 阅读路径	15min
-sync_api	section	## 2. SyncQueue_i32 API	sync_queue_i32_new
-compare	section	## 3. 与 sync / channel 选型对比	std.channel
-verify	section	## 4. 门禁	gate
-api_sync_new	api	sync_queue_i32_new	std/queue/mod.sx	创建
-api_sync_push	api	sync_queue_i32_push_back	std/queue/mod.sx	入队
-api_sync_pop	api	sync_queue_i32_try_pop_front	std/queue/mod.sx	出队
-api_sync_len	api	sync_queue_i32_len	std/queue/mod.sx	长度
-api_sync_deinit	api	sync_queue_i32_deinit	std/queue/mod.sx	销毁
+sync_api	section	## 2. SyncQueue_i32 API	sync_new
+api_sync_new	api	sync_new	std/queue/mod.sx	创建
+api_sync_push	api	sync_push	std/queue/mod.sx	入队
+api_sync_pop	api	sync_try_pop	std/queue/mod.sx	出队
+api_sync_len	api	sync_queue_len	std/queue/mod.sx	长度
+api_sync_deinit	api	sync_deinit	std/queue/mod.sx	销毁
 api_smoke	api	sync_queue_contention_smoke	std/queue/mod.sx	门面
 symbol_smoke_c	symbol	sync_queue_contention_smoke_c	std/queue/queue.sx	C 烟测
 smoke_contention_c	file	tests/queue/sync_queue_contention_ok.c	C 入口
 smoke_roundtrip	smoke	tests/queue/sync_queue_roundtrip.sx	单线程
-smoke_main	smoke	tests/queue/main.sx	回归
-lib	script	lib/std-queue-concurrent.sh	tests/lib/std-queue-concurrent.sh
-gate	script	run-std-queue-concurrent-gate.sh	tests/run-std-queue-concurrent-gate.sh

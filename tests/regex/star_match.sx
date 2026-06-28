@@ -6,9 +6,9 @@ function main(): i32 {
   let re: *u8 = regex.compile(&pat[0], 3);
   if (re == 0) { return 1; }
   let hay: u8[4] = [97, 97, 97, 98];
-  if (regex.regex_match(re, &hay[0], 4) != 0) { regex.free(re); return 2; }
+  if (regex.match(re, &hay[0], 4) != 0) { regex.free(re); return 2; }
   let hay2: u8[1] = [98];
-  if (regex.regex_match(re, &hay2[0], 1) != 0) { regex.free(re); return 3; }
+  if (regex.match(re, &hay2[0], 1) != 0) { regex.free(re); return 3; }
   regex.free(re);
   return 0;
 }

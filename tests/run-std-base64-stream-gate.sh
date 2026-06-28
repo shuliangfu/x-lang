@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$B64_SX" "$SMOKE_SX" "$
   fi
 done
 
-for kw in STD-109 stream_enc_update stream_dec_update aGVsbG8; do
+for kw in STD-109 enc_update dec_update aGVsbG8; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-base64-stream gate FAIL: doc missing '$kw'" >&2
     exit 1

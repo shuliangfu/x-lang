@@ -78,9 +78,10 @@ language await read/write/read_fd
 | API | 委托 |
 |-----|------|
 | `cps_suspend_io(phase, next_phase)` | `shu_async_cps_suspend_io` |
-| `poll_io_completions(timeout_ms)` | `std.io.poll_async_completions` |
+| `poll_completions(timeout_ms)` | `shux_io_poll_async_completions` |
+| `drain_idle()` | `shux_async_run_drain_until_idle` |
 
-与 STD-041 组合：`scheduler_reset` → `run`/`spawn` → `drain_until_idle`（内含 poll IO）。
+与 STD-041 组合：`scheduler_reset` → `run`/`spawn` → `drain_idle`（内含 poll IO；C 层仍称 `drain_until_idle`）。
 
 ---
 
@@ -100,6 +101,7 @@ shux: [SHUX_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.2 | 2026-06-28 | S9 API 简写：`poll_completions` / `drain_idle` / `uring_ok` / `pump` / `complete_read` |
 | v1.1 | 2026-06-19 | STD-049：`io_uring_is_available` / async IO 门面 re-export / `io_pump_once` / `poll_loop_ctx` |
 | v1 | 2026-06-17 | IO/CPS 统一 RFC + 门面对齐 + 烟测 |
 
@@ -112,11 +114,11 @@ shux: [SHUX_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
 | API | 委托 |
 |-----|------|
 | `IO_ASYNC_NOT_READY` | 常量 -2 |
-| `io_uring_is_available()` | `std.io.io_uring_is_available` |
+| `uring_ok()` | `std.io.io_uring_is_available`（旧名 `io_uring_is_available`） |
 | `read_async` / `write_async` | `std.io` 同名 |
 | `read_async_fd` / `write_async_fd` | `handle_from_fd` + async submit |
-| `complete_read_async_slot` / `complete_write_async_slot` | `std.io` 同名 |
-| `io_pump_once()` | `poll_io_completions(0)` + `drain_until_idle` |
+| `complete_read` / `complete_write` | `std.io.complete_read_async_slot` / `complete_write_async_slot` |
+| `pump()` | `poll_completions(0)` + `drain_idle`（旧名 `io_pump_once` + `drain_until_idle`） |
 | `poll_loop_ctx(rt, max_rounds)` | Context deadline poll + drain；取消/超时返回 net_err_* |
 
 烟测：`tests/async/io_uring_facade.sx`。

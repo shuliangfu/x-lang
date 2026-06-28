@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.db.sqlite — SQLite 数据库访问（STD-057…070/084）
 //
 // 【路径】`import("std.db.sqlite")`。
@@ -65,7 +81,7 @@ extern function db_query_end_c(cursor: i64): i32;
 extern function db_begin_tx_c(handle: i64): i32;
 extern function db_commit_c(handle: i64): i32;
 extern function db_rollback_c(handle: i64): i32;
-extern function db_last_error_code_c(): i32;
+extern function db_last_code_c(): i32;
 extern function db_last_error_msg_c(): *u8;
 extern function db_backend_name_c(): *u8;
 extern function db_changes_c(handle: i64): i32;
@@ -161,7 +177,7 @@ function rollback(conn: DbConn): i32 {
 /** 读取线程局部最后一次库错误。 */
 function last_error(): DbError {
   return DbError {
-    code: db_last_error_code_c(),
+    code: db_last_code_c(),
     msg: db_last_error_msg_c(),
   };
 }

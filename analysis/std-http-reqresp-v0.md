@@ -37,11 +37,11 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 
 | API | 说明 |
 |-----|------|
-| `http2_hpack_huffman_decode` | RFC 7541 静态表 Huffman 解码 |
-| `http2_hpack_huffman_is_available` | 解码层可用 |
-| `http2_hpack_huffman_smoke` | 解码 "www.example.com" 烟测 |
+| `hpack_huffman_decode` | RFC 7541 静态表 Huffman 解码 |
+| `hpack_huffman_is_available` | 解码层可用 |
+| `hpack_huffman_smoke` | 解码 "www.example.com" 烟测 |
 
-`http2_hpack_decode_status` 等路径在 HPACK 字符串 H=1 时自动走 Huffman。
+`hpack_decode_status` 等路径在 HPACK 字符串 H=1 时自动走 Huffman。
 
 ---
 
@@ -49,10 +49,10 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 
 | API | 说明 |
 |-----|------|
-| `http2_build_window_update` | WINDOW_UPDATE 帧（13 字节） |
-| `http2_default_initial_window` | 65535 |
-| `http2_frame_window_update` | 帧类型 8 |
-| `http2_flow_control_smoke` | 烟测 |
+| `build_window_update` | WINDOW_UPDATE 帧（13 字节） |
+| `default_initial_window` | 65535 |
+| `frame_window_update` | 帧类型 8 |
+| `flow_control_smoke` | 烟测 |
 
 ---
 
@@ -60,7 +60,7 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 
 | API | 说明 |
 |-----|------|
-| `HttpBodyOwned` | 堆分配 body（`std.heap.alloc_u8`） |
+| `HttpBodyOwned` | 堆分配 body（`std.heap.alloc`） |
 | `execute_ctx` | HttpRequest + Context 超时/取消 |
 | `response_body_view` | identity body 零拷贝 `HttpBodyView` |
 | `response_body_owned` | 复制/解码 body 到堆 |
@@ -102,7 +102,7 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 | `HttpResponseOwned` | status + 堆 body + push 元数据/堆 push body |
 | `response_owned_from_parse` | 从 raw buf + `HttpResponse` 构造 |
 | `response_owned_free` | 释放堆 body / push body |
-| `push_last_body_owned` | 复制最近一次 push 到堆（`http2_push_last_copy` + alloc） |
+| `push_last_body_owned` | 复制最近一次 push 到堆（`push_last_copy` + alloc） |
 
 烟测：`tests/http/response_owned.sx`。
 

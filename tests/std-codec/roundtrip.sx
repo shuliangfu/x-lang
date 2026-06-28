@@ -54,25 +54,25 @@ function main(): i32 {
   n = codec.adapter_csv_escape(&raw_csv[0], 3, &enc[0], 64);
   if (n <= 0) { return 10; }
 
-  let b: Bytes = bytes.bytes_new();
-  let e: Encoder = codec.encoder_new(codec.codec_kind_hex());
+  let b: Bytes = bytes.new();
+  let e: Encoder = codec.encoder_new(codec.kind_hex());
   if (codec.encode_into_bytes(e, &src[0], 3, &b) != 6) {
-    bytes.bytes_deinit(&b);
+    bytes.deinit(&b);
     return 11;
   }
-  let d: Decoder = codec.decoder_new(codec.codec_kind_hex());
-  let out: Bytes = bytes.bytes_new();
+  let d: Decoder = codec.decoder_new(codec.kind_hex());
+  let out: Bytes = bytes.new();
   if (codec.decode_from_bytes(d, b, &out) != 3) {
-    bytes.bytes_deinit(&b);
-    bytes.bytes_deinit(&out);
+    bytes.deinit(&b);
+    bytes.deinit(&out);
     return 12;
   }
-  if (bytes.bytes_len(out) != 3) {
-    bytes.bytes_deinit(&b);
-    bytes.bytes_deinit(&out);
+  if (bytes.len(out) != 3) {
+    bytes.deinit(&b);
+    bytes.deinit(&out);
     return 13;
   }
-  bytes.bytes_deinit(&b);
-  bytes.bytes_deinit(&out);
+  bytes.deinit(&b);
+  bytes.deinit(&out);
   return 0;
 }

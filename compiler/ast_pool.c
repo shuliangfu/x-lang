@@ -1451,6 +1451,29 @@ int32_t pipeline_block_append_with_arena(struct ast_ASTArena *a, int32_t br, int
   return idx - b->region_base;
 }
 
+/**
+ * LANG-007 v2：向块追加 unsafe { body }；复用 regions 池，with_arena_cap_ref=-1 区分 region/with_arena。
+ * 返回块内下标（与 region 共用 idx 空间），失败 -1。
+ */
+int32_t pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t body_ref) {
+  ArenaSidecar *sc;
+  struct ast_Block *b;
+  RegionBlockEntry *rb;
+  int32_t idx;
+  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || body_ref <= 0)
+    return -1;
+  idx = grow_vec_push(&sc->regions);
+  if (idx < 0)
+    return -1;
+  block_lazy_fix_sidecar_base(&b->region_base, b->num_regions, idx);
+  rb = (RegionBlockEntry *)grow_vec_at(&sc->regions, idx);
+  memset(rb, 0, sizeof(*rb));
+  rb->with_arena_cap_ref = -1;
+  rb->body_ref = body_ref;
+  b->num_regions++;
+  return idx - b->region_base;
+}
+
 static RegionBlockEntry *block_region_at(struct ast_ASTArena *a, int32_t br, int32_t ri) {
   ArenaSidecar *sc;
   struct ast_Block *b;
@@ -1465,6 +1488,12 @@ static RegionBlockEntry *block_region_at(struct ast_ASTArena *a, int32_t br, int
 int32_t pipeline_block_region_with_arena_cap_ref(struct ast_ASTArena *a, int32_t br, int32_t ri) {
   RegionBlockEntry *rb = block_region_at(a, br, ri);
   return rb && rb->with_arena_cap_ref > 0 ? rb->with_arena_cap_ref : 0;
+}
+
+/** LANG-007 v2：块内第 ri 个条目是否为 unsafe { } 块（with_arena_cap_ref==-1）。 */
+int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri) {
+  RegionBlockEntry *rb = block_region_at(a, br, ri);
+  return rb && rb->with_arena_cap_ref == -1 ? 1 : 0;
 }
 
 /** M-3：读块内第 ri 个 region 的 body 块 ref；无效时 0。 */
@@ -9213,13 +9242,13 @@ int32_t pipeline_codegen_force_param_size_t(uint8_t *prefix, int32_t prefix_len,
   return 0;
 }
 
-/** codegen.sx：std.io print_str 第二参强制 size_t（前缀须 std_io_）。 */
+/** codegen.sx：std.io print 第二参强制 size_t（前缀须 std_io_）。 */
 int32_t pipeline_codegen_force_param_size_t_std_io_print_str_second(uint8_t *prefix, int32_t prefix_len,
                                                                     uint8_t *name, int32_t name_len,
                                                                     int32_t param_index) {
-  if (param_index != 1 || !name || name_len != 9)
+  if (param_index != 1 || !name || name_len != 5)
     return 0;
-  if (memcmp(name, "print_str", 9) != 0)
+  if (memcmp(name, "print", 5) != 0)
     return 0;
   if (!prefix || prefix_len < 7)
     return 0;
@@ -13040,7 +13069,7 @@ static int32_t asm_wpo_call_callee_name(struct ast_ASTArena *a, int32_t callee_r
   if (!a || callee_ref <= 0 || !cname)
     return 0;
   callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
-  /** import 限定 callee（vec.vec_u8_new / heap.allocator_alloc）：取字段名，勿误用 binding 基名。 */
+  /** import 限定 callee（vec.vec_u8_new / heap.alloc）：取字段名，勿误用 binding 基名。 */
   if (callee_ex && callee_ex->kind == ast_ExprKind_EXPR_FIELD_ACCESS) {
     clen = pipeline_expr_field_access_name_len(a, callee_ref);
     if (clen > 0 && clen <= 63) {
@@ -13653,7 +13682,7 @@ static void asm_wpo_close_std_heap_helpers(void) {
       continue;
     pipeline_module_func_name_copy64(heap_mod, fi, fn);
     if (pipeline_module_func_name_equal_at(heap_mod, fi, (uint8_t *)"alloc", 5) ||
-        pipeline_module_func_name_equal_at(heap_mod, fi, (uint8_t *)"arena64_alloc", 13) ||
+        pipeline_module_func_name_equal_at(heap_mod, fi, (uint8_t *)"arena64_alloc", 11) ||
         pipeline_module_func_name_equal_at(heap_mod, fi, (uint8_t *)"realloc", 7))
       g_asm_wpo.reachable[(size_t)fid] = 1;
   }
@@ -14172,12 +14201,12 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
   if (id < 0)
     return 1;
   /**
-   * std.heap：allocator_* reach 时 co-emit default_allocator/allocator_heap（薄模块缺 alloc 等，由 call redirect→libc）。
+   * std.heap：allocator_* reach 时 co-emit default_alloc/allocator_heap（薄模块缺 alloc 等，由 call redirect→libc）。
    */
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"default_allocator", 17) ||
-      pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"allocator_heap", 14) ||
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"default_alloc", 13) ||
+      pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"heap_alloc", 14) ||
       pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"alloc", 5) ||
-      pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"arena64_alloc", 13) ||
+      pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"arena64_alloc", 11) ||
       pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"realloc", 7)) {
     int32_t j;
     for (j = 0; j < g_asm_wpo.nfuncs; j++) {
@@ -14189,8 +14218,8 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
       jfi = g_asm_wpo.func_fi[j];
       if (!jm || jfi < 0)
         continue;
-      if (pipeline_module_func_name_equal_at(jm, jfi, (uint8_t *)"allocator_alloc", 15) ||
-          pipeline_module_func_name_equal_at(jm, jfi, (uint8_t *)"allocator_realloc", 18))
+      if (pipeline_module_func_name_equal_at(jm, jfi, (uint8_t *)"alloc", 5) ||
+          pipeline_module_func_name_equal_at(jm, jfi, (uint8_t *)"realloc", 7))
         return 1;
     }
   }
@@ -14208,8 +14237,8 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
       if (!asm_wpo_mod_is_std_heap(hm))
         continue;
       jfi = g_asm_wpo.func_fi[j];
-      if (pipeline_module_func_name_equal_at(hm, jfi, (uint8_t *)"allocator_alloc", 15) ||
-          pipeline_module_func_name_equal_at(hm, jfi, (uint8_t *)"allocator_realloc", 18))
+      if (pipeline_module_func_name_equal_at(hm, jfi, (uint8_t *)"alloc", 5) ||
+          pipeline_module_func_name_equal_at(hm, jfi, (uint8_t *)"realloc", 7))
         return 1;
     }
   }

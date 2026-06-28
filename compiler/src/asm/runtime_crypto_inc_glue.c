@@ -5,7 +5,7 @@
  * SHA-512 / HMAC-SHA512 委托 ed25519/sha512.c（via ed25519_ref10_glue.c 同 crypto.o 单元）。
  *
  * 【分层】
- * - crypto_core.sx：mem_eq、SHA-256、HMAC-SHA256
+ * - core.sx：mem_eq、SHA-256、HMAC-SHA256
  * - aes_gcm.sx：AES-128-GCM seal/open
  * - chacha20_poly1305.sx：ChaCha20-Poly1305 AEAD
  * - ed25519.sx：Ed25519 C ABI + 烟测

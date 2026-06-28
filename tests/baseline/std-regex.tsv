@@ -7,7 +7,7 @@ xplat	section	## 3. 三平台验收	must
 link_opt	section	## 4. 可选链入	regex.o
 verify	section	## 5. 门禁	gate
 api_compile	api	compile	std/regex/mod.sx	编译
-api_match	api	regex_match	std/regex/mod.sx	匹配
+api_match	api	match	std/regex/mod.sx	匹配
 api_free	api	free	std/regex/mod.sx	释放
 api_group_count	api	group_count	std/regex/mod.sx	STD-064 capture 槽数
 api_group_offset	api	group_offset	std/regex/mod.sx	STD-064 组偏移

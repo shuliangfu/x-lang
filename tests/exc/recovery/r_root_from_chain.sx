@@ -3,9 +3,9 @@ const result = import("core.result");
 const err = import("std.error");
 
 function main(): i32 {
-  let leaf: ErrorChain = error_chain_from_code(fs_err_not_found());
-  let wrapped: ErrorChain = error_chain_wrap(leaf, io_err_timeout());
-  let root: i32 = error_chain_root(wrapped);
+  let leaf: ErrorChain = chain_from_code(fs_err_not_found());
+  let wrapped: ErrorChain = chain_wrap(leaf, io_err_timeout());
+  let root: i32 = chain_root(wrapped);
   if (root != io_err_timeout()) { return 1; }
   let recovered: i32 = root == io_err_timeout() ? 200 : 0;
   if (recovered != 200) { return 2; }

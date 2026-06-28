@@ -1,8 +1,8 @@
 /**
- * std/http/http2_multistream_client.inc.c — HTTP/2 多 stream 并发客户端 v1（STD-HTTP-H2-v10）
+ * std/http/multistream_client.inc.c — HTTP/2 多 stream 并发客户端 v1（STD-HTTP-H2-v10）
  *
  * 【文件职责】连接级 registry + 对端 SETTINGS + 发送流控；并发 open stream 与并行 GET 帧构建。
- * 由 http2_client.inc.c 末尾 #include。
+ * 由 client.inc.c 末尾 #include。
  */
 
 /** 并发 stream 已达对端 SETTINGS 上限（-1236）。 */
@@ -10,14 +10,14 @@
 
 /** 多 stream 并发客户端（离线编解码 + 协商状态）。 */
 typedef struct {
-    http2_stream_registry_t registry;
-    http2_peer_settings_t peer;
-    http2_flow_state_t flow;
+    stream_registry_t registry;
+    peer_settings_t peer;
+    flow_state_t flow;
     int32_t open_count;
-} http2_multistream_client_t;
+} multistream_client_t;
 
 /** 初始化客户端：registry/flow/对端 SETTINGS 清零。 */
-void http2_multistream_client_init_c(http2_multistream_client_t *cli) {
+void http2_multistream_client_init_c(multistream_client_t *cli) {
     if (!cli)
         return;
     http2_stream_registry_init_c(&cli->registry);
@@ -27,7 +27,7 @@ void http2_multistream_client_init_c(http2_multistream_client_t *cli) {
 }
 
 /** 应用对端 SETTINGS payload（通常来自 server SETTINGS 帧）。 */
-int32_t http2_multistream_client_on_settings_c(http2_multistream_client_t *cli,
+int32_t http2_multistream_client_on_settings_c(multistream_client_t *cli,
                                                const uint8_t *payload, int32_t plen) {
     if (!cli)
         return -1;
@@ -38,7 +38,7 @@ int32_t http2_multistream_client_on_settings_c(http2_multistream_client_t *cli,
  * 在 SETTINGS 限制内分配 stream 并刷新流窗口。
  * 成功返回 stream_id；表满 -1；超并发 HTTP2_ERR_MAX_STREAMS(-1236)。
  */
-int32_t http2_multistream_client_open_stream_c(http2_multistream_client_t *cli) {
+int32_t http2_multistream_client_open_stream_c(multistream_client_t *cli) {
     int32_t sid;
     int32_t max_streams;
     if (!cli)
@@ -56,7 +56,7 @@ int32_t http2_multistream_client_open_stream_c(http2_multistream_client_t *cli) 
 }
 
 /** 关闭 stream 并递减 open_count。 */
-void http2_multistream_client_close_stream_c(http2_multistream_client_t *cli, int32_t stream_id) {
+void http2_multistream_client_close_stream_c(multistream_client_t *cli, int32_t stream_id) {
     if (!cli || stream_id <= 0)
         return;
     if (http2_stream_registry_is_open_c(&cli->registry, stream_id) != 0) {
@@ -70,7 +70,7 @@ void http2_multistream_client_close_stream_c(http2_multistream_client_t *cli, in
  * 在指定 stream 上构建 GET HEADERS 帧写入 out。
  * 成功返回帧长度；失败 -1。
  */
-int32_t http2_multistream_client_build_get_c(http2_multistream_client_t *cli, int32_t stream_id,
+int32_t http2_multistream_client_build_get_c(multistream_client_t *cli, int32_t stream_id,
                                              const uint8_t *authority, int32_t authority_len,
                                              const uint8_t *path, int32_t path_len,
                                              uint8_t *out, int32_t out_cap) {
@@ -85,7 +85,7 @@ int32_t http2_multistream_client_build_get_c(http2_multistream_client_t *cli, in
  * 并发构建 n 个 GET HEADERS 帧（依次 open stream）；帧顺序写入 out。
  * 成功返回写入总字节数；失败 -1；超并发 HTTP2_ERR_MAX_STREAMS。
  */
-int32_t http2_multistream_client_build_parallel_get_c(http2_multistream_client_t *cli,
+int32_t http2_multistream_client_build_parallel_get_c(multistream_client_t *cli,
                                                       const uint8_t *authority,
                                                       int32_t authority_len, const uint8_t *path,
                                                       int32_t path_len, int32_t n_reqs,
@@ -117,7 +117,7 @@ int32_t http2_multistream_client_build_parallel_get_c(http2_multistream_client_t
 
 /** 多 stream 并发客户端 C 烟测；0 通过。 */
 int32_t http2_multistream_client_smoke_c(void) {
-    http2_multistream_client_t cli;
+    multistream_client_t cli;
     uint8_t settings_frame[32];
     uint8_t out[2048];
     int32_t sid1;

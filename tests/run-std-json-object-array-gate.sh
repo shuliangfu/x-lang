@@ -70,7 +70,7 @@ resolve_shu() {
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-034: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
   if ! "$SHUX_BIN" check -L . "$OA_SX" >/dev/null 2>&1; then
     echo "std-json-object-array gate FAIL: typeck $OA_SX" >&2
     "$SHUX_BIN" check -L . "$OA_SX" 2>&1 | tail -10 >&2 || true

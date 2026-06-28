@@ -31,8 +31,8 @@ for f in "$MOD_SX" "$SCHED_C" "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
     exit 1
   fi
 done
-for sym in bind_context async_err_ctx_abort runtime_new runtime_reset runtime_drain \
-           task_submit task_submit_with_context spawn_context_smoke \
+for sym in bind_ctx err_ctx_abort runtime runtime_reset drain \
+           submit submit_ctx spawn_ctx_smoke \
            shux_async_bind_context_c shux_async_task_submit_with_ctx shux_async_spawn_ctx_smoke_c; do
   case "$sym" in
     shux_async_bind_context_c|shux_async_task_submit_with_ctx|shux_async_spawn_ctx_smoke_c)

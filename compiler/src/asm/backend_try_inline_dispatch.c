@@ -1633,14 +1633,14 @@ extern int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, s
                                                      int32_t field_ix);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                           int32_t store_size, int32_t ta);
-/** MEM-C1：with_arena scope 内 default_allocator 内联（pipeline_glue.c）。 */
+/** MEM-C1：with_arena scope 内 default_alloc 内联（pipeline_glue.c）。 */
 extern int32_t glue_with_arena_scope_active_c(void);
 extern int32_t glue_with_arena_scope_top_off_c(void);
 
 /**
- * 零实参 CALL 的 callee 是否为 `default_allocator` / `heap.default_allocator`。
+ * 零实参 CALL 的 callee 是否为 `default_alloc` / `heap.default_alloc`。
  */
-static int32_t glue_call_is_zero_arg_default_allocator(struct ast_ASTArena *arena, int32_t call_ref) {
+static int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
   int32_t callee_ref;
   int32_t nlen;
   int32_t narg;
@@ -1652,7 +1652,7 @@ static int32_t glue_call_is_zero_arg_default_allocator(struct ast_ASTArena *aren
   narg = pipeline_expr_call_num_args_at(arena, call_ref);
   if (narg != 0) {
     if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: default_allocator call narg=%d ref=%d\n", (int)narg, (int)call_ref);
+      fprintf(stderr, "shux: default_alloc call narg=%d ref=%d\n", (int)narg, (int)call_ref);
     return 0;
   }
   callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
@@ -1663,21 +1663,21 @@ static int32_t glue_call_is_zero_arg_default_allocator(struct ast_ASTArena *aren
     if (nlen <= 0 || nlen > 63)
       return 0;
     pipeline_expr_var_name_into(arena, callee_ref, nm);
-    return (nlen == 17 && memcmp(nm, "default_allocator", 17) == 0) ? 1 : 0;
+    return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
   }
   if (pipeline_expr_kind_ord_at(arena, callee_ref) == 44) {
     nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
     if (nlen <= 0 || nlen > 63)
       return 0;
     pipeline_expr_field_access_name_into(arena, callee_ref, nm);
-    if (nlen == 17 && memcmp(nm, "default_allocator", 17) == 0)
+    if (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0)
       return 1;
     if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: default_allocator field callee nlen=%d ref=%d\n", (int)nlen, (int)callee_ref);
+      fprintf(stderr, "shux: default_alloc field callee nlen=%d ref=%d\n", (int)nlen, (int)callee_ref);
     return 0;
   }
   if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: default_allocator callee kind=%d ref=%d call=%d\n",
+    fprintf(stderr, "shux: default_alloc callee kind=%d ref=%d call=%d\n",
             (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
   return 0;
 }
@@ -1697,16 +1697,16 @@ static int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
   if (ko == GLUE_EXPR_CALL)
-    return glue_call_is_zero_arg_default_allocator(arena, init_ref);
+    return glue_call_is_zero_arg_default_alloc(arena, init_ref);
   return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
 }
 
 /**
- * default_allocator() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_allocator。
+ * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
  */
-static int32_t glue_emit_default_allocator_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+static int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
                                                          int32_t fsz, int32_t ta) {
-  static const uint8_t da_sym[28] = "std_heap_default_allocator";
+  static const uint8_t da_sym[21] = "std_heap_default_alloc";
   /** MEM-C1：块内 vec_u8_new 等须走 scope bump，勿 call 全局 heap default。 */
   if (glue_with_arena_scope_active_c() != 0) {
     int32_t wa_off = glue_with_arena_scope_top_off_c();
@@ -1770,9 +1770,9 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
     if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, ret_ref, fj, &pix) == 0)
       return 0;
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    /** vec_u8_new 等：Struct 末字段可为零实参 default_allocator() CALL。 */
+    /** vec_u8_new 等：Struct 末字段可为零实参 default_alloc() CALL。 */
     if (ko == GLUE_EXPR_CALL) {
-      if (glue_call_is_zero_arg_default_allocator(arena, init_ref) == 0) {
+      if (glue_call_is_zero_arg_default_alloc(arena, init_ref) == 0) {
         if (getenv("SHUX_ASM_DEBUG"))
           fprintf(stderr, "shux: const_struct fold miss call fi=%d fj=%d init=%d\n", (int)func_idx, (int)fj,
                   (int)init_ref);
@@ -1844,10 +1844,10 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
     foff = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
     fsz = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
     if (pipeline_expr_kind_ord_at(callee_arena, init_ref) == GLUE_EXPR_CALL) {
-      /** default_allocator()：直写 kind=heap + null arena，勿 call 返回悬空栈指针。 */
-      if (glue_call_is_zero_arg_default_allocator(callee_arena, init_ref) == 0)
+      /** default_alloc()：直写 kind=heap + null arena，勿 call 返回悬空栈指针。 */
+      if (glue_call_is_zero_arg_default_alloc(callee_arena, init_ref) == 0)
         return 0;
-      if (glue_emit_default_allocator_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0)
+      if (glue_emit_default_alloc_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0)
         return -1;
     } else if (backend_emit_expr_elf_slow(callee_arena, elf_ctx, init_ref, ctx, ta) != 0) {
       return -1;

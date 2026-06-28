@@ -44,7 +44,7 @@ Vec_u8 接口对称：`vec_u8_*`。
 ## 性能（已压榨）
 
 - **默认容量 8**：减少首次几次 push 的 realloc。
-- **append_slice / from_slice**：**≥8 元素走 C memcpy**（heap.copy_i32_at / copy_u8_at）；&lt;8 用 4 元素展开循环。
+- **append_slice / from_slice**：**≥8 元素走 C memcpy**（`heap.copy`）；&lt;8 用 4 元素展开循环。
 - **reserve_one**：热路径先判 `len < cap`，字面量 8 避免调用 default_capacity()。
 - **热路径 _ptr**：`vec_i32_len_ptr`、`vec_u8_len_ptr` 避免按值传 Vec 结构体。
 

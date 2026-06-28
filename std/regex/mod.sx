@@ -1,7 +1,23 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.regex — 最小正则（字面量/字符类/量词/分组/capture，纯 C 引擎）
 // STD-062：match 引擎 perf 优化（字面量快路径 + 首字节跳跃）生产级 bench 锚点。
 //
-// 【文件职责】compile、regex_match、free；STD-064 capture：group_count/offset/length。
+// 【文件职责】compile、match、free；STD-064 capture：group_count/offset/length。
 // 【依赖】std.heap；引擎在 std/regex/regex.sx（F-regex v2 纯 .sx）；全平台无 regex.h。
 extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
 extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
@@ -12,25 +28,42 @@ extern function regex_group_length_c(re: *u8, group: i32): i32;
 
 /** 编译模式；失败返回 null。 */
 function compile(pat: *u8, pat_len: i32): *u8 {
-  return regex_compile_c(pat, pat_len);
+  unsafe {
+    return regex_compile_c(pat, pat_len);
+  }
 }
-/** 子串匹配；成功 0，失败 -1（对标 Rust is_match；避开关键字 match）。 */
-function regex_match(re: *u8, str: *u8, len: i32): i32 {
-  return regex_match_c(re, str, len);
+
+/** 子串匹配；成功 0，失败 -1（对标 Rust is_match；`match` 为关键字，仅作模块 API 名）。 */
+function match(re: *u8, str: *u8, len: i32): i32 {
+  unsafe {
+    return regex_match_c(re, str, len);
+  }
 }
+
 /** 释放 compile 返回的句柄。 */
 function free(re: *u8): void {
-  regex_free_c(re);
+  unsafe {
+    regex_free_c(re);
+  }
 }
+
 /** 返回 capture 槽数（含 group 0 全匹配）；compile 后即可读。 */
 function group_count(re: *u8): i32 {
-  return regex_group_count_c(re);
+  unsafe {
+    return regex_group_count_c(re);
+  }
 }
+
 /** 读上次 match 的 group 起始字节偏移；无有效 capture 时 -1。 */
 function group_offset(re: *u8, group: i32): i32 {
-  return regex_group_offset_c(re, group);
+  unsafe {
+    return regex_group_offset_c(re, group);
+  }
 }
+
 /** 读上次 match 的 group 匹配长度；无有效 capture 时 -1。 */
 function group_length(re: *u8, group: i32): i32 {
-  return regex_group_length_c(re, group);
+  unsafe {
+    return regex_group_length_c(re, group);
+  }
 }

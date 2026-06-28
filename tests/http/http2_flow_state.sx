@@ -2,26 +2,26 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_flow_state_smoke() != 0) { return 1; }
-  if (http.http2_err_flow_blocked() != -1232) { return 2; }
+  if (http.flow_state_smoke() != 0) { return 1; }
+  if (http.err_flow_blocked() != -1232) { return 2; }
 
   let st: Http2FlowState = Http2FlowState { conn_window: 0, stream_window: 0 };
-  http.http2_flow_state_init(&st);
+  http.flow_state_init(&st);
   if (st.conn_window != 65535 || st.stream_window != 65535) { return 3; }
 
-  if (http.http2_flow_state_consume_send(&st, 65535) != 0) { return 4; }
-  if (http.http2_flow_state_can_send(&st, 1)) { return 5; }
+  if (http.flow_state_consume_send(&st, 65535) != 0) { return 4; }
+  if (http.flow_state_can_send(&st, 1)) { return 5; }
 
-  if (http.http2_flow_state_apply_window_update(&st, 1, 128) != 0) { return 6; }
-  if (http.http2_flow_state_max_send(&st, 64) != 0) { return 7; }
+  if (http.flow_state_apply_window_update(&st, 1, 128) != 0) { return 6; }
+  if (http.flow_state_max_send(&st, 64) != 0) { return 7; }
 
   let payload: u8[4] = [0, 0, 0, 32];
   let inc: i32 = 0;
-  if (http.http2_parse_window_update_payload(&payload[0], 4, &inc) != 0) { return 8; }
+  if (http.parse_window_update_payload(&payload[0], 4, &inc) != 0) { return 8; }
   if (inc != 32) { return 9; }
 
   let wu: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  if (http.http2_build_window_update(1, 64, &wu[0], 16) != 13) { return 10; }
+  if (http.build_window_update(1, 64, &wu[0], 16) != 13) { return 10; }
 
   return 0;
 }

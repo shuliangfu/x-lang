@@ -13,7 +13,7 @@ function main(): i32 {
   ];
   let c: DbConn = db.open(&mem[0]);
 
-  if (db.db_is_deprecated() != 1) {
+  if (db.is_deprecated() != 1) {
     return 1;
   }
   if (c.handle == 0) {

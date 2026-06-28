@@ -28,9 +28,9 @@ std_compress_stream_symbols_ok() {
       symbol)
         case "$mod_path" in
           std/compress/compress.c) mod_path="$compress_c" ;;
-          std/compress/gzip/gzip_libz.sx) mod_path="$compress_c" ;;
+          std/compress/gzip/libz.sx) mod_path="$compress_c" ;;
           std/compress/gzip/gzip.c) mod_path="$compress_c" ;;
-          std/compress/brotli/brotli_lib.sx|std/compress/brotli/brotli.c) mod_path="$compress_c" ;;
+          std/compress/brotli/lib.sx|std/compress/brotli/brotli.c) mod_path="$compress_c" ;;
           *) mod_path="$mod_sx" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then

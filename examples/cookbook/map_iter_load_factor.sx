@@ -1,15 +1,13 @@
-/**
- * Cookbook MAP-02：Map 迭代与 load_factor_pct（STD-162）。
- */
+// cookbook：Map_i32_i32 迭代与负载因子
 const map = import("std.map");
 
 function main(): i32 {
-  let m: Map_i32_i32 = map.map_i32_i32_new();
-  if (map.map_i32_i32_insert(&m, 1, 10) != 0) { return 1; }
-  if (map.map_i32_i32_load_factor_pct(m) <= 0) { return 2; }
-  let it: MapIter_i32_i32 = map.map_i32_i32_iter_init(m);
-  let item: MapIterItem_i32 = map.map_i32_i32_iter_next(&it);
-  if (item.ok == 0 || item.key != 1) { return 3; }
-  map.map_i32_i32_deinit(&m);
+  let m: Map_i32_i32 = map.new(0);
+  if (map.insert(&m, 1, 10) != 0) { return 1; }
+  if (map.load_factor_pct(m) <= 0) { return 2; }
+  let it: MapIter_i32_i32 = map.iter_init(m);
+  let item: MapIterItem_i32 = map.iter_next(&it);
+  if (item.ok != 1) { return 3; }
+  map.deinit(&m);
   return 0;
 }

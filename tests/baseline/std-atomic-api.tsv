@@ -1,9 +1,11 @@
 # std.atomic Tier-S stable public API (import std.atomic)
-load_i32
-store_i32
-compare_exchange_i32
-fetch_add_i32
-load_u32
-store_u32
-compare_exchange_u32
-load_i64
+# One symbol per line; overload 同名只登记一次（S9 API 简写）
+# Updated: 2026-06-28
+load
+store
+compare_exchange
+fetch_add
+fetch_sub
+fence_seq_cst
+fence_acquire
+fence_release

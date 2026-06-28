@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$DOC07" "$COOKBOOK_DOC"; do
   fi
 done
 
-for kw in STD-171 await_read_fd timezone_iana compress_format_brotli row_col_blob_read; do
+for kw in STD-171 await_read_fd timezone_iana format_brotli row_col_blob_read; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "doc-07-phase3-sync gate FAIL: doc missing '$kw'" >&2
     exit 1

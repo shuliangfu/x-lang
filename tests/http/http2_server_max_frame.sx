@@ -2,8 +2,8 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_frame_capped_smoke() != 0) { return 1; }
-  if (http.http2_server_max_frame_smoke() != 0) { return 2; }
-  if (http.http2_frame_count_data_chunks(20000, 16384) != 2) { return 3; }
+  if (http.frame_capped_smoke() != 0) { return 1; }
+  if (http.server_max_frame_smoke() != 0) { return 2; }
+  if (http.frame_count_data_chunks(20000, 16384) != 2) { return 3; }
   return 0;
 }

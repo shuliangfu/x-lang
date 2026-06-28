@@ -24,13 +24,13 @@ function main(): i32 {
   let val: u8[4] = [118, 49, 0, 0];
   if (env.setenv(&name[0], &val[0], 1) != 0) { return 3; }
 
-  let ei: EnvIter = env.env_iter();
+  let ei: EnvIter = env.iter();
   let key_buf: u8[32] = [];
   let val_buf: u8[32] = [];
   let found: i32 = 0;
   let steps: i32 = 0;
   while (steps < 4096) {
-    let r: i32 = env.env_iter_next(&ei, &key_buf[0], 32, &val_buf[0], 32);
+    let r: i32 = env.iter_next(&ei, &key_buf[0], 32, &val_buf[0], 32);
     if (r == 0) { break; }
     if (r < 0) { return 4; }
     if (key_is_x_it(&key_buf[0]) == 1) {
@@ -41,7 +41,7 @@ function main(): i32 {
     steps = steps + 1;
   }
   if (found != 1) { return 7; }
-  if (env.env_iter_count() < 1) { return 8; }
+  if (env.iter_count() < 1) { return 8; }
   if (env.unsetenv(&name[0]) != 0) { return 9; }
   return 0;
 }

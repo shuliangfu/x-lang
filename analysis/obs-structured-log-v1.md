@@ -33,7 +33,7 @@ shux: level=info component=obs_smoke event=gate_ok case=1
 | `component` | 是 | 组件名（snake 或 `SHUX_*` 大写常量） |
 | 其它 | 否 | 小写 snake `key=value`，值勿含空格 |
 
-实现：`std/log/log.c` → `log_write_structured_kv_c()`；`.sx` → `log_structured_kv()`。
+实现：`std/log/log.sx` → `log_write_structured_kv_c()`；`.sx` → `structured_kv()`。
 
 ### 2.2 遗留 bracket（OBS-001/002、ENG 预检等）
 

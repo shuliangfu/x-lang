@@ -30,7 +30,7 @@ function main(): i32 {
   if (sz != 267) {
     return 1;
   }
-  if (elf.write_min_reloc(&out[0], 512, &text[0], 4, &out_len) != elf.elf_write_err_ok()) {
+  if (elf.write_min_reloc(&out[0], 512, &text[0], 4, &out_len) != elf.write_err_ok()) {
     return 2;
   }
   if (out_len != 267) {

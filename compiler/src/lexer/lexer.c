@@ -1073,6 +1073,25 @@ void lexer_next(Lexer *l, Token *out) {
         out->ident_len = 0;
         return;
     }
+    /* MEM-C1：#[alloc] 属性 token（Allocator 自动注入 API；仅跳过属性，语义由 typeck/codegen 处理）。 */
+    if (c == '#' && l->src + 8 <= l->end && l->src[1] == '[' && l->src[2] == 'a' && l->src[3] == 'l'
+        && l->src[4] == 'l' && l->src[5] == 'o' && l->src[6] == 'c' && l->src[7] == ']') {
+        int line = l->line, col = l->col;
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        out->kind = TOKEN_ATTR_ALLOC;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
     if (c == '"') {
         int line0 = l->line, col0 = l->col;
         lexer_advance(l); /* opening " */

@@ -24,7 +24,7 @@
 | `is_help` / `is_version` | 标准选项检测 |
 | `match_long` / `match_short` | `-f` / `--flag` |
 | `write_usage` | usage 自动生成 |
-| `cli_err_*` | 退出码约定（0/1/-1） |
+| `err_ok` / `err_help` / `err_unknown` | 退出码约定（0/1/-1） |
 
 Cookbook：`examples/cookbook/cli_subcommand.sx`（gate 烟测同逻辑）。
 

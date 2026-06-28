@@ -1,7 +1,7 @@
 # Shux 完全自举路线图（NEXT）
 
-> **更新时间**：2026-06-24  
-> **决议**：标准库**新功能**暂停；**唯一主线 = 完全自举终局**（D+E+F ✅ v1 已闭合 → **阶段 G 清场** + **F-no-libc 硬绿**）。  
+> **更新时间**：2026-06-28（**G-FFI-3/4 gate ✅** #88；同步 [`analysis/FFI隔离.md`](analysis/FFI隔离.md) §7.5）  
+> **决议**：标准库**新功能**暂停；**唯一主线 = 完全自举终局**（D+E+F ✅ v1 已闭合 → **阶段 G 清场** + **F-no-libc 硬绿**）。**FFI 隔离（LANG-007 v2）** 与 G **并行**，**不阻塞** bootstrap-min / bootstrap-gold。  
 > **依据**：[`自举分析.md`](自举分析.md)（战略与五关卡）、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)（验收命令）、[`analysis/doc-selfhost-architecture-v1.md`](analysis/doc-selfhost-architecture-v1.md)（1 小时全景）  
 > **旧版 std 缺口总表**：已归档至 git 历史；std 功能扩展暂停，**实现去 C（F-ZC）已闭合**。
 
@@ -34,7 +34,8 @@
 | **G** | **终局清场** | 🟡 **当前主线** | G-06 ~92%；W2 ✅；W3 全链 🟡 |
 
 **完全自举（D+E+F）v1**：✅ 已在 Linux x86_64 验收口径下闭合。  
-**终局（G + F-no-libc 硬绿）**：🟡 进行中 — G-06 冷启动 + W2 已绿；W3 **A-09 hash + al06 + i64-ctfe `-o` + ub ✅**；**A-10**（std path/net timeout）仍待；详见 [`自举进度.md`](analysis/自举进度.md)。
+**终局（G + F-no-libc 硬绿）**：🟡 进行中 — G-06 冷启动 + W2 已绿；W3 **A-09 hash + al06 + i64-ctfe `-o` + ub ✅**；**A-10**（std path/net timeout）仍待；详见 [`自举进度.md`](analysis/自举进度.md)。  
+**FFI 隔离（G-FFI）**：🟡 **并行轨** — L1/L3 v1 ✅；LANG-007 v2 gate ✅（G-FFI-3/4）；**std 层 unsafe 包裹 ✅**（#89）；G-FFI-5 尾声 ⬜；见 §10.5。
 
 **「完全自举」金标准**（与 `自举分析.md` 一致）：
 
@@ -496,6 +497,7 @@ Linux x86_64 硬绿；其它宿主 NL-01 + NL-06 + NL-07 manifest OK。
 | **E-soft → E-hard** | 默认路径已 no_c；删文件后移除 `SHUX_LEGACY_C_FRONTEND` 考古链 |
 | **F-09 STRICT 为终局哨兵** | `SHUX_NO_HANDWRITTEN_C_STRICT=1` 硬绿 = G 完成 |
 | **F-no-libc 与 G 并行** | NL-07 bootstrap `-nostdlib` 硬绿是 G-03 阻塞项 |
+| **并行轨不阻塞 bootstrap-min** | G-FFI（LANG-007 v2）与 G-02/G-03 同排期，**不进** bootstrap-min / bootstrap-gold 阻塞项 |
 | **平台补全不阻塞 G** | A-08 Windows / A-13 Alpine ⏭ 自 G 主链闭合后再补 |
 
 ### 10.2 任务清单
@@ -519,6 +521,40 @@ G-03（NL-07 硬绿）∥ G-01（core 5→0）
     → G-04 F-09 STRICT
     → G-05 Makefile 退役
     → G-06 零 seed + G-07 发布
+
+并行轨（∥ 上述主线，不阻塞 bootstrap-min）：
+    G-FFI-2 L3 维护（持续）
+    G-FFI-3 unsafe { } 语法 ✅
+    G-FFI-4 typeck 隔离规则 ✅
+    → G-FFI-5 G-07 前硬拒 + release CI
+    G-FFI-6 v3 / 插件 IPC ⏭ post-release
+```
+
+### 10.5 并行轨 — FFI 隔离（G-FFI）
+
+> **要不要等完全自举后再做？** **不要等。** D+E+F v1 已闭合；v1 底座已在 CI；v2 与阶段 G **并行**。  
+> **定稿分析**：[`analysis/FFI隔离.md`](analysis/FFI隔离.md) §7；进度勾选见 [`自举进度.md`](analysis/自举进度.md) §10.10。
+
+| # | 任务 | 状态 | 说明 / 验收 |
+|---|------|------|-------------|
+| G-FFI-1 | **L1/L3 v1**（TYPE-004、SAFE-004、U1–U3、`std/ffi` F-ZC） | ✅ | `run-safe-ffi-contract-gate.sh`、`run-type-ffi-bridge-gate.sh` |
+| G-FFI-2 | **L3 维护** | 🟡 | 新 `extern` → 审计 TSV；`std/sys`/`dynlib` 不暴露裸 `*T` |
+| G-FFI-3 | **LANG-007 v2 语法** | ✅ | `unsafe { }`；Docker **`run-lang-unsafe-gate.sh` 全绿**（#88） |
+| G-FFI-4 | **typeck 隔离** | ✅ | S0 内 `extern`/`*T` 解引用 → error；gate 已验（#88） |
+| G-FFI-5 | **G 尾声闭合** | 🟡 | **std/ffi + std/sys unsafe 包裹 ✅**（#89）；bstrict 业务零裸 `extern` + release CI 仍 ⬜ |
+| G-FFI-6 | **v3 / 生态** | ⏭ | `ForeignBuf`、provenance、类型化 `dynlib.sym`、插件 IPC、Wasm/Capability — **v1.0.0 后** |
+
+```bash
+# v1（现阶段 ✅）
+./tests/run-safe-ffi-contract-gate.sh
+./tests/run-type-ffi-bridge-gate.sh
+./tests/run-safe-unsafe-audit-gate.sh
+
+# v2（阶段 G 并行 — gate ✅ #88）
+./tests/run-lang-unsafe-gate.sh   # relink 后；run 路径 -backend c -o
+
+# G-FFI-5 std 层 unsafe 包裹（#89）
+./tests/run-g-ffi-5-std-wrap-gate.sh
 ```
 
 ### 10.4 验收命令（阶段 G）
@@ -557,6 +593,7 @@ SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate
 | **3** | **G-04** | F-09 STRICT 硬绿 | `SHUX_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh` |
 | **4** | **G-05** | Makefile → build.sx 唯一入口 | 见 `analysis/完全自举-无C无Makefile.md` |
 | **5** | **G-07** | `vX.Y.Z-selfhost` 发布 | `run-f11-selfhost-release-prep-gate.sh` |
+| **∥** | **G-FFI-5** | std 层 `unsafe` 包裹 + release CI + 业务零裸 `extern`（**并行，非阻塞**） | §10.5；[`FFI隔离.md`](analysis/FFI隔离.md) |
 | — | **G-08** | ⏭ Windows / Alpine | `run-bootstrap-bstrict-windows-gate.sh`；自 G 主链后 |
 | — | **本地** | 日常回归 | `./tests/run-portable-suite.sh`；`./tests/run-local-linux-docker.sh portable` |
 
@@ -759,10 +796,12 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 | [`analysis/phase-e-soft-v2-closure.md`](analysis/phase-e-soft-v2-closure.md)           | E-soft 闭合记录             |
 | [`analysis/phase-f-std-zero-c-v1.md`](analysis/phase-f-std-zero-c-v1.md)               | F-ZC std 零 C/H           |
 | [`analysis/phase-f-no-libc-v1.md`](analysis/phase-f-no-libc-v1.md)                     | F-no-libc / G-03          |
+| [`analysis/FFI隔离.md`](analysis/FFI隔离.md)                                           | G-FFI 并行轨；LANG-007 v2 排期 |
+| [`analysis/lang-unsafe-v1-rfc.md`](analysis/lang-unsafe-v1-rfc.md)                   | LANG-007 S0/U1–U4         |
 | [`compiler/src/asm/README.md`](compiler/src/asm/README.md)                             | asm 后端能力表               |
 | [`docs/07-内置与标准库.md`](docs/07-内置与标准库.md)                                               | 用户-facing std API       |
 
 
 ---
 
-*本文档随自举推进更新；**下一编辑**请同步 §0.1 仪表盘、§2 当前站位与 §11 第一条未完成任务。*
+*本文档随自举推进更新；**下一编辑**请同步 §0.1 仪表盘、§2 当前站位、§10.5 G-FFI 与 §11 第一条未完成任务。*

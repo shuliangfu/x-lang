@@ -20,7 +20,7 @@ std_heap_trace_symbols_ok() {
       symbol)
         local target="$heap_sx"
         case "$mod_path" in
-          std/heap/heap_libc.sx) target="$heap_libc" ;;
+          std/heap/libc.sx) target="$heap_libc" ;;
           std/heap/heap.c) target="$heap_libc" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then

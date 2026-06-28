@@ -7,7 +7,7 @@
 | 文件 | 说明 |
 |------|------|
 | `std/crypto/aes_gcm.sx` | AES-128 加密、GCM GHASH/GCTR、crypto_aes_gcm_seal_c / open_c |
-| `std/crypto/crypto_core.sx` | mem_eq、SHA-256、HMAC-SHA256（v16） |
+| `std/crypto/core.sx` | mem_eq、SHA-256、HMAC-SHA256（v16） |
 | `std/crypto/crypto_inc_glue.c` | chacha20_poly1305 / ed25519.inc.c + SHA-512 / HMAC-SHA512 |
 | ~~`std/crypto/aes_gcm.inc.c`~~ | 已删除 |
 

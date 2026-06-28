@@ -30,11 +30,11 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CHANNEL_RUNTIME" "$SEL2_SX" "$SEL
   fi
 done
 
-for kw in STD-098 STD-102 STD-104 STD-108 channel_select_try_recv_2 channel_select_recv_2 \
-  channel_select_try_recv_n channel_select_recv_n channel_select_try_send_2 \
-  channel_select_send_2 channel_select_try_send_n channel_select_send_n \
-  channel_select_try_mixed_2 channel_select_mixed_2 channel_select_try_mixed_n \
-  channel_select_mixed_n channel_select_dirs_set SELECT_DIR_RECV SELECT_TIMEDWAIT_MS \
+for kw in STD-098 STD-102 STD-104 STD-108 select_try_recv select_recv \
+  select_try_recv_n select_recv_n select_try_send \
+  select_send select_try_send_n select_send_n \
+  select_try_mixed select_mixed select_try_mixed_n \
+  select_mixed_n select_dirs_set SELECT_DIR_RECV SELECT_TIMEDWAIT_MS \
   CHANNEL_SELECT_MAX; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-channel-select gate FAIL: doc missing '$kw'" >&2

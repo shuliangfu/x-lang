@@ -3,9 +3,9 @@ const heap = import("std.heap");
 
 function main(): i32 {
   with_arena(4096) {
-    let al: heap.Allocator = heap.default_allocator();
-    let p: *u8 = heap.allocator_alloc(al, 8);
-    let q: *u8 = heap.allocator_realloc(al, p, 16);
+    let al: heap.Allocator = heap.default_alloc();
+    let p: *u8 = heap.alloc(al, 8);
+    let q: *u8 = heap.realloc(al, p, 16);
     if (q == 0) { return 0; }
     return 1;
   }

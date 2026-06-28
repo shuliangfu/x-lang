@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
 MANIFEST="${SHUX_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
 NET_SX="std/net/mod.sx"
-NET_DNS_SX="std/net/net_dns.sx"
+NET_DNS_SX="std/net/dns.sx"
 LIB="tests/lib/std-net-dns.sh"
 RESOLVE_SX="tests/net/resolve_dns.sx"
 MAIN_SX="tests/net/main.sx"
@@ -18,7 +18,7 @@ MIN_APIS=4
 . "$LIB"
 
 echo "=== STD-029: net DNS manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SX" "$NET_DNS_SX" "$RESOLVE_SX" "$MAIN_SX" std/net/net_dns.sx std/net/net_alpn.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SX" "$NET_DNS_SX" "$RESOLVE_SX" "$MAIN_SX" std/net/dns.sx std/net/alpn.sx; do
   if [ ! -f "$f" ]; then
     echo "std-net-dns gate FAIL: missing $f" >&2
     exit 1

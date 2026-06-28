@@ -5,9 +5,9 @@ function main(): i32 {
   let phase: i32 = 0;
   if (async_mod.cps_suspend_io(&phase, 2) != 0) { return 1; }
   if (phase != 2) { return 2; }
-  async_mod.poll_io_completions(0);
-  if (async_mod.io_waiters_pending() != 0 as u32) { return 3; }
+  async_mod.poll_completions(0);
+  if (async_mod.waiters() != 0 as u32) { return 3; }
   async_mod.scheduler_reset();
-  async_mod.drain_until_idle();
+  async_mod.drain_idle();
   return 0;
 }

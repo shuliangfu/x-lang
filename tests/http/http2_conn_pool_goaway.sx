@@ -2,6 +2,6 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_conn_pool_goaway_smoke() != 0) { return 1; }
+  if (http.conn_pool_goaway_smoke() != 0) { return 1; }
   return 0;
 }

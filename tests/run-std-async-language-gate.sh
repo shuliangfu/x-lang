@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SCHED_C" "$RUN_SX" "$MOD_TEST_SX"
   fi
 done
 
-for kw in scheduler_reset drain_until_idle await_scheduler_run async_1m_coop extern 重声明; do
+for kw in scheduler_reset drain_idle await_scheduler_run async_1m_coop extern 重声明; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-async-language gate FAIL: doc missing '$kw'" >&2
     exit 1

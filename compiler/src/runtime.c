@@ -340,11 +340,11 @@ static int write_fs_path_map_error_abi_inline(FILE *cf) {
         "extern int32_t fs_last_error_c(void);\n",
         "extern int64_t fs_readv_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);\n",
         "extern int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);\n",
-        "extern int32_t std_path_path_empty_len(void);\n",
-        "#define path_empty_len(_a, _b) std_path_path_empty_len()\n",
+        "extern int32_t std_path_empty_len(void);\n",
+        "#define empty_len() std_path_empty_len()\n",
         "extern int32_t map_i32_i32_find_c(const int32_t *keys, const uint8_t *occupied, int32_t cap, int32_t key);\n",
-        "extern int32_t std_map_map_empty_size(void);\n",
-        "#define map_empty_size(_a, _b) std_map_map_empty_size()\n",
+        "extern int32_t std_map_empty_size(void);\n",
+        "#define empty_size(_a, _b) std_map_empty_size()\n",
         "extern int32_t std_error_error_ok(void);\n",
         "#define error_ok(_a, _b) std_error_error_ok()\n",
     };
@@ -794,7 +794,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 use_asm_backend = 1;
                 use_sx_pipeline = 1;  /* -backend asm 必须走 .sx pipeline */
             } else if (strcmp(argv[i + 1], "c") == 0) {
-                use_asm_backend = 0;  /* C 前端：勿强制 -sx pipeline（MSYS return-value 烟测） */
+                use_asm_backend = 0;
+                use_sx_pipeline = 0;  /* -backend c：C parse/typeck/codegen；-o+import 走 SX pipeline 易 out_len=0 */
             } else {
                 fprintf(stderr, "shux: -backend expects asm or c (got '%s')\n", argv[i + 1]);
                 return 1;
@@ -1336,6 +1337,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             }
             /* -o <exe>（无 .o/.s 后缀）时：已写临时 .o，调 ld 生成可执行文件后删临时文件；链 runtime_panic 与常用 std 各 .o */
             if (asm_want_exe && asm_tmp_o_path[0]) {
+                driver_bump_stack_limit();
                 int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
                 unlink(asm_tmp_o_path);
                 if (ld_ok != 0) {
@@ -1486,8 +1488,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         runtime_prepare_dce_ctx(mod, all_dep_mods, n_all, used_funcs, &n_used, used_mono, used_type_names, &n_used_types, &wpo_reach, &dce, &dce_ready);
         void *dce_ctx_arg = dce_ready ? (void *)&dce : NULL;
         /* -E-extern 瘦 TU（typeck_gen/parser_gen/codegen_gen）：入口无 main/entry 根，WPO/classic DCE 会误删
-         * 入口模块全体符号；须 emit 全量函数供 pipeline_sx.o 链接 C 依赖实现。 */
-        if (emit_extern_imports)
+         * 入口模块全体符号；须 emit 全量函数供 pipeline_sx.o 链接 C 依赖实现。
+         * 库模块 -E 亦须全量 emit（如 std/json/json.sx）。 */
+        if (emit_extern_imports || !mod->main_func || !mod->main_func->body)
             dce_ctx_arg = NULL;
 
         if (n_all > 0) {
@@ -1613,6 +1616,89 @@ int RUN_CC_FUNC(int argc, char **argv) {
         codegen_set_preamble_has_core_option_result(0); /* C 路径 preamble 无 Option/Result，由 codegen 输出 */
         ASTFunc *root_func = codegen_entry_root_func(mod);
         if (!root_func || !root_func->body) {
+            /* LANG-007 v2：库模块 -o *.o → codegen_library_module_to_c + cc -c。 */
+            if (out_path && shux_output_is_elf_o(out_path) && mod->num_funcs > 0) {
+                char tmp_lib[] = "/tmp/shux_XXXXXX";
+                int fd_lib = mkstemp(tmp_lib);
+                if (fd_lib < 0) {
+                    perror("shux: mkstemp");
+                    while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+                    ast_module_free(mod);
+                    free(src);
+                    return 1;
+                }
+                FILE *cf_lib = fdopen(fd_lib, "w");
+                if (!cf_lib) {
+                    close(fd_lib);
+                    unlink(tmp_lib);
+                    while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+                    ast_module_free(mod);
+                    free(src);
+                    return 1;
+                }
+                fprintf(cf_lib, "/* generated (library module) */\n");
+                fprintf(cf_lib, "#include <stdint.h>\n");
+                fprintf(cf_lib, "#include <stddef.h>\n");
+                fprintf(cf_lib, "#include <stdlib.h>\n");
+                fprintf(cf_lib, "#include <stdio.h>\n");
+                fprintf(cf_lib, "#include <string.h>\n");
+                fprintf(cf_lib, "#include <math.h>\n");
+                codegen_emit_fmt_json_helpers_once(cf_lib);
+                fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+                fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
+                {
+                    const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                    if (codegen_library_module_to_c(mod, lib_name, ndep > 0 ? dep_mods : NULL,
+                            ndep > 0 ? (const char **)mod->import_paths : NULL, ndep,
+                            cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
+                        fclose(cf_lib);
+                        unlink(tmp_lib);
+                        while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+                        ast_module_free(mod);
+                        free(src);
+                        return 1;
+                    }
+                }
+                fclose(cf_lib);
+                char tmp_lib_c[32];
+                snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
+                if (rename(tmp_lib, tmp_lib_c) != 0) {
+                    perror("shux: rename");
+                    unlink(tmp_lib);
+                    while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+                    ast_module_free(mod);
+                    free(src);
+                    return 1;
+                }
+                {
+                    pid_t cpid = fork();
+                    int cc_ok = 0;
+                    if (cpid < 0) {
+                        perror("shux: fork");
+                        cc_ok = -1;
+                    } else if (cpid == 0) {
+                        execlp("cc", "cc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o", (char *)out_path,
+                            tmp_lib_c, (char *)NULL);
+                        perror("shux: cc");
+                        _exit(127);
+                    } else {
+                        int status = 0;
+                        if (shu_waitpid_retry(cpid, &status) != 0 ||
+                            !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                            fprintf(stderr, "shux: cc -c failed for library module\n");
+                            cc_ok = -1;
+                        }
+                    }
+                    if (cc_ok != 0)
+                        fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_lib_c);
+                    else if (!getenv("SHUX_KEEP_C"))
+                        unlink(tmp_lib_c);
+                    while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+                    ast_module_free(mod);
+                    free(src);
+                    return cc_ok == 0 ? 0 : 1;
+                }
+            }
             fprintf(stderr, "shux: no main function (cannot emit executable)\n");
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
@@ -1720,10 +1806,27 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
             fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
-            /* codegen 跳过 std.io.print_str 定义；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_str。 */
-            fprintf(cf, "__attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {\n");
+            /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
+            fprintf(cf, "__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {\n");
             fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
             fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? (int32_t)len : -1;\n");
+            fprintf(cf, "}\n");
+            /* 纯 .sx io 烟测：无 io.o 时 weak read/write 走 stdio，handle 0/1/2 与 stdin/stdout/stderr 一致。 */
+            fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
+            fprintf(cf, "  size_t r;\n");
+            fprintf(cf, "  (void)timeout_m;\n");
+            fprintf(cf, "  if (!ptr || handle != 0) return -1;\n");
+            fprintf(cf, "  r = fread(ptr, 1, len, stdin);\n");
+            fprintf(cf, "  if (r == 0 && feof(stdin)) return 0;\n");
+            fprintf(cf, "  if (r == 0 && ferror(stdin)) return -1;\n");
+            fprintf(cf, "  return (int32_t)r;\n");
+            fprintf(cf, "}\n");
+            fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
+            fprintf(cf, "  FILE *fp;\n");
+            fprintf(cf, "  (void)timeout_m;\n");
+            fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
+            fprintf(cf, "  if (handle == 1) fp = stdout; else if (handle == 2) fp = stderr; else return -1;\n");
+            fprintf(cf, "  return (fwrite(ptr, 1, len, fp) == len) ? (int32_t)len : -1;\n");
             fprintf(cf, "}\n");
             for (int i = 0; i < n_all; i++) {
                 ASTModule *lib_deps[32];
@@ -2641,6 +2744,9 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
 /** ast_pool_bootstrap_glue.c：用户 dep 是否须 asm co-emit（非 std/core 链接桩可跳过）。 */
 extern int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n);
 
+/** check-only / asm entry-only：dep 路径是否均为 std.* / core.* import 闭包。 */
+static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
+
 /**
  * -backend asm 专用：读文件、跑 .sx pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
@@ -2949,10 +3055,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (asm_want_exe && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() != 0)
         pctx->asm_entry_module_only = 1;
     /**
-     * 用户单文件 -o（无 dep、非 build_shux_asm SKIP_TYPECK）：强制 ENTRY_MODULE_ONLY，
-     * 与 asm_skip_heavy 用户完整 emit 分支对齐（seed shux return42 等 freestanding 烟测）。
+     * 用户单文件 -o（无 dep、非 build_shux_asm SKIP_TYPECK）：单函数仍 ENTRY_MODULE_ONLY
+     *（return42 等烟测）；多函数单文件（C5 spill_probe 等）须 emit 全 TU 否则 ld 缺符号。
      */
-    if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0)
+    if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0 &&
+        driver_get_module_num_funcs(module) <= 1)
         pctx->asm_entry_module_only = 1;
     /**
      * 用户单文件 import 仅 std/core 闭包（hello.sx）：仅 emit entry，dep 由 io 桩 + ld 解析。
@@ -3145,11 +3252,16 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
          * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
          * 无 import 单文件仍须 typeck（struct field_access_offset）；仅 skip codegen，机器码由 asm_codegen_elf_o 生成。
          * std 库 .o 仍靠 C typeck 预检 + pipeline_fill_*_for_skipped_typeck；勿跑 sx typeck（enc_label 失败）。
+         * shux check + std/core 闭包：与 -o 多文件一致 skip 入口 .sx typeck，parse 已在 smoke 路径完成。
          */
         if (!asm_smoke_only) {
             if (n_deps > 0)
                 driver_sx_pipeline_skip_typeck_set(1);
             /** 仅 parse+typeck（单文件）或 parse+填槽（多文件）；真机器码由 asm_asm_codegen_elf_o 生成。 */
+            driver_sx_pipeline_skip_codegen_set(1);
+        } else if (driver_check_only_get() && n_deps > 0 &&
+                   driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
+            driver_sx_pipeline_skip_typeck_set(1);
             driver_sx_pipeline_skip_codegen_set(1);
         }
         ec = shux_pipeline_run_sx_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
@@ -3277,6 +3389,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
         if (asm_want_exe && asm_tmp_o_path[0]) {
             const char *asm_exe_out = out_path ? out_path : "a.out";
+            /** elf emit 后主栈已深；nostdlib invoke_ld 前再抬高 soft limit（C6 -o exe）。 */
+            driver_bump_stack_limit();
             int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
                 lib_roots_arr, n_lib_roots);
             unlink(asm_tmp_o_path);
@@ -3534,6 +3648,41 @@ static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     return 1;
 }
 
+#if !defined(SHUX_NO_C_FRONTEND)
+/**
+ * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
+ */
+static int driver_c_mod_imports_are_core_only(ASTModule *mod) {
+    int i;
+    if (!mod || mod->num_imports <= 0)
+        return 0;
+    for (i = 0; i < mod->num_imports; i++) {
+        const char *p = mod->import_paths[i];
+        if (!p || strncmp(p, "core.", 5) != 0)
+            return 0;
+    }
+    return 1;
+}
+#endif
+
+/** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
+static int driver_argv0_basename_is(const char *argv0, const char *base) {
+    const char *slash;
+    const char *name;
+    if (!base)
+        return 0;
+    slash = strrchr(argv0 ? argv0 : "", '/');
+#if defined(_WIN32)
+    {
+        const char *bs = strrchr(argv0 ? argv0 : "", '\\');
+        if (bs && (!slash || bs > slash))
+            slash = bs;
+    }
+#endif
+    name = slash ? slash + 1 : (argv0 ? argv0 : "");
+    return strcmp(name, base) == 0;
+}
+
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.sx 经 driver_run_compiler_dispatch_c 调用。
@@ -3623,9 +3772,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
 #endif
     /* 若预处理后源码含泛型语法，.sx 流水线不解析泛型，改走 C 流水线（parse + typeck_module + codegen）以保证 id<i32>(42) 等正确单态化。
+     * `-backend c -o`（want_asm_backend=0）：单文件无泛型亦走 C 前端，与 shux check 对齐（LANG-007 unsafe 等 S0 规则）。
      * 无 import 时内联 C 路径，避免 run_compiler_c 重入导致崩溃；有 import 时仍调 run_compiler_c。 */
 #if !defined(SHUX_NO_C_FRONTEND)
-    if (content_has_generic_syntax(src, src_len)) {
+    if (content_has_generic_syntax(src, src_len) || out_path) {
         {
             Lexer *lex = lexer_new(src);
             ASTModule *c_mod = NULL;
@@ -3637,34 +3787,188 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path, pr);
                 return 1;
             }
-            /* 有 import 时 run_compiler_c 从 driver 重入会崩溃，一律回退 .sx pipeline；泛型+import 的 multi-file-generic 依赖 pipeline 产出带 preamble 的 C（见下方 pipeline 写 C 逻辑） */
+            /*
+             * 有 import 时默认回退 .sx pipeline；core.* 仅依赖时内联 C 前端（与 run_compiler_c -o 一致），
+             * 避免 pipeline codegen 产出 out_len=0。std/用户 dep 仍走 pipeline。
+             */
+            int c_inline_o = 0;
             if (c_mod->num_imports > 0) {
-                ast_module_free(c_mod);
-                /* 不 free(src)，fall through 到 pipeline */
+                if (out_path && driver_c_mod_imports_are_core_only(c_mod))
+                    c_inline_o = 1;
+                else {
+                    ast_module_free(c_mod);
+                    /* 不 free(src)，fall through 到 pipeline */
+                }
             } else {
+                c_inline_o = 1;
+            }
+            if (c_inline_o) {
+            ASTModule *dep_mods[32];
+            ASTModule *all_dep_mods[MAX_ALL_DEPS];
+            char *all_dep_paths[MAX_ALL_DEPS];
+            int ndep = 0, n_all = 0;
+            char c_entry_dir[512];
+            shux_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
+            if (c_mod->num_imports > 0 &&
+                shu_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
+                    ndefines > 0 ? defines : NULL, ndefines, dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL,
+                    &n_all, MAX_ALL_DEPS) != 0) {
+                ast_module_free(c_mod);
+                free(src);
+                return 1;
+            }
             if (!c_mod->main_func || !c_mod->main_func->body) {
                 if (driver_check_only_get() && c_mod->num_funcs > 0) {
-                    if (typeck_module(c_mod, NULL, 0, NULL, 0) != 0) {
+                    if (typeck_module(c_mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
                         ast_module_free(c_mod);
                         free(src);
                         return 1;
+                    }
+                    while (n_all--) {
+                        free(all_dep_paths[n_all]);
+                        ast_module_free(all_dep_mods[n_all]);
                     }
                     ast_module_free(c_mod);
                     free(src);
                     driver_print_check_ok(input_path);
                     return 0;
                 }
+                /* LANG-007 v2：库模块 -backend c -o *.o → codegen_library_module_to_c + cc -c。 */
+                if (out_path && shux_output_is_elf_o(out_path) && c_mod->num_funcs > 0) {
+                    if (typeck_module(c_mod, ndep > 0 ? dep_mods : NULL, ndep,
+                            n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
+                        ast_module_free(c_mod);
+                        free(src);
+                        return 1;
+                    }
+                    codegen_set_preamble_has_core_option_result(0);
+                    char tmp_lib[] = "/tmp/shux_XXXXXX";
+                    int fd_lib = mkstemp(tmp_lib);
+                    if (fd_lib < 0) {
+                        perror("shux: mkstemp");
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
+                        ast_module_free(c_mod);
+                        free(src);
+                        return 1;
+                    }
+                    FILE *cf_lib = fdopen(fd_lib, "w");
+                    if (!cf_lib) {
+                        close(fd_lib);
+                        unlink(tmp_lib);
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
+                        ast_module_free(c_mod);
+                        free(src);
+                        return 1;
+                    }
+                    fprintf(cf_lib, "/* generated (library module) */\n");
+                    fprintf(cf_lib, "#include <stdint.h>\n");
+                    fprintf(cf_lib, "#include <stddef.h>\n");
+                    fprintf(cf_lib, "#include <stdlib.h>\n");
+                    fprintf(cf_lib, "#include <stdio.h>\n");
+                    fprintf(cf_lib, "#include <string.h>\n");
+                    fprintf(cf_lib, "#include <math.h>\n");
+                    codegen_emit_fmt_json_helpers_once(cf_lib);
+                    fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+                    fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
+                    {
+                        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                        if (codegen_library_module_to_c(c_mod, lib_name, ndep > 0 ? dep_mods : NULL,
+                                ndep > 0 ? (const char **)c_mod->import_paths : NULL, ndep,
+                                cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
+                            fclose(cf_lib);
+                            unlink(tmp_lib);
+                            while (n_all--) {
+                                free(all_dep_paths[n_all]);
+                                ast_module_free(all_dep_mods[n_all]);
+                            }
+                            ast_module_free(c_mod);
+                            free(src);
+                            return 1;
+                        }
+                    }
+                    fclose(cf_lib);
+                    char tmp_lib_c[32];
+                    snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
+                    if (rename(tmp_lib, tmp_lib_c) != 0) {
+                        perror("shux: rename");
+                        unlink(tmp_lib);
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
+                        ast_module_free(c_mod);
+                        free(src);
+                        return 1;
+                    }
+                    {
+                        pid_t cpid = fork();
+                        int cc_ok = 0;
+                        if (cpid < 0) {
+                            perror("shux: fork");
+                            cc_ok = -1;
+                        } else if (cpid == 0) {
+                            execlp("cc", "cc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o", (char *)out_path,
+                                tmp_lib_c, (char *)NULL);
+                            perror("shux: cc");
+                            _exit(127);
+                        } else {
+                            int status = 0;
+                            if (shu_waitpid_retry(cpid, &status) != 0 ||
+                                !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                                fprintf(stderr, "shux: cc -c failed for library module\n");
+                                cc_ok = -1;
+                            }
+                        }
+                        if (cc_ok != 0)
+                            fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_lib_c);
+                        else if (!getenv("SHUX_KEEP_C"))
+                            unlink(tmp_lib_c);
+                        while (n_all--) {
+                            free(all_dep_paths[n_all]);
+                            ast_module_free(all_dep_mods[n_all]);
+                        }
+                        ast_module_free(c_mod);
+                        free(src);
+                        return cc_ok == 0 ? 0 : 1;
+                    }
+                }
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 fprintf(stderr, "shux: no main function (cannot emit executable)\n");
                 return 1;
             }
-            if (typeck_module(c_mod, NULL, 0, NULL, 0) != 0) {
+            if (typeck_module(c_mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
             }
             if (driver_check_only_get()) {
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 driver_print_check_ok(input_path);
@@ -3675,6 +3979,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             int fd = mkstemp(tmp);
             if (fd < 0) {
                 perror("shux: mkstemp");
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
@@ -3683,16 +3991,66 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             if (!cf) {
                 close(fd);
                 unlink(tmp);
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
             }
-            if (codegen_module_to_c(c_mod, cf, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, 0) != 0) {
-                fclose(cf);
-                unlink(tmp);
-                ast_module_free(c_mod);
-                free(src);
-                return 1;
+            {
+                char emitted_type_buf[128][CODEGEN_EMITTED_TYPE_NAME_MAX];
+                int n_emitted = 0;
+                const int max_emitted = (int)(sizeof(emitted_type_buf) / sizeof(emitted_type_buf[0]));
+                if (n_all > 0) {
+                    fprintf(cf, "/* generated (single-file with core deps) */\n");
+                    fprintf(cf, "#include <stdint.h>\n");
+                    fprintf(cf, "#include <stddef.h>\n");
+                    fprintf(cf, "#include <stdlib.h>\n");
+                    fprintf(cf, "#include <stdio.h>\n");
+                    fprintf(cf, "#include <string.h>\n");
+                    fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+                    fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
+                    for (int di = 0; di < n_all; di++) {
+                        ASTModule *lib_deps[32];
+                        const char *lib_dep_paths[32];
+                        int n_lib = 0;
+                        for (int dj = 0; dj < all_dep_mods[di]->num_imports && n_lib < 32; dj++) {
+                            int idx = shux_find_loaded_import_index(all_dep_mods[di]->import_paths[dj], all_dep_paths, n_all);
+                            if (idx >= 0) {
+                                lib_deps[n_lib] = all_dep_mods[idx];
+                                lib_dep_paths[n_lib] = all_dep_paths[idx];
+                                n_lib++;
+                            }
+                        }
+                        if (codegen_library_module_to_c(all_dep_mods[di], all_dep_paths[di], lib_deps, lib_dep_paths, n_lib,
+                                cf, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
+                            fclose(cf);
+                            unlink(tmp);
+                            while (n_all--) {
+                                free(all_dep_paths[n_all]);
+                                ast_module_free(all_dep_mods[n_all]);
+                            }
+                            ast_module_free(c_mod);
+                            free(src);
+                            return 1;
+                        }
+                    }
+                }
+                if (codegen_module_to_c(c_mod, cf, ndep > 0 ? dep_mods : NULL, ndep > 0 ? (const char **)c_mod->import_paths : NULL,
+                        ndep, NULL, NULL, NULL, NULL, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL,
+                        n_all > 0 ? max_emitted : 0) != 0) {
+                    fclose(cf);
+                    unlink(tmp);
+                    while (n_all--) {
+                        free(all_dep_paths[n_all]);
+                        ast_module_free(all_dep_mods[n_all]);
+                    }
+                    ast_module_free(c_mod);
+                    free(src);
+                    return 1;
+                }
             }
             fclose(cf);
             char tmp_c[32];
@@ -3700,6 +4058,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             if (rename(tmp, tmp_c) != 0) {
                 perror("shux: rename");
                 unlink(tmp);
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
@@ -3759,6 +4121,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
                 else if (!getenv("SHUX_KEEP_C"))
                     unlink(tmp_c);
+                while (n_all--) {
+                    free(all_dep_paths[n_all]);
+                    ast_module_free(all_dep_mods[n_all]);
+                }
                 ast_module_free(c_mod);
                 free(src);
                 return cc_ret == 0 ? 0 : 1;
@@ -3935,9 +4301,11 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
         /*
          * std/core 闭包 dep 仅 parse 填 import 槽；全量 dep_prerun typeck 在 strict 链上对 std.base64 等易 SIGSEGV。
+         * shux check（stage1）：dep 一律 parse-only，避免 typeck_only 在大 std 子模块上 SIGSEGV。
          * 用户 multi-file（need_coemit）仍走 parse+typeck。
          */
-        if (shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j]) ||
+        if (driver_check_only_get() ||
+            shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j]) ||
             driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
             ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                 (const uint8_t *)dep_sources[j], dep_lens[j]);
@@ -3992,7 +4360,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
     pctx->entry_already_parsed = 0;
-    if (n_deps > 0 && !driver_check_only_get() &&
+    if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
     if (getenv("SHUX_DEBUG_PIPE"))
@@ -4013,6 +4381,35 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             free(src);
             return 1;
         }
+    }
+#endif
+#if defined(SHUX_NO_C_FRONTEND)
+    /*
+     * stage1 shux check：std/core import 闭包上大模块（sys/fs/heap mod）全量 .sx typecheck 易 SIGSEGV。
+     * 入口 parse_into_buf + dep parse-only 已足够 S7 硬依赖门禁；与 asm -o 跳过入口 typeck 策略一致。
+     */
+    if (driver_check_only_get() && n_deps > 0 &&
+        driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
+        driver_print_check_ok(input_path);
+        if (!emit_to_stdout) {
+            fclose(cf);
+            unlink(tmp_c);
+        }
+        free(out_buf);
+        pipeline_dep_ctx_heap_destroy(pctx);
+        for (int k = 0; k < n_deps; k++) {
+            free(dep_arenas[k]);
+            free(dep_modules[k]);
+        }
+        while (n_deps > 0) {
+            n_deps--;
+            free(dep_sources[n_deps]);
+            free(dep_paths[n_deps]);
+        }
+        free(arena);
+        free(module);
+        free(src);
+        return 0;
     }
 #endif
     int ec = shux_pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
@@ -4265,6 +4662,9 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     const char *self;
     const char *slash;
     if (argc < 2 || !argv || !argv[0])
+        return -1;
+    /* 已在 shux-c 内：勿 fork 自身（L9 -o 会反复 pipeline failed out_len=0）。 */
+    if (driver_argv0_basename_is(argv[0], "shux-c"))
         return -1;
     self = argv[0];
     slash = strrchr(self, '/');

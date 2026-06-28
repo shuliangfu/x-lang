@@ -49,7 +49,7 @@ function main(): i32 {
   if (obs2.trace_id_len != 32) { return 8; }
 
   if (metrics.obs_ctx_apply_trace_label(&obs, &lbl) != 0) { return 9; }
-  if (metrics.registry_register_counter(&reg, &req[0], 14, &lbl.key[0], lbl.key_len, &lbl.val[0], lbl.val_len) != 0) {
+  if (metrics.counter(&reg, &req[0], 14, &lbl.key[0], lbl.key_len, &lbl.val[0], lbl.val_len) != 0) {
     return 10;
   }
   metrics.counter_inc(&reg.c0, 1);

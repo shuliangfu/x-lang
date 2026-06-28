@@ -1,18 +1,18 @@
-# STD-098/STD-102/STD-104/STD-108 std.channel select manifest
+# STD-098/102/104/108 std.channel select manifest
 # 列：item_id	kind	anchor	mod_path	notes
-min_apis	13
-read_path	section	## 1. 阅读路径	15min
-select_api	section	## 2. select 语义	channel_select_try_recv_2
-verify	section	## 4. 验证与门禁	gate
-api_try2	api	channel_select_try_recv_2	std/channel/mod.sx	非阻塞双路 recv
-api_recv2	api	channel_select_recv_2	std/channel/mod.sx	阻塞双路 recv
-api_try_n	api	channel_select_try_recv_n	std/channel/mod.sx	非阻塞 N 路 recv
-api_recv_n	api	channel_select_recv_n	std/channel/mod.sx	阻塞 N 路 recv
-api_try_send2	api	channel_select_try_send_2	std/channel/mod.sx	非阻塞双路 send
-api_send2	api	channel_select_send_2	std/channel/mod.sx	阻塞双路 send
-api_try_send_n	api	channel_select_try_send_n	std/channel/mod.sx	非阻塞 N 路 send
-api_send_n	api	channel_select_send_n	std/channel/mod.sx	阻塞 N 路 send
-api_chs_set	api	channel_select_chs_set	std/channel/mod.sx	槽位写入
+# min_apis	13
+read_path	section	## 1. 阅读路径	analysis/std-channel-select-v1.md
+select_api	section	## 2. select 语义	select_try_recv
+verify	section	## 4. 验证与门禁	analysis/std-channel-select-v1.md
+api_try2	api	select_try_recv	std/channel/mod.sx	非阻塞双路 recv
+api_recv2	api	select_recv	std/channel/mod.sx	阻塞双路 recv
+api_try_n	api	select_try_recv_n	std/channel/mod.sx	非阻塞 N 路 recv
+api_recv_n	api	select_recv_n	std/channel/mod.sx	阻塞 N 路 recv
+api_try_send2	api	select_try_send	std/channel/mod.sx	非阻塞双路 send
+api_send2	api	select_send	std/channel/mod.sx	阻塞双路 send
+api_try_send_n	api	select_try_send_n	std/channel/mod.sx	非阻塞 N 路 send
+api_send_n	api	select_send_n	std/channel/mod.sx	阻塞 N 路 send
+api_chs_set	api	select_chs_set	std/channel/mod.sx	槽位写入
 symbol_try_c	symbol	channel_select_try_recv_2_c	compiler/src/asm/runtime_channel_glue.c	C try recv 双路
 symbol_recv_c	symbol	channel_select_recv_2_c	compiler/src/asm/runtime_channel_glue.c	C recv 双路
 symbol_try_n_c	symbol	channel_select_try_recv_n_c	compiler/src/asm/runtime_channel_glue.c	C try recv N 路
@@ -22,21 +22,18 @@ symbol_send2_c	symbol	channel_select_send_2_c	compiler/src/asm/runtime_channel_g
 symbol_try_send_n_c	symbol	channel_select_try_send_n_c	compiler/src/asm/runtime_channel_glue.c	C try send N 路
 symbol_send_n_c	symbol	channel_select_send_n_c	compiler/src/asm/runtime_channel_glue.c	C send N 路
 symbol_chs_set_c	symbol	channel_select_chs_set_c	compiler/src/asm/runtime_channel_glue.c	槽位 C
-smoke_select2	smoke	tests/channel/select_2.sx	recv 双路烟测
-smoke_select_n	smoke	tests/channel/select_n.sx	recv N 路烟测
-smoke_select_send2	smoke	tests/channel/select_send_2.sx	send 双路烟测
-smoke_select_send_n	smoke	tests/channel/select_send_n.sx	send N 路烟测
-api_try_mixed2	api	channel_select_try_mixed_2	std/channel/mod.sx	非阻塞混合双路
-api_mixed2	api	channel_select_mixed_2	std/channel/mod.sx	阻塞混合双路
-api_try_mixed_n	api	channel_select_try_mixed_n	std/channel/mod.sx	非阻塞混合 N 路
-api_mixed_n	api	channel_select_mixed_n	std/channel/mod.sx	阻塞混合 N 路
-api_dirs_set	api	channel_select_dirs_set	std/channel/mod.sx	方向槽
+smoke2	smoke	tests/channel/select_2.sx	双路 recv
+smoke_n	smoke	tests/channel/select_n.sx	N 路 recv
+smoke_send2	smoke	tests/channel/select_send_2.sx	双路 send
+smoke_send_n	smoke	tests/channel/select_send_n.sx	N 路 send
+api_try_mixed2	api	select_try_mixed	std/channel/mod.sx	非阻塞混合双路
+api_mixed2	api	select_mixed	std/channel/mod.sx	阻塞混合双路
+api_try_mixed_n	api	select_try_mixed_n	std/channel/mod.sx	非阻塞混合 N 路
+api_mixed_n	api	select_mixed_n	std/channel/mod.sx	阻塞混合 N 路
+api_dirs_set	api	select_dirs_set	std/channel/mod.sx	方向槽
 symbol_try_mixed2_c	symbol	channel_select_try_mixed_2_c	compiler/src/asm/runtime_channel_glue.c	C 混合双路 try
 symbol_mixed2_c	symbol	channel_select_mixed_2_c	compiler/src/asm/runtime_channel_glue.c	C 混合双路 block
 symbol_try_mixed_n_c	symbol	channel_select_try_mixed_n_c	compiler/src/asm/runtime_channel_glue.c	C 混合 N try
 symbol_mixed_n_c	symbol	channel_select_mixed_n_c	compiler/src/asm/runtime_channel_glue.c	C 混合 N block
 symbol_dirs_c	symbol	channel_select_dirs_set_c	compiler/src/asm/runtime_channel_glue.c	方向 C
-smoke_select_mixed2	smoke	tests/channel/select_mixed_2.sx	混合双路烟测
-smoke_select_mixed_n	smoke	tests/channel/select_mixed_n.sx	混合 N 路烟测
-lib	script	lib/std-channel-select.sh	tests/lib/std-channel-select.sh
 gate	script	run-std-channel-select-gate.sh	tests/run-std-channel-select-gate.sh

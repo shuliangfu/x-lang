@@ -20,7 +20,7 @@ check_emit() {
     [ "$FAIL" = "1" ] && exit 1
     exit 0
   fi
-  if ! grep -q 'heap_arena64_init_c((struct std_heap_Arena64 \*)&__shux_wa_' "$gen"; then
+  if ! grep -q 'heap_arena_init_c((struct std_heap_Arena64 \*)&__shux_wa_' "$gen"; then
     echo "scope-allocator-gate FAIL: missing with_arena init emit" >&2
     rm -f "$gen"
     [ "$FAIL" = "1" ] && exit 1
@@ -53,9 +53,9 @@ if [ "$rc" != "0" ]; then
 fi
 echo "scope-allocator-gate OK run exit=0"
 
-# MEM-C1：scope_allocator 展开（SHUX_KEEP_C 保留生成 C 供 emit 断言；带 import 时 -E 会 DCE 掉入口 main）
-SCOPE_SRC="tests/mem/scope_allocator.sx"
-SCOPE_OUT="/tmp/shux_scope_allocator_$$"
+# MEM-C1：scope_alloc 展开（SHUX_KEEP_C 保留生成 C 供 emit 断言；带 import 时 -E 会 DCE 掉入口 main）
+SCOPE_SRC="tests/mem/scope_alloc.sx"
+SCOPE_OUT="/tmp/shux_scope_alloc_$$"
 if ! SHUX_KEEP_C=1 "$SHUX" "$SCOPE_SRC" -o "$SCOPE_OUT" >/tmp/shux_scope_alloc_scope_run.log 2>&1; then
   echo "scope-allocator-gate FAIL: build $SCOPE_SRC" >&2
   tail -8 /tmp/shux_scope_alloc_scope_run.log 2>/dev/null || true
@@ -70,14 +70,14 @@ if [ -z "$gen2" ] || [ ! -f "$gen2" ] || ! grep -q '__shux_scope_al_' "$gen2"; t
   exit 0
 fi
 rm -f "$gen2"
-echo "scope-allocator-gate OK scope_allocator emit"
+echo "scope-allocator-gate OK scope_alloc emit"
 rc=0
 "$SCOPE_OUT" >/dev/null 2>&1 || rc=$?
 if [ "$rc" != "0" ]; then
-  echo "scope-allocator-gate FAIL: scope_allocator run exit=$rc want 0" >&2
+  echo "scope-allocator-gate FAIL: scope_alloc run exit=$rc want 0" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-echo "scope-allocator-gate OK scope_allocator run exit=0"
+echo "scope-allocator-gate OK scope_alloc run exit=0"
 
 echo "scope-allocator-gate OK (MEM-C1 with_arena v1)"

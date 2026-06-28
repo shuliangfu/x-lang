@@ -3,10 +3,8 @@
  */
 const async_mod = import("std.async");
 
-extern function shux_async_run_drain_until_idle(): i32;
-
 function main(): i32 {
   let _: i32 = async_mod.placeholder();
-  let __: i32 = async_mod.shux_async_run_drain_until_idle();
+  let __: i32 = async_mod.drain_idle();
   return 0;
 }

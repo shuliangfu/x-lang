@@ -10,12 +10,12 @@ function main(): i32 {
   if (re_g == 0 || re_p == 0) {
     return 1;
   }
-  if (regex.regex_match(re_g, &hay[0], 6) != 0) {
+  if (regex.match(re_g, &hay[0], 6) != 0) {
     regex.free(re_g);
     regex.free(re_p);
     return 2;
   }
-  if (regex.regex_match(re_p, &hay[0], 6) == 0) {
+  if (regex.match(re_p, &hay[0], 6) == 0) {
     regex.free(re_g);
     regex.free(re_p);
     return 3;
@@ -28,12 +28,12 @@ function main(): i32 {
     return 4;
   }
   let hay_ab: u8[4] = [97, 97, 97, 98];
-  if (regex.regex_match(re_g, &hay_ab[0], 4) != 0) {
+  if (regex.match(re_g, &hay_ab[0], 4) != 0) {
     regex.free(re_g);
     return 5;
   }
   let hay_b: u8[1] = [98];
-  if (regex.regex_match(re_g, &hay_b[0], 1) == 0) {
+  if (regex.match(re_g, &hay_b[0], 1) == 0) {
     regex.free(re_g);
     return 6;
   }

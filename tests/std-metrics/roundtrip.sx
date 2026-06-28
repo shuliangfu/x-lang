@@ -23,9 +23,9 @@ function main(): i32 {
   let get: u8[3] = [71, 69, 84];
   let empty: u8[1] = [0];
 
-  if (metrics.registry_register_counter(&reg, &req[0], 14, &meth[0], 6, &get[0], 3) != 0) { return 1; }
-  if (metrics.registry_register_gauge(&reg, &mem[0], 12, &empty[0], 0, &empty[0], 0) != 0) { return 2; }
-  if (metrics.registry_register_histogram(&reg, &lat[0], 11, &empty[0], 0, &empty[0], 0) != 0) { return 3; }
+  if (metrics.counter(&reg, &req[0], 14, &meth[0], 6, &get[0], 3) != 0) { return 1; }
+  if (metrics.gauge(&reg, &mem[0], 12, &empty[0], 0, &empty[0], 0) != 0) { return 2; }
+  if (metrics.histogram(&reg, &lat[0], 11, &empty[0], 0, &empty[0], 0) != 0) { return 3; }
 
   metrics.counter_inc(&reg.c0, 3);
   if (metrics.counter_snapshot(&reg.c0) != 3) { return 4; }

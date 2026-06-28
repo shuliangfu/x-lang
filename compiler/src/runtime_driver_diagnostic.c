@@ -196,6 +196,16 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
     lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
 }
 
+/** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
+void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "pointer dereference requires unsafe block");
+}
+
+/** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */
+void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "extern call requires unsafe block");
+}
+
 /** .sx typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
     lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");

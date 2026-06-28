@@ -9,12 +9,12 @@ api_counter_snap	api	counter_snapshot	std/metrics/mod.sx	快照
 api_gauge_set	api	gauge_set	std/metrics/mod.sx	设置
 api_gauge_add	api	gauge_add	std/metrics/mod.sx	加减
 api_hist_obs	api	histogram_observe	std/metrics/mod.sx	观测
-api_reg_counter	api	registry_register_counter	std/metrics/mod.sx	注册
-api_reg_gauge	api	registry_register_gauge	std/metrics/mod.sx	注册
-api_reg_hist	api	registry_register_histogram	std/metrics/mod.sx	注册
+api_reg_counter	api	counter	std/metrics/mod.sx	注册
+api_reg_gauge	api	gauge	std/metrics/mod.sx	注册
+api_reg_hist	api	histogram	std/metrics/mod.sx	注册
 api_export	api	export_prometheus	std/metrics/mod.sx	导出
 api_label	api	label_set	std/metrics/mod.sx	label
-api_err	api	metrics_err_ok	std/metrics/mod.sx	错误码
+api_err	api	err_ok	std/metrics/mod.sx	错误码
 impl_sx	file	std/metrics/mod.sx	std/metrics/mod.sx
 smoke_sx	smoke	tests/std-metrics/roundtrip.sx	round-trip
 vectors	file	tests/baseline/std-metrics-vectors.tsv	向量

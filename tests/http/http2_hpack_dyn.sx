@@ -2,7 +2,7 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_hpack_dyn_smoke() != 0) { return 1; }
+  if (http.hpack_dyn_smoke() != 0) { return 1; }
 
   let host: u8[12] = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
   let path: u8[4] = [47, 112, 111, 0];
@@ -15,10 +15,10 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  http.http2_hpack_dyn_reset();
-  let n1: i32 = http.http2_hpack_encode_request(1, &host[0], 11, &path[0], 3, 1, &hpack[0], 128);
+  http.hpack_dyn_reset();
+  let n1: i32 = http.hpack_encode_request(1, &host[0], 11, &path[0], 3, 1, &hpack[0], 128);
   if (n1 <= 0) { return 2; }
-  if (http.http2_hpack_dyn_count() < 2) { return 3; }
+  if (http.hpack_dyn_count() < 2) { return 3; }
 
   let frame: u8[256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -36,7 +36,7 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let flen: i32 = http.http2_build_request_headers_frame(1, &host[0], 11, &path[0], 3, 1, 1, 5,
+  let flen: i32 = http.build_request_headers_frame(1, &host[0], 11, &path[0], 3, 1, 1, 5,
     &frame[0], 256);
   if (flen <= 9) { return 4; }
 
@@ -44,10 +44,10 @@ function main(): i32 {
   let flags: i32 = 0;
   let sid: i32 = 0;
   let plen: i32 = 0;
-  if (http.http2_parse_frame_header(&frame[0], 9, &ftype, &flags, &sid, &plen) != 0) { return 5; }
-  if (ftype != http.http2_frame_headers()) { return 6; }
+  if (http.parse_frame_header(&frame[0], 9, &ftype, &flags, &sid, &plen) != 0) { return 5; }
+  if (ftype != http.frame_headers()) { return 6; }
   if (sid != 5) { return 7; }
-  if (flags == http.http2_flag_end_stream()) { return 8; }
+  if (flags == http.flag_end_stream()) { return 8; }
 
   return 0;
 }

@@ -4,7 +4,7 @@
 read_path	section	## 1. 阅读路径	analysis/std-db-compat-v1.md
 api_doc	section	## 2. 迁移说明	analysis/std-db-compat-v1.md
 verify	section	## 3. Gate	analysis/std-db-compat-v1.md
-api_deprecated	api	db_is_deprecated	std/db/mod.sx	废弃标记
+api_deprecated	api	is_deprecated	std/db/mod.sx	废弃标记
 api_open	api	open	std/db/mod.sx	转发 open
 api_exec	api	exec	std/db/mod.sx	转发 exec
 api_close	api	close	std/db/mod.sx	转发 close

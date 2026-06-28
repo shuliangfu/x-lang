@@ -1,6 +1,9 @@
 # std.hash Tier-S stable public API (import std.hash)
-hash_start
-hash_write_bytes
-hash_finish
-hash_free
-hash_bytes
+start
+write_bytes
+finish
+free
+bytes
+default_hasher
+recommend_hasher_map
+recommend_hasher_fast

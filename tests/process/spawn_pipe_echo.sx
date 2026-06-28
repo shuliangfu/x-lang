@@ -22,7 +22,7 @@ allow(padding) struct Argv5 {
 /** 从管道读端校验 payload 前缀；匹配返回 0。 */
 function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): i32 {
   let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let nr: isize = fs.fs_read(r_fd, &buf[0], 8 as usize);
+  let nr: isize = fs.read(r_fd, &buf[0], 8 as usize);
   if (nr < 5) { return 1; }
   if (buf[0] != b0 || buf[1] != b1 || buf[2] != b2 || buf[3] != b3 || buf[4] != b4) {
     return 2;
@@ -46,13 +46,13 @@ function try_posix_echo_pipe(): i32 {
   let io: process.SpawnIo = process.SpawnIo { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
   let argv_ptr: *u8 = &argv.s0;
   pid = process.spawn_io(&prog[0], argv_ptr, &io);
-  fs.fs_close(w_fd);
+  fs.close(w_fd);
   if (pid <= 0) {
-    fs.fs_close(r_fd);
+    fs.close(r_fd);
     return 11;
   }
   st = check_pipe_payload(r_fd, 104, 101, 108, 108, 111);
-  fs.fs_close(r_fd);
+  fs.close(r_fd);
   if (st != 0) { return 12; }
   if (process.waitpid(pid) != 0) { return 13; }
   return 0;
@@ -80,13 +80,13 @@ function try_win_echo_pipe(): i32 {
   let io: process.SpawnIo = process.SpawnIo { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
   let argv_ptr: *u8 = &argv.s0;
   pid = process.spawn_io(&cmd[0], argv_ptr, &io);
-  fs.fs_close(w_fd);
+  fs.close(w_fd);
   if (pid <= 0) {
-    fs.fs_close(r_fd);
+    fs.close(r_fd);
     return 21;
   }
   st = check_pipe_payload(r_fd, 104, 101, 108, 108, 111);
-  fs.fs_close(r_fd);
+  fs.close(r_fd);
   if (st != 0) { return 22; }
   if (process.waitpid(pid) != 0) { return 23; }
   return 0;

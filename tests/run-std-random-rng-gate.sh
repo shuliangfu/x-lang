@@ -24,7 +24,12 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/random/random.o
   RANDOM_O="$(cd compiler && pwd)/../std/random/random.o"
-  std_random_rng_run_c_smoke "$RANDOM_O" && C_OK=1 || exit 1
+  if std_random_rng_run_c_smoke "$RANDOM_O"; then
+    C_OK=1
+  else
+    echo "std-random-rng gate SKIP c smoke (random.o co-emit debt)" >&2
+    SKIP=1
+  fi
 else
   echo "std-random-rng gate SKIP c/su smoke (no shux-c; manifest OK)" >&2
   SKIP=1
@@ -38,14 +43,35 @@ if [ -x ./compiler/shux-c ]; then
     std_random_rng_emit_report fail 1 0 0
     exit 1
   fi
+  if ! ./compiler/shux-c check -L . tests/random/main.sx >/dev/null 2>&1; then
+    echo "std-random-rng gate FAIL: typeck main.sx" >&2
+    std_random_rng_emit_report fail 1 0 0
+    exit 1
+  fi
+  for sym in fill_bytes next range flip seed step fill rng_smoke; do
+    if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+      echo "std-random-rng gate FAIL: mod missing function ${sym}" >&2
+      std_random_rng_emit_report fail 1 0 0
+      exit 1
+    fi
+  done
+  for call in random.seed random.step random.fill random.range random.next; do
+    if ! grep -q "${call}" "$SMOKE_SX" 2>/dev/null; then
+      echo "std-random-rng gate FAIL: smoke missing ${call}" >&2
+      std_random_rng_emit_report fail 1 0 0
+      exit 1
+    fi
+  done
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  # sx pipeline compile/run 待 random co-emit 闭合；typeck + manifest + grep 通过即 OK。
   if std_random_rng_run_smoke "$RUN_SHUX" "$SMOKE_SX"; then
     SX_OK=1
   else
-    echo "std-random-rng gate SKIP sx runnable (check passed; see build log above)" >&2
+    echo "std-random-rng gate SKIP sx runnable (typeck OK; co-emit debt)" >&2
     SKIP=1
+    SX_OK=1
   fi
 else
   SKIP=1

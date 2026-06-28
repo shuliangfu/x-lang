@@ -29,7 +29,7 @@ function main(): i32 {
 
   let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
     109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let req: HttpRequest = HttpRequest { method: method_from_u8(2), url: &url[0], url_len: 19, body: 0, body_len: 0, timeout_ms: 0 };
+  let req: HttpRequest = HttpRequest { method: http.method(2), url: &url[0], url_len: 19, body: 0, body_len: 0, timeout_ms: 0 };
   let out: u8[4096] = [];
   let got: i32 = http.execute(req, &out[0], 4096, &resp);
   if (got >= 0) {
@@ -40,13 +40,13 @@ function main(): i32 {
   let cancelled: Context = context.with_cancel(bg);
   context.cancel(cancelled);
   let short_url: u8[11] = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
-  let req2: HttpRequest = HttpRequest { method: method_from_u8(0), url: &short_url[0], url_len: 10, body: 0, body_len: 0, timeout_ms: 0 };
+  let req2: HttpRequest = HttpRequest { method: http.method(0), url: &short_url[0], url_len: 10, body: 0, body_len: 0, timeout_ms: 0 };
   if (http.execute_ctx(req2, &out[0], 4096, &resp, cancelled) != err.http_err_cancelled()) { return 12; }
   context.free(cancelled);
 
-  if (http.http2_hpack_huffman_smoke() != 0) { return 13; }
-  if (http.http2_flow_control_smoke() != 0) { return 14; }
-  if (http.http2_hpack_huffman_is_available() == false) { return 15; }
+  if (http.hpack_huffman_smoke() != 0) { return 13; }
+  if (http.flow_control_smoke() != 0) { return 14; }
+  if (http.hpack_huffman_is_available() == false) { return 15; }
 
   return 0;
 }

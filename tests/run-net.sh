@@ -11,7 +11,7 @@ else
   make -C compiler -q shux-c 2>/dev/null || true
 fi
 ensure_std_c_o ../std/net/net.o
-# net.o 合并 net_workers.sx，链入时依赖 thread.o
+# net.o 合并 workers.sx，链入时依赖 thread.o
 ensure_std_c_o ../std/thread/thread.o
 # Linux UDP batch / accept workers 胶层（net.o 内引用 shu_net_* / thread_create_c）
 ensure_runtime_net_udp_batch_o

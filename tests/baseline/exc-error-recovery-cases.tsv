@@ -19,7 +19,7 @@ case_root_from_chain	recovery/r_root_from_chain.sx	run	0	R5-chain	chain root 分
 case_recoverable_result	recoverable_result.sx	run	0	R1-unwrap-or	EXC-002 Layer A
 case_layer_c_recoverable	layer_c_recoverable.sx	run	0	R4-layer-c	EXC-002 Layer C fs
 case_error_chain_smoke	error_chain_smoke.sx	run	0	R5-chain	EXC-004 烟测
-case_error_code_layer	error_code_layer.sx	run	0	R4-layer-c	EXC-003 分层
+case_code_layer	code_layer.sx	run	0	R4-layer-c	EXC-003 分层
 case_expect_or_panic_ok	expect_or_panic_ok.sx	run	0	R3-branch	expect 必成功
 case_runtime_ready	runtime_ready.sx	run	0	R6-suite	runtime ready
 case_error_unify_smoke	tests/std/error_unify_smoke.sx	run_path	0	R4-layer-c	STD-011 段对齐

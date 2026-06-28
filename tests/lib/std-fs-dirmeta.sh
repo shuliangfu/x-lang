@@ -19,7 +19,7 @@ std_fs_dirmeta_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/fs/fs_posix.sx" ] && path="$fs_c"
+        [ "$path" = "std/fs/posix.sx" ] && path="$fs_c"
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke)

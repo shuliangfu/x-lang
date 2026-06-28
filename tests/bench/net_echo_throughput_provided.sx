@@ -24,7 +24,7 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 /** 写 4×4KiB；失败返回负值。 */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nw: i32 = net.stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nw: i32 = net.write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nw != need) { return -1; }
   return nw;
 }
@@ -32,7 +32,7 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
 /** 读 16KiB（单 provided buffer，1 SQE）；失败返回负值。 */
 function echo_read_16k_provided(stream: TcpStream, bid: *u32, len: *u32): i32 {
   let need: i32 = 16384;
-  let nr: i32 = net.stream_read_batch_provided(stream, 1, 0, bid, len);
+  let nr: i32 = net.read_batch_provided(stream, 1, 0, bid, len);
   if (nr != need) { return -1; }
   return nr;
 }
@@ -55,7 +55,7 @@ function main(): i32 {
     echo_port = bench_parse_port(process.arg(1), echo_port);
   }
   /** 8×16KiB provided pool；单块容纳一轮 echo 读。 */
-  if (io.register_provided_buffers(8, 16384) != 1) { return 10; }
+  if (io.register_provided(8, 16384) != 1) { return 10; }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
@@ -83,7 +83,7 @@ function main(): i32 {
     sum = sum + echo_sum_provided_16k(bid, blen);
     round = round + 1;
   }
-  io.unregister_provided_buffers();
+  io.unregister_provided();
   if (net.close_stream(stream) != 0) { return 4; }
   return sum & 255;
 }

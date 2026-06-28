@@ -4,7 +4,7 @@
 const io = import("std.io");
 
 function main(): i32 {
-  let s: u8[]<io_read_ptr> = io.read_stdin_ptr_slice();
+  let s: u8[]<io_read_ptr> = io.stdin_ptr_slice();
   if (s.length <= 0) {
     return 1;
   }

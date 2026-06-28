@@ -1,8 +1,8 @@
 # std.net Tier-S stable public API (import std.net)
 # One symbol per line; run-std-net-api-gate.sh greps std/net/mod.sx
-# Updated: 2026-06-17 (STD-002)
-addr_to_u32
-u32_to_ipv4
+# Updated: 2026-06-27 (API shorten)
+addr_to_packed
+packed_to_ipv4
 connect
 connect_ctx_fd
 connect_blocking
@@ -10,24 +10,24 @@ listen
 accept
 accept_ctx_fd
 close_stream
-stream_read_ctx
-stream_write_ctx
-stream_set_blocking
-stream_read_batch
-stream_write_batch
-stream_read_batch_buf
-stream_write_batch_buf
-stream_read_fixed
-stream_write_fixed
-stream_read_batch_provided
+read_ctx
+write_ctx
+set_blocking
+read_batch
+write_batch
+read_batch_buf
+write_batch_buf
+read_fixed
+write_fixed
+read_batch_provided
 close_listener
 run_accept_workers
 local_addr
 peer_addr
 listener_local_addr
 udp_bind
-udp_send_to
-udp_recv_from
+send_to
+recv_from
 udp_recv_many
 udp_send_many
 udp_recv_many_buf
@@ -37,6 +37,6 @@ connect_ipv6
 connect_ipv6_ctx_fd
 listen_ipv6
 resolve
-net_batch_max
+batch_max
 accept_many
 connect_many

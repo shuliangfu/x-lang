@@ -21,11 +21,11 @@
 
 | 场景 | 路径 | API |
 |------|------|-----|
-| 默认 / 长生命周期 | 堆 | `bytes_new` → `bytes_deinit` |
-| 短生命周期批处理 | Arena64 bump | `arena64_init` → `arena64_alloc` → `bytes_from_external` → `arena64_deinit` |
+| 默认 / 长生命周期 | 堆 | `new` → `deinit` |
+| 短生命周期批处理 | Arena64 bump | `arena64_init` → `arena64_alloc` → `from_external` → `arena64_deinit` |
 | 策略查询 | 文档常量 | `recommend_bytes_alloc` / `recommend_bytes_alloc_arena` |
 
-常量：`BYTES_OWN_HEAP`（1）、`BYTES_OWN_EXTERNAL`（0）；`bytes_is_owned` 探测。
+常量：`BYTES_OWN_HEAP`（1）、`BYTES_OWN_EXTERNAL`（0）；`is_owned` 探测。
 
 ---
 
@@ -34,13 +34,13 @@
 ```text
 arena64_init(&arena, cap)
 slab = arena64_alloc(&arena, slab_cap, align)
-b = bytes_from_external(slab, 0, slab_cap)
-bytes_append_slice(&b, ...)   // len+extra <= cap，否则 -1
-bytes_deinit(&b)              // 外部：no-op free，仅清零字段
+b = from_external(slab, 0, slab_cap)
+extend(&b, ...)   // len+extra <= cap，否则 -1
+deinit(&b)              // 外部：no-op free，仅清零字段
 arena64_deinit(&arena)        // 一次释放整块 chunk
 ```
 
-外部绑定 **不可** `bytes_reserve` / `bytes_grow` 扩容；须预分配足够 slab 或换更大 bump。
+外部绑定 **不可** `reserve` / `grow` 扩容；须预分配足够 slab 或换更大 bump。
 
 ---
 

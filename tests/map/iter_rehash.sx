@@ -2,19 +2,19 @@
 const map = import("std.map");
 
 function main(): i32 {
-  let m: Map_i32_i32 = map.map_i32_i32_new();
-  if (map.map_i32_i32_with_capacity(&m, 8) != 0) { return 1; }
+  let m: Map_i32_i32 = map.new(0);
+  if (map.with_capacity(&m, 8) != 0) { return 1; }
   let i: i32 = 0;
   while (i < 6) {
-    if (map.map_i32_i32_insert(&m, i, i * 10) != 0) { return 2; }
+    if (map.insert(&m, i, i * 10) != 0) { return 2; }
     i = i + 1;
   }
-  if (map.map_i32_i32_load_factor_pct(m) <= 0) { return 3; }
-  let it: MapIter_i32_i32 = map.map_i32_i32_iter_init(m);
+  if (map.load_factor_pct(m) <= 0) { return 3; }
+  let it: MapIter_i32_i32 = map.iter_init(m);
   let n: i32 = 0;
   let done: i32 = 0;
   while (done == 0) {
-    let item: MapIterItem_i32 = map.map_i32_i32_iter_next(&it);
+    let item: MapIterItem_i32 = map.iter_next(&it);
     if (item.ok == 0) {
       done = 1;
     } else {
@@ -22,6 +22,6 @@ function main(): i32 {
     }
   }
   if (n != 6) { return 4; }
-  map.map_i32_i32_deinit(&m);
+  map.deinit(&m);
   return 0;
 }

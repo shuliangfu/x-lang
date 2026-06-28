@@ -10,7 +10,7 @@ function main(): i32 {
   let ctx: Context = context.background();
   let ctx_bare: Context = context.background();
   let root: Span = Span { id: zero };
-  let rt: AsyncRuntime = async_mod.runtime_new(ctx);
+  let rt: AsyncRuntime = async_mod.runtime(ctx);
   let msg: u8[1] = [88];
   let cnt_before: i32 = 0;
   let cnt_after: i32 = 0;
@@ -22,13 +22,13 @@ function main(): i32 {
   if (root.id == zero) { return 3; }
 
   cnt_before = trace.span_count(&tr);
-  if (trace.hook_io_write_ctx(ctx, io.handle_stderr(), &msg[0], 1) < 0) { return 4; }
+  if (trace.hook_io_write_ctx(ctx, io.stderr(), &msg[0], 1) < 0) { return 4; }
   async_mod.runtime_reset(&rt);
   if (trace.hook_async_drain_ctx(ctx, &rt) < 0) { return 5; }
   cnt_after = trace.span_count(&tr);
   if (cnt_after <= cnt_before) { return 6; }
 
-  if (trace.hook_io_write_ctx(ctx_bare, io.handle_stderr(), &msg[0], 1) < 0) { return 7; }
+  if (trace.hook_io_write_ctx(ctx_bare, io.stderr(), &msg[0], 1) < 0) { return 7; }
   if (trace.hooks_smoke() != 0) { return 8; }
 
   if (trace.span_end(&tr, root) != trace.trace_err_ok()) { return 9; }

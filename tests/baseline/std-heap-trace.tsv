@@ -1,11 +1,11 @@
 # STD-017 std.heap SHUX_HEAP_TRACE manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_trace_apis	3
-trace_enabled	symbol	heap_trace_enabled	std/heap/mod.sx
-trace_stats	symbol	heap_trace_stats	std/heap/mod.sx
-trace_reset	symbol	heap_trace_reset	std/heap/mod.sx
+trace_enabled	symbol	trace_on	std/heap/mod.sx
+trace_stats	symbol	trace_stats	std/heap/mod.sx
+trace_reset	symbol	trace_reset	std/heap/mod.sx
 stats_struct	symbol	HeapTraceStats	std/heap/mod.sx
-c_impl	symbol	heap_trace_enabled_c	std/heap/heap_libc.sx	SHUX_HEAP_TRACE
+c_impl	symbol	heap_trace_enabled_c	std/heap/libc.sx	SHUX_HEAP_TRACE
 env_var	anchor	SHUX_HEAP_TRACE	analysis/std-heap-trace-v1.md	RFC
 test_smoke	file	tests/heap/trace_stats.sx		烟测
 doc	file	std-heap-trace-v1.md	analysis/std-heap-trace-v1.md	RFC

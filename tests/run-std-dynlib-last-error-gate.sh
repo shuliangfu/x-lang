@@ -33,8 +33,8 @@ for f in "$MOD_SX" "$DYNLIB_SX" "$DYNLIB_RUNTIME" "$MANIFEST" "$SMOKE_SX" "$SMOK
     exit 1
   fi
 done
-if ! grep -qE "function last_error\\(" "$MOD_SX" 2>/dev/null; then
-  echo "dynlib-last-error gate FAIL: missing api last_error" >&2
+if ! grep -qE "function last_os_error\\(" "$MOD_SX" 2>/dev/null; then
+  echo "dynlib-last-error gate FAIL: missing api last_os_error" >&2
   exit 1
 fi
 if ! grep -qF "dynlib_last_error_copy_c" "$DYNLIB_SX" 2>/dev/null; then

@@ -8,13 +8,13 @@ api_surface	section	## 5. API 面	analysis/std-json-zc-v1.md	-	10 函数
 verify	section	## 6. 验证与门禁	analysis/std-json-zc-v1.md	-	gate
 api_parse_number	api	parse_number	std/json/mod.sx	core	原地扫描
 api_parse_null	api	parse_null	std/json/mod.sx	core	原地
-api_parse_bool	api	parse_bool	std/json/mod.sx	core	原地
+api_parse_bool	api	parse	std/json/mod.sx	core	原地 bool
 api_parse_string	api	parse_string	std/json/mod.sx	copy	转义拷贝
 api_parse_string_view	api	parse_string_view	std/json/mod.sx	zc	无转义视图
-api_json_view_needs_copy	api	json_view_needs_copy	std/json/mod.sx	zc	-2 哨兵
-api_escape_string	api	escape_string	std/json/mod.sx	gen	生成
+api_needs_copy	api	needs_copy	std/json/mod.sx	zc	-2 哨兵
+api_escape	api	escape	std/json/mod.sx	gen	生成
 api_append_null	api	append_null	std/json/mod.sx	gen	生成
-api_append_bool	api	append_bool	std/json/mod.sx	gen	生成
+api_append_bool	api	append	std/json/mod.sx	gen	生成 bool
 api_append_number	api	append_number	std/json/mod.sx	gen	生成
 impl_sx	file	std/json/json.sx	std/json/json.sx	impl	json_parse_string_view_c
 lib	script	lib/std-json.sh	tests/lib/std-json.sh	-	共享库

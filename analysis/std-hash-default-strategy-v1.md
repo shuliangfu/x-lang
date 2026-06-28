@@ -17,10 +17,10 @@
 
 | 场景 | 推荐 | 常量 | API |
 |------|------|------|-----|
-| **Map/Set 默认**（对抗不可信 key） | SipHash | `HASHER_SIPHASH` (0) | `hash_start()` / `recommend_hasher_map()` |
-| **内部去重/非对抗表** | xxHash64 | `HASHER_XXHASH` (2) | `hash_xxhash64` / `recommend_hasher_fast()` |
-| **轻量快速占位** | FNV-1a64 | `HASHER_AHASH` (1) | `hash_start_algo(HASHER_AHASH)` |
-| **Tier-S 稳定** | SipHash | 0 | `hash_start` 族不变 |
+| **Map/Set 默认**（对抗不可信 key） | SipHash | `HASHER_SIPHASH` (0) | `start()` / `recommend_hasher_map()` |
+| **内部去重/非对抗表** | xxHash64 | `HASHER_XXHASH` (2) | `xxhash64` / `recommend_hasher_fast()` |
+| **轻量快速占位** | FNV-1a64 | `HASHER_AHASH` (1) | `start_algo(HASHER_AHASH)` |
+| **Tier-S 稳定** | SipHash | 0 | `start` 族不变 |
 
 **原则**：不可信输入的关联容器用 SipHash；已知安全数据的性能路径用 xxHash64。
 
@@ -35,7 +35,7 @@
 | `ahash` / `1` | `1` | FNV-1a64 占位 |
 | `xxhash` / `2` / `x` | `2` | xxHash64 |
 
-环境变量仅影响 `default_hasher()`；`hash_start()` 恒为 SipHash（Tier-S 稳定）。
+环境变量仅影响 `default_hasher()`；`start()` 恒为 SipHash（Tier-S 稳定）。
 
 ---
 

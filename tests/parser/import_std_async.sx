@@ -3,6 +3,6 @@ const async_mod = import("std.async");
 
 /** 入口：仅验证 import 解析与链接符号解析。 */
 function main(): i32 {
-  async_mod.shux_async_queue_reset();
+  async_mod.scheduler_reset();
   return 0;
 }

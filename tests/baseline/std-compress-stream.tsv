@@ -10,9 +10,9 @@ api_init_d	api	gzip_stream_init_decompress	std/compress/mod.sx	解压 init
 api_compress	api	gzip_stream_compress	std/compress/mod.sx	分块压
 api_decompress	api	gzip_stream_decompress	std/compress/mod.sx	分块解
 api_end	api	gzip_stream_end	std/compress/mod.sx	释放
-symbol_state_c	symbol	compress_gzip_stream_state_bytes_c	std/compress/gzip/gzip_libz.sx	流状态
-symbol_compress_c	symbol	compress_gzip_stream_compress_c	std/compress/gzip/gzip_libz.sx	分块压
-symbol_decompress_c	symbol	compress_gzip_stream_decompress_c	std/compress/gzip/gzip_libz.sx	分块解
+symbol_state_c	symbol	compress_gzip_stream_state_bytes_c	std/compress/gzip/libz.sx	流状态
+symbol_compress_c	symbol	compress_gzip_stream_compress_c	std/compress/gzip/libz.sx	分块压
+symbol_decompress_c	symbol	compress_gzip_stream_decompress_c	std/compress/gzip/libz.sx	分块解
 smoke_stream	smoke	tests/std-compress/gzip_stream_roundtrip.sx	分块往返
 lib	script	lib/std-compress-stream.sh	tests/lib/std-compress-stream.sh
 gate	script	run-std-compress-stream-gate.sh	tests/run-std-compress-stream-gate.sh

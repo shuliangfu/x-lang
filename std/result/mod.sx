@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.result — core.result 用户友好重导出与错误桥接（STD-081）
 //
 // 【文件职责】
@@ -50,8 +66,8 @@ function result_or_else_i32(r: Result_i32, fallback: Result_i32): Result_i32 {
 }
 
 /** 从 std.error 风格错误码构造 Result；0=Ok(0)，非 0=Err(code)。 */
-function result_from_error_code(code: i32): Result_i32 {
-  if (code == error_ok()) {
+function result_from_code(code: i32): Result_i32 {
+  if (code == ok()) {
     return result.ok_i32(0);
   }
   return result.err_i32(code);
@@ -59,16 +75,16 @@ function result_from_error_code(code: i32): Result_i32 {
 
 /** 错误码为 0 时 Ok(value)，否则 Err(err_code)。 */
 function result_from_value_i32(value: i32, err_code: i32): Result_i32 {
-  if (err_code == error_ok()) {
+  if (err_code == ok()) {
     return result.ok_i32(value);
   }
   return result.err_i32(err_code);
 }
 
-/** 提取 Result 错误码（Ok 时返回 error_ok()）。 */
+/** 提取 Result 错误码（Ok 时返回 ok()）。 */
 function result_err_code(r: Result_i32): i32 {
   if (result.is_ok_i32(r)) {
-    return error_ok();
+    return ok();
   }
   return r.err;
 }

@@ -1,17 +1,15 @@
-# STD-044 std.channel unbounded mode manifest
+# STD-044 std.channel unbounded manifest
 # 列：item_id	kind	anchor	mod_path	notes
-# min_apis	5
-read_path	section	## 1. 阅读路径	15min
+read_path	section	## 1. 阅读路径	analysis/std-channel-unbounded-v1.md
 unbounded_api	section	## 2. 无界模式语义	send_unbounded
 close_api	section	## 2.3 关闭语义	try_recv_unbounded
-verify	section	## 4. 验证与门禁	gate
+verify	section	## 4. 验证与门禁	analysis/std-channel-unbounded-v1.md
 api_send_u	api	send_unbounded	std/channel/mod.sx	无界 send
 api_try_u	api	try_recv_unbounded	std/channel/mod.sx	无界 try
-api_close_u	api	channel_unbounded_close	std/channel/mod.sx	无界 close
-api_is_u	api	channel_unbounded_is_closed	std/channel/mod.sx	关闭态
-api_is	api	channel_i32_is_closed	std/channel/mod.sx	通用 is_closed
+api_close_u	api	unbounded_close	std/channel/mod.sx	无界 close
+api_is_u	api	unbounded_is_closed	std/channel/mod.sx	关闭态
+api_is	api	is_closed	std/channel/mod.sx	通用 is_closed
 symbol_is_c	symbol	channel_i32_is_closed_c	compiler/src/asm/runtime_channel_glue.c	C 关闭态
-smoke_unbounded	smoke	tests/channel/unbounded_roundtrip.sx	无界往返
-smoke_main	smoke	tests/channel/main.sx	有界回归
-lib	script	lib/std-channel-unbounded.sh	tests/lib/std-channel-unbounded.sh
+smoke_ub	smoke	tests/channel/unbounded_roundtrip.sx	无界烟测
+smoke_main	smoke	tests/channel/main.sx	有界烟测
 gate	script	run-std-channel-unbounded-gate.sh	tests/run-std-channel-unbounded-gate.sh

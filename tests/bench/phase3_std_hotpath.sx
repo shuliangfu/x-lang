@@ -13,8 +13,8 @@ function main(): i32 {
   let i: i32 = 0;
   while (i < 50000) {
     datetime.timezone_iana(&utc_name[0], 3, &tz);
-    let _: i32 = compress.compress_format_brotli();
-    let _: i32 = compress.stream_compress_state_bytes_for(compress.compress_format_zstd());
+    let _: i32 = compress.format_brotli();
+    let _: i32 = compress.compress_state_bytes_for(compress.format_zstd());
     let pool: TcpConnPool = net.tcp_pool_new_simple(0x7f000001, 9);
     if (pool.handle != zero) {
       net.tcp_pool_drain(&pool);

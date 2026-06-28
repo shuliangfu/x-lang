@@ -1,10 +1,10 @@
 # STD-021/022 path/fs Windows manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_path_syms	3
-path_is_sep	symbol	path_is_sep	std/path/mod.sx
-path_is_abs	symbol	path_is_absolute	std/path/mod.sx
-path_sep_c	symbol	path_sep_c	std/path/mod.sx
-win_abs	anchor	path_is_absolute	analysis/std-path-fs-windows-v1.md	RFC
+path_is_sep	symbol	is_sep	std/path/mod.sx
+path_is_abs	symbol	is_absolute	std/path/mod.sx
+path_sep	symbol	sep	std/path/mod.sx
+win_abs	anchor	is_absolute	analysis/std-path-fs-windows-v1.md	RFC
 win_unc	anchor	UNC	analysis/std-path-fs-windows-v1.md	RFC
 win_fs_case	anchor	win_path_smoke	analysis/std-path-fs-windows-v1.md	RFC
 test_path_win	file	tests/path/windows_abs_join.sx		烟测

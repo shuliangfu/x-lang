@@ -23,10 +23,10 @@
 | `Registry` | 本地注册表（各类型最多 4 项） |
 | `counter_inc` / `gauge_set` / `histogram_observe` | 更新 |
 | `counter_snapshot` / `gauge_snapshot` | 快照读 |
-| `registry_register_*` | 注册并返回索引 |
+| `counter` / `gauge` / `histogram` | 注册并返回索引 |
 | `export_prometheus` | Prometheus 文本导出 |
 | `label_set` | 单 label 维度 |
-| `metrics_err_*` | 错误码 |
+| `err_*` | 错误码 |
 
 与 `std.log` / `std.trace`：v1 通过共享 label 键（如 `service`）对齐观测上下文；trace 模块落地后复用同一 label 约定。
 

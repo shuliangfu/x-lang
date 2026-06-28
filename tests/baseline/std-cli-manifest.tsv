@@ -9,7 +9,7 @@ api_help	api	is_help	std/cli/mod.sx	help
 api_long	api	match_long	std/cli/mod.sx	长选项
 api_short	api	match_short	std/cli/mod.sx	短选项
 api_usage	api	write_usage	std/cli/mod.sx	usage
-api_err	api	cli_err_ok	std/cli/mod.sx	错误码
+api_err	api	err_ok	std/cli/mod.sx	错误码
 symbol_smoke	symbol	cli_smoke_c	std/cli/cli.sx	C烟测
 impl_sx	file	std/cli/cli.sx	std/cli/cli.sx
 smoke_sx	smoke	tests/std-cli/roundtrip.sx	.sx烟测

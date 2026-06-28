@@ -1,8 +1,8 @@
 /**
- * std/http/http2_conn_pool.inc.c — HTTP/2 连接池 + 长连接 URL 客户端（STD-HTTP-H2-v12）
+ * std/http/conn_pool.inc.c — HTTP/2 连接池 + 长连接 URL 客户端（STD-HTTP-H2-v12）
  *
  * 【文件职责】同 host:port 复用已 handshake 的 Http2Conn；h2c / h2 over TLS URL 请求。
- * 由 std/http/http_glue.c 在 http2_network.inc.c 之后 #include。
+ * 由 std/http/http_glue.c 在 network.inc.c 之后 #include。
  */
 
 #include <stdlib.h>
@@ -29,11 +29,11 @@ typedef struct {
     int32_t n_idle;
     int32_t connect_count;
     int32_t scheme_h2c;
-    http2_conn_t idle[HTTP2_POOL_MAX_CONNS];
-} http2_conn_pool_t;
+    conn_t idle[HTTP2_POOL_MAX_CONNS];
+} conn_pool_t;
 
 /** URL host:port 是否与池绑定一致。 */
-static int32_t http2_pool_url_matches(const http2_conn_pool_t *pool, const uint8_t *url,
+static int32_t pool_url_matches(const conn_pool_t *pool, const uint8_t *url,
                                       int32_t url_len, int32_t *out_is_https) {
     char host_buf[SHUX_HTTP_HOST_MAX];
     char port_buf[8];
@@ -109,7 +109,7 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
 }
 
 /** 新建 h2c 连接并完成 handshake；成功 0。 */
-static int32_t http2_pool_connect_h2c_new_c(http2_conn_pool_t *pool, http2_conn_t *conn,
+static int32_t http2_pool_connect_h2c_new_c(conn_pool_t *pool, conn_t *conn,
                                             uint32_t timeout_ms) {
     int32_t fd;
     int32_t rc;
@@ -134,7 +134,7 @@ static int32_t http2_pool_connect_h2c_new_c(http2_conn_pool_t *pool, http2_conn_
 }
 
 /** 新建 h2 over TLS 连接并完成 handshake；成功 0。 */
-static int32_t http2_pool_connect_h2_tls_new_c(http2_conn_pool_t *pool, http2_conn_t *conn,
+static int32_t http2_pool_connect_h2_tls_new_c(conn_pool_t *pool, conn_t *conn,
                                                  uint32_t timeout_ms) {
     uint8_t alpn_wire[16];
     int32_t fd;
@@ -181,9 +181,9 @@ static int32_t http2_pool_connect_h2_tls_new_c(http2_conn_pool_t *pool, http2_co
 }
 
 /** 从 idle 栈取出可复用连接；丢弃已 GOAWAY 的 idle 项。 */
-static http2_conn_t *http2_pool_acquire_conn_c(http2_conn_pool_t *pool) {
+static conn_t *http2_pool_acquire_conn_c(conn_pool_t *pool) {
     while (pool && pool->n_idle > 0) {
-        http2_conn_t *conn;
+        conn_t *conn;
         pool->n_idle--;
         conn = &pool->idle[pool->n_idle];
         if (http2_conn_is_pool_reusable_c(conn) != 0)
@@ -194,7 +194,7 @@ static http2_conn_t *http2_pool_acquire_conn_c(http2_conn_pool_t *pool) {
 }
 
 /** 归还 ready 且未 GOAWAY 的连接到 idle 栈；否则 shutdown。 */
-static void http2_pool_release_conn_c(http2_conn_pool_t *pool, http2_conn_t *conn) {
+static void http2_pool_release_conn_c(conn_pool_t *pool, conn_t *conn) {
     if (!pool || !conn)
         return;
     if (http2_conn_is_pool_reusable_c(conn) == 0) {
@@ -212,7 +212,7 @@ static void http2_pool_release_conn_c(http2_conn_pool_t *pool, http2_conn_t *con
 /** 内部：创建池（scheme_h2c 非 0 表示 h2c）。 */
 static int64_t http2_conn_pool_create_c(const uint8_t *host, int32_t host_len, const uint8_t *port,
                                         int32_t port_len, int32_t max_conns, int32_t scheme_h2c) {
-    http2_conn_pool_t *pool;
+    conn_pool_t *pool;
     if (!host || host_len <= 0 || host_len >= SHUX_HTTP_HOST_MAX)
         return 0;
     if (!port || port_len <= 0 || port_len >= 8)
@@ -223,7 +223,7 @@ static int64_t http2_conn_pool_create_c(const uint8_t *host, int32_t host_len, c
         max_conns = 1;
     if (max_conns > HTTP2_POOL_MAX_CONNS)
         max_conns = HTTP2_POOL_MAX_CONNS;
-    pool = (http2_conn_pool_t *)calloc(1, sizeof(*pool));
+    pool = (conn_pool_t *)calloc(1, sizeof(*pool));
     if (!pool)
         return 0;
     memcpy(pool->host, host, (size_t)host_len);
@@ -249,7 +249,7 @@ int64_t http2_conn_pool_create_h2_c(const uint8_t *host, int32_t host_len, const
 
 /** 关闭池内全部 idle 连接并释放池。 */
 void http2_conn_pool_destroy_c(int64_t pool_h) {
-    http2_conn_pool_t *pool = (http2_conn_pool_t *)(intptr_t)pool_h;
+    conn_pool_t *pool = (conn_pool_t *)(intptr_t)pool_h;
     int32_t i;
     if (!pool)
         return;
@@ -266,12 +266,12 @@ void http2_conn_pool_destroy_c(int64_t pool_h) {
 int32_t http2_conn_pool_request_c(int64_t pool_h, uint8_t method_u8, const uint8_t *url,
                                 int32_t url_len, const uint8_t *body, int32_t body_len,
                                 uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms) {
-    http2_conn_pool_t *pool = (http2_conn_pool_t *)(intptr_t)pool_h;
+    conn_pool_t *pool = (conn_pool_t *)(intptr_t)pool_h;
     char host_buf[SHUX_HTTP_HOST_MAX];
     char port_buf[8];
     char path_buf[SHUX_HTTP_PATH_MAX];
-    http2_conn_t work;
-    http2_conn_t *conn;
+    conn_t work;
+    conn_t *conn;
     int32_t is_https = 0;
     int32_t rc;
     int32_t attempt;
@@ -280,7 +280,7 @@ int32_t http2_conn_pool_request_c(int64_t pool_h, uint8_t method_u8, const uint8
         return -1;
     if (http_method_from_u8(method_u8) == NULL)
         return -1;
-    if (http2_pool_url_matches(pool, url, url_len, &is_https) == 0) {
+    if (pool_url_matches(pool, url, url_len, &is_https) == 0) {
         if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
                            path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
             return -1;
@@ -332,7 +332,7 @@ int32_t http_h2_pool_get_c(int64_t pool_h, const uint8_t *url, int32_t url_len, 
 
 /** 池累计新建连接次数（烟测用）。 */
 int32_t http2_conn_pool_connect_count_c(int64_t pool_h) {
-    http2_conn_pool_t *pool = (http2_conn_pool_t *)(intptr_t)pool_h;
+    conn_pool_t *pool = (conn_pool_t *)(intptr_t)pool_h;
     if (!pool)
         return -1;
     return pool->connect_count;

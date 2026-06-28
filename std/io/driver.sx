@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.io.driver — 舒 I/O 驱动占位（高并发IO 第八节 + 三项约定）
 // 占位类型与签名：Buffer、IO_Result、Completion、AsyncContext；register、submit_read、submit_write。
 // 自举前仅解析与类型检查通过，实现可空或 panic；Err(i32) 约定：错误码 i32，正/负由文档约定；AsyncContext 原子位预留。

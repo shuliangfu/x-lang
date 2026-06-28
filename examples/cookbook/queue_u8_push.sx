@@ -4,9 +4,9 @@
 const queue = import("std.queue");
 
 function main(): i32 {
-  let q: Queue_u8 = queue.queue_u8_new();
-  if (queue.queue_u8_push_back(&q, 7 as u8) != 0) { return 1; }
-  if (queue.queue_u8_pop_front(&q) != 7 as u8) { return 2; }
-  queue.queue_u8_deinit(&q);
+  let q: Queue_u8 = queue.new();
+  if (queue.push_back(&q, 7 as u8) != 0) { return 1; }
+  if (queue.pop_front(&q) != 7 as u8) { return 2; }
+  queue.deinit(&q);
   return 0;
 }

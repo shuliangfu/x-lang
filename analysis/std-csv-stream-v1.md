@@ -7,10 +7,10 @@
 | 名称 | 说明 |
 |------|------|
 | `StreamCsvReader` | 流式读：维护 `offset` 顺序 `parse_row` |
-| `stream_reader_init` / `stream_reader_next_row` / `stream_reader_eof` | 读迭代 |
+| `reader` / `next_row` / `eof` | 读迭代 |
 | `StreamCsvWriter` | 流式写：多行 `write_row` 追加到同一缓冲 |
-| `stream_writer_init` / `stream_writer_append_row` / `stream_writer_len` | 写迭代 |
-| `csv_stream_smoke` | 多行 C 烟测 |
+| `writer` / `append_row` / `len` | 写迭代 |
+| `smoke` | 多行 C 烟测 |
 
 ## 门禁
 

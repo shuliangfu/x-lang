@@ -1,8 +1,8 @@
 /**
- * std/http/http2_global_pool.inc.c — HTTP/2 全局连接池（STD-HTTP-H2-v13）
+ * std/http/global_pool.inc.c — HTTP/2 全局连接池（STD-HTTP-H2-v13）
  *
  * 【文件职责】按 URL 解析 host:port + scheme，自动查找或创建 per-host H2 连接池并转发请求。
- * 由 std/http/http_glue.c 在 http2_conn_pool.inc.c 之后 #include。
+ * 由 std/http/http_glue.c 在 conn_pool.inc.c 之后 #include。
  */
 
 #include <stdlib.h>
@@ -19,18 +19,18 @@ typedef struct {
     char port[8];
     int32_t scheme_h2c;
     int64_t pool_h;
-} http2_global_pool_entry_t;
+} global_pool_entry_t;
 
 /** HTTP/2 全局连接池（多 host:port 子池路由表）。 */
 typedef struct {
     int32_t max_entries;
     int32_t max_conns_per_host;
     int32_t n_entries;
-    http2_global_pool_entry_t entries[HTTP2_GLOBAL_POOL_MAX_ENTRIES];
-} http2_global_pool_t;
+    global_pool_entry_t entries[HTTP2_GLOBAL_POOL_MAX_ENTRIES];
+} global_pool_t;
 
 /** host:port + scheme 是否与条目一致。 */
-static int32_t http2_global_entry_matches(const http2_global_pool_entry_t *e, const char *host,
+static int32_t global_entry_matches(const global_pool_entry_t *e, const char *host,
                                           const char *port, int32_t scheme_h2c) {
     if (!e || e->pool_h == 0)
         return 0;
@@ -44,23 +44,23 @@ static int32_t http2_global_entry_matches(const http2_global_pool_entry_t *e, co
 }
 
 /** 查找已有子池条目；未找到返回 NULL。 */
-static http2_global_pool_entry_t *http2_global_find_entry_c(http2_global_pool_t *gp,
+static global_pool_entry_t *http2_global_find_entry_c(global_pool_t *gp,
                                                             const char *host, const char *port,
                                                             int32_t scheme_h2c) {
     int32_t i;
     if (!gp)
         return NULL;
     for (i = 0; i < gp->n_entries; i++) {
-        if (http2_global_entry_matches(&gp->entries[i], host, port, scheme_h2c) != 0)
+        if (global_entry_matches(&gp->entries[i], host, port, scheme_h2c) != 0)
             return &gp->entries[i];
     }
     return NULL;
 }
 
 /** 为 host:port 新建子连接池并登记；失败 -1；满池 HTTP2_ERR_GLOBAL_POOL_FULL。 */
-static int32_t http2_global_add_entry_c(http2_global_pool_t *gp, const char *host, const char *port,
+static int32_t http2_global_add_entry_c(global_pool_t *gp, const char *host, const char *port,
                                         int32_t scheme_h2c) {
-    http2_global_pool_entry_t *e;
+    global_pool_entry_t *e;
     int64_t pool_h;
     int32_t host_len;
     int32_t port_len;
@@ -90,12 +90,12 @@ static int32_t http2_global_add_entry_c(http2_global_pool_t *gp, const char *hos
 }
 
 /** 解析 URL 并查找/创建子池；失败 -1；满池 HTTP2_ERR_GLOBAL_POOL_FULL。 */
-static int64_t http2_global_resolve_pool_c(http2_global_pool_t *gp, const uint8_t *url,
+static int64_t http2_global_resolve_pool_c(global_pool_t *gp, const uint8_t *url,
                                            int32_t url_len) {
     char host_buf[SHUX_HTTP_HOST_MAX];
     char port_buf[8];
     char path_buf[SHUX_HTTP_PATH_MAX];
-    http2_global_pool_entry_t *e;
+    global_pool_entry_t *e;
     int32_t is_https = 0;
     int32_t scheme_h2c;
     int32_t rc;
@@ -120,7 +120,7 @@ static int64_t http2_global_resolve_pool_c(http2_global_pool_t *gp, const uint8_
 
 /** 创建全局 H2 连接池；max_entries<=0 默认 4；max_conns_per_host<=0 默认 2。 */
 int64_t http2_global_pool_create_c(int32_t max_entries, int32_t max_conns_per_host) {
-    http2_global_pool_t *gp;
+    global_pool_t *gp;
     if (max_entries <= 0)
         max_entries = 4;
     if (max_entries > HTTP2_GLOBAL_POOL_MAX_ENTRIES)
@@ -129,7 +129,7 @@ int64_t http2_global_pool_create_c(int32_t max_entries, int32_t max_conns_per_ho
         max_conns_per_host = 2;
     if (max_conns_per_host > HTTP2_POOL_MAX_CONNS)
         max_conns_per_host = HTTP2_POOL_MAX_CONNS;
-    gp = (http2_global_pool_t *)calloc(1, sizeof(*gp));
+    gp = (global_pool_t *)calloc(1, sizeof(*gp));
     if (!gp)
         return 0;
     gp->max_entries = max_entries;
@@ -139,7 +139,7 @@ int64_t http2_global_pool_create_c(int32_t max_entries, int32_t max_conns_per_ho
 
 /** 销毁全局池及全部子连接池。 */
 void http2_global_pool_destroy_c(int64_t gpool_h) {
-    http2_global_pool_t *gp = (http2_global_pool_t *)(intptr_t)gpool_h;
+    global_pool_t *gp = (global_pool_t *)(intptr_t)gpool_h;
     int32_t i;
     if (!gp)
         return;
@@ -152,7 +152,7 @@ void http2_global_pool_destroy_c(int64_t gpool_h) {
 
 /** 当前已登记的不同 host:port 子池数量（烟测用）。 */
 int32_t http2_global_pool_entry_count_c(int64_t gpool_h) {
-    http2_global_pool_t *gp = (http2_global_pool_t *)(intptr_t)gpool_h;
+    global_pool_t *gp = (global_pool_t *)(intptr_t)gpool_h;
     if (!gp)
         return -1;
     return gp->n_entries;
@@ -160,7 +160,7 @@ int32_t http2_global_pool_entry_count_c(int64_t gpool_h) {
 
 /** 全局池内全部子池累计新建连接次数（烟测/诊断）。 */
 int32_t http2_global_pool_connect_count_c(int64_t gpool_h) {
-    http2_global_pool_t *gp = (http2_global_pool_t *)(intptr_t)gpool_h;
+    global_pool_t *gp = (global_pool_t *)(intptr_t)gpool_h;
     int32_t i;
     int32_t sum = 0;
     if (!gp)
@@ -182,7 +182,7 @@ int32_t http2_global_pool_request_c(int64_t gpool_h, uint8_t method_u8, const ui
     int64_t pool_h;
     if (!url || !out_buf || url_len <= 0 || out_cap <= 0)
         return -1;
-    pool_h = http2_global_resolve_pool_c((http2_global_pool_t *)(intptr_t)gpool_h, url, url_len);
+    pool_h = http2_global_resolve_pool_c((global_pool_t *)(intptr_t)gpool_h, url, url_len);
     if (pool_h == 0)
         return -1;
     if (pool_h < 0)

@@ -9,7 +9,7 @@ function main(): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  if (fmt.format_2(buf, 32, x, y) != 3) { return 2; }
-  if (fmt.format_2(buf, 32, 100 as i64, 200 as i64) != 6) { return 3; }
+  if (fmt.format(buf, 32, x, y) != 3) { return 2; }
+  if (fmt.format(buf, 32, 100 as i64, 200 as i64) != 6) { return 3; }
   return 0;
 }

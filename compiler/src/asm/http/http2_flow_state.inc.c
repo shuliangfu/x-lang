@@ -1,8 +1,8 @@
 /**
- * std/http/http2_flow_state.inc.c — HTTP/2 流控状态机 v1（RFC 7540 §6.9；STD-HTTP-H2-v5）
+ * std/http/flow_state.inc.c — HTTP/2 流控状态机 v1（RFC 7540 §6.9；STD-HTTP-H2-v5）
  *
  * 【文件职责】连接/流级发送窗口跟踪、WINDOW_UPDATE 应用、DATA 背压分块。
- * 由 http2_flow.inc.c 末尾 #include。
+ * 由 flow.inc.c 末尾 #include。
  */
 
 /** SETTINGS INITIAL_WINDOW_SIZE（0x0004）。 */
@@ -14,10 +14,10 @@
 typedef struct {
     int32_t conn_window;
     int32_t stream_window;
-} http2_flow_state_t;
+} flow_state_t;
 
 /** 初始化连接/流窗口为默认 65535。 */
-void http2_flow_state_init_c(http2_flow_state_t *st) {
+void http2_flow_state_init_c(flow_state_t *st) {
     if (!st)
         return;
     st->conn_window = HTTP2_DEFAULT_INITIAL_WINDOW;
@@ -25,14 +25,14 @@ void http2_flow_state_init_c(http2_flow_state_t *st) {
 }
 
 /** 重置流窗口（保留连接窗口）；用于新 stream。 */
-void http2_flow_state_reset_stream_c(http2_flow_state_t *st, int32_t initial_window) {
+void http2_flow_state_reset_stream_c(flow_state_t *st, int32_t initial_window) {
     if (!st || initial_window < 0)
         return;
     st->stream_window = initial_window;
 }
 
 /** 应用 SETTINGS INITIAL_WINDOW_SIZE 到新 stream 基准。 */
-void http2_flow_state_apply_initial_window_c(http2_flow_state_t *st, int32_t initial_window) {
+void http2_flow_state_apply_initial_window_c(flow_state_t *st, int32_t initial_window) {
     if (!st || initial_window < 0)
         return;
     st->stream_window = initial_window;
@@ -61,7 +61,7 @@ int32_t http2_parse_window_update_payload_c(const uint8_t *payload, int32_t plen
  * 应用 WINDOW_UPDATE：stream_id=0 增连接窗口，否则增流窗口。
  * 成功 0；increment 非法 -1。
  */
-int32_t http2_flow_state_apply_window_update_c(http2_flow_state_t *st, int32_t stream_id,
+int32_t http2_flow_state_apply_window_update_c(flow_state_t *st, int32_t stream_id,
                                                  int32_t increment) {
     int64_t sum;
     if (!st || increment <= 0)
@@ -81,7 +81,7 @@ int32_t http2_flow_state_apply_window_update_c(http2_flow_state_t *st, int32_t s
 }
 
 /** 返回当前可发送字节数 min(conn, stream, want)；0 表示背压阻塞。 */
-int32_t http2_flow_state_max_send_c(const http2_flow_state_t *st, int32_t want) {
+int32_t http2_flow_state_max_send_c(const flow_state_t *st, int32_t want) {
     int32_t avail;
     if (!st || want <= 0)
         return 0;
@@ -96,7 +96,7 @@ int32_t http2_flow_state_max_send_c(const http2_flow_state_t *st, int32_t want) 
 }
 
 /** want 字节是否可发送（1 是，0 否）。 */
-int32_t http2_flow_state_can_send_c(const http2_flow_state_t *st, int32_t want) {
+int32_t http2_flow_state_can_send_c(const flow_state_t *st, int32_t want) {
     if (http2_flow_state_max_send_c(st, want) >= want)
         return 1;
     return 0;
@@ -106,7 +106,7 @@ int32_t http2_flow_state_can_send_c(const http2_flow_state_t *st, int32_t want) 
  * 发送 DATA 后扣减连接/流窗口。
  * 窗口不足返回 HTTP2_FLOW_ERR_BLOCKED(-1232)；成功 0。
  */
-int32_t http2_flow_state_consume_send_c(http2_flow_state_t *st, int32_t nbytes) {
+int32_t http2_flow_state_consume_send_c(flow_state_t *st, int32_t nbytes) {
     if (!st || nbytes <= 0)
         return -1;
     if (st->conn_window < nbytes || st->stream_window < nbytes)
@@ -118,7 +118,7 @@ int32_t http2_flow_state_consume_send_c(http2_flow_state_t *st, int32_t nbytes) 
 
 /** 流控状态机 C 烟测；0 通过。 */
 int32_t http2_flow_state_smoke_c(void) {
-    http2_flow_state_t st;
+    flow_state_t st;
     int32_t chunk;
     uint8_t payload[4];
 

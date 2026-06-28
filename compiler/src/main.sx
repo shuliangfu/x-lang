@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // main.sx — 与 main.c 一一对应：程序入口与驱动编排（6.2 逻辑全在 .sx）
 //
 // 职责：提供 main(argc, argv)；-sx -E 的 argv 解析与执行（读文件、预处理、pipeline、写 stdout）全部在 .sx 实现。
@@ -547,26 +563,26 @@ function driver_run_sx_emit_sx(state: *DriverSxEmitState): i32 {
       return 1;
     }
     if (len > 262144) {
-      let written: isize = fs.fs_write(fd, out.data, 262144);
-      fs.fs_close(fd);
+      let written: isize = fs.write(fd, out.data, 262144);
+      fs.close(fd);
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs.fs_write(fd, out.data, len as usize);
-      fs.fs_close(fd);
+      let written: isize = fs.write(fd, out.data, len as usize);
+      fs.close(fd);
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
     }
   } else {
     if (len > 262144) {
-      let written: isize = fs.fs_write(1, out.data, 262144);
+      let written: isize = fs.write(1, out.data, 262144);
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs.fs_write(1, out.data, len as usize);
+      let written: isize = fs.write(1, out.data, len as usize);
       if (written < 0 || (written as i32) != len) {
         return 1;
       }

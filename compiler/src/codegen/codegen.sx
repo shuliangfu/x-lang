@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // codegen.sx — 代码生成（纯 .sx，完全自举）
 //
 // 10.4.2 进展：import 前缀、std.io 判定、should_skip_emit、call_num_args_override 均在 .sx；
@@ -799,18 +815,18 @@ function codegen_force_param_size_t(prefix: *u8, prefix_len: i32, name: *u8, nam
 }
 
 /**
- * io.print_str 第二参在 .sx 为 usize；dep 末尾用于衔接的 extern 桩若误为 int32_t 会与实现体 size_t 冲突。
+ * io.print 第二参在 .sx 为 usize；dep 末尾用于衔接的 extern 桩若误为 int32_t 会与实现体 size_t 冲突。
  * 要求 C 符号前缀前 7 字节为 std_io_（与 codegen_import_path_to_c_prefix 对 std.io 一致）。
  */
 function codegen_force_param_size_t_std_io_print_str_second(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
   if (param_index != 1) {
     return 0;
   }
-  if (name == 0 as *u8 || name_len != 9) {
+  if (name == 0 as *u8 || name_len != 5) {
     return 0;
   }
-  /* "print_str" */
-  if (name[0] != 112 || name[1] != 114 || name[2] != 105 || name[3] != 110 || name[4] != 116 || name[5] != 95 || name[6] != 115 || name[7] != 116 || name[8] != 114) {
+  /* "print" */
+  if (name[0] != 112 || name[1] != 114 || name[2] != 105 || name[3] != 110 || name[4] != 116) {
     return 0;
   }
   let exp7: u8[7] = [115, 116, 100, 95, 105, 111, 95];
@@ -2107,6 +2123,104 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
 }
 
 /**
+ * binding.CONST：将 dep 模块顶层 const 生成为 prefix+const_name（如 async_mod.POLL_PENDING）。
+ * 非 import binding 常量访问时返回 -1。
+ */
+function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+    return -1;
+  }
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  if (e.kind != ExprKind.EXPR_FIELD_ACCESS) {
+    return -1;
+  }
+  if (e.field_access_base_ref <= 0 || e.field_access_base_ref > arena.num_exprs) {
+    return -1;
+  }
+  let base: Expr = ast.ast_arena_expr_get(arena, e.field_access_base_ref);
+  if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
+    return -1;
+  }
+  let cur_mod: *Module = ctx.current_codegen_module;
+  let j: i32 = 0;
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  while (j < cur_mod.num_imports && j < nd) {
+    if (pipeline_module_import_kind_at(cur_mod, j) != 1) {
+      j = j + 1;
+      continue;
+    }
+    let bind_len: i32 = pipeline_module_import_binding_name_len(cur_mod, j);
+    if (bind_len != base.var_name_len) {
+      j = j + 1;
+      continue;
+    }
+    let eq: bool = true;
+    let kk: i32 = 0;
+    while (kk < base.var_name_len) {
+      if (base.var_name[kk] != pipeline_module_import_binding_name_byte_at(cur_mod, j, kk)) {
+        eq = false;
+        break;
+      }
+      kk = kk + 1;
+    }
+    if (!eq) {
+      j = j + 1;
+      continue;
+    }
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, j);
+    if (dep_mod == 0 as *Module) {
+      j = j + 1;
+      continue;
+    }
+    let ti: i32 = 0;
+    while (ti < dep_mod.num_top_level_lets) {
+      if (pipeline_module_top_level_let_is_const(dep_mod, ti) == 0) {
+        ti = ti + 1;
+        continue;
+      }
+      let nlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, ti);
+      if (nlen != e.field_access_field_len) {
+        ti = ti + 1;
+        continue;
+      }
+      let nm_eq: bool = true;
+      let ni: i32 = 0;
+      while (ni < nlen) {
+        if (pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ni) != e.field_access_field_name[ni]) {
+          nm_eq = false;
+          break;
+        }
+        ni = ni + 1;
+      }
+      if (!nm_eq) {
+        ti = ti + 1;
+        continue;
+      }
+      let dep_path: u8[64] = [];
+      pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path[0]);
+      let pre: u8[128] = [];
+      codegen_import_path_to_c_prefix_into(&dep_path[0], &pre[0], 128);
+      let plen: i32 = 0;
+      while (plen < 128 && pre[plen] != 0) {
+        plen = plen + 1;
+      }
+      if (plen > 0 && emit_bytes_from_ptr(out, &pre[0], plen) != 0) {
+        return -1;
+      }
+      if (e.field_access_field_len > 0 && emit_bytes_from_ptr(out, &e.field_access_field_name[0], e.field_access_field_len) != 0) {
+        return -1;
+      }
+      return 0;
+    }
+    j = j + 1;
+  }
+  return -1;
+}
+
+/**
  * 写表达式到 out；仅支持当前 .sx AST 中已用到的节点（LIT、VAR、二元、一元、BLOCK、RETURN 等）。
  * ctx 非空且 ndep>0 时，EXPR_CALL 会解析跨 dep 调用并输出 dep 的 C 前缀。
  */
@@ -3290,6 +3404,10 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
     if (e.field_access_is_enum_variant != 0) {
       /** 枚举变体：输出 typeck 填好的 tag 整数字面量（C 侧无 enum 声明时仍合法）。 */
       return format_int(out, e.enum_variant_tag);
+    }
+    /** binding.CONST：如 async_mod.POLL_PENDING → std_async_POLL_PENDING */
+    if (emit_import_module_const_field(arena, out, expr_ref, ctx) == 0) {
+      return 0;
     }
     /*
      * std.io.driver 的 register/submit_read/submit_write 首参在 C 侧已强制为 ptrdiff_t 句柄，

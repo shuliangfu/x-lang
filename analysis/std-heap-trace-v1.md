@@ -20,9 +20,9 @@
 
 | 函数 | 说明 |
 |------|------|
-| `heap_trace_enabled()` | 是否启用 trace；1/0 |
-| `heap_trace_stats(out)` | 读取 `HeapTraceStats` 快照 |
-| `heap_trace_reset()` | 清零计数 |
+| `trace_on()` | 是否启用 trace；1/0 |
+| `trace_stats(out)` | 读取 `HeapTraceStats` 快照 |
+| `trace_reset()` | 清零计数 |
 
 `HeapTraceStats` 字段：`alloc_count` / `free_count` / `realloc_count` / `bytes_allocated`。
 
@@ -40,9 +40,9 @@
 
 | 场景 | 期望 |
 |------|------|
-| 未设置 env | `heap_trace_enabled()==0`；alloc 后 stats 仍为 0 |
+| 未设置 env | `trace_on()==0`；alloc 后 stats 仍为 0 |
 | `SHUX_HEAP_TRACE=1` | alloc(32)+free → alloc_count≥1, free_count≥1, bytes≥32 |
-| `heap_trace_reset()` | 计数归零 |
+| `trace_reset()` | 计数归零 |
 
 ---
 

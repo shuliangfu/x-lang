@@ -2,43 +2,43 @@
 const queue = import("std.queue");
 
 function main(): i32 {
-  let sq: SyncQueue_i32 = sync_queue_i32_new();
+  let sq: SyncQueue_i32 = queue.sync_new();
   if (sq.lock == 0 as *u8) {
     return 1;
   }
-  if (sync_queue_i32_push_back(&sq, 10) != 0) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_push(&sq, 10) != 0) {
+    queue.sync_deinit(&sq);
     return 2;
   }
-  if (sync_queue_i32_push_back(&sq, 20) != 0) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_push(&sq, 20) != 0) {
+    queue.sync_deinit(&sq);
     return 3;
   }
-  if (sync_queue_i32_len(sq) != 2) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_queue_len(sq) != 2) {
+    queue.sync_deinit(&sq);
     return 4;
   }
   let v: i32 = 0;
-  if (sync_queue_i32_try_pop_front(&sq, &v) != 0) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_try_pop(&sq, &v) != 0) {
+    queue.sync_deinit(&sq);
     return 5;
   }
   if (v != 10) {
-    sync_queue_i32_deinit(&sq);
+    queue.sync_deinit(&sq);
     return 6;
   }
-  if (sync_queue_i32_try_pop_front(&sq, &v) != 0) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_try_pop(&sq, &v) != 0) {
+    queue.sync_deinit(&sq);
     return 7;
   }
   if (v != 20) {
-    sync_queue_i32_deinit(&sq);
+    queue.sync_deinit(&sq);
     return 8;
   }
-  if (sync_queue_i32_is_empty(sq) != 1) {
-    sync_queue_i32_deinit(&sq);
+  if (queue.sync_queue_is_empty(sq) != 1) {
+    queue.sync_deinit(&sq);
     return 9;
   }
-  sync_queue_i32_deinit(&sq);
+  queue.sync_deinit(&sq);
   return 0;
 }

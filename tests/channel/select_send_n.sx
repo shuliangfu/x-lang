@@ -3,34 +3,34 @@ const channel = import("std.channel");
 const debug = import("core.debug");
 
 function main(): i32 {
-  let ch0: *u8 = channel.channel_i32_bounded(1);
-  let ch1: *u8 = channel.channel_i32_bounded(1);
-  let ch2: *u8 = channel.channel_i32_bounded(2);
+  let ch0: *u8 = channel.bounded(1);
+  let ch1: *u8 = channel.bounded(1);
+  let ch2: *u8 = channel.bounded(2);
   if (ch0 == 0 || ch1 == 0 || ch2 == 0) {
     return 0;
   }
   let slots: i64[4] = [];
-  channel_select_chs_set(&slots[0], 0, ch0);
-  channel_select_chs_set(&slots[0], 1, ch1);
-  channel_select_chs_set(&slots[0], 2, ch2);
+  channel.select_chs_set(&slots[0], 0, ch0);
+  channel.select_chs_set(&slots[0], 1, ch1);
+  channel.select_chs_set(&slots[0], 2, ch2);
   let which: i32 = 0;
   let v: i32 = 0;
-  debug.assert_eq_i32(channel.channel_i32_send(ch0, 1), 0);
-  debug.assert_eq_i32(channel.channel_i32_send(ch1, 2), 0);
-  debug.assert_eq_i32(channel_select_try_send_n(&slots[0], 3, 99, &which), 0);
+  debug.assert_eq_i32(channel.send(ch0, 1), 0);
+  debug.assert_eq_i32(channel.send(ch1, 2), 0);
+  debug.assert_eq_i32(channel.select_try_send_n(&slots[0], 3, 99, &which), 0);
   debug.assert_eq_i32(which, 2);
-  debug.assert_eq_i32(channel_select_send_n(&slots[0], 3, 88, &which), 0);
+  debug.assert_eq_i32(channel.select_send_n(&slots[0], 3, 88, &which), 0);
   debug.assert_eq_i32(which, 2);
-  debug.assert_eq_i32(channel.channel_i32_recv(ch2, &v), 0);
+  debug.assert_eq_i32(channel.recv(ch2, &v), 0);
   debug.assert_eq_i32(v, 99);
-  debug.assert_eq_i32(channel.channel_i32_recv(ch2, &v), 0);
+  debug.assert_eq_i32(channel.recv(ch2, &v), 0);
   debug.assert_eq_i32(v, 88);
-  channel.channel_i32_close(ch0);
-  channel.channel_i32_close(ch1);
-  channel.channel_i32_close(ch2);
-  debug.assert_eq_i32(channel_select_try_send_n(&slots[0], 3, 1, &which), 0 - 1);
-  channel.channel_i32_free(ch0);
-  channel.channel_i32_free(ch1);
-  channel.channel_i32_free(ch2);
+  channel.close(ch0);
+  channel.close(ch1);
+  channel.close(ch2);
+  debug.assert_eq_i32(channel.select_try_send_n(&slots[0], 3, 1, &which), 0 - 1);
+  channel.free(ch0);
+  channel.free(ch1);
+  channel.free(ch2);
   return 0;
 }

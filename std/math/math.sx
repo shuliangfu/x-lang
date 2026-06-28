@@ -1,12 +1,22 @@
-// std/math/math.sx — 常量、signum 与 special 烟测（F-math v1；替代 math.c 非 libm 段）
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// 【文件职责】PI/E/Tau、signum、STD-115 special_smoke；libm 转发见 runtime_math_libm.c（compiler runtime）。
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/** libm 胶层：误差函数等（special_smoke 金样）。 */
-extern function math_erf_c(x: f64): f64;
-extern function math_erfc_c(x: f64): f64;
-extern function math_log1p_c(x: f64): f64;
-extern function math_expm1_c(x: f64): f64;
+// std/math/math.sx — 数学常量（F-math v1；signum/special_smoke 在 runtime_math_libm.c）
+//
+// 【文件职责】PI/E/Tau 纯 .sx 常量；libm 与烟测见 runtime_math_libm.c。
 
 /** 圆周率 π。 */
 function math_pi_c(): f64 {
@@ -21,29 +31,4 @@ function math_e_c(): f64 {
 /** 2π。 */
 function math_tau_c(): f64 {
   return math_pi_c() * 2.0;
-}
-
-/** signum：x>0→1，x<0→-1，x==0→0。 */
-function math_signum_c(x: f64): f64 {
-  if (x > 0.0) { return 1.0 as f64; }
-  if (x < 0.0) { return -1.0 as f64; }
-  return 0.0 as f64;
-}
-
-/** 近似相等辅助；1 是，0 否。 */
-function math_special_near(a: f64, b: f64, eps: f64): i32 {
-  let d: f64 = a - b;
-  if (d < 0.0) { d = -d; }
-  if (d <= eps) { return 1; }
-  return 0;
-}
-
-/** STD-115 烟测：erf/log1p/expm1 金样；0 成功。 */
-function math_special_smoke_c(): i32 {
-  if (math_special_near(math_erf_c(0.0), 0.0, 1.0e-12) == 0) { return 1; }
-  if (math_special_near(math_erf_c(1.0), 0.8427007929497149, 1.0e-6) == 0) { return 2; }
-  if (math_special_near(math_log1p_c(0.0), 0.0, 1.0e-12) == 0) { return 3; }
-  if (math_special_near(math_expm1_c(0.0), 0.0, 1.0e-12) == 0) { return 4; }
-  if (math_special_near(math_erfc_c(0.0), 1.0, 1.0e-12) == 0) { return 5; }
-  return 0;
 }

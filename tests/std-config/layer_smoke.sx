@@ -3,8 +3,8 @@ const config = import("std.config");
 
 function main(): i32 {
   let zero: i64 = 0;
-  let cfg: Config = config.config_new();
-  let cli: Config = config.config_new();
+  let cfg: Config = config.new();
+  let cli: Config = config.new();
   let raw: u8[96] = [
     112, 111, 114, 116, 32, 61, 32, 56, 48, 56, 48, 10,
     104, 111, 115, 116, 32, 61, 32, 34, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 10,
@@ -28,16 +28,16 @@ function main(): i32 {
   if (cfg.handle == zero || cli.handle == zero) {
     return 1;
   }
-  if (config.load_toml_buf(&cfg, &raw[0], 86, 1) != config.config_err_ok()) {
+  if (config.load_toml_buf(&cfg, &raw[0], 86, 1) != config.err_ok()) {
     return 2;
   }
-  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.config_err_ok() || port != 8080) {
+  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.err_ok() || port != 8080) {
     return 3;
   }
-  if (config.get_source(&cfg, &k_port[0], 4, &kind, &lbl[0], 8) != config.config_err_ok()) {
+  if (config.get_source(&cfg, &k_port[0], 4, &kind, &lbl[0], 8) != config.err_ok()) {
     return 31;
   }
-  if (kind != config.config_source_toml()) {
+  if (kind != config.source_toml()) {
     return 32;
   }
   if (config.get_string(&cfg, &k_host[0], 4, &host[0], 32) <= 0) {
@@ -49,30 +49,30 @@ function main(): i32 {
   if (config.get_string(&cfg, &k_url[0], 6, &host[0], 32) <= 0) {
     return 6;
   }
-  if (config.get_bool(&cfg, &k_dbg[0], 5, &dbg) != config.config_err_ok() || dbg != 0) {
+  if (config.get_bool(&cfg, &k_dbg[0], 5, &dbg) != config.err_ok() || dbg != 0) {
     return 7;
   }
-  if (config.set_string(&cli, &k_port[0], 4, &v_9090[0], 4) != config.config_err_ok()) {
+  if (config.set_string(&cli, &k_port[0], 4, &v_9090[0], 4) != config.err_ok()) {
     return 8;
   }
-  if (config.merge(&cfg, &cli, 1) != config.config_err_ok()) {
+  if (config.merge(&cfg, &cli, 1) != config.err_ok()) {
     return 9;
   }
-  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.config_err_ok() || port != 9090) {
+  if (config.get_i32(&cfg, &k_port[0], 4, &port) != config.err_ok() || port != 9090) {
     return 10;
   }
   kind = 0;
-  if (config.get_i32_meta(&cfg, &k_port[0], 4, &port, &kind, &lbl[0], 8) != config.config_err_ok()) {
+  if (config.get_i32_meta(&cfg, &k_port[0], 4, &port, &kind, &lbl[0], 8) != config.err_ok()) {
     return 101;
   }
-  if (port != 9090 || kind != config.config_source_set()) {
+  if (port != 9090 || kind != config.source_set()) {
     return 102;
   }
-  config.config_clear(&cfg);
+  config.clear(&cfg);
   if (cfg.handle == zero) {
     return 11;
   }
-  config.config_free(&cli);
-  config.config_free(&cfg);
+  config.free(&cli);
+  config.free(&cfg);
   return 0;
 }

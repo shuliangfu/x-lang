@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SMOKE_SX" std/bytes/README.md std
   fi
 done
 
-for kw in STD-155 bytes_from_external BYTES_OWN_EXTERNAL arena64_init; do
+for kw in STD-155 from_external BYTES_OWN_EXTERNAL arena_init; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-bytes-arena gate FAIL: doc missing '$kw'" >&2
     exit 1

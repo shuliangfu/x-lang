@@ -1,7 +1,23 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.io.core — 舒 IO 核心层（分析/舒IO实现路线图.md 阶段 1）
-// 供 std.io.driver 与 std.mem 调用。F-03 v2/v3：底层 io_* 由 std.io.io_backend 纯 .sx 提供（libc sync）。
+// 供 std.io.driver 与 std.mem 调用。F-03 v2/v3：底层 io_* 由 std.io.backend 纯 .sx 提供（libc sync）。
 // 约定：返回值 >0 表示读写字节数，0 表示 EOF（仅读），-1 表示错误；timeout_ms 传 0 表示无超时。
-const io_backend = import("std.io.io_backend");
+const io_backend = import("std.io.backend");
 
 // 预注册当前线程的固定 buffer（单 buffer）：v1 仅存 (ptr,len) 供 read_fixed/write_fixed。handle 暂未使用。返回 1 成功，0 失败。
 function shux_io_register(ptr: *u8, len: usize, handle: usize): i32 {
@@ -148,7 +164,7 @@ function shux_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u32, out
   }
   return -1;
 }
-// IO-A5 v2/v3：async 路径 v1 stub；见 io_stubs.sx。
+// IO-A5 v2/v3：async 路径 v1 stub；见 stubs.sx。
 function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
   return io_backend.shux_io_submit_read_async(ptr, len, handle);
 }

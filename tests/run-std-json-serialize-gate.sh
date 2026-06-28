@@ -66,7 +66,7 @@ fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-035: typeck + round-trip smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
   if ! "$SHUX_BIN" check -L . "$RT_SX" >/dev/null 2>&1; then
     echo "std-json-serialize gate FAIL: typeck $RT_SX" >&2
     "$SHUX_BIN" check -L . "$RT_SX" 2>&1 | tail -10 >&2 || true

@@ -1,8 +1,8 @@
 /**
- * std/http/http2_server.inc.c — HTTP/2 h2c server 端 v1（STD-HTTP-H2-v14）
+ * std/http/server.inc.c — HTTP/2 h2c server 端 v1（STD-HTTP-H2-v14）
  *
  * 【文件职责】listen + accept 后读 client preface/SETTINGS，处理单 GET HEADERS 并回 200+body。
- * 由 http2_network.inc.c 末尾 #include（复用 http2_io_* 静态 IO 辅助）。
+ * 由 network.inc.c 末尾 #include（复用 io_* 静态 IO 辅助）。
  */
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -17,7 +17,7 @@
 #define HTTP2_ERR_SERVER_TLS (-1241)
 
 /** 读 client SETTINGS 并 ACK；成功 0。 */
-static int32_t http2_server_read_client_settings_c(http2_io_t *io, http2_peer_settings_t *peer) {
+static int32_t http2_server_read_client_settings_c(io_t *io, peer_settings_t *peer) {
     uint8_t hdr[9];
     uint8_t payload[256];
     uint8_t ack[16];
@@ -31,14 +31,14 @@ static int32_t http2_server_read_client_settings_c(http2_io_t *io, http2_peer_se
         return -1;
     http2_peer_settings_init_c(peer);
     for (round = 0; round < 16; round++) {
-        if (http2_io_read_exact(io, hdr, 9) != 0)
+        if (io_read_exact(io, hdr, 9) != 0)
             return HTTP2_ERR_SERVER;
         if (http2_parse_frame_header_c(hdr, 9, &ftype, &fflags, &stream_id, &plen) != 0)
             return HTTP2_ERR_SERVER;
         if (plen < 0 || plen > (int32_t)sizeof(payload))
             return HTTP2_ERR_SERVER;
         if (plen > 0) {
-            if (http2_io_read_exact(io, payload, plen) != 0)
+            if (io_read_exact(io, payload, plen) != 0)
                 return HTTP2_ERR_SERVER;
         }
         if (ftype == HTTP2_TYPE_SETTINGS) {
@@ -47,7 +47,7 @@ static int32_t http2_server_read_client_settings_c(http2_io_t *io, http2_peer_se
                     http2_peer_settings_consume_payload_c(payload, plen, peer);
                 if (http2_build_settings_ack_c(ack, (int32_t)sizeof(ack)) != 9)
                     return HTTP2_ERR_SERVER;
-                if (http2_io_write_all(io, ack, 9) != 0)
+                if (io_write_all(io, ack, 9) != 0)
                     return HTTP2_ERR_SERVER;
                 return 0;
             }
@@ -57,22 +57,22 @@ static int32_t http2_server_read_client_settings_c(http2_io_t *io, http2_peer_se
 }
 
 /** 发送 server SETTINGS 帧；成功 0。 */
-static int32_t http2_server_send_settings_c(http2_io_t *io) {
+static int32_t http2_server_send_settings_c(io_t *io) {
     uint8_t ssettings[64];
     int32_t ss_len;
     if (!io)
         return -1;
     ss_len = http2_build_server_settings_c(ssettings, (int32_t)sizeof(ssettings));
     if (ss_len > 0) {
-        if (http2_io_write_all(io, ssettings, ss_len) != 0)
+        if (io_write_all(io, ssettings, ss_len) != 0)
             return HTTP2_ERR_SERVER;
     }
     return 0;
 }
 
 /** 服务端 h2c 握手：读 preface + client SETTINGS 并 ACK，再发 server SETTINGS。 */
-static int32_t http2_server_handshake_h2c_c(int32_t fd, http2_peer_settings_t *peer) {
-    http2_io_t io;
+static int32_t http2_server_handshake_h2c_c(int32_t fd, peer_settings_t *peer) {
+    io_t io;
     uint8_t preface[32];
     int32_t rc;
 
@@ -80,7 +80,7 @@ static int32_t http2_server_handshake_h2c_c(int32_t fd, http2_peer_settings_t *p
         return -1;
     io.fd = fd;
     io.tls_ctx = 0;
-    if (http2_io_read_exact(&io, preface, HTTP2_PREFACE_LEN) != 0)
+    if (io_read_exact(&io, preface, HTTP2_PREFACE_LEN) != 0)
         return HTTP2_ERR_SERVER;
     if (http2_is_connection_preface_c(preface, HTTP2_PREFACE_LEN) == 0)
         return HTTP2_ERR_SERVER;
@@ -91,8 +91,8 @@ static int32_t http2_server_handshake_h2c_c(int32_t fd, http2_peer_settings_t *p
 }
 
 /** 服务端 h2 over TLS 握手：无 preface，直接 SETTINGS 交换。 */
-static int32_t http2_server_handshake_h2_tls_c(int64_t tls_ctx, http2_peer_settings_t *peer) {
-    http2_io_t io;
+static int32_t http2_server_handshake_h2_tls_c(int64_t tls_ctx, peer_settings_t *peer) {
+    io_t io;
     int32_t rc;
     if (tls_ctx == 0 || !peer)
         return -1;
@@ -107,7 +107,7 @@ static int32_t http2_server_handshake_h2_tls_c(int64_t tls_ctx, http2_peer_setti
 }
 
 /** 读 client HEADERS 请求帧；成功 0 并写出 stream_id 与 HPACK payload。 */
-static int32_t http2_server_read_request_headers_c(http2_io_t *io, int32_t *out_stream_id,
+static int32_t http2_server_read_request_headers_c(io_t *io, int32_t *out_stream_id,
                                                      uint8_t *hpack_out, int32_t hpack_cap,
                                                      int32_t *out_hpack_len) {
     uint8_t hdr[9];
@@ -123,14 +123,14 @@ static int32_t http2_server_read_request_headers_c(http2_io_t *io, int32_t *out_
     *out_hpack_len = 0;
 
     for (round = 0; round < 32; round++) {
-        if (http2_io_read_exact(io, hdr, 9) != 0)
+        if (io_read_exact(io, hdr, 9) != 0)
             return HTTP2_ERR_SERVER;
         if (http2_parse_frame_header_c(hdr, 9, &ftype, &fflags, &stream_id, &plen) != 0)
             return HTTP2_ERR_SERVER;
         if (plen < 0 || plen > (int32_t)sizeof(payload))
             return HTTP2_ERR_SERVER;
         if (plen > 0) {
-            if (http2_io_read_exact(io, payload, plen) != 0)
+            if (io_read_exact(io, payload, plen) != 0)
                 return HTTP2_ERR_SERVER;
         }
         if (ftype == HTTP2_TYPE_SETTINGS) {
@@ -138,7 +138,7 @@ static int32_t http2_server_read_request_headers_c(http2_io_t *io, int32_t *out_
                 uint8_t ack[16];
                 if (http2_build_settings_ack_c(ack, (int32_t)sizeof(ack)) != 9)
                     return HTTP2_ERR_SERVER;
-                if (http2_io_write_all(io, ack, 9) != 0)
+                if (io_write_all(io, ack, 9) != 0)
                     return HTTP2_ERR_SERVER;
             }
             continue;
@@ -153,7 +153,7 @@ static int32_t http2_server_read_request_headers_c(http2_io_t *io, int32_t *out_
             pn = http2_build_ping_ack_c(payload, pong, (int32_t)sizeof(pong));
             if (pn <= 0)
                 return HTTP2_ERR_SERVER;
-            if (http2_io_write_all(io, pong, pn) != 0)
+            if (io_write_all(io, pong, pn) != 0)
                 return HTTP2_ERR_SERVER;
             continue;
         }
@@ -171,7 +171,7 @@ static int32_t http2_server_read_request_headers_c(http2_io_t *io, int32_t *out_
 }
 
 /** 按对端 MAX_FRAME_SIZE 分片发送 DATA 帧；成功 0。 */
-static int32_t http2_server_write_data_capped_c(http2_io_t *io, int32_t stream_id,
+static int32_t http2_server_write_data_capped_c(io_t *io, int32_t stream_id,
                                                   const uint8_t *body, int32_t body_len,
                                                   int32_t max_frame_size) {
     uint8_t frame_buf[HTTP2_DEFAULT_MAX_FRAME_SIZE + HTTP2_FRAME_HEADER_SIZE];
@@ -207,7 +207,7 @@ static int32_t http2_server_write_data_capped_c(http2_io_t *io, int32_t stream_i
                                         (int32_t)sizeof(frame_buf));
         if (flen <= 0)
             return HTTP2_ERR_SERVER;
-        if (http2_io_write_all(io, frame_buf, flen) != 0)
+        if (io_write_all(io, frame_buf, flen) != 0)
             return HTTP2_ERR_SERVER;
         off += chunk;
     }
@@ -215,8 +215,8 @@ static int32_t http2_server_write_data_capped_c(http2_io_t *io, int32_t stream_i
 }
 
 /** 向 client 发送 200 HEADERS + DATA 响应（使用 server HPACK 动态表编码 :status）。 */
-static int32_t http2_server_send_response_c(http2_io_t *io, int32_t stream_id, const uint8_t *body,
-                                              int32_t body_len, http2_hpack_server_dyn_t *enc,
+static int32_t http2_server_send_response_c(io_t *io, int32_t stream_id, const uint8_t *body,
+                                              int32_t body_len, hpack_server_dyn_t *enc,
                                               int32_t max_frame_size) {
     uint8_t hpack[16];
     uint8_t frame_buf[512];
@@ -242,7 +242,7 @@ static int32_t http2_server_send_response_c(http2_io_t *io, int32_t stream_id, c
                                                 (int32_t)sizeof(frame_buf));
     if (hdr_frame_len <= 0)
         return HTTP2_ERR_SERVER;
-    if (http2_io_write_all(io, frame_buf, hdr_frame_len) != 0)
+    if (io_write_all(io, frame_buf, hdr_frame_len) != 0)
         return HTTP2_ERR_SERVER;
 
     if (body_len > 0) {
@@ -252,7 +252,7 @@ static int32_t http2_server_send_response_c(http2_io_t *io, int32_t stream_id, c
     return 0;
 }
 
-#include "http2_server_push.inc.c"
+#include "server_push.inc.c"
 
 /**
  * 对已 handshake h2c 连接：发 PUSH_PROMISE + push body，再回主 GET 200+body。
@@ -261,8 +261,8 @@ int32_t http2_server_serve_h2c_with_push_c(int32_t client_fd, const uint8_t *bod
                                            const uint8_t *authority, int32_t authority_len,
                                            const uint8_t *push_path, int32_t push_path_len,
                                            const uint8_t *push_body, int32_t push_body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     uint8_t hpack[512];
     int32_t stream_id = 0;
     int32_t hpack_len = 0;
@@ -291,7 +291,7 @@ int32_t http2_server_serve_h2c_with_push_c(int32_t client_fd, const uint8_t *bod
 
     promised_id = stream_id + 1;
     {
-        http2_hpack_server_dyn_t enc;
+        hpack_server_dyn_t enc;
         http2_hpack_server_dyn_init_c(&enc, &peer);
         rc = http2_server_send_push_respecting_peer_c(&io, &peer, stream_id, promised_id, authority,
                                                       authority_len, push_path, push_path_len,
@@ -352,8 +352,8 @@ int32_t http2_server_serve_h2_with_push_c(int64_t tls_ctx, const uint8_t *body, 
                                           const uint8_t *authority, int32_t authority_len,
                                           const uint8_t *push_path, int32_t push_path_len,
                                           const uint8_t *push_body, int32_t push_body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     uint8_t hpack[512];
     int32_t stream_id = 0;
     int32_t hpack_len = 0;
@@ -382,7 +382,7 @@ int32_t http2_server_serve_h2_with_push_c(int64_t tls_ctx, const uint8_t *body, 
 
     promised_id = stream_id + 1;
     {
-        http2_hpack_server_dyn_t enc;
+        hpack_server_dyn_t enc;
         http2_hpack_server_dyn_init_c(&enc, &peer);
         rc = http2_server_send_push_respecting_peer_c(&io, &peer, stream_id, promised_id, authority,
                                                       authority_len, push_path, push_path_len,
@@ -395,7 +395,7 @@ int32_t http2_server_serve_h2_with_push_c(int64_t tls_ctx, const uint8_t *body, 
 }
 
 /**
- * accept + TLS 服务端握手 + h2 serve 带 push 的单次 GET；srv_ctx 来自 http2_tls_server_ctx_create。
+ * accept + TLS 服务端握手 + h2 serve 带 push 的单次 GET；srv_ctx 来自 tls_server_ctx_create。
  */
 int32_t http2_serve_h2_one_with_push_c(int32_t listener_fd, int64_t srv_ctx_h, const uint8_t *body,
                                        int32_t body_len, const uint8_t *authority,
@@ -455,7 +455,7 @@ int32_t http2_serve_h2_one_with_push_c(int32_t listener_fd, int64_t srv_ctx_h, c
  * 在已握手连接上顺序处理至多 max_requests 个 GET 并各回 200+body。
  * 成功返回已 serve 的 stream 数（>=1）；协议错误 HTTP2_ERR_SERVER；读失败且 0 次则负码。
  */
-static int32_t http2_server_serve_io_multi_c(http2_io_t *io, const http2_peer_settings_t *peer,
+static int32_t http2_server_serve_io_multi_c(io_t *io, const peer_settings_t *peer,
                                              const uint8_t *body, int32_t body_len,
                                              int32_t max_requests) {
     uint8_t hpack[512];
@@ -464,7 +464,7 @@ static int32_t http2_server_serve_io_multi_c(http2_io_t *io, const http2_peer_se
     int32_t is_get = 0;
     int32_t served = 0;
     int32_t rc;
-    http2_hpack_server_dyn_t enc;
+    hpack_server_dyn_t enc;
 
     if (!io || !body || body_len < 0)
         return -1;
@@ -499,7 +499,7 @@ static int32_t http2_server_serve_io_multi_c(http2_io_t *io, const http2_peer_se
  * 成功返回已 serve 的 stream 数（>=1）；协议/push 参数错误负码。
  */
 static int32_t http2_server_serve_io_multi_with_push_c(
-    http2_io_t *io, const http2_peer_settings_t *peer, const uint8_t *body, int32_t body_len,
+    io_t *io, const peer_settings_t *peer, const uint8_t *body, int32_t body_len,
     int32_t max_requests, const uint8_t *authority, int32_t authority_len, const uint8_t *push_path,
     int32_t push_path_len, const uint8_t *push_body, int32_t push_body_len, int32_t is_https) {
     uint8_t hpack[512];
@@ -509,7 +509,7 @@ static int32_t http2_server_serve_io_multi_with_push_c(
     int32_t promised_id;
     int32_t served = 0;
     int32_t rc;
-    http2_hpack_server_dyn_t enc;
+    hpack_server_dyn_t enc;
 
     if (!io || !body || body_len < 0 || !authority || authority_len <= 0)
         return -1;
@@ -549,7 +549,7 @@ static int32_t http2_server_serve_io_multi_with_push_c(
 }
 
 /** 单次 GET serve（兼容 v14：成功 0）。 */
-static int32_t http2_server_serve_io_one_c(http2_io_t *io, const http2_peer_settings_t *peer,
+static int32_t http2_server_serve_io_one_c(io_t *io, const peer_settings_t *peer,
                                              const uint8_t *body, int32_t body_len) {
     int32_t n = http2_server_serve_io_multi_c(io, peer, body, body_len, 1);
     if (n == 1)
@@ -562,8 +562,8 @@ static int32_t http2_server_serve_io_one_c(http2_io_t *io, const http2_peer_sett
  * 非 GET 或协议错误返回 HTTP2_ERR_SERVER(-1240) 或 -1。
  */
 int32_t http2_server_serve_h2c_c(int32_t client_fd, const uint8_t *body, int32_t body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (client_fd < 0 || !body || body_len < 0)
@@ -582,7 +582,7 @@ int32_t http2_server_serve_h2c_c(int32_t client_fd, const uint8_t *body, int32_t
  * 向 client 发送 GOAWAY 帧（连接优雅关闭前）。
  * 成功 0；IO 失败 HTTP2_ERR_SERVER(-1240)。
  */
-static int32_t http2_server_send_goaway_c(http2_io_t *io, int32_t last_stream_id, int32_t error_code) {
+static int32_t http2_server_send_goaway_c(io_t *io, int32_t last_stream_id, int32_t error_code) {
     uint8_t frame[32];
     int32_t n;
 
@@ -591,7 +591,7 @@ static int32_t http2_server_send_goaway_c(http2_io_t *io, int32_t last_stream_id
     n = http2_build_goaway_c(last_stream_id, error_code, frame, (int32_t)sizeof(frame));
     if (n <= 0)
         return HTTP2_ERR_SERVER;
-    if (http2_io_write_all(io, frame, n) != 0)
+    if (io_write_all(io, frame, n) != 0)
         return HTTP2_ERR_SERVER;
     return 0;
 }
@@ -602,8 +602,8 @@ static int32_t http2_server_send_goaway_c(http2_io_t *io, int32_t last_stream_id
  */
 int32_t http2_server_serve_h2c_with_goaway_c(int32_t client_fd, const uint8_t *body, int32_t body_len,
                                               int32_t last_stream_id) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (client_fd < 0 || !body || body_len < 0)
@@ -627,8 +627,8 @@ int32_t http2_server_serve_h2c_with_goaway_c(int32_t client_fd, const uint8_t *b
  */
 int32_t http2_server_serve_h2c_multi_c(int32_t client_fd, const uint8_t *body, int32_t body_len,
                                        int32_t max_requests) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (client_fd < 0 || !body || body_len < 0)
@@ -651,8 +651,8 @@ int32_t http2_server_serve_h2c_multi_with_push_c(int32_t client_fd, const uint8_
                                                  const uint8_t *authority, int32_t authority_len,
                                                  const uint8_t *push_path, int32_t push_path_len,
                                                  const uint8_t *push_body, int32_t push_body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (client_fd < 0 || !body || body_len < 0 || !authority || authority_len <= 0)
@@ -753,8 +753,8 @@ int32_t http2_serve_h2c_one_with_goaway_c(int32_t listener_fd, const uint8_t *bo
  * 对已 TLS 握手且 ALPN=h2 的连接处理单次 GET 并回 200+body。
  */
 int32_t http2_server_serve_h2_c(int64_t tls_ctx, const uint8_t *body, int32_t body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (tls_ctx == 0 || !body || body_len < 0)
@@ -774,8 +774,8 @@ int32_t http2_server_serve_h2_c(int64_t tls_ctx, const uint8_t *body, int32_t bo
  */
 int32_t http2_server_serve_h2_multi_c(int64_t tls_ctx, const uint8_t *body, int32_t body_len,
                                       int32_t max_requests) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (tls_ctx == 0 || !body || body_len < 0)
@@ -798,8 +798,8 @@ int32_t http2_server_serve_h2_multi_with_push_c(int64_t tls_ctx, const uint8_t *
                                                 const uint8_t *authority, int32_t authority_len,
                                                 const uint8_t *push_path, int32_t push_path_len,
                                                 const uint8_t *push_body, int32_t push_body_len) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     int32_t rc;
 
     if (tls_ctx == 0 || !body || body_len < 0 || !authority || authority_len <= 0)
@@ -832,7 +832,7 @@ void http2_tls_server_ctx_destroy_c(int64_t srv_ctx_h) {
 }
 
 /**
- * accept + TLS 服务端握手 + h2 serve 单次 GET；srv_ctx 来自 http2_tls_server_ctx_create。
+ * accept + TLS 服务端握手 + h2 serve 单次 GET；srv_ctx 来自 tls_server_ctx_create。
  */
 int32_t http2_serve_h2_one_c(int32_t listener_fd, int64_t srv_ctx_h, const uint8_t *body,
                              int32_t body_len, uint32_t timeout_ms) {
@@ -1122,7 +1122,7 @@ int32_t http2_h2c_server_smoke_c(void) {
         return 4;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         uint8_t out[512];
         int32_t code;
         int32_t n;
@@ -1225,8 +1225,8 @@ int32_t http2_h2c_server_push_smoke_c(void) {
         return 4;
     }
     if (pid == 0) {
-        http2_conn_t conn;
-        http2_push_last_t push_meta;
+        conn_t conn;
+        push_last_t push_meta;
         uint8_t out[512];
         uint8_t push_out[16];
         int32_t code;
@@ -1328,8 +1328,8 @@ int32_t http2_h2c_server_push_settings_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
-        http2_push_last_t push_meta;
+        conn_t conn;
+        push_last_t push_meta;
         uint8_t out[512];
         uint8_t push_out[16];
         int32_t code;
@@ -1426,7 +1426,7 @@ int32_t http2_h2c_server_settings_full_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         uint8_t out[512];
         int32_t n;
         struct sockaddr_in cli;
@@ -1518,7 +1518,7 @@ int32_t http2_h2c_server_multistream_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         uint8_t out1[512];
         uint8_t out2[512];
         int32_t code;
@@ -1619,8 +1619,8 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
-        http2_push_last_t push_meta;
+        conn_t conn;
+        push_last_t push_meta;
         uint8_t out1[512];
         uint8_t out2[512];
         uint8_t push_out[16];
@@ -1702,7 +1702,7 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
 #endif
 }
 
-#include "http2_test_tls_cert.inc.c"
+#include "test_tls_cert.inc.c"
 
 /**
  * h2 over TLS server 集成烟测：fork + 自签 PEM；TLS 不可用或 Windows 跳过返回 0。
@@ -1751,7 +1751,7 @@ int32_t http2_h2_server_smoke_c(void) {
         return 4;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         uint8_t alpn_wire[16];
         uint8_t out[512];
         char url[128];
@@ -1880,8 +1880,8 @@ int32_t http2_h2_server_push_smoke_c(void) {
         return 4;
     }
     if (pid == 0) {
-        http2_conn_t conn;
-        http2_push_last_t push_meta;
+        conn_t conn;
+        push_last_t push_meta;
         uint8_t alpn_wire[16];
         uint8_t out[512];
         uint8_t push_out[16];
@@ -2015,8 +2015,8 @@ int32_t http2_h2_server_multistream_push_smoke_c(void) {
         return 4;
     }
     if (pid == 0) {
-        http2_conn_t conn;
-        http2_push_last_t push_meta;
+        conn_t conn;
+        push_last_t push_meta;
         uint8_t alpn_wire[16];
         uint8_t out1[512];
         uint8_t out2[512];
@@ -2193,7 +2193,7 @@ int32_t http2_h2c_server_max_frame_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         static uint8_t out[24576];
         int32_t n;
         int32_t bcount = 0;
@@ -2295,7 +2295,7 @@ int32_t http2_h2c_server_goaway_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         uint8_t out[512];
         int32_t n;
         int32_t last_stream = 0;
@@ -2365,8 +2365,8 @@ int32_t http2_h2c_server_goaway_smoke_c(void) {
  * 成功 0；未收到 PING HTTP2_ERR_SERVER(-1240)。
  */
 int32_t http2_server_serve_h2c_ping_echo_c(int32_t client_fd) {
-    http2_io_t io;
-    http2_peer_settings_t peer;
+    io_t io;
+    peer_settings_t peer;
     uint8_t hdr[9];
     uint8_t payload[16];
     uint8_t pong[32];
@@ -2389,14 +2389,14 @@ int32_t http2_server_serve_h2c_ping_echo_c(int32_t client_fd) {
     io.tls_ctx = 0;
 
     for (round = 0; round < 32; round++) {
-        if (http2_io_read_exact(&io, hdr, 9) != 0)
+        if (io_read_exact(&io, hdr, 9) != 0)
             return HTTP2_ERR_SERVER;
         if (http2_parse_frame_header_c(hdr, 9, &ftype, &fflags, &stream_id, &plen) != 0)
             return HTTP2_ERR_SERVER;
         if (plen < 0 || plen > (int32_t)sizeof(payload))
             return HTTP2_ERR_SERVER;
         if (plen > 0) {
-            if (http2_io_read_exact(&io, payload, plen) != 0)
+            if (io_read_exact(&io, payload, plen) != 0)
                 return HTTP2_ERR_SERVER;
         }
         if (ftype == HTTP2_TYPE_PING) {
@@ -2407,7 +2407,7 @@ int32_t http2_server_serve_h2c_ping_echo_c(int32_t client_fd) {
             pn = http2_build_ping_ack_c(payload, pong, (int32_t)sizeof(pong));
             if (pn <= 0)
                 return HTTP2_ERR_SERVER;
-            if (http2_io_write_all(&io, pong, pn) != 0)
+            if (io_write_all(&io, pong, pn) != 0)
                 return HTTP2_ERR_SERVER;
             return 0;
         }
@@ -2483,7 +2483,7 @@ int32_t http2_h2c_server_ping_smoke_c(void) {
         return 3;
     }
     if (pid == 0) {
-        http2_conn_t conn;
+        conn_t conn;
         struct sockaddr_in cli;
         int cfd;
 

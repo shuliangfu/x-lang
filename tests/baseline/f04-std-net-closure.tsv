@@ -5,20 +5,20 @@ gate	gate	tests/run-f04-std-net-closure-gate.sh	v15 聚合
 deleted_c	absent	std/net/net.c	v14 删除
 glue_batch_runtime	file	compiler/src/asm/runtime_net_udp_batch.c	recvmmsg runtime
 glue_workers_runtime	file	compiler/src/asm/runtime_net_workers.c	线程入口 runtime
-glue_batch_absent	absent	std/net/net_udp_batch_glue.c	已迁入 runtime
-glue_workers_absent	absent	std/net/net_workers_glue.c	已迁入 runtime
+glue_batch_absent	absent	std/net/udp_batch_glue.c	已迁入 runtime
+glue_workers_absent	absent	std/net/workers_glue.c	已迁入 runtime
 glue_mbedtls_c	file	compiler/src/asm/runtime_tls_mbedtls_bio.c	BIO 胶层 runtime
 glue_mbedtls_absent	absent	std/net/tls_mbedtls_bio.c	已迁入 runtime
-sx_alpn	file	std/net/net_alpn.sx	v10
-sx_dns	file	std/net/net_dns.sx	v10
-sx_addr	file	std/net/net_addr.sx	v11
-sx_ipv6	file	std/net/net_ipv6.sx	v11
-sx_io_batch	file	std/net/net_io_batch.sx	v11
-sx_sock	file	std/net/net_sock.sx	v12
-sx_udp	file	std/net/net_udp.sx	v12
-sx_tcp	file	std/net/net_tcp.sx	v13
-sx_udp_batch	file	std/net/net_udp_batch.sx	v13b
-sx_workers	file	std/net/net_workers.sx	v14
+sx_alpn	file	std/net/alpn.sx	v10
+sx_dns	file	std/net/dns.sx	v10
+sx_addr	file	std/net/addr.sx	v11
+sx_ipv6	file	std/net/ipv6.sx	v11
+sx_io_batch	file	std/net/io_batch.sx	v11
+sx_sock	file	std/net/sock.sx	v12
+sx_udp	file	std/net/udp.sx	v12
+sx_tcp	file	std/net/tcp.sx	v13
+sx_udp_batch	file	std/net/udp_batch.sx	v13b
+sx_workers	file	std/net/workers.sx	v14
 sx_tls_stub	file	std/net/tls_stub.sx	v1
 sx_tls_openssl	file	std/net/tls_openssl.sx	v8
 sx_tls_mbedtls	file	std/net/tls_mbedtls.sx	v9

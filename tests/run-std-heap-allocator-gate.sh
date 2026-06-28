@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_SX" "$VEC_SX" "$SMOKE_SX"; do
   fi
 done
 
-for kw in STD-112 allocator_heap allocator_from_arena vec_u8_with_allocator; do
+for kw in STD-112 heap_alloc from_arena vec_u8_with_allocator; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-heap-allocator gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -69,7 +69,7 @@ if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-112: .sx smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
   if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-heap-allocator gate FAIL: typeck $SMOKE_SX" >&2
     "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true

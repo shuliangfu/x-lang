@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_COMPRESS_ZSTD_FAIL:-0}
 DOC="analysis/phase-f-f04-v7.md"
-ZSTD_LIB="std/compress/zstd/zstd_lib.sx"
+ZSTD_LIB="std/compress/zstd/lib.sx"
 ZSTD_MOD="std/compress/zstd/mod.sx"
 
 die() {
@@ -22,12 +22,12 @@ echo "=== F-04 v7: std.compress zstd remove zstd.c + retire compress.o ==="
 rm -f std/compress/compress.o std/compress/zstd/zstd.o std/compress/gzip/gzip.o std/compress/brotli/brotli.o 2>/dev/null || true
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v7' "$DOC" || die "doc missing F-04 v7 marker"
-[ -f "$ZSTD_LIB" ] || die "missing zstd_lib.sx"
+[ -f "$ZSTD_LIB" ] || die "missing lib.sx"
 [ ! -f std/compress/zstd/zstd.c ] || die "zstd.c should be deleted"
 grep -q 'compress_zstd_compress_c' "$ZSTD_LIB" || die "zstd_lib missing compress_zstd_compress_c"
 grep -q 'compress_zstd_stream_compress_c' "$ZSTD_LIB" || die "zstd_lib missing stream compress"
 grep -q 'shu_compress_zstd_marker' "$ZSTD_LIB" || die "zstd_lib missing marker"
-grep -q 'import("std.compress.zstd.zstd_lib")' "$ZSTD_MOD" || die "mod.sx missing zstd_lib import"
+grep -q 'import("std.compress.zstd.lib")' "$ZSTD_MOD" || die "mod.sx missing lib import"
 if grep -q 'extern function compress_zstd_compress_c' "$ZSTD_MOD" 2>/dev/null; then
   die "mod.sx still extern compress_zstd_compress_c"
 fi

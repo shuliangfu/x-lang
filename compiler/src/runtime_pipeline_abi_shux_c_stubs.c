@@ -217,3 +217,58 @@ __attribute__((weak)) size_t pipeline_sizeof_module(void) {
 __attribute__((weak)) void ast_module_free(struct ast_Module *mod) {
     (void)mod;
 }
+
+/** pipeline 解析/typeck 依赖；冷启动 C 前端 check 不走 SX dep prerun，弱桩返回失败。 */
+__attribute__((weak)) int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                 uint8_t *data, int32_t len) {
+    (void)module;
+    (void)arena;
+    (void)data;
+    (void)len;
+    return -1;
+}
+
+__attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module,
+                                                                            struct ast_ASTArena *arena,
+                                                                            struct ast_PipelineDepCtx *ctx) {
+    (void)module;
+    (void)arena;
+    (void)ctx;
+    return -1;
+}
+
+__attribute__((weak)) int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx) {
+    (void)ctx;
+    return 0;
+}
+
+__attribute__((weak)) int32_t pipeline_module_main_func_index(struct ast_Module *m) {
+    (void)m;
+    return -1;
+}
+
+__attribute__((weak)) int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                  struct ast_PipelineDepCtx *ctx) {
+    (void)module;
+    (void)arena;
+    (void)ctx;
+    return -1;
+}
+
+__attribute__((weak)) void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a) {
+    (void)m;
+    (void)a;
+}
+
+__attribute__((weak)) int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
+    (void)m;
+    (void)func_index;
+    return 0;
+}
+
+__attribute__((weak)) uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i) {
+    (void)m;
+    (void)fi;
+    (void)i;
+    return 0;
+}

@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CFG_SX" "$SMOKE_SX" "$SMOKE_C" st
   fi
 done
 
-for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool get_source config_source_toml; do
+for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool get_source source_toml; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-config gate FAIL: doc missing '$kw'" >&2
     exit 1

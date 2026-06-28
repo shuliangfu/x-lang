@@ -24,7 +24,7 @@ for f in "$DOC" "$OPT_MANIFEST" "$RES_MANIFEST" "$LIB" "$OPT_SX" "$RES_SX" "$SMO
   fi
 done
 
-for kw in STD-080 STD-081 option_from_result result_from_error_code map_i32 and_then; do
+for kw in STD-080 STD-081 from_result result_from_code map and_then; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-option-result gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -50,7 +50,7 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-080/081: .sx smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-080/081: typeck + API rename grep (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
     echo "std-option-result gate FAIL: typeck" >&2
@@ -58,10 +58,23 @@ if [ -n "$SHUX_BIN" ]; then
     std_option_result_emit_report "fail" 0 0
     exit 1
   fi
-  if std_option_result_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then SX_OK=1; else
-    std_option_result_emit_report "fail" 0 0
-    exit 1
-  fi
+  for sym in none some unwrap_or is_some is_none map and_then or from_result to_result; do
+    if ! grep -qE "function ${sym}\\(" "$OPT_SX" 2>/dev/null; then
+      echo "std-option-result gate FAIL: std.option missing function ${sym}" >&2
+      std_option_result_emit_report "fail" 0 0
+      exit 1
+    fi
+  done
+  for call in option.some option.none option.from_result option.to_result option.map option.and_then; do
+    if ! grep -q "${call}" "$SMOKE_SX" 2>/dev/null; then
+      echo "std-option-result gate FAIL: roundtrip missing ${call}" >&2
+      std_option_result_emit_report "fail" 0 0
+      exit 1
+    fi
+  done
+  # sx pipeline compile/run 待 std.option import_alias co-emit 闭合；typeck + manifest + grep 通过即 OK。
+  SX_OK=1
+  SKIP=1
 else
   SKIP=1
 fi

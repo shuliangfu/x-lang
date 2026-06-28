@@ -1,0 +1,16 @@
+# std.elf Tier-S stable public API (import std.elf)
+is_implemented
+parse_hdr
+read_section
+sec_name
+find_section_idx
+read_sec_byte
+read_phdr
+read_sym
+sym_name
+symtab_entry_count
+read_rela
+rela_entry_count
+write_err_ok
+write_min_reloc_size
+write_min_reloc

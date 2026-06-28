@@ -1,0 +1,11 @@
+# std.cli Tier-S stable public API (import std.cli)
+err_ok
+err_help
+err_unknown
+arg_len
+is_help
+is_version
+match_long
+match_short
+write_usage
+parse_from_iter

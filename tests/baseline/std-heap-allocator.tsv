@@ -2,14 +2,14 @@
 # 列：item_id	kind	anchor	mod_path	notes
 min_apis	8
 read_path	section	## 1. 阅读路径	15min
-alloc_api	section	## 2. Allocator 语义	allocator_heap
+alloc_api	section	## 2. Allocator 语义	heap_alloc
 verify	section	## 4. 验证与门禁	gate
-api_kind_heap	api	allocator_kind_heap	std/heap/mod.sx	堆 kind
-api_heap	api	allocator_heap	std/heap/mod.sx	默认堆
-api_from_arena	api	allocator_from_arena	std/heap/mod.sx	arena 包装
-api_alloc	api	allocator_alloc	std/heap/mod.sx	分配
-api_free	api	allocator_free	std/heap/mod.sx	释放
-api_realloc	api	allocator_realloc	std/heap/mod.sx	调整
+api_kind_heap	api	kind_heap	std/heap/mod.sx	堆 kind
+api_heap	api	heap_alloc	std/heap/mod.sx	默认堆
+api_from_arena	api	from_arena	std/heap/mod.sx	arena 包装
+api_alloc	api	alloc	std/heap/mod.sx	分配
+api_free	api	free	std/heap/mod.sx	释放
+api_realloc	api	realloc	std/heap/mod.sx	调整
 api_vec_init	api	vec_u8_with_allocator	std/vec/mod.sx	容器接入
 api_vec_push	api	vec_u8_push_with_allocator	std/vec/mod.sx	容器 push
 smoke_sx	smoke	tests/heap/allocator_vec.sx	.sx 烟测

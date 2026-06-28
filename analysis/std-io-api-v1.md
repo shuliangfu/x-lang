@@ -133,7 +133,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 | register_* | `1` 成功，`0` 失败/不支持 |
 | async | slot≥0 已提交，`-1` 失败，`IO_ASYNC_NOT_READY` 未就绪 |
 
-平台 errno：**不**由 std.io 返回；文件路径错误用 `std.fs.fs_last_error()`。
+平台 errno：**不**由 std.io 返回；文件路径错误用 `std.fs.last_error()`。
 
 ---
 

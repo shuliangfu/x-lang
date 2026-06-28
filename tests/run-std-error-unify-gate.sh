@@ -82,7 +82,7 @@ while IFS=$'\t' read -r module_id exc_layer base_fn sidecar_fn src tier notes; d
       fi
       ;;
     sidecar_fs)
-      if [ ! -f "$src" ] || ! grep -qF "fs_last_error" "$src" 2>/dev/null; then
+      if [ ! -f "$src" ] || ! grep -qE "function last_error|fs_last_error" "$src" 2>/dev/null; then
         echo "std-error-unify FAIL: fs sidecar" >&2
         MISS=$((MISS + 1))
       fi

@@ -10,7 +10,7 @@ api_log1p	api	log1p	std/math/mod.sx	log(1+x)
 api_expm1	api	expm1	std/math/mod.sx	exp(x)-1
 api_smoke	api	special_smoke	std/math/mod.sx	C 烟测
 symbol_erf_c	symbol	math_erf_c	compiler/src/asm/runtime_math_libm.c	libm 胶层
-symbol_smoke_c	symbol	math_special_smoke_c	std/math/math.sx	.sx 烟测
+symbol_smoke_c	symbol	math_special_smoke_c	compiler/src/asm/runtime_math_libm.c	烟测
 vectors	vectors	tests/baseline/std-math-special-vectors.tsv	金样
 smoke_c	file	tests/std-math/special_smoke_ok.c	C 入口
 smoke_sx	smoke	tests/std-math/special_funcs.sx	.sx 烟测

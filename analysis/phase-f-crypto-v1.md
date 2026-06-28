@@ -6,7 +6,7 @@
 
 | 项 | 路径 |
 |----|------|
-| 核心 | `crypto_core.sx` |
+| 核心 | `core.sx` |
 | AEAD | `aes_gcm.sx`、`chacha20_poly1305.sx` |
 | 签名 | `ed25519.sx` |
 | 胶层 | `crypto_inc_glue.c`、`ed25519_ref10_glue.c` |

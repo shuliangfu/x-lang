@@ -79,7 +79,7 @@ std_crypto_resolve_shu() {
   return 1
 }
 
-# crypto.o 是否含 crypto_core.sx 链入符号（无 shux-c 时仅 glue）。
+# crypto.o 是否含 core.sx 链入符号（无 shux-c 时仅 glue）。
 std_crypto_o_has_sx_symbols() {
   local o="$1"
   nm "$o" 2>/dev/null | grep -qE ' crypto_(mem_eq_c|sha256_c|hmac_sha256_c)$'
@@ -89,7 +89,7 @@ std_crypto_o_has_sx_symbols() {
 std_crypto_resolve_impl_path() {
   local mod_path="$1"
   case "$mod_path" in
-    std/crypto/crypto.c|std/crypto/crypto_core.sx) echo "std/crypto/crypto_core.sx" ;;
+    std/crypto/crypto.c|std/crypto/core.sx) echo "std/crypto/core.sx" ;;
     std/crypto/crypto_inc_glue.c|compiler/src/asm/runtime_crypto_inc_glue.c)
       echo "compiler/src/asm/runtime_crypto_inc_glue.c"
       ;;

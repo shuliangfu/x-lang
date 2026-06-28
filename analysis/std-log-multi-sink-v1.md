@@ -24,7 +24,7 @@
 | `set_sink_mask(mask)` | `SINK_STDERR`(1) \| `SINK_FILE`(2) |
 | `set_file_sink(path, len)` | 打开追加写文件 sink |
 | `close_file_sink()` | 关闭文件 sink |
-| `log` / `log_structured_kv` | 写入所有活跃 sink |
+| `log` / `structured_kv` | 写入所有活跃 sink |
 
 环境变量 **`SHUX_LOG_MIN_LEVEL`**（0–3）在首次写日志时惰性应用，与 `set_min_level` 一致。
 
@@ -56,7 +56,7 @@ close_file_sink();
 
 ```su
 let kv: u8[24] = [101, 118, 101, 110, 116, 61, 115, 116, 97, 114, 116, 32, 117, 115, 61, 49, 50, 51, 0, 0, 0, 0, 0, 0];
-log_structured_kv(&comp[0], level_info(), &kv[0]);
+structured_kv(&comp[0], level_info(), &kv[0]);
 ```
 
 输出：`shux: level=info component=… event=start us=123`（见 OBS-003）。

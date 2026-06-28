@@ -6,7 +6,7 @@
 
 | 模块 | 主逻辑 (.sx) | 阶段 |
 |------|--------------|------|
-| 核心 | `crypto_core.sx`（mem_eq / SHA-256 / HMAC-SHA256） | v16 |
+| 核心 | `core.sx`（mem_eq / SHA-256 / HMAC-SHA256） | v16 |
 | AES-GCM | `aes_gcm.sx` | v17 |
 | ChaCha20-Poly1305 | `chacha20_poly1305.sx` | v18 |
 | Ed25519 API | `ed25519.sx` | v19 |

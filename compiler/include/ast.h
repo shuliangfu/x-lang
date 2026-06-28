@@ -343,10 +343,12 @@ typedef struct ASTForLoop {
     struct ASTBlock *body;  /**< 循环体块 */
 } ASTForLoop;
 
-/** M-3：region 域块（region label { body }）；label 为域符号，typeck 给块内未标注 T[] 打上域标签。 */
+/** M-3：region 域块（region label { body }）；label 为域符号，typeck 给块内未标注 T[] 打上域标签。
+ * LANG-007 v2：is_unsafe=1 表示 unsafe { body }（label 为 NULL，复用 regions 池与 stmt_order kind=5）。 */
 typedef struct ASTRegionBlock {
-    const char *label;     /**< 域标签名（strdup） */
-    struct ASTBlock *body; /**< 域块体 */
+    const char *label;     /**< 域标签名（strdup）；unsafe 块时为 NULL */
+    struct ASTBlock *body; /**< 域块体 / unsafe 块体 */
+    int is_unsafe;         /**< 1 表示 unsafe { }，0 表示 region label { } */
 } ASTRegionBlock;
 
 /** MEM-C1：with_arena(cap) { body }；cap 为编译期或运行时常量表达式，块内可 scope_allocator()。 */

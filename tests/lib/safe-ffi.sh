@@ -22,8 +22,8 @@ safe_ffi_run_case() {
     echo "safe-ffi FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$shux" -backend c -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$shux" -backend c -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

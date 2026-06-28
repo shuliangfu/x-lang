@@ -21,7 +21,7 @@ for f in "$MOD_SX" "$FUT_SX" "$SMOKE_C" "$SMOKE_SX" "$RUNTIME_SX" "$EMIT_SX"; do
   fi
 done
 
-for sym in future_new future_poll future_complete future_take future_wait future_smoke poll_pending poll_ready runtime_wait_future poll_loop; do
+for sym in future_new future_poll future_complete future_take future_wait future_smoke runtime_wait_future poll_loop; do
   if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
     echo "async-future gate FAIL: missing $sym in $MOD_SX" >&2
     exit 1

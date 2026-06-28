@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$CODEC_SX" "$BYTES_SX" "$SMOKE_SX" \
   fi
 done
 
-for kw in STD-139 encode_into_bytes bytes_clear bytes_grow encode_upper_bound; do
+for kw in STD-139 encode_into_bytes clear grow encode_upper_bound; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-codec-buffer-reuse gate FAIL: doc missing '$kw'" >&2
     exit 1

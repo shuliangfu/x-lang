@@ -1,5 +1,8 @@
 // M-3 正例：region 块内未标注 T[] 继承域标签，同域赋值 OK
-extern function slice_src(): i32[];
+function slice_src(): i32[] {
+  let buf: i32[1] = [0];
+  return buf;
+}
 
 function main(): i32 {
   region ra {

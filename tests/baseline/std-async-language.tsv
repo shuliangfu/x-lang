@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	2
 scheduler_reset	symbol	scheduler_reset	std/async/mod.sx
-drain_until_idle	symbol	drain_until_idle	std/async/mod.sx
+drain_idle	symbol	drain_idle	std/async/mod.sx
 run_doc	anchor	await_scheduler_run	analysis/std-async-language-v1.md	RFC
 mod_doc	anchor	await_scheduler_mod	analysis/std-async-language-v1.md	RFC
 async_1m	anchor	async_1m_coop	analysis/std-async-language-v1.md	1M gate

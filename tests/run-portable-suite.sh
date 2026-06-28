@@ -828,6 +828,11 @@ chmod +x tests/run-safe-ffi-contract-gate.sh tests/lib/safe-ffi.sh
 ./tests/run-safe-ffi-contract-gate.sh | tee /tmp/safe_ffi_contract.log
 grep -q 'safe-ffi-contract gate OK' /tmp/safe_ffi_contract.log
 
+echo "── G-FFI-5 std/ffi + std/sys unsafe wrap ──"
+chmod +x tests/run-g-ffi-5-std-wrap-gate.sh
+./tests/run-g-ffi-5-std-wrap-gate.sh | tee /tmp/g_ffi5_std_wrap.log
+grep -q 'g-ffi-5 gate OK' /tmp/g_ffi5_std_wrap.log
+
 echo "── SAFE-005 leak nightly manifest ──"
 chmod +x tests/run-safe-leak-nightly-gate.sh tests/run-safe-leak-nightly.sh tests/lib/safe-leak.sh
 ./tests/run-safe-leak-nightly-gate.sh | tee /tmp/safe_leak_nightly_gate.log

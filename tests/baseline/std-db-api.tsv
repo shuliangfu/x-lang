@@ -1,0 +1,10 @@
+# std.db Tier-S stable public API (import std.db; deprecated facade)
+is_deprecated
+open
+close
+exec
+changes
+sqlite_is_available
+kv_mmap_available
+arrow_available
+arrow_simd_hw_available

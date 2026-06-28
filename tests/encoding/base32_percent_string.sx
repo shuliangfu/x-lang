@@ -48,6 +48,6 @@ function main(): i32 {
     if (url_dec[k] != url_raw[k]) { return 9; }
     k = k + 1;
   }
-  if (encoding_extra_smoke() != 0) { return 10; }
+  if (encoding.extra_smoke() != 0) { return 10; }
   return 0;
 }

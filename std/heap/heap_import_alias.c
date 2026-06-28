@@ -2,8 +2,8 @@
  * heap_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const heap = import("std.heap")` 生成 std_heap_* 符号；
- * mod.sx / heap_libc.sx 在自举 slice 下暂不能稳定 emit 为 .o。本 TU 提供
- * std_heap_* 转发（语义对齐 mod.sx / heap_libc.sx），供 run-set/run-heap 等 gate。
+ * mod.sx / libc.sx 在自举 slice 下暂不能稳定 emit 为 .o。本 TU 提供
+ * std_heap_* 转发（语义对齐 mod.sx / libc.sx），供 run-set/run-heap 等 gate。
  */
 #include <stdint.h>
 #include <stdlib.h>

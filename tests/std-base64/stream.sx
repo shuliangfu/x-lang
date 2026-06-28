@@ -14,32 +14,32 @@ function main(): i32 {
   let n2: i32 = 0;
   let n_all: i32 = 0;
   let dn: i32 = 0;
-  if (stream_state_bytes() > 32) {
+  if (base64.state_bytes() > 32) {
     return 1;
   }
   n_all = base64.encode_standard(&plain[0], 5, &one[0], 16);
   if (n_all != 8) {
     return 2;
   }
-  if (stream_enc_init(&state[0], 32, 0) != 0) {
+  if (base64.enc_init(&state[0], 32, 0) != 0) {
     return 3;
   }
-  n1 = stream_enc_update(&state[0], 32, &plain[0], 2, &enc[0], 16, 0, &consumed);
+  n1 = base64.enc_update(&state[0], 32, &plain[0], 2, &enc[0], 16, 0, &consumed);
   if (n1 < 0 || consumed != 2) {
     return 4;
   }
-  n2 = stream_enc_update(&state[0], 32, &plain[2], 3, &enc[n1], 16 - n1, 1, &consumed);
+  n2 = base64.enc_update(&state[0], 32, &plain[2], 3, &enc[n1], 16 - n1, 1, &consumed);
   if (n2 < 0 || consumed != 3 || n1 + n2 != n_all) {
     return 5;
   }
-  if (stream_dec_init(&dec_st[0], 32, 0) != 0) {
+  if (base64.dec_init(&dec_st[0], 32, 0) != 0) {
     return 6;
   }
-  dn = stream_dec_update(&dec_st[0], 32, &enc[0], 4, &dec[0], 8, 0, &consumed);
+  dn = base64.dec_update(&dec_st[0], 32, &enc[0], 4, &dec[0], 8, 0, &consumed);
   if (dn < 0 || consumed != 4) {
     return 7;
   }
-  dn = dn + stream_dec_update(&dec_st[0], 32, &enc[4], n_all - 4, &dec[dn], 8 - dn, 1, &consumed);
+  dn = dn + base64.dec_update(&dec_st[0], 32, &enc[4], n_all - 4, &dec[dn], 8 - dn, 1, &consumed);
   if (dn != 5) {
     return 8;
   }

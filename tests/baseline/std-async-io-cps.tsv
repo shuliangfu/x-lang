@@ -9,12 +9,12 @@ facade	section	## 5. std.async 新增门面	cps_suspend_io
 io_uring_facade	section	## 8. STD-049 io_uring 完整路径	io_uring_is_available
 verify	section	## 6. 验证与门禁	gate
 symbol_cps_io	symbol	cps_suspend_io	std/async/mod.sx	IO suspend
-symbol_poll_io	symbol	poll_io_completions	std/async/mod.sx	poll 门面
+symbol_poll_io	symbol	poll_completions	std/async/mod.sx	poll 门面
 symbol_poll_io_c	symbol	poll_async_completions	std/io/mod.sx	std.io poll
 symbol_io_not_ready	symbol	IO_ASYNC_NOT_READY	std/async/mod.sx	-2 常量
-symbol_io_uring_avail	symbol	io_uring_is_available	std/async/mod.sx	uring 探测
+symbol_io_uring_avail	symbol	uring_ok	std/async/mod.sx	uring 探测
 symbol_read_async_fd	symbol	read_async_fd	std/async/mod.sx	fd read async
-symbol_io_pump	symbol	io_pump_once	std/async/mod.sx	单轮 pump
+symbol_io_pump	symbol	pump	std/async/mod.sx	单轮 pump
 symbol_poll_loop_ctx	symbol	poll_loop_ctx	std/async/mod.sx	Context poll
 symbol_await_read_fd	symbol	await_read_fd	std/async/mod.sx	net/fs await read
 symbol_await_write_fd	symbol	await_write_fd	std/async/mod.sx	net/fs await write

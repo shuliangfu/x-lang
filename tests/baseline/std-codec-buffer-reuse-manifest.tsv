@@ -4,8 +4,8 @@ read_path	section	## 1. 目标	analysis/std-codec-buffer-reuse-v1.md
 strategy	section	## 3. 缓冲复用	analysis/std-codec-buffer-reuse-v1.md
 api_encode_bytes	api	encode_into_bytes	std/codec/mod.sx	L2 桥
 api_decode_bytes	api	decode_from_bytes	std/codec/mod.sx	L2 桥
-api_bytes_clear	api	bytes_clear	std/bytes/mod.sx	cap 复用
-api_bytes_grow	api	bytes_grow	std/bytes/mod.sx	预分配
+api_bytes_clear	api	clear	std/bytes/mod.sx	cap 复用
+api_bytes_grow	api	grow	std/bytes/mod.sx	预分配
 doc_codec	file	analysis/std-codec-v1.md	codec v1
 doc_bytes	file	analysis/std-bytes-v1.md	bytes v1
 smoke_sx	smoke	tests/std-codec/buffer_reuse.sx	cap 复用烟测

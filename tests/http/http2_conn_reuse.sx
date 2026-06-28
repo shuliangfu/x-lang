@@ -2,9 +2,9 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_conn_reuse_smoke() != 0) { return 1; }
-  if (http.http2_conn_reuse_is_available() == false) { return 2; }
-  if (http.http2_err_conn_not_ready() != -1237) { return 3; }
+  if (http.conn_reuse_smoke() != 0) { return 1; }
+  if (http.conn_reuse_is_available() == false) { return 2; }
+  if (http.err_conn_not_ready() != -1237) { return 3; }
 
   let conn: Http2Conn = Http2Conn {
     fd: 0,
@@ -19,12 +19,12 @@ function main(): i32 {
       open_count: 0
     }
   };
-  http.http2_conn_init(&conn);
-  if (http.http2_conn_is_ready(&conn) == true) { return 4; }
-  if (http.http2_conn_attach_h2c(-1, &conn) != -1) { return 5; }
+  http.conn_init(&conn);
+  if (http.conn_is_ready(&conn) == true) { return 4; }
+  if (http.conn_attach_h2c(-1, &conn) != -1) { return 5; }
 
-  http.http2_conn_close(&conn);
-  if (http.http2_conn_is_ready(&conn) == true) { return 6; }
+  http.conn_close(&conn);
+  if (http.conn_is_ready(&conn) == true) { return 6; }
 
   return 0;
 }

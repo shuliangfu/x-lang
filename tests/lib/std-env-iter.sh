@@ -9,8 +9,8 @@ STD_ENV_ITER_PREFIX="${SHUX_STD_ENV_ITER_PREFIX:-shux: [SHUX_STD_ENV_ITER]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数。
 std_env_iter_symbols_ok() {
-  local env_sx="$1"
-  local env_sx="$2"
+  local mod_sx="$1"
+  local env_impl="$2"
   local env_glue="$3"
   local tsv="$4"
   local miss=0
@@ -20,9 +20,9 @@ std_env_iter_symbols_ok() {
     case "$item_id" in \#*) continue ;; esac
     case "$kind" in
       symbol)
-        local target="$env_sx"
+        local target="$mod_sx"
         case "$mod_path" in
-          std/env/env.c|std/env/env.sx) target="$env_sx" ;;
+          std/env/env.c|std/env/env.sx) target="$env_impl" ;;
           std/env/env_os_glue.c|compiler/src/asm/runtime_env_os.c) target="$env_glue" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then

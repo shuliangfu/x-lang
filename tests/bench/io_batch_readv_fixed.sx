@@ -8,15 +8,15 @@ function main(): i32 {
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
-  let fd: i32 = fs.fs_open_read(&path[0]);
+  let fd: i32 = fs.open(&path[0]);
   if (fd < 0) { return 1; }
   let b0: u8[4096] = [];
   let b1: u8[4096] = [];
   let b2: u8[4096] = [];
   let b3: u8[4096] = [];
   /** 注册 4×4KiB 为 fixed buffer 池，read_batch_fd 走 io_uring read_fixed。 */
-  if (io.register_fixed_buffers(&b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4) != 1) {
-    fs.fs_close(fd);
+  if (io.register_buffers(&b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4) != 1) {
+    fs.close(fd);
     return 4;
   }
   let sum: i32 = 0;
@@ -24,7 +24,7 @@ function main(): i32 {
   while (rounds < 1024) {
     let nr: i32 = read_batch_fd(fd, &b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4);
     if (nr != 16384) {
-      fs.fs_close(fd);
+      fs.close(fd);
       return 2;
     }
     let si: i32 = 0;
@@ -37,6 +37,6 @@ function main(): i32 {
     }
     rounds = rounds + 1;
   }
-  if (fs.fs_close(fd) != 0) { return 3; }
+  if (fs.close(fd) != 0) { return 3; }
   return sum & 255;
 }

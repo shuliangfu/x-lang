@@ -1,8 +1,8 @@
 /**
- * std/http/http2_hpack_dyn.inc.c — HPACK 动态表 v3（RFC 7541 子集；STD-HTTP-H2-v3）
+ * std/http/hpack_dyn.inc.c — HPACK 动态表 v3（RFC 7541 子集；STD-HTTP-H2-v3）
  *
  * 【文件职责】固定容量 FIFO 动态表、incremental/indexed 编解码扩展。
- * 由 http2_hpack.inc.c 末尾 #include；共享其 static 编解码 helper。
+ * 由 hpack.inc.c 末尾 #include；共享其 static 编解码 helper。
  */
 
 /** 动态表最大条目数。 */
@@ -18,9 +18,9 @@ typedef struct {
     int32_t name_len;
     uint8_t value[128];
     int32_t value_len;
-} http2_dyn_entry_t;
+} dyn_entry_t;
 
-static http2_dyn_entry_t g_http2_dyn[HTTP2_DYN_MAX];
+static dyn_entry_t g_http2_dyn[HTTP2_DYN_MAX];
 static int32_t g_http2_dyn_count = 0;
 
 /** 清空动态表。 */
@@ -34,7 +34,7 @@ int32_t http2_hpack_dyn_count_c(void) {
 }
 
 /** 动态 index（≥62）→ 槽位 0=最新；失败 -1。 */
-static int32_t http2_hpack_dyn_index_to_slot(int32_t index) {
+static int32_t hpack_dyn_index_to_slot(int32_t index) {
     int32_t slot;
     if (index < HTTP2_DYN_INDEX_BASE)
         return -1;
@@ -45,12 +45,12 @@ static int32_t http2_hpack_dyn_index_to_slot(int32_t index) {
 }
 
 /** 槽位 → HPACK 动态 index。 */
-static int32_t http2_hpack_dyn_slot_to_index(int32_t slot) {
+static int32_t hpack_dyn_slot_to_index(int32_t slot) {
     return HTTP2_DYN_INDEX_BASE + slot;
 }
 
 /** 将条目插入动态表头部（满则丢弃最旧）。 */
-static void http2_hpack_dyn_push(const uint8_t *name, int32_t name_len, const uint8_t *value,
+static void hpack_dyn_push(const uint8_t *name, int32_t name_len, const uint8_t *value,
                                  int32_t value_len) {
     int32_t i;
     if (!name || name_len <= 0 || name_len > (int32_t)sizeof(g_http2_dyn[0].name))
@@ -73,33 +73,33 @@ static void http2_hpack_dyn_push(const uint8_t *name, int32_t name_len, const ui
 }
 
 /** 在动态表中查找完整匹配；返回 HPACK index 或 -1。 */
-static int32_t http2_hpack_dyn_find(const uint8_t *name, int32_t name_len, const uint8_t *value,
+static int32_t hpack_dyn_find(const uint8_t *name, int32_t name_len, const uint8_t *value,
                                     int32_t value_len) {
     int32_t i;
     for (i = 0; i < g_http2_dyn_count; i++) {
         if (g_http2_dyn[i].name_len == name_len && g_http2_dyn[i].value_len == value_len &&
             memcmp(g_http2_dyn[i].name, name, (size_t)name_len) == 0 &&
             memcmp(g_http2_dyn[i].value, value, (size_t)value_len) == 0)
-            return http2_hpack_dyn_slot_to_index(i);
+            return hpack_dyn_slot_to_index(i);
     }
     return -1;
 }
 
 /** 由静态/动态 index 取 name 指针与长度；成功 0。 */
-static int32_t http2_hpack_resolve_name(int32_t index, const uint8_t **out_name, int32_t *out_len) {
+static int32_t hpack_resolve_name(int32_t index, const uint8_t **out_name, int32_t *out_len) {
     const char *sn;
     int32_t slot;
     if (!out_name || !out_len)
         return -1;
     if (index > 0 && index <= HTTP2_HPACK_STATIC_MAX) {
-        sn = http2_hpack_static_name(index);
+        sn = hpack_static_name(index);
         if (!sn)
             return -1;
         *out_name = (const uint8_t *)sn;
         *out_len = (int32_t)strlen(sn);
         return 0;
     }
-    slot = http2_hpack_dyn_index_to_slot(index);
+    slot = hpack_dyn_index_to_slot(index);
     if (slot < 0)
         return -1;
     *out_name = g_http2_dyn[slot].name;
@@ -119,17 +119,17 @@ int32_t http2_hpack_encode_literal_incremental_c(int32_t name_index, const uint8
     int32_t name_len;
     if (name_index <= 0 || !out || out_cap <= 0)
         return -1;
-    if (http2_hpack_resolve_name(name_index, &name, &name_len) != 0)
+    if (hpack_resolve_name(name_index, &name, &name_len) != 0)
         return -1;
-    n = http2_hpack_encode_int((uint32_t)name_index, 6, 0x40, out, out_cap);
+    n = hpack_encode_int((uint32_t)name_index, 6, 0x40, out, out_cap);
     if (n < 0)
         return -1;
     pos = n;
-    n = http2_hpack_encode_string(value, value_len, out + pos, out_cap - pos);
+    n = hpack_encode_string(value, value_len, out + pos, out_cap - pos);
     if (n < 0)
         return -1;
     pos += n;
-    http2_hpack_dyn_push(name, name_len, value, value_len);
+    hpack_dyn_push(name, name_len, value, value_len);
     return pos;
 }
 
@@ -138,14 +138,14 @@ int32_t http2_hpack_encode_indexed_any_c(int32_t index, uint8_t *out, int32_t ou
     if (index <= 0 || !out || out_cap <= 0)
         return -1;
     if (index > HTTP2_HPACK_STATIC_MAX) {
-        if (http2_hpack_dyn_index_to_slot(index) < 0)
+        if (hpack_dyn_index_to_slot(index) < 0)
             return -1;
     }
-    return http2_hpack_encode_int((uint32_t)index, 7, 0x80, out, out_cap);
+    return hpack_encode_int((uint32_t)index, 7, 0x80, out, out_cap);
 }
 
 /** 解析 method_u8（0=GET…6=OPTIONS）为 HPACK :method 编码。 */
-static int32_t http2_hpack_encode_method_u8(uint8_t method_u8, uint8_t *out, int32_t out_cap) {
+static int32_t hpack_encode_method_u8(uint8_t method_u8, uint8_t *out, int32_t out_cap) {
     static const char *other_methods[] = {"HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"};
     if (method_u8 == 0)
         return http2_hpack_encode_indexed_c(2, out, out_cap);
@@ -176,7 +176,7 @@ int32_t http2_hpack_encode_request_c(uint8_t method_u8, const uint8_t *authority
         return -1;
     if (is_https != 0)
         scheme_idx = 7;
-    n = http2_hpack_encode_method_u8(method_u8, out + pos, out_cap - pos);
+    n = hpack_encode_method_u8(method_u8, out + pos, out_cap - pos);
     if (n < 0)
         return -1;
     pos += n;
@@ -184,7 +184,7 @@ int32_t http2_hpack_encode_request_c(uint8_t method_u8, const uint8_t *authority
     if (n < 0)
         return -1;
     pos += n;
-    dyn_idx = http2_hpack_dyn_find(k_path_name, 5, path, path_len);
+    dyn_idx = hpack_dyn_find(k_path_name, 5, path, path_len);
     if (dyn_idx > 0) {
         n = http2_hpack_encode_indexed_any_c(dyn_idx, out + pos, out_cap - pos);
     } else if (path_len == 1 && path[0] == (uint8_t)'/') {
@@ -195,7 +195,7 @@ int32_t http2_hpack_encode_request_c(uint8_t method_u8, const uint8_t *authority
     if (n < 0)
         return -1;
     pos += n;
-    dyn_idx = http2_hpack_dyn_find(k_auth_name, 10, authority, authority_len);
+    dyn_idx = hpack_dyn_find(k_auth_name, 10, authority, authority_len);
     if (dyn_idx > 0) {
         n = http2_hpack_encode_indexed_any_c(dyn_idx, out + pos, out_cap - pos);
     } else {

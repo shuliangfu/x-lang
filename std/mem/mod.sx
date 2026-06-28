@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.mem — 内存操作 + 零拷贝 Buffer（对标 Zig std.mem、Rust std::mem/ptr、Go
 // bytes）
 //
@@ -13,6 +29,7 @@
 // Go: bytes.Equal、bytes.Compare（无独立 mem 包，bytes 提供比较）。
 const core = import("std.io.core");
 const heap = import("std.heap");
+const heap_libc = import("std.heap.libc");
 // ——— Buffer ABI 与预注册（与 std.io.driver 同布局） ———
 /** Buffer：ptr 指向内存，len 为字节数，handle 为可选内核预注册句柄（0
 * 表示未注册）；64 位下 8+8+8=24 字节。 */
@@ -30,17 +47,18 @@ function register_buffer(buf: Buffer): i32 {
 /** 字节拷贝：dst[0..n-1] = src[0..n-1]；n<=0 不写。对标 Zig std.mem.copy、Rust
 * ptr::copy。 */
 function copy(dst: *u8, src: *u8, n: i32): void {
-  heap.copy_u8_at(dst, 0, src, n);
+  if (n <= 0) { return; }
+  heap_libc.heap_copy_u8_at_c(dst, 0, src, n);
 }
 /** 字节填充：ptr[0..n-1] = byte；n<=0 不写。对标 Zig std.mem.set、Rust
 * ptr::write_bytes。 */
 function set(ptr: *u8, byte: u8, n: i32): void {
-  heap.heap_mem_set_c(ptr, byte, n);
+  heap.mem_set(ptr, byte, n);
 }
 /** 字节比较：比较 a[0..n-1] 与 b[0..n-1]；返回 <0 / 0 / >0。对标 Zig
 * std.mem.compare、Go bytes.Compare。 */
 function compare(a: *u8, b: *u8, n: i32): i32 {
-  return heap.heap_mem_compare_c(a, b, n);
+  return heap.mem_compare(a, b, n);
 }
 
 // ——— 有界封装（STD-144） ———
@@ -76,4 +94,4 @@ function buffer_from(ptr: *u8, len: usize): Buffer {
 }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function mem_module_anchor(): i32 { return 0; }
+function module_anchor(): i32 { return 0; }

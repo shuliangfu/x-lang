@@ -20,11 +20,11 @@
 
 | API | 说明 |
 |-----|------|
-| `stream_state_bytes()` | 状态缓冲最小字节数 |
-| `stream_enc_init(state, cap, url)` | 初始化编码流（url=1 为 URL 变体） |
-| `stream_dec_init(state, cap, url)` | 初始化解码流 |
-| `stream_enc_update(..., is_last, in_consumed)` | 增量编码；`is_last=1` flush padding |
-| `stream_dec_update(..., is_last, in_consumed)` | 增量解码；`is_last=1` flush 尾部 |
+| `state_bytes()` | 状态缓冲最小字节数 |
+| `enc_init(state, cap, url)` | 初始化编码流（url=1 为 URL 变体） |
+| `dec_init(state, cap, url)` | 初始化解码流 |
+| `enc_update(..., is_last, in_consumed)` | 增量编码；`is_last=1` flush padding |
+| `dec_update(..., is_last, in_consumed)` | 增量解码；`is_last=1` flush 尾部 |
 
 块 API（`encode_standard` 等）与流式结果在相同输入下一致。
 

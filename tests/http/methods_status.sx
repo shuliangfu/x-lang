@@ -1,15 +1,15 @@
 // tests/http/methods_status.sx — STD-032 HTTP 方法 + parse_status_line 烟测
 const http = import("std.http");
 function main(): i32 {
-  if (http.method_as_u8(http.method_from_u8(0)) != 0) { return 10; }
-  if (http.method_as_u8(http.method_from_u8(1)) != 1) { return 11; }
-  if (http.method_as_u8(http.method_from_u8(2)) != 2) { return 12; }
-  if (http.method_as_u8(http.method_from_u8(3)) != 3) { return 13; }
-  if (http.method_as_u8(http.method_from_u8(4)) != 4) { return 14; }
-  if (http.method_as_u8(http.method_from_u8(5)) != 5) { return 15; }
-  if (http.method_as_u8(http.method_from_u8(6)) != 6) { return 16; }
-  if (http.method_as_u8(http.method_from_u8(3)) != 3) { return 17; }
-  if (http.method_as_u8(http.method_from_u8(99)) != 0) { return 18; }
+  if (http.method(http.method(0)) != 0) { return 10; }
+  if (http.method(http.method(1)) != 1) { return 11; }
+  if (http.method(http.method(2)) != 2) { return 12; }
+  if (http.method(http.method(3)) != 3) { return 13; }
+  if (http.method(http.method(4)) != 4) { return 14; }
+  if (http.method(http.method(5)) != 5) { return 15; }
+  if (http.method(http.method(6)) != 6) { return 16; }
+  if (http.method(http.method(3)) != 3) { return 17; }
+  if (http.method(http.method(99)) != 0) { return 18; }
 
   let line204: u8[28] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 52, 32, 78, 111, 32, 67, 111,
     110, 116, 101, 110, 116, 13, 10, 0, 0, 0];

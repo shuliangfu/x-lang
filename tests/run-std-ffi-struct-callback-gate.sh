@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$FFI_IMPL" "$SMOKE_SX" "$SMOKE_C" 
   fi
 done
 
-for kw in STD-151 FfiPoint invoke_i32_cb FFI_ERR_TOO_SMALL; do
+for kw in STD-151 FfiPoint invoke_cb FFI_ERR_TOO_SMALL; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-ffi-struct-callback gate FAIL: doc missing '$kw'" >&2
     exit 1

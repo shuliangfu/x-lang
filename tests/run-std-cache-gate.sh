@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CACHE_SX" "$SMOKE_SX" "$SMOKE_C" 
   fi
 done
 
-for kw in STD-087 lru_put pool_acquire pool_mark_unhealthy lru_stats; do
+for kw in STD-087 lru_put acquire mark_unhealthy lru_stats; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-cache gate FAIL: doc missing '$kw'" >&2
     exit 1

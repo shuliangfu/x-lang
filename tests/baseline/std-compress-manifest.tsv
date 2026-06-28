@@ -13,10 +13,10 @@ api_gzip_c	api	gzip_compress	std/compress/mod.sx	core	gzip 压
 api_gzip_d	api	gzip_decompress	std/compress/mod.sx	core	gzip 解
 api_zstd_c	api	zstd_compress	std/compress/mod.sx	core	zstd 压
 api_zstd_d	api	zstd_decompress	std/compress/mod.sx	core	zstd 解
-impl_zlib	file	std/compress/zlib/zlib_libz.sx	std/compress/zlib/zlib_libz.sx	impl	zlib .sx
-impl_gzip	file	std/compress/gzip/gzip_libz.sx	std/compress/gzip/gzip_libz.sx	impl	gzip .sx
-impl_brotli	file	std/compress/brotli/brotli_lib.sx	std/compress/brotli/brotli_lib.sx	impl	brotli .sx
-impl_zstd	file	std/compress/zstd/zstd_lib.sx	std/compress/zstd/zstd_lib.sx	impl	zstd .sx
+impl_zlib	file	std/compress/zlib/libz.sx	std/compress/zlib/libz.sx	impl	zlib .sx
+impl_gzip	file	std/compress/gzip/libz.sx	std/compress/gzip/libz.sx	impl	gzip .sx
+impl_brotli	file	std/compress/brotli/lib.sx	std/compress/brotli/lib.sx	impl	brotli .sx
+impl_zstd	file	std/compress/zstd/lib.sx	std/compress/zstd/lib.sx	impl	zstd .sx
 impl_common	file	std/compress/common.sx	std/compress/common.sx	impl	共用魔数/流头（零 .h）
 make_zstd	target	compress-o-zlib-zstd	compiler/Makefile	v1	构建目标
 lib	script	lib/std-compress.sh	tests/lib/std-compress.sh	-	共享库

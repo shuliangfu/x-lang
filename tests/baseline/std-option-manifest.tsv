@@ -3,15 +3,15 @@
 # min_apis	8
 read_path	section	## 1. 阅读路径	analysis/std-option-result-v1.md
 api_doc	section	## 2. API	analysis/std-option-result-v1.md
-api_none	api	none_i32	std/option/mod.sx	构造
-api_some	api	some_i32	std/option/mod.sx	构造
-api_unwrap	api	unwrap_or_i32	std/option/mod.sx	解包
-api_is_some	api	is_some_i32	std/option/mod.sx	判定
-api_map	api	map_i32	std/option/mod.sx	组合
-api_and_then	api	and_then_i32	std/option/mod.sx	组合
-api_or	api	or_i32	std/option/mod.sx	组合
-api_from_result	api	option_from_result_i32	std/option/mod.sx	互转
-api_to_result	api	option_to_result_i32	std/option/mod.sx	互转
+api_none	api	none	std/option/mod.sx	构造
+api_some	api	some	std/option/mod.sx	构造
+api_unwrap	api	unwrap_or	std/option/mod.sx	解包
+api_is_some	api	is_some	std/option/mod.sx	判定
+api_map	api	map	std/option/mod.sx	组合
+api_and_then	api	and_then	std/option/mod.sx	组合
+api_or	api	or	std/option/mod.sx	组合
+api_from_result	api	from_result	std/option/mod.sx	互转
+api_to_result	api	to_result	std/option/mod.sx	互转
 impl_sx	file	std/option/mod.sx	std/option/mod.sx
 smoke_sx	smoke	tests/std-option-result/roundtrip.sx	round-trip
 lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh

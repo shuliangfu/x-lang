@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-03 v2/v3：std.io 去 C 门禁（io_backend.sx + 无 io.c/io.o）。
+# F-03 v2/v3：std.io 去 C 门禁（backend.sx + 无 io.c/io.o）。
 #
 # 用法：./tests/run-f03-std-io-gate.sh
 # 环境：SHUX_F03_IO_FAIL=1 — 失败时硬退出
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F03_IO_FAIL:-0}
 DOC="analysis/phase-f-f03-v2-io.md"
-BACKEND="std/io/io_backend.sx"
+BACKEND="std/io/backend.sx"
 CORE="std/io/core.sx"
 
 die() {
@@ -21,13 +21,13 @@ echo "=== F-03 v2/v3: std.io remove io.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-03 v2/v3' "$DOC" || die "doc missing F-03 v2/v3 marker"
 [ ! -f std/io/io.c ] || die "io.c should be deleted"
-[ -f std/io/io_sync.sx ] || die "missing io_sync.sx"
-[ -f std/io/io_win32.sx ] || die "missing io_win32.sx"
-[ -f std/io/io_read_ptr.sx ] || die "missing io_read_ptr.sx"
-[ -f std/io/io_stubs.sx ] || die "missing io_stubs.sx"
-[ -f "$BACKEND" ] || die "missing io_backend.sx"
+[ -f std/io/sync.sx ] || die "missing sync.sx"
+[ -f std/io/win32.sx ] || die "missing win32.sx"
+[ -f std/io/read_ptr.sx ] || die "missing read_ptr.sx"
+[ -f std/io/stubs.sx ] || die "missing stubs.sx"
+[ -f "$BACKEND" ] || die "missing backend.sx"
 grep -q 'function io_read(' "$BACKEND" || die "io_backend missing io_read"
-grep -q 'import("std.io.io_backend")' "$CORE" || die "core.sx missing io_backend import"
+grep -q 'import("std.io.backend")' "$CORE" || die "core.sx missing backend import"
 if grep -q 'extern function io_read' "$CORE" 2>/dev/null; then
   die "core.sx still extern io_read"
 fi
@@ -37,7 +37,7 @@ fi
 if grep -q 'link_abi_asm_ld_push_obj.*std/io/io.o' compiler/src/runtime_link_abi.c 2>/dev/null; then
   die "runtime_link_abi.c still pushes std/io/io.o"
 fi
-grep -q 'shux_io_uring_is_available_c' std/io/io_stubs.sx || die "io_stubs missing uring probe"
+grep -q 'shux_io_uring_is_available_c' std/io/stubs.sx || die "io_stubs missing uring probe"
 
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-03 v2/v3: delegate run-std-c-inventory-gate (F-01) ==="

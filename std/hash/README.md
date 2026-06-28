@@ -18,15 +18,15 @@
 |------|----------|
 | Map/Set / 不可信 key | `recommend_hasher_map()` → SipHash |
 | 内部去重 / checksum | `recommend_hasher_fast()` → xxHash64 |
-| Tier-S 稳定 | `hash_start()`（恒 SipHash） |
+| Tier-S 稳定 | `start()`（恒 SipHash） |
 
 环境变量 **`SHUX_HASH_ALGO`**：`siphash`（默认）/ `ahash` / `xxhash` — 仅影响 `default_hasher()`。
 
 ## API 摘要
 
-- **稳定**：`hash_start` / `hash_write_*` / `hash_finish` / `hash_bytes`
-- **trait**：`hash_start_algo` / `hash_write_*_algo` / `hash_finish_algo`
-- **一次性**：`hash_xxhash64` / `hash_xxhash64_seed`
+- **稳定（Tier-S）**：`start` / `write` / `write_bytes` / `finish` / `free` / `bytes`
+- **多算法 trait**：`start_algo` / `write_algo` / `write_bytes_algo` / `finish_algo` / `free_algo`
+- **一次性**：`xxhash64` / `xxhash64_seed`
 
 RFC：`analysis/std-hash-default-strategy-v1.md`（STD-148）· `analysis/std-hash-hasher-trait-v1.md`（STD-056）· `analysis/std-hash-xxhash-v1.md`（STD-105）
 

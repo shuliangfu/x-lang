@@ -161,4 +161,7 @@ echo "comp-regalloc manifest OK (layers=${LAYER_N} cases=${CASE_N} metrics=${MET
 chmod +x tests/run-comp-regalloc.sh
 ./tests/run-comp-regalloc.sh
 
+chmod +x tests/run-comp-regalloc-result-spill-gate.sh
+./tests/run-comp-regalloc-result-spill-gate.sh
+
 echo "comp-regalloc gate OK"

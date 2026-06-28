@@ -7,8 +7,8 @@
 
 ### 标量解析
 
-- `parse_number` / `parse_null` / `parse_bool` / `parse_string` — 单值解析，返回 consumed 字节数。
-- `parse_string_view` — 零拷贝 string view（生命周期绑定输入缓冲）。
+- `parse_number` / `parse_null` / `parse` / `parse_string` — 单值解析（`parse` 为 bool 重载），返回 consumed 字节数。
+- `parse_string_view` — 零拷贝 string view（生命周期绑定输入缓冲）；`needs_copy()` 为须拷贝哨兵。
 - `escape` — 转义写入 buf。
 
 ### 游标（object/array）
@@ -18,9 +18,10 @@
 
 ### 类型化 decode（STD-116）
 
-- `decode_i32_at` / `decode_f64_at` / `decode_bool_at` / `decode_string_at`
-- `object_decode_i32` / `object_decode_bool` / `object_decode_string`
-- `object_decode_dotted_i32` / `object_decode_dotted_string` / `object_decode_dotted_bool` / `object_decode_dotted_f64` — 点分路径（如 `user.age`、`items.0`、`metrics.cpu`）
+- `decode_at` / `decode_string_at` — 标量解码（`decode_at` 重载 i32/f64/bool）
+- `object_decode` / `object_decode_string` — object 字段
+- `object_decode_dotted` / `object_decode_dotted_string` — 点分路径（如 `user.age`、`items.0`）
+- `decode_missing()` — 字段缺失返回码
 
 ### 序列化
 

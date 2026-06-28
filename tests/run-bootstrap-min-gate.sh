@@ -60,6 +60,13 @@ P0_SCRIPTS=(
   run-scope-borrow-gate.sh
   run-al06-gate.sh
   run-type-borrow-conflict-gate.sh
+  run-memory-contract-arena-align-gate.sh
+  run-comp-regalloc-result-spill-gate.sh
+  run-bootstrap-symbol-visibility-gate.sh
+  run-bootstrap-fresh-seed-gate.sh
+  run-bootstrap-c6-asm-o-gate.sh
+  run-codegen-semantic-debt-gate.sh
+  run-bootstrap-std-harddeps-gate.sh
 )
 
 # --- 语言 + pipeline 烟测（compiler .sx 子集；不拉全 std）---
@@ -139,4 +146,4 @@ done
 
 n_p0=${#P0_SCRIPTS[@]}
 n_lang=${#LANG_SCRIPTS[@]}
-echo "run-bootstrap-min-gate OK (P0=${n_p0} + lang=${n_lang}; staging std 见 run-all-bstrict.sh)"
+echo "run-bootstrap-min-gate OK (P0=${n_p0} + lang=${n_lang}; arena/spill/sym-vis 见 v2.1 gate)"

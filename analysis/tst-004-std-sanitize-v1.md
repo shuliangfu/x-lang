@@ -38,7 +38,7 @@ v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.f
 | `case_heap_std` | `std.heap` | `tests/sanitize/std_heap_asan.sx` | `../std/heap/heap.o` |
 | `case_channel_std` | `std.channel` | `tests/sanitize/std_channel_asan.sx` | `../std/channel/channel.o` |
 
-**heap**：`alloc` / `alloc_zeroed` / `realloc` / `Arena64` 成对释放。  
+**heap**：`alloc` / `alloc_zero` / `realloc` / `Arena64` 成对释放。  
 **channel**：有界 `send`/`recv`/`close`/`free`；Windows stub 创建失败时返回 0（与 `tests/channel/main.sx` 一致）。
 
 ---

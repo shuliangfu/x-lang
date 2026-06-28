@@ -139,7 +139,7 @@ PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 	sh scripts/shux_compile_std_sx.sh auto ../std/runtime/runtime.sx ../std/runtime/runtime.o
 
 # std.net：F-04 v10～v14 纯 .sx（F-ZC）；import binding 别名桩 net_import_alias.c。
-../std/net/net.o: ../std/net/net_alpn.sx ../std/net/net_dns.sx ../std/net/net_io_batch.sx ../std/net/net_addr.sx ../std/net/net_ipv6.sx ../std/net/net_sock.sx ../std/net/net_udp.sx ../std/net/net_tcp.sx ../std/net/net_udp_batch.sx ../std/net/net_workers.sx ../std/net/net_import_alias.c
+../std/net/net.o: ../std/net/alpn.sx ../std/net/dns.sx ../std/net/io_batch.sx ../std/net/addr.sx ../std/net/ipv6.sx ../std/net/sock.sx ../std/net/udp.sx ../std/net/tcp.sx ../std/net/udp_batch.sx ../std/net/workers.sx ../std/net/net_import_alias.c
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -149,7 +149,7 @@ PREPROCESS_SX_DEPS = src/preprocess/preprocess.sx
 	  else shux=; fi; \
 	fi; \
 	if [ -n "$$shux" ]; then \
-	  for sx in net_alpn net_dns net_io_batch net_addr net_ipv6 net_sock net_udp net_tcp net_udp_batch net_workers; do \
+	  for sx in alpn dns io_batch addr ipv6 sock udp tcp udp_batch workers; do \
 	    sh scripts/shux_compile_std_sx.sh $$shux ../std/net/$$sx.sx ../std/net/$$sx.o || exit 1; \
 	    objs="$$objs ../std/net/$$sx.o"; \
 	  done; \
@@ -290,31 +290,37 @@ net-o-mbedtls:
 	rm -f ../std/base64/base64_core.o ../std/base64/base64_import_alias.o
 
 # std.crypto：F-crypto v2 纯 .sx（F-ZC）；SHA-512/ref10 胶层在 runtime_crypto_*_glue.o。
-../std/crypto/crypto.o: ../std/crypto/crypto_core.sx ../std/crypto/aes_gcm.sx ../std/crypto/chacha20_poly1305.sx ../std/crypto/chacha20_aead.sx ../std/crypto/ed25519.sx
+../std/crypto/crypto.o: ../std/crypto/core.sx ../std/crypto/aes_gcm.sx ../std/crypto/chacha20_poly1305.sx ../std/crypto/chacha20_aead.sx ../std/crypto/ed25519.sx
 	@objs=""; \
 	if [ -x ./shux_asm ]; then shux=./shux_asm; \
 	elif [ -x ./shux ]; then shux=./shux; \
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else shux=; fi; \
 	if [ -n "$$shux" ]; then \
-	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/crypto_core.sx ../std/crypto/crypto_core.o || exit 1; \
+	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/core.sx ../std/crypto/core.o || exit 1; \
 	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/aes_gcm.sx ../std/crypto/aes_gcm.o || exit 1; \
 	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/chacha20_poly1305.sx ../std/crypto/chacha20_poly1305.o || exit 1; \
 	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/chacha20_aead.sx ../std/crypto/chacha20_aead.o || exit 1; \
 	  sh scripts/shux_compile_std_sx.sh auto ../std/crypto/ed25519.sx ../std/crypto/ed25519.o || exit 1; \
-	  objs="../std/crypto/crypto_core.o ../std/crypto/aes_gcm.o ../std/crypto/chacha20_poly1305.o ../std/crypto/chacha20_aead.o ../std/crypto/ed25519.o"; \
+	  objs="../std/crypto/core.o ../std/crypto/aes_gcm.o ../std/crypto/chacha20_poly1305.o ../std/crypto/chacha20_aead.o ../std/crypto/ed25519.o"; \
 	  ld -r -o $@ $$objs; \
 	else \
 	  echo "crypto.o: need shux-c to merge crypto .sx"; exit 0; \
 	fi
 
 # std.log：F-log v2 纯 .sx（F-ZC）；OS 胶层在 runtime_log_os.o。
+# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_sx.sh。
 ../std/log/log.o: ../std/log/log.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -E -L .. ../std/log/log.sx > ../std/log/log_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/log/log.o ../std/log/log_core_gen.c && \
+	  rm -f ../std/log/log_core_gen.c; \
+	elif [ -x ./shux_asm ]; then shux=./shux_asm; \
 	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else echo "make log.o: need shux-c or shux (F-log zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/log/log.sx ../std/log/log.o
+	if [ ! -f ../std/log/log.o ]; then \
+	  sh scripts/shux_compile_std_sx.sh auto ../std/log/log.sx ../std/log/log.o; \
+	fi
 
 
 # std.test：F-test v2 纯 .sx（F-ZC）；fn-ptr 在 runtime_test_fn_invoke.o。
@@ -361,12 +367,18 @@ net-o-mbedtls:
 	sh scripts/shux_compile_std_sx.sh auto ../std/hash/hash.sx ../std/hash/hash.o
 
 # std.math：F-math v2 纯 .sx（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
+# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_sx.sh。
 ../std/math/math.o: ../std/math/math.sx
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
+	@if [ -x ./shux-c ]; then \
+	  ./shux-c -E -L .. ../std/math/math.sx > ../std/math/math_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c && \
+	  rm -f ../std/math/math_core_gen.c; \
+	elif [ -x ./shux_asm ]; then shux=./shux_asm; \
 	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else echo "make math.o: need shux-c or shux (F-math zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_sx.sh auto ../std/math/math.sx ../std/math/math.o
+	if [ ! -f ../std/math/math.o ]; then \
+	  sh scripts/shux_compile_std_sx.sh auto ../std/math/math.sx ../std/math/math.o; \
+	fi
 
 # std.sort：F-sort v1 纯 .sx（sort.sx）；无胶层 C。
 ../std/sort/sort.o: ../std/sort/sort.sx
@@ -379,11 +391,14 @@ net-o-mbedtls:
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .sx（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
 # std.ffi：F-ffi v1 + F-ZC 纯 ffi.sx；import binding 别名桩 ffi_import_alias.c。
+# LANG-007 v2：shux-c 默认 sx pipeline 对 ffi.sx typeck 仍红；库模块用 -backend c -E → cc -c。
 ../std/ffi/ffi.o: ../std/ffi/ffi.sx ../std/ffi/ffi_import_alias.c
 	@if [ -x ./shux-c ]; then \
-	  ./shux-c -L .. ../std/ffi/ffi.sx -o ../std/ffi/ffi_core.o; \
+	  ./shux-c -backend c -E -L .. ../std/ffi/ffi.sx > ../std/ffi/ffi_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/ffi/ffi_core.o ../std/ffi/ffi_core_gen.c && \
+	  rm -f ../std/ffi/ffi_core_gen.c; \
 	elif [ -x ./shux_asm ]; then \
-	  ./shux_asm -backend asm -L .. ../std/ffi/ffi.sx -o ../std/ffi/ffi_core.o; \
+	  env SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/ffi/ffi.sx -o ../std/ffi/ffi_core.o; \
 	else echo "make ffi.o: need shux-c or shux_asm (F-ffi v1)" >&2; exit 1; fi; \
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/ffi/ffi_import_alias.o ../std/ffi/ffi_import_alias.c && \
 	ld -r -o ../std/ffi/ffi.o ../std/ffi/ffi_core.o ../std/ffi/ffi_import_alias.o && \
@@ -551,11 +566,14 @@ sqlite-o-stub:
 
 # P4 std 模块（按需链接）
 # std.json：F-json v2 纯 json.sx；import binding 别名桩 json_import_alias.c。
+# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_asm。
 ../std/json/json.o: ../std/json/json.sx ../std/json/json_import_alias.c
 	@if [ -x ./shux-c ]; then \
-	  ./shux-c -L .. ../std/json/json.sx -o ../std/json/json_core.o; \
+	  ./shux-c -E -L .. ../std/json/json.sx > ../std/json/json_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/json/json_core.o ../std/json/json_core_gen.c && \
+	  rm -f ../std/json/json_core_gen.c; \
 	elif [ -x ./shux_asm ]; then \
-	  ./shux_asm -backend asm -L .. ../std/json/json.sx -o ../std/json/json_core.o; \
+	  sh scripts/shux_compile_std_sx.sh ./shux_asm ../std/json/json.sx ../std/json/json_core.o; \
 	else echo "make json.o: need shux-c or shux_asm (F-json v2)" >&2; exit 1; fi; \
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/json/json_import_alias.o ../std/json/json_import_alias.c && \
 	ld -r -o ../std/json/json.o ../std/json/json_core.o ../std/json/json_import_alias.o && \
@@ -1237,7 +1255,7 @@ src/asm/pipeline_abi_f32_xmm.o: src/asm/pipeline_abi_f32_xmm.c
 # 全量 parser_sx.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
-parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c src/asm/parser_asm_type_ref_slice.c src/asm/parser_asm_struct_layout_slice.c src/asm/parser_asm_top_level_let_slice.c
+parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c src/asm/parser_asm_type_ref_slice.c src/asm/parser_asm_struct_layout_slice.c src/asm/parser_asm_top_level_let_slice.c src/asm/parser_asm_if_stmt_slice.c
 	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
 
 # pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shux 与 experimental bootstrap 共用）。
@@ -1343,19 +1361,28 @@ AST_POOL_L5_BRIDGE_O = src/ast_pool_l5_bridge.o
 DRIVER_SEED_SX_FRONTEND_OBJS = parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o
 # G-02a：C 前端已删；SHUX_LEGACY_C_FRONTEND=1 不再支持。
 DRIVER_SEED_C_FRONTEND_LEGACY =
+# G-06：提交 seeds/bootstrap_shuxc.* 由 capture（SHUX_LEGACY_C_FRONTEND=1）生成；默认 bootstrap/relink 须匹配该链接布局。
+# SHUX_NO_C_SEED_LINK=1 时走 E-04 runtime_driver_no_c（实验；与 pinned seed 不兼容）。
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
 DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
 DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
-else
-# E-04 v1：默认 seed 链 runtime_driver_no_c.o（SHUX_NO_C_FRONTEND；与 E-03 v2 配套）。
+else ifeq ($(SHUX_NO_C_SEED_LINK),1)
+# E-04 v1：无 C ast/lexer/runtime_driver（勿用于已提交 G-06 种子的 relink）。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
 DRIVER_SEED_SUPPORT_EXTRA = src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
+else
+# 默认：seed-compat（runtime_driver + C ast/lexer + async + C parse/typeck/codegen 薄桥；匹配 seeds/bootstrap_shuxc.*）。
+DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
+DRIVER_SEED_FRONTEND_EXTRA = src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/codegen/autovec.o
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/runtime_c_import.o src/preprocess.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
+DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN
+DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 endif
 # pipeline_glue_standalone 与 pipeline_sx.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
@@ -1364,17 +1391,19 @@ DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 # E-02 v1：lsp_diag.c 已删；仅 lsp_diag_stubs_no_c.o + lsp_diag_sx.o。
 LSP_DIAG_LINK_O = src/lsp/lsp_diag_stubs_no_c.o
-# E-03 v2 lexer/ast：默认 bootstrap 不链 C lexer.o / ast_seed.o（SX lexer_sx + ast_pool；runtime SHUX_NO_C_FRONTEND 无 C API 路径）。
-# SHUX_LEGACY_SEED_LEXER_AST=1 或 SHUX_LEGACY_C_FRONTEND=1 恢复 C lexer/ast_seed。
+# E-03 v2 lexer/ast：seed-compat / LEGACY 链 C lexer.o + ast_seed.o；SHUX_NO_C_SEED_LINK=1 时不链。
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 LEXER_LINK_O = src/lexer/lexer.o
 AST_LINK_O = src/ast/ast_seed.o
 else ifeq ($(SHUX_LEGACY_SEED_LEXER_AST),1)
 LEXER_LINK_O = src/lexer/lexer.o
 AST_LINK_O = src/ast/ast_seed.o
-else
+else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 LEXER_LINK_O =
 AST_LINK_O =
+else
+LEXER_LINK_O = src/lexer/lexer.o
+AST_LINK_O = src/ast/ast_seed.o
 endif
 # E-04 v19/v20：Linux / Darwin bootstrap 默认 crt0 替代 main_driver.o（driver_sx.o 导出 main_entry）。
 # SHUX_LEGACY_MAIN_C=1 或非 crt0 平台仍链 main_driver.o（main.c 薄桩 → shux_forward_main_to_main_entry）。
@@ -1450,6 +1479,29 @@ src/lsp/lsp_heap_bootstrap.o: src/lsp/lsp_heap_bootstrap.c
 
 $(AST_POOL_L5_BRIDGE_O): src/ast_pool_l5_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+# G-06：ast.c 以 SHUX_USE_SX_AST 编为 ast_seed.o，供 seed-compat 链（ast_block_free 等；与 capture seeds 一致）。
+src/ast/ast_seed.o: src/ast/ast.c include/ast.h
+	$(CC) $(CFLAGS) -DSHUX_USE_SX_AST -c -o $@ src/ast/ast.c
+
+# seed-compat：runtime_driver.o 薄桥依赖 C parse/typeck/codegen（与 capture LEGACY 种子一致）。
+src/preprocess.o: src/preprocess.c src/preprocess.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/lexer/lexer.o: src/lexer/lexer.c src/lexer/lexer.h include/token.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/parser/parser.o: src/parser/parser.c src/parser/parser.h src/lexer/lexer.h include/ast.h include/token.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/typeck/typeck.o: src/typeck/typeck.c src/typeck/typeck.h include/ast.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h src/lsp/lsp_codegen_extern.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+src/codegen/autovec.o: src/codegen/autovec.c include/autovec.h include/ast.h
+	$(CC) $(CFLAGS) -c -o $@ src/codegen/autovec.c
 
 lsp_diag_gen.c: $(SHUX_C) src/lsp/lsp_diag.sx
 	@if [ -s lsp_diag_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
@@ -1666,11 +1718,11 @@ PIPELINE_SX_DEPS = src/pipeline/pipeline.sx src/codegen/codegen.sx src/typeck/ty
 
 # pipeline_sx.o：与 pipeline_gen.c 及 PIPELINE_SX_DEPS 绑定；parser/backend 等 .sx 变更须重编，避免 seed 仍用旧 pipeline 逻辑（entry 消失等）。
 # 默认复用 build_asm/gen_driver/pipeline_sx.o（fat 编排）；设 PIPELINE_SX_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。
-# pipeline_glue.c / ast_pool.c 新于 gen_driver 副本时须重编（M8：emit_assign / struct lea 等 glue 符号）。
+# pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
 pipeline_sx.o: pipeline_gen.c $(PIPELINE_SX_DEPS)
 	@GEN_DRV=build_asm/gen_driver/pipeline_sx.o; \
 	STALE=0; \
-	if [ -f "$$GEN_DRV" ] && { [ pipeline_glue.c -nt "$$GEN_DRV" ] || [ ast_pool.c -nt "$$GEN_DRV" ] || [ ast_pool_bootstrap_glue.c -nt "$$GEN_DRV" ]; }; then STALE=1; fi; \
+	if [ -f "$$GEN_DRV" ] && { [ ast_pool_bootstrap_glue.c -nt "$$GEN_DRV" ]; }; then STALE=1; fi; \
 	if [ -z "$$PIPELINE_SX_FORCE_COMPILE" ] && [ "$$STALE" -eq 0 ] && [ -f "$$GEN_DRV" ]; then \
 	  cp "$$GEN_DRV" $@ && echo "pipeline_sx.o: from build_asm/gen_driver"; \
 	else \
@@ -1726,7 +1778,7 @@ DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_li
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.sx 重新 -E 失败。
 	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.sx 2>/dev/null || true; fi
-	@$(MAKE) pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1
+	@$(MAKE) pipeline_sx.o
 	$(MAKE) -B src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 	$(MAKE) lsp_io_sx.o lsp_sx.o lsp_diag_sx.o
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c src/lsp/lsp_diag_sx_alias.c -o src/lsp/lsp_diag_sx_alias.o
@@ -1746,16 +1798,16 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	  ./scripts/gen_g06_phase1_backend_stub.sh; \
 	fi
 	@$(MAKE) $(USER_ASM_SEED_OBJS)
-	@# pipeline_sx.o 引用的 arch_*_enc_enc_* 须 weak 桩；真 partial 导出不含时由 stubs.o 补齐。
+	@# pipeline_sx.o / pipeline_glue_standalone.o 引用的 arch_*_enc_enc_* 须 weak 桩；真 partial 导出不含时由 stubs.o 补齐。
+	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
 	@mkdir -p build_asm/seed_host
 	@if [ -f pipeline_sx.o ]; then \
-	  _scan="pipeline_sx.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o"; \
+	  _scan="pipeline_sx.o build_asm/pipeline_glue_standalone.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o"; \
 	  [ -f build_asm/seed_host/asm_full.o ] && _scan="build_asm/seed_host/asm_full.o $$_scan"; \
 	  perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $$_scan && \
 	  $(CC) $(CFLAGS) -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c; \
 	fi
 	@echo "bootstrap-driver-seed: phase1 link (+ USER_ASM dispatch/bridge + seed partial) ..."
-	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
 	@echo "bootstrap-driver-seed: build-seed-asm-host via shux-seed-phase1 ..."
 	@SHUX_E=./shux-seed-phase1 ./scripts/build_seed_asm_host.sh || \
@@ -1796,11 +1848,18 @@ RELINK_SHUX_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) 
 # driver/fmt_check 变更后快速重链 shux（不跑 asm.sx -E；需已有 build_asm/seed_host/asm_backend_partial.o）
 # relink-shux-lexer：仅重建 lexer_sx.o 并重链，不触发 driver/typeck *_gen.c 再生（迭代 token enum 修复用）。
 .PHONY: relink-shux relink-shux-lexer refresh-shux-asm-gate
-relink-shux: $(SHUX_C) $(RELINK_SHUX_PREREQS)
+relink-shux: bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	$(MAKE) driver_fmt_sx.o driver_check_sx.o
 	@$(MAKE) -B src/runtime_link_abi.o $(DRIVER_SEED_RUNTIME_REBUILD)
-	@$(MAKE) pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1
+	@$(MAKE) pipeline_sx.o
 	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
+	@mkdir -p build_asm/seed_host
+	@if [ -f pipeline_sx.o ]; then \
+	  _scan="pipeline_sx.o build_asm/pipeline_glue_standalone.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o"; \
+	  [ -f build_asm/seed_host/asm_full.o ] && _scan="build_asm/seed_host/asm_full.o $$_scan"; \
+	  perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $$_scan && \
+	  $(CC) $(CFLAGS) -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c; \
+	fi
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc

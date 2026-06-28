@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX"; do
   fi
 done
 
-for kw in STD-110 adapter_compress_stream_init stream_codec_init_base64 aGVsbG8; do
+for kw in STD-110 adapter_compress_stream_init codec_init_base64 aGVsbG8; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-codec-stream gate FAIL: doc missing '$kw'" >&2
     exit 1

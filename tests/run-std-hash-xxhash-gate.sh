@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$HASH_SX" "$SMOKE_SX" "
   fi
 done
 
-for kw in STD-105 HASHER_XXHASH hash_xxhash64 xxHash64; do
+for kw in STD-105 HASHER_XXHASH xxhash64 xxHash64; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-hash-xxhash gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -85,7 +85,7 @@ stdlib_cm_native_shu() {
   esac
 }
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
-  :
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
 elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi

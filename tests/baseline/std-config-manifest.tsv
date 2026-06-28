@@ -4,9 +4,9 @@
 read_path	section	## 1. 阅读路径	analysis/std-config-v1.md
 api_doc	section	## 2. API	analysis/std-config-v1.md
 verify	section	## 3. Gate	analysis/std-config-v1.md
-api_new	api	config_new	std/config/mod.sx	创建
-api_free	api	config_free	std/config/mod.sx	释放
-api_clear	api	config_clear	std/config/mod.sx	清空
+api_new	api	new	std/config/mod.sx	创建
+api_free	api	free	std/config/mod.sx	释放
+api_clear	api	clear	std/config/mod.sx	清空
 api_toml_buf	api	load_toml_buf	std/config/mod.sx	内存TOML
 api_toml_file	api	load_toml_file	std/config/mod.sx	文件TOML
 api_env	api	load_env_prefix	std/config/mod.sx	ENV前缀
@@ -19,7 +19,7 @@ api_source	api	get_source	std/config/mod.sx	来源meta
 api_i32_meta	api	get_i32_meta	std/config/mod.sx	i32+来源
 api_bool_meta	api	get_bool_meta	std/config/mod.sx	bool+来源
 api_str_meta	api	get_string_meta	std/config/mod.sx	str+来源
-api_src_toml	api	config_source_toml	std/config/mod.sx	来源常量
+api_src_toml	api	source_toml	std/config/mod.sx	来源常量
 symbol_smoke	symbol	config_smoke_c	std/config/config.sx	C烟测
 impl_sx	file	std/config/config.sx	std/config/config.sx
 smoke_sx	smoke	tests/std-config/layer_smoke.sx	.sx烟测

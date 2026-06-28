@@ -2,9 +2,9 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_rst_stream_smoke() != 0) { return 1; }
-  if (http.http2_frame_rst_stream() != 3) { return 2; }
-  if (http.http2_err_rst_stream() != -1246) { return 3; }
-  if (http.http2_http2_complete_smoke() != 0) { return 4; }
+  if (http.rst_stream_smoke() != 0) { return 1; }
+  if (http.frame_rst_stream() != 3) { return 2; }
+  if (http.err_rst_stream() != -1246) { return 3; }
+  if (http.complete_smoke() != 0) { return 4; }
   return 0;
 }

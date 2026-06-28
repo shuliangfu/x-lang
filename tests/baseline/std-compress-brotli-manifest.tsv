@@ -8,8 +8,8 @@ api_br_c	api	brotli_compress	std/compress/mod.sx	压
 api_br_d	api	brotli_decompress	std/compress/mod.sx	解
 api_avail	api	brotli_available	std/compress/mod.sx	探测
 api_smoke	api	brotli_smoke	std/compress/mod.sx	烟测
-symbol_avail_c	symbol	compress_brotli_available_c	std/compress/brotli/brotli_lib.sx	探测
-symbol_smoke_c	symbol	compress_brotli_smoke_c	std/compress/brotli/brotli_lib.sx	烟测
+symbol_avail_c	symbol	compress_brotli_available_c	std/compress/brotli/lib.sx	探测
+symbol_smoke_c	symbol	compress_brotli_smoke_c	std/compress/brotli/lib.sx	烟测
 make_brotli	target	compress-o-brotli	compiler/Makefile	构建
 make_all	target	compress-o-zlib-zstd-brotli	compiler/Makefile	全格式
 smoke_sx	smoke	tests/std-compress/brotli_roundtrip.sx	.sx往返

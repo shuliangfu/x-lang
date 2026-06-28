@@ -10,12 +10,12 @@ function main(): i32 {
   if (re_n == 0 || re_a == 0) {
     return 1;
   }
-  if (regex.regex_match(re_n, &hay[0], 3) != 0) {
+  if (regex.match(re_n, &hay[0], 3) != 0) {
     regex.free(re_n);
     regex.free(re_a);
     return 2;
   }
-  if (regex.regex_match(re_a, &hay[0], 3) == 0) {
+  if (regex.match(re_a, &hay[0], 3) == 0) {
     regex.free(re_n);
     regex.free(re_a);
     return 3;

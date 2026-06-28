@@ -19,15 +19,15 @@
 
 | API | 说明 |
 |-----|------|
-| `config_new` / `config_free` / `config_clear` | 生命周期 |
+| `new` / `free` / `clear` | 生命周期 |
 | `load_toml_buf` / `load_toml_file` | TOML 子集（扁平 + `[section]`） |
 | `load_env_prefix` | 与 `std.env` 集成，剥离前缀 |
 | `merge` | file < env < cli 分层覆盖 |
 | `set_string` | CLI 层显式设置 |
 | `get_string` / `get_i32` / `get_bool` | 类型化取值 + 错误码 |
 | `get_source` / `get_i32_meta` / `get_bool_meta` / `get_string_meta` | 类型化取值 + 来源 meta |
-| `config_source_*` | 0=unknown, 1=toml, 2=yaml, 3=env, 4=set（`config_source_toml` 等） |
-| `config_err_*` | 0 / -1..-5 |
+| `source_*` | 0=unknown, 1=toml, 2=yaml, 3=env, 4=set（`source_toml` 等） |
+| `err_*` | 0 / -1..-5 |
 
 实现：`std/config/mod.sx` + `config.sx`（F-config v2 逻辑）+ `config_io_glue.c`（文件 IO）；ENV 遍历依赖 `std/env/env.o`。
 

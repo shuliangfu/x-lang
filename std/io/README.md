@@ -6,10 +6,12 @@
 
 - **Reader/Writer** trait、标准流（stdin/stdout/stderr）
 - **同步读写**：`read` / `write` / `read_fd` / `write_fd`
-- **批量**：`read_batch_fd` / `read_batch_fd_buf`（io_uring / readv / IOCP）
-- **零拷贝读**：`read_ptr` / `read_ptr_slice`（`u8[]<io_read_ptr>`，见 TYPE-002）
-- **fixed / provided buffer 池**：热路径与 ZC-1
-- **异步 submit/complete**：`read_async` / `complete_read_async_slot`
+- **批量**：`read_batch_fd` / `readv`（io_uring / readv / IOCP）
+- **零拷贝读**：`read_ptr` / `ptr_slice`（`u8[]<io_read_ptr>`，见 TYPE-002）
+- **fixed / provided buffer 池**：`register_buffers` / `register_provided`
+- **异步 submit/complete**：`read_async` / `complete_read`（重载）
+- **标准 handle**：`stdin()` / `stdout()` / `stderr()` / `from_fd(fd, 0)`
+- **Context 超时**：`timeout_from_ctx` + `read_ctx` / `write_ctx`
 
 底层：`std.io.core` + `std.io.driver` + `io.c`（Linux io_uring / macOS kqueue / Windows IOCP）。
 
@@ -31,7 +33,7 @@ function main(): i32 {
 零拷贝读（注意生命周期，见 mod.sx 文件头）：
 
 ```su
-let s: u8[]<io_read_ptr> = read_stdin_ptr_slice();
+let s: u8[]<io_read_ptr> = stdin_ptr_slice();
 // 勿赋给未标注 u8[]；同线程下次 read_ptr 前有效
 ```
 

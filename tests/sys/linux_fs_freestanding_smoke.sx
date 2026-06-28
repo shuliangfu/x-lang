@@ -28,7 +28,7 @@ function main(): i32 {
     heap.page_mmap_heap_deinit(&h);
     return 4;
   }
-  let n: i32 = fs.freestanding_read_file_into(&path[0], buf, 16);
+  let n: i32 = fs.read_file(&path[0], buf, 16);
   if (n != 2) {
     heap.page_mmap_heap_deinit(&h);
     return 5;

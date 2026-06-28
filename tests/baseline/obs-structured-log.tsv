@@ -5,7 +5,7 @@ line_prefix	field	shux:	level 前缀
 format_struct	section	level=info component=	结构化行
 format_bracket	section	shux: [COMPONENT]	遗留 bracket
 impl_struct	runtime_fn	log_write_structured_kv_c	std/log/log.sx
-impl_sx	su_fn	log_structured_kv	std/log/mod.sx
+impl_sx	su_fn	structured_kv	std/log/mod.sx
 comp_phase_timing	bracket_component	SHUX_COMPILE_PHASE_TIMING	OBS-001
 comp_async_trace	bracket_component	SHUX_ASYNC_RUNTIME_TRACE	OBS-002
 comp_release_precheck	bracket_component	SHUX_RELEASE_PRECHECK	ENG-004

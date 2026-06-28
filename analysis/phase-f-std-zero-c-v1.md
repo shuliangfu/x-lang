@@ -37,7 +37,7 @@
 
 1. **Z8 小胶层批量**（env/log/time/random/simd…）— 模式已验证：逻辑 `.sx` + `*_os_glue.c` → 再 os 桩 `.s`/syscall  
 2. **Z2 async-scheduler** + **Z3 channel** — 解锁 task/net 测试面  
-3. **Z1 http 分阶段** — 按 inc 依赖逆序：`http2_test_tls_cert` → … → `http2_server.inc.c`（85K 最大）→ `http_glue.c`  
+3. **Z1 http 分阶段** — 按 inc 依赖逆序：`test_tls_cert` → … → `server.inc.c`（85K 最大）→ `http_glue.c`  
 4. **Z7 ed25519** — F-04 v20 可选项；或保留最小 ref10 单对象后删源  
 5. **Z9 abi.h** — 依赖编译器 **不再对用户链出 C 后端**（阶段 E 收尾）  
 6. **Z6 db** — sqlite/arrow SIMD 最后（外部库/SIMD intrinsics）

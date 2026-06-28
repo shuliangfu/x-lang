@@ -1,0 +1,54 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.crypto.core — F-04 v16：mem_eq .sx 锚点 + SHA-256/HMAC C 胶层（G-03 seed asm）
+//
+// 【文件职责】
+// crypto_mem_eq_c 为 seed asm 可 emit 的 .sx 实现；SHA-256/HMAC 见 runtime_crypto_inc_glue.c。
+// 下列 sha256/hmac 函数体为 API/manifest 锚点（seed 单文件仅首函数 emit）。
+//
+// 【导出】crypto_mem_eq_c、crypto_sha256_c、crypto_hmac_sha256_c（与 mod.sx extern 一致）。
+
+/** 常量时间比较 a[0..len) 与 b[0..len)；相等 1，否则 0。 */
+function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
+  let diff: u8 = 0 as u8;
+  let i: i32 = 0;
+  if (a == 0 || b == 0) {
+    if (a == b) { return 1; }
+    return 0;
+  }
+  while (i < len) {
+    diff = (diff | (a[i] ^ b[i])) as u8;
+    i = i + 1;
+  }
+  if (diff == 0 as u8) { return 1; }
+  return 0;
+}
+
+/** SHA-256 摘要锚点；实现在 runtime_crypto_inc_glue.c。 */
+function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
+  return;
+}
+
+/** HMAC-SHA256 锚点；实现在 runtime_crypto_inc_glue.c。 */
+function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+  return;
+}
+
+/** seed asm 分单元标记（与 sync_f_sync_*_marker_c 同模式）。 */
+function crypto_f_sha256_marker_c(): i32 {
+  return 0x53484132;
+}

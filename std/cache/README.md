@@ -8,10 +8,10 @@
 | `lru_get` / `lru_put` / `lru_remove` | 键值读写与删除 |
 | `lru_purge_expired` | TTL 惰性清理 |
 | `lru_stats` | hits/misses/evictions/size |
-| `pool_new` / `pool_free` | 对象池生命周期 |
-| `pool_add` / `pool_acquire` / `pool_release` | 资源注册与借还 |
-| `pool_mark_unhealthy` | 健康检查失败标记 |
-| `pool_idle` / `pool_stats` | 池观测 |
+| `new` / `free` | 对象池生命周期 |
+| `add` / `acquire` / `release` | 资源注册与借还 |
+| `mark_unhealthy` | 健康检查失败标记 |
+| `idle` / `stats` | 池观测 |
 
 ## Gate
 

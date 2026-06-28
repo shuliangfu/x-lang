@@ -18,9 +18,9 @@ std_http_reqresp_symbols_ok() {
           std/http/mod.sx) mod_path="$mod_sx" ;;
           compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
           compiler/src/asm/http/http_reqresp.inc.c) mod_path="compiler/src/asm/http/http_reqresp.inc.c" ;;
-          compiler/src/asm/http/http2_hpack_huffman.inc.c) mod_path="compiler/src/asm/http/http2_hpack_huffman.inc.c" ;;
-          compiler/src/asm/http/http2_flow.inc.c) mod_path="compiler/src/asm/http/http2_flow.inc.c" ;;
-          compiler/src/asm/http/http2_hpack.inc.c) mod_path="compiler/src/asm/http/http2_hpack.inc.c" ;;
+          compiler/src/asm/http/hpack_huffman.inc.c) mod_path="compiler/src/asm/http/hpack_huffman.inc.c" ;;
+          compiler/src/asm/http/flow.inc.c) mod_path="compiler/src/asm/http/flow.inc.c" ;;
+          compiler/src/asm/http/hpack.inc.c) mod_path="compiler/src/asm/http/hpack.inc.c" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-http-reqresp FAIL: missing '$anchor' in $mod_path" >&2

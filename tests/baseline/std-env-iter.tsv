@@ -3,9 +3,9 @@
 min_iter_apis	4
 env_iter_struct	symbol	EnvIter	std/env/mod.sx
 args_iter_struct	symbol	ArgsIter	std/env/mod.sx
-env_iter_fn	symbol	env_iter	std/env/mod.sx
-env_iter_next	symbol	env_iter_next	std/env/mod.sx
-env_iter_count	symbol	env_iter_count	std/env/mod.sx
+env_iter_fn	symbol	iter	std/env/mod.sx
+env_iter_next	symbol	iter_next	std/env/mod.sx
+env_iter_count	symbol	iter_count	std/env/mod.sx
 args_iter_fn	symbol	args_iter	std/env/mod.sx
 args_iter_next	symbol	args_iter_next	std/env/mod.sx
 args_iter_count	symbol	args_iter_count	std/env/mod.sx

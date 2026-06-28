@@ -19,7 +19,7 @@
 
 | API | 说明 |
 |-----|------|
-| `config_backend_toml` / `config_backend_yaml` | 后端标识 |
+| `backend_toml` / `backend_yaml` | 后端标识 |
 | `load_yaml_buf` / `load_yaml_file` | YAML 加载（与 TOML 共享键空间） |
 | `yaml_smoke` | C 烟测入口 |
 

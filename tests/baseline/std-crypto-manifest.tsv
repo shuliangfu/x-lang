@@ -14,7 +14,7 @@ api_hmac	api	hmac_sha256	std/crypto/mod.sx	core	HMAC
 api_mac_sign	api	mac_sign	std/crypto/mod.sx	core	MAC 签名
 api_mac_verify	api	mac_verify	std/crypto/mod.sx	core	MAC 校验
 api_rand_fill	api	fill_bytes	std/random/mod.sx	core	CSPRNG
-impl_crypto_core	file	std/crypto/crypto_core.sx	std/crypto/crypto_core.sx	impl	SHA/HMAC .sx
+impl_crypto_core	file	std/crypto/core.sx	std/crypto/core.sx	impl	SHA/HMAC .sx
 impl_crypto_glue	file	compiler/src/asm/runtime_crypto_inc_glue.c	compiler/src/asm/runtime_crypto_inc_glue.c	impl	F-ZC AEAD/Ed25519 glue
 impl_random_runtime	file	compiler/src/asm/runtime_random_fill.c	compiler/src/asm/runtime_random_fill.c	impl	F-ZC CSPRNG OS runtime
 vectors	file	std-crypto-vectors.tsv	tests/baseline/std-crypto-vectors.tsv	-	golden

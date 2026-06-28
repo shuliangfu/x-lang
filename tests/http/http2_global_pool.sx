@@ -2,11 +2,11 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_global_pool_smoke() != 0) { return 1; }
-  if (http.http2_global_pool_is_available() == false) { return 2; }
-  if (http.http2_err_global_pool_full() != -1239) { return 3; }
+  if (http.global_pool_smoke() != 0) { return 1; }
+  if (http.global_pool_is_available() == false) { return 2; }
+  if (http.err_global_pool_full() != -1239) { return 3; }
 
-  let gpool: i64 = http.http2_global_pool_create(2, 1);
+  let gpool: i64 = http.global_pool_create(2, 1);
   if (gpool == 0) { return 4; }
 
   // "http://127.0.0.1/a"
@@ -17,13 +17,13 @@ function main(): i32 {
   let url_c: u8[15] = [104, 116, 116, 112, 58, 47, 47, 116, 104, 105, 114, 100, 47, 99, 0];
   let out: u8[64] = [];
 
-  if (http.http2_global_pool_entry_count(gpool) != 0) { return 5; }
-  let _r1: i32 = http.http2_global_pool_get(gpool, &url_a[0], 17, &out[0], 64, 0);
-  if (http.http2_global_pool_entry_count(gpool) != 1) { return 6; }
-  let _r2: i32 = http.http2_global_pool_get(gpool, &url_b[0], 14, &out[0], 64, 0);
-  if (http.http2_global_pool_entry_count(gpool) != 2) { return 7; }
-  if (http.http2_global_pool_get(gpool, &url_c[0], 14, &out[0], 64, 0) != http.http2_err_global_pool_full()) { return 8; }
+  if (http.global_pool_entry_count(gpool) != 0) { return 5; }
+  let _r1: i32 = http.global_pool_get(gpool, &url_a[0], 17, &out[0], 64, 0);
+  if (http.global_pool_entry_count(gpool) != 1) { return 6; }
+  let _r2: i32 = http.global_pool_get(gpool, &url_b[0], 14, &out[0], 64, 0);
+  if (http.global_pool_entry_count(gpool) != 2) { return 7; }
+  if (http.global_pool_get(gpool, &url_c[0], 14, &out[0], 64, 0) != http.err_global_pool_full()) { return 8; }
 
-  http.http2_global_pool_destroy(gpool);
+  http.global_pool_destroy(gpool);
   return 0;
 }

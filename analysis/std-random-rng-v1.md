@@ -13,10 +13,9 @@
 | API | 说明 |
 |-----|------|
 | `Rng` | `{ state: u64 }` PRNG 状态 |
-| `rng_init` / `rng_from_seed` | 用 seed 初始化 |
-| `rng_next_u64` | 推进状态并返回下一个 u64 |
-| `rng_fill_bytes` | 用 PRNG 字节填充缓冲 |
-| `rng_range_u32` | [lo, hi] 闭区间均匀 u32（拒绝采样） |
+| `seed` / `step` | 用 seed 初始化 / 推进状态 |
+| `fill` | 用 PRNG 字节填充缓冲 |
+| `range` | [lo, hi] 闭区间均匀 u32（拒绝采样） |
 | `rng_smoke` | 委托 `random_rng_smoke_c` 做 C 层烟测 |
 
 ---

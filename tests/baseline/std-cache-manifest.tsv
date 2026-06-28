@@ -10,11 +10,13 @@ api_lru_put	api	lru_put	std/cache/mod.sx	写
 api_lru_remove	api	lru_remove	std/cache/mod.sx	删
 api_lru_purge	api	lru_purge_expired	std/cache/mod.sx	TTL
 api_lru_stats	api	lru_stats	std/cache/mod.sx	统计
-api_pool_new	api	pool_new	std/cache/mod.sx	池
-api_pool_acquire	api	pool_acquire	std/cache/mod.sx	借
-api_pool_release	api	pool_release	std/cache/mod.sx	还
-api_pool_health	api	pool_mark_unhealthy	std/cache/mod.sx	health
-api_pool_stats	api	pool_stats	std/cache/mod.sx	池统计
+api_pool_new	api	new	std/cache/mod.sx	池
+api_pool_add	api	add	std/cache/mod.sx	注册
+api_pool_acquire	api	acquire	std/cache/mod.sx	借
+api_pool_release	api	release	std/cache/mod.sx	还
+api_pool_health	api	mark_unhealthy	std/cache/mod.sx	health
+api_pool_idle	api	idle	std/cache/mod.sx	空闲
+api_pool_stats	api	stats	std/cache/mod.sx	池统计
 symbol_smoke	symbol	cache_smoke_c	std/cache/cache.sx	烟测
 impl_sx	file	std/cache/cache.sx	std/cache/cache.sx
 smoke_sx	smoke	tests/std-cache/lru_pool_smoke.sx	.sx烟测

@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std/ffi/ffi.sx — C 字符串互操作（F-ffi v1 + F-ZC；纯 .sx，无 .c/.h）
 //
 // 【文件职责】
@@ -58,7 +74,9 @@ function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32 {
 function ffi_cstr_len_c(ptr: *u8): i32 {
   let n: usize = 0;
   if (ptr == 0) { return -1; }
-  n = strlen(ptr);
+  unsafe {
+    n = strlen(ptr);
+  }
   if (n > 0x7fffffff) { return 0x7fffffff; }
   return n as i32;
 }
@@ -69,10 +87,14 @@ function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
   let n: usize = 0;
   if (len < 0) { return 0 as *u8; }
   n = (len as usize) + 1;
-  p = malloc(n);
+  unsafe {
+    p = malloc(n);
+  }
   if (p == 0) { return 0 as *u8; }
   if (ptr != 0 && len > 0) {
-    memcpy(p, ptr, len);
+    unsafe {
+      memcpy(p, ptr, len);
+    }
   }
   p[len] = 0;
   return p;
@@ -80,7 +102,11 @@ function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
 
 /** 释放由 cstring_new 返回的指针；ptr 可为 0。 */
 function ffi_cstring_free_c(ptr: *u8): void {
-  if (ptr != 0) { free(ptr); }
+  if (ptr != 0) {
+    unsafe {
+      free(ptr);
+    }
+  }
 }
 
 /** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式。 */

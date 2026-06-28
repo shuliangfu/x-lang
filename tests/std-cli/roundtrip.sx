@@ -16,6 +16,6 @@ function main(): i32 {
   if (cli.match_short(&hshort[0], 2, 104) == 0) { return 3; }
   n = cli.write_usage(&prog[0], 4, &desc[0], 4, &out[0], 128);
   if (n <= 0) { return 4; }
-  if (cli.cli_err_help() != 1) { return 5; }
+  if (cli.err_help() != 1) { return 5; }
   return 0;
 }

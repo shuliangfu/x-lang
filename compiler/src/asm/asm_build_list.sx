@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // asm_build_list.sx — asm 自举构建顺序与 LIBROOT 的唯一定义（供 scripts/build_shux_asm.sh 读取）
 //
 // 职责：-backend asm 构建 shux 时，各 .sx 模块的编译顺序与 -L 库根由此文件定义；脚本通过 grep/sed 读取，后续可迁为 .sx 内逻辑（如 driver 调 spawn 逐条编译）。

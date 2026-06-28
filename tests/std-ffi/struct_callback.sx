@@ -9,8 +9,8 @@ function main(): i32 {
   if (pt.x != 3 || pt.y != 4) { return 3; }
   if (point_pack(&buf[0], 4, 0, 0) != (0 - 4)) { return 4; }
 
-  let cb: usize = cb_double_i32_fn();
-  if (invoke_i32_cb(cb, 5) != 10) { return 5; }
-  if (invoke_i32_cb(0, 1) != (0 - 1)) { return 6; }
+  let cb: usize = cb_double_fn();
+  if (invoke_cb(cb, 5) != 10) { return 5; }
+  if (invoke_cb(0, 1) != (0 - 1)) { return 6; }
   return 0;
 }

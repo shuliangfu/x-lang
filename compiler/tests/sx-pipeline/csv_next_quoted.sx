@@ -4,7 +4,7 @@ const csv = import("std.csv");
 function main(): i32 {
   let st: i32 = 0;
   let ln: i32 = 0;
-  let off: i32 = csv_test_quoted_first(&st, &ln);
+  let off: i32 = csv.test_quoted_first(&st, &ln);
   if (off <= 0) { return 9; }
   if (st != 1) { return 10; }
   if (ln < 3) { return 11; }

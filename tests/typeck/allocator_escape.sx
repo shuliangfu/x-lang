@@ -2,6 +2,6 @@
 const heap = import("std.heap");
 
 function main(): i32 {
-  let al: Allocator = heap.scope_allocator();
+  let al: Allocator = heap.scope_alloc();
   return al.kind;
 }

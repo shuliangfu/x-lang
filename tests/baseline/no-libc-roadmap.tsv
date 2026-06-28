@@ -11,11 +11,11 @@ nolibc_n01_manifest	manifest	done	tests/baseline/nolibc-n01-preparation.tsv	NL-0
 heap_brk	syscall	todo	freestanding_io_x86_64.s	可选；优先 mmap 堆
 heap_page_mmap	sx	done	std/heap/page_mmap.sx	NL-03 mmap bump 64KiB
 nolibc_heap_gate	gate	done	tests/run-no-libc-heap-gate.sh	ABC stdout smoke
-heap_heap_c	c	done	std/heap/heap_libc.sx	F-03 v2 已删 heap.c
+heap_heap_c	c	done	std/heap/libc.sx	F-03 v2 已删 heap.c
 fs_freestanding_linux	sx	done	std/fs/freestanding_linux.sx	NL-04 syscall read/open/close
 nolibc_fs_gate	gate	done	tests/run-no-libc-fs-gate.sh	FS stdout smoke
-fs_fs_c	sx	legacy	std/fs/fs_posix.sx	hosted 纯 .sx；freestanding 不链
-io_io_c	sx	done	std/io/io_backend.sx	F-03 v3 sync fallback；io_uring 延后 F-04
+fs_fs_c	sx	legacy	std/fs/posix.sx	hosted 纯 .sx；freestanding 不链
+io_io_c	sx	done	std/io/backend.sx	F-03 v3 sync fallback；io_uring 延后 F-04
 net_freestanding_linux	sx	done	std/net/freestanding_linux.sx	NL-02 socket facade
 nolibc_socket_gate	gate	done	tests/run-no-libc-socket-gate.sh	socket+close smoke
 net_net_c	sx	deleted	std/net/mod.sx	F-04 v14：net.c 删；hosted net.o 纯 .sx+胶层

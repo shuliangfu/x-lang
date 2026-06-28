@@ -3,17 +3,17 @@ const hash = import("std.hash");
 
 function main(): i32 {
   let buf: u8[3] = [97, 98, 99];
-  let hs: *u8 = hash.hash_start_algo(0);
-  let ha: *u8 = hash.hash_start_algo(1);
+  let hs: *u8 = hash.start_algo(0);
+  let ha: *u8 = hash.start_algo(1);
   if (hs == 0 || ha == 0) {
     return 1;
   }
-  hash.hash_write_bytes_algo(hs, &buf[0], 3);
-  hash.hash_write_bytes_algo(ha, &buf[0], 3);
-  let rs: u64 = hash.hash_finish_algo(hs);
-  let ra: u64 = hash.hash_finish_algo(ha);
-  hash.hash_free_algo(hs);
-  hash.hash_free_algo(ha);
+  hash.write_bytes_algo(hs, &buf[0], 3);
+  hash.write_bytes_algo(ha, &buf[0], 3);
+  let rs: u64 = hash.finish_algo(hs);
+  let ra: u64 = hash.finish_algo(ha);
+  hash.free_algo(hs);
+  hash.free_algo(ha);
   if (rs == 0 || ra == 0) {
     return 2;
   }

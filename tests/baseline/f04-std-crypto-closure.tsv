@@ -10,7 +10,7 @@ glue_inc	file	compiler/src/asm/runtime_crypto_inc_glue.c	SHA-512 胶层（F-ZC�
 glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.c	ref10 胶层（F-ZC）
 absent_std_glue_inc	absent	std/crypto/crypto_inc_glue.c	F-ZC 迁出
 absent_std_glue_ref10	absent	std/crypto/ed25519_ref10_glue.c	F-ZC 迁出
-sx_core	file	std/crypto/crypto_core.sx	v16
+sx_core	file	std/crypto/core.sx	v16
 sx_aes	file	std/crypto/aes_gcm.sx	v17
 sx_chacha	file	std/crypto/chacha20_poly1305.sx	v18
 sx_ed25519	file	std/crypto/ed25519.sx	v19

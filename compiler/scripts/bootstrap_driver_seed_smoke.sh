@@ -43,21 +43,22 @@ run_smoke() {
   local bin="$1"
   local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
-  # 非 TTY stdout 须 tee|cat Drain；PIPESTATUS[0] 取 shux 真实退出码。
-  "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  echo "[$(date '+%H:%M:%S')] seed smoke: -c check ..."
+  "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log"
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
     return 1
   fi
+  echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o (may take ~1min) ..."
   rm -f "$SMOKE_OUT"
-  "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log"
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
     return 1
   fi
   [ -x "$SMOKE_OUT" ] || return 1
   local ec=0
-  "$SMOKE_OUT" 2>&1 | tee "$_log" | cat >/dev/null || ec=$?
+  "$SMOKE_OUT" 2>&1 | tee "$_log" || ec=$?
   [ "$ec" -eq 42 ]
 }
 

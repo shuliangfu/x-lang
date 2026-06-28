@@ -2,19 +2,19 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_conn_pool_smoke() != 0) { return 1; }
-  if (http.http2_conn_pool_is_available() == false) { return 2; }
-  if (http.http2_err_pool_scheme() != -1238) { return 3; }
+  if (http.conn_pool_smoke() != 0) { return 1; }
+  if (http.conn_pool_is_available() == false) { return 2; }
+  if (http.err_pool_scheme() != -1238) { return 3; }
 
   let host: u8[10] = [49, 50, 55, 46, 48, 46, 48, 46, 49, 0];
   let port: u8[2] = [57, 0];
-  let pool: i64 = http.http2_conn_pool_create_h2c(&host[0], 9, &port[0], 1, 2);
+  let pool: i64 = http.conn_pool_create_h2c(&host[0], 9, &port[0], 1, 2);
   if (pool == 0) { return 4; }
 
   let https: u8[20] = [104, 116, 116, 112, 115, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 47, 0, 0];
   let out: u8[64] = [];
-  if (http.h2c_pool_get(pool, &https[0], 19, &out[0], 64, 0) != http.http2_err_pool_scheme()) { return 5; }
+  if (http.h2c_pool_get(pool, &https[0], 19, &out[0], 64, 0) != http.err_pool_scheme()) { return 5; }
 
-  http.http2_conn_pool_destroy(pool);
+  http.conn_pool_destroy(pool);
   return 0;
 }

@@ -1,8 +1,24 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.log — 日志级别与 stderr/文件输出（对标 Zig std.log、Rust log，零分配）
 // STD-053：多 sink（SINK_STDERR | SINK_FILE）+ 级别过滤 + 结构化 KV（OBS-003）。
 // STD-106：文件轮转 set_rotate_limit + 异步缓冲 set_async_enabled / async_flush。
 //
-// 【文件职责】set_min_level、log、log_structured_kv；输出到 stderr 和/或文件。
+// 【文件职责】set_min_level、log、structured_kv；输出到 stderr 和/或文件。
 // 【依赖】core；与 std/log/log.sx 同属一模块（F-log v1 / F-ZC）；OS 胶层在 runtime_log_os.o。
 extern function log_set_min_level_c(level: i32): void;
 extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
@@ -25,36 +41,52 @@ function level_warn(): i32 { return 2; }
 function level_error(): i32 { return 3; }
 
 /** 设置最小输出级别；低于此级别的 log 不写。0=DEBUG, 1=INFO, 2=WARN, 3=ERROR。 */
-function set_min_level(level: i32): void { log_set_min_level_c(level); }
+function set_min_level(level: i32): void { unsafe { log_set_min_level_c(level); } }
 
 /** 设置活跃 sink 掩码：SINK_STDERR | SINK_FILE。 */
-function set_sink_mask(mask: i32): void { log_set_sink_mask_c(mask); }
+function set_sink_mask(mask: i32): void { unsafe { log_set_sink_mask_c(mask); } }
 
 /** 打开追加写文件 sink；path 为字节路径，len 为长度。成功 0，失败 -1。 */
-function set_file_sink(path: *u8, len: i32): i32 { return log_set_file_sink_c(path, len); }
+function set_file_sink(path: *u8, len: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = log_set_file_sink_c(path, len); }
+  return rc;
+}
 
 /** 关闭文件 sink（若已打开）。 */
-function close_file_sink(): void { log_close_file_sink_c(); }
+function close_file_sink(): void { unsafe { log_close_file_sink_c(); } }
 
 /** 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。返回 0 成功，-1 失败。 */
-function log(level: i32, ptr: *u8, len: i32): i32 { return log_write_c(level, ptr, len); }
+function log(level: i32, ptr: *u8, len: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = log_write_c(level, ptr, len); }
+  return rc;
+}
 
 /** 写一条 OBS-003 结构化行：shux: level=… component=… kv…；comp/kv 为 NUL 结尾字节串。 */
-function log_structured_kv(comp: *u8, level: i32, kv: *u8): i32 {
-  return log_write_structured_kv_c(comp, level, kv);
+function structured_kv(comp: *u8, level: i32, kv: *u8): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = log_write_structured_kv_c(comp, level, kv); }
+  return rc;
 }
 
 /** 设置文件 sink 轮转阈值（须先 set_file_sink）；max_backups 0=截断，1..8=备份。 */
 function set_rotate_limit(max_bytes: i32, max_backups: i32): i32 {
-  return log_set_rotate_c(max_bytes, max_backups);
+  let rc: i32 = 0;
+  unsafe { rc = log_set_rotate_c(max_bytes, max_backups); }
+  return rc;
 }
 
 /** 启用/关闭异步缓冲（32 槽环形队列）；关闭前自动 flush。 */
 function set_async_enabled(enabled: i32): i32 {
-  return log_set_async_enabled_c(enabled);
+  let rc: i32 = 0;
+  unsafe { rc = log_set_async_enabled_c(enabled); }
+  return rc;
 }
 
 /** 刷出异步缓冲到活跃 sink。 */
 function async_flush(): i32 {
-  return log_async_flush_c();
+  let rc: i32 = 0;
+  unsafe { rc = log_async_flush_c(); }
+  return rc;
 }

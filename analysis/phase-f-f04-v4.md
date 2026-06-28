@@ -1,12 +1,12 @@
 # 阶段 F-04 v4（std.compress zlib 去 C）
 
-> **F-04 v4**：**`zlib/zlib.c`** → **`zlib_libz.sx`**；`mod.sx` import 转发；`compress.o` 不再含 zlib.o。
+> **F-04 v4**：**`zlib/zlib.c`** → **`libz.sx`**；`mod.sx` import 转发；`compress.o` 不再含 zlib.o。
 
 ## v4 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `zlib_libz.sx` | libz FFI：compress2/uncompress、compress_deflate_c/inflate_c |
+| `libz.sx` | libz FFI：compress2/uncompress、compress_deflate_c/inflate_c |
 | `std/compress/zlib/mod.sx` | import zlib_libz 转发 deflate/inflate |
 | `runtime_link_abi.c` | asm/invoke 链接扫描用户 .o 的 zlib marker/符号 |
 | `compiler/Makefile` | COMPRESS_PARTS 移除 zlib.o |

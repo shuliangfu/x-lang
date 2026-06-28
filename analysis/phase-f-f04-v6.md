@@ -1,12 +1,12 @@
 # 阶段 F-04 v6（std.compress Brotli 去 C）
 
-> **F-04 v6**：**`brotli/brotli.c`** → **`brotli_lib.sx`**；`mod.sx` import 转发；`compress.o` 不再含 brotli.o。
+> **F-04 v6**：**`brotli/brotli.c`** → **`lib.sx`**；`mod.sx` import 转发；`compress.o` 不再含 brotli.o。
 
 ## v6 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `brotli_lib.sx` | libbrotli FFI：块 + 流式 API、smoke、marker |
+| `lib.sx` | libbrotli FFI：块 + 流式 API、smoke、marker |
 | `std/compress/brotli/mod.sx` | import brotli_lib 转发 |
 | `runtime_link_abi.c` | 用户 .o 扫描 brotli/zstd marker 与符号 |
 | `compiler/Makefile` | COMPRESS_PARTS 仅 zstd.o |

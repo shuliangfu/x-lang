@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.debug — 开发调试输出（stderr）+ core.assert 重导出
 //
 // 【文件职责】
@@ -29,7 +45,7 @@ function println(ptr: *u8, len: i32): i32 {
 function print(x: i32): i32 {
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = fmt.fmt_i32_to_buf(&buf[0], 32, x);
+  let n: i32 = fmt.to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
   return io.write_stderr(&buf[0], n as usize);
 }
@@ -42,7 +58,7 @@ function println(x: i32): i32 {
 function print(x: u32): i32 {
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = fmt.fmt_u32_to_buf(&buf[0], 32, x);
+  let n: i32 = fmt.to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
   return io.write_stderr(&buf[0], n as usize);
 }
@@ -55,7 +71,7 @@ function println(x: u32): i32 {
 function print(x: i64): i32 {
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = fmt.fmt_i64_to_buf(&buf[0], 32, x);
+  let n: i32 = fmt.to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
   return io.write_stderr(&buf[0], n as usize);
 }
@@ -67,7 +83,7 @@ function println(x: i64): i32 {
 }
 function print(x: bool): i32 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = fmt.fmt_bool_to_buf(&buf[0], 8, x);
+  let n: i32 = fmt.to_buf(&buf[0], 8, x);
   if (n < 0) { return -1; }
   return io.write_stderr(&buf[0], n as usize);
 }
@@ -82,7 +98,7 @@ function print(x: f64): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = fmt.fmt_f64_to_buf(&buf[0], 64, x);
+  let n: i32 = fmt.to_buf(&buf[0], 64, x);
   if (n < 0) { return -1; }
   return io.write_stderr(&buf[0], n as usize);
 }

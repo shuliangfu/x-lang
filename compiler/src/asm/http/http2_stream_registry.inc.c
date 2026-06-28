@@ -1,8 +1,8 @@
 /**
- * std/http/http2_stream_registry.inc.c — HTTP/2 多 stream 注册表 v0（STD-HTTP-H2-v9）
+ * std/http/stream_registry.inc.c — HTTP/2 多 stream 注册表 v0（STD-HTTP-H2-v9）
  *
  * 【文件职责】连接级 stream id 分配/跟踪（奇数 client-initiated）；离线烟测。
- * 由 http2_client.inc.c 末尾 #include。
+ * 由 client.inc.c 末尾 #include。
  */
 
 /** 注册表最大 stream 槽位数。 */
@@ -12,17 +12,17 @@
 typedef struct {
     int32_t stream_id;
     int32_t open;
-} http2_stream_slot_t;
+} stream_slot_t;
 
 /** 连接级 stream 注册表。 */
 typedef struct {
-    http2_stream_slot_t slots[HTTP2_STREAM_REGISTRY_MAX];
+    stream_slot_t slots[HTTP2_STREAM_REGISTRY_MAX];
     int32_t count;
     int32_t next_id;
-} http2_stream_registry_t;
+} stream_registry_t;
 
 /** 初始化注册表；下一 stream 从 1 开始（奇数）。 */
-void http2_stream_registry_init_c(http2_stream_registry_t *reg) {
+void http2_stream_registry_init_c(stream_registry_t *reg) {
     int32_t i;
     if (!reg)
         return;
@@ -35,7 +35,7 @@ void http2_stream_registry_init_c(http2_stream_registry_t *reg) {
 }
 
 /** 分配新 stream id 并登记；成功返回 stream_id，表满 -1。 */
-int32_t http2_stream_registry_open_c(http2_stream_registry_t *reg) {
+int32_t http2_stream_registry_open_c(stream_registry_t *reg) {
     int32_t sid;
     if (!reg || reg->count >= HTTP2_STREAM_REGISTRY_MAX)
         return -1;
@@ -48,7 +48,7 @@ int32_t http2_stream_registry_open_c(http2_stream_registry_t *reg) {
 }
 
 /** 关闭 stream（保留槽位供查询）。 */
-void http2_stream_registry_close_c(http2_stream_registry_t *reg, int32_t stream_id) {
+void http2_stream_registry_close_c(stream_registry_t *reg, int32_t stream_id) {
     int32_t i;
     if (!reg || stream_id <= 0)
         return;
@@ -61,7 +61,7 @@ void http2_stream_registry_close_c(http2_stream_registry_t *reg, int32_t stream_
 }
 
 /** stream 是否仍 open；1 是，0 否。 */
-int32_t http2_stream_registry_is_open_c(const http2_stream_registry_t *reg, int32_t stream_id) {
+int32_t http2_stream_registry_is_open_c(const stream_registry_t *reg, int32_t stream_id) {
     int32_t i;
     if (!reg || stream_id <= 0)
         return 0;
@@ -74,7 +74,7 @@ int32_t http2_stream_registry_is_open_c(const http2_stream_registry_t *reg, int3
 
 /** 多 stream 注册表 C 烟测；0 通过。 */
 int32_t http2_stream_registry_smoke_c(void) {
-    http2_stream_registry_t reg;
+    stream_registry_t reg;
     int32_t s1;
     int32_t s2;
     int32_t s3;

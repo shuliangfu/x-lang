@@ -1,13 +1,13 @@
 # 阶段 F-04 v10（std.net DNS/ALPN 去 C）
 
-> **F-04 v10 v1**：从 **`net.c`** 迁出 **DNS** 与 **ALPN 线格式** → **`net_dns.sx`** + **`net_alpn.sx`**；`ld -r` 合并进 `net.o`。
+> **F-04 v10 v1**：从 **`net.c`** 迁出 **DNS** 与 **ALPN 线格式** → **`dns.sx`** + **`alpn.sx`**；`ld -r` 合并进 `net.o`。
 
 ## v10 v1 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `net_alpn.sx` | `net_tls_alpn_h2_http1_wire_c`（RFC 7301 h2 + http/1.1） |
-| `net_dns.sx` | `net_resolve_ipv4_c` / `_ex_c` / `net_resolve_ipv6_ex_c`（getaddrinfo FFI） |
+| `alpn.sx` | `net_tls_alpn_h2_http1_wire_c`（RFC 7301 h2 + http/1.1） |
+| `dns.sx` | `net_resolve_ipv4_c` / `_ex_c` / `net_resolve_ipv6_ex_c`（getaddrinfo FFI） |
 | `net.c` | 移除 DNS/ALPN/legacy `net_tls_last_error_c`（~160 行） |
 | `Makefile` | `net.o` = `net_main.o` + `net_alpn.o` + `net_dns.o`（须 shux） |
 | 存量 | F-01 total **96**（无 .c 增减） |

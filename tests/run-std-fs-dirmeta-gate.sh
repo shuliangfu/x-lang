@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-fs-dirmeta-v1.md"
 MANIFEST="tests/baseline/std-fs-dirmeta-manifest.tsv"
 MOD_SX="std/fs/mod.sx"
-FS_IMPL="std/fs/fs_posix.sx"
+FS_IMPL="std/fs/posix.sx"
 LIB="tests/lib/std-fs-dirmeta.sh"
 SMOKE_SX="tests/fs/dirmeta_roundtrip.sx"
 SMOKE_C="tests/fs/dirmeta_smoke_ok.c"
@@ -22,8 +22,8 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$FS_IMPL" "$SMOKE_SX"; do
 done
 [ ! -f std/fs/fs.c ] || { echo "std-fs-dirmeta gate FAIL: fs.c should be deleted (F-03 v2)" >&2; exit 1; }
 
-grep -qF fs_dir_open "$DOC" || exit 1
-grep -qF fs_stat "$DOC" || exit 1
+grep -qF dir_open "$DOC" || exit 1
+grep -qF stat "$DOC" || exit 1
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

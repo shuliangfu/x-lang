@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX" std/bytes/RE
   fi
 done
 
-for kw in STD-072 bytes_append_slice bytes_as_view BytesReader reserve; do
+for kw in STD-072 extend as_view BytesReader reserve; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-bytes gate FAIL: doc missing '$kw'" >&2
     exit 1

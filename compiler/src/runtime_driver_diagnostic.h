@@ -29,6 +29,10 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
 void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col, const uint8_t *expect_buf, int32_t expect_len,
                                               const uint8_t *found_buf, int32_t found_len);
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
+/** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
+void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);
+/** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */
+void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col);
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col);
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);

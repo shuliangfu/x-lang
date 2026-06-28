@@ -9,7 +9,7 @@ function main(): i32 {
   98, 101, 110, 99, 104, 95,
   116, 109, 112, 0];
   let size: usize = 0;
-  let ptr: *u8 = fs.fs_mmap_ro(&path[0], &size);
+  let ptr: *u8 = fs.mmap_ro(&path[0], &size);
   if (ptr == 0) { return 1; }
   let i: usize = 0;
   let sum: i32 = 0;
@@ -17,7 +17,7 @@ function main(): i32 {
     sum = sum + (ptr[i] as i32);
     i = i + 1;
   }
-  let r: i32 = fs.fs_munmap(ptr, size);
+  let r: i32 = fs.munmap(ptr, size);
   if (r != 0) { return 2; }
   return sum & 255;
 }

@@ -9,7 +9,7 @@ api_is_ok	api	is_ok_i32	std/result/mod.sx	判定
 api_map	api	result_map_i32	std/result/mod.sx	组合
 api_and_then	api	result_and_then_i32	std/result/mod.sx	组合
 api_or_else	api	result_or_else_i32	std/result/mod.sx	组合
-api_from_err	api	result_from_error_code	std/result/mod.sx	error桥
+api_from_err	api	result_from_code	std/result/mod.sx	error桥
 api_from_val	api	result_from_value_i32	std/result/mod.sx	error桥
 api_err_code	api	result_err_code	std/result/mod.sx	提取码
 impl_sx	file	std/result/mod.sx	std/result/mod.sx

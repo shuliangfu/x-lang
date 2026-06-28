@@ -8,8 +8,8 @@ function main(): i32 {
   let a0: *u8 = env.args_iter_next(&ai);
   if (a0 == 0) { return 1; }
   if (env.args_iter_count() < 1) { return 2; }
-  let ei: EnvIter = env.env_iter();
-  if (env.env_iter_count() < 0) { return 3; }
+  let ei: EnvIter = env.iter();
+  if (env.iter_count() < 0) { return 3; }
   let _unused: EnvIter = ei;
   return 0;
 }

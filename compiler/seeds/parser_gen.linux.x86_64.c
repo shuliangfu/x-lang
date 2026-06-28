@@ -317,6 +317,7 @@ extern void parser_parse_cond_expr_into_glue(struct ast_ASTArena * restrict aren
 extern int parser_fill_block_const_let_from_res_glue(struct ast_ASTArena * restrict arena, int32_t block_ref, struct parser_OneFuncResult * restrict res, int32_t type_ref);
 extern int parser_append_block_lets_from_res_glue(struct ast_ASTArena * restrict arena, int32_t block_ref, struct parser_OneFuncResult * restrict res, int32_t let_base, int32_t type_ref);
 extern int parser_parse_if_stmt_into_glue(struct ast_ASTArena * restrict arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, int32_t * restrict out_cond, int32_t * restrict out_then, int32_t * restrict out_else, struct lexer_Lexer * restrict lex_out);
+extern void parser_realign_lex_after_if_stmt_onefunc_glue(struct lexer_Lexer * restrict lex, struct shux_slice_uint8_t * source);
 extern void parser_parse_if_expr_into_glue(struct ast_ASTArena * restrict arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * restrict out);
 extern int32_t parser_first_token_kind_glue(struct shux_slice_uint8_t * source);
 extern int32_t parser_diag_first_ident_len_glue(struct shux_slice_uint8_t * source);
@@ -421,6 +422,7 @@ struct lexer_Lexer parser_lex_at_token_from_result(struct lexer_LexerResult r);
 struct lexer_Lexer parser_rewind_lex_for_following_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r);
 int parser_match_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start);
 int parser_match_kw_immediately_before_buf(uint8_t * restrict data, int32_t len, size_t ident_start);
+int parser_return_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start);
 int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
 int32_t parser_advance_past_stmt_semicolon_into_buf(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
@@ -738,6 +740,21 @@ int parser_match_kw_immediately_before(struct shux_slice_uint8_t * source, size_
 int parser_match_kw_immediately_before_buf(uint8_t * restrict data, int32_t len, size_t ident_start) {
   struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
   return parser_match_kw_immediately_before(&(slice), ident_start);
+}
+/** if (struct.field) 后 lex 误落在 return expr 首 ident 时，判断 ident 前是否为 "return" + 空白。 */
+int parser_return_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start) {
+  (void)(({ int __tmp = 0; if (ident_start < 7) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  size_t p = ident_start - 7;
+  if ((p < 0 || (size_t)(p) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p]) != 114
+      || (p + 1 < 0 || (size_t)(p + 1) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 1]) != 101
+      || (p + 2 < 0 || (size_t)(p + 2) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 2]) != 116
+      || (p + 3 < 0 || (size_t)(p + 3) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 3]) != 117
+      || (p + 4 < 0 || (size_t)(p + 4) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 4]) != 114
+      || (p + 5 < 0 || (size_t)(p + 5) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 5]) != 110)
+    return 0;
+  uint8_t sep = (p + 6 < 0 || (size_t)(p + 6) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[p + 6]);
+  return sep == 32 || sep == 9 || sep == 10 || sep == 13;
 }
 int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * restrict r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
   return parser_advance_past_stmt_semicolon_into_glue(r_out, lex, source);
@@ -1531,8 +1548,7 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
   return;
  } else (__tmp = 0) ; __tmp; }));
   (b = (ast_arena_block_get(arena, block_ref)));
-  (void)(lexer_next_into((&(r)), lex_cur, source));
-  (stmt_tok_ready_blk = (1));
+  (stmt_tok_ready_blk = (0));
   continue;
  } else (__tmp = 0) ; __tmp; }));
     struct lexer_Lexer stmt_start = parser_lex_at_token_from_result(r);
@@ -2418,6 +2434,16 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
     (void)(({ int32_t __tmp = 0; if ((!stmt_tok_ready)) {   (void)(lexer_next_into((&(r)), lex, source));
  } else (__tmp = 0) ; __tmp; }));
     (stmt_tok_ready = (0));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_IDENT) {   size_t ret_id_start = (r).token_start;
+  (void)(({ int32_t __tmp = 0; if (ret_id_start == 0) {   (ret_id_start = (parser_lexer_pos_before_run(((r).next_lex).pos, ((r).tok).ident_len)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (parser_return_kw_immediately_before(source, ret_id_start)) {   struct lexer_Lexer ret_kw_lex = (struct lexer_Lexer){ .pos = ret_id_start - 7, .line = ((r).tok).line, .col = ((r).tok).col };
+  struct lexer_LexerResult r_ret_kw = (struct lexer_LexerResult){ .next_lex = ret_kw_lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+  (void)(lexer_next_into((&(r_ret_kw)), ret_kw_lex, source));
+  (r = (r_ret_kw));
+  (lex = (ret_kw_lex));
+ } else (__tmp = 0) ; __tmp; }));
+ } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_RETURN || ((r).tok).kind == token_TokenKind_TOKEN_RBRACE || ((r).tok).kind == token_TokenKind_TOKEN_MATCH) {   break;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_LET || ((r).tok).kind == token_TokenKind_TOKEN_CONST) {   int32_t n_before_mid = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
@@ -2693,8 +2719,8 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_onefunc_push_src_stmt(out, 5, if_pool_idx));
-  (void)(lexer_next_into((&(r)), lex, source));
-  (stmt_tok_ready = (1));
+  (void)(parser_realign_lex_after_if_stmt_onefunc_glue(&(lex), source));
+  (stmt_tok_ready = (0));
   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));

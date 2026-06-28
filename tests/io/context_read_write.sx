@@ -10,27 +10,27 @@ function main(): i32 {
 
   let cancelled: Context = context.with_cancel(bg);
   context.cancel(cancelled);
-  if (io.read_ctx(io.handle_stdout(), p, 0, cancelled) != io_err_cancelled()) {
+  if (io.read_ctx(io.stdout(), p, 0, cancelled) != io_err_cancelled()) {
     return 1;
   }
-  if (io.write_ctx(io.handle_stdout(), p, 0, cancelled) != io_err_cancelled()) {
+  if (io.write_ctx(io.stdout(), p, 0, cancelled) != io_err_cancelled()) {
     return 2;
   }
 
   let expired: Context = context.with_deadline(bg, 1);
-  if (io.read_ctx(io.handle_stdout(), p, 0, expired) != io_err_timeout()) {
+  if (io.read_ctx(io.stdout(), p, 0, expired) != io_err_timeout()) {
     return 3;
   }
-  if (io.write_ctx(io.handle_stdout(), p, 0, expired) != io_err_timeout()) {
+  if (io.write_ctx(io.stdout(), p, 0, expired) != io_err_timeout()) {
     return 4;
   }
 
-  if (io.timeout_ms_for_context(bg) != 0) {
+  if (io.timeout_from_ctx(bg) != 0) {
     return 5;
   }
 
   let live: Context = context.with_timeout(bg, 1000000000);
-  let tm: i32 = io.timeout_ms_for_context(live);
+  let tm: i32 = io.timeout_from_ctx(live);
   if (tm <= 0) {
     return 6;
   }

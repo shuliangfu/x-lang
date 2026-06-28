@@ -1,0 +1,5 @@
+# std.dynlib Tier-S stable public API (import std.dynlib)
+open
+sym
+close
+last_os_error

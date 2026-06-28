@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD122_COMPRESS_UNIFIED_DOC:-analysis/std-compress-unified-stream-v1.md}"
 MANIFEST="${SHUX_STD122_COMPRESS_UNIFIED_TSV:-tests/baseline/std-compress-unified-stream-manifest.tsv}"
 MOD_SX="std/compress/mod.sx"
-COMPRESS_C="std/compress/gzip/gzip_libz.sx"
+COMPRESS_C="std/compress/gzip/libz.sx"
 LIB="tests/lib/std-compress-unified-stream.sh"
 STREAM_SX="tests/std-compress/unified_stream_roundtrip.sx"
 MIN_APIS=7
@@ -26,7 +26,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$COMPRESS_C" "$STREAM_SX"; do
   fi
 done
 
-for kw in STD-122 StreamCompress stream_compress_init compress_format_gzip; do
+for kw in STD-122 StreamCompress compress_init format_gzip; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-compress-unified-stream gate FAIL: doc missing '$kw'" >&2
     exit 1

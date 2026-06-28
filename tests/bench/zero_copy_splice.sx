@@ -33,11 +33,11 @@ function main(): i32 {
   let bench_bytes: usize = 16777216 as usize;
   let chunk: usize = 1048576 as usize;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let file_fd: i32 = fs.fs_open_read(&path[0]);
+  let file_fd: i32 = fs.open(&path[0]);
   if (file_fd < 0) { return 1; }
   let stream: TcpStream = net.connect_blocking(addr, sink_port, 0);
   if (stream.fd < 0) {
-    fs.fs_close(file_fd);
+    fs.close(file_fd);
     return 2;
   }
   let sent: usize = 0 as usize;
@@ -45,18 +45,18 @@ function main(): i32 {
     let left: usize = bench_bytes - sent;
     let ask: usize = chunk;
     if (left < ask) { ask = left; }
-    let n: i64 = fs.fs_pipe_splice(file_fd, stream.fd, ask);
+    let n: i64 = fs.pipe_splice(file_fd, stream.fd, ask);
     if (n <= 0) {
       net.close_stream(stream);
-      fs.fs_close(file_fd);
+      fs.close(file_fd);
       return 3;
     }
     sent = sent + (n as usize);
   }
   if (net.close_stream(stream) != 0) {
-    fs.fs_close(file_fd);
+    fs.close(file_fd);
     return 4;
   }
-  if (fs.fs_close(file_fd) != 0) { return 5; }
+  if (fs.close(file_fd) != 0) { return 5; }
   return (sent as i32) & 255;
 }

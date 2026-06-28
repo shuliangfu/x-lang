@@ -2,7 +2,7 @@
 const http = import("std.http");
 
 function main(): i32 {
-  if (http.http2_server_multistream_push_smoke() != 0) { return 1; }
-  if (http.http2_server_multistream_push_is_available() == false) { return 2; }
+  if (http.server_multistream_push_smoke() != 0) { return 1; }
+  if (http.server_multistream_push_is_available() == false) { return 2; }
   return 0;
 }

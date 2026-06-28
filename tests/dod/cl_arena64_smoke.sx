@@ -14,7 +14,7 @@ function main(): i32 {
     heap.arena64_deinit(&a);
     return 2;
   }
-  let p: *u8 = heap.arena64_alloc(&a, 128, 64);
+  let p: *u8 = heap.arena64_alloc(&a, 128 as usize, 64 as usize);
   if (p == 0 as *u8) {
     heap.arena64_deinit(&a);
     return 3;

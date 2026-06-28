@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // core.mem — 内存操作、copy/move/set/compare、对齐（自举前最小实现）
 // 自举前：对齐查询 align_of_*；mem_copy（不重叠）、mem_set、mem_zero、mem_move（允许重叠）、mem_compare；mem_swap；is_alignment_power_of_two；align_up/align_down。
 // 语义与 C memcpy/memset/memmove/memcmp 一致；mem_compare 返回 -1/0/1；当前用 .sx 实现，便于后端识别为内建时优化。

@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CHANNEL_RUNTIME" "$UB_SX" "$MAIN_
   fi
 done
 
-for kw in STD-044 send_unbounded channel_unbounded_close is_closed UNBOUNDED_INIT_CAP; do
+for kw in STD-044 send_unbounded unbounded_close is_closed UNBOUNDED_INIT_CAP; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-channel-unbounded gate FAIL: doc missing '$kw'" >&2
     exit 1

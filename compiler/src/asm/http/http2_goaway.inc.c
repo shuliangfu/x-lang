@@ -1,5 +1,5 @@
 /**
- * std/http/http2_goaway.inc.c — HTTP/2 GOAWAY 帧（RFC 7540 §6.8；STD-HTTP-H2-v24）
+ * std/http/goaway.inc.c — HTTP/2 GOAWAY 帧（RFC 7540 §6.8；STD-HTTP-H2-v24）
  *
  * 【文件职责】GOAWAY 帧构建/解析、错误码常量、离线烟测。
  * 由 http2.inc.c 末尾 #include。

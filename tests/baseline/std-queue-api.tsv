@@ -1,6 +1,6 @@
 # std.queue Tier-S stable public API (import std.queue)
-queue_i32_new
-queue_i32_push_back
-queue_i32_pop_front
-queue_i32_len
-queue_i32_deinit
+new
+push_back
+pop_front
+len
+deinit

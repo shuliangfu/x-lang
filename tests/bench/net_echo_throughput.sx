@@ -22,7 +22,7 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
 /** 写 4×4KiB；失败返回负值。 */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nw: i32 = net.stream_write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nw: i32 = net.write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nw != need) { return -1; }
   return nw;
 }
@@ -30,7 +30,7 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
 /** 读 4×4KiB；失败返回负值。 */
 function echo_read_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
-  let nr: i32 = net.stream_read_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
+  let nr: i32 = net.read_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
   if (nr != need) { return -1; }
   return nr;
 }

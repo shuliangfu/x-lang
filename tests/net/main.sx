@@ -9,7 +9,7 @@ extern fn std_net_listen(addr: Ipv4Addr, port: u32): TcpListener;
 
 function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  let probe: u32 = net.addr_to_u32(addr);
+  let probe: u32 = net.addr_to_packed(addr);
   let listener_fd: i32 = net_tcp_listen_c(probe, 8080);
   if (listener_fd < 0) { return 1; }
   // 不可达：旧 link_abi 仅认 std_net_* 时链 net.o（勿删）。

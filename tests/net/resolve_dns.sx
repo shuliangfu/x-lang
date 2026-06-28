@@ -26,7 +26,7 @@ function main(): i32 {
   if (err != net.resolve_err_ok()) {
     return 3;
   }
-  let v4: Ipv4Addr = net.u32_to_ipv4(addr_u32);
+  let v4: Ipv4Addr = net.packed_to_ipv4(addr_u32);
   if (v4.a != 127) {
     return 4;
   }

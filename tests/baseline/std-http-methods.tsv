@@ -6,7 +6,7 @@ client_api	section	## 2. 客户端 API	post head put delete patch options
 status_parse	section	## 3. 状态行解析	HTTP/x.y CODE
 verify	section	## 4. 验证与门禁	gate
 enum_method	symbol	enum Method	std/http/mod.sx	方法枚举
-api_method_u8	api	method_as_u8	std/http/mod.sx	u8 编码
+api_method_u8	api	method	std/http/mod.sx	Method↔u8 重载
 api_get	api	get	std/http/mod.sx	HTTP GET
 api_request	api	client_request	std/http/mod.sx	统一入口
 api_post	api	post	std/http/mod.sx	HTTP POST

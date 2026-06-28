@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.db.sqlite.sqlite — F-05 v3：SQLite3 后端与 stub 回退
 //
 // 【文件职责】
@@ -757,7 +773,7 @@ function db_rollback_c(handle: i64): i32 {
 }
 
 /** 读取最后一次库错误码。 */
-function db_last_error_code_c(): i32 {
+function db_last_code_c(): i32 {
   if (db_stub_active() != 0) {
     return g_db_last_err.code != 0 ? g_db_last_err.code : DB_NOT_IMPL;
   }
@@ -1214,7 +1230,7 @@ function db_sqlite_pool_smoke_c(): i32 {
     db_pool_close_c(pool);
     return 11;
   }
-  if (db_last_error_code_c() != DB_ERR_BUSY) { db_pool_release_c(pool, c3); db_pool_close_c(pool); return 12; }
+  if (db_last_code_c() != DB_ERR_BUSY) { db_pool_release_c(pool, c3); db_pool_close_c(pool); return 12; }
   if (db_pool_release_c(pool, c3) != DB_OK) { db_pool_close_c(pool); return 13; }
   if (db_pool_close_c(pool) != DB_OK) { return 14; }
   return 0;
@@ -1227,9 +1243,9 @@ function db_sqlite_stub_smoke_c(): i32 {
   if (db_str_eq(db_backend_name_c(), &SQL_LIT_STUB[0]) == 0) { return 0; }
   h = db_open_c(&SQL_LIT_MEMORY[0]);
   if (h != 0 as i64) { return 1; }
-  ec = db_last_error_code_c();
+  ec = db_last_code_c();
   if (ec != DB_NOT_IMPL) { return 2; }
   if (db_pool_open_c(&SQL_LIT_MEMORY[0], 1) != 0 as i64) { return 3; }
-  if (db_last_error_code_c() != DB_NOT_IMPL) { return 4; }
+  if (db_last_code_c() != DB_NOT_IMPL) { return 4; }
   return 0;
 }

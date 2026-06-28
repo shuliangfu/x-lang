@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.vec — 动态数组 Vec（对标 Zig ArrayList、Rust Vec、Go slice+append）
 //
 // 【文件职责】
@@ -27,7 +43,7 @@ allow(padding) struct Vec_i32 {
 }
 /** 新建空 Vec_i32（ptr 为 null，cap 0，al 为 default_allocator）；首次 push 时分配。 */
 function vec_i32_new(): Vec_i32 {
-  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_allocator() };
+  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
 /** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1，成功返回 0。 */
 function vec_i32_with_capacity(v: *Vec_i32, capacity: i32): i32 {
@@ -37,7 +53,7 @@ function vec_i32_with_capacity(v: *Vec_i32, capacity: i32): i32 {
     return 0;
   }
   let bytes: usize = (capacity as usize) * 4;
-  let pu: *u8 = heap.allocator_alloc(v.al, bytes);
+  let pu: *u8 = heap.alloc(v.al, bytes);
   if (pu == 0) {
     v.cap = 0;
     return -1;
@@ -57,12 +73,12 @@ function vec_i32_reserve_one(v: *Vec_i32): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  if (v.al.kind == heap.allocator_kind_arena() && v.ptr != 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let bytes: usize = (want as usize) * 4;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.allocator_alloc(v.al, bytes)
+    heap.alloc(v.al, bytes)
   } else {
-    heap.allocator_realloc(v.al, v.ptr as *u8, bytes)
+    heap.realloc(v.al, v.ptr as *u8, bytes)
   };
   if (pu == 0) {
     return -1;
@@ -97,7 +113,7 @@ function vec_i32_push_arena(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
     if (v.ptr != 0) {
       return -1;
     }
-    let pu: *u8 = heap.arena64_alloc(arena, (want * 4) as usize, 8);
+    let pu: *u8 = heap.arena64_alloc(arena, (want * 4) as usize, 8 as usize);
     if (pu == 0) {
       return -1;
     }
@@ -140,12 +156,12 @@ function vec_i32_truncate(v: *Vec_i32, new_len: i32): void {
 /** 确保容量至少为 new_cap；按 v.al realloc；arena 已有 ptr 时扩容返回 -1。 */
 function vec_i32_reserve(v: *Vec_i32, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
-  if (v.al.kind == heap.allocator_kind_arena() && v.ptr != 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let bytes: usize = (new_cap as usize) * 4;
   let pu: *u8 = if (v.ptr == 0) {
-    heap.allocator_alloc(v.al, bytes)
+    heap.alloc(v.al, bytes)
   } else {
-    heap.allocator_realloc(v.al, v.ptr as *u8, bytes)
+    heap.realloc(v.al, v.ptr as *u8, bytes)
   };
   if (pu == 0) {
     return -1;
@@ -162,7 +178,7 @@ function vec_i32_reserve(v: *Vec_i32, new_cap: i32): i32 {
 function vec_i32_append_slice(v: *Vec_i32, ptr: *i32, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (vec_i32_reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy_i32_at(v.ptr, v.len, ptr, n);
+  heap.copy(v.ptr, v.len, ptr, n);
   if (0 == 0) {
     v.len = v.len + n;
     return 0;
@@ -173,8 +189,8 @@ function vec_i32_append_slice(v: *Vec_i32, ptr: *i32, n: i32): i32 {
 function vec_i32_from_slice(ptr: *i32, n: i32): Vec_i32 {
   let v: Vec_i32 = vec_i32_new();
   if (n <= 0) { return v; }
-  if (vec_i32_with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, len: -1, cap: 0, al: heap.default_allocator() }; }
-  heap.copy_i32_at(v.ptr, 0, ptr, n);
+  if (vec_i32_with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.len = n;
     return v;
@@ -186,7 +202,7 @@ function vec_i32_ptr(v: Vec_i32): *i32 { return v.ptr; }
 /** 释放堆内存并将 ptr 置为 null、len/cap 置 0；按 v.al 释放。 */
 function vec_i32_deinit(v: *Vec_i32): void {
   if (v.ptr != 0) {
-    heap.allocator_free(v.al, v.ptr as *u8);
+    heap.free(v.al, v.ptr as *u8);
     v.ptr = 0;
   }
   v.len = 0;
@@ -202,7 +218,7 @@ allow(padding) struct Vec_u8 {
 }
 /** 新建空 Vec_u8；al 为 default_allocator（with_arena 内为 scope）。 */
 function vec_u8_new(): Vec_u8 {
-  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_allocator() };
+  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
 /** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1。 */
 function vec_u8_with_capacity(v: *Vec_u8, capacity: i32): i32 {
@@ -211,7 +227,7 @@ function vec_u8_with_capacity(v: *Vec_u8, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let pu: *u8 = heap.allocator_alloc(v.al, capacity);
+  let pu: *u8 = heap.alloc(v.al, capacity);
   if (pu == 0) {
     v.cap = 0;
     return -1;
@@ -229,11 +245,11 @@ function vec_u8_reserve_one(v: *Vec_u8): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  if (v.al.kind == heap.allocator_kind_arena() && v.ptr != 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let pu: *u8 = if (v.ptr == 0) {
-    heap.allocator_alloc(v.al, want)
+    heap.alloc(v.al, want)
   } else {
-    heap.allocator_realloc(v.al, v.ptr, want)
+    heap.realloc(v.al, v.ptr, want)
   };
   if (pu == 0) {
     return -1;
@@ -296,11 +312,11 @@ function vec_u8_truncate(v: *Vec_u8, new_len: i32): void {
 }
 function vec_u8_reserve(v: *Vec_u8, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
-  if (v.al.kind == heap.allocator_kind_arena() && v.ptr != 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
   let pu: *u8 = if (v.ptr == 0) {
-    heap.allocator_alloc(v.al, new_cap)
+    heap.alloc(v.al, new_cap)
   } else {
-    heap.allocator_realloc(v.al, v.ptr, new_cap)
+    heap.realloc(v.al, v.ptr, new_cap)
   };
   if (pu == 0) {
     return -1;
@@ -315,7 +331,7 @@ function vec_u8_reserve(v: *Vec_u8, new_cap: i32): i32 {
 function vec_u8_append_slice(v: *Vec_u8, ptr: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (vec_u8_reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy_u8_at(v.ptr, v.len, ptr, n);
+  heap.copy(v.ptr, v.len, ptr, n);
   if (0 == 0) {
     v.len = v.len + n;
     return 0;
@@ -324,8 +340,8 @@ function vec_u8_append_slice(v: *Vec_u8, ptr: *u8, n: i32): i32 {
 function vec_u8_from_slice(ptr: *u8, n: i32): Vec_u8 {
   let v: Vec_u8 = vec_u8_new();
   if (n <= 0) { return v; }
-  if (vec_u8_with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, len: -1, cap: 0, al: heap.default_allocator() }; }
-  heap.copy_u8_at(v.ptr, 0, ptr, n);
+  if (vec_u8_with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.len = n;
     return v;
@@ -335,7 +351,7 @@ function vec_u8_from_slice(ptr: *u8, n: i32): Vec_u8 {
 function vec_u8_ptr(v: Vec_u8): *u8 { return v.ptr; }
 function vec_u8_deinit(v: *Vec_u8): void {
   if (v.ptr != 0) {
-    heap.allocator_free(v.al, v.ptr);
+    heap.free(v.al, v.ptr);
     v.ptr = 0;
   }
   v.len = 0;
@@ -363,7 +379,7 @@ function vec_u8_push_with_allocator(v: *Vec_u8, al: heap.Allocator, x: u8): i32 
 /** STD-112：按 Allocator 释放；arena 路径为 no-op。 */
 function vec_u8_deinit_with_allocator(v: *Vec_u8, al: heap.Allocator): void {
   if (v.ptr != 0) {
-    heap.allocator_free(al, v.ptr);
+    heap.free(al, v.ptr);
     v.ptr = 0;
   }
   v.len = 0;
@@ -388,7 +404,7 @@ function vec_u16_reserve_one(v: *Vec_u16): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   let bytes: i32 = want * 2;
-  let p: *u8 = if (v.ptr == 0) { heap.alloc_u8(bytes) } else { heap.realloc_u8(v.ptr as *u8, bytes) };
+  let p: *u8 = if (v.ptr == 0) { heap.alloc(bytes) } else { heap.realloc(v.ptr as *u8, bytes) };
   if (p == 0) { return -1; }
   v.ptr = p as *u16;
   v.cap = want;
@@ -411,7 +427,7 @@ function vec_u16_get(v: Vec_u16, i: i32): u16 { return v.ptr[i]; }
 
 /** 释放 Vec_u16。 */
 function vec_u16_deinit(v: *Vec_u16): void {
-  if (v.ptr != 0) { heap.free_u8(v.ptr as *u8); v.ptr = 0; }
+  if (v.ptr != 0) { heap.free(v.ptr as *u8); v.ptr = 0; }
   v.len = 0;
   v.cap = 0;
 }
@@ -437,7 +453,7 @@ function vec_u64_with_capacity(v: *Vec_u64, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let p: *u64 = heap.alloc_u64(capacity);
+  let p: *u64 = heap.alloc(capacity);
   if (p == 0) {
     v.cap = 0;
     return -1;
@@ -456,7 +472,7 @@ function vec_u64_reserve_one(v: *Vec_u64): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  let p: *u64 = if (v.ptr == 0) { heap.alloc_u64(want) } else { heap.realloc_u64(v.ptr, want) };
+  let p: *u64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -469,7 +485,7 @@ function vec_u64_reserve_one(v: *Vec_u64): i32 {
 /** 确保容量至少 new_cap；失败 -1。 */
 function vec_u64_reserve(v: *Vec_u64, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
-  let p: *u64 = if (v.ptr == 0) { heap.alloc_u64(new_cap) } else { heap.realloc_u64(v.ptr, new_cap) };
+  let p: *u64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -483,7 +499,7 @@ function vec_u64_reserve(v: *Vec_u64, new_cap: i32): i32 {
 function vec_u64_append_slice(v: *Vec_u64, ptr: *u64, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (vec_u64_reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy_u64_at(v.ptr, v.len, ptr, n);
+  heap.copy(v.ptr, v.len, ptr, n);
   if (0 == 0) {
     v.len = v.len + n;
     return 0;
@@ -496,7 +512,7 @@ function vec_u64_from_slice(ptr: *u64, n: i32): Vec_u64 {
   let v: Vec_u64 = vec_u64_new();
   if (n <= 0) { return v; }
   if (vec_u64_with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, len: -1, cap: 0 }; }
-  heap.copy_u64_at(v.ptr, 0, ptr, n);
+  heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.len = n;
     return v;
@@ -512,7 +528,7 @@ function vec_u64_get(v: Vec_u64, i: i32): u64 { return v.ptr[i]; }
 
 /** 释放 Vec_u64。 */
 function vec_u64_deinit(v: *Vec_u64): void {
-  if (v.ptr != 0) { heap.free_u64(v.ptr); v.ptr = 0; }
+  if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
   v.len = 0;
   v.cap = 0;
 }
@@ -538,7 +554,7 @@ function vec_f64_with_capacity(v: *Vec_f64, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let p: *f64 = heap.alloc_f64(capacity);
+  let p: *f64 = heap.alloc(capacity);
   if (p == 0) {
     v.cap = 0;
     return -1;
@@ -557,7 +573,7 @@ function vec_f64_reserve_one(v: *Vec_f64): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  let p: *f64 = if (v.ptr == 0) { heap.alloc_f64(want) } else { heap.realloc_f64(v.ptr, want) };
+  let p: *f64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -570,7 +586,7 @@ function vec_f64_reserve_one(v: *Vec_f64): i32 {
 /** 确保容量至少 new_cap；失败 -1。 */
 function vec_f64_reserve(v: *Vec_f64, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
-  let p: *f64 = if (v.ptr == 0) { heap.alloc_f64(new_cap) } else { heap.realloc_f64(v.ptr, new_cap) };
+  let p: *f64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -584,7 +600,7 @@ function vec_f64_reserve(v: *Vec_f64, new_cap: i32): i32 {
 function vec_f64_append_slice(v: *Vec_f64, ptr: *f64, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (vec_f64_reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy_f64_at(v.ptr, v.len, ptr, n);
+  heap.copy(v.ptr, v.len, ptr, n);
   if (0 == 0) {
     v.len = v.len + n;
     return 0;
@@ -597,7 +613,7 @@ function vec_f64_from_slice(ptr: *f64, n: i32): Vec_f64 {
   let v: Vec_f64 = vec_f64_new();
   if (n <= 0) { return v; }
   if (vec_f64_with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, len: -1, cap: 0 }; }
-  heap.copy_f64_at(v.ptr, 0, ptr, n);
+  heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
     v.len = n;
     return v;
@@ -613,7 +629,7 @@ function vec_f64_get(v: Vec_f64, i: i32): f64 { return v.ptr[i]; }
 
 /** 释放 Vec_f64。 */
 function vec_f64_deinit(v: *Vec_f64): void {
-  if (v.ptr != 0) { heap.free_f64(v.ptr); v.ptr = 0; }
+  if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
   v.len = 0;
   v.cap = 0;
 }
@@ -646,13 +662,13 @@ function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let px: *f32 = heap.alloc_f32(capacity);
-  let py: *f32 = heap.alloc_f32(capacity);
-  let pz: *f32 = heap.alloc_f32(capacity);
+  let px: *f32 = heap.alloc(capacity);
+  let py: *f32 = heap.alloc(capacity);
+  let pz: *f32 = heap.alloc(capacity);
   if (px == 0 || py == 0 || pz == 0) {
-    if (px != 0) { heap.free_f32(px); }
-    if (py != 0) { heap.free_f32(py); }
-    if (pz != 0) { heap.free_f32(pz); }
+    if (px != 0) { heap.free(px); }
+    if (py != 0) { heap.free(py); }
+    if (pz != 0) { heap.free(pz); }
     v.cap = 0;
     return -1;
   }
@@ -671,9 +687,9 @@ function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  let px: *f32 = if (v.col_x == 0) { heap.alloc_f32(want) } else { heap.realloc_f32(v.col_x, want) };
-  let py: *f32 = if (v.col_y == 0) { heap.alloc_f32(want) } else { heap.realloc_f32(v.col_y, want) };
-  let pz: *f32 = if (v.col_z == 0) { heap.alloc_f32(want) } else { heap.realloc_f32(v.col_z, want) };
+  let px: *f32 = if (v.col_x == 0) { heap.alloc(want) } else { heap.realloc(v.col_x, want) };
+  let py: *f32 = if (v.col_y == 0) { heap.alloc(want) } else { heap.realloc(v.col_y, want) };
+  let pz: *f32 = if (v.col_z == 0) { heap.alloc(want) } else { heap.realloc(v.col_z, want) };
   if (px == 0 || py == 0 || pz == 0) {
     return -1;
   }
@@ -728,9 +744,9 @@ function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
 }
 /** 释放三列堆内存。 */
 function vec3f_soa_deinit(v: *Vec3f_soa): void {
-  if (v.col_x != 0) { heap.free_f32(v.col_x); v.col_x = 0; }
-  if (v.col_y != 0) { heap.free_f32(v.col_y); v.col_y = 0; }
-  if (v.col_z != 0) { heap.free_f32(v.col_z); v.col_z = 0; }
+  if (v.col_x != 0) { heap.free(v.col_x); v.col_x = 0; }
+  if (v.col_y != 0) { heap.free(v.col_y); v.col_y = 0; }
+  if (v.col_z != 0) { heap.free(v.col_z); v.col_z = 0; }
   v.len = 0;
   v.cap = 0;
 }
@@ -746,7 +762,7 @@ function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
     return 0;
   }
   let words: i32 = capacity * 3;
-  let p: *f32 = heap.alloc_f32(words);
+  let p: *f32 = heap.alloc(words);
   if (p == 0) {
     v.cap = 0;
     return -1;
@@ -765,7 +781,7 @@ function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let words: i32 = want * 3;
-  let p: *f32 = if (v.ptr == 0) { heap.alloc_f32(words) } else { heap.realloc_f32(v.ptr, words) };
+  let p: *f32 = if (v.ptr == 0) { heap.alloc(words) } else { heap.realloc(v.ptr, words) };
   if (p == 0) {
     return -1;
   }
@@ -806,7 +822,7 @@ function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
 /** 释放 AoS 堆缓冲。 */
 function vec3f_aos_deinit(v: *Vec3f_aos): void {
   if (v.ptr != 0) {
-    heap.free_f32(v.ptr);
+    heap.free(v.ptr);
     v.ptr = 0;
   }
   v.len = 0;

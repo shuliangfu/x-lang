@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SX" "$VEC_SX" "$HEAP_SX" tests/map/boun
   fi
 done
 
-for kw in Map_u64_i32 Map_str_i32 Vec_u64 Vec_f64 map_str_key_cap; do
+for kw in Map_u64_i32 Map_str_i32 Vec_u64 Vec_f64 str_key_cap; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-map-vec-extend gate FAIL: doc missing '$kw'" >&2
     exit 1

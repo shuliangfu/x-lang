@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MEM-C1 #[alloc]：省略 al 首参时 codegen 注入 default_allocator() / scope。
+# MEM-C1 #[alloc]：省略 al 首参时 codegen 注入 default_alloc() / scope。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c

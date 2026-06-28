@@ -23,10 +23,10 @@ function main(): i32 {
   if (net.connect_ctx_fd(loopback, 9, expired) != net_err_timeout()) {
     return 3;
   }
-  if (net.stream_read_ctx(fake, p, 0, expired) != net_err_timeout()) {
+  if (net.read_ctx(fake, p, 0, expired) != net_err_timeout()) {
     return 4;
   }
-  if (net.stream_write_ctx(fake, p, 0, expired) != net_err_timeout()) {
+  if (net.write_ctx(fake, p, 0, expired) != net_err_timeout()) {
     return 5;
   }
 

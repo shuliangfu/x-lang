@@ -1,8 +1,8 @@
 # STD-044：std.channel 无界模式与关闭语义 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
-> 关联：`std-channel-api.tsv`（Tier-S）、`tests/sanitize/std_channel_asan.sx`
+> 关联：`tests/baseline/std-channel-api.tsv`（Tier-S）、`tests/sanitize/std_channel_asan.sx`
 
 ---
 
@@ -21,9 +21,9 @@
 
 | API | 说明 |
 |-----|------|
-| `channel_i32_unbounded()` | 创建无界 channel；失败 0（Windows stub） |
-| `send_unbounded(ch, val)` | 委托 `channel_i32_send`；**不因满阻塞**，内部 cap 翻倍扩容 |
-| `try_recv_unbounded(ch, out)` | 委托 `channel_i32_try_recv` |
+| `unbounded()` | 创建无界 channel；失败 0（Windows stub） |
+| `send_unbounded(ch, val)` | 委托 `send`；**不因满阻塞**，内部 cap 翻倍扩容 |
+| `try_recv_unbounded(ch, out)` | 委托 `try_recv` |
 
 **与有界区别**：
 
@@ -41,9 +41,9 @@ v1 仅 **i32** channel；泛型 channel 留待后续 RFC。
 
 | API | 说明 |
 |-----|------|
-| `channel_unbounded_close(ch)` | 委托 `channel_i32_close`；`closed=1` 并 broadcast |
-| `channel_unbounded_is_closed(ch)` | 委托 `channel_i32_is_closed` |
-| `channel_i32_free(ch)` | 销毁；须先 close 或确认无并发使用 |
+| `unbounded_close(ch)` | 委托 `close`；`closed=1` 并 broadcast |
+| `unbounded_is_closed(ch)` | 委托 `is_closed` |
+| `free(ch)` | 销毁；须先 close 或确认无并发使用 |
 
 **关闭后行为**（金样 `unbounded_roundtrip.sx`）：
 
@@ -83,3 +83,4 @@ shux: [SHUX_STD_CHANNEL_UNBOUNDED] status=ok unbounded=1 main=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-17 | 无界语义文档 + is_closed + gate |
+| v1.1 | 2026-06-27 | API 简写：unbounded/close/free 等 |

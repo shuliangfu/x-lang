@@ -1,3 +1,19 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.async — 最小异步门面（F4）：wait 与 IO submit 分离
 //
 // 【文件职责】
@@ -94,27 +110,29 @@ allow(padding) struct AsyncRuntime {
 }
 
 /** 返回 Context 取消时 drain 的错误码。 */
-function async_err_ctx_abort(): i32 {
+function err_ctx_abort(): i32 {
   return SHUX_ASYNC_ERR_CTX_ABORT;
 }
 
 /** 绑定 Context 到当前 async 运行时（spawn/drain 取消传播）。 */
-function bind_context(ctx: Context): void {
-  shux_async_bind_context_c(ctx.handle);
+function bind_ctx(ctx: Context): void {
+  unsafe { shux_async_bind_context_c(ctx.handle); }
 }
 
-/** 弹出最近一次 bind_context。 */
-function unbind_context(): void {
-  shux_async_unbind_context_c();
+/** 弹出最近一次 bind_ctx。 */
+function unbind_ctx(): void {
+  unsafe { shux_async_unbind_context_c(); }
 }
 
 /** 返回当前绑定的 Context 句柄；未绑定返回 0。 */
-function current_context(): Context {
-  return Context { handle: shux_async_current_context_c() };
+function current_ctx(): Context {
+  unsafe {
+    return Context { handle: shux_async_current_context_c() };
+  }
 }
 
 /** 创建带默认 Context 的 AsyncRuntime。 */
-function runtime_new(ctx: Context): AsyncRuntime {
+function runtime(ctx: Context): AsyncRuntime {
   return AsyncRuntime { ctx_handle: ctx.handle };
 }
 
@@ -122,51 +140,72 @@ function runtime_new(ctx: Context): AsyncRuntime {
 function runtime_reset(rt: *AsyncRuntime): void {
   scheduler_reset();
   if (rt != 0 && rt.ctx_handle != 0) {
-    shux_async_bind_context_c(rt.ctx_handle);
+    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
   }
 }
 
-/** drain 直至空闲；Context 已取消时返回 async_err_ctx_abort()。 */
-function runtime_drain(rt: *AsyncRuntime): i32 {
+/** drain 直至空闲；Context 已取消时返回 err_ctx_abort()。 */
+function drain(rt: *AsyncRuntime): i32 {
   if (rt != 0 && rt.ctx_handle != 0) {
-    shux_async_bind_context_c(rt.ctx_handle);
+    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
   }
-  return shux_async_run_drain_until_idle();
+  unsafe {
+    return shux_async_run_drain_until_idle();
+  }
 }
 
 /** 提交 async 任务到就绪环；0 成功。 */
-function task_submit(fn: *u8): i32 {
-  return shux_async_task_submit(fn);
+function submit(fn: *u8): i32 {
+  unsafe {
+    return shux_async_task_submit(fn);
+  }
+}
+
+/** push seed 并 submit 协程（language spawn 的手动门面；与上一 overload 按实参个数分派）。 */
+function submit(fn: *u8, seed: i32): i32 {
+  unsafe {
+    return shux_async_spawn_i32(fn, seed);
+  }
 }
 
 /** 提交任务并绑定 Context；ctx 已取消时返回 -2。 */
-function task_submit_with_context(fn: *u8, ctx: Context): i32 {
-  return shux_async_task_submit_with_ctx(fn, ctx.handle);
+function submit_ctx(fn: *u8, ctx: Context): i32 {
+  unsafe {
+    return shux_async_task_submit_with_ctx(fn, ctx.handle);
+  }
 }
 
-/** STD-093：spawn 自动继承 bind_context 烟测；0 通过。 */
-function spawn_context_smoke(): i32 {
-  return shux_async_spawn_ctx_smoke_c();
+/** STD-093：spawn 自动继承 bind_ctx 烟测；0 通过。 */
+function spawn_ctx_smoke(): i32 {
+  unsafe {
+    return shux_async_spawn_ctx_smoke_c();
+  }
 }
 
 /** 清空就绪环与 IO 等待队列（保留 run seed 时见 shux_async_queue_reset_impl）。 */
 function scheduler_reset(): void {
-  shux_async_queue_reset();
+  unsafe { shux_async_queue_reset(); }
 }
 
 /** poll + drain 直至就绪环与 IO 等待队列皆空。 */
-function drain_until_idle(): i32 {
-  return shux_async_run_drain_until_idle();
+function drain_idle(): i32 {
+  unsafe {
+    return shux_async_run_drain_until_idle();
+  }
 }
 
 /** await IO 边界 suspend 门面。 */
 function cps_suspend_io(phase: *i32, next_phase: i32): i32 {
-  return shux_async_cps_suspend_io(phase, next_phase);
+  unsafe {
+    return shux_async_cps_suspend_io(phase, next_phase);
+  }
 }
 
 /** poll io_uring completion 并唤醒 IO 等待任务。 */
-function poll_io_completions(timeout_ms: u32): u32 {
-  return shux_io_poll_async_completions(timeout_ms);
+function poll_completions(timeout_ms: u32): u32 {
+  unsafe {
+    return shux_io_poll_async_completions(timeout_ms);
+  }
 }
 
 // ─── STD-049：io_uring 完整路径门面（与 std.io async API 对齐，供手动 CPS 驱动）───
@@ -175,8 +214,8 @@ function poll_io_completions(timeout_ms: u32): u32 {
 const IO_ASYNC_NOT_READY: i32 = -2;
 
 /** 当前线程 io_uring 是否可用；1 是，0 否（非 Linux 恒 0）。 */
-function io_uring_is_available(): i32 {
-  return io.io_uring_is_available();
+function uring_ok(): i32 {
+  return io.uring_ok();
 }
 
 /** 提交非阻塞 read；成功返回 slot>=0，失败 -1。 */
@@ -191,34 +230,34 @@ function write_async(handle: usize, ptr: *u8, len: usize): i32 {
 
 /** 按 fd 提交非阻塞 read（handle=fd）。 */
 function read_async_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return io.read_async(io.handle_from_fd(fd, 0), ptr, len);
+  return io.read_async(io.from_fd(fd, 0), ptr, len);
 }
 
 /** 按 fd 提交非阻塞 write（handle=fd）。 */
 function write_async_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return io.write_async(io.handle_from_fd(fd, 0), ptr, len);
+  return io.write_async(io.from_fd(fd, 0), ptr, len);
 }
 
 /** 收割指定 slot 的 read_async；未就绪返回 IO_ASYNC_NOT_READY。 */
-function complete_read_async_slot(slot: i32): i32 {
-  return io.complete_read_async_slot(slot);
+function complete_read(slot: i32): i32 {
+  return io.complete_read(slot);
 }
 
 /** 收割指定 slot 的 write_async；未就绪返回 IO_ASYNC_NOT_READY。 */
-function complete_write_async_slot(slot: i32): i32 {
-  return io.complete_write_async_slot(slot);
+function complete_write(slot: i32): i32 {
+  return io.complete_write(slot);
 }
 
 /** 单轮 IO pump：poll CQE + drain 就绪环/IO 等待队列；返回 drain 结果。 */
-function io_pump_once(): i32 {
-  poll_io_completions(0);
-  return drain_until_idle();
+function pump(): i32 {
+  poll_completions(0);
+  return drain_idle();
 }
 
 /**
  * 从 Context 推导 IO poll 超时毫秒；已取消/过期返回 net_err_*，否则 0 或正毫秒。
  */
-function io_timeout_ms_from_ctx(ctx: Context): i32 {
+function timeout_from_ctx(ctx: Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return err.net_err_cancelled();
   }
@@ -241,8 +280,8 @@ function io_timeout_ms_from_ctx(ctx: Context): i32 {
 }
 
 /** IO pump 前检查 Context；0 可继续，否则 net_err_cancelled/timeout。 */
-function io_ctx_check(ctx: Context): i32 {
-  let tm: i32 = io_timeout_ms_from_ctx(ctx);
+function ctx_check(ctx: Context): i32 {
+  let tm: i32 = timeout_from_ctx(ctx);
   if (tm == err.net_err_cancelled()) {
     return tm;
   }
@@ -264,20 +303,20 @@ function await_read_fd(rt: *AsyncRuntime, fd: i32, ptr: *u8, len: usize, max_rou
   let round: i32 = 0;
   while (round < max_rounds) {
     if (rt != 0) {
-      let chk: i32 = io_ctx_check(current_context());
+      let chk: i32 = ctx_check(current_ctx());
       if (chk != 0) {
         return chk;
       }
     }
-    let n: i32 = complete_read_async_slot(slot);
+    let n: i32 = complete_read(slot);
     if (n != IO_ASYNC_NOT_READY) {
       return n;
     }
     if (rt != 0) {
       poll_loop_ctx(rt, 1);
     } else {
-      poll_io_completions(0);
-      drain_until_idle();
+      poll_completions(0);
+      drain_idle();
     }
     round = round + 1;
   }
@@ -296,20 +335,20 @@ function await_write_fd(rt: *AsyncRuntime, fd: i32, ptr: *u8, len: usize, max_ro
   let round: i32 = 0;
   while (round < max_rounds) {
     if (rt != 0) {
-      let chk: i32 = io_ctx_check(current_context());
+      let chk: i32 = ctx_check(current_ctx());
       if (chk != 0) {
         return chk;
       }
     }
-    let n: i32 = complete_write_async_slot(slot);
+    let n: i32 = complete_write(slot);
     if (n != IO_ASYNC_NOT_READY) {
       return n;
     }
     if (rt != 0) {
       poll_loop_ctx(rt, 1);
     } else {
-      poll_io_completions(0);
-      drain_until_idle();
+      poll_completions(0);
+      drain_idle();
     }
     round = round + 1;
   }
@@ -340,12 +379,16 @@ extern function shux_async_net_fs_smoke_c(): i32;
 
 /** async net/fs fd 路径 C 烟测（pipe 模拟）；0 通过。 */
 function net_fs_async_smoke(): i32 {
-  return shux_async_net_fs_smoke_c();
+  unsafe {
+    return shux_async_net_fs_smoke_c();
+  }
 }
 
 /** IO 等待队列深度。 */
-function io_waiters_pending(): u32 {
-  return shux_async_io_waiters_pending();
+function waiters(): u32 {
+  unsafe {
+    return shux_async_io_waiters_pending();
+  }
 }
 
 /** CPS suspend 哨兵（与 scheduler_glue.c SHUX_ASYNC_SUSPENDED 一致）。 */
@@ -369,35 +412,29 @@ extern function shux_async_future_reset_c(): void;
 extern function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
 extern function shux_async_future_smoke_c(): i32;
 
-/** 返回 Poll::Pending 常量。 */
-function poll_pending(): i32 {
-  return POLL_PENDING;
-}
-
-/** 返回 Poll::Ready 常量。 */
-function poll_ready(): i32 {
-  return POLL_READY;
-}
-
 /** 创建 pending Future；池满时 handle=0。 */
 function future_new(): Future {
-  return Future { handle: shux_async_future_create_c() };
+  unsafe {
+    return Future { handle: shux_async_future_create_c() };
+  }
 }
 
 /**
- * 轮询 Future：poll_pending() / poll_ready()；非法 handle 返回 -1。
+ * 轮询 Future：POLL_PENDING / POLL_READY；非法 handle 返回 -1。
  */
 function future_poll(fut: *Future): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
-  return shux_async_future_poll_c(fut.handle);
+  unsafe {
+    return shux_async_future_poll_c(fut.handle);
+  }
 }
 
 /** 完成 Future 并写入 i32 结果。 */
 function future_complete(fut: *Future, value: i32): void {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return; }
-  shux_async_future_complete_c(fut.handle, value);
+  unsafe { shux_async_future_complete_c(fut.handle, value); }
 }
 
 /**
@@ -406,54 +443,64 @@ function future_complete(fut: *Future, value: i32): void {
 function future_take(fut: *Future, out: *i32): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero || out == 0) { return -1; }
-  return shux_async_future_take_c(fut.handle, out);
+  unsafe {
+    return shux_async_future_take_c(fut.handle, out);
+  }
 }
 
 /** 重置 Future 池（烟测/同进程二次 poll）。 */
 function future_reset(): void {
-  shux_async_future_reset_c();
+  unsafe { shux_async_future_reset_c(); }
 }
 
 /** C 侧 Future 烟测；0 通过。 */
 function future_smoke(): i32 {
-  return shux_async_future_smoke_c();
+  unsafe {
+    return shux_async_future_smoke_c();
+  }
 }
 
 /**
  * 带 scheduler drain 的 Future 等待（与 language await 轮询模型对齐）。
- * max_rounds 轮内 poll → poll_io_completions → drain_until_idle；Ready 返回 poll_ready()。
+ * max_rounds 轮内 poll → poll_completions → drain_idle；Ready 返回 POLL_READY。
  */
 function future_wait(fut: *Future, max_rounds: i32): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
-  return shux_async_future_wait_c(fut.handle, max_rounds);
+  unsafe {
+    return shux_async_future_wait_c(fut.handle, max_rounds);
+  }
 }
 
 /**
  * 绑定 AsyncRuntime Context 并 future_wait（await 手动驱动桥接）。
- * 返回 poll_ready() / poll_pending()；非法参数返回 -1。
+ * 返回 POLL_READY / POLL_PENDING；非法参数返回 -1。
  */
 function runtime_wait_future(rt: *AsyncRuntime, fut: *Future, max_rounds: i32): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
   if (rt != 0 && rt.ctx_handle != zero) {
-    shux_async_bind_context_c(rt.ctx_handle);
+    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
   }
   return future_wait(fut, max_rounds);
 }
 
 /**
  * 手动驱动 async 运行时：poll IO + drain，直至队列空或达到 max_rounds。
- * 返回各轮 drain_until_idle 结果之和（便于烟测观测进度）。
+ * 返回各轮 drain_idle 结果之和（便于烟测观测进度）。
  */
 function poll_loop(max_rounds: i32): i32 {
   let round: i32 = 0;
   let sum: i32 = 0;
   while (round < max_rounds) {
-    poll_io_completions(0);
-    let drained: i32 = drain_until_idle();
+    poll_completions(0);
+    let drained: i32 = drain_idle();
     sum = sum + drained;
-    if (shux_async_scheduler_pending() == 0 && io_waiters_pending() == 0) {
+    let pend: u32 = 0;
+    unsafe {
+      pend = shux_async_scheduler_pending();
+    }
+    if (pend == 0 && waiters() == 0) {
       break;
     }
     round = round + 1;
@@ -462,7 +509,7 @@ function poll_loop(max_rounds: i32): i32 {
 }
 
 /**
- * Context 绑定版 poll_loop：每轮按 ctx deadline 调用 poll_io_completions；
+ * Context 绑定版 poll_loop：每轮按 ctx deadline 调用 poll_completions；
  * ctx 已取消/过期时立即返回 net_err_cancelled/timeout。
  */
 function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
@@ -470,23 +517,27 @@ function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
   let sum: i32 = 0;
   let zero: i64 = 0;
   if (rt != 0 && rt.ctx_handle != zero) {
-    shux_async_bind_context_c(rt.ctx_handle);
+    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
   }
-  let ctx: Context = current_context();
+  let ctx: Context = current_ctx();
   while (round < max_rounds) {
-    let chk: i32 = io_ctx_check(ctx);
+    let chk: i32 = ctx_check(ctx);
     if (chk != 0) {
       return chk;
     }
-    let tm: i32 = io_timeout_ms_from_ctx(ctx);
+    let tm: i32 = timeout_from_ctx(ctx);
     let poll_ms: u32 = 0;
     if (tm > 0) {
       poll_ms = tm as u32;
     }
-    poll_io_completions(poll_ms);
-    let drained: i32 = drain_until_idle();
+    poll_completions(poll_ms);
+    let drained: i32 = drain_idle();
     sum = sum + drained;
-    if (shux_async_scheduler_pending() == 0 && io_waiters_pending() == 0) {
+    let pend: u32 = 0;
+    unsafe {
+      pend = shux_async_scheduler_pending();
+    }
+    if (pend == 0 && waiters() == 0) {
       break;
     }
     round = round + 1;
@@ -496,12 +547,16 @@ function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
 
 /** A1：switch dispatch 双任务 ping-pong；rounds 轮返回总 ops（2*rounds）。 */
 function coop_pingpong(rounds: i64): i64 {
-  return shux_async_coop_pingpong(rounds);
+  unsafe {
+    return shux_async_coop_pingpong(rounds);
+  }
 }
 
 /** A2：computed-goto 跳转表 dispatch；语义同 coop_pingpong。 */
 function coop_pingpong_jmp(rounds: i64): i64 {
-  return shux_async_coop_pingpong_jmp(rounds);
+  unsafe {
+    return shux_async_coop_pingpong_jmp(rounds);
+  }
 }
 
 /** 模块可 import 锚点（Future/Poll 见 future_* / poll_*）。 */
@@ -510,152 +565,3 @@ function placeholder(): i32 {
 }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function async_module_anchor(): i32 { return 0; }
-
-/* ─── STD-004 manifest 兼容别名（baseline 为 shu_async_*，C 符号为 shux_async_*） ─── */
-
-/** 绑定 Context（C 别名）。 */
-function shu_async_bind_context_c(ctx_handle: i64): void {
-  shux_async_bind_context_c(ctx_handle);
-}
-
-/** 当前 Context 句柄（C 别名）。 */
-function shu_async_current_context_c(): i64 {
-  return shux_async_current_context_c();
-}
-
-/** 解绑 Context（C 别名）。 */
-function shu_async_unbind_context_c(): void {
-  shux_async_unbind_context_c();
-}
-
-/** A1 ping-pong（C 别名）。 */
-function shu_async_coop_pingpong(rounds: i64): i64 {
-  return shux_async_coop_pingpong(rounds);
-}
-
-/** A2 jmp ping-pong（C 别名）。 */
-function shu_async_coop_pingpong_jmp(rounds: i64): i64 {
-  return shux_async_coop_pingpong_jmp(rounds);
-}
-
-/** CPS suspend（C 别名）。 */
-function shu_async_cps_suspend(phase: *i32, next_phase: i32): i32 {
-  return shux_async_cps_suspend(phase, next_phase);
-}
-
-/** CPS suspend IO（C 别名）。 */
-function shu_async_cps_suspend_io(phase: *i32, next_phase: i32): i32 {
-  return shux_async_cps_suspend_io(phase, next_phase);
-}
-
-/** run i32 协程（C 别名）。 */
-function shu_async_run_i32(fn: *u8): i32 {
-  return shux_async_run_i32(fn);
-}
-
-/** spawn i32 seed（C 别名）。 */
-function shu_async_spawn_i32(fn: *u8, seed: i32): i32 {
-  return shux_async_spawn_i32(fn, seed);
-}
-
-/** drain 直至空闲（C 别名）。 */
-function shu_async_run_drain_until_idle(): i32 {
-  return shux_async_run_drain_until_idle();
-}
-
-/** 重置 run seed 队列（C 别名）。 */
-function shu_async_run_seed_reset(): void {
-  shux_async_run_seed_reset();
-}
-
-function shu_async_run_seed_push_i32(v: i32): void {
-  shux_async_run_seed_push_i32(v);
-}
-
-function shu_async_run_seed_push_u32(v: u32): void {
-  shux_async_run_seed_push_u32(v);
-}
-
-function shu_async_run_seed_push_i64(v: i64): void {
-  shux_async_run_seed_push_i64(v);
-}
-
-function shu_async_run_seed_push_usize(v: usize): void {
-  shux_async_run_seed_push_usize(v);
-}
-
-function shu_async_run_seed_set_i32(v: i32): void {
-  shux_async_run_seed_set_i32(v);
-}
-
-function shu_async_run_seed_valid(): i32 {
-  return shux_async_run_seed_valid();
-}
-
-function shu_async_run_seed_take_i32(): i32 {
-  return shux_async_run_seed_take_i32();
-}
-
-function shu_async_run_seed_take_u32(): u32 {
-  return shux_async_run_seed_take_u32();
-}
-
-function shu_async_run_seed_take_i64(): i64 {
-  return shux_async_run_seed_take_i64();
-}
-
-function shu_async_run_seed_take_usize(): usize {
-  return shux_async_run_seed_take_usize();
-}
-
-/** 提交任务（C 别名）。 */
-function shu_async_task_submit(fn: *u8): i32 {
-  return shux_async_task_submit(fn);
-}
-
-/** 带 Context 提交（C 别名）。 */
-function shu_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32 {
-  return shux_async_task_submit_with_ctx(fn, ctx_handle);
-}
-
-/** spawn context 烟测（C 别名）。 */
-function shu_async_spawn_ctx_smoke_c(): i32 {
-  return shux_async_spawn_ctx_smoke_c();
-}
-
-/** 提交到指定 worker（C 别名）。 */
-function shu_async_task_submit_to(worker_id: u32, fn: *u8): i32 {
-  return shux_async_task_submit_to(worker_id, fn);
-}
-
-function shu_async_scheduler_drain(): i32 {
-  return shux_async_scheduler_drain();
-}
-
-function shu_async_worker_drain(worker_id: u32): i32 {
-  return shux_async_worker_drain(worker_id);
-}
-
-function shu_async_worker_count(): u32 {
-  return shux_async_worker_count();
-}
-
-function shu_async_worker_pending(worker_id: u32): u32 {
-  return shux_async_worker_pending(worker_id);
-}
-
-function shu_async_queue_reset(): void {
-  shux_async_queue_reset();
-}
-
-function shu_async_scheduler_pending(): u32 {
-  return shux_async_scheduler_pending();
-}
-
-function shu_async_io_wake_all(): void {
-  shux_async_io_wake_all();
-}
-
-function shu_async_io_waiters_pending(): u32 {
-  return shux_async_io_waiters_pending();
-}

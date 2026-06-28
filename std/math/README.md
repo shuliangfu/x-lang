@@ -6,7 +6,11 @@
 
 `pi` / `e` / `tau`；`floor` / `ceil` / `trunc` / `round`；三角/反三角；`sqrt` / `cbrt` / `pow` / `exp` / `log`；`erf` / `log1p` / `expm1`（STD-115）。
 
-链接需 **`-lm`**。
+## 实现
+
+- **公开 API**（`mod.sx`）：`pi` / `floor` / `sin` / `erf` / `fenv_available` 等短名；`extern math_*_c` 经 `unsafe` 包装。
+- **C 层**（`math_*_c`）：常量 `math_pi_c` 等在 `math.sx`；libm / signum / special_smoke 在 `runtime_math_libm.c`。
+- 链接需 **`-lm`** 与 `runtime_math_libm.o`。
 
 ## fenv（STD-059 / STD-149）
 

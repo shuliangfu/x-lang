@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$ENV_SX" "$ENV_IMPL" "$ENV_GLUE" "$SMOKE" "$
   fi
 done
 
-for kw in env_iter_next args_iter_next environ GetEnvironmentStringsA; do
+for kw in iter_next args_iter_next environ GetEnvironmentStringsA; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-env-iter gate FAIL: doc missing '$kw'" >&2
     exit 1

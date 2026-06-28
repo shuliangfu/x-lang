@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# MEM-C1 AL-01/02：default_allocator 块内 scope / 块外 heap 注入烟测。
+# MEM-C1 AL-01/02：default_alloc 块内 scope / 块外 heap 注入烟测。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
 FAIL="${SHUX_ALLOC_INJECT_GATE_FAIL:-0}"
-SRC="tests/mem/default_allocator.sx"
-OUT="/tmp/shux_default_allocator_$$"
+SRC="tests/mem/default_alloc.sx"
+OUT="/tmp/shux_default_alloc_$$"
 
 if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_alloc_inject_run.log 2>&1; then
   echo "alloc-inject-gate FAIL: build $SRC" >&2
@@ -34,10 +34,10 @@ if ! grep -q '__shux_scope_al_' "$gen"; then
   exit 0
 fi
 if ! grep -qE '\.kind = 0.*arena' "$gen"; then
-  echo "alloc-inject-gate FAIL: missing heap default_allocator emit (kind=0)" >&2
+  echo "alloc-inject-gate FAIL: missing heap default_alloc emit (kind=0)" >&2
   rm -f "$gen"
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
 rm -f "$gen"
-echo "alloc-inject-gate OK (AL-01/02 default_allocator scope/heap)"
+echo "alloc-inject-gate OK (AL-01/02 default_alloc scope/heap)"

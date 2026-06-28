@@ -10,7 +10,7 @@
 | `set(ptr, byte, n)` | 字节填充 ptr[0..n-1] = byte；n≤0 不写。对标 Zig std.mem.set、Rust ptr::write_bytes。 |
 | `compare(a, b, n)` | 字节比较 a[0..n-1] 与 b[0..n-1]；返回 <0 / 0 / >0。对标 Zig std.mem.compare、Go bytes.Compare。 |
 
-实现：`heap_ops.sx`（set/compare/map）+ `heap_libc.sx`（libc malloc）；无 `heap.c`。
+实现：`ops.sx`（set/compare/map）+ `libc.sx`（libc malloc）；无 `heap.c`。
 
 ### 有界封装（STD-144）
 

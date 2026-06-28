@@ -1,5 +1,5 @@
 # STD-120 db compat 向量
 # 列：case_id	input	expect	notes
 compat_import	import std.db	open 可用	兼容 import
-compat_deprecated	db_is_deprecated	1	废弃标记
+compat_deprecated	is_deprecated	1	废弃标记
 compat_backend	:memory: exec+changes	changes=1	与 sqlite 行为一致

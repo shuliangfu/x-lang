@@ -22,8 +22,8 @@
 | `hook_span_begin` / `hook_span_end` | 通用子 span 挂钩 |
 | `hook_io_read_ctx` / `hook_io_write_ctx` | 包装 `std.io` read_ctx/write_ctx |
 | `hook_net_connect_ctx` | 包装 `std.net.connect_ctx_fd` |
-| `hook_net_stream_read_ctx` | 包装 `std.net.stream_read_ctx` |
-| `hook_async_drain_ctx` | 包装 `std.async.runtime_drain` |
+| `hook_net_stream_read_ctx` | 包装 `std.net.read_ctx` |
+| `hook_async_drain_ctx` | 包装 `std.async.drain` |
 
 Context 未附着 trace 时各 hook **透传**底层调用；有 trace 时自动 `span_start_child` + `span_end`。
 

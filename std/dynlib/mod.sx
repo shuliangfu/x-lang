@@ -1,24 +1,53 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // std.dynlib — 动态加载 .so/.dll（对标 Zig std.DynLib、Rust libloading）
 //
 // 【文件职责】open(path)、sym(lib, name)、close(lib)。按需链接。
 // 【依赖】core；与 std/dynlib/dynlib.sx + runtime_dynlib_os.c 同属一模块（F-dynlib v2 / F-ZC）。
+
 extern function dynlib_open_c(path: *u8): *u8;
 extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
 extern function dynlib_close_c(lib: *u8): void;
 extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
+
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
 function open(path: *u8): *u8 {
-  return dynlib_open_c(path);
+  unsafe {
+    return dynlib_open_c(path);
+  }
 }
+
 /** 取符号 name（NUL 结尾）；失败返回 0。 */
 function sym(lib: *u8, name: *u8): *u8 {
-  return dynlib_sym_c(lib, name);
+  unsafe {
+    return dynlib_sym_c(lib, name);
+  }
 }
+
 /** 关闭动态库。 */
 function close(lib: *u8): void {
-  dynlib_close_c(lib);
+  unsafe {
+    dynlib_close_c(lib);
+  }
 }
+
 /** 复制最近一次 open/sym 失败诊断到 buf；返回写入字节数，无内容返回 0（STD-096）。 */
-function last_error(buf: *u8, cap: i32): i32 {
-  return dynlib_last_error_copy_c(buf, cap);
+function last_os_error(buf: *u8, cap: i32): i32 {
+  unsafe {
+    return dynlib_last_error_copy_c(buf, cap);
+  }
 }

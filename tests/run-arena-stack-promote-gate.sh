@@ -7,7 +7,7 @@ SHUX="${SHUX:-./compiler/shux-c}"
 SRC="tests/mem/arena_stack_promote.sx"
 OUT="/tmp/shux_arena_stack_promote"
 rm -f "$OUT"
-# 带 import 时 -E 可能 DCE 掉 main；用 SHUX_KEEP_C 保留完整 TU（同 scope_allocator gate）
+# 带 import 时 -E 可能 DCE 掉 main；用 SHUX_KEEP_C 保留完整 TU（同 scope_alloc gate）
 if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_asp_run.log 2>&1; then
   echo "arena-stack-promote-gate FAIL: compile/run failed" >&2
   tail -8 /tmp/shux_asp_run.log 2>/dev/null || true
@@ -23,7 +23,7 @@ if ! echo "$WA_BODY" | grep -qE '__shux_asp_p'; then
   echo "arena-stack-promote-gate FAIL: missing ASP stack storage __shux_asp_p in with_arena body" >&2
   exit 1
 fi
-if echo "$WA_BODY" | grep -qE 'heap_arena64_alloc_c|allocator_alloc\('; then
+if echo "$WA_BODY" | grep -qE 'heap_arena64_alloc_c|alloc\('; then
   echo "arena-stack-promote-gate FAIL: bump alloc still present in promoted with_arena body" >&2
   exit 1
 fi
@@ -37,7 +37,7 @@ if ! echo "$WA_BODY" | grep -qE 'return 7;'; then
 fi
 if SHUX_NO_ASP=1 SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "${OUT}.scalar" >/tmp/shux_asp_scalar.log 2>&1; then
   GEN2="$(grep 'kept generated C:' /tmp/shux_asp_scalar.log | sed 's/.*: //' | tail -1)"
-  if [ -n "$GEN2" ] && [ -f "$GEN2" ] && ! grep -qE 'heap_arena64_alloc_c|allocator_alloc\(' "$GEN2"; then
+  if [ -n "$GEN2" ] && [ -f "$GEN2" ] && ! grep -qE 'heap_arena64_alloc_c|alloc\(' "$GEN2"; then
     echo "arena-stack-promote-gate WARN: SHUX_NO_ASP=1 did not preserve bump alloc" >&2
   fi
 fi
@@ -87,7 +87,7 @@ if echo "$WA_ESC" | grep -q '__shux_asp_p'; then
   echo "asp-escape-gate FAIL: outer assign must skip ASP (__shux_asp_p present)" >&2
   exit 1
 fi
-if ! echo "$WA_ESC" | grep -qE 'make_pair_arena\(|allocator_alloc\('; then
+if ! echo "$WA_ESC" | grep -qE 'make_pair_arena\(|alloc\('; then
   echo "asp-escape-gate FAIL: escape path should keep factory/bump alloc in with_arena" >&2
   exit 1
 fi

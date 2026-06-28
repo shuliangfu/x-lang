@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$ATOMIC_RUNTIME" "$SMOKE_SX" std/a
   fi
 done
 
-for kw in STD-146 load_i16 compare_exchange_u64 fetch_sub_i64; do
+for kw in STD-146 load compare_exchange fetch_sub; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-atomic-widen gate FAIL: doc missing '$kw'" >&2
     exit 1

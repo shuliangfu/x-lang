@@ -72,7 +72,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-for stbl_api in hash_start hash_write_bytes hash_finish hash_bytes; do
+for stbl_api in start write_bytes finish bytes; do
   if ! grep -qF "$stbl_api" "$STBL_TSV" 2>/dev/null; then
     echo "std-hash-hasher-trait gate FAIL: STBL missing $stbl_api" >&2
     exit 1
@@ -103,7 +103,7 @@ stdlib_cm_native_shu() {
   esac
 }
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
-  :
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
 elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
   :
 fi

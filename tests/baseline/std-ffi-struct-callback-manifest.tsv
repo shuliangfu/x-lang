@@ -4,7 +4,8 @@ read_path	section	## 1. 目标	analysis/std-ffi-struct-callback-v1.md
 api_doc	section	## 2. 结构体与回调 API	analysis/std-ffi-struct-callback-v1.md
 api_point_pack	api	point_pack	std/ffi/mod.sx	POD 写入
 api_point_unpack	api	point_unpack	std/ffi/mod.sx	POD 读出
-api_invoke_cb	api	invoke_i32_cb	std/ffi/mod.sx	回调调用
+api_invoke_cb	api	invoke_cb	std/ffi/mod.sx	回调调用
+api_cb_double	api	cb_double_fn	std/ffi/mod.sx	内置回调
 struct_point	struct	FfiPoint	std/ffi/mod.sx	8 字节
 const_too_small	const	FFI_ERR_TOO_SMALL	std/ffi/mod.sx	-4
 symbol_smoke_c	symbol	ffi_struct_callback_smoke_c	std/ffi/ffi.sx	C 烟测

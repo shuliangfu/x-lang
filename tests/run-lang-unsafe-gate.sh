@@ -32,7 +32,10 @@ for f in \
   tests/unsafe/allow_padding_ok.sx \
   tests/unsafe/padding_rejected.sx \
   tests/unsafe/raw_ptr_null.sx \
-  tests/unsafe/extern_putchar.sx; do
+  tests/unsafe/extern_putchar.sx \
+  tests/unsafe/unsafe_block_deref_ok.sx \
+  tests/unsafe/deref_outside_unsafe_fail.sx \
+  tests/unsafe/extern_outside_unsafe_fail.sx; do
   if [ ! -f "$f" ]; then
     echo "lang-unsafe gate FAIL: missing $f" >&2
     exit 1
@@ -96,7 +99,8 @@ run_sx_case() {
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  if ! run_timeout_case "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
+  # LANG-007：relink seed 的 asm -o 路径 sx parse 回归中；`-backend c` 与 check 同走 C 前端（unsafe 边界已覆盖）。
+  if ! run_timeout_case "$SHUX_BIN" -backend c -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
     cat /tmp/shux_unsafe_compile.log >&2
     return 1
   fi
@@ -122,8 +126,8 @@ compile_fail_case() {
     echo "lang-unsafe FAIL $script: expected compile error" >&2
     return 1
   fi
-  if ! grep -qE 'implicit padding|typeck error' "$err"; then
-    echo "lang-unsafe FAIL $script: stderr missing implicit padding/typeck error" >&2
+  if ! grep -qE 'implicit padding|typeck error|requires unsafe block' "$err"; then
+    echo "lang-unsafe FAIL $script: stderr missing implicit padding/typeck/unsafe error" >&2
     cat "$err" >&2
     return 1
   fi
@@ -175,6 +179,15 @@ done < "$MATRIX"
 
 if [ "$FAILS" -gt 0 ]; then
   echo "lang-unsafe gate FAIL: ${FAILS} case(s)" >&2
+  exit 1
+fi
+
+echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap hook ==="
+chmod +x tests/run-g-ffi-5-std-wrap-gate.sh 2>/dev/null || true
+if env SHUX="$SHUX_BIN" ./tests/run-g-ffi-5-std-wrap-gate.sh; then
+  echo "lang-unsafe G-FFI-5 hook OK"
+else
+  echo "lang-unsafe gate FAIL: G-FFI-5 std wrap" >&2
   exit 1
 fi
 

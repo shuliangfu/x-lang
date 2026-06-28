@@ -23,7 +23,7 @@ for f in "$DOC" "$UNIFY_DOC" "$MANIFEST" "$LIB" "$ERR_MOD" "$SMOKE"; do
   fi
 done
 
-for kw in error_code_to_module_base last_error fs_last_error error_sidecar_db_struct; do
+for kw in code_to_module_base last_error fs_last_error sidecar_db_struct; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-error-map gate FAIL: doc missing '$kw'" >&2
     exit 1

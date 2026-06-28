@@ -11163,7 +11163,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
     }
   }
   /**
-   * FIELD_ACCESS struct 字段 CALL 实参（v.al → allocator_alloc）：>8B struct 须 lea 字段地址。
+   * FIELD_ACCESS struct 字段 CALL 实参（v.al → alloc）：>8B struct 须 lea 字段地址。
    * 优先按 callee 形参 type_ref；pty 缺失时按字段类型 layout（import heap.Allocator 等）。
    */
   if (arena && ctx && pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
@@ -11862,7 +11862,7 @@ static int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTA
   return 0;
 }
 
-/** CALL 实参：named struct 字段须 lea 传址（v.al→allocator_alloc）。 */
+/** CALL 实参：named struct 字段须 lea 传址（v.al→alloc）。 */
 static int32_t glue_field_access_call_arg_struct_by_addr_elf_c(struct ast_ASTArena *arena, int32_t fa_ref) {
   int32_t fty;
   if (!pipeline_asm_emit_call_arg_active_c())
@@ -14053,7 +14053,7 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
   return 0;
 }
 
-/** MEM-C1：with_arena emit 栈深度与当前 scope 内栈上 Arena64 偏移（供 default_allocator 内联）。 */
+/** MEM-C1：with_arena emit 栈深度与当前 scope 内栈上 Arena64 偏移（供 default_alloc 内联）。 */
 #define GLUE_WA_SCOPE_STACK_MAX 16
 static int32_t g_glue_wa_scope_off_stack[GLUE_WA_SCOPE_STACK_MAX];
 static int32_t g_glue_wa_scope_n;
@@ -14061,7 +14061,7 @@ static int32_t g_glue_wa_temp_base;
 static int32_t g_glue_wa_temp_next;
 static int32_t g_glue_wa_func_body_ref;
 
-/** 当前是否在 with_arena scope 内（backend_try_inline default_allocator 用）。 */
+/** 当前是否在 with_arena scope 内（backend_try_inline default_alloc 用）。 */
 int32_t glue_with_arena_scope_active_c(void) {
   return g_glue_wa_scope_n > 0 ? 1 : 0;
 }
@@ -14111,11 +14111,11 @@ static void glue_wa_scope_pop_c(void) {
     g_glue_wa_scope_n--;
 }
 
-/** heap_arena64_init_c(a, cap)：a=rbp+wa_off，cap 由 cap_ref 表达式求值。 */
+/** heap_arena_init_c(a, cap)：a=rbp+wa_off，cap 由 cap_ref 表达式求值。 */
 static int32_t glue_emit_with_arena_init_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              struct backend_AsmFuncCtx *ctx, int32_t wa_off, int32_t cap_ref,
                                              int32_t ta) {
-  static const uint8_t init_sym[] = "heap_arena64_init_c";
+  static const uint8_t init_sym[] = "heap_arena_init_c";
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
@@ -14479,7 +14479,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
     } else if (item_kind == 6) {
       /**
        * M-3 / MEM-C1：region / with_arena（parser stmt_order kind=6）。
-       * with_arena(cap>0)：栈上 Arena64 init → 块体 → deinit；块内 default_allocator 内联为 scope bump。
+       * with_arena(cap>0)：栈上 Arena64 init → 块体 → deinit；块内 default_alloc 内联为 scope bump。
        */
       glue_index_assign_addr_cache_clear();
       if (idx >= 0 && idx < ast_ast_block_num_regions(arena, block_ref)) {
@@ -19558,6 +19558,10 @@ int32_t ast_pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uin
                                          int32_t body_ref) {
   return pipeline_block_append_region(a, br, label, label_len, body_ref);
 }
+/** LANG-007 v2：parser.sx → ast_pool pipeline_block_append_unsafe。 */
+int32_t ast_pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t body_ref) {
+  return pipeline_block_append_unsafe(a, br, body_ref);
+}
 /** MEM-C1：parser.sx → ast_pool pipeline_block_append_with_arena。 */
 int32_t ast_pipeline_block_append_with_arena(struct ast_ASTArena *a, int32_t br, int32_t cap_ref, int32_t body_ref) {
   return pipeline_block_append_with_arena(a, br, cap_ref, body_ref);
@@ -20820,17 +20824,34 @@ int32_t pipeline_typeck_check_expr_addr_of_c(struct ast_Module *module, struct a
   return 0;
 }
 
+int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
+
 /**
  * typeck.sx::typeck_check_expr_deref 的 C 委托：操作数须为 *T，表达式类型 T。
+ * LANG-007 v2：S0 内须在 unsafe { } 块内解引用。
  */
+/** LANG-007 v2：unsafe { } 嵌套深度侧车（不扩 PipelineDepCtx，避免 seed 结构体漂移）。 */
+static int32_t g_typeck_unsafe_depth;
+
+extern void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);
+
 int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t op_ref;
   int32_t op_ptr;
   int32_t elem_ty;
+  int32_t line;
+  int32_t col;
 
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    driver_diagnostic_typeck_deref_outside_unsafe(line, col);
+    return -1;
+  }
   op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   if (!ast_ref_is_null(op_ref) &&
       pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
@@ -21284,6 +21305,8 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
       }
     }
   }
+  if (pipeline_typeck_reject_bare_import_const_c(module, arena, expr_ref, ctx, vbuf, vnlen))
+    return -1;
   if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
     return -1;
   return 0;
@@ -23772,6 +23795,9 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
  * M-3 / MEM-C1：typeck 单条 region 或 with_arena 块。
  * with_arena 无域标签，旧实现 label_len<=0 直接 return 0 会跳过体块 typeck，导致 AL-04 assign 逃逸漏报。
  */
+int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
+void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
+
 int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                  int32_t block_ref, int32_t region_idx, int32_t return_type_ref,
                                                  struct ast_PipelineDepCtx *ctx) {
@@ -23787,6 +23813,13 @@ int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, stru
   body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
   if (body_ref <= 0)
     return 0;
+  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
+    int32_t saved_ud;
+    saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+    return rc;
+  }
   wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
   if (wa_cap > 0) {
     /** MEM-C1：push with_arena 栈，使 check_expr_impl_mega / post-scan 能报 allocator region escape。 */
@@ -24439,12 +24472,53 @@ static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, st
 
 /**
  * EXPR_CALL：委托 typeck_sx.o 后做泛型返回类型单态化 fixup（bootstrap parser 未存 call type_args）。
+ * LANG-007 v2：S0 内 extern 调用须位于 unsafe { } 块内。
  */
+extern void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col);
+
+static int32_t glue_module_func_index_by_name_c(struct ast_Module *mod, uint8_t *name, int32_t name_len);
+
+static int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
+                                                                   struct ast_ASTArena *arena, int32_t expr_ref,
+                                                                   struct ast_PipelineDepCtx *ctx) {
+  int32_t callee_ref;
+  int32_t callee_kind;
+  int32_t name_len;
+  uint8_t name[64];
+  int32_t fi;
+  int32_t line;
+  int32_t col;
+
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
+    return 0;
+  if (!module || !arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
+    return 0;
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+  if (callee_ref <= 0 || callee_ref > arena->num_exprs)
+    return 0;
+  callee_kind = pipeline_expr_kind_ord_at(arena, callee_ref);
+  if (callee_kind != (int32_t)ast_ExprKind_EXPR_VAR)
+    return 0;
+  name_len = pipeline_expr_var_name_len(arena, callee_ref);
+  if (name_len <= 0 || name_len > 63)
+    return 0;
+  pipeline_expr_var_name_into(arena, callee_ref, name);
+  fi = glue_module_func_index_by_name_c(module, name, name_len);
+  if (fi < 0 || pipeline_module_func_is_extern_at(module, fi) == 0)
+    return 0;
+  line = pipeline_expr_line_at(arena, expr_ref);
+  col = pipeline_expr_col_at(arena, expr_ref);
+  driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
+  return -1;
+}
+
 int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                           int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t rc;
   int32_t callee_ref;
   int32_t ret_ty;
+  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0)
+    return -1;
   /** 勿经 glue typeck_check_expr_call 互递归；直调 seed 子步骤 + glue resolve。 */
   rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
                                   pipeline_expr_call_num_args_at(arena, expr_ref));
@@ -24469,6 +24543,12 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
 int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+
+/** 覆盖 typeck_sx.o stub：DEREF 走 pipeline_typeck_check_expr_deref_c（含 LANG-007 unsafe 边界）。 */
+int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
 /** 覆盖 typeck_sx.o stub：METHOD_CALL 走 pipeline_typeck_check_expr_method_call_c。 */
@@ -24549,9 +24629,9 @@ int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct
   if (kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF)
     return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_DEREF)
-    return typeck_check_expr_deref(module, arena, expr_ref, return_type_ref, ctx);
+    return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_VAR)
-    return typeck_check_expr_var(module, arena, expr_ref, ctx);
+    return pipeline_typeck_check_expr_var_c(module, arena, expr_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_AS)
     return typeck_check_expr_as(module, arena, expr_ref, ctx);
   if (kind == GLUE_EXPR_KIND_TRY_PROPAGATE || kind == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
@@ -24668,6 +24748,27 @@ void pipeline_typeck_loop_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t sa
   if (!ctx)
     return;
   ctx->typeck_loop_depth = saved_loop_depth;
+}
+
+/** LANG-007 v2：读 unsafe { } 嵌套深度侧车。 */
+int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx) {
+  (void)ctx;
+  return g_typeck_unsafe_depth;
+}
+
+/** LANG-007 v2：check_block unsafe { }：typeck_unsafe_depth++，返回进入前的深度。 */
+int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx) {
+  int32_t saved;
+  (void)ctx;
+  saved = g_typeck_unsafe_depth;
+  g_typeck_unsafe_depth = saved + 1;
+  return saved;
+}
+
+/** LANG-007 v2：check_block unsafe { }：恢复 typeck_unsafe_depth。 */
+void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth) {
+  (void)ctx;
+  g_typeck_unsafe_depth = saved_unsafe_depth;
 }
 
 /** 写 ctx.typeck_loop_depth；typeck_loop_depth_push/pop SX emit 用。 */

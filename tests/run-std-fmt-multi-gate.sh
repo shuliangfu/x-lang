@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SX" "$SMOKE" "$RUNNER"; do
   fi
 done
 
-for kw in 'usize, usize' 'i32, i32, i32' fmt_ptr_to_buf; do
+for kw in 'usize, usize' 'i32, i32, i32' ptr_to_buf; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-fmt-multi gate FAIL: doc missing '$kw'" >&2
     exit 1

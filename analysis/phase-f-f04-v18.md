@@ -7,7 +7,7 @@
 | 文件 | 说明 |
 |------|------|
 | `std/crypto/chacha20_poly1305.sx` | ChaCha20、Poly1305、seal/open/smoke C ABI |
-| `std/crypto/crypto_core.sx` | mem_eq、SHA-256、HMAC-SHA256（v16） |
+| `std/crypto/core.sx` | mem_eq、SHA-256、HMAC-SHA256（v16） |
 | `std/crypto/aes_gcm.sx` | AES-128-GCM（v17） |
 | `std/crypto/crypto_inc_glue.c` | ed25519.inc.c + SHA-512 / HMAC-SHA512 |
 | ~~`std/crypto/chacha20_poly1305.inc.c`~~ | 已删除 |

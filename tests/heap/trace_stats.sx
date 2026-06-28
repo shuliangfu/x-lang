@@ -8,16 +8,16 @@ function main(): i32 {
     realloc_count: 0 as u64,
     bytes_allocated: 0 as u64
   };
-  heap.heap_trace_reset();
-  heap.heap_trace_stats(&st);
+  heap.trace_reset();
+  heap.trace_stats(&st);
   if (st.alloc_count != 0 as u64 || st.free_count != 0 as u64) { return 1; }
 
-  let p: *u8 = heap.alloc(32);
+  let p: *u8 = heap.alloc(32 as usize);
   if (p == 0 as *u8) { return 2; }
   heap.free(p);
 
-  heap.heap_trace_stats(&st);
-  if (heap.heap_trace_enabled() == 0) {
+  heap.trace_stats(&st);
+  if (heap.trace_on() == 0) {
     // 未设置 SHUX_HEAP_TRACE 时计数器保持 0
     if (st.alloc_count != 0 as u64) { return 3; }
     if (st.free_count != 0 as u64) { return 4; }

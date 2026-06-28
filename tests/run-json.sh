@@ -3,7 +3,9 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
+make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
+# shellcheck source=tests/lib/build-std-c-o.sh
+. "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/json/json.o
 SHUX="${SHUX:-}"
 if [ -z "$SHUX" ]; then

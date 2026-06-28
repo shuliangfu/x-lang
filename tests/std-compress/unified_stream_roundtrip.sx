@@ -4,13 +4,13 @@ const compress = import("std.compress");
 function main(): i32 {
   let raw: u8[13] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33, 0];
   let raw_len: i32 = 12;
-  let sb: i32 = stream_compress_state_bytes();
+  let sb: i32 = compress.compress_state_bytes();
   if (sb <= 0 || sb > 256) { return 99; }
   let st_c: u8[256] = [];
   let st_d: u8[256] = [];
   let sc: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
   let sd: StreamCompress = StreamCompress { format: 0, mode: 0, state: 0 as *u8, state_cap: 0 };
-  if (stream_compress_init(&sc, &st_c[0], sb, compress_format_gzip(), compress_stream_mode_compress()) != 0) {
+  if (compress.compress_init(&sc, &st_c[0], sb, compress.format_gzip(), compress.mode_compress()) != 0) {
     return 0;
   }
   let comp: u8[512] = [];
@@ -27,11 +27,11 @@ function main(): i32 {
     let pin: i32 = off;
     while (pending > 0) {
       let consumed: i32 = 0;
-      let n: i32 = stream_compress_process(sc, &raw[pin], pending, &scratch[0], 128, 0, &consumed);
-      if (n < 0) { stream_compress_end(sc); return 1; }
+      let n: i32 = compress.compress_process(sc, &raw[pin], pending, &scratch[0], 128, 0, &consumed);
+      if (n < 0) { compress.compress_end(sc); return 1; }
       let j: i32 = 0;
       while (j < n) {
-        if (comp_len >= 512) { stream_compress_end(sc); return 2; }
+        if (comp_len >= 512) { compress.compress_end(sc); return 2; }
         comp[comp_len] = scratch[j];
         comp_len = comp_len + 1;
         j = j + 1;
@@ -44,11 +44,11 @@ function main(): i32 {
       let drain: i32 = 1;
       while (drain != 0) {
         let consumed2: i32 = 0;
-        let n2: i32 = stream_compress_process(sc, &raw[0], 0, &scratch[0], 128, 1, &consumed2);
+        let n2: i32 = compress.compress_process(sc, &raw[0], 0, &scratch[0], 128, 1, &consumed2);
         if (n2 < 0) { drain = 0; break; }
         let k: i32 = 0;
         while (k < n2) {
-          if (comp_len >= 512) { stream_compress_end(sc); return 3; }
+          if (comp_len >= 512) { compress.compress_end(sc); return 3; }
           comp[comp_len] = scratch[k];
           comp_len = comp_len + 1;
           k = k + 1;
@@ -58,9 +58,9 @@ function main(): i32 {
     }
     off = off + take;
   }
-  stream_compress_end(sc);
+  compress.compress_end(sc);
   if (comp_len <= 0) { return 4; }
-  if (stream_compress_init(&sd, &st_d[0], sb, compress_format_gzip(), compress_stream_mode_decompress()) != 0) {
+  if (compress.compress_init(&sd, &st_d[0], sb, compress.format_gzip(), compress.mode_decompress()) != 0) {
     return 5;
   }
   let dec: u8[256] = [];
@@ -71,11 +71,11 @@ function main(): i32 {
     let dtake: i32 = dchunk;
     if (cin + dtake > comp_len) { dtake = comp_len - cin; }
     let dconsumed: i32 = 0;
-    let dn: i32 = stream_compress_process(sd, &comp[cin], dtake, &scratch[0], 128, 0, &dconsumed);
-    if (dn < 0) { stream_compress_end(sd); return 6; }
+    let dn: i32 = compress.compress_process(sd, &comp[cin], dtake, &scratch[0], 128, 0, &dconsumed);
+    if (dn < 0) { compress.compress_end(sd); return 6; }
     let m: i32 = 0;
     while (m < dn) {
-      if (dec_len >= 256) { stream_compress_end(sd); return 7; }
+      if (dec_len >= 256) { compress.compress_end(sd); return 7; }
       dec[dec_len] = scratch[m];
       dec_len = dec_len + 1;
       m = m + 1;
@@ -83,7 +83,7 @@ function main(): i32 {
     if (dconsumed <= 0) { break; }
     cin = cin + dconsumed;
   }
-  stream_compress_end(sd);
+  compress.compress_end(sd);
   if (dec_len != raw_len) { return 8; }
   let i: i32 = 0;
   while (i < raw_len) {

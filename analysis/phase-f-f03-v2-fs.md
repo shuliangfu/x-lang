@@ -1,13 +1,13 @@
 # 阶段 F-03 v2（std.fs 去 C：删除 fs.c）
 
-> **F-03 v2**：`std/fs/fs.c`（1106 行）迁至 **`fs_posix.sx` / `fs_win32.sx`** + `mod.sx` 薄转发；**删除** `fs.c` / `fs.o`；链接改 **-lc**（POSIX）/ kernel32+ws2_32+mswsock（Windows）。
+> **F-03 v2**：`std/fs/fs.c`（1106 行）迁至 **`posix.sx` / `win32.sx`** + `mod.sx` 薄转发；**删除** `fs.c` / `fs.o`；链接改 **-lc**（POSIX）/ kernel32+ws2_32+mswsock（Windows）。
 
 ## v2 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `fs_posix.sx` | Linux/macOS libc FFI：mmap/readv/sendfile/splice/stat/opendir 等 |
-| `fs_win32.sx` | CreateFile/MapViewOfFile/ReadFile/TransmitFile/FindFirstFile 等 |
+| `posix.sx` | Linux/macOS libc FFI：mmap/readv/sendfile/splice/stat/opendir 等 |
+| `win32.sx` | CreateFile/MapViewOfFile/ReadFile/TransmitFile/FindFirstFile 等 |
 | `mod.sx` | `#[cfg]` import 平台模块；`fs_*_c` 函数体转发 |
 | 删除 | `std/fs/fs.c`、`Makefile` 中 `fs.o` 规则与链入行 |
 | 链接 | `runtime_link_abi.c` 移除 `fs.o` push；`have_fs` → `-lc` |

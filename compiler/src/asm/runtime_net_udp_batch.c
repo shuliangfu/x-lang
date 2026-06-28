@@ -1,7 +1,7 @@
 /**
- * runtime_net_udp_batch.c — Linux recvmmsg/sendmmsg 胶层（F-ZC：自 std/net/net_udp_batch_glue.c 迁入）
+ * runtime_net_udp_batch.c — Linux recvmmsg/sendmmsg 胶层（F-ZC：自 std/net/udp_batch_glue.c 迁入）
  *
- * mmsghdr/iovec 批量 syscall 暂由 C 提供；主逻辑与回退路径见 net_udp_batch.sx。
+ * mmsghdr/iovec 批量 syscall 暂由 C 提供；主逻辑与回退路径见 udp_batch.sx。
  * 仅 __linux__ && __GLIBC__ 编译有效符号；其它平台为空 TU。与 net.o 一并链入 exe。
  * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 shux_asm 未链 runtime_net_udp_batch.o 时解析符号。
  */

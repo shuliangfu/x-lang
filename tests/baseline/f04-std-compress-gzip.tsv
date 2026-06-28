@@ -1,8 +1,8 @@
 # F-04 v5 std.compress gzip manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_gzip_c	symbol	compress_gzip_compress_c	std/compress/gzip/gzip_libz.sx	块压
-symbol_gzip_d	symbol	compress_gzip_decompress_c	std/compress/gzip/gzip_libz.sx	块解
-symbol_stream_state	symbol	compress_gzip_stream_state_bytes_c	std/compress/gzip/gzip_libz.sx	流状态
-symbol_stream_compress	symbol	compress_gzip_stream_compress_c	std/compress/gzip/gzip_libz.sx	流压
-import_libz	symbol	import("std.compress.gzip.gzip_libz")	std/compress/gzip/mod.sx	import 转发
+symbol_gzip_c	symbol	compress_gzip_compress_c	std/compress/gzip/libz.sx	块压
+symbol_gzip_d	symbol	compress_gzip_decompress_c	std/compress/gzip/libz.sx	块解
+symbol_stream_state	symbol	compress_gzip_stream_state_bytes_c	std/compress/gzip/libz.sx	流状态
+symbol_stream_compress	symbol	compress_gzip_stream_compress_c	std/compress/gzip/libz.sx	流压
+import_libz	symbol	import("std.compress.gzip.libz")	std/compress/gzip/mod.sx	import 转发
 absent_c	absent	std/compress/gzip/gzip.c	删除 gzip.c

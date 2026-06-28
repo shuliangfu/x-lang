@@ -17,12 +17,12 @@ v1 仍默认 **seq_cst**；未新增带 Ordering 参数的重载。
 
 ## 2. 16/64 API
 
-| 宽度 | 新增 API |
+| 宽度 | 公开 API（*T 重载） |
 |------|----------|
-| **i16** | `load_i16` / `store_i16` / `compare_exchange_i16` / `fetch_add_i16` |
-| **u16** | `load_u16` / `store_u16` / `compare_exchange_u16` / `fetch_add_u16` |
-| **i64** | `compare_exchange_i64` / `fetch_sub_i64`（补齐） |
-| **u64** | `fetch_add_u64` / `fetch_sub_u64` / `compare_exchange_u64`（补齐） |
+| **i16** | `load` / `store` / `compare_exchange` / `fetch_add`（`*i16`） |
+| **u16** | `load` / `store` / `compare_exchange` / `fetch_add`（`*u16`） |
+| **i64** | `compare_exchange` / `fetch_sub`（`*i64`，补齐） |
+| **u64** | `fetch_add` / `fetch_sub` / `compare_exchange`（`*u64`，补齐） |
 
 ---
 

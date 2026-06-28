@@ -19,7 +19,7 @@ std_compress_brotli_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/compress/brotli/brotli_lib.sx|std/compress/brotli/brotli.c) path="$compress_c" ;;
+          std/compress/brotli/lib.sx|std/compress/brotli/brotli.c) path="$compress_c" ;;
         esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;

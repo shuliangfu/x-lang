@@ -40,8 +40,8 @@ grep -q 'std/path/mod.sx' compiler/Makefile || die "Makefile missing mod.sx path
 if grep -q 'std/path/path\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/path/path.c"
 fi
-grep -q 'path_sep_c' std/path/mod.sx || die "mod.sx missing path_sep_c"
-grep -q 'extern function path_sep_c' std/path/mod.sx && die "mod.sx still extern path_sep_c"
+grep -qE 'function sep\(' std/path/mod.sx || die "mod.sx missing sep"
+grep -q 'extern function sep' std/path/mod.sx && die "mod.sx still extern sep"
 
 # path.o 构建（无 shux-c 时 SKIP smoke，不 FAIL）
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then

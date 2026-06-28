@@ -7,7 +7,7 @@ MOD_SX="std/compress/mod.sx"
 SMOKE_SX="tests/std-compress/brotli_zstd_stream_smoke.sx"
 
 echo "=== STD-136: compress brotli/zstd stream manifest ==="
-for f in "$MANIFEST" "$MOD_SX" "$SMOKE_SX" std/compress/brotli/brotli_lib.sx std/compress/zstd/zstd_lib.sx; do
+for f in "$MANIFEST" "$MOD_SX" "$SMOKE_SX" std/compress/brotli/lib.sx std/compress/zstd/lib.sx; do
   [ -f "$f" ] || { echo "std-compress-brotli-zstd-stream gate FAIL: missing $f" >&2; exit 1; }
 done
 
