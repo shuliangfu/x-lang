@@ -9,7 +9,11 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 
-"$RUN_SHUX" tests/multi-file/main.sx -o /tmp/shux_multi_file 2>&1
+# seed/shux_asm：非 TTY stdout 会挂起；须 tee|cat Drain（nohup >>log / W3 bstrict 同根因）。
+if ! "$RUN_SHUX" tests/multi-file/main.sx -o /tmp/shux_multi_file 2>&1 | tee /tmp/shux_multi_file_build.log | cat >/dev/null; then
+  echo "multi-file: compile failed (see /tmp/shux_multi_file_build.log)" >&2
+  exit 1
+fi
 exitcode=0
 /tmp/shux_multi_file >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 42 ]; then
