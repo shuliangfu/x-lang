@@ -10,7 +10,10 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 # 确保 compiler 与 std/sync/sync.o 已构建（链接阶段需要 sync.o）
 make -C compiler -q 2>/dev/null || make -C compiler
-ensure_std_c_o ../std/sync/sync.o
+# W3 gold best-effort：跳过 ensure_std_c_o（make+seed shux 易挂起/进程风暴）。
+if [ -z "${SHUX_W3_SKIP_STD_ENSURE:-}" ]; then
+  ensure_std_c_o ../std/sync/sync.o
+fi
 
 SHUX="${SHUX:-./compiler/shux}"
 # shellcheck source=lib/bootstrap-link-shux.sh
