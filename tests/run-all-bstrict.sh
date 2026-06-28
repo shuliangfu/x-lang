@@ -78,6 +78,18 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
   fi
 fi
 
+# W3 gold：pinned seed 上跑全量 123 项极慢且易挂；FAST 只跑白名单子集。
+if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] && [ -z "${SHUX_W3_BSTRICT_FAST:-}" ]; then
+  export SHUX_W3_BSTRICT_FAST=1
+fi
+# shellcheck source=lib/w3-bstrict-fast.sh
+. "$(dirname "$0")/lib/w3-bstrict-fast.sh"
+_w3_wall_start=$(date +%s)
+_w3_stat_ok=0
+_w3_stat_skip=0
+_w3_stat_fail=0
+_w3_stat_timeout=0
+
 # 与 run-shux-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
 BSTRICT_SCRIPTS=(
   run-lexer.sh
@@ -210,6 +222,20 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     echo "run-all-bstrict: missing tests/$script" >&2
     exit 1
   fi
+  # Wall clock：整段 L5 不得超过 SHUX_W3_BSTRICT_WALL_SEC（默认 900s）。
+  if [ -n "${SHUX_W3_BSTRICT_WALL_SEC:-}" ] && [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    _w3_elapsed=$(($(date +%s) - _w3_wall_start))
+    if [ "$_w3_elapsed" -ge "${SHUX_W3_BSTRICT_WALL_SEC}" ]; then
+      echo "run-all-bstrict: WARN wall ${_w3_elapsed}s >= ${SHUX_W3_BSTRICT_WALL_SEC}s; stop early (W3)" >&2
+      break
+    fi
+  fi
+  # FAST：非白名单脚本秒级 SKIP（pinned seed 上无 gold 信号）。
+  if [ -n "${SHUX_W3_BSTRICT_FAST:-}" ] && ! w3_bstrict_fast_should_run "$script"; then
+    echo "run-all-bstrict: skip $script (W3 fast; pinned seed subset)"
+    _w3_stat_skip=$((_w3_stat_skip + 1))
+    continue
+  fi
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
   # Darwin：连续 shux_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
@@ -299,26 +325,31 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] && command -v timeout >/dev/null 2>&1; then
       # nohup >> log 时 stdout 非 TTY，子脚本内 shux -o 会挂起；须 tee|cat Drain。
       _w3_script_log="/tmp/w3_bstrict_${script%.sh}.log"
-      if timeout -k 15 "${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-60}" \
+      _w3_script_timeout="${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-20}"
+      if timeout -k 10 "$_w3_script_timeout" \
         env SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" \
         bash -c "./tests/$script 2>&1 | tee \"$_w3_script_log\" | cat >/dev/null"; then
         _script_ok=1
       else
         _rc=$?
+        w3_bstrict_cleanup_orphans
         if [ "$_rc" -eq 124 ]; then
-          echo "run-all-bstrict: WARN timeout $script (${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-60}s; W3 best-effort)" >&2
+          echo "run-all-bstrict: WARN timeout $script (${_w3_script_timeout}s; W3 best-effort)" >&2
+          _w3_stat_timeout=$((_w3_stat_timeout + 1))
         fi
       fi
     elif SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
       _script_ok=1
     fi
     if [ "$_script_ok" -eq 1 ]; then
+      _w3_stat_ok=$((_w3_stat_ok + 1))
       break
     fi
     if [ "$attempt" -ge "$_max_attempts" ]; then
       echo "run-all-bstrict: $script failed after ${_max_attempts} attempt(s)" >&2
       if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
         echo "run-all-bstrict: WARN continue ($script; SHUX_W3_BSTRICT_BEST_EFFORT=1)" >&2
+        _w3_stat_fail=$((_w3_stat_fail + 1))
         break
       fi
       exit 1
@@ -330,5 +361,6 @@ done
 
 echo "run-all-bstrict OK (${#BSTRICT_SCRIPTS[@]} scripts, compiler/shux is shux_asm)"
 if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
-  echo "run-all-bstrict: W3 best-effort complete (individual script failures logged above)"
+  _w3_elapsed=$(($(date +%s) - _w3_wall_start))
+  echo "run-all-bstrict: W3 best-effort complete ok=${_w3_stat_ok} skip=${_w3_stat_skip} fail=${_w3_stat_fail} timeout=${_w3_stat_timeout} wall=${_w3_elapsed}s"
 fi
