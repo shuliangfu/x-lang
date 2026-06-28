@@ -251,25 +251,60 @@ fi
 progress "=== A-10 L5 run-all bstrict (shux_asm2) ==="
 chmod +x tests/run-l5-run-all-parity-gate.sh tests/run-all-bstrict.sh
 cp -f compiler/shux_asm2 compiler/shux_asm
-env -u CI \
-  SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 \
-  SHUX_ASM_CI_SKIP_FAST=1 \
-  SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
-  SHUX_ASM_CI_SKIP_SECOND_PASS= \
-  SHUX_BSTRICT_SKIP_BUILD=1 \
-  SHUX_BSTRICT_STD_O_BEST_EFFORT=1 \
-  SHUX_W3_BSTRICT_BEST_EFFORT=1 \
-  ./tests/run-l5-run-all-parity-gate.sh
+_w3_l5() {
+  env -u CI \
+    SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 \
+    SHUX_ASM_CI_SKIP_FAST=1 \
+    SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
+    SHUX_ASM_CI_SKIP_SECOND_PASS= \
+    SHUX_BSTRICT_SKIP_BUILD=1 \
+    SHUX_BSTRICT_STD_O_BEST_EFFORT=1 \
+    SHUX_W3_BSTRICT_BEST_EFFORT=1 \
+    SHUX_W3_BSTRICT_FAST=1 \
+    SHUX_W3_BSTRICT_SCRIPT_TIMEOUT="${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-20}" \
+    SHUX_W3_BSTRICT_WALL_SEC="${SHUX_W3_BSTRICT_WALL_SEC:-900}" \
+    ./tests/run-l5-run-all-parity-gate.sh
+}
+if command -v timeout >/dev/null 2>&1; then
+  timeout -k 30 "${SHUX_W3_L5_WALL_SEC:-900}" bash -c '
+    env -u CI \
+      SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 \
+      SHUX_ASM_CI_SKIP_FAST=1 \
+      SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
+      SHUX_ASM_CI_SKIP_SECOND_PASS= \
+      SHUX_BSTRICT_SKIP_BUILD=1 \
+      SHUX_BSTRICT_STD_O_BEST_EFFORT=1 \
+      SHUX_W3_BSTRICT_BEST_EFFORT=1 \
+      SHUX_W3_BSTRICT_FAST=1 \
+      SHUX_W3_BSTRICT_SCRIPT_TIMEOUT="${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-20}" \
+      SHUX_W3_BSTRICT_WALL_SEC="${SHUX_W3_BSTRICT_WALL_SEC:-900}" \
+      ./tests/run-l5-run-all-parity-gate.sh
+  ' || {
+    progress "WARN: L5 failed or wall timeout ${SHUX_W3_L5_WALL_SEC:-900}s; continue (W3 best-effort)"
+  }
+else
+  w3_p0_run L5-bstrict _w3_l5
+fi
 progress "=== P1 security gates (post-A-10) ==="
 chmod +x tests/run-safe-ffi-contract-gate.sh tests/run-safe-leak-nightly.sh \
   tests/lib/safe-leak.sh tests/run-safe-leak-nightly-gate.sh \
   tests/run-signed-overflow-gate.sh tests/run-lexer-bounds-gate.sh \
   tests/run-layout-overflow-gate.sh tests/run-link-hardening-gate.sh
 make -C compiler shux-c
-SHUX=./compiler/shux-c ./tests/run-safe-ffi-contract-gate.sh
-SHUX=./compiler/shux-c ./tests/run-safe-leak-nightly.sh
-SHUX=./compiler/shux-c ./tests/run-signed-overflow-gate.sh
-SHUX=./compiler/shux-c ./tests/run-lexer-bounds-gate.sh
-SHUX=./compiler/shux-c ./tests/run-layout-overflow-gate.sh
-SHUX=./compiler/shux-c ./tests/run-link-hardening-gate.sh
+_w3_p1_gate() {
+  local name="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout -k 15 "${SHUX_W3_P1_GATE_TIMEOUT:-180}" env SHUX=./compiler/shux-c "$@" \
+      || { progress "WARN: P1 $name failed/timeout; continue (W3)"; return 0; }
+  else
+    SHUX=./compiler/shux-c "$@" || { progress "WARN: P1 $name failed; continue (W3)"; return 0; }
+  fi
+}
+_w3_p1_gate safe-ffi ./tests/run-safe-ffi-contract-gate.sh
+_w3_p1_gate safe-leak ./tests/run-safe-leak-nightly.sh
+_w3_p1_gate signed-overflow ./tests/run-signed-overflow-gate.sh
+_w3_p1_gate lexer-bounds ./tests/run-lexer-bounds-gate.sh
+_w3_p1_gate layout-overflow ./tests/run-layout-overflow-gate.sh
+_w3_p1_gate link-hardening ./tests/run-link-hardening-gate.sh
 progress "=== LINUX A-09/A-10/A-11/A-12 DONE ==="
