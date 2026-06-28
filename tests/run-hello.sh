@@ -63,8 +63,16 @@ else
     $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.sx -o /tmp/shux_hello
   else
     # -o 链接走 driver 全路径；与 run-all-sx 一致带 -L .
-    $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.sx -o /tmp/shux_hello 1>/dev/null
+    # seed/shux_asm：非 TTY stdout 重定向会挂起；须 tee|cat Drain（Codespace gold L5）。
+    if ! $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.sx -o /tmp/shux_hello 2>&1 | tee /tmp/shux_hello_build.log | cat >/dev/null; then
+      echo "hello compile failed (see /tmp/shux_hello_build.log)" >&2
+      exit 1
+    fi
   fi
+fi
+if [ ! -x /tmp/shux_hello ]; then
+  echo "hello compile failed (no executable /tmp/shux_hello)" >&2
+  exit 1
 fi
 out=$(/tmp/shux_hello)
 echo "$out" | grep -q "Hello World" || { echo "expected 'Hello World' in output, got: $out"; exit 1; }
