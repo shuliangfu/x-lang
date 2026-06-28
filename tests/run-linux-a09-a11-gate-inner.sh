@@ -33,6 +33,14 @@ if [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ]; then
     SHUX_BOOTSTRAP_NO_POSTLINK_FALLBACK=1
   )
 fi
+# 显式冷启动：Git pinned seed 作 Stage0 鸡，但 gen1 必须 != pinned（蛋须新编译）
+if [ "${SHUX_BOOTSTRAP_COLD_START_PINNED:-1}" = "1" ]; then
+  W3_ANTI_COLLAPSE_ENV+=(
+    SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK=1
+    SHUX_BOOTSTRAP_COLD_START_PINNED=1
+    SHUX_BOOTSTRAP_NO_PINNED_FALLBACK=0
+  )
+fi
 
 # 用法：
 #   SHUX_W3_RESUME_FROM=ensure — 跳过 seed/gen1/gen2（stage1/2 已存在）

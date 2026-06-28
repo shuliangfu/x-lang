@@ -107,10 +107,18 @@ bootstrap_anti_collapse_check() {
 
   # --- 审计标记：本轮是否发生 silent fallback ---
   if [ -f "$dir/bootstrap-seed.pinned-fallback" ] \
-    && [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ]; then
+    && [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ] \
+    && [ "${SHUX_BOOTSTRAP_COLD_START_PINNED:-0}" != "1" ]; then
     echo "bootstrap-anti-collapse FAIL: seed smoke used pinned fallback (鸡生蛋链断裂风险)" >&2
+    echo "  hint: 若 intentional 冷启动，设 SHUX_BOOTSTRAP_COLD_START_PINNED=1 并确保 gen1!=pinned" >&2
     bootstrap_audit_log "FAIL seed pinned fallback"
     fail=1
+  fi
+
+  if [ -f "$dir/bootstrap-seed.pinned-fallback" ] \
+    && [ "${SHUX_BOOTSTRAP_COLD_START_PINNED:-0}" = "1" ]; then
+    echo "bootstrap-anti-collapse: explicit cold-start pinned seed (须 gen1!=pinned 证真编译)"
+    bootstrap_audit_log "INFO cold-start pinned allowed"
   fi
 
   if [ -f "$dir/bootstrap-postlink.compiler-fallback" ] \
