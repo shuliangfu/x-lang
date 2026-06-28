@@ -312,7 +312,7 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       break
     fi
     if [ "$attempt" -ge "$_max_attempts" ]; then
-      echo "run-all-bstrict: $script failed after 3 attempts" >&2
+      echo "run-all-bstrict: $script failed after ${_max_attempts} attempt(s)" >&2
       if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
         echo "run-all-bstrict: WARN continue ($script; SHUX_W3_BSTRICT_BEST_EFFORT=1)" >&2
         break
