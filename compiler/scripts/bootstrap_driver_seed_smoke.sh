@@ -27,15 +27,23 @@ fi
 
 printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 
+# run_smoke — 对 bootstrap seed 编译器做 -c 与 -o 烟测。
+# bootstrap seed 默认 asm -o 会链入 std/*.o 缺 C bridge（ld 失败）或 SIGSEGV；-backend c 走 C 后端可执行链。
+# 参数：bin — 待测 shux 路径；成功返回 0。
 run_smoke() {
   local bin="$1"
   local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
-  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain（与 W3 gold 同根因）。
-  if ! "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+  local _rc=0
+  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain；用 PIPESTATUS[0] 取 shux 真实退出码。
+  "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  _rc="${PIPESTATUS[0]:-1}"
+  if [ "$_rc" -ne 0 ]; then
     return 1
   fi
   rm -f "$SMOKE_OUT"
-  if ! "$bin" -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+  "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  _rc="${PIPESTATUS[0]:-1}"
+  if [ "$_rc" -ne 0 ]; then
     return 1
   fi
   [ -x "$SMOKE_OUT" ] || return 1
@@ -61,7 +69,7 @@ host_seed_path() {
 }
 
 if run_smoke "$TARGET"; then
-  echo "bootstrap_driver_seed_smoke: OK $TARGET (-c + -o exit=42)"
+  echo "bootstrap_driver_seed_smoke: OK $TARGET (-c + -backend c -o exit=42)"
   exit 0
 fi
 
