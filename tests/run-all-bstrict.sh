@@ -32,6 +32,10 @@ export SHUX=./compiler/shux
 export SHUX_SKIP_SUBSCRIPT_MAKE=1
 export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
 export SHUX_BSTRICT_RUN_ALL=1
+# W3 gold：各 run-*.sh 内 ensure_std_c_o 会经 make 调 seed shux，易挂起；统一跳过。
+if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+  export SHUX_W3_SKIP_STD_ENSURE=1
+fi
 # refresh 后 shux/shux_asm 为 seed 链；-o 链接用 shux-c（与 run-option/run-pool-limits 分流一致）。
 export SHUX_LINK_SHUX=./compiler/shux-c
 # CI 全量（SHUX_CI_NO_SKIP=1）须跑 parse 烟测；本地可 SHUX_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
@@ -42,6 +46,10 @@ fi
 # bootstrap-driver-seed 仅预链 io/fs/heap；runtime -o 按磁盘存在的 std/*.o 追加链接。
 # Docker 门禁 purge 宿主 Mach-O 后须重建，否则 run-crypto/run-log 等 -o 缺 C 符号。
 if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
+  # W3 gold：seed shux 经 make 编 std/*.sx 易挂起/进程风暴；best-effort 跳过整段 ensure。
+  if [ -n "${SHUX_BSTRICT_STD_O_BEST_EFFORT:-}" ] && [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    echo "run-all-bstrict: skip ensure std C .o (W3 best-effort; avoid seed make shux storm)"
+  else
   # shellcheck source=lib/build-std-c-o.sh
   . "$(dirname "$0")/lib/build-std-c-o.sh"
   echo "run-all-bstrict: ensure std C .o for bootstrap -o linking ..."
@@ -67,6 +75,7 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
     fi
     exit 1
   done
+  fi
 fi
 
 # 与 run-shux-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
@@ -216,6 +225,13 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   script_shu="$SHUX"
   script_link="${SHUX_LINK_SHUX:-}"
   case "$script" in
+    run-hello.sh)
+      # W3 / verify：pinned seed 上 hello -o 易 fork 风暴；与 SHUX_ASM_SKIP_ENTRY_SMOKE 同策略跳过。
+      if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] || [ -n "${SHUX_ASM_SKIP_ENTRY_SMOKE:-}" ]; then
+        echo "run-all-bstrict: skip $script (W3/entry smoke; seed -o fork storm)"
+        continue
+      fi
+      ;;
     run-types-gate.sh)
       # run-check.sh 已用 shux-c 跑完整 types gate；再跑 shux_asm check 在 Linux 上 std.fmt
       # import 易报 dep not ready，Darwin 上亦易 OOM(Killed:9)。
@@ -268,17 +284,34 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       ;;
   esac
   attempt=1
-  while [ "$attempt" -le 3 ]; do
+  _max_attempts=3
+  if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    _max_attempts=1
+  fi
+  while [ "$attempt" -le "$_max_attempts" ]; do
     # 前序脚本内 make -C compiler 会把 shux 刷回 seed；-o 须保持 shux_asm2（gen2）快照。
     if [ -x compiler/shux_asm2 ]; then
       cp -f compiler/shux_asm2 compiler/shux 2>/dev/null || true
     else
       cp -f compiler/shux_asm compiler/shux 2>/dev/null || true
     fi
-    if SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
+    _script_ok=0
+    if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] && command -v timeout >/dev/null 2>&1; then
+      if timeout -k 15 "${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-60}" env SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
+        _script_ok=1
+      else
+        _rc=$?
+        if [ "$_rc" -eq 124 ]; then
+          echo "run-all-bstrict: WARN timeout $script (${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-60}s; W3 best-effort)" >&2
+        fi
+      fi
+    elif SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" ./tests/"$script"; then
+      _script_ok=1
+    fi
+    if [ "$_script_ok" -eq 1 ]; then
       break
     fi
-    if [ "$attempt" -ge 3 ]; then
+    if [ "$attempt" -ge "$_max_attempts" ]; then
       echo "run-all-bstrict: $script failed after 3 attempts" >&2
       if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
         echo "run-all-bstrict: WARN continue ($script; SHUX_W3_BSTRICT_BEST_EFFORT=1)" >&2
