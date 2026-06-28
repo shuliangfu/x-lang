@@ -29,12 +29,18 @@ printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 
 run_smoke() {
   local bin="$1"
-  "$bin" -c "$SMOKE_SRC" >/dev/null 2>&1 || return 1
+  local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
+  # 非 TTY stdout 重定向会挂起/SIGTERM；须 tee|cat Drain（与 W3 gold 同根因）。
+  if ! "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+    return 1
+  fi
   rm -f "$SMOKE_OUT"
-  "$bin" -o "$SMOKE_OUT" "$SMOKE_SRC" >/dev/null 2>&1 || return 1
+  if ! "$bin" -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null; then
+    return 1
+  fi
   [ -x "$SMOKE_OUT" ] || return 1
   local ec=0
-  "$SMOKE_OUT" >/dev/null 2>&1 || ec=$?
+  "$SMOKE_OUT" 2>&1 | tee "$_log" | cat >/dev/null || ec=$?
   [ "$ec" -eq 42 ]
 }
 
