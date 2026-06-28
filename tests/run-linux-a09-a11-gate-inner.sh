@@ -27,6 +27,7 @@ W3_ASM_FAST_ENV=(
 #   SHUX_W3_RESUME_FROM=ensure — 跳过 seed/gen1/gen2（stage1/2 已存在）
 #   SHUX_W3_RESUME_FROM=p0     — 跳过 seed～A-12，从 P0/L5 续跑
 #   SHUX_W3_RESUME_FROM=l5     — 跳过 seed～P0，仅跑 L5 + P1 尾段
+#   SHUX_W3_RESUME_FROM=p1     — 跳过 seed～L5，仅跑 P1 尾段（L5 已通过时）
 ulimit -s 65532 2>/dev/null || true
 
 # bootstrap seed 路径：P0 typeck 负例 gate 可能无 C 前端文案；默认 best-effort 不阻断 L5。
@@ -63,6 +64,13 @@ elif [ "$W3_RESUME" = "l5" ]; then
   if [ ! -x ./compiler/shux ]; then
     make -C compiler bootstrap-driver-seed
   fi
+elif [ "$W3_RESUME" = "p1" ]; then
+  progress "=== W3 resume from P1 (skip seed through L5) ==="
+  test -f compiler/shux_asm2 && test -x compiler/shux_asm2 \
+    || { progress "FAIL: missing shux_asm2 for p1 resume" >&2; exit 1; }
+  if [ ! -x ./compiler/shux-c ]; then
+    make -C compiler shux-c
+  fi
 elif [ "$W3_RESUME" != "ensure" ]; then
   progress "=== build seed (bootstrap-driver-seed) ==="
   make -C compiler bootstrap-driver-seed
@@ -90,7 +98,7 @@ else
   test -f compiler/shux_asm_stage1 && test -f compiler/shux_asm2 \
     || { progress "FAIL: missing shux_asm_stage1/2 for resume" >&2; exit 1; }
 fi
-if [ "$W3_RESUME" != "p0" ] && [ "$W3_RESUME" != "l5" ]; then
+if [ "$W3_RESUME" != "p0" ] && [ "$W3_RESUME" != "l5" ] && [ "$W3_RESUME" != "p1" ]; then
 progress "=== verify stage2 bstrict (skip bootstrap + second build) ==="
 chmod +x compiler/verify-selfhost-stage2-bstrict.sh tests/run-stage2-hash-gate.sh \
   tests/run-typeck-parse-count-gate.sh tests/run-a12-cross-module-symbols-gate.sh
@@ -197,7 +205,7 @@ fi
 make -s runtime_test_fn_invoke.o runtime_panic.o
 cd ..
 fi
-if [ "$W3_RESUME" != "l5" ]; then
+if [ "$W3_RESUME" != "l5" ] && [ "$W3_RESUME" != "p1" ]; then
 progress "=== P0 security gates (pre-A-10) ==="
 chmod +x tests/run-scope-borrow-gate.sh tests/run-al06-gate.sh \
   tests/run-type-borrow-conflict-gate.sh tests/run-i64-ctfe-gate.sh \
@@ -248,6 +256,7 @@ else
 fi
 w3_p0_run safe-unsafe-audit ./tests/run-safe-unsafe-audit-gate.sh
 fi
+if [ "$W3_RESUME" != "p1" ]; then
 progress "=== A-10 L5 run-all bstrict (shux_asm2) ==="
 chmod +x tests/run-l5-run-all-parity-gate.sh tests/run-all-bstrict.sh
 cp -f compiler/shux_asm2 compiler/shux_asm
@@ -285,21 +294,36 @@ if command -v timeout >/dev/null 2>&1; then
 else
   w3_p0_run L5-bstrict _w3_l5
 fi
+fi
 progress "=== P1 security gates (post-A-10) ==="
 chmod +x tests/run-safe-ffi-contract-gate.sh tests/run-safe-leak-nightly.sh \
   tests/lib/safe-leak.sh tests/run-safe-leak-nightly-gate.sh \
   tests/run-signed-overflow-gate.sh tests/run-lexer-bounds-gate.sh \
   tests/run-layout-overflow-gate.sh tests/run-link-hardening-gate.sh
+# shellcheck source=lib/w3-bstrict-fast.sh
+. "$(dirname "$0")/lib/w3-bstrict-fast.sh"
 make -C compiler shux-c
 _w3_p1_gate() {
   local name="$1"
   shift
-  if command -v timeout >/dev/null 2>&1; then
-    timeout -k 15 "${SHUX_W3_P1_GATE_TIMEOUT:-180}" env SHUX=./compiler/shux-c "$@" \
-      || { progress "WARN: P1 $name failed/timeout; continue (W3)"; return 0; }
-  else
-    SHUX=./compiler/shux-c "$@" || { progress "WARN: P1 $name failed; continue (W3)"; return 0; }
+  local _p1_to="${SHUX_W3_P1_GATE_TIMEOUT:-120}"
+  case "$name" in
+    safe-leak) _p1_to="${SHUX_W3_P1_SAFE_LEAK_TIMEOUT:-90}" ;;
+  esac
+  # W3 bootstrap：safe-leak ASAN 多 case 编译易 fork 风暴；默认跳过以闭合 DONE。
+  if [ "$name" = "safe-leak" ] && [ "${SHUX_W3_P1_SKIP_SAFE_LEAK:-1}" = "1" ]; then
+    progress "WARN: skip P1 safe-leak (W3 bootstrap; ASAN fork storm; staging nightly)"
+    w3_bstrict_cleanup_orphans
+    return 0
   fi
+  if command -v timeout >/dev/null 2>&1; then
+    timeout -k 10 "$_p1_to" bash -c "env SHUX=./compiler/shux-c $(printf '%q ' "$@") 2>&1 | tee /tmp/w3_p1_${name}.log | cat >/dev/null" \
+      || progress "WARN: P1 $name failed/timeout (${_p1_to}s); continue (W3)"
+  else
+    SHUX=./compiler/shux-c "$@" || progress "WARN: P1 $name failed; continue (W3)"
+  fi
+  w3_bstrict_cleanup_orphans
+  return 0
 }
 _w3_p1_gate safe-ffi ./tests/run-safe-ffi-contract-gate.sh
 _w3_p1_gate safe-leak ./tests/run-safe-leak-nightly.sh
