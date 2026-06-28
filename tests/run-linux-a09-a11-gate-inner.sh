@@ -11,6 +11,9 @@ cd "$(dirname "$0")/.."
 
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
 
+# 仓库根绝对路径（smoke 在 compiler/ 内跑，审计目录须统一写 repo/logs）
+_SHUX_REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # A-11 分块 parse 连续 exec 编译器；提高 nofile 避免 ~90 chunk 后 EMFILE。
 ulimit -n 8192 2>/dev/null || ulimit -n 4096 2>/dev/null || true
 
@@ -25,7 +28,7 @@ W3_ASM_FAST_ENV=(
 
 # 防塌陷：W3 gold 默认禁止 smoke 静默复制 pinned/旧编译器（见 tests/lib/bootstrap-anti-collapse.sh）
 W3_ANTI_COLLAPSE_ENV=(
-  SHUX_BOOTSTRAP_AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-logs}"
+  SHUX_BOOTSTRAP_AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-$_SHUX_REPO_ROOT/logs}"
 )
 if [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ]; then
   W3_ANTI_COLLAPSE_ENV+=(
