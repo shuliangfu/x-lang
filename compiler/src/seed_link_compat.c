@@ -1,5 +1,7 @@
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 struct ast_Module;
 struct backend_AsmFuncCtx;
@@ -326,169 +328,372 @@ __attribute__((weak)) int32_t backend_fold_func_x_plus_k_chain(void *arena, stru
   return inner_k + addend;
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  uint8_t line1[16] = {'m', 'o', 'v', 'q', ' ', '%', 'r', 's', 'p', ',', ' ', '%', 'r', 'b', 'p', 0};
-  uint8_t line2[4] = {'r', 'e', 't', 0};
-  (void)frame_sz;
-  if (append_asm_line(out, line1, 15) != 0)
+static int32_t shux_append_asmf(struct codegen_CodegenOutBuf *out, const char *fmt, ...) {
+  char buf[128];
+  int n;
+  va_list ap;
+  va_start(ap, fmt);
+  n = vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  if (n < 0 || (size_t)n >= sizeof(buf))
     return -1;
-  return append_asm_line(out, line2, 3);
+  return append_asm_line(out, (uint8_t *)buf, n);
+}
+
+static const char *shux_x86_setcc_name(int32_t cc) {
+  switch (cc) {
+  case 1:
+    return "setne";
+  case 2:
+    return "setl";
+  case 3:
+    return "setle";
+  case 4:
+    return "setg";
+  case 5:
+    return "setge";
+  default:
+    return "sete";
+  }
+}
+
+static const char *shux_x86_arg_reg_name(int32_t k) {
+  static const char *const regs[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+  if (k < 0)
+    k = 0;
+  if (k > 5)
+    k = 5;
+  return regs[k];
 }
 
 __attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  uint8_t line1[12] = {'p', 'u', 's', 'h', 'q', ' ', '%', 'r', 'b', 'p', 0, 0};
-  uint8_t line2[16] = {'m', 'o', 'v', 'q', ' ', '%', 'r', 's', 'p', ',', ' ', '%', 'r', 'b', 'p', 0};
-  uint8_t sub_buf[32] = {'s', 'u', 'b', 'q', ' ', '$', 0};
-  int32_t n;
-
-  if (append_asm_line(out, line1, 10) != 0)
-    return -1;
-  if (append_asm_line(out, line2, 15) != 0)
-    return -1;
   if (frame_sz < 0)
     frame_sz = 0;
-  n = 0;
-  if (frame_sz == 0) {
-    sub_buf[6] = '0';
-    n = 1;
-  } else {
-    int32_t tmp = frame_sz;
-    uint8_t digits[16];
-    int32_t dn = 0;
-    int32_t i;
-    while (tmp > 0 && dn < 16) {
-      digits[dn++] = (uint8_t)('0' + (tmp % 10));
-      tmp /= 10;
-    }
-    for (i = dn - 1; i >= 0; i--)
-      sub_buf[6 + n++] = digits[i];
-  }
-  sub_buf[6 + n] = ',';
-  sub_buf[6 + n + 1] = ' ';
-  sub_buf[6 + n + 2] = '%';
-  sub_buf[6 + n + 3] = 'r';
-  sub_buf[6 + n + 4] = 's';
-  sub_buf[6 + n + 5] = 'p';
-  return append_asm_line(out, sub_buf, 6 + n + 6);
+  if (shux_append_asmf(out, "pushq %%rbp") != 0)
+    return -1;
+  if (shux_append_asmf(out, "movq %%rsp, %%rbp") != 0)
+    return -1;
+  return shux_append_asmf(out, "subq $%d, %%rsp", frame_sz);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  (void)frame_sz;
+  if (shux_append_asmf(out, "movq %%rsp, %%rbp") != 0)
+    return -1;
+  return shux_append_asmf(out, "ret");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_ret_imm32(struct codegen_CodegenOutBuf *out, int32_t imm) {
+  return shux_append_asmf(out, "movl $%d, %%eax", imm);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_imm32_to_rbx(struct codegen_CodegenOutBuf *out, int32_t imm) {
+  return shux_append_asmf(out, "movl $%d, %%ebx", imm);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_imm64_to_rax(struct codegen_CodegenOutBuf *out, int32_t lo, int32_t hi) {
+  return shux_append_asmf(out, "movq $0x%08x%08x, %%rax", (uint32_t)hi, (uint32_t)lo);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_rax_to_arg_reg(struct codegen_CodegenOutBuf *out, int32_t k) {
+  return shux_append_asmf(out, "movq %%rax, %%%s", shux_x86_arg_reg_name(k));
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_call(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  return shux_append_asmf(out, "call %.*s", (int)name_len, (const char *)name);
 }
 
 __attribute__((weak)) int32_t arch_x86_64_emit_section_text(struct codegen_CodegenOutBuf *out) {
-  uint8_t line[8] = {'.', 't', 'e', 'x', 't', 0, 0, 0};
-  return append_asm_line(out, line, 5);
+  return shux_append_asmf(out, ".text");
 }
 
 __attribute__((weak)) int32_t arch_x86_64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  uint8_t buf[96] = {'.', 'g', 'l', 'o', 'b', 'l', ' '};
-  int32_t k;
-  if (!out || !name || name_len <= 0 || name_len > 88)
-    return -1;
-  for (k = 0; k < name_len; k++)
-    buf[7 + k] = name[k];
-  return append_asm_line(out, buf, 7 + name_len);
+  return shux_append_asmf(out, ".globl %.*s", (int)name_len, (const char *)name);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  uint8_t buf[96];
-  int32_t k;
-  if (!out || !name || name_len <= 0 || name_len > 94)
+__attribute__((weak)) int32_t arch_x86_64_emit_push_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "pushq %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_add_sp_imm(struct codegen_CodegenOutBuf *out, int32_t nbytes) {
+  if (nbytes <= 0)
+    return 0;
+  return shux_append_asmf(out, "addq $%d, %%rsp", nbytes);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_pop_rbx(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "popq %%rbx");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_pop_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "popq %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_add_rax_rbx(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "addq %%rbx, %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_sub_rbx_rax_then_mov(struct codegen_CodegenOutBuf *out) {
+  if (shux_append_asmf(out, "subq %%rax, %%rbx") != 0)
     return -1;
-  for (k = 0; k < name_len; k++)
-    buf[k] = name[k];
-  buf[name_len] = ':';
-  return append_asm_line(out, buf, name_len + 1);
+  return shux_append_asmf(out, "movq %%rbx, %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_imul_rbx_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "imulq %%rbx, %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_neg_eax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "negl %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_rax_to_rbx(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movq %%rax, %%rbx");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_rbx_to_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movq %%rbx, %%rax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_cmp_rbx_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "cmpl %%eax, %%ebx");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_cmp_setcc(struct codegen_CodegenOutBuf *out, int32_t cc) {
+  if (shux_append_asmf(out, "cmpl %%eax, %%ebx") != 0)
+    return -1;
+  if (shux_append_asmf(out, "%s %%al", shux_x86_setcc_name(cc)) != 0)
+    return -1;
+  return shux_append_asmf(out, "movzbl %%al, %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_not_eax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "notl %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_and_rbx_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "andl %%ebx, %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_or_rbx_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "orl %%ebx, %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_xor_rbx_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "xorl %%ebx, %%eax");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_mov_rbx_to_ecx(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movl %%ebx, %%ecx");
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_shl_cl_eax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "sall %%cl, %%eax");
 }
 
 __attribute__((weak)) int32_t arch_x86_64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
-  uint8_t line[20] = {'s', 'h', 'r', 'l', ' ', '%', 'c', 'l', ',', ' ', '%', 'e', 'a', 'x', 0};
-  return append_asm_line(out, line, 14);
+  return shux_append_asmf(out, "shrl %%cl, %%eax");
 }
 
 __attribute__((weak)) int32_t arch_x86_64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
-  uint8_t line[20] = {'s', 'a', 'r', 'l', ' ', '%', 'c', 'l', ',', ' ', '%', 'e', 'a', 'x', 0};
-  return append_asm_line(out, line, 14);
+  return shux_append_asmf(out, "sarl %%cl, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_section_text(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbp(struct codegen_CodegenOutBuf *out, int32_t off) {
+  return shux_append_asmf(out, "movq %%rax, -%d(%%rbp)", off);
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  (void)out;
-  (void)name;
-  (void)name_len;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_load_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
+  return shux_append_asmf(out, "movq -%d(%%rbp), %%rax", off);
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  (void)out;
-  (void)name;
-  (void)name_len;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_lea_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
+  return shux_append_asmf(out, "leaq -%d(%%rbp), %%rax", off);
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  (void)out;
-  (void)frame_sz;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale1(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "leaq (%%rax,%%rbx,1), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  (void)out;
-  (void)frame_sz;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale4(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "leaq (%%rax,%%rbx,4), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale8(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "leaq (%%rax,%%rbx,8), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_arm64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbx_indirect(struct codegen_CodegenOutBuf *out, int32_t elem_sz) {
+  if (elem_sz == 1)
+    return shux_append_asmf(out, "movb %%al, (%%rbx)");
+  if (elem_sz == 4)
+    return shux_append_asmf(out, "movl %%eax, (%%rbx)");
+  return shux_append_asmf(out, "movq %%rax, (%%rbx)");
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_section_text(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_load_32_from_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movl (%%rax), %%eax");
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  (void)out;
-  (void)name;
-  (void)name_len;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_load_zext8_from_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movzbl (%%rax), %%eax");
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
-  (void)out;
-  (void)name;
-  (void)name_len;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_add_imm_to_rax(struct codegen_CodegenOutBuf *out, int32_t imm) {
+  if (imm == 0)
+    return 0;
+  return shux_append_asmf(out, "addq $%d, %%rax", imm);
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  (void)out;
-  (void)frame_sz;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_load_64_from_rax(struct codegen_CodegenOutBuf *out) {
+  return shux_append_asmf(out, "movq (%%rax), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
-  (void)out;
-  (void)frame_sz;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbx_offset(struct codegen_CodegenOutBuf *out, int32_t off,
+                                                                       int32_t store_size) {
+  if (store_size == 8)
+    return shux_append_asmf(out, "movq %%rax, %d(%%rbx)", off);
+  return shux_append_asmf(out, "movl %%eax, %d(%%rbx)", off);
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_jz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+  if (shux_append_asmf(out, "test %%eax, %%eax") != 0)
+    return -1;
+  return shux_append_asmf(out, "je %.*s", (int)label_len, (const char *)label);
 }
 
-__attribute__((weak)) int32_t arch_riscv64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
-  (void)out;
-  return -1;
+__attribute__((weak)) int32_t arch_x86_64_emit_jeq(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+  return shux_append_asmf(out, "je %.*s", (int)label_len, (const char *)label);
 }
+
+__attribute__((weak)) int32_t arch_x86_64_emit_jnz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+  if (shux_append_asmf(out, "test %%eax, %%eax") != 0)
+    return -1;
+  return shux_append_asmf(out, "jne %.*s", (int)label_len, (const char *)label);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_jmp(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+  return shux_append_asmf(out, "jmp %.*s", (int)label_len, (const char *)label);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  return shux_append_asmf(out, "%.*s:", (int)name_len, (const char *)name);
+}
+
+#define SHUX_ARCH_TEXT_STUB0(name) \
+  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out) { \
+    (void)out; \
+    return -1; \
+  }
+
+#define SHUX_ARCH_TEXT_STUB1(name, t1, a1) \
+  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out, t1 a1) { \
+    (void)out; \
+    (void)a1; \
+    return -1; \
+  }
+
+#define SHUX_ARCH_TEXT_STUB2(name, t1, a1, t2, a2) \
+  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out, t1 a1, t2 a2) { \
+    (void)out; \
+    (void)a1; \
+    (void)a2; \
+    return -1; \
+  }
+
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_add_imm_to_rax, int32_t, imm)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_add_rax_rbx)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_add_sp_imm, int32_t, n)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_and_rbx_rax)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_call, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_cmp_rbx_rax)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_cmp_setcc, int32_t, cc)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_epilogue, int32_t, frame_sz)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_globl, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_imul_rbx_rax)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_jeq, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_jmp, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_jnz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_jz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_label, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_ldr_sp_offset_to_wi, int32_t, i)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_lea_rbp_to_rax, int32_t, off)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_load_32_from_rax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_load_64_from_rax)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_load_rbp_to_rax, int32_t, off)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_load_zext8_from_rax)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_mov_imm32_to_rbx, int32_t, imm)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_mov_imm64_to_rax, int32_t, lo, int32_t, hi)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_mov_rax_to_arg_reg, int32_t, k)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_mov_rax_to_rbx)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_mov_rbx_to_ecx)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_mov_rbx_to_rax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_neg_eax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_not_eax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_or_rbx_rax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_pop_rax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_pop_rbx)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_prologue, int32_t, frame_sz)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_push_rax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_rax_plus_rbx_scale1)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_rax_plus_rbx_scale4)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_rax_plus_rbx_scale8)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_ret_imm32, int32_t, imm)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_sar_cl_eax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_section_text)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_shl_cl_eax)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_shr_cl_eax)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_store_rax_to_rbp, int32_t, off)
+SHUX_ARCH_TEXT_STUB1(arch_arm64_emit_store_rax_to_rbx_indirect, int32_t, elem_sz)
+SHUX_ARCH_TEXT_STUB2(arch_arm64_emit_store_rax_to_rbx_offset, int32_t, offset, int32_t, store_size)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_sub_rbx_rax_then_mov)
+SHUX_ARCH_TEXT_STUB0(arch_arm64_emit_xor_rbx_rax)
+
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_add_imm_to_rax, int32_t, imm)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_add_rax_rbx)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_and_rbx_rax)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_call, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_cmp_rbx_rax)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_cmp_setcc, int32_t, cc)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_epilogue, int32_t, frame_sz)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_globl, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_imul_rbx_rax)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_jeq, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_jmp, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_jnz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_jz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_label, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_lea_rbp_to_rax, int32_t, off)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_load_32_from_rax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_load_64_from_rax)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_load_rbp_to_rax, int32_t, off)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_load_zext8_from_rax)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_mov_imm32_to_rbx, int32_t, imm)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_mov_imm64_to_rax, int32_t, lo, int32_t, hi)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_mov_rax_to_arg_reg, int32_t, k)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_mov_rax_to_rbx)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_mov_rbx_to_ecx)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_mov_rbx_to_rax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_neg_eax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_not_eax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_or_rbx_rax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_pop_rax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_pop_rbx)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_prologue, int32_t, frame_sz)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_push_rax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_rax_plus_rbx_scale1)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_rax_plus_rbx_scale4)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_rax_plus_rbx_scale8)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_ret_imm32, int32_t, imm)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_sar_cl_eax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_section_text)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_shl_cl_eax)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_shr_cl_eax)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_store_rax_to_rbp, int32_t, off)
+SHUX_ARCH_TEXT_STUB1(arch_riscv64_emit_store_rax_to_rbx_indirect, int32_t, elem_sz)
+SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_store_rax_to_rbx_offset, int32_t, offset, int32_t, store_size)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_sub_rbx_rax_then_mov)
+SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_xor_rbx_rax)
 
 __attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
   uint8_t bytes[4];
