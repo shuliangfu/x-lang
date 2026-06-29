@@ -51,19 +51,17 @@ echo "lang-unsafe manifest OK"
 
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 
-# bstrict / W3：stage2 shux_asm(2) 用于 asm -o；bootstrap seed shux / shux-c 对简单 -o 易 SIGSEGV。
+# bstrict / W3：stage2 shux_asm(2) 用于 asm -o；但真机仅 git pull 源码后，陈旧 shux_asm2 可能落后于新刷出的 shux/shux_asm。
+# 因此默认选 native 候选里“最新”的一个，避免 gate 继续绑定旧 gen2。
 SHUX_BIN=""
 if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
   SHUX_BIN="${SHUX}"
-elif [ -x ./compiler/shux_asm2 ]; then
-  SHUX_BIN=./compiler/shux_asm2
-elif [ -x ./compiler/shux_asm ]; then
-  SHUX_BIN=./compiler/shux_asm
 else
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/shux_asm2 ./compiler/shux_asm ./compiler/shux ./compiler/shux-c; do
     if [ -x "$cand" ] && native_shu "$cand"; then
-      SHUX_BIN="$cand"
-      break
+      if [ -z "$SHUX_BIN" ] || [ "$cand" -nt "$SHUX_BIN" ]; then
+        SHUX_BIN="$cand"
+      fi
     fi
   done
 fi
