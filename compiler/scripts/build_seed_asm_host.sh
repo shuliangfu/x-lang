@@ -126,6 +126,7 @@ run_asm_sx_emit_c() {
     return 0
   fi
   [ "$_erc" -eq 0 ] && [ -s "$_out" ] && return 0
+  [ "$_erc" -eq 124 ] && return 1
   echo "build_seed_asm_host: LIB_ASM -E exit=${_erc}, retry once ..." >&2
   if [ -s "$_err" ]; then tail -10 "$_err" >&2; fi
   rm -f "$_out" "$_err"
