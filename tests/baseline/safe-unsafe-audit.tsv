@@ -53,7 +53,7 @@ tier-u	fs_pwrite	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-bas
 tier-u	fs_mmap_ro	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
 tier-u	fs_mmap_rw	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
 tier-u	fs_munmap	stdlib	POSIX fd read/write/mmap; path *u8 NUL-terminated	v1-baseline	2026-06-17
-tier-u	path_join	stdlib	Caller output buffer; must pass valid cap	v1-baseline	2026-06-17
+tier-u	join	stdlib	Caller output buffer; must pass valid cap	v1-baseline	2026-06-17
 tier-e	ffi_cstr_len_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
 tier-e	ffi_cstring_new_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17
 tier-e	ffi_cstring_free_c	stdlib	C NUL-string FFI; caller validates pointers	v1-baseline	2026-06-17

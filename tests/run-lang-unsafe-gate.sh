@@ -57,13 +57,21 @@ SHUX_BIN=""
 if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
   SHUX_BIN="${SHUX}"
 else
-  for cand in ./compiler/shux_asm2 ./compiler/shux_asm ./compiler/shux ./compiler/shux-c; do
+  for cand in ./compiler/shux_asm2 ./compiler/shux_asm ./compiler/shux; do
     if [ -x "$cand" ] && native_shu "$cand"; then
       if [ -z "$SHUX_BIN" ] || [ "$cand" -nt "$SHUX_BIN" ]; then
         SHUX_BIN="$cand"
       fi
     fi
   done
+  if [ -z "$SHUX_BIN" ]; then
+    for cand in ./compiler/shux-c; do
+      if [ -x "$cand" ] && native_shu "$cand"; then
+        SHUX_BIN="$cand"
+        break
+      fi
+    done
+  fi
 fi
 if [ -z "$SHUX_BIN" ] && [ "$(uname -s)" = Linux ] && [ -x ./compiler/shux-c ]; then
   SHUX_BIN=./compiler/shux-c
