@@ -5798,9 +5798,15 @@ int driver_run_sx_emit_c(void) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_sources[j], dep_lens[j]);
             } else {
+                if (getenv("SHUX_DEBUG_PIPE"))
+                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun begin j=%d path=%s\n",
+                            j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_sources[j], dep_lens[j],
                                                               (void *)dep_out, (void *)one_ctx);
+                if (getenv("SHUX_DEBUG_PIPE"))
+                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun end j=%d path=%s rc=%d\n",
+                            j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             }
             driver_set_current_dep_path_for_codegen(NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
