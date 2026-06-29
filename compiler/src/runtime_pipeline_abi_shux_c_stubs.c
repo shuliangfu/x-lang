@@ -242,6 +242,16 @@ __attribute__((weak)) int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *c
     return 0;
 }
 
+__attribute__((weak)) void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx,
+                                                               uint8_t *dst) {
+    (void)ctx;
+    (void)idx;
+    if (!dst)
+        return;
+    for (int i = 0; i < 64; i++)
+        dst[i] = 0;
+}
+
 __attribute__((weak)) int32_t pipeline_module_main_func_index(struct ast_Module *m) {
     (void)m;
     return -1;

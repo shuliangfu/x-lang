@@ -258,6 +258,55 @@ extern int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_el
 extern int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
+
+#if defined(__GNUC__) || defined(__clang__)
+#define SHUX_WEAK __attribute__((weak))
+#else
+#define SHUX_WEAK
+#endif
+
+/*
+ * B-strict glue links this dispatch TU on x86_64 without always linking the
+ * full arm64/riscv64 encoder objects. Keep non-host arch helpers weak so the
+ * host link can resolve them; real encoder objects override these definitions.
+ */
+SHUX_WEAK int32_t arch_arm64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+  (void)elf_ctx;
+  (void)name;
+  (void)name_len;
+  return -1;
+}
+
+SHUX_WEAK int32_t arch_arm64_enc_enc_add_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+  (void)elf_ctx;
+  (void)imm;
+  return -1;
+}
+
+SHUX_WEAK int32_t arch_arm64_enc_enc_sub_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+  (void)elf_ctx;
+  (void)imm;
+  return -1;
+}
+
+SHUX_WEAK int32_t arch_arm64_enc_enc_str_x0_sp_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
+  (void)elf_ctx;
+  (void)off_bytes;
+  return -1;
+}
+
+SHUX_WEAK int32_t arch_riscv64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+  (void)elf_ctx;
+  (void)name;
+  (void)name_len;
+  return -1;
+}
+
+SHUX_WEAK int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
+  (void)elf_ctx;
+  (void)k;
+  return -1;
+}
 extern int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_load_rbp_pos_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t elem_sz);
