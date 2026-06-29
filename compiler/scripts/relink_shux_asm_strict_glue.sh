@@ -1429,12 +1429,13 @@ ensure_typeck_f64_bits_obj() {
 }
 ensure_cfg_eval_link_obj() {
   local o="$BUILD_DIR/cfg_eval_link_merged.o"
+  local ld_cmd="${LD:-ld}"
   if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "src/lexer/cfg_eval_link_alias.c" -nt "$o" ]; then
     echo "relink_shux_asm_strict_glue: cc/ld cfg_eval_link_merged.o <- cfg_eval_gen.c + cfg_eval_link_alias.c"
     mkdir -p "$BUILD_DIR"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/cfg_eval_sx.strict.o" src/lexer/cfg_eval_gen.c
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/cfg_eval_link_alias.strict.o" src/lexer/cfg_eval_link_alias.c
-    "$LD" $LD_RELFLAGS -r -o "$o" "$BUILD_DIR/cfg_eval_sx.strict.o" "$BUILD_DIR/cfg_eval_link_alias.strict.o"
+    "$ld_cmd" $LD_RELFLAGS -r -o "$o" "$BUILD_DIR/cfg_eval_sx.strict.o" "$BUILD_DIR/cfg_eval_link_alias.strict.o"
   fi
 }
 ensure_runtime_abi_obj
