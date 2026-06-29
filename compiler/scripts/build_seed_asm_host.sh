@@ -81,11 +81,20 @@ run_asm_sx_emit_c() {
   _wait_with_heartbeat() {
     _pid=$1
     _label=$2
+    _timeout="${SHUX_ASM_E_TIMEOUT_SEC:-120}"
     while kill -0 "$_pid" 2>/dev/null; do
       _elapsed=$(( $(date +%s) - _start ))
       _bytes=0
       [ -f "$_out" ] && _bytes=$(wc -c <"$_out" | tr -d ' ')
       echo "[$(date +%H:%M:%S)] build_seed_asm_host: ${_label} ... ${_elapsed}s, out=${_bytes} bytes" >&2
+      if [ "${_timeout:-0}" -gt 0 ] && [ "$_elapsed" -ge "$_timeout" ]; then
+        echo "build_seed_asm_host: ${_label} timeout after ${_elapsed}s, terminate and fallback" >&2
+        kill "$_pid" 2>/dev/null || true
+        sleep 1
+        kill -9 "$_pid" 2>/dev/null || true
+        wait "$_pid" 2>/dev/null || true
+        return 124
+      fi
       sleep 15
     done
     wait "$_pid"
