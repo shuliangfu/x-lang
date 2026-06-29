@@ -8,6 +8,11 @@
 
 struct ast_Module;
 struct ast_ASTArena;
+struct ast_PipelineDepCtx;
+struct shux_slice_uint8_t {
+  uint8_t *data;
+  int32_t len;
+};
 
 /** runtime 期望的程序入口名。 */
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
@@ -36,4 +41,23 @@ extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTAren
 
 void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
+}
+
+/** strict minimal 不链 glue_standalone 时，runtime / pipeline_sx 仍需要这两个默认桥接入口。 */
+extern int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                     struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                         uint8_t *source_data, int32_t source_len,
+                                                         struct ast_PipelineDepCtx *ctx);
+
+__attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                             struct shux_slice_uint8_t *source,
+                                                             struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
+}
+
+__attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                  uint8_t *source_data, int32_t source_len,
+                                                                  struct ast_PipelineDepCtx *ctx) {
+  return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
 }
