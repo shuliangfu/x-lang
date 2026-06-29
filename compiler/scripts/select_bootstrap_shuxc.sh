@@ -30,7 +30,7 @@ can_run() {
       FreeBSD-*) echo "$ft" | grep -qi "ELF.*x86-64\|ELF.*aarch64" || return 1 ;;
     esac
   fi
-  tmp="/tmp/shux_can_run_$$.sx"
+  tmp="/tmp/shux_can_run_$$.su"
   out="/tmp/shux_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
   if "$1" -c "$tmp" >/dev/null 2>&1; then

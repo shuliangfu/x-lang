@@ -16,7 +16,7 @@ HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 
 can_seed_run() {
   [ -x "$1" ] || return 1
-  _tmp="/tmp/shux_build_seed_can_run_$$.sx"
+  _tmp="/tmp/shux_build_seed_can_run_$$.su"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$_tmp"
   if "$1" -c "$_tmp" >/dev/null 2>&1; then
     rm -f "$_tmp" 2>/dev/null || true
