@@ -65,18 +65,18 @@ fi
 LIB_ASM="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline -L src/codegen"
 LIB_ASM_MIN="-L src/asm"
 
-# asm.sx -E：bootstrap_shuxc 在多 -L 路径下偶发失败；回退单路径 -L src/asm（较慢但可完成）。
+# asm_seed_full.sx -E：seed partial 专用 full 入口；普通 runtime `asm.sx` 已瘦成薄桥，不再适合作为 partial 源。
 # 长任务心跳，避免 Docker 内静默数分钟像卡住。
 run_asm_sx_emit_c() {
   _out="$1"
   _err="$2"
   _start=$(date +%s)
   _run() {
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
   }
   _run_bg() {
     # 回退仍须全量 -L；仅 -L src/asm 无法 resolve import codegen/ast 等。
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
   }
   _wait_with_heartbeat() {
     _pid=$1
@@ -302,6 +302,7 @@ fi
 # 否则会把已有真实 partial 误判为过期，并尝试从 thin bridge 重新生成而失败。
 seed_partial_needs_regen() {
   [ ! -f "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/asm_seed_full.sx" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] && return 0
@@ -317,13 +318,13 @@ seed_partial_needs_regen() {
 }
 
 if seed_partial_needs_regen; then
-  echo "build_seed_asm_host: asm.sx 全量 -E ..."
+  echo "build_seed_asm_host: asm_seed_full.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
   run_asm_sx_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err"
   _erc=$?
   if [ "$_erc" -ne 0 ]; then
-    echo "build_seed_asm_host: asm.sx -E exit=${_erc}" >&2
+    echo "build_seed_asm_host: asm_seed_full.sx -E exit=${_erc}" >&2
     if [ -s "$OUT_DIR/asm_full_gen.err" ]; then
       tail -20 "$OUT_DIR/asm_full_gen.err" >&2
     else
@@ -345,12 +346,12 @@ if seed_partial_needs_regen; then
       echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
       rm -f "$ASM_TMP"
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      echo "build_seed_asm_host: asm.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
+      echo "build_seed_asm_host: asm_seed_full.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
       rm -f "$ASM_TMP"
       exit 0
     else
       rm -f "$ASM_TMP"
-      echo "build_seed_asm_host: asm.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL" >&2
+      echo "build_seed_asm_host: asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL" >&2
       exit 1
     fi
   else
