@@ -19,11 +19,11 @@
 // 职责：将 backend 产出的机器码字节 + 符号/重定位信息写成 ELF64 ET_REL
 // 文件；
 // 支持多函数、局部标签补丁（jz/jmp）、call 重定位（.rela.text）。
-// 依赖：codegen（CodegenOutBuf 作 ELF 输出缓冲）；由 backend 在「出
+// 依赖：codegen_outbuf_abi（CodegenOutBuf 作 ELF 输出缓冲）；由 backend 在「出
 // .o」路径下填充 ElfCodegenCtx。
 //
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
 /** elf.sx：大 struct 字段写入 sidecar（ast_pool.c）；键 = *ElfCodegenCtx 转 *u8。 */
 extern function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len:

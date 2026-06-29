@@ -17,10 +17,10 @@
 // asm.sx — 汇编后端对外入口（供 pipeline 调用）
 //
 // 职责：导出 asm_codegen_ast(module, arena, out, ctx)，供 pipeline 在 -backend asm 时调用；ctx.target_arch 决定架构。
-// 依赖：ast、codegen、types、backend、elf、macho、coff。
+// 依赖：ast、codegen_outbuf_abi、types、elf、macho、coff。
 
 const ast = import("ast");
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 const peephole = import("peephole");
 const elf = import("platform.elf");
