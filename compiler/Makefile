@@ -1773,7 +1773,7 @@ _sx_stubs2.o: _sx_stubs2.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # 须在 pipeline_sx.o / bootstrap-pipeline 规则之前定义（Make 解析顺序；后置则 $(PIPELINE_SX_DEPS) 为空）。
-PIPELINE_SX_DEPS = src/pipeline/pipeline.sx src/codegen/codegen.sx src/typeck/typeck.sx src/parser/parser.sx src/ast/ast.sx src/lexer/lexer.sx src/preprocess/preprocess.sx src/asm/asm.sx src/asm/backend.sx src/asm/platform/elf.sx src/asm/arch/arm64.sx src/asm/arch/arm64_enc.sx pipeline_glue.c ast_pool.c ast_pool_bootstrap_glue.c
+PIPELINE_SX_DEPS = src/pipeline/pipeline.sx src/codegen/codegen.sx src/typeck/typeck.sx src/parser/parser.sx src/ast/ast.sx src/lexer/lexer.sx src/preprocess/preprocess.sx src/asm/asm.sx src/asm/platform/elf.sx src/asm/arch/arm64.sx src/asm/arch/arm64_enc.sx pipeline_glue.c ast_pool.c ast_pool_bootstrap_glue.c
 
 # pipeline_sx.o：与 pipeline_gen.c 及 PIPELINE_SX_DEPS 绑定；parser/backend 等 .sx 变更须重编，避免 seed 仍用旧 pipeline 逻辑（entry 消失等）。
 # 默认复用 build_asm/gen_driver/pipeline_sx.o（fat 编排）；设 PIPELINE_SX_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。

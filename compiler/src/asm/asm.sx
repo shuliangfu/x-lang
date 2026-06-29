@@ -22,7 +22,6 @@
 const ast = import("ast");
 const codegen = import("codegen");
 const types = import("asm.types");
-const backend = import("backend");
 const peephole = import("peephole");
 const elf = import("platform.elf");
 #[cfg(target_os = "macos")]
@@ -34,13 +33,16 @@ const coff = import("platform.coff");
 extern function driver_skip_codegen_dep_0_get(): i32;
 /** CALL 前缀：当前正在为第 j 个 dep 编码时须指向 dep 池 import 路径；入口模块前须置 NULL。 */
 extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
+/** backend.sx 的公开入口本身只是薄转发；这里直接走现成 C glue，避免 `asm.sx -E` 解析整份 backend.sx。 */
+extern function pipeline_backend_asm_codegen_ast_c(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32;
+extern function pipeline_backend_asm_codegen_ast_to_elf_c(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32;
 
 /**
  * 汇编后端入口：将 AST 生成汇编文本写入 out（与 codegen 共用 CodegenOutBuf）。
- * M8b：勿写 `if (backend.foo(...) != 0)`——.sx parser 会丢整函数；用 let 累加后 return。
+ * M8b：勿写 `if (foo(...) != 0)`——.sx parser 会丢整函数；用 let 累加后 return。
  */
 function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  let err: i32 = backend.asm_codegen_ast(module, arena, out, ctx);
+  let err: i32 = pipeline_backend_asm_codegen_ast_c(module, arena, out, ctx);
   let err2: i32 = peephole.peephole_run(out);
   return err + err2;
 }
@@ -55,7 +57,7 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
 function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) { return -1; }
-  let e1: i32 = backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
+  let e1: i32 = pipeline_backend_asm_codegen_ast_to_elf_c(module, arena, elf_ctx, ctx);
   if (e1 != 0) {
     return -1;
   }
@@ -79,7 +81,7 @@ function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepC
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
     elf_ctx.macho_leading_underscore = 1;
   }
-  let e1: i32 = backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
+  let e1: i32 = pipeline_backend_asm_codegen_ast_to_elf_c(module, arena, elf_ctx, ctx);
   if (e1 != 0) {
     return -1;
   }
