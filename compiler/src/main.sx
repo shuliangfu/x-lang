@@ -316,7 +316,8 @@ function target_contains_riscv(buf: *u8, len: i32): i32 {
 }
 
 /**
- * 解析 argv 为「非 -sx -E」的编译请求：填 state.path_buf/path_len、可选 -o 输出路径与 lib_root_*。
+ * 解析 argv 为常规编译请求：填 state.path_buf/path_len、可选 -o 输出路径与 lib_root_*。
+ * 裸 `-E` / `-E-extern` 由 driver_argv_parse_sx 处理；此处须显式跳过，避免把 `-E` 误收成输入路径。
  * 返回 0 表示已填 state；默认 use_asm_backend=1 走 run_compiler_c_impl（全量流水线）；`-backend c` 且无 `-o` 时才走 driver_run_sx_emit_sx 烟测（勿默认 0，否则 main.o 栈上 PipelineDepCtx+双 4MiB 缓冲区撑爆线程栈）。
  * 返回 1 表示需走 C 实现（当前仅 -o 缺少输出路径参数时）。
  * 无输入路径返回 2。
@@ -397,6 +398,14 @@ function driver_argv_parse_sx_path(argc: i32, argv: *u8, state: *DriverSxEmitSta
       i = i + 1;
       continue;
     }
+    if (eq_minus_E(arg_buf, len) != 0) {
+      i = i + 1;
+      continue;
+    }
+    if (eq_minus_E_extern(arg_buf, len) != 0) {
+      i = i + 1;
+      continue;
+    }
     if (state.path_len == 0 && len > 0) {
       let k: i32 = 0;
       while (k < len && k < 512) {
@@ -419,7 +428,8 @@ function driver_argv_parse_sx_path(argc: i32, argv: *u8, state: *DriverSxEmitSta
 }
 
 /**
- * 在 .sx 内解析 argv：若存在 -sx -E <path> 则填充 state（path + 此前 -L 的库根），返回 1；否则返回 0。
+ * 在 .sx 内解析 emit C 请求：支持裸 `-E` / `-E -E-extern <path>`，也兼容旧 `-sx -E` 形式。
+ * 返回 1 表示已填充 state 并应走 driver_run_sx_emit_c；否则返回 0。
  */
 function driver_argv_parse_sx(argc: i32, argv: *u8, state: *DriverSxEmitState): i32 {
   state.path_len = 0;
@@ -428,7 +438,7 @@ function driver_argv_parse_sx(argc: i32, argv: *u8, state: *DriverSxEmitState): 
   state.use_asm_backend = 0;
   state.target_arch = 0;
   state.out_path_len = 0;
-  if (argc < 4) {
+  if (argc < 3) {
     return 0;
   }
   let arg_buf: u8[512] = [];
@@ -463,37 +473,39 @@ function driver_argv_parse_sx(argc: i32, argv: *u8, state: *DriverSxEmitState): 
       i = i + 2;
       continue;
     }
-    if (eq_minus_sx(arg_buf, len) != 0 && i + 2 < argc) {
-      let elen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      if (eq_minus_E(arg_buf, elen) != 0) {
-        /* 跳过 -E 后面的 -L <path> 对，同时采集库根到 state */
-        let pi: i32 = i + 2;
-        while (pi < argc) {
-          let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
-          if (plen_temp > 0 && eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
-            driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
-            pi = pi + 2;
-            continue;
-          }
-          break;
-        }
-        if (pi < argc) {
-          let opt_len: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
-          if (opt_len >= 0 && eq_minus_E_extern(arg_buf, opt_len) != 0) {
-            state.emit_extern_imports = 1;
-            pi = pi + 1;
-          }
-        }
-        if (pi < argc) {
-          let plen: i32 = driver_get_argv_i(argc, argv, pi, state.path_buf, 512);
-          if (plen >= 0) {
-            state.path_len = plen;
-            return 1;
-          }
-        }
-      }
+    if (eq_minus_sx(arg_buf, len) != 0) {
       i = i + 1;
       continue;
+    }
+    if (eq_minus_E(arg_buf, len) != 0) {
+      let pi: i32 = i + 1;
+      while (pi < argc) {
+        let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
+        if (plen_temp > 0 && eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
+          driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
+          pi = pi + 2;
+          continue;
+        }
+        if (plen_temp > 0 && eq_minus_sx(arg_buf, plen_temp) != 0) {
+          pi = pi + 1;
+          continue;
+        }
+        break;
+      }
+      if (pi < argc) {
+        let opt_len: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
+        if (opt_len >= 0 && eq_minus_E_extern(arg_buf, opt_len) != 0) {
+          state.emit_extern_imports = 1;
+          pi = pi + 1;
+        }
+      }
+      if (pi < argc) {
+        let plen: i32 = driver_get_argv_i(argc, argv, pi, state.path_buf, 512);
+        if (plen >= 0) {
+          state.path_len = plen;
+          return 1;
+        }
+      }
     }
     i = i + 1;
   }
