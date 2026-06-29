@@ -5708,8 +5708,9 @@ int driver_run_sx_emit_c(void) {
         size_t dep_lens[MAX_ALL_DEPS];
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
+        int asm_direct_import_only = driver_sx_emit_asm_direct_import_only(input_path);
         if (n_imports > 0 && n_imports <= 32) {
-            if (driver_sx_emit_asm_direct_import_only(input_path)) {
+            if (asm_direct_import_only) {
                 if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
                         dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
                     free(arena);
@@ -5760,7 +5761,7 @@ int driver_run_sx_emit_c(void) {
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
         driver_dep_seeded_clear_all();
-        for (int j = n_deps - 1; j >= 0; j--) {
+        for (int j = n_deps - 1; !asm_direct_import_only && j >= 0; j--) {
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             int ec_dep;
@@ -5780,8 +5781,7 @@ int driver_run_sx_emit_c(void) {
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
-            if (driver_sx_emit_asm_direct_import_only(input_path) ||
-                driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
+            if (asm_direct_import_only || driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_sources[j], dep_lens[j]);
             } else {
