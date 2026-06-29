@@ -1499,7 +1499,7 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
-DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/bootstrap_seed_io_stubs.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_SX_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/sx_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O)
+DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/bootstrap_seed_io_stubs.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_SX_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/sx_seed_bridge.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O)
 DRIVER_SEED_SX_OBJS = parser_sx.o typeck_sx.o codegen_sx.o
 
 # 阶段 10.4 实验：链 typeck_sx.o/codegen_sx.o 替代 C 前端（不含 pipeline_sx.o，无 SHUX_USE_SX_PIPELINE）。
@@ -1606,6 +1606,9 @@ src/lsp/lsp_state.o: src/lsp/lsp_state.c
 
 # lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供。
 src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.c
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+src/seed_link_compat.o: src/seed_link_compat.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
 lsp_gen.c: $(SHUX_C) src/lsp/lsp.sx
@@ -1856,7 +1859,7 @@ else
 # G-06 两阶段 seed：先无 USER_ASM 链 shux-seed-phase1，再用其跑 asm.sx -E 生成 partial，最后全量链 shux。
 DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS)
 
-DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o driver_sx.o preprocess_sx.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/sx_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o driver_sx.o preprocess_sx.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/sx_seed_bridge.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
 
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.sx 重新 -E 失败。
