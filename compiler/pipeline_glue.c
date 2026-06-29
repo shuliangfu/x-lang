@@ -637,10 +637,13 @@ void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t 
 int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
 int32_t pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t layout_idx);
+int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord);
 int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index, int32_t dep_return_type_ref,
                                                               struct ast_ASTArena *caller_arena,
                                                               struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index);
+void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst);
 
 int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
   ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);
