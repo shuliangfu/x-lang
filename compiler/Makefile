@@ -229,10 +229,12 @@ net-o-mbedtls:
 
 # std.time：F-time v2 纯 .sx（F-ZC）；OS syscall 在 runtime_time_os.o；import binding 别名桩 time_import_alias.c。
 ../std/time/time.o: ../std/time/time.sx ../std/time/time_import_alias.c
-	@if [ -x ./shux-c ]; then \
-	  ./shux-c -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
-	elif [ -x ./shux_asm ]; then \
+	@if [ -x ./shux_asm ]; then \
 	  ./shux_asm -backend asm -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
+	elif [ -x ./shux ]; then \
+	  ./shux -backend asm -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
+	elif [ -x ./shux-c ]; then \
+	  ./shux-c -L .. ../std/time/time.sx -o ../std/time/time_core.o; \
 	else echo "make time.o: need shux-c or shux_asm (F-time v1)" >&2; exit 1; fi; \
 	test -s ../std/time/time_core.o || { echo "make time.o: failed to produce ../std/time/time_core.o" >&2; rm -f ../std/time/time_core.o; exit 1; }; \
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/time/time_import_alias.o ../std/time/time_import_alias.c && \
