@@ -215,6 +215,24 @@ has_real_partial_seed_mega() {
   } END { exit !found }'
 }
 
+BACKEND_FALLBACK_SRC="src/asm/backend_seed_mega_fallback.c"
+
+build_backend_partial_from_c_fallback() {
+  rm -f "$BACKEND_PARTIAL"
+  echo "build_seed_asm_host: fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL" >&2
+  if ! $CC $CFLAGS -c "$BACKEND_FALLBACK_SRC" -o "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
+    tail -20 "$OUT_DIR/backend_seed_mega_fallback.err" >&2
+    rm -f "$BACKEND_PARTIAL"
+    return 1
+  fi
+  if ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+    echo "build_seed_asm_host: fallback partial 缺少强 seed_mega" >&2
+    rm -f "$BACKEND_PARTIAL"
+    return 1
+  fi
+  return 0
+}
+
 # 从 .o 收集 backend/peephole/platform 导出符号名（保留 nm 原样：Darwin 带 _，ELF 不带）。
 collect_backend_export_syms() {
   _obj="$1"
@@ -303,6 +321,7 @@ fi
 seed_partial_needs_regen() {
   [ ! -f "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/asm_seed_full.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "$BACKEND_FALLBACK_SRC" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] && return 0
@@ -351,7 +370,11 @@ if seed_partial_needs_regen; then
       exit 0
     else
       rm -f "$ASM_TMP"
-      echo "build_seed_asm_host: asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL" >&2
+      if build_backend_partial_from_c_fallback; then
+        echo "build_seed_asm_host: asm_seed_full.sx -E 失败，改用源码 fallback partial" >&2
+        exit 0
+      fi
+      echo "build_seed_asm_host: asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial" >&2
       exit 1
     fi
   else
@@ -359,6 +382,10 @@ if seed_partial_needs_regen; then
   fi
   dedupe_slice "$ASM_FULL_C"
   if ! asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
+    if build_backend_partial_from_c_fallback; then
+      echo "build_seed_asm_host: $ASM_FULL_C 不可用，改用源码 fallback partial" >&2
+      exit 0
+    fi
     echo "build_seed_asm_host: $ASM_FULL_C 不可用（畸形 -E 截断）" >&2
     exit 1
   fi
@@ -444,22 +471,30 @@ if seed_partial_needs_regen; then
     grep -v -F -f "$OUT_DIR/asm_dispatch_syms.txt" "$SYMS" >"$SYMS.tmp" || cp "$SYMS" "$SYMS.tmp"
     mv -f "$SYMS.tmp" "$SYMS"
   fi
+  _use_c_fallback_partial=0
   if ! has_nm_sym "$ASM_FULL_O" "backend_asm_codegen_ast_seed_mega"; then
     _bc=$(nm "$ASM_FULL_O" 2>/dev/null | awk '/ T / && $3 ~ /^_?backend_/ {n++} END {print n+0}')
     if [ "${_bc:-0}" -lt 180 ]; then
-      echo "build_seed_asm_host: $ASM_FULL_O 缺少 backend_asm_codegen_ast_seed_mega（backend T=${_bc:-0}）" >&2
+      if build_backend_partial_from_c_fallback; then
+        echo "build_seed_asm_host: $ASM_FULL_O 缺少 seed_mega（backend T=${_bc:-0}），改用源码 fallback partial" >&2
+        _use_c_fallback_partial=1
+      else
+        echo "build_seed_asm_host: $ASM_FULL_O 缺少 backend_asm_codegen_ast_seed_mega（backend T=${_bc:-0}）" >&2
+        exit 1
+      fi
+    fi
+    [ "$_use_c_fallback_partial" -eq 0 ] && echo "build_seed_asm_host: WARN 无 seed_mega，partial 仅导出 ${_bc} 个 backend_* 符号" >&2
+  fi
+  if [ "$_use_c_fallback_partial" -eq 0 ]; then
+    echo "  ld partial export ($(wc -l <"$SYMS" | tr -d ' ') syms) -> $BACKEND_PARTIAL"
+    if ! ld_partial_export "$SYMS" "$BACKEND_PARTIAL" "$ASM_FULL_O"; then
+      if [ -f "$BACKEND_PARTIAL" ]; then
+        echo "build_seed_asm_host: ld -r 失败，沿用已有 $BACKEND_PARTIAL" >&2
+        exit 0
+      fi
+      echo "build_seed_asm_host: ld -r 失败且无已有 $BACKEND_PARTIAL" >&2
       exit 1
     fi
-    echo "build_seed_asm_host: WARN 无 seed_mega，partial 仅导出 ${_bc} 个 backend_* 符号" >&2
-  fi
-  echo "  ld partial export ($(wc -l <"$SYMS" | tr -d ' ') syms) -> $BACKEND_PARTIAL"
-  if ! ld_partial_export "$SYMS" "$BACKEND_PARTIAL" "$ASM_FULL_O"; then
-    if [ -f "$BACKEND_PARTIAL" ]; then
-      echo "build_seed_asm_host: ld -r 失败，沿用已有 $BACKEND_PARTIAL" >&2
-      exit 0
-    fi
-    echo "build_seed_asm_host: ld -r 失败且无已有 $BACKEND_PARTIAL" >&2
-    exit 1
   fi
 fi
 

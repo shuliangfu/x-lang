@@ -4752,6 +4752,11 @@ int32_t pipeline_dep_ctx_use_coff_o(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->use_coff_o : 0;
 }
 
+/** 读 target_arch；供不暴露完整 PipelineDepCtx 定义的 TU 使用。 */
+int32_t pipeline_dep_ctx_target_arch(struct ast_PipelineDepCtx *ctx) {
+  return ctx ? ctx->target_arch : 0;
+}
+
 /** 读 entry_dir_buf[off]；越界返回 0。 */
 uint8_t pipeline_dep_ctx_entry_dir_byte_at(struct ast_PipelineDepCtx *ctx, int32_t off) {
   if (!ctx || off < 0 || off >= ctx->entry_dir_len || off >= 512)
