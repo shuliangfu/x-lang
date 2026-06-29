@@ -37,6 +37,27 @@
   - `check -L .. /tmp/canrun.sx`
   - `-c /tmp/canrun.sx`
   两条路径上都会直接 `SIGSEGV`。
+- 本地修复并刷新 Linux tracked seed 后，远端 `check` 路径已恢复：
+  - `compiler/seeds/bootstrap_shuxc.linux.x86_64 check -L . /tmp/canrun.sx` 不再崩溃，仅正常返回 `check failed`
+- 但 `V6` fresh seed smoke 仍在真实 Linux 上失败，且已收敛到新的固定崩点：
+  - `./compiler/shux-c -c /tmp/v6_smoke.sx`
+  - `gdb` 栈：
+    - `driver_argv_collect_defines()`
+    - `driver_run_asm_backend()`
+    - `driver_run_asm_backend_impl_c()`
+    - `driver_run_compiler_full_sx_post_parse_impl_c()`
+  - 具体在 `snprintf(shu_os_def, sizeof shu_os_def, "SHUX_OS_%s", u.sysname)` 处 `SIGSEGV`
+- 同一台真实 Linux 上，`./compiler/shux.good -c /tmp/v6_smoke.sx` 正常返回 0。
+- 这说明：
+  - 真实 Linux 确实暴露了当前 `shux-c` 二进制在 `-c` 路径上的额外崩溃；
+  - 但不是“这台 Linux 环境普遍有问题”，因为同机 `shux.good` 正常。
+- 对 `V6` 继续下钻后发现：
+  - `./compiler/shux.good -backend c -o /tmp/good_v6_bin /tmp/v6_smoke.sx` 在真实 Linux 上几乎未进入读文件/cc 阶段；
+  - `gdb` 显示执行链到 `main_run_compiler_sx_path_impl()` → `main_run_compiler_c()` → `driver_run_compiler_full()` → `driver_run_compiler_full_su()`；
+  - `driver_compile_parse_argv()` 返回 `1`，且 `driver_compile_argv_copy_path_c()` 根本未被调用；
+  - `driver_compile_parse_argv_finalize()` 的失败条件收敛为 `state->path_len <= 0`；
+  - 进一步反汇编 `driver_path_ends_su()` 可见其末字节仅比较 `0x75`（`'u'`），即当前 seed / `shux.good` 二进制只识别 `.su`，不识别 `.sx`。
+- 当前仓库源码 [`compile.sx`](file:///home/shu/shux/compiler/src/driver/compile.sx) 中 `path_ends_sx()` 已允许 `'u'` 或 `'x'`，说明问题已从“源码逻辑错误”收敛为“当前 Linux seed / shux.good 二进制落后于源码，仍携带旧的 `.su` only 实现”。
 
 ## 假设验证状态
 
@@ -53,6 +74,12 @@
 - 当前主阻塞不是具体业务源码 `arena_align.sx` / `std/sys` / `std/path` 本身。
 - 根因是：仓库当前 Linux tracked seed `compiler/seeds/bootstrap_shuxc.linux.x86_64` 本身坏掉，被复制为 `bootstrap_shuxc` / `shux-c` 后进入 `check` 与 `-c` 路径即崩。
 - 当前 `select_bootstrap_shuxc.sh` 的 `can_run()` 判据偏弱：`-h` / `--help` / `-E` 可以通过，但不足以发现 `check/-c` 路径已坏。
+- 第一层根因修复后，真实 Linux 继续暴露出第二层问题：
+  - 当前 `compiler/shux-c` 的 `-c` 路径在 `driver_argv_collect_defines()` 上仍会崩溃；
+  - 同机 `shux.good` 正常，说明更像“当前生成产物错误/潜在 UB 被真实 Linux 触发”，而不是纯环境缺陷。
+- 再进一步确认后，`V6` 的核心失败已改写为：
+  - stale `shux-c/bootstrap_shuxc` 会在 `-c` 路径崩溃；
+  - fresh seed / `shux.good` 不再崩溃，但因仍携带旧版 `driver_path_ends_su()`，`-backend c -o *.sx` 时无法识别 `.sx` 输入路径，静默返回 1。
 
 ## 下一步
 
@@ -60,3 +87,7 @@
   1. 强化 seed 选择/验活判据，避免坏 seed 仅凭 `-h` 被接受。
   2. 正式刷新 Linux tracked seed，替换当前坏掉的 `compiler/seeds/bootstrap_shuxc.linux.x86_64`。
 - 修复动作只在本地进行；提交并推送后，再让 `ubuntu-server` 拉取最新代码复验。
+- 下一调试目标：
+  1. 修正本地 seed 选择脚本的 smoke 判据，恢复远端重建能力；
+  2. 在真实 Linux 上用当前源码重建新编译器，验证新产物是否已包含 `path_ends_sx(.sx)` 修复；
+  3. 若验证通过，再正式刷新 Linux tracked seed，并继续回到 `L9/S7/V7` 真实阻塞面。

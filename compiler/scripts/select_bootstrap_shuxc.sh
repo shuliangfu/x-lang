@@ -31,18 +31,17 @@ can_run() {
     esac
   fi
   tmp="/tmp/shux_can_run_$$.sx"
-  obj="/tmp/shux_can_run_out_$$.o"
   out="/tmp/shux_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
-  if "$1" -c "$tmp" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
-    rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
+  if "$1" -c "$tmp" >/dev/null 2>&1; then
+    rm -f "$tmp" "$out" 2>/dev/null || true
     return 0
   fi
   if "$1" -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
-    rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
+    rm -f "$tmp" "$out" 2>/dev/null || true
     return 0
   fi
-  rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
+  rm -f "$tmp" "$out" 2>/dev/null || true
   return 1
 }
 

@@ -17,13 +17,12 @@ HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 can_seed_run() {
   [ -x "$1" ] || return 1
   _tmp="/tmp/shux_build_seed_can_run_$$.sx"
-  _obj="/tmp/shux_build_seed_can_run_$$.o"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$_tmp"
-  if "$1" -c "$_tmp" -o "$_obj" >/dev/null 2>&1 && [ -s "$_obj" ]; then
-    rm -f "$_tmp" "$_obj" 2>/dev/null || true
+  if "$1" -c "$_tmp" >/dev/null 2>&1; then
+    rm -f "$_tmp" 2>/dev/null || true
     return 0
   fi
-  rm -f "$_tmp" "$_obj" 2>/dev/null || true
+  rm -f "$_tmp" 2>/dev/null || true
   return 1
 }
 
