@@ -7101,6 +7101,9 @@ static void codegen_tu_alias_register_extern_sym(const char *sym) {
 static void codegen_tu_alias_flush_parser_onefunc_const(FILE *out) {
     if (!out || !codegen_eextern_entry_path || !codegen_emit_path_is_parser_sx(codegen_eextern_entry_path))
         return;
+    fprintf(out, "extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\n");
+    fprintf(out, "extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\n");
+    fprintf(out, "extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n");
     fprintf(out, "#define pipeline_onefunc_append_const ast_pipeline_onefunc_append_const\n");
     fprintf(out, "#define pipeline_onefunc_const_init_ref ast_pipeline_onefunc_const_init_ref\n");
     fprintf(out, "#define pipeline_onefunc_const_type_ref ast_pipeline_onefunc_const_type_ref\n");
