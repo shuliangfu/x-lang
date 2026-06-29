@@ -3305,7 +3305,17 @@ ensure_asm_gen_driver_sx_objs() {
     echo "  $SHUX_E -E lsp_io_std_heap.sx (-E-extern) -> $GEN_DIR/lsp_io_std_heap_gen.c ..."
     "$SHUX_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.sx -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
   fi
+  driver_gen_pinned=0
   if [ -f driver_gen.c ] && [ -s driver_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    driver_gen_pinned=1
+    for dep in src/main.sx src/codegen/codegen.sx src/ast/ast.sx src/preprocess/preprocess.sx; do
+      if [ -f "$dep" ] && [ "$dep" -nt driver_gen.c ]; then
+        driver_gen_pinned=0
+        break
+      fi
+    done
+  fi
+  if [ "$driver_gen_pinned" = "1" ]; then
     echo "  pinned driver_gen.c -> $GEN_DIR/driver_gen.c ($(wc -c <driver_gen.c | tr -d ' ') bytes)"
     cp -f driver_gen.c "$GEN_DIR/driver_gen.c"
   else

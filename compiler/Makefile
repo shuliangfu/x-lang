@@ -1791,10 +1791,23 @@ pipeline_sx.o: pipeline_gen.c $(PIPELINE_SX_DEPS)
 
 # driver_gen.c / driver_sx.o：main.sx 驱动入口；-E 须 shux-c（C parser stmt_order）。
 driver_gen.c: $(SHUX_C) $(MAIN_SX_DEPS)
-	@if [ -s driver_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_gen.c: pinned ($$(wc -c < driver_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] && [ ! -s driver_gen.c ]; then \
-	  cp -f seeds/driver_gen.linux.x86_64.c driver_gen.c; \
+	@need_regen=0; \
+	if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
+	  need_regen=1; \
+	elif [ -s $@ ]; then \
+	  for dep in $^; do \
+	    if [ "$$dep" -nt $@ ]; then \
+	      need_regen=1; \
+	      break; \
+	    fi; \
+	  done; \
+	else \
+	  need_regen=1; \
+	fi; \
+	if [ "$$need_regen" = "0" ]; then \
+	  echo "driver_gen.c: pinned ($$(wc -c < $@ | tr -d ' ') bytes; up-to-date with MAIN_SX_DEPS)"; \
+	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] && [ ! -s $@ ]; then \
+	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
 	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c"; \
 	else \
 	  ./$(SHUX_C) $(MAIN_SX_E_DIRS) src/main.sx -E -E-extern > $@ || \
