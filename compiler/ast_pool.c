@@ -14068,6 +14068,21 @@ void pipeline_asm_wpo_pgo_emit_order_prepare(struct ast_Module *m) {
     }
     fi = fi + 1;
   }
+  /**
+   * asm -o 不能让 WPO/reach 误判把待 emit 集合裁成空集，否则 backend 连当前函数名都拿不到，
+   * 最终只会以 empty __text / func unknown 的形式失败。仅在空集合时保守退回全部非 extern 函数。
+   */
+  if (n == 0 && nf > 0) {
+    fi = 0;
+    while (fi < nf) {
+      if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
+        if (n < ASM_WPO_MAX_FUNCS)
+          g_asm_wpo_pgo_emit_order[n] = fi;
+        n = n + 1;
+      }
+      fi = fi + 1;
+    }
+  }
   if (pipeline_elf_pgo_hot_enabled() && g_asm_wpo.valid) {
     a = 0;
     while (a < n) {
