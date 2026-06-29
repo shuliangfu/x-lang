@@ -1158,10 +1158,7 @@ parser_gen.c: $(SHUX_C) ast_gen2.c src/parser/parser.sx
 	fi
 	@if ! grep -q 'extern int32_t ast_pipeline_onefunc_append_const' $@; then \
 	  echo "parser_gen.c: inject ast_pipeline onefunc const extern aliases" >&2; \
-	  printf '%s\n' \
-	    'extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);' \
-	    'extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);' \
-	    'extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);' >> $@; \
+	  perl -0pi -e 's@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' $@; \
 	fi
 	@echo "parser_gen.c: from parser.sx (-E-extern, full TU via shux-sx -sx)"
 parser_sx.o: parser_gen.c
