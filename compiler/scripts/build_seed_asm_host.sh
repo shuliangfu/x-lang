@@ -94,14 +94,14 @@ run_asm_sx_emit_c() {
   # -E 成功写 stdout 后宿主清理阶段可能 abort(134)，但 C 已落盘；有实质输出则视为成功。
   # 兼容两种合法形态：
   # 1) 旧的 full emit：大于 50KiB，含 backend_*。
-  # 2) 现在的 thin bridge：几 KiB，含 asm_asm_codegen_* 转发入口。
+  # 2) 现在的 thin bridge：约 1KiB，含 asm_asm_codegen_* 转发入口。
   _emit_c_usable() {
     [ -s "$_out" ] || return 1
     _bytes=$(wc -c <"$_out" | tr -d ' ')
     if [ "$_bytes" -ge 50000 ] && grep -q 'backend_' "$_out" 2>/dev/null; then
       return 0
     fi
-    if [ "$_bytes" -ge 4000 ] && \
+    if [ "$_bytes" -ge 800 ] && \
        grep -q 'asm_asm_codegen_ast' "$_out" 2>/dev/null && \
        grep -q 'asm_asm_codegen_elf_o' "$_out" 2>/dev/null; then
       return 0
@@ -147,7 +147,7 @@ asm_full_gen_c_usable_for_fix() {
   if [ "$_bytes" -ge 50000 ] && grep -q 'backend_' "$_c" 2>/dev/null; then
     return 0
   fi
-  if [ "$_bytes" -ge 4000 ] && \
+  if [ "$_bytes" -ge 800 ] && \
      grep -q 'asm_asm_codegen_ast' "$_c" 2>/dev/null && \
      grep -q 'asm_asm_codegen_elf_o' "$_c" 2>/dev/null; then
     return 0
