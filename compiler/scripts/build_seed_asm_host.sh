@@ -350,8 +350,8 @@ if seed_partial_needs_regen; then
   echo "build_seed_asm_host: asm_seed_full.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
-  run_asm_sx_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err"
-  _erc=$?
+  _erc=0
+  run_asm_sx_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err" || _erc=$?
   if [ "$_erc" -ne 0 ]; then
     echo "build_seed_asm_host: asm_seed_full.sx -E exit=${_erc}" >&2
     if [ -s "$OUT_DIR/asm_full_gen.err" ]; then
