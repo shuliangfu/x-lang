@@ -2912,6 +2912,17 @@ static int link_abi_generated_c_needs_random(const char *c_path) {
     return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
+/** 扫描生成 C 是否引用 std.time 符号（按需链 std/time/time.o + runtime_time_os.o）。 */
+static int link_abi_generated_c_needs_time(const char *c_path) {
+    static const char *needles[] = {
+        "std_time_now_monotonic_ns", "std_time_sleep_ms", "std_time_duration_ns",
+        "std_time_now_wall_ns", "std_time_format_timezone_smoke",
+        "time_now_monotonic_ns_c", "time_sleep_ms_c", "time_duration_ns_c",
+        "time_now_wall_ns_c", "time_format_timezone_smoke_c",
+    };
+    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+}
+
 /** 扫描生成 C 是否引用 std.runtime C 符号（按需链 std/runtime/runtime.o）。 */
 static int link_abi_generated_c_needs_runtime(const char *c_path) {
     static const char *needles[] = {
@@ -2953,6 +2964,10 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         if (shux_ensure_runtime_process_argv_o(NULL) != 0)
             return -1;
         if (shux_ensure_runtime_process_os_glue_o(NULL) != 0)
+            return -1;
+    }
+    if (time_o && time_o[0] && access(time_o, R_OK) == 0) {
+        if (shux_ensure_runtime_time_os_o(NULL) != 0)
             return -1;
     }
     pid_t pid = fork();
@@ -3011,6 +3026,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             int needs_db_arrow = 0;
             int needs_fs = 0;
             int needs_random = 0;
+            int needs_time = 0;
             int needs_runtime = 0;
             int needs_win32 = 0;
             int needs_win32_wsa = 0;
@@ -3030,6 +3046,8 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                     needs_fs = 1;
                 if (link_abi_generated_c_needs_random(c_paths[j]))
                     needs_random = 1;
+                if (link_abi_generated_c_needs_time(c_paths[j]))
+                    needs_time = 1;
                 if (link_abi_generated_c_needs_runtime(c_paths[j]))
                     needs_runtime = 1;
                 if (link_abi_generated_c_needs_win32(c_paths[j]))
@@ -3077,6 +3095,14 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             }
             if (needs_random)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
+            if (needs_time) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
+                {
+                    const char *rto = shux_runtime_time_os_o_path(NULL);
+                    if (rto && rto[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
+                }
+            }
             if (needs_runtime) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
