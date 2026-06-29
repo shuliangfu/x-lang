@@ -5757,7 +5757,8 @@ int driver_run_sx_emit_c(void) {
             return 1;
         }
         shux_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
-        shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
+        if (!asm_direct_import_only)
+            shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
         driver_dep_seeded_clear_all();
@@ -5804,16 +5805,22 @@ int driver_run_sx_emit_c(void) {
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
         }
-        typeck_ndep = n_deps;
-        for (int j = 0; j < n_deps; j++) {
+        typeck_ndep = asm_direct_import_only ? 0 : n_deps;
+        for (int j = 0; j < typeck_ndep; j++) {
             typeck_dep_module_ptrs[j] = dep_modules[j];
             typeck_dep_arena_ptrs[j] = dep_arenas[j];
         }
-        pipeline_set_dep_slots(dep_arenas, dep_modules);
-        driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
-        codegen_set_dep_slots_for_sx_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
-        /* 设置 driver_dep_* 槽位，使 pipeline 内 resolve/load 时能拿到与当前 dep 一致的 arena/module。仅对 entry 跑一次 pipeline，其内部会 codegen 所有 deps + entry，避免对每个 dep 单独跑 pipeline 再 fwrite 导致 deps 的 C 被写两遍（重复符号）。 */
-        pipeline_set_dep_slots(dep_arenas, dep_modules);
+        if (asm_direct_import_only) {
+            pipeline_set_dep_slots(NULL, NULL);
+            driver_dep_seed_slots(NULL, NULL, 0);
+            codegen_set_dep_slots_for_sx_pipeline(NULL, NULL, 0);
+        } else {
+            pipeline_set_dep_slots(dep_arenas, dep_modules);
+            driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
+            codegen_set_dep_slots_for_sx_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
+            /* 设置 driver_dep_* 槽位，使 pipeline 内 resolve/load 时能拿到与当前 dep 一致的 arena/module。仅对 entry 跑一次 pipeline，其内部会 codegen 所有 deps + entry，避免对每个 dep 单独跑 pipeline 再 fwrite 导致 deps 的 C 被写两遍（重复符号）。 */
+            pipeline_set_dep_slots(dep_arenas, dep_modules);
+        }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         int ec = shux_pipeline_run_sx_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
