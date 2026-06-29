@@ -5757,7 +5757,9 @@ int driver_run_sx_emit_c(void) {
             return 1;
         }
         shux_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
-        if (!asm_direct_import_only)
+        if (asm_direct_import_only)
+            shux_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
+        else
             shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
@@ -5811,7 +5813,7 @@ int driver_run_sx_emit_c(void) {
             typeck_dep_arena_ptrs[j] = dep_arenas[j];
         }
         if (asm_direct_import_only) {
-            pipeline_set_dep_slots(NULL, NULL);
+            pipeline_set_dep_slots(dep_arenas, dep_modules);
             driver_dep_seed_slots(NULL, NULL, 0);
             codegen_set_dep_slots_for_sx_pipeline(NULL, NULL, 0);
         } else {

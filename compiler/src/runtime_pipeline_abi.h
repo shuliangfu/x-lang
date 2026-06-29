@@ -169,6 +169,9 @@ void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const c
 void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n);
 
+/** 仅写入 import_path + ndep，不预置 module/arena；供 entry pipeline 自行 load/sync direct imports。 */
+void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n);
+
 /**
  * 单 dep 预跑 ctx：保留 lib_root；dep 槽按该 dep 源码的 import 表过滤（与 entry 全量 dep 表对齐 global 槽）。
  * dep_src/dep_src_len 非空时扫描 import 路径；否则回退写入 entry 全量 dep 槽。

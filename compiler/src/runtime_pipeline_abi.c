@@ -589,6 +589,20 @@ void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **de
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
 
+void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+    int i;
+    if (!ctx)
+        return;
+    ast_pipeline_dep_ctx_reset(ctx);
+    for (i = 0; i < n; i++) {
+        if (import_paths && import_paths[i]) {
+            int pl = (int)strlen(import_paths[i]);
+            ast_pipeline_dep_ctx_set_import_path(ctx, i, (uint8_t *)import_paths[i], pl);
+        }
+    }
+    ast_pipeline_dep_ctx_set_ndep(ctx, n);
+}
+
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
