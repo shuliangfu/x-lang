@@ -372,9 +372,65 @@ __attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOu
   return append_asm_line(out, sub_buf, 6 + n + 6);
 }
 
+__attribute__((weak)) int32_t arch_x86_64_emit_section_text(struct codegen_CodegenOutBuf *out) {
+  uint8_t line[8] = {'.', 't', 'e', 'x', 't', 0, 0, 0};
+  return append_asm_line(out, line, 5);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  uint8_t buf[96] = {'.', 'g', 'l', 'o', 'b', 'l', ' '};
+  int32_t k;
+  if (!out || !name || name_len <= 0 || name_len > 88)
+    return -1;
+  for (k = 0; k < name_len; k++)
+    buf[7 + k] = name[k];
+  return append_asm_line(out, buf, 7 + name_len);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  uint8_t buf[96];
+  int32_t k;
+  if (!out || !name || name_len <= 0 || name_len > 94)
+    return -1;
+  for (k = 0; k < name_len; k++)
+    buf[k] = name[k];
+  buf[name_len] = ':';
+  return append_asm_line(out, buf, name_len + 1);
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_section_text(struct codegen_CodegenOutBuf *out) {
+  (void)out;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  (void)out;
+  (void)name;
+  (void)name_len;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  (void)out;
+  (void)frame_sz;
+  return -1;
+}
+
 __attribute__((weak)) int32_t arch_arm64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
   (void)out;
   (void)frame_sz;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_section_text(struct codegen_CodegenOutBuf *out) {
+  (void)out;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  (void)out;
+  (void)name;
+  (void)name_len;
   return -1;
 }
 
