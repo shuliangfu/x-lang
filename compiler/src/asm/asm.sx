@@ -17,11 +17,11 @@
 // asm.sx — 汇编后端对外入口（供 pipeline 调用）
 //
 // 职责：导出 asm_codegen_ast(module, arena, out, ctx)，供 pipeline 在 -backend asm 时调用；ctx.target_arch 决定架构。
-// 依赖：ast、codegen_outbuf_abi、elf；函数调用经 C bridge，避免 entry typeck 跨 .sx 模块调用。
+// 依赖：ast、codegen_outbuf_abi；复杂实现与 ELF 上下文均经原始 C bridge 透传，避免 `asm.sx -E`
+// 解析大 .sx 依赖。
 
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
-const elf = import("platform.elf");
 
 /** 与 pipeline 对齐：若非 0 则跳过 dep 0 的机器码编码（宿主已提供等价 .o）。 */
 extern function driver_skip_codegen_dep_0_get(): i32;
@@ -46,11 +46,11 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
  * 用分分支 if + return；按 ctx.use_coff_o / use_macho_o 选择 COFF / Mach-O / ELF 写出。
  */
 #[cfg(target_os = "linux")]
-function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
 
 #[cfg(not(target_os = "linux"))]
-function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
