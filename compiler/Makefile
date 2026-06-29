@@ -1848,8 +1848,12 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; esac; \
 	  seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
 	  if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
-	    mkdir -p build_asm/seed_host; cp -f "$$seed_partial" build_asm/seed_host/asm_backend_partial.o; \
-	    echo "bootstrap-driver-seed: seed partial <- $$seed_partial" >&2; \
+	    if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \
+	      mkdir -p build_asm/seed_host; cp -f "$$seed_partial" build_asm/seed_host/asm_backend_partial.o; \
+	      echo "bootstrap-driver-seed: seed partial <- $$seed_partial" >&2; \
+	    else \
+	      echo "bootstrap-driver-seed: ignore non-real seed partial $$seed_partial (missing strong seed_mega)" >&2; \
+	    fi; \
 	  fi
 	@$(MAKE) src/asm/bootstrap_seed_io_stubs.o
 	@$(MAKE) $(USER_ASM_SEED_OBJS)

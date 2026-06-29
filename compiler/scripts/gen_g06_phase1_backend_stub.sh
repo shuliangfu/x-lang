@@ -27,16 +27,27 @@ case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; es
 case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; esac
 SEED="seeds/asm_backend_partial.${os}.${arch}.o"
 
+has_real_partial_seed_mega() {
+  _obj="$1"
+  nm "$_obj" 2>/dev/null | awk '/ T / {
+    s=$3; sub(/^_/, "", s)
+    if (s == "backend_asm_codegen_ast_seed_mega") found=1
+  } END { exit !found }'
+}
+
 # 已有真 partial：不生成桩
 if [ -s "$PARTIAL" ] && nm "$PARTIAL" 2>/dev/null | awk '/ T / { s=$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then
   echo "gen_g06_phase1_backend_stub: reuse existing $PARTIAL (strong seed_mega)" >&2
   exit 0
 fi
-if [ -f "$SEED" ] && [ -s "$SEED" ]; then
+if [ -f "$SEED" ] && [ -s "$SEED" ] && has_real_partial_seed_mega "$SEED"; then
   mkdir -p "$OUT_DIR"
   cat "$SEED" > "$PARTIAL"
   echo "gen_g06_phase1_backend_stub: seed partial <- $SEED" >&2
   exit 0
+fi
+if [ -f "$SEED" ] && [ -s "$SEED" ]; then
+  echo "gen_g06_phase1_backend_stub: ignore non-real seed $SEED (missing strong seed_mega)" >&2
 fi
 
 mkdir -p "$OUT_DIR"

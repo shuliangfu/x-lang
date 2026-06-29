@@ -15,6 +15,14 @@ cd "$(dirname "$0")/.."
 
 progress() { echo "[$(date +%H:%M:%S)] capture_asm_partial: $*"; }
 
+has_real_partial_seed_mega() {
+  _obj="$1"
+  nm "$_obj" 2>/dev/null | awk '/ T / {
+    s=$3; sub(/^_/, "", s)
+    if (s == "backend_asm_codegen_ast_seed_mega") found=1
+  } END { exit !found }'
+}
+
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
@@ -23,11 +31,14 @@ case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; esac
 SEED="seeds/asm_backend_partial.${os}.${arch}.o"
 PARTIAL="build_asm/seed_host/asm_backend_partial.o"
 
-if [ -s "$SEED" ]; then
+if [ -s "$SEED" ] && has_real_partial_seed_mega "$SEED"; then
   progress "reuse $SEED"
   mkdir -p build_asm/seed_host
   cp -f "$SEED" "$PARTIAL"
   exit 0
+fi
+if [ -s "$SEED" ]; then
+  progress "ignore non-real seed $SEED (missing strong seed_mega)"
 fi
 
 SHUX_E="${SHUX_E:-./bootstrap_shuxc}"
