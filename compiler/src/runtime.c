@@ -5771,8 +5771,6 @@ int driver_run_sx_emit_c(void) {
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
         driver_dep_seeded_clear_all();
         for (int j = n_deps - 1; j >= 0; j--) {
-            if (asm_direct_import_only && !driver_sx_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j]))
-                continue;
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             int ec_dep;
