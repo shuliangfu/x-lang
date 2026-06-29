@@ -623,9 +623,24 @@ void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
 
 /* std.io.driver 单次 _buf 声明与 inline 已由 -E 产出在 pipeline_gen.c 顶部（runtime.c -E 路径 preamble），此处仅保留批量读写桩。 */
 
+struct std_io_driver_Buffer;
+
 /* std.io.driver 批量读写桩：pipeline_gen.c 同 TU 已定义 struct std_io_driver_Buffer；io.o 提供 io_read_batch_buf/io_write_batch_buf，供 shux_sx 链接时解析。 */
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+
+int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t ref);
+int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
+int32_t pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
+int32_t pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t layout_idx);
+int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index, int32_t dep_return_type_ref,
+                                                              struct ast_ASTArena *caller_arena,
+                                                              struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
   ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);
