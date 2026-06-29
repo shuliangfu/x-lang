@@ -27,8 +27,8 @@ extern void lsp_io_std_heap_std_heap_free(uint8_t *ptr);
 
 extern int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap);
 extern void std_heap_free(void *ptr);
-extern int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_write(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms);
+extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
+extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 extern void pipeline_module_struct_layout_set_packed(struct ast_Module *module, int32_t idx, int32_t v);
 extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
 
@@ -100,12 +100,12 @@ __attribute__((weak)) void std_heap_free_u8_ptr(uint8_t *ptr) {
 
 __attribute__((weak)) int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
                                                                  uint32_t timeout_ms) {
-  return std_io_read(handle, ptr, len, timeout_ms);
+  return (int32_t)io_read((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
 __attribute__((weak)) int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
                                                                   uint32_t timeout_ms) {
-  return std_io_write(handle, ptr, len, timeout_ms);
+  return (int32_t)io_write((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
 __attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(struct ast_Module *module, int32_t idx, int32_t v) {
