@@ -947,60 +947,21 @@ static ASTType *parse_type_apply_slice_suffix(Parser *p, ASTType *ty) {
 }
 
 /**
- * 解析完整类型注解（含联合 T | U | V）；单类型由 parse_type_name 解析，| 在类型上下文连接成员。
- * 用于形参、let/const、返回值等；*T / []T 内部仍用 parse_type_name，避免 *i32 | *u64 歧义。
+ * 解析完整类型注解；当前语言层仅允许单类型。
+ * 用于形参、let/const、返回值等；*T / []T 内部仍用 parse_type_name。
+ * `|` 在类型上下文已禁用，遇到时明确提示改用函数重载。
  */
 static ASTType *parse_type(Parser *p) {
     ASTType *first = parse_type_name(p);
     if (!first) return NULL;
     first = parse_type_apply_slice_suffix(p, first);
     if (!first) return NULL;
-    if (!peek(p) || peek(p)->kind != TOKEN_PIPE)
-        return first;
-    ASTType *members[AST_TYPE_UNION_MAX];
-    int n = 0;
-    members[n++] = first;
-    while (peek(p) && peek(p)->kind == TOKEN_PIPE) {
-        advance(p);
-        if (n >= AST_TYPE_UNION_MAX) {
-            fail(p, "union type has too many members");
-            for (int i = 0; i < n; i++) ast_type_free(members[i]);
-            return NULL;
-        }
-        ASTType *m = parse_type_name(p);
-        if (!m) {
-            for (int i = 0; i < n; i++) ast_type_free(members[i]);
-            return NULL;
-        }
-        m = parse_type_apply_slice_suffix(p, m);
-        if (!m) {
-            for (int i = 0; i < n; i++) ast_type_free(members[i]);
-            return NULL;
-        }
-        members[n++] = m;
-    }
-    ASTType *u = (ASTType *)malloc(sizeof(ASTType));
-    if (!u) {
-        for (int i = 0; i < n; i++) ast_type_free(members[i]);
-        fprintf(stderr, "parse: out of memory\n");
+    if (peek(p) && peek(p)->kind == TOKEN_PIPE) {
+        fail(p, "union types are removed; use function overloads instead");
+        ast_type_free(first);
         return NULL;
     }
-    u->kind = AST_TYPE_UNION;
-    u->name = NULL;
-    u->elem_type = NULL;
-    u->array_size = 0;
-    u->region_label = NULL;
-    u->union_count = n;
-    u->union_members = (ASTType **)malloc((size_t)n * sizeof(ASTType *));
-    if (!u->union_members) {
-        free(u);
-        for (int i = 0; i < n; i++) ast_type_free(members[i]);
-        fprintf(stderr, "parse: out of memory\n");
-        return NULL;
-    }
-    for (int i = 0; i < n; i++)
-        u->union_members[i] = members[i];
-    return u;
+    return first;
 }
 
 /**

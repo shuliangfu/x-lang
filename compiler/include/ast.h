@@ -39,10 +39,10 @@ typedef enum ASTTypeKind {
     AST_TYPE_F32,    /**< 32 位浮点（文档阶段 8+ 可选） */
     AST_TYPE_F64,    /**< 64 位浮点 */
     AST_TYPE_VOID,   /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
-    AST_TYPE_UNION   /**< 联合类型 T | U | …；union_members 存各成员，零运行时 tag，调用点单态化 */
+    AST_TYPE_UNION   /**< 遗留内部联合类型节点；语言层 `T | U` 已禁用，union_members 存各成员 */
 } ASTTypeKind;
 
-/** 联合类型成员最大个数（parser/typeck 一致） */
+/** 遗留联合类型成员最大个数（仅供未清理的内部分支使用） */
 #define AST_TYPE_UNION_MAX 8
 
 /** 类型节点：内建/具名/指针/数组/切片/联合等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */

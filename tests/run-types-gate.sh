@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 类型特性烟测：联合类型 T|U、函数重载（typeck + 最小可运行）
+# 类型特性烟测：函数重载可用、联合类型已禁用
 #
 # 用法：./tests/run-types-gate.sh
 set -e
@@ -8,16 +8,18 @@ cd "$(dirname "$0")/.."
 SHUX="${SHUX:-./compiler/shux-c}"
 CHECK_CASES=(
   tests/types/overload.sx
-  tests/types/union_int.sx
 )
 RUN_CASES=(
   tests/types/overload.sx
+)
+REJECT_CASES=(
+  tests/types/union_int.sx
 )
 
 # shellcheck source=tests/lib/shux-link-env.sh
 . tests/lib/shux-link-env.sh
 
-for f in "${CHECK_CASES[@]}" "${RUN_CASES[@]}"; do
+for f in "${CHECK_CASES[@]}" "${RUN_CASES[@]}" "${REJECT_CASES[@]}"; do
   if [ ! -f "$f" ]; then
     echo "types gate FAIL: missing $f" >&2
     exit 1
@@ -57,6 +59,20 @@ for f in "${RUN_CASES[@]}"; do
     exit 1
   fi
   echo "types gate OK: run $f"
+done
+
+echo "=== types gate: reject removed union syntax ==="
+for f in "${REJECT_CASES[@]}"; do
+  if "$SHUX" check -L . "$f" >/tmp/shux_types_reject.log 2>&1; then
+    echo "types gate FAIL: union syntax unexpectedly accepted in $f" >&2
+    exit 1
+  fi
+  if ! grep -q "union types are removed" /tmp/shux_types_reject.log; then
+    echo "types gate FAIL: missing removed-union diagnostic for $f" >&2
+    tail -8 /tmp/shux_types_reject.log >&2 || true
+    exit 1
+  fi
+  echo "types gate OK: reject $f"
 done
 
 echo "types gate OK"

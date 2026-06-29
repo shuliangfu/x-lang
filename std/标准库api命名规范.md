@@ -1,7 +1,7 @@
 # 标准库 API 命名规范
 
 > **硬性规则**：函数名**不得出现标量类型名**（`i32` `u32` `i64` `usize` `u8` `f32` `f64` `bool` 等）。
-> 类型仅通过参数、返回值、容器（`Vec_i32`）、**联合类型**或**函数重载**表达。
+> 类型仅通过参数、返回值、容器（`Vec_i32`）或**函数重载**表达。
 > **书写目标**：绑定 import 后，Tier-S 日常 API 函数名 **3～12 字符**；语义后缀仅表达参数无法区分的差异。
 > 模块 70 · API 3193 · **三轮精简**（2026-06）已更新简化名对照表
 
@@ -23,7 +23,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | ❌ 禁止                             | ✅ 简化名            | 类型如何表达         |
 | -------------------------------- | ---------------- | -------------- |
-| `run_seed_push_i32` / `_u32` / … | `run_seed_push`  | 联合类型 / 重载      |
+| `run_seed_push_i32` / `_u32` / … | `run_seed_push`  | 函数重载      |
 | `vec_i32_push` / `push_i32`      | `push`           | `*Vec_i32`     |
 | `map_i32_i32_get`                | `get`            | `*Map_i32_i32` |
 | `channel_i32_send`               | `send`           | `*Channel_i32` |
@@ -42,7 +42,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | ❌ 禁止                    | ✅ 简化名             | 说明               |
 | ----------------------- | ----------------- | ---------------- |
-| `format_2` / `format_3` | `format`          | 由重载或联合参数承载不同实参数量 |
+| `format_2` / `format_3` | `format`          | 由重载承载不同实参数量 |
 | `select_recv_2`         | `select_recv`     | 双路/多路由参数容器承载     |
 | `format_template_1`     | `format_template` | 占位数量不进函数名        |
 
@@ -81,8 +81,8 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 1. 去模块前缀（`io_` `net_` `fs_` `sio_` …）
 2. **去函数名中所有标量类型 token**（任意位置的 `_i32` `_u32` …）
-3. 标量仅类型不同 → 联合类型 / 重载，不拆函数
-4. 参数位数仅不同（如 `_2`/`_3`）→ 合并为同名函数，靠重载/联合参数区分
+3. 标量仅类型不同 → 函数重载，不拆函数
+4. 参数位数仅不同（如 `_2`/`_3`）→ 合并为同名函数，靠重载区分
 5. 容器单态化 → 方法名不含类型（`Vec_i32.push` 未来语法，现为 `push(&vec_i32, …)`）
 6. 动词对齐 Rust/Go（`starts_with` `extend` `contains_key`）
 7. **三轮精简**：绑定 import 后去模块内冗余前缀；`_with_timeout` 并入 `timeout_ms` 参数；`_with_allocator` 并入容器 `.al` 字段
@@ -4012,7 +4012,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 > **自举清单**：原则与改名同步义务见 [`analysis/自举前必须清单.md`](../analysis/自举前必须清单.md) **§4.4 S9**。
 
-1. 编译器：联合类型 + 函数重载（支撑 `print` / `read` / `heap.alloc` 等同名合并）。
+1. 编译器：函数重载（支撑 `print` / `read` / `heap.alloc` 等同名合并）。
 2. `mod.sx` 仅 export **Tier-S / Tier-A** 简化名；**禁止新增**含标量类型 token 的公开 API。
 3. 旧 `_*_i32` / 长名保留一版 `@deprecated` alias（自举完成后分批删除）。
 4. 大模块（`http` / `socketio`）按 §二子路径表拆子 mod，避免 30+ 字符函数名。
