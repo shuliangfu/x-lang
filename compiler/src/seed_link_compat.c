@@ -128,7 +128,51 @@ __attribute__((weak)) int32_t backend_asm_ctx_slot_offset(struct backend_AsmFunc
   return asm_ctx_local_offset_at((uint8_t *)ctx, slot_idx);
 }
 
-__attribute__((weak)) int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  (void)elf_ctx;
-  return -1;
-}
+#define SHUX_ARM64_GLUE_STUB1(name)                                    \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
+    (void)elf_ctx;                                                     \
+    return -1;                                                         \
+  }
+
+#define SHUX_ARM64_GLUE_STUB3(name)                                                        \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t a, int32_t b) { \
+    (void)elf_ctx;                                                                         \
+    (void)a;                                                                               \
+    (void)b;                                                                               \
+    return -1;                                                                             \
+  }
+
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x2)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x2_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x2)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x2_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x9)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x9_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x10)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x10_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x10)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x10_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x11)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x11_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x11)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x11_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x12)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x12_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x12)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x12_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x13)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x13_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x13)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x13_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x14)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x14_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x14)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x14_to_rbx)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x15)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x15_to_rax)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x15)
+SHUX_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x15_to_rbx)
+SHUX_ARM64_GLUE_STUB3(arch_arm64_enc_enc_ldr_sp_slot_to_xreg)
+
+#undef SHUX_ARM64_GLUE_STUB1
+#undef SHUX_ARM64_GLUE_STUB3
