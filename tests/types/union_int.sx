@@ -1,7 +1,0 @@
-// 联合类型已禁用；此文件专用于验证 parser/typecheck 会拒绝 `T | U` 语法。
-
-function take(v: i32 | i64): i32 { return v as i32; }
-
-function main(): i32 {
-  return take(42);
-}

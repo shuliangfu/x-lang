@@ -38,23 +38,16 @@ typedef enum ASTTypeKind {
     AST_TYPE_VECTOR, /**< 向量类型如 i32x4；elem_type 为元素类型，array_size 为 lane 数（文档 §10，先用 struct 模拟） */
     AST_TYPE_F32,    /**< 32 位浮点（文档阶段 8+ 可选） */
     AST_TYPE_F64,    /**< 64 位浮点 */
-    AST_TYPE_VOID,   /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
-    AST_TYPE_UNION   /**< 遗留内部联合类型节点；语言层 `T | U` 已禁用，union_members 存各成员 */
+    AST_TYPE_VOID    /**< 无返回值类型（仅用于函数返回类型，如 extern function foo(): void;） */
 } ASTTypeKind;
 
-/** 遗留联合类型成员最大个数（仅供未清理的内部分支使用） */
-#define AST_TYPE_UNION_MAX 8
-
-/** 类型节点：内建/具名/指针/数组/切片/联合等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */
+/** 类型节点：内建/具名/指针/数组/切片等；指针/数组/切片时 elem_type 非 NULL，由 ast_type_free 递归释放 */
 typedef struct ASTType {
     ASTTypeKind kind;
     const char *name;  /**< 对于 AST_TYPE_NAMED 为 strdup 的类型名，其它种类可为 NULL */
     struct ASTType *elem_type;  /**< 对于 AST_TYPE_PTR / AST_TYPE_ARRAY 为元素类型，其它为 NULL */
     int array_size;    /**< 对于 AST_TYPE_ARRAY 为编译期常量长度 N，其它为 0 */
     const char *region_label;  /**< M-3：仅 AST_TYPE_SLICE；域标签（T[]<label>），NULL 表示未绑定域 */
-    /** AST_TYPE_UNION：成员类型数组（parser 分配，ast_type_free 逐项释放后 free 本数组） */
-    struct ASTType **union_members;
-    int union_count;   /**< union_members 有效长度，至少 2 */
 } ASTType;
 
 /** 表达式节点类型：字面量、变量引用、二元运算、一元运算 */

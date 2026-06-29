@@ -62,7 +62,7 @@ my %type_kind_ord = (
   TYPE_I32 => 0, TYPE_BOOL => 1, TYPE_U8 => 2, TYPE_U32 => 3, TYPE_U64 => 4, TYPE_I64 => 5,
   TYPE_USIZE => 6, TYPE_ISIZE => 7, TYPE_NAMED => 8, TYPE_PTR => 9, TYPE_ARRAY => 10,
   TYPE_SLICE => 11, TYPE_LINEAR => 12, TYPE_OWNED => 13, TYPE_VECTOR => 14, TYPE_F32 => 15,
-  TYPE_F64 => 16, TYPE_VOID => 17, TYPE_UNION => 18,
+  TYPE_F64 => 16, TYPE_VOID => 17,
 );
 for my $k (sort { length($b) <=> length($a) } keys %type_kind_ord) {
   my $v = $type_kind_ord{$k};

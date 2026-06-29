@@ -731,14 +731,6 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
         return type_equal(a->elem_type, b->elem_type);
     if (a->kind == AST_TYPE_ARRAY)
         return a->array_size == b->array_size && type_equal(a->elem_type, b->elem_type);
-    if (a->kind == AST_TYPE_UNION && b->kind == AST_TYPE_UNION) {
-        if (a->union_count != b->union_count) return 0;
-        for (int i = 0; i < a->union_count; i++)
-            if (!type_equal(a->union_members[i], b->union_members[i])) return 0;
-        return 1;
-    }
-    if (a->kind == AST_TYPE_UNION || b->kind == AST_TYPE_UNION)
-        return 0;
     return 1;
 }
 
@@ -760,10 +752,7 @@ static int typeck_integer_widen_ok(enum ASTTypeKind dest, enum ASTTypeKind src) 
     return 0;
 }
 
-/**
- * 实参是否可赋给形参（含联合成员匹配与既有隐式转换规则）。
- * arg_expr 可为 NULL（跳过仅依赖字面量的规则）。
- */
+/** 实参是否可赋给形参。arg_expr 可为 NULL（跳过仅依赖字面量的规则）。 */
 static int type_assignable_to(const struct ASTType *actual, const struct ASTType *formal,
     const struct ASTExpr *arg_expr) {
     if (!formal) return actual == NULL;
@@ -807,11 +796,6 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
         return 0;
     }
     if (!actual) return 0;
-    if (formal->kind == AST_TYPE_UNION) {
-        for (int i = 0; i < formal->union_count; i++)
-            if (type_assignable_to(actual, formal->union_members[i], arg_expr)) return 1;
-        return 0;
-    }
     if (type_equal(actual, formal)) return 1;
     if (formal->kind == AST_TYPE_U32 && arg_expr && arg_expr->kind == AST_EXPR_LIT
         && arg_expr->value.int_val >= 0)
@@ -861,16 +845,14 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
     return 0;
 }
 
-/** let 注解为联合时 symtab 存初值具体类型，否则存声明类型。 */
+/** let 绑定在符号表中记录声明类型；缺省时退回初值类型。 */
 static const struct ASTType *typeck_let_symtab_type(const struct ASTType *decl, const struct ASTExpr *init) {
-    if (decl && decl->kind == AST_TYPE_UNION && init && init->resolved_type)
-        return init->resolved_type;
     if (decl) return decl;
     if (init && init->resolved_type) return init->resolved_type;
     return NULL;
 }
 
-/** let 初值是否与声明类型兼容（含联合成员匹配）。 */
+/** let 初值是否与声明类型兼容。 */
 /**
  * 结构体字面量的 resolved_type 名：import as 别名时保留用户写的本地名（IoBuf），否则用定义名（Buffer）。
  */
@@ -884,8 +866,6 @@ static const char *struct_lit_resolved_type_name(const struct ASTStructDef *sd, 
 
 static int typeck_let_init_matches(const struct ASTType *decl, const struct ASTExpr *init) {
     if (!decl || !init || !init->resolved_type) return 1;
-    if (decl->kind == AST_TYPE_UNION)
-        return type_assignable_to(init->resolved_type, decl, init);
     if (type_equal(decl, init->resolved_type)) return 1;
     /* import 解构 as：声明 IoBuf、初值 Buffer（或反之）时视为同一结构体 */
     if (typeck_current_mod && decl->kind == AST_TYPE_NAMED && init->resolved_type->kind == AST_TYPE_NAMED
@@ -957,8 +937,7 @@ static void typeck_coerce_top_level_let_init(const struct ASTType *decl, struct 
     if (!decl || !init)
         return;
     (void)typeck_coerce_let_int_lit(decl, init);
-    if (init->resolved_type && decl->kind != AST_TYPE_UNION
-        && typeck_integer_widen_ok(decl->kind, init->resolved_type->kind))
+    if (init->resolved_type && typeck_integer_widen_ok(decl->kind, init->resolved_type->kind))
         init->resolved_type = (struct ASTType *)decl;
     if (init->kind == AST_EXPR_ARRAY_LIT && decl->kind == AST_TYPE_ARRAY) {
         int nel = init->value.array_lit.num_elems;
@@ -1088,17 +1067,6 @@ static void type_to_string_buf(const struct ASTType *ty, char *buf, size_t size)
         char inner[64];
         type_to_string_buf(ty->elem_type, inner, sizeof(inner));
         (void)snprintf(buf, size, "Linear(%s)", inner[0] ? inner : "?");
-        return;
-    }
-    if (ty->kind == AST_TYPE_UNION && ty->union_members && ty->union_count > 0) {
-        size_t off = 0;
-        for (int i = 0; i < ty->union_count && off + 1 < size; i++) {
-            char part[48];
-            type_to_string_buf(ty->union_members[i], part, sizeof(part));
-            if (i > 0)
-                off += (size_t)snprintf(buf + off, size - off, " | ");
-            off += (size_t)snprintf(buf + off, size - off, "%s", part[0] ? part : "?");
-        }
         return;
     }
     if (base && base[0])
@@ -3598,7 +3566,6 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             return -1;
         }
         if (b->let_decls[i].type && b->let_decls[i].init && b->let_decls[i].init->resolved_type
-            && b->let_decls[i].type->kind != AST_TYPE_UNION
             && typeck_integer_widen_ok(b->let_decls[i].type->kind, b->let_decls[i].init->resolved_type->kind)) {
             ((struct ASTExpr *)b->let_decls[i].init)->resolved_type = b->let_decls[i].type;
         }

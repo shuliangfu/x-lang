@@ -946,21 +946,12 @@ static ASTType *parse_type_apply_slice_suffix(Parser *p, ASTType *ty) {
     return NULL;
 }
 
-/**
- * 解析完整类型注解；当前语言层仅允许单类型。
- * 用于形参、let/const、返回值等；*T / []T 内部仍用 parse_type_name。
- * `|` 在类型上下文已禁用，遇到时明确提示改用函数重载。
- */
+/** 解析完整类型注解；当前仅支持单类型。 */
 static ASTType *parse_type(Parser *p) {
     ASTType *first = parse_type_name(p);
     if (!first) return NULL;
     first = parse_type_apply_slice_suffix(p, first);
     if (!first) return NULL;
-    if (peek(p) && peek(p)->kind == TOKEN_PIPE) {
-        fail(p, "union types are removed; use function overloads instead");
-        ast_type_free(first);
-        return NULL;
-    }
     return first;
 }
 

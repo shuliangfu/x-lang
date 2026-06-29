@@ -154,11 +154,6 @@ void ast_type_free(ASTType *t) {
         free((void *)t->region_label);
     if (t->kind == AST_TYPE_NAMED && t->name)
         free((void *)t->name);
-    if (t->kind == AST_TYPE_UNION && t->union_members) {
-        for (int i = 0; i < t->union_count; i++)
-            ast_type_free(t->union_members[i]);
-        free(t->union_members);
-    }
     free(t);
 }
 
