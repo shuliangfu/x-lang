@@ -398,12 +398,29 @@ __attribute__((weak)) int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBu
   return append_asm_line(out, buf, name_len + 1);
 }
 
+__attribute__((weak)) int32_t arch_x86_64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
+  uint8_t line[20] = {'s', 'h', 'r', 'l', ' ', '%', 'c', 'l', ',', ' ', '%', 'e', 'a', 'x', 0};
+  return append_asm_line(out, line, 14);
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
+  uint8_t line[20] = {'s', 'a', 'r', 'l', ' ', '%', 'c', 'l', ',', ' ', '%', 'e', 'a', 'x', 0};
+  return append_asm_line(out, line, 14);
+}
+
 __attribute__((weak)) int32_t arch_arm64_emit_section_text(struct codegen_CodegenOutBuf *out) {
   (void)out;
   return -1;
 }
 
 __attribute__((weak)) int32_t arch_arm64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  (void)out;
+  (void)name;
+  (void)name_len;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
   (void)out;
   (void)name;
   (void)name_len;
@@ -422,12 +439,29 @@ __attribute__((weak)) int32_t arch_arm64_emit_epilogue(struct codegen_CodegenOut
   return -1;
 }
 
+__attribute__((weak)) int32_t arch_arm64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
+  (void)out;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
+  (void)out;
+  return -1;
+}
+
 __attribute__((weak)) int32_t arch_riscv64_emit_section_text(struct codegen_CodegenOutBuf *out) {
   (void)out;
   return -1;
 }
 
 __attribute__((weak)) int32_t arch_riscv64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+  (void)out;
+  (void)name;
+  (void)name_len;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
   (void)out;
   (void)name;
   (void)name_len;
@@ -443,6 +477,16 @@ __attribute__((weak)) int32_t arch_riscv64_emit_prologue(struct codegen_CodegenO
 __attribute__((weak)) int32_t arch_riscv64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
   (void)out;
   (void)frame_sz;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
+  (void)out;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
+  (void)out;
   return -1;
 }
 
