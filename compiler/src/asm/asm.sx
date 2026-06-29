@@ -28,15 +28,15 @@ extern function driver_skip_codegen_dep_0_get(): i32;
 /** CALL 前缀：当前正在为第 j 个 dep 编码时须指向 dep 池 import 路径；入口模块前须置 NULL。 */
 extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
 /** backend.sx 的公开入口本身只是薄转发；这里直接走现成 C glue，避免 `asm.sx -E` 解析整份 backend.sx。 */
-extern function asm_asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32;
-extern function asm_asm_codegen_elf_o(module: *Module, arena: *ASTArena, pipeline_ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32;
+extern function asm_asm_codegen_ast(module: *u8, arena: *u8, out: *u8, pipeline_ctx: *u8): i32;
+extern function asm_asm_codegen_elf_o(module: *u8, arena: *u8, pipeline_ctx: *u8, elf_ctx: *u8, out: *u8): i32;
 
 /**
  * 汇编后端入口：将 AST 生成汇编文本写入 out（与 codegen 共用 CodegenOutBuf）。
  * M8b：勿写 `if (foo(...) != 0)`——.sx parser 会丢整函数；用 let 累加后 return。
  */
 function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  return asm_asm_codegen_ast(module, arena, out, ctx);
+  return asm_asm_codegen_ast(module as *u8, arena as *u8, out as *u8, ctx as *u8);
 }
 
 /**
@@ -47,10 +47,10 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
  */
 #[cfg(target_os = "linux")]
 function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
-  return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out);
+  return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
 
 #[cfg(not(target_os = "linux"))]
 function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
-  return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out);
+  return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
