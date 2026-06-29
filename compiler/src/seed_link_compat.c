@@ -11,15 +11,16 @@ extern ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body
 
 extern int32_t lsp_main_impl(void);
 extern int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
-                                                       uint8_t *out_buf, int32_t out_cap);
+                                                       uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
 extern int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
-                                                           uint8_t *out_buf, int32_t out_cap);
+                                                           uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
 extern int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                 uint8_t *out_buf, int32_t out_cap);
+                                 uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
 extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                      int32_t *out_lines, int32_t *out_cols, int32_t max_refs);
+                                      int32_t *out_lines, int32_t *out_cols, int32_t max_refs)
+    __attribute__((weak));
 extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                      int32_t *out_line, int32_t *out_col);
+                                      int32_t *out_line, int32_t *out_col) __attribute__((weak));
 
 extern uint8_t *lsp_io_std_heap_std_heap_alloc(size_t size);
 extern uint8_t *lsp_io_std_heap_std_heap_alloc_zeroed(size_t size);
@@ -54,27 +55,37 @@ __attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
 
 __attribute__((weak)) int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
                                                                     uint8_t *out_buf, int32_t out_cap) {
+  if (!lsp_diag_lsp_build_diagnostics_response)
+    return -1;
   return lsp_diag_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
 }
 
 __attribute__((weak)) int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
                                                                         uint8_t *out_buf, int32_t out_cap) {
+  if (!lsp_diag_lsp_build_semantic_tokens_response)
+    return -1;
   return lsp_diag_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
 }
 
 __attribute__((weak)) int32_t typeck_lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                                        uint8_t *out_buf, int32_t out_cap) {
+  if (!lsp_diag_hover_at)
+    return -1;
   return lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
 }
 
 __attribute__((weak)) int32_t typeck_lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0,
                                                             int32_t col_0, int32_t *out_lines, int32_t *out_cols,
                                                             int32_t max_refs) {
+  if (!lsp_diag_references_at)
+    return -1;
   return lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
 }
 
 __attribute__((weak)) int32_t typeck_lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0,
                                                             int32_t col_0, int32_t *out_line, int32_t *out_col) {
+  if (!lsp_diag_definition_at)
+    return -1;
   return lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
 }
 
