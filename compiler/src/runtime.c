@@ -3677,6 +3677,14 @@ static int driver_sx_emit_asm_dep_parse_only_ok(const char *input_path, const ch
     return 0;
 }
 
+static int driver_sx_emit_asm_direct_import_only(const char *input_path) {
+    if (!input_path)
+        return 0;
+    if (strstr(input_path, "src/asm/asm.sx") != NULL || strstr(input_path, "/asm/asm.sx") != NULL)
+        return 1;
+    return 0;
+}
+
 #if !defined(SHUX_NO_C_FRONTEND)
 /**
  * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
@@ -5701,8 +5709,16 @@ int driver_run_sx_emit_c(void) {
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
         if (n_imports > 0 && n_imports <= 32) {
-            if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, NULL,
-                    0, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
+            if (driver_sx_emit_asm_direct_import_only(input_path)) {
+                if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
+                        dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
+                    free(arena);
+                    free(module);
+                    free(src);
+                    return 1;
+                }
+            } else if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
+                           NULL, 0, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
                 free(arena);
                 free(module);
                 free(src);
@@ -5764,7 +5780,8 @@ int driver_run_sx_emit_c(void) {
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
-            if (driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
+            if (driver_sx_emit_asm_direct_import_only(input_path) ||
+                driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_sources[j], dep_lens[j]);
             } else {
