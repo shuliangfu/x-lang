@@ -79,7 +79,7 @@ static void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, st
   ctx->module_ref = mod;
 }
 
-__attribute__((weak)) int32_t pipeline_dep_ctx_target_arch(struct ast_PipelineDepCtx *ctx) {
+static int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->target_arch : 0;
 }
 
@@ -94,7 +94,7 @@ int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_
   if (!module || !arena || !out || !pipeline_ctx)
     return -1;
   pipeline_module_hoist_top_level_lets_into_main(module, arena);
-  ta = pipeline_dep_ctx_target_arch(pipeline_ctx);
+  ta = pipeline_dep_ctx_target_arch_local(pipeline_ctx);
   memset(&ctx, 0, sizeof(ctx));
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_asm_emit_set_module(module);
