@@ -25,6 +25,30 @@ for f in \
 done
 echo "safe-unsafe-api manifest OK"
 
+tier_u_source_symbol() {
+  local sym="$1"
+  local src="$2"
+  case "$src:$sym" in
+    std/heap/mod.sx:alloc_aligned) echo "alloc_align" ;;
+    std/heap/mod.sx:alloc_i32|std/heap/mod.sx:alloc_u8) echo "alloc" ;;
+    std/heap/mod.sx:free_i32|std/heap/mod.sx:free_u8) echo "free" ;;
+    std/heap/mod.sx:realloc_i32|std/heap/mod.sx:realloc_u8) echo "realloc" ;;
+    std/heap/mod.sx:copy_i32_at|std/heap/mod.sx:copy_u8_at) echo "copy" ;;
+    std/io/mod.sx:read_ptr_len) echo "ptr_len" ;;
+    std/io/mod.sx:read_ptr_slice) echo "ptr_slice" ;;
+    std/io/mod.sx:read_ptr_gen) echo "ptr_gen" ;;
+    std/io/mod.sx:read_ptr_view) echo "ptr_view" ;;
+    std/fs/mod.sx:fs_read) echo "read" ;;
+    std/fs/mod.sx:fs_write) echo "write" ;;
+    std/fs/mod.sx:fs_pread) echo "pread" ;;
+    std/fs/mod.sx:fs_pwrite) echo "pwrite" ;;
+    std/fs/mod.sx:fs_mmap_ro) echo "mmap_ro" ;;
+    std/fs/mod.sx:fs_mmap_rw) echo "mmap_rw" ;;
+    std/fs/mod.sx:fs_munmap) echo "munmap" ;;
+    *) echo "$sym" ;;
+  esac
+}
+
 # ── Tier-U symbol 存在性 ──
 MISS=0
 N=0
@@ -38,15 +62,16 @@ while IFS=$'\t' read -r sym kind mod mode src; do
     MISS=$((MISS + 1))
     continue
   fi
+  source_sym="$(tier_u_source_symbol "$sym" "$src")"
   case "$kind" in
     struct)
-      if ! grep -qE "struct ${sym}([[:space:]]|\\{)" "$src"; then
+      if ! grep -qE "struct ${source_sym}([[:space:]]|\\{)" "$src"; then
         echo "safe-unsafe-api FAIL: struct ${sym} not in $src" >&2
         MISS=$((MISS + 1))
       fi
       ;;
     function)
-      if ! grep -qE "function ${sym}\\(" "$src"; then
+      if ! grep -qE "function ${source_sym}\\(" "$src"; then
         echo "safe-unsafe-api FAIL: function ${sym} not in $src" >&2
         MISS=$((MISS + 1))
       fi
