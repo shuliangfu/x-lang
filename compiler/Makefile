@@ -1886,6 +1886,7 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	@$(MAKE) $(USER_ASM_SEED_OBJS)
 	@# pipeline_sx.o / pipeline_glue_standalone.o 引用的 arch_*_enc_enc_* 须 weak 桩；真 partial 导出不含时由 stubs.o 补齐。
 	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
+	@$(MAKE) build-seed-asm-host
 	@if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then \
 	  echo "bootstrap-driver-seed: no seed partial, gen phase1 backend stub ..." >&2; \
 	  ./scripts/gen_g06_phase1_backend_stub.sh; \
