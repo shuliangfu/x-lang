@@ -33,6 +33,13 @@ extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 extern void pipeline_module_struct_layout_set_packed(struct ast_Module *module, int32_t idx, int32_t v);
 extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index);
+extern int32_t pipeline_asm_block_final_expr_ref_at(void *arena, int32_t br);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t br);
+extern int32_t ast_ast_block_expr_stmt_ref(void *arena, int32_t br, int32_t ei);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
 
 __attribute__((weak)) uint8_t *typeck_lsp_alloc(size_t size) {
   return lsp_io_lsp_alloc(size);
@@ -126,6 +133,55 @@ __attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(struct a
 
 __attribute__((weak)) int32_t backend_asm_ctx_slot_offset(struct backend_AsmFuncCtx *ctx, int32_t slot_idx) {
   return asm_ctx_local_offset_at((uint8_t *)ctx, slot_idx);
+}
+
+__attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
+  int32_t body_ref;
+  int32_t fin;
+  int32_t nes;
+  int32_t found;
+  int32_t op_ref;
+  int32_t ei;
+  int32_t er;
+  int32_t op_e;
+
+  if (!arena || !mod || func_idx < 0)
+    return 0;
+  body_ref = pipeline_module_func_body_ref_at(mod, func_idx);
+  if (body_ref <= 0)
+    return 0;
+  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+  if (fin != 0) {
+    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
+      if (op_e != 0)
+        return op_e;
+    }
+    return fin;
+  }
+  nes = ast_ast_block_num_expr_stmts(arena, body_ref);
+  found = 0;
+  op_ref = 0;
+  for (ei = 0; ei < nes; ei++) {
+    er = ast_ast_block_expr_stmt_ref(arena, body_ref, ei);
+    if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, er);
+      if (op_e != 0) {
+        found = found + 1;
+        op_ref = op_e;
+      }
+    }
+  }
+  return found == 1 ? op_ref : 0;
+}
+
+__attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
+  uint8_t bytes[4];
+  bytes[0] = (uint8_t)(val & 255);
+  bytes[1] = (uint8_t)((val >> 8) & 255);
+  bytes[2] = (uint8_t)((val >> 16) & 255);
+  bytes[3] = (uint8_t)((val >> 24) & 255);
+  return elf_ctx ? pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, bytes, 4) : -1;
 }
 
 #define SHUX_ARM64_GLUE_STUB1(name)                                    \
