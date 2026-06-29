@@ -71,6 +71,8 @@ extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i32): i3
 extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
 /** 递归类型相等（C 薄委托）；typeck.sx EMIT_HEAVY 内已改 bl→SX type_refs_equal，seed/C 链仍可用。 */
 extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
+extern function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32;
 /** 读 binop 子表达式 ref；勿用 ast_arena_expr_get 后 e.binop_*（自举 asm 下字段可能撕裂）。 */
 extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -2909,22 +2911,8 @@ decl_kind: i32, init_kind: i32): i32 {
  */
 function typeck_coerce_init_int_binop_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
-  let ord_i32: i32 = 0;
-  let ord_u64: i32 = 4;
-  let ord_i64: i32 = 5;
-  let ord_usize: i32 = 6;
-  let ord_add: i32 = 4;
-  let ord_sub: i32 = 5;
-  let ord_mul: i32 = 6;
-  let ord_div: i32 = 7;
-  if (decl_kind != ord_i32 && decl_kind != ord_i64 && decl_kind != ord_u64 && decl_kind != ord_usize) {
-    return 0;
-  }
-  if (init_kind != ord_add && init_kind != ord_sub && init_kind != ord_mul && init_kind != ord_div) {
-    return 0;
-  }
-  pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-  return 1;
+  return pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, init_ref, decl_ty_ref,
+  decl_kind, init_kind);
 }
 
 /** let 初值：数组类型收窄为 slice 声明（元素类型须一致）。 */

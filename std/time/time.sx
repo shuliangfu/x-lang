@@ -36,49 +36,67 @@ extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调：微秒。 */
 function time_now_monotonic_us_c(): i64 {
-  return time_now_monotonic_ns_c() / 1000;
+  unsafe {
+    return time_now_monotonic_ns_c() / 1000;
+  }
 }
 
 /** 单调：毫秒。 */
 function time_now_monotonic_ms_c(): i64 {
-  return time_now_monotonic_ns_c() / 1000000;
+  unsafe {
+    return time_now_monotonic_ns_c() / 1000000;
+  }
 }
 
 /** 单调：秒。 */
 function time_now_monotonic_sec_c(): i64 {
-  return time_now_monotonic_ns_c() / 1000000000;
+  unsafe {
+    return time_now_monotonic_ns_c() / 1000000000;
+  }
 }
 
 /** 墙钟：秒。 */
 function time_now_wall_sec_c(): i64 {
-  return time_now_wall_ns_c() / 1000000000;
+  unsafe {
+    return time_now_wall_ns_c() / 1000000000;
+  }
 }
 
 /** 墙钟：毫秒。 */
 function time_now_wall_ms_c(): i64 {
-  return time_now_wall_ns_c() / 1000000;
+  unsafe {
+    return time_now_wall_ns_c() / 1000000;
+  }
 }
 
 /** 墙钟：微秒。 */
 function time_now_wall_us_c(): i64 {
-  return time_now_wall_ns_c() / 1000;
+  unsafe {
+    return time_now_wall_ns_c() / 1000;
+  }
 }
 
 /** 睡眠：微秒。 */
 function time_sleep_us_c(us: i64): void {
-  time_sleep_ns_c(us * 1000);
+  unsafe {
+    time_sleep_ns_c(us * 1000);
+  }
 }
 
 /** 睡眠：毫秒。 */
 function time_sleep_ms_c(ms: i32): void {
   if (ms <= 0) { return; }
-  time_sleep_ns_c((ms as i64) * 1000000);
+  unsafe {
+    time_sleep_ns_c((ms as i64) * 1000000);
+  }
 }
 
 /** 睡眠：秒。 */
 function time_sleep_sec_c(s: i32): void {
   if (s <= 0) { return; }
-  time_sleep_ns_c((s as i64) * 1000000000);
+  unsafe {
+    time_sleep_ns_c((s as i64) * 1000000000);
+  }
 }
 
 /** 时间差（纳秒）：纯算术。 */
@@ -95,8 +113,12 @@ function time_format_timezone_smoke_c(): i32 {
     buf[i] = 0;
     i = i + 1;
   }
-  let n: i32 = time_format_wall_rfc3339_c(&buf[0], 32);
-  let off: i32 = time_wall_local_offset_min_c();
+  let n: i32 = 0;
+  let off: i32 = 0;
+  unsafe {
+    n = time_format_wall_rfc3339_c(&buf[0], 32);
+    off = time_wall_local_offset_min_c();
+  }
   if (n < 20) { return 1; }
   if (buf[(n - 1)] != 90) { return 2; }
   if (off < -840 || off > 840) { return 3; }

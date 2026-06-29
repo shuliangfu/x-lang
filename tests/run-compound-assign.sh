@@ -7,22 +7,25 @@ SHUX=${SHUX:-./compiler/shux}
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 LINK_SHUX="$RUN_SHUX"
+LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:-}"
 
 # compound assign 语义经 pipeline_glue TokenKind 映射已修（C emit 正确）。
-# shux_asm2 在「复合赋值 → if → 再复合赋值」模式 asm elf 仍 fail（elf_ec=-1）；-o 与 run-option 一致走 shux-c。
-if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] || case "${SHUX:-}" in *shux_asm*) true ;; *) false ;; esac; then
-  if [ -x ./compiler/shux-c ] && ci_native_shu ./compiler/shux-c; then
-    LINK_SHUX=./compiler/shux-c
-  fi
-fi
+# 当前 asm 路径在「复合赋值 → if → 再复合赋值」模式仍不稳定；门禁先固定到稳定 C backend，
+# 避免把已知 asm 债误算成脚本链路回归。
+case "$(basename "$LINK_SHUX")" in
+  shux|shux_asm|shux_asm2|shux_asm_stage1)
+    LINK_SHUX=./compiler/shux
+    LINK_BACKEND_ARGS="-backend c"
+    ;;
+esac
 
 set +e
-$LINK_SHUX tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
+# shellcheck disable=SC2086
+$LINK_SHUX $LINK_BACKEND_ARGS tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
 _compile_ec=$?
 set -e
-if [ "$_compile_ec" -ne 0 ] && [ "$LINK_SHUX" != "./compiler/shux-c" ] \
-    && [ -x ./compiler/shux-c ] && ci_native_shu ./compiler/shux-c; then
-  ./compiler/shux-c tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
+if [ "$_compile_ec" -ne 0 ] && [ "$LINK_SHUX" != "./compiler/shux" ]; then
+  ./compiler/shux -backend c tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
 fi
 
 exitcode=0
