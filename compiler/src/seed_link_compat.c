@@ -335,6 +335,61 @@ __attribute__((weak)) int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOu
   return append_asm_line(out, line2, 3);
 }
 
+__attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  uint8_t line1[12] = {'p', 'u', 's', 'h', 'q', ' ', '%', 'r', 'b', 'p', 0, 0};
+  uint8_t line2[16] = {'m', 'o', 'v', 'q', ' ', '%', 'r', 's', 'p', ',', ' ', '%', 'r', 'b', 'p', 0};
+  uint8_t sub_buf[32] = {'s', 'u', 'b', 'q', ' ', '$', 0};
+  int32_t n;
+
+  if (append_asm_line(out, line1, 10) != 0)
+    return -1;
+  if (append_asm_line(out, line2, 15) != 0)
+    return -1;
+  if (frame_sz < 0)
+    frame_sz = 0;
+  n = 0;
+  if (frame_sz == 0) {
+    sub_buf[6] = '0';
+    n = 1;
+  } else {
+    int32_t tmp = frame_sz;
+    uint8_t digits[16];
+    int32_t dn = 0;
+    int32_t i;
+    while (tmp > 0 && dn < 16) {
+      digits[dn++] = (uint8_t)('0' + (tmp % 10));
+      tmp /= 10;
+    }
+    for (i = dn - 1; i >= 0; i--)
+      sub_buf[6 + n++] = digits[i];
+  }
+  sub_buf[6 + n] = ',';
+  sub_buf[6 + n + 1] = ' ';
+  sub_buf[6 + n + 2] = '%';
+  sub_buf[6 + n + 3] = 'r';
+  sub_buf[6 + n + 4] = 's';
+  sub_buf[6 + n + 5] = 'p';
+  return append_asm_line(out, sub_buf, 6 + n + 6);
+}
+
+__attribute__((weak)) int32_t arch_arm64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  (void)out;
+  (void)frame_sz;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  (void)out;
+  (void)frame_sz;
+  return -1;
+}
+
+__attribute__((weak)) int32_t arch_riscv64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  (void)out;
+  (void)frame_sz;
+  return -1;
+}
+
 __attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
   uint8_t bytes[4];
   bytes[0] = (uint8_t)(val & 255);
