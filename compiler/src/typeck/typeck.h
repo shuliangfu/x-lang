@@ -23,6 +23,12 @@ struct ASTModule;
 int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps, struct ASTModule **all_dep_mods, int n_all_deps);
 
 /**
+ * 设置 C typeck 是否临时放宽“extern 调用必须位于 unsafe 块内”的历史兼容开关。
+ * 返回旧值，调用方可在局部保存并恢复。
+ */
+int typeck_set_allow_legacy_extern_calls(int allow);
+
+/**
  * 仅对模块中指定下标的函数做体块类型检查（布局与顶层 let 仍会执行）；用于 LSP definition/hover 懒 typeck。
  * only_func_index >= 0 且 < m->num_funcs 时只 typeck 该函数；否则无操作返回 0。
  */

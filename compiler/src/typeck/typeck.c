@@ -34,12 +34,18 @@ static int typeck_unsafe_depth;
 /**
  * 自举兼容：旧 C typeck 仍承担 shux-c 的 `-E` 生成职责，而编译器内部 `.sx` 大量通过 C glue 调 extern。
  * 最终语言语义以 `.sx` typeck 为准，因此这里放宽“extern 调用必须 unsafe”只用于 bootstrap 生成链，
- * 避免 pipeline、lsp、ast 等内部模块在自举前被旧规则卡死。
+ * 默认保持关闭，由 runtime 在 `-E` 兼容路径中显式开启，避免用户态 check/compile 永久绕开语义规则。
  */
-static int typeck_allow_legacy_extern_calls = 1;
+static int typeck_allow_legacy_extern_calls;
 static int bce_bound_val[MAX_BCE_RANGES];
 static const struct ASTExpr *bce_bound_base[MAX_BCE_RANGES];
 static int bce_n;
+
+int typeck_set_allow_legacy_extern_calls(int allow) {
+    const int old = typeck_allow_legacy_extern_calls;
+    typeck_allow_legacy_extern_calls = allow ? 1 : 0;
+    return old;
+}
 
 /** 当前 typeck 的函数是否为 async function（await 仅允许在其体内）。 */
 static int typeck_current_func_is_async;

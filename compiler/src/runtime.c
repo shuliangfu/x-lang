@@ -64,6 +64,7 @@ void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char *
 void codegen_set_preamble_has_core_option_result(int on);
 extern int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps,
     struct ASTModule **all_dep_mods, int n_all_deps);
+extern int typeck_set_allow_legacy_extern_calls(int allow);
 /* B-02 #[cfg] -target：声明来自 lexer.h；默认 seed 不链 C lexer.o，实现见 codegen_pipeline_stubs.c。 */
 void cfg_apply_compile_target_from_triple(const char *triple, int len);
 void cfg_reset_compile_target(void);
@@ -1447,13 +1448,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
 #if defined(SHUX_USE_SX_TYPECK) && !defined(SHUX_USE_SX_PIPELINE)
     if (typeck_typeck_entry(mod, ndep > 0 ? dep_mods : NULL, ndep) != 0) {
 #else
-    /* 传入全部传递依赖供布局阶段解析跨模块类型；直接依赖仍为 dep_mods/ndep */
-    if (typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
+    /* `-E` 自举生成链仍允许旧式裸 extern；常规 compile/check 路径恢复严格 unsafe 语义。 */
+    {
+        const int old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(emit_c_only ? 1 : 0);
+        const int typeck_rc = typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep,
+            n_all > 0 ? all_dep_mods : NULL, n_all);
+        typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
+        if (typeck_rc != 0) {
 #endif
-        while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
-        ast_module_free(mod);
-        free(src);
-        return 1;
+            while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
+            ast_module_free(mod);
+            free(src);
+            return 1;
+        }
     }
 
     /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（SHUX_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
@@ -5546,7 +5553,12 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
         free(src);
         return 1;
     }
-    if (typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
+    {
+        const int old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
+        const int typeck_rc = typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep,
+            n_all > 0 ? all_dep_mods : NULL, n_all);
+        typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
+        if (typeck_rc != 0) {
         while (n_all--) {
             free(all_dep_paths[n_all]);
             ast_module_free(all_dep_mods[n_all]);
@@ -5555,6 +5567,7 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
         free(src);
         fprintf(stderr, "shux: -sx -E-extern typeck failed for '%s'\n", input_path);
         return 1;
+        }
     }
     fprintf(stdout, "/* generated (single-file with deps) */\n");
     fprintf(stdout, "#include <stdint.h>\n");
