@@ -441,6 +441,22 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
     return buf;
 }
 
+static int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+    char comp_dir[PATH_MAX];
+    int nn;
+    if (!out || out_sz == 0 || !leaf || !leaf[0])
+        return -1;
+    out[0] = '\0';
+    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
+        return -1;
+    nn = snprintf(out, out_sz, "%s/%s", comp_dir, leaf);
+    if (nn < 0 || (size_t)nn >= out_sz) {
+        out[0] = '\0';
+        return -1;
+    }
+    return 0;
+}
+
 /**
  * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 src/asm/runtime_asm_io_stubs.c。
  * 参数：argv0 用于解析 compiler 目录。
@@ -448,13 +464,7 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
  */
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_asm_io_stubs.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -466,13 +476,7 @@ const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
  */
 const char *shux_runtime_process_argv_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_process_argv.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -3940,9 +3944,17 @@ static int link_abi_user_o_needs_core_slice(const char *user_o) {
  */
 static void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
-    link_abi_asm_ld_push_obj(shux_runtime_asm_io_stubs_o_path(link_argv0), link_argv0,
+    char io_stubs_o[PATH_MAX];
+    char process_argv_o[PATH_MAX];
+    const char *io_stubs_p = NULL;
+    const char *process_argv_p = NULL;
+    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
+        io_stubs_p = io_stubs_o;
+    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_process_argv.o", process_argv_o, sizeof process_argv_o) == 0)
+        process_argv_p = process_argv_o;
+    link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
         "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_obj(process_argv_p, link_argv0,
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -4008,6 +4020,10 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
+    char io_stubs_o[PATH_MAX];
+    char process_argv_o[PATH_MAX];
+    const char *io_stubs_p = NULL;
+    const char *process_argv_p = NULL;
     int have_process = 0;
     int have_log = 0;
     int have_crypto = 0;
@@ -4020,10 +4036,14 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
         flags->have_fs = 1;
     if (flags)
         flags->have_io = 1;
-    link_abi_asm_ld_push_obj(shux_runtime_asm_io_stubs_o_path(link_argv0), link_argv0,
+    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
+        io_stubs_p = io_stubs_o;
+    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_process_argv.o", process_argv_o, sizeof process_argv_o) == 0)
+        process_argv_p = process_argv_o;
+    link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
         "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 
-    link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_obj(process_argv_p, link_argv0,
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/process/process.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_process);
     link_abi_asm_ld_push_glue_after_std(have_process, shux_ensure_runtime_process_os_glue_o,
