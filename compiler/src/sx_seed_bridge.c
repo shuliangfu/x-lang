@@ -119,9 +119,13 @@ void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref) {
 }
 #endif
 
-/** parser.sx 经 std.heap 引用；seed 链按需 malloc 清零。 */
+/** parser/lsp 生成体历史上并存 alloc_zero/alloc_zeroed 两个符号名；seed 链统一回到 calloc。 */
 void *std_heap_alloc_zeroed(size_t size) {
   return calloc(1, size);
+}
+
+void *std_heap_alloc_zero(size_t size) {
+  return std_heap_alloc_zeroed(size);
 }
 
 void std_heap_free(void *ptr) {
