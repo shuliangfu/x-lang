@@ -86,11 +86,11 @@ struct ast_Module *pipeline_parser_get_match_module(void) {
 extern struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
 extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
 
-/** preprocess_sx.o 导出 typeck_preprocess_sx_buf；driver 引用 preprocess_sx_buf。 */
-extern int32_t typeck_preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
+/** preprocess_sx.o 当前导出 preprocess_sx_buf；seed 链上补 typeck_ 名兼容覆盖弱桩。 */
+extern int32_t preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
 
-int32_t preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
-  return typeck_preprocess_sx_buf(src, src_len, out_buf, out_cap);
+int32_t typeck_preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
+  return preprocess_sx_buf(src, src_len, out_buf, out_cap);
 }
 
 /** asm 入口由 user_asm_seed_bridge.o + build_asm/seed_host 提供；须 make build-seed-asm-host。 */
