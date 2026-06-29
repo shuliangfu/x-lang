@@ -1809,6 +1809,17 @@ driver_gen.c: $(SHUX_C) $(MAIN_SX_DEPS)
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] && [ ! -s $@ ]; then \
 	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
 	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c"; \
+	elif [ -f $(SHUX_SX) ]; then \
+	  echo "driver_gen.c: ./$(SHUX_SX) -sx -E ..." >&2; \
+	  ./$(SHUX_SX) -sx -E $(MAIN_SX_E_DIRS) -E-extern src/main.sx > $@.tmp 2>/dev/null || true; \
+	  if [ -s $@.tmp ] && grep -q 'argc < 3' $@.tmp && grep -q 'main_eq_minus_E(arg_buf, len) != 0' $@.tmp; then \
+	    mv $@.tmp $@; \
+	  else \
+	    rm -f $@.tmp; \
+	    echo "driver_gen.c: shux-sx failed or old bare -E block, fallback to shux-c -E -E-extern" >&2; \
+	    ./$(SHUX_C) $(MAIN_SX_E_DIRS) src/main.sx -E -E-extern > $@ || \
+	      { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  fi; \
 	else \
 	  ./$(SHUX_C) $(MAIN_SX_E_DIRS) src/main.sx -E -E-extern > $@ || \
 	    { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \

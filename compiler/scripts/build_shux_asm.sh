@@ -3319,8 +3319,19 @@ ensure_asm_gen_driver_sx_objs() {
     echo "  pinned driver_gen.c -> $GEN_DIR/driver_gen.c ($(wc -c <driver_gen.c | tr -d ' ') bytes)"
     cp -f driver_gen.c "$GEN_DIR/driver_gen.c"
   else
-    echo "  $SHUX_E -E main.sx (-E-extern) -> $GEN_DIR/driver_gen.c ..."
-    "$SHUX_E" $LIB_E_MAIN src/main.sx -E -E-extern >"$GEN_DIR/driver_gen.c"
+    driver_gen_tmp="$GEN_DIR/driver_gen.c.tmp"
+    rm -f "$driver_gen_tmp"
+    if [ -x ./shux-sx ]; then
+      echo "  ./shux-sx -sx -E main.sx (-E-extern) -> $GEN_DIR/driver_gen.c ..."
+      ./shux-sx -sx -E $LIB_E_MAIN -E-extern src/main.sx >"$driver_gen_tmp" 2>/dev/null || true
+    fi
+    if [ -s "$driver_gen_tmp" ] && grep -q 'argc < 3' "$driver_gen_tmp" && grep -q 'main_eq_minus_E(arg_buf, len) != 0' "$driver_gen_tmp"; then
+      mv -f "$driver_gen_tmp" "$GEN_DIR/driver_gen.c"
+    else
+      rm -f "$driver_gen_tmp"
+      echo "  $SHUX_E -E main.sx (-E-extern) -> $GEN_DIR/driver_gen.c ..."
+      "$SHUX_E" $LIB_E_MAIN src/main.sx -E -E-extern >"$GEN_DIR/driver_gen.c"
+    fi
   fi
   dedupe_shux_slice_struct "$GEN_DIR/driver_gen.c"
   if [ -f preprocess_gen.c ] && [ -s preprocess_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
