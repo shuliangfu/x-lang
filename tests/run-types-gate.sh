@@ -43,11 +43,12 @@ done
 
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . tests/lib/bootstrap-link-shux.sh
+TYPES_LINK_BACKEND_ARGS="${SHUX_TYPES_LINK_BACKEND_ARGS:--backend c}"
 
 echo "=== types gate: link + run ==="
 for f in "${RUN_CASES[@]}"; do
   base="/tmp/shux_types_$(basename "$f" .sx)"
-  if ! $RUN_SHUX -L . "$f" -o "$base" 2>"${base}_build.log"; then
+  if ! $RUN_SHUX $TYPES_LINK_BACKEND_ARGS -L . "$f" -o "$base" 2>"${base}_build.log"; then
     echo "types gate FAIL: link $f" >&2
     tail -8 "${base}_build.log" 2>/dev/null >&2 || true
     exit 1
