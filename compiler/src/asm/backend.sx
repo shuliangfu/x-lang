@@ -21,7 +21,7 @@
 // åç»­ä¼åï¼7.3ï¼ï¼ç®åå¯å­å¨åéï¼åå°åºå® rax/rbx å¸¦æ¥ç push/popï¼çª¥å­å¯åå¹¶ç¸é» mov/ç®æ¯ã
 
 const ast = import("ast");
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 const x86_64 = import("arch.x86_64");
 const arm64 = import("arch.arm64");
@@ -51,6 +51,7 @@ extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTAren
 extern function asm_diag_start_func_skip(): i32;
 /** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
 extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: u8[64]): void;
+extern function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 /** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.sx æ ¡æ­£ã */
 extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
 /** Module import è·¯å¾/ç»å® sidecarï¼ast_pool.cï¼ã */
@@ -746,7 +747,7 @@ function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre
   if (path_bytes[0] == 0) {
     return -1;
   }
-  codegen.codegen_import_path_to_c_prefix_into(&path_bytes[0], pre_buf, 128);
+  codegen_import_path_to_c_prefix_into(&path_bytes[0], pre_buf, 128);
   let pre_len: i32 = 0;
   while (pre_len < 128 && pre_buf[pre_len] != 0) {
     pre_len = pre_len + 1;
