@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /** 由 lsp.sx 导出（function lsp_main_impl）；本文件 wrapper 再导出 typeck_lsp_main 供 main.sx 调用。 */
 extern int32_t typeck_lsp_main_impl(void);
@@ -19,6 +21,21 @@ uint8_t g_lsp_state_buf[16388];
 typedef struct LspMainThreadArgs {
     int32_t result;
 } LspMainThreadArgs;
+
+static void lsp_debug_report_sqpoll_env(void) {
+    const char *dbg = getenv("SHUX_LSP_IO_DEBUG");
+    const char *sq = getenv("SHUX_IO_URING_SQPOLL");
+    if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
+        return;
+    fprintf(stderr, "shux: [lsp-io] SHUX_IO_URING_SQPOLL=%s\n", (sq && sq[0]) ? sq : "<unset>");
+}
+
+static void lsp_apply_default_io_policy(void) {
+    const char *sq = getenv("SHUX_IO_URING_SQPOLL");
+    /* LSP 长时间空闲等 stdin，不适合默认拉起 SQPOLL 线程；若用户显式设置，则尊重用户策略。 */
+    if (!sq || sq[0] == '\0')
+        (void)setenv("SHUX_IO_URING_SQPOLL", "0", 1);
+}
 
 /** pthread 入口：抬高栈上限后执行 typeck_lsp_main_impl。 */
 static void *lsp_main_large_stack_thread_fn(void *arg) {
@@ -35,6 +52,8 @@ static void *lsp_main_large_stack_thread_fn(void *arg) {
 int32_t typeck_lsp_main(void) {
     LspMainThreadArgs args;
     args.result = -1;
+    lsp_apply_default_io_policy();
+    lsp_debug_report_sqpoll_env();
     driver_run_on_large_stack_pthread(lsp_main_large_stack_thread_fn, &args);
     return args.result;
 }
