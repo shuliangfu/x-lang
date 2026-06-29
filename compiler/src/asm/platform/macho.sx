@@ -21,10 +21,10 @@
 //      供 macOS 下 -backend asm -o xxx.o 使用；与 write_elf_o_to_buf 二选一，由 ctx 侧
 // use_macho_o 决定。
 //
-// 依赖：codegen（CodegenOutBuf）、elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_
 // eq_arr_to_pool）。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
 /** 诊断：Mach-O 写出时遇到空外部符号名。 */

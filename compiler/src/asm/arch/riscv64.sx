@@ -21,9 +21,9 @@
 //
 // 约定：a0=rax（返回值/第一操作数），a1=rbx（第二操作数），s0=帧指针（等同
 // rbp），ra=返回地址。
-// 依赖：codegen（CodegenOutBuf）、types（append_asm_line、format_i32_to_buf）。
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、types（append_asm_line、format_i32_to_buf）。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 
 /** .text 段 */

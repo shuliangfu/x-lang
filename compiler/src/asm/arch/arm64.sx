@@ -18,9 +18,9 @@
 //
 // 职责：生成 ARM64 汇编文本（.s）；GAS 语法、AAPCS64 调用约定。
 // 与 x86_64 对等的完整 emit_* 接口，供 backend 按 target_arch 分派。
-// 依赖：codegen（CodegenOutBuf）、types。
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、types。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 
 /** .text 段 */

@@ -21,11 +21,11 @@
 //      供 -target *-windows-* 且 -backend asm -o xxx.obj 使用。仅支持 x86_64 (e_machine
 // 62)。
 //
-// 依赖：codegen（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、
 // elf_name_eq_arr_to_pool）。
 //
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
 /** sidecar reloc glue（定义在 ast_pool.c）。 */

@@ -16,12 +16,12 @@
 
 // types.sx — 汇编后端公共类型（与架构无关）
 //
-// 职责：目标架构枚举、汇编行追加（复用 codegen 的
+// 职责：目标架构枚举、汇编行追加（复用 codegen_outbuf_abi 的
 // CodegenOutBuf）、栈槽抽象等，供 backend 与各架构模块共用。
-// 依赖：codegen（与 pipeline 共用 CodegenOutBuf，保证 asm
+// 依赖：codegen_outbuf_abi（与 pipeline 共用 CodegenOutBuf，保证 asm
 // 输出写入同一缓冲区）。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
 /** 当前支持的目标架构；pipeline 或 driver 按 -target 选择，backend
 * 据此分派到对应 emit 实现。 */

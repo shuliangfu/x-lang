@@ -19,11 +19,11 @@
 // 职责：对 backend
 // 产出的汇编文本做一次或多次窥孔扫描，合并/删除冗余指令或空行，减少输
 // 出体积；ELF 直编路径对 code_data 做等价字节级窥孔（须在 elf_resolve_patches 前）。
-// 依赖：codegen（CodegenOutBuf）、types、platform.elf。
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、types、platform.elf。
 // 当前：去除连续空行；消除连续 push rax + pop rax（x86/arm64/riscv64，与 7.3
 // 寄存器分配相关）；消除 arm64 7.3 spill 槽 x10–x14 与 x0/x1 往返冗余 mov 对。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 const elf = import("platform.elf");
 

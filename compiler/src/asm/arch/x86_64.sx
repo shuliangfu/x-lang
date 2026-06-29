@@ -17,10 +17,10 @@
 // x86_64.sx — x86-64 架构：汇编助记符与 ABI（System V）
 //
 // 职责：生成 x86-64 汇编文本（.s）；指令格式、调用约定、prologue/epilogue。
-// 依赖：codegen（CodegenOutBuf）、types（append_asm_line）。
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、types（append_asm_line）。
 // 参考：AMD64 ABI、Intel SDM Vol.2。
 
-const codegen = import("codegen");
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 
 /** 函数入口：pushq %rbp; movq %rsp, %rbp; subq $frame_size, %rsp。frame_size 为 16
