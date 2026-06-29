@@ -4732,6 +4732,7 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     if (pid < 0)
         return -1;
     if (pid == 0) {
+        argv[0] = shu_c;
         execvp(shu_c, argv);
         _exit(127);
     }
