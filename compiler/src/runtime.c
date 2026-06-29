@@ -5715,6 +5715,11 @@ int driver_run_sx_emit_c(void) {
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
         int asm_direct_import_only = driver_sx_emit_asm_direct_import_only(input_path);
+        for (int i = 0; i < MAX_ALL_DEPS; i++) {
+            dep_sources[i] = NULL;
+            dep_lens[i] = 0;
+            dep_paths[i] = NULL;
+        }
         if (n_imports > 0 && n_imports <= 32) {
             if (asm_direct_import_only) {
                 if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
@@ -5724,12 +5729,28 @@ int driver_run_sx_emit_c(void) {
                     free(src);
                     return 1;
                 }
-            } else if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
-                           NULL, 0, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
-                free(arena);
-                free(module);
-                free(src);
-                return 1;
+            } else {
+                char *cpaths[MAX_ALL_DEPS];
+                int n_closure = 0;
+                for (int i = 0; i < MAX_ALL_DEPS; i++)
+                    cpaths[i] = NULL;
+                if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
+                        NULL, 0, cpaths, &n_closure) != 0) {
+                    free(arena);
+                    free(module);
+                    free(src);
+                    return 1;
+                }
+                if (shux_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
+                    while (n_closure > 0) {
+                        n_closure--;
+                        free(cpaths[n_closure]);
+                    }
+                    free(arena);
+                    free(module);
+                    free(src);
+                    return 1;
+                }
             }
         }
         typeck_ndep = 0;
@@ -5773,6 +5794,8 @@ int driver_run_sx_emit_c(void) {
         for (int j = n_deps - 1; j >= 0; j--) {
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
+            char *dep_src = NULL;
+            size_t dep_len = 0;
             int ec_dep;
             if (!one_ctx || !dep_out) {
                 fprintf(stderr, "shux: -sx -E: dep_one_ctx/out alloc failed\n");
@@ -5787,22 +5810,62 @@ int driver_run_sx_emit_c(void) {
             }
             shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
                                                 lib_roots_arr, n_lib_roots);
+            if (asm_direct_import_only) {
+                dep_src = dep_sources[j];
+                dep_len = dep_lens[j];
+            } else {
+                char resolved[PATH_MAX];
+                ShuxRuntimeFileView raw_view;
+                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
+                if (runtime_read_file_view(resolved, &raw_view) != 0) {
+                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", dep_paths[j], resolved);
+                    pipeline_dep_ctx_heap_destroy(one_ctx);
+                    free(dep_out);
+                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    while (n_deps > 0) {
+                        n_deps--;
+                        if (dep_sources[n_deps]) free(dep_sources[n_deps]);
+                        free(dep_paths[n_deps]);
+                    }
+                    free(out_buf);
+                    pipeline_dep_ctx_heap_destroy(pctx_e);
+                    free(arena); free(module); free(src);
+                    return 1;
+                }
+                dep_src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
+                runtime_release_file_view(&raw_view);
+                if (!dep_src) {
+                    fprintf(stderr, "shux: preprocess failed for import '%s'\n", dep_paths[j]);
+                    pipeline_dep_ctx_heap_destroy(one_ctx);
+                    free(dep_out);
+                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    while (n_deps > 0) {
+                        n_deps--;
+                        if (dep_sources[n_deps]) free(dep_sources[n_deps]);
+                        free(dep_paths[n_deps]);
+                    }
+                    free(out_buf);
+                    pipeline_dep_ctx_heap_destroy(pctx_e);
+                    free(arena); free(module); free(src);
+                    return 1;
+                }
+            }
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
-            (const uint8_t *)dep_sources[j], dep_lens[j]);
+            (const uint8_t *)dep_src, dep_len);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
             if (driver_sx_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
-                                                                    (const uint8_t *)dep_sources[j], dep_lens[j],
+                                                                    (const uint8_t *)dep_src, dep_len,
                                                                     (void *)dep_out, (void *)one_ctx);
             } else if (asm_direct_import_only || driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
-                                                             (const uint8_t *)dep_sources[j], dep_lens[j]);
+                                                             (const uint8_t *)dep_src, dep_len);
             } else {
                 if (getenv("SHUX_DEBUG_PIPE"))
                     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun begin j=%d path=%s\n",
                             j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
-                                                              (const uint8_t *)dep_sources[j], dep_lens[j],
+                                                              (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
                 if (getenv("SHUX_DEBUG_PIPE"))
                     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun end j=%d path=%s rc=%d\n",
@@ -5811,11 +5874,17 @@ int driver_run_sx_emit_c(void) {
             driver_set_current_dep_path_for_codegen(NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
+            if (!asm_direct_import_only)
+                free(dep_src);
             if (ec_dep != 0) {
                 fprintf(stderr, "shux: pipeline failed for import '%s' (dep prerun rc=%d)\n",
                         dep_paths[j] ? dep_paths[j] : "?", ec_dep);
                 for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
-                while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+                while (n_deps > 0) {
+                    n_deps--;
+                    if (dep_sources[n_deps]) free(dep_sources[n_deps]);
+                    free(dep_paths[n_deps]);
+                }
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx_e);
                 free(arena); free(module); free(src);
@@ -5853,10 +5922,18 @@ int driver_run_sx_emit_c(void) {
             fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
-            while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+            while (n_deps > 0) {
+                n_deps--;
+                if (dep_sources[n_deps]) free(dep_sources[n_deps]);
+                free(dep_paths[n_deps]);
+            }
         } else {
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
-            while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+            while (n_deps > 0) {
+                n_deps--;
+                if (dep_sources[n_deps]) free(dep_sources[n_deps]);
+                free(dep_paths[n_deps]);
+            }
             if (ec != 0) {
                 fprintf(stderr, "shux: -sx pipeline failed\n");
             } else if (out_buf->len <= 0) {
