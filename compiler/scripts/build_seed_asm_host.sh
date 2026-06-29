@@ -138,13 +138,21 @@ dedupe_slice() {
   fi
 }
 
-# -E 落盘/沿用 asm_full_gen.c 是否值得走 fix+cc（拒绝过短截断；uint8_t[N] name 由 fix_asm_full_gen_c.pl 修复）
+# -E 落盘/沿用 asm_full_gen.c 是否值得走 fix+cc（拒绝过短截断；uint8_t[N] name 由 fix_asm_full_gen_c.pl 修复）。
+# 与 _emit_c_usable 保持同一判定：既接受旧 full emit，也接受新的 thin bridge emit。
 asm_full_gen_c_usable_for_fix() {
   _c="$1"
   [ -s "$_c" ] || return 1
-  [ "$(wc -c <"$_c" | tr -d ' ')" -ge 50000 ] || return 1
-  grep -q 'backend_' "$_c" 2>/dev/null || return 1
-  return 0
+  _bytes=$(wc -c <"$_c" | tr -d ' ')
+  if [ "$_bytes" -ge 50000 ] && grep -q 'backend_' "$_c" 2>/dev/null; then
+    return 0
+  fi
+  if [ "$_bytes" -ge 4000 ] && \
+     grep -q 'asm_asm_codegen_ast' "$_c" 2>/dev/null && \
+     grep -q 'asm_asm_codegen_elf_o' "$_c" 2>/dev/null; then
+    return 0
+  fi
+  return 1
 }
 
 # fix perl 三件套 + lea 自递归清理
