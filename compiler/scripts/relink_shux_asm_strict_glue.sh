@@ -9,6 +9,39 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 SEED_O="$BUILD_DIR/asm_driver_seed"
 export STRICT_LINK_BUILD_ASM_PIPELINE=1
 
+asm_seed_sx_frontend_o_ready() {
+  local o
+  for o in parser_sx.o typeck_sx.o codegen_sx.o lexer_sx.o; do
+    if [ ! -f "$o" ] || [ ! -s "$o" ]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+asm_seed_omit_c_frontend_seed() {
+  if [ -n "${SHUX_LEGACY_SEED_FRONTEND_CC:-}" ]; then
+    return 1
+  fi
+  asm_seed_sx_frontend_o_ready
+}
+
+asm_seed_st_async_support_link() {
+  echo "$SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/autovec.o"
+}
+
+asm_seed_st_preprocess_link() {
+  if asm_seed_omit_c_frontend_seed; then
+    echo ""
+    return 0
+  fi
+  echo "$SEED_O/preprocess.o"
+}
+
+have_link_liburing() {
+  printf 'int main(void){return 0;}\n' | "$CC" -x c - -o /dev/null -luring >/dev/null 2>&1
+}
+
 # codegen.c 引用 async_liveness / async_cps_codegen（与 Makefile OBJS_CORE、build_shux_asm 一致）。
 ensure_async_cps_seed_objs() {
   local src out
@@ -1101,7 +1134,8 @@ if [ -f "$BUILD_DIR/typeck_sx_no_layout_partial.o" ] && ! asm_strict_typeck_self
 fi
 
 ensure_async_cps_seed_objs
-ST_ASYNC_CPS_SEED="$SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/autovec.o"
+ST_ASYNC_CPS_SEED=$(asm_seed_st_async_support_link)
+ST_PREPROCESS_SEED=$(asm_seed_st_preprocess_link)
 
 # strict 自举链须 typeck_sx.o（与 experimental 一致；缺则 SX typeck 桥接不全）。
 ensure_typeck_sx_o_for_strict_link() {
@@ -1118,7 +1152,11 @@ ST_TYPECK_C_STUBS=""
 ST_TYPECK_BARE_ALIAS=""
 if asm_strict_typeck_selfhosted; then
   ST_TYPECK_C_STUBS=$(ensure_typeck_c_user_precheck_obj)
-  if asm_strict_typeck_sx_glue_via_pipeline_sx; then
+  if asm_seed_omit_c_frontend_seed; then
+    ensure_typeck_sx_o_for_strict_link || true
+    ST_SEED_PARSER_TCK="$ST_ASYNC_CPS_SEED codegen_sx.o lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o"
+    echo "relink_shux_asm_strict_glue: omit asm_driver_seed frontend C objs (SX companions ready)"
+  elif asm_strict_typeck_sx_glue_via_pipeline_sx; then
     ensure_typeck_sx_o_for_strict_link || true
     ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_sx.o lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o"
     echo "relink_shux_asm_strict_glue: seed typeck + typeck_sx tail (SX glue; no build_asm typeck partial/bare_link)"
@@ -1134,6 +1172,9 @@ if asm_strict_typeck_selfhosted; then
     fi
     echo "relink_shux_asm_strict_glue: typeck partial + bare_link_alias (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o")B)"
   fi
+elif asm_seed_omit_c_frontend_seed; then
+  ST_SEED_PARSER_TCK="$ST_ASYNC_CPS_SEED $ST_TYPECK_SX_LINK codegen_sx.o lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o"
+  echo "relink_shux_asm_strict_glue: typeck not selfhosted; omit asm_driver_seed frontend C objs"
 else
   ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o $ST_TYPECK_SX_LINK codegen_sx.o lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o"
   echo "relink_shux_asm_strict_glue: typeck not selfhosted yet (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o")B)"
@@ -1273,7 +1314,11 @@ ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANI
 if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   echo "relink_shux_asm_strict_glue: link backend_wpo.o (WPO reach OK)"
 fi
-ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
+if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
+  echo "relink_shux_asm_strict_glue: cc -c $BUILD_DIR/seed_link_compat.o <- src/seed_link_compat.c"
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
+fi
+ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
 
 ST_PARSER_SX_TAIL=""
 PARSER_ALIAS_LINK=""
@@ -1390,7 +1435,12 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     fi
   fi
   [ -f runtime_panic.o ] && ST_RUNTIME_PANIC="runtime_panic.o"
-  ST_PIPELINE_LIBS="-luring -lpthread -lm -lc"
+  ST_PIPELINE_LIBS="-lpthread -lm -lc"
+  if have_link_liburing; then
+    ST_PIPELINE_LIBS="-luring $ST_PIPELINE_LIBS"
+  else
+    echo "relink_shux_asm_strict_glue: liburing unavailable; link without -luring" >&2
+  fi
 fi
 set +e
 "$CC" ${CFLAGS} -Wl,--allow-multiple-definition -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.strict_glue \
@@ -1417,7 +1467,7 @@ set +e
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
   "$BUILD_DIR/lsp_codegen_extern.o" \
-  "$SEED_O/preprocess.o" \
+  $ST_PREPROCESS_SEED \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \
   "$LSP_DIAG_SEED_O" \
