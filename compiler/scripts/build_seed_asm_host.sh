@@ -297,7 +297,26 @@ if [ -f "$BACKEND_PARTIAL" ] && ! has_real_partial_seed_mega "$BACKEND_PARTIAL";
   rm -f "$BACKEND_PARTIAL"
 fi
 
-if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/asm.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/arm64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/x86_64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64_enc.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/arch/riscv64.sx" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_enc_dispatch.o" -nt "$BACKEND_PARTIAL" ] || [ "src/asm/backend_arch_emit_dispatch.o" -nt "$BACKEND_PARTIAL" ]; then
+# `asm.sx` 现已是极薄桥接层；seed partial 的真实实现来自 backend/peephole/platform/arch。
+# 因此不要再因为 `asm.sx` 或上次落盘的 `asm_full_gen.c` 较新就强制重建 partial，
+# 否则会把已有真实 partial 误判为过期，并尝试从 thin bridge 重新生成而失败。
+seed_partial_needs_regen() {
+  [ ! -f "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/arm64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/arm64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/x86_64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/x86_64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/riscv64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/riscv64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/backend_enc_dispatch.o" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/backend_arch_emit_dispatch.o" -nt "$BACKEND_PARTIAL" ] && return 0
+  return 1
+}
+
+if seed_partial_needs_regen; then
   echo "build_seed_asm_host: asm.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
