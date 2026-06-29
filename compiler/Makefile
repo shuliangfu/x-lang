@@ -1661,7 +1661,10 @@ lsp_io_std_heap_sx.o: lsp_io_std_heap_gen.c
 
 # bootstrap-driver-seed / relink-shux 共用：lsp_io / lsp 生成 C → .o
 lsp_io_sx.o: lsp_io_gen.c src/lsp/lsp_io.sx
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -c lsp_io_gen.c -o lsp_io_sx.o
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. \
+	  -Dstd_io_read=io_read -Dstd_io_write=io_write \
+	  -Dstd_heap_alloc_usize=typeck_std_heap_alloc -Dstd_heap_free_u8_ptr=typeck_std_heap_free \
+	  -c lsp_io_gen.c -o lsp_io_sx.o
 
 lsp_sx.o: lsp_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_sx.o
