@@ -3,6 +3,7 @@
 
 struct ast_Module;
 struct backend_AsmFuncCtx;
+struct platform_elf_ElfCodegenCtx;
 
 extern uint8_t *lsp_io_lsp_alloc(size_t size);
 extern void lsp_io_lsp_free(uint8_t *ptr);
@@ -125,4 +126,9 @@ __attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(struct a
 
 __attribute__((weak)) int32_t backend_asm_ctx_slot_offset(struct backend_AsmFuncCtx *ctx, int32_t slot_idx) {
   return asm_ctx_local_offset_at((uint8_t *)ctx, slot_idx);
+}
+
+__attribute__((weak)) int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  (void)elf_ctx;
+  return -1;
 }

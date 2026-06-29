@@ -1319,6 +1319,7 @@ if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$
   "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
 fi
 ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
+ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o"
 
 ST_PARSER_SX_TAIL=""
 PARSER_ALIAS_LINK=""
@@ -1406,11 +1407,33 @@ ensure_seed_autovec_obj() {
     "$CC" $CFLAGS -c -o "$SEED_O/autovec.o" src/codegen/autovec.c
   fi
 }
+ensure_codegen_pipeline_stubs_obj() {
+  local o="src/codegen/codegen_pipeline_stubs.o"
+  if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/codegen/codegen_pipeline_stubs.c"
+    "$CC" $CFLAGS -c -o "$o" src/codegen/codegen_pipeline_stubs.c
+  fi
+}
+ensure_typeck_f64_bits_obj() {
+  local uname_s
+  uname_s=$(uname -s 2>/dev/null || echo Unknown)
+  if [ "$uname_s" = "Linux" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
+    if [ ! -f src/typeck/typeck_f64_bits.o ] || [ src/typeck/typeck_f64_bits_x86_64.s -nt src/typeck/typeck_f64_bits.o ]; then
+      echo "relink_shux_asm_strict_glue: cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
+      "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+    fi
+  elif [ ! -f src/typeck/typeck_f64_bits.o ] || [ src/typeck/typeck_f64_bits.c -nt src/typeck/typeck_f64_bits.o ]; then
+    echo "relink_shux_asm_strict_glue: cc -c src/typeck/typeck_f64_bits.o <- src/typeck/typeck_f64_bits.c"
+    "$CC" $CFLAGS -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits.c
+  fi
+}
 ensure_runtime_abi_obj
 ensure_runtime_io_abi_obj
 ensure_runtime_proc_abi_obj
 ensure_runtime_link_abi_obj
 ensure_seed_autovec_obj
+ensure_codegen_pipeline_stubs_obj
+ensure_typeck_f64_bits_obj
 
 echo "relink_shux_asm_strict_glue: linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...) ..."
 # Linux strict 链：runtime_panic + liburing（与 build_shux_asm PIPELINE_LIBS 一致）。
