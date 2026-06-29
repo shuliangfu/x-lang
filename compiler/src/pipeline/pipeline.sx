@@ -16,19 +16,15 @@
 
 // pipeline.sx — 自举 9.1/9.2/5.3：纯 .sx 编译流水线入口
 //
-// 职责：串联 解析 →（可选）按 import 加载 deps → 类型检查 → 代码生成；5.3 在 .sx 内解析 import、按需加载并 parse_into。
-// 依赖：ast、parser（parse_into、get_module_num_imports、get_module_import_path）、typeck、codegen、std.fs（resolve 探测）、std.sys（B-20 读源）。
-// 与 C 关系：6.1 resolve/read/preprocess 全在 .sx（std.fs + preprocess_sx_buf）；parse 入口 buf+len→u8[] 仍由 pipeline_glue.c（pipeline_source_slice / parser_slice_from_buf）提供，因语言暂无 ptr+len 直接构造 T[]。
-
+// 职责：串联 解析 →（可选）按 import 加载 deps → 类型检查 → 代码生成。
+// 自举兼容：pipeline_glue.c 在同一 TU 内直接使用上方已定义的 ast_* / lexer_* / parser_* / codegen_* 等类型，
+// 故 `-E -E-extern` 生成 pipeline_gen.c 时必须显式 import 这些模块以确保其 C 结构体定义出现在 glue 之前。
 const ast = import("ast");
 const lexer = import("lexer");
 const parser = import("parser");
 const typeck = import("typeck");
 const codegen = import("codegen");
-const fs = import("std.fs");
-const sys = import("std.sys");
-const preprocess = import("preprocess");
-const asm = import("asm");
+const asm_backend = import("asm.backend");
 
 /** C 按需提供第 i 个依赖的 arena/module 缓冲；pipeline 在解析 import 前取回并写入 dep 动态池，避免 arena 槽为空导致 ast_arena_init 写空指针。 */
 extern function driver_dep_arena_buf(i: i32): *u8;
@@ -61,9 +57,7 @@ function pipeline_should_skip_sx_typeck(ctx: *PipelineDepCtx): i32 {
 }
 
 /* codegen.sx 的 -E-extern 生成 C 时不自动扫描间接调用，以下显式声明 pipeline 内调用的外部函数。 */
-extern function parser_parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[]): i32;
-/** 由 pipeline_glue.c 提供：从 (data,len) 构造 u8[]，供 run_sx_pipeline_impl 走 parse_into 切片路径。 */
-extern function pipeline_source_slice(data: *u8, len: i32): u8[];
+extern function parser_parse_one_function_ok_for_pipeline_buf_glue(arena: *ASTArena, data: *u8, len: i32): i32;
 extern function ast_ast_arena_init(arena: *ASTArena): void;
 extern function asm_asm_codegen_ast(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
 /** 将 lib_root[i] 清零写入 dst[256]；返回 root 路径长度（pipeline_glue.c）。 */
@@ -103,7 +97,6 @@ extern function pipeline_arena_num_types(arena: *ASTArena): i32;
 
 /** parse scalars sidecar（勿局部 ParseIntoResult 按值，EMIT_HEAVY SIGSEGV）。 */
 extern function pipeline_parse_into_with_init_buf_scalars_sidecar(arena: *ASTArena, module: *Module, data: *u8, len: i32): i32;
-extern function pipeline_parse_into_with_init_slice_scalars_sidecar(arena: *ASTArena, module: *Module, source: u8[]): i32;
 extern function pipeline_parse_scalars_ok_get(): i32;
 extern function pipeline_parse_scalars_main_idx_get(): i32;
 /** parse 失败诊断 / ParseIntoResult 构造（C glue；勿 SX 多实参/按值 return）。 */
@@ -112,7 +105,7 @@ extern function pipeline_parse_apply_main_from_scalars_c(module: *Module, arena:
 extern function pipeline_parse_set_main_from_buf_c(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32;
 extern function pipeline_typeck_parsed_module_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32;
 extern function pipeline_typeck_entry_module_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
-extern function pipeline_typeck_after_parse_ok_impl_c(arena: *ASTArena, module: *Module, source: u8[], ctx: *PipelineDepCtx): i32;
+extern function pipeline_typeck_after_parse_ok_buf_impl_c(arena: *ASTArena, module: *Module, data: *u8, len: i32, ctx: *PipelineDepCtx): i32;
 extern function pipeline_load_import_resolve_read_c(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32;
 extern function pipeline_load_import_from_disk_impl_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
 extern function pipeline_load_one_import_slot_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
@@ -122,8 +115,7 @@ extern function pipeline_load_and_sync_direct_import_deps_c(module: *Module, are
 extern function lsp_diag_typeck_after_load_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 extern function lsp_diag_parse_typeck_buf_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32;
 extern function pipeline_parse_into_with_init_result_c(): ParseIntoResult;
-/** slice/buf parse_into：C impl（勿 SX struct return / sidecar EMIT_HEAVY SIGSEGV）。 */
-extern function pipeline_parse_into_with_init_c(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult;
+/** buf parse_into：C impl（勿 SX struct return / sidecar EMIT_HEAVY SIGSEGV）。 */
 extern function pipeline_parse_into_with_init_buf_impl_c(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
 /** entry parse 重活已 SX emit（pipeline_parse_set_main_from_buf + 诊断）；C glue 保留 strict 回退。 */
 extern function run_sx_pipeline_parse_entry_do_parse_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
@@ -215,11 +207,11 @@ function resolve_path_probe_dot_sx_and_mod(ctx: *PipelineDepCtx, off: i32): i32 
 /**
  * 单段 import（无 '.'）在 lib_root 下再试 lib_root/name/name.sx；EMIT_HEAVY SX 真 emit。
  */
-function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: u8[64], path_len: i32): i32 {
+function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
   if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
     return -1;
   }
-  if (pipeline_flat_import_build_path_c(ctx, lib_idx, &import_path[0], path_len) != 0) {
+  if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
     return -1;
   }
   if (pipeline_flat_import_probe_open_c(ctx) == 0) {
@@ -229,20 +221,20 @@ function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i
 }
 
 /** 在单个 lib_root 下拼接 import 并探测 .sx / mod.sx / 扁平单段路径；EMIT_HEAVY SX 真 emit。 */
-function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: u8[64], path_len: i32): i32 {
+function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
   if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
     return -1;
   }
   if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
     return -1;
   }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), &import_path[0], path_len) < 0) {
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
     return -1;
   }
   if (resolve_path_probe_dot_sx_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
     return 0;
   }
-  if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(&import_path[0], path_len) == 0) {
+  if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
     if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
       return 0;
     }
@@ -251,24 +243,24 @@ function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, impor
 }
 
 /** 在 entry_dir 下拼接单段 import 并探测 .sx / mod.sx；EMIT_HEAVY SX 真 emit。 */
-function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: u8[64], path_len: i32): i32 {
+function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
   if (ctx == 0 as *PipelineDepCtx) {
     return -1;
   }
-  if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(&import_path[0], path_len) != 0) {
+  if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
     return -1;
   }
   if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
     return -1;
   }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), &import_path[0], path_len) < 0) {
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
     return -1;
   }
   return resolve_path_probe_dot_sx_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
 }
 
 /** 6.1：按 lib_roots 与 entry_dir 解析 import 路径到 ctx.path_buf；EMIT_HEAVY SX 真 emit。 */
-function resolve_path_sx(ctx: *PipelineDepCtx, import_path: u8[64], path_len: i32): i32 {
+function resolve_path_sx(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
   if (ctx == 0 as *PipelineDepCtx || path_len <= 0) {
     return -1;
   }
@@ -330,21 +322,6 @@ extern function pipeline_read_file_sx_impl_c(ctx: *PipelineDepCtx): i32;
 /** 6.1：将 ctx.path_buf 指向的文件读入 ctx.loaded_buf。 */
 function read_file_sx(ctx: *PipelineDepCtx): i32 {
   return pipeline_read_file_sx_impl_c(ctx);
-}
-
-/**
- * 诊断用：委托 parser.parse_one_function_ok_for_pipeline，避免本文件内 OneFuncResult 按值初始化导致 parse 跳过。
- * arena 用于解析 let 时构建 init 表达式；调用方（如 C 诊断路径）传入临时 arena 即可。
- */
-function parse_one_function_ok(source: u8[], arena: *ASTArena): i32 {
-  return parser_parse_one_function_ok_for_pipeline(arena, source);
-}
-
-/**
- * slice 路径 parse_into_with_init：C glue 薄包装（勿 sidecar + result_c struct return emit）。
- */
-function parse_into_with_init(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
-  return pipeline_parse_into_with_init_c(arena, module, source);
 }
 
 /**
@@ -415,13 +392,6 @@ function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, ctx: *P
 }
 
 /**
- * 诊断用：slice parse + set_main + typeck；C glue impl_c 薄包装。
- */
-function typeck_after_parse_ok(arena: *ASTArena, module: *Module, source: u8[], ctx: *PipelineDepCtx): i32 {
-  return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
-}
-
-/**
  * 若 global_slot 或 import_idx 已由 driver seed，绑定 arena/module 槽并返回 1；未 seed 返回 0。
  * 实现于 ast_pool.c（避免 SX 指针 cast 在 M8 asm 真 emit 时宿主 SIGSEGV）。
  */
@@ -431,18 +401,7 @@ extern function pipeline_try_bind_seeded_import(ctx: *PipelineDepCtx, import_idx
  * 对单个 import 做 resolve + read；EMIT_HEAVY SX 真 emit（path_buf 栈 + if(CALL!=0) return）。
  */
 function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || import_idx < 0) {
-    return -1;
-  }
-  let path_buf: u8[64] = [0];
-  parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
-  if (pipeline_resolve_path_sx_from_buf64_c(ctx, &path_buf[0]) != 0) {
-    return -7;
-  }
-  if (read_file_sx(ctx) != 0) {
-    return -8;
-  }
-  return 0;
+  return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
 }
 
 /**
@@ -450,41 +409,14 @@ function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx
  * resolve/read 与 pipeline_load_import_resolve_read 同型；后续 preprocess/bind/parse 经 if(CALL!=0) return。
  */
 function pipeline_load_import_from_disk(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || import_idx < 0) {
-    return -1;
-  }
-  let path_buf: u8[64] = [0];
-  parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
-  if (pipeline_resolve_path_sx_from_buf64_c(ctx, &path_buf[0]) != 0) {
-    return -7;
-  }
-  if (read_file_sx(ctx) != 0) {
-    return -8;
-  }
-  if (pipeline_preprocess_loaded_into_ctx(ctx) != 0) {
-    return -9;
-  }
-  pipeline_bind_import_dep_buffers(ctx, import_idx);
-  /** EMIT_HEAVY：parse 实参内联 arena_at/module_at/preprocess ptr+len；勿 let dep_mod。 */
-  if (pipeline_parse_into_buf(pipeline_dep_ctx_arena_at(ctx, import_idx), pipeline_dep_ctx_module_at(ctx, import_idx), pipeline_dep_ctx_preprocess_buf_ptr(ctx), pipeline_dep_ctx_preprocess_len_get(ctx)) != 0) {
-    return -10;
-  }
-  return 0;
+  return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
 }
 
 /**
  * 装载单个 import 槽：已 seed 则 bind，否则 load_import_from_disk；EMIT_HEAVY SX 真 emit。
  */
 function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || import_idx < 0) {
-    return -1;
-  }
-  let path_buf: u8[64] = [0];
-  parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
-  if (pipeline_try_bind_seeded_import(ctx, import_idx, driver_dep_slot_for_path(&path_buf[0])) != 0) {
-    return 0;
-  }
-  return pipeline_load_import_from_disk(module, arena, ctx, import_idx);
+  return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
 }
 
 /** 将单个 dep 槽与 driver 全局 seed 槽对齐；实现于 ast_pool.c（指针 cast C glue）。 */
@@ -569,6 +501,7 @@ extern function driver_compile_phase_timing_flush(): void;
 /** module.num_funcs glue 读（before_codegen 诊断用）。 */
 extern function pipeline_module_num_funcs(module: *Module): i32;
 /** 重置 CodegenOutBuf.len；避免 SX emit 直接写 out_buf.len 字段。 */
+extern function codegen_out_buf_len(out_buf: *CodegenOutBuf): i32;
 extern function codegen_out_buf_set_len(out_buf: *CodegenOutBuf, n: i32): void;
 /** C 诊断：每个 dep codegen 后打印 j 与 out_buf.len，确认是否递增。由 runtime.c 实现。 */
 extern function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void;
@@ -682,12 +615,7 @@ function run_sx_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx:
  * 若 dep 槽 import 路径为空则从 entry module 补全；EMIT_HEAVY SX 真 emit。
  */
 function run_sx_pipeline_fill_dep_import_path(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32 {
-  if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || dep_j < 0) {
-    return -1;
-  }
-  let path_buf: u8[64] = [0];
-  parser_copy_module_import_path64(module, dep_j, &path_buf[0]);
-  return pipeline_fill_dep_import_path_from_buf_c(ctx, dep_j, &path_buf[0]);
+  return run_sx_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
 }
 
 /**
@@ -739,15 +667,15 @@ function run_sx_pipeline_codegen_deps(module: *Module, arena: *ASTArena, out_buf
 /**
  * 复制 dep import 路径到 dst 并设置 codegen 符号前缀；EMIT_HEAVY SX 真 emit。
  */
-function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: u8[64]): i32 {
-  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &dst[0]);
-  driver_set_current_dep_path_for_codegen(&dst[0]);
+function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32 {
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
+  driver_set_current_dep_path_for_codegen(dst);
   return 0;
 }
 
 /** dep 单模块 codegen 后清理路径前缀并打诊断；EMIT_HEAVY SX 真 emit。 */
 function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *CodegenOutBuf): i32 {
-  driver_diagnostic_after_dep_codegen(dep_j, out_buf.len);
+  driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
   driver_set_current_dep_path_for_codegen(0 as *u8);
   return 0;
 }

@@ -31,7 +31,9 @@ gen_one() {
   if "$SHUX" "$@" > "$_out" && [ -s "$_out" ]; then
     case "$_out" in
       typeck_gen.c|codegen_gen.c|parser_gen.c)
-        perl scripts/fix_slim_arena_gen_c.pl "$_out" 2>/dev/null || true
+        if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+          perl scripts/fix_slim_arena_gen_c.pl "$_out" 2>/dev/null || true
+        fi
         ;;
     esac
     echo "  OK $(wc -c < "$_out" | tr -d ' ') bytes"
@@ -76,6 +78,10 @@ for req in typeck_gen.c codegen_gen.c parser_gen.c lexer_gen.c driver_gen.c prep
 done
 
 echo "gen_bootstrap_gens: build-seed-asm-host (asm.sx -E via LEGACY shux-c) ..."
-SHUX_E=./shux-c ./scripts/build_seed_asm_host.sh
+if [ "${SHUX_SKIP_SEED_ASM_E:-0}" = "1" ]; then
+  echo "gen_bootstrap_gens: skip asm.sx -E (SHUX_SKIP_SEED_ASM_E=1)" >&2
+else
+  SHUX_E=./shux-c ./scripts/build_seed_asm_host.sh
+fi
 
 echo "gen_bootstrap_gens OK"

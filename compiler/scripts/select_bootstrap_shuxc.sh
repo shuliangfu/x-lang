@@ -32,6 +32,14 @@ can_run() {
   fi
   "$1" -h >/dev/null 2>&1 && return 0
   "$1" --help >/dev/null 2>&1 && return 0
+  tmp="/tmp/shux_can_run_$$.sx"
+  out="/tmp/shux_can_run_out_$$.c"
+  printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
+  if "$1" -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
+    rm -f "$tmp" "$out" 2>/dev/null || true
+    return 0
+  fi
+  rm -f "$tmp" "$out" 2>/dev/null || true
   return 1
 }
 
@@ -50,9 +58,7 @@ esac
 seed_var="seeds/bootstrap_shuxc.${os}.${arch}"
 
 pick=""
-if can_run ./bootstrap_shuxc; then
-  pick="./bootstrap_shuxc"
-elif [ -f "$seed_var" ]; then
+if [ -f "$seed_var" ]; then
   chmod +x "$seed_var" 2>/dev/null || true
   if can_run "$seed_var"; then
     cp -f "$seed_var" ./bootstrap_shuxc
@@ -60,9 +66,16 @@ elif [ -f "$seed_var" ]; then
     pick="./bootstrap_shuxc"
   fi
 fi
+if [ -z "$pick" ] && can_run ./bootstrap_shuxc; then
+  pick="./bootstrap_shuxc"
+fi
 
 if [ -z "$pick" ]; then
-  if can_run ./shux; then
+  if can_run ./shux-c; then
+    cp -f ./shux-c ./bootstrap_shuxc
+    chmod +x ./bootstrap_shuxc
+    pick="./bootstrap_shuxc"
+  elif can_run ./shux; then
     ./scripts/bootstrap_shuxc_create.sh ./shux
     pick="./bootstrap_shuxc"
   elif can_run ./shux_asm; then

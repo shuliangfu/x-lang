@@ -125,8 +125,11 @@ function compress_brotli_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32
     return -1;
   }
   let encoded_size: usize = out_cap as usize;
-  let ok: i32 = BrotliEncoderCompress(BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE,
-    in_len, in, &encoded_size, out);
+  let ok: i32 = 0;
+  unsafe {
+    ok = BrotliEncoderCompress(BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE,
+      in_len, in, &encoded_size, out);
+  }
   if (ok == 0) {
     return -1;
   }
@@ -141,7 +144,8 @@ function compress_brotli_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i
     return -1;
   }
   let decoded_size: usize = out_cap as usize;
-  let r: i32 = BrotliDecoderDecompress(in_len as usize, in, &decoded_size, out);
+  let r: i32 = 0;
+  unsafe { r = BrotliDecoderDecompress(in_len as usize, in, &decoded_size, out); }
   if (r != BROTLI_DECODER_RESULT_SUCCESS) {
     return -1;
   }
@@ -201,7 +205,7 @@ function compress_brotli_stream_init_compress_c(state: *u8, state_cap: i32): i32
   let s: *BrotliStream = state as *BrotliStream;
   s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
   s.hdr.mode = 0;
-  s.enc = BrotliEncoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8);
+  unsafe { s.enc = BrotliEncoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8); }
   if (s.enc == 0) {
     return -1;
   }
@@ -221,7 +225,7 @@ function compress_brotli_stream_init_decompress_c(state: *u8, state_cap: i32): i
   let s: *BrotliStream = state as *BrotliStream;
   s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
   s.hdr.mode = 1;
-  s.dec = BrotliDecoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8);
+  unsafe { s.dec = BrotliDecoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8); }
   if (s.dec == 0) {
     return -1;
   }
@@ -257,14 +261,18 @@ function compress_brotli_stream_compress_c(state: *u8, state_cap: i32, in: *u8, 
     avail_in = in_len as usize;
     next_in = in;
   }
-  if (BrotliEncoderCompressStream(s.enc, op, &avail_in, &next_in, &avail_out, &next_out, &total_out) != BROTLI_TRUE) {
+  let ret_ok: i32 = 0;
+  unsafe { ret_ok = BrotliEncoderCompressStream(s.enc, op, &avail_in, &next_in, &avail_out, &next_out, &total_out); }
+  if (ret_ok != BROTLI_TRUE) {
     return -1;
   }
   let written: i32 = out_cap - (avail_out as i32);
   if (in_consumed != 0) {
     in_consumed[0] = in_len - (avail_in as i32);
   }
-  if (is_last != 0 && BrotliEncoderIsFinished(s.enc) != 0) {
+  let finished: i32 = 0;
+  unsafe { finished = BrotliEncoderIsFinished(s.enc); }
+  if (is_last != 0 && finished != 0) {
     s.hdr.ended = 1;
   }
   return written;
@@ -294,7 +302,8 @@ function compress_brotli_stream_decompress_c(state: *u8, state_cap: i32, in: *u8
     avail_in = in_len as usize;
     next_in = in;
   }
-  let r: i32 = BrotliDecoderDecompressStream(s.dec, &avail_in, &next_in, &avail_out, &next_out, &total_out);
+  let r: i32 = 0;
+  unsafe { r = BrotliDecoderDecompressStream(s.dec, &avail_in, &next_in, &avail_out, &next_out, &total_out); }
   let written: i32 = out_cap - (avail_out as i32);
   if (in_consumed != 0) {
     in_consumed[0] = in_len - (avail_in as i32);
@@ -328,10 +337,10 @@ function compress_brotli_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   if (s.hdr.mode == 0 && s.enc != 0) {
-    BrotliEncoderDestroyInstance(s.enc);
+    unsafe { BrotliEncoderDestroyInstance(s.enc); }
   }
   if (s.hdr.mode == 1 && s.dec != 0) {
-    BrotliDecoderDestroyInstance(s.dec);
+    unsafe { BrotliDecoderDestroyInstance(s.dec); }
   }
   s.enc = 0 as *u8;
   s.dec = 0 as *u8;

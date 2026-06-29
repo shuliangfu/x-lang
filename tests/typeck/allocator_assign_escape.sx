@@ -2,9 +2,9 @@
 const vec = import("std.vec");
 
 function main(): i32 {
-  let v: vec.Vec_u8 = vec.vec_u8_new();
+  let v: Vec_u8 = vec.new();
   with_arena(4096) {
-    v = vec.vec_u8_new();
+    v = vec.new();
   }
   return 0;
 }

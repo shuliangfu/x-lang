@@ -28,6 +28,12 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref);
 void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col, const uint8_t *expect_buf, int32_t expect_len,
                                               const uint8_t *found_buf, int32_t found_len);
+void driver_diagnostic_typeck_return_unresolved(int32_t line, int32_t col, const uint8_t *expr_buf, int32_t expr_len);
+void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col, const uint8_t *expr_buf, int32_t expr_len);
+void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col, const uint8_t *name, int32_t name_len,
+                                                       int32_t expect_n, int32_t got_n);
+void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);

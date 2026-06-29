@@ -78,6 +78,7 @@ OUT_DIR=build_asm/seed_host
 mkdir -p "$OUT_DIR"
 TMP="$OUT_DIR/preflight_asm_full_gen.c.tmp"
 ERR="$OUT_DIR/preflight_asm_full_gen.err"
+ASM_LIBROOT="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline"
 
 ok "asm.sx -E smoke (timeout ${TIMEOUT_SEC}s, heartbeat every 15s) ..."
 
@@ -87,9 +88,9 @@ run_asm_e_with_heartbeat() {
   _start=$(date +%s)
   (
     if command -v timeout >/dev/null 2>&1; then
-      timeout "$TIMEOUT_SEC" "$SHUX_E" -L src/asm -E src/asm/asm.sx >"$TMP" 2>"$ERR"
+      timeout "$TIMEOUT_SEC" "$SHUX_E" $ASM_LIBROOT -E src/asm/asm.sx >"$TMP" 2>"$ERR"
     else
-      "$SHUX_E" -L src/asm -E src/asm/asm.sx >"$TMP" 2>"$ERR"
+      "$SHUX_E" $ASM_LIBROOT -E src/asm/asm.sx >"$TMP" 2>"$ERR"
     fi
   ) &
   _pid=$!

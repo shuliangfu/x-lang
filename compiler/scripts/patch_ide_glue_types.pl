@@ -12,6 +12,12 @@ local $/; my $s = <$fh>;
 $s =~ s/(num_if_stmts;\s*)int32_t defer_base/$1int32_t region_base; int32_t num_regions; int32_t defer_base/s
   unless $s =~ /region_base/;
 
+# C2：Expr/Func 布局补齐最小泛型诊断字段（seed pipeline_gen 快照缺口）。
+$s =~ s/(call_num_args;\s*)int32_t method_call_base_ref/$1int32_t call_num_type_args; int32_t method_call_base_ref/s
+  unless $s =~ /call_num_type_args/;
+$s =~ s/(num_params;\s*)int32_t return_type_ref/$1int32_t num_generic_params; int32_t return_type_ref/s
+  unless $s =~ /num_generic_params/;
+
 # M-3/M-4：TypeKind 序与 ast.sx 一致（TYPE_LINEAR 在 TYPE_VECTOR 前）。
 $s =~ s/(TYPE_SLICE,\s*)ast_TypeKind_TYPE_VECTOR/$1ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR/s
   unless $s =~ /TYPE_LINEAR/;

@@ -79,7 +79,7 @@ function freestanding_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32 {
  * close(2) 薄封装。
  */
 function freestanding_close(sockfd: i32): i32 {
-  return sys.os_close(sockfd);
+  return sys.close(sockfd);
 }
 
 /** 模块尾占位：transitive import 解析锚点。 */

@@ -6,10 +6,10 @@ function main(): i32 {
   let sql: u8[9] = [83, 69, 76, 69, 67, 84, 32, 49, 0];
   let c: DbConn = sqlite.open(&path[0]);
   let ec: i32 = sqlite.exec(c, &sql[0]);
-  ec = sqlite.query_rows(c, &sql[0]);
-  let cur: DbRowCursor = sqlite.query_begin(c, &sql[0]);
+  ec = sqlite.rows(c, &sql[0]);
+  let cur: DbRowCursor = sqlite.begin(c, &sql[0]);
   ec = sqlite.next_row(cur);
-  ec = sqlite.query_end(cur);
+  ec = sqlite.end(cur);
   ec = sqlite.begin_tx(c);
   ec = sqlite.commit(c);
   ec = sqlite.rollback(c);

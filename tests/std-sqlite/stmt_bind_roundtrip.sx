@@ -48,32 +48,32 @@ function main(): i32 {
     sqlite.close(c);
     return 3;
   }
-  if (sqlite.stmt_bind_i32(ins, 1, 10) != 0 || sqlite.stmt_bind_text(ins, 2, &alice[0]) != 0) {
-    sqlite.stmt_finalize(ins);
+  if (sqlite.bind(ins, 1, 10) != 0 || sqlite.bind(ins, 2, &alice[0]) != 0) {
+    sqlite.finalize(ins);
     sqlite.close(c);
     return 4;
   }
-  if (sqlite.stmt_step(ins) != 0) {
-    sqlite.stmt_finalize(ins);
+  if (sqlite.step(ins) != 0) {
+    sqlite.finalize(ins);
     sqlite.close(c);
     return 5;
   }
-  if (sqlite.stmt_reset(ins) != 0) {
-    sqlite.stmt_finalize(ins);
+  if (sqlite.reset(ins) != 0) {
+    sqlite.finalize(ins);
     sqlite.close(c);
     return 6;
   }
-  if (sqlite.stmt_bind_i32(ins, 1, 20) != 0 || sqlite.stmt_bind_text(ins, 2, &bob[0]) != 0) {
-    sqlite.stmt_finalize(ins);
+  if (sqlite.bind(ins, 1, 20) != 0 || sqlite.bind(ins, 2, &bob[0]) != 0) {
+    sqlite.finalize(ins);
     sqlite.close(c);
     return 7;
   }
-  if (sqlite.stmt_step(ins) != 0) {
-    sqlite.stmt_finalize(ins);
+  if (sqlite.step(ins) != 0) {
+    sqlite.finalize(ins);
     sqlite.close(c);
     return 8;
   }
-  if (sqlite.stmt_finalize(ins) != 0) {
+  if (sqlite.finalize(ins) != 0) {
     sqlite.close(c);
     return 9;
   }
@@ -83,35 +83,35 @@ function main(): i32 {
     sqlite.close(c);
     return 10;
   }
-  if (sqlite.stmt_bind_i32(sel, 1, 10) != 0) {
+  if (sqlite.bind(sel, 1, 10) != 0) {
     sqlite.close(c);
     return 11;
   }
-  st = sqlite.stmt_step(sel);
+  st = sqlite.step(sel);
   if (st != 1) {
     sqlite.close(c);
     return 12;
   }
-  n = sqlite.stmt_col_text(sel, 0, &out[0], 16);
+  n = sqlite.col_text(sel, 0, &out[0], 16);
   if (text_eq5(&out[0], n, 97, 108, 105, 99, 101, 5) == 0) {
     sqlite.close(c);
     return 13;
   }
-  if (sqlite.stmt_reset(sel) != 0 || sqlite.stmt_bind_i32(sel, 1, 20) != 0) {
+  if (sqlite.reset(sel) != 0 || sqlite.bind(sel, 1, 20) != 0) {
     sqlite.close(c);
     return 14;
   }
-  st = sqlite.stmt_step(sel);
+  st = sqlite.step(sel);
   if (st != 1) {
     sqlite.close(c);
     return 15;
   }
-  n = sqlite.stmt_col_text(sel, 0, &out[0], 16);
+  n = sqlite.col_text(sel, 0, &out[0], 16);
   if (text_eq5(&out[0], n, 98, 111, 98, 0, 0, 3) == 0) {
     sqlite.close(c);
     return 16;
   }
-  if (sqlite.stmt_cache_clear(c) != 0) {
+  if (sqlite.cache_clear(c) != 0) {
     sqlite.close(c);
     return 17;
   }

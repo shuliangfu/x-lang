@@ -123,7 +123,7 @@ function run_sx_emit_sx(state: *DriverSxEmitState): i32 {
     return 1;
   }
   let cap_i: i32 = 4194304;
-  let n: i32 = sys.os_read_file_into(&state.path_buf[0], pipeline_dep_ctx_loaded_buf_ptr(&ctx), cap_i);
+  let n: i32 = sys.read_file_into(&state.path_buf[0], pipeline_dep_ctx_loaded_buf_ptr(&ctx), cap_i);
   if (n < 0) {
     pipeline_dep_ctx_free_source_buffers(&ctx);
     return 1;

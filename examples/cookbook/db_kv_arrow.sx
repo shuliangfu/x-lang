@@ -39,17 +39,17 @@ function main(): i32 {
     return 5;
   }
   dbkv.close(store);
-  let col_p: ArrowColumn = dbarrow.column_adopt_f32(&prices[0], 4, 4);
-  let col_w: ArrowColumn = dbarrow.column_adopt_f32(&weights[0], 4, 4);
+  let col_p: ArrowColumn = dbarrow.adopt(&prices[0], 4, 4);
+  let col_w: ArrowColumn = dbarrow.adopt(&weights[0], 4, 4);
   if (col_p.handle == 0 || col_w.handle == 0) {
     return 6;
   }
-  if (dbarrow.column_f32_sum(col_p, 4) < 9.99 || dbarrow.column_f32_dot(col_p, col_w, 4) < 2.49) {
-    dbarrow.column_destroy(col_p);
-    dbarrow.column_destroy(col_w);
+  if (dbarrow.sum(col_p, 4) < 9.99 || dbarrow.dot(col_p, col_w, 4) < 2.49) {
+    dbarrow.free(col_p);
+    dbarrow.free(col_w);
     return 7;
   }
-  dbarrow.column_destroy(col_p);
-  dbarrow.column_destroy(col_w);
+  dbarrow.free(col_p);
+  dbarrow.free(col_w);
   return 0;
 }

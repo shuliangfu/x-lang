@@ -647,6 +647,16 @@ int32_t backend_enc_mov_edx_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_c
   return arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx);
 }
 
+int32_t backend_enc_rem_mod_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+  if (backend_enc_cltd_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+}
+
 /**
  * ta 分派：enc_neg_eax_arch
  */

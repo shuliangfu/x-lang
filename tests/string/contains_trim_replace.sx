@@ -20,12 +20,12 @@ function main(): i32 {
   let with_sp: u8[8] = [32, 32, 104, 105, 32, 32, 0, 0];
   let st: String = string.string_from_slice(&with_sp[0], 6);
   let out: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = string.string_trim_space(st, &out[0], 8);
+  let n: i32 = string.trim(st, &out[0], 8);
   if (n != 2) { return 9; }
   if (out[0] != 104 || out[1] != 105) { return 10; }
   // replace_char
   let ss: String = string.string_from_slice(&buf[0], 11);
-  let cnt: i32 = string.string_replace_char(&ss, 97, 65);
+  let cnt: i32 = string.replace(&ss, 97, 65);
   if (cnt != 5) { return 11; }
   if (string.string_get(ss, 0) != 65) { return 12; }
   if (string.string_get(ss, 3) != 65) { return 13; }

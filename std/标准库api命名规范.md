@@ -2595,7 +2595,6 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `tls_close`                        | 关闭 TLS 会话；成功 0。                                                                                                                                                              | `tls_close`                  | 已符合命名          | `net.tls_close(...)`                  |
 | `tls_last_error`                   | 读取 TLS 最后一次错误码（如 TLS_NOT_IMPL、参数 -2）。                                                                                                                                        | `tls_last_error`             | 已符合命名          | `net.tls_last_error(...)`             |
 | `tcp_pool_new`                     | 创建 TCP 连接池；host 为 Ipv4Addr 数值（同 addr_to_u32）；max_idle 默认 1。                                                                                                                  | `tcp_pool_new`               | 已符合命名          | `net.tcp_pool_new(...)`               |
-| `tcp_pool_new_simple`              | 兼容旧签名：max_idle=1。                                                                                                                                                            | `tcp_pool_new_simple`        | 已符合命名          | `net.tcp_pool_new_simple(...)`        |
 | `tcp_pool_acquire`                 | 从池取连接（idle 复用或新建 TCP）；失败 -1。                                                                                                                                                 | `tcp_pool_acquire`           | 已符合命名          | `net.tcp_pool_acquire(...)`           |
 | `tcp_pool_release`                 | 归还 fd 到 idle 栈；栈满则 close。                                                                                                                                                    | `tcp_pool_release`           | 已符合命名          | `net.tcp_pool_release(...)`           |
 | `tcp_pool_drain`                   | 关闭并清空 idle 连接（不销毁池对象）。                                                                                                                                                       | `tcp_pool_drain`             | 已符合命名          | `net.tcp_pool_drain(...)`             |
@@ -3563,7 +3562,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | 当前名称                          | 功能说明                                                 | 简化名称                 | 说明             | 绑定调用                             |
 | ----------------------------- | ---------------------------------------------------- | -------------------- | -------------- | -------------------------------- |
-| `thread_self_c` | extern C/平台 | `self` | 去模块前缀+去类型名（C层） | `thread.self(...)` |
+| `thread_self_c` | extern C/平台 | `id` | `self` 为语言关键字，改用最接近语义的 `id` | `thread.id(...)` |
 | `thread_create_c` | extern C/平台 | `create` | 去模块前缀+去类型名（C层） | `thread.create(...)` |
 | `thread_create_with_stack_c` | extern C/平台 | `create_with_stack` | 去模块前缀+去类型名（C层） | `thread.create_with_stack(...)` |
 | `thread_join_c` | extern C/平台 | `join` | 去模块前缀+去类型名（C层） | `thread.join(...)` |
@@ -3571,7 +3570,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `thread_set_affinity_c` | extern C/平台 | `set_affinity` | 去模块前缀+去类型名（C层） | `thread.set_affinity(...)` |
 | `thread_set_qos_class_self_c` | extern C/平台                                          | `set_qos_class_self` | 去模块前缀+去类型名（C层） | `thread.set_qos_class_self(...)` |
 | `thread_dummy_entry_ptr_c` | extern C/平台 | `dummy_entry_ptr` | 去模块前缀+去类型名（C层） | `thread.dummy_entry_ptr(...)` |
-| `thread_self`                 | 返回当前线程 ID（用于区分线程、多核时每线程一 io_uring）。                  | `self`               | 去模块前缀+去类型名     | `thread.self(...)`               |
+| `thread_self`                 | 返回当前线程 ID（用于区分线程、多核时每线程一 io_uring）。                  | `id`                 | `self` 为语言关键字，改用最接近语义的 `id` | `thread.id(...)`                 |
 | `thread_create`               | —                                                    | `create`             | 去模块前缀+去类型名     | `thread.create(...)`             |
 | `thread_create_with_stack`    | —                                                    | `create_with_stack`  | 去模块前缀+去类型名     | `thread.create_with_stack(...)`  |
 | `thread_join`                 | 等待线程结束；thread_id 为 thread_create 返回值。返回 0 成功，-1 失败。  | `join`               | 去模块前缀+去类型名     | `thread.join(...)`               |
@@ -4086,4 +4085,3 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `allocator_alloc` | `alloc` | `heap.alloc(&alloc, n)` |
 
 完整对照见 §三 各模块清单（「简化名称」「绑定调用」列）。
-

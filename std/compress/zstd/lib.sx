@@ -128,8 +128,11 @@ function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32):
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
     return -1;
   }
-  let n: usize = ZSTD_compress(out, out_cap, in, in_len, ZSTD_CLEVEL_DEFAULT);
-  if (ZSTD_isError(n) != 0) {
+  let n: usize = 0;
+  unsafe { n = ZSTD_compress(out, out_cap, in, in_len, ZSTD_CLEVEL_DEFAULT); }
+  let is_err: u32 = 0;
+  unsafe { is_err = ZSTD_isError(n); }
+  if (is_err != 0) {
     return -1;
   }
   return n as i32;
@@ -142,8 +145,11 @@ function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
     return -1;
   }
-  let n: usize = ZSTD_decompress(out, out_cap, in, in_len);
-  if (ZSTD_isError(n) != 0) {
+  let n: usize = 0;
+  unsafe { n = ZSTD_decompress(out, out_cap, in, in_len); }
+  let is_err: u32 = 0;
+  unsafe { is_err = ZSTD_isError(n); }
+  if (is_err != 0) {
     return -1;
   }
   return n as i32;
@@ -175,12 +181,16 @@ function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
   let s: *ZstdStream = state as *ZstdStream;
   s.hdr.magic = SHU_ZSTD_STREAM_MAGIC;
   s.hdr.mode = 0;
-  s.cctx = ZSTD_createCCtx();
+  unsafe { s.cctx = ZSTD_createCCtx(); }
   if (s.cctx == 0) {
     return -1;
   }
-  if (ZSTD_isError(ZSTD_CCtx_setParameter(s.cctx, ZSTD_c_compressionLevel, ZSTD_CLEVEL_DEFAULT)) != 0) {
-    ZSTD_freeCCtx(s.cctx);
+  let set_ret: usize = 0;
+  unsafe { set_ret = ZSTD_CCtx_setParameter(s.cctx, ZSTD_c_compressionLevel, ZSTD_CLEVEL_DEFAULT); }
+  let is_err: u32 = 0;
+  unsafe { is_err = ZSTD_isError(set_ret); }
+  if (is_err != 0) {
+    unsafe { ZSTD_freeCCtx(s.cctx); }
     s.cctx = 0 as *u8;
     return -1;
   }
@@ -200,7 +210,7 @@ function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32
   let s: *ZstdStream = state as *ZstdStream;
   s.hdr.magic = SHU_ZSTD_STREAM_MAGIC;
   s.hdr.mode = 1;
-  s.dctx = ZSTD_createDCtx();
+  unsafe { s.dctx = ZSTD_createDCtx(); }
   if (s.dctx == 0) {
     return -1;
   }
@@ -239,8 +249,11 @@ function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in
   if (is_last != 0) {
     mode = ZSTD_e_end;
   }
-  let remaining: usize = ZSTD_compressStream2(s.cctx, &outbuf, &inbuf, mode);
-  if (ZSTD_isError(remaining) != 0) {
+  let remaining: usize = 0;
+  unsafe { remaining = ZSTD_compressStream2(s.cctx, &outbuf, &inbuf, mode); }
+  let is_err: u32 = 0;
+  unsafe { is_err = ZSTD_isError(remaining); }
+  if (is_err != 0) {
     return -1;
   }
   if (in_consumed != 0) {
@@ -279,8 +292,11 @@ function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, 
   outbuf.dst = out;
   outbuf.size = out_cap as usize;
   outbuf.pos = 0;
-  let ret: usize = ZSTD_decompressStream(s.dctx, &outbuf, &inbuf);
-  if (ZSTD_isError(ret) != 0) {
+  let ret: usize = 0;
+  unsafe { ret = ZSTD_decompressStream(s.dctx, &outbuf, &inbuf); }
+  let is_err: u32 = 0;
+  unsafe { is_err = ZSTD_isError(ret); }
+  if (is_err != 0) {
     return -1;
   }
   if (in_consumed != 0) {
@@ -305,11 +321,11 @@ function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   if (s.cctx != 0) {
-    ZSTD_freeCCtx(s.cctx);
+    unsafe { ZSTD_freeCCtx(s.cctx); }
     s.cctx = 0 as *u8;
   }
   if (s.dctx != 0) {
-    ZSTD_freeDCtx(s.dctx);
+    unsafe { ZSTD_freeDCtx(s.dctx); }
     s.dctx = 0 as *u8;
   }
   s.hdr.inited = 0;

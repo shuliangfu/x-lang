@@ -78,7 +78,7 @@ extern function cache_pool_idle_c(handle: i64): i32;
 extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void;
 
 /** 创建 LRU 缓存；capacity 默认上限 64。 */
-function lru_new(capacity: i32): LruCache {
+function new_lru(capacity: i32): LruCache {
   unsafe {
     let h: i64 = cache_lru_create_c(capacity);
     return LruCache { handle: h };
@@ -86,7 +86,7 @@ function lru_new(capacity: i32): LruCache {
 }
 
 /** 释放 LRU 缓存。 */
-function lru_free(c: *LruCache): void {
+function free(c: *LruCache): void {
   let zero: i64 = 0;
   if (c == 0) { return; }
   if (c.handle != zero) {
@@ -96,7 +96,7 @@ function lru_free(c: *LruCache): void {
 }
 
 /** LRU 读取；未命中返回 err_not_found()。 */
-function lru_get(c: *LruCache, key: i64, out: *i64): i32 {
+function get(c: *LruCache, key: i64, out: *i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero || out == 0) { return err_null(); }
   unsafe {
@@ -105,7 +105,7 @@ function lru_get(c: *LruCache, key: i64, out: *i64): i32 {
 }
 
 /** LRU 写入；ttl_ns=0 表示永不过期。 */
-function lru_put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
+function put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
   unsafe {
@@ -114,7 +114,7 @@ function lru_put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
 }
 
 /** 删除键。 */
-function lru_remove(c: *LruCache, key: i64): i32 {
+function remove(c: *LruCache, key: i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
   unsafe {
@@ -123,7 +123,7 @@ function lru_remove(c: *LruCache, key: i64): i32 {
 }
 
 /** 惰性清理过期条目；返回删除数。 */
-function lru_purge_expired(c: *LruCache): i32 {
+function purge(c: *LruCache): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
   unsafe {
@@ -132,7 +132,7 @@ function lru_purge_expired(c: *LruCache): i32 {
 }
 
 /** 读取 LRU 统计。 */
-function lru_stats(c: *LruCache, out: *CacheStats): void {
+function stats(c: *LruCache, out: *CacheStats): void {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero || out == 0) { return; }
   unsafe {

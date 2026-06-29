@@ -57,6 +57,13 @@ if [ -z "$LINK_LINE" ]; then
 fi
 LINK_NO_PARTIAL=$(printf '%s\n' "$LINK_LINE" | sed 's/ build_asm\/seed_host\/asm_backend_partial.o//')
 
+objs=$(printf '%s\n' "$LINK_NO_PARTIAL" | tr ' ' '\n' | grep -E '\.o$' || true)
+for obj in $objs; do
+  if [ ! -f "$obj" ]; then
+    make "$obj" >/dev/null 2>&1 || true
+  fi
+done
+
 # 试链，收集 undefined reference
 rm -f "$LINK_ERR" "$UNDEF"
 eval "$LINK_NO_PARTIAL" 2>"$LINK_ERR" || true

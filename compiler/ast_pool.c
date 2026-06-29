@@ -1120,12 +1120,28 @@ void pipeline_module_func_set_num_params(struct ast_Module *m, int32_t fi, int32
     f->num_params = n;
 }
 
+void pipeline_module_func_set_num_generic_params(struct ast_Module *m, int32_t fi, int32_t n) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f && n >= 0)
+    f->num_generic_params = n;
+}
+
 int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t func_index) {
   struct ast_Func *f;
   if (!m || func_index < 0 || func_index >= m->num_funcs)
     return 0;
   f = module_func_at(m, func_index);
   return f ? (int32_t)f->num_params : 0;
+}
+
+int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs)
+    return 0;
+  f = module_func_at(m, func_index);
+  if (!f)
+    return 0;
+  return (int32_t)f->num_generic_params;
 }
 
 int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32_t func_index, uint8_t *var_name,
@@ -4166,6 +4182,13 @@ int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref)
   return ex ? ex->call_num_args : 0;
 }
 
+int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return 0;
+  return ex->call_num_type_args;
+}
+
 int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
   struct ast_Expr *ex;
   int32_t *slot;
@@ -6627,6 +6650,10 @@ typedef struct {
   int32_t sym_shndx;
 } PipelineElfSymEntry;
 
+typedef struct {
+  uint8_t bytes[64];
+} PipelineElfRelocSymName64;
+
 /** code_data 之前的完整前缀；glue 用 offsetof 取 e_machine / code_data，避免手算偏移漂移。 */
 typedef struct {
   int32_t code_len;
@@ -6635,7 +6662,7 @@ typedef struct {
   PipelineElfPatchEntry patches[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_patches;
   PipelineElfRelocEntry relocs[PIPELINE_ELF_CTX_TABLE_CAP];
-  uint8_t reloc_sym_names[PIPELINE_ELF_CTX_TABLE_CAP][64];
+  PipelineElfRelocSymName64 reloc_sym_names[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_relocs;
   PipelineElfSymEntry syms[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_syms;
@@ -8333,7 +8360,7 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
   ri = ctx->num_relocs;
   if (ri < PIPELINE_ELF_CTX_TABLE_CAP) {
     ent = &ctx->relocs[ri];
-    sym_row = ctx->reloc_sym_names[ri];
+    sym_row = ctx->reloc_sym_names[ri].bytes;
     hent = NULL;
   } else {
     if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
@@ -8374,7 +8401,7 @@ uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
   if (idx >= ctx->num_relocs)
     return NULL;
   if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
-    return ctx->reloc_sym_names[idx];
+    return ctx->reloc_sym_names[idx].bytes;
   if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
     return NULL;
   hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;

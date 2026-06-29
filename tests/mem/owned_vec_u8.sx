@@ -2,6 +2,6 @@
 const vec = import("std.vec");
 
 function main(): i32 {
-  let v: owned(Vec_u8) = vec.vec_u8_new();
-  return vec.vec_u8_len(v);
+  let v: owned(Vec_u8) = vec.new();
+  return vec.len(v);
 }

@@ -15,7 +15,7 @@ function buf_prefix_eq(buf: *u8, buf_len: i32, expect: *u8, expect_len: i32): i3
 }
 
 function main(): i32 {
-  let tr: Trace = trace.trace_new();
+  let tr: Trace = trace.new();
   let sp: Span = Span { id: 0 };
   let obs: ObservabilityCtx = metrics.obs_ctx_empty();
   let obs2: ObservabilityCtx = metrics.obs_ctx_empty();
@@ -32,7 +32,7 @@ function main(): i32 {
   let span_name: u8[4] = [114, 111, 111, 116];
   let kv_pre: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 61];
 
-  sp = trace.span_start(&tr, 0, &span_name[0], 4);
+  sp = trace.start(&tr, 0, &span_name[0], 4);
   if (sp.id == 0) { return 1; }
 
   obs = metrics.obs_ctx_from_trace(&tr, sp);
@@ -56,7 +56,7 @@ function main(): i32 {
   n = metrics.export_prometheus(&reg, &out[0], 256);
   if (n <= 0) { return 11; }
 
-  if (trace.span_end(&tr, sp) != 0) { return 12; }
-  trace.trace_free(&tr);
+  if (trace.end(&tr, sp) != 0) { return 12; }
+  trace.free(&tr);
   return 0;
 }

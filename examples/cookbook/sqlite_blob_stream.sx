@@ -5,7 +5,7 @@
 const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
-  if (sqlite.sqlite_is_available() == 0) {
+  if (sqlite.is_available() == 0) {
     return 0;
   }
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
@@ -36,32 +36,32 @@ function main(): i32 {
     sqlite.close(c);
     return 3;
   }
-  cur = sqlite.query_begin(c, &sql_sel[0]);
+  cur = sqlite.begin(c, &sql_sel[0]);
   if (cur.cursor == 0) {
     sqlite.close(c);
     return 4;
   }
   if (sqlite.next_row(cur) != 1) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 5;
   }
-  if (sqlite.row_col_blob_len(cur, 0) != 3) {
-    sqlite.query_end(cur);
+  if (sqlite.col_blob_len(cur, 0) != 3) {
+    sqlite.end(cur);
     sqlite.close(c);
     return 6;
   }
-  if (sqlite.row_col_blob_read(cur, 0, 0, &chunk[0], 8) != 3) {
-    sqlite.query_end(cur);
+  if (sqlite.col_blob_read(cur, 0, 0, &chunk[0], 8) != 3) {
+    sqlite.end(cur);
     sqlite.close(c);
     return 7;
   }
   if (chunk[0] != 1 || chunk[1] != 2 || chunk[2] != 3) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 8;
   }
-  sqlite.query_end(cur);
+  sqlite.end(cur);
   sqlite.close(c);
   return 0;
 }

@@ -309,7 +309,7 @@ function wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
   return core.shux_io_wait_readable(fds, n, timeout_ms);
 }
 // ——— slice 版 API：使用 u8[] 的 .data（*u8）与 .length（usize）对接 read/write ———
-// IO-A5 v2：非阻塞 read；submit 返回 slot>=0，complete_read_async_slot(slot) 收割。
+// IO-A5 v2：非阻塞 read；submit 返回 slot>=0，complete_read(slot) 收割。
 const IO_ASYNC_NOT_READY: i32 = -2;
 /** 提交非阻塞 read；成功返回 slot>=0，失败 -1。 */
 function read_async(handle: usize, ptr: *u8, len: usize): i32 {

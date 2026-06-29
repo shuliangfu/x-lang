@@ -23,8 +23,8 @@ function main(): i32 {
   let out: u8[16] = [];
   if (path.join(&out[0], 16, &a[0], 4, &b[0], 3) < 4) { return 5; }
   // case 6：benchmark 计时器与 sleep 下限
-  let tm: Timer = time.timer_start();
+  let tm: Timer = time.start();
   time.sleep_ms(10);
-  if (time.timer_elapsed_ms(tm) < 5) { return 6; }
+  if (time.elapsed_ms(tm) < 5) { return 6; }
   return 0;
 }

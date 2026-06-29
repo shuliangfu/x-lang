@@ -8,8 +8,8 @@ verify	section	## 4. 验证与门禁	gate
 api_nfc	api	nfc_buf	std/unicode/mod.sx	缓冲 NFC
 api_supplementary	api	is_supplementary	std/unicode/mod.sx	>U+FFFF
 api_rune_len	api	rune_utf8_len	std/unicode/mod.sx	UTF-8 长
-symbol_nfc_c	symbol	unicode_nfc_buf_c	std/unicode/unicode.sx	C NFC
-symbol_supp_c	symbol	unicode_is_supplementary_c	std/unicode/unicode.sx	C 非 BMP
+symbol_nfc_c	symbol	nfc_buf	std/unicode/unicode.sx	C NFC
+symbol_supp_c	symbol	is_supplementary	std/unicode/unicode.sx	C 非 BMP
 smoke_nfc	smoke	tests/unicode/nfc_gold.sx	金样
 smoke_main	smoke	tests/unicode/main.sx	分类
 lib	script	lib/std-unicode-nfc.sh	tests/lib/std-unicode-nfc.sh

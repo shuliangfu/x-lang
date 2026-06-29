@@ -69,7 +69,7 @@ function freestanding_write_available(): i32 {
  * 统一 write：Linux freestanding → shux_sys_write；macOS → macos.macos_write。
  */
 #[cfg(target_os = "linux")]
-function os_write(fd: i32, buf: *u8, len: i32): i32 {
+function write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
     return 0;
   }
@@ -82,61 +82,61 @@ function os_write(fd: i32, buf: *u8, len: i32): i32 {
 }
 
 #[cfg(target_os = "macos")]
-function os_write(fd: i32, buf: *u8, len: i32): i32 {
+function write(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_write(fd, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_write(fd: i32, buf: *u8, len: i32): i32 {
+function write(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write(fd, buf, len);
 }
 
 /** Windows v0：占位 win32_write（B-17 深化前返回 -1）。 */
 #[cfg(target_os = "windows")]
-function os_write(fd: i32, buf: *u8, len: i32): i32 {
+function write(fd: i32, buf: *u8, len: i32): i32 {
   return win32.win32_write(fd, buf, len);
 }
 
-/** 写 stdout；等价 os_write(STDOUT_FD, buf, len)。 */
+/** 写 stdout；等价 write(STDOUT_FD, buf, len)。 */
 #[cfg(target_os = "linux")]
-function os_write_stdout(buf: *u8, len: i32): i32 {
-  return os_write(STDOUT_FD, buf, len);
+function write_stdout(buf: *u8, len: i32): i32 {
+  return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "macos")]
-function os_write_stdout(buf: *u8, len: i32): i32 {
-  return os_write(STDOUT_FD, buf, len);
+function write_stdout(buf: *u8, len: i32): i32 {
+  return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_write_stdout(buf: *u8, len: i32): i32 {
-  return os_write(STDOUT_FD, buf, len);
+function write_stdout(buf: *u8, len: i32): i32 {
+  return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "windows")]
-function os_write_stdout(buf: *u8, len: i32): i32 {
-  return os_write(STDOUT_FD, buf, len);
+function write_stdout(buf: *u8, len: i32): i32 {
+  return write(STDOUT_FD, buf, len);
 }
 
-/** 写 stderr；等价 os_write(STDERR_FD, buf, len)。 */
+/** 写 stderr；等价 write(STDERR_FD, buf, len)。 */
 #[cfg(target_os = "linux")]
-function os_write_stderr(buf: *u8, len: i32): i32 {
-  return os_write(STDERR_FD, buf, len);
+function write_stderr(buf: *u8, len: i32): i32 {
+  return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "macos")]
-function os_write_stderr(buf: *u8, len: i32): i32 {
-  return os_write(STDERR_FD, buf, len);
+function write_stderr(buf: *u8, len: i32): i32 {
+  return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_write_stderr(buf: *u8, len: i32): i32 {
-  return os_write(STDERR_FD, buf, len);
+function write_stderr(buf: *u8, len: i32): i32 {
+  return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "windows")]
-function os_write_stderr(buf: *u8, len: i32): i32 {
-  return os_write(STDERR_FD, buf, len);
+function write_stderr(buf: *u8, len: i32): i32 {
+  return write(STDERR_FD, buf, len);
 }
 
 /**
@@ -227,18 +227,18 @@ function mmap_available(): i32 {
 }
 
 /** 可写 mmap 薄转发。 */
-function os_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
-  return mmap_m.os_mmap_rw(path, min_size, out_size);
+function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+  return mmap_m.mmap_rw(path, min_size, out_size);
 }
 
 /** 解除 mmap 薄转发。 */
-function os_munmap(ptr: *u8, size: usize): i32 {
-  return mmap_m.os_munmap(ptr, size);
+function munmap(ptr: *u8, size: usize): i32 {
+  return mmap_m.munmap(ptr, size);
 }
 
 /** msync 薄转发。 */
-function os_msync(ptr: *u8, size: usize): i32 {
-  return mmap_m.os_msync(ptr, size);
+function msync(ptr: *u8, size: usize): i32 {
+  return mmap_m.msync(ptr, size);
 }
 
 /**
@@ -246,46 +246,46 @@ function os_msync(ptr: *u8, size: usize): i32 {
  * 成功返回读入字节数；失败返回 -1。
  */
 #[cfg(target_os = "linux")]
-function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return linux.linux_read_file_into(path, buf, cap);
 }
 
 #[cfg(target_os = "macos")]
-function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return macos.macos_read_file_into(path, buf, cap);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return freebsd.freebsd_read_file_into(path, buf, cap);
 }
 
 /** Windows v0：占位 win32_read_file_into（B-17 深化前返回 -1）。 */
 #[cfg(target_os = "windows")]
-function os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return win32.win32_read_file_into(path, buf, cap);
 }
 
 /** Linux freestanding read(2) 薄转发。 */
 #[cfg(target_os = "linux")]
-function os_read(fd: i32, buf: *u8, len: i32): i32 {
+function read(fd: i32, buf: *u8, len: i32): i32 {
   return linux.linux_syscall_read(fd, buf, len);
 }
 
 /** macOS POSIX read(2) 薄转发（单次 read，非读整文件）。 */
 #[cfg(target_os = "macos")]
-function os_read(fd: i32, buf: *u8, len: i32): i32 {
+function read(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_read(fd, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_read(fd: i32, buf: *u8, len: i32): i32 {
+function read(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_read(fd, buf, len);
 }
 
 /** Windows v1：ReadFile 路径尚未暴露 fd read；v1 返回 -1。 */
 #[cfg(target_os = "windows")]
-function os_read(fd: i32, buf: *u8, len: i32): i32 {
+function read(fd: i32, buf: *u8, len: i32): i32 {
   (void)fd;
   (void)buf;
   (void)len;
@@ -294,52 +294,52 @@ function os_read(fd: i32, buf: *u8, len: i32): i32 {
 
 /** Linux close(2) freestanding 薄转发。 */
 #[cfg(target_os = "linux")]
-function os_close(fd: i32): i32 {
+function close(fd: i32): i32 {
   return linux.linux_syscall_close(fd);
 }
 
 /** macOS close(2) 薄转发。 */
 #[cfg(target_os = "macos")]
-function os_close(fd: i32): i32 {
+function close(fd: i32): i32 {
   return macos.macos_close(fd);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_close(fd: i32): i32 {
+function close(fd: i32): i32 {
   return freebsd.freebsd_close(fd);
 }
 
 /** Windows v1：fd close 暂不支持。 */
 #[cfg(target_os = "windows")]
-function os_close(fd: i32): i32 {
+function close(fd: i32): i32 {
   (void)fd;
   return -1;
 }
 
 /** Linux exit(2) freestanding；noreturn。 */
 #[cfg(target_os = "linux")]
-function os_exit(code: i32): void {
+function exit(code: i32): void {
   linux.linux_syscall_exit(code);
 }
 
 /** macOS _exit 薄转发（B-16 v2）。 */
 #[cfg(target_os = "macos")]
-function os_exit(code: i32): void {
+function exit(code: i32): void {
   macos.macos_exit(code);
 }
 
 #[cfg(target_os = "freebsd")]
-function os_exit(code: i32): void {
+function exit(code: i32): void {
   freebsd.freebsd_exit(code);
 }
 
 /** Windows ExitProcess 薄转发（B-17 v3）。 */
 #[cfg(target_os = "windows")]
-function os_exit(code: i32): void {
+function exit(code: i32): void {
   win32.win32_exit_process(code);
 }
 
-/** B-19：os_mmap 为 os_mmap_rw 别名（可写文件 mmap）。 */
-function os_mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
-  return os_mmap_rw(path, min_size, out_size);
+/** B-19：mmap 为 mmap_rw 别名（可写文件 mmap）。 */
+function mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
+  return mmap_rw(path, min_size, out_size);
 }

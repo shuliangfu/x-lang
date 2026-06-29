@@ -560,16 +560,15 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
  * 返回值：1 含顶层 import；0 否或读/预处理失败。
  */
 int driver_source_has_top_level_import_path(const char *path) {
-    size_t raw_len = 0;
-    char *raw = runtime_read_file_malloc(path, &raw_len);
+    ShuxRuntimeFileView raw_view;
     size_t src_len = 0;
     char *src;
     int has;
 
-    if (!raw)
+    if (runtime_read_file_view(path, &raw_view) != 0)
         return 0;
-    src = shux_preprocess(raw, raw_len, NULL, 0, &src_len);
-    free(raw);
+    src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &src_len);
+    runtime_release_file_view(&raw_view);
     if (!src)
         return 0;
     has = driver_source_has_top_level_import(src, src_len);

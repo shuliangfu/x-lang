@@ -30,7 +30,7 @@ function main(): i32 {
     heap.page_mmap_heap_deinit(&h);
     return 5;
   }
-  let n: i32 = sys.os_write_stdout(p, 3);
+  let n: i32 = sys.write_stdout(p, 3);
   if (n != 3) {
     heap.page_mmap_heap_deinit(&h);
     return 6;

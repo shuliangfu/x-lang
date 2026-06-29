@@ -2757,23 +2757,35 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
  * B-20 v1：扫描生成 C 是否含任一子串（invoke_cc 按需链入判定）。
  */
 static int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles, int n_needles) {
-    size_t len = 0;
-    char *text;
+    ShuxRuntimeFileView view;
     int i;
     int found = 0;
 
     if (!c_path || !c_path[0] || !needles || n_needles <= 0)
         return 0;
-    text = runtime_read_file_malloc(c_path, &len);
-    if (!text)
+    if (runtime_read_file_view(c_path, &view) != 0)
         return 0;
     for (i = 0; i < n_needles; i++) {
-        if (needles[i] && strstr(text, needles[i])) {
-            found = 1;
-            break;
+        if (needles[i]) {
+            size_t needle_len = strlen(needles[i]);
+            if (needle_len == 0) {
+                found = 1;
+                break;
+            }
+            if (view.length >= needle_len) {
+                size_t off;
+                for (off = 0; off + needle_len <= view.length; off++) {
+                    if (memcmp(view.data + off, needles[i], needle_len) == 0) {
+                        found = 1;
+                        break;
+                    }
+                }
+                if (found)
+                    break;
+            }
         }
     }
-    free(text);
+    runtime_release_file_view(&view);
     return found;
 }
 

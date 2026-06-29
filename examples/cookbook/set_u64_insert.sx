@@ -4,11 +4,11 @@
 const set = import("std.set");
 
 function main(): i32 {
-  let sx: Set_u64 = set.set_u64_new();
-  if (set.set_u64_with_capacity(&su, 4) != 0) { return 1; }
-  if (set.set_u64_insert(&su, 1000 as u64) != 0) { return 2; }
-  if (set.set_u64_contains(su, 1000 as u64) != 1) { return 3; }
-  if (set.set_u64_remove(&su, 1000 as u64) != 1) { return 4; }
-  set.set_u64_deinit(&su);
+  let su: Set_u64 = set.new(0);
+  if (set.with_capacity(&su, 4) != 0) { return 1; }
+  if (set.insert(&su, 1000 as u64) != 0) { return 2; }
+  if (set.contains_key(su, 1000 as u64) != 1) { return 3; }
+  if (set.remove(&su, 1000 as u64) != 1) { return 4; }
+  set.deinit(&su);
   return 0;
 }

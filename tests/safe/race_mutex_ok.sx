@@ -2,17 +2,17 @@
 const sync = import("std.sync");
 
 function main(): i32 {
-  let m: *u8 = sync.mutex_new();
+  let m: *u8 = sync.new_mutex();
   if (m == 0) { return 1; }
   let sum: i32 = 0;
   let i: i32 = 0;
   while (i < 100) {
-    if (sync.mutex_lock(m) != 0) { sync.mutex_free(m); return 2; }
+    if (sync.lock(m) != 0) { sync.free_mutex(m); return 2; }
     sum = sum + 1;
-    if (sync.mutex_unlock(m) != 0) { sync.mutex_free(m); return 3; }
+    if (sync.unlock(m) != 0) { sync.free_mutex(m); return 3; }
     i = i + 1;
   }
-  sync.mutex_free(m);
+  sync.free_mutex(m);
   if (sum != 100) { return 4; }
   return 0;
 }

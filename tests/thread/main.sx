@@ -1,11 +1,11 @@
-// 测试 std.thread：thread_self、thread.thread_create(dummy_entry)、thread_join
+// 测试 std.thread：thread.id、thread.create(dummy_entry)、thread.join
 const thread = import("std.thread");
 
 function main(): i32 {
-  let main_id: i64 = thread.thread_self();
+  let main_id: i64 = thread.id();
   if (main_id == 0) { return 1; }
-  let tid: i64 = thread.thread_create(thread.thread_dummy_entry_ptr(), 0);
+  let tid: i64 = thread.create(thread.dummy_entry_ptr(), 0);
   if (tid == 0) { return 2; }
-  if (thread.thread_join(tid) != 0) { return 3; }
+  if (thread.join(tid) != 0) { return 3; }
   return 0;
 }

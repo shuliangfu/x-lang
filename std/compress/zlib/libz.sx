@@ -47,7 +47,8 @@ function compress_deflate_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
     return -1;
   }
   let dest_len: u64 = out_cap as u64;
-  let ret: i32 = compress2(out, &dest_len, in, in_len as u64, Z_DEFAULT_COMPRESSION);
+  let ret: i32 = 0;
+  unsafe { ret = compress2(out, &dest_len, in, in_len as u64, Z_DEFAULT_COMPRESSION); }
   if (ret == Z_OK) {
     return dest_len as i32;
   }
@@ -63,7 +64,8 @@ function compress_inflate_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
     return -1;
   }
   let dest_len: u64 = out_cap as u64;
-  let ret: i32 = uncompress(out, &dest_len, in, in_len as u64);
+  let ret: i32 = 0;
+  unsafe { ret = uncompress(out, &dest_len, in, in_len as u64); }
   if (ret == Z_OK) {
     return dest_len as i32;
   }

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 Shuliang Fu &lt;admin@shuliangfu.com&gt;
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
@@ -12,7 +12,7 @@
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.
 
 // std.task — 任务组与结构化并发（STD-089）
 //
@@ -35,17 +35,17 @@ allow(padding) struct JoinSet {
 }
 
 /** 成功。 */
-function task_err_ok(): i32 { return 0; }
+function err_ok(): i32 { return 0; }
 /** 空指针/非法句柄。 */
-function task_err_null(): i32 { return -1; }
+function err_null(): i32 { return -1; }
 /** 容量已满。 */
-function task_err_full(): i32 { return -2; }
+function err_full(): i32 { return -2; }
 /** 已取消。 */
-function task_err_cancelled(): i32 { return -3; }
+function err_cancelled(): i32 { return -3; }
 /** 未 join 泄漏。 */
-function task_err_leak(): i32 { return -4; }
+function err_leak(): i32 { return -4; }
 /** 其它非法状态。 */
-function task_err_invalid(): i32 { return -5; }
+function err_invalid(): i32 { return -5; }
 
 extern function task_group_create_c(capacity: i32): i64;
 extern function task_group_free_c(handle: i64): void;
@@ -67,111 +67,122 @@ extern function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, ba
 extern function task_echo_fn_c(): i32;
 extern function task_echo_fn_ptr_c(): *u8;
 
+/** 烟测用回显任务入口。 */
+function echo(): i32 {
+  unsafe { return task_echo_fn_c(); }
+}
+
+/** 烟测用回显任务函数指针。 */
+function echo_ptr(): *u8 {
+  unsafe { return task_echo_fn_ptr_c(); }
+}
+
 /** 创建 TaskGroup。 */
-function task_group_new(capacity: i32): TaskGroup {
-  let h: i64 = task_group_create_c(capacity);
+function new(capacity: i32): TaskGroup {
+  let h: i64 = 0;
+  unsafe { h = task_group_create_c(capacity); }
   return TaskGroup { handle: h };
 }
 
 /** 释放 TaskGroup。 */
-function task_group_free(tg: *TaskGroup): void {
+function free(tg: *TaskGroup): void {
   let zero: i64 = 0;
   if (tg == 0) { return; }
   if (tg.handle != zero) {
-    task_group_free_c(tg.handle);
+    unsafe { task_group_free_c(tg.handle); }
     tg.handle = zero;
   }
 }
 
 /** 绑定 Context 以传播取消。 */
-function task_group_bind_context(tg: *TaskGroup, ctx: Context): void {
+function bind(tg: *TaskGroup, ctx: Context): void {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return; }
-  task_group_bind_context_c(tg.handle, ctx.handle);
+  unsafe { task_group_bind_context_c(tg.handle, ctx.handle); }
 }
 
 /** 提交任务（fn 为 C 协程入口指针）。 */
-function task_group_spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
+function spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
-  if (tg == 0 || tg.handle == zero || fn == 0) { return task_err_null(); }
-  return task_group_spawn_c(tg.handle, fn, seed);
+  if (tg == 0 || tg.handle == zero || fn == 0) { return err_null(); }
+  unsafe { return task_group_spawn_c(tg.handle, fn, seed); }
 }
 
 /** 等待组内全部任务完成；返回结果之和。 */
-function task_group_join(tg: *TaskGroup): i32 {
+function join(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
-  if (tg == 0 || tg.handle == zero) { return task_err_null(); }
-  return task_group_join_c(tg.handle);
+  if (tg == 0 || tg.handle == zero) { return err_null(); }
+  unsafe { return task_group_join_c(tg.handle); }
 }
 
 /** 未 join 的 pending 任务数。 */
-function task_group_pending(tg: *TaskGroup): i32 {
+function pending(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
-  if (tg == 0 || tg.handle == zero) { return task_err_null(); }
-  return task_group_pending_c(tg.handle);
+  if (tg == 0 || tg.handle == zero) { return err_null(); }
+  unsafe { return task_group_pending_c(tg.handle); }
 }
 
-/** 结构化并发边界检查；泄漏返回 task_err_leak()。 */
-function task_group_check_leak(tg: *TaskGroup): i32 {
+/** 结构化并发边界检查；泄漏返回 err_leak()。 */
+function check_leak(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
-  if (tg == 0 || tg.handle == zero) { return task_err_null(); }
-  return task_group_check_leak_c(tg.handle);
+  if (tg == 0 || tg.handle == zero) { return err_null(); }
+  unsafe { return task_group_check_leak_c(tg.handle); }
 }
 
 /** 取消绑定 Context。 */
-function task_group_cancel(tg: *TaskGroup): void {
+function cancel(tg: *TaskGroup): void {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return; }
-  task_group_cancel_c(tg.handle);
+  unsafe { task_group_cancel_c(tg.handle); }
 }
 
 /** 上次 join 累计结果。 */
-function task_group_join_total(tg: *TaskGroup): i64 {
+function total(tg: *TaskGroup): i64 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return zero; }
-  return task_group_join_total_c(tg.handle);
+  unsafe { return task_group_join_total_c(tg.handle); }
 }
 
 /** 创建 JoinSet。 */
-function join_set_new(capacity: i32): JoinSet {
-  let h: i64 = join_set_create_c(capacity);
+function set_new(capacity: i32): JoinSet {
+  let h: i64 = 0;
+  unsafe { h = join_set_create_c(capacity); }
   return JoinSet { handle: h };
 }
 
 /** 释放 JoinSet。 */
-function join_set_free(js: *JoinSet): void {
+function set_free(js: *JoinSet): void {
   let zero: i64 = 0;
   if (js == 0) { return; }
   if (js.handle != zero) {
-    join_set_free_c(js.handle);
+    unsafe { join_set_free_c(js.handle); }
     js.handle = zero;
   }
 }
 
 /** JoinSet 提交任务。 */
-function join_set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
+function set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
-  if (js == 0 || js.handle == zero || fn == 0) { return task_err_null(); }
-  return join_set_spawn_c(js.handle, fn, seed);
+  if (js == 0 || js.handle == zero || fn == 0) { return err_null(); }
+  unsafe { return join_set_spawn_c(js.handle, fn, seed); }
 }
 
 /** JoinSet 等待全部完成。 */
-function join_set_join(js: *JoinSet): i32 {
+function set_join(js: *JoinSet): i32 {
   let zero: i64 = 0;
-  if (js == 0 || js.handle == zero) { return task_err_null(); }
-  return join_set_join_c(js.handle);
+  if (js == 0 || js.handle == zero) { return err_null(); }
+  unsafe { return join_set_join_c(js.handle); }
 }
 
 /** JoinSet 泄漏检测。 */
-function join_set_check_leak(js: *JoinSet): i32 {
+function set_check_leak(js: *JoinSet): i32 {
   let zero: i64 = 0;
-  if (js == 0 || js.handle == zero) { return task_err_null(); }
-  return join_set_check_leak_c(js.handle);
+  if (js == 0 || js.handle == zero) { return err_null(); }
+  unsafe { return join_set_check_leak_c(js.handle); }
 }
 
 /** Supervisor：带退避的重试执行。 */
-function supervise_retry(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
-  if (fn == 0) { return task_err_null(); }
-  return task_supervise_retry_c(fn, seed, max_attempts, backoff_ns);
+function retry(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
+  if (fn == 0) { return err_null(); }
+  unsafe { return task_supervise_retry_c(fn, seed, max_attempts, backoff_ns); }
 }
-

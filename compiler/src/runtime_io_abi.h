@@ -11,12 +11,29 @@
 
 #include <stddef.h>
 
+typedef struct {
+    const char *data;
+    size_t length;
+    int needs_free;
+    int needs_munmap;
+} ShuxRuntimeFileView;
+
 /**
  * B-20：读整文件到堆缓冲（open/fstat/read）；成功返回 NUL 结尾缓冲，失败 NULL。
  * 参数：path 文件路径；out_len 非 NULL 时写入字节数（不含 NUL）。
  * 返回值：malloc 缓冲；调用方 free。
  */
 char *runtime_read_file_malloc(const char *path, size_t *out_len);
+
+/**
+ * S7/std.fs dogfood：优先 mmap 只读映射整个文件，失败时可回退 malloc 缓冲。
+ * 参数：path 文件路径；out 非 NULL 且成功时写入 data/length 与释放方式。
+ * 返回值：0 成功，-1 失败。调用方须 `runtime_release_file_view(out)`。
+ */
+int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out);
+
+/** 释放 `runtime_read_file_view()` 返回的资源；可重复对零值结构调用。 */
+void runtime_release_file_view(ShuxRuntimeFileView *view);
 
 /**
  * B-20：读文件前缀到 buf[0..cap-1]；成功返回读入字节数，失败 -1。

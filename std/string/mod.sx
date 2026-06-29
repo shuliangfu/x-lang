@@ -97,13 +97,13 @@ allow(padding) struct StrView {
 function string_empty(): i32 { return 0; }
 // ——— 零拷贝 StrView：仅 (ptr, len)，不拷贝；只读操作 ———
 /** 从 (ptr, len) 构造只读视图，零拷贝（不复制内存）。 */
-function string_view(ptr: *u8, len: i32): StrView {
+function view(ptr: *u8, len: i32): StrView {
   return StrView { ptr: ptr, len: len };
 }
 /** 视图字节数。 */
-function string_view_len(v: StrView): i32 { return v.len; }
+function len(v: StrView): i32 { return v.len; }
 /** 视图是否为空。返回 1 是，0 否。 */
-function string_view_is_empty(v: StrView): i32 {
+function is_empty(v: StrView): i32 {
   if (v.len <= 0) { return 1; }
   return 0;
 }
@@ -143,12 +143,12 @@ function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
 function string_view_subview(v: StrView, off: i32, len: i32): StrView {
   if (off < 0) { off = 0; }
   if (off >= v.len || len <= 0) {
-    return string_view(string_ptr_at_c(v.ptr, off), 0);
+    return view(string_ptr_at_c(v.ptr, off), 0);
   }
   let remain: i32 = v.len - off;
   let n: i32 = len;
   if (n > remain) { n = remain; }
-  return string_view(string_ptr_at_c(v.ptr, off), n);
+  return view(string_ptr_at_c(v.ptr, off), n);
 }
 /**
  * ZC-4：在 Arena64 上 bump 拼接 left+right，返回新 StrView。
@@ -158,11 +158,11 @@ function string_view_subview(v: StrView, off: i32, len: i32): StrView {
 function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView): StrView {
   let n: i32 = left.len + right.len;
   if (n <= 0) {
-    return string_view(left.ptr, 0);
+    return view(left.ptr, 0);
   }
   let p: *u8 = heap_libc.heap_arena64_alloc_c(arena as *heap_libc.Arena64, n as usize, 1 as usize);
   if (p == 0) {
-    return string_view(0 as *u8, 0);
+    return view(0 as *u8, 0);
   }
   if (left.len > 0) {
     string_copy_c(p, left.ptr, left.len);
@@ -171,7 +171,7 @@ function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView
     let dst2: *u8 = string_ptr_at_c(p, left.len);
     string_copy_c(dst2, right.ptr, right.len);
   }
-  return string_view(p, n);
+  return view(p, n);
 }
 /** 两视图相等。返回 1 相等，0 不等。超短串(1~4)特判，长串走 C
 * memcmp；中间长度 4 字节展开。 */
@@ -375,7 +375,7 @@ function stack_str_new(): StackStr {
 function stack_str_len(s: *StackStr): i32 { return s.len; }
 /** 零拷贝转为 StrView；视图生命周期须不超出 StackStr 所在栈帧。 */
 function stack_str_view(s: *StackStr): StrView {
-  return string_view(&s.data[0], s.len);
+  return view(&s.data[0], s.len);
 }
 /**
  * 从 (ptr,len) 写入 StackStr；len 超过 stack_str_capacity 时返回 -1 且不修改。
@@ -410,18 +410,18 @@ function stack_str_append_char(s: *StackStr, c: u8): i32 {
 }
 // ——— String 构造与访问 ———
 /** 新建空字符串。 */
-function string_new(): String {
+function new(): String {
   return String {
     data: [],
     len: 0
   }
 }
 /** 当前字节数（对标 Rust len()、Go len(s)）。 */
-function string_len(s: String): i32 { return s.len; }
+function len(s: String): i32 { return s.len; }
 /** 只读热路径：通过指针取长度，避免 36 字节结构体按值传递。 */
 function string_len_ptr(s: *String): i32 { return s.len; }
 /** 是否为空（len==0）。返回 1 是，0 否。 */
-function string_is_empty(s: String): i32 {
+function is_empty(s: String): i32 {
   if (s.len <= 0) { return 1; }
   return 0;
 }
@@ -432,14 +432,14 @@ function string_is_empty_ptr(s: *String): i32 {
 }
 /** 单字符构造。 */
 function string_from_char(c: u8): String {
-  let s: String = string_new();
+  let s: String = new();
   let _discard: i32 = string_append_char(&s, c);
   return s;
 }
 /** 从 (ptr, len) 拷贝构造；超过 capacity 时截断。≥8 字节走 C
 * memcpy，否则逐字节（展开 4 字节）拷贝。 */
 function string_from_slice(ptr: *u8, len: i32): String {
-  let s: String = string_new();
+  let s: String = new();
   let n: i32 = len;
   if (n > 256) { n = 256; }
   if (n > 0) {
@@ -561,7 +561,7 @@ function string_data_ptr(s: *String): *u8 {
  * 视图生命周期须不超出 s 所在内存的有效期。
  */
 function string_view_from_string(s: *String): StrView {
-  return string_view(string_data_ptr(s), s.len);
+  return view(string_data_ptr(s), s.len);
 }
 /** 将 s 内容拷贝到 out[0..out_max-1]，返回拷贝长度；溢出返回 -1。长块走 C
 * memcpy。 */
@@ -665,7 +665,7 @@ function string_trim_skip_end(s: *String, start: i32, i: i32): i32 {
 }
 /** 将 s 去掉首尾 ASCII 空格（0x20、\\t）后写入
 * out，返回写入长度；溢出返回 -1。 */
-function string_trim_space(s: String, out: *u8, out_max: i32): i32 {
+function trim(s: String, out: *u8, out_max: i32): i32 {
   if (s.len <= 0 || out_max <= 0) { return 0; }
   let start: i32 = string_trim_skip_start(&s, 0);
   let end: i32 = string_trim_skip_end(&s, start, s.len - 1);
@@ -688,7 +688,7 @@ function string_replace_char_scan(s: *String, from: u8, to: u8, i: i32, count: i
 }
 /** 原地将全部 from 字节替换为 to；返回替换次数（对标 Rust replace、Go Replace
 * 单字节情形）。 */
-function string_replace_char(s: *String, from: u8, to: u8): i32 {
+function replace(s: *String, from: u8, to: u8): i32 {
   return string_replace_char_scan(s, from, to, 0, 0);
 }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */

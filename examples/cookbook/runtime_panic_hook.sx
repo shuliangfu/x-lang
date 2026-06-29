@@ -4,7 +4,7 @@
 const runtime = import("std.runtime");
 
 function main(): i32 {
-  if (runtime.runtime_ready() != 0) { return 1; }
+  if (runtime.ready() != 0) { return 1; }
   runtime.panic_hook_collect(1, 42);
   return 0;
 }

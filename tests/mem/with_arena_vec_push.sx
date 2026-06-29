@@ -3,17 +3,17 @@ const vec = import("std.vec");
 
 function main(): i32 {
   with_arena(65536 as usize) {
-    let v: Vec_u8 = vec.vec_u8_new();
-    if (vec_u8_push(&v, 1) != 0) {
+    let v: Vec_u8 = vec.new();
+    if (vec.push(&v, 1) != 0) {
       return 1;
     }
-    if (vec_u8_push(&v, 2) != 0) {
+    if (vec.push(&v, 2) != 0) {
       return 2;
     }
-    if (vec_u8_push(&v, 3) != 0) {
+    if (vec.push(&v, 3) != 0) {
       return 3;
     }
-    if (vec.vec_u8_len(v) != 3) {
+    if (vec.len(v) != 3) {
       return 4;
     }
     if (v.ptr[0] != 1 || v.ptr[1] != 2 || v.ptr[2] != 3) {

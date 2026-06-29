@@ -160,6 +160,8 @@ allow(padding) struct Expr {
   /** call 实参 expr ref 在 arena 侧车池中的起始下标 */
   call_arg_base: i32;
   call_num_args: i32;
+  /** `id<T>(...)` 的类型实参数量；bootstrap 仅保留计数供诊断。 */
+  call_num_type_args: i32;
   method_call_base_ref: i32;
   method_call_name: u8[64];
   method_call_name_len: i32;
@@ -289,6 +291,8 @@ struct Func {
   /** 形参表在 module/arena sidecar func_params 池中的起始下标 */
   param_base: i32;
   num_params: i32;
+  /** `function id<T>(...)` 的泛型形参数量；bootstrap 仅保留计数供 diagnostics。 */
+  num_generic_params: i32;
   return_type_ref: i32;
   body_ref: i32;
   /** 体为单表达式时用表达式池 ref（与 body_ref 二选一，0 表示未用） */
@@ -311,6 +315,7 @@ struct StructLayout {
   soa: i32;
   /** 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）。 */
   packed: i32;
+  repr_compatible: i32;
 }
 
 /** import 种类：与 C 的 AST_IMPORT_KIND_* 一致，供 parser/codegen 使用 */
@@ -571,7 +576,9 @@ extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body
 extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
 extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
 extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
+extern function pipeline_module_func_set_num_generic_params(module: *Module, fi: i32, n: i32): void;
 extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8, name_len: i32): i32;
 extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
 extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
@@ -591,7 +598,7 @@ function ast_placeholder(): i32 {
  */
 function expr_layout_prime_call_resolved(): void {
   let _tail: Expr = Expr {
-    kind: (0 as ExprKind),
+    kind: ExprKind.EXPR_LIT,
     resolved_type_ref: 0,
     line: 0,
     col: 0,
@@ -600,12 +607,32 @@ function expr_layout_prime_call_resolved(): void {
     call_resolved_func_index: -1,
     call_resolved_dep_index: -1
   };
+  _tail.call_num_type_args = 0;
   _tail.call_resolved_func_index = -1;
+}
+
+/** 保活 Func.generic 计数字段进 pipeline_gen.c / glue_types 布局。 */
+function func_layout_prime_generic_params(): void {
+  let name0: u8[64] = [];
+  let f0: Func = Func {
+    name: name0,
+    name_len: 0,
+    param_base: 0,
+    num_params: 0,
+    num_generic_params: 0,
+    return_type_ref: 0,
+    body_ref: 0,
+    body_expr_ref: 0,
+    is_extern: false,
+    is_async: false
+  };
+  f0.num_generic_params = 0;
 }
 
 /** 将 Arena 内所有计数清零，用于复用或初始化。 */
 function ast_arena_init(arena: *ASTArena): void {
   expr_layout_prime_call_resolved();
+  func_layout_prime_generic_params();
   arena.num_types = 0;
   arena.num_exprs = 0;
   arena.num_blocks = 0;
@@ -655,6 +682,7 @@ function expr_init_match_enum(e: *Expr): void {
 extern function pipeline_expr_append_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
 extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_append_method_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
 extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 extern function pipeline_expr_append_match_arm(arena: *ASTArena, expr_ref: i32, result_ref: i32, is_wildcard: i32, lit_val: i32, is_enum_variant: i32, variant_index: i32): i32;

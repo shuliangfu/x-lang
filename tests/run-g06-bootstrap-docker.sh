@@ -24,6 +24,9 @@ progress() { echo "[$(date +%H:%M:%S)] $*"; }
 cd /src/compiler
 chmod +x scripts/*.sh 2>/dev/null || true
 
+progress "make clean (drop host-built .o) ..."
+make clean
+
 copy_seed() { cat "$1" > "$2"; }
 
 for f in lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen preprocess_gen \
@@ -43,8 +46,14 @@ else
   progress "partial seed missing — Makefile will gen phase1 backend stub"
 fi
 
+progress "prebuild pipeline_glue_standalone.o ..."
+progress "regen pipeline_gen.c (force) ..."
+make pipeline_gen.c SHUX_FORCE_REGEN_GEN=1
+progress "prebuild pipeline_glue_standalone.o ..."
+make build_asm/pipeline_glue_standalone.o SHUX_FORCE_REGEN_GEN=1
+
 progress "bootstrap-driver-seed ..."
-make bootstrap-driver-seed
+make bootstrap-driver-seed SHUX_FORCE_REGEN_GEN=1
 progress "bootstrap-driver-seed OK"
 ./shux-c -h | head -3
 

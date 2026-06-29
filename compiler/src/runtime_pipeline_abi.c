@@ -788,21 +788,22 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
 int32_t pipeline_read_file(void) {
-    size_t raw_len = 0;
-    char *raw = runtime_read_file_malloc(pipeline_resolved_path_buf, &raw_len);
-    if (!raw) {
+    ShuxRuntimeFileView raw_view;
+    char *prep = NULL;
+    size_t prep_len = 0;
+
+    if (runtime_read_file_view(pipeline_resolved_path_buf, &raw_view) != 0) {
         fprintf(stderr, "shux: cannot open import (tried %s)\n", pipeline_resolved_path_buf);
         return -1;
     }
-    char *prep = NULL;
-    size_t prep_len = 0;
-    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw, raw_len, &prep, &prep_len, pipeline_resolved_path_buf,
+    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+            pipeline_resolved_path_buf,
             NULL, 0) != 0) {
-        free(raw);
+        runtime_release_file_view(&raw_view);
         fprintf(stderr, "shux: preprocess failed for import\n");
         return -1;
     }
-    free(raw);
+    runtime_release_file_view(&raw_view);
     if (!prep) {
         fprintf(stderr, "shux: preprocess failed for import\n");
         return -1;
@@ -1044,9 +1045,8 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
         char path_c[65];
         size_t k = 0;
         char resolved[PATH_MAX];
-        size_t raw_len = 0;
+        ShuxRuntimeFileView raw_view;
         size_t prep_len = 0;
-        char *raw;
         char *prep;
 
         parser_get_module_import_path(module, i, path_buf);
@@ -1056,13 +1056,12 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
         }
         path_c[k] = '\0';
         shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
-        raw = runtime_read_file_malloc(resolved, &raw_len);
-        if (!raw) {
+        if (runtime_read_file_view(resolved, &raw_view) != 0) {
             fprintf(stderr, "shux: cannot open direct import '%s' (tried %s)\n", path_c, resolved);
             goto fail_partial;
         }
-        prep = shux_preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
-        free(raw);
+        prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+        runtime_release_file_view(&raw_view);
         if (!prep) {
             fprintf(stderr, "shux: preprocess failed for direct import '%s'\n", path_c);
             goto fail_partial;
@@ -1144,6 +1143,54 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
     return 0;
 }
 
+int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+    char *out_paths[], int *out_n) {
+    unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
+    int mi = 0;
+
+    memset(used, 0, sizeof used);
+    for (int i = 0; i < n_imports && i < SHUX_DRIVER_DEP_SLOT_MAX && mi < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+        uint8_t path_buf[64];
+        char path_c[65];
+        size_t k = 0;
+        int found = -1;
+        int kk = 0;
+
+        parser_get_module_import_path(module, i, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k] && k < 64) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        while (kk < n_closure) {
+            if (cpaths[kk] && strcmp(cpaths[kk], path_c) == 0) {
+                found = kk;
+                break;
+            }
+            kk++;
+        }
+        if (found < 0) {
+            fprintf(stderr, "shux: merge deps: direct import '%s' not found in transitive closure\n", path_c);
+            return 1;
+        }
+        out_paths[mi] = cpaths[found];
+        used[found] = 1;
+        mi++;
+    }
+    for (int kj = 0; kj < n_closure && mi < SHUX_DRIVER_DEP_SLOT_MAX; kj++) {
+        if (!used[kj]) {
+            if (cpaths[kj] && shux_merge_deps_path_already_out(cpaths[kj], out_paths, mi)) {
+                used[kj] = 1;
+                continue;
+            }
+            out_paths[mi] = cpaths[kj];
+            mi++;
+        }
+    }
+    *out_n = mi;
+    return 0;
+}
+
 /**
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
@@ -1181,16 +1228,15 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
         }
         char resolved[PATH_MAX];
         shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, resolved, sizeof(resolved));
-        size_t raw_len = 0;
-        char *raw = runtime_read_file_malloc(resolved, &raw_len);
-        if (!raw) {
+        ShuxRuntimeFileView raw_view;
+        if (runtime_read_file_view(resolved, &raw_view) != 0) {
             fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
             free(path_c);
             goto fail_to_load;
         }
         size_t prep_len = 0;
-        char *prep = shux_preprocess(raw, raw_len, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
-        free(raw);
+        char *prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+        runtime_release_file_view(&raw_view);
         if (!prep) {
             fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
             free(path_c);
@@ -1274,6 +1320,135 @@ fail_to_load:
     while (n > 0) {
         n--;
         free(dep_sources[n]);
+        free(dep_paths[n]);
+    }
+    return 1;
+}
+
+int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
+    int n = 0;
+    char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
+    int to_load_n = 0;
+    void *tmp_arena = NULL;
+    void *tmp_module = NULL;
+    int32_t n_imports = parser_get_module_num_imports(module);
+
+    for (int j = 0; j < n_imports && j < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; j++) {
+        uint8_t path_buf[64];
+        char path_c[65];
+        size_t k = 0;
+
+        parser_get_module_import_path(module, j, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k]) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        to_load[to_load_n++] = strdup(path_c);
+        if (!to_load[to_load_n - 1])
+            goto fail_to_load;
+    }
+    while (to_load_n > 0 && n < SHUX_DRIVER_DEP_SLOT_MAX) {
+        char *path_c = to_load[--to_load_n];
+        if (shux_find_loaded_import_index(path_c, dep_paths, n) >= 0) {
+            free(path_c);
+            continue;
+        }
+        dep_paths[n] = strdup(path_c);
+        if (!dep_paths[n]) {
+            free(path_c);
+            goto fail_to_load;
+        }
+        n++;
+        if (!tmp_arena) {
+            tmp_arena = malloc(arena_sz);
+            tmp_module = malloc(module_sz);
+        }
+        if (tmp_arena && tmp_module) {
+            char resolved[PATH_MAX];
+            shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, resolved, sizeof(resolved));
+            ShuxRuntimeFileView raw_view;
+            if (runtime_read_file_view(resolved, &raw_view) != 0) {
+                fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
+                free(path_c);
+                goto fail_to_load;
+            }
+            size_t prep_len = 0;
+            char *prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+            runtime_release_file_view(&raw_view);
+            if (!prep) {
+                fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
+                free(path_c);
+                goto fail_to_load;
+            }
+            memset(tmp_arena, 0, arena_sz);
+            memset(tmp_module, 0, module_sz);
+            struct shux_slice_uint8_t dep_slice = { (uint8_t *)prep, prep_len };
+            parser_parse_into_init(tmp_module, tmp_arena);
+            struct parser_ParseIntoResult pr_dep = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
+            {
+                int n_imp = parser_get_module_num_imports(tmp_module);
+                if (getenv("SHUX_DEBUG_PIPE")) {
+                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] collect parse dep=%s pr_ok=%d n_imp=%d\n",
+                            path_c ? path_c : "?", (int)pr_dep.ok, n_imp);
+                }
+                if (n_imp > 0) {
+                    for (int jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX;
+                         jj++) {
+                        uint8_t sub_buf[64];
+                        char sub_c[65];
+                        size_t kk = 0;
+
+                        parser_get_module_import_path(tmp_module, jj, sub_buf);
+                        while (kk < sizeof(sub_buf) && sub_buf[kk]) {
+                            sub_c[kk] = (char)sub_buf[kk];
+                            kk++;
+                        }
+                        sub_c[kk] = '\0';
+                        if (shux_find_loaded_import_index(sub_c, dep_paths, n) >= 0)
+                            continue;
+                        {
+                            int found = 0;
+                            for (int t = 0; t < to_load_n; t++)
+                                if (to_load[t] && strcmp(to_load[t], sub_c) == 0) {
+                                    found = 1;
+                                    break;
+                                }
+                            if (found)
+                                continue;
+                        }
+                        to_load[to_load_n++] = strdup(sub_c);
+                        if (!to_load[to_load_n - 1])
+                            to_load_n--;
+                    }
+                }
+            }
+            free(prep);
+        }
+        free(path_c);
+    }
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    if (tmp_arena)
+        free(tmp_arena);
+    if (tmp_module)
+        free(tmp_module);
+    *n_deps = n;
+    return 0;
+fail_to_load:
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    if (tmp_arena)
+        free(tmp_arena);
+    if (tmp_module)
+        free(tmp_module);
+    while (n > 0) {
+        n--;
         free(dep_paths[n]);
     }
     return 1;

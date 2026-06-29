@@ -13,7 +13,7 @@ function main(): i32 {
   ];
   let out_sz: usize = 0;
   let min_sz: usize = 4096 as usize;
-  let p: *u8 = sys.os_mmap_rw(&path[0], min_sz, &out_sz);
+  let p: *u8 = sys.mmap_rw(&path[0], min_sz, &out_sz);
   let p_i: i64 = p as i64;
   if (p_i <= 0) {
     return 2;
@@ -23,14 +23,14 @@ function main(): i32 {
   }
   p[0] = 77 as u8;
   p[1] = 77 as u8;
-  if (sys.os_msync(p, out_sz) != 0) {
+  if (sys.msync(p, out_sz) != 0) {
     return 4;
   }
-  if (sys.os_munmap(p, out_sz) != 0) {
+  if (sys.munmap(p, out_sz) != 0) {
     return 5;
   }
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = sys.os_read_file_into(&path[0], &buf[0], 8);
+  let n: i32 = sys.read_file_into(&path[0], &buf[0], 8);
   if (n < 2) {
     return 6;
   }

@@ -7,7 +7,7 @@ function main(): i32 {
   let acc: i32 = 0;
   let i: i32 = 0;
   while (i < 100000) {
-    acc = acc + sqlite.sqlite_is_available();
+    acc = acc + sqlite.is_available();
     i = i + 1;
   }
   if (acc < 0) { return 1; }

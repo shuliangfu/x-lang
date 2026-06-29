@@ -3,7 +3,7 @@ const schema = import("std.schema");
 
 function main(): i32 {
   let zero: i64 = 0;
-  let sch: Schema = schema.schema_new();
+  let sch: Schema = schema.new();
   let json: u8[44] = [
     123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44,
     34, 97, 103, 101, 34, 58, 51, 48, 44, 34, 97, 99, 116, 105, 118, 101,
@@ -18,32 +18,32 @@ function main(): i32 {
   let name: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let age: i32 = 0;
-  let active: i32 = 0;
+  let active: bool = false;
   let err_field: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let bad_json: u8[14] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 120, 34, 125, 0, 0];
 
   if (sch.handle == zero) { return 1; }
-  if (schema.schema_add_field(&sch, &k_name[0], 4, schema.schema_type_string(), 0, 0) != schema.schema_err_ok()) {
+  if (schema.add_field(&sch, &k_name[0], 4, schema.text(), 0, 0) != schema.err_ok()) {
     return 2;
   }
-  if (schema.schema_add_field(&sch, &k_age[0], 3, schema.schema_type_i32(), 0, 1) != schema.schema_err_ok()) {
+  if (schema.add_field(&sch, &k_age[0], 3, schema.int(), 0, 1) != schema.err_ok()) {
     return 3;
   }
-  if (schema.schema_add_field(&sch, &k_active[0], 6, schema.schema_type_bool(), 0, 2) != schema.schema_err_ok()) {
+  if (schema.add_field(&sch, &k_active[0], 6, schema.flag(), 0, 2) != schema.err_ok()) {
     return 4;
   }
-  if (schema.decode_json(&sch, &json[0], 43) != schema.schema_err_ok()) { return 5; }
+  if (schema.decode_json(&sch, &json[0], 43) != schema.err_ok()) { return 5; }
   if (schema.get_string(&sch, &k_name[0], 4, &name[0], 32) <= 0) { return 6; }
   if (name[0] != 97 || name[1] != 108) { return 7; }
-  if (schema.get_i32(&sch, &k_age[0], 3, &age) != schema.schema_err_ok() || age != 30) { return 8; }
-  if (schema.get_bool(&sch, &k_active[0], 6, &active) != schema.schema_err_ok() || active != 1) { return 9; }
-  if (schema.decode_csv_row(&sch, &csv[0], 13, 0) != schema.schema_err_ok()) { return 10; }
+  if (schema.get(&sch, &k_age[0], 3, &age) != schema.err_ok() || age != 30) { return 8; }
+  if (schema.get(&sch, &k_active[0], 6, &active) != schema.err_ok() || active != true) { return 9; }
+  if (schema.decode_csv_row(&sch, &csv[0], 13, 0) != schema.err_ok()) { return 10; }
   if (schema.get_string(&sch, &k_name[0], 4, &name[0], 32) <= 0) { return 11; }
   if (name[0] != 98) { return 12; }
-  if (schema.get_i32(&sch, &k_age[0], 3, &age) != schema.schema_err_ok() || age != 25) { return 13; }
-  if (schema.decode_json(&sch, &bad_json[0], 12) != schema.schema_err_not_found()) { return 14; }
+  if (schema.get(&sch, &k_age[0], 3, &age) != schema.err_ok() || age != 25) { return 13; }
+  if (schema.decode_json(&sch, &bad_json[0], 12) != schema.err_not_found()) { return 14; }
   if (schema.last_error_field(&sch, &err_field[0], 32) <= 0) { return 15; }
-  schema.schema_free(&sch);
+  schema.free(&sch);
   return 0;
 }

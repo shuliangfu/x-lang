@@ -2,49 +2,58 @@
 const dbarrow = import("std.db.arrow");
 
 function main(): i32 {
-  let col_i: ArrowColumn = dbarrow.column_i32_new(64);
-  let col_f: ArrowColumn = dbarrow.column_f32_new(64);
+  let col_i: ArrowColumn = dbarrow.new_i32(64);
+  let col_f: ArrowColumn = dbarrow.new_f32(64);
   let nic: f32[4] = [1.0, 2.0, 3.0, 4.0];
   if (col_i.handle == 0 || col_f.handle == 0) {
     return 1;
   }
-  if (dbarrow.column_i32_append_nullable(col_i, 100, 1) != 0) {
+  if (dbarrow.append_null(col_i, 100, 1) != 0) {
     return 2;
   }
-  if (dbarrow.column_i32_append_nullable(col_i, 0, 0) != 0) {
+  if (dbarrow.append_null(col_i, 0, 0) != 0) {
     return 3;
   }
-  if (dbarrow.column_is_valid(col_i, 1) != 0) {
+  if (dbarrow.valid(col_i, 1) != 0) {
     return 4;
   }
-  if (dbarrow.column_f32_append(col_f, 2.718) != 0) {
+  if (dbarrow.null_bitmap(col_i) == 0) {
+    return 41;
+  }
+  if (dbarrow.append(col_f, 2.718) != 0) {
     return 5;
   }
-  let adopted: ArrowColumn = dbarrow.column_adopt_f32(&nic[0], 4, 4);
-  let fdata: *f32 = dbarrow.column_f32_data(adopted);
-  if (adopted.handle == 0 || dbarrow.column_data_owned(adopted) != 0) {
+  let adopted: ArrowColumn = dbarrow.adopt(&nic[0], 4, 4);
+  let fdata: *f32 = dbarrow.data_f32(adopted);
+  if (adopted.handle == 0 || dbarrow.owned(adopted) != 0) {
     return 6;
   }
   if (fdata[2] != 3.0) {
     return 7;
   }
-  if (dbarrow.column_i32_sum_valid(col_i, 2) != 100) {
+  if (dbarrow.sum_valid_i32(col_i, 2) != 100) {
     return 8;
   }
-  let batch: ArrowBatch = dbarrow.batch_new(4);
+  let batch: ArrowBatch = dbarrow.batch(4);
+  let fetched: ArrowColumn = ArrowColumn { handle: 0 };
   if (batch.handle == 0) {
-    dbarrow.column_destroy(adopted);
+    dbarrow.free(adopted);
     return 9;
   }
-  if (dbarrow.batch_add_column(batch, col_i) != 0 || dbarrow.batch_add_column(batch, adopted) != 0) {
-    dbarrow.batch_destroy(batch);
+  if (dbarrow.add(batch, col_i) != 0 || dbarrow.add(batch, adopted) != 0) {
+    dbarrow.free(batch);
     return 10;
   }
-  if (dbarrow.batch_len(batch) != 2) {
-    dbarrow.batch_destroy(batch);
+  if (dbarrow.len(batch) != 2) {
+    dbarrow.free(batch);
     return 11;
   }
-  dbarrow.batch_destroy(batch);
-  dbarrow.column_destroy(col_f);
+  fetched = dbarrow.get(batch, 1);
+  if (fetched.handle != adopted.handle) {
+    dbarrow.free(batch);
+    return 12;
+  }
+  dbarrow.free(batch);
+  dbarrow.free(col_f);
   return 0;
 }

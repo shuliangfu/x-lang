@@ -2,6 +2,6 @@
 const runtime = import("std.runtime");
 
 function main(): i32 {
-  let ok: i32 = runtime.runtime_ready();
+  let ok: i32 = runtime.ready();
   return ok;
 }

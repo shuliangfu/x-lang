@@ -7,7 +7,7 @@ function main(): i32 {
   let bg: Context = context.background();
   let child: Context = context.with_cancel(bg);
   let live: Context = context.with_cancel(bg);
-  let echo_fn: *u8 = task.task_echo_fn_ptr_c();
+  let echo_fn: *u8 = task.echo_ptr();
   let zero: i64 = 0;
 
   if (echo_fn == 0) { return 1; }

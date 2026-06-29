@@ -3,40 +3,40 @@ const set = import("std.set");
 
 function main(): i32 {
   // —— Set_u64 ——
-  let sx: Set_u64 = set.set_u64_new();
-  if (set.set_u64_with_capacity(&su, 4) != 0) { return 1; }
-  if (set.set_u64_insert(&su, 1000 as u64) != 0) { return 2; }
-  if (set.set_u64_insert(&su, 2000 as u64) != 0) { return 3; }
+  let su: Set_u64 = set.new(0);
+  if (set.with_capacity(&su, 4) != 0) { return 1; }
+  if (set.insert(&su, 1000 as u64) != 0) { return 2; }
+  if (set.insert(&su, 2000 as u64) != 0) { return 3; }
   // 重复插入不增 len
-  if (set.set_u64_insert(&su, 1000 as u64) != 0) { return 4; }
-  if (set_u64_len(sx) != 2) { return 5; }
-  if (set.set_u64_contains(su, 1000 as u64) != 1) { return 6; }
-  if (set.set_u64_contains(su, 3000 as u64) != 0) { return 7; }
-  if (set.set_u64_remove(&su, 2000 as u64) != 1) { return 8; }
-  if (set.set_u64_contains(su, 2000 as u64) != 0) { return 9; }
-  if (set.set_u64_remove(&su, 9999 as u64) != 0) { return 10; }
-  set.set_u64_deinit(&su);
+  if (set.insert(&su, 1000 as u64) != 0) { return 4; }
+  if (set.len(su) != 2) { return 5; }
+  if (set.contains_key(su, 1000 as u64) != 1) { return 6; }
+  if (set.contains_key(su, 3000 as u64) != 0) { return 7; }
+  if (set.remove(&su, 2000 as u64) != 1) { return 8; }
+  if (set.contains_key(su, 2000 as u64) != 0) { return 9; }
+  if (set.remove(&su, 9999 as u64) != 0) { return 10; }
+  set.deinit(&su);
 
   // —— Set_str ——
-  let ss: Set_str = set_str_new();
-  if (set_str_with_capacity(&ss, 4) != 0) { return 11; }
+  let ss: Set_str = set.str_new();
+  if (set.str_with_capacity(&ss, 4) != 0) { return 11; }
   let k1: u8[3] = [97, 98, 99];
   let k2: u8[3] = [120, 121, 122];
   let k1_prefix: u8[2] = [97, 98];
-  if (set_str_insert(&ss, k1, 3) != 0) { return 12; }
-  if (set_str_insert(&ss, k2, 3) != 0) { return 13; }
+  if (set.str_insert(&ss, k1, 3) != 0) { return 12; }
+  if (set.str_insert(&ss, k2, 3) != 0) { return 13; }
   // 前缀键与完整键区分
-  if (set_str_contains(ss, k1_prefix, 2) != 0) { return 14; }
-  if (set_str_contains(ss, k1, 3) != 1) { return 15; }
+  if (set.str_contains(ss, k1_prefix, 2) != 0) { return 14; }
+  if (set.str_contains(ss, k1, 3) != 1) { return 15; }
   // 超长键拒绝
   let long_key: u8[33] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   ];
-  if (set_str_insert(&ss, long_key, 33) != -1) { return 16; }
-  if (set_str_remove(&ss, k2, 3) != 1) { return 17; }
-  if (set_str_contains(ss, k2, 3) != 0) { return 18; }
-  if (set_str_len(ss) != 1) { return 19; }
-  set_str_deinit(&ss);
+  if (set.str_insert(&ss, long_key, 33) != -1) { return 16; }
+  if (set.str_remove(&ss, k2, 3) != 1) { return 17; }
+  if (set.str_contains(ss, k2, 3) != 0) { return 18; }
+  if (set.str_len(ss) != 1) { return 19; }
+  set.str_deinit(&ss);
   return 0;
 }

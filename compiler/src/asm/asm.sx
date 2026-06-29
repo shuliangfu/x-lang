@@ -25,7 +25,9 @@ const types = import("asm.types");
 const backend = import("backend");
 const peephole = import("peephole");
 const elf = import("platform.elf");
+#[cfg(target_os = "macos")]
 const macho = import("platform.macho");
+#[cfg(target_os = "windows")]
 const coff = import("platform.coff");
 
 /** 与 pipeline 对齐：若非 0 则跳过 dep 0 的机器码编码（宿主已提供等价 .o）。 */
@@ -49,6 +51,29 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
  * M8b：勿 `if (module.foo()!=0)` 嵌在 return 表达式内（.sx parser 会丢函数）；
  * 用分分支 if + return；按 ctx.use_coff_o / use_macho_o 选择 COFF / Mach-O / ELF 写出。
  */
+#[cfg(target_os = "linux")]
+function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+  elf.elf_ctx_reset(elf_ctx);
+  if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) { return -1; }
+  let e1: i32 = backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
+  if (e1 != 0) {
+    return -1;
+  }
+  let e2: i32 = peephole.peephole_elf_run(elf_ctx);
+  if (e2 != 0) {
+    return -1;
+  }
+  let e3: i32 = elf.elf_resolve_patches(elf_ctx);
+  if (e3 != 0) {
+    return -1;
+  }
+  if (elf.write_elf_o_to_buf(elf_ctx, out) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+#[cfg(not(target_os = "linux"))]
 function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
@@ -66,12 +91,14 @@ function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepC
   if (e3 != 0) {
     return -1;
   }
+  #[cfg(target_os = "windows")]
   if (ctx.use_coff_o != 0) {
     if (coff.write_coff_o_to_buf(elf_ctx, out) < 0) {
       return -1;
     }
     return 0;
   }
+  #[cfg(target_os = "macos")]
   if (ctx.use_macho_o != 0) {
     if (macho.write_macho_o_to_buf(elf_ctx, out) < 0) {
       return -1;

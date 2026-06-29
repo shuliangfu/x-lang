@@ -8,15 +8,15 @@ function main(): i32 {
   let arena: Arena64 = heap.arena64_empty();
   if (heap.arena64_init(&arena, 4096) != 0) { return 1; }
   let one: u8[1] = [97];
-  let unit: StrView = string.string_view(&one[0], 1);
+  let unit: StrView = string.view(&one[0], 1);
   let scratch: u8[1] = [0];
-  let cur: StrView = string.string_view(&scratch[0], 0);
+  let cur: StrView = string.view(&scratch[0], 0);
   let i: i32 = 0;
   while (i < 8) {
     cur = string.string_view_concat_arena(&arena, cur, unit);
     i = i + 1;
   }
-  if (string.string_view_len(cur) != 8) { heap.arena64_deinit(&arena); return 2; }
+  if (string.len(cur) != 8) { heap.arena64_deinit(&arena); return 2; }
   if (string.string_view_get(cur, 0) != 97) { heap.arena64_deinit(&arena); return 3; }
   heap.arena64_deinit(&arena);
   return 8;

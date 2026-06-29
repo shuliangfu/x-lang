@@ -139,8 +139,8 @@ function emit_add(out: *CodegenOutBuf, dst_reg: *u8, dst_len: i32, src_reg: *u8,
 /** 将 %rax 拷到第 k 个参数寄存器（System V：0=rdi, 1=rsi, 2=rdx, 3=rcx, 4=r8,
 * 5=r9）。用于带参 call 前。 */
 function emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32): i32 {
-  let names: u8[6][4] = [ [114, 100, 105, 0], [114, 115, 105, 0], [114, 100, 120, 0], [114, 99,
-  120, 0], [114, 56, 0, 0], [114, 57, 0, 0] ];
+  let names: u8[24] = [114, 100, 105, 0, 114, 115, 105, 0, 114, 100, 120, 0, 114, 99, 120, 0, 114, 56,
+  0, 0, 114, 57, 0, 0];
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
   if (idx > 5) { idx = 5; }
@@ -150,7 +150,7 @@ function emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32): i32 {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let i: i32 = 0;
   while (i < reg_len && i < 4) {
-    buf[12 + i] = names[idx][i];
+    buf[12 + i] = names[idx * 4 + i];
     i = i + 1;
   }
   return types.append_asm_line(out, buf, 12 + i);
@@ -341,9 +341,9 @@ function emit_cmp_setcc(out: *CodegenOutBuf, cc: i32): i32 {
   if (types.append_asm_line(out, cmp_line, 15) != 0) {
     return -1;
   }
-  let setcc_names: u8[6][8] = [ [115, 101, 116, 101, 0, 0, 0, 0], [115, 101, 116, 110, 101, 0, 0,
-  0], [115, 101, 116, 108, 0, 0, 0, 0], [115, 101, 116, 108, 101, 0, 0, 0], [115, 101, 116, 103, 0,
-  0, 0, 0], [115, 101, 116, 103, 101, 0, 0, 0] ];
+  let setcc_names: u8[48] = [115, 101, 116, 101, 0, 0, 0, 0, 115, 101, 116, 110, 101, 0, 0, 0, 115, 101,
+  116, 108, 0, 0, 0, 0, 115, 101, 116, 108, 101, 0, 0, 0, 115, 101, 116, 103, 0, 0, 0, 0, 115, 101,
+  116, 103, 101, 0, 0, 0];
   let idx: i32 = cc;
   if (idx < 0) { idx = 0; }
   if (idx > 5) { idx = 5; }
@@ -353,7 +353,7 @@ function emit_cmp_setcc(out: *CodegenOutBuf, cc: i32): i32 {
   0, 0];
   let k: i32 = 0;
   while (k < len && k < 8) {
-    buf[k] = setcc_names[idx][k];
+    buf[k] = setcc_names[idx * 8 + k];
     k = k + 1;
   }
   buf[k] = 32;

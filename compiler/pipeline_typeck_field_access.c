@@ -38,6 +38,8 @@ extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *module, int32_t idx);
 extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
+extern int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                                int32_t base_ref);
 
 /** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。 */
 static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
@@ -125,7 +127,8 @@ int32_t pipeline_typeck_reject_bare_import_const_c(struct ast_Module *module, st
   return 0;
 }
 
-                                                                int32_t field_name_len);
+extern int32_t typeck_expr_field_access_fallback_scalar_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
+                                                                 int32_t field_name_len);
 extern int32_t typeck_field_access_lexer_wrapper_fallback(struct ast_ASTArena *arena, int32_t base_type_ref,
                                                           uint8_t *field_name, int32_t field_name_len);
 extern void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen,

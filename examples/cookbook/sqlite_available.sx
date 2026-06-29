@@ -4,7 +4,7 @@
 const sqlite = import("std.db.sqlite");
 
 function main(): i32 {
-  let av: i32 = sqlite.sqlite_is_available();
+  let av: i32 = sqlite.is_available();
   if (av != 0 && av != 1) { return 1; }
   return 0;
 }

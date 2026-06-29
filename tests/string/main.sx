@@ -8,22 +8,22 @@ const string = import("std.string");
 function main(): i32 {
   if (string.string_empty() != 0) { return 1; }
   
-  let s: String = string.string_new();
-  if (string.string_len(s) != 0) { return 3; }
-  if (string.string_is_empty(s) != 1) { return 4; }
+  let s: String = string.new();
+  if (string.len(s) != 0) { return 3; }
+  if (string.is_empty(s) != 1) { return 4; }
   
   let one_byte: u8[1] = [97];
   let s1: String = string.string_from_slice(&one_byte[0], 1);
-  if (string.string_len(s1) != 1) { return 5; }
+  if (string.len(s1) != 1) { return 5; }
   if (string.string_get(s1, 0) != 97) { return 6; }
   
   let slice_empty: u8[1] = [0];
   let s2: String = string.string_from_slice(&slice_empty[0], 0);
-  if (string.string_len(s2) != 0) { return 7; }
+  if (string.len(s2) != 0) { return 7; }
   
   let slice_ab: u8[3] = [97, 98, 0];
   let s3: String = string.string_from_slice(&slice_ab[0], 2);
-  if (string.string_len(s3) != 2) { return 8; }
+  if (string.len(s3) != 2) { return 8; }
   if (string.string_get(s3, 0) != 97 || string.string_get(s3, 1) != 98) { return 9; }
   
   let s4: String = string.string_from_slice(&slice_ab[0], 2);
@@ -50,15 +50,15 @@ function main(): i32 {
   let no: u8[2] = [122, 122];
   if (string.string_contains(h, &no[0], 2) != 0) { return 20; }
   
-  let v: StrView = string.string_view(&hay[0], 5);
-  if (string.string_view_len(v) != 5) { return 21; }
-  if (string.string_view_is_empty(v) != 0) { return 22; }
-  let v0: StrView = string.string_view(&hay[0], 0);
-  if (string.string_view_is_empty(v0) != 1) { return 23; }
+  let v: StrView = string.view(&hay[0], 5);
+  if (string.len(v) != 5) { return 21; }
+  if (string.is_empty(v) != 0) { return 22; }
+  let v0: StrView = string.view(&hay[0], 0);
+  if (string.is_empty(v0) != 1) { return 23; }
   if (string.string_view_get(v, 2) != 99) { return 24; }
-  let v2: StrView = string.string_view(&hay[0], 5);
+  let v2: StrView = string.view(&hay[0], 5);
   if (string.string_view_eq(v, v2) != 1) { return 25; }
-  let v3: StrView = string.string_view(&hay[0], 4);
+  let v3: StrView = string.view(&hay[0], 4);
   if (string.string_view_eq(v, v3) != 0) { return 26; }
   
   let out_full: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];

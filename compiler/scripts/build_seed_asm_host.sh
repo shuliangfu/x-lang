@@ -15,14 +15,14 @@ case "$_seed_os" in darwin) _seed_os="darwin" ;; linux) _seed_os="linux" ;; esac
 HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 
 SHUX_E=./bootstrap_shuxc
-if [ -x ./shux-seed-phase1 ] && ./shux-seed-phase1 -h >/dev/null 2>&1; then
-  SHUX_E=./shux-seed-phase1
-elif [ -x "$HOST_SEED" ] && "$HOST_SEED" -h >/dev/null 2>&1; then
+if [ -x "$HOST_SEED" ] && "$HOST_SEED" -h >/dev/null 2>&1; then
   SHUX_E="$HOST_SEED"
 elif [ -x ./bootstrap_shuxc ] && ./bootstrap_shuxc -h >/dev/null 2>&1; then
   SHUX_E=./bootstrap_shuxc
 elif [ -x ./shux-c ] && ./shux-c -h >/dev/null 2>&1; then
   SHUX_E=./shux-c
+elif [ -x ./shux-seed-phase1 ] && ./shux-seed-phase1 -h >/dev/null 2>&1; then
+  SHUX_E=./shux-seed-phase1
 elif [ -x ./shux-sx ] && ./shux-sx -h >/dev/null 2>&1; then
   SHUX_E=./shux-sx
 elif [ -x ./shux ] && ./shux -h >/dev/null 2>&1; then
@@ -102,7 +102,9 @@ run_asm_sx_emit_c() {
 }
 
 dedupe_slice() {
-  perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
+  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+    perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
+  fi
 }
 
 # -E 落盘/沿用 asm_full_gen.c 是否值得走 fix+cc（拒绝过短截断；uint8_t[N] name 由 fix_asm_full_gen_c.pl 修复）
@@ -117,7 +119,10 @@ asm_full_gen_c_usable_for_fix() {
 # fix perl 三件套 + lea 自递归清理
 run_fix_asm_full_c_pipeline() {
   _c="$1"
-  perl scripts/fix_slim_arena_gen_c.pl "$_c"
+  [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ] || return 0
+  if grep -q 'struct ast_ASTArena {' "$_c" 2>/dev/null; then
+    perl scripts/fix_slim_arena_gen_c.pl "$_c"
+  fi
   perl scripts/fix_backend_enc_recursive_gen_c.pl "$_c"
   perl scripts/fix_asm_full_gen_c.pl "$_c"
   perl -i -0777 -pe 's/int32_t backend_enc_lea_rbp_to_rax_arch\(struct platform_elf_ElfCodegenCtx \* elf_ctx, int32_t offset, int32_t ta\) \{\n  return backend_enc_lea_rbp_to_rax_arch\(elf_ctx, offset, ta\);\n\}\n//s' "$_c" 2>/dev/null || true
@@ -132,6 +137,9 @@ try_cc_asm_full_gen_c() {
   fi
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc FAILED ($(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)" >&2
   tail -15 "$OUT_DIR/cc.err" >&2
+  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" != "1" ]; then
+    return 1
+  fi
   for _retry in "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak"; do
     [ -f "$_retry" ] || continue
     asm_full_gen_c_usable_for_fix "$_retry" || continue
@@ -296,9 +304,13 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
   fi
   cp -f "$ASM_FULL_C" "${ASM_FULL_C}.pre_fix"
   _t0=$(date +%s)
-  echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl scripts ..." >&2
-  run_fix_asm_full_c_pipeline "$ASM_FULL_C"
-  echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl done ($(( $(date +%s) - _t0 ))s)" >&2
+  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+    echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl scripts ..." >&2
+    run_fix_asm_full_c_pipeline "$ASM_FULL_C"
+    echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl done ($(( $(date +%s) - _t0 ))s)" >&2
+  else
+    echo "[$(date +%H:%M:%S)] build_seed_asm_host: gen patch disabled (SHUX_ALLOW_GEN_PATCH=1 to enable)" >&2
+  fi
   _t0=$(date +%s)
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc -c asm_full_gen.c ..." >&2
   if ! try_cc_asm_full_gen_c "$ASM_FULL_C"; then
@@ -312,20 +324,21 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
   echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)" >&2
   # cc 成功后保留 raw -E 落盘副本，供 OOM/cc 失败时重试
   cp -f "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak" 2>/dev/null || true
-  # -E 截断：asm_full.o 内 backend_enc 仍引用 U arch_*_enc_enc_* / arch_*_emit_*；weak 桩 ld -r 合并后 phase1 可链。
-  ENC_STUB_C="$OUT_DIR/asm_full_link_stubs.c"
-  ENC_STUB_O="$OUT_DIR/asm_full_link_stubs.o"
-  _stub_scan="$ASM_FULL_O"
-  for _so in pipeline_sx.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o; do
-    [ -f "$_so" ] && _stub_scan="$_stub_scan $_so"
-  done
-  if perl scripts/gen_asm_full_link_stubs.pl "$ENC_STUB_C" $_stub_scan 2>/dev/null; then
-    if [ -s "$ENC_STUB_C" ] && grep -q '__attribute__((weak))' "$ENC_STUB_C" 2>/dev/null; then
-      if $CC $CFLAGS -c "$ENC_STUB_C" -o "$ENC_STUB_O" 2>/dev/null; then
-        ASM_MERGED_ENC="$OUT_DIR/asm_full_with_enc_stubs.o"
-        if ld -r "$ASM_FULL_O" "$ENC_STUB_O" -o "$ASM_MERGED_ENC" 2>/dev/null; then
-          ASM_FULL_O="$ASM_MERGED_ENC"
-          echo "build_seed_asm_host: merged enc/emit weak stubs -> $ASM_FULL_O" >&2
+  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+    ENC_STUB_C="$OUT_DIR/asm_full_enc_link_stubs.c"
+    ENC_STUB_O="$OUT_DIR/asm_full_enc_link_stubs.o"
+    _stub_scan="$ASM_FULL_O"
+    for _so in pipeline_sx.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o; do
+      [ -f "$_so" ] && _stub_scan="$_stub_scan $_so"
+    done
+    if perl scripts/gen_asm_full_link_stubs.pl "$ENC_STUB_C" $_stub_scan 2>/dev/null; then
+      if [ -s "$ENC_STUB_C" ] && grep -q '__attribute__((weak))' "$ENC_STUB_C" 2>/dev/null; then
+        if $CC $CFLAGS -c "$ENC_STUB_C" -o "$ENC_STUB_O" 2>/dev/null; then
+          ASM_MERGED_ENC="$OUT_DIR/asm_full_with_enc_stubs.o"
+          if ld -r "$ASM_FULL_O" "$ENC_STUB_O" -o "$ASM_MERGED_ENC" 2>/dev/null; then
+            ASM_FULL_O="$ASM_MERGED_ENC"
+            echo "build_seed_asm_host: merged enc/emit weak stubs -> $ASM_FULL_O" >&2
+          fi
         fi
       fi
     fi
@@ -388,6 +401,11 @@ if [ ! -f "$BACKEND_PARTIAL" ] || [ "$ASM_FULL_C" -nt "$BACKEND_PARTIAL" ] || [ 
     echo "build_seed_asm_host: ld -r 失败且无已有 $BACKEND_PARTIAL" >&2
     exit 1
   fi
+fi
+
+if [ -s "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+  mkdir -p "$(dirname "$SEED_PARTIAL")"
+  cp -f "$BACKEND_PARTIAL" "$SEED_PARTIAL"
 fi
 
 echo "build_seed_asm_host OK ($OUT_DIR)"

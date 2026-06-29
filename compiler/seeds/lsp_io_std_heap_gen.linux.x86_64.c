@@ -1,4 +1,4 @@
-/* generated from typeck */
+/* generated from lsp_io_std_heap */
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -20,20 +20,23 @@ static inline void shux_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
-uint8_t * typeck_std_heap_alloc(size_t size);
-uint8_t * typeck_std_heap_alloc_zeroed(size_t size);
-void typeck_std_heap_free(uint8_t * ptr);
-uint8_t * typeck_std_heap_alloc(size_t size) {
+extern uint8_t * malloc(size_t size);
+extern void free(uint8_t * ptr);
+extern uint8_t * calloc(size_t nmemb, size_t size);
+uint8_t * lsp_io_std_heap_std_heap_alloc(size_t size);
+uint8_t * lsp_io_std_heap_std_heap_alloc_zeroed(size_t size);
+void lsp_io_std_heap_std_heap_free(uint8_t * ptr);
+uint8_t * lsp_io_std_heap_std_heap_alloc(size_t size) {
   (void)(({ uint8_t * __tmp = 0; if (size == ((size_t)(0))) {   return ((uint8_t *)(0));
  } else (__tmp = 0) ; __tmp; }));
   return malloc(size);
 }
-uint8_t * typeck_std_heap_alloc_zeroed(size_t size) {
+uint8_t * lsp_io_std_heap_std_heap_alloc_zeroed(size_t size) {
   (void)(({ uint8_t * __tmp = 0; if (size == ((size_t)(0))) {   return ((uint8_t *)(0));
  } else (__tmp = 0) ; __tmp; }));
   return calloc(((size_t)(1)), size);
 }
-void typeck_std_heap_free(uint8_t * ptr) {
+void lsp_io_std_heap_std_heap_free(uint8_t * ptr) {
   (void)(({ int32_t __tmp = 0; if (ptr == ((uint8_t *)(0))) {   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(free(ptr));

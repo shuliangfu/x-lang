@@ -218,7 +218,7 @@ function deinit(b: *Bytes): void {
 
 /** 零拷贝 StrView（生命周期不超过 Bytes 存活期）。 */
 function as_view(b: Bytes): StrView {
-  return string.string_view(b.ptr, b.len);
+  return string.view(b.ptr, b.len);
 }
 
 /** 从 StrView 拷贝构造 Bytes。 */

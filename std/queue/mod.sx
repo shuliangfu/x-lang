@@ -70,7 +70,9 @@ function grow(q: *Queue_i32): i32 {
   if (p == 0) { return -1; }
   let i: i32 = 0;
   while (i < q.len) {
-    p[i] = q.data[at(*q, i)];
+    let idx: i32 = 0;
+    unsafe { idx = at(*q, i); }
+    p[i] = q.data[idx];
     i = i + 1;
   }
   if (q.data != 0) { heap_libc.heap_free_i32_c(q.data); }
@@ -82,7 +84,8 @@ function grow(q: *Queue_i32): i32 {
 /** 队尾插入。失败返回 -1。 */
 function push_back(q: *Queue_i32, x: i32): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
-  let tail: i32 = at(*q, q.len);
+  let tail: i32 = 0;
+  unsafe { tail = at(*q, q.len); }
   q.data[tail] = x;
   q.len = q.len + 1;
   return 0;
@@ -100,7 +103,9 @@ function push_front(q: *Queue_i32, x: i32): i32 {
 function pop_back(q: *Queue_i32): i32 {
   if (q.len <= 0) { return 0; }
   q.len = q.len - 1;
-  return q.data[at(*q, q.len)];
+  let idx: i32 = 0;
+  unsafe { idx = at(*q, q.len); }
+  return q.data[idx];
 }
 /** 队首弹出；空队列返回 0。 */
 function pop_front(q: *Queue_i32): i32 {
@@ -135,7 +140,9 @@ function reserve(q: *Queue_i32, new_cap: i32): i32 {
   if (p == 0) { return -1; }
   let i: i32 = 0;
   while (i < q.len) {
-    p[i] = q.data[at(*q, i)];
+    let idx: i32 = 0;
+    unsafe { idx = at(*q, i); }
+    p[i] = q.data[idx];
     i = i + 1;
   }
   if (q.data != 0) { heap_libc.heap_free_i32_c(q.data); }
@@ -164,17 +171,18 @@ extern function sync_queue_contention_smoke_c(): i32;
 
 /** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
 function sync_new(): SyncQueue_i32 {
-  let lock: *u8 = sync.mutex_new();
-  return SyncQueue_i32 { q: new(), lock: lock };
+  let lock: *u8 = sync.new_mutex();
+  let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
+  return SyncQueue_i32 { q: q, lock: lock };
 }
 
 /** 销毁队列并释放 mutex。 */
 function sync_deinit(sq: *SyncQueue_i32): void {
   if (sq.lock != 0) {
-    sync.mutex_lock(sq.lock);
+    sync.lock(sq.lock);
     deinit(&sq.q);
-    sync.mutex_unlock(sq.lock);
-    sync.mutex_free(sq.lock);
+    sync.unlock(sq.lock);
+    sync.free_mutex(sq.lock);
     sq.lock = 0 as *u8;
   } else {
     deinit(&sq.q);
@@ -184,9 +192,9 @@ function sync_deinit(sq: *SyncQueue_i32): void {
 /** 加锁队尾插入；失败 -1。 */
 function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
   if (sq.lock == 0) { return -1; }
-  if (sync.mutex_lock(sq.lock) != 0) { return -1; }
+  if (sync.lock(sq.lock) != 0) { return -1; }
   let r: i32 = push_back(&sq.q, x);
-  sync.mutex_unlock(sq.lock);
+  sync.unlock(sq.lock);
   return r;
 }
 
@@ -195,36 +203,36 @@ function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
  */
 function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
   if (sq.lock == 0) { return -1; }
-  if (sync.mutex_lock(sq.lock) != 0) { return -1; }
+  if (sync.lock(sq.lock) != 0) { return -1; }
   if (is_empty(sq.q) != 0) {
-    sync.mutex_unlock(sq.lock);
+    sync.unlock(sq.lock);
     return 1;
   }
   atomic.store(out, pop_front(&sq.q));
-  sync.mutex_unlock(sq.lock);
+  sync.unlock(sq.lock);
   return 0;
 }
 
 /** 加锁读元素个数。 */
-function sync_queue_len(sq: SyncQueue_i32): i32 {
+function len(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 0; }
-  if (sync.mutex_lock(sq.lock) != 0) { return 0; }
+  if (sync.lock(sq.lock) != 0) { return 0; }
   let n: i32 = len(sq.q);
-  sync.mutex_unlock(sq.lock);
+  sync.unlock(sq.lock);
   return n;
 }
 
 /** 加锁判空：1 空，0 非空。 */
-function sync_queue_is_empty(sq: SyncQueue_i32): i32 {
+function is_empty(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 1; }
-  if (sync.mutex_lock(sq.lock) != 0) { return 1; }
+  if (sync.lock(sq.lock) != 0) { return 1; }
   let e: i32 = is_empty(sq.q);
-  sync.mutex_unlock(sq.lock);
+  sync.unlock(sq.lock);
   return e;
 }
 
 /** 门面：C 层 sync_queue_contention_smoke_c 烟测。 */
-function sync_queue_contention_smoke(): i32 {
+function sync_smoke(): i32 {
   unsafe {
     return sync_queue_contention_smoke_c();
   }
@@ -258,7 +266,9 @@ function grow(q: *Queue_u8): i32 {
   if (p == 0) { return -1; }
   let i: i32 = 0;
   while (i < q.len) {
-    p[i] = q.data[at(*q, i)];
+    let idx: i32 = 0;
+    unsafe { idx = at(*q, i); }
+    p[i] = q.data[idx];
     i = i + 1;
   }
   if (q.data != 0) { heap_libc.heap_free_u8_c(q.data); }
@@ -271,7 +281,8 @@ function grow(q: *Queue_u8): i32 {
 /** 队尾插入 u8；失败 -1。 */
 function push_back(q: *Queue_u8, x: u8): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
-  let tail: i32 = at(*q, q.len);
+  let tail: i32 = 0;
+  unsafe { tail = at(*q, q.len); }
   q.data[tail] = x;
   q.len = q.len + 1;
   return 0;

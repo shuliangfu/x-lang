@@ -4,7 +4,7 @@ const context = import("std.context");
 
 function main(): i32 {
   let zero: i64 = 0;
-  let tr: Trace = trace.trace_new();
+  let tr: Trace = trace.new();
   let ctx: Context = context.background();
   let tr2: Trace = Trace { handle: zero };
   let root: Span = Span { id: zero };
@@ -31,22 +31,22 @@ function main(): i32 {
   let cnt: i32 = 0;
 
   if (tr.handle == zero) { return 1; }
-  if (trace.attach_to_context(ctx, tr) != 0) { return 2; }
-  tr2 = trace.from_context(ctx);
+  if (trace.attach(ctx, tr) != 0) { return 2; }
+  tr2 = trace.from_ctx(ctx);
   if (tr2.handle != tr.handle) { return 3; }
 
-  root = trace.span_start(&tr, zero, &n_root[0], 4);
+  root = trace.start(&tr, zero, &n_root[0], 4);
   if (root.id == zero) { return 4; }
-  child = trace.span_start_child(&tr, &n_child[0], 5);
+  child = trace.start_child(&tr, &n_child[0], 5);
   if (child.id == zero || child.id == root.id) { return 5; }
-  if (trace.span_end(&tr, child) != trace.trace_err_ok()) { return 6; }
-  if (trace.span_end(&tr, root) != trace.trace_err_ok()) { return 7; }
-  cnt = trace.span_count(&tr);
+  if (trace.end(&tr, child) != trace.err_ok()) { return 6; }
+  if (trace.end(&tr, root) != trace.err_ok()) { return 7; }
+  cnt = trace.count(&tr);
   if (cnt != 2) { return 8; }
   n = trace.export_text(&tr, &out[0], 256);
   if (n <= 0) { return 9; }
   if (out[0] != 116) { return 10; }
-  trace.trace_free(&tr);
+  trace.free(&tr);
   context.free(ctx);
   return 0;
 }

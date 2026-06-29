@@ -4,7 +4,7 @@ const debug = import("core.debug");
 
 function main(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
-  sort_stable_i32(&a[0], 4);
+  sort.stable(&a[0], 4);
   debug.assert_eq_i32(a[0], 1);
   debug.assert_eq_i32(a[1], 2);
   debug.assert_eq_i32(a[2], 3);

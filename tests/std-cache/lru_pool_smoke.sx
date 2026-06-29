@@ -3,7 +3,7 @@ const cache = import("std.cache");
 
 function main(): i32 {
   let zero: i64 = 0;
-  let lru: LruCache = cache.lru_new(2);
+  let lru: LruCache = cache.new_lru(2);
   let pool: ObjPool = cache.new(2);
   let v: i64 = 0;
   let r: i64 = 0;
@@ -13,12 +13,12 @@ function main(): i32 {
   if (lru.handle == zero || pool.handle == zero) {
     return 1;
   }
-  if (cache.lru_put(&lru, 1, 100, zero) != cache.err_ok()) { return 2; }
-  if (cache.lru_put(&lru, 2, 200, zero) != cache.err_ok()) { return 3; }
-  if (cache.lru_put(&lru, 3, 300, zero) != cache.err_ok()) { return 4; }
-  if (cache.lru_get(&lru, 1, &v) != cache.err_not_found()) { return 5; }
-  if (cache.lru_get(&lru, 2, &v) != cache.err_ok() || v != 200) { return 6; }
-  cache.lru_stats(&lru, &st);
+  if (cache.put(&lru, 1, 100, zero) != cache.err_ok()) { return 2; }
+  if (cache.put(&lru, 2, 200, zero) != cache.err_ok()) { return 3; }
+  if (cache.put(&lru, 3, 300, zero) != cache.err_ok()) { return 4; }
+  if (cache.get(&lru, 1, &v) != cache.err_not_found()) { return 5; }
+  if (cache.get(&lru, 2, &v) != cache.err_ok() || v != 200) { return 6; }
+  cache.stats(&lru, &st);
   if (st.hits < 1 || st.misses < 1) { return 7; }
   if (cache.add(&pool, 1001) != cache.err_ok()) { return 8; }
   if (cache.add(&pool, 1002) != cache.err_ok()) { return 9; }
@@ -29,7 +29,7 @@ function main(): i32 {
   if (cache.release(&pool, r) != cache.err_ok()) { return 14; }
   cache.stats(&pool, &ps);
   if (cache.idle(&pool) != 1) { return 15; }
-  cache.lru_free(&lru);
+  cache.free(&lru);
   cache.free(&pool);
   return 0;
 }

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 extern int getpid(void);
 static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
   const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
@@ -56,7 +57,7 @@ int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict 
 int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
 struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
 struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
-struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
+struct lexer_LexerResult lexer_next(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
 void lexer_apply_optional_exponent(struct lexer_Lexer l, struct shux_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f);
 void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
 void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l);
@@ -168,7 +169,6 @@ struct token_Token lexer_try_keyword(struct shux_slice_uint8_t * data, size_t st
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 103, 105, 111, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_REGION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
-  /** MEM-C1：with_arena 关键字（与 lexer.sx / token.h TOKEN_WITH_ARENA 一致）。 */
   (void)(({ struct token_Token __tmp = (struct token_Token){0}; if (len == 10 && lexer_match_keyword(data, start, 10, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 119, 105, 116, 104, 95, 97, 114, 101, 110, 97 }, .length = 10 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_WITH_ARENA, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  } else (__tmp = (struct token_Token){0}) ; __tmp; }));
@@ -473,7 +473,6 @@ int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, stru
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-/** MOD-02：`#[repr(compatible)]` → TOKEN_ATTR_REPR_COMPATIBLE。 */
 int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
   (void)(({ int32_t __tmp = 0; if ((l).pos + 19 > (data)->length) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -550,14 +549,24 @@ struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex
   struct shux_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
   return lexer_skip_whitespace_and_comments(lex, &(source));
 }
-struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+struct lexer_LexerResult lexer_next(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
   struct lexer_Lexer l = lexer_skip_whitespace_and_comments(lex, data);
-  return ({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((l).pos >= (data)->length) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
-  __tmp = (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
- } else (__tmp = ({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
-  __tmp = (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
- } else {   __tmp = lexer_next_body(l, data);
- } ; __tmp; })) ; __tmp; });
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if ((l).pos >= (data)->length) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  return (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  struct lexer_LexerResult attr_out = (struct lexer_LexerResult){ .next_lex = l, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = ((size_t)(0)) };
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_try_cfg_attr_into((&(attr_out)), l, data) != 0) {   return attr_out;
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_try_repr_c_attr_into((&(attr_out)), l, data) != 0) {   return attr_out;
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_try_repr_compatible_attr_into((&(attr_out)), l, data) != 0) {   return attr_out;
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  (void)(({ struct lexer_LexerResult __tmp = (struct lexer_LexerResult){0}; if (lexer_try_soa_attr_into((&(attr_out)), l, data) != 0) {   return attr_out;
+ } else (__tmp = (struct lexer_LexerResult){0}) ; __tmp; }));
+  return lexer_next_body(l, data);
 }
 void lexer_apply_optional_exponent(struct lexer_Lexer l, struct shux_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f) {
   struct lexer_Lexer lex = l;
@@ -1002,7 +1011,7 @@ void lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_L
 }
 struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
   struct shux_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
-  return lexer_next_slice(lex, &(source));
+  return lexer_next(lex, &(source));
 }
 struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
   uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);

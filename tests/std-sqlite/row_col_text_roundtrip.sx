@@ -109,52 +109,52 @@ function main(): i32 {
     sqlite.close(c);
     return 4;
   }
-  cur = sqlite.query_begin(c, &sql_order[0]);
+  cur = sqlite.begin(c, &sql_order[0]);
   if (cur.cursor == 0) {
     sqlite.close(c);
     return 5;
   }
   st = sqlite.next_row(cur);
   if (st != sqlite.DB_ROW_OK) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 6;
   }
-  n = sqlite.row_col_text(cur, 0, &out[0], 32);
+  n = sqlite.col_text(cur, 0, &out[0], 32);
   if (n != 5) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 7;
   }
   if (bytes_eq5(&out[0], 97, 108, 112, 104, 97, 5) == 0) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 8;
   }
   st = sqlite.next_row(cur);
   if (st != sqlite.DB_ROW_OK) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 9;
   }
-  n = sqlite.row_col_text(cur, 0, &out[0], 32);
+  n = sqlite.col_text(cur, 0, &out[0], 32);
   if (n != 4) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 10;
   }
   if (bytes_eq4(&out[0], 98, 101, 116, 97, 4) == 0) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 11;
   }
   st = sqlite.next_row(cur);
   if (st != sqlite.DB_ROW_DONE) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 12;
   }
-  if (sqlite.query_end(cur) != 0) {
+  if (sqlite.end(cur) != 0) {
     sqlite.close(c);
     return 13;
   }

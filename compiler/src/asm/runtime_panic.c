@@ -46,6 +46,12 @@ __attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_va
 }
 #endif
 
+__attribute__((weak)) int io_register_buffers_buf_c(const void *bufs, int nr) {
+  (void)bufs;
+  (void)nr;
+  return -1;
+}
+
 void shux_panic_(int has_msg, int msg_val) {
   shux_crash_evidence_collect_c(has_msg, msg_val);
   abort();

@@ -151,45 +151,45 @@ struct Timer {
 }
 
 /** 启动计时器并记录起点。 */
-function timer_start(): Timer {
-  return Timer { start_ns: now_monotonic_ns() };
+function start(): Timer {
+    return Timer { start_ns: now_monotonic_ns() };
 }
 
 /** 重置计时器起点为当前单调时钟。 */
-function timer_reset(t: *Timer): void {
-  unsafe {
-    t.start_ns = now_monotonic_ns();
-  }
+function reset(t: *Timer): void {
+    unsafe {
+        t.start_ns = now_monotonic_ns();
+    }
 }
 
 /** 自 timer_start/reset 起经过的纳秒数。 */
-function timer_elapsed_ns(t: Timer): i64 {
-  return now_monotonic_ns() - t.start_ns;
+function elapsed_ns(t: Timer): i64 {
+    return now_monotonic_ns() - t.start_ns;
 }
 
 /** 经过的微秒数。 */
-function timer_elapsed_us(t: Timer): i64 {
-  return timer_elapsed_ns(t) / 1000;
+function elapsed_us(t: Timer): i64 {
+    return elapsed_ns(t) / 1000;
 }
 
 /** 经过的毫秒数。 */
-function timer_elapsed_ms(t: Timer): i64 {
-  return timer_elapsed_ns(t) / 1000000;
+function elapsed_ms(t: Timer): i64 {
+    return elapsed_ns(t) / 1000000;
 }
 
 /** 经过的秒数。 */
-function timer_elapsed_sec(t: Timer): i64 {
-  return timer_elapsed_ns(t) / 1000000000;
+function elapsed_sec(t: Timer): i64 {
+    return elapsed_ns(t) / 1000000000;
 }
 
 /** 记录 lap 并返回本段纳秒数；同时重置段起点。 */
-function timer_lap_ns(t: *Timer): i64 {
-  let now: i64 = now_monotonic_ns();
-  let lap: i64 = now - t.start_ns;
-  unsafe {
-    t.start_ns = now;
-  }
-  return lap;
+function lap_ns(t: *Timer): i64 {
+    let now: i64 = now_monotonic_ns();
+    let lap: i64 = now - t.start_ns;
+    unsafe {
+        t.start_ns = now;
+    }
+    return lap;
 }
 
 /** 将当前 UTC 墙钟写入 buf（RFC3339，STD-137）。 */

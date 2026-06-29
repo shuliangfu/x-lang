@@ -1,4 +1,4 @@
-// B-14 v2：Linux freestanding open(2)+read(2) 经 std.sys.os_read_file_into 烟测。
+// B-14 v2：Linux freestanding open(2)+read(2) 经 std.sys.read_file_into 烟测。
 const sys = import("std.sys");
 const linux = import("std.sys.linux");
 
@@ -13,7 +13,7 @@ function main(): i32 {
     120, 116, 0,
   ];
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-  let n: i32 = sys.os_read_file_into(&path[0], &buf[0], 8);
+  let n: i32 = sys.read_file_into(&path[0], &buf[0], 8);
   if (n != 2) {
     return 2;
   }

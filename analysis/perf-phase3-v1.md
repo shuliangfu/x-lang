@@ -12,7 +12,7 @@
 
 | bench | 循环内容 |
 |-------|----------|
-| `phase3_std_hotpath_loop` | `timezone_iana(UTC)` + `compress_format_*` + `stream_compress_state_bytes_for` + `tcp_pool_new_simple`/drain/destroy |
+| `phase3_std_hotpath_loop` | `timezone_iana(UTC)` + `compress_format_*` + `stream_compress_state_bytes_for` + `tcp_pool_new(..., 1)`/drain/destroy |
 
 ---
 

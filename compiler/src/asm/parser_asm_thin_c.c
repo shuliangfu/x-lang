@@ -110,6 +110,7 @@ struct ast_Func {
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
+  int32_t num_generic_params;
   int32_t return_type_ref;
   int32_t body_ref;
   int32_t body_expr_ref;
@@ -124,6 +125,7 @@ struct parser_asm_onefunc_result {
   uint8_t name[64];
   int32_t name_len;
   int32_t num_params;
+  int32_t num_generic_params;
   int32_t num_consts;
   int32_t num_lets;
   int32_t has_if_expr;
@@ -4468,6 +4470,47 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
   }
 }
 
+void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
+                                                           struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t depth;
+  int32_t top_count;
+  int32_t saw_any;
+  if (!out || !count || !source)
+    return;
+  depth = 0;
+  top_count = 0;
+  saw_any = 0;
+  for (;;) {
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_LT) {
+      depth++;
+    } else if (r.tok.kind == (int32_t)TOKEN_GT) {
+      depth--;
+      if (depth <= 0) {
+        out->pos = r.next_lex.pos;
+        out->line = r.next_lex.line;
+        out->col = r.next_lex.col;
+        *count = saw_any ? (top_count + 1) : 0;
+        return;
+      }
+    } else if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+      if (depth == 1)
+        top_count++;
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
+      out->pos = lex.pos;
+      out->line = lex.line;
+      out->col = lex.col;
+      return;
+    } else {
+      if (depth == 1)
+        saw_any = 1;
+    }
+    lex = r.next_lex;
+  }
+}
+
 /** buf 路径：跳过 `<...>` 泛型列表。 */
 void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                   uint8_t *data, int32_t len) {
@@ -4477,6 +4520,26 @@ void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, 
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
   parser_asm_skip_generic_angle_list_into_slice_c(out, lex, &source);
+}
+
+void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer *out, int32_t *count, struct lexer_Lexer lex,
+                                                    struct shux_slice_uint8_t *source) {
+  struct parser_asm_lexer aout;
+  struct parser_asm_lexer alex;
+  struct parser_asm_slice_u8 asrc;
+  int32_t c = 0;
+  if (!out || !count || !source)
+    return;
+  alex.pos = lex.pos;
+  alex.line = lex.line;
+  alex.col = lex.col;
+  asrc.data = source->data;
+  asrc.length = source->length;
+  parser_asm_skip_generic_angle_list_count_into_slice_c(&aout, &c, alex, &asrc);
+  out->pos = aout.pos;
+  out->line = aout.line;
+  out->col = aout.col;
+  *count = c;
 }
 
 /** parser_gen / parser.sx 用 lexer_Lexer ABI 跳过 `<...>` 泛型列表。 */
@@ -6305,6 +6368,7 @@ struct parser_asm_ast_expr {
   int32_t call_callee_ref;
   int32_t call_arg_base;
   int32_t call_num_args;
+  int32_t call_num_type_args;
   int32_t method_call_base_ref;
   uint8_t method_call_name[64];
   int32_t method_call_name_len;
@@ -6364,6 +6428,7 @@ struct ast_Expr {
   int32_t call_callee_ref;
   int32_t call_arg_base;
   int32_t call_num_args;
+  int32_t call_num_type_args;
   int32_t method_call_base_ref;
   uint8_t method_call_name[64];
   int32_t method_call_name_len;
@@ -6431,6 +6496,7 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   e->call_callee_ref = 0;
   e->call_arg_base = 0;
   e->call_num_args = 0;
+  e->call_num_type_args = 0;
   e->method_call_base_ref = 0;
   e->method_call_name_len = 0;
   e->method_call_arg_base = 0;

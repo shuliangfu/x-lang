@@ -14,6 +14,14 @@ shux_crash_evidence_collect_c:
 	ret
 	.size	shux_crash_evidence_collect_c, .-shux_crash_evidence_collect_c
 
+	.weak	io_register_buffers_buf_c
+	.globl	io_register_buffers_buf_c
+	.type	io_register_buffers_buf_c, @function
+io_register_buffers_buf_c:
+	mov	$-1, %eax
+	ret
+	.size	io_register_buffers_buf_c, .-io_register_buffers_buf_c
+
 	.globl	shux_panic_
 	.type	shux_panic_, @function
 shux_panic_:

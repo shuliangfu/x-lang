@@ -60,26 +60,26 @@ function main(): i32 {
     sqlite.close(c);
     return 3;
   }
-  cur = sqlite.query_begin(c, &sql_sel[0]);
+  cur = sqlite.begin(c, &sql_sel[0]);
   if (cur.cursor == 0) {
     sqlite.close(c);
     return 4;
   }
   if (sqlite.next_row(cur) != sqlite.DB_ROW_OK) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 5;
   }
-  total = sqlite.row_col_blob_len(cur, 0);
+  total = sqlite.col_blob_len(cur, 0);
   if (total != 96) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 6;
   }
   while (off < total) {
-    got = sqlite.row_col_blob_read(cur, 0, off, &chunk[0], 32);
+    got = sqlite.col_blob_read(cur, 0, off, &chunk[0], 32);
     if (got <= 0) {
-      sqlite.query_end(cur);
+      sqlite.end(cur);
       sqlite.close(c);
       return 7;
     }
@@ -92,11 +92,11 @@ function main(): i32 {
     off = off + got;
   }
   if (acc_len != 96 || bytes_seq(&acc[0], 96) == 0) {
-    sqlite.query_end(cur);
+    sqlite.end(cur);
     sqlite.close(c);
     return 8;
   }
-  if (sqlite.query_end(cur) != 0) {
+  if (sqlite.end(cur) != 0) {
     sqlite.close(c);
     return 9;
   }

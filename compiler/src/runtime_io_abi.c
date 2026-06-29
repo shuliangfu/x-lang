@@ -13,6 +13,8 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -38,31 +40,15 @@ static int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
     return (int)off;
 }
 
-/**
- * B-20：POSIX open/fstat/read 读整文件到堆缓冲。
- * 参数：见 runtime_io_abi.h。
- */
-char *runtime_read_file_malloc(const char *path, size_t *out_len) {
-    int fd;
-    struct stat st;
-    size_t size, off;
+static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
+    size_t off;
     char *buf;
     ssize_t n;
 
-    if (!path)
-        return NULL;
-    fd = open(path, O_RDONLY);
-    if (fd < 0)
-        return NULL;
-    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
-        close(fd);
-        return NULL;
-    }
-    size = (size_t)st.st_size;
     buf = (char *)malloc(size + 1);
     if (!buf) {
         close(fd);
-        return NULL;
+        return -1;
     }
     off = 0;
     while (off < size) {
@@ -70,7 +56,7 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
         if (n < 0) {
             free(buf);
             close(fd);
-            return NULL;
+            return -1;
         }
         if (n == 0)
             break;
@@ -79,11 +65,89 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
     close(fd);
     if (off != size) {
         free(buf);
-        return NULL;
+        return -1;
     }
     buf[size] = '\0';
+    out->data = buf;
+    out->length = size;
+    out->needs_free = 1;
+    out->needs_munmap = 0;
+    return 0;
+}
+
+int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
+    int fd;
+    int fd_fallback;
+    struct stat st;
+    size_t size;
+    void *mapped;
+
+    if (!path || !out)
+        return -1;
+    memset(out, 0, sizeof(*out));
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
+        close(fd);
+        return -1;
+    }
+    size = (size_t)st.st_size;
+    if (size == 0) {
+        out->data = "";
+        out->length = 0;
+        close(fd);
+        return 0;
+    }
+    mapped = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (mapped == MAP_FAILED) {
+        fd_fallback = open(path, O_RDONLY);
+        if (fd_fallback < 0)
+            return -1;
+        return shux_runtime_file_view_read_malloc(fd_fallback, size, out);
+    }
+    out->data = (const char *)mapped;
+    out->length = size;
+    out->needs_free = 0;
+    out->needs_munmap = 1;
+    return 0;
+}
+
+void runtime_release_file_view(ShuxRuntimeFileView *view) {
+    if (!view)
+        return;
+    if (view->needs_munmap && view->data && view->length > 0)
+        munmap((void *)view->data, view->length);
+    if (view->needs_free && view->data)
+        free((void *)view->data);
+    view->data = NULL;
+    view->length = 0;
+    view->needs_free = 0;
+    view->needs_munmap = 0;
+}
+
+/**
+ * B-20：POSIX open/fstat/read 读整文件到堆缓冲。
+ * 参数：见 runtime_io_abi.h。
+ */
+char *runtime_read_file_malloc(const char *path, size_t *out_len) {
+    ShuxRuntimeFileView view;
+    char *buf;
+
+    if (runtime_read_file_view(path, &view) != 0)
+        return NULL;
+    buf = (char *)malloc(view.length + 1);
+    if (!buf) {
+        runtime_release_file_view(&view);
+        return NULL;
+    }
+    if (view.length > 0)
+        memcpy(buf, view.data, view.length);
+    buf[view.length] = '\0';
     if (out_len)
-        *out_len = size;
+        *out_len = view.length;
+    runtime_release_file_view(&view);
     return buf;
 }
 

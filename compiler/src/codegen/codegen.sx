@@ -1368,85 +1368,52 @@ function emit_continue_stmt(out: *CodegenOutBuf, indent: i32): i32 {
 
 /** 将 pipeline_type_kind_ord_at 序数委托 emit_type_kind（勿 ast_arena_type_get 按值 Type）。 */
 function emit_type_kind_ord(out: *CodegenOutBuf, tk: i32): i32 {
-  if (tk == TypeKind.TYPE_I32) {
-    return emit_type_kind(out, TypeKind.TYPE_I32);
-  }
-  if (tk == TypeKind.TYPE_I64) {
-    return emit_type_kind(out, TypeKind.TYPE_I64);
-  }
-  if (tk == TypeKind.TYPE_BOOL) {
-    return emit_type_kind(out, TypeKind.TYPE_BOOL);
-  }
-  if (tk == TypeKind.TYPE_U8) {
-    return emit_type_kind(out, TypeKind.TYPE_U8);
-  }
-  if (tk == TypeKind.TYPE_U32) {
-    return emit_type_kind(out, TypeKind.TYPE_U32);
-  }
-  if (tk == TypeKind.TYPE_U64) {
-    return emit_type_kind(out, TypeKind.TYPE_U64);
-  }
-  if (tk == TypeKind.TYPE_F32) {
-    return emit_type_kind(out, TypeKind.TYPE_F32);
-  }
-  if (tk == TypeKind.TYPE_F64) {
-    return emit_type_kind(out, TypeKind.TYPE_F64);
-  }
-  if (tk == TypeKind.TYPE_VOID) {
-    return emit_type_kind(out, TypeKind.TYPE_VOID);
-  }
-  if (tk == TypeKind.TYPE_USIZE) {
-    return emit_type_kind(out, TypeKind.TYPE_USIZE);
-  }
-  if (tk == TypeKind.TYPE_ISIZE) {
-    return emit_type_kind(out, TypeKind.TYPE_ISIZE);
-  }
-  return -1;
+  return emit_type_kind(out, tk);
 }
 
 /** 根据 TypeKind 写 C 类型名到 out（仅内建类型）；纯 .sx，按数组尺寸调用对应 emit_bytes_N。 */
-function emit_type_kind(out: *CodegenOutBuf, kind: TypeKind): i32 {
-  if (kind == TypeKind.TYPE_I32) {
+function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
+  if (kind_ord == (TypeKind.TYPE_I32 as i32)) {
     let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
     return emit_bytes_8(out, s, 7);
   }
-  if (kind == TypeKind.TYPE_I64) {
+  if (kind_ord == (TypeKind.TYPE_I64 as i32)) {
     let s: u8[8] = [105, 110, 116, 54, 52, 95, 116, 0];
     return emit_bytes_8(out, s, 7);
   }
-  if (kind == TypeKind.TYPE_BOOL) {
+  if (kind_ord == (TypeKind.TYPE_BOOL as i32)) {
     let s: u8[4] = [105, 110, 116, 0];
     return emit_bytes_4(out, s, 3);
   }
-  if (kind == TypeKind.TYPE_U8) {
+  if (kind_ord == (TypeKind.TYPE_U8 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
     return emit_bytes_9(out, s, 7);
   }
-  if (kind == TypeKind.TYPE_U32) {
+  if (kind_ord == (TypeKind.TYPE_U32 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 51, 50, 95, 116, 0];
     return emit_bytes_9(out, s, 8);
   }
-  if (kind == TypeKind.TYPE_U64) {
+  if (kind_ord == (TypeKind.TYPE_U64 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 54, 52, 95, 116, 0];
     return emit_bytes_9(out, s, 8);
   }
-  if (kind == TypeKind.TYPE_F32) {
+  if (kind_ord == (TypeKind.TYPE_F32 as i32)) {
     let s: u8[6] = [102, 108, 111, 97, 116, 0];
     return emit_bytes_6(out, s, 5);
   }
-  if (kind == TypeKind.TYPE_F64) {
+  if (kind_ord == (TypeKind.TYPE_F64 as i32)) {
     let s: u8[7] = [100, 111, 117, 98, 108, 101, 0];
     return emit_bytes_7(out, s, 6);
   }
-  if (kind == TypeKind.TYPE_VOID) {
+  if (kind_ord == (TypeKind.TYPE_VOID as i32)) {
     let s: u8[5] = [118, 111, 105, 100, 0];
     return emit_bytes_5(out, s, 4);
   }
-  if (kind == TypeKind.TYPE_USIZE) {
+  if (kind_ord == (TypeKind.TYPE_USIZE as i32)) {
     let s: u8[7] = [115, 105, 122, 101, 95, 116, 0];
     return emit_bytes_7(out, s, 6);
   }
-  if (kind == TypeKind.TYPE_ISIZE) {
+  if (kind_ord == (TypeKind.TYPE_ISIZE as i32)) {
     let s: u8[8] = [115, 115, 105, 122, 101, 95, 116, 0];
     return emit_bytes_8(out, s, 7);
   }
@@ -1454,8 +1421,8 @@ function emit_type_kind(out: *CodegenOutBuf, kind: TypeKind): i32 {
 }
 
 /** 将 TypeKind 对应内建类型写入 scratch[w..)，返回下一写位置；-1 表示溢出 cap。对齐 emit_type_kind 的字符串。 */
-function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeKind): i32 {
-  if (kind == TypeKind.TYPE_I32) {
+function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind_ord: i32): i32 {
+  if (kind_ord == (TypeKind.TYPE_I32 as i32)) {
     let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
     let i: i32 = 0;
     while (i < 7) {
@@ -1468,7 +1435,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_I64) {
+  if (kind_ord == (TypeKind.TYPE_I64 as i32)) {
     let s: u8[8] = [105, 110, 116, 54, 52, 95, 116, 0];
     let i: i32 = 0;
     while (i < 7) {
@@ -1481,7 +1448,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_BOOL) {
+  if (kind_ord == (TypeKind.TYPE_BOOL as i32)) {
     let s: u8[4] = [105, 110, 116, 0];
     let i: i32 = 0;
     while (i < 3) {
@@ -1494,7 +1461,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_U8) {
+  if (kind_ord == (TypeKind.TYPE_U8 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
     let i: i32 = 0;
     while (i < 7) {
@@ -1507,7 +1474,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_U32) {
+  if (kind_ord == (TypeKind.TYPE_U32 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 51, 50, 95, 116, 0];
     let i: i32 = 0;
     while (i < 8) {
@@ -1520,7 +1487,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_U64) {
+  if (kind_ord == (TypeKind.TYPE_U64 as i32)) {
     let s: u8[9] = [117, 105, 110, 116, 54, 52, 95, 116, 0];
     let i: i32 = 0;
     while (i < 8) {
@@ -1533,7 +1500,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_F32) {
+  if (kind_ord == (TypeKind.TYPE_F32 as i32)) {
     let s: u8[6] = [102, 108, 111, 97, 116, 0];
     let i: i32 = 0;
     while (i < 5) {
@@ -1546,7 +1513,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_F64) {
+  if (kind_ord == (TypeKind.TYPE_F64 as i32)) {
     let s: u8[7] = [100, 111, 117, 98, 108, 101, 0];
     let i: i32 = 0;
     while (i < 6) {
@@ -1559,7 +1526,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_VOID) {
+  if (kind_ord == (TypeKind.TYPE_VOID as i32)) {
     let s: u8[5] = [118, 111, 105, 100, 0];
     let i: i32 = 0;
     while (i < 4) {
@@ -1572,7 +1539,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_USIZE) {
+  if (kind_ord == (TypeKind.TYPE_USIZE as i32)) {
     let s: u8[7] = [115, 105, 122, 101, 95, 116, 0];
     let i: i32 = 0;
     while (i < 6) {
@@ -1585,7 +1552,7 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
     }
     return w;
   }
-  if (kind == TypeKind.TYPE_ISIZE) {
+  if (kind_ord == (TypeKind.TYPE_ISIZE as i32)) {
     let s: u8[8] = [115, 115, 105, 122, 101, 95, 116, 0];
     let i: i32 = 0;
     while (i < 7) {
@@ -1602,8 +1569,8 @@ function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind: TypeK
 }
 
 /** 向量 C typedef 名字写入 out（与 codegen.c vector_c_type_name 一致；typedef 体由 preamble / 宿主 C 保证）。 */
-function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind: TypeKind, lanes: i32): i32 {
-  if (elem_kind == TypeKind.TYPE_I32) {
+function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, lanes: i32): i32 {
+  if (elem_kind_ord == (TypeKind.TYPE_I32 as i32)) {
     if (lanes == 4) {
       let s: u8[8] = [105, 51, 50, 120, 52, 95, 116, 0];
       return emit_bytes_from_ptr(out, &s[0], 7);
@@ -1617,7 +1584,7 @@ function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind: TypeKind, lanes:
       return emit_bytes_from_ptr(out, &sa[0], 8);
     }
   }
-  if (elem_kind == TypeKind.TYPE_U32) {
+  if (elem_kind_ord == (TypeKind.TYPE_U32 as i32)) {
     if (lanes == 4) {
       let s: u8[8] = [117, 51, 50, 120, 52, 95, 116, 0];
       return emit_bytes_from_ptr(out, &s[0], 7);
@@ -1637,35 +1604,11 @@ function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind: TypeKind, lanes:
 
 /** 将 pipeline_type_kind_ord_at 序数委托 type_kind_append_to_scratch（勿 ast_arena_type_get 按值 Type）。 */
 function type_kind_append_to_scratch_ord(scratch: *u8, cap: i32, w: i32, tk: i32): i32 {
-  if (tk == TypeKind.TYPE_I32) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_I32);
+  let w2: i32 = type_kind_append_to_scratch(scratch, cap, w, tk);
+  if (w2 < 0) {
+    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_I32 as i32);
   }
-  if (tk == TypeKind.TYPE_BOOL) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_BOOL);
-  }
-  if (tk == TypeKind.TYPE_U8) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_U8);
-  }
-  if (tk == TypeKind.TYPE_U32) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_U32);
-  }
-  if (tk == TypeKind.TYPE_U64) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_U64);
-  }
-  if (tk == TypeKind.TYPE_I64) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_I64);
-  }
-  if (tk == TypeKind.TYPE_F32) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_F32);
-  }
-  if (tk == TypeKind.TYPE_F64) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_F64);
-  }
-  if (tk == TypeKind.TYPE_VOID) {
-    return type_kind_append_to_scratch(scratch, cap, w, TypeKind.TYPE_VOID);
-  }
-  let i32_fb: TypeKind = TypeKind.TYPE_I32;
-  return type_kind_append_to_scratch(scratch, cap, w, i32_fb);
+  return w2;
 }
 
 /** 写入 C c_type_str 等价串至 scratch（无 NUL）；逻辑在 pipeline_codegen_type_to_c_repr（C glue）。 */
@@ -1761,14 +1704,7 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
   /* 向量 SIMD 别名（如 i32x4_t）；typedef 须在 preamble / 宿主 C 与 codegen.c 一致 */
   if (tk == TypeKind.TYPE_VECTOR && !ast.ref_is_null(elem_ref)) {
     elem_kind = pipeline_type_kind_ord_at(arena, elem_ref);
-    if (elem_kind == TypeKind.TYPE_I32) {
-      return emit_vector_c_type_out(out, TypeKind.TYPE_I32, arr_sz);
-    }
-    if (elem_kind == TypeKind.TYPE_U32) {
-      return emit_vector_c_type_out(out, TypeKind.TYPE_U32, arr_sz);
-    }
-    let vec_fb: TypeKind = TypeKind.TYPE_I32;
-    return emit_vector_c_type_out(out, vec_fb, arr_sz);
+    return emit_vector_c_type_out(out, elem_kind, arr_sz);
   }
   /** M-4：Linear(T) 与内层 T 同 C 布局，零 RT 开销（对齐 codegen.c c_type_to_buf）。 */
   if (tk == TypeKind.TYPE_LINEAR && !ast.ref_is_null(elem_ref)) {
@@ -1843,19 +1779,19 @@ function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBu
   while (li < let_idx) {
     let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
     if (nlen == init_e.var_name_len && nlen > 0) {
-      let match: i32 = 1;
+      let matched: i32 = 1;
       let nb: u8[64] = [];
       pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
       let ci: i32 = 0;
       while (ci < nlen) {
         if (nb[ci] != init_e.var_name[ci]) {
-          match = 0;
+          matched = 0;
           ci = nlen;
         } else {
           ci = ci + 1;
         }
       }
-      if (match != 0) {
+      if (matched != 0) {
         let tr: i32 = pipeline_block_let_type_ref(arena, block_ref, li);
         if (pipeline_type_kind_ord_at(arena, tr) == 10) {
           arr_sz = pipeline_type_array_size_at(arena, tr);
@@ -2248,7 +2184,6 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
       if (e.var_name_len == 3 && e.var_name[0] == 109 && e.var_name[1] == 115 && e.var_name[2] == 103 && ctx != 0 as *PipelineDepCtx) {
         let use_l0: bool = false;
         if (ctx.current_block_ref != 0 && ctx.current_block_ref <= arena.num_blocks) {
-          let b: Block = ast.ast_arena_block_get(arena, ctx.current_block_ref);
           if (ast.ast_block_num_lets(arena, ctx.current_block_ref) >= 1 && pipeline_block_let_name_len(arena, ctx.current_block_ref, 0) == 0) {
             use_l0 = true;
           }
@@ -3773,8 +3708,14 @@ function codegen_callee_var_is_string_new(e: Expr): i32 {
  * MEM-B0：逆序输出块内 defer 子块体（编译期静态内联，零运行时栈）。
  */
 function emit_run_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
-  let b: Block = ast.ast_arena_block_get(arena, block_ref);
-  let di: i32 = b.num_defers - 1;
+  let ndef: i32 = 0;
+  while (ndef < 256) {
+    if (pipeline_block_defer_body_ref(arena, block_ref, ndef) <= 0) {
+      break;
+    }
+    ndef = ndef + 1;
+  }
+  let di: i32 = ndef - 1;
   while (di >= 0) {
     let dbody: i32 = pipeline_block_defer_body_ref(arena, block_ref, di);
     if (dbody > 0) {
@@ -3800,7 +3741,6 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
   if (block_ref <= 0 || block_ref > arena.num_blocks) {
     return 0;
   }
-  let b: Block = ast.ast_arena_block_get(arena, block_ref);
   if (ast.ast_block_num_stmt_order(arena, block_ref) > 0) {
     /* stmt_order 路径可能漏 emit 部分 let（types.sx format_* 等）；先补发缺失 let。 */
     let pre_li: i32 = 0;
@@ -4101,7 +4041,7 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
           }
         }
       } else if (k == 3) {
-        if (idx >= 0 && idx < b.num_loops) {
+        if (idx >= 0 && idx < ast.ast_block_num_loops(arena, block_ref)) {
           let w_cr: i32 = ast.ast_block_while_cond_ref(arena, block_ref, idx);
           let w_br: i32 = ast.ast_block_while_body_ref(arena, block_ref, idx);
           if (emit_indent(out, indent) != 0) {
@@ -4130,7 +4070,7 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
           }
         }
       } else if (k == 4) {
-        if (idx >= 0 && idx < b.num_for_loops) {
+        if (idx >= 0 && idx < ast.ast_block_num_for_loops(arena, block_ref)) {
           let fl_ir: i32 = ast.ast_block_for_init_ref(arena, block_ref, idx);
           let fl_cr: i32 = ast.ast_block_for_cond_ref(arena, block_ref, idx);
           let fl_sr: i32 = ast.ast_block_for_step_ref(arena, block_ref, idx);
@@ -4251,7 +4191,8 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
     if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
       return -1;
     }
-    if (!ast.ref_is_null(b.final_expr_ref)) {
+    let final_ref: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+    if (!ast.ref_is_null(final_ref)) {
       if (emit_indent(out, indent) != 0) {
         return -1;
       }
@@ -4260,13 +4201,13 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
         return -1;
       }
       /* 块尾已输出 return；若 final_expr 本身是 EXPR_RETURN，emit_expr 会再打 return，剥壳只发 unary 操作数。 */
-      let fe_ordered: Expr = ast.ast_arena_expr_get(arena, b.final_expr_ref);
+      let fe_ordered: Expr = ast.ast_arena_expr_get(arena, final_ref);
       if (fe_ordered.kind == ExprKind.EXPR_RETURN) {
         if (!ast.ref_is_null(fe_ordered.unary_operand_ref) && emit_expr(arena, out, fe_ordered.unary_operand_ref, ctx) != 0) {
           return -1;
         }
       } else {
-        if (emit_expr(arena, out, b.final_expr_ref, ctx) != 0) {
+        if (emit_expr(arena, out, final_ref, ctx) != 0) {
           return -1;
         }
       }
@@ -4504,7 +4445,7 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
     i = i + 1;
   }
   i = 0;
-  while (i < b.num_loops) {
+  while (i < ast.ast_block_num_loops(arena, block_ref)) {
     let w_cr: i32 = ast.ast_block_while_cond_ref(arena, block_ref, i);
     let w_br: i32 = ast.ast_block_while_body_ref(arena, block_ref, i);
     if (emit_indent(out, indent) != 0) {
@@ -4534,7 +4475,7 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
     i = i + 1;
   }
   i = 0;
-  while (i < b.num_for_loops) {
+  while (i < ast.ast_block_num_for_loops(arena, block_ref)) {
     let fl_ir: i32 = ast.ast_block_for_init_ref(arena, block_ref, i);
     let fl_cr: i32 = ast.ast_block_for_cond_ref(arena, block_ref, i);
     let fl_sr: i32 = ast.ast_block_for_step_ref(arena, block_ref, i);
@@ -4589,7 +4530,8 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
     return -1;
   }
   /* 函数体块：最终表达式以 return expr;\n 形式输出 */
-  if (!ast.ref_is_null(b.final_expr_ref)) {
+  let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+  if (!ast.ref_is_null(final_ref_plain)) {
     if (emit_indent(out, indent) != 0) {
       return -1;
     }
@@ -4598,13 +4540,13 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
       return -1;
     }
     /* 同上：外层已写 return，内层勿再经由 emit_expr(EXPR_RETURN) 重复输出 return。 */
-    let fe_plain: Expr = ast.ast_arena_expr_get(arena, b.final_expr_ref);
+    let fe_plain: Expr = ast.ast_arena_expr_get(arena, final_ref_plain);
     if (fe_plain.kind == ExprKind.EXPR_RETURN) {
       if (!ast.ref_is_null(fe_plain.unary_operand_ref) && emit_expr(arena, out, fe_plain.unary_operand_ref, ctx) != 0) {
         return -1;
       }
     } else {
-      if (emit_expr(arena, out, b.final_expr_ref, ctx) != 0) {
+      if (emit_expr(arena, out, final_ref_plain, ctx) != 0) {
         return -1;
       }
     }
@@ -4902,8 +4844,7 @@ function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i
   }
   if (!ast.ref_is_null(pipeline_module_func_body_ref_at(module, fi))) {
     let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
-    let b: Block = ast.ast_arena_block_get(arena, body_br);
-    if (!ast.ref_is_null(b.final_expr_ref)) {
+    if (!ast.ref_is_null(ast.ast_block_final_expr_ref(arena, body_br))) {
       need_fallback_return = false;
     }
     let ji: i32 = 0;
@@ -5319,6 +5260,8 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
   let ssp22: u8[22] = [115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114];
   let sn10: u8[10] = [115, 116, 114, 105, 110, 103, 95, 110, 101, 119];
   let sssn22: u8[22] = [115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 110, 101, 119, 0];
+  let asm_seed_mega: u8[25] = [97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97];
+  let asm_to_elf_seed_mega: u8[32] = [97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 116, 111, 95, 101, 108, 102, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97];
   if (name == 0 as *u8) {
     return 0;
   }
@@ -5339,10 +5282,10 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
   }
   /** bootstrap -E：seed_mega 体过大，SX emit_func 失败；SHUX_EMIT_SEED_MEGA=1 时 build_seed_asm_host 仍尝试 emit。 */
   if (pipeline_codegen_emit_seed_mega_enabled() == 0) {
-    if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, "asm_codegen_ast_seed_mega", 25) != 0) {
+    if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, &asm_seed_mega[0], 25) != 0) {
       return 1;
     }
-    if (name_len == 32 && codegen_name_bytes_prefix_eq(name, name_len, "asm_codegen_ast_to_elf_seed_mega", 32) != 0) {
+    if (name_len == 32 && codegen_name_bytes_prefix_eq(name, name_len, &asm_to_elf_seed_mega[0], 32) != 0) {
       return 1;
     }
   }

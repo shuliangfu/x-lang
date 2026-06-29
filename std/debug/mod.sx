@@ -19,7 +19,7 @@
 // 【文件职责】
 // print/println 写 stderr（对标 Zig std.debug.print）；断言转发 core.assert。
 // 程序正常输出用 std.fmt（stdout）；正式日志用 std.log。
-const fmt = import("core.fmt");
+const fmt = import("std.fmt");
 const io = import("std.io");
 const assert_mod = import("core.assert");
 
@@ -112,12 +112,16 @@ function println(x: f64): i32 {
 // ——— 重导出 core.assert（不变量；失败 panic，非测试 expect） ———
 function assert(b: bool): i32 { return assert_mod.assert(b); }
 function debug_assert(b: bool): i32 { return assert_mod.debug_assert(b); }
-function assert_eq_i32(a: i32, b: i32): i32 { return assert_mod.assert_eq_i32(a, b); }
-function assert_ne_i32(a: i32, b: i32): i32 { return assert_mod.assert_ne_i32(a, b); }
-function assert_eq_u32(a: u32, b: u32): i32 { return assert_mod.assert_eq_u32(a, b); }
-function assert_ne_u32(a: u32, b: u32): i32 { return assert_mod.assert_ne_u32(a, b); }
-function assert_eq_bool(a: bool, b: bool): i32 { return assert_mod.assert_eq_bool(a, b); }
-function assert_eq_u64(a: u64, b: u64): i32 { return assert_mod.assert_eq_u64(a, b); }
+function assert_eq(a: i32, b: i32): i32 { return assert_mod.assert_eq_i32(a, b); }
+function assert_ne(a: i32, b: i32): i32 { return assert_mod.assert_ne_i32(a, b); }
+function assert_eq(a: u32, b: u32): i32 { return assert_mod.assert_eq_u32(a, b); }
+function assert_ne(a: u32, b: u32): i32 { return assert_mod.assert_ne_u32(a, b); }
+function assert_eq(a: bool, b: bool): i32 { return assert_mod.assert_eq_bool(a, b); }
+function assert_ne(a: bool, b: bool): i32 { return assert_mod.assert_ne_bool(a, b); }
+function assert_eq(a: u64, b: u64): i32 { return assert_mod.assert_eq_u64(a, b); }
+function assert_ne(a: u64, b: u64): i32 { return assert_mod.assert_ne_u64(a, b); }
+function assert_eq(a: *u8, b: *u8): i32 { return assert_mod.assert_eq_ptr(a, b); }
+function assert_ne(a: *u8, b: *u8): i32 { return assert_mod.assert_ne_ptr(a, b); }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失。 */
 function debug_module_anchor(): i32 { return 0; }

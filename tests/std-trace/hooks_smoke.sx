@@ -6,7 +6,7 @@ const io = import("std.io");
 
 function main(): i32 {
   let zero: i64 = 0;
-  let tr: Trace = trace.trace_new();
+  let tr: Trace = trace.new();
   let ctx: Context = context.background();
   let ctx_bare: Context = context.background();
   let root: Span = Span { id: zero };
@@ -17,22 +17,22 @@ function main(): i32 {
   let n_root: u8[4] = [114, 111, 111, 116];
 
   if (tr.handle == zero) { return 1; }
-  if (trace.attach_to_context(ctx, tr) != 0) { return 2; }
-  root = trace.span_start(&tr, zero, &n_root[0], 4);
+  if (trace.attach(ctx, tr) != 0) { return 2; }
+  root = trace.start(&tr, zero, &n_root[0], 4);
   if (root.id == zero) { return 3; }
 
-  cnt_before = trace.span_count(&tr);
-  if (trace.hook_io_write_ctx(ctx, io.stderr(), &msg[0], 1) < 0) { return 4; }
+  cnt_before = trace.count(&tr);
+  if (trace.io_write(ctx, io.stderr(), &msg[0], 1) < 0) { return 4; }
   async_mod.runtime_reset(&rt);
-  if (trace.hook_async_drain_ctx(ctx, &rt) < 0) { return 5; }
-  cnt_after = trace.span_count(&tr);
+  if (trace.async_drain(ctx, &rt) < 0) { return 5; }
+  cnt_after = trace.count(&tr);
   if (cnt_after <= cnt_before) { return 6; }
 
-  if (trace.hook_io_write_ctx(ctx_bare, io.stderr(), &msg[0], 1) < 0) { return 7; }
+  if (trace.io_write(ctx_bare, io.stderr(), &msg[0], 1) < 0) { return 7; }
   if (trace.hooks_smoke() != 0) { return 8; }
 
-  if (trace.span_end(&tr, root) != trace.trace_err_ok()) { return 9; }
-  trace.trace_free(&tr);
+  if (trace.end(&tr, root) != trace.err_ok()) { return 9; }
+  trace.free(&tr);
   context.free(ctx);
   context.free(ctx_bare);
   return 0;

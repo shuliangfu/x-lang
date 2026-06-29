@@ -2,11 +2,11 @@
 const vec = import("std.vec");
 
 function early(flag: i32): i32 {
-  let v: owned(Vec_u8) = vec.vec_u8_new();
+  let v: owned(Vec_u8) = vec.new();
   if (flag != 0) {
     return 42;
   }
-  return vec.vec_u8_len(v);
+  return vec.len(v);
 }
 
 function main(): i32 {

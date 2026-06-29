@@ -22,8 +22,8 @@ UNI_O="$(cd compiler && pwd)/../std/unicode/unicode.o"
 C_OK=0
 if cc -std=c11 -O1 -o /tmp/shux_unicode_gc_c "$UNI_O" -x c - <<'EOF' 2>/dev/null; then
 #include <stdint.h>
-extern int32_t unicode_grapheme_case_smoke_c(void);
-int main(void){ return unicode_grapheme_case_smoke_c()!=0; }
+extern int32_t grapheme_case_smoke(void);
+int main(void){ return grapheme_case_smoke()!=0; }
 EOF
   /tmp/shux_unicode_gc_c >/dev/null && C_OK=1
   rm -f /tmp/shux_unicode_gc_c

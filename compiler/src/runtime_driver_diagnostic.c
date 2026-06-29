@@ -186,6 +186,80 @@ void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
     fflush(stderr);
 }
 
+void driver_diagnostic_typeck_return_unresolved(int32_t line, int32_t col,
+                                                const uint8_t *expr_buf, int32_t expr_len) {
+    char msg[240];
+    char expr_part[128];
+    int el = (expr_buf && expr_len > 0) ? (int)expr_len : 0;
+    if (el > 0 && el < (int)sizeof(expr_part)) {
+        memcpy(expr_part, expr_buf, (size_t)el);
+        expr_part[el] = '\0';
+    } else {
+        (void)strcpy(expr_part, "?");
+    }
+    (void)snprintf(msg, sizeof(msg), "typeck error: cannot resolve return subexpression: %s", expr_part);
+    if (lsp_diag_enabled) {
+        lsp_diag_add((int)line, (int)col, 1, msg);
+        return;
+    }
+    (void)fputs(msg, stderr);
+    if (line > 0 || col > 0)
+        fprintf(stderr, " at %d:%d", (int)line, (int)col);
+    (void)fputc('\n', stderr);
+    fflush(stderr);
+}
+
+void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col,
+                                             const uint8_t *expr_buf, int32_t expr_len) {
+    char msg[240];
+    char expr_part[128];
+    int el = (expr_buf && expr_len > 0) ? (int)expr_len : 0;
+    if (el > 0 && el < (int)sizeof(expr_part)) {
+        memcpy(expr_part, expr_buf, (size_t)el);
+        expr_part[el] = '\0';
+    } else {
+        (void)strcpy(expr_part, "?");
+    }
+    (void)snprintf(msg, sizeof(msg), "typeck note: return subexpression: %s", expr_part);
+    if (lsp_diag_enabled) {
+        lsp_diag_add((int)line, (int)col, 1, msg);
+        return;
+    }
+    (void)fputs(msg, stderr);
+    if (line > 0 || col > 0)
+        fprintf(stderr, " at %d:%d", (int)line, (int)col);
+    (void)fputc('\n', stderr);
+    fflush(stderr);
+}
+
+void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
+                                               const uint8_t *name, int32_t name_len) {
+    lsp_diag_report_typeck((int)line, (int)col,
+                           "function '%.*s' is not generic but type arguments were provided",
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""));
+}
+
+void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col,
+                                                       const uint8_t *name, int32_t name_len,
+                                                       int32_t expect_n, int32_t got_n) {
+    lsp_diag_report_typeck((int)line, (int)col,
+                           "generic function '%.*s' expects %d type arguments, got %d",
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""),
+                           (int)expect_n, (int)got_n);
+}
+
+void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
+                                                      const uint8_t *name, int32_t name_len) {
+    lsp_diag_report_typeck((int)line, (int)col,
+                           "generic function '%.*s' requires type arguments (e.g. %.*s<Type>(...))",
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""),
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""));
+}
+
 /**
  * .sx 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
  * 以便 run-typeck、负例与 shux-c 对齐（含 "assignment type mismatch: expected …, found …"）。

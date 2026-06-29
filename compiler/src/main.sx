@@ -26,8 +26,9 @@
 
 const ast = import("ast");
 const codegen = import("codegen");
-const fs = import("std.fs");
 const sys = import("std.sys");
+extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+extern function fs_posix_close_c(fd: i32): i32;
 /** 与 emit.sx / pipeline.sx 一致：指针版预处理，避免 import preprocess 模块在 -E-extern 时 method base 无类型。 */
 extern function preprocess_sx_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32;
 /** 子命令：build/run 在 main_cmd_build / main_cmd_run 内实现；fmt/check/test 仍由 src/driver/*.sx 提供（extern driver_cmd_*）。 */
@@ -509,7 +510,7 @@ function driver_run_sx_emit_sx(state: *DriverSxEmitState): i32 {
   }
   let loaded_buf: u8[4194304] = [];
   let cap_i: i32 = 4194304;
-  let n: i32 = sys.os_read_file_into(&state.path_buf[0], &loaded_buf[0], cap_i);
+  let n: i32 = sys.read_file_into(&state.path_buf[0], &loaded_buf[0], cap_i);
   if (n < 0) {
     return 1;
   }
@@ -563,26 +564,26 @@ function driver_run_sx_emit_sx(state: *DriverSxEmitState): i32 {
       return 1;
     }
     if (len > 262144) {
-      let written: isize = fs.write(fd, out.data, 262144);
-      fs.close(fd);
+      let written: isize = fs_posix_write_c(fd, out.data, 262144);
+      fs_posix_close_c(fd);
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs.write(fd, out.data, len as usize);
-      fs.close(fd);
+      let written: isize = fs_posix_write_c(fd, out.data, len as usize);
+      fs_posix_close_c(fd);
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
     }
   } else {
     if (len > 262144) {
-      let written: isize = fs.write(1, out.data, 262144);
+      let written: isize = fs_posix_write_c(1, out.data, 262144);
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs.write(1, out.data, len as usize);
+      let written: isize = fs_posix_write_c(1, out.data, len as usize);
       if (written < 0 || (written as i32) != len) {
         return 1;
       }

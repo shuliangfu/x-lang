@@ -24,6 +24,21 @@ expect_typeck_error() {
   fi
   echo "$err" | grep -q "typeck error" || { echo "expected typeck error in $file (e.g. $msg), got: $err"; exit 1; }
 }
+
+expect_return_breadcrumb_error() {
+  local file="$1"
+  local shux="${2:-./compiler/shux-sx}"
+  local err
+  err=$("$shux" -sx -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
+  echo "$err" | grep -q "return expression type mismatch: expected i32, found Result_i32" || {
+    echo "expected return mismatch breadcrumb base error in $file; got: $err"
+    exit 1
+  }
+  echo "$err" | grep -q "return subexpression: result.ok_i32()" || {
+    echo "expected return subexpression breadcrumb in $file; got: $err"
+    exit 1
+  }
+}
 if [ -n "$SHUX" ]; then
   TYPECK_SHUX="$SHUX"
   # SX 宿主（shux_sx / shux-sx）：赋值 for-step 负例须在本地 -sx 流水线上报与 shux-c 同源的行（grep 短语）；其余负例走 .sx typeck（与 shux-c 对齐，不再回退 C 前端）。
@@ -123,5 +138,8 @@ else
     out_pos=$("$TYPECK_SHUX" "$f" 2>&1) || true
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
+fi
+if [ -x ./compiler/shux-sx ]; then
+  expect_return_breadcrumb_error tests/typeck/return_import_call_type_mismatch.sx ./compiler/shux-sx
 fi
 echo "typeck test OK"

@@ -14,6 +14,7 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typeck/typeck.h"
+#include "lsp/lsp_diag.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     {
         char path[512];
         char dep_dir[512];
-        char *raw;
+        ShuxRuntimeFileView raw_view;
         char *src;
         Lexer *lex;
         ASTModule *dep = NULL;
@@ -50,13 +51,12 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             fprintf(stderr, "shux: import path too long for dep_dir '%s'\n", import_path);
             return NULL;
         }
-        raw = read_file(path, NULL);
-        if (!raw) {
+        if (runtime_read_file_view(path, &raw_view) != 0) {
             fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", import_path, path);
             return NULL;
         }
-        src = preprocess(raw, 0, defines, ndefines, NULL);
-        free(raw);
+        src = preprocess(raw_view.data, raw_view.length, defines, ndefines, NULL);
+        runtime_release_file_view(&raw_view);
         if (!src) {
             fprintf(stderr, "shux: preprocess failed for import '%s'\n", import_path);
             return NULL;
@@ -91,11 +91,15 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
                 if (idx >= 0)
                     deps[ndeps++] = all_dep_mods[idx];
             }
+            lsp_diag_collect_begin();
             if (typeck_module(dep, deps, ndeps, NULL, 0) != 0) {
-                fprintf(stderr, "shux: typeck failed for import '%s'\n", import_path);
+                lsp_diag_collect_end();
+                lsp_diag_print_stderr_human(path);
+                fprintf(stderr, "shux: typeck failed for import '%s' (file %s)\n", import_path, path);
                 ast_module_free(dep);
                 return NULL;
             }
+            lsp_diag_collect_end();
         }
         all_dep_mods[*n_all] = dep;
         all_dep_paths[*n_all] = strdup(import_path);

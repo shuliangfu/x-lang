@@ -78,7 +78,7 @@ function changes(conn: DbConn): i32 {
 
 /** SQLite 后端是否可用（委托 std.db.sqlite）。 */
 function sqlite_is_available(): i32 {
-  return sqlite_m.sqlite_is_available();
+  return sqlite_m.is_available();
 }
 
 /** KV mmap 引擎是否导出（委托 std.db.kv）。 */

@@ -79,12 +79,12 @@ function sort_qsort_i32(ptr: *i32, lo: i32, hi: i32): void {
   j = lo;
   while (j < hi) {
     if (ptr[j] <= pivot) {
-      sort_swap_i32(ptr + i, ptr + j);
+      sort_swap_i32(&ptr[i], &ptr[j]);
       i = i + 1;
     }
     j = j + 1;
   }
-  sort_swap_i32(ptr + i, ptr + hi);
+  sort_swap_i32(&ptr[i], &ptr[hi]);
   sort_qsort_i32(ptr, lo, i - 1);
   sort_qsort_i32(ptr, i + 1, hi);
 }
@@ -100,12 +100,12 @@ function sort_qsort_u8(ptr: *u8, lo: i32, hi: i32): void {
   j = lo;
   while (j < hi) {
     if (ptr[j] <= pivot) {
-      sort_swap_u8(ptr + i, ptr + j);
+      sort_swap_u8(&ptr[i], &ptr[j]);
       i = i + 1;
     }
     j = j + 1;
   }
-  sort_swap_u8(ptr + i, ptr + hi);
+  sort_swap_u8(&ptr[i], &ptr[hi]);
   sort_qsort_u8(ptr, lo, i - 1);
   sort_qsort_u8(ptr, i + 1, hi);
 }
@@ -131,7 +131,7 @@ function sort_merge_i32_range(base: *i32, temp: *i32, left: i32, right: i32, cmp
   rcnt = right - mid;
   out = 0;
   while (li < lcnt && ri < rcnt) {
-    c = sort_cmp_i32(base + left + li, base + mid + ri);
+    c = sort_cmp_i32(&base[left + li], &base[mid + ri]);
     if (cmp_dir < 0) { c = -c; }
     if (c <= 0) {
       temp[out] = base[left + li];
@@ -152,17 +152,17 @@ function sort_merge_i32_range(base: *i32, temp: *i32, left: i32, right: i32, cmp
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy(base + left, temp, (n * 4) as usize);
+  mem.mem_copy((&base[left]) as *u8, temp as *u8, (n * 4) as usize);
 }
 
 /** i32 稳定归并排序入口。 */
 function sort_stable_i32_impl(ptr: *i32, len: i32, cmp_dir: i32): void {
   let temp: *i32 = 0 as *i32;
   if (ptr == 0 || len <= 1) { return; }
-  temp = malloc((len * 4) as usize) as *i32;
+  unsafe { temp = malloc((len * 4) as usize) as *i32; }
   if (temp == 0) { return; }
   sort_merge_i32_range(ptr, temp, 0, len, cmp_dir);
-  free(temp as *u8);
+  unsafe { free(temp as *u8); }
 }
 
 /** u8 稳定归并：cmp_dir 1=升序。 */
@@ -186,7 +186,7 @@ function sort_merge_u8_range(base: *u8, temp: *u8, left: i32, right: i32, cmp_di
   rcnt = right - mid;
   out = 0;
   while (li < lcnt && ri < rcnt) {
-    c = sort_cmp_u8(base + left + li, base + mid + ri);
+    c = sort_cmp_u8(&base[left + li], &base[mid + ri]);
     if (cmp_dir < 0) { c = -c; }
     if (c <= 0) {
       temp[out] = base[left + li];
@@ -207,17 +207,17 @@ function sort_merge_u8_range(base: *u8, temp: *u8, left: i32, right: i32, cmp_di
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy(base + left, temp, n);
+  mem.mem_copy(&base[left], temp, n);
 }
 
 /** u8 稳定归并排序入口。 */
 function sort_stable_u8_impl(ptr: *u8, len: i32, cmp_dir: i32): void {
   let temp: *u8 = 0 as *u8;
   if (ptr == 0 || len <= 1) { return; }
-  temp = malloc(len as usize);
+  unsafe { temp = malloc(len as usize); }
   if (temp == 0) { return; }
   sort_merge_u8_range(ptr, temp, 0, len, cmp_dir);
-  free(temp);
+  unsafe { free(temp); }
 }
 
 /** KeyTag 仅按 key 比较。 */
@@ -248,7 +248,7 @@ function sort_merge_key_range(base: *SortKeyTag, temp: *SortKeyTag, left: i32, r
   rcnt = right - mid;
   out = 0;
   while (li < lcnt && ri < rcnt) {
-    c = sort_cmp_key_tag(base + left + li, base + mid + ri);
+    c = sort_cmp_key_tag(&base[left + li], &base[mid + ri]);
     if (c <= 0) {
       temp[out] = base[left + li];
       li = li + 1;
@@ -268,33 +268,33 @@ function sort_merge_key_range(base: *SortKeyTag, temp: *SortKeyTag, left: i32, r
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy(base + left, temp, (n * 8) as usize);
+  mem.mem_copy((&base[left]) as *u8, temp as *u8, (n * 8) as usize);
 }
 
 /** 原地排序 ptr[0..len]（i32 升序）；不稳定。 */
-function sort_i32_c(ptr: *i32, len: i32): void {
+function sort(ptr: *i32, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_qsort_i32(ptr, 0, len - 1);
 }
 
 /** 原地排序 ptr[0..len]（u8 升序）；不稳定。 */
-function sort_u8_c(ptr: *u8, len: i32): void {
+function sort(ptr: *u8, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_qsort_u8(ptr, 0, len - 1);
 }
 
 /** 原地稳定升序排序 ptr[0..len]（i32）。 */
-function sort_stable_i32_c(ptr: *i32, len: i32): void {
+function stable(ptr: *i32, len: i32): void {
   sort_stable_i32_impl(ptr, len, 1);
 }
 
 /** 原地稳定升序排序 ptr[0..len]（u8）。 */
-function sort_stable_u8_c(ptr: *u8, len: i32): void {
+function stable(ptr: *u8, len: i32): void {
   sort_stable_u8_impl(ptr, len, 1);
 }
 
 /** 原地稳定排序 ptr[0..len]（i32）；cmp_fn 为内建比较器 id（usize）。 */
-function sort_i32_cmp_c(ptr: *i32, len: i32, cmp_fn: usize): void {
+function cmp(ptr: *i32, len: i32, cmp_fn: usize): void {
   if (ptr == 0 || len <= 1) { return; }
   if (cmp_fn == SORT_CMP_I32_DESC) {
     sort_stable_i32_impl(ptr, len, -1);
@@ -304,27 +304,27 @@ function sort_i32_cmp_c(ptr: *i32, len: i32, cmp_fn: usize): void {
 }
 
 /** KeyTag 数组按 key 稳定升序排序。 */
-function sort_stable_key_tag_c(ptr: *SortKeyTag, len: i32): void {
+function stable_key_tag(ptr: *SortKeyTag, len: i32): void {
   let temp: *SortKeyTag = 0 as *SortKeyTag;
   if (ptr == 0 || len <= 1) { return; }
-  temp = malloc((len * 8) as usize) as *SortKeyTag;
+  unsafe { temp = malloc((len * 8) as usize) as *SortKeyTag; }
   if (temp == 0) { return; }
   sort_merge_key_range(ptr, temp, 0, len);
-  free(temp as *u8);
+  unsafe { free(temp as *u8); }
 }
 
 /** 返回降序 i32 比较器 id（usize）。 */
-function sort_cmp_i32_desc_fn_c(): usize {
+function cmp_desc_fn(): usize {
   return SORT_CMP_I32_DESC;
 }
 
 /** 返回升序 i32 比较器 id（usize）。 */
-function sort_cmp_i32_asc_fn_c(): usize {
+function cmp_asc_fn(): usize {
   return SORT_CMP_I32_ASC;
 }
 
 /** 返回 KeyTag key 比较器 id（usize）。 */
-function sort_cmp_key_i32_fn_c(): usize {
+function cmp_key_fn(): usize {
   return SORT_CMP_KEY_I32;
 }
 
@@ -338,11 +338,11 @@ function sort_stable_smoke_c(): i32 {
     SortKeyTag { key: 3, tag: 2 },
     SortKeyTag { key: 2, tag: 3 },
   ];
-  sort_stable_i32_c(&a[0], 4);
+  stable(&a[0], 4);
   if (a[0] != 1 || a[1] != 2 || a[2] != 3 || a[3] != 4) { return 1; }
-  sort_i32_cmp_c(&b[0], 4, SORT_CMP_I32_DESC);
+  cmp(&b[0], 4, SORT_CMP_I32_DESC);
   if (b[0] != 4 || b[1] != 3 || b[2] != 2 || b[3] != 1) { return 2; }
-  sort_stable_key_tag_c(&items[0], 4);
+  stable_key_tag(&items[0], 4);
   if (items[0].key != 1 || items[1].key != 2) { return 3; }
   if (items[2].key != 3 || items[3].key != 3) { return 4; }
   if (items[2].tag != 0 || items[3].tag != 2) { return 5; }
@@ -357,11 +357,11 @@ function sort_key_cmp_smoke_c(): i32 {
     SortKeyTag { key: 3, tag: 2 },
     SortKeyTag { key: 2, tag: 3 },
   ];
-  sort_stable_key_tag_c(&items[0], 4);
+  stable_key_tag(&items[0], 4);
   if (items[0].key != 1) { return 1; }
   if (items[1].key != 2) { return 2; }
   if (items[2].key != 3 || items[3].key != 3) { return 3; }
   if (items[2].tag != 0 || items[3].tag != 2) { return 4; }
-  if (sort_cmp_key_i32_fn_c() == 0) { return 5; }
+  if (cmp_key_fn() == 0) { return 5; }
   return 0;
 }

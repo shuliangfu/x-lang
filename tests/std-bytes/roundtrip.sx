@@ -46,7 +46,7 @@ function main(): i32 {
   }
 
   let v: StrView = bytes.as_view(b);
-  if (string.string_view_len(v) != 4) {
+  if (string.len(v) != 4) {
     bytes.deinit(&b);
     return 9;
   }

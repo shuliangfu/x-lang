@@ -20,7 +20,52 @@ struct codegen_CodegenOutBuf {
 struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
-struct platform_elf_ElfCodegenCtx;
+struct platform_elf_ElfLabelEntry {
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t offset;
+};
+struct platform_elf_ElfPatchEntry {
+  int32_t rel32_offset;
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t patch_imm_bits;
+};
+struct platform_elf_ElfRelocEntry {
+  int32_t offset;
+  int32_t name_len;
+};
+struct platform_elf_ElfRelocSymName64 {
+  uint8_t bytes[64];
+};
+struct platform_elf_ElfSymEntry {
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t offset;
+  int32_t sym_shndx;
+};
+struct platform_elf_ElfCodegenCtx {
+  int32_t code_len;
+  struct platform_elf_ElfLabelEntry labels[16384];
+  int32_t num_labels;
+  struct platform_elf_ElfPatchEntry patches[16384];
+  int32_t num_patches;
+  struct platform_elf_ElfRelocEntry relocs[16384];
+  struct platform_elf_ElfRelocSymName64 reloc_sym_names[16384];
+  int32_t num_relocs;
+  struct platform_elf_ElfSymEntry syms[16384];
+  int32_t num_syms;
+  int32_t sym_name_len;
+  int32_t e_machine;
+  int32_t reloc_type_r_pc32;
+  int32_t current_frame_size;
+  int32_t macho_leading_underscore;
+  int32_t code_hot_len;
+  int32_t emit_hot;
+  uint8_t code_data[8716288];
+  uint8_t code_hot_data[1048576];
+  uint8_t sym_name_data[131072];
+};
 
 /** pipeline_sx.o / ast_pool.c（勿在此 TU 自建截断 PipelineDepCtx，含 4MiB 内嵌缓冲） */
 extern int32_t pipeline_dep_ctx_use_macho_o(struct ast_PipelineDepCtx *ctx);
@@ -32,6 +77,9 @@ extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx 
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
 extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
+extern void pipeline_elf_label_mod_scope_reset(void);
+extern void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 extern int32_t driver_skip_codegen_dep_0_get(void);
 /** std.io 族由 io.o + 本文件桩提供；seed asm 跳过整族 dep 的机器码生成。 */
@@ -100,7 +148,6 @@ extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf,
 extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
-extern void platform_elf_elf_ctx_reset(void *elf_ctx);
 /** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.sx 4096 表一致）。 */
 #define SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
 
@@ -110,7 +157,6 @@ static void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on)
     return;
   *(int32_t *)((uint8_t *)elf_ctx + SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
 }
-extern int32_t platform_elf_elf_resolve_patches(void *elf_ctx);
 /** asm 失败时打印 backend.sx 记录的当前函数名。 */
 extern void driver_diagnostic_asm_print_current_func(void);
 extern int32_t pipeline_asm_patch_module_parent_links(struct ast_Module *m, struct ast_ASTArena *a);
@@ -118,6 +164,27 @@ extern void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, str
                                                      struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_wpo_reach_clear(void);
 extern int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+
+void platform_elf_elf_ctx_reset(void *elf_ctx) {
+  struct platform_elf_ElfCodegenCtx *ctx = (struct platform_elf_ElfCodegenCtx *)elf_ctx;
+  if (!ctx)
+    return;
+  ctx->code_len = 0;
+  ctx->code_hot_len = 0;
+  ctx->emit_hot = 0;
+  ctx->num_labels = 0;
+  ctx->num_patches = 0;
+  ctx->num_relocs = 0;
+  ctx->num_syms = 0;
+  ctx->sym_name_len = 0;
+  ctx->macho_leading_underscore = 0;
+  pipeline_elf_label_mod_scope_reset();
+  pipeline_elf_ctx_reloc_sidecar_reset((uint8_t *)ctx);
+}
+
+int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
+  return pipeline_elf_ctx_resolve_patches((uint8_t *)elf_ctx);
+}
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.sx / PipelineElfCtxAccess 一致）。 */
 static int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
@@ -148,8 +215,17 @@ static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
   pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx);
   return -1;
 }
-extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
-extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf);
+int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+  (void)elf_ctx;
+  (void)out_buf;
+  return -1;
+}
+
+int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+  (void)elf_ctx;
+  (void)out_buf;
+  return -1;
+}
 
 /** .sx 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
 int32_t asm_pipeline_module_num_funcs(struct ast_Module *m) {

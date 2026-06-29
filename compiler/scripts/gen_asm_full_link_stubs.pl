@@ -12,7 +12,18 @@ for my $obj (@objs) {
     next unless /\sU\s(\S+)/;
     my $sym = $1;
     $sym =~ s/^_//;
-    next unless $sym =~ /^arch_(?:arm64|x86_64|riscv64)_(?:enc_enc_|emit_)/;
+    next unless $sym =~ /^(?:arch_(?:arm64|x86_64|riscv64)_.+|
+                          platform_(?:macho|coff)_.+|
+                          peephole_.+|
+                          backend_fold_.+|
+                          fold_.+|
+                          emit_bytes(?:_from_ptr|_\d+)|
+                          emit_indent|
+                          elf_section_code_len|
+                          append_byte|
+                          format_int|
+                          arch_emit_.+|
+                          enc_[A-Za-z0-9_]+)$/x;
     $want{$sym} = 1;
   }
   close $nm;

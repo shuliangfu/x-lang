@@ -4,10 +4,10 @@
 const time = import("std.time");
 
 function main(): i32 {
-  let t: Timer = time.timer_start();
-  let ns: i64 = time.timer_elapsed_ns(t);
+  let t: Timer = time.start();
+  let ns: i64 = time.elapsed_ns(t);
   if (ns < 0) { return 1; }
-  time.timer_reset(&t);
-  if (time.timer_elapsed_ns(t) < 0) { return 2; }
+  time.reset(&t);
+  if (time.elapsed_ns(t) < 0) { return 2; }
   return 0;
 }

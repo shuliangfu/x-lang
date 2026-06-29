@@ -138,19 +138,23 @@ function compress_gzip_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32):
   }
   let strm: ZStream;
   gzip_zstream_clear_alloc(&strm);
-  if (deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+  let init_ret: i32 = 0;
+  unsafe { init_ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
+  if (init_ret != Z_OK) {
     return -1;
   }
   strm.avail_in = in_len as u32;
   strm.next_in = in;
   strm.avail_out = out_cap as u32;
   strm.next_out = out;
-  if (deflate(&strm, Z_FINISH) != Z_STREAM_END) {
-    deflateEnd(&strm);
+  let deflate_ret: i32 = 0;
+  unsafe { deflate_ret = deflate(&strm, Z_FINISH); }
+  if (deflate_ret != Z_STREAM_END) {
+    unsafe { deflateEnd(&strm); }
     return -1;
   }
   let written: i32 = out_cap - (strm.avail_out as i32);
-  deflateEnd(&strm);
+  unsafe { deflateEnd(&strm); }
   return written;
 }
 
@@ -165,17 +169,20 @@ function compress_gzip_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32
   gzip_zstream_clear_alloc(&strm);
   strm.avail_in = in_len as u32;
   strm.next_in = in;
-  if (inflateInit2(&strm, GZIP_WBITS) != Z_OK) {
+  let init_ret: i32 = 0;
+  unsafe { init_ret = inflateInit2(&strm, GZIP_WBITS); }
+  if (init_ret != Z_OK) {
     return -1;
   }
   strm.avail_out = out_cap as u32;
   strm.next_out = out;
-  let ret: i32 = inflate(&strm, Z_FINISH);
+  let ret: i32 = 0;
+  unsafe { ret = inflate(&strm, Z_FINISH); }
   let written: i32 = -1;
   if (ret == Z_STREAM_END) {
     written = out_cap - (strm.avail_out as i32);
   }
-  inflateEnd(&strm);
+  unsafe { inflateEnd(&strm); }
   return written;
 }
 
@@ -199,7 +206,9 @@ function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
   s.hdr.magic = SHU_GZIP_STREAM_MAGIC;
   s.hdr.mode = 0;
   gzip_zstream_clear_alloc(&s.strm);
-  if (deflateInit2(&s.strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+  let init_ret: i32 = 0;
+  unsafe { init_ret = deflateInit2(&s.strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
+  if (init_ret != Z_OK) {
     return -1;
   }
   s.hdr.inited = 1;
@@ -219,7 +228,9 @@ function compress_gzip_stream_init_decompress_c(state: *u8, state_cap: i32): i32
   s.hdr.magic = SHU_GZIP_STREAM_MAGIC;
   s.hdr.mode = 1;
   gzip_zstream_clear_alloc(&s.strm);
-  if (inflateInit2(&s.strm, GZIP_WBITS) != Z_OK) {
+  let init_ret: i32 = 0;
+  unsafe { init_ret = inflateInit2(&s.strm, GZIP_WBITS); }
+  if (init_ret != Z_OK) {
     return -1;
   }
   s.hdr.inited = 1;
@@ -255,7 +266,8 @@ function compress_gzip_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in
   if (is_last != 0) {
     flush = Z_FINISH;
   }
-  let ret: i32 = deflate(&s.strm, flush);
+  let ret: i32 = 0;
+  unsafe { ret = deflate(&s.strm, flush); }
   let written: i32 = out_cap - (s.strm.avail_out as i32);
   if (in_consumed != 0) {
     in_consumed[0] = in_before - (s.strm.avail_in as i32);
@@ -298,7 +310,8 @@ function compress_gzip_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, 
   }
   s.strm.avail_out = out_cap as u32;
   s.strm.next_out = out;
-  let ret: i32 = inflate(&s.strm, Z_NO_FLUSH);
+  let ret: i32 = 0;
+  unsafe { ret = inflate(&s.strm, Z_NO_FLUSH); }
   let written: i32 = out_cap - (s.strm.avail_out as i32);
   if (in_consumed != 0) {
     in_consumed[0] = in_before - (s.strm.avail_in as i32);
@@ -329,9 +342,9 @@ function compress_gzip_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   if (s.hdr.mode == 0) {
-    deflateEnd(&s.strm);
+    unsafe { deflateEnd(&s.strm); }
   } else {
-    inflateEnd(&s.strm);
+    unsafe { inflateEnd(&s.strm); }
   }
   s.hdr.inited = 0;
   return 0;

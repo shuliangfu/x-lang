@@ -206,60 +206,11 @@ extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx:
 
 /** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æç¨åæ¯æ¾å¼æ å°ã */
 function expr_kind_ordinal(k: ExprKind): i32 {
-  if (k == ExprKind.EXPR_LIT) { return 0; }
-  if (k == ExprKind.EXPR_FLOAT_LIT) { return 1; }
-  if (k == ExprKind.EXPR_BOOL_LIT) { return 2; }
-  if (k == ExprKind.EXPR_VAR) { return 3; }
-  if (k == ExprKind.EXPR_ADD) { return 4; }
-  if (k == ExprKind.EXPR_SUB) { return 5; }
-  if (k == ExprKind.EXPR_MUL) { return 6; }
-  if (k == ExprKind.EXPR_DIV) { return 7; }
-  if (k == ExprKind.EXPR_MOD) { return 8; }
-  if (k == ExprKind.EXPR_SHL) { return 9; }
-  if (k == ExprKind.EXPR_SHR) { return 10; }
-  if (k == ExprKind.EXPR_BITAND) { return 11; }
-  if (k == ExprKind.EXPR_BITOR) { return 12; }
-  if (k == ExprKind.EXPR_BITXOR) { return 13; }
-  if (k == ExprKind.EXPR_EQ) { return 14; }
-  if (k == ExprKind.EXPR_NE) { return 15; }
-  if (k == ExprKind.EXPR_LT) { return 16; }
-  if (k == ExprKind.EXPR_LE) { return 17; }
-  if (k == ExprKind.EXPR_GT) { return 18; }
-  if (k == ExprKind.EXPR_GE) { return 19; }
-  if (k == ExprKind.EXPR_LOGAND) { return 20; }
-  if (k == ExprKind.EXPR_LOGOR) { return 21; }
-  if (k == ExprKind.EXPR_NEG) { return 22; }
-  if (k == ExprKind.EXPR_BITNOT) { return 23; }
-  if (k == ExprKind.EXPR_LOGNOT) { return 24; }
-  if (k == ExprKind.EXPR_IF) { return 25; }
-  if (k == ExprKind.EXPR_BLOCK) { return 26; }
-  if (k == ExprKind.EXPR_TERNARY) { return 27; }
-  if (k == ExprKind.EXPR_ASSIGN) { return 28; }
-  if (k == ExprKind.EXPR_ADD_ASSIGN) { return 29; }
-  if (k == ExprKind.EXPR_SUB_ASSIGN) { return 30; }
-  if (k == ExprKind.EXPR_MUL_ASSIGN) { return 31; }
-  if (k == ExprKind.EXPR_DIV_ASSIGN) { return 32; }
-  if (k == ExprKind.EXPR_MOD_ASSIGN) { return 33; }
-  if (k == ExprKind.EXPR_BITAND_ASSIGN) { return 34; }
-  if (k == ExprKind.EXPR_BITOR_ASSIGN) { return 35; }
-  if (k == ExprKind.EXPR_BITXOR_ASSIGN) { return 36; }
-  if (k == ExprKind.EXPR_SHL_ASSIGN) { return 37; }
-  if (k == ExprKind.EXPR_SHR_ASSIGN) { return 38; }
-  if (k == ExprKind.EXPR_BREAK) { return 39; }
-  if (k == ExprKind.EXPR_CONTINUE) { return 40; }
-  if (k == ExprKind.EXPR_RETURN) { return 41; }
-  if (k == ExprKind.EXPR_PANIC) { return 42; }
-  if (k == ExprKind.EXPR_MATCH) { return 43; }
-  if (k == ExprKind.EXPR_FIELD_ACCESS) { return 44; }
-  if (k == ExprKind.EXPR_STRUCT_LIT) { return 45; }
-  if (k == ExprKind.EXPR_ARRAY_LIT) { return 46; }
-  if (k == ExprKind.EXPR_INDEX) { return 47; }
-  if (k == ExprKind.EXPR_CALL) { return 48; }
-  if (k == ExprKind.EXPR_METHOD_CALL) { return 49; }
-  if (k == ExprKind.EXPR_ENUM_VARIANT) { return 50; }
-  if (k == ExprKind.EXPR_BINOP) { return 51; }
-  if (k == ExprKind.EXPR_AS) { return 52; }
-  return -1;
+  let o: i32 = k as i32;
+  if (o < (ExprKind.EXPR_LIT as i32) || o > (ExprKind.EXPR_SPAWN as i32)) {
+    return -1;
+  }
+  return o;
 }
 
 /**

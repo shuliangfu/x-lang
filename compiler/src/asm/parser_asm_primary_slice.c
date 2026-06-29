@@ -154,6 +154,9 @@ extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int3
 extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
 extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                               struct parser_asm_slice_u8 *source);
+extern void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
+                                                                  struct parser_asm_lexer lex,
+                                                                  struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_array_lit_elem(void *arena, int32_t expr_ref, int32_t elem_ref);
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
 
@@ -218,7 +221,9 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   struct parser_asm_ast_expr ie;
   struct parser_asm_ast_expr ce_init;
   int32_t fi;
+  int32_t pending_call_num_type_args;
 
+  pending_call_num_type_args = 0;
   for (;;) {
     if (!first_suffix)
       lexer_next_into(r, *lex, source);
@@ -327,7 +332,9 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
     } else if (r->tok.kind == (int32_t)TOKEN_LT) {
       /** 泛型实例化 `id<i32>(...)`：跳过 `<...>` 后继续后缀链。 */
       struct parser_asm_lexer after_angle;
-      parser_asm_skip_generic_angle_list_into_slice_c(&after_angle, *lex, source);
+      int32_t type_arg_count = 0;
+      parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
+      pending_call_num_type_args = type_arg_count;
       *lex = after_angle;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
       base_ref = out->expr_ref;
@@ -373,7 +380,9 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       ce_init.col = 0;
       parser_asm_expr_set_common_zeros_c(&ce_init);
       ce_init.call_callee_ref = callee_ref;
+      ce_init.call_num_type_args = pending_call_num_type_args;
       parser_asm_arena_expr_set_c(arena, call_ref, ce_init);
+      pending_call_num_type_args = 0;
       lexer_next_into(r, *lex, source);
       if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
         for (;;) {

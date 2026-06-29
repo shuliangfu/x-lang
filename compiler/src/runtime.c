@@ -926,9 +926,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
     else
         cfg_reset_compile_target();
 
-    size_t raw_src_len = 0;
-    char *raw_src = read_file(input_path, &raw_src_len);
-    if (!raw_src) {
+    ShuxRuntimeFileView raw_src_view;
+    if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
         fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
         return 1;
     }
@@ -936,17 +935,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
     char *src = NULL;
 #ifdef SHUX_USE_SX_PIPELINE
     if (use_sx_pipeline) {
-        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_src, raw_src_len, &src, &src_len, input_path,
+        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_src_view.data, raw_src_view.length, &src, &src_len,
+                input_path,
                 ndefines > 0 ? defines : NULL, ndefines) != 0) {
-            free(raw_src);
+            runtime_release_file_view(&raw_src_view);
             return 1;
         }
-        free(raw_src);
+        runtime_release_file_view(&raw_src_view);
     } else
 #endif
     {
-        src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
-        free(raw_src);
+        src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+            &src_len);
+        runtime_release_file_view(&raw_src_view);
         if (!src) {
             fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
             return 1;
@@ -992,8 +993,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
         shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
         const char *entry_dir = entry_dir_buf;
         /* 阶段 5：有 import 时先 resolve 并 pipeline 各依赖，再 pipeline 入口 */
-        char *dep_sources[MAX_ALL_DEPS];
-        size_t dep_lens[MAX_ALL_DEPS];
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
 #if defined(SHUX_USE_SX_DRIVER) && defined(SHUX_USE_SX_PIPELINE)
@@ -1002,22 +1001,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
          * asm_codegen_elf_o 才能把 driver/core 的定义编入同一 Mach-O/ELF。
          */
         if (n_imports > 0 && n_imports <= 32) {
-            char *cls[MAX_ALL_DEPS];
-            size_t clens[MAX_ALL_DEPS];
             char *cpaths[MAX_ALL_DEPS];
             int n_closure = 0;
-            if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
-                    ndefines, cls, clens, cpaths, &n_closure) != 0) {
+            if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
+                    ndefines, cpaths, &n_closure) != 0) {
                 free(arena);
                 free(module);
                 free(src);
                 return 1;
             }
-            if (shux_merge_direct_then_transitive_deps(module, n_imports, cls, clens, cpaths, n_closure, dep_sources, dep_lens,
-                    dep_paths, &n_deps) != 0) {
+            if (shux_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
                 while (n_closure > 0) {
                     n_closure--;
-                    free(cls[n_closure]);
                     free(cpaths[n_closure]);
                 }
                 free(arena);
@@ -1042,42 +1037,21 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     continue;
                 char resolved[PATH_MAX];
                 shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
-                size_t raw_len = 0;
-                char *raw = read_file(resolved, &raw_len);
-                if (!raw) {
+                ShuxRuntimeFileView raw_view;
+                if (runtime_read_file_view(resolved, &raw_view) != 0) {
                     fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
-                    while (n_deps--) {
-                        free(dep_sources[n_deps]);
+                    while (n_deps--)
                         free(dep_paths[n_deps]);
-                    }
                     free(arena);
                     free(module);
                     free(src);
                     return 1;
                 }
-                char *prep = NULL;
-                size_t prep_len = 0;
-                if (shux_preprocess_raw_to_malloc((const unsigned char *)raw, raw_len, &prep, &prep_len, resolved, NULL, 0) != 0) {
-                    free(raw);
-                    while (n_deps--) {
-                        free(dep_sources[n_deps]);
-                        free(dep_paths[n_deps]);
-                    }
-                    free(arena);
-                    free(module);
-                    free(src);
-                    return 1;
-                }
-                free(raw);
-                dep_sources[n_deps] = prep;
-                dep_lens[n_deps] = prep_len;
+                runtime_release_file_view(&raw_view);
                 dep_paths[n_deps] = strdup(path_c);
                 if (!dep_paths[n_deps]) {
-                    free(prep);
-                    while (n_deps--) {
-                        free(dep_sources[n_deps]);
+                    while (n_deps--)
                         free(dep_paths[n_deps]);
-                    }
                     free(arena);
                     free(module);
                     free(src);
@@ -1152,7 +1126,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 if (asm_out) fclose(asm_out);
                 if (elf_ctx_ptr) free(elf_ctx_ptr);
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
-                while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+                while (n_deps--)
+                    free(dep_paths[n_deps]);
                 free(arena);
                 free(module);
                 free(src);
@@ -1171,7 +1146,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             if (asm_out) fclose(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
-            while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+            while (n_deps--)
+                free(dep_paths[n_deps]);
             free(arena);
             free(module);
             free(src);
@@ -1198,29 +1174,65 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
                     if (asm_out) fclose(asm_out);
                     if (elf_ctx_ptr) free(elf_ctx_ptr);
-                    while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+                    while (n_deps--)
+                        free(dep_paths[n_deps]);
                     free(arena); free(module); free(src);
                     return 1;
                 }
                 shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                     lib_roots_arr, n_lib_roots);
+                char resolved[PATH_MAX];
+                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
+                ShuxRuntimeFileView raw_view;
+                if (runtime_read_file_view(resolved, &raw_view) != 0) {
+                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", dep_paths[j], resolved);
+                    pipeline_dep_ctx_heap_destroy(one_ctx);
+                    free(dep_out);
+                    free(out_buf);
+                    pipeline_dep_ctx_heap_destroy(pctx);
+                    for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+                    if (asm_out) fclose(asm_out);
+                    if (elf_ctx_ptr) free(elf_ctx_ptr);
+                    while (n_deps--)
+                        free(dep_paths[n_deps]);
+                    free(arena); free(module); free(src);
+                    return 1;
+                }
+                size_t dep_len = 0;
+                char *dep_src = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &dep_len);
+                runtime_release_file_view(&raw_view);
+                if (!dep_src) {
+                    fprintf(stderr, "shux: preprocess failed for import '%s'\n", dep_paths[j]);
+                    pipeline_dep_ctx_heap_destroy(one_ctx);
+                    free(dep_out);
+                    free(out_buf);
+                    pipeline_dep_ctx_heap_destroy(pctx);
+                    for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+                    if (asm_out) fclose(asm_out);
+                    if (elf_ctx_ptr) free(elf_ctx_ptr);
+                    while (n_deps--)
+                        free(dep_paths[n_deps]);
+                    free(arena); free(module); free(src);
+                    return 1;
+                }
                 shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
-                    (const uint8_t *)dep_sources[j], dep_lens[j]);
+                    (const uint8_t *)dep_src, dep_len);
                 int ec;
                 if (use_asm_backend && emit_elf_o && shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j])) {
                     ec = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
-                        (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+                        (const uint8_t *)dep_src, dep_len);
                 } else if (use_asm_backend && emit_elf_o && shux_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
                     ec = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
-                        (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                        (const uint8_t *)dep_src, dep_len, (void *)dep_out, (void *)one_ctx);
                     if (ec == 0 && shux_asm_user_std_net_dep_path(dep_paths[j]))
                         pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
                 } else {
-                    ec = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
-                        (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+                    ec = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_src,
+                        dep_len, (void *)dep_out, (void *)one_ctx);
                 }
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
+                free(dep_src);
                 if (ec != 0) {
                     fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec);
                     free(out_buf);
@@ -1228,7 +1240,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
                     if (asm_out) fclose(asm_out);
                     if (elf_ctx_ptr) free(elf_ctx_ptr);
-                    while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+                    while (n_deps--)
+                        free(dep_paths[n_deps]);
                     free(arena); free(module); free(src);
                     return 1;
                 }
@@ -1317,7 +1330,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     if (asm_out) fclose(asm_out);
                     if (elf_ctx_ptr) free(elf_ctx_ptr);
                     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
-                    while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
+                    while (n_deps > 0) { n_deps--; free(dep_paths[n_deps]); }
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     free(arena); free(module); free(src);
@@ -1332,7 +1345,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
-                free(dep_sources[n_deps]);
                 free(dep_paths[n_deps]);
             }
             /* -o <exe>（无 .o/.s 后缀）时：已写临时 .o，调 ld 生成可执行文件后删临时文件；链 runtime_panic 与常用 std 各 .o */
@@ -1364,7 +1376,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
-                free(dep_sources[n_deps]);
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
@@ -2064,15 +2075,15 @@ int run_compiler_sx_path(int argc, char **argv) {
     /* 无 -o 时：用 pipeline 生成 C 到 stdout，与 run-lexer 等测试一致，不调用 run_compiler_c。 */
     int emit_to_stdout = (out_path == NULL);
 
-    size_t raw_src_len = 0;
-    char *raw_src = read_file(input_path, &raw_src_len);
-    if (!raw_src) {
+    ShuxRuntimeFileView raw_src_view;
+    if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
         fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
-    free(raw_src);
+    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+        &src_len);
+    runtime_release_file_view(&raw_src_view);
     if (!src) {
         fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
@@ -2762,15 +2773,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         cfg_apply_compile_target_from_triple(target, (int)strlen(target));
     else
         cfg_reset_compile_target();
-    size_t raw_src_len = 0;
-    char *raw_src = read_file(input_path, &raw_src_len);
-    if (!raw_src) {
+    ShuxRuntimeFileView raw_src_view;
+    if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
         fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, ndefines > 0 ? defines : NULL, ndefines, &src_len);
-    free(raw_src);
+    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+        &src_len);
+    runtime_release_file_view(&raw_src_view);
     if (!src) {
         fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
@@ -3726,12 +3737,11 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
      * shux-c 路径：顶层 import 时 SX asm parse 易 0 func，降级 C；shux_asm（SHUX_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
      */
     if (want_asm_backend) {
-        size_t imp_raw_len = 0;
-        char *imp_raw = read_file(input_path, &imp_raw_len);
-        if (imp_raw) {
+        ShuxRuntimeFileView imp_raw_view;
+        if (runtime_read_file_view(input_path, &imp_raw_view) == 0) {
             size_t imp_src_len = 0;
-            char *imp_src = SHUX_RUNTIME_PREPROCESS(imp_raw, imp_raw_len, NULL, 0, &imp_src_len);
-            free(imp_raw);
+            char *imp_src = SHUX_RUNTIME_PREPROCESS(imp_raw_view.data, imp_raw_view.length, NULL, 0, &imp_src_len);
+            runtime_release_file_view(&imp_raw_view);
             if (imp_src && driver_source_has_top_level_import(imp_src, imp_src_len))
                 want_asm_backend = 0;
             free(imp_src);
@@ -3743,15 +3753,14 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
 #endif
     int emit_to_stdout = (out_path == NULL);
 
-    size_t raw_src_len = 0;
-    char *raw_src = read_file(input_path, &raw_src_len);
-    if (!raw_src) {
+    ShuxRuntimeFileView raw_src_view;
+    if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
         fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, NULL, 0, &src_len);
-    free(raw_src);
+    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+    runtime_release_file_view(&raw_src_view);
     if (!src) {
         fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
@@ -5460,15 +5469,14 @@ int driver_argv_parse_sx_emit_c(int argc, char **argv) {
 #if !defined(SHUX_NO_C_FRONTEND)
 static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     (void)setvbuf(stdout, NULL, _IONBF, 0);
-    size_t raw_src_len = 0;
-    char *raw_src = read_file(input_path, &raw_src_len);
-    if (!raw_src) {
+    ShuxRuntimeFileView raw_src_view;
+    if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
         fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, NULL, 0, &src_len);
-    free(raw_src);
+    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+    runtime_release_file_view(&raw_src_view);
     if (!src) {
         fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
         return 1;
@@ -5610,15 +5618,14 @@ int driver_run_sx_emit_c(void) {
             }
         }
 #endif
-        size_t raw_src_len = 0;
-        char *raw_src = read_file(input_path, &raw_src_len);
-        if (!raw_src) {
+        ShuxRuntimeFileView raw_src_view;
+        if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
             fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
             return 1;
         }
         size_t src_len = 0;
-        char *src = SHUX_RUNTIME_PREPROCESS(raw_src, raw_src_len, NULL, 0, &src_len);
-        free(raw_src);
+        char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+        runtime_release_file_view(&raw_src_view);
         if (!src) {
             fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
             return 1;
@@ -5815,8 +5822,7 @@ int driver_run_sx_emit_c(void) {
  */
 int driver_fmt_one_file(const uint8_t *path, int path_len) {
     char pathbuf[512];
-    size_t raw_len = 0;
-    char *raw;
+    ShuxRuntimeFileView raw_view;
     size_t cap;
     uint8_t *out;
     int fmt_len;
@@ -5826,39 +5832,39 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     pathbuf[path_len] = '\0';
     if (path_len < 3 || strcmp(pathbuf + path_len - 3, ".sx") != 0)
         return 1;
-    raw = read_file(pathbuf, &raw_len);
-    if (!raw) {
+    if (runtime_read_file_view(pathbuf, &raw_view) != 0) {
         fprintf(stderr, "shux fmt: cannot read '%s'\n", pathbuf);
         return 1;
     }
-    cap = raw_len * 2 + 4096;
+    cap = raw_view.length * 2 + 4096;
     if (cap < 65536)
         cap = 65536;
     out = (uint8_t *)malloc(cap);
     if (!out) {
-        free(raw);
+        runtime_release_file_view(&raw_view);
         fprintf(stderr, "shux fmt: out of memory for '%s'\n", pathbuf);
         return 1;
     }
-    fmt_len = shu_format_sx_document((const uint8_t *)raw, (int)raw_len, out, (int)cap);
+    fmt_len = shu_format_sx_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
     if (fmt_len < 0) {
         free(out);
-        free(raw);
+        runtime_release_file_view(&raw_view);
         fprintf(stderr, "shux fmt: format failed for '%s'\n", pathbuf);
         return 1;
     }
     {
-        int changed = ((size_t)fmt_len != raw_len || memcmp(raw, out, raw_len) != 0);
+        int changed =
+            ((size_t)fmt_len != raw_view.length || memcmp(raw_view.data, out, raw_view.length) != 0);
         if (driver_fmt_check_only_get()) {
             free(out);
-            free(raw);
+            runtime_release_file_view(&raw_view);
             /* --check 成功时静默（与 deno fmt --check 一致）；失败由 driver_run_fmt 汇总列表。 */
             return changed ? 1 : 0;
         }
         if (changed) {
             if (shux_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
                 free(out);
-                free(raw);
+                runtime_release_file_view(&raw_view);
                 fprintf(stderr, "shux fmt: write failed for '%s'\n", pathbuf);
                 return 1;
             }
@@ -5867,7 +5873,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
         }
     }
     free(out);
-    free(raw);
+    runtime_release_file_view(&raw_view);
     return 0;
 }
 

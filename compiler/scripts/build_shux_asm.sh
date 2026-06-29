@@ -2783,6 +2783,7 @@ ensure_asm_pipeline_glue_standalone_obj() {
     mkdir -p "$BUILD_DIR/gen_driver"
     if [ -f pipeline_gen.c ] && [ -s pipeline_gen.c ]; then
       cp -f pipeline_gen.c "$GEN_PIPELINE"
+      perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
       echo "  pinned pipeline_gen.c -> $GEN_PIPELINE ($(wc -c <"$GEN_PIPELINE" | tr -d ' ') bytes)"
     else
     SHUX_E_LOCAL="${SHUX_E:-}"
@@ -2800,17 +2801,19 @@ ensure_asm_pipeline_glue_standalone_obj() {
     echo "  $SHUX_E_LOCAL -E -E-extern pipeline.sx -> $GEN_PIPELINE (glue standalone types) ..."
     "$SHUX_E_LOCAL" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess \
       -E -E-extern src/pipeline/pipeline.sx >"$GEN_PIPELINE"
+    perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
     fi
     perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$GEN_PIPELINE" 2>/dev/null || true
     perl scripts/fix_slim_arena_gen_c.pl "$GEN_PIPELINE" 2>/dev/null || true
     perl scripts/hoist_pipeline_prototypes.pl "$GEN_PIPELINE" 2>/dev/null || true
     echo "  perl extract_pipeline_glue_types.pl -> $GLUE_TYPES"
     perl scripts/extract_pipeline_glue_types.pl "$GEN_PIPELINE" >"$GLUE_TYPES"
+    perl scripts/patch_ide_glue_types.pl "$GLUE_TYPES"
     if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
       perl -i -0777 -pe 's/\nenum ast_ExprKind parser_compound_assign_token_to_expr_kind\(enum token_TokenKind kind\) \{\n  return compound_assign_token_to_expr_kind_from_glue\(kind\);\n\}//g' "$GLUE_TYPES" 2>/dev/null || true
     fi
   fi
-  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
+  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
     echo "  cc -c src/asm/pipeline_glue_standalone.c -> $GLUE_STANDALONE_OBJ"
     if ! "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_STANDALONE_OBJ" src/asm/pipeline_glue_standalone.c; then
       echo "build_shux_asm: pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"
@@ -3249,31 +3252,76 @@ ensure_asm_gen_driver_sx_objs() {
     perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$f" 2>/dev/null || true
   }
 
-  # 与 Makefile bootstrap-pipeline 一致：pipeline 用 -E-extern 薄 TU，勿全量内联依赖。
-  echo "  $SHUX_E -E -E-extern pipeline.sx -> $GEN_DIR/pipeline_gen.c ..."
-  "$SHUX_E" $LIB_E_PIPELINE -E -E-extern src/pipeline/pipeline.sx >"$GEN_DIR/pipeline_gen.c"
+  # 与 Makefile bootstrap-pipeline 一致：优先复用已补齐布局的顶层 pipeline_gen.c，避免旧 shux-c 重新 -E pipeline.sx 失败。
+  if [ -f pipeline_gen.c ] && [ -s pipeline_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned pipeline_gen.c -> $GEN_DIR/pipeline_gen.c ($(wc -c <pipeline_gen.c | tr -d ' ') bytes)"
+    cp -f pipeline_gen.c "$GEN_DIR/pipeline_gen.c"
+  else
+    echo "  $SHUX_E -E -E-extern pipeline.sx -> $GEN_DIR/pipeline_gen.c ..."
+    "$SHUX_E" $LIB_E_PIPELINE -E -E-extern src/pipeline/pipeline.sx >"$GEN_DIR/pipeline_gen.c"
+  fi
+  perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_DIR/pipeline_gen.c"
   dedupe_shux_slice_struct "$GEN_DIR/pipeline_gen.c"
-  echo "  $SHUX_E -E lsp_io.sx (-E-extern) -> $GEN_DIR/lsp_io_gen.c ..."
-  "$SHUX_E" $LIB_E_MAIN src/lsp/lsp_io.sx -E -E-extern >"$GEN_DIR/lsp_io_gen.c"
-  echo "  $SHUX_E -E lsp.sx (-E-extern) -> $GEN_DIR/lsp_gen.c ..."
-  "$SHUX_E" $LIB_E_MAIN src/lsp/lsp.sx -E -E-extern >"$GEN_DIR/lsp_gen.c"
+  if [ -f lsp_io_gen.c ] && [ -s lsp_io_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned lsp_io_gen.c -> $GEN_DIR/lsp_io_gen.c ($(wc -c <lsp_io_gen.c | tr -d ' ') bytes)"
+    cp -f lsp_io_gen.c "$GEN_DIR/lsp_io_gen.c"
+  else
+    echo "  $SHUX_E -E lsp_io.sx (-E-extern) -> $GEN_DIR/lsp_io_gen.c ..."
+    "$SHUX_E" $LIB_E_MAIN src/lsp/lsp_io.sx -E -E-extern >"$GEN_DIR/lsp_io_gen.c"
+  fi
+  if [ -f lsp_gen.c ] && [ -s lsp_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned lsp_gen.c -> $GEN_DIR/lsp_gen.c ($(wc -c <lsp_gen.c | tr -d ' ') bytes)"
+    cp -f lsp_gen.c "$GEN_DIR/lsp_gen.c"
+  else
+    echo "  $SHUX_E -E lsp.sx (-E-extern) -> $GEN_DIR/lsp_gen.c ..."
+    "$SHUX_E" $LIB_E_MAIN src/lsp/lsp.sx -E -E-extern >"$GEN_DIR/lsp_gen.c"
+  fi
   # lsp_gen.c 内大 state 数组迁至 lsp_state.c 的 g_lsp_state_buf（与 Makefile bootstrap-driver-seed 一致）
   sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   rm -f "$GEN_DIR/lsp_gen.c.bak"
-  echo "  $SHUX_E -E lsp_io_std_heap.sx (-E-extern) -> $GEN_DIR/lsp_io_std_heap_gen.c ..."
-  "$SHUX_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.sx -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
-  echo "  $SHUX_E -E main.sx (-E-extern) -> $GEN_DIR/driver_gen.c ..."
-  "$SHUX_E" $LIB_E_MAIN src/main.sx -E -E-extern >"$GEN_DIR/driver_gen.c"
+  if [ -f lsp_io_std_heap_gen.c ] && [ -s lsp_io_std_heap_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned lsp_io_std_heap_gen.c -> $GEN_DIR/lsp_io_std_heap_gen.c ($(wc -c <lsp_io_std_heap_gen.c | tr -d ' ') bytes)"
+    cp -f lsp_io_std_heap_gen.c "$GEN_DIR/lsp_io_std_heap_gen.c"
+  else
+    echo "  $SHUX_E -E lsp_io_std_heap.sx (-E-extern) -> $GEN_DIR/lsp_io_std_heap_gen.c ..."
+    "$SHUX_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.sx -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
+  fi
+  if [ -f driver_gen.c ] && [ -s driver_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned driver_gen.c -> $GEN_DIR/driver_gen.c ($(wc -c <driver_gen.c | tr -d ' ') bytes)"
+    cp -f driver_gen.c "$GEN_DIR/driver_gen.c"
+  else
+    echo "  $SHUX_E -E main.sx (-E-extern) -> $GEN_DIR/driver_gen.c ..."
+    "$SHUX_E" $LIB_E_MAIN src/main.sx -E -E-extern >"$GEN_DIR/driver_gen.c"
+  fi
   dedupe_shux_slice_struct "$GEN_DIR/driver_gen.c"
-  echo "  $SHUX_E -E preprocess.sx (-E-extern) -> $GEN_DIR/preprocess_gen.c ..."
-  "$SHUX_E" -L src/lexer -E -E-extern src/preprocess/preprocess.sx >"$GEN_DIR/preprocess_gen.c"
+  if [ -f preprocess_gen.c ] && [ -s preprocess_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned preprocess_gen.c -> $GEN_DIR/preprocess_gen.c ($(wc -c <preprocess_gen.c | tr -d ' ') bytes)"
+    cp -f preprocess_gen.c "$GEN_DIR/preprocess_gen.c"
+  else
+    echo "  $SHUX_E -E preprocess.sx (-E-extern) -> $GEN_DIR/preprocess_gen.c ..."
+    "$SHUX_E" -L src/lexer -E -E-extern src/preprocess/preprocess.sx >"$GEN_DIR/preprocess_gen.c"
+  fi
   dedupe_shux_slice_struct "$GEN_DIR/preprocess_gen.c"
 
-  echo "  $SHUX_E -E driver/*.sx (-E-extern) -> $GEN_DIR/driver_*.c ..."
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/fmt.sx >"$GEN_DIR/driver_fmt.c"
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/check.sx >"$GEN_DIR/driver_check.c"
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/test.sx >"$GEN_DIR/driver_test.c"
+  if [ -f driver_fmt_gen.c ] && [ -s driver_fmt_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned driver_fmt_gen.c -> $GEN_DIR/driver_fmt.c ($(wc -c <driver_fmt_gen.c | tr -d ' ') bytes)"
+    cp -f driver_fmt_gen.c "$GEN_DIR/driver_fmt.c"
+  else
+    "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/fmt.sx >"$GEN_DIR/driver_fmt.c"
+  fi
+  if [ -f driver_check_gen.c ] && [ -s driver_check_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned driver_check_gen.c -> $GEN_DIR/driver_check.c ($(wc -c <driver_check_gen.c | tr -d ' ') bytes)"
+    cp -f driver_check_gen.c "$GEN_DIR/driver_check.c"
+  else
+    "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/check.sx >"$GEN_DIR/driver_check.c"
+  fi
+  if [ -f driver_test_gen.c ] && [ -s driver_test_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
+    echo "  pinned driver_test_gen.c -> $GEN_DIR/driver_test.c ($(wc -c <driver_test_gen.c | tr -d ' ') bytes)"
+    cp -f driver_test_gen.c "$GEN_DIR/driver_test.c"
+  else
+    "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/test.sx >"$GEN_DIR/driver_test.c"
+  fi
 
   echo "  cc -c gen_driver/driver_*.o <- src/driver/*.sx (-E-extern)"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_fmt.c" -o "$GEN_DIR/driver_fmt_sx.o"
@@ -4819,6 +4867,21 @@ if [ -x ./shux_asm ] && [ "$LINK_OK" -eq 1 ]; then
     ./scripts/shux_asm_postlink_smoke.sh ./shux_asm "${SHUX:-./shux}" || {
       echo "build_shux_asm: WARN shux_asm postlink smoke failed (strict relink -o broken)" >&2
     }
+  fi
+  if bootstrap_wants_nostdlib; then
+    _nostdlib_ok=0
+    if command -v readelf >/dev/null 2>&1; then
+      if ! readelf -d ./shux_asm 2>/dev/null | grep -q 'NEEDED'; then
+        _nostdlib_ok=1
+      fi
+    elif command -v ldd >/dev/null 2>&1; then
+      if ldd ./shux_asm 2>/dev/null | grep -q 'not a dynamic executable'; then
+        _nostdlib_ok=1
+      fi
+    fi
+    if [ "$_nostdlib_ok" -eq 1 ]; then
+      echo "build_shux_asm: bootstrap nostdlib final link OK (no libc/libm)"
+    fi
   fi
 fi
 exit 0

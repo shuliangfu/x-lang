@@ -7,11 +7,11 @@ const string = import("std.string");
 function main(): i32 {
   // StrView 零拷贝：直接对缓冲区做 view 操作，不 string_from_slice
   let buf: u8[8] = [97, 98, 99, 100, 101, 0, 0, 0];
-  let v: StrView = string.string_view(&buf[0], 5);
-  if (string.string_view_len(v) != 5) { return 1; }
-  if (string.string_view_is_empty(v) != 0) { return 2; }
+  let v: StrView = string.view(&buf[0], 5);
+  if (string.len(v) != 5) { return 1; }
+  if (string.is_empty(v) != 0) { return 2; }
   if (string.string_view_get(v, 0) != 97) { return 3; }
-  let v2: StrView = string.string_view(&buf[0], 5);
+  let v2: StrView = string.view(&buf[0], 5);
   if (string.string_view_eq(v, v2) != 1) { return 4; }
   if (string.string_view_compare(v, v2) != 0) { return 5; }
   if (string.string_view_find_char(v, 99) != 2) { return 6; }
@@ -28,7 +28,7 @@ function main(): i32 {
   // string_data_ptr：零拷贝输出，ptr 与 String 内部一致
   let p: *u8 = string.string_data_ptr(&s);
   if (p == 0) { return 13; }
-  if (string.string_len(s) != 5) { return 14; }
+  if (string.len(s) != 5) { return 14; }
   if (p[0] != 97 || p[1] != 98) { return 15; }
   if (string.string_len_ptr(&s) != 5) { return 16; }
   return 0;

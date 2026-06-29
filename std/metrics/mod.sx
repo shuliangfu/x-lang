@@ -22,7 +22,7 @@
 //
 // 【对标】Prometheus client 最小子集、Go expvar + metrics 组合风格。
 
-const fmt = import("core.fmt");
+const fmt = import("std.fmt");
 const atomic = import("std.atomic");
 const context = import("std.context");
 const encoding = import("std.encoding");
@@ -547,7 +547,7 @@ function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
   if (tr == 0 || tr.handle == zero || span.id == zero) { return obs; }
   obs.trace_handle = tr.handle;
   obs.span_id = span.id;
-  trace.trace_id(tr, &tid);
+  trace.id(tr, &tid);
   if (obs_encode_trace_id_hex(&obs, &tid) < 0) {
     return obs_ctx_empty();
   }
@@ -586,7 +586,7 @@ function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx {
   obs.trace_handle = h;
   obs.span_id = sid;
   if (tr != 0 && tr.handle == h) {
-    trace.trace_id(tr, &tid);
+    trace.id(tr, &tid);
     if (obs_encode_trace_id_hex(&obs, &tid) < 0) { return obs_ctx_empty(); }
   }
   if (obs_encode_span_id_hex(&obs, sid) < 0) { return obs_ctx_empty(); }
@@ -631,4 +631,3 @@ function obs_ctx_apply_trace_label(obs: *ObservabilityCtx, lbl: *Label): i32 {
   if (vlen > 31) { vlen = 31; }
   return label_set(lbl, &k[0], 8, &obs.trace_id_hex[0], vlen);
 }
-

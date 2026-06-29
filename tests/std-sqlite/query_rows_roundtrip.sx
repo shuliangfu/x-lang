@@ -39,12 +39,12 @@ function main(): i32 {
     sqlite.close(c);
     return 4;
   }
-  rows = sqlite.query_rows(c, &sql_all[0]);
+  rows = sqlite.rows(c, &sql_all[0]);
   if (rows != 2) {
     sqlite.close(c);
     return 5;
   }
-  rows = sqlite.query_rows(c, &sql_filter[0]);
+  rows = sqlite.rows(c, &sql_filter[0]);
   if (rows != 1) {
     sqlite.close(c);
     return 6;

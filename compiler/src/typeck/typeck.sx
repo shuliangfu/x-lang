@@ -83,6 +83,10 @@ got_ty_ref: i32): void;
 /** return 表达式类型与函数签名不符：stderr 含 typeck error（runtime.c）。 */
 extern function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32,
 expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+extern function driver_diagnostic_typeck_return_unresolved(line: i32, col: i32,
+expr_buf: *u8, expr_len: i32): void;
+extern function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32,
+expr_buf: *u8, expr_len: i32): void;
 /** 赋值类型不符：stderr 行文与 typeck.c + lsp_diag_report_typeck 一致（runtime.c）。 */
 extern function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32,
 expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
@@ -360,7 +364,7 @@ extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32
 /** 将 TypeKind 转为序数（与 ast.sx enum 顺序一致）；枚举值即 0..15，勿 16 路 if（自举 asm emit Abort）。 */
 function type_kind_ordinal(k: TypeKind): i32 {
   let o: i32 = k as i32;
-  if (o < 0 || o > 15) {
+  if (o < (TypeKind.TYPE_I32 as i32) || o > (TypeKind.TYPE_VOID as i32)) {
     return - 1;
   }
   return o;
@@ -3286,7 +3290,84 @@ ctx: *PipelineDepCtx): void {
   if (op_kind != ord_call) {
     return;
   }
-  (void)(typeck_check_expr_call_resolve(module, arena, op_ref, ctx));
+  typeck_check_expr_call_resolve(module, arena, op_ref, ctx);
+}
+
+/**
+ * return 诊断面包屑：格式化最小子表达式名，优先覆盖 `foo()` / `mod.fn()` / `var`。
+ */
+function typeck_return_breadcrumb_into(arena: *ASTArena, expr_ref: i32, out: *u8): i32 {
+  let ord_var: i32 = 3;
+  let ord_field: i32 = 44;
+  let ord_call: i32 = 48;
+  let kind: i32 = 0;
+  let base_ref: i32 = 0;
+  let callee_ref: i32 = 0;
+  let base_len: i32 = 0;
+  let field_len: i32 = 0;
+  let callee_len: i32 = 0;
+  if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return 0;
+  }
+  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (kind == ord_var) {
+    base_len = pipeline_expr_var_name_len(arena, expr_ref);
+    if (base_len <= 0 || base_len > 60) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, expr_ref, out);
+    out[base_len] = 0;
+    return base_len;
+  }
+  if (kind == ord_field) {
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    if (base_ref <= 0 || base_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != ord_var) {
+      return 0;
+    }
+    base_len = pipeline_expr_var_name_len(arena, base_ref);
+    field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (base_len <= 0 || field_len <= 0 || base_len + 1 + field_len > 60) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, out);
+    out[base_len] = 46;
+    pipeline_expr_field_access_name_into(arena, expr_ref, &out[base_len + 1]);
+    out[base_len + 1 + field_len] = 0;
+    return base_len + 1 + field_len;
+  }
+  if (kind == ord_call) {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    callee_len = typeck_return_breadcrumb_into(arena, callee_ref, out);
+    if (callee_len <= 0 || callee_len + 2 > 60) {
+      return 0;
+    }
+    out[callee_len] = 40;
+    out[callee_len + 1] = 41;
+    out[callee_len + 2] = 0;
+    return callee_len + 2;
+  }
+  return 0;
+}
+
+function typeck_emit_return_subexpr_breadcrumb(arena: *ASTArena, expr_ref: i32, line: i32,
+col: i32): void {
+  let buf: *u8 = typeck_scratch64_slot(2);
+  let bl: i32 = typeck_return_breadcrumb_into(arena, expr_ref, buf);
+  if (bl > 0) {
+    driver_diagnostic_typeck_return_subexpr(line, col, buf, bl);
+  }
+}
+
+function typeck_emit_return_unresolved_breadcrumb(arena: *ASTArena, expr_ref: i32, line: i32,
+col: i32): void {
+  let buf: *u8 = typeck_scratch64_slot(2);
+  let bl: i32 = typeck_return_breadcrumb_into(arena, expr_ref, buf);
+  if (bl > 0) {
+    driver_diagnostic_typeck_return_unresolved(line, col, buf, bl);
+  }
 }
 
 /** EXPR_FLOAT_LIT：填 float_bits 并设 resolved f64；glue 指针写池（EMIT_HEAVY SX emit）。 */
@@ -3726,6 +3807,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   /** 须在 check_expr 前 resolve import CALL（如 return result.ok_i32(...) C5/X9）。 */
   typeck_ret_fixup_unresolved_call(module, arena, op_ref, ctx);
   if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
+    if (ast.ref_is_null(expr_type_ref(arena, op_ref))) {
+      typeck_emit_return_unresolved_breadcrumb(arena, op_ref, line, col);
+    } else {
+      typeck_emit_return_subexpr_breadcrumb(arena, op_ref, line, col);
+    }
     driver_diagnostic_typeck_ret_fail(1, op_ref, return_type_ref, 0);
     return - 1;
   }
@@ -3798,6 +3884,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       el = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb);
       gl = typeck_diag_fmt_type_or_question(arena, got, gb);
       driver_diagnostic_typeck_return_mismatch(line, col, eb, el, gb, gl);
+      typeck_emit_return_subexpr_breadcrumb(arena, op_ref, line, col);
       driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
       return - 1;
     }
@@ -4883,6 +4970,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
   let err_line: i32 = pipeline_expr_line_at(arena, fin0);
   let err_col: i32 = pipeline_expr_col_at(arena, fin0);
   driver_diagnostic_typeck_return_mismatch(err_line, err_col, eb_fin, el_fin, gb_fin, gl_fin);
+  typeck_emit_return_subexpr_breadcrumb(arena, fin0, err_line, err_col);
   return - 1;
 }
 

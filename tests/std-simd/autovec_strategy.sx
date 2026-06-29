@@ -5,7 +5,7 @@ const simd = import("std.simd");
 
 function main(): i32 {
   let hw: i32 = simd.hw_available();
-  let path: i32 = simd.recommend_simd_path();
+  let path: i32 = simd.recommend_path();
   if (hw != 0 && path != 1) {
     return 1;
   }

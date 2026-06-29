@@ -19,6 +19,10 @@ if [ "$exitcode" -ne 42 ]; then
     exit 1
 fi
 
-# bootstrap：泛型 type_args 校验未完整实现时 wrong_type_args 可能误过；主路径 id<i32>(42) 已覆盖。
+GENERIC_ERR=$("$LINK_SHUX" -L . tests/generic/wrong_type_args.sx -o "${TMPDIR:-/tmp}/shux_generic_wrong" 2>&1 || true)
+echo "$GENERIC_ERR" | grep -q "expects 1 type arguments, got 2" || {
+    echo "expected generic type-arg count diagnostic, got: $GENERIC_ERR"
+    exit 1
+}
 
 echo "generic test OK"

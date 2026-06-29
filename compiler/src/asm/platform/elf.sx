@@ -87,6 +87,10 @@ struct ElfRelocEntry {
   name_len: i32;
 }
 
+struct ElfRelocSymName64 {
+  bytes: u8[64];
+}
+
 /** 导出符号（函数）：名称与在 .text 中的偏移。 */
 struct ElfSymEntry {
   name: u8[64];
@@ -114,7 +118,7 @@ allow(padding) struct ElfCodegenCtx {
   patches: ElfPatchEntry[16384];
   num_patches: i32;
   relocs: ElfRelocEntry[16384];
-  reloc_sym_names: u8[16384][64];
+  reloc_sym_names: ElfRelocSymName64[16384];
   num_relocs: i32;
   syms: ElfSymEntry[16384];
   num_syms: i32;
@@ -450,4 +454,3 @@ function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
 function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   return pipeline_elf_write_o_standard_to_buf_c(ctx as *u8, out);
 }
-

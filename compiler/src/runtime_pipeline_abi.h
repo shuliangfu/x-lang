@@ -244,10 +244,18 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
 int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n);
 
+/** 将传递闭包 merge 为 pipeline/asm_elf dep 列表（仅路径：direct import 槽对齐 + 路径去重）。 */
+int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+    char *out_paths[], int *out_n);
+
 /** 从入口 module import 递归收集传递 dep 源码；返回 0 成功，1 失败。 */
 int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps);
+
+/** 从入口 module import 递归收集传递 dep 路径（不保留 dep 源码文本，降低峰值内存）；返回 0 成功，1 失败。 */
+int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 
 /** asm_codegen_elf_o 前：skip_heavy 上下文 + ARRAY_LIT/SoA 类型补全（C typeck 跳过后）。 */
 void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx);

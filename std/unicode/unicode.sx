@@ -152,42 +152,42 @@ function unicode_is_combining_mark(rune: u32): i32 {
 }
 
 /** Unicode 分类（简化）：0 未知，1 Letter，2 Number，3 Whitespace。ASCII 查表，非 ASCII 返回 0。 */
-function unicode_category_c(rune: u32): i32 {
+function category(rune: u32): i32 {
   return unicode_ascii_cat_lookup(rune) as i32;
 }
 
 /** 是否为空白（\t \n \v \f \r 空格）。 */
-function unicode_is_whitespace_c(rune: u32): i32 {
+function is_whitespace(rune: u32): i32 {
   if (unicode_ascii_cat_lookup(rune) == U_CAT_WHITESPACE) { return 1; }
   return 0;
 }
 
 /** 是否为 ASCII（rune <= 127）。 */
-function unicode_is_ascii_c(rune: u32): i32 {
+function is_ascii(rune: u32): i32 {
   if (rune <= 127 as u32) { return 1; }
   return 0;
 }
 
 /** rune 转小写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
-function unicode_to_lower_c(rune: u32): u32 {
+function to_lower(rune: u32): u32 {
   if (rune >= 65 as u32 && rune <= 90 as u32) { return rune + 32; }
   return rune;
 }
 
 /** rune 转大写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
-function unicode_to_upper_c(rune: u32): u32 {
+function to_upper(rune: u32): u32 {
   if (rune >= 97 as u32 && rune <= 122 as u32) { return rune - 32; }
   return rune;
 }
 
 /** 是否为 Unicode 增补平面码点（U+10000 及以上）。 */
-function unicode_is_supplementary_c(rune: u32): i32 {
+function is_supplementary(rune: u32): i32 {
   if (rune > 0xFFFF as u32) { return 1; }
   return 0;
 }
 
 /** 缓冲 NFC（v1 拉丁预组合子集）；返回写入 out 的字节数，失败 -1。 */
-function unicode_nfc_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   let in_off: i32 = 0;
   let out_off: i32 = 0;
   let rune: u32 = 0;
@@ -212,7 +212,7 @@ function unicode_nfc_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
       && unicode_is_alpha_ascii(rune) != 0) {
       composed = unicode_nfc_compose_acute(rune);
       if (composed != 0) {
-        w = unicode_utf8_encode(composed, out + out_off, out_cap - out_off);
+        w = unicode_utf8_encode(composed, &out[out_off], out_cap - out_off);
         if (w <= 0) { return -1; }
         out_off = out_off + w;
         in_off = next_off + n2;
@@ -220,15 +220,19 @@ function unicode_nfc_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
       }
     }
     if (out_off + n > out_cap) { return -1; }
-    memcpy(out + out_off, in + in_off, n);
+    let k: i32 = 0;
+    while (k < n) {
+      out[out_off + k] = in[in_off + k];
+      k = k + 1;
+    }
     out_off = out_off + n;
     in_off = in_off + n;
   }
   return out_off;
 }
 
-/** 下一字素簇字节数（基字符 + U+0300..036F 附标）。 */
-function unicode_grapheme_next_c(s: *u8, len: i32, off: i32): i32 {
+/** 下一字素簇字节数（基字符 + U+0300..U+036F 附标）。 */
+function grapheme_next(s: *u8, len: i32, off: i32): i32 {
   let rune: u32 = 0;
   let mark: u32 = 0;
   let n: i32 = 0;
@@ -250,12 +254,12 @@ function unicode_grapheme_next_c(s: *u8, len: i32, off: i32): i32 {
 }
 
 /** 单码点 case fold（v1 委托 to_lower）。 */
-function unicode_case_fold_rune_c(rune: u32): u32 {
-  return unicode_to_lower_c(rune);
+function case_fold_rune(rune: u32): u32 {
+  return to_lower(rune);
 }
 
 /** 缓冲 case fold 输出 UTF-8；返回写入字节数，失败 -1。 */
-function unicode_case_fold_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   let in_off: i32 = 0;
   let out_off: i32 = 0;
   let rune: u32 = 0;
@@ -266,8 +270,8 @@ function unicode_case_fold_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): 
   while (in_off < in_len) {
     n = unicode_utf8_decode_at(in, in_len, in_off, &rune);
     if (n <= 0) { return -1; }
-    folded = unicode_case_fold_rune_c(rune);
-    w = unicode_utf8_encode(folded, out + out_off, out_cap - out_off);
+    folded = case_fold_rune(rune);
+    w = unicode_utf8_encode(folded, &out[out_off], out_cap - out_off);
     if (w <= 0) { return -1; }
     out_off = out_off + w;
     in_off = in_off + n;
@@ -276,14 +280,14 @@ function unicode_case_fold_buf_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): 
 }
 
 /** STD-114 C 烟测：grapheme + case fold 金样。 */
-function unicode_grapheme_case_smoke_c(): i32 {
+function grapheme_case_smoke(): i32 {
   let decomposed: u8[3] = [101, 0xCC, 0x81];
   let hello: u8[5] = [72, 101, 108, 108, 111];
   let fold: u8[8] = [];
   let n: i32 = 0;
-  if (unicode_grapheme_next_c(&decomposed[0], 3, 0) != 3) { return 1; }
-  if (unicode_grapheme_next_c(&hello[0], 5, 0) != 1) { return 2; }
-  n = unicode_case_fold_buf_c(&hello[0], 5, &fold[0], 8);
+  if (grapheme_next(&decomposed[0], 3, 0) != 3) { return 1; }
+  if (grapheme_next(&hello[0], 5, 0) != 1) { return 2; }
+  n = case_fold_buf(&hello[0], 5, &fold[0], 8);
   if (n != 5 || fold[0] != 104) { return 3; }
   return 0;
 }

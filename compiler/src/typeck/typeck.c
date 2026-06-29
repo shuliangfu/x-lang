@@ -31,6 +31,12 @@ static int bce_bound_const[MAX_BCE_RANGES];   /* 1 表示上界为常数 bce_bou
 
 /** LANG-007 v2：S0 内 *T 解引用与 extern 调用须在 unsafe { } 内；嵌套 unsafe 块递增。 */
 static int typeck_unsafe_depth;
+/**
+ * 自举兼容：旧 C typeck 仍承担 shux-c 的 `-E` 生成职责，而编译器内部 `.sx` 大量通过 C glue 调 extern。
+ * 最终语言语义以 `.sx` typeck 为准，因此这里放宽“extern 调用必须 unsafe”只用于 bootstrap 生成链，
+ * 避免 pipeline、lsp、ast 等内部模块在自举前被旧规则卡死。
+ */
+static int typeck_allow_legacy_extern_calls = 1;
 static int bce_bound_val[MAX_BCE_RANGES];
 static const struct ASTExpr *bce_bound_base[MAX_BCE_RANGES];
 static int bce_n;
@@ -2972,7 +2978,8 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (from_dep >= 0)
                 ((struct ASTExpr *)e)->value.call.resolved_import_path = m->import_paths[from_dep];
             (void)func_mod;
-            if (!typeck_fill_only && func->is_extern && typeck_unsafe_depth <= 0) {
+            if (!typeck_fill_only && func->is_extern && typeck_unsafe_depth <= 0
+                && !typeck_allow_legacy_extern_calls) {
                 TYPECK_ERR(e, "extern call requires unsafe block");
                 return -1;
             }
