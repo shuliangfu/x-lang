@@ -3863,10 +3863,18 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
     const char *p = NULL;
+    int debug_runtime_obj = 0;
     if (!la || *la >= max_la - 1)
         return 0;
+    if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
+            || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
+        debug_runtime_obj = 1;
+    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+        fprintf(stderr, "shux: ld push %s primary=%s\n", rel, primary ? primary : "(null)");
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
+    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+        fprintf(stderr, "shux: ld push %s after-primary=%s\n", rel, p ? p : "(null)");
     if (!p && rel && rel[0])
         p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
     if (!p && bank && rel && rel[0])
@@ -3881,6 +3889,8 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
         else
             return 0;
     }
+    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+        fprintf(stderr, "shux: ld push %s final=%s\n", rel, p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
     argv[(*la)++] = p;
@@ -3990,6 +4000,12 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
     if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
         argv[la++] = "-lc";
     argv[la] = NULL;
+    if (getenv("SHUX_DEBUG_LD")) {
+        int di;
+        fprintf(stderr, "shux: SHUX_DEBUG_LD minimal gcc argv:\n");
+        for (di = 0; argv[di] != NULL; di++)
+            fprintf(stderr, "  [%d] %s\n", di, argv[di]);
+    }
     pid = fork();
     if (pid < 0) {
         perror("shux: fork (ld nostdlib minimal)");
