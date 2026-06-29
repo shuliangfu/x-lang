@@ -3659,6 +3659,24 @@ static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     return 1;
 }
 
+/**
+ * `-E src/asm/asm.sx` 的 compiler-internal 闭包仅需 parse 填 import/签名槽；
+ * 对 `ast` 等大模块做 dep_prerun typeck 会显著拖慢甚至卡住 seed host 构建。
+ */
+static int driver_sx_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
+    if (!input_path || !dep_path)
+        return 0;
+    if (strstr(input_path, "src/asm/asm.sx") == NULL && strstr(input_path, "/asm/asm.sx") == NULL)
+        return 0;
+    if (strcmp(dep_path, "ast") == 0 || strcmp(dep_path, "codegen") == 0 || strcmp(dep_path, "backend") == 0 ||
+        strcmp(dep_path, "peephole") == 0)
+        return 1;
+    if (strncmp(dep_path, "asm.", 4) == 0 || strncmp(dep_path, "arch.", 5) == 0 ||
+        strncmp(dep_path, "platform.", 9) == 0)
+        return 1;
+    return 0;
+}
+
 #if !defined(SHUX_NO_C_FRONTEND)
 /**
  * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
@@ -5746,8 +5764,14 @@ int driver_run_sx_emit_c(void) {
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
-            ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
-                                                          dep_lens[j], (void *)dep_out, (void *)one_ctx);
+            if (driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
+                ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                                                             (const uint8_t *)dep_sources[j], dep_lens[j]);
+            } else {
+                ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
+                                                              (const uint8_t *)dep_sources[j], dep_lens[j],
+                                                              (void *)dep_out, (void *)one_ctx);
+            }
             driver_set_current_dep_path_for_codegen(NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
