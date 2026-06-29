@@ -25339,8 +25339,6 @@ int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct as
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;
   pipeline_typeck_patch_all_body_parent_links_c(module, arena);
-  if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0)
-    return -1;
   return 0;
 }
 
