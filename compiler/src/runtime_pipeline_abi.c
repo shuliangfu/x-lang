@@ -763,6 +763,7 @@ extern int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, st
                                                    struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_module_main_func_index(void *module);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_module_num_funcs(void *module);
 
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
@@ -959,9 +960,13 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
                     (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
         return load_rc;
     }
-    if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun call dep_prerun_module_c main=%d\n",
-                (int)pipeline_module_main_func_index(dep_mod));
+    if (getenv("SHUX_DEBUG_PIPE")) {
+        uint8_t dep_path_buf[64];
+        memset(dep_path_buf, 0, sizeof(dep_path_buf));
+        pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun call path=%s main=%d\n",
+                dep_path_buf[0] ? (char *)dep_path_buf : "?", (int)pipeline_module_main_func_index(dep_mod));
+    }
     tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                               (struct ast_PipelineDepCtx *)one_ctx);
     if (getenv("SHUX_DEBUG_PIPE") && tc_rc != 0)
