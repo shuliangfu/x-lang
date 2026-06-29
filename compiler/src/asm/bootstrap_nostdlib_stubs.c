@@ -570,9 +570,14 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
                 int si = 0;
                 if (!s)
                     s = "(null)";
-                while (s[si] && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = s[si++];
-                break;
+                while (s[si]) {
+                    if (pos + 1 < size)
+                        buf[pos] = s[si];
+                    pos++;
+                    si++;
+                }
+                fmt++;
+                continue;
             }
             case 'd': {
                 long v = longmod ? va_arg(ap, long) : va_arg(ap, int);
