@@ -2949,6 +2949,12 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     if (!opt_level || !*opt_level) opt_level = "2";
     if (include_root && include_root[0])
         ensure_std_net_o_auto_tls(include_root);
+    if (process_o && process_o[0] && access(process_o, R_OK) == 0) {
+        if (shux_ensure_runtime_process_argv_o(NULL) != 0)
+            return -1;
+        if (shux_ensure_runtime_process_os_glue_o(NULL) != 0)
+            return -1;
+    }
     pid_t pid = fork();
     if (pid < 0) {
         perror("shux: fork");
