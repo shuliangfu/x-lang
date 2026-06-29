@@ -235,7 +235,7 @@
 | std.string | 无独立，const[] u8 + std.mem | std::str + std::string | 我们有 String/StrView。 |
 | std.vec | ArrayList 等 | std::vec::Vec | 三者均有。 |
 | std.map | HashMap/ArrayHashMap | std::collections::HashMap | 三者均有。 |
-| std.error | 错误联合类型 | std::error | 三者均有。 |
+| std.error | 错误值/错误接口模型 | std::error | 三者均有。 |
 | std.net | std.net | std::net | 三者均有。 |
 | std.thread | Thread | std::thread | 三者均有。 |
 | std.time | std.time | std::time | P1。 |
