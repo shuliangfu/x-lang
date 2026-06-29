@@ -64,6 +64,7 @@ tier-e	ffi_cb_double_i32_fn_c	stdlib	FFI callback trampoline; untyped fn pointer
 tier-e	ffi_invoke_i32_cb_c	stdlib	FFI callback invoke; caller validates cb handle	v1-baseline	2026-06-19
 tier-e	runtime_panic	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
 tier-e	runtime_abort	stdlib	Explicit process abort only; not for recoverable errors	v1-baseline	2026-06-17
+tier-e	crash_evidence_collect	stdlib	STD-028 panic pre-exit evidence hook; panic path only	v1-baseline	2026-06-30
 tier-e	runtime_crash_evidence_collect_c	stdlib	STD-028 weak crash evidence hook; panic path only	v1-baseline	2026-06-19
 tier-e	dynlib_open_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
 tier-e	dynlib_sym_c	stdlib	dlopen/dlsym; untyped *u8 handles	v1-baseline	2026-06-17
