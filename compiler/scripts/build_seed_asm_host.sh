@@ -47,6 +47,15 @@ if [ ! -x "$SHUX_E" ]; then
   exit 1
 fi
 
+# `asm.sx -E` 依赖最新的 .sx pipeline/runtime 修复；若已有 `shux-sx`，优先用它而不是
+# 更老的 bootstrap_shuxc/host seed，避免 0 字节且无 stderr 的假失败。
+SHUX_ASM_E="${SHUX_ASM_E:-$SHUX_E}"
+if can_seed_run ./shux-sx; then
+  SHUX_ASM_E=./shux-sx
+elif can_seed_run ./shux; then
+  SHUX_ASM_E=./shux
+fi
+
 CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare"
 if $CC --version 2>/dev/null | grep -qi clang; then
@@ -63,11 +72,11 @@ run_asm_sx_emit_c() {
   _err="$2"
   _start=$(date +%s)
   _run() {
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
   }
   _run_bg() {
     # 回退仍须全量 -L；仅 -L src/asm 无法 resolve import codegen/ast 等。
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm.sx >"$_out" 2>"$_err"
   }
   _wait_with_heartbeat() {
     _pid=$1
