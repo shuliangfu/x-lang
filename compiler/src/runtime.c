@@ -3685,6 +3685,12 @@ static int driver_sx_emit_asm_direct_import_only(const char *input_path) {
     return 0;
 }
 
+static int driver_sx_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
+    if (!driver_sx_emit_asm_direct_import_only(input_path) || !dep_path)
+        return 0;
+    return strcmp(dep_path, "backend") == 0;
+}
+
 #if !defined(SHUX_NO_C_FRONTEND)
 /**
  * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
@@ -5764,7 +5770,9 @@ int driver_run_sx_emit_c(void) {
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
         driver_dep_seeded_clear_all();
-        for (int j = n_deps - 1; !asm_direct_import_only && j >= 0; j--) {
+        for (int j = n_deps - 1; j >= 0; j--) {
+            if (asm_direct_import_only && !driver_sx_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j]))
+                continue;
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             int ec_dep;
@@ -5784,7 +5792,11 @@ int driver_run_sx_emit_c(void) {
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
-            if (asm_direct_import_only || driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
+            if (driver_sx_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j])) {
+                ec_dep = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                                                                    (const uint8_t *)dep_sources[j], dep_lens[j],
+                                                                    (void *)dep_out, (void *)one_ctx);
+            } else if (asm_direct_import_only || driver_sx_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_sources[j], dep_lens[j]);
             } else {
