@@ -4,6 +4,7 @@
 struct ast_Module;
 struct backend_AsmFuncCtx;
 struct platform_elf_ElfCodegenCtx;
+struct codegen_CodegenOutBuf;
 
 extern uint8_t *lsp_io_lsp_alloc(size_t size);
 extern void lsp_io_lsp_free(uint8_t *ptr);
@@ -35,11 +36,31 @@ extern void pipeline_module_struct_layout_set_packed(struct ast_Module *module, 
 extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index);
+extern int32_t pipeline_module_num_funcs(struct ast_Module *mod);
+extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t func_index);
+extern int32_t pipeline_module_func_param_name_len_at(struct ast_Module *mod, int32_t func_idx, int32_t param_ix);
+extern void pipeline_module_func_param_name_copy32(struct ast_Module *mod, int32_t func_idx, int32_t param_ix,
+                                                   uint8_t *dst);
+extern int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index);
+extern int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index);
+extern void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst);
 extern int32_t pipeline_asm_block_final_expr_ref_at(void *arena, int32_t br);
 extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t br);
 extern int32_t ast_ast_block_expr_stmt_ref(void *arena, int32_t br, int32_t ei);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_call_num_args_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_call_arg_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_call_callee_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len);
 
 __attribute__((weak)) uint8_t *typeck_lsp_alloc(size_t size) {
   return lsp_io_lsp_alloc(size);
@@ -173,6 +194,145 @@ __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, 
     }
   }
   return found == 1 ? op_ref : 0;
+}
+
+static int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
+                                          int32_t param_ix) {
+  uint8_t pbuf[32];
+  uint8_t vbuf[64];
+  int32_t plen;
+  int32_t vlen;
+  int32_t k;
+
+  if (!arena || !mod || expr_ref <= 0 || param_ix < 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
+    return 0;
+  plen = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
+  vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (plen <= 0 || plen != vlen || plen > 31)
+    return 0;
+  pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, pbuf);
+  pipeline_expr_var_name_into(arena, expr_ref, vbuf);
+  for (k = 0; k < plen; k++) {
+    if (pbuf[k] != vbuf[k])
+      return 0;
+  }
+  return 1;
+}
+
+static int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
+  if (!arena || !mod || func_idx < 0 || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
+    return 0;
+  return shux_expr_is_func_param_at(arena, mod, func_idx, pipeline_expr_field_access_base_ref(arena, expr_ref), 0);
+}
+
+static int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+  int32_t fi;
+  int32_t flen;
+  uint8_t fb[64];
+  int32_t k;
+
+  if (!mod || !name || name_len <= 0 || name_len > 63)
+    return -1;
+  for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
+    flen = pipeline_asm_module_func_name_len_at(mod, fi);
+    if (flen != name_len)
+      continue;
+    pipeline_asm_module_func_name_copy64(mod, fi, fb);
+    for (k = 0; k < name_len; k++) {
+      if (fb[k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return fi;
+  }
+  return -1;
+}
+
+__attribute__((weak)) int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
+                                                                         int32_t func_idx) {
+  int32_t ret_ref;
+  int32_t al;
+  int32_t ar;
+
+  ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
+  if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != 4)
+    return 0;
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (!shux_expr_is_param0_field_access(arena, mod, func_idx, al))
+    return 0;
+  return shux_expr_is_param0_field_access(arena, mod, func_idx, ar) ? 1 : 0;
+}
+
+__attribute__((weak)) int32_t backend_fold_func_returns_param0_single_field(void *arena, struct ast_Module *mod,
+                                                                            int32_t func_idx) {
+  int32_t ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  return shux_expr_is_param0_field_access(arena, mod, func_idx, ret_ref);
+}
+
+__attribute__((weak)) int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, int32_t func_idx,
+                                                               int32_t depth) {
+  int32_t ret_ref;
+  int32_t right_ref;
+  int32_t left_ref;
+  int32_t arg0;
+  int32_t callee_ref;
+  int32_t clen;
+  uint8_t cname[64];
+  int32_t inner_fi;
+  int32_t inner_k;
+  int32_t addend;
+
+  if (depth > 12 || !arena || !mod || func_idx < 0)
+    return -1;
+  if (pipeline_asm_module_func_is_extern_at(mod, func_idx) != 0)
+    return -1;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 1)
+    return -1;
+  ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, ret_ref) != 4 && pipeline_expr_kind_ord_at(arena, ret_ref) != 51)
+    return -1;
+  right_ref = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (pipeline_expr_kind_ord_at(arena, right_ref) != 0)
+    return -1;
+  addend = pipeline_expr_int_val_at(arena, right_ref);
+  left_ref = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  if (shux_expr_is_func_param_at(arena, mod, func_idx, left_ref, 0) != 0)
+    return addend;
+  if (pipeline_expr_kind_ord_at(arena, left_ref) != 48)
+    return -1;
+  if (pipeline_expr_call_num_args_at(arena, left_ref) != 1)
+    return -1;
+  arg0 = pipeline_expr_call_arg_ref(arena, left_ref, 0);
+  if (shux_expr_is_func_param_at(arena, mod, func_idx, arg0, 0) == 0)
+    return -1;
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, left_ref);
+  if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3)
+    return -1;
+  clen = pipeline_expr_var_name_len(arena, callee_ref);
+  if (clen <= 0 || clen > 63)
+    return -1;
+  pipeline_expr_var_name_into(arena, callee_ref, cname);
+  inner_fi = shux_module_func_index_by_name(mod, cname, clen);
+  if (inner_fi < 0)
+    return -1;
+  inner_k = backend_fold_func_x_plus_k_chain(arena, mod, inner_fi, depth + 1);
+  if (inner_k < 0)
+    return -1;
+  return inner_k + addend;
+}
+
+__attribute__((weak)) int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+  uint8_t line1[16] = {'m', 'o', 'v', 'q', ' ', '%', 'r', 's', 'p', ',', ' ', '%', 'r', 'b', 'p', 0};
+  uint8_t line2[4] = {'r', 'e', 't', 0};
+  (void)frame_sz;
+  if (append_asm_line(out, line1, 15) != 0)
+    return -1;
+  return append_asm_line(out, line2, 3);
 }
 
 __attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {

@@ -1319,7 +1319,7 @@ if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$
   "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
 fi
 ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
-ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o"
+ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o $BUILD_DIR/cfg_eval_link_merged.o"
 
 ST_PARSER_SX_TAIL=""
 PARSER_ALIAS_LINK=""
@@ -1427,6 +1427,16 @@ ensure_typeck_f64_bits_obj() {
     "$CC" $CFLAGS -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits.c
   fi
 }
+ensure_cfg_eval_link_obj() {
+  local o="$BUILD_DIR/cfg_eval_link_merged.o"
+  if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "src/lexer/cfg_eval_link_alias.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc/ld cfg_eval_link_merged.o <- cfg_eval_gen.c + cfg_eval_link_alias.c"
+    mkdir -p "$BUILD_DIR"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/cfg_eval_sx.strict.o" src/lexer/cfg_eval_gen.c
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/cfg_eval_link_alias.strict.o" src/lexer/cfg_eval_link_alias.c
+    "$LD" $LD_RELFLAGS -r -o "$o" "$BUILD_DIR/cfg_eval_sx.strict.o" "$BUILD_DIR/cfg_eval_link_alias.strict.o"
+  fi
+}
 ensure_runtime_abi_obj
 ensure_runtime_io_abi_obj
 ensure_runtime_proc_abi_obj
@@ -1434,6 +1444,7 @@ ensure_runtime_link_abi_obj
 ensure_seed_autovec_obj
 ensure_codegen_pipeline_stubs_obj
 ensure_typeck_f64_bits_obj
+ensure_cfg_eval_link_obj
 
 echo "relink_shux_asm_strict_glue: linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...) ..."
 # Linux strict 链：runtime_panic + liburing（与 build_shux_asm PIPELINE_LIBS 一致）。
