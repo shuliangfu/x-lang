@@ -2344,12 +2344,8 @@ strict_asm_backend_companion_objs() {
     printf '%s\n' "$BUILD_DIR/backend_wpo.o $BUILD_DIR/backend_asm_bare_link_alias.o $BUILD_DIR/asm_backend_seed_helper_partial.o"
     return 0
   fi
-  if asm_strict_backend_selfhosted; then
-    ensure_backend_asm_strict_fallback_alias_obj >&2 || return 1
-    printf '%s\n' "$BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o"
-    return 0
-  fi
-  printf '%s\n' "$BUILD_DIR/seed_host/asm_backend_partial.o"
+  ensure_backend_asm_strict_fallback_alias_obj >&2 || return 1
+  printf '%s\n' "$BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o"
   return 0
 }
 
