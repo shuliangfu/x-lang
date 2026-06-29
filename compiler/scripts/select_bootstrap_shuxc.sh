@@ -30,16 +30,19 @@ can_run() {
       FreeBSD-*) echo "$ft" | grep -qi "ELF.*x86-64\|ELF.*aarch64" || return 1 ;;
     esac
   fi
-  "$1" -h >/dev/null 2>&1 && return 0
-  "$1" --help >/dev/null 2>&1 && return 0
   tmp="/tmp/shux_can_run_$$.sx"
+  obj="/tmp/shux_can_run_out_$$.o"
   out="/tmp/shux_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
-  if "$1" -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
-    rm -f "$tmp" "$out" 2>/dev/null || true
+  if "$1" -c "$tmp" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+    rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
     return 0
   fi
-  rm -f "$tmp" "$out" 2>/dev/null || true
+  if "$1" -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
+    rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
+    return 0
+  fi
+  rm -f "$tmp" "$obj" "$out" 2>/dev/null || true
   return 1
 }
 

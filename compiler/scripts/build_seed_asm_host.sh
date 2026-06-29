@@ -14,20 +14,33 @@ case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_
 case "$_seed_os" in darwin) _seed_os="darwin" ;; linux) _seed_os="linux" ;; esac
 HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 
+can_seed_run() {
+  [ -x "$1" ] || return 1
+  _tmp="/tmp/shux_build_seed_can_run_$$.sx"
+  _obj="/tmp/shux_build_seed_can_run_$$.o"
+  printf '%s\n' 'function main(): i32 { return 0; }' >"$_tmp"
+  if "$1" -c "$_tmp" -o "$_obj" >/dev/null 2>&1 && [ -s "$_obj" ]; then
+    rm -f "$_tmp" "$_obj" 2>/dev/null || true
+    return 0
+  fi
+  rm -f "$_tmp" "$_obj" 2>/dev/null || true
+  return 1
+}
+
 SHUX_E=./bootstrap_shuxc
-if [ -x "$HOST_SEED" ] && "$HOST_SEED" -h >/dev/null 2>&1; then
+if can_seed_run "$HOST_SEED"; then
   SHUX_E="$HOST_SEED"
-elif [ -x ./bootstrap_shuxc ] && ./bootstrap_shuxc -h >/dev/null 2>&1; then
+elif can_seed_run ./bootstrap_shuxc; then
   SHUX_E=./bootstrap_shuxc
-elif [ -x ./shux-c ] && ./shux-c -h >/dev/null 2>&1; then
+elif can_seed_run ./shux-c; then
   SHUX_E=./shux-c
-elif [ -x ./shux-seed-phase1 ] && ./shux-seed-phase1 -h >/dev/null 2>&1; then
+elif can_seed_run ./shux-seed-phase1; then
   SHUX_E=./shux-seed-phase1
-elif [ -x ./shux-sx ] && ./shux-sx -h >/dev/null 2>&1; then
+elif can_seed_run ./shux-sx; then
   SHUX_E=./shux-sx
-elif [ -x ./shux ] && ./shux -h >/dev/null 2>&1; then
+elif can_seed_run ./shux; then
   SHUX_E=./shux
-elif [ -x ./shux_asm ] && ./shux_asm -h >/dev/null 2>&1; then
+elif can_seed_run ./shux_asm; then
   SHUX_E=./shux_asm
 fi
 if [ ! -x "$SHUX_E" ]; then
