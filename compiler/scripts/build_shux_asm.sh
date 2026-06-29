@@ -4138,6 +4138,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           "$BUILD_DIR/std_fs_shim.o" \
           src/std_sys_shim.o \
           "$BUILD_DIR/sx_seed_bridge.o" \
+          "$BUILD_DIR/seed_link_compat.o" \
           "$BUILD_DIR/seed_host/asm_backend_partial.o" \
           $ASM_LINK_STUBS_O \
           src/asm/user_asm_seed_bridge.o \
@@ -4412,7 +4413,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                     echo "build_shux_asm: strict link backend_wpo.o (WPO reach OK)"
                   fi
                   ensure_asm_backend_compat_stubs_obj
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 else
                   # legacy：须 seed C 前端 *.o 在前、*_sx.o 在后（macOS ld 重复符号取后定义）。
                   # E-06 v3 SX：仅 async seed + SX glue；parser_sx.o 在 ST_PARSER_SX_TAIL 压过重复符号。
@@ -4426,7 +4427,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ensure_ast_pool_l5_bridge_obj
                   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
                   ensure_asm_backend_compat_stubs_obj
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 fi
               elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
                 ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
