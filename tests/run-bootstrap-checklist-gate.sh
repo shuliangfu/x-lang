@@ -113,10 +113,10 @@ run_section_4() {
   fi
 }
 
-# ── §五 编译器与工具链（C5/C6 + §9.1 语义债）──
+# ── §五 编译器与工具链（C5/C6/C9 + §9.1 语义债）──
 run_section_5() {
   should_run_section 5 || return 0
-  section_banner 5 "编译器与工具链（C5 spill / C6 asm -o / §9.1）"
+  section_banner 5 "编译器与工具链（C5 spill / C6 asm -o / C9 stdout / §9.1）"
   gate_progress "C5: regalloc × Result spill ..."
   if run_gate_script run-comp-regalloc-result-spill-gate.sh; then
     record_ok 5 "C5 spill gate"
@@ -138,6 +138,12 @@ run_section_5() {
     fi
   else
     record_warn 5 "C6 asm -o" "asm -o 失败（键 C 阻塞）"
+  fi
+  gate_progress "C9: 非 TTY stdout 不挂起 ..."
+  if run_gate_script run-non-tty-stdout-gate.sh; then
+    record_ok 5 "C9 non-tty stdout"
+  else
+    record_fail 5 "C9 non-tty stdout" "gate failed"
   fi
   gate_progress "§9.1: codegen 语义债回归 ..."
   if [ "$FAST" = "1" ]; then
