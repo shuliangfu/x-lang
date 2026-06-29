@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "runtime_pipeline_abi.h"
+
 struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
@@ -29,7 +31,6 @@ typedef struct {
 } pipeline_glue_AsmFuncCtxLayout;
 
 extern void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a);
-extern int32_t pipeline_dep_ctx_target_arch(struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_emit_set_module(struct ast_Module *m);
 extern void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena);
@@ -76,6 +77,10 @@ static void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, st
   memset(ctx, 0, sizeof(*ctx));
   ctx->label_counter = label_counter;
   ctx->module_ref = mod;
+}
+
+__attribute__((weak)) int32_t pipeline_dep_ctx_target_arch(struct ast_PipelineDepCtx *ctx) {
+  return ctx ? ctx->target_arch : 0;
 }
 
 int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_ASTArena *arena,
