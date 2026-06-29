@@ -120,8 +120,8 @@ run_asm_sx_emit_c() {
   rm -f "$_out" "$_err"
   _run &
   _pid=$!
-  _wait_with_heartbeat "$_pid" "asm.sx -E LIB_ASM"
-  _erc=$?
+  _erc=0
+  _wait_with_heartbeat "$_pid" "asm.sx -E LIB_ASM" || _erc=$?
   if _emit_c_usable; then
     return 0
   fi
@@ -132,8 +132,8 @@ run_asm_sx_emit_c() {
   _start=$(date +%s)
   _run &
   _pid=$!
-  _wait_with_heartbeat "$_pid" "asm.sx -E retry"
-  _erc=$?
+  _erc=0
+  _wait_with_heartbeat "$_pid" "asm.sx -E retry" || _erc=$?
   if _emit_c_usable; then
     return 0
   fi
