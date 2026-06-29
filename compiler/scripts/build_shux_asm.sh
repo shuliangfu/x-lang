@@ -2224,6 +2224,15 @@ ensure_backend_asm_bare_link_alias_obj() {
   fi
 }
 
+# strict 非 WPO backend fallback：给 user_asm_seed_bridge 提供 backend_* 强桥接，避免落到 seed weak return -1 桩。
+ensure_backend_asm_strict_fallback_alias_obj() {
+  local ALIAS_O="$BUILD_DIR/backend_asm_strict_fallback_alias.o"
+  if [ ! -f "$ALIAS_O" ] || [ backend_asm_strict_fallback_alias.c -nt "$ALIAS_O" ]; then
+    echo "  cc -c backend_asm_strict_fallback_alias.c -> $ALIAS_O"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" backend_asm_strict_fallback_alias.c
+  fi
+}
+
 # strict 链：compat stubs 须随源码重编（勿用 src/asm/*.o 陈旧副本）。
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
@@ -2336,7 +2345,9 @@ strict_asm_backend_companion_objs() {
     return 0
   fi
   if asm_strict_backend_selfhosted; then
-    :
+    ensure_backend_asm_strict_fallback_alias_obj >&2 || return 1
+    printf '%s\n' "$BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o"
+    return 0
   fi
   printf '%s\n' "$BUILD_DIR/seed_host/asm_backend_partial.o"
   return 0
@@ -2909,13 +2920,18 @@ ensure_asm_bootstrap_sx_companion_objs() {
 BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_sx.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/lsp/lsp_heap_bootstrap.o"
+GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/lsp/lsp_heap_bootstrap.o"
 
 # gen_driver 回退链：pipeline_sx.o / runtime_driver 须 parser/lexer/codegen SX + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
 GEN_DRIVER_SX_PIPELINE_COMPANIONS="parser_sx.o lexer_sx.o codegen_sx.o lexer_sx_link_alias.o codegen_sx_link_alias.o driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-shux 对齐：pipeline_sx.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
+  if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+    || [ "backend_asm_strict_fallback_alias.c" -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
+    echo "  cc -c backend_asm_strict_fallback_alias.c -> $BUILD_DIR/backend_asm_strict_fallback_alias.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" backend_asm_strict_fallback_alias.c
+  fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] \
     || [ "src/asm/asm_backend_compat_stubs.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
     echo "  cc -c src/asm/asm_backend_compat_stubs.c -> src/asm/asm_backend_compat_stubs.o"
