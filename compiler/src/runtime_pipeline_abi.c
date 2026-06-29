@@ -600,7 +600,7 @@ void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ct
             ast_pipeline_dep_ctx_set_import_path(ctx, i, (uint8_t *)import_paths[i], pl);
         }
     }
-    ast_pipeline_dep_ctx_set_ndep(ctx, n);
+    /* 仅镜像 import path；ndep 保持 0，让 entry pipeline 自行 load/sync direct imports。 */
 }
 
 /**
