@@ -64,6 +64,7 @@ extern long shux_sys_write(int fd, const void *buf, unsigned long len);
 extern long shux_sys_read(int fd, void *buf, unsigned long len);
 extern long shux_sys_close(int fd);
 extern void *shux_sys_mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
+extern long shux_sys_munmap(void *addr, unsigned long len);
 extern void shux_sys_exit(int code) __attribute__((noreturn));
 
 #ifndef ARCH_SET_FS
@@ -366,6 +367,36 @@ unsigned long strtoul(const char *nptr, char **endptr, int base) {
   if (v < 0)
     return 0UL;
   return (unsigned long)v;
+}
+
+/** glibc 2.38+ 可能把 strto* 重写到 __isoc23_*；nostdlib 链直接回落到本地最小实现。 */
+long __isoc23_strtol(const char *nptr, char **endptr, int base) {
+  return strtol(nptr, endptr, base);
+}
+
+/** 兼容 glibc 新符号名，避免 runtime_driver_abi / pipeline_sx 在 nostdlib 链丢失解析符号。 */
+unsigned long __isoc23_strtoul(const char *nptr, char **endptr, int base) {
+  return strtoul(nptr, endptr, base);
+}
+
+/** mmap 最小包装：将裸 syscall 的负 errno 返回归一化为 MAP_FAILED。 */
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off) {
+  uintptr_t raw = (uintptr_t)shux_sys_mmap(addr, (unsigned long)len, prot, flags, fd, (long)off);
+  if (raw >= (uintptr_t)-4095) {
+    bootstrap_errno = -(int)(intptr_t)raw;
+    return (void *)-1;
+  }
+  return (void *)raw;
+}
+
+/** munmap 最小包装：将裸 syscall 的负 errno 返回归一化为 -1。 */
+int munmap(void *addr, size_t len) {
+  long rc = shux_sys_munmap(addr, (unsigned long)len);
+  if (rc < 0) {
+    bootstrap_errno = (int)(-rc);
+    return -1;
+  }
+  return 0;
 }
 
 /** 限定长度拷贝；保证 dest 以 NUL 结尾。 */

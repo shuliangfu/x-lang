@@ -2783,7 +2783,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
     mkdir -p "$BUILD_DIR/gen_driver"
     if [ -f pipeline_gen.c ] && [ -s pipeline_gen.c ]; then
       cp -f pipeline_gen.c "$GEN_PIPELINE"
-      perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
+      if [ -f scripts/patch_pipeline_gen_ast_layout.pl ]; then
+        perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
+      fi
       echo "  pinned pipeline_gen.c -> $GEN_PIPELINE ($(wc -c <"$GEN_PIPELINE" | tr -d ' ') bytes)"
     else
     SHUX_E_LOCAL="${SHUX_E:-}"
@@ -2801,7 +2803,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
     echo "  $SHUX_E_LOCAL -E -E-extern pipeline.sx -> $GEN_PIPELINE (glue standalone types) ..."
     "$SHUX_E_LOCAL" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess \
       -E -E-extern src/pipeline/pipeline.sx >"$GEN_PIPELINE"
-    perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
+    if [ -f scripts/patch_pipeline_gen_ast_layout.pl ]; then
+      perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_PIPELINE"
+    fi
     fi
     perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$GEN_PIPELINE" 2>/dev/null || true
     perl scripts/fix_slim_arena_gen_c.pl "$GEN_PIPELINE" 2>/dev/null || true
@@ -3260,7 +3264,9 @@ ensure_asm_gen_driver_sx_objs() {
     echo "  $SHUX_E -E -E-extern pipeline.sx -> $GEN_DIR/pipeline_gen.c ..."
     "$SHUX_E" $LIB_E_PIPELINE -E -E-extern src/pipeline/pipeline.sx >"$GEN_DIR/pipeline_gen.c"
   fi
-  perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_DIR/pipeline_gen.c"
+  if [ -f scripts/patch_pipeline_gen_ast_layout.pl ]; then
+    perl scripts/patch_pipeline_gen_ast_layout.pl "$GEN_DIR/pipeline_gen.c"
+  fi
   dedupe_shux_slice_struct "$GEN_DIR/pipeline_gen.c"
   if [ -f lsp_io_gen.c ] && [ -s lsp_io_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
     echo "  pinned lsp_io_gen.c -> $GEN_DIR/lsp_io_gen.c ($(wc -c <lsp_io_gen.c | tr -d ' ') bytes)"

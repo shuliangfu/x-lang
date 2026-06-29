@@ -468,6 +468,17 @@ __attribute__((weak)) int32_t backend_asm_codegen_ast_to_elf_seed_mega(void *mod
 extern int32_t peephole_peephole_run(void *out_buf);
 extern int32_t peephole_peephole_elf_run(void *elf_ctx);
 
+/* experimental bootstrap 里 build_asm/peephole.o 可能退化成 CI text stub；此时用弱兜底保证可链接。 */
+__attribute__((weak)) int32_t peephole_peephole_run(void *out_buf) {
+  (void)out_buf;
+  return 0;
+}
+
+__attribute__((weak)) int32_t peephole_peephole_elf_run(void *elf_ctx) {
+  (void)elf_ctx;
+  return 0;
+}
+
 int32_t peephole_run(void *out_buf) {
   return peephole_peephole_run(out_buf);
 }
