@@ -314,6 +314,8 @@ extern function pipeline_block_resolve_var_type_ref(arena: *ASTArena, block_ref:
 vlen: i32): i32;
 extern function pipeline_expr_method_call_base_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_method_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_method_call_name_len(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_method_call_name_into(arena: *ASTArena, expr_ref: i32, out64: *u8): void;
 /** import 限定符号 field 层 scratch（ast_pool.c；与 backend.sx 共用）。 */
 extern function asm_qual_sym_layer_reset(): void;
 extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
@@ -452,6 +454,29 @@ nm_len: i32): bool {
     i = i + 1;
   }
   return true;
+}
+
+/** EXPR_VAR 合法未解析名：import binding 名或 import 路径首段前缀。 */
+function typeck_var_is_import_visible_name(module: *Module, nm: *u8, nlen: i32): bool {
+  let ii: i32 = 0;
+  let import_kind: i32 = 0;
+  let seg_rel: i32 = 0;
+  let seg_len: i32 = 0;
+  if (module == 0 as *Module || nm == 0 as *u8 || nlen <= 0) {
+    return false;
+  }
+  while (ii < module.num_imports) {
+    import_kind = pipeline_module_import_kind_at(module, ii);
+    if (import_kind == 1 && typeck_import_binding_name_equal(module, ii, nm, nlen)) {
+      return true;
+    }
+    if (typeck_import_segment_at(module, ii, 0, &seg_rel, &seg_len) &&
+        typeck_import_path_slice_equal(module, ii, seg_rel, seg_len, nm, nlen)) {
+      return true;
+    }
+    ii = ii + 1;
+  }
+  return false;
 }
 
 /** 比较 import 解构选取名与外部字节序列是否相等。 */
@@ -2291,6 +2316,58 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
         func_index_out);
         if (ret_b != 0) {
           if (dep_index_out != 0 as * i32) {
+            typeck_i32_ptr_store(dep_index_out, ii);
+          }
+          return ret_b;
+        }
+      }
+      break;
+    }
+    ii = ii + 1;
+  }
+  return 0;
+}
+
+/** METHOD_CALL 的 import binding 解析：`binding.func(args)`。 */
+function resolve_method_call_binding_import_return_type(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32 {
+  let ord_var: i32 = 3;
+  let ord_import_binding: i32 = 1;
+  let base_ref: i32 = 0;
+  let base_len: i32 = 0;
+  let method_len: i32 = 0;
+  let ii: i32 = 0;
+  let ret_b: i32 = 0;
+  let dm: *Module = 0 as *Module;
+  let import_kind: i32 = 0;
+  let base_nm: u8[64] = [];
+  let method_nm: u8[64] = [];
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs || module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  if (base_ref <= 0 || base_ref > arena.num_exprs) {
+    return 0;
+  }
+  if (pipeline_expr_kind_ord_at(arena, base_ref) != ord_var) {
+    return 0;
+  }
+  base_len = pipeline_expr_var_name_len(arena, base_ref);
+  method_len = pipeline_expr_method_call_name_len(arena, expr_ref);
+  if (base_len <= 0 || base_len > 63 || method_len <= 0 || method_len > 63) {
+    return 0;
+  }
+  pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
+  pipeline_expr_method_call_name_into(arena, expr_ref, &method_nm[0]);
+  while (ii < module.num_imports) {
+    import_kind = pipeline_module_import_kind_at(module, ii);
+    if (import_kind == ord_import_binding && typeck_import_binding_name_equal(module, ii, &base_nm[0], base_len)) {
+      dm = pipeline_dep_ctx_module_at(ctx, ii);
+      if (dm != 0 as *Module) {
+        ret_b = find_func_return_type_in_module_by_name(dm, arena, &method_nm[0], method_len, ii, ctx,
+          func_index_out);
+        if (ret_b != 0) {
+          if (dep_index_out != 0 as *i32) {
             typeck_i32_ptr_store(dep_index_out, ii);
           }
           return ret_b;
@@ -4345,6 +4422,9 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
   }
+  if (typeck_var_is_import_visible_name(module, vbuf, vnlen)) {
+    return 0;
+  }
   if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
     return - 1;
   }
@@ -4375,14 +4455,24 @@ function typeck_check_expr_method_call(module: *Module, arena: *ASTArena, expr_r
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let base_ref: i32 = 0;
   let num_args: i32 = 0;
+  let dep_ix: i32 = -1;
+  let func_ix: i32 = -1;
+  let ret_ty: i32 = 0;
   ast.expr_init_call_resolve(arena, expr_ref);
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
   if (check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
     return - 1;
   }
   num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-  return typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
-  num_args);
+  if (typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) != 0) {
+    return - 1;
+  }
+  ret_ty = resolve_method_call_binding_import_return_type(module, arena, expr_ref, ctx, &dep_ix, &func_ix);
+  if (ret_ty != 0) {
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+    ast.ast_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
+  }
+  return 0;
 }
 
 /**
