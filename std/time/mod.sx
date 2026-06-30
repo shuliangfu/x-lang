@@ -164,7 +164,8 @@ function reset(t: *Timer): void {
 
 /** 自 timer_start/reset 起经过的纳秒数。 */
 function elapsed_ns(t: Timer): i64 {
-    return now_monotonic_ns() - t.start_ns;
+    let start_ns: i64 = t.start_ns;
+    return now_monotonic_ns() - start_ns;
 }
 
 /** 经过的微秒数。 */
@@ -185,7 +186,8 @@ function elapsed_sec(t: Timer): i64 {
 /** 记录 lap 并返回本段纳秒数；同时重置段起点。 */
 function lap_ns(t: *Timer): i64 {
     let now: i64 = now_monotonic_ns();
-    let lap: i64 = now - t.start_ns;
+    let start_ns: i64 = t.start_ns;
+    let lap: i64 = now - start_ns;
     unsafe {
         t.start_ns = now;
     }
