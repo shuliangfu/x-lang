@@ -330,10 +330,22 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         }
       }
     } else if (r->tok.kind == (int32_t)TOKEN_LT) {
-      /** 泛型实例化 `id<i32>(...)`：跳过 `<...>` 后继续后缀链。 */
+      /**
+       * 仅当 `<...>` 后真实跟 `(` 时才视为泛型调用 `id<T>(...)`。
+       * 否则必须把 `<` 留给上层 relcompare，避免把 `elapsed_ns < 10000000`
+       * 误吞成“带类型参数的变量引用”。
+       */
       struct parser_asm_lexer after_angle;
+      struct parser_asm_lexer_result after_angle_tok;
       int32_t type_arg_count = 0;
       parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
+      memset(&after_angle_tok, 0, sizeof(after_angle_tok));
+      after_angle_tok.next_lex = after_angle;
+      lexer_next_into(&after_angle_tok, after_angle, source);
+      if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+        out->next_lex = *lex;
+        return;
+      }
       pending_call_num_type_args = type_arg_count;
       *lex = after_angle;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
