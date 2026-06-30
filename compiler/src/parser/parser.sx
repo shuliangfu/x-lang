@@ -122,6 +122,7 @@ extern function pipeline_onefunc_if_else_body_ref(out: *u8, i: i32): i32;
 extern function pipeline_onefunc_num_if_stmts(out: *u8): i32;
 extern function pipeline_onefunc_append_region(out: *u8, label: *u8, label_len: i32, body_ref: i32): i32;
 extern function pipeline_onefunc_append_with_arena(out: *u8, cap_ref: i32, body_ref: i32): i32;
+extern function pipeline_onefunc_append_unsafe(out: *u8, body_ref: i32): i32;
 extern function pipeline_onefunc_num_regions(out: *u8): i32;
 extern function pipeline_block_fill_regions_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
 /** MEM-B0：defer { body } 块池与 OneFunc 侧车。 */
@@ -3438,6 +3439,35 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
         lexer.lexer_next_into(&r, lex, source);
         stmt_tok_ready = true;
         continue;
+      }
+      /** LANG-007 v2：unsafe { body } — OneFunc 侧车暂存，落 Block 时复用 regions 池。 */
+      if (r.tok.kind == TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
+        let unsafe_nm_fn: u8[64] = [];
+        copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm_fn[0]);
+        if (unsafe_nm_fn[0] == 117 && unsafe_nm_fn[1] == 110 && unsafe_nm_fn[2] == 115 && unsafe_nm_fn[3] == 97
+        && unsafe_nm_fn[4] == 102 && unsafe_nm_fn[5] == 101) {
+          lex_from_next_into(&lex, r);
+          lexer.lexer_next_into(&r, lex, source);
+          if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+            set_onefunc_fail(out, lex); return;
+          }
+          /** parse_block_into 要求 lex 位于 `{` 之后，与 region/while 分支保持一致。 */
+          lex_from_next_into(&lex, r);
+          let block_res_unsafe_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+          parse_block_into(arena, lex, source, 0, &block_res_unsafe_fn);
+          if (!block_res_unsafe_fn.ok) {
+            set_onefunc_fail(out, lex); return;
+          }
+          let unsafe_idx_fn: i32 = pipeline_onefunc_append_unsafe(onefunc_result_pool_ptr(out), block_res_unsafe_fn.block_ref);
+          if (unsafe_idx_fn < 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          onefunc_push_src_stmt(out, 6, unsafe_idx_fn);
+          lex = block_res_unsafe_fn.next_lex;
+          lexer.lexer_next_into(&r, lex, source);
+          stmt_tok_ready = true;
+          continue;
+        }
       }
       /**
        * 标号语句：`label:` 后接 `return expr` 或 `goto target;`。

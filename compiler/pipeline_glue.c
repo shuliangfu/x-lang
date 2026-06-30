@@ -21653,6 +21653,9 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
   j = 0;
   while (j < mod->num_funcs) {
     if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+      if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
+                (int)name_len, name, (int)j, (int)from_dep_index, (int)pipeline_module_func_return_type_at(mod, j));
       if (func_index_out)
         func_index_out[0] = j;
       rtr = pipeline_module_func_return_type_at(mod, j);
@@ -21660,11 +21663,17 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
         return rtr;
       {
         int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, rtr, caller_arena, ctx);
+        if (getenv("SHUX_DEBUG_PIPE"))
+          fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_map name=%.*s func_idx=%d dep_ix=%d mapped=%d\n",
+                  (int)name_len, name, (int)j, (int)from_dep_index, (int)mapped);
         if (mapped != 0)
           return mapped;
         /* bootstrap：ctx dep arena 直映 primitive（import_idx 与全局 dep 槽错位时）。 */
         {
           struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
+          if (getenv("SHUX_DEBUG_PIPE"))
+            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_fallback name=%.*s func_idx=%d dep_ix=%d dep_arena=%p raw_ret=%d\n",
+                    (int)name_len, name, (int)j, (int)from_dep_index, (void *)da, (int)rtr);
           if (da && rtr != 0)
             return pipeline_typeck_dep_return_type_to_caller_arena_impl(da, rtr, caller_arena);
         }
@@ -24418,6 +24427,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   int32_t base_ref;
   int32_t base_rc;
   int32_t base_ty;
+  int32_t base_ord;
   int32_t method_nlen;
   uint8_t method_nm[64];
   int32_t ret_ty;
@@ -24434,25 +24444,89 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
   base_rc = typeck_check_expr(module, arena, base_ref, 0, ctx);
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  base_ord = pipeline_expr_kind_ord_at(arena, base_ref);
   method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
   if (method_nlen <= 0 || method_nlen > 63)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
+  if (getenv("SHUX_DEBUG_PIPE")) {
+    fprintf(stderr,
+            "shux: [SHUX_DEBUG_PIPE] method_call expr=%d base=%d base_kind=%d base_rc=%d base_ty=%d method=%.*s\n",
+            (int)expr_ref, (int)base_ref, (int)base_ord, (int)base_rc, (int)base_ty, (int)method_nlen, method_nm);
+    if (base_ord == ord_var) {
+      int32_t dbg_base_nlen = pipeline_expr_var_name_len(arena, base_ref);
+      if (dbg_base_nlen > 0 && dbg_base_nlen <= 63) {
+        uint8_t dbg_base_nm[64];
+        pipeline_expr_var_name_into(arena, base_ref, dbg_base_nm);
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call base_var=%.*s imports=%d\n", (int)dbg_base_nlen,
+                dbg_base_nm, (int)module->num_imports);
+      }
+    }
+  }
   ret_ty = 0;
-  if (base_ty <= 0 && ctx && pipeline_expr_kind_ord_at(arena, base_ref) == ord_var) {
+  if (base_ty <= 0 && ctx && base_ord == ord_var) {
     int32_t base_nlen = pipeline_expr_var_name_len(arena, base_ref);
     if (base_nlen > 0 && base_nlen <= 63) {
       uint8_t base_nm[64];
       int32_t j = 0;
       pipeline_expr_var_name_into(arena, base_ref, base_nm);
       while (j < module->num_imports) {
+        if (getenv("SHUX_DEBUG_PIPE")) {
+          int32_t bind_len = pipeline_module_import_binding_name_len(module, j);
+          int32_t path_len = pipeline_module_import_path_len(module, j);
+          uint8_t bind_nm[64];
+          uint8_t path_nm[64];
+          int32_t dbg_i = 0;
+          while (dbg_i < 64) {
+            bind_nm[dbg_i] = 0;
+            path_nm[dbg_i] = 0;
+            dbg_i = dbg_i + 1;
+          }
+          dbg_i = 0;
+          if (bind_len > 0 && bind_len <= 63)
+            while (dbg_i < bind_len) {
+              bind_nm[dbg_i] = pipeline_module_import_binding_name_byte_at(module, j, dbg_i);
+              dbg_i = dbg_i + 1;
+            }
+          dbg_i = 0;
+          if (path_len > 0 && path_len <= 63)
+            while (dbg_i < path_len) {
+              path_nm[dbg_i] = pipeline_module_import_path_byte_at(module, j, dbg_i);
+              dbg_i = dbg_i + 1;
+            }
+          fprintf(stderr,
+                  "shux: [SHUX_DEBUG_PIPE] method_call scan_import idx=%d kind=%d bind=%.*s path=%.*s\n", (int)j,
+                  (int)pipeline_module_import_kind_at(module, j), (int)(bind_len > 0 ? bind_len : 0),
+                  (bind_len > 0 ? bind_nm : (uint8_t *)""), (int)(path_len > 0 ? path_len : 0),
+                  (path_len > 0 ? path_nm : (uint8_t *)""));
+        }
         if (pipeline_module_import_kind_at(module, j) == GLUE_TYPECK_IMPORT_BINDING &&
             pipeline_typeck_import_binding_name_equal_impl(module, j, base_nm, base_nlen)) {
           struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, j);
+          if (getenv("SHUX_DEBUG_PIPE")) {
+            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call binding_match idx=%d dep=%p dep_funcs=%d\n", (int)j,
+                    (void *)dm, dm ? (int)dm->num_funcs : -1);
+            if (dm) {
+              int32_t dbg_fi = 0;
+              while (dbg_fi < dm->num_funcs && dbg_fi < 32) {
+                int32_t dbg_fn_len = pipeline_module_func_name_len_at(dm, dbg_fi);
+                uint8_t dbg_fn[64];
+                if (dbg_fn_len > 0 && dbg_fn_len <= 63) {
+                  pipeline_module_func_name_copy64(dm, dbg_fi, dbg_fn);
+                  fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call dep_func idx=%d name=%.*s\n", (int)dbg_fi,
+                          (int)dbg_fn_len, dbg_fn);
+                }
+                dbg_fi = dbg_fi + 1;
+              }
+            }
+          }
           if (dm) {
             int32_t bind_fn = 0;
             ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, method_nm, method_nlen, j,
                                                                                ctx, &bind_fn);
+            if (getenv("SHUX_DEBUG_PIPE"))
+              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call binding_ret idx=%d ret_ty=%d bind_fn=%d\n", (int)j,
+                      (int)ret_ty, (int)bind_fn);
             if (ret_ty != 0) {
               pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, j, bind_fn);
               break;

@@ -221,7 +221,7 @@ typedef struct {
   uint8_t label[64];
   int32_t label_len;
   int32_t body_ref;
-  /** MEM-C1：>0 表示 with_arena(cap) 块。 */
+  /** MEM-C1：>0 表示 with_arena(cap)；LANG-007：-1 表示 unsafe { body }。 */
   int32_t with_arena_cap_ref;
 } OneFuncRegionEntry;
 
@@ -2183,6 +2183,23 @@ int32_t pipeline_onefunc_append_with_arena(uint8_t *out, int32_t cap_ref, int32_
   return sc->regions.len - 1;
 }
 
+/** LANG-007 v2：OneFunc 侧车追加 unsafe { body }。 */
+int32_t pipeline_onefunc_append_unsafe(uint8_t *out, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || body_ref <= 0)
+    return -1;
+  if (grow_vec_push(&sc->regions) < 0)
+    return -1;
+  re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, sc->regions.len - 1);
+  if (!re)
+    return -1;
+  memset(re, 0, sizeof(*re));
+  re->with_arena_cap_ref = -1;
+  re->body_ref = body_ref;
+  return sc->regions.len - 1;
+}
+
 int32_t pipeline_onefunc_num_regions(uint8_t *out) {
   OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
   return sc ? sc->regions.len : 0;
@@ -2201,6 +2218,8 @@ void pipeline_block_fill_regions_from_onefunc(struct ast_ASTArena *a, int32_t br
       continue;
     if (re->with_arena_cap_ref > 0)
       pipeline_block_append_with_arena(a, br, re->with_arena_cap_ref, re->body_ref);
+    else if (re->with_arena_cap_ref == -1)
+      pipeline_block_append_unsafe(a, br, re->body_ref);
     else if (re->label_len > 0)
       pipeline_block_append_region(a, br, re->label, re->label_len, re->body_ref);
   }
