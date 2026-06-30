@@ -752,3 +752,53 @@ SHUX_ARM64_GLUE_STUB3(arch_arm64_enc_enc_ldr_sp_slot_to_xreg)
 
 #undef SHUX_ARM64_GLUE_STUB1
 #undef SHUX_ARM64_GLUE_STUB3
+
+#define SHUX_ARCH_ENC_STUB0(name)                                               \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
+    (void)elf_ctx;                                                              \
+    return -1;                                                                  \
+  }
+
+#define SHUX_ARCH_ENC_STUB1(name, t1, a1)                                             \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1) { \
+    (void)elf_ctx;                                                                    \
+    (void)a1;                                                                         \
+    return -1;                                                                        \
+  }
+
+#define SHUX_ARCH_ENC_STUB2(name, t1, a1, t2, a2)                                             \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2) { \
+    (void)elf_ctx;                                                                           \
+    (void)a1;                                                                                \
+    (void)a2;                                                                                \
+    return -1;                                                                               \
+  }
+
+#define SHUX_ARCH_ENC_STUB3(name, t1, a1, t2, a2, t3, a3)                                             \
+  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2, t3 a3) { \
+    (void)elf_ctx;                                                                                    \
+    (void)a1;                                                                                          \
+    (void)a2;                                                                                          \
+    (void)a3;                                                                                          \
+    return -1;                                                                                         \
+  }
+
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jnz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jne, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jeq, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jge, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_jmp, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB3(arch_arm64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_sp_imm12, int32_t, imm)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_sub_sp_imm12, int32_t, imm)
+
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jnz, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jeq, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jge, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jmp, uint8_t *, label, int32_t, label_len)
+SHUX_ARCH_ENC_STUB3(arch_riscv64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_add_sp_imm12, int32_t, imm)
