@@ -4455,14 +4455,13 @@ function typeck_check_expr_method_call(module: *Module, arena: *ASTArena, expr_r
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let base_ref: i32 = 0;
   let num_args: i32 = 0;
+  let base_rc: i32 = 0;
   let dep_ix: i32 = -1;
   let func_ix: i32 = -1;
   let ret_ty: i32 = 0;
   ast.expr_init_call_resolve(arena, expr_ref);
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  if (check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
-    return - 1;
-  }
+  base_rc = check_expr(module, arena, base_ref, return_type_ref, ctx);
   num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
   if (typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) != 0) {
     return - 1;
@@ -4471,6 +4470,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   if (ret_ty != 0) {
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
     ast.ast_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
+  }
+  if (base_rc != 0) {
+    return -1;
   }
   return 0;
 }
