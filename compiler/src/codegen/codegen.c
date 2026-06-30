@@ -114,7 +114,8 @@ int32_t codegen_sx_emit_float(uint8_t *out, uint8_t *ptr, int32_t is_f32) {
 }
 
 static int codegen_expr(const struct ASTExpr *e, FILE *out);
-static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, int cast_return_to_int, const char *final_result_var);
+static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, int cast_return_to_int,
+                              int is_void_return_context, const char *final_result_var);
 /** C 路径：表达式语句 emit（赋值直出 `expr;`，其余 `(void)(expr);`）。 */
 static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTExpr *st);
 /** 当 else 为单语句块且唯一语句为 __tmp = (struct X){0} 时返回该 struct 的 C 类型串，否则 NULL。前向声明。 */
@@ -189,11 +190,11 @@ int32_t codegen_sx_emit_panic_with_arg(uint8_t *out, uint8_t *operand) {
 }
 /** .sx 侧块体输出（无 final_result_var）：块表达式用，传 NULL 给 codegen_block_body。 */
 int32_t codegen_sx_block_body_no_result(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
-    return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, NULL) != 0 ? -1 : 0;
+    return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, 0, NULL) != 0 ? -1 : 0;
 }
 /** .sx 侧块体输出（带 final_result_var "__tmp"）：供 if 语句表达式 then/else 块用。 */
 int32_t codegen_sx_block_body_with_result_var(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
-    return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, "__tmp") != 0 ? -1 : 0;
+    return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, 0, "__tmp") != 0 ? -1 : 0;
 }
 /** .sx 侧块 defer 访问器：块内 defer 数量；供 run_defers 逆序遍历。 */
 int32_t codegen_sx_block_num_defers(uint8_t *block) {
@@ -3471,7 +3472,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                 if (then_is_block) {
                     if (then_e->kind == AST_EXPR_BLOCK) {
                         fprintf(out, "{ ");
-                        if (codegen_block_body(then_e->value.block, 2, out, 0, "__tmp") != 0) return -1;
+                        if (codegen_block_body(then_e->value.block, 2, out, 0, 0, "__tmp") != 0) return -1;
                         fprintf(out, " } ");
                     } else if (then_e->kind == AST_EXPR_CONTINUE) {
                         fprintf(out, "{ continue; } ");
@@ -3504,7 +3505,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                 if (else_is_block) {
                     if (else_e->kind == AST_EXPR_BLOCK) {
                         fprintf(out, "{ ");
-                        if (codegen_block_body(else_e->value.block, 2, out, 0, "__tmp") != 0) return -1;
+                        if (codegen_block_body(else_e->value.block, 2, out, 0, 0, "__tmp") != 0) return -1;
                         fprintf(out, " } ");
                     } else if (else_e->kind == AST_EXPR_CONTINUE) {
                         fprintf(out, "{ continue; } ");
@@ -4052,7 +4053,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #else
             /* 块表达式单独出现时（少见）：GNU C 语句表达式，块体后补 0 作为值 */
             fprintf(out, "({ ");
-            if (codegen_block_body(e->value.block, 2, out, 0, NULL) != 0) return -1;
+            if (codegen_block_body(e->value.block, 2, out, 0, 0, NULL) != 0) return -1;
             fprintf(out, " 0; })");
             return 0;
 #endif
@@ -4481,7 +4482,7 @@ static int codegen_emit_unused_let_side_effect(FILE *out, const char *pad, const
 static int codegen_run_defers(FILE *out, const struct ASTBlock *b, int indent) {
     if (!b || !out || !b->defer_blocks) return 0;
     for (int i = b->num_defers - 1; i >= 0; i--) {
-        if (codegen_block_body(b->defer_blocks[i], indent, out, 0, NULL) != 0) return -1;
+        if (codegen_block_body(b->defer_blocks[i], indent, out, 0, 0, NULL) != 0) return -1;
     }
     return 0;
 }
@@ -4672,7 +4673,8 @@ static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTEx
     return 0;
 }
 
-static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, int cast_return_to_int, const char *final_result_var) {
+static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, int cast_return_to_int,
+                              int is_void_return_context, const char *final_result_var) {
     if (!b || !out) return -1;
     const char *pad = (indent == 2) ? "  " : (indent == 4) ? "    " : "      ";
     /* 阶段 8.1 块内 DCE：仅输出被引用的 const/let */
@@ -4829,7 +4831,17 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
                 else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
                 else if (st->kind == AST_EXPR_RETURN) {
-                    if (st->value.unary.operand) { fprintf(out, "%sreturn ", pad); if (codegen_expr(st->value.unary.operand, out) != 0) return -1; fprintf(out, ";\n"); }
+                    if (st->value.unary.operand) {
+                        if (is_void_return_context) {
+                            fprintf(out, "%s(void)(", pad);
+                            if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                            fprintf(out, ");\n%sreturn;\n", pad);
+                        } else {
+                            fprintf(out, "%sreturn ", pad);
+                            if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                            fprintf(out, ";\n");
+                        }
+                    }
                     else fprintf(out, "%sreturn;\n", pad);
                 } else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
 #else
@@ -4842,7 +4854,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                     fprintf(out, "%swhile (", pad);
                     if (codegen_expr(b->loops[idx].cond, out) != 0) return -1;
                     fprintf(out, ") {\n");
-                    if (codegen_block_body(b->loops[idx].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                    if (codegen_block_body(b->loops[idx].body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
                     fprintf(out, "%s}\n", pad);
                 }
                 break;
@@ -4855,14 +4867,14 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                     fprintf(out, "; ");
                     if (b->for_loops[idx].step) { if (codegen_expr(b->for_loops[idx].step, out) != 0) return -1; }
                     fprintf(out, ") {\n");
-                    if (codegen_block_body(b->for_loops[idx].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                    if (codegen_block_body(b->for_loops[idx].body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
                     fprintf(out, "%s}\n", pad);
                 }
                 break;
             case 5: /* region：编译期域标签，运行时等价嵌套块 */
                 if (idx < b->num_regions) {
                     fprintf(out, "%s{\n", pad);
-                    if (codegen_block_body(b->regions[idx].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                    if (codegen_block_body(b->regions[idx].body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
                     fprintf(out, "%s}\n", pad);
                 }
                 break;
@@ -5047,7 +5059,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 fprintf(out, "%swhile (", pad);
                 if (codegen_expr(b->loops[i].cond, out) != 0) return -1;
                 fprintf(out, ") {\n");
-                if (codegen_block_body(b->loops[i].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                if (codegen_block_body(b->loops[i].body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
                 fprintf(out, "%s}\n", pad);
 #endif
             }
@@ -5064,7 +5076,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 fprintf(out, "; ");
                 if (b->for_loops[i].step) { if (codegen_expr(b->for_loops[i].step, out) != 0) return -1; }
                 fprintf(out, ") {\n");
-                if (codegen_block_body(b->for_loops[i].body, indent + 2, out, cast_return_to_int, NULL) != 0) return -1;
+                if (codegen_block_body(b->for_loops[i].body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
                 fprintf(out, "%s}\n", pad);
 #endif
             }
@@ -5164,20 +5176,32 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 if (codegen_expr(re->value.if_expr.then_expr, out) != 0) return -1;
                 fprintf(out, ";\n%s}\n", pad);
                 codegen_async_cps_before_return(out, pad);
-                if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
-                if (codegen_expr(re->value.if_expr.else_expr, out) != 0) return -1;
-                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                if (is_void_return_context) {
+                    fprintf(out, "%s(void)(", pad);
+                    if (codegen_expr(re->value.if_expr.else_expr, out) != 0) return -1;
+                    fprintf(out, ");\n%sreturn;\n", pad);
+                } else {
+                    if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
+                    if (codegen_expr(re->value.if_expr.else_expr, out) != 0) return -1;
+                    fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                }
             } else if (re->kind == AST_EXPR_PANIC) {
                 fprintf(out, "%s", pad);
                 if (codegen_expr(re, out) != 0) return -1;
                 fprintf(out, ";\n");
                 codegen_async_cps_before_return(out, pad);
-                fprintf(out, "%sreturn 0;\n", pad);
+                fprintf(out, is_void_return_context ? "%sreturn;\n" : "%sreturn 0;\n", pad);
             } else {
                 codegen_async_cps_before_return(out, pad);
-                if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
-                if (codegen_expr(re, out) != 0) return -1;
-                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                if (is_void_return_context) {
+                    fprintf(out, "%s(void)(", pad);
+                    if (codegen_expr(re, out) != 0) return -1;
+                    fprintf(out, ");\n%sreturn;\n", pad);
+                } else {
+                    if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
+                    if (codegen_expr(re, out) != 0) return -1;
+                    fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                }
             }
         }
     }
@@ -5219,12 +5243,18 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
             if (codegen_expr(op, out) != 0) return -1;
             fprintf(out, ";\n");
             codegen_async_cps_before_return(out, pad);
-            fprintf(out, "%sreturn 0;\n", pad);
+            fprintf(out, is_void_return_context ? "%sreturn;\n" : "%sreturn 0;\n", pad);
         } else {
             codegen_async_cps_before_return(out, pad);
-            if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
-            if (codegen_expr(op, out) != 0) return -1;
-            fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            if (is_void_return_context) {
+                fprintf(out, "%s(void)(", pad);
+                if (codegen_expr(op, out) != 0) return -1;
+                fprintf(out, ");\n%sreturn;\n", pad);
+            } else {
+                if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
+                if (codegen_expr(op, out) != 0) return -1;
+                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            }
         }
         return 0;
     }
@@ -5405,7 +5435,7 @@ static int codegen_emit_if_expr_impl(FILE *out, const struct ASTExpr *e) {
         if (then_is_block) {
             if (then_e->kind == AST_EXPR_BLOCK) {
                 fprintf(out, "{ ");
-                if (codegen_block_body(then_e->value.block, 2, out, 0, "__tmp") != 0) return -1;
+                if (codegen_block_body(then_e->value.block, 2, out, 0, 0, "__tmp") != 0) return -1;
                 fprintf(out, " } ");
             } else if (then_e->kind == AST_EXPR_CONTINUE) {
                 fprintf(out, "{ continue; } ");
@@ -5437,7 +5467,7 @@ static int codegen_emit_if_expr_impl(FILE *out, const struct ASTExpr *e) {
         if (else_is_block) {
             if (else_e->kind == AST_EXPR_BLOCK) {
                 fprintf(out, "{ ");
-                if (codegen_block_body(else_e->value.block, 2, out, 0, "__tmp") != 0) return -1;
+                if (codegen_block_body(else_e->value.block, 2, out, 0, 0, "__tmp") != 0) return -1;
                 fprintf(out, " } ");
             } else if (else_e->kind == AST_EXPR_CONTINUE) {
                 fprintf(out, "{ continue; } ");
@@ -5644,7 +5674,7 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
     if (b->num_stmt_order > 0) {
         if (1) {
             used_block_body_order = 1;
-            if (codegen_block_body(b, 2, out, cast_return_to_int, use_cleanup ? "shux_ret_val" : NULL) != 0) return -1;
+            if (codegen_block_body(b, 2, out, cast_return_to_int, is_void, use_cleanup ? "shux_ret_val" : NULL) != 0) return -1;
             if (use_cleanup) fprintf(out, "%sgoto shux_cleanup;\n", pad);
             goto func_body_after_block;
         }
@@ -5749,7 +5779,7 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
         fprintf(out, "%swhile (", pad);
         if (codegen_expr(b->loops[i].cond, out) != 0) return -1;
         fprintf(out, ") {\n");
-        if (codegen_block_body(b->loops[i].body, 4, out, cast_return_to_int, NULL) != 0) return -1;
+        if (codegen_block_body(b->loops[i].body, 4, out, cast_return_to_int, is_void, NULL) != 0) return -1;
         fprintf(out, "%s}\n", pad);
 #endif
     }
@@ -5774,7 +5804,7 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
             if (codegen_expr(b->for_loops[i].step, out) != 0) return -1;
         }
         fprintf(out, ") {\n");
-        if (codegen_block_body(b->for_loops[i].body, 4, out, cast_return_to_int, NULL) != 0) return -1;
+        if (codegen_block_body(b->for_loops[i].body, 4, out, cast_return_to_int, is_void, NULL) != 0) return -1;
         fprintf(out, "%s}\n", pad);
 #endif
     }
@@ -5892,7 +5922,17 @@ func_body_after_block:
 #ifdef SHUX_USE_SX_CODEGEN
         if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
         else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
-        else if (st->kind == AST_EXPR_RETURN) { if (st->value.unary.operand) { if (codegen_codegen_sx_emit_return_expr((uint8_t *)out, 2, (uint8_t *)st->value.unary.operand) != 0) return -1; } else { if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, 2) != 0) return -1; } }
+        else if (st->kind == AST_EXPR_RETURN) {
+            if (st->value.unary.operand) {
+                if (is_void) {
+                    fprintf(out, "%s(void)(", pad);
+                    if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                    fprintf(out, ");\n%sreturn;\n", pad);
+                } else if (codegen_codegen_sx_emit_return_expr((uint8_t *)out, 2, (uint8_t *)st->value.unary.operand) != 0) return -1;
+            } else {
+                if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, 2) != 0) return -1;
+            }
+        }
         else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
 #else
         if (st->kind == AST_EXPR_CONTINUE) {
@@ -5944,7 +5984,7 @@ func_body_after_block:
         fprintf(out, "%s", pad);
         if (codegen_expr(b->final_expr, out) != 0) return -1;
         fprintf(out, ";\n");
-        fprintf(out, "%sreturn 0;\n", pad);
+        fprintf(out, is_void ? "%sreturn;\n" : "%sreturn 0;\n", pad);
     } else if (b->final_expr->kind == AST_EXPR_IF && b->final_expr->value.if_expr.then_expr
         && b->final_expr->value.if_expr.then_expr->kind == AST_EXPR_RETURN
         && b->final_expr->value.if_expr.else_expr
@@ -5958,21 +5998,33 @@ func_body_after_block:
         if (then_ret && then_ret->kind == AST_EXPR_PANIC) {
             fprintf(out, "%s  ", pad);
             if (codegen_expr(then_ret, out) != 0) return -1;
-            fprintf(out, ";\n%s  return 0;\n", pad);
+            fprintf(out, is_void ? ";\n%s  return;\n" : ";\n%s  return 0;\n", pad);
         } else {
-            if (cast_return_to_int) fprintf(out, "%s  return (int)(", pad); else fprintf(out, "%s  return ", pad);
-            if (codegen_expr(then_ret, out) != 0) return -1;
-            fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            if (is_void) {
+                fprintf(out, "%s  (void)(", pad);
+                if (codegen_expr(then_ret, out) != 0) return -1;
+                fprintf(out, ");\n%s  return;\n", pad);
+            } else {
+                if (cast_return_to_int) fprintf(out, "%s  return (int)(", pad); else fprintf(out, "%s  return ", pad);
+                if (codegen_expr(then_ret, out) != 0) return -1;
+                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            }
         }
         fprintf(out, "%s} else {\n", pad);
         if (else_ret && else_ret->kind == AST_EXPR_PANIC) {
             fprintf(out, "%s  ", pad);
             if (codegen_expr(else_ret, out) != 0) return -1;
-            fprintf(out, ";\n%s  return 0;\n", pad);
+            fprintf(out, is_void ? ";\n%s  return;\n" : ";\n%s  return 0;\n", pad);
         } else {
-            if (cast_return_to_int) fprintf(out, "%s  return (int)(", pad); else fprintf(out, "%s  return ", pad);
-            if (codegen_expr(else_ret, out) != 0) return -1;
-            fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            if (is_void) {
+                fprintf(out, "%s  (void)(", pad);
+                if (codegen_expr(else_ret, out) != 0) return -1;
+                fprintf(out, ");\n%s  return;\n", pad);
+            } else {
+                if (cast_return_to_int) fprintf(out, "%s  return (int)(", pad); else fprintf(out, "%s  return ", pad);
+                if (codegen_expr(else_ret, out) != 0) return -1;
+                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            }
         }
         fprintf(out, "%s}\n", pad);
     } else {
@@ -5997,17 +6049,33 @@ func_body_after_block:
             fprintf(out, "%s  ", pad);
             if (codegen_expr(ret_op->value.if_expr.then_expr, out) != 0) return -1;
             fprintf(out, ";\n%s}\n", pad);
-            if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
-            if (codegen_expr(ret_op->value.if_expr.else_expr, out) != 0) return -1;
-            fprintf(out, cast_return_to_int ? ");\n" : ";\n");
-        } else {
-            if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
-            if (b->final_expr->kind == AST_EXPR_RETURN) {
-                if (codegen_expr(ret_op, out) != 0) return -1;
+            if (is_void) {
+                fprintf(out, "%s(void)(", pad);
+                if (codegen_expr(ret_op->value.if_expr.else_expr, out) != 0) return -1;
+                fprintf(out, ");\n%sreturn;\n", pad);
             } else {
-                if (codegen_expr(b->final_expr, out) != 0) return -1;
+                if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
+                if (codegen_expr(ret_op->value.if_expr.else_expr, out) != 0) return -1;
+                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
             }
-            fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+        } else {
+            if (is_void) {
+                fprintf(out, "%s(void)(", pad);
+                if (b->final_expr->kind == AST_EXPR_RETURN) {
+                    if (codegen_expr(ret_op, out) != 0) return -1;
+                } else {
+                    if (codegen_expr(b->final_expr, out) != 0) return -1;
+                }
+                fprintf(out, ");\n%sreturn;\n", pad);
+            } else {
+                if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
+                if (b->final_expr->kind == AST_EXPR_RETURN) {
+                    if (codegen_expr(ret_op, out) != 0) return -1;
+                } else {
+                    if (codegen_expr(b->final_expr, out) != 0) return -1;
+                }
+                fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+            }
         }
     }
     return 0;
