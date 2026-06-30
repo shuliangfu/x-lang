@@ -3781,6 +3781,58 @@ function emit_run_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, 
   return 0;
 }
 
+function codegen_current_func_returns_void(arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module || ctx.current_codegen_arena != arena || ctx.current_func_index < 0) {
+    return 0;
+  }
+  let mod: *Module = ctx.current_codegen_module;
+  if (ctx.current_func_index >= mod.num_funcs) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(mod, ctx.current_func_index)) == (TypeKind.TYPE_VOID as i32)) {
+    return 1;
+  }
+  return 0;
+}
+
+function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, operand_ref: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  if (fn_ret_void != 0) {
+    if (!ast.ref_is_null(operand_ref)) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      let v: u8[9] = [40, 118, 111, 105, 100, 41, 40, 0, 0];
+      if (emit_bytes_9(out, v, 7) != 0) {
+        return -1;
+      }
+      if (emit_expr(arena, out, operand_ref, ctx) != 0) {
+        return -1;
+      }
+      let scv: u8[4] = [41, 59, 10, 0];
+      if (emit_bytes_4(out, scv, 3) != 0) {
+        return -1;
+      }
+    }
+    if (emit_indent(out, indent) != 0) {
+      return -1;
+    }
+    let retv: u8[9] = [114, 101, 116, 117, 114, 110, 59, 10, 0];
+    return emit_bytes_9(out, retv, 8);
+  }
+  if (emit_indent(out, indent) != 0) {
+    return -1;
+  }
+  let ret: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+  if (emit_bytes_8(out, ret, 7) != 0) {
+    return -1;
+  }
+  if (!ast.ref_is_null(operand_ref) && emit_expr(arena, out, operand_ref, ctx) != 0) {
+    return -1;
+  }
+  let sc: u8[4] = [59, 10, 0, 0];
+  return emit_bytes_4(out, sc, 2);
+}
+
 /**
  * 写块体到 out：const/let 声明、while/for、表达式语句、最终表达式。
  * 当 num_stmt_order > 0 时按 stmt_order 源码顺序输出，保证 let/if/return 等顺序正确，避免递归或提前 return 等错误。
@@ -3788,6 +3840,7 @@ function emit_run_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, 
 function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   let blk_prefix: u8[128] = [];
   let blk_prefix_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &blk_prefix[0], 128);
+  let fn_ret_void: i32 = codegen_current_func_returns_void(arena, ctx);
   if (ast.ref_is_null(block_ref)) {
     return 0;
   }
@@ -4054,18 +4107,7 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
           let ex_ref: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, idx);
           let st: Expr = ast.ast_arena_expr_get(arena, ex_ref);
           if (st.kind == ExprKind.EXPR_RETURN) {
-            if (emit_indent(out, indent) != 0) {
-              return -1;
-            }
-            let ret: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-            if (emit_bytes_8(out, ret, 7) != 0) {
-              return -1;
-            }
-            if (!ast.ref_is_null(st.unary_operand_ref) && emit_expr(arena, out, st.unary_operand_ref, ctx) != 0) {
-              return -1;
-            }
-            let sc: u8[4] = [59, 10, 0, 0];
-            if (emit_bytes_4(out, sc, 2) != 0) {
+            if (emit_return_stmt_with_context(arena, out, indent, st.unary_operand_ref, ctx, fn_ret_void) != 0) {
               return -1;
             }
           } else if (st.kind == ExprKind.EXPR_BREAK) {
@@ -4246,27 +4288,16 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
     }
     let final_ref: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
     if (!ast.ref_is_null(final_ref)) {
-      if (emit_indent(out, indent) != 0) {
-        return -1;
-      }
-      let ret: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-      if (emit_bytes_8(out, ret, 7) != 0) {
-        return -1;
-      }
       /* 块尾已输出 return；若 final_expr 本身是 EXPR_RETURN，emit_expr 会再打 return，剥壳只发 unary 操作数。 */
       let fe_ordered: Expr = ast.ast_arena_expr_get(arena, final_ref);
       if (fe_ordered.kind == ExprKind.EXPR_RETURN) {
-        if (!ast.ref_is_null(fe_ordered.unary_operand_ref) && emit_expr(arena, out, fe_ordered.unary_operand_ref, ctx) != 0) {
+        if (emit_return_stmt_with_context(arena, out, indent, fe_ordered.unary_operand_ref, ctx, fn_ret_void) != 0) {
           return -1;
         }
       } else {
-        if (emit_expr(arena, out, final_ref, ctx) != 0) {
+        if (emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void) != 0) {
           return -1;
         }
-      }
-      let sc: u8[4] = [59, 10, 0, 0];
-      if (emit_bytes_4(out, sc, 2) != 0) {
-        return -1;
       }
     }
     return 0;
@@ -4456,33 +4487,31 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
   i = 0;
   while (i < ast.ast_block_num_expr_stmts(arena, block_ref)) {
     let ex_fb: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, i);
-    if (emit_indent(out, indent) != 0) {
-      return -1;
-    }
     let st: Expr = ast.ast_arena_expr_get(arena, ex_fb);
     if (st.kind == ExprKind.EXPR_RETURN) {
-      let ret: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-      if (emit_bytes_8(out, ret, 7) != 0) {
-        return -1;
-      }
-      if (!ast.ref_is_null(st.unary_operand_ref) && emit_expr(arena, out, st.unary_operand_ref, ctx) != 0) {
-        return -1;
-      }
-      let sc: u8[4] = [59, 10, 0, 0];
-      if (emit_bytes_4(out, sc, 2) != 0) {
+      if (emit_return_stmt_with_context(arena, out, indent, st.unary_operand_ref, ctx, fn_ret_void) != 0) {
         return -1;
       }
     } else if (st.kind == ExprKind.EXPR_BREAK) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
       let br: u8[8] = [98, 114, 101, 97, 107, 59, 10, 0];
       if (emit_bytes_8(out, br, 7) != 0) {
         return -1;
       }
     } else if (st.kind == ExprKind.EXPR_CONTINUE) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
       let co: u8[11] = [99, 111, 110, 116, 105, 110, 117, 101, 59, 10, 0];
       if (emit_bytes_from_ptr(out, &co[0], 10) != 0) {
         return -1;
       }
     } else {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
       let v: u8[9] = [40, 118, 111, 105, 100, 41, 40, 0, 0];
       if (emit_bytes_9(out, v, 7) != 0) {
         return -1;
@@ -4585,27 +4614,16 @@ function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, inden
   /* 函数体块：最终表达式以 return expr;\n 形式输出 */
   let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
   if (!ast.ref_is_null(final_ref_plain)) {
-    if (emit_indent(out, indent) != 0) {
-      return -1;
-    }
-    let ret: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-    if (emit_bytes_8(out, ret, 7) != 0) {
-      return -1;
-    }
     /* 同上：外层已写 return，内层勿再经由 emit_expr(EXPR_RETURN) 重复输出 return。 */
     let fe_plain: Expr = ast.ast_arena_expr_get(arena, final_ref_plain);
     if (fe_plain.kind == ExprKind.EXPR_RETURN) {
-      if (!ast.ref_is_null(fe_plain.unary_operand_ref) && emit_expr(arena, out, fe_plain.unary_operand_ref, ctx) != 0) {
+      if (emit_return_stmt_with_context(arena, out, indent, fe_plain.unary_operand_ref, ctx, fn_ret_void) != 0) {
         return -1;
       }
     } else {
-      if (emit_expr(arena, out, final_ref_plain, ctx) != 0) {
+      if (emit_return_stmt_with_context(arena, out, indent, final_ref_plain, ctx, fn_ret_void) != 0) {
         return -1;
       }
-    }
-    let sc: u8[4] = [59, 10, 0, 0];
-    if (emit_bytes_4(out, sc, 2) != 0) {
-      return -1;
     }
   }
   return 0;
