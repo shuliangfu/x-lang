@@ -14842,7 +14842,7 @@ int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_r
 }
 
 static enum ast_TypeKind glue_type_kind_from_ord(int32_t ord) {
-  if (ord < 0 || ord > 15)
+  if (ord < 0 || ord > 16)
     return ast_TypeKind_TYPE_I32;
   return (enum ast_TypeKind)ord;
 }
@@ -14852,7 +14852,7 @@ int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_or
   int32_t k;
   enum ast_TypeKind kind;
   struct ast_Type *t;
-  if (!a || kind_ord < 0 || kind_ord > 15)
+  if (!a || kind_ord < 0 || kind_ord > 16)
     return 0;
   kind = glue_type_kind_from_ord(kind_ord);
   for (k = 1; k <= a->num_types; k++) {
@@ -14877,7 +14877,7 @@ int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_or
  */
 int32_t pipeline_type_init_primitive_kind_at(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord) {
   struct ast_Type *t;
-  if (!a || ref <= 0 || ref > a->num_types || kind_ord < 0 || kind_ord > 15)
+  if (!a || ref <= 0 || ref > a->num_types || kind_ord < 0 || kind_ord > 16)
     return 0;
   t = pipeline_arena_type_ptr(a, ref);
   if (!t)
