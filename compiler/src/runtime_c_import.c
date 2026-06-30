@@ -27,8 +27,8 @@
  * 返回值：成功返回 ASTModule*；失败 NULL（调用方须释放已写入的 all_dep_*）。
  */
 static ASTModule *load_one_import(const char *import_path, const char **lib_roots, int n_lib_roots, const char *entry_dir,
-    const char **defines, int ndefines, ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP],
-    int *n_all, int max_all) {
+    const char **defines, int ndefines, int allow_legacy_extern, ASTModule **all_dep_mods, char **all_dep_paths,
+    char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all, int max_all) {
     int idx = shux_find_loaded_import_index(import_path, all_dep_paths, *n_all);
 
     if (idx >= 0)
@@ -76,7 +76,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
         }
         for (int i = 0; i < dep->num_imports; i++) {
             ASTModule *sub = load_one_import(dep->import_paths[i], lib_roots, n_lib_roots, dep_dir, defines, ndefines,
-                all_dep_mods, all_dep_paths, all_dep_fs, n_all, max_all);
+                allow_legacy_extern, all_dep_mods, all_dep_paths, all_dep_fs, n_all, max_all);
             if (!sub) {
                 ast_module_free(dep);
                 return NULL;
@@ -92,12 +92,17 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
                     deps[ndeps++] = all_dep_mods[idx];
             }
             lsp_diag_collect_begin();
-            if (typeck_module(dep, deps, ndeps, NULL, 0) != 0) {
+            {
+                const int old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(allow_legacy_extern ? 1 : 0);
+                const int typeck_rc = typeck_module(dep, deps, ndeps, NULL, 0);
+                typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
+                if (typeck_rc != 0) {
                 lsp_diag_collect_end();
                 lsp_diag_print_stderr_human(path);
                 fprintf(stderr, "shux: typeck failed for import '%s' (file %s)\n", import_path, path);
                 ast_module_free(dep);
                 return NULL;
+                }
             }
             lsp_diag_collect_end();
         }
@@ -116,8 +121,9 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
 
 /** 解析并 typeck 全部 import（含传递依赖）。 */
 int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
-    const char **defines, int ndefines, ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods,
-    char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps) {
+    const char **defines, int ndefines, int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
+    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out,
+    int max_deps) {
     int n_all = 0;
 
     if (mod->num_imports > 0 && !mod->import_paths) {
@@ -126,7 +132,7 @@ int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n
     }
     for (int i = 0; i < mod->num_imports && i < max_deps; i++) {
         ASTModule *m = load_one_import(mod->import_paths[i], lib_roots, n_lib_roots, entry_dir, defines, ndefines,
-            all_dep_mods, all_dep_paths, all_dep_fs, &n_all, max_deps);
+            allow_legacy_extern, all_dep_mods, all_dep_paths, all_dep_fs, &n_all, max_deps);
         if (!m) {
             while (n_all--) {
                 free(all_dep_paths[n_all]);
@@ -147,6 +153,6 @@ int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int
     char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps) {
     if (!mod || !dep_mods || !ndep_out || !all_dep_mods || !all_dep_paths || !n_all_out || max_deps <= 0)
         return -1;
-    return shu_c_resolve_and_load_imports(mod, lib_roots, n_lib_roots, entry_dir, NULL, 0, dep_mods, ndep_out,
+    return shu_c_resolve_and_load_imports(mod, lib_roots, n_lib_roots, entry_dir, NULL, 0, 0, dep_mods, ndep_out,
         all_dep_mods, all_dep_paths, all_dep_fs, n_all_out, max_deps);
 }

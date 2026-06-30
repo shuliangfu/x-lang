@@ -721,6 +721,19 @@ $(SHUX_C): bootstrap_shuxc
 	@cp -f bootstrap_shuxc $@
 endif
 
+# `shux-c` 默认模式可能只是 bootstrap_shuxc 的同步副本；凡是依赖 `-E/-E-extern`
+# 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
+.PHONY: legacy-shux-c-ready
+legacy-shux-c-ready:
+	@$(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C)
+
+LEGACY_SHUX_C_READY_TARGETS = src/lexer/cfg_eval.o parser_gen.c lexer_gen.c ast_gen2.c \
+  typeck_gen.c codegen_gen.c lsp_diag_gen.c lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c \
+  driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c \
+  driver_run_gen.c driver_emit_gen.c driver_gen.c preprocess_gen.c bootstrap-pipeline build-tool
+
+$(LEGACY_SHUX_C_READY_TARGETS): | legacy-shux-c-ready
+
 src/main.o: src/main.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -1443,7 +1456,11 @@ DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 endif
 # pipeline_glue_standalone 与 pipeline_sx.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+ifeq ($(UNAME_S),Darwin)
+ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
+else
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
+endif
 DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 # E-02 v1：lsp_diag.c 已删；仅 lsp_diag_stubs_no_c.o + lsp_diag_sx.o。

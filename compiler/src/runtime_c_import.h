@@ -23,8 +23,9 @@
  * 返回值：0 成功；-1 失败且已释放已写入的 all_dep_*。
  */
 int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
-    const char **defines, int ndefines, ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods,
-    char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps);
+    const char **defines, int ndefines, int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
+    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out,
+    int max_deps);
 
 /**
  * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块 .sx 路径（跨文件 Location.uri）。

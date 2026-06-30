@@ -641,7 +641,10 @@ function ast_arena_init(arena: *ASTArena): void {
 
 /** 在 Type 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
 function ast_arena_type_alloc(arena: *ASTArena): i32 {
-  let ref: i32 = pipeline_arena_type_alloc(arena);
+  let ref: i32 = 0;
+  unsafe {
+    ref = pipeline_arena_type_alloc(arena);
+  }
   if (ref <= 0) {
     return 0;
   }
@@ -650,7 +653,10 @@ function ast_arena_type_alloc(arena: *ASTArena): i32 {
 
 /** 在 Expr 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
 function ast_arena_expr_alloc(arena: *ASTArena): i32 {
-  let ref: i32 = pipeline_arena_expr_alloc(arena);
+  let ref: i32 = 0;
+  unsafe {
+    ref = pipeline_arena_expr_alloc(arena);
+  }
   if (ref <= 0) {
     return 0;
   }
@@ -659,7 +665,10 @@ function ast_arena_expr_alloc(arena: *ASTArena): i32 {
 
 /** 在 Block 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
 function ast_arena_block_alloc(arena: *ASTArena): i32 {
-  let ref: i32 = pipeline_arena_block_alloc(arena);
+  let ref: i32 = 0;
+  unsafe {
+    ref = pipeline_arena_block_alloc(arena);
+  }
   if (ref <= 0) {
     return 0;
   }
@@ -711,12 +720,16 @@ extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_re
 extern function pipeline_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void;
 
 function expr_init_call_resolve(arena: *ASTArena, expr_ref: i32): void {
-  pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+  unsafe {
+    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+  }
 }
 
 /** typeck 解析 CALL 后写入目标模块/函数下标（委托 C glue）。 */
 function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
-  pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+  unsafe {
+    pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+  }
 }
 
 /** 按 ref 取 Expr 池中节点（副本）；ref 须为 1..num_exprs。实现于 pipeline_glue.c。 */
@@ -748,7 +761,10 @@ function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
   if (body_ref <= 0 || body_ref > a.num_blocks) {
     return 0;
   }
-  let blk: Block = ast_arena_block_get(a, body_ref);
+  let blk: Block;
+  unsafe {
+    blk = ast_arena_block_get(a, body_ref);
+  }
   return blk.final_expr_ref;
 }
 
@@ -760,7 +776,9 @@ extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i3
 
 /** 末表达式若为 RETURN/PANIC/BREAK/CONTINUE，则不允许隐式尾返回；委托 glue。 */
 function ast_expr_disallows_implicit_tail(a: *ASTArena, expr_ref: i32): bool {
-  return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
+  unsafe {
+    return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
+  }
 }
 
 function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
@@ -768,7 +786,10 @@ function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
     return 0;
   }
   /** shux-c 不能在 return 上对函数返回值再做 .field，须先绑到局部 Block。 */
-  let blk_nc: Block = ast_arena_block_get(a, br);
+  let blk_nc: Block;
+  unsafe {
+    blk_nc = ast_arena_block_get(a, br);
+  }
   return blk_nc.num_consts;
 }
 
@@ -776,7 +797,10 @@ function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nl: Block = ast_arena_block_get(a, br);
+  let blk_nl: Block;
+  unsafe {
+    blk_nl = ast_arena_block_get(a, br);
+  }
   return blk_nl.num_lets;
 }
 
@@ -784,7 +808,10 @@ function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nlp: Block = ast_arena_block_get(a, br);
+  let blk_nlp: Block;
+  unsafe {
+    blk_nlp = ast_arena_block_get(a, br);
+  }
   return blk_nlp.num_loops;
 }
 
@@ -792,7 +819,10 @@ function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nfp: Block = ast_arena_block_get(a, br);
+  let blk_nfp: Block;
+  unsafe {
+    blk_nfp = ast_arena_block_get(a, br);
+  }
   return blk_nfp.num_for_loops;
 }
 
@@ -800,7 +830,10 @@ function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nif: Block = ast_arena_block_get(a, br);
+  let blk_nif: Block;
+  unsafe {
+    blk_nif = ast_arena_block_get(a, br);
+  }
   return blk_nif.num_if_stmts;
 }
 
@@ -809,19 +842,27 @@ function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nr: Block = ast_arena_block_get(a, br);
+  let blk_nr: Block;
+  unsafe {
+    blk_nr = ast_arena_block_get(a, br);
+  }
   return blk_nr.num_regions;
 }
 
 function ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32 {
-  return pipeline_block_region_body_ref(a, br, ri);
+  unsafe {
+    return pipeline_block_region_body_ref(a, br, ri);
+  }
 }
 
 function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nes: Block = ast_arena_block_get(a, br);
+  let blk_nes: Block;
+  unsafe {
+    blk_nes = ast_arena_block_get(a, br);
+  }
   return blk_nes.num_expr_stmts;
 }
 
@@ -829,79 +870,116 @@ function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  let blk_nso: Block = ast_arena_block_get(a, br);
+  let blk_nso: Block;
+  unsafe {
+    blk_nso = ast_arena_block_get(a, br);
+  }
   return blk_nso.num_stmt_order;
 }
 
 function ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8 {
-  return pipeline_block_stmt_order_kind(a, br, si);
+  unsafe {
+    return pipeline_block_stmt_order_kind(a, br, si);
+  }
 }
 
 function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
-  return pipeline_block_stmt_order_idx(a, br, si);
+  unsafe {
+    return pipeline_block_stmt_order_idx(a, br, si);
+  }
 }
 
 function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  return pipeline_block_const_init_ref(a, br, ci);
+  unsafe {
+    return pipeline_block_const_init_ref(a, br, ci);
+  }
 }
 
 function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  return pipeline_block_const_type_ref(a, br, ci);
+  unsafe {
+    return pipeline_block_const_type_ref(a, br, ci);
+  }
 }
 
 function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  return pipeline_block_let_init_ref(a, br, li);
+  unsafe {
+    return pipeline_block_let_init_ref(a, br, li);
+  }
 }
 
 function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  return pipeline_block_let_type_ref(a, br, li);
+  unsafe {
+    return pipeline_block_let_type_ref(a, br, li);
+  }
 }
 
 function ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32 {
-  return pipeline_block_expr_stmt_ref(a, br, ei);
+  unsafe {
+    return pipeline_block_expr_stmt_ref(a, br, ei);
+  }
 }
 
 function ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32 {
-  return pipeline_block_while_cond_ref(a, br, wi);
+  unsafe {
+    return pipeline_block_while_cond_ref(a, br, wi);
+  }
 }
 
 function ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32 {
-  return pipeline_block_while_body_ref(a, br, wi);
+  unsafe {
+    return pipeline_block_while_body_ref(a, br, wi);
+  }
 }
 
 function ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  return pipeline_block_for_init_ref(a, br, fi);
+  unsafe {
+    return pipeline_block_for_init_ref(a, br, fi);
+  }
 }
 
 function ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  return pipeline_block_for_cond_ref(a, br, fi);
+  unsafe {
+    return pipeline_block_for_cond_ref(a, br, fi);
+  }
 }
 
 function ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  return pipeline_block_for_step_ref(a, br, fi);
+  unsafe {
+    return pipeline_block_for_step_ref(a, br, fi);
+  }
 }
 
 function ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  return pipeline_block_for_body_ref(a, br, fi);
+  unsafe {
+    return pipeline_block_for_body_ref(a, br, fi);
+  }
 }
 
 function ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  return pipeline_block_if_cond_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_cond_ref(a, br, ii);
+  }
 }
 
 function ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  return pipeline_block_if_then_body_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_then_body_ref(a, br, ii);
+  }
 }
 
 function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  return pipeline_block_if_else_body_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_else_body_ref(a, br, ii);
+  }
 }
 
 /**
  * 在块内按 const/let 顺序解析局部名到类型池 ref；委托 C grow pool 遍历。
  */
 function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32 {
-  return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
+  unsafe {
+    return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
+  }
 }
 
 /**
@@ -934,13 +1012,21 @@ function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, pa
       continue;
     }
     if (par != 0) {
-      let b_head: Block = ast_arena_block_get(arena, cur);
+      let b_head: Block;
+      unsafe {
+        b_head = ast_arena_block_get(arena, cur);
+      }
       if (b_head.parent_block_ref == 0) {
         b_head.parent_block_ref = par;
-        ast_arena_block_set(arena, cur, b_head);
+        unsafe {
+          ast_arena_block_set(arena, cur, b_head);
+        }
       }
     }
-    let b: Block = ast_arena_block_get(arena, cur);
+    let b: Block;
+    unsafe {
+      b = ast_arena_block_get(arena, cur);
+    }
     i = 0;
     while (i < b.num_loops) {
       wb = ast_block_while_body_ref(arena, cur, i);
@@ -996,7 +1082,10 @@ extern function ast_arena_block_set(arena: *ASTArena, ref: i32, b: Block): void;
 
 /** 在 Func 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
 function ast_arena_func_alloc(arena: *ASTArena): i32 {
-  let ref: i32 = pipeline_arena_func_alloc(arena);
+  let ref: i32 = 0;
+  unsafe {
+    ref = pipeline_arena_func_alloc(arena);
+  }
   if (ref <= 0) {
     return 0;
   }

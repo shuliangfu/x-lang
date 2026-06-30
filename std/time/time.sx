@@ -21,7 +21,6 @@
 
 /** OS 胶层：单调纳秒。 */
 extern function time_now_monotonic_ns_c(): i64;
-
 /** OS 胶层：墙钟纳秒。 */
 extern function time_now_wall_ns_c(): i64;
 

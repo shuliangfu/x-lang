@@ -1438,8 +1438,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
     ASTModule *all_dep_mods[MAX_ALL_DEPS];
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
-    if (mod->num_imports > 0 && shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir, ndefines > 0 ? defines : NULL, ndefines,
-            dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
+    if (mod->num_imports > 0 && shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir,
+            ndefines > 0 ? defines : NULL, ndefines, emit_c_only ? 1 : 0, dep_mods, &ndep, all_dep_mods,
+            all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         free(src);
         return 1;
@@ -3491,7 +3492,7 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
     if (mod->num_imports > 0 &&
-        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, dep_mods, &ndep,
+        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
             all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         return 1;
@@ -3563,7 +3564,7 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
     if (mod->num_imports > 0 &&
-        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, dep_mods, &ndep,
+        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
             all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         return 1;
@@ -3859,8 +3860,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             shux_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
             if (c_mod->num_imports > 0 &&
                 shu_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
-                    ndefines > 0 ? defines : NULL, ndefines, dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL,
-                    &n_all, MAX_ALL_DEPS) != 0) {
+                    ndefines > 0 ? defines : NULL, ndefines, 0, dep_mods, &ndep, all_dep_mods, all_dep_paths,
+                    NULL, &n_all, MAX_ALL_DEPS) != 0) {
                 ast_module_free(c_mod);
                 free(src);
                 return 1;
@@ -5548,7 +5549,7 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
     if (mod->num_imports > 0 && shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
-            dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
+            1, dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         free(src);
         return 1;
