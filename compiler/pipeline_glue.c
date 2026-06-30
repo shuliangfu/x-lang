@@ -24416,6 +24416,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
                                                  int32_t expr_ref, int32_t return_type_ref,
                                                  struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
+  int32_t base_rc;
   int32_t base_ty;
   int32_t method_nlen;
   uint8_t method_nm[64];
@@ -24423,6 +24424,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   int32_t num_args;
   int32_t arg_i;
   int32_t ord_i32 = (int32_t)ast_TypeKind_TYPE_I32;
+  int32_t ord_var = (int32_t)ast_ExprKind_EXPR_VAR;
   extern int32_t typeck_check_expr(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                    int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
@@ -24430,14 +24432,37 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
     return 0;
   pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  if (typeck_check_expr(module, arena, base_ref, 0, ctx) != 0)
-    return -1;
+  base_rc = typeck_check_expr(module, arena, base_ref, 0, ctx);
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
   if (method_nlen <= 0 || method_nlen > 63)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
   ret_ty = 0;
+  if (base_ty <= 0 && ctx && pipeline_expr_kind_ord_at(arena, base_ref) == ord_var) {
+    int32_t base_nlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (base_nlen > 0 && base_nlen <= 63) {
+      uint8_t base_nm[64];
+      int32_t j = 0;
+      pipeline_expr_var_name_into(arena, base_ref, base_nm);
+      while (j < module->num_imports) {
+        if (pipeline_module_import_kind_at(module, j) == GLUE_TYPECK_IMPORT_BINDING &&
+            pipeline_typeck_import_binding_name_equal_impl(module, j, base_nm, base_nlen)) {
+          struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, j);
+          if (dm) {
+            int32_t bind_fn = 0;
+            ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, method_nm, method_nlen, j,
+                                                                               ctx, &bind_fn);
+            if (ret_ty != 0) {
+              pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, j, bind_fn);
+              break;
+            }
+          }
+        }
+        j = j + 1;
+      }
+    }
+  }
   if (base_ty > 0) {
     /** bootstrap：impl 块被 skip 时 trait 测试 i32.double() 仍须 typeck 通过。 */
     if (pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&
@@ -24455,6 +24480,8 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
       return -1;
     arg_i = arg_i + 1;
   }
+  if (base_rc != 0 && ret_ty == 0)
+    return -1;
   return ret_ty != 0 ? 0 : -1;
 }
 
