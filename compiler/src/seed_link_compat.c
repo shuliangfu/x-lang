@@ -802,3 +802,18 @@ SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jmp, uint8_t *, label, int32_t, label_l
 SHUX_ARCH_ENC_STUB3(arch_riscv64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_add_sp_imm12, int32_t, imm)
+
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_32_from_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_64_from_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_zext8_from_rax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_store_rax_to_rbx_indirect, int32_t, elem_sz)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_store_rax_to_rbx_offset, int32_t, offset, int32_t, store_size)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_mov_rbx_to_rax)
+
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_mul_rbx_a3)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_load_32_from_rax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_load_64_from_rax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_load_zext8_from_rax)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_store_rax_to_rbx_indirect, int32_t, elem_sz)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_store_rax_to_rbx_offset, int32_t, offset, int32_t, store_size)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_mov_rbx_to_rax)
