@@ -270,6 +270,18 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
     lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
 }
 
+void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "if condition must be bool (no implicit int-to-bool)");
+}
+
+void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "while condition must be bool (no implicit int-to-bool)");
+}
+
+void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col) {
+    lsp_diag_report_typeck((int)line, (int)col, "for condition must be bool (no implicit int-to-bool)");
+}
+
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col) {
     lsp_diag_report_typeck((int)line, (int)col, "pointer dereference requires unsafe block");

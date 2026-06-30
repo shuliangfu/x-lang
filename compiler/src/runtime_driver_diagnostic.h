@@ -35,6 +35,9 @@ void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col
                                                        int32_t expect_n, int32_t got_n);
 void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
+void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
+void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
+void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col);
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */

@@ -98,6 +98,9 @@ extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): vo
 /** break/continue 出现在循环外：stderr 含「'break' only allowed inside a loop」（与 typeck.c 一致）。 */
 extern function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32,
 is_break: i32): void;
+extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
+extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
+extern function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void;
 extern function driver_typeck_diag_scratch_expect(): *u8;
 extern function driver_typeck_diag_scratch_found(): *u8;
 /** ast_pool.c：64 字节 scratch（避免 let u8[64]=[] 在 EMIT_HEAVY asm 下 ExprKind=-1）。 */
@@ -4901,6 +4904,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
     if (!type_ref_is_bool(arena, expr_type_ref(arena, wc))) {
+      driver_diagnostic_typeck_while_condition_not_bool(pipeline_expr_line_at(arena, wc),
+      pipeline_expr_col_at(arena, wc));
       return - 1;
     }
   }
@@ -4924,6 +4929,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
     if (!type_ref_is_bool(arena, expr_type_ref(arena, fc_cr))) {
+      driver_diagnostic_typeck_for_condition_not_bool(pipeline_expr_line_at(arena, fc_cr),
+      pipeline_expr_col_at(arena, fc_cr));
       return - 1;
     }
   }
@@ -4946,6 +4953,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
     if (!type_ref_is_bool(arena, expr_type_ref(arena, ic_cr))) {
+      driver_diagnostic_typeck_if_condition_not_bool(pipeline_expr_line_at(arena, ic_cr),
+      pipeline_expr_col_at(arena, ic_cr));
       return - 1;
     }
   }
