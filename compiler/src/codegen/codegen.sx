@@ -4890,7 +4890,8 @@ function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i
     ctx.current_emit_empty_var_next_index = saved_next;
     pipeline_dep_ctx_empty_param_restore(ctx);
   }
-  /* 仅当块体无 final_expr 且无 expr_stmt 为 return 时补 "  return 0;\n"，避免双 return 或覆盖已输出的 return。body_expr_ref 路径已在上方 emit。 */
+  /* 仅非 void 函数在块体无 final_expr 且无 expr_stmt 为 return 时补 "  return 0;\n"。
+   * void 函数自然落到结尾即合法，避免 bootstrap 同步不稳时误发射 `return 0;`。 */
   let need_fallback_return: bool = true;
   if (!ast.ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi))) {
     need_fallback_return = false;
@@ -4911,23 +4912,19 @@ function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i
       ji = ji + 1;
     }
   }
+  if (fn_ret_void) {
+    need_fallback_return = false;
+  }
   if (need_fallback_return) {
     if (emit_indent(out, 2) != 0) {
       return -1;
     }
-    if (fn_ret_void) {
-      let ret_void_ln: u8[9] = [114, 101, 116, 117, 114, 110, 59, 10, 0];
-      if (emit_bytes_from_ptr(out, &ret_void_ln[0], 8) != 0) {
-        return -1;
-      }
-    } else {
-      let ret0: u8[9] = [114, 101, 116, 117, 114, 110, 32, 48, 59];
-      if (emit_bytes_9(out, ret0, 9) != 0) {
-        return -1;
-      }
-      if (append_byte(out, 10) != 0) {
-        return -1;
-      }
+    let ret0: u8[9] = [114, 101, 116, 117, 114, 110, 32, 48, 59];
+    if (emit_bytes_9(out, ret0, 9) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 10) != 0) {
+      return -1;
     }
   }
   let close: u8[3] = [125, 10, 0];
