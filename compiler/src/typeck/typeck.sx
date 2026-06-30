@@ -98,6 +98,7 @@ extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): vo
 /** break/continue 出现在循环外：stderr 含「'break' only allowed inside a loop」（与 typeck.c 一致）。 */
 extern function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32,
 is_break: i32): void;
+extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
 extern function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void;
@@ -4953,6 +4954,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
     if (!type_ref_is_bool(arena, expr_type_ref(arena, ic_cr))) {
+      typeck_driver_diagnostic_pipe_marker(pipeline_expr_kind_ord_at(arena, ic_cr));
+      typeck_driver_diagnostic_pipe_marker(pipeline_type_kind_ord_at(arena, expr_type_ref(arena, ic_cr)));
       driver_diagnostic_typeck_if_condition_not_bool(pipeline_expr_line_at(arena, ic_cr),
       pipeline_expr_col_at(arena, ic_cr));
       return - 1;
