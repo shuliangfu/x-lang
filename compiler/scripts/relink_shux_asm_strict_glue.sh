@@ -1174,7 +1174,7 @@ if [ -f "$BUILD_DIR/typeck_asm_layout_partial.o" ] && ! asm_strict_typeck_selfho
 fi
 
 ST_TYPECK_SX_LINK="typeck_sx.o"
-if [ -f "$BUILD_DIR/typeck_sx_no_layout_partial.o" ]; then
+if ! asm_strict_typeck_selfhosted && [ -f "$BUILD_DIR/typeck_asm_layout_partial.o" ] && [ -f "$BUILD_DIR/typeck_sx_no_layout_partial.o" ]; then
   ST_TYPECK_SX_LINK="$BUILD_DIR/typeck_sx_no_layout_partial.o"
 fi
 
@@ -1681,14 +1681,10 @@ ensure_typeck_f64_bits_obj
 ensure_cfg_eval_obj
 
 ST_X86_64_ENC_FALLBACK=""
-case "$UNAME_HOST" in
-  x86_64|amd64)
-    : ;;
-  *)
-    ensure_backend_x86_64_enc_c_obj
-    ST_X86_64_ENC_FALLBACK="$BUILD_DIR/backend_x86_64_enc_c.o"
-    ;;
-esac
+ensure_backend_x86_64_enc_c_obj
+if [ -f "$BUILD_DIR/backend_x86_64_enc_c.o" ]; then
+  ST_X86_64_ENC_FALLBACK="$BUILD_DIR/backend_x86_64_enc_c.o"
+fi
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $ST_X86_64_ENC_FALLBACK"
 
 echo "relink_shux_asm_strict_glue: linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...) ..."
