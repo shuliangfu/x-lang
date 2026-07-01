@@ -345,40 +345,14 @@ function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *ASTAren
  * buf 路径 parse + set_main；EMIT_HEAVY SX 真 emit（parse_into_buf + sidecar main_idx）。
  */
 function pipeline_parse_set_main_from_buf(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || data == 0 as *u8 || len <= 0) {
-    return -2;
-  }
-  if (pipeline_parse_into_buf(arena, module, data, len) != 0) {
-    driver_diagnostic_parse_fail(pipeline_parse_scalars_main_idx_get(), pipeline_module_num_funcs(module), pipeline_arena_num_types(arena));
-    return -2;
-  }
-  pipeline_module_set_main_func_index(module, pipeline_parse_scalars_main_idx_get());
-  return 0;
+  return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
 }
 
 /**
  * 已对 module 设好 main_idx：按 library / 可执行分派 typeck_sx_ast*；EMIT_HEAVY SX 真 emit。
  */
 function pipeline_typeck_parsed_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return pipeline_typeck_null_fail_return_c(fail_mapped);
-  }
-  if (pipeline_module_main_func_index(module) < 0) {
-    if (typeck_typeck_sx_ast_library(module, arena, ctx) != 0) {
-      return pipeline_typeck_fail_return_c(fail_mapped);
-    }
-    if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
-      return pipeline_typeck_fail_return_c(fail_mapped);
-    }
-    return 0;
-  }
-  if (typeck_typeck_sx_ast(module, arena, ctx) != 0) {
-    return pipeline_typeck_fail_return_c(fail_mapped);
-  }
-  if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
-    return pipeline_typeck_fail_return_c(fail_mapped);
-  }
-  return 0;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
 }
 
 /**
@@ -532,19 +506,7 @@ extern function run_sx_pipeline_codegen_entry_emit(module: *Module, arena: *ASTA
  * entry 尚未解析：parse + set_main + 收尾诊断；EMIT_HEAVY SX 真 emit（if(CALL) 勿 let init）。
  */
 function run_sx_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
-    return -1;
-  }
-  if (source_len > 2147483647 as usize) {
-    return -1;
-  }
-  driver_diagnostic_source_len(source_len as i32);
-  if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len as i32) != 0) {
-    return -2;
-  }
-  driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
-  driver_diagnostic_entry_module(module, arena);
-  return 0;
+  return run_sx_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
 }
 
 /**
@@ -583,16 +545,7 @@ function run_sx_pipeline_load_deps_after_parse(module: *Module, arena: *ASTArena
  * load 后 typecheck entry；EMIT_HEAVY SX 真 emit（last_rc sidecar 与 impl 一致）。
  */
 function run_sx_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    run_sx_pipeline_last_rc_store_c(-1);
-    return run_sx_pipeline_last_rc_get();
-  }
-  if (run_sx_pipeline_typecheck_entry(module, arena, ctx) != 0) {
-    run_sx_pipeline_last_rc_store_c(-3);
-    return run_sx_pipeline_last_rc_get();
-  }
-  run_sx_pipeline_last_rc_store_c(0);
-  return 0;
+  return run_sx_pipeline_typecheck_after_load_c(module, arena, ctx);
 }
 
 /**

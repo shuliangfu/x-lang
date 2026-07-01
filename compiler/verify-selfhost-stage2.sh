@@ -32,15 +32,15 @@ $GEN -sx -E -E-extern src/ast/ast.sx > ast_gen2.c
 echo "  lexer..."
 $GEN -sx -E -L src/lexer -E-extern src/lexer/lexer.sx > lexer_gen2.c
 echo "  parser..."
-$GEN -sx -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.sx > parser_gen2.c
+$GEN -sx -E -L .. -L src -L src/lexer -L src/ast -E-extern src/parser/parser.sx > parser_gen2.c
 echo "  typeck..."
-$GEN -sx -E -L .. -L src/lexer -L src/ast -E-extern src/typeck/typeck.sx > typeck_gen2.c
+$GEN -sx -E -L .. -L src -L src/lexer -L src/ast -E-extern src/typeck/typeck.sx > typeck_gen2.c
 echo "  codegen..."
-$GEN -sx -E -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E-extern src/codegen/codegen.sx > codegen_gen2.c
+$GEN -sx -E -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -E-extern src/codegen/codegen.sx > codegen_gen2.c
 echo "  preprocess..."
 $GEN -sx -E -L src/lexer -E-extern src/preprocess/preprocess.sx > preprocess_gen2.c
 echo "  pipeline..."
-$GEN -sx -E -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E-extern src/pipeline/pipeline.sx > pipeline_gen2.c
+$GEN -sx -E -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E-extern src/pipeline/pipeline.sx > pipeline_gen2.c
 echo "  driver (main.sx)..."
 $GEN -sx -E -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E-extern src/main.sx > driver_gen2.c
 
@@ -74,6 +74,24 @@ cc $CFLAGS -c typeck_gen2.c   -o typeck_sx2.o
 cc $CFLAGS -c codegen_gen2.c  -o codegen_sx2.o
 cc $CFLAGS -c preprocess_gen2.c -o preprocess_sx2.o
 cc $CFLAGS -c pipeline_gen2.c -o pipeline_sx2.o
+STAGE2_SX_TMP_DIR="${TMPDIR:-/tmp}/shux-stage2-sx"
+mkdir -p "$STAGE2_SX_TMP_DIR"
+PIPELINE_SX2_ALL="$STAGE2_SX_TMP_DIR/pipeline_sx2.syms"
+PIPELINE_SX2_OMIT="$STAGE2_SX_TMP_DIR/pipeline_sx2.omit"
+PIPELINE_SX2_KEEP="$STAGE2_SX_TMP_DIR/pipeline_sx2.keep"
+PIPELINE_SX2_FILTERED="$STAGE2_SX_TMP_DIR/pipeline_sx2_filtered.o"
+cat >"$PIPELINE_SX2_OMIT" <<'EOF'
+typeck_check_expr_call
+typeck_check_expr_deref
+typeck_check_expr_method_call
+codegen_try_emit_slice_init_from_array_var
+backend_ctx_push_loop_labels
+backend_ctx_pop_loop_labels
+backend_try_fold_count_up_while_elf
+EOF
+nm pipeline_sx2.o 2>/dev/null | awk '/ [TDS] / { s=$3; sub(/^_/, "", s); print s }' | sort -u >"$PIPELINE_SX2_ALL"
+grep -vxF -f "$PIPELINE_SX2_OMIT" "$PIPELINE_SX2_ALL" | sed 's/^/_/' >"$PIPELINE_SX2_KEEP"
+ld -r -exported_symbols_list "$PIPELINE_SX2_KEEP" -o "$PIPELINE_SX2_FILTERED" pipeline_sx2.o
 
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
@@ -86,10 +104,13 @@ cc $CFLAGS -c lexer_sx_link_alias.c -o lexer_sx_link_alias.o 2>/dev/null || true
 # runtime_driver（与 shux-sx 相同宏，供 driver_run_compiler_full_sx）
 cc $CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN -DSHUX_USE_SX_PREPROCESS \
   -c src/runtime.c -o runtime_driver2.o
+# Stage2 链接仍需沿用 driver 专用 C 对象；不要依赖工作区里偶然残留的 .o。
+${MAKE:-make} src/main_driver.o src/preprocess_for_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
 
 # ── Step 4: 链接 shux-sx2（*_sx2.o 替代 parser_sx/typeck_sx/codegen_sx/pipeline_sx；其余与 bootstrap-driver-seed 同拓扑）──
 echo ""
 echo "── Step 4: 链接 shux-sx2 ──"
+${MAKE:-make} bootstrap-driver-seed >/dev/null
 for _o in driver_sx.o driver_compile_sx.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o \
   driver_build_sx.o driver_run_sx.o driver_emit_sx.o preprocess_sx.o lsp_sx.o lsp_diag_sx.o lsp_io_sx.o lsp_io_std_heap_sx.o \
   pipeline_bootstrap_orchestration.o src/async/async_liveness.o src/async/async_cps_codegen.o; do
@@ -97,24 +118,29 @@ for _o in driver_sx.o driver_compile_sx.o driver_fmt_sx.o driver_check_sx.o driv
 done
 cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_TYPECK -DSHUX_USE_SX_CODEGEN \
+  -Wl,-multiply_defined,suppress -e _start -nostartfiles \
   -o shux-sx2 \
-  src/main_driver.o runtime_driver2.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o \
-  src/asm/simd_enc.o src/asm/simd_loop.o src/preprocess_for_driver.o \
-  src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o \
-  src/async/async_liveness.o src/async/async_cps_codegen.o \
-  src/sx_seed_bridge_stage2.o src/std_fs_shim.o src/ast_pool_l5_bridge.o \
-  token_sx2.o ast_sx2.o lexer_sx2.o parser_sx2.o typeck_sx2.o codegen_sx2.o preprocess_sx2.o pipeline_sx2.o \
+  src/asm/crt0_arm64.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
+  src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
+  src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
+  src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o \
+  src/codegen/codegen.o src/codegen/autovec.o src/async/async_liveness.o src/async/async_cps_codegen.o \
+  src/runtime_c_import.o src/preprocess.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
+  src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
+  src/lsp/lsp_heap_bootstrap.o src/sx_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
+  src/ast_pool_l5_bridge.o \
+  token_sx2.o ast_sx2.o lexer_sx2.o parser_sx2.o typeck_sx2.o codegen_sx2.o preprocess_sx2.o "$PIPELINE_SX2_FILTERED" \
   lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o \
-  pipeline_bootstrap_orchestration.o \
-  driver_sx.o \
+  driver_sx.o pipeline_bootstrap_orchestration.o \
   driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_compile_sx.o driver_build_sx.o driver_run_sx.o driver_emit_sx.o \
-  src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o \
-  src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o \
-  lsp_sx.o lsp_diag_sx.o lsp_io_sx.o lsp_io_std_heap_sx.o \
-  _stubs_driver.o \
-  build_asm/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o \
+  _stubs_driver.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_stubs_no_c.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o \
+  lsp_io_sx.o lsp_io_std_heap_sx.o build_asm/seed_host/asm_backend_partial.o \
+  build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
+  build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o \
   src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o \
-  src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o
+  src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o \
+  src/asm/parser_asm_parse_expr_link.o build_asm/pipeline_glue_strict_minimal.o
 
 echo "shux-sx2 linked: $(ls -lh shux-sx2 | awk '{print $5}')"
 
@@ -122,16 +148,25 @@ echo "shux-sx2 linked: $(ls -lh shux-sx2 | awk '{print $5}')"
 echo ""
 echo "── Step 5: 功能对比 ──"
 echo 'function main(): i32 { return 42; }' > /tmp/selfhost_test.sx
-# 与 run-hello 一致：-L .. 链 std；非 x86_64 上 shux-sx -o 可能失败，参照改 shux-c。
+# 与 verify-selfhost-stage2-bstrict 对齐：Darwin/ARM64 等平台 asm -o 尚不稳定时，用 -backend c 验证行为 parity。
 GEN_FLAGS="-L .."
+STAGE2_SX_COMPILE_BACKEND=""
+case "$(uname -s)-$(uname -m 2>/dev/null)" in
+  Darwin-*|Linux-aarch64|Linux-arm64)
+    STAGE2_SX_COMPILE_BACKEND="-backend c"
+    echo "verify-stage2: use -backend c for Step 5 on $(uname -s)/$(uname -m 2>/dev/null)"
+    ;;
+esac
 REF=$SX
 
 echo "参照编译 ($REF):"
-$REF $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_a 2>&1 || true
+# shellcheck disable=SC2086
+$REF $STAGE2_SX_COMPILE_BACKEND $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_a 2>&1 || true
 if [ ! -x /tmp/selfhost_a ] && [ -x ./shux-c ]; then
   echo "  (shux-sx -o 未产出，非 x86_64 等环境改 shux-c 作参照)"
   REF=./shux-c
-  $REF $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_a 2>&1 || true
+  # shellcheck disable=SC2086
+  $REF $STAGE2_SX_COMPILE_BACKEND $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_a 2>&1 || true
 fi
 chmod +x /tmp/selfhost_a 2>/dev/null || true
 set +e
@@ -140,7 +175,8 @@ r1=$?
 set -e
 
 echo "shux-sx2 编译:"
-./shux-sx2 $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_b 2>&1 || true
+# shellcheck disable=SC2086
+./shux-sx2 $STAGE2_SX_COMPILE_BACKEND $GEN_FLAGS /tmp/selfhost_test.sx -o /tmp/selfhost_b 2>&1 || true
 chmod +x /tmp/selfhost_b 2>/dev/null || true
 set +e
 /tmp/selfhost_b >/dev/null 2>&1

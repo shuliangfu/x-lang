@@ -651,10 +651,14 @@ int32_t pipeline_arena_block_alloc(struct ast_ASTArena *a) {
 
 int32_t pipeline_arena_func_alloc(struct ast_ASTArena *a) {
   ArenaSidecar *sc;
+  struct ast_Func *f;
   if (!a || !(sc = arena_sidecar_get(a, 1)))
     return 0;
   if (grow_vec_push(&sc->funcs) < 0)
     return 0;
+  f = (struct ast_Func *)grow_vec_at(&sc->funcs, sc->funcs.len - 1);
+  if (f)
+    memset(f, 0, sizeof(*f));
   a->num_funcs = sc->funcs.len;
   return a->num_funcs;
 }
@@ -1005,6 +1009,8 @@ void ast_pool_onefunc_reset(uint8_t *out) {
 /** Module 侧分配新函数槽，返回 0-based 下标；失败返回 -1。 */
 int32_t pipeline_module_func_alloc_slot(struct ast_Module *m) {
   ModuleSidecar *sc;
+  struct ast_Func *f;
+  int32_t *pr;
   int32_t idx;
   if (!m)
     return -1;
@@ -1014,7 +1020,14 @@ int32_t pipeline_module_func_alloc_slot(struct ast_Module *m) {
   idx = grow_vec_push(&sc->funcs);
   if (idx < 0)
     return -1;
-  grow_vec_push(&sc->func_refs);
+  f = (struct ast_Func *)grow_vec_at(&sc->funcs, idx);
+  if (f)
+    memset(f, 0, sizeof(*f));
+  if (grow_vec_push(&sc->func_refs) >= 0) {
+    pr = (int32_t *)grow_vec_at(&sc->func_refs, idx);
+    if (pr)
+      *pr = 0;
+  }
   m->num_funcs = sc->funcs.len;
   return idx;
 }
@@ -1124,6 +1137,11 @@ void pipeline_module_func_set_num_generic_params(struct ast_Module *m, int32_t f
   struct ast_Func *f = module_func_at(m, fi);
   if (f && n >= 0)
     f->num_generic_params = n;
+  if (f && getenv("SHUX_DEBUG_FUNC_GENERIC_SLOT")) {
+    fprintf(stderr, "shux: [SHUX_DEBUG_FUNC_GENERIC_SLOT] set fi=%d n=%d name=%.*s\n",
+            (int)fi, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0), (const char *)f->name);
+    fflush(stderr);
+  }
 }
 
 int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t func_index) {
@@ -1141,6 +1159,12 @@ int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t
   f = module_func_at(m, func_index);
   if (!f)
     return 0;
+  if (getenv("SHUX_DEBUG_FUNC_GENERIC_SLOT")) {
+    fprintf(stderr, "shux: [SHUX_DEBUG_FUNC_GENERIC_SLOT] get fi=%d n=%d name=%.*s\n",
+            (int)func_index, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0),
+            (const char *)f->name);
+    fflush(stderr);
+  }
   return (int32_t)f->num_generic_params;
 }
 
@@ -5449,11 +5473,17 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
   if (!module || !arena || !data || len <= 0)
     return -2;
   pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=%d main_idx=%d num_funcs=%d\n", (int)ok,
+            (int)main_idx, (int)pipeline_module_num_funcs(module));
   if (ok != 0) {
     driver_diagnostic_parse_fail(main_idx, pipeline_module_num_funcs(module), pipeline_arena_num_types(arena));
     return -2;
   }
   pipeline_module_set_main_func_index(module, main_idx);
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=%d\n",
+            (int)pipeline_module_main_func_index(module));
   return 0;
 }
 
@@ -5471,6 +5501,9 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_sx_ast -11。 */
   if (pipeline_module_num_funcs(module) == 0)
     pipeline_module_set_main_func_index(module, -1);
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
+            (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_sx_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
@@ -6498,12 +6531,24 @@ extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t type_re
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 extern int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord);
 
+static int32_t typeck_integer_widen_ok_ord_c(int32_t dest_kind, int32_t src_kind) {
+  if (dest_kind == src_kind)
+    return dest_kind == 0 || dest_kind == 2 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6;
+  if (src_kind == 2)
+    return dest_kind == 0 || dest_kind == 3 || dest_kind == 4 || dest_kind == 6;
+  if (src_kind == 0)
+    return dest_kind == 3 || dest_kind == 5 || dest_kind == 6;
+  return src_kind == 3 && dest_kind == 4;
+}
+
 /**
  * 算术/位 binop 结果类型推导（typeck.sx 同逻辑；SX 单函 emit 触顶 reloc 8192，暂经 C glue）。
  * 假定 bop_l/bop_r 已 check；写 expr_ref.resolved_type_ref。
  */
 void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t bop_l,
                                      int32_t bop_r, int32_t expr_kind) {
+  int32_t lk_expr;
+  int32_t rk_expr;
   int32_t lt_ar;
   int32_t rt_ar;
   int32_t lko;
@@ -6516,6 +6561,8 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
   rt_ar = pipeline_expr_resolved_type_ref(arena, bop_r);
   if (lt_ar <= 0 || rt_ar <= 0 || lt_ar > arena->num_types || rt_ar > arena->num_types)
     return;
+  lk_expr = pipeline_expr_kind_ord_at(arena, bop_l);
+  rk_expr = pipeline_expr_kind_ord_at(arena, bop_r);
   lko = pipeline_type_kind_ord_at(arena, lt_ar);
   rko = pipeline_type_kind_ord_at(arena, rt_ar);
   /** ptr ± i32/usize/isize → ptr（与 typeck.sx binop_arith 一致）。 */
@@ -6531,9 +6578,19 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     out_ar = lt_ar;
   } else if (out_ar == 0 && (lko == 5 || rko == 5)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
+  } else if (out_ar == 0 && (lko == 14 || rko == 14)) {
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
   } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
   } else if (out_ar == 0 && pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
+    out_ar = lt_ar;
+  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(lko, rko)) {
+    out_ar = lt_ar;
+  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(rko, lko)) {
+    out_ar = rt_ar;
+  } else if (out_ar == 0 && lk_expr == 0 && rk_expr != 0) {
+    out_ar = rt_ar;
+  } else if (out_ar == 0 && rk_expr == 0 && lk_expr != 0) {
     out_ar = lt_ar;
   } else if (out_ar == 0 && lt_ar != 0) {
     out_ar = lt_ar;
@@ -8962,6 +9019,48 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena
 int32_t pipeline_codegen_emit_struct_field_type(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                               int32_t type_ref, uint8_t *struct_prefix, int32_t struct_prefix_len) {
   return pipeline_codegen_emit_struct_field_type_inner(arena, out, type_ref, struct_prefix, struct_prefix_len);
+}
+
+/**
+ * 结构体字段声明发射：
+ * - 普通字段：`type name`
+ * - 数组字段：`type name[n][m]`
+ * 仅剥离最外层数组链，保留内层类型（如指针）由原 type emitter 输出。
+ */
+int32_t pipeline_codegen_emit_struct_field_decl(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                int32_t type_ref, uint8_t *field_name, int32_t field_name_len,
+                                                uint8_t *struct_prefix, int32_t struct_prefix_len) {
+  int32_t base_type_ref;
+  int32_t dims[8];
+  int32_t ndim;
+  int32_t i;
+
+  if (!arena || !out || type_ref <= 0 || !field_name || field_name_len <= 0)
+    return -1;
+
+  base_type_ref = type_ref;
+  ndim = 0;
+  while (base_type_ref > 0 && pipeline_type_kind_ord_at(arena, base_type_ref) == 10 && ndim < 8) {
+    dims[ndim] = pipeline_type_array_size_at(arena, base_type_ref);
+    base_type_ref = pipeline_type_elem_ref_at(arena, base_type_ref);
+    ndim++;
+  }
+
+  if (pipeline_codegen_emit_struct_field_type_inner(arena, out, base_type_ref, struct_prefix, struct_prefix_len) != 0)
+    return -1;
+  if (pipeline_codegen_out_append_byte(out, (uint8_t)' ') != 0)
+    return -1;
+  if (pipeline_codegen_out_append_bytes(out, field_name, field_name_len) != 0)
+    return -1;
+  for (i = 0; i < ndim; i++) {
+    if (pipeline_codegen_out_append_byte(out, (uint8_t)'[') != 0)
+      return -1;
+    if (pipeline_codegen_out_format_int(out, dims[i]) != 0)
+      return -1;
+    if (pipeline_codegen_out_append_byte(out, (uint8_t)']') != 0)
+      return -1;
+  }
+  return 0;
 }
 
 /**

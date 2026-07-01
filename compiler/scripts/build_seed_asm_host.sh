@@ -14,11 +14,44 @@ case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_
 case "$_seed_os" in darwin) _seed_os="darwin" ;; linux) _seed_os="linux" ;; esac
 HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 
+default_asm_e_max_rss_mb() {
+  if [ "$_seed_os" = "darwin" ]; then
+    printf '%s\n' 8192
+    return
+  fi
+  printf '%s\n' 0
+}
+
+proc_tree_rss_kb() {
+  _root_pid=$1
+  _total_kb=0
+  _rss=$(ps -o rss= -p "$_root_pid" 2>/dev/null | awk '{s+=$1} END{print s+0}')
+  _total_kb=$((_total_kb + _rss))
+  for _child_pid in $(pgrep -P "$_root_pid" 2>/dev/null || true); do
+    _child_rss=$(ps -o rss= -p "$_child_pid" 2>/dev/null | awk '{s+=$1} END{print s+0}')
+    _total_kb=$((_total_kb + _child_rss))
+  done
+  printf '%s\n' "$_total_kb"
+}
+
+kill_proc_tree() {
+  _root_pid=$1
+  pkill -TERM -P "$_root_pid" 2>/dev/null || true
+  kill "$_root_pid" 2>/dev/null || true
+  sleep 1
+  pkill -KILL -P "$_root_pid" 2>/dev/null || true
+  kill -9 "$_root_pid" 2>/dev/null || true
+}
+
 can_seed_run() {
   [ -x "$1" ] || return 1
   _tmp="/tmp/shux_build_seed_can_run_$$.su"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$_tmp"
   if "$1" -c "$_tmp" >/dev/null 2>&1; then
+    rm -f "$_tmp" 2>/dev/null || true
+    return 0
+  fi
+  if "$1" -E "$_tmp" >/dev/null 2>&1; then
     rm -f "$_tmp" 2>/dev/null || true
     return 0
   fi
@@ -47,10 +80,12 @@ if [ ! -x "$SHUX_E" ]; then
   exit 1
 fi
 
-# `asm.sx -E` 依赖最新的 .sx pipeline/runtime 修复；若已有 `shux-sx`，优先用它而不是
-# 更老的 bootstrap_shuxc/host seed，避免 0 字节且无 stderr 的假失败。
+# `asm_seed_full.sx -E` 当前会触发 `shux-sx` 的 parser 资源失控；同一输入下 `shux-c`
+# 可稳定产出完整 C，因此 seed partial 生成优先走 `shux-c`，仅在缺失时才回退到 `shux-sx` / `shux`。
 SHUX_ASM_E="${SHUX_ASM_E:-$SHUX_E}"
-if can_seed_run ./shux-sx; then
+if can_seed_run ./shux-c; then
+  SHUX_ASM_E=./shux-c
+elif can_seed_run ./shux-sx; then
   SHUX_ASM_E=./shux-sx
 elif can_seed_run ./shux; then
   SHUX_ASM_E=./shux
@@ -72,30 +107,41 @@ run_asm_sx_emit_c() {
   _err="$2"
   _start=$(date +%s)
   _run() {
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
   }
   _run_bg() {
     # 回退仍须全量 -L；仅 -L src/asm 无法 resolve import codegen/ast 等。
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-512}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
   }
   _wait_with_heartbeat() {
     _pid=$1
     _label=$2
     _timeout="${SHUX_ASM_E_TIMEOUT_SEC:-120}"
+    _rss_limit_mb="${SHUX_ASM_E_MAX_RSS_MB:-$(default_asm_e_max_rss_mb)}"
+    _rss_limit_kb=$((_rss_limit_mb * 1024))
+    _peak_rss_kb=0
     while kill -0 "$_pid" 2>/dev/null; do
       _elapsed=$(( $(date +%s) - _start ))
       _bytes=0
+      _rss_kb=$(proc_tree_rss_kb "$_pid")
+      if [ "$_rss_kb" -gt "$_peak_rss_kb" ]; then
+        _peak_rss_kb="$_rss_kb"
+      fi
       [ -f "$_out" ] && _bytes=$(wc -c <"$_out" | tr -d ' ')
-      echo "[$(date +%H:%M:%S)] build_seed_asm_host: ${_label} ... ${_elapsed}s, out=${_bytes} bytes" >&2
+      echo "[$(date +%H:%M:%S)] build_seed_asm_host: ${_label} ... ${_elapsed}s, out=${_bytes} bytes, rss=$((_rss_kb / 1024)) MiB, peak=$((_peak_rss_kb / 1024)) MiB" >&2
+      if [ "${_rss_limit_mb:-0}" -gt 0 ] && [ "$_rss_kb" -ge "$_rss_limit_kb" ]; then
+        echo "build_seed_asm_host: ${_label} rss limit hit (${_rss_kb} KiB >= ${_rss_limit_kb} KiB), terminate and fallback" >&2
+        kill_proc_tree "$_pid"
+        wait "$_pid" 2>/dev/null || true
+        return 125
+      fi
       if [ "${_timeout:-0}" -gt 0 ] && [ "$_elapsed" -ge "$_timeout" ]; then
         echo "build_seed_asm_host: ${_label} timeout after ${_elapsed}s, terminate and fallback" >&2
-        kill "$_pid" 2>/dev/null || true
-        sleep 1
-        kill -9 "$_pid" 2>/dev/null || true
+        kill_proc_tree "$_pid"
         wait "$_pid" 2>/dev/null || true
         return 124
       fi
-      sleep 15
+      sleep 2
     done
     wait "$_pid"
     return $?
@@ -127,6 +173,7 @@ run_asm_sx_emit_c() {
   fi
   [ "$_erc" -eq 0 ] && [ -s "$_out" ] && return 0
   [ "$_erc" -eq 124 ] && return 1
+  [ "$_erc" -eq 125 ] && return 1
   echo "build_seed_asm_host: LIB_ASM -E exit=${_erc}, retry once ..." >&2
   if [ -s "$_err" ]; then tail -10 "$_err" >&2; fi
   rm -f "$_out" "$_err"
@@ -312,6 +359,12 @@ arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
 case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; esac
 SEED_PARTIAL="seeds/asm_backend_partial.${os}.${arch}.o"
+
+darwin_seed_full_e_allowed() {
+  [ "$os" != "darwin" ] && return 0
+  [ "${SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E:-0}" = "1" ]
+}
+
 if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL" ] \
     && has_real_partial_seed_mega "$SEED_PARTIAL"; then
   mkdir -p "$OUT_DIR"
@@ -347,6 +400,18 @@ seed_partial_needs_regen() {
 }
 
 if seed_partial_needs_regen; then
+  if ! darwin_seed_full_e_allowed; then
+    if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+      echo "build_seed_asm_host: Darwin safety guard — skip asm_seed_full.sx -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)" >&2
+      exit 0
+    fi
+    if build_backend_partial_from_c_fallback; then
+      echo "build_seed_asm_host: Darwin safety guard — skip asm_seed_full.sx -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)" >&2
+      exit 0
+    fi
+    echo "build_seed_asm_host: Darwin safety guard blocked asm_seed_full.sx -E, and fallback partial build failed" >&2
+    exit 1
+  fi
   echo "build_seed_asm_host: asm_seed_full.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。

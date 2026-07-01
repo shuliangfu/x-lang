@@ -15,6 +15,7 @@ struct ast_ASTArena;
 struct ast_Module;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfCodegenCtx;
+struct codegen_CodegenOutBuf;
 
 /** 与 backend.sx / pipeline_glue AsmFuncCtx 前缀一致（含 dep_pipe，WPO-S3 跨模块内联解析 import callee）。 */
 struct glue_AsmFuncCtx {
@@ -177,6 +178,8 @@ extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx
                                                int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                 int32_t ta);
+extern int32_t backend_arch_emit_load_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off, int32_t ta);
+extern int32_t backend_arch_emit_lea_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off, int32_t ta);
 extern int32_t pipeline_asm_var_is_emit_func_param_ptr_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          uint8_t *asm_ctx, int32_t var_expr_ref);
 /** >8B 按值 struct 形参 home 槽为 hidden pointer（Vec3f_soa 等），field/index 须 load。 */
@@ -264,6 +267,10 @@ int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit
   return 8;
 }
 
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref) {
+  return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
+}
+
 /**
  * 定长 ARRAY_LIT 初值在栈 temp 区占用字节数（不含 8 字节指针槽）。
  */
@@ -281,6 +288,10 @@ int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t in
   return glue_align_up8_c(n * esz);
 }
 
+int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref) {
+  return asm_array_lit_reserve_stack_bytes(arena, init_ref);
+}
+
 /**
  * STRUCT_LIT 初值在 temp 区按 8 字节/字段存放。
  */
@@ -294,6 +305,10 @@ int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t i
   if (nf <= 0)
     return 0;
   return glue_align_up8_c(nf * 8);
+}
+
+int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref) {
+  return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
 
 /** 按名称查本模块函数下标；-1 未找到（定义见下）。 */
@@ -646,6 +661,27 @@ static int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struc
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_enc_load_rbp_to_rax_arch(elf_ctx, slot_off, ta);
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
+}
+
+int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      int32_t arg_ref, int32_t slot_off, int32_t ta,
+                                                      uint8_t *asm_ctx) {
+  return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+}
+
+static int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
+                                                          struct codegen_CodegenOutBuf *out, int32_t arg_ref,
+                                                          int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
+    return backend_arch_emit_load_rbp_to_rax(out, slot_off, ta);
+  return backend_arch_emit_lea_rbp_to_rax(out, slot_off, ta);
+}
+
+int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
+                                                             struct codegen_CodegenOutBuf *out, int32_t arg_ref,
+                                                             int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
 
 /** 小 struct 按值返回：struct_lit 字段数上限（Pair 等）。 */

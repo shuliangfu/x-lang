@@ -35,6 +35,8 @@ fi
 
 echo ""
 echo "── Step 1: shux_asm -> shux_asm_stage1 ──"
+# Darwin 上原位覆盖 stage1 偶发留下不可执行 vnode 状态；物理删除后重建副本可稳定避免 `zsh: killed`。
+rm -f ./shux_asm_stage1
 cp -f ./shux_asm ./shux_asm_stage1
 ls -lh ./shux_asm_stage1 | awk '{print "  stage1:", $5}'
 

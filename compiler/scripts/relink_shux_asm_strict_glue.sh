@@ -9,6 +9,46 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 SEED_O="$BUILD_DIR/asm_driver_seed"
 export STRICT_LINK_BUILD_ASM_PIPELINE=1
 
+# #region debug-point A:dbg-helpers
+DBG_ENV_FILE="../.dbg/relink-strict-glue-hang.env"
+DBG_RUN_ID="${DBG_RUN_ID:-pre-$$}"
+DBG_HEARTBEAT_SEC="${DBG_HEARTBEAT_SEC:-10}"
+dbg_load_env() {
+  if [ -f "$DBG_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$DBG_ENV_FILE" 2>/dev/null || true
+  fi
+}
+dbg_event() {
+  local hypothesis_id="$1"
+  local msg="$2"
+  local esc
+  esc="${msg//\\/\\\\}"
+  esc="${esc//\"/\\\"}"
+  esc="${esc//$'\n'/\\n}"
+  dbg_load_env
+  [ -n "${DEBUG_SERVER_URL:-}" ] || return 0
+  command -v curl >/dev/null 2>&1 || return 0
+  curl -sS -m 1 -X POST "$DEBUG_SERVER_URL" \
+    -H 'Content-Type: application/json' \
+    -d "{\"sessionId\":\"${DEBUG_SESSION_ID:-relink-strict-glue-hang}\",\"runId\":\"$DBG_RUN_ID\",\"hypothesisId\":\"$hypothesis_id\",\"location\":\"relink_shux_asm_strict_glue.sh\",\"msg\":\"[DEBUG] $esc\"}" \
+    >/dev/null 2>&1 || true
+}
+dbg_watch_pid() {
+  local pid="$1"
+  local what="$2"
+  local start_s="$3"
+  local now_s
+  while kill -0 "$pid" 2>/dev/null; do
+    now_s=$(date +%s 2>/dev/null || echo 0)
+    dbg_event H4 "$what still running pid=$pid elapsed=$((now_s - start_s))s"
+    sleep "$DBG_HEARTBEAT_SEC" 2>/dev/null || sleep 10
+  done
+}
+trap 'rc=$?; dbg_event D "exit rc=$rc"' EXIT
+dbg_event A "script start (cwd=$(pwd))"
+# #endregion
+
 asm_seed_sx_frontend_o_ready() {
   local o
   for o in parser_sx.o typeck_sx.o codegen_sx.o lexer_sx.o; do
@@ -262,6 +302,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
     local syms="$1"
     local po="$2"
     [ -f "$syms" ] || return 0
+    grep -qE '^(_)?preprocess_if_stack_|^(_)?backend_ctx_(push|pop)_loop_labels$|^(_)?backend_try_fold_count_up_while_elf$' "$syms" 2>/dev/null && return 0
     if asm_strict_sx_orchestration_ok 2>/dev/null; then
       grep -qxF 'run_sx_pipeline_impl' "$syms" 2>/dev/null && return 0
       grep -qxF 'run_sx_pipeline_parse_entry_do_parse' "$syms" 2>/dev/null && return 0
@@ -278,10 +319,10 @@ ensure_pipeline_o_strict_link_partial_obj() {
     rm -f "$PARTIAL" "$SYMS"
   fi
   rebuild_pipeline_o_wpo_strict_helpers_if_needed || true
-  if [ ! -f "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; }; then
     nm "$PO" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
-      'run_sx_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)$|^(parse_into_with_init_buf|parse_into_with_init|pipeline_run_sx_pipeline_impl)$' \
+      '^(_)?(run_sx_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)|parse_into_with_init_buf|parse_into_with_init|pipeline_run_sx_pipeline_impl|preprocess_if_stack_.*|backend_ctx_push_loop_labels|backend_ctx_pop_loop_labels|backend_try_fold_count_up_while_elf)$' \
       >"$SYMS"
     if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && asm_pipeline_wpo_strict_reach_ok; then
       if asm_pipeline_wpo_strict_link_full_ok; then
@@ -304,7 +345,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
     echo "  pipeline_strict_link: 0 symbols after WPO subtract — cannot build partial" >&2
     return 1
   fi
-  if [ ! -f "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
      [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$PARTIAL" ]; then
     echo "  ld partial export $SYMS pipeline.o -> $PARTIAL"
@@ -430,7 +471,7 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     ensure_typeck_o_strict_link_partial_obj || true
     TCK_SYMS="$BUILD_DIR/typeck_strict_link_export.txt"
   fi
-  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
      { [ -f "$TCK_SYMS" ] && [ "$TCK_SYMS" -nt "$SYMS" ]; } || \
      { [ -f "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
     ensure_pipeline_glue_standalone_export_syms_txt || return 1
@@ -441,10 +482,13 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     while IFS= read -r sym || [ -n "$sym" ]; do
       [ -z "$sym" ] && continue
       case "$sym" in
-        pipeline_run_sx_pipeline_impl|run_sx_pipeline_impl)
+        _pipeline_run_sx_pipeline_impl|pipeline_run_sx_pipeline_impl|_run_sx_pipeline_impl|run_sx_pipeline_impl)
           continue
           ;;
-        typeck_sx_ast|typeck_sx_ast_library|check_block|check_expr|check_block_*|check_expr_*|typeck_check_*)
+        _preprocess_if_stack_*|preprocess_if_stack_*|_backend_ctx_push_loop_labels|backend_ctx_push_loop_labels|_backend_ctx_pop_loop_labels|backend_ctx_pop_loop_labels|_backend_try_fold_count_up_while_elf|backend_try_fold_count_up_while_elf)
+          continue
+          ;;
+        _typeck_sx_ast|typeck_sx_ast|_typeck_sx_ast_library|typeck_sx_ast_library|_check_block|check_block|_check_expr|check_expr|_check_block_*|check_block_*|_check_expr_*|check_expr_*|_typeck_check_*|typeck_check_*)
           continue
           ;;
       esac
@@ -464,7 +508,7 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     echo "relink_shux_asm_strict_glue: pipeline_sx glue support: $(wc -l <"$SYMS" | tr -d ' ') syms"
   fi
   [ -s "$SYMS" ] || return 1
-  if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
     echo "  ld partial export $SYMS pipeline_sx.o -> $PARTIAL"
     ld_partial_export "$SYMS" "$PARTIAL" "$SUO" || return 1
   fi
@@ -902,7 +946,8 @@ fi
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
-if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ]; then
+if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ] \
+  || [ "src/asm/parser_asm_if_stmt_slice.c" -nt "$PARSER_ASM_THIN_C" ]; then
   echo "relink_shux_asm_strict_glue: cc parser_asm_thin_glue.o (parse_peek / skip_balanced thin C)"
   "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
 fi
@@ -1013,7 +1058,7 @@ filter_strict_asm_objs() {
       continue
     fi
     case "$base" in
-      parser.o|backend.o|asm.o|main.o|lsp.o|std_fs.o|\
+      parser.o|backend.o|asm.o|main.o|lsp.o|std_fs.o|backend_x86_64_enc_c.o|\
       codegen.o|pipeline_glue_link.o|pipeline_run_impl_alias.o|pipeline_glue_standalone.o|pipeline_glue_strict_minimal.o|\
       parser_bootstrap_partial.o|parser_from_sx_partial.o|parser_strict_merged.o|\
       pipeline_parse_sx_partial.o|pipeline_runtime_bootstrap_partial.o|pipeline_sx_glue_support_partial.o|\
@@ -1031,7 +1076,7 @@ filter_strict_asm_objs() {
       typeck_asm_layout_partial.o|typeck_sx_no_layout_partial.o|typeck_c_orchestration_partial.o|\
       typeck_c_module_stubs.o|typeck_asm_bare_link_alias.o|typeck_wpo.o|typeck_wpo_helpers_partial.o|typeck_strict_link_partial.o|\
       typeck_lsp_io_stub.o|\
-      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
+      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|backend_seed_mega_fallback.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
       parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
@@ -1129,7 +1174,7 @@ if [ -f "$BUILD_DIR/typeck_asm_layout_partial.o" ] && ! asm_strict_typeck_selfho
 fi
 
 ST_TYPECK_SX_LINK="typeck_sx.o"
-if [ -f "$BUILD_DIR/typeck_sx_no_layout_partial.o" ] && ! asm_strict_typeck_selfhosted; then
+if [ -f "$BUILD_DIR/typeck_sx_no_layout_partial.o" ]; then
   ST_TYPECK_SX_LINK="$BUILD_DIR/typeck_sx_no_layout_partial.o"
 fi
 
@@ -1180,7 +1225,7 @@ else
   echo "relink_shux_asm_strict_glue: typeck not selfhosted yet (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o")B)"
 fi
 
-BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
 ST_DRIVER_COMPILE_O="driver_compile_sx.o"
 # asm driver 替换须 STRICT_LINK_BUILD_ASM_DRIVER=1；默认仍用 C-gen（link.o 链入后 strict check 仍待修 arm64 对齐/ABI）。
 if [ "${STRICT_LINK_BUILD_ASM_DRIVER:-0}" -eq 1 ] && [ -f "$BUILD_DIR/driver_compile_link.o" ]; then
@@ -1310,7 +1355,13 @@ if [ -z "$ST_LSP_SX_OBJS" ]; then
   ST_TYPECK_LSP_STUB="$BUILD_DIR/typeck_lsp_io_stub.o"
 fi
 ensure_simd_glue_link_objs
+dbg_event A "before strict_asm_backend_companion_objs"
 ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
+dbg_event A "after strict_asm_backend_companion_objs"
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  ST_BACKEND_COMPANIONS=""
+  dbg_event A "darwin: omit ST_BACKEND_COMPANIONS to avoid duplicate symbols"
+fi
 if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   echo "relink_shux_asm_strict_glue: link backend_wpo.o (WPO reach OK)"
 fi
@@ -1318,8 +1369,11 @@ if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$
   echo "relink_shux_asm_strict_glue: cc -c $BUILD_DIR/seed_link_compat.o <- src/seed_link_compat.c"
   "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
 fi
-ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
+ST_STRICT_COMPANIONS="src/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o src/ast_pool_l5_bridge.o driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o $ST_DRIVER_COMPILE_O driver_emit_sx.o $ST_BSTRICT_LINK_EXTRA"
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o src/lexer/cfg_eval.o"
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $BUILD_DIR/backend_seed_mega_fallback.o"
+fi
 
 ST_PARSER_SX_TAIL=""
 PARSER_ALIAS_LINK=""
@@ -1338,8 +1392,8 @@ else
 fi
 
 ST_TYPECK_SX_TAIL=""
-if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -f typeck_sx.o ]; then
-  ST_TYPECK_SX_TAIL="typeck_sx.o"
+if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -f "$ST_TYPECK_SX_LINK" ]; then
+  ST_TYPECK_SX_TAIL="$ST_TYPECK_SX_LINK"
 fi
 
 ensure_runtime_driver_diagnostic_obj() {
@@ -1400,6 +1454,94 @@ ensure_runtime_link_abi_obj() {
     "$CC" $CFLAGS -c -o "$o" src/runtime_link_abi.c
   fi
 }
+
+ensure_runtime_pipeline_abi_obj() {
+  local o="src/runtime_pipeline_abi.o"
+  local cf="$CFLAGS -DSHUX_USE_SX_PIPELINE"
+  if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
+    cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
+  fi
+  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/runtime_pipeline_abi.c"
+    "$CC" $cf -c -o "$o" src/runtime_pipeline_abi.c
+  fi
+}
+
+ensure_runtime_driver_obj() {
+  local o="src/runtime_driver.o"
+  local cf="$CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C"
+  if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
+    cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
+  fi
+  if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/runtime.c (SX driver/pipeline)"
+    "$CC" $cf -c -o "$o" src/runtime.c
+  fi
+}
+
+ensure_ast_obj() {
+  local o="src/ast/ast.o"
+  if [ ! -f "$o" ] || [ "src/ast/ast.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/ast/ast.c"
+    "$CC" $CFLAGS -c -o "$o" src/ast/ast.c
+  fi
+}
+
+ensure_lexer_obj() {
+  local o="src/lexer/lexer.o"
+  if [ ! -f "$o" ] || [ "src/lexer/lexer.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/lexer/lexer.c"
+    "$CC" $CFLAGS -c -o "$o" src/lexer/lexer.c
+  fi
+}
+
+ensure_parser_obj() {
+  local o="src/parser/parser.o"
+  if [ ! -f "$o" ] || [ "src/parser/parser.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/parser/parser.c"
+    "$CC" $CFLAGS -c -o "$o" src/parser/parser.c
+  fi
+}
+
+ensure_typeck_obj() {
+  local o="src/typeck/typeck.o"
+  if [ ! -f "$o" ] || [ "src/typeck/typeck.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/typeck/typeck.c"
+    "$CC" $CFLAGS -c -o "$o" src/typeck/typeck.c
+  fi
+}
+
+ensure_codegen_obj() {
+  local o="src/codegen/codegen.o"
+  if [ ! -f "$o" ] || [ "src/codegen/codegen.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/codegen/codegen.c"
+    "$CC" $CFLAGS -c -o "$o" src/codegen/codegen.c
+  fi
+}
+
+ensure_runtime_c_import_obj() {
+  local o="src/runtime_c_import.o"
+  if [ ! -f "$o" ] || [ "src/runtime_c_import.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/runtime_c_import.c"
+    "$CC" $CFLAGS -c -o "$o" src/runtime_c_import.c
+  fi
+}
+
+ensure_preprocess_obj() {
+  local o="src/preprocess.o"
+  if [ ! -f "$o" ] || [ "src/preprocess.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/preprocess.c"
+    "$CC" $CFLAGS -c -o "$o" src/preprocess.c
+  fi
+}
+
+ensure_runtime_pipeline_abi_shux_c_stubs_obj() {
+  local o="src/runtime_pipeline_abi_shux_c_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi_shux_c_stubs.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/runtime_pipeline_abi_shux_c_stubs.c"
+    "$CC" $CFLAGS -c -o "$o" src/runtime_pipeline_abi_shux_c_stubs.c
+  fi
+}
 ensure_seed_autovec_obj() {
   if [ ! -f "$SEED_O/autovec.o" ] || [ "src/codegen/autovec.c" -nt "$SEED_O/autovec.o" ]; then
     echo "relink_shux_asm_strict_glue: cc -c $SEED_O/autovec.o <- src/codegen/autovec.c"
@@ -1412,6 +1554,85 @@ ensure_codegen_pipeline_stubs_obj() {
   if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
     echo "relink_shux_asm_strict_glue: cc -c $o <- src/codegen/codegen_pipeline_stubs.c"
     "$CC" $CFLAGS -c -o "$o" src/codegen/codegen_pipeline_stubs.c
+  fi
+}
+
+ensure_runtime_driver_strict_glue_stubs_obj() {
+  local o="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/runtime_driver_strict_glue_stubs.c"
+    "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
+  fi
+}
+ensure_runtime_asm_build_obj() {
+  local o="src/asm/runtime_asm_build.o"
+  if [ ! -f "$o" ] || [ "src/asm/runtime_asm_build.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/asm/runtime_asm_build.c"
+    "$CC" $CFLAGS -c -o "$o" src/asm/runtime_asm_build.c
+  fi
+}
+
+ensure_std_fs_shim_obj() {
+  local o="src/std_fs_shim.o"
+  if [ ! -f "$o" ] || [ "src/std_fs_shim.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/std_fs_shim.c"
+    "$CC" $CFLAGS -c -o "$o" src/std_fs_shim.c
+  fi
+}
+
+ensure_sx_seed_bridge_obj() {
+  local o="src/sx_seed_bridge.o"
+  if [ ! -f "$o" ] || [ "src/sx_seed_bridge.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/sx_seed_bridge.c"
+    "$CC" $CFLAGS -c -o "$o" src/sx_seed_bridge.c
+  fi
+}
+
+ensure_ast_pool_l5_bridge_obj() {
+  local o="src/ast_pool_l5_bridge.o"
+  if [ ! -f "$o" ] || [ "src/ast_pool_l5_bridge.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/ast_pool_l5_bridge.c"
+    "$CC" $CFLAGS -c -o "$o" src/ast_pool_l5_bridge.c
+  fi
+}
+
+ensure_asm_experimental_symbol_bridge_obj() {
+  local o="src/asm/asm_experimental_symbol_bridge.o"
+  if [ ! -f "$o" ] || [ "src/asm/asm_experimental_symbol_bridge.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/asm/asm_experimental_symbol_bridge.c"
+    "$CC" $CFLAGS -c -o "$o" src/asm/asm_experimental_symbol_bridge.c
+  fi
+}
+
+ensure_lsp_codegen_extern_obj() {
+  local o="src/lsp/lsp_codegen_extern.o"
+  if [ ! -f "$o" ] || [ "src/lsp/lsp_codegen_extern.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/lsp/lsp_codegen_extern.c"
+    "$CC" $CFLAGS -c -o "$o" src/lsp/lsp_codegen_extern.c
+  fi
+}
+
+ensure_lsp_state_obj() {
+  local o="src/lsp/lsp_state.o"
+  if [ ! -f "$o" ] || [ "src/lsp/lsp_state.c" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- src/lsp/lsp_state.c"
+    "$CC" $CFLAGS -c -o "$o" src/lsp/lsp_state.c
+  fi
+}
+ensure_backend_seed_mega_fallback_obj() {
+  local o="$BUILD_DIR/backend_seed_mega_fallback.o"
+  local src="src/asm/backend_seed_mega_fallback.c"
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- $src (weak backend stubs)"
+    "$CC" $CFLAGS -c -o "$o" "$src"
+  fi
+}
+ensure_backend_x86_64_enc_c_obj() {
+  local o="$BUILD_DIR/backend_x86_64_enc_c.o"
+  local src="src/asm/backend_x86_64_enc_c.c"
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+    echo "relink_shux_asm_strict_glue: cc -c $o <- $src (x86_64 enc fallback)"
+    "$CC" $CFLAGS -c -o "$o" "$src"
   fi
 }
 ensure_typeck_f64_bits_obj() {
@@ -1441,12 +1662,37 @@ ensure_runtime_abi_obj
 ensure_runtime_io_abi_obj
 ensure_runtime_proc_abi_obj
 ensure_runtime_link_abi_obj
+ensure_runtime_pipeline_abi_obj
+ensure_runtime_driver_obj
+ensure_runtime_driver_strict_glue_stubs_obj
 ensure_seed_autovec_obj
 ensure_codegen_pipeline_stubs_obj
+ensure_runtime_asm_build_obj
+ensure_std_fs_shim_obj
+ensure_sx_seed_bridge_obj
+ensure_ast_pool_l5_bridge_obj
+ensure_asm_experimental_symbol_bridge_obj
+ensure_lsp_codegen_extern_obj
+ensure_lsp_state_obj
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  ensure_backend_seed_mega_fallback_obj
+fi
 ensure_typeck_f64_bits_obj
 ensure_cfg_eval_obj
 
+ST_X86_64_ENC_FALLBACK=""
+case "$UNAME_HOST" in
+  x86_64|amd64)
+    : ;;
+  *)
+    ensure_backend_x86_64_enc_c_obj
+    ST_X86_64_ENC_FALLBACK="$BUILD_DIR/backend_x86_64_enc_c.o"
+    ;;
+esac
+ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $ST_X86_64_ENC_FALLBACK"
+
 echo "relink_shux_asm_strict_glue: linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...) ..."
+dbg_event C "begin link-phase setup"
 # Linux strict 链：runtime_panic + liburing（与 build_shux_asm PIPELINE_LIBS 一致）。
 ST_RUNTIME_PANIC=""
 ST_PIPELINE_LIBS="-lm -lc"
@@ -1477,7 +1723,13 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   fi
 fi
 set +e
-"$CC" ${CFLAGS} -Wl,--allow-multiple-definition -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.strict_glue \
+ST_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  ST_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
+fi
+dbg_event B "invoke final link"
+LINK_START_S=$(date +%s 2>/dev/null || echo 0)
+"$CC" ${CFLAGS} $ST_ALLOW_MULTIDEF -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.strict_glue \
   src/asm/runtime_asm_build.o \
   src/runtime_abi.o \
   src/runtime_io_abi.o \
@@ -1487,6 +1739,7 @@ set +e
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_abi.o \
   src/runtime_pipeline_abi.o \
+  "$BUILD_DIR/runtime_driver_strict_glue_stubs.o" \
   $ST_RUNTIME_PANIC \
   "$ST_GLUE_OBJ" \
   $ASM_TRY_OBJS \
@@ -1496,24 +1749,32 @@ set +e
   $ST_AST_BARE_ALIAS \
   $ST_WPO_ALIAS \
   $ST_RUNTIME_PARTIAL \
-  "$BUILD_DIR/std_fs_shim.o" \
-  "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
+  src/std_fs_shim.o \
+  src/asm/asm_experimental_symbol_bridge.o \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/lsp/lsp_codegen_extern.o \
   $ST_PREPROCESS_SEED \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \
   "$LSP_DIAG_SEED_O" \
   $ST_LSP_SX_OBJS \
-  "$SEED_O/lsp_state.o" \
+  src/lsp/lsp_state.o \
   src/lsp/lsp_diag_pipeline_sizes.o \
   $ST_LAYOUT_PARTIAL \
   $ST_PARSER_SX_TAIL \
   $ST_PIPELINE_SX_TAIL \
   $ST_TYPECK_SX_TAIL \
-  $ST_PIPELINE_LIBS 2>"$BUILD_DIR/.relink_strict_glue_err"
+  $ST_PIPELINE_LIBS 2>"$BUILD_DIR/.relink_strict_glue_err" &
+LINK_PID=$!
+dbg_event B "final link pid=$LINK_PID"
+dbg_watch_pid "$LINK_PID" "final link" "$LINK_START_S" &
+WATCH_PID=$!
+wait "$LINK_PID"
 RC=$?
+kill "$WATCH_PID" >/dev/null 2>&1 || true
+wait "$WATCH_PID" >/dev/null 2>&1 || true
+dbg_event B "final link returned rc=$RC"
 set -e
 if [ "$RC" -ne 0 ]; then
   echo "relink_shux_asm_strict_glue: link failed rc=$RC" >&2

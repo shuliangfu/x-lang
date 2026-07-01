@@ -3690,6 +3690,9 @@ static int driver_sx_emit_asm_direct_import_only(const char *input_path) {
         return 0;
     if (strstr(input_path, "src/asm/asm.sx") != NULL || strstr(input_path, "/asm/asm.sx") != NULL)
         return 1;
+    if (strstr(input_path, "src/asm/asm_seed_full.sx") != NULL ||
+        strstr(input_path, "/asm/asm_seed_full.sx") != NULL)
+        return 1;
     return 0;
 }
 

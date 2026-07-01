@@ -6,14 +6,14 @@
  */
 
 /** double 的 64 位位模式低 32 位，供 .sx typeck 填写 EXPR_FLOAT_LIT（asm 后端用）。 */
-int typeck_float64_bits_lo(double d) {
+__attribute__((weak)) int typeck_float64_bits_lo(double d) {
     union { double d; unsigned long long u; } u;
     u.d = d;
     return (int)(u.u & 0xFFFFFFFFULL);
 }
 
 /** double 的 64 位位模式高 32 位。 */
-int typeck_float64_bits_hi(double d) {
+__attribute__((weak)) int typeck_float64_bits_hi(double d) {
     union { double d; unsigned long long u; } u;
     u.d = d;
     return (int)(u.u >> 32);

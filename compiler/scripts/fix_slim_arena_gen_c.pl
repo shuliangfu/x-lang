@@ -128,6 +128,16 @@ if ($path =~ /parser_gen(?:2)?\.c$/) {
 
 # ast_gen2.c：与 pipeline_glue.c 同链时辅助符号须 weak，避免 duplicate symbol（verify-selfhost-stage2）。
 if ($path =~ /ast_gen2\.c$/) {
+  # ast.sx 自身 TU 的 arena helper 真链接名是 ast_ast_*；若生成后残留 ast_ast_ast_*，会在单文件编译时变成不存在的三级前缀。
+  $src =~ s/\bast_ast_ast_/ast_ast_/g;
+  $src =~ s{^extern\s+(.+?\s+)ast_arena_(\w+)\s*\(([^)]*)\);\n}{
+    my ($ret, $suffix, $args) = ($1, $2, $3);
+    my $decl = "extern ${ret}ast_arena_${suffix}($args);\n";
+    if ($src !~ /^extern\s+.+?\s+ast_ast_arena_\Q$suffix\E\s*\(/m) {
+      $decl .= "extern ${ret}ast_ast_arena_${suffix}($args);\n";
+    }
+    $decl;
+  }mge;
   for my $sym (qw(ast_ref_is_null ast_expr_layout_prime_call_resolved ast_expr_init_match_enum ast_expr_init_call_resolve)) {
     next if $src =~ /weak.*\b$sym\b/;
     $src =~ s/^((?:int32_t|int|void)\s+$sym\s*\([^)]*\)\s*\{)/__attribute__((weak)) $1/mg;

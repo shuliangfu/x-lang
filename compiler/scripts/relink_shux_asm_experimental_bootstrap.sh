@@ -210,7 +210,8 @@ PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
 if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_struct_layout_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
-  || [ "src/asm/parser_asm_block_from_res_slice.c" -nt "$PARSER_ASM_THIN_C" ]; then
+  || [ "src/asm/parser_asm_block_from_res_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
+  || [ "src/asm/parser_asm_if_stmt_slice.c" -nt "$PARSER_ASM_THIN_C" ]; then
   echo "relink_experimental_bootstrap: cc parser_asm_thin_glue.o"
   "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
 fi
@@ -403,7 +404,12 @@ if [ ! -f "$GLUE_O" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_O" ] 
   mkdir -p "$BUILD_DIR"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_O" src/asm/pipeline_glue_standalone.c
 fi
-"$CC" $CFLAGS -Wl,--allow-multiple-definition -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.experimental \
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  EXP_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
+else
+  EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
+fi
+"$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm.experimental \
   src/asm/runtime_asm_build.o \
   "$GLUE_O" \
   src/runtime_abi.o \

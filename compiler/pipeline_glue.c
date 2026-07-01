@@ -239,6 +239,14 @@ void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
   driver_diagnostic_parse_commit_fail(byte_pos, num_funcs_so_far, name_len, name);
 }
 
+/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（SHUX_DEBUG_PARSE_GENERIC=1）。 */
+void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name, int32_t name_len,
+                                          int32_t num_generic_params, int32_t is_main) {
+  extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
+                                                   int32_t name_len, int32_t num_generic_params, int32_t is_main);
+  driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
+}
+
 /** 从 (data, len) 构造 slice，供 parser.sx 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
 struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
   struct shux_slice_uint8_t s;
@@ -755,6 +763,7 @@ static int32_t glue_codegen_out_append_byte(struct codegen_CodegenOutBuf *out, u
  * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.sx）。
  * @return 1 已写出；0 不适用；-1 失败。
  */
+#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_SX_DUP_EXPORTS)
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                    int32_t block_ref, int32_t let_idx, int32_t let_type_ref,
                                                    int32_t linit_ref) {
@@ -815,6 +824,7 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, s
     return -1;
   return 1;
 }
+#endif
 
 /**
  * ast.sx extern：块末若为 RETURN/PANIC/BREAK/CONTINUE，返回 1（禁止隐式尾）；非法 ref 视为 1。
@@ -19368,6 +19378,9 @@ void ast_pipeline_module_func_set_is_async(struct ast_Module *m, int32_t fi, int
 void ast_pipeline_module_func_set_num_params(struct ast_Module *m, int32_t fi, int32_t n) {
   pipeline_module_func_set_num_params(m, fi, n);
 }
+int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
+  return pipeline_module_func_num_generic_params_at(m, fi);
+}
 int32_t ast_pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi) {
   return pipeline_module_func_return_type_at(m, fi);
 }
@@ -22103,7 +22116,7 @@ extern void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block
                                                  int32_t n_loop, int32_t n_for, int32_t n_expr, int32_t final_ref);
 /** typeck.o 简单 kind helper；pipeline_typeck_check_expr_impl_c 与 check_expr_impl SX 共用。 */
 extern int32_t typeck_check_expr_float_lit(struct ast_ASTArena *arena, int32_t expr_ref);
-extern int32_t typeck_check_expr_int_lit(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t typeck_check_expr_int_lit(struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref);
 extern int32_t typeck_check_expr_bool_lit(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t typeck_check_expr_break_continue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 int32_t expr_ref, int32_t return_type_ref,
@@ -23221,6 +23234,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
   int32_t i;
   int32_t nf;
   int32_t body;
+  int32_t num_generic_params;
   if (!module || !arena || !ctx)
     return 0;
   if (getenv("SHUX_SKIP_STACK_ESCAPE") != NULL)
@@ -23232,6 +23246,9 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
   nf = pipeline_module_num_funcs(module);
   for (i = 0; i < nf; i++) {
     if (pipeline_module_func_is_extern_at(module, i) != 0)
+      continue;
+    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+    if (num_generic_params > 0)
       continue;
     body = pipeline_module_func_body_ref_at(module, i);
     if (body <= 0)
@@ -24309,6 +24326,44 @@ static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,
                                                int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
+// #region debug-point D:try-propagate-strong-state
+static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix, int32_t return_type_ref, int32_t func_ret,
+                                              int32_t enclosing_return_type_ref, int32_t op_ty) {
+  FILE *fp;
+  char line[512];
+  char url[256];
+  char session[64];
+  char cmd[2048];
+  const char *enabled = getenv("SHUX_DEBUG_RESULT_TRY");
+  if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
+    return;
+  snprintf(url, sizeof(url), "%s", "http://127.0.0.1:7777/event");
+  snprintf(session, sizeof(session), "%s", "result-try-typeck");
+  fp = fopen(".dbg/result-try-typeck.env", "r");
+  if (fp) {
+    while (fgets(line, sizeof(line), fp)) {
+      if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
+        snprintf(url, sizeof(url), "%s", line + 17);
+      } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
+        snprintf(session, sizeof(session), "%s", line + 17);
+      }
+    }
+    fclose(fp);
+  }
+  url[strcspn(url, "\r\n")] = '\0';
+  session[strcspn(session, "\r\n")] = '\0';
+  snprintf(cmd, sizeof(cmd),
+           "/usr/bin/curl -s -X POST '%s' -H 'Content-Type: application/json' "
+           "-d '{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"D\","
+           "\"location\":\"pipeline_glue.c:try_propagate\","
+           "\"msg\":\"[DEBUG] try_propagate_state_strong\","
+           "\"data\":{\"expr_ref\":%d,\"func_ix\":%d,\"return_type_ref\":%d,\"func_ret\":%d,"
+           "\"enclosing_return_type_ref\":%d,\"op_ty\":%d}}' >/dev/null 2>&1",
+           url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
+  (void)system(cmd);
+}
+// #endregion
+
 /**
  * ERR-01：Result `?` 传播 — operand 须为 Result_*，enclosing 函数返回类型须与之相同；表达式类型为 Ok 载荷（Result_i32→i32）。
  */
@@ -24317,6 +24372,9 @@ int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, st
                                                    struct ast_PipelineDepCtx *ctx) {
   int32_t op_ref;
   int32_t op_ty;
+  int32_t enclosing_return_type_ref;
+  int32_t func_ix;
+  int32_t func_ret;
   int32_t line;
   int32_t col;
   int32_t payload_ty;
@@ -24334,6 +24392,15 @@ int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, st
   if (pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
     return -1;
   op_ty = pipeline_typeck_expr_type_ref_c(arena, op_ref);
+  enclosing_return_type_ref = return_type_ref;
+  func_ret = 0;
+  func_ix = ctx ? ctx->current_func_index : -1;
+  if (module && ctx && func_ix >= 0 && func_ix < pipeline_module_num_funcs(module)) {
+    func_ret = pipeline_module_func_return_type_at(module, func_ix);
+    if (!ast_ref_is_null(func_ret))
+      enclosing_return_type_ref = func_ret;
+  }
+  debug_try_propagate_report_glue_c(expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
   if (ast_ref_is_null(op_ty) || pipeline_type_kind_ord_at(arena, op_ty) != (int32_t)ast_TypeKind_TYPE_NAMED) {
     driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
     return -1;
@@ -24344,8 +24411,8 @@ int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, st
     driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
     return -1;
   }
-  if (ast_ref_is_null(return_type_ref) ||
-      !pipeline_typeck_type_refs_equal_c(arena, return_type_ref, op_ty)) {
+  if (ast_ref_is_null(enclosing_return_type_ref) ||
+      !pipeline_typeck_type_refs_equal_c(arena, enclosing_return_type_ref, op_ty)) {
     driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
     return -1;
   }
@@ -24796,23 +24863,23 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
   return 0;
 }
 
-/** 覆盖 typeck_sx.o stub：CALL 走 pipeline_typeck_check_expr_call_c（含泛型 fixup）。 */
+/** 非 standalone TU 保留旧 glue wrapper；strict_glue 改由 typeck_sx.o 作为唯一导出方。 */
+#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_SX_DUP_EXPORTS)
 int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/** 覆盖 typeck_sx.o stub：DEREF 走 pipeline_typeck_check_expr_deref_c（含 LANG-007 unsafe 边界）。 */
 int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                 int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/** 覆盖 typeck_sx.o stub：METHOD_CALL 走 pipeline_typeck_check_expr_method_call_c。 */
 int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+#endif
 
 /**
  * typeck.sx::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
@@ -24922,7 +24989,7 @@ int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_
   if (kind == (int32_t)ast_ExprKind_EXPR_FLOAT_LIT)
     return typeck_check_expr_float_lit(arena, expr_ref);
   if (kind == (int32_t)ast_ExprKind_EXPR_LIT)
-    return typeck_check_expr_int_lit(arena, expr_ref);
+    return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref);
   if (kind == (int32_t)ast_ExprKind_EXPR_BOOL_LIT)
     return typeck_check_expr_bool_lit(arena, expr_ref);
   if (kind == (int32_t)ast_ExprKind_EXPR_BREAK || kind == (int32_t)ast_ExprKind_EXPR_CONTINUE)
@@ -25271,6 +25338,8 @@ int32_t pipeline_typeck_sx_ast_check_one_func_c(struct ast_Module *module, struc
   if (!module || !arena || !ctx)
     return 0;
   pipeline_typeck_linear_reset_c();
+  if (pipeline_module_func_num_generic_params_at(module, func_idx) > 0)
+    return 0;
   body_ref = pipeline_module_func_body_ref_at(module, func_idx);
   if (ast_ref_is_null(body_ref) || pipeline_module_func_is_extern_at(module, func_idx) != 0)
     return 0;
@@ -25327,9 +25396,16 @@ int32_t pipeline_typeck_sx_ast_impl_c(struct ast_Module *module, struct ast_ASTA
     int32_t ret_ty_ref;
     uint8_t fn_name_buf[64];
     int32_t fn_name_len;
+    int32_t num_generic_params;
 
     pipeline_dep_ctx_set_current_func_index(ctx, i);
     pipeline_typeck_linear_reset_c();
+    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+    if (num_generic_params > 0) {
+      pipeline_dep_ctx_set_current_func_index(ctx, -1);
+      i = i + 1;
+      continue;
+    }
     body_ref = pipeline_module_func_body_ref_at(module, i);
     if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, i);
@@ -25390,9 +25466,16 @@ int32_t pipeline_typeck_sx_ast_library_c(struct ast_Module *module, struct ast_A
     int32_t ret_ty_ref;
     uint8_t fn_name_buf[64];
     int32_t fn_name_len;
+    int32_t num_generic_params;
 
     pipeline_dep_ctx_set_current_func_index(ctx, i);
     pipeline_typeck_linear_reset_c();
+    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+    if (num_generic_params > 0) {
+      pipeline_dep_ctx_set_current_func_index(ctx, -1);
+      i = i + 1;
+      continue;
+    }
     body_ref = pipeline_module_func_body_ref_at(module, i);
     if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, i);

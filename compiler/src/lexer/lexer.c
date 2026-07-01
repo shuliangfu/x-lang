@@ -766,14 +766,14 @@ static const char *cfg_effective_arch_lit(void) {
 /**
  * B-02：应用 `-target` triple，使后续 #[cfg] 按 cross 目标剪枝。
  */
-void cfg_apply_compile_target_from_triple(const char *triple, int len) {
+__attribute__((weak)) void cfg_apply_compile_target_from_triple(const char *triple, int len) {
     cfg_parse_triple_literals(triple, len, g_cfg_os_override, sizeof g_cfg_os_override, g_cfg_arch_override,
                               sizeof g_cfg_arch_override);
     g_cfg_has_target_override = 1;
 }
 
 /** B-02：清除 triple 覆盖，#[cfg] 回退 host。 */
-void cfg_reset_compile_target(void) {
+__attribute__((weak)) void cfg_reset_compile_target(void) {
     g_cfg_has_target_override = 0;
     g_cfg_os_override[0] = '\0';
     g_cfg_arch_override[0] = '\0';
@@ -898,7 +898,7 @@ static int cfg_eval_expr(const char *start, const char *end) {
     return 0;
 }
 
-int cfg_eval_expr_c(const char *start, int len) {
+__attribute__((weak)) int cfg_eval_expr_c(const char *start, int len) {
     if (!start || len <= 0)
         return 0;
     return cfg_eval_expr(start, start + len) ? 1 : 0;

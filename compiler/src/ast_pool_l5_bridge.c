@@ -18,12 +18,123 @@ struct ast_LabeledStmt {
 };
 
 struct ast_ASTArena;
+struct ast_Module;
+struct ast_PipelineDepCtx;
 
 extern struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li);
+extern void driver_diagnostic_pipe_marker(int32_t id);
+extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
+extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
 #define PREPROCESS_MAX_DEFINES 32
 static char g_preprocess_defines[PREPROCESS_MAX_DEFINES][64];
 static int g_preprocess_ndefines;
+static uint8_t g_typeck_scratch64[16][64];
+static int32_t g_typeck_layout_metrics_sz_slot;
+static int32_t g_typeck_layout_metrics_al_slot = 1;
+static int32_t g_typeck_layout_metrics_sz_depth[64];
+static int32_t g_typeck_layout_metrics_al_depth[64];
+static int32_t g_typeck_call_resolve_dep_idx_slot;
+static int32_t g_typeck_call_resolve_func_idx_slot;
+
+__attribute__((weak)) uint8_t *typeck_scratch64_slot(int32_t slot) {
+  if (slot < 0)
+    slot = 0;
+  if (slot >= 16)
+    slot = 15;
+  return &g_typeck_scratch64[slot][0];
+}
+
+__attribute__((weak)) int32_t *typeck_layout_metrics_sz_slot(void) {
+  return &g_typeck_layout_metrics_sz_slot;
+}
+
+__attribute__((weak)) int32_t *typeck_layout_metrics_al_slot(void) {
+  return &g_typeck_layout_metrics_al_slot;
+}
+
+__attribute__((weak)) int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
+  if (depth < 0)
+    depth = 0;
+  if (depth >= 64)
+    depth = 63;
+  return &g_typeck_layout_metrics_sz_depth[depth];
+}
+
+__attribute__((weak)) int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
+  if (depth < 0)
+    depth = 0;
+  if (depth >= 64)
+    depth = 63;
+  return &g_typeck_layout_metrics_al_depth[depth];
+}
+
+__attribute__((weak)) void typeck_layout_metrics_init_depth(int32_t depth) {
+  int32_t *sz = typeck_layout_metrics_sz_slot_depth(depth);
+  int32_t *al = typeck_layout_metrics_al_slot_depth(depth);
+  if (sz)
+    *sz = 0;
+  if (al)
+    *al = 1;
+}
+
+__attribute__((weak)) int32_t typeck_layout_metrics_al_read_depth(int32_t depth) {
+  return *typeck_layout_metrics_al_slot_depth(depth);
+}
+
+__attribute__((weak)) int32_t typeck_layout_metrics_sz_read_depth(int32_t depth) {
+  return *typeck_layout_metrics_sz_slot_depth(depth);
+}
+
+__attribute__((weak)) void typeck_layout_metrics_init_slot(void) {
+  *typeck_layout_metrics_sz_slot() = 0;
+  *typeck_layout_metrics_al_slot() = 1;
+}
+
+__attribute__((weak)) void typeck_i32_ptr_store(int32_t *p, int32_t v) {
+  if (p)
+    *p = v;
+}
+
+__attribute__((weak)) int32_t typeck_i32_ptr_read(int32_t *p) {
+  return p ? *p : 0;
+}
+
+__attribute__((weak)) void typeck_driver_diagnostic_pipe_marker(int32_t id) {
+  driver_diagnostic_pipe_marker(id);
+}
+
+__attribute__((weak)) int32_t *typeck_call_resolve_dep_idx_slot(void) {
+  return &g_typeck_call_resolve_dep_idx_slot;
+}
+
+__attribute__((weak)) int32_t *typeck_call_resolve_func_idx_slot(void) {
+  return &g_typeck_call_resolve_func_idx_slot;
+}
+
+__attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
+  return *typeck_call_resolve_dep_idx_slot();
+}
+
+__attribute__((weak)) int32_t typeck_call_resolve_func_idx_peek(void) {
+  return *typeck_call_resolve_func_idx_slot();
+}
+
+__attribute__((weak)) int32_t run_sx_pipeline_fill_dep_import_path_c(struct ast_Module *module,
+                                                                     struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
+  uint8_t path_buf[64];
+  int32_t path_len;
+  if (!module || !ctx || dep_j < 0)
+    return -1;
+  memset(path_buf, 0, sizeof(path_buf));
+  (void)parser_copy_module_import_path64(module, dep_j, path_buf);
+  path_len = 0;
+  while (path_len < 64 && path_buf[path_len] != 0)
+    path_len = path_len + 1;
+  if (path_len > 0)
+    pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);
+  return 0;
+}
 
 /** 清空 -D 宏表。 */
 void preprocess_define_reset(void) {

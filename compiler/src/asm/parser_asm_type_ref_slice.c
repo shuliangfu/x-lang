@@ -380,6 +380,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer_result r;
+  int32_t ptr_depth;
   int32_t elem_ref;
   int32_t type_ref_param;
   struct ast_Type t;
@@ -409,15 +410,24 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_STAR) {
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
+    ptr_depth = 0;
+    while (r.tok.kind == (int32_t)TOKEN_STAR) {
+      ++ptr_depth;
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+    }
     elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
     if (elem_ref == 0) {
       parser_asm_write_out_lex_c(out_lex, lex);
       return 0;
     }
-    type_ref_param = ast_ast_arena_type_alloc(arena);
-    if (type_ref_param != 0) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    while (ptr_depth > 0) {
+      type_ref_param = ast_ast_arena_type_alloc(arena);
+      if (type_ref_param == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
       t = ast_arena_type_get(arena, type_ref_param);
       t.kind = PARSER_ASM_TYPE_PTR;
       t.elem_type_ref = elem_ref;
@@ -425,10 +435,11 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       t.array_size = 0;
       t.region_label_len = 0;
       ast_arena_type_set(arena, type_ref_param, t);
+      elem_ref = type_ref_param;
+      --ptr_depth;
     }
-    parser_asm_lex_from_result_val_into(&lex, r);
     /** C 风格后缀：*T[N] 为 N 个 T 指针的固定数组（如 *u8[2]）。 */
-    return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_param, lex, source, out_lex);
+    return parser_asm_parse_postfix_array_type_ref_c(arena, elem_ref, lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_slice_type_bracket_audit_c(lex, source));

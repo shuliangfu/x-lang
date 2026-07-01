@@ -20,10 +20,17 @@ ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/
 TARGET="${1:-./shux}"
 SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke.$$.sx"
 SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out.$$"
+PINNED_TMP="/tmp/shux_bootstrap_seed_pinned.$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
+maybe_codesign() {
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
+    codesign -s - --force "$1" >/dev/null 2>&1 || true
+  fi
+}
+
 cleanup() {
-  rm -f "$SMOKE_SRC" "$SMOKE_OUT" 2>/dev/null || true
+  rm -f "$SMOKE_SRC" "$SMOKE_OUT" "$PINNED_TMP" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -97,11 +104,17 @@ fi
 pinned="$(host_seed_path || true)"
 if [ -n "$pinned" ] && [ -f "$pinned" ] && [ -s "$pinned" ]; then
   echo "bootstrap_driver_seed_smoke: WARN $TARGET smoke failed; fallback pinned $pinned" >&2
-  cp -f "$pinned" "$TARGET"
-  cp -f "$pinned" shux-c 2>/dev/null || true
-  cp -f "$pinned" bootstrap_shuxc 2>/dev/null || true
-  chmod +x "$TARGET" shux-c bootstrap_shuxc 2>/dev/null || chmod +x "$TARGET"
-  if run_smoke "$TARGET"; then
+  cp -f "$pinned" "$PINNED_TMP"
+  chmod +x "$PINNED_TMP"
+  maybe_codesign "$PINNED_TMP"
+  if run_smoke "$PINNED_TMP"; then
+    cp -f "$pinned" "$TARGET"
+    cp -f "$pinned" shux-c 2>/dev/null || true
+    cp -f "$pinned" bootstrap_shuxc 2>/dev/null || true
+    chmod +x "$TARGET" shux-c bootstrap_shuxc 2>/dev/null || chmod +x "$TARGET"
+    maybe_codesign "$TARGET"
+    maybe_codesign shux-c
+    maybe_codesign bootstrap_shuxc
     : >"$AUDIT_DIR/bootstrap-seed.pinned-fallback"
     rm -f "$AUDIT_DIR/bootstrap-seed.fresh"
     printf '[%s] seed smoke OK pinned-fallback %s <- %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$TARGET" "$pinned" \

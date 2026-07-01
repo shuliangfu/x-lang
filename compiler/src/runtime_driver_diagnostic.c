@@ -297,6 +297,28 @@ void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
     lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");
 }
 
+/** .sx typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
+void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name,
+                                                             int32_t name_len, const uint8_t *binding,
+                                                             int32_t binding_len) {
+    if (binding && binding_len > 0) {
+        lsp_diag_report_typeck((int)line, (int)col,
+                               "import constant '%.*s' must be qualified; use %.*s.%.*s",
+                               (int)(name_len > 0 ? name_len : 0),
+                               (const char *)(name ? name : (const uint8_t *)""),
+                               (int)binding_len, (const char *)binding,
+                               (int)(name_len > 0 ? name_len : 0),
+                               (const char *)(name ? name : (const uint8_t *)""));
+        return;
+    }
+    lsp_diag_report_typeck((int)line, (int)col,
+                           "import constant '%.*s' must be qualified as binding.%.*s",
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""),
+                           (int)(name_len > 0 ? name_len : 0),
+                           (const char *)(name ? name : (const uint8_t *)""));
+}
+
 /** .sx typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     const char *msg = "typeck error: enum has no variant";
@@ -475,6 +497,24 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
         fwrite(name, 1, (size_t)name_len, stderr);
     }
     fprintf(stderr, " [%s]\n", tag);
+    fflush(stderr);
+}
+
+/**
+ * 诊断：parse_into/parse_into_buf 在提交函数槽前打印 generic 计数，定位 OneFuncResult 到 module.funcs 的污染链。
+ * 环境变量 SHUX_DEBUG_PARSE_GENERIC=1。
+ */
+void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
+                                          int32_t num_generic_params, int32_t is_main) {
+    if (!getenv("SHUX_DEBUG_PARSE_GENERIC"))
+        return;
+    fprintf(stderr, "shux: [SHUX_DEBUG_PARSE_GENERIC] byte=%d num_funcs=%d generic=%d is_main=%d",
+            (int)byte_pos, (int)num_funcs_so_far, (int)num_generic_params, (int)is_main);
+    if (name && name_len > 0 && name_len < 64) {
+        fprintf(stderr, " name=");
+        fwrite(name, 1, (size_t)name_len, stderr);
+    }
+    fputc('\n', stderr);
     fflush(stderr);
 }
 

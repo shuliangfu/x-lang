@@ -18,6 +18,12 @@ if [ "${1:-}" = "--print" ]; then
   PRINT_ONLY=1
 fi
 
+maybe_codesign() {
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
+    codesign -s - --force "$1" >/dev/null 2>&1 || true
+  fi
+}
+
 can_run() {
   [ -x "$1" ] || return 1
   if command -v file >/dev/null 2>&1; then
@@ -30,7 +36,7 @@ can_run() {
       FreeBSD-*) echo "$ft" | grep -qi "ELF.*x86-64\|ELF.*aarch64" || return 1 ;;
     esac
   fi
-  tmp="/tmp/shux_can_run_$$.su"
+  tmp="/tmp/shux_can_run_$$.sx"
   out="/tmp/shux_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
   if "$1" -c "$tmp" >/dev/null 2>&1; then
@@ -65,6 +71,7 @@ if [ -f "$seed_var" ]; then
   if can_run "$seed_var"; then
     cp -f "$seed_var" ./bootstrap_shuxc
     chmod +x ./bootstrap_shuxc
+    maybe_codesign ./bootstrap_shuxc
     pick="./bootstrap_shuxc"
   fi
 fi
@@ -76,6 +83,9 @@ if [ -z "$pick" ]; then
   if can_run ./shux-c; then
     cp -f ./shux-c ./bootstrap_shuxc
     chmod +x ./bootstrap_shuxc
+    pick="./bootstrap_shuxc"
+  elif can_run ./shux-seed-phase1; then
+    ./scripts/bootstrap_shuxc_create.sh ./shux-seed-phase1
     pick="./bootstrap_shuxc"
   elif can_run ./shux; then
     ./scripts/bootstrap_shuxc_create.sh ./shux
@@ -100,4 +110,6 @@ echo "select_bootstrap_shuxc: OK $pick (${os}.${arch})"
 # G-06：shux-c 须与宿主同架构（Docker Linux 勿沿用 macOS Mach-O shux-c）。
 if [ "$PRINT_ONLY" -eq 0 ] && [ -f ./bootstrap_shuxc ]; then
   cp -f ./bootstrap_shuxc ./shux-c
+  chmod +x ./shux-c 2>/dev/null || true
+  maybe_codesign ./shux-c
 fi

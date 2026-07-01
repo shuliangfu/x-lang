@@ -7,6 +7,9 @@
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
 #define PARSER_ASM_PRIMARY_SLICE_INCLUDED
 
+#include <stdio.h>
+#include <stdlib.h>
+
 /** 与 ast.sx ExprKind 序一致（primary 用到的子集；勿用 C ast.h 旧序 +32 误值）。 */
 enum {
   PARSER_ASM_EXPR_LIT = 0,
@@ -186,6 +189,11 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 
+static int parser_asm_suffix_debug_enabled(void) {
+  const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
+  return v && *v && *v != '0';
+}
+
 /** 从 source[token_start..] 拷贝 ident 到 e.var_name（最多 63 字节 + 零填充）。 */
 static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e, struct parser_asm_slice_u8 *source,
                                                    size_t start, int32_t len) {
@@ -211,6 +219,9 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
 static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
                                                    struct parser_asm_parse_expr_result *out, int32_t first_suffix) {
+  enum { PARSER_ASM_SUFFIX_STALL_LIMIT = 4096 };
+  static int parser_asm_suffix_debug_calls = 0;
+  static int parser_asm_suffix_debug_iters = 0;
   struct parser_asm_parse_expr_result arg_res;
   int32_t base_ref;
   int32_t fa_ref;
@@ -222,12 +233,57 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   struct parser_asm_ast_expr ce_init;
   int32_t fi;
   int32_t pending_call_num_type_args;
+  int32_t prev_pos;
+  int32_t prev_tok_kind;
+  int32_t stall_count;
+  int debug_enabled;
 
   pending_call_num_type_args = 0;
+  prev_pos = -1;
+  prev_tok_kind = -1;
+  stall_count = 0;
+  debug_enabled = parser_asm_suffix_debug_enabled();
+  parser_asm_suffix_debug_calls++;
+  if (debug_enabled && (parser_asm_suffix_debug_calls <= 64 || (parser_asm_suffix_debug_calls % 1024) == 0)) {
+    fprintf(stderr, "parser_asm suffix call=%d pos=%d tok=%d line=%d col=%d first=%d expr=%d\n",
+            parser_asm_suffix_debug_calls, lex->pos, r->tok.kind, lex->line, lex->col, first_suffix, out->expr_ref);
+    fflush(stderr);
+  }
   for (;;) {
+    const char *branch_tag;
     if (!first_suffix)
       lexer_next_into(r, *lex, source);
     first_suffix = 0;
+    if (r->tok.kind == (int32_t)TOKEN_DOT)
+      branch_tag = "dot";
+    else if (r->tok.kind == (int32_t)TOKEN_LT)
+      branch_tag = "lt";
+    else if (r->tok.kind == (int32_t)TOKEN_LBRACKET)
+      branch_tag = "index";
+    else if (r->tok.kind == (int32_t)TOKEN_LPAREN)
+      branch_tag = "call";
+    else
+      branch_tag = "stop";
+    parser_asm_suffix_debug_iters++;
+    if (debug_enabled && (parser_asm_suffix_debug_iters % 16384) == 0) {
+      fprintf(stderr, "parser_asm suffix iter=%d pos=%d tok=%d branch=%s line=%d col=%d expr=%d\n",
+              parser_asm_suffix_debug_iters, lex->pos, r->tok.kind, branch_tag, lex->line, lex->col, out->expr_ref);
+      fflush(stderr);
+    }
+    if (lex->pos == prev_pos && r->tok.kind == prev_tok_kind) {
+      stall_count++;
+      if (stall_count >= PARSER_ASM_SUFFIX_STALL_LIMIT) {
+        fprintf(stderr, "parser_asm suffix stall pos=%d tok=%d line=%d col=%d\n", lex->pos, r->tok.kind, lex->line,
+                lex->col);
+        out->ok = 0;
+        out->next_lex = *lex;
+        return;
+      }
+    } else {
+      prev_pos = lex->pos;
+      prev_tok_kind = r->tok.kind;
+      stall_count = 0;
+    }
     if (r->tok.kind == (int32_t)TOKEN_DOT) {
       int32_t mc_ref;
       int32_t mname_len;
@@ -326,7 +382,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
           fe.col = 0;
           parser_asm_arena_expr_set_c(arena, fa_ref, fe);
           out->expr_ref = fa_ref;
-          *lex = r->next_lex;
+          *lex = parser_asm_lex_at_token_from_result_c(*r);
         }
       }
     } else if (r->tok.kind == (int32_t)TOKEN_LT) {
@@ -350,7 +406,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       *lex = after_angle;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
       base_ref = out->expr_ref;
-      parser_asm_lex_from_result_val_into(lex, *r);
+      *lex = r->next_lex;
       parse_expr_into(arena, *lex, source, out);
       if (!out->ok)
         return;

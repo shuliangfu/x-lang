@@ -109,7 +109,9 @@ enum ExprKind {
   /** run async_fn()（sync 经 scheduler drain；复用 unary_operand_ref） */
   EXPR_RUN,
   /** spawn async_fn()（非阻塞 submit；复用 unary_operand_ref） */
-  EXPR_SPAWN
+  EXPR_SPAWN,
+  /** Result `?` 传播：operand 为 Result_*；codegen 降成 err 早退 + value unwrap。 */
+  EXPR_TRY_PROPAGATE
 }
 
 /** 类型节点：kind + 具名类型名（NAMED 时）+ 元素类型下标（PTR/ARRAY/SLICE/VECTOR 时）+ 数组长度（ARRAY/VECTOR 时） */

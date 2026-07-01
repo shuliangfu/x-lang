@@ -310,14 +310,15 @@ static ASTExpr *parse_expr(Parser *p);
 
 /**
  * 解析 `{ field: expr, ... }` 并构造 AST_EXPR_STRUCT_LIT。
- * name 由调用方传入（裸 TypeName 或 mod.Type 限定名）；当前 token 须为 `{`。
+ * name 可为调用方传入的裸 TypeName / mod.Type 限定名，也可为 NULL（由 typeck 按上下文补齐）。
+ * 当前 token 须为 `{`。
  */
 static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int ident_col) {
     char **fnames;
     ASTExpr **inits;
     int nf;
     ASTExpr *e;
-    if (!p || !name) return NULL;
+    if (!p) return NULL;
     if (peek(p)->kind != TOKEN_LBRACE) {
         free(name);
         fail(p, "expected '{' for struct literal");
@@ -1202,6 +1203,9 @@ static ASTExpr *parse_primary(Parser *p) {
     }
     if (t->kind == TOKEN_AT) {
         return parse_at_simd_builtin(p);
+    }
+    if (t->kind == TOKEN_LBRACE) {
+        return parse_struct_lit_body(p, NULL, t->line, t->col);
     }
     /* return expr 或 return;：显式返回，仅允许在函数体内，由 typeck 校验（文档 01：return expr; / return;） */
     if (t->kind == TOKEN_RETURN) {
@@ -2438,7 +2442,7 @@ static char *parse_import_call_path(Parser *p) {
  * 解析单条结构体定义：struct Name { field : Type ; ... }。
  * 参数：p 解析器状态；当前 Token 须为 TOKEN_STRUCT；allow_padding 为 1 表示该 struct 前有 allow(padding)。返回值：成功返回新分配的 ASTStructDef*（调用方须通过 ast_struct_def_free 释放）；失败返回 NULL 且已 fail。
  */
-static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_soa, int force_repr_c) {
+static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_soa, int force_repr_c, int force_repr_compatible) {
     if (peek(p)->kind != TOKEN_STRUCT) return NULL;
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) {
@@ -2598,6 +2602,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     s->num_fields = num_fields;
     s->allow_padding = allow_padding;
     s->repr_c = force_repr_c;
+    s->repr_compatible = force_repr_compatible;
     s->packed = is_packed;
     s->soa = is_soa;
     for (int fi = 0; fi < num_fields && fi < AST_STRUCT_MAX_FIELDS; fi++)
@@ -4544,7 +4549,7 @@ int parse(Lexer *lex, ASTModule **out) {
             allow_padding = 1;
         }
         if (peek(&prs)->kind != TOKEN_STRUCT) break;
-        ASTStructDef *s = parse_one_struct(&prs, allow_padding, 0, 0);
+        ASTStructDef *s = parse_one_struct(&prs, allow_padding, 0, 0, 0);
         if (!s) {
             while (nimports--) free(import_list[nimports]);
             while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
@@ -4635,10 +4640,12 @@ int parse(Lexer *lex, ASTModule **out) {
     int pending_soa = 0;
     int pending_cfg_skip = 0;
     int pending_repr_c = 0;
+    int pending_repr_compatible = 0;
     while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
            || peek(&prs)->kind == TOKEN_ATTR_SOA || peek(&prs)->kind == TOKEN_ATTR_CFG
-           || peek(&prs)->kind == TOKEN_ATTR_REPR_C || peek(&prs)->kind == TOKEN_ATTR_ALLOC
+           || peek(&prs)->kind == TOKEN_ATTR_REPR_C || peek(&prs)->kind == TOKEN_ATTR_REPR_COMPATIBLE
+           || peek(&prs)->kind == TOKEN_ATTR_ALLOC
            || peek(&prs)->kind == TOKEN_LET || peek(&prs)->kind == TOKEN_CONST
            || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5))) {
         /* 顶层 let：与 function/struct/enum 同级，可任意顺序出现 */
@@ -4783,6 +4790,12 @@ int parse(Lexer *lex, ASTModule **out) {
             pending_repr_c = 1;
             continue;
         }
+        /** MOD-02：`#[repr(compatible)]` 属性；下一顶层 struct 记 repr_compatible。 */
+        if (peek(&prs)->kind == TOKEN_ATTR_REPR_COMPATIBLE) {
+            advance(&prs);
+            pending_repr_compatible = 1;
+            continue;
+        }
         /** MEM-C1：`#[alloc]` 属性；下一 function 为 Allocator 自动注入 API，解析层仅跳过。 */
         if (peek(&prs)->kind == TOKEN_ATTR_ALLOC) {
             advance(&prs);
@@ -4825,9 +4838,11 @@ int parse(Lexer *lex, ASTModule **out) {
         if (peek(&prs)->kind == TOKEN_STRUCT) {
             int ps_struct = pending_soa;
             int pr_struct = pending_repr_c;
+            int pc_struct = pending_repr_compatible;
             pending_soa = 0;
             pending_repr_c = 0;
-            ASTStructDef *s = parse_one_struct(&prs, allow_padding, ps_struct, pr_struct);
+            pending_repr_compatible = 0;
+            ASTStructDef *s = parse_one_struct(&prs, allow_padding, ps_struct, pr_struct, pc_struct);
             if (!s) goto cleanup_funcs_fail;
             if (nstructs >= MAX_STRUCTS) {
                 ast_struct_def_free(s);

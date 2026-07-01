@@ -7,13 +7,13 @@
  */
 #include "codegen.h"
 
-void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
+__attribute__((weak)) void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
 
-void codegen_reset_preamble_skip_mask(void) { }
-void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
-unsigned codegen_get_preamble_skip_mask(void) { return 0; }
+__attribute__((weak)) void codegen_reset_preamble_skip_mask(void) { }
+__attribute__((weak)) void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
+__attribute__((weak)) unsigned codegen_get_preamble_skip_mask(void) { return 0; }
 
-void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n) {
+__attribute__((weak)) void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n) {
     (void)mods;
     (void)paths;
     (void)n;
@@ -27,7 +27,7 @@ void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char *
  * WPO 单态符号名格式化桩：seed 不链 codegen.o 时 asm backend 仍 extern 本符号。
  * 返回 -1 表示无法格式化（调用方应走 fallback）。
  */
-int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
+__attribute__((weak)) int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
     (void)base;
     (void)nargs;
     (void)args;

@@ -1367,7 +1367,7 @@ ensure_parser_bootstrap_partial_obj() {
   if [ ! -f "$SUO" ]; then
     ensure_asm_gen_driver_sx_objs
   fi
-  if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
     printf '%s\n' \
       '_parser_parse_into_buf' \
       '_parser_collect_imports_buf' \
@@ -1562,6 +1562,7 @@ pipeline_strict_link_export_syms_stale() {
   local syms="$1"
   local po="$2"
   [ -f "$syms" ] || return 0
+  grep -qE '^(_)?preprocess_if_stack_|^(_)?backend_ctx_(push|pop)_loop_labels$|^(_)?backend_try_fold_count_up_while_elf$' "$syms" 2>/dev/null && return 0
   # SX 编排：partial 不得再 export C 版 run_sx_pipeline_*（runtime bootstrap 提供 pipeline_run_sx_pipeline_impl）。
   if asm_strict_sx_orchestration_ok 2>/dev/null; then
     grep -qxF 'run_sx_pipeline_impl' "$syms" 2>/dev/null && return 0
@@ -1598,11 +1599,11 @@ ensure_pipeline_o_strict_link_partial_obj() {
   if [ -f "$SYMS" ] && grep -qE '_pipeline_should_skip_sx_typeck|pipeline_should_skip_sx_typeck' "$SYMS" 2>/dev/null; then
     rm -f "$PARTIAL" "$SYMS"
   fi
-  if [ ! -f "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
      { [ -f "$BUILD_DIR/pipeline_sx_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_sx_glue_support_export.txt" -nt "$SYMS" ]; }; then
     nm "$PO" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
-      '_run_sx_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)$|^_?(parse_into_with_init_buf|parse_into_with_init|pipeline_run_sx_pipeline_impl|pipeline_should_skip_sx_typeck)$' \
+      '_run_sx_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)$|^_?(parse_into_with_init_buf|parse_into_with_init|pipeline_run_sx_pipeline_impl|pipeline_should_skip_sx_typeck|preprocess_if_stack_.*|backend_ctx_push_loop_labels|backend_ctx_pop_loop_labels|backend_try_fold_count_up_while_elf)$' \
       >"$SYMS"
     # S5 WPO：pipeline_wpo.o / helpers partial 已定义的符号须从 partial 剔除，避免 multiple definition。
     if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && asm_pipeline_wpo_strict_reach_ok; then
@@ -1630,7 +1631,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
     fi
     echo "  nm pipeline.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') symbols, minus parse/typecheck/impl entry)"
   fi
-  if [ ! -f "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
      { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
      { [ -f "$BUILD_DIR/pipeline_sx_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_sx_glue_support_export.txt" -nt "$PARTIAL" ]; } || \
      [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$PARTIAL" ]; then
@@ -1768,7 +1769,7 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     ensure_typeck_o_strict_link_partial_obj || true
     TCK_SYMS="$BUILD_DIR/typeck_strict_link_export.txt"
   fi
-  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
      { [ -f "$TCK_SYMS" ] && [ "$TCK_SYMS" -nt "$SYMS" ]; } || \
      { [ -f "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
     ensure_pipeline_glue_standalone_export_syms_txt || return 1
@@ -1779,10 +1780,13 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     while IFS= read -r sym || [ -n "$sym" ]; do
       [ -z "$sym" ] && continue
       case "$sym" in
-        pipeline_run_sx_pipeline_impl|run_sx_pipeline_impl)
+        _pipeline_run_sx_pipeline_impl|pipeline_run_sx_pipeline_impl|_run_sx_pipeline_impl|run_sx_pipeline_impl)
           continue
           ;;
-        typeck_sx_ast|typeck_sx_ast_library|check_block|check_expr|check_block_*|check_expr_*|typeck_check_*)
+        _preprocess_if_stack_*|preprocess_if_stack_*|_backend_ctx_push_loop_labels|backend_ctx_push_loop_labels|_backend_ctx_pop_loop_labels|backend_ctx_pop_loop_labels|_backend_try_fold_count_up_while_elf|backend_try_fold_count_up_while_elf)
+          continue
+          ;;
+        _typeck_sx_ast|typeck_sx_ast|_typeck_sx_ast_library|typeck_sx_ast_library|_check_block|check_block|_check_expr|check_expr|_check_block_*|check_block_*|_check_expr_*|check_expr_*|_typeck_check_*|typeck_check_*)
           continue
           ;;
       esac
@@ -1798,12 +1802,16 @@ ensure_pipeline_sx_glue_support_partial_obj() {
     sort -u "$SYMS" -o "$SYMS"
     # build_asm pipeline_strict_link_partial 须 U→T：交集抽取常漏 _c 后缀外的 SX 编排符号。
     for sym in pipeline_load_and_sync_direct_import_deps pipeline_run_sx_pipeline_fill_dep_import_path; do
-      grep -qxF "$sym" "$SYMS" 2>/dev/null || printf '%s\n' "$sym" >>"$SYMS"
+      sym_export="$sym"
+      if ld_supports_exported_symbols_list; then
+        sym_export="_$sym"
+      fi
+      grep -qxF "$sym_export" "$SYMS" 2>/dev/null || printf '%s\n' "$sym_export" >>"$SYMS"
     done
     echo "  pipeline_sx glue support: $(wc -l <"$SYMS" | tr -d ' ') syms (pipeline_sx∩glue minus orch/typeck)"
   fi
   [ -s "$SYMS" ] || return 1
-  if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
     echo "  ld partial export $SYMS pipeline_sx.o -> $PARTIAL"
     ld_partial_export "$SYMS" "$PARTIAL" "$SUO" || return 1
   fi
@@ -1820,7 +1828,7 @@ ensure_pipeline_asm_sx_bootstrap_partial_obj() {
   if [ ! -f "$SUO" ]; then
     ensure_asm_gen_driver_sx_objs
   fi
-  if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
     cat > "$SYMS" <<'EOF'
 _asm_asm_codegen_ast
 _backend_asm_codegen_ast
@@ -2123,16 +2131,35 @@ asm_strict_pipeline_selfhosted() {
 
 # build_asm pipeline 自举后用户 .sx 编译：走 SX run_sx_pipeline_impl（与 experimental 一致）；C orchestration alias 已知 fill_cl SIGSEGV。
 asm_strict_sx_orchestration_ok() {
+  local p_sx_t=0
   [ "${SHUX_ASM_STRICT_C_ORCHESTRATION:-0}" = "1" ] && return 1
   [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ] || return 1
-  asm_strict_pipeline_selfhosted || return 1
+  if asm_strict_pipeline_selfhosted; then
+    return 0
+  fi
+  # runtime-only relink 可能复用薄 build_asm/pipeline.o，但真正可执行的 SX orchestration
+  # 已存在于 pipeline_sx.o；此时仍应允许 strict 路径按 companion 判真。
+  [ -f pipeline_sx.o ] || return 1
+  p_sx_t=$(asm_o_text_bytes pipeline_sx.o 2>/dev/null || echo 0)
+  [ "$p_sx_t" -ge 6144 ] 2>/dev/null || return 1
+  nm -g pipeline_sx.o 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
+  nm -g pipeline_sx.o 2>/dev/null | grep -qE '(_)?run_sx_pipeline_impl' || return 1
   return 0
 }
 
 # 自举 typeck + SX 编排：glue 走 pipeline_sx partial + glue_strict_minimal（勿 glue_standalone 双 astpool）。
 asm_strict_typeck_sx_glue_via_pipeline_sx() {
-  asm_strict_typeck_selfhosted || return 1
   asm_strict_sx_orchestration_ok || return 1
+  if asm_strict_typeck_selfhosted; then
+    return 0
+  fi
+  # runtime-only relink 可能复用薄 build_asm/typeck.o，但 typeck_sx.o 已是完整 companion；
+  # 此时仍应走 strict_minimal glue，避免退回缺少 pipeline_asm_* helper 的 glue_standalone。
+  if [ -f typeck_sx.o ] && [ -s typeck_sx.o ]; then
+    local t_sx
+    t_sx=$(asm_o_text_bytes typeck_sx.o 2>/dev/null || echo 0)
+    [ "$t_sx" -gt 10000 ] 2>/dev/null && return 0
+  fi
   return 0
 }
 
@@ -2242,6 +2269,51 @@ ensure_asm_backend_compat_stubs_obj() {
   fi
 }
 
+ensure_bstrict_filtered_obj_against_seed_partial() {
+  local src_o="$1"
+  local out_o="$2"
+  local tag="$3"
+  local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
+  local src_syms="$BUILD_DIR/.${tag}_all_t.txt"
+  local seed_syms="$BUILD_DIR/.bstrict_seed_partial_all_t.txt"
+  local keep_syms="$BUILD_DIR/.${tag}_keep.txt"
+  [ -f "$src_o" ] || return 1
+  [ -f "$seed_o" ] || return 1
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$seed_o" -nt "$out_o" ] || [ "$keep_syms" -nt "$out_o" ]; then
+    nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$src_syms"
+    nm "$seed_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$seed_syms"
+    comm -23 "$src_syms" "$seed_syms" >"$keep_syms"
+    [ -s "$keep_syms" ] || return 1
+    echo "  ld partial export $keep_syms $(basename "$src_o") -> $(basename "$out_o")"
+    ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  fi
+  return 0
+}
+
+ensure_bstrict_pipeline_filtered_obj() {
+  local src_o="pipeline_sx.o"
+  local out_o="$BUILD_DIR/bstrict_pipeline_filtered.o"
+  local all_syms="$BUILD_DIR/.bstrict_pipeline_all_t.txt"
+  local omit_syms="$BUILD_DIR/.bstrict_pipeline_omit.txt"
+  local keep_syms="$BUILD_DIR/.bstrict_pipeline_keep.txt"
+  local dep_o
+  [ -f "$src_o" ] || return 1
+  : >"$omit_syms"
+  for dep_o in typeck_sx.o codegen_sx.o "$BUILD_DIR/seed_host/asm_backend_partial.o"; do
+    [ -f "$dep_o" ] || continue
+    nm "$dep_o" 2>/dev/null | awk '/ T / {print $3}' >>"$omit_syms"
+  done
+  sort -u "$omit_syms" -o "$omit_syms"
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$omit_syms" -nt "$out_o" ]; then
+    nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$all_syms"
+    comm -23 "$all_syms" "$omit_syms" >"$keep_syms"
+    [ -s "$keep_syms" ] || return 1
+    echo "  ld partial export $keep_syms pipeline_sx.o -> $(basename "$out_o")"
+    ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  fi
+  return 0
+}
+
 # strict WPO 链：seed partial 保留 mega + arch enc + glue 侧car（剔除 wpo 已替代的薄入口）。
 ensure_asm_backend_seed_helper_partial_obj() {
   local PARTIAL SYMS SEED EXCLUDE
@@ -2337,15 +2409,23 @@ ensure_backend_o_strict_link_partial_obj() {
 }
 
 # strict WPO 链 backend 对象组：wpo + seed helper（mega/emit 仍在 seed）；build_asm backend.o 薄桩不与 seed 混链。
+# 非 WPO fallback 下优先直接使用 seed partial 的真实 backend_* 强符号；仅当旧 seed partial 缺符号时才补 alias。
 strict_asm_backend_companion_objs() {
+  local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
   if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
     ensure_backend_asm_bare_link_alias_obj >&2 || return 1
     ensure_asm_backend_seed_helper_partial_obj >&2 || return 1
     printf '%s\n' "$BUILD_DIR/backend_wpo.o $BUILD_DIR/backend_asm_bare_link_alias.o $BUILD_DIR/asm_backend_seed_helper_partial.o"
     return 0
   fi
+  if [ -f "$seed_o" ] && \
+     nm "$seed_o" 2>/dev/null | grep -qE ' T (_)?backend_asm_codegen_ast$' && \
+     nm "$seed_o" 2>/dev/null | grep -qE ' T (_)?backend_asm_codegen_ast_to_elf$'; then
+    printf '%s\n' "$seed_o"
+    return 0
+  fi
   ensure_backend_asm_strict_fallback_alias_obj >&2 || return 1
-  printf '%s\n' "$BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o"
+  printf '%s\n' "$BUILD_DIR/backend_asm_strict_fallback_alias.o $seed_o"
   return 0
 }
 
@@ -2425,10 +2505,10 @@ ensure_typeck_asm_layout_partial_obj() {
     cat > "$SYMS" <<'EOF'
 _typeck_struct_layout_metrics
 _typeck_validate_struct_layouts_zero_padding
-_ensure_struct_layout_from_struct_lit
+_typeck_ensure_struct_layout_from_struct_lit
 _typeck_merge_dep_struct_layouts_into_entry
 _typeck_wpo_unify_soa_layouts
-_entry_module_find_struct_layout_index
+_typeck_entry_module_find_struct_layout_index
 _typeck_find_layout_idx_by_type_name
 EOF
     echo "  ld -r -exported_symbols_list $SYMS typeck.o -> $PARTIAL (layout only)"
@@ -2453,7 +2533,10 @@ ensure_typeck_sx_no_layout_partial_obj() {
   if [ ! -f "$SUO" ]; then
     return 1
   fi
-  if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  if [ -f "$SYMS" ] && grep -qE '^_typeck_(ensure_struct_layout_from_struct_lit|entry_module_find_struct_layout_index)$' "$SYMS" 2>/dev/null; then
+    rm -f "$SYMS" "$PARTIAL"
+  fi
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ]; then
     # ELF 符号无 leading _；统一 sed 去/加 _ 供 macOS exported_symbols_list 与 Linux objcopy。
     nm "$SUO" 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
       grep -v '^typeck_struct_layout_metrics$' | \
@@ -2461,9 +2544,11 @@ ensure_typeck_sx_no_layout_partial_obj() {
       grep -v '^typeck_merge_dep_struct_layouts_into_entry$' | \
       grep -v '^typeck_wpo_unify_soa_layouts$' | \
       grep -v '^typeck_find_layout_idx_by_type_name$' | \
-      grep -v '^ensure_struct_layout_from_struct_lit$' | \
-      grep -v '^entry_module_find_struct_layout_index$' | \
+      grep -v '^typeck_ensure_struct_layout_from_struct_lit$' | \
+      grep -v '^typeck_entry_module_find_struct_layout_index$' | \
       sed 's/^/_/' >"$SYMS"
+  fi
+  if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
     echo "  ld -r -exported_symbols_list $SYMS typeck_sx.o -> $PARTIAL (no layout dupes)"
     set +e
     ld_partial_export "$SYMS" "$PARTIAL" "$SUO" 2>"$BUILD_DIR/.typeck_sx_no_layout_err"
@@ -2561,12 +2646,14 @@ filter_experimental_asm_objs() {
       pipeline_strict_link_partial.o|pipeline_wpo.o|pipeline_wpo_helpers_partial.o|pipeline_wpo_typecheck_emit_bridge.o|pipeline_wpo_strict_link_alias.o|\
       pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
       pipeline_asm_strict_core_partial.o|\
+      bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
+      bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
       pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
       driver_compile_parse_argv_loop_partial.o|\
       typeck_asm_layout_partial.o|typeck_sx_no_layout_partial.o|typeck_c_orchestration_partial.o|\
       typeck_c_module_stubs.o|typeck_asm_bare_link_alias.o|typeck_wpo.o|typeck_wpo_helpers_partial.o|typeck_strict_link_partial.o|\
       typeck_lsp_io_stub.o|\
-      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
+      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
       parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o)
@@ -2685,13 +2772,15 @@ filter_strict_asm_objs() {
       pipeline_strict_link_partial.o|pipeline_wpo.o|pipeline_wpo_helpers_partial.o|pipeline_wpo_typecheck_emit_bridge.o|pipeline_wpo_strict_link_alias.o|\
       pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
       pipeline_asm_strict_core_partial.o|\
+      bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
+      bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
       pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
       driver_compile_parse_argv_loop_partial.o|\
       typeck_skip.o|typeck_heavy.o|typeck.second.o|\
       typeck_asm_layout_partial.o|typeck_sx_no_layout_partial.o|typeck_c_orchestration_partial.o|\
       typeck_c_module_stubs.o|typeck_asm_bare_link_alias.o|typeck_wpo.o|typeck_wpo_helpers_partial.o|typeck_strict_link_partial.o|\
       typeck_lsp_io_stub.o|\
-      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|asm_backend_seed_helper_partial.o|\
+      backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|sx_seed_bridge.o|\
       parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
@@ -2917,10 +3006,43 @@ ensure_asm_bootstrap_sx_companion_objs() {
 
 # 与 Makefile USER_ASM_SEED_OBJS 对齐：pipeline_glue / partial 引用的 enc/call 分派 TU。
 # backend_x86_64_enc_c.o 须链入，否则 asm_full_link_stubs weak enc_label 恒 -1（用户 asm -o 全挂）。
-BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+BSTRICT_PIPELINE_LINK_O="pipeline_sx.o"
+BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
+BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/asm_backend_compat_stubs.o"
+BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+
+refresh_bstrict_link_variants() {
+  BSTRICT_PIPELINE_LINK_O="pipeline_sx.o"
+  BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
+  BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/asm_backend_compat_stubs.o"
+  BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
+    if ensure_bstrict_pipeline_filtered_obj 2>/dev/null; then
+      BSTRICT_PIPELINE_LINK_O="$BUILD_DIR/bstrict_pipeline_filtered.o"
+    fi
+    if [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+      ensure_asm_backend_compat_stubs_obj >/dev/null 2>&1 || true
+      if ensure_bstrict_filtered_obj_against_seed_partial "src/asm/user_asm_seed_bridge.o" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
+        BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o"
+      fi
+      if ensure_bstrict_filtered_obj_against_seed_partial "$BUILD_DIR/asm_backend_compat_stubs.o" "$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o" "bstrict_asm_backend_compat_stubs" 2>/dev/null; then
+        BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o"
+      fi
+      if ensure_bstrict_filtered_obj_against_seed_partial "src/asm/backend_x86_64_enc_c.o" "$BUILD_DIR/bstrict_backend_x86_64_enc_c_filtered.o" "bstrict_backend_x86_64_enc_c" 2>/dev/null; then
+        BSTRICT_BACKEND_X86_64_ENC_LINK="$BUILD_DIR/bstrict_backend_x86_64_enc_c_filtered.o"
+      fi
+    fi
+  fi
+  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+  GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+}
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_sx.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/backend_asm_strict_fallback_alias.o $BUILD_DIR/seed_host/asm_backend_partial.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/lsp/lsp_heap_bootstrap.o"
+GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
 # gen_driver 回退链：pipeline_sx.o / runtime_driver 须 parser/lexer/codegen SX + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
 GEN_DRIVER_SX_PIPELINE_COMPANIONS="parser_sx.o lexer_sx.o codegen_sx.o lexer_sx_link_alias.o codegen_sx_link_alias.o driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
@@ -2978,7 +3100,8 @@ ensure_bstrict_seed_support_objs() {
   if [ ! -f parser_asm_thin_glue.o ] \
     || [ "src/asm/parser_asm_thin_c.c" -nt parser_asm_thin_glue.o ] \
     || [ "src/asm/parser_asm_struct_layout_slice.c" -nt parser_asm_thin_glue.o ] \
-    || [ "src/asm/parser_asm_block_from_res_slice.c" -nt parser_asm_thin_glue.o ]; then
+    || [ "src/asm/parser_asm_block_from_res_slice.c" -nt parser_asm_thin_glue.o ] \
+    || [ "src/asm/parser_asm_if_stmt_slice.c" -nt parser_asm_thin_glue.o ]; then
     echo "  cc -c src/asm/parser_asm_thin_c.c -> parser_asm_thin_glue.o"
     "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o parser_asm_thin_glue.o src/asm/parser_asm_thin_c.c
   fi
@@ -3392,6 +3515,9 @@ ensure_asm_gen_driver_sx_objs() {
 
   echo "  cc -c gen_driver/lsp*.o <- lsp -E 产物"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Dstd_io_read=io_read -Dstd_io_write=io_write \
+    -Dstd_heap_alloc_usize=typeck_std_heap_alloc -Dstd_heap_free_u8_ptr=typeck_std_heap_free \
+    -Dtypeck_std_heap_alloc=lsp_io_std_heap_std_heap_alloc \
+    -Dtypeck_std_heap_free=lsp_io_std_heap_std_heap_free \
     -c "$GEN_DIR/lsp_io_gen.c" -o "$GEN_DIR/lsp_io_sx.o"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/lsp_gen.c" -o "$GEN_DIR/lsp_sx.o"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
@@ -3747,7 +3873,11 @@ bootstrap_entry_ldflags() {
 # pipeline_glue_standalone 提供 backend_ctx_push_loop_labels 等 C 真实现；
 # 与 pipeline_sx.o / asm_backend_partial.o 重复时须 glue 置首且允许多定义（首符号生效）。
 asm_glue_duplicate_ldflags() {
-  echo "-Wl,--allow-multiple-definition"
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    echo "-Wl,-multiply_defined -Wl,suppress"
+  else
+    echo "-Wl,--allow-multiple-definition"
+  fi
 }
 
 # 确保 crt0 / nostdlib 对象在 experimental/strict 链前已编译。
@@ -3767,6 +3897,8 @@ bootstrap_ensure_entry_objs() {
 # strict 重链成功后同步 shux_asm_stage1（C5/C6 gate 与 gen2 读 stage1 副本）。
 shux_asm_sync_stage1_from_strict() {
   if [ -f ./shux_asm ] && [ -x ./shux_asm ]; then
+    # Darwin 上直接覆盖 stage1 偶发留下坏 vnode/签名缓存；先删再拷可稳定执行同内容副本。
+    rm -f ./shux_asm_stage1 2>/dev/null || true
     cp -f ./shux_asm ./shux_asm_stage1 2>/dev/null || true
   fi
 }
@@ -3819,6 +3951,11 @@ shux_asm_bstrict_relink_runtime_only() {
   fi
   ST_SEED_PREPROCESS_LINK=$(asm_seed_st_preprocess_link)
   ST_TYPECK_SX_LINK="typeck_sx.o"
+  # selfhosted strict relink 不会并链 ST_LAYOUT_PARTIAL；此时若误用 no_layout partial，
+  # 会把 typeck_ensure_struct_layout_from_struct_lit / entry_module_find_struct_layout_index 一并裁掉。
+  if ! asm_strict_typeck_selfhosted && ensure_typeck_asm_layout_partial_obj && ensure_typeck_sx_no_layout_partial_obj; then
+    ST_TYPECK_SX_LINK="$BUILD_DIR/typeck_sx_no_layout_partial.o"
+  fi
   if asm_strict_typeck_selfhosted && asm_strict_typeck_sx_glue_via_pipeline_sx; then
     if asm_seed_use_sx_frontend; then
       ST_SEED_PARSER_TCK="$(asm_seed_st_async_support_link) $(asm_seed_st_sx_glue_suffix)"
@@ -3831,14 +3968,18 @@ shux_asm_bstrict_relink_runtime_only() {
     ST_SEED_PARSER_TCK="$(asm_seed_st_frontend_seed_link) $ST_TYPECK_SX_LINK $(asm_seed_st_sx_glue_suffix)"
   fi
   ST_PARSER_SX_TAIL="parser_sx.o lexer_sx.o"
-  if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -f typeck_sx.o ]; then
-    ST_TYPECK_SX_TAIL="typeck_sx.o"
+  if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -n "$ST_TYPECK_SX_LINK" ] && [ -f "$ST_TYPECK_SX_LINK" ]; then
+    case " $ST_SEED_PARSER_TCK " in
+      *" $ST_TYPECK_SX_LINK "*) ST_TYPECK_SX_TAIL="" ;;
+      *) ST_TYPECK_SX_TAIL="$ST_TYPECK_SX_LINK" ;;
+    esac
   fi
   ensure_ast_pool_l5_bridge_obj
   ensure_asm_backend_compat_stubs_obj
+  refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
   ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
-  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
@@ -4098,7 +4239,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         # pipeline_sx / dispatch 引用的 arch_* enc/emit 须 weak 桩（与 bootstrap-driver-seed 同源）。
         ASM_LINK_STUBS_O=""
         if [ -f pipeline_sx.o ]; then
-          _stub_scan="pipeline_sx.o $BSTRICT_DISPATCH_OBJS"
+          refresh_bstrict_link_variants
+          _stub_scan="$BSTRICT_PIPELINE_LINK_O $BSTRICT_DISPATCH_OBJS"
           if [ -f "$BUILD_DIR/seed_host/asm_full.o" ]; then
             _stub_scan="$BUILD_DIR/seed_host/asm_full.o $_stub_scan"
           fi
@@ -4116,11 +4258,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
         BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
         ensure_asm_pipeline_glue_standalone_obj
+        ensure_asm_pipeline_glue_strict_minimal_obj
+        refresh_bstrict_link_variants
         ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
         # shellcheck disable=SC2086
         "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm \
           $BOOT_ENTRY_OBJ \
-          "$BUILD_DIR/pipeline_glue_standalone.o" \
+          "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" \
           src/runtime_abi.o \
           src/runtime_io_abi.o \
           src/runtime_proc_abi.o \
@@ -4130,7 +4274,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/runtime_driver_diagnostic.o \
           src/runtime_driver_asm_strict.o \
           $BSTRICT_SEED_SUPPORT \
-          pipeline_sx.o \
+          "$BSTRICT_PIPELINE_LINK_O" \
           pipeline_bootstrap_orchestration.o \
           preprocess_sx.o \
           "$BUILD_DIR/ast_pool_l5_bridge.o" \
@@ -4141,8 +4285,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           "$BUILD_DIR/seed_link_compat.o" \
           "$BUILD_DIR/seed_host/asm_backend_partial.o" \
           $ASM_LINK_STUBS_O \
-          src/asm/user_asm_seed_bridge.o \
-          src/asm/asm_backend_compat_stubs.o \
+          "$BSTRICT_USER_ASM_SEED_BRIDGE_LINK" \
+          "$BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK" \
           $BSTRICT_DISPATCH_OBJS \
           src/asm/pipeline_run_sx_link_alias.o \
           src/asm/parser_asm_parse_expr_link.o \
@@ -4253,7 +4397,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 fi
                 ST_RUNTIME_EXTRA=""
                 if asm_strict_typeck_selfhosted; then
-                  ST_LAYOUT_PARTIAL=""
+                  ensure_typeck_asm_layout_partial_obj && ST_LAYOUT_PARTIAL="$BUILD_DIR/typeck_asm_layout_partial.o" || ST_LAYOUT_PARTIAL=""
                   if asm_strict_typeck_sx_glue_via_pipeline_sx; then
                     echo "build_shux_asm: strict link typeck.o partial + pipeline_sx glue support (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo ?)B)"
                   else
@@ -4404,8 +4548,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   fi
                   # parser_sx.o 须为链接线最后一批：压过 seed parser.o 与 companions 中可能的重复符号（struct mk CALL 内联等）。
                   ST_PARSER_SX_TAIL="parser_sx.o lexer_sx.o"
-                  if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -f typeck_sx.o ]; then
-                    ST_TYPECK_SX_TAIL="typeck_sx.o"
+                  if asm_strict_typeck_sx_glue_via_pipeline_sx && [ -n "$ST_TYPECK_SX_LINK" ] && [ -f "$ST_TYPECK_SX_LINK" ]; then
+                    ST_TYPECK_SX_TAIL="$ST_TYPECK_SX_LINK"
                   fi
                   ensure_ast_pool_l5_bridge_obj
                   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
@@ -4413,7 +4557,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                     echo "build_shux_asm: strict link backend_wpo.o (WPO reach OK)"
                   fi
                   ensure_asm_backend_compat_stubs_obj
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  refresh_bstrict_link_variants
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 else
                   # legacy：须 seed C 前端 *.o 在前、*_sx.o 在后（macOS ld 重复符号取后定义）。
                   # E-06 v3 SX：仅 async seed + SX glue；parser_sx.o 在 ST_PARSER_SX_TAIL 压过重复符号。
@@ -4427,7 +4572,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ensure_ast_pool_l5_bridge_obj
                   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
                   ensure_asm_backend_compat_stubs_obj
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  refresh_bstrict_link_variants
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 fi
               elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
                 ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -4734,6 +4880,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       set +e
       ensure_runtime_driver_asm_strict_obj
       ensure_asm_bootstrap_support_extra_objs
+      ensure_asm_pipeline_glue_strict_minimal_obj
       BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
       BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
       # shellcheck disable=SC2086
@@ -4755,6 +4902,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         "$GEN_O/driver_check_sx.o" \
         "$GEN_O/driver_test_sx.o" \
         "$GEN_O/pipeline_sx.o" \
+        "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
         "$GEN_O/preprocess_sx.o" \
         $GEN_DRIVER_TYPECK_COMPANIONS \
         $GEN_DRIVER_BSTRICT_COMPANIONS \

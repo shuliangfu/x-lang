@@ -26,6 +26,60 @@ extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32
 extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                       int32_t *out_line, int32_t *out_col) __attribute__((weak));
 
+__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
+                                                                      uint8_t *out_buf, int32_t out_cap) {
+  (void)id_val;
+  (void)source;
+  (void)source_len;
+  (void)out_buf;
+  (void)out_cap;
+  return -1;
+}
+
+__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+                                                                         uint8_t *out_buf, int32_t out_cap) {
+  (void)id_val;
+  (void)doc_buf;
+  (void)doc_len;
+  (void)out_buf;
+  (void)out_cap;
+  return -1;
+}
+
+__attribute__((weak)) int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                                uint8_t *out_buf, int32_t out_cap) {
+  (void)source;
+  (void)source_len;
+  (void)line_0;
+  (void)col_0;
+  (void)out_buf;
+  (void)out_cap;
+  return -1;
+}
+
+__attribute__((weak)) int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                                     int32_t *out_lines, int32_t *out_cols, int32_t max_refs) {
+  (void)source;
+  (void)source_len;
+  (void)line_0;
+  (void)col_0;
+  (void)out_lines;
+  (void)out_cols;
+  (void)max_refs;
+  return -1;
+}
+
+__attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                                     int32_t *out_line, int32_t *out_col) {
+  (void)source;
+  (void)source_len;
+  (void)line_0;
+  (void)col_0;
+  (void)out_line;
+  (void)out_col;
+  return -1;
+}
+
 extern uint8_t *lsp_io_std_heap_std_heap_alloc(size_t size);
 extern uint8_t *lsp_io_std_heap_std_heap_alloc_zeroed(size_t size);
 extern void lsp_io_std_heap_std_heap_free(uint8_t *ptr);
@@ -793,6 +847,50 @@ SHUX_ARCH_ENC_STUB3(arch_arm64_enc_enc_label, uint8_t *, name, int32_t, name_len
 SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
 SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_sp_imm12, int32_t, imm)
 SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_sub_sp_imm12, int32_t, imm)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_sub_rax_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_sub_rbx_rax_then_mov)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_test_eax_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_test_rbx_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_xor_rbx_rax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_imm_to_rax, int32_t, imm)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_add_rax_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_and_rbx_rax)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_call, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_cltd)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_cmp_rbx_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_cmp_rax_rbx)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_cmp_setcc_movzbl, int32_t, cc)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_epilogue)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_idiv_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_imul_rbx_rax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_lea_rbp_to_rax, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_lea_rbp_to_rbx, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_load_rbp_to_rax, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_load_rbp_to_rbx, int32_t, offset)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_mov_edx_to_eax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_imm32_to_rbx, int32_t, imm32)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_mov_imm64_to_rax, int32_t, lo, int32_t, hi)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_mov_rax_to_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_mov_rbx_to_ecx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_neg_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_not_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_or_rbx_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_pop_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_pop_rbx)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_prologue, int32_t, frame_sz)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_push_rax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_push_rbx)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rax_plus_rbx_scale1)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rax_plus_rbx_scale4)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rax_plus_rbx_scale8)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_ret_imm32, int32_t, imm32)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_sar_cl_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_setz_movzbl_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_shl_cl_eax)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_shr_cl_eax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_store_rax_to_rbp, int32_t, offset)
+SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_store_x_reg_to_rbp, int32_t, reg, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_str_x0_sp_offset, int32_t, off_bytes)
 
 SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jz, uint8_t *, label, int32_t, label_len)
 SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jnz, uint8_t *, label, int32_t, label_len)
@@ -802,10 +900,55 @@ SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_jmp, uint8_t *, label, int32_t, label_l
 SHUX_ARCH_ENC_STUB3(arch_riscv64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_add_sp_imm12, int32_t, imm)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_add_imm_to_rax, int32_t, imm)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_add_rax_rbx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_and_rbx_rax)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_call, uint8_t *, name, int32_t, name_len)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_cltd)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_cmp_rbx_rax)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_cmp_setcc_movzbl, int32_t, cc)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_epilogue)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_idiv_rbx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_imul_rbx_rax)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_lea_rbp_to_rax, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_lea_rbp_to_rbx, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_load_rbp_to_rax, int32_t, offset)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_load_rbp_to_rbx, int32_t, offset)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_mov_edx_to_eax)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mov_imm32_to_rbx, int32_t, imm32)
+SHUX_ARCH_ENC_STUB2(arch_riscv64_enc_enc_mov_imm64_to_rax, int32_t, lo, int32_t, hi)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_mov_rax_to_rbx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_mov_rbx_to_ecx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_neg_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_not_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_or_rbx_rax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_pop_rax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_pop_rbx)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_prologue, int32_t, frame_sz)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_push_rax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_push_rbx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rax_plus_rbx_scale1)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rax_plus_rbx_scale4)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rax_plus_rbx_scale8)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_ret_imm32, int32_t, imm32)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_sar_cl_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_setz_movzbl_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_shl_cl_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_shr_cl_eax)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_store_rax_to_rbp, int32_t, offset)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_sub_rbx_rax_then_mov)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_test_eax_eax)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_test_rbx_rbx)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_xor_rbx_rax)
 
 SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_32_from_rax)
 SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_64_from_rax)
 SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_load_zext8_from_rax)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_imm_to_rbx, int32_t, imm)
+SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_load_rbp_to_x2, int32_t, offset)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rbx_plus_x2_scale1)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rbx_plus_x2_scale4)
+SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_rbx_plus_x2_scale8)
 SHUX_ARCH_ENC_STUB1(arch_arm64_enc_enc_store_rax_to_rbx_indirect, int32_t, elem_sz)
 SHUX_ARCH_ENC_STUB2(arch_arm64_enc_enc_store_rax_to_rbx_offset, int32_t, offset, int32_t, store_size)
 SHUX_ARCH_ENC_STUB0(arch_arm64_enc_enc_mov_rbx_to_rax)
@@ -827,9 +970,12 @@ SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mul_imm_to_rbx, int32_t, lit)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_mul_imm_to_a2, int32_t, lit)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_add_imm_to_a2, int32_t, imm)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_sub_imm_from_a2, int32_t, imm)
+SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_load_rbp_to_a2, int32_t, offset)
 SHUX_ARCH_ENC_STUB1(arch_riscv64_enc_enc_load_rbp_to_a3, int32_t, offset)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_add_a2_a3)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_sub_a2_a3)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rsub_a2_a3)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rsub_rbx_a3)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale1)
+SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale4)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale8)

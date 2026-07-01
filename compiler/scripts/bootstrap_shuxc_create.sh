@@ -13,6 +13,12 @@ cd "$(dirname "$0")/.."
 OUT="./bootstrap_shuxc"
 SRC="${1:-}"
 
+maybe_codesign() {
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
+    codesign -s - --force "$1" >/dev/null 2>&1 || true
+  fi
+}
+
 pick_src() {
   if [ -n "$SRC" ] && [ -x "$SRC" ]; then
     echo "$SRC"
@@ -44,4 +50,5 @@ fi
 SRC="$(pick_src)"
 cp -f "$SRC" "$OUT"
 chmod +x "$OUT"
+maybe_codesign "$OUT"
 echo "bootstrap_shuxc_create: OK $OUT <- $SRC ($(wc -c <"$OUT" | tr -d ' ') bytes)"

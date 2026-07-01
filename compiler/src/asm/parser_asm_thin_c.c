@@ -160,6 +160,10 @@ struct parser_asm_onefunc_result {
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
+extern void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                         struct parser_asm_slice_u8 *source);
+extern int32_t parser_parse_peek_function_name_buf_glue(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                        uint8_t *out);
 
 /** stretch slice 前向声明（定义在 #include parser_asm_emit_heavy_stretch_*.c）。 */
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
@@ -4067,6 +4071,8 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
   if (stretch > 0)
     return stretch;
   switch (tok.kind) {
+  case TOKEN_FATARROW:
+    return 2;
   case TOKEN_RETURN:
     return 6;
   case TOKEN_FUNCTION:
@@ -4099,6 +4105,26 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
     return 4;
   case TOKEN_MATCH:
     return 5;
+  case TOKEN_LSHIFT:
+  case TOKEN_RSHIFT:
+  case TOKEN_EQ:
+  case TOKEN_NE:
+  case TOKEN_LE:
+  case TOKEN_GE:
+  case TOKEN_AMPAMP:
+  case TOKEN_PIPEPIPE:
+  case TOKEN_PLUS_EQ:
+  case TOKEN_MINUS_EQ:
+  case TOKEN_STAR_EQ:
+  case TOKEN_SLASH_EQ:
+  case TOKEN_PERCENT_EQ:
+  case TOKEN_AMP_EQ:
+  case TOKEN_PIPE_EQ:
+  case TOKEN_CARET_EQ:
+    return 2;
+  case TOKEN_LSHIFT_EQ:
+  case TOKEN_RSHIFT_EQ:
+    return 3;
   default:
     return 1;
   }
@@ -4116,6 +4142,24 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
   return source->data[p] == (uint8_t)'m' && source->data[p + 1] == (uint8_t)'a' &&
          source->data[p + 2] == (uint8_t)'t' && source->data[p + 3] == (uint8_t)'c' &&
          source->data[p + 4] == (uint8_t)'h' && source->data[p + 5] == (uint8_t)' ';
+}
+
+/**
+ * ident 是否为语句关键字 unsafe。
+ */
+int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
+                                                struct parser_asm_slice_u8 *source) {
+  size_t start;
+  if (!source || !source->data || r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 6)
+    return 0;
+  start = r.token_start;
+  if (start == 0)
+    start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
+  if (start + 6 > source->length)
+    return 0;
+  return source->data[start] == (uint8_t)'u' && source->data[start + 1] == (uint8_t)'n' &&
+         source->data[start + 2] == (uint8_t)'s' && source->data[start + 3] == (uint8_t)'a' &&
+         source->data[start + 4] == (uint8_t)'f' && source->data[start + 5] == (uint8_t)'e';
 }
 
 /**
@@ -4188,6 +4232,8 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
   lexer_next_into(r_out, lex, source);
   if (r_out->tok.kind == (int32_t)TOKEN_SEMICOLON)
     return 1;
+  if (parser_asm_ident_is_unsafe_stmt_slice_c(*r_out, source) != 0)
+    return 1;
   if (r_out->tok.kind == (int32_t)TOKEN_LET || r_out->tok.kind == (int32_t)TOKEN_CONST ||
       r_out->tok.kind == (int32_t)TOKEN_RETURN || r_out->tok.kind == (int32_t)TOKEN_IF ||
       r_out->tok.kind == (int32_t)TOKEN_WHILE || r_out->tok.kind == (int32_t)TOKEN_FOR ||
@@ -4244,7 +4290,9 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
   }
   if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63)
     return 0;
-  name_start = r.next_lex.pos - (size_t)r.tok.ident_len;
+  name_start = r.token_start;
+  if (name_start == 0 && r.tok.ident_len > 0)
+    name_start = r.next_lex.pos - (size_t)r.tok.ident_len;
   parser_asm_copy_slice_to_name64_buf_c(data, len, name_start, r.tok.ident_len, out);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(out, r.tok.ident_len));
   return r.tok.ident_len;
@@ -4380,62 +4428,54 @@ void parser_asm_skip_balanced_braces_into_buf_c(struct parser_asm_lexer *out, st
 }
 
 /**
- * 将 lex 从 iter_start（可能在 trait/impl 前空白处）对齐到关键字前缀。
+ * 将 lex 对齐到 trait/impl 关键字起点；统一跳过空白与注释，并用 lexer 复核 token kind。
  */
 static struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
                                                                         struct parser_asm_slice_u8 *source,
                                                                         const char *kw, size_t kw_len) {
+  struct parser_asm_lexer_result r;
+  int32_t want_kind = 0;
   if (!source || !source->data || !kw || kw_len == 0)
     return lex;
-  while (lex.pos + kw_len <= source->length) {
-    if (memcmp(source->data + lex.pos, kw, kw_len) == 0)
-      return lex;
-    {
-      uint8_t c = source->data[lex.pos];
-      if (c == (uint8_t)' ' || c == (uint8_t)'\t' || c == (uint8_t)'\n' || c == (uint8_t)'\r')
-        lex.pos++;
-      else
-        break;
-    }
-  }
+  lex.pos = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, lex.pos);
+  if (kw_len == 5 && memcmp(kw, "trait", 5) == 0)
+    want_kind = (int32_t)TOKEN_TRAIT;
+  else if (kw_len == 4 && memcmp(kw, "impl", 4) == 0)
+    want_kind = (int32_t)TOKEN_IMPL;
+  if (want_kind == 0)
+    return lex;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind == want_kind)
+    return parser_asm_lex_at_token_from_result_inner(r);
   return lex;
 }
 
 /**
- * 从 trait/impl 等顶层 `{ ... }` 块关键字位置扫描至匹配 `}` 之后（字节级，不依赖 token 头解析）。
- * trait+impl 连续出现时 token 路径 skip 易失败并导致后续 main 无法解析；此路径作首选 skip。
+ * 从 trait/impl 等顶层块关键字位置扫描至匹配 `}` 之后。
+ * 使用 lexer 跳过空白/注释，再以 token 级大括号配对，避免 `{`/`}` 落在注释里时错位。
  */
 static void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start,
                                                    struct parser_asm_slice_u8 *source) {
-  size_t i;
-  int32_t depth;
-  int32_t saw_lbrace;
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
   if (!out || !source || !source->data)
     return;
-  i = start.pos;
-  while (i < source->length && source->data[i] != (uint8_t)'{')
-    i++;
-  if (i >= source->length) {
-    *out = start;
-    return;
-  }
-  depth = 0;
-  saw_lbrace = 0;
-  for (; i < source->length; i++) {
-    if (source->data[i] == (uint8_t)'{') {
-      depth++;
-      saw_lbrace = 1;
-    } else if (source->data[i] == (uint8_t)'}' && saw_lbrace) {
-      depth--;
-      if (depth == 0) {
-        i++;
-        break;
-      }
+  lex = start;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind == (int32_t)TOKEN_TRAIT || r.tok.kind == (int32_t)TOKEN_IMPL)
+    parser_asm_lex_from_result_val_into(&lex, r);
+  for (;;) {
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+      parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
+      return;
     }
+    if (r.tok.kind == (int32_t)TOKEN_EOF) {
+      *out = start;
+      return;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
   }
-  out->pos = i;
-  out->line = start.line;
-  out->col = start.col;
 }
 
 /**

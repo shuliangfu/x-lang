@@ -2147,6 +2147,10 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                         ((struct ASTExpr *)e)->resolved_type = &static_type_f32;
                     else if (type_equal(lt, rt))
                         ((struct ASTExpr *)e)->resolved_type = lt;
+                    else if (typeck_integer_widen_ok(lt->kind, rt->kind))
+                        ((struct ASTExpr *)e)->resolved_type = lt;
+                    else if (typeck_integer_widen_ok(rt->kind, lt->kind))
+                        ((struct ASTExpr *)e)->resolved_type = rt;
                     /* bool 参与 + - * / % 时结果为 i32（如 (3==3)+(2<5)；勿把 usize-i32 等混算一律提升为 i32） */
                     if ((e->kind == AST_EXPR_ADD || e->kind == AST_EXPR_SUB || e->kind == AST_EXPR_MUL
                             || e->kind == AST_EXPR_DIV || e->kind == AST_EXPR_MOD)
@@ -2696,6 +2700,19 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
         case AST_EXPR_STRUCT_LIT: {
             const char *lit_name = e->value.struct_lit.struct_name;
             const struct ASTStructDef *sd = NULL;
+            if ((!lit_name || !*lit_name) && typeck_ctx_expected_return
+                && typeck_ctx_expected_return->kind == AST_TYPE_NAMED
+                && typeck_ctx_expected_return->name && *typeck_ctx_expected_return->name) {
+                lit_name = typeck_ctx_expected_return->name;
+                if (!e->value.struct_lit.struct_name) {
+                    char *ctx_name = strdup(typeck_ctx_expected_return->name);
+                    if (!ctx_name) {
+                        fprintf(stderr, "typeck: out of memory\n");
+                        return -1;
+                    }
+                    ((struct ASTExpr *)e)->value.struct_lit.struct_name = ctx_name;
+                }
+            }
             if (lit_name && strchr(lit_name, '.') && typeck_current_mod)
                 sd = find_struct_def_binding_qualified(typeck_current_mod, lit_name);
             if (!sd)
@@ -3276,6 +3293,10 @@ static int typeck_return_value_matches(const struct ASTExpr *op, const struct AS
         return 0;
     if (type_equal(got, expect))
         return 1;
+    if (typeck_integer_widen_ok(expect->kind, got->kind))
+        return 1;
+    if (expect->kind == AST_TYPE_I32 && (got->kind == AST_TYPE_U8 || got->kind == AST_TYPE_USIZE))
+        return 1;
     if (expect->kind == AST_TYPE_I32 && got->kind == AST_TYPE_BOOL) {
         if (op->kind == AST_EXPR_LOGNOT || op->kind == AST_EXPR_BOOL_LIT)
             return 1;
@@ -3291,11 +3312,14 @@ static int typeck_check_return_operand(const struct ASTExpr *ret_site, const str
                                      const struct ASTType *func_return_type) {
     char ebuf[80], fbuf[80];
     const struct ASTType *got;
-    if (!ret_site || !op || !func_return_type || func_return_type->kind != AST_TYPE_I32)
+    if (!ret_site || !op || !func_return_type)
         return 0;
     got = op->resolved_type;
-    /* 仅拒绝明确的 bool 变量/字段 return i32；未解析类型与其它不匹配留给 .sx typeck 或后续扩展。 */
-    if (!got || got->kind != AST_TYPE_BOOL)
+    if (op->kind == AST_EXPR_LIT && func_return_type->kind == AST_TYPE_PTR && op->value.int_val == 0) {
+        ((struct ASTExpr *)op)->resolved_type = func_return_type;
+        return 0;
+    }
+    if (!got)
         return 0;
     if (typeck_return_value_matches(op, func_return_type))
         return 0;
@@ -3683,7 +3707,16 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                     TYPECK_ERR_AT(0, 0, "void function cannot return a value");
                     return -1;
                 }
-                if (typeck_expr_sym(b->labeled_stmts[i].u.return_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                {
+                    const struct ASTType *prev_ret = typeck_ctx_expected_return;
+                    if (func_return_type)
+                        typeck_ctx_expected_return = func_return_type;
+                    if (typeck_expr_sym(b->labeled_stmts[i].u.return_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                        typeck_ctx_expected_return = prev_ret;
+                        return -1;
+                    }
+                    typeck_ctx_expected_return = prev_ret;
+                }
                 if (typeck_check_return_operand(b->labeled_stmts[i].u.return_expr, b->labeled_stmts[i].u.return_expr,
                         func_return_type) != 0)
                     return -1;
@@ -3707,7 +3740,16 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
         TYPECK_ERR_AT(0, 0, "void function cannot return a value");
         return -1;
     }
-    if (typeck_expr_sym(b->final_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+    {
+        const struct ASTType *prev_ret = typeck_ctx_expected_return;
+        if (b->final_expr->kind == AST_EXPR_RETURN && b->final_expr->value.unary.operand && func_return_type)
+            typeck_ctx_expected_return = func_return_type;
+        if (typeck_expr_sym(b->final_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+            typeck_ctx_expected_return = prev_ret;
+            return -1;
+        }
+        typeck_ctx_expected_return = prev_ret;
+    }
     if (b->final_expr->kind == AST_EXPR_RETURN && b->final_expr->value.unary.operand && func_return_type &&
         func_return_type->kind != AST_TYPE_VOID) {
         if (typeck_check_return_operand(b->final_expr, b->final_expr->value.unary.operand, func_return_type) != 0)

@@ -863,21 +863,25 @@ endif
 
 # asm 后端 -o <exe> 时链接用：提供 shux_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .c
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
+RUNTIME_PANIC_PLATFORM_STAMP = build_asm/runtime_panic.$(UNAME_S).$(UNAME_M).stamp
+$(RUNTIME_PANIC_PLATFORM_STAMP):
+	@mkdir -p build_asm
+	@touch $@
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 ifneq (,$(RUNTIME_PANIC_S))
-runtime_panic.o: src/asm/runtime_panic_x86_64.s
+runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) -c -o $@ $<
 else
-runtime_panic.o: src/asm/runtime_panic.c
+runtime_panic.o: src/asm/runtime_panic.c $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) $(CFLAGS) -c -o $@ $<
 endif
 else
-runtime_panic.o: src/asm/runtime_panic_arm64.c
+runtime_panic.o: src/asm/runtime_panic_arm64.c $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) $(CFLAGS) -c -o $@ $<
 endif
 else
-runtime_panic.o: src/asm/runtime_panic.c
+runtime_panic.o: src/asm/runtime_panic.c $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) $(CFLAGS) -c -o $@ $<
 endif
 
@@ -1266,6 +1270,25 @@ USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
 USER_ASM_SEED_HOST_STUBS = $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.o
 USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o src/asm/parser_asm_parse_expr_link.o
 USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_OBJS)
+ifeq ($(UNAME_S),Darwin)
+BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O = build_asm/bootstrap_seed_pipeline_filtered.o
+BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o parser_asm_thin_glue.o parser_asm_link_alias.o src/asm/parser_asm_parse_expr_link.o
+BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
+SHUX_SX_PIPELINE_LINK_O = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O)
+SHUX_SX_USER_ASM_OBJS = $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
+RELINK_SHUX_PIPELINE_LINK_O = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O)
+RELINK_SHUX_USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
+RELINK_SHUX_FILTERED_OBJS = $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
+else
+BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O = pipeline_sx.o
+BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = $(USER_ASM_SEED_OBJS)
+BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS =
+SHUX_SX_PIPELINE_LINK_O = pipeline_sx.o
+SHUX_SX_USER_ASM_OBJS = $(USER_ASM_SEED_OBJS)
+RELINK_SHUX_PIPELINE_LINK_O = pipeline_sx.o
+RELINK_SHUX_USER_ASM_LINK = $(USER_ASM_LINK)
+RELINK_SHUX_FILTERED_OBJS =
+endif
 
 .PHONY: build-seed-asm-host
 # partial export 须先 nm dispatch .o 剔除重复符号；冷启动时 dispatch 可能尚未编译。
@@ -1318,7 +1341,28 @@ src/asm/pipeline_abi_f32_xmm.o: src/asm/pipeline_abi_f32_xmm.c
 # 全量 parser_sx.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_SX_SYMBOLS
-parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c src/asm/parser_asm_type_ref_slice.c src/asm/parser_asm_struct_layout_slice.c src/asm/parser_asm_top_level_let_slice.c src/asm/parser_asm_if_stmt_slice.c
+parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c \
+ src/asm/parser_asm_type_ref_slice.c \
+ src/asm/parser_asm_struct_layout_slice.c \
+ src/asm/parser_asm_library_slice.c \
+ src/asm/parser_asm_body_let_slice.c \
+ src/asm/parser_asm_top_level_let_slice.c \
+ src/asm/parser_asm_type_alias_slice.c \
+ src/asm/parser_asm_one_function_buf_slice.c \
+ src/asm/parser_asm_block_from_res_slice.c \
+ src/asm/parser_asm_if_stmt_slice.c \
+ src/asm/parser_asm_match_subject_slice.c \
+ src/asm/parser_asm_simd_builtin_slice.c \
+ src/asm/parser_asm_if_expr_slice.c \
+ src/asm/parser_asm_finish_struct_lit_slice.c \
+ src/asm/parser_asm_as_suffix_slice.c \
+ src/asm/parser_asm_primary_slice.c \
+ src/asm/parser_asm_unary_slice.c \
+ src/asm/parser_asm_expr_binop_slice.c \
+ src/asm/parser_asm_ternary_assign_slice.c \
+ src/asm/parser_asm_emit_heavy_stretch_slice.c \
+ src/asm/parser_asm_emit_heavy_stretch_suite_slice.c \
+ src/asm/parser_asm_seed_parse_into_buf_slice.c
 	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
 
 # pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shux 与 experimental bootstrap 共用）。
@@ -1327,6 +1371,52 @@ parser_asm_link_alias.o: src/asm/parser_asm_link_alias.c
 
 src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+
+build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
+	@mkdir -p build_asm
+	@src_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.syms; \
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.keep; \
+	  nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o
+
+build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
+	@mkdir -p build_asm
+	@src_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.syms; \
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.keep; \
+	  nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o
+
+build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
+	@mkdir -p build_asm
+	@src_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.syms; \
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.keep; \
+	  nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o
+
+build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_sx.o build_asm/seed_host/asm_backend_partial.o
+	@mkdir -p build_asm
+	@all_syms=build_asm/bootstrap_seed_pipeline.syms; \
+	  keep_syms=build_asm/bootstrap_seed_pipeline.keep; \
+	  omit_syms=build_asm/bootstrap_seed_pipeline.omit; \
+	  : > "$$omit_syms"; \
+	  nm pipeline_sx.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$all_syms"; \
+	  for dep_o in typeck_sx.o codegen_sx.o build_asm/seed_host/asm_backend_partial.o; do \
+	    if [ -f "$$dep_o" ]; then \
+	      nm "$$dep_o" 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' >> "$$omit_syms"; \
+	    fi; \
+	  done; \
+	  sort -u "$$omit_syms" -o "$$omit_syms"; \
+	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_sx.o
 
 src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -1458,8 +1548,10 @@ endif
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
 ifeq ($(UNAME_S),Darwin)
 ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
+RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 else
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
+RELINK_SHUX_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 endif
 DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
@@ -1808,7 +1900,7 @@ pipeline_sx.o: pipeline_gen.c $(PIPELINE_SX_DEPS)
 	if [ -z "$$PIPELINE_SX_FORCE_COMPILE" ] && [ "$$STALE" -eq 0 ] && [ -f "$$GEN_DRV" ]; then \
 	  cp "$$GEN_DRV" $@ && echo "pipeline_sx.o: from build_asm/gen_driver"; \
 	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I.. -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr -c pipeline_gen.c -o $@ && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -DSHUX_PIPELINE_GLUE_OMIT_SX_DUP_EXPORTS -I.. -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr -c pipeline_gen.c -o $@ && \
 	  mkdir -p build_asm/gen_driver && cp $@ "$$GEN_DRV"; \
 	fi
 
@@ -1878,10 +1970,12 @@ bootstrap-driver-seed:
 else
 # G-06 两阶段 seed：先无 USER_ASM 链 shux-seed-phase1，再用其跑 asm.sx -E 生成 partial，最后全量链 shux。
 DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS)
+BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_sx.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS)
 
 DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_sx.o parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o driver_sx.o preprocess_sx.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/sx_seed_bridge.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o $(AST_POOL_L5_BRIDGE_O) pipeline_bootstrap_orchestration.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_sx_alias.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o _stubs_driver.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
 
-bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
+bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.sx 重新 -E 失败。
 	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.sx 2>/dev/null || true; fi
 	@$(MAKE) pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1
@@ -1914,14 +2008,15 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS)
 	@mkdir -p build_asm/seed_host
 	@rm -f $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
 	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
+	@$(MAKE) $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
 	@echo "bootstrap-driver-seed: phase1 link (+ USER_ASM dispatch/bridge + seed partial) ..."
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
 	@echo "bootstrap-driver-seed: build-seed-asm-host via shux-seed-phase1 ..."
 	@SHUX_E=./shux-seed-phase1 ./scripts/build_seed_asm_host.sh || \
 	  (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.sx -E failed, final link uses phase1 stub partial" >&2)
 	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
 	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)
 	@$(MAKE) runtime_panic.o
 ifeq ($(SHUX_SKIP_SEED_SMOKE),1)
 	@echo "bootstrap-driver-seed: skip seed smoke (SHUX_SKIP_SEED_SMOKE=1)" >&2
@@ -1950,9 +2045,13 @@ $(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.c build_asm/pipeline_
 	@mkdir -p build_asm
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -I. -Iinclude -Isrc -Ibuild_asm -c -o $@ src/asm/pipeline_glue_standalone.c
 
+build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.c
+	@mkdir -p build_asm
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ src/asm/pipeline_glue_strict_minimal.c
+
 # relink-shux 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
-RELINK_SHUX_PREREQS = build-seed-asm-host $(USER_ASM_LINK) $(DRIVER_SUBCMD_GEN) \
-  $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o \
+RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
+  $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o \
   lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
   lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o \
   $(DRIVER_SUBCMD_OBJS) _stubs_driver.o \
@@ -1965,10 +2064,11 @@ relink-shux: bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	$(MAKE) driver_fmt_sx.o driver_check_sx.o
 	@$(MAKE) -B src/runtime_link_abi.o $(DRIVER_SEED_RUNTIME_REBUILD)
 	@$(MAKE) pipeline_sx.o
-	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
+	@$(MAKE) $(RELINK_SHUX_GLUE_SUFFIX)
 	@mkdir -p build_asm/seed_host
 	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+	@$(MAKE) $(RELINK_SHUX_FILTERED_OBJS)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_sx.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc
 	@echo "relink-shux OK (shux-c synced)"
@@ -1976,7 +2076,8 @@ relink-shux: bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 relink-shux-lexer: lexer_sx.o
 	@test -f build_asm/seed_host/asm_backend_partial.o || (echo "relink-shux-lexer: need build_asm/seed_host/asm_backend_partial.o (make build-seed-asm-host)" >&2; exit 1)
 	@test -f driver_sx.o && test -f pipeline_sx.o && test -f parser_sx.o && test -f typeck_sx.o && test -f codegen_sx.o || (echo "relink-shux-lexer: missing *_sx.o (make bootstrap-driver-seed first)" >&2; exit 1)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
+	@$(MAKE) $(RELINK_SHUX_FILTERED_OBJS)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_OBJS) driver_sx.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK)
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc
 	@echo "relink-shux-lexer OK (lexer_sx.o only; shux-c synced)"
@@ -1999,9 +2100,9 @@ regen-lsp-gens-sx:
 	@echo "regen-lsp-gens-sx OK"
 
 # 仅重链 ./shux-sx；pipeline/driver/preprocess 的 .sx 变更会经对应 *_sx.o 目标触发重编后再链接。
-shux-sx: build-seed-asm-host src/asm/user_asm_seed_bridge.o $(DRIVER_SEED_OBJS) pipeline_sx.o driver_sx.o preprocess_sx.o
+shux-sx: build-seed-asm-host $(DRIVER_SEED_OBJS) $(SHUX_SX_PIPELINE_LINK_O) $(SHUX_SX_USER_ASM_OBJS) driver_sx.o preprocess_sx.o $(RELINK_SHUX_GLUE_SUFFIX)
 	@test -f driver_sx.o && test -f lsp_sx.o && test -f lsp_diag_sx.o && test -f src/lsp/lsp_diag_sx_alias.o && test -f lsp_io_sx.o && test -f preprocess_sx.o && test -f lsp_io_std_heap_sx.o && test -f driver_fmt_sx.o && test -f driver_check_sx.o && test -f driver_test_sx.o && test -f driver_compile_sx.o && test -f driver_build_sx.o && test -f driver_run_sx.o && test -f _stubs_driver.o || (echo "缺少 driver_sx.o 等，请先: make bootstrap-driver-seed" && exit 1)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_SEED_OBJS) driver_sx.o pipeline_sx.o lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(PIPELINE_LIBS) $(USER_ASM_LINK)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_SEED_OBJS) driver_sx.o $(SHUX_SX_PIPELINE_LINK_O) lsp_sx.o lsp_diag_sx.o src/lsp/lsp_diag_sx_alias.o lsp_io_sx.o preprocess_sx.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_sx.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(SHUX_SX_USER_ASM_OBJS) $(RELINK_SHUX_GLUE_SUFFIX)
 	@echo "shux-sx OK"
 
 # Stage2：shux-sx 用 -sx -E-extern 生成 _gen2.c 并链出 shux-sx2，与 shux-sx 行为对比（脚本内会 make shux-sx / bootstrap-driver-seed）

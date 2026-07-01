@@ -48,6 +48,9 @@ extern function parser_skip_generic_angle_list_into_glue(out: *Lexer, lex: Lexer
 extern function parser_skip_generic_angle_list_count_into_glue(out: *Lexer, count: *i32, lex: Lexer, source: u8[]): void;
 /** parse_into_buf commit 失败时打印诊断（arena/侧车池满等；须 skip+continue）。 */
 extern function parser_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
+/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（SHUX_DEBUG_PARSE_GENERIC=1）。 */
+extern function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32,
+  num_generic_params: i32, is_main: i32): void;
 /** 将 struct_layouts[idx] 整槽清零后由 set_name/set_field 写入（AArch64 下避免 Module 大成员逐字节赋值失效）。 */
 extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
@@ -3104,6 +3107,9 @@ function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: usize, n
 function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
   /** 清零 OneFunc 侧车池，避免复用 scratch 残留 if/stmt_order。 */
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(out));
+  /** 物理重置复用的 OneFuncResult 标量槽，避免上一函数的 generic/path 状态泄漏到当前函数。 */
+  let out_clean: OneFuncResult = onefunc_alloc_wired_for_parse(lex);
+  copy_onefunc_into(out, &out_clean);
   let out_ref: *OneFuncResult = out;
   let dummy_name: u8[64] = [];
   /** 解析过程工作区：避免 >8 字段结构字面量；成功时 onefunc_finish_impl_to_out 拷入 out。 */
@@ -5240,6 +5246,14 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
       }
       continue;
     }
+    /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_ALLOC) {
+      lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) {
+        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      }
+      continue;
+    }
     if (module.pending_cfg_skip != 0) {
       if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
         skip_one_struct_into(&lex, iter_start, source);
@@ -5387,6 +5401,8 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
     if (res.name_len == 4 && res.name[0] == 109 && res.name[1] == 97 && res.name[2] == 105 && res.name[3] == 110) {
       is_main_storage[0] = 1;
     }
+    parser_diagnostic_parse_func_generic((lex_at_function.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
+      res.num_generic_params, is_main_storage[0]);
     /* 使用签名中的返回类型 Ty；若为 0（异常回退），与历史上行为一致再造 TYPE_I32。 */
     let type_ref: i32 = res.func_return_type_ref;
     if (type_ref == 0) {
@@ -6695,6 +6711,14 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       }
       continue;
     }
+    /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_ALLOC) {
+      lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
+        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      }
+      continue;
+    }
     if (module.pending_cfg_skip != 0) {
       if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
         skip_one_struct_into_buf(&lex, iter_start_buf, data, len);
@@ -6870,6 +6894,8 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     if (res.name_len == 4 && res.name[0] == 109 && res.name[1] == 97 && res.name[2] == 105 && res.name[3] == 110) {
       is_main_storage[0] = 1;
     }
+    parser_diagnostic_parse_func_generic((lex_at_function_buf.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
+      res.num_generic_params, is_main_storage[0]);
     /* Buf 路径与 parse_into 一致：沿用签名 Ty，0 时再回退 i32 */
     let type_ref: i32 = res.func_return_type_ref;
     if (type_ref == 0) {

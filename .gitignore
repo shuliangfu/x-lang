@@ -60,6 +60,7 @@ node_modules/
 # --- 开发环境 ---
 # clangd 本地配置（非仓库约定）
 .clangd
+.dbg/
 # IDE（保留团队共享的工作区 Shux 配置）
 .vscode/*
 !.vscode/settings.json
@@ -242,8 +243,10 @@ tests/std-db/.cb_kv_arrow.*
 # 临时二进制 / gate 输出（勿提交）
 compiler/shux_new
 compiler/shux_old
+compiler/shux-seed-phase1
 gate_out.txt
 gate_out2.txt
+logs/bootstrap-seed.fresh
 
 # G-06 seed: asm_backend_partial 须入库（例外）
 !compiler/seeds/asm_backend_partial.*.o

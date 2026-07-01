@@ -458,14 +458,14 @@ static void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
 }
 
 /**
- * 在 256MiB 栈 pthread 上执行 fn(arg)；SHUX_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
+ * 在大栈 pthread 上执行 fn(arg)；默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
  */
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
-    size_t stack_sz = (size_t)512 * 1024 * 1024;
+    size_t stack_sz = (size_t)256 * 1024 * 1024;
     const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
     if (mb_env && mb_env[0]) {
         unsigned long mb = strtoul(mb_env, NULL, 10);

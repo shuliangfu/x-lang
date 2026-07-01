@@ -45,6 +45,8 @@ extern function pipeline_type_array_size_at(arena: *ASTArena, ref: i32): i32;
 extern function pipeline_codegen_type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /** glue：emit_struct_field_type_via_pipeline 全逻辑在 C，同上。 */
 extern function pipeline_codegen_emit_struct_field_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
+/** glue：发射完整 struct 字段声明，修正数组字段 `type name[n]` 顺序。 */
+extern function pipeline_codegen_emit_struct_field_decl(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /** build_seed_asm_host：SHUX_EMIT_SEED_MEGA=1 时勿跳过 seed_mega emit。 */
 extern function pipeline_codegen_emit_seed_mega_enabled(): i32;
 /** runtime_driver_diagnostic.c：emit_func 失败时打印函数名下标，便于定位 -E codegen fail。 */
@@ -66,6 +68,7 @@ extern function pipeline_module_import_select_name_byte_at(module: *Module, idx:
 extern function driver_get_current_dep_path_for_codegen(): *u8;
 /** Expr 变长附属池读 API。 */
 extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -2034,15 +2037,9 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
       if (emit_indent(out, 2) != 0) {
         return -1;
       }
-      if (emit_struct_field_type_via_pipeline(arena, out, ftr, struct_prefix, struct_prefix_len) != 0) {
-        return -1;
-      }
-      if (append_byte(out, 32) != 0) {
-        return -1;
-      }
       let fnm: u8[64] = [];
       pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
-      if (emit_bytes_from_ptr(out, &fnm[0], flen) != 0) {
+      if (pipeline_codegen_emit_struct_field_decl(arena, out, ftr, &fnm[0], flen, struct_prefix, struct_prefix_len) != 0) {
         return -1;
       }
       let semi_nl: u8[3] = [59, 10, 0];
@@ -2427,6 +2424,58 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
       return -1;
     }
     return append_byte(out, 41);
+  }
+  /* Result `?`：降成 GNU statement-expression。
+   * ({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; })
+   */
+  if (e.kind == ExprKind.EXPR_TRY_PROPAGATE) {
+    let op_ref: i32 = e.unary_operand_ref;
+    let op_ty_ref: i32 = 0;
+    let open: u8[4] = [40, 123, 32, 0];
+    let tmp_name: u8[15] = [95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+    let assign_mid: u8[5] = [32, 61, 32, 0, 0];
+    let if_open: u8[37] = [59, 32, 105, 102, 32, 40, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101];
+    let turn_mid: u8[39] = [116, 117, 114, 110, 32, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+    let value_tail: u8[7] = [41, 46, 118, 97, 108, 117, 101];
+    let close_tail: u8[4] = [59, 32, 125, 41];
+    if (ast.ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena.num_exprs) {
+      return -1;
+    }
+    op_ty_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
+    if (ast.ref_is_null(op_ty_ref)) {
+      return -1;
+    }
+    if (emit_bytes_4(out, open, 3) != 0) {
+      return -1;
+    }
+    if (emit_type(arena, out, op_ty_ref, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &tmp_name[0], 14) != 0) {
+      return -1;
+    }
+    if (emit_bytes_5(out, assign_mid, 3) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, op_ref, ctx) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &if_open[0], 37) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &turn_mid[0], 38) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &value_tail[0], 7) != 0) {
+      return -1;
+    }
+    if (emit_bytes_4(out, close_tail, 4) != 0) {
+      return -1;
+    }
+    return 0;
   }
   if (e.kind == ExprKind.EXPR_IF) {
     if (append_byte(out, 40) != 0) {

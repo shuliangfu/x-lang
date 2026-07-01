@@ -1134,7 +1134,7 @@ static void collect_import_calls_from_expr(const struct ASTExpr *e, const char *
             collect_import_calls_from_expr(e->value.binop.right, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
             collect_import_calls_from_expr(e->value.unary.operand, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
             break;
         case AST_EXPR_AS:
@@ -1224,7 +1224,7 @@ next_call: ;
             collect_lib_dep_calls_from_expr(e->value.binop.right, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
             collect_lib_dep_calls_from_expr(e->value.unary.operand, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
             break;
         case AST_EXPR_AS:
@@ -3238,6 +3238,18 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             fprintf(out, "(*(");
             if (codegen_expr(e->value.unary.operand, out) != 0) return -1;
             fprintf(out, "))");
+            return 0;
+        }
+        case AST_EXPR_TRY_PROPAGATE: {
+            /* Result `?`：({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; }) */
+            const struct ASTExpr *op = e->value.unary.operand;
+            char op_ty_buf[128];
+            if (!op || !op->resolved_type)
+                return -1;
+            c_type_to_buf(op->resolved_type, op_ty_buf, sizeof(op_ty_buf));
+            fprintf(out, "(({ %s __shux_try_tmp = ", op_ty_buf);
+            if (codegen_expr(op, out) != 0) return -1;
+            fprintf(out, "; if ((__shux_try_tmp).err != 0) { return __shux_try_tmp; } (__shux_try_tmp).value; }))");
             return 0;
         }
         case AST_EXPR_AWAIT:
@@ -6397,7 +6409,7 @@ static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *ent
             dce_collect_from_expr(e->value.binop.right, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
             dce_collect_from_expr(e->value.unary.operand, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
             if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
                 const struct ASTExpr *op = e->value.unary.operand;
@@ -6473,7 +6485,7 @@ static int expr_references_func(const struct ASTExpr *e, const struct ASTFunc *f
             if (expr_references_func(e->value.binop.left, func) || expr_references_func(e->value.binop.right, func)) return 1;
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
             if (expr_references_func(e->value.unary.operand, func)) return 1;
             break;
         case AST_EXPR_AS:
@@ -6530,7 +6542,7 @@ static void collect_var_names_from_expr(const struct ASTExpr *e, const char **ou
             collect_var_names_from_expr(e->value.binop.right, out, n, max);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_RETURN: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
             if (e->value.unary.operand) collect_var_names_from_expr(e->value.unary.operand, out, n, max);
             break;
         case AST_EXPR_AS:
@@ -6626,6 +6638,7 @@ static int let_init_has_side_effects(const struct ASTExpr *init) {
         case AST_EXPR_SPAWN:
         case AST_EXPR_RUN:
         case AST_EXPR_AWAIT:
+        case AST_EXPR_TRY_PROPAGATE:
         case AST_EXPR_PANIC:
             return 1;
         default:
@@ -6868,7 +6881,7 @@ static void collect_type_from_expr(const struct ASTExpr *e, const char **out, in
             collect_type_from_expr(e->value.binop.right, out, n, max);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
-        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN:
+        case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
         case AST_EXPR_RETURN:
             collect_type_from_expr(e->value.unary.operand, out, n, max);
             break;
@@ -8355,6 +8368,7 @@ static void wpo_collect_edges_from_expr(const struct ASTExpr *e, int caller_id, 
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC:
         case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF: case AST_EXPR_RETURN: case AST_EXPR_AWAIT: case AST_EXPR_RUN:
+        case AST_EXPR_TRY_PROPAGATE:
             wpo_collect_edges_from_expr(e->value.unary.operand, caller_id, g);
             break;
         case AST_EXPR_AS:

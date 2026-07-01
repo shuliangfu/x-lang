@@ -64,9 +64,7 @@ extern function pipeline_module_hoist_top_level_lets_into_main(module: *Module, 
 
 /** asm 编当前 module 前：顶层 let 并入 main 或库模块首函数体（保留 SX 体，helper_keep 真 emit）。 */
 function asm_hoist_top_level_lets_for_codegen(module: *Module, arena: *ASTArena): void {
-  if (module.num_top_level_lets > 0) {
-    pipeline_module_hoist_top_level_lets_into_main(module, arena);
-  }
+  pipeline_module_hoist_top_level_lets_into_main(module, arena);
 }
 extern function pipeline_module_import_path_byte_at(module: *Module, idx: i32, off: i32): u8;
 extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
@@ -88,11 +86,20 @@ extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_ref: i3
 extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
+extern function pipeline_asm_init_is_empty_array_lit_c(arena: *ASTArena, init_ref: i32): i32;
+extern function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, stack_off: i32, ta: i32, ctx: *u8): i32;
+extern function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, stack_off: i32, ta: i32, ctx: *u8): i32;
+extern function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32;
 extern function pipeline_expr_field_access_name_len(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_field_access_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
 extern function pipeline_expr_field_access_base_ref(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_var_name_len(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_expr_var_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
+extern function pipeline_asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32;
+extern function pipeline_asm_array_lit_elem_byte_sz_c(arena: *ASTArena, array_lit_ref: i32): i32;
+extern function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *ASTArena, init_ref: i32): i32;
+extern function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *ASTArena, init_ref: i32): i32;
+extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 /** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»å¾ 1ï¼ã */
 extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -208,7 +215,7 @@ extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx:
 /** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æç¨åæ¯æ¾å¼æ å°ã */
 function expr_kind_ordinal(k: ExprKind): i32 {
   let o: i32 = k as i32;
-  if (o < (ExprKind.EXPR_LIT as i32) || o > (ExprKind.EXPR_SPAWN as i32)) {
+  if (o < (ExprKind.EXPR_LIT as i32) || o > (ExprKind.EXPR_TRY_PROPAGATE as i32)) {
     return -1;
   }
   return o;
@@ -231,17 +238,7 @@ function asm_cmp_cc_when_rhs_imm_in_rbx(cc: i32): i32 {
 }
 
 function asm_init_is_empty_array_lit(arena: *ASTArena, init_ref: i32): i32 {
-  if (init_ref == 0) {
-    return 0;
-  }
-  let e: Expr = ast.ast_arena_expr_get(arena, init_ref);
-  if (e.kind != ExprKind.EXPR_ARRAY_LIT) {
-    return 0;
-  }
-  if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0) {
-    return 1;
-  }
-  return 0;
+  return pipeline_asm_init_is_empty_array_lit_c(arena, init_ref);
 }
 
 /** ELF enc 按 target_arch 分派：ta 0=x86_64，1=arm64，2=riscv64。 */
@@ -475,11 +472,8 @@ function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr,
  * ELFï¼å±é¨ VAR ä¸ºæéæ¶ç¨ loadï¼æ§½åå«æåå¯¹è±¡çå°åï¼ï¼å¦å leaï¼æ§½å³å¯¹è±¡/æ°ç»é¦ï¼ã
  * ä¸ text è·¯å¾ arch_emit_local_slot_ptr_or_addr ä¸è´ã
  */
-function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, base_var: Expr, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
-  if (asm_local_var_slot_holds_indirect_ptr(arena, base_var, ctx.module_ref) != 0) {
-    return enc_load_rbp_to_rax_arch(elf_ctx, stack_off, ta);
-  }
-  return enc_lea_rbp_to_rax_arch(elf_ctx, stack_off, ta);
+function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
+  return pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, stack_off, ta, ctx as *u8);
 }
 function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_rax_plus_rbx_scale4(elf_ctx); }
@@ -633,25 +627,7 @@ function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name: *u
 
 /** å° C åç¼å­èä¸å­æ®µåæ¼æè³å¤ 63 å­èç call ç¬¦å·åå¥ out_nameï¼æåè¿åé¿åº¦ï¼1..63ï¼ï¼å¤±è´¥ -1ã */
 function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
-  let pos: i32 = 0;
-  let pi: i32 = 0;
-  if (pre_len > 0 && asm_c_prefix_redundant_with_name(pre, pre_len, field_name, field_len) == 0) {
-    while (pi < pre_len && pos < 63) {
-      out_name[pos] = pre[pi];
-      pos = pos + 1;
-      pi = pi + 1;
-    }
-  }
-  pi = 0;
-  while (pi < field_len && pos < 63) {
-    out_name[pos] = field_name[pi];
-    pos = pos + 1;
-    pi = pi + 1;
-  }
-  if (pos <= 0) {
-    return -1;
-  }
-  return pos;
+  return pipeline_asm_build_import_binding_call_sym_c(pre, pre_len, field_name, field_len, out_name);
 }
 
 /** import è·¯å¾ç¼å²åºä¸­ '.' åæ®µæ°ï¼ä¸ typeck_import_path_segment_count ä¸è´ï¼ã */
@@ -1029,11 +1005,8 @@ function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
  * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
  * codegen.sx ä¸­ `fn(..., out: *CodegenOutBuf)` ç­å¯¹ `out.field` é¡»èµ° loadï¼ä¸è½ lea slotã
  */
-function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf, base_var: Expr, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
-  if (asm_local_var_slot_holds_indirect_ptr(arena, base_var, ctx.module_ref) != 0) {
-    return arch_emit_load_rbp_to_rax(out, stack_off, ta);
-  }
-  return arch_emit_lea_rbp_to_rax(out, stack_off, ta);
+function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
+  return pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, stack_off, ta, ctx as *u8);
 }
 /** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹åç´ å¤§å° 4ã */
 function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32 {
@@ -1280,7 +1253,7 @@ function try_inline_param0_field_sum_call_elf(
   if (arg_e.kind != ExprKind.EXPR_VAR) { return 0; }
   let slot_off: i32 = local_offset(ctx, arg_e.var_name, arg_e.var_name_len);
   if (slot_off < 0) { return 0; }
-  if (enc_local_slot_ptr_or_addr_arch(arena, elf_ctx, arg_e, slot_off, ta, ctx) != 0) { return -1; }
+  if (enc_local_slot_ptr_or_addr_arch(arena, elf_ctx, arg_ref, slot_off, ta, ctx) != 0) { return -1; }
   if (enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
   if (enc_add_imm_to_rax_arch(elf_ctx, off_a, ta) != 0) { return -1; }
   if (enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return -1; }
@@ -1434,10 +1407,13 @@ function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
 }
 
 /** æ é/åç´ ç±»åçæ å­å®½åº¦ï¼å­èï¼ã */
-function asm_scalar_type_byte_sz(t: Type): i32 {
-  if (t.kind == TypeKind.TYPE_U8) { return 1; }
-  if (t.kind == TypeKind.TYPE_PTR || t.kind == TypeKind.TYPE_I64 || t.kind == TypeKind.TYPE_U64
-      || t.kind == TypeKind.TYPE_USIZE || t.kind == TypeKind.TYPE_ISIZE || t.kind == TypeKind.TYPE_F64) {
+function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
+  let kind: i32 = 0;
+  if (type_ref <= 0) { return 4; }
+  kind = pipeline_type_kind_ord_at(arena, type_ref);
+  if (kind == TypeKind.TYPE_U8) { return 1; }
+  if (kind == TypeKind.TYPE_PTR || kind == TypeKind.TYPE_I64 || kind == TypeKind.TYPE_U64
+      || kind == TypeKind.TYPE_USIZE || kind == TypeKind.TYPE_ISIZE || kind == TypeKind.TYPE_F64) {
     return 8;
   }
   return 4;
@@ -1445,24 +1421,12 @@ function asm_scalar_type_byte_sz(t: Type): i32 {
 
 /** INDEX ç»æçåç´ å­èå®½ï¼åèª typeck å¨ INDEX ç»ç¹ä¸ç resolved_type_refãé»è®¤ 4ã */
 function asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32 {
-  if (index_expr_ref <= 0) { return 4; }
-  let ix: Expr = ast.ast_arena_expr_get(arena, index_expr_ref);
-  if (ix.resolved_type_ref <= 0) { return 4; }
-  let t: Type = ast.ast_arena_type_get(arena, ix.resolved_type_ref);
-  return asm_scalar_type_byte_sz(t);
+  return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
 }
 
 /** ARRAY_LIT 元素字节宽：取自字面量 resolved_type（T[N] 的 T）。 */
 function asm_array_lit_elem_byte_sz(arena: *ASTArena, array_lit_ref: i32): i32 {
-  if (array_lit_ref <= 0) { return 4; }
-  let e: Expr = ast.ast_arena_expr_get(arena, array_lit_ref);
-  if (e.resolved_type_ref <= 0) { return 4; }
-  let t: Type = ast.ast_arena_type_get(arena, e.resolved_type_ref);
-  if (t.kind == TypeKind.TYPE_ARRAY && t.elem_type_ref > 0) {
-    let et: Type = ast.ast_arena_type_get(arena, t.elem_type_ref);
-    return asm_scalar_type_byte_sz(et);
-  }
-  return 4;
+  return pipeline_asm_array_lit_elem_byte_sz_c(arena, array_lit_ref);
 }
 
 /** 向上取整到 8 字节（局部/temp 区对齐）。 */
@@ -1480,35 +1444,12 @@ function asm_align_up8(n: i32): i32 {
  * 供 fill_local_slots 在后续 let 之前预留，避免 temp 与局部槽重叠。
  */
 function asm_array_lit_reserve_stack_bytes(arena: *ASTArena, init_ref: i32): i32 {
-  if (init_ref == 0) {
-    return 0;
-  }
-  let e: Expr = ast.ast_arena_expr_get(arena, init_ref);
-  if (e.kind != ExprKind.EXPR_ARRAY_LIT) {
-    return 0;
-  }
-  let n: i32 = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  if (n <= 0) {
-    return 0;
-  }
-  let esz: i32 = asm_array_lit_elem_byte_sz(arena, init_ref);
-  return asm_align_up8(n * esz);
+  return pipeline_asm_array_lit_reserve_stack_bytes_c(arena, init_ref);
 }
 
 /** STRUCT_LIT 初值在 temp 区按 8 字节/字段存放；供 fill_local_slots 预留。 */
 function asm_struct_lit_reserve_stack_bytes(arena: *ASTArena, init_ref: i32): i32 {
-  if (init_ref == 0) {
-    return 0;
-  }
-  let e: Expr = ast.ast_arena_expr_get(arena, init_ref);
-  if (e.kind != ExprKind.EXPR_STRUCT_LIT) {
-    return 0;
-  }
-  let nf: i32 = pipeline_expr_struct_lit_num_fields(arena, init_ref);
-  if (nf <= 0) {
-    return 0;
-  }
-  return asm_align_up8(nf * 8);
+  return pipeline_asm_struct_lit_reserve_stack_bytes_c(arena, init_ref);
 }
 
 /** let/const 初值为复合字面量时在指针槽后额外占用的 temp 字节数。 */

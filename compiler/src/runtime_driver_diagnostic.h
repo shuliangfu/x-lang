@@ -54,6 +54,10 @@ void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line,
                                               int32_t expect_len, const uint8_t *found_buf, int32_t found_len);
 /** ERR-01：`?` 须在返回同型 Result 的函数内使用。 */
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col);
+/** import 顶层 const 禁止裸名访问；binding_len>0 时提示 binding.CONST。 */
+void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name,
+                                                             int32_t name_len, const uint8_t *binding,
+                                                             int32_t binding_len);
 
 /** typeck.sx 诊断 scratch（勿嵌套于 driver_diagnostic 实参）。 */
 uint8_t *driver_typeck_diag_scratch_expect(void);

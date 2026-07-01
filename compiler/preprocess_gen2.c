@@ -4,8 +4,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string.h>
+extern int getpid(void);
+static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+  if (!_ev || _ev[0] != '1') return;
+  int _pid = (int)getpid();
+  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
+  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+    FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
+      fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
 static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
 static inline void shux_panic_(int has_msg, int msg_val) {
+  shux_crash_evidence_collect_inline(has_msg, msg_val);
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
@@ -17,25 +29,33 @@ static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_
 static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
-extern int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr);
+__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
 struct shux_slice_uint8_t { uint8_t *data; size_t length; };
-struct typeck_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
+struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
 extern void preprocess_if_stack_reset();
 extern int32_t preprocess_if_stack_len();
 extern int32_t preprocess_if_stack_push(int32_t v);
 extern void preprocess_if_stack_pop();
 extern int32_t preprocess_if_stack_at(int32_t i);
 extern void preprocess_if_stack_set_at(int32_t i, int32_t v);
-int32_t typeck_preprocess_apply_directive_kind(int32_t kind);
-int typeck_preprocess_line_keeping();
-struct typeck_ParseDirectiveResult typeck_zero_dir();
-void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]);
-int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
-int32_t typeck_preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
-int32_t typeck_preprocess_apply_directive_kind(int32_t kind) {
+extern int32_t preprocess_eval_condition_c(uint8_t * cond, int32_t cond_len);
+int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
+int preprocess_line_keeping();
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len);
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]);
+int32_t preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
+int32_t preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
   int32_t depth = preprocess_if_stack_len();
-  (void)(({ int32_t __tmp = 0; if (kind == 1) {   return preprocess_if_stack_push(0);
+  (void)(({ int32_t __tmp = 0; if (kind == 1) {   int32_t v = cond_val;
+  (void)(({ int32_t __tmp = 0; if (depth > 0) {   int32_t parent = preprocess_if_stack_at(depth - 1);
+  __tmp = ({ int32_t __tmp = 0; if (parent == 0) {   (v = (0));
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (v != 0) {   (v = (1));
+ } else (__tmp = 0) ; __tmp; }));
+  return preprocess_if_stack_push(v);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (kind == 2) {   (void)(({ int32_t __tmp = 0; if (depth == 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -53,7 +73,10 @@ int32_t typeck_preprocess_apply_directive_kind(int32_t kind) {
   (void)(({ int32_t __tmp = 0; if (top2 == 2) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (top2 == 1) {   (void)(preprocess_if_stack_set_at(di2, 3));
- } else (__tmp = ({ int32_t __tmp = 0; if (top2 == 0) {   (void)(preprocess_if_stack_set_at(di2, 0));
+ } else (__tmp = ({ int32_t __tmp = 0; if (top2 == 0) {   int32_t cv = cond_val;
+  __tmp = ({ int32_t __tmp = 0; if (cv != 0) {   (void)(preprocess_if_stack_set_at(di2, 1));
+ } else {   (void)(preprocess_if_stack_set_at(di2, 0));
+ } ; __tmp; });
  } else {   (void)(preprocess_if_stack_set_at(di2, 3));
  } ; __tmp; })) ; __tmp; }));
   return 0;
@@ -63,17 +86,32 @@ int32_t typeck_preprocess_apply_directive_kind(int32_t kind) {
   (void)(preprocess_if_stack_pop());
   return 0;
 }
-int typeck_preprocess_line_keeping() {
+int preprocess_line_keeping() {
   int32_t depth = preprocess_if_stack_len();
   (void)(({ int __tmp = 0; if (depth == 0) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
   int32_t top = preprocess_if_stack_at(depth - 1);
   return top == 1 || top == 2;
 }
-struct typeck_ParseDirectiveResult typeck_zero_dir() {
-  return (struct typeck_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len) {
+  int32_t s = 0;
+  while (pos < line_len && s < 255) {
+    uint8_t ch = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ch == 10 || ch == 13) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ((s < 0 || (s) >= 256 ? (shux_panic_(1, 0), 0) : ((cond)[s] = ch, 0)));
+    ++s;
+    ++pos;
+  }
+  while (s > 0) {
+    uint8_t tail = (s - 1 < 0 || (s - 1) >= 256 ? (shux_panic_(1, 0), (cond)[0]) : (cond)[s - 1]);
+    (void)(({ int32_t __tmp = 0; if (tail != 32 && tail != 9 && tail != 13) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    (s = (s - 1));
+  }
+  return s;
 }
-void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t sym[64]) {
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]) {
   int32_t pos = 0;
   ((out)->kind = (0));
   ((out)->sym_len = (0));
@@ -105,19 +143,11 @@ void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8
   }
   (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  int32_t s = 0;
-  while (pos < line_len && s < 63) {
-    uint8_t ch = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
-    (void)(({ int32_t __tmp = 0; if ((!ch >= 48 && ch <= 57 || ch >= 65 && ch <= 90 || ch >= 97 && ch <= 122 || ch == 95)) {   break;
- } else (__tmp = 0) ; __tmp; }));
-    ((s < 0 || (s) >= 64 ? (shux_panic_(1, 0), 0) : ((sym)[s] = ch, 0)));
-    ++s;
-    ++pos;
-  }
-  (void)(({ int32_t __tmp = 0; if (s == 0) {   return;
+  int32_t cl = preprocess_parse_copy_cond_from_line(cond, line_buf, pos, line_len);
+  (void)(({ int32_t __tmp = 0; if (cl <= 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   ((out)->kind = (1));
-  ((out)->sym_len = (s));
+  ((out)->sym_len = (cl));
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   pos += 6;
@@ -131,19 +161,11 @@ void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8
   }
   (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  int32_t s = 0;
-  while (pos < line_len && s < 63) {
-    uint8_t ch = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
-    (void)(({ int32_t __tmp = 0; if ((!ch >= 48 && ch <= 57 || ch >= 65 && ch <= 90 || ch >= 97 && ch <= 122 || ch == 95)) {   break;
- } else (__tmp = 0) ; __tmp; }));
-    ((s < 0 || (s) >= 64 ? (shux_panic_(1, 0), 0) : ((sym)[s] = ch, 0)));
-    ++s;
-    ++pos;
-  }
-  (void)(({ int32_t __tmp = 0; if (s == 0) {   return;
+  int32_t cl2 = preprocess_parse_copy_cond_from_line(cond, line_buf, pos, line_len);
+  (void)(({ int32_t __tmp = 0; if (cl2 <= 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   ((out)->kind = (4));
-  ((out)->sym_len = (s));
+  ((out)->sym_len = (cl2));
   return;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   pos += 4;
@@ -162,7 +184,7 @@ void typeck_parse_directive_into(struct typeck_ParseDirectiveResult * out, uint8
  } else (__tmp = 0) ; __tmp; }));
   return;
 }
-int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
+int32_t preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
   (void)(({ int32_t __tmp = 0; if ((out_buf)->length <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(preprocess_if_stack_reset());
@@ -172,17 +194,20 @@ int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_sli
   int32_t pos = 0;
   while (pos < (source)->length) {
     uint8_t ch = (pos < 0 || (size_t)(pos) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[pos]);
-    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t sym[64] = { 0 };
-  struct typeck_ParseDirectiveResult res = typeck_zero_dir();
-  (void)(typeck_parse_directive_into((&(res)), line_buf, line_len, sym));
+    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t cond[256] = { 0 };
+  struct preprocess_ParseDirectiveResult res = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
   int32_t kind = (res).kind;
-  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   (void)(({ int32_t __tmp = 0; if (typeck_preprocess_apply_directive_kind(kind) != 0) {   return (-1);
+  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
+  (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (preprocess_apply_directive_kind(kind, cond_val) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = 10, 0)));
   ++out_len;
- } else {   int keeping = typeck_preprocess_line_keeping();
+ } else {   int keeping = preprocess_line_keeping();
   (void)(({ int32_t __tmp = 0; if (keeping) {   int32_t i = 0;
   while (i < line_len) {
     (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
@@ -210,7 +235,7 @@ int32_t typeck_preprocess_sx(struct shux_slice_uint8_t * source, struct shux_sli
  } else (__tmp = 0) ; __tmp; }));
   return out_len;
 }
-int32_t typeck_preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
+int32_t preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
   (void)(({ int32_t __tmp = 0; if (out_cap <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(preprocess_if_stack_reset());
@@ -220,17 +245,20 @@ int32_t typeck_preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_l
   int32_t pos = 0;
   while (pos < source_len && pos < 4194304) {
     uint8_t ch = (pos < 0 || (pos) >= 4194304 ? (shux_panic_(1, 0), (source_buf)[0]) : (source_buf)[pos]);
-    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t sym[64] = { 0 };
-  struct typeck_ParseDirectiveResult res = typeck_zero_dir();
-  (void)(typeck_parse_directive_into((&(res)), line_buf, line_len, sym));
+    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t cond[256] = { 0 };
+  struct preprocess_ParseDirectiveResult res = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
   int32_t kind = (res).kind;
-  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   (void)(({ int32_t __tmp = 0; if (typeck_preprocess_apply_directive_kind(kind) != 0) {   return (-1);
+  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
+  (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (preprocess_apply_directive_kind(kind, cond_val) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = 10, 0)));
   ++out_len;
- } else {   int keeping = typeck_preprocess_line_keeping();
+ } else {   int keeping = preprocess_line_keeping();
   (void)(({ int32_t __tmp = 0; if (keeping) {   int32_t i = 0;
   while (i < line_len) {
     (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);

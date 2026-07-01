@@ -1545,6 +1545,12 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
         lex.pos++;
       continue;
     }
+    if (r.tok.kind == (int32_t)TOKEN_ATTR_ALLOC) {
+      parser_lex_from_next_into_glue(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+        lex.pos++;
+      continue;
+    }
     if (mod_hdr->pending_cfg_skip) {
       if (r.tok.kind == (int32_t)TOKEN_STRUCT) {
         parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
