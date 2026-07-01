@@ -121,28 +121,5 @@ function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepC
   return 0;
 }
 
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "windows"))]
-#[cfg(not(target_os = "macos"))]
-function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
-  elf.elf_ctx_reset(elf_ctx);
-  if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
-    elf_ctx.macho_leading_underscore = 1;
-  }
-  let e1: i32 = backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
-  if (e1 != 0) {
-    return -1;
-  }
-  let e2: i32 = peephole.peephole_elf_run(elf_ctx);
-  if (e2 != 0) {
-    return -1;
-  }
-  let e3: i32 = elf.elf_resolve_patches(elf_ctx);
-  if (e3 != 0) {
-    return -1;
-  }
-  if (elf.write_elf_o_to_buf(elf_ctx, out) < 0) {
-    return -1;
-  }
-  return 0;
-}
+// 其他 OS 暂不为 seed partial 提供 asm_codegen_elf_o 入口，避免 cfg 链在当前生成链下
+// 将 fallback 与 linux/windows/macos 版本同时发射成重复定义。
