@@ -2200,8 +2200,10 @@ asm_pipeline_wpo_strict_reach_ok() {
 
 # track-only：链整颗 pipeline_wpo.o（SX run_sx_pipeline_impl 编排）；默认 helpers+C 编排（稳定）。
 asm_pipeline_wpo_strict_link_full_ok() {
+  local po="$BUILD_DIR/pipeline_wpo.o"
   [ "${SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ] || return 1
   asm_pipeline_wpo_strict_reach_ok || return 1
+  nm "$po" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$' || return 1
   return 0
 }
 
