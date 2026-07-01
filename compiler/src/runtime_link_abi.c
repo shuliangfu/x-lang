@@ -79,12 +79,10 @@ static void shux_debug_hello_stage1_report(const char *hypothesis_id, const char
     session[0] = '\0';
     for (path_i = 0; env_paths[path_i]; path_i++) {
         FILE *fp = fopen(env_paths[path_i], "r");
+        char line[320];
         if (!fp)
             continue;
-        while (!feof(fp)) {
-            char line[320];
-            if (!fgets(line, sizeof line, fp))
-                break;
+        while (fgets(line, sizeof line, fp)) {
             if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
                 strncpy(url, line + 17, sizeof(url) - 1);
                 url[sizeof(url) - 1] = '\0';
