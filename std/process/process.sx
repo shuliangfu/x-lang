@@ -27,10 +27,14 @@ extern function process_shux_argv_get(i: i32): *u8;
 
 /** 热路径：返回命令行参数个数（含 argv[0]）。 */
 function process_args_count_c(): i32 {
-  return process_shux_argc_get();
+  unsafe {
+    return process_shux_argc_get();
+  }
 }
 
 /** 热路径：返回第 i 个参数 C 字符串；越界或未初始化返回 0。 */
 function process_arg_c(i: i32): *u8 {
-  return process_shux_argv_get(i);
+  unsafe {
+    return process_shux_argv_get(i);
+  }
 }
