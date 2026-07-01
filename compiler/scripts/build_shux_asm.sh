@@ -1659,6 +1659,29 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   if ! asm_pipeline_wpo_strict_reach_ok; then
     return 1
   fi
+  if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && [ -f "$BUILD_DIR/pipeline.o" ] && \
+     ! nm "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+    local comp tmp pt
+    tmp="$BUILD_DIR/pipeline.wpo_strict_helpers.o"
+    for comp in ./shux_asm.experimental ./shux_asm ./shux ./shux-sx; do
+      [ -x "$comp" ] || continue
+      echo "  pipeline_wpo_helpers: rebuild pipeline.o EMIT_HEAVY via $comp"
+      ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+      rm -f "$tmp" 2>/dev/null || true
+      if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+        SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
+        "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src src/pipeline/pipeline.sx 2>/dev/null; then
+        pt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
+        if [ "$pt" -gt 512 ] 2>/dev/null && \
+           nm "$tmp" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+          mv -f "$tmp" "$BUILD_DIR/pipeline.o"
+          rm -f "$BUILD_DIR/pipeline_strict_link_partial.o" "$BUILD_DIR/pipeline_strict_link_export.txt" 2>/dev/null || true
+          break
+        fi
+      fi
+      rm -f "$tmp" 2>/dev/null || true
+    done
+  fi
   if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$SYMS" ] || \
      { ensure_pipeline_glue_standalone_export_syms_txt && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
     nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
