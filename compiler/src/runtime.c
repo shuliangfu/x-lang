@@ -1663,8 +1663,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(cf_lib, "#include <string.h>\n");
                 fprintf(cf_lib, "#include <math.h>\n");
                 codegen_emit_fmt_json_helpers_once(cf_lib);
-                fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-                fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
                 {
                     const char *lib_name = shux_entry_lib_name_from_path(input_path);
                     if (codegen_library_module_to_c(mod, lib_name, ndep > 0 ? dep_mods : NULL,
@@ -3934,8 +3932,6 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     fprintf(cf_lib, "#include <string.h>\n");
                     fprintf(cf_lib, "#include <math.h>\n");
                     codegen_emit_fmt_json_helpers_once(cf_lib);
-                    fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-                    fprintf(cf_lib, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
                     {
                         const char *lib_name = shux_entry_lib_name_from_path(input_path);
                         if (codegen_library_module_to_c(c_mod, lib_name, ndep > 0 ? dep_mods : NULL,
@@ -4062,8 +4058,6 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     fprintf(cf, "#include <stdlib.h>\n");
                     fprintf(cf, "#include <stdio.h>\n");
                     fprintf(cf, "#include <string.h>\n");
-                    fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-                    fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) { (void)has_msg; (void)msg_val; abort(); }\n");
                     for (int di = 0; di < n_all; di++) {
                         ASTModule *lib_deps[32];
                         const char *lib_dep_paths[32];
