@@ -4260,11 +4260,16 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         ensure_asm_pipeline_glue_standalone_obj
         ensure_asm_pipeline_glue_strict_minimal_obj
         refresh_bstrict_link_variants
+        BSTRICT_MINIMAL_GLUE_COMPANION=""
+        if [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+          BSTRICT_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
+        fi
         ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
         # shellcheck disable=SC2086
         "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -o shux_asm \
           $BOOT_ENTRY_OBJ \
           "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" \
+          $BSTRICT_MINIMAL_GLUE_COMPANION \
           src/runtime_abi.o \
           src/runtime_io_abi.o \
           src/runtime_proc_abi.o \

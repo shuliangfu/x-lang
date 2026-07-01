@@ -181,6 +181,23 @@ size_t strlen(const char *s) {
     return n;
 }
 
+/** 返回 s 中首个落在 reject 集内的字符偏移；未命中则返回 strlen(s)。 */
+size_t strcspn(const char *s, const char *reject) {
+    size_t i;
+    size_t j;
+    if (!s)
+        return 0;
+    if (!reject || !reject[0])
+        return strlen(s);
+    for (i = 0; s[i]; i++) {
+        for (j = 0; reject[j]; j++) {
+            if (s[i] == reject[j])
+                return i;
+        }
+    }
+    return i;
+}
+
 /** POSIX write；转 shux_sys_write。 */
 long write(int fd, const void *buf, unsigned long count) {
     return shux_sys_write(fd, buf, count);
