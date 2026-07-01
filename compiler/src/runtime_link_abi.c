@@ -68,6 +68,54 @@ static void shux_linux_ld_child_path(void) {
 }
 #endif
 
+/* #region debug-point A:hello-stage1-segv */
+static void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+    const char *msg, int v1, int v2, int v3) {
+    char url[256];
+    char session[64];
+    const char *env_paths[] = { ".dbg/hello-stage1-segv.env", "../.dbg/hello-stage1-segv.env", NULL };
+    int path_i;
+    url[0] = '\0';
+    session[0] = '\0';
+    for (path_i = 0; env_paths[path_i]; path_i++) {
+        FILE *fp = fopen(env_paths[path_i], "r");
+        if (!fp)
+            continue;
+        while (!feof(fp)) {
+            char line[320];
+            if (!fgets(line, sizeof line, fp))
+                break;
+            if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
+                strncpy(url, line + 17, sizeof(url) - 1);
+                url[sizeof(url) - 1] = '\0';
+                url[strcspn(url, "\r\n")] = '\0';
+            } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
+                strncpy(session, line + 17, sizeof(session) - 1);
+                session[sizeof(session) - 1] = '\0';
+                session[strcspn(session, "\r\n")] = '\0';
+            }
+        }
+        fclose(fp);
+        if (url[0] && session[0])
+            break;
+    }
+    if (!url[0])
+        strncpy(url, "http://127.0.0.1:7777/event", sizeof(url) - 1);
+    if (!session[0])
+        strncpy(session, "hello-stage1-segv", sizeof(session) - 1);
+    if (fork() == 0) {
+        char body[768];
+        (void)snprintf(body, sizeof(body),
+            "{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"%s\",\"location\":\"%s\","
+            "\"msg\":\"[DEBUG] %s\",\"data\":{\"v1\":%d,\"v2\":%d,\"v3\":%d}}",
+            session, hypothesis_id ? hypothesis_id : "A", location ? location : "runtime_link_abi.c",
+            msg ? msg : "hello-stage1", v1, v2, v3);
+        execlp("curl", "curl", "-s", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", body, (char *)NULL);
+        _exit(0);
+    }
+}
+/* #endregion */
+
 /**
  * 解析当前 shux 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
  * Linux 用 /proc/self/exe，macOS 用 _NSGetExecutablePath；再回退 realpath(argv0)。
@@ -2956,6 +3004,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     (void)json_o;
     (void)csv_o;
     (void)log_o;
+    /* #region debug-point B:invoke-cc-enter */
+    shux_debug_hello_stage1_report("B", "runtime_link_abi.c:2954", "invoke_cc_enter", n, use_lto, (include_root && include_root[0]) ? 1 : 0);
+    /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
     if (include_root && include_root[0])
@@ -2976,6 +3027,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         return -1;
     }
     if (pid == 0) {
+        /* #region debug-point C:invoke-cc-child */
+        shux_debug_hello_stage1_report("C", "runtime_link_abi.c:2978", "invoke_cc_child", n, use_lto, 0);
+        /* #endregion */
         /* 静态链 shux_asm 子进程可能继承空 PATH，gcc 找不到 ld；显式补齐常见路径。 */
         (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
         /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
@@ -3455,6 +3509,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     int status;
     if (shu_waitpid_retry(pid, &status) != 0)
         return -1;
+    /* #region debug-point D:invoke-cc-wait */
+    shux_debug_hello_stage1_report("D", "runtime_link_abi.c:3455", "invoke_cc_wait", status, WIFSIGNALED(status) ? WTERMSIG(status) : -1, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    /* #endregion */
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         fprintf(stderr, "shux: cc failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         return -1;
@@ -4426,6 +4483,9 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
  */
 int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
     int use_macho_o, int use_coff_o) {
+    /* #region debug-point A:prepare-enter */
+    shux_debug_hello_stage1_report("A", "runtime_link_abi.c:4427", "prepare_for_exe_link_enter", driver_freestanding, use_macho_o, use_coff_o);
+    /* #endregion */
     if (!link_eff || !user_o)
         return -1;
 #if defined(__linux__)
@@ -4465,6 +4525,9 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
         fprintf(stderr, "shux: -freestanding / SHUX_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
         return -1;
     }
+    /* #region debug-point E:prepare-exit */
+    shux_debug_hello_stage1_report("A", "runtime_link_abi.c:4468", "prepare_for_exe_link_exit", 0, 0, 0);
+    /* #endregion */
     return 0;
 }
 
