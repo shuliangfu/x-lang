@@ -1023,7 +1023,7 @@ wpo_rebuild_compiler_candidates() {
   fi
   # pipeline 已 promote/selfhosted 时跳过 pipeline.sx smoke（Docker 上易 futex 卡死数小时）
   if [ "${SHUX_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || asm_strict_pipeline_selfhosted 2>/dev/null; then
-    for comp in ./shux_asm.experimental ./shux_asm ./shux-seed-phase1 ./shux; do
+    for comp in ./shux_asm.experimental ./shux_asm.strict_glue ./shux_asm ./shux-seed-phase1 ./shux; do
       [ -x "$comp" ] && printf '%s\n' "$comp"
     done
     return 0
