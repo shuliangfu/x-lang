@@ -13,8 +13,17 @@ struct ast_PipelineDepCtx;
 extern int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        struct ast_PipelineDepCtx *ctx);
 
+extern int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
+                                                      uint8_t *import_path, int32_t path_len);
+
 /** pipeline_wpo.o SX typecheck_entry 的 thin bl 目标。 */
 int32_t run_sx_pipeline_typecheck_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
                                              struct ast_PipelineDepCtx *ctx) {
   return run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+}
+
+/** pipeline_wpo_helpers_partial 的裸名调用桥接到 pipeline.sx 导出的真实符号。 */
+int32_t resolve_path_try_one_lib_root(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
+                                      uint8_t *import_path, int32_t path_len) {
+  return pipeline_resolve_path_try_one_lib_root(ctx, lib_idx, import_path, path_len);
 }
