@@ -3009,7 +3009,7 @@ ensure_asm_bootstrap_sx_companion_objs() {
 BSTRICT_PIPELINE_LINK_O="pipeline_sx.o"
 BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
-BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/asm_backend_compat_stubs.o"
+BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
 BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
 
@@ -3017,7 +3017,7 @@ refresh_bstrict_link_variants() {
   BSTRICT_PIPELINE_LINK_O="pipeline_sx.o"
   BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
-  BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/asm_backend_compat_stubs.o"
+  BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
   BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
     BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
