@@ -2990,6 +2990,10 @@ ensure_asm_bootstrap_sx_companion_objs() {
     echo "  cc -c src/seed_link_compat.c -> $BUILD_DIR/seed_link_compat.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
   fi
+  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.c" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
+    echo "  cc -c src/preprocess_if_stack_bridge.c -> $BUILD_DIR/preprocess_if_stack_bridge.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/preprocess_if_stack_bridge.o" src/preprocess_if_stack_bridge.c
+  fi
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
   if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
@@ -3978,7 +3982,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ensure_asm_backend_compat_stubs_obj
   refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
+  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BUILD_DIR/preprocess_if_stack_bridge.o"
   ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
@@ -4483,7 +4487,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_driver_seed_c_objs
               SEED_O="$BUILD_DIR/asm_driver_seed"
               ensure_asm_strict_link_extra_objs
-              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
+              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BUILD_DIR/preprocess_if_stack_bridge.o"
               ensure_asm_link_objs
               ST_RUNTIME_PANIC="runtime_panic.o"
               ST_BRIDGE_OBJ=""
