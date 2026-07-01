@@ -1548,11 +1548,10 @@ endif
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
 ifeq ($(UNAME_S),Darwin)
 ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
-RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 else
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
-RELINK_SHUX_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 endif
+RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
 # E-02 v1：lsp_diag.c 已删；仅 lsp_diag_stubs_no_c.o + lsp_diag_sx.o。
